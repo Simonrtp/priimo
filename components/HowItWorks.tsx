@@ -5,11 +5,8 @@ import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
 
 // === HOW IT WORKS (Section D) ===
-// Sticky scroll-jacking experience: once the user reaches this section it
-// pins to the top of the viewport. Scrolling no longer advances the page —
-// it progressively reveals card 01, then 02, then 03 (additive, the
-// previous cards stay visible). When all three are revealed the section
-// detaches and normal page scrolling resumes.
+// Desktop (md+): sticky scroll-jacking — cards 01 → 02 → 03 while pinned.
+// Mobile: normal flow — all cards visible (no h-screen trap), same content.
 
 type Step = {
   num: string;
@@ -73,10 +70,27 @@ const STEPS: Step[] = [
   },
 ];
 
+const MD_QUERY = "(min-width: 768px)";
+
 export default function HowItWorks() {
   const [activeStep, setActiveStep] = useState(0);
+  /** null = SSR / first paint — use mobile-safe layout until we know the viewport */
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+
+  // Track viewport — scroll-jacking only makes sense when 3 columns fit.
+  useEffect(() => {
+    const mq = window.matchMedia(MD_QUERY);
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  const desktop = isDesktop === true;
 
   useEffect(() => {
+    if (!desktop) return;
+
     let rafId = 0;
     let ticking = false;
 
@@ -90,14 +104,10 @@ export default function HowItWorks() {
       const rect = section.getBoundingClientRect();
       const vh = window.innerHeight;
 
-      // Standard sticky scroll-jacking progress:
-      //   progress = 0 → section top reaches the viewport top (sticky activates)
-      //   progress = 1 → section bottom reaches the viewport bottom (sticky releases)
       const totalScroll = Math.max(rect.height - vh, 1);
       const scrolled = -rect.top;
       const progress = Math.max(0, Math.min(1, scrolled / totalScroll));
 
-      // Three equal phases — past cards remain fully visible (additive reveal).
       const step = progress < 0.34 ? 0 : progress < 0.67 ? 1 : 2;
       setActiveStep(step);
       ticking = false;
@@ -119,32 +129,35 @@ export default function HowItWorks() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, []);
+  }, [desktop]);
+
+  const stepForCard = desktop ? activeStep : 2;
 
   return (
     <section
       id="how-it-works"
-      className="relative min-h-[260vh]"
+      className={desktop ? "relative min-h-[260vh]" : "relative py-14 sm:py-20"}
     >
-      {/* Sticky stage — pins to the top of the viewport while the user scrolls
-          through the section's tall runway, releasing once it ends. */}
-      <div className="sticky top-0 h-screen flex items-center">
-        <div className="w-full mx-auto max-w-6xl px-5 sm:px-8 py-10">
+      <div
+        className={
+          desktop
+            ? "sticky top-0 min-h-0 h-[100dvh] flex items-center"
+            : "relative"
+        }
+      >
+        <div className="w-full mx-auto max-w-6xl px-4 sm:px-8 py-6 sm:py-10 min-w-0">
           <Reveal direction="up">
-            <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold">
+            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
               Simple. Précis. Opérationnel en 20 minutes.
             </h2>
           </Reveal>
 
-          {/* Cards revealed sequentially: past cards stay fully visible. */}
-          <div className="grid md:grid-cols-3 gap-6 lg:gap-8 mt-10 lg:mt-14">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-8 sm:mt-10 lg:mt-14">
             {STEPS.map((step, i) => {
-              const isCurrent = i === activeStep;
-              const isFuture = i > activeStep;
-              // Future cards are hidden. Past + current cards are fully visible.
-              // The most recently revealed (current) card gets a subtle highlight.
+              const isCurrent = i === stepForCard;
+              const isFuture = i > stepForCard;
               const stateClass = isFuture
-                ? "opacity-0 translate-y-10 scale-95 shadow-none border-black/5"
+                ? "opacity-0 translate-y-10 scale-95 shadow-none border-black/5 max-md:opacity-100 max-md:translate-y-0 max-md:scale-100 max-md:shadow-md max-md:border-black/10"
                 : isCurrent
                 ? "opacity-100 translate-y-0 scale-100 shadow-xl border-accent/30"
                 : "opacity-100 translate-y-0 scale-100 shadow-md border-black/10";
@@ -152,16 +165,18 @@ export default function HowItWorks() {
               return (
                 <div
                   key={step.num}
-                  className={`rounded-2xl bg-white border p-6 sm:p-7 h-full transform-gpu transition-all duration-700 ease-out ${stateClass}`}
+                  className={`rounded-2xl bg-white border p-5 sm:p-7 h-full transform-gpu transition-all duration-700 ease-out min-w-0 ${stateClass}`}
                 >
-                  <div className="font-display text-6xl sm:text-7xl text-blue leading-none font-extrabold">
+                  <div className="font-display text-5xl sm:text-6xl md:text-7xl text-blue leading-none font-extrabold">
                     {step.num}
                   </div>
-                  <div className="mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent-dark">
+                  <div className="mt-4 sm:mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent-dark">
                     <step.Icon />
                   </div>
-                  <h3 className="mt-4 font-display text-xl text-ink font-bold">{step.title}</h3>
-                  <p className="mt-2 text-mute leading-relaxed text-[15px]">
+                  <h3 className="mt-3 sm:mt-4 font-display text-lg sm:text-xl text-ink font-bold text-balance">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-mute leading-relaxed text-[14px] sm:text-[15px]">
                     {step.body}
                   </p>
                 </div>
@@ -169,8 +184,8 @@ export default function HowItWorks() {
             })}
           </div>
 
-          <Reveal direction="scale" delay={250} className="mt-8 lg:mt-10 flex justify-center">
-            <CtaButton>
+          <Reveal direction="scale" delay={250} className="mt-8 lg:mt-10 flex justify-center px-1">
+            <CtaButton className="max-w-full">
               Je rejoins la bêta privée
               <span aria-hidden>→</span>
             </CtaButton>

@@ -90,7 +90,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className={`${nunito.variable} ${jakarta.variable}`}>
-      <body className="bg-white text-ink antialiased">
+      <body className="bg-white text-ink antialiased overflow-x-clip min-w-0">
         <BetaModalProvider>
           {children}
           {/* Global beta modal — opened by any CTA except the inline hero form */}

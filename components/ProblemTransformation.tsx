@@ -185,7 +185,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
 
 export default function ProblemTransformation() {
   return (
-    <section className="relative overflow-hidden py-16 sm:py-24 rounded-[36px] bg-gradient-to-br from-[#0A0D11] via-[#131A24] to-[#070A0E] text-white">
+    <section className="relative overflow-hidden py-14 sm:py-24 mx-2 sm:mx-0 rounded-2xl sm:rounded-[36px] bg-gradient-to-br from-[#0A0D11] via-[#131A24] to-[#070A0E] text-white">
       {/* Same subtle dot pattern as the footer block for visual consistency */}
       <div
         aria-hidden
@@ -207,7 +207,7 @@ export default function ProblemTransformation() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-center text-white leading-tight max-w-3xl mx-auto font-bold">
             La pige est morte. Et le porte-à-porte à l&apos;aveugle, c&apos;est du temps perdu.

@@ -11,8 +11,8 @@ const POINTS = [
 
 export default function DataReassurance() {
   return (
-    <section className="py-16 sm:py-20">
-      <div className="mx-auto max-w-5xl px-5 sm:px-8">
+    <section className="py-14 sm:py-20">
+      <div className="mx-auto max-w-5xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <h2 className="font-display text-2xl sm:text-3xl text-center text-[#0F172A] font-extrabold">
             Vos données sont en sécurité.

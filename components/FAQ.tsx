@@ -48,9 +48,9 @@ function FAQItem({ q, a, isOpen, onToggle, idx }: Item & { isOpen: boolean; onTo
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={id}
-        className="w-full flex items-center justify-between gap-4 py-5 text-left"
+        className="w-full flex items-start sm:items-center justify-between gap-3 py-5 text-left min-w-0"
       >
-        <h3 className="font-display text-lg sm:text-xl text-ink font-bold">{q}</h3>
+        <h3 className="font-display text-base sm:text-lg md:text-xl text-ink font-bold min-w-0 flex-1 pr-2 text-balance">{q}</h3>
         <span className={`faq-chevron shrink-0 text-mute ${isOpen ? "open" : ""}`} aria-hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
@@ -68,16 +68,16 @@ export default function FAQ() {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
   return (
-    <section className="py-16 sm:py-24">
-      <div className="mx-auto max-w-3xl px-5 sm:px-8">
+    <section className="py-14 sm:py-24">
+      <div className="mx-auto max-w-3xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-center text-ink leading-tight font-bold">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-center text-ink leading-tight font-bold text-balance px-1">
             Questions fréquentes
           </h2>
         </Reveal>
 
-        <Reveal direction="up" delay={120} className="mt-10">
-          <div className="rounded-2xl border border-black/8 bg-white/60 px-5 sm:px-7">
+        <Reveal direction="up" delay={120} className="mt-8 sm:mt-10">
+          <div className="rounded-2xl border border-black/8 bg-white/60 px-4 sm:px-7">
             {FAQS.map((item, i) => (
               <FAQItem
                 key={item.q}

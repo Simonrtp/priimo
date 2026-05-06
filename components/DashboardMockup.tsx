@@ -52,10 +52,10 @@ function scoreColor(score: number) {
 
 export default function DashboardMockup() {
   return (
-    <div className="tilt relative">
-      {/* Aura — warm orange + cool blue glow for balance */}
-      <div className="absolute -inset-4 rounded-[28px] bg-accent/25 blur-2xl opacity-50" aria-hidden />
-      <div className="absolute -inset-6 rounded-[28px] bg-blue/20 blur-3xl opacity-40 -z-10" aria-hidden />
+    <div className="tilt relative w-full max-w-full min-w-0 overflow-x-clip">
+      {/* Aura — warm orange + cool blue glow (tighter on mobile to avoid horizontal scroll) */}
+      <div className="absolute -inset-2 sm:-inset-4 rounded-[28px] bg-accent/25 blur-2xl opacity-50" aria-hidden />
+      <div className="absolute -inset-3 sm:-inset-6 rounded-[28px] bg-blue/20 blur-3xl opacity-40 -z-10" aria-hidden />
 
       {/* Surface: warm-blue dark — sits between #1A1612 (warm) and #15202F (cool) */}
       <div className="relative rounded-2xl bg-soft-inkBlue text-white shadow-2xl ring-1 ring-white/10 overflow-hidden">
@@ -64,22 +64,22 @@ export default function DashboardMockup() {
           <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
           <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
           <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <div className="ml-3 text-[11px] text-white/50 tracking-wide">
+          <div className="ml-2 sm:ml-3 min-w-0 text-[10px] sm:text-[11px] text-white/50 tracking-wide truncate">
             priimo.app · Tableau de bord
           </div>
         </div>
 
         {/* Header bar */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-b border-white/5">
+          <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-white/40">
               Liste de la semaine
             </div>
-            <div className="font-display text-lg leading-tight mt-0.5">
+            <div className="font-display text-base sm:text-lg leading-tight mt-0.5 break-words">
               Bordeaux Centre · 47 prospects
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right shrink-0">
             <div className="text-[11px] uppercase tracking-wider text-white/40">
               Couverture
             </div>
@@ -129,11 +129,11 @@ export default function DashboardMockup() {
         </ul>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between text-[11px] text-white/45">
-          <span>Mis à jour il y a 2 min</span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent-light animate-pulse" />
-            Données DVF · DPE · ADEME
+        <div className="px-5 py-3 border-t border-white/5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between text-[11px] text-white/45">
+          <span className="shrink-0">Mis à jour il y a 2 min</span>
+          <span className="inline-flex flex-wrap items-center gap-1.5 min-w-0">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-light animate-pulse" />
+            <span className="break-words">Données DVF · DPE · ADEME</span>
           </span>
         </div>
       </div>

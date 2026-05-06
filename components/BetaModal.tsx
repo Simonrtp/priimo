@@ -25,7 +25,7 @@ export default function BetaModal() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="beta-modal-title"
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
     >
       {/* Backdrop */}
       <div
@@ -36,7 +36,7 @@ export default function BetaModal() {
       {/* Panel */}
       <div
         ref={panelRef}
-        className="modal-panel relative z-10 w-full sm:max-w-md mx-0 sm:mx-4 mb-0 sm:mb-0 rounded-t-3xl sm:rounded-3xl bg-canvas p-6 sm:p-8 shadow-2xl"
+        className="modal-panel relative z-10 w-full sm:max-w-md mx-0 sm:mx-4 mb-0 sm:mb-0 max-h-[92dvh] sm:max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-3xl bg-canvas p-5 sm:p-8 shadow-2xl"
       >
         <button
           type="button"

@@ -7,12 +7,15 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent rare horizontal scroll from negative margins / wide gradients */
+  overflow-x: clip;
 }
 
 body {
   background-color: #FFFFFF;
   color: #1A1614;
   font-family: var(--font-sans), system-ui, sans-serif;
+  overflow-x: clip;
 }
 
 /* Display font helper — slightly tighter tracking */

@@ -38,20 +38,21 @@ export default function Header() {
           : "bg-transparent"
       }`}
     >
-      <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        <div className="flex h-16 items-center justify-between">
+      <div className="mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
+        <div className="flex h-14 sm:h-16 items-center justify-between gap-2 min-w-0">
           <a
             href="#top"
-            className="font-display text-3xl sm:text-4xl leading-none font-extrabold tracking-tight text-accent-dark"
+            className="font-display text-2xl sm:text-3xl md:text-4xl leading-none font-extrabold tracking-tight text-accent-dark shrink-0"
           >
             Priimo
           </a>
           <a
             href="#beta-form"
             onClick={handleHeaderCta}
-            className="btn btn-primary text-sm py-2.5 px-5"
+            className="btn btn-primary text-xs sm:text-sm py-2 px-3 sm:py-2.5 sm:px-5 shrink-0"
           >
-            Rejoindre la bêta
+            <span className="hidden min-[380px]:inline">Rejoindre la bêta</span>
+            <span className="inline min-[380px]:hidden">La bêta</span>
           </a>
         </div>
       </div>

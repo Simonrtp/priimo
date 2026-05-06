@@ -42,24 +42,26 @@ export default function HeroSection() {
       {/* Animated, mouse-reactive background */}
       <HeroBackground />
 
-      <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
-        <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center min-w-0">
           {/* === LEFT — Copy + Form === */}
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7 min-w-0">
             <Reveal direction="up">
-              {/* Eyebrow — orange dot + slate-blue text for warm/cool mix */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue/20 bg-white/80 backdrop-blur px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-blue-dark">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-                Logiciel de prospection immobilière · Bêta privée ouverte
+              {/* Eyebrow — wraps on narrow screens */}
+              <div className="flex flex-wrap items-center gap-2 rounded-full border border-blue/20 bg-white/80 backdrop-blur px-3 py-1.5 text-[10px] sm:text-[11px] uppercase tracking-[0.12em] sm:tracking-[0.14em] text-blue-dark max-w-full">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent animate-pulse" />
+                <span className="leading-snug text-balance">
+                  Logiciel de prospection immobilière · Bêta privée ouverte
+                </span>
               </div>
 
               {/* H1 */}
-              <h1 className="font-display mt-5 text-4xl sm:text-5xl lg:text-6xl text-ink leading-[1.05] font-extrabold">
+              <h1 className="font-display mt-4 sm:mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-ink leading-[1.08] sm:leading-[1.05] font-extrabold text-balance">
                 Trouvez vos prochains mandats avant vos concurrents.
               </h1>
 
               {/* Subheadline */}
-              <p className="mt-5 text-lg text-mute max-w-xl leading-relaxed">
+              <p className="mt-4 sm:mt-5 text-base sm:text-lg text-mute max-w-xl leading-relaxed">
                 Priimo croise les données DVF, DPE et signaux de vie pour
                 identifier les propriétaires susceptibles de vendre — et dit
                 à vos agents exactement où aller cette semaine.
@@ -90,7 +92,7 @@ export default function HeroSection() {
             </Reveal>
 
             {/* Social proof */}
-            <Reveal direction="fade" delay={250} className="mt-8 flex items-center gap-2 text-sm text-mute">
+            <Reveal direction="fade" delay={250} className="mt-8 flex flex-wrap items-center gap-2 text-sm text-mute">
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-soft-warm text-[10px]" aria-hidden>
                 🇫🇷
               </span>
@@ -99,7 +101,7 @@ export default function HeroSection() {
           </div>
 
           {/* === RIGHT — Product visual === */}
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-5 min-w-0 w-full">
             <Reveal direction="scale" delay={150}>
               <DashboardMockup />
             </Reveal>

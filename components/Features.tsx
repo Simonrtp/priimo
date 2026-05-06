@@ -76,15 +76,15 @@ const FEATURES: Feature[] = [
 
 export default function Features() {
   return (
-    <section className="py-16 sm:py-24">
-      <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+    <section className="py-14 sm:py-24">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
             Tout ce dont une agence a besoin pour prospecter intelligemment.
           </h2>
         </Reveal>
 
-        <div className="grid md:grid-cols-2 gap-5 lg:gap-6 mt-12">
+        <div className="grid md:grid-cols-2 gap-5 lg:gap-6 mt-10 sm:mt-12 min-w-0">
           {FEATURES.map((f, i) => {
             // Per-card animation choreography:
             // - Cards 0 and 2 enter from the LEFT, 1 and 3 from the RIGHT.

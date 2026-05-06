@@ -32,9 +32,9 @@ export default function FinalCTA() {
         aria-hidden
       />
 
-      <div className="relative mx-auto max-w-4xl px-5 sm:px-8 pt-20 sm:pt-28 text-center">
+      <div className="relative mx-auto max-w-4xl px-4 sm:px-8 pt-16 sm:pt-28 text-center min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl leading-tight font-extrabold">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight font-extrabold text-balance px-1">
             Vos concurrents prospectent déjà avec de la data. Et vous&nbsp;?
           </h2>
         </Reveal>
@@ -64,7 +64,7 @@ export default function FinalCTA() {
       </div>
 
       {/* Footer content merged into the same section for one continuous block */}
-      <div className="relative mx-auto max-w-6xl px-5 sm:px-8 pt-20 pb-10">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-8 pt-16 sm:pt-20 pb-10 min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 text-gray-400">
           <a href="#top" className="font-display text-2xl font-bold tracking-tight text-white">
             Priimo

@@ -34,7 +34,7 @@ export default function Page() {
       {/* === A — HEADER === */}
       <Header />
 
-      <main className="relative">
+      <main className="relative min-w-0 overflow-x-clip">
         {/* === B — HERO === */}
         <HeroSection />
 
