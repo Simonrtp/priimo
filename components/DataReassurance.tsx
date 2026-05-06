@@ -14,7 +14,7 @@ export default function DataReassurance() {
     <section className="py-14 sm:py-20">
       <div className="mx-auto max-w-5xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl text-center text-[#0F172A] font-extrabold text-balance px-1">
+          <h2 className="text-h2 text-center text-gray-900 text-balance px-1 mb-subheading">
             Vos données sont en sécurité.
           </h2>
         </Reveal>
@@ -29,14 +29,14 @@ export default function DataReassurance() {
                 >
                   {p.icon}
                 </span>
-                <span className="text-[14px] text-[#111827] font-medium">{p.label}</span>
+                <span className="text-sm font-medium text-gray-900">{p.label}</span>
               </div>
             </Reveal>
           ))}
         </ul>
 
         <Reveal direction="fade" delay={250}>
-          <p className="mt-6 text-center text-sm text-[#4B5563] max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-body text-center max-w-2xl mx-auto">
             Priimo utilise exclusivement des données publiques françaises (DVF
             data.gouv.fr, DPE ADEME) — les mêmes sources que les leaders du
             marché, sans leurs prix.

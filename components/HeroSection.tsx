@@ -48,12 +48,12 @@ export default function HeroSection() {
           <div className="lg:col-span-7 min-w-0">
             <Reveal direction="up">
               {/* H1 */}
-              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-ink leading-[1.06] sm:leading-[1.04] font-extrabold text-balance">
+              <h1 className="text-h1 headline text-balance mb-headline">
                 Trouvez vos prochains mandats avant vos concurrents.
               </h1>
 
               {/* Subheadline */}
-              <p className="mt-4 sm:mt-5 text-base sm:text-lg text-mute max-w-xl leading-relaxed">
+              <p className="text-body max-w-xl mb-body mt-0">
                 Priimo croise les données DVF, DPE et signaux de vie pour
                 identifier les propriétaires susceptibles de vendre — et dit
                 à vos agents exactement où aller cette semaine.
@@ -62,11 +62,11 @@ export default function HeroSection() {
               {/* Bullets */}
               <ul className="mt-6 space-y-2.5">
                 {BULLETS.map((b) => (
-                  <li key={b} className="flex items-start gap-2.5 text-ink">
+                  <li key={b} className="flex items-start gap-2.5 text-gray-900">
                     <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-dark">
                       <CheckIcon />
                     </span>
-                    <span className="text-[15px]">{b}</span>
+                    <span className="text-body !text-gray-900">{b}</span>
                   </li>
                 ))}
               </ul>
@@ -75,9 +75,9 @@ export default function HeroSection() {
             {/* Inline form */}
             <Reveal direction="up" delay={120} className="mt-8 max-w-md">
               <BetaForm id="beta-form" />
-              <p className="mt-3 text-xs text-mute">
+              <p className="mt-3 small-text text-gray-600">
                 Accès gratuit pendant la bêta · Aucune carte bancaire requise ·{" "}
-                <span className="text-ink font-medium">
+                <span className="text-gray-900 font-medium normal-case tracking-normal">
                   47 agences déjà sur liste d&apos;attente
                 </span>
               </p>

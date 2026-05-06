@@ -29,7 +29,7 @@ export default function BetaModal() {
     >
       {/* Backdrop */}
       <div
-        className="modal-backdrop absolute inset-0 bg-ink/60 backdrop-blur-sm"
+        className="modal-backdrop absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
         onClick={close}
       />
 
@@ -42,7 +42,7 @@ export default function BetaModal() {
           type="button"
           onClick={close}
           aria-label="Fermer"
-          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full text-mute hover:bg-soft-gray hover:text-ink transition"
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-soft-gray hover:text-gray-900 transition"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -50,7 +50,7 @@ export default function BetaModal() {
           </svg>
         </button>
 
-        <h2 id="beta-modal-title" className="font-display text-2xl sm:text-3xl text-ink leading-tight">
+        <h2 id="beta-modal-title" className="text-h2 text-gray-900">
           Rejoignez la bêta privée.
         </h2>
 

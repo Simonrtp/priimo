@@ -34,7 +34,7 @@ export default function FinalCTA() {
 
       <div className="relative mx-auto max-w-4xl px-4 sm:px-8 pt-16 sm:pt-28 text-center min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight font-extrabold text-balance px-1">
+          <h2 className="text-h1-on-dark text-balance px-1 mb-headline">
             Vos concurrents prospectent déjà avec de la data. Et vous&nbsp;?
           </h2>
         </Reveal>
@@ -42,7 +42,7 @@ export default function FinalCTA() {
         <Reveal direction="up" delay={120}>
           <ul className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-white/90">
             {POINTS.map((p) => (
-              <li key={p} className="flex items-center gap-2 text-[15px]">
+              <li key={p} className="flex items-center gap-2 text-body !text-white/90">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
                   <CheckIcon />
                 </span>
@@ -57,7 +57,7 @@ export default function FinalCTA() {
             Je rejoins la bêta privée
             <span aria-hidden>→</span>
           </CtaButton>
-          <p className="mt-4 text-[13px] text-white/70">
+          <p className="mt-4 small-text !normal-case !tracking-normal text-white/70">
             Gratuit pendant la bêta · Aucune CB · 47 agences déjà inscrites
           </p>
         </Reveal>
@@ -66,7 +66,7 @@ export default function FinalCTA() {
       {/* Footer content merged into the same section for one continuous block */}
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 pt-16 sm:pt-20 pb-10 min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 text-gray-400">
-          <a href="#top" className="font-display text-2xl font-bold tracking-tight text-white">
+          <a href="#top" className="font-sans text-2xl font-bold tracking-tight text-white">
             Priimo
           </a>
 

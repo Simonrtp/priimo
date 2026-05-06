@@ -194,10 +194,10 @@ export default function BetaForm({
             </svg>
           </div>
           <div>
-            <p className="font-display text-xl text-accent-dark font-semibold">
+            <p className="font-sans text-xl font-semibold text-accent-dark">
               Vous êtes sur la liste, {success.prenom}.
             </p>
-            <p className="mt-1 text-sm text-mute">
+            <p className="mt-1 text-sm text-gray-600">
               On vous contacte très vite avec votre accès bêta.
             </p>
           </div>
@@ -208,13 +208,13 @@ export default function BetaForm({
 
   // === FORM ===
   const baseLabel =
-    variant === "inverse" ? "text-white/90" : "text-ink";
+    variant === "inverse" ? "text-white/90" : "text-gray-900";
   const baseHelp =
-    variant === "inverse" ? "text-white/70" : "text-mute";
+    variant === "inverse" ? "text-white/70" : "text-gray-600";
   const baseInput =
     variant === "inverse"
       ? "bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-white"
-      : "bg-white border-black/10 text-ink placeholder-mute/70 focus:border-accent";
+      : "bg-white border-black/10 text-gray-900 placeholder-gray-500/70 focus:border-accent";
 
   // Single suffix shared by every input/label/error so we can never end up
   // with a mismatched aria-describedby (e.g. when `id` is undefined).
@@ -233,7 +233,7 @@ export default function BetaForm({
     >
       {/* Prénom */}
       <div>
-        <label htmlFor={`prenom-${fid}`} className={`block text-sm font-medium mb-1.5 ${baseLabel}`}>
+        <label htmlFor={`prenom-${fid}`} className={`block text-sm font-medium tracking-wide mb-1.5 ${baseLabel}`}>
           Prénom <span className="text-accent">*</span>
         </label>
         <input
@@ -258,7 +258,7 @@ export default function BetaForm({
 
       {/* Email pro */}
       <div>
-        <label htmlFor={`email-${fid}`} className={`block text-sm font-medium mb-1.5 ${baseLabel}`}>
+        <label htmlFor={`email-${fid}`} className={`block text-sm font-medium tracking-wide mb-1.5 ${baseLabel}`}>
           Email professionnel <span className="text-accent">*</span>
         </label>
         <input
@@ -283,7 +283,7 @@ export default function BetaForm({
 
       {/* Téléphone */}
       <div>
-        <label htmlFor={`telephone-${fid}`} className={`block text-sm font-medium mb-1.5 ${baseLabel}`}>
+        <label htmlFor={`telephone-${fid}`} className={`block text-sm font-medium tracking-wide mb-1.5 ${baseLabel}`}>
           Téléphone <span className="text-accent">*</span>
         </label>
         <input
@@ -308,7 +308,7 @@ export default function BetaForm({
 
       {/* Nom de l'agence */}
       <div>
-        <label htmlFor={`agence-${fid}`} className={`block text-sm font-medium mb-1.5 ${baseLabel}`}>
+        <label htmlFor={`agence-${fid}`} className={`block text-sm font-medium tracking-wide mb-1.5 ${baseLabel}`}>
           Nom de l&apos;agence <span className="text-accent">*</span>
         </label>
         <input

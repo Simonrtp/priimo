@@ -75,7 +75,7 @@ export default function DashboardMockup() {
             <div className="text-[11px] uppercase tracking-wider text-white/40">
               Liste de la semaine
             </div>
-            <div className="font-display text-base sm:text-lg leading-tight mt-0.5 break-words">
+            <div className="font-sans text-base sm:text-lg leading-tight mt-0.5 break-words">
               Bordeaux Centre · 47 prospects
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function DashboardMockup() {
             <div className="text-[11px] uppercase tracking-wider text-white/40">
               Couverture
             </div>
-            <div className="font-display text-lg leading-tight mt-0.5 text-accent-light font-bold">
+            <div className="font-sans text-lg leading-tight mt-0.5 text-accent-light font-bold">
               68%
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function DashboardMockup() {
           {PROSPECTS.map((p) => (
             <li key={p.address} className="flex items-center gap-3 px-5 py-3.5">
               <div
-                className={`shrink-0 w-11 h-11 rounded-xl border flex items-center justify-center font-display font-semibold text-sm ${scoreColor(
+                className={`shrink-0 w-11 h-11 rounded-xl border flex items-center justify-center font-sans font-semibold text-sm ${scoreColor(
                   p.score
                 )}`}
               >

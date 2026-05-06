@@ -147,7 +147,7 @@ export default function HowItWorks() {
       >
         <div className="w-full mx-auto max-w-6xl px-4 sm:px-8 py-6 sm:py-10 min-w-0">
           <Reveal direction="up">
-            <h2 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
+            <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
               Simple. Précis. Opérationnel en 20 minutes.
             </h2>
           </Reveal>
@@ -167,16 +167,16 @@ export default function HowItWorks() {
                   key={step.num}
                   className={`rounded-2xl bg-white border p-5 sm:p-7 h-full transform-gpu transition-all duration-700 ease-out min-w-0 ${stateClass}`}
                 >
-                  <div className="font-display text-5xl sm:text-6xl md:text-7xl text-blue leading-none font-extrabold">
+                  <div className="font-sans text-5xl sm:text-6xl md:text-7xl text-blue leading-none font-bold">
                     {step.num}
                   </div>
                   <div className="mt-4 sm:mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent-dark">
                     <step.Icon />
                   </div>
-                  <h3 className="mt-3 sm:mt-4 font-display text-lg sm:text-xl text-ink font-bold text-balance">
+                  <h3 className="text-h3 text-balance mt-3 sm:mt-4">
                     {step.title}
                   </h3>
-                  <p className="mt-2 text-mute leading-relaxed text-[14px] sm:text-[15px]">
+                  <p className="text-body mt-2">
                     {step.body}
                   </p>
                 </div>

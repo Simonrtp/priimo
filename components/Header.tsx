@@ -42,7 +42,7 @@ export default function Header() {
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2 min-w-0">
           <a
             href="#top"
-            className="font-display text-2xl sm:text-3xl md:text-4xl leading-none font-extrabold tracking-tight text-accent-dark shrink-0"
+            className="font-sans text-2xl sm:text-3xl md:text-4xl leading-none font-bold tracking-tight text-accent-dark shrink-0"
           >
             Priimo
           </a>

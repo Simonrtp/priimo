@@ -122,7 +122,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
       {/* Decorative ghost number in corner */}
       <span
         aria-hidden
-        className={`pointer-events-none select-none absolute -right-3 -top-2 font-display text-[110px] leading-none font-extrabold ${tones.ghost}`}
+        className={`pointer-events-none select-none absolute -right-3 -top-2 font-sans text-[110px] leading-none font-bold ${tones.ghost}`}
       >
         {isBefore ? "—" : "+"}
       </span>
@@ -146,7 +146,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
         </div>
 
         {/* Tagline */}
-        <p className="mt-5 font-display text-xl sm:text-2xl text-white font-bold leading-snug">
+        <p className="mt-5 font-sans text-xl sm:text-2xl font-semibold text-white leading-snug">
           {tagline}
         </p>
 
@@ -168,7 +168,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
                 </span>
               </div>
               <div>
-                <h4 className={`font-display text-[15px] sm:text-base font-bold ${tones.title}`}>
+                <h4 className={`font-sans text-[15px] sm:text-base font-semibold ${tones.title}`}>
                   {item.title}
                 </h4>
                 <p className={`mt-1 text-[14px] leading-relaxed ${tones.desc}`}>
@@ -209,7 +209,7 @@ export default function ProblemTransformation() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl text-center text-white leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
+          <h2 className="text-h1-on-dark text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
             La pige est morte. Et le porte-à-porte à l&apos;aveugle, c&apos;est du temps perdu.
           </h2>
         </Reveal>

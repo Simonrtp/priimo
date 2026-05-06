@@ -1,21 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { BetaModalProvider } from "@/components/BetaModalContext";
 import BetaModal from "@/components/BetaModal";
 
-// === FONTS ===
-// Display: Nunito — rounded, friendly, professional (titles)
-// Body:    Plus Jakarta Sans — clean, modern, readable
-const nunito = Nunito({
-  subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const jakarta = Plus_Jakarta_Sans({
+// === FONT: Inter only (400–700) ===
+// next/font self-hosts glyphs — preconnect still helps first paint when
+// subsets are fetched from Google during build; included for spec compliance.
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
@@ -67,7 +60,6 @@ export const metadata: Metadata = {
     description:
       "Identifiez vos prochains mandats vendeurs 6 mois à l'avance. Simple, abordable, conforme.",
   },
-  // Favicon + Apple touch icon (same asset as header / OG — public/Logo.png).
   icons: {
     icon: [{ url: "/Logo.png", type: "image/png" }],
     apple: [{ url: "/Logo.png", type: "image/png" }],
@@ -89,18 +81,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${nunito.variable} ${jakarta.variable}`}>
-      <body className="bg-white text-ink antialiased overflow-x-clip min-w-0">
+    <html lang="fr" className={inter.variable}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
         <BetaModalProvider>
           {children}
-          {/* Global beta modal — opened by any CTA except the inline hero form */}
           <BetaModal />
         </BetaModalProvider>
 
-        {/* === CRISP CHAT ===
-            Loaded after the page becomes interactive so it never blocks the
-            first paint or the hydration. Crisp's own snippet injects its
-            <script src="https://client.crisp.chat/l.js"> into <head>.       */}
         <Script id="crisp-chat" strategy="afterInteractive">
           {`
             window.$crisp = [];

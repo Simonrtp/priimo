@@ -8,38 +8,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // === Brand palette — soft orange, warm, professional ===
-        canvas: "#FAFAF9",        // page background (warm off-white)
-        ink: "#1A1614",           // primary text (warm near-black)
-        mute: "#6B6660",          // secondary text (warm gray)
+        // === Brand palette — soft orange + slate blue (unchanged) ===
+        canvas: "#FAFAF9",
+        // Semantic text (WCAG-aligned grays) — use with text-* utilities
+        ink: "#111827", // gray-900 — primary text / headlines (legacy alias)
+        mute: "#4B5563", // gray-600 — secondary copy (legacy alias)
         accent: {
-          DEFAULT: "#E8743C",     // soft orange — primary brand
-          dark: "#C25E2C",        // hover / pressed
-          light: "#F4A87A",       // peach light
-          glow: "#FFB585",        // very light peachy glow
+          DEFAULT: "#E8743C",
+          dark: "#C25E2C",
+          light: "#F4A87A",
+          glow: "#FFB585",
         },
-        // === Secondary cool palette — slate blue for balance & depth ===
         blue: {
-          DEFAULT: "#3D5A80",     // slate blue — secondary brand
-          dark: "#293F5C",        // deep slate
-          light: "#7B9AC0",       // soft slate
-          glow: "#B8CDE3",        // very light blue glow
+          DEFAULT: "#3D5A80",
+          dark: "#293F5C",
+          light: "#7B9AC0",
+          glow: "#B8CDE3",
         },
         soft: {
-          warm: "#FFF3EA",        // peach cream — "good" column / gentle fills
-          cool: "#EEF2F7",        // soft sky-blue — "before" column / cool surfaces
-          gray: "#F1F1EE",        // neutral panel
-          ink: "#15110F",         // warm dark surface
-          inkBlue: "#15202F",     // blue dark surface (demo placeholder, mockup)
+          warm: "#FFF3EA",
+          cool: "#EEF2F7",
+          gray: "#F1F1EE",
+          ink: "#15110F",
+          inkBlue: "#15202F",
         },
       },
       fontFamily: {
-        // Wired up via next/font in app/layout.tsx through CSS variables
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        // Single stack: Inter via next/font → --font-sans (layout.tsx)
+        sans: [
+          "var(--font-sans)",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
       },
       boxShadow: {
-        soft: "0 1px 2px rgba(26, 22, 20, 0.04), 0 4px 12px rgba(26, 22, 20, 0.05)",
+        soft: "0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.05)",
         cta: "0 6px 20px rgba(232, 116, 60, 0.25)",
         ctaHover: "0 10px 28px rgba(232, 116, 60, 0.35)",
       },

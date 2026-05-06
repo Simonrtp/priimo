@@ -79,7 +79,7 @@ export default function Features() {
     <section className="py-14 sm:py-24">
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-6xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
+          <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
             Tout ce dont une agence a besoin pour prospecter intelligemment.
           </h2>
         </Reveal>
@@ -106,10 +106,10 @@ export default function Features() {
                   >
                     <f.Icon />
                   </div>
-                  <h3 className="mt-5 font-display text-xl text-ink font-bold transition-colors duration-300 group-hover:text-accent-dark">
-                    {f.title}
-                  </h3>
-                  <p className="mt-2 text-mute leading-relaxed text-[15px]">
+                    <h3 className="text-h3 mt-5 transition-colors duration-300 group-hover:text-accent-dark">
+                      {f.title}
+                    </h3>
+                    <p className="text-body mt-2">
                     {f.body}
                   </p>
                 </div>

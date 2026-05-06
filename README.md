@@ -9,7 +9,7 @@ privée.
 - **Next.js 14** (App Router) — rendu serveur, API routes
 - **React 18** + **TypeScript** strict
 - **Tailwind CSS 3** — palette orange/bleu personnalisée
-- **Google Fonts** via `next/font/google` (Nunito + Plus Jakarta Sans)
+- **Google Fonts** via `next/font/google` (**Inter**, weights 400–700)
 - **Crisp Chat** chargé via `next/script` après hydration
 - Aucune dépendance d'UI ou d'animation externe (tout en CSS/JS natif)
 

@@ -50,15 +50,15 @@ function FAQItem({ q, a, isOpen, onToggle, idx }: Item & { isOpen: boolean; onTo
         aria-controls={id}
         className="w-full flex items-start sm:items-center justify-between gap-3 py-5 text-left min-w-0"
       >
-        <h3 className="font-display text-base sm:text-lg md:text-xl text-ink font-bold min-w-0 flex-1 pr-2 text-balance">{q}</h3>
-        <span className={`faq-chevron shrink-0 text-mute ${isOpen ? "open" : ""}`} aria-hidden>
+        <h3 className="text-h3 text-gray-900 min-w-0 flex-1 pr-2 text-balance">{q}</h3>
+        <span className={`faq-chevron shrink-0 text-gray-500 ${isOpen ? "open" : ""}`} aria-hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </span>
       </button>
       <div id={id} className={`faq-content ${isOpen ? "open" : ""}`}>
-        <p className="pb-5 pr-8 text-mute leading-relaxed text-[15px]">{a}</p>
+        <p className="pb-5 pr-8 text-body">{a}</p>
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ export default function FAQ() {
     <section className="py-14 sm:py-24">
       <div className="mx-auto max-w-3xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-center text-ink leading-tight font-bold text-balance px-1">
+          <h2 className="text-h2 text-center text-gray-900 text-balance px-1 mb-subheading">
             Questions fréquentes
           </h2>
         </Reveal>
