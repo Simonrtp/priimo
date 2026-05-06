@@ -67,6 +67,12 @@ export const metadata: Metadata = {
     description:
       "Identifiez vos prochains mandats vendeurs 6 mois à l'avance. Simple, abordable, conforme.",
   },
+  // Favicon + Apple touch icon (same asset as header / OG — public/Logo.png).
+  icons: {
+    icon: [{ url: "/Logo.png", type: "image/png" }],
+    apple: [{ url: "/Logo.png", type: "image/png" }],
+    shortcut: "/Logo.png",
+  },
   formatDetection: { telephone: false, address: false, email: false },
 };
 
