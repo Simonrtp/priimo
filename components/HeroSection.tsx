@@ -6,8 +6,8 @@ import DashboardMockup from "./DashboardMockup";
 import HeroBackground from "./HeroBackground";
 
 // === HERO SECTION ===
-// Above-the-fold. Animated mouse-reactive background, eyebrow → H1 →
-// subheadline → 3 bullets → inline form. Two-column layout on desktop.
+// Above-the-fold. Animated mouse-reactive background, H1 → subheadline →
+// bullets → inline form. Two-column layout on desktop.
 
 const BULLETS = [
   "Prospects scorés et priorisés sur votre zone",
@@ -47,16 +47,8 @@ export default function HeroSection() {
           {/* === LEFT — Copy + Form === */}
           <div className="lg:col-span-7 min-w-0">
             <Reveal direction="up">
-              {/* Eyebrow — wraps on narrow screens */}
-              <div className="flex flex-wrap items-center gap-2 rounded-full border border-blue/20 bg-white/80 backdrop-blur px-3 py-1.5 text-[10px] sm:text-[11px] uppercase tracking-[0.12em] sm:tracking-[0.14em] text-blue-dark max-w-full">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent animate-pulse" />
-                <span className="leading-snug text-balance">
-                  Logiciel de prospection immobilière · Bêta privée ouverte
-                </span>
-              </div>
-
               {/* H1 */}
-              <h1 className="font-display mt-4 sm:mt-5 text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-ink leading-[1.08] sm:leading-[1.05] font-extrabold text-balance">
+              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-ink leading-[1.06] sm:leading-[1.04] font-extrabold text-balance">
                 Trouvez vos prochains mandats avant vos concurrents.
               </h1>
 
@@ -89,14 +81,6 @@ export default function HeroSection() {
                   47 agences déjà sur liste d&apos;attente
                 </span>
               </p>
-            </Reveal>
-
-            {/* Social proof */}
-            <Reveal direction="fade" delay={250} className="mt-8 flex flex-wrap items-center gap-2 text-sm text-mute">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-soft-warm text-[10px]" aria-hidden>
-                🇫🇷
-              </span>
-              Conçu avec des directeurs d&apos;agences immobilières en France.
             </Reveal>
           </div>
 

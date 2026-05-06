@@ -34,7 +34,7 @@ export default function FinalCTA() {
 
       <div className="relative mx-auto max-w-4xl px-4 sm:px-8 pt-16 sm:pt-28 text-center min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight font-extrabold text-balance px-1">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight font-extrabold text-balance px-1">
             Vos concurrents prospectent déjà avec de la data. Et vous&nbsp;?
           </h2>
         </Reveal>

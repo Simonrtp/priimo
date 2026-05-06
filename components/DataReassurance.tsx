@@ -14,7 +14,7 @@ export default function DataReassurance() {
     <section className="py-14 sm:py-20">
       <div className="mx-auto max-w-5xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-2xl sm:text-3xl text-center text-[#0F172A] font-extrabold">
+          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl text-center text-[#0F172A] font-extrabold text-balance px-1">
             Vos données sont en sécurité.
           </h2>
         </Reveal>

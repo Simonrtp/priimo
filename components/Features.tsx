@@ -79,7 +79,7 @@ export default function Features() {
     <section className="py-14 sm:py-24">
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
+          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-6xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
             Tout ce dont une agence a besoin pour prospecter intelligemment.
           </h2>
         </Reveal>

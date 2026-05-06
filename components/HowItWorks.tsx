@@ -147,7 +147,7 @@ export default function HowItWorks() {
       >
         <div className="w-full mx-auto max-w-6xl px-4 sm:px-8 py-6 sm:py-10 min-w-0">
           <Reveal direction="up">
-            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
+            <h2 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-center text-ink leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
               Simple. Précis. Opérationnel en 20 minutes.
             </h2>
           </Reveal>

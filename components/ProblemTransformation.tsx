@@ -209,7 +209,7 @@ export default function ProblemTransformation() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-center text-white leading-tight max-w-3xl mx-auto font-bold">
+          <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl text-center text-white leading-tight max-w-3xl mx-auto font-bold text-balance px-1">
             La pige est morte. Et le porte-à-porte à l&apos;aveugle, c&apos;est du temps perdu.
           </h2>
         </Reveal>
