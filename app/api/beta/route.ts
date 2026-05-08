@@ -1,10 +1,13 @@
+import { randomBytes } from "node:crypto";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 // === BETA SIGNUP API ===
 // Accepts a JSON POST from `BetaForm`. Validates the payload server-side,
-// logs the inscription, and (optionally) forwards it to a webhook URL set
-// via the `BETA_WEBHOOK_URL` env var — compatible with Slack, Discord,
-// Make.com, n8n, Zapier, or a custom HTTP endpoint.
+// logs the inscription, and (optionally):
+//  - writes one JSON file per signup to Vercel Blob when `BETA_BLOB_STORE`
+//    is enabled and `BLOB_READ_WRITE_TOKEN` is set (see .env.example);
+//  - forwards to `BETA_WEBHOOK_URL` (Slack, Discord, Make, n8n, Zapier, …).
 //
 // Why an API route?
 //  - Form submissions never touch a third-party from the browser, so we
@@ -63,6 +66,49 @@ function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim();
   return req.headers.get("x-real-ip") ?? "unknown";
+}
+
+/**
+ * Optional durable trace on Vercel: one JSON blob per successful signup
+ * under `beta-signups/YYYY-MM-DD/<random>.json`. Works on Vercel when Blob
+ * is enabled for the project (token is injected automatically). Never fails
+ * the HTTP response for the visitor.
+ */
+async function persistSignupBlob(payload: BetaPayload, ip: string): Promise<void> {
+  if (process.env.BETA_BLOB_STORE !== "1") return;
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    console.warn("[beta] BETA_BLOB_STORE=1 but BLOB_READ_WRITE_TOKEN is missing.");
+    return;
+  }
+
+  const record = {
+    source: "priimo-landing",
+    receivedAt: new Date().toISOString(),
+    ip,
+    ...payload,
+  };
+
+  const day = new Date().toISOString().slice(0, 10);
+  const id = randomBytes(16).toString("hex");
+  const pathname = `beta-signups/${day}/${id}.json`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    await put(pathname, JSON.stringify(record), {
+      access: "public",
+      token,
+      contentType: "application/json",
+      addRandomSuffix: false,
+      abortSignal: controller.signal,
+    });
+  } catch (err) {
+    console.error("[beta] blob persist failed:", err);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function forwardToWebhook(payload: BetaPayload, ip: string): Promise<void> {
@@ -133,8 +179,8 @@ export async function POST(req: Request) {
   // Vercel captures stdout — these lines are searchable in the dashboard.
   console.log("[beta:signup]", { ip, ...clean });
 
-  // --- 4. Optional webhook forwarding (Slack/Discord/n8n/...) ---
-  await forwardToWebhook(clean, ip);
+  // --- 4. Optional parallel side-effects (never block each other > timeout) ---
+  await Promise.all([forwardToWebhook(clean, ip), persistSignupBlob(clean, ip)]);
 
   return NextResponse.json({ ok: true });
 }

@@ -342,15 +342,33 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* === DASHBOARD DRAWER === */
+/* === DASHBOARD === */
 @keyframes drawerSlideIn {
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
+  from { transform: translateX(100%); opacity: 0.6; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-drawer-in {
+  animation: drawerSlideIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.animate-drawer-in {
-  animation: drawerSlideIn 200ms ease-out;
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+.animate-overlay-in {
+  animation: overlayFadeIn 200ms ease-out;
+}
+
+@keyframes leadReveal {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-lead-reveal {
+  animation: leadReveal 0.32s ease-out both;
+}
+
+/* tabular-nums utility */
+.tabular { font-feature-settings: 'tnum'; }
 
 /* === HERO ANIMATED BACKGROUND === */
 .hero-bg {

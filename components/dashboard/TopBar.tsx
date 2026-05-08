@@ -2,31 +2,32 @@
 
 import { usePathname } from 'next/navigation';
 
-const pageTitles: Record<string, string> = {
-  '/dashboard': 'Mes prospects',
+const titles: Record<string, string> = {
+  '/dashboard':          'Mes prospects',
   '/dashboard/settings': 'Paramètres',
 };
 
 export default function TopBar() {
   const pathname = usePathname();
-  const title = pageTitles[pathname] ?? 'Dashboard';
+  const title = titles[pathname] ?? 'Dashboard';
 
   return (
     <header
-      className="bg-white border-b border-[#E5E5E5] flex items-center justify-between px-8 flex-shrink-0"
-      style={{ height: '56px' }}
+      className="bg-canvas/80 backdrop-blur-md border-b border-black/8 flex items-center justify-between px-8 flex-shrink-0"
+      style={{ height: 56 }}
     >
-      <span className="font-semibold text-gray-900" style={{ fontSize: '16px' }}>
+      <span className="font-semibold text-ink tracking-tight" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
         {title}
       </span>
+
       <div className="flex items-center gap-3">
         <div
-          className="rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-medium"
-          style={{ width: '32px', height: '32px', fontSize: '13px' }}
+          className="rounded-full bg-accent/15 text-accent-dark font-semibold flex items-center justify-center tabular"
+          style={{ width: 30, height: 30, fontSize: 11 }}
         >
           AT
         </div>
-        <span className="text-gray-700 font-medium" style={{ fontSize: '14px' }}>
+        <span className="text-ink font-medium" style={{ fontSize: 13 }}>
           Agence Test
         </span>
       </div>

@@ -40,6 +40,7 @@ Toutes optionnelles — voir [.env.example](./.env.example).
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | URL publique (canonical, OG, sitemap). Ex : `https://priimo.fr` |
 | `BETA_WEBHOOK_URL` | Webhook appelé par `/api/beta` à chaque inscription (Slack, Discord, Make.com, n8n…) |
+| `BETA_BLOB_STORE` | Mettre à `1` pour enregistrer **un fichier JSON par inscription** sur [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) (trace dans le dashboard, sans base SQL). Nécessite un store Blob lié au projet et `BLOB_READ_WRITE_TOKEN` (injecté par Vercel en prod ; en local, copie depuis le dashboard). Les fichiers ont une URL « publique » techniquement mais un chemin non devinable (`beta-signups/…`) : traitez-les comme des données personnelles. |
 
 En local, copiez `.env.example` vers `.env.local`. Sur Vercel, ajoutez-les
 dans **Project → Settings → Environment Variables**.
@@ -102,12 +103,14 @@ components/
    `onBlur` + à la soumission.
 2. `POST /api/beta` (JSON) avec `{ prenom, email, telephone, nomAgence }`.
 3. **Server-side** : ré-validation, log structuré (visible dans les logs
-   Vercel), forwarding optionnel vers `BETA_WEBHOOK_URL`.
+   Vercel), enregistrement optionnel **un JSON par inscription** sur Vercel Blob
+   (`BETA_BLOB_STORE=1`), forwarding optionnel vers `BETA_WEBHOOK_URL`.
 4. Réponse `200 { ok: true }` → état succès inline ; `400 { fields }` → erreurs
    par champ ; `5xx` → message d'erreur générique non bloquant.
 
 Pour brancher un vrai backend (CRM, base de données…) : éditez
-[`app/api/beta/route.ts`](./app/api/beta/route.ts) à la place de `console.log`.
+[`app/api/beta/route.ts`](./app/api/beta/route.ts) à la place de `console.log` /
+Blob / webhook.
 
 ## A11y
 

@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MapPin, Settings } from 'lucide-react';
 
-const navItems = [
-  { href: '/dashboard', label: 'Prospects', icon: MapPin },
-  { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
+const nav = [
+  { href: '/dashboard',          label: 'Prospects',   Icon: MapPin   },
+  { href: '/dashboard/settings', label: 'Paramètres',  Icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -14,43 +14,47 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="h-screen bg-white border-r border-[#E5E5E5] flex flex-col flex-shrink-0"
-      style={{ width: '220px' }}
+      className="h-screen bg-canvas border-r border-black/8 flex flex-col flex-shrink-0"
+      style={{ width: 232 }}
     >
-      <div className="px-4 pt-6 pb-4">
-        <div className="mb-8">
-          <span className="font-bold text-[#2563EB]" style={{ fontSize: '22px' }}>
-            Priimo
-          </span>
-        </div>
-
-        <nav className="flex flex-col gap-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 rounded-[6px] transition-colors duration-150 ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600 font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                style={{ padding: '10px 12px', fontSize: '14px', fontWeight: isActive ? 600 : 500 }}
-              >
-                <Icon size={18} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-2">
+        <span
+          className="font-bold tracking-tight text-accent-dark"
+          style={{ fontSize: 22, letterSpacing: '-0.03em' }}
+        >
+          Priimo
+        </span>
       </div>
 
-      <div className="mt-auto px-4 py-4 border-t border-[#E5E5E5]">
-        <p className="text-gray-500" style={{ fontSize: '12px' }}>
+      {/* Nav */}
+      <nav className="flex flex-col gap-0.5 px-3 pt-4 flex-1">
+        {nav.map(({ href, label, Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-150 ${
+                active
+                  ? 'bg-accent/10 text-accent-dark font-semibold'
+                  : 'text-mute hover:bg-black/[0.04] hover:text-ink font-medium'
+              }`}
+              style={{ fontSize: 13.5 }}
+            >
+              <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Agency footer */}
+      <div className="mx-3 mb-4 rounded-xl bg-soft-warm px-4 py-3">
+        <p className="text-mute tabular" style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           Plan Fondateur
         </p>
-        <p className="text-gray-900 font-medium" style={{ fontSize: '14px' }}>
+        <p className="font-semibold text-ink mt-0.5" style={{ fontSize: 13 }}>
           Agence Test
         </p>
       </div>

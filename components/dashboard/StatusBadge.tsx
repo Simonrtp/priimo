@@ -2,9 +2,22 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { getStatusColor, getStatusLabel } from '@/lib/utils';
 import type { LeadStatus } from '@/types/lead';
 import StatusSelect from './StatusSelect';
+
+const statusStyles: Record<LeadStatus, string> = {
+  nouveau:       'bg-blue/10 text-blue-dark',
+  contacté:      'bg-accent/10 text-accent-dark',
+  intéressé:     'bg-emerald-500/10 text-emerald-700',
+  pas_intéressé: 'bg-black/[0.07] text-mute',
+};
+
+const statusLabels: Record<LeadStatus, string> = {
+  nouveau:       'Nouveau',
+  contacté:      'Contacté',
+  intéressé:     'Intéressé',
+  pas_intéressé: 'Pas intéressé',
+};
 
 interface StatusBadgeProps {
   status: LeadStatus;
@@ -14,40 +27,29 @@ interface StatusBadgeProps {
 export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const colors = getStatusColor(status);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 rounded-[6px] font-medium flex-shrink-0"
-        style={{
-          backgroundColor: colors.bg,
-          color: colors.text,
-          padding: '4px 10px',
-          fontSize: '12px',
-        }}
+        className={`flex items-center gap-1 rounded-full font-medium transition-opacity duration-150 hover:opacity-80 ${statusStyles[status]}`}
+        style={{ fontSize: 11, padding: '3px 10px 3px 10px', letterSpacing: '0.01em' }}
       >
-        {getStatusLabel(status)}
-        <ChevronDown size={12} />
+        {statusLabels[status]}
+        <ChevronDown size={10} strokeWidth={2.5} />
       </button>
       {open && (
         <StatusSelect
           currentStatus={status}
-          onChange={(s) => {
-            onChange(s);
-            setOpen(false);
-          }}
+          onChange={(s) => { onChange(s); setOpen(false); }}
         />
       )}
     </div>
