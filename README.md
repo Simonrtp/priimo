@@ -10,7 +10,7 @@ privée.
 - **React 18** + **TypeScript** strict
 - **Tailwind CSS 3** — palette orange/bleu personnalisée
 - **Google Fonts** via `next/font/google` (**Inter**, weights 400–700)
-- **Crisp Chat** chargé via `next/script` après hydration
+- **Widget Causio** chargé via `next/script` après hydration (`causio.fr`)
 - Aucune dépendance d'UI ou d'animation externe (tout en CSS/JS natif)
 
 ## Lancer en local
@@ -75,7 +75,7 @@ app/
   api/
     beta/route.ts      # Endpoint d'inscription (POST), validation server-side
   globals.css          # Tailwind + utilitaires (boutons, reveal, animations)
-  layout.tsx           # Fonts, metadata SEO, viewport, provider modal, Crisp
+  layout.tsx           # Fonts, metadata SEO, viewport, provider modal, widget Causio
   page.tsx             # Assemble toutes les sections dans l'ordre
   robots.ts            # /robots.txt généré (App Router)
   sitemap.ts           # /sitemap.xml généré (App Router)
@@ -126,4 +126,4 @@ Blob / webhook.
 | Compteur "47 agences" | recherche globale `47 agences` |
 | Liste prospects mockup | `components/DashboardMockup.tsx` (`PROSPECTS`) |
 | Questions FAQ | `components/FAQ.tsx` (`FAQS`) |
-| Crisp ID | `app/layout.tsx` → `CRISP_WEBSITE_ID` |
+| Widget chat Causio | `app/layout.tsx` → `CAUSIO_CONFIG.chatbotId` + URL `widget.js` |

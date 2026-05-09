@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Lead } from '@/types/lead';
-import { getScoreColor, formatDate, formatPrice } from '@/lib/utils';
+import { formatDate, formatPrice } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 
 interface LeadDrawerProps {
@@ -12,192 +12,238 @@ interface LeadDrawerProps {
   onUpdateLead: (lead: Lead) => void;
 }
 
-const signalMeta: Record<string, { label: string; points: string; color: string }> = {
-  liquidation_pro: { label: 'Liquidation professionnelle détectée', points: '+35', color: '#EF4444' },
-  dissolution_sci: { label: 'Dissolution SCI détectée', points: '+35', color: '#EF4444' },
-  cession_entreprise: { label: "Cession d'entreprise détectée", points: '+30', color: '#EF4444' },
-  dpe_recent: { label: 'DPE refait récemment', points: '+20', color: '#F59E0B' },
-  detention_longue: { label: 'Détention de longue durée', points: '+15', color: '#3B82F6' },
-  plus_value: { label: 'Plus-value élevée détectée', points: '+20', color: '#8B5CF6' },
-  zone_rotation: { label: 'Zone à forte rotation', points: '+10', color: '#10B981' },
+const signalMeta: Record<string, { label: string; pts: number; color: string }> = {
+  liquidation_pro:   { label: 'Liquidation professionnelle',  pts: 35, color: '#E8743C' },
+  dissolution_sci:   { label: 'Dissolution SCI',              pts: 35, color: '#E8743C' },
+  cession_entreprise:{ label: "Cession d'entreprise",         pts: 30, color: '#E8743C' },
+  dpe_recent:        { label: 'DPE refait récemment',          pts: 20, color: '#3D5A80' },
+  detention_longue:  { label: 'Détention longue durée',       pts: 15, color: '#3D5A80' },
+  plus_value:        { label: 'Plus-value élevée',            pts: 20, color: '#7B9AC0' },
+  zone_rotation:     { label: 'Zone à forte rotation',        pts: 10, color: '#9CA3AF' },
 };
 
-export default function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
-  const [noteValue, setNoteValue] = useState('');
+const scoreStyle = (score: number) => {
+  if (score >= 80) return { color: '#C25E2C', bar: '#E8743C', bg: '#FFF3EA' };
+  if (score >= 50) return { color: '#293F5C', bar: '#3D5A80', bg: '#EEF2F7' };
+  return { color: '#6B7280', bar: '#C8C8BF', bg: '#F1F1EE' };
+};
 
-  useEffect(() => {
-    setNoteValue('');
-  }, [lead?.id]);
+const lifeEventLabel: Record<string, string> = {
+  liquidation_pro:    '🔥 Liquidation pro détectée',
+  dissolution_sci:    '⚡ Dissolution SCI détectée',
+  cession_entreprise: "🔄 Cession d'entreprise détectée",
+};
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="uppercase text-mute tracking-widest mb-3"
+      style={{ fontSize: 9, letterSpacing: '0.18em' }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function Divider() {
+  return <div className="h-px bg-black/[0.06] my-5" />;
+}
+
+export default function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
+  const [note, setNote] = useState('');
+
+  useEffect(() => { setNote(''); }, [lead?.id]);
 
   if (!lead) return null;
 
-  const colors = getScoreColor(lead.score);
-  const plusValue = ((lead.estimatedValue / lead.purchasePrice - 1) * 100).toFixed(0);
+  const s = scoreStyle(lead.score);
+  const plusValue = (((lead.estimatedValue / lead.purchasePrice) - 1) * 100).toFixed(0);
+  const totalPts = lead.signalType.reduce((acc, sig) => acc + (signalMeta[sig]?.pts ?? 0), 0);
 
-  const detailRows = [
-    { label: 'Type', value: lead.propertyType },
-    { label: 'Surface', value: `${lead.surface} m²` },
-    { label: 'Acheté le', value: formatDate(lead.purchaseDate) },
-    { label: "Prix d'achat", value: `${formatPrice(lead.purchasePrice)} €` },
-    { label: 'Valeur estimée', value: `${formatPrice(lead.estimatedValue)} €` },
-    { label: 'Plus-value', value: `+${plusValue}%` },
+  const details = [
+    { label: 'Type de bien',    value: lead.propertyType },
+    { label: 'Surface',         value: `${lead.surface} m²` },
+    { label: 'Acheté le',       value: formatDate(lead.purchaseDate) },
+    { label: "Prix d'achat",    value: `${formatPrice(lead.purchasePrice)} €` },
+    { label: 'Valeur estimée',  value: `${formatPrice(lead.estimatedValue)} €` },
+    { label: 'Plus-value',      value: `+${plusValue}%` },
   ];
 
   return (
     <>
+      {/* Overlay */}
       <div
-        className="fixed inset-0 z-40"
-        style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}
+        className="fixed inset-0 z-40 animate-overlay-in"
+        style={{ backgroundColor: 'rgba(17,24,39,0.18)' }}
         onClick={onClose}
       />
 
+      {/* Drawer */}
       <aside
-        className="fixed right-0 top-0 bottom-0 bg-white z-50 overflow-y-auto animate-drawer-in"
-        style={{
-          width: '440px',
-          boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
-        }}
+        className="fixed right-0 top-0 bottom-0 z-50 bg-white overflow-y-auto animate-drawer-in"
+        style={{ width: 480, boxShadow: '-8px 0 40px rgba(17,24,39,0.10)' }}
       >
-        <div className="p-6">
+        {/* Accent bar at top */}
+        <div
+          className="h-[4px] flex-shrink-0"
+          style={{ background: 'linear-gradient(90deg, #E8743C 0%, #7B9AC0 100%)' }}
+        />
+
+        <div className="px-7 py-6">
+          {/* Close */}
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-900 transition-colors duration-150 mb-6"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-mute hover:text-ink hover:bg-black/[0.05] transition-colors duration-150 mb-5 -ml-1"
           >
-            <X size={20} />
+            <X size={16} strokeWidth={1.8} />
           </button>
 
-          <p className="font-semibold tracking-tight text-gray-900 mb-4" style={{ fontSize: '20px' }}>
+          {/* Address + life event */}
+          <p
+            className="font-bold text-ink tracking-tight mb-1"
+            style={{ fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.3 }}
+          >
             {lead.address}
           </p>
-
-          <div
-            className="bg-gray-100 rounded-[8px] flex items-center justify-center mb-6"
-            style={{ height: '180px' }}
-          >
-            <span className="font-medium text-gray-400" style={{ fontSize: '13px' }}>
-              🗺️ Carte à venir
+          {lead.lifeEvent && (
+            <span
+              className="inline-block bg-accent/10 text-accent-dark rounded-full font-medium mb-4"
+              style={{ fontSize: 11, padding: '3px 10px' }}
+            >
+              {lifeEventLabel[lead.lifeEvent]}
             </span>
+          )}
+
+          {/* Map placeholder */}
+          <div
+            className="rounded-2xl bg-soft-gray flex items-center justify-center mb-5"
+            style={{ height: 164 }}
+          >
+            <span className="text-mute" style={{ fontSize: 12.5 }}>🗺️ Carte à venir</span>
           </div>
 
-          <div className="mb-6">
-            <p className="font-medium uppercase tracking-wider text-gray-500 mb-2" style={{ fontSize: '12px' }}>
-              Score
+          {/* ── Score ──────────────────────────────────── */}
+          <SectionLabel>Score de probabilité</SectionLabel>
+          <div className="flex items-end gap-4 mb-3">
+            <p
+              className="font-bold tabular leading-none"
+              style={{ fontSize: 72, color: s.color, letterSpacing: '-0.04em' }}
+            >
+              {lead.score}
             </p>
-            <div className="flex items-baseline gap-1 mb-2">
-              <span className="font-bold leading-none" style={{ fontSize: '36px', color: colors.text }}>
-                {lead.score}
-              </span>
-              <span className="text-gray-500" style={{ fontSize: '16px' }}>/100</span>
-            </div>
-            <div className="rounded-full overflow-hidden bg-gray-200" style={{ height: '6px' }}>
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${lead.score}%`, backgroundColor: colors.dot }}
-              />
+            <div className="pb-2">
+              <p className="text-mute" style={{ fontSize: 12 }}>/100</p>
+              <p className="font-medium" style={{ fontSize: 11.5, color: s.color }}>
+                +{totalPts} pts signaux
+              </p>
             </div>
           </div>
+          {/* Score bar */}
+          <div className="rounded-full overflow-hidden bg-soft-gray mb-1" style={{ height: 5 }}>
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${lead.score}%`, backgroundColor: s.bar, transition: 'width 0.5s ease-out' }}
+            />
+          </div>
 
-          <div className="mb-6">
-            <p className="font-semibold text-gray-900 mb-3" style={{ fontSize: '16px' }}>
-              Signaux détectés
-            </p>
-            {lead.signalType.map((signal) => {
-              const info = signalMeta[signal];
-              if (!info) return null;
+          <Divider />
+
+          {/* ── Signaux ────────────────────────────────── */}
+          <SectionLabel>Signaux détectés</SectionLabel>
+          <div className="flex flex-col gap-3">
+            {lead.signalType.map((sig) => {
+              const m = signalMeta[sig];
+              if (!m) return null;
+              const pct = Math.round((m.pts / 35) * 100);
               return (
-                <div key={signal} className="flex items-center gap-3 mb-2">
-                  <span
-                    className="rounded-full flex-shrink-0"
-                    style={{ width: '8px', height: '8px', backgroundColor: info.color }}
-                  />
-                  <span className="flex-1 text-gray-700" style={{ fontSize: '14px' }}>
-                    {info.label}
-                  </span>
-                  <span className="font-medium text-gray-500" style={{ fontSize: '12px' }}>
-                    {info.points}
-                  </span>
+                <div key={sig}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="rounded-full flex-shrink-0"
+                        style={{ width: 7, height: 7, backgroundColor: m.color }}
+                      />
+                      <span className="text-ink" style={{ fontSize: 13 }}>{m.label}</span>
+                    </div>
+                    <span className="font-semibold tabular text-mute" style={{ fontSize: 11.5 }}>
+                      +{m.pts} pts
+                    </span>
+                  </div>
+                  <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: `${m.color}20` }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, backgroundColor: m.color }}
+                    />
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="mb-6">
-            <p className="font-semibold text-gray-900 mb-3" style={{ fontSize: '16px' }}>
-              Détails du bien
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {detailRows.map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-gray-500" style={{ fontSize: '12px' }}>
-                    {label}
-                  </p>
-                  <p className="font-medium text-gray-900" style={{ fontSize: '14px' }}>
-                    {value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Divider />
 
-          <div className="mb-6">
-            <p className="font-medium uppercase tracking-wider text-gray-500 mb-2" style={{ fontSize: '12px' }}>
-              Statut
-            </p>
-            <StatusBadge
-              status={lead.status}
-              onChange={(s) => onUpdateLead({ ...lead, status: s })}
-            />
-          </div>
-
-          <div className="mb-6">
-            <p className="font-medium uppercase tracking-wider text-gray-500 mb-2" style={{ fontSize: '12px' }}>
-              Notes
-            </p>
-            {lead.notes && (
-              <p
-                className="text-gray-600 mb-3 bg-gray-50 rounded-[6px] p-3"
-                style={{ fontSize: '13px' }}
-              >
-                {lead.notes}
-              </p>
-            )}
-            <textarea
-              rows={4}
-              value={noteValue}
-              onChange={(e) => setNoteValue(e.target.value)}
-              placeholder="Ajouter une note..."
-              className="w-full border border-[#E5E5E5] rounded-[6px] p-3 text-gray-900 resize-none focus:outline-none focus:border-[#2563EB] placeholder-gray-400"
-              style={{ fontSize: '14px' }}
-            />
-            <button
-              onClick={() => {
-                if (noteValue.trim()) {
-                  onUpdateLead({ ...lead, notes: noteValue.trim() });
-                  setNoteValue('');
-                }
-              }}
-              className="mt-2 bg-[#2563EB] text-white font-semibold rounded-[6px] hover:bg-[#1D4ED8] transition-colors duration-150"
-              style={{ padding: '8px 16px', fontSize: '14px' }}
-            >
-              Enregistrer
-            </button>
-          </div>
-
-          <div className="mb-6">
-            <p className="font-medium uppercase tracking-wider text-gray-500 mb-3" style={{ fontSize: '12px' }}>
-              Historique
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-start gap-3">
-                <span
-                  className="rounded-full bg-gray-400 flex-shrink-0 mt-[5px]"
-                  style={{ width: '6px', height: '6px' }}
-                />
-                <p className="text-gray-600" style={{ fontSize: '13px' }}>
-                  Lead créé — {formatDate(lead.createdAt)}
-                </p>
+          {/* ── Détails du bien ────────────────────────── */}
+          <SectionLabel>Détails du bien</SectionLabel>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            {details.map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-mute mb-0.5" style={{ fontSize: 11 }}>{label}</p>
+                <p className="font-semibold text-ink tabular" style={{ fontSize: 13.5 }}>{value}</p>
               </div>
-            </div>
+            ))}
+          </div>
+
+          <Divider />
+
+          {/* ── Statut ─────────────────────────────────── */}
+          <SectionLabel>Statut</SectionLabel>
+          <StatusBadge
+            status={lead.status}
+            onChange={(s) => onUpdateLead({ ...lead, status: s })}
+          />
+
+          <Divider />
+
+          {/* ── Notes ──────────────────────────────────── */}
+          <SectionLabel>Notes</SectionLabel>
+          {lead.notes && (
+            <p
+              className="bg-soft-warm rounded-xl px-4 py-3 text-ink mb-3"
+              style={{ fontSize: 13, lineHeight: 1.6 }}
+            >
+              {lead.notes}
+            </p>
+          )}
+          <textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Ajouter une note…"
+            className="w-full border border-black/8 rounded-xl px-4 py-3 text-ink resize-none focus:outline-none focus:border-accent/40 placeholder-mute/60"
+            style={{ fontSize: 13, lineHeight: 1.6 }}
+          />
+          <button
+            onClick={() => {
+              if (note.trim()) { onUpdateLead({ ...lead, notes: note.trim() }); setNote(''); }
+            }}
+            className="mt-2 btn btn-primary"
+            style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
+          >
+            Enregistrer
+          </button>
+
+          <Divider />
+
+          {/* ── Historique ─────────────────────────────── */}
+          <SectionLabel>Historique</SectionLabel>
+          <div className="flex items-start gap-3">
+            <span
+              className="mt-[5px] rounded-full bg-black/20 flex-shrink-0"
+              style={{ width: 6, height: 6 }}
+            />
+            <p className="text-mute" style={{ fontSize: 12.5 }}>
+              Lead créé — {formatDate(lead.createdAt)}
+            </p>
           </div>
         </div>
       </aside>

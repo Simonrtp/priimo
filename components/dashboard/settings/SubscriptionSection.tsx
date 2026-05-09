@@ -1,22 +1,21 @@
 export default function SubscriptionSection() {
   return (
-    <div className="bg-white border border-[#E5E5E5] rounded-[8px] p-6">
-      <p className="font-semibold tracking-tight text-gray-900 mb-4" style={{ fontSize: '20px' }}>
+    <div className="bg-white rounded-2xl shadow-soft border border-black/8 p-7">
+      <p className="font-bold text-ink tracking-tight mb-5" style={{ fontSize: 17, letterSpacing: '-0.02em' }}>
         Mon abonnement
       </p>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-[8px] p-4 mb-4 flex items-center justify-between">
+      {/* Plan card */}
+      <div className="bg-soft-warm border border-accent/20 rounded-2xl p-5 mb-5 flex items-center justify-between">
         <div>
-          <p className="font-semibold text-gray-900" style={{ fontSize: '16px' }}>
+          <p className="font-bold text-ink" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
             Plan Fondateur
           </p>
-          <p className="text-gray-700" style={{ fontSize: '14px' }}>
-            149 €/mois
-          </p>
+          <p className="text-mute mt-0.5" style={{ fontSize: 13 }}>149 €/mois</p>
         </div>
         <span
-          className="bg-[#2563EB] text-white font-medium rounded-[4px]"
-          style={{ fontSize: '11px', padding: '2px 8px' }}
+          className="bg-accent text-white font-semibold rounded-full"
+          style={{ fontSize: 10.5, padding: '3px 10px', letterSpacing: '0.02em' }}
         >
           Tarif à vie
         </span>
@@ -24,13 +23,13 @@ export default function SubscriptionSection() {
 
       <button
         disabled
-        className="border border-[#E5E5E5] rounded-[6px] bg-white font-semibold text-gray-700 opacity-50 cursor-not-allowed"
-        style={{ padding: '10px 16px', fontSize: '14px' }}
+        className="border border-black/10 rounded-xl text-mute font-medium opacity-50 cursor-not-allowed"
+        style={{ padding: '9px 18px', fontSize: 13 }}
       >
         Gérer mon abonnement
       </button>
 
-      <p className="text-gray-500 italic mt-3" style={{ fontSize: '12px' }}>
+      <p className="text-mute italic mt-3" style={{ fontSize: 11.5 }}>
         Bientôt disponible — connexion Stripe en cours d&apos;intégration.
       </p>
     </div>

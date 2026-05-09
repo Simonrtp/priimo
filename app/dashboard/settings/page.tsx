@@ -4,7 +4,7 @@ import SubscriptionSection from '@/components/dashboard/settings/SubscriptionSec
 
 export default function SettingsPage() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 max-w-2xl">
       <ZoneSection />
       <AgencySection />
       <SubscriptionSection />

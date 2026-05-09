@@ -3,7 +3,7 @@ import TopBar from '@/components/dashboard/TopBar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex bg-[#FAFAFA]" style={{ height: '100vh', overflow: 'hidden' }}>
+    <div className="flex bg-canvas" style={{ height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
         <TopBar />
