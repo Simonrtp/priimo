@@ -86,6 +86,15 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://causio.fr" />
+        {/* Causio : apiUrl requis si document.currentScript est indisponible au bootstrap */}
+        <Script id="causio-config" strategy="beforeInteractive">
+          {`
+            window.CAUSIO_CONFIG = {
+              chatbotId: "a57fefed-3176-4771-9aae-e7e93c54e1d0",
+              apiUrl: "https://causio.fr",
+            };
+          `}
+        </Script>
       </head>
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
         <BetaModalProvider>
@@ -93,72 +102,52 @@ export default function RootLayout({
           <BetaModal />
         </BetaModalProvider>
 
-        {/* Causio widget partout (racine = landing + /dashboard). Nettoyage
-            explicite des restes Crisp (cache / session) avant chargement. */}
-        <Script id="causio-widget" strategy="afterInteractive">
+        {/* Nettoyage Crisp (cache), puis chargement widget via <Script src> (currentScript fiable). */}
+        <Script id="causio-crisp-cleanup" strategy="afterInteractive">
           {`
             (function () {
-              function removeCrispArtifacts() {
-                try {
-                  if (window.$crisp && typeof window.$crisp.push === "function") {
-                    try {
-                      window.$crisp.push(["do", "chat:close"]);
-                    } catch (e) {}
-                    try {
-                      window.$crisp.push(["do", "chat:hide"]);
-                    } catch (e) {}
-                  }
-                } catch (e) {}
-                try {
-                  delete window.CRISP_WEBSITE_ID;
-                  window.$crisp = [];
-                } catch (e) {}
-                try {
-                  document
-                    .querySelectorAll(
-                      'script[src*="crisp.chat"], script[src*="client.crisp"]'
-                    )
-                    .forEach(function (n) {
-                      n.remove();
-                    });
-                  document
-                    .querySelectorAll('iframe[src*="crisp"], iframe[id*="crisp"]')
-                    .forEach(function (n) {
-                      n.remove();
-                    });
-                  ["crisp-root", "crisp-chatbox", "crisp-client"].forEach(function (id) {
-                    var el = document.getElementById(id);
-                    if (el) el.remove();
-                  });
-                } catch (e) {}
-                try {
-                  var ls = window.localStorage;
-                  for (var i = ls.length - 1; i >= 0; i--) {
-                    var k = ls.key(i);
-                    if (k && /crisp/i.test(k)) ls.removeItem(k);
-                  }
-                  var ss = window.sessionStorage;
-                  for (var j = ss.length - 1; j >= 0; j--) {
-                    var sk = ss.key(j);
-                    if (sk && /crisp/i.test(sk)) ss.removeItem(sk);
-                  }
-                } catch (e) {}
-              }
-
-              removeCrispArtifacts();
-
-              window.CAUSIO_CONFIG = { chatbotId: "a57fefed-3176-4771-9aae-e7e93c54e1d0" };
-              var d = document;
-              var existing = d.querySelector('script[data-causio-widget="1"]');
-              if (existing) return;
-              var s = d.createElement("script");
-              s.src = "https://causio.fr/widget.js?v=dpl_4LkWXpo6ysAptuZTut3Rg2BVJpuq";
-              s.async = 1;
-              s.setAttribute("data-causio-widget", "1");
-              (d.head || d.body).appendChild(s);
+              try {
+                if (window.$crisp && typeof window.$crisp.push === "function") {
+                  try { window.$crisp.push(["do", "chat:close"]); } catch (e) {}
+                  try { window.$crisp.push(["do", "chat:hide"]); } catch (e) {}
+                }
+              } catch (e) {}
+              try {
+                delete window.CRISP_WEBSITE_ID;
+                window.$crisp = [];
+              } catch (e) {}
+              try {
+                document
+                  .querySelectorAll('script[src*="crisp.chat"], script[src*="client.crisp"]')
+                  .forEach(function (n) { n.remove(); });
+                document
+                  .querySelectorAll('iframe[src*="crisp"], iframe[id*="crisp"]')
+                  .forEach(function (n) { n.remove(); });
+                ["crisp-root", "crisp-chatbox", "crisp-client"].forEach(function (id) {
+                  var el = document.getElementById(id);
+                  if (el) el.remove();
+                });
+              } catch (e) {}
+              try {
+                var ls = window.localStorage;
+                for (var i = ls.length - 1; i >= 0; i--) {
+                  var k = ls.key(i);
+                  if (k && /crisp/i.test(k)) ls.removeItem(k);
+                }
+                var ss = window.sessionStorage;
+                for (var j = ss.length - 1; j >= 0; j--) {
+                  var sk = ss.key(j);
+                  if (sk && /crisp/i.test(sk)) ss.removeItem(sk);
+                }
+              } catch (e) {}
             })();
           `}
         </Script>
+        <Script
+          id="causio-widget"
+          src="https://causio.fr/widget.js?v=dpl_4LkWXpo6ysAptuZTut3Rg2BVJpuq"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
