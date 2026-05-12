@@ -20,6 +20,7 @@ const statusPills: { value: 'all' | LeadStatus; label: string }[] = [
   { value: 'nouveau',       label: 'Nouveau'       },
   { value: 'contacté',      label: 'Contacté'      },
   { value: 'intéressé',     label: 'Intéressé'     },
+  { value: 'rdv_pris',      label: 'RDV pris'      },
   { value: 'pas_intéressé', label: 'Pas intéressé' },
 ];
 
@@ -103,6 +104,7 @@ export default function FiltersBar({ filters, onFiltersChange }: FiltersBarProps
                 : p.value === 'nouveau'       ? 'bg-blue/15 text-blue-dark'
                 : p.value === 'contacté'      ? 'bg-accent/15 text-accent-dark'
                 : p.value === 'intéressé'     ? 'bg-emerald-500/15 text-emerald-700'
+                : p.value === 'rdv_pris'      ? 'bg-violet-500/15 text-violet-800'
                 : 'bg-black/[0.1] text-mute'
               }
             />

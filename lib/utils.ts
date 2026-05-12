@@ -1,5 +1,16 @@
 import type { Lead } from '@/types/lead';
 
+/** Découpe « rue, code postal ville » pour l’en-tête drawer. */
+export function splitStreetAndCity(address: string): { streetLine: string; cityZipLine: string } {
+  const idx = address.lastIndexOf(',');
+  if (idx === -1) return { streetLine: address.trim(), cityZipLine: '' };
+  const streetLine = address.slice(0, idx).trim();
+  const tail = address.slice(idx + 1).trim();
+  const m = tail.match(/^(\d{5})\s+(.+)$/);
+  const cityZipLine = m ? `${m[2]} · ${m[1]}` : tail;
+  return { streetLine, cityZipLine };
+}
+
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('fr-FR').format(price);
 }
@@ -36,6 +47,7 @@ export function getStatusColor(status: string): { bg: string; text: string } {
     contacté: { bg: '#FEF3C7', text: '#92400E' },
     intéressé: { bg: '#D1FAE5', text: '#065F46' },
     pas_intéressé: { bg: '#F3F4F6', text: '#4B5563' },
+    rdv_pris: { bg: '#EDE9FE', text: '#5B21B6' },
   };
   return colors[status] || colors.nouveau;
 }
@@ -64,6 +76,15 @@ export function getStatusLabel(status: string): string {
     contacté: 'Contacté',
     intéressé: 'Intéressé',
     pas_intéressé: 'Pas intéressé',
+    rdv_pris: 'RDV pris',
   };
   return labels[status] || status;
+}
+
+/** Pastille signal drawer : intensité selon les points. */
+export function signalTierEmoji(pts: number): string {
+  if (pts >= 35) return '🔴';
+  if (pts >= 25) return '🟠';
+  if (pts >= 15) return '🟡';
+  return '🟢';
 }

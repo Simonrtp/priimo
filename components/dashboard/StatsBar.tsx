@@ -44,7 +44,7 @@ export default function StatsBar({ leads }: StatsBarProps) {
   ).length;
 
   const contactes = leads.filter(
-    (l) => l.status === 'contacté' || l.status === 'intéressé'
+    (l) => l.status === 'contacté' || l.status === 'intéressé' || l.status === 'rdv_pris'
   ).length;
 
   const scoreMoyen = leads.length > 0

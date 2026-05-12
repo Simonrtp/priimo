@@ -6,6 +6,7 @@ const statuses: { value: LeadStatus; label: string; dot: string }[] = [
   { value: 'nouveau',       label: 'Nouveau',        dot: '#3D5A80' },
   { value: 'contacté',      label: 'Contacté',       dot: '#E8743C' },
   { value: 'intéressé',     label: 'Intéressé',      dot: '#059669' },
+  { value: 'rdv_pris',      label: 'RDV pris',       dot: '#7C3AED' },
   { value: 'pas_intéressé', label: 'Pas intéressé',  dot: '#9CA3AF' },
 ];
 

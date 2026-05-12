@@ -10,6 +10,7 @@ const statusStyles: Record<LeadStatus, string> = {
   contacté:      'bg-accent/10 text-accent-dark',
   intéressé:     'bg-emerald-500/10 text-emerald-700',
   pas_intéressé: 'bg-black/[0.07] text-mute',
+  rdv_pris:      'bg-violet-500/10 text-violet-800',
 };
 
 const statusLabels: Record<LeadStatus, string> = {
@@ -17,6 +18,7 @@ const statusLabels: Record<LeadStatus, string> = {
   contacté:      'Contacté',
   intéressé:     'Intéressé',
   pas_intéressé: 'Pas intéressé',
+  rdv_pris:      'RDV pris',
 };
 
 interface StatusBadgeProps {

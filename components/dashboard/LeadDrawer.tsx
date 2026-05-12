@@ -1,31 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
-import type { Lead } from '@/types/lead';
-import { formatDate, formatPrice } from '@/lib/utils';
-import StatusBadge from './StatusBadge';
+import type { Lead, LeadStatus, ProspectOutcome } from '@/types/lead';
+import { mockAgents } from '@/lib/mock-data';
+import { formatDate, formatPrice, splitStreetAndCity, getStatusLabel, signalTierEmoji } from '@/lib/utils';
+import ScoreRing from './ScoreRing';
 
 interface LeadDrawerProps {
   lead: Lead | null;
+  isPlanPremium: boolean;
   onClose: () => void;
   onUpdateLead: (lead: Lead) => void;
 }
 
-const signalMeta: Record<string, { label: string; pts: number; color: string }> = {
-  liquidation_pro:   { label: 'Liquidation professionnelle',  pts: 35, color: '#E8743C' },
-  dissolution_sci:   { label: 'Dissolution SCI',              pts: 35, color: '#E8743C' },
-  cession_entreprise:{ label: "Cession d'entreprise",         pts: 30, color: '#E8743C' },
-  dpe_recent:        { label: 'DPE refait récemment',          pts: 20, color: '#3D5A80' },
-  detention_longue:  { label: 'Détention longue durée',       pts: 15, color: '#3D5A80' },
-  plus_value:        { label: 'Plus-value élevée',            pts: 20, color: '#7B9AC0' },
-  zone_rotation:     { label: 'Zone à forte rotation',        pts: 10, color: '#9CA3AF' },
-};
-
-const scoreStyle = (score: number) => {
-  if (score >= 80) return { color: '#C25E2C', bar: '#E8743C', bg: '#FFF3EA' };
-  if (score >= 50) return { color: '#293F5C', bar: '#3D5A80', bg: '#EEF2F7' };
-  return { color: '#6B7280', bar: '#C8C8BF', bg: '#F1F1EE' };
+const signalMeta: Record<string, { label: string; pts: number }> = {
+  liquidation_pro:   { label: 'Liquidation professionnelle',  pts: 35 },
+  dissolution_sci:   { label: 'Dissolution SCI',              pts: 35 },
+  cession_entreprise:{ label: "Cession d'entreprise",         pts: 30 },
+  dpe_recent:        { label: 'DPE refait récemment',          pts: 20 },
+  detention_longue:  { label: 'Détention longue durée',       pts: 15 },
+  plus_value:        { label: 'Plus-value élevée',            pts: 20 },
+  zone_rotation:     { label: 'Zone à forte rotation',        pts: 10 },
 };
 
 const lifeEventLabel: Record<string, string> = {
@@ -33,6 +29,13 @@ const lifeEventLabel: Record<string, string> = {
   dissolution_sci:    '⚡ Dissolution SCI détectée',
   cession_entreprise: "🔄 Cession d'entreprise détectée",
 };
+
+const outcomeOptions: { value: ProspectOutcome; label: string }[] = [
+  { value: 'mandat_signe', label: '✅ Mandat signé' },
+  { value: 'vendu_ailleurs', label: '➡️ Vendu ailleurs' },
+  { value: 'pas_vendeur', label: '❌ Pas vendeur' },
+  { value: 'pas_contacte', label: '⏸️ Pas contacté' },
+];
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -46,206 +49,401 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function Divider() {
-  return <div className="h-px bg-black/[0.06] my-5" />;
+  return <div className="h-px bg-black/[0.05] my-5" />;
 }
 
-export default function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
+function heatLabel(score: number): string {
+  if (score >= 80) return '★ Très chaud';
+  if (score >= 50) return 'Chaud';
+  return 'Tiède';
+}
+
+function CopyInlineButton({
+  value,
+  onCopied,
+  disabled,
+}: {
+  value: string;
+  onCopied: () => void;
+  disabled?: boolean;
+}) {
+  const copy = async () => {
+    if (!value || disabled) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      onCopied();
+    } catch {
+      /* ignore */
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); copy(); }}
+      disabled={disabled || !value}
+      className="text-xs font-medium text-accent-dark hover:text-accent disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      Copier
+    </button>
+  );
+}
+
+export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead }: LeadDrawerProps) {
   const [note, setNote] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2000);
+  }, []);
 
   useEffect(() => { setNote(''); }, [lead?.id]);
 
+  useEffect(() => {
+    if (!lead) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lead, onClose]);
+
   if (!lead) return null;
 
-  const s = scoreStyle(lead.score);
+  const { streetLine, cityZipLine } = splitStreetAndCity(lead.address);
   const plusValue = (((lead.estimatedValue / lead.purchasePrice) - 1) * 100).toFixed(0);
   const totalPts = lead.signalType.reduce((acc, sig) => acc + (signalMeta[sig]?.pts ?? 0), 0);
+  const isEnterprise = !!lead.legalForm && lead.segment === 'entreprise';
+  const year = new Date(lead.purchaseDate).getFullYear();
 
-  const details = [
-    { label: 'Type de bien',    value: lead.propertyType },
-    { label: 'Surface',         value: `${lead.surface} m²` },
-    { label: 'Acheté le',       value: formatDate(lead.purchaseDate) },
-    { label: "Prix d'achat",    value: `${formatPrice(lead.purchasePrice)} €` },
-    { label: 'Valeur estimée',  value: `${formatPrice(lead.estimatedValue)} €` },
-    { label: 'Plus-value',      value: `+${plusValue}%` },
-  ];
+  const statusOptions: LeadStatus[] = ['nouveau', 'contacté', 'intéressé', 'rdv_pris', 'pas_intéressé'];
 
   return (
     <>
-      {/* Overlay */}
       <div
         className="fixed inset-0 z-40 animate-overlay-in"
-        style={{ backgroundColor: 'rgba(17,24,39,0.18)' }}
+        style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
         onClick={onClose}
+        aria-hidden
       />
 
-      {/* Drawer */}
       <aside
-        className="fixed right-0 top-0 bottom-0 z-50 bg-white overflow-y-auto animate-drawer-in"
-        style={{ width: 480, boxShadow: '-8px 0 40px rgba(17,24,39,0.10)' }}
+        className="fixed right-0 top-0 bottom-0 z-50 flex flex-col bg-white animate-drawer-in relative"
+        style={{ width: 480, boxShadow: '-4px 0 24px rgba(17,24,39,0.08)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-address"
       >
-        {/* Accent bar at top */}
-        <div
-          className="h-[4px] flex-shrink-0"
-          style={{ background: 'linear-gradient(90deg, #E8743C 0%, #7B9AC0 100%)' }}
-        />
-
-        <div className="px-7 py-6">
-          {/* Close */}
+        <div className="flex-shrink-0 flex justify-end items-center px-7 pt-5 pb-3 border-b border-black/[0.05]">
           <button
+            type="button"
             onClick={onClose}
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-mute hover:text-ink hover:bg-black/[0.05] transition-colors duration-150 mb-5 -ml-1"
+            className="flex items-center justify-center w-9 h-9 rounded-lg text-mute hover:text-ink hover:bg-black/[0.05] transition-colors"
+            aria-label="Fermer"
           >
-            <X size={16} strokeWidth={1.8} />
+            <X size={18} strokeWidth={1.8} />
           </button>
+        </div>
 
-          {/* Address + life event */}
-          <p
-            className="font-bold text-ink tracking-tight mb-1"
-            style={{ fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.3 }}
-          >
-            {lead.address}
-          </p>
-          {lead.lifeEvent && (
-            <span
-              className="inline-block bg-accent/10 text-accent-dark rounded-full font-medium mb-4"
-              style={{ fontSize: 11, padding: '3px 10px' }}
-            >
-              {lifeEventLabel[lead.lifeEvent]}
-            </span>
-          )}
-
-          {/* Map placeholder */}
-          <div
-            className="rounded-2xl bg-soft-gray flex items-center justify-center mb-5"
-            style={{ height: 164 }}
-          >
-            <span className="text-mute" style={{ fontSize: 12.5 }}>🗺️ Carte à venir</span>
-          </div>
-
-          {/* ── Score ──────────────────────────────────── */}
-          <SectionLabel>Score de probabilité</SectionLabel>
-          <div className="flex items-end gap-4 mb-3">
-            <p
-              className="font-bold tabular leading-none"
-              style={{ fontSize: 72, color: s.color, letterSpacing: '-0.04em' }}
-            >
-              {lead.score}
-            </p>
-            <div className="pb-2">
-              <p className="text-mute" style={{ fontSize: 12 }}>/100</p>
-              <p className="font-medium" style={{ fontSize: 11.5, color: s.color }}>
-                +{totalPts} pts signaux
+        <div className="flex-1 overflow-y-auto px-7 pb-10">
+          {/* ── Section 1 — En-tête ───────────────────── */}
+          <div className="flex justify-between gap-5 items-start mb-1">
+            <div className="min-w-0 flex-1">
+              <h2
+                id="drawer-address"
+                className="font-semibold text-ink tracking-tight"
+                style={{ fontSize: 17, letterSpacing: '-0.02em', lineHeight: 1.35 }}
+              >
+                {streetLine}
+              </h2>
+              {cityZipLine && (
+                <p className="text-mute mt-1" style={{ fontSize: 12.5 }}>
+                  {cityZipLine}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {lead.lifeEvent && (
+                  <span
+                    className="inline-block bg-accent/10 text-accent-dark rounded-full font-medium"
+                    style={{ fontSize: 11, padding: '3px 10px' }}
+                  >
+                    {lifeEventLabel[lead.lifeEvent]}
+                  </span>
+                )}
+                {lead.legalForm && (
+                  <span
+                    className="inline-block rounded font-semibold uppercase tracking-wide bg-blue/12 text-blue-dark border border-blue/20"
+                    style={{ fontSize: 10, padding: '3px 9px', letterSpacing: '0.07em' }}
+                  >
+                    {lead.legalForm === 'sci' ? 'SCI' : 'SARL'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col items-center flex-shrink-0 pt-0.5">
+              <ScoreRing score={lead.score} size={72} />
+              <p
+                className="mt-2 font-semibold text-center leading-tight"
+                style={{ fontSize: 11, color: lead.score >= 80 ? '#C25E2C' : lead.score >= 50 ? '#293F5C' : '#6B7280' }}
+              >
+                {heatLabel(lead.score)}
               </p>
             </div>
-          </div>
-          {/* Score bar */}
-          <div className="rounded-full overflow-hidden bg-soft-gray mb-1" style={{ height: 5 }}>
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${lead.score}%`, backgroundColor: s.bar, transition: 'width 0.5s ease-out' }}
-            />
           </div>
 
           <Divider />
 
-          {/* ── Signaux ────────────────────────────────── */}
+          {/* ── Section 2 — Société (entreprise) ou RGPD (particulier) ── */}
+          {isEnterprise ? (
+            <div className="relative rounded-xl overflow-hidden">
+              <div
+                className={`space-y-4 ${!isPlanPremium ? 'blur-[7px] pointer-events-none select-none' : ''}`}
+              >
+                <SectionLabel>Société propriétaire</SectionLabel>
+                <p className="font-semibold text-ink flex items-center gap-2" style={{ fontSize: 14 }}>
+                  <span aria-hidden>🏢</span>
+                  {lead.companyName ?? '—'}
+                </p>
+                {lead.rcs && (
+                  <p className="text-mute" style={{ fontSize: 11.5 }}>
+                    {lead.rcs}
+                  </p>
+                )}
+                <div className="rounded-xl border border-black/[0.06] bg-soft-gray/80 px-4 py-3 space-y-3">
+                  <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
+                    Dirigeant
+                  </p>
+                  <p className="font-medium text-ink" style={{ fontSize: 14 }}>
+                    {lead.directorName ?? '—'}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-ink tabular truncate" style={{ fontSize: 13 }}>
+                      {lead.directorPhonePro || '—'}
+                    </span>
+                    <CopyInlineButton
+                      value={lead.directorPhonePro ?? ''}
+                      onCopied={() => showToast('Copié')}
+                      disabled={!isPlanPremium}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-ink truncate" style={{ fontSize: 13 }}>
+                      {lead.directorEmailPro || '—'}
+                    </span>
+                    <CopyInlineButton
+                      value={lead.directorEmailPro ?? ''}
+                      onCopied={() => showToast('Copié')}
+                      disabled={!isPlanPremium}
+                    />
+                  </div>
+                </div>
+              </div>
+              {!isPlanPremium && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 px-4 text-center">
+                  <p className="text-ink font-semibold mb-2" style={{ fontSize: 14 }}>
+                    Contenu Premium
+                  </p>
+                  <p className="text-mute mb-4" style={{ fontSize: 12 }}>
+                    Passez en Premium pour afficher RCS, dirigeant et coordonnées pro.
+                  </p>
+                  <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13, borderRadius: 10 }}>
+                    Passer en Premium
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              className="rounded-xl border border-black/[0.06] bg-soft-gray/60 px-4 py-3 text-mute"
+              style={{ fontSize: 12, lineHeight: 1.55 }}
+            >
+              <span className="font-semibold text-ink">Données & RGPD — </span>
+              Les informations affichées proviennent de sources publiques (DVF, cadastre, DPE). Aucune donnée
+              nominative n’est ajoutée sans base légale adaptée ; la prospection terrain reste sous votre
+              responsabilité.
+            </div>
+          )}
+
+          <Divider />
+
+          {/* ── Section 3 — Signaux ───────────────────── */}
           <SectionLabel>Signaux détectés</SectionLabel>
-          <div className="flex flex-col gap-3">
-            {lead.signalType.map((sig) => {
+          <div className="flex flex-col gap-4">
+            {lead.signalType.map((sig, i) => {
               const m = signalMeta[sig];
               if (!m) return null;
-              const pct = Math.round((m.pts / 35) * 100);
+              const src = lead.signalSources[i] ?? 'Source Priimo';
+              const emoji = signalTierEmoji(m.pts);
               return (
-                <div key={sig}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="rounded-full flex-shrink-0"
-                        style={{ width: 7, height: 7, backgroundColor: m.color }}
-                      />
-                      <span className="text-ink" style={{ fontSize: 13 }}>{m.label}</span>
+                <div key={`${sig}-${i}`} className="flex gap-2.5">
+                  <span className="flex-shrink-0 text-[15px] leading-none pt-0.5" aria-hidden>{emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-ink font-medium" style={{ fontSize: 13 }}>{m.label}</p>
+                      <span className="font-semibold tabular text-mute flex-shrink-0" style={{ fontSize: 12 }}>
+                        +{m.pts}
+                      </span>
                     </div>
-                    <span className="font-semibold tabular text-mute" style={{ fontSize: 11.5 }}>
-                      +{m.pts} pts
-                    </span>
-                  </div>
-                  <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: `${m.color}20` }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${pct}%`, backgroundColor: m.color }}
-                    />
+                    <p className="text-mute mt-0.5" style={{ fontSize: 11 }}>
+                      {src}
+                    </p>
                   </div>
                 </div>
               );
             })}
           </div>
+          <p className="text-mute mt-4 font-medium tabular" style={{ fontSize: 12 }}>
+            Total signaux : +{totalPts} pts
+          </p>
 
           <Divider />
 
-          {/* ── Détails du bien ────────────────────────── */}
-          <SectionLabel>Détails du bien</SectionLabel>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            {details.map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-mute mb-0.5" style={{ fontSize: 11 }}>{label}</p>
-                <p className="font-semibold text-ink tabular" style={{ fontSize: 13.5 }}>{value}</p>
-              </div>
-            ))}
+          {/* ── Section 4 — Bien ─────────────────────── */}
+          <SectionLabel>Caractéristiques du bien</SectionLabel>
+          <ul className="space-y-2.5 text-ink" style={{ fontSize: 13 }}>
+            <li className="flex justify-between gap-4">
+              <span className="text-mute">Type</span>
+              <span className="font-medium text-right">{lead.propertyType}</span>
+            </li>
+            <li className="flex justify-between gap-4">
+              <span className="text-mute">Surface</span>
+              <span className="font-medium tabular">{lead.surface} m²</span>
+            </li>
+            <li className="flex justify-between gap-4">
+              <span className="text-mute">Prix d’achat</span>
+              <span className="font-medium tabular">{formatPrice(lead.purchasePrice)} € ({year})</span>
+            </li>
+            <li className="flex justify-between gap-4">
+              <span className="text-mute">Valeur estimée</span>
+              <span className="font-medium tabular">{formatPrice(lead.estimatedValue)} €</span>
+            </li>
+            <li className="flex justify-between gap-4">
+              <span className="text-mute">Plus-value</span>
+              <span className="font-medium tabular">+{plusValue}%</span>
+            </li>
+          </ul>
+
+          <Divider />
+
+          {/* ── Section 5 — Gestion ───────────────────── */}
+          <SectionLabel>Gestion du lead</SectionLabel>
+          <div className="space-y-4">
+            <div>
+              <p className="text-mute mb-1.5" style={{ fontSize: 11 }}>Statut</p>
+              <select
+                value={lead.status}
+                onChange={(e) => onUpdateLead({ ...lead, status: e.target.value as LeadStatus })}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full border border-black/8 rounded-xl px-4 py-2.5 text-ink bg-white focus:outline-none focus:border-accent/40 cursor-pointer"
+                style={{ fontSize: 13 }}
+              >
+                {statusOptions.map((s) => (
+                  <option key={s} value={s}>{getStatusLabel(s)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="text-mute mb-1.5" style={{ fontSize: 11 }}>Assigné à</p>
+              <select
+                value={lead.assignedAgentId ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onUpdateLead({ ...lead, assignedAgentId: v === '' ? null : v });
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full border border-black/8 rounded-xl px-4 py-2.5 text-ink bg-white focus:outline-none focus:border-accent/40 cursor-pointer"
+                style={{ fontSize: 13 }}
+              >
+                <option value="">Non assigné</option>
+                {mockAgents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="text-mute mb-1.5" style={{ fontSize: 11 }}>Notes internes</p>
+              <textarea
+                rows={4}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Notes visibles uniquement par votre agence…"
+                className="w-full min-h-[100px] border border-black/8 rounded-xl px-4 py-3 text-ink resize-y focus:outline-none focus:border-accent/40 placeholder-mute/60"
+                style={{ fontSize: 13, lineHeight: 1.6 }}
+              />
+              {lead.notes?.trim() && (
+                <p
+                  className="mt-2 bg-soft-warm rounded-xl px-4 py-3 text-ink whitespace-pre-wrap"
+                  style={{ fontSize: 12.5, lineHeight: 1.55 }}
+                >
+                  {lead.notes}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!note.trim()) return;
+                  const stamp = formatDate(new Date().toISOString());
+                  const addition = note.trim();
+                  const next = lead.notes?.trim()
+                    ? `${lead.notes.trim()}\n\n[${stamp}] ${addition}`
+                    : addition;
+                  onUpdateLead({ ...lead, notes: next });
+                  setNote('');
+                }}
+                className="mt-2 btn btn-primary"
+                style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
+              >
+                Enregistrer
+              </button>
+            </div>
           </div>
 
           <Divider />
 
-          {/* ── Statut ─────────────────────────────────── */}
-          <SectionLabel>Statut</SectionLabel>
-          <StatusBadge
-            status={lead.status}
-            onChange={(s) => onUpdateLead({ ...lead, status: s })}
-          />
-
-          <Divider />
-
-          {/* ── Notes ──────────────────────────────────── */}
-          <SectionLabel>Notes</SectionLabel>
-          {lead.notes && (
-            <p
-              className="bg-soft-warm rounded-xl px-4 py-3 text-ink mb-3"
-              style={{ fontSize: 13, lineHeight: 1.6 }}
-            >
-              {lead.notes}
+          {/* ── Section 6 — Issue finale ─────────────── */}
+          <SectionLabel>Issue finale du prospect</SectionLabel>
+          <div className="grid grid-cols-2 gap-2">
+            {outcomeOptions.map(({ value, label }) => {
+              const active = lead.prospectOutcome === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const next = lead.prospectOutcome === value ? 'none' : value;
+                    onUpdateLead({ ...lead, prospectOutcome: next });
+                  }}
+                  className={`rounded-xl border text-left font-medium transition-colors duration-150 px-3 py-3 ${
+                    active
+                      ? 'border-accent bg-accent/10 text-accent-dark ring-1 ring-accent/30'
+                      : 'border-black/[0.08] bg-white text-ink hover:bg-black/[0.02]'
+                  }`}
+                  style={{ fontSize: 12.5, lineHeight: 1.35 }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {lead.prospectOutcome === 'none' && (
+            <p className="text-mute mt-2" style={{ fontSize: 11 }}>
+              Sélectionnez une issue lorsque le dossier est clos.
             </p>
           )}
-          <textarea
-            rows={3}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Ajouter une note…"
-            className="w-full border border-black/8 rounded-xl px-4 py-3 text-ink resize-none focus:outline-none focus:border-accent/40 placeholder-mute/60"
-            style={{ fontSize: 13, lineHeight: 1.6 }}
-          />
-          <button
-            onClick={() => {
-              if (note.trim()) { onUpdateLead({ ...lead, notes: note.trim() }); setNote(''); }
-            }}
-            className="mt-2 btn btn-primary"
-            style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
-          >
-            Enregistrer
-          </button>
-
-          <Divider />
-
-          {/* ── Historique ─────────────────────────────── */}
-          <SectionLabel>Historique</SectionLabel>
-          <div className="flex items-start gap-3">
-            <span
-              className="mt-[5px] rounded-full bg-black/20 flex-shrink-0"
-              style={{ width: 6, height: 6 }}
-            />
-            <p className="text-mute" style={{ fontSize: 12.5 }}>
-              Lead créé — {formatDate(lead.createdAt)}
-            </p>
-          </div>
         </div>
+
+        {toast && (
+          <div
+            className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 z-[60] rounded-full bg-ink text-canvas px-4 py-2 font-medium shadow-soft"
+            style={{ fontSize: 12 }}
+            role="status"
+          >
+            {toast}
+          </div>
+        )}
       </aside>
     </>
   );
