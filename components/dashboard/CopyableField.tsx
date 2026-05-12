@@ -1,13 +1,16 @@
 'use client';
 
+import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
+
 interface CopyableFieldProps {
   label: string;
   value: string;
   disabled?: boolean;
   onCopied: () => void;
+  fieldIcon?: 'phone' | 'mail';
 }
 
-export default function CopyableField({ label, value, disabled, onCopied }: CopyableFieldProps) {
+export default function CopyableField({ label, value, disabled, onCopied, fieldIcon }: CopyableFieldProps) {
   const copy = async () => {
     if (!value || disabled) return;
     try {
@@ -20,7 +23,13 @@ export default function CopyableField({ label, value, disabled, onCopied }: Copy
 
   return (
     <div>
-      <p className="text-mute mb-1" style={{ fontSize: 10, letterSpacing: '0.04em' }}>
+      <p className="text-mute mb-1 flex items-center gap-1.5" style={{ fontSize: 10, letterSpacing: '0.04em' }}>
+        {fieldIcon === 'phone' && (
+          <ICONS.phone className="flex-shrink-0" size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
+        )}
+        {fieldIcon === 'mail' && (
+          <ICONS.mail className="flex-shrink-0" size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
+        )}
         {label}
       </p>
       <div className="flex items-center justify-between gap-2">

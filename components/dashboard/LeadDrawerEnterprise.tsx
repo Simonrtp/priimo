@@ -1,6 +1,7 @@
 'use client';
 
 import type { Lead } from '@/types/lead';
+import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 import CopyableField from './CopyableField';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,7 @@ export default function LeadDrawerEnterprise({ lead, isPlanPremium, onCopied }: 
       >
         <SectionLabel>Société propriétaire</SectionLabel>
         <p className="font-semibold text-ink flex items-center gap-2" style={{ fontSize: 14 }}>
-          <span aria-hidden>🏢</span>
+          <ICONS.building className="flex-shrink-0" size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
           {lead.companyName ?? '—'}
         </p>
         {lead.rcs && (
@@ -48,12 +49,14 @@ export default function LeadDrawerEnterprise({ lead, isPlanPremium, onCopied }: 
             value={lead.directorPhonePro ?? ''}
             disabled={!isPlanPremium}
             onCopied={onCopied}
+            fieldIcon="phone"
           />
           <CopyableField
             label="Email pro"
             value={lead.directorEmailPro ?? ''}
             disabled={!isPlanPremium}
             onCopied={onCopied}
+            fieldIcon="mail"
           />
         </div>
       </div>

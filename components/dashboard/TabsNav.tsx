@@ -1,7 +1,7 @@
 'use client';
 
-import { LayoutGrid } from 'lucide-react';
 import type { LeadSegmentTab } from '@/types/lead';
+import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
 export interface TabsNavProps {
   value: LeadSegmentTab;
@@ -20,21 +20,40 @@ const tabs: {
   { id: 'tous', label: 'Tous', icon: 'grid' },
 ];
 
-function TabIcon({ kind }: { kind: 'building' | 'user' | 'grid' }) {
+function TabIcon({ kind, active }: { kind: 'building' | 'user' | 'grid'; active: boolean }) {
+  const color = active ? ICON_COLORS.primary : ICON_COLORS.neutral;
+  const stroke = 2;
   if (kind === 'grid') {
     return (
-      <LayoutGrid
-        className="flex-shrink-0 text-[#9CA3AF] group-hover:text-[#6B7280]"
-        size={15}
-        strokeWidth={1.75}
+      <ICONS.layoutGrid
+        className="flex-shrink-0"
+        size={ICON_SIZE.lg}
+        color={color}
+        strokeWidth={stroke}
         aria-hidden
       />
     );
   }
   if (kind === 'building') {
-    return <span className="flex-shrink-0 text-[15px] leading-none" aria-hidden>🏢</span>;
+    return (
+      <ICONS.building
+        className="flex-shrink-0"
+        size={ICON_SIZE.lg}
+        color={color}
+        strokeWidth={stroke}
+        aria-hidden
+      />
+    );
   }
-  return <span className="flex-shrink-0 text-[15px] leading-none" aria-hidden>👤</span>;
+  return (
+    <ICONS.user
+      className="flex-shrink-0"
+      size={ICON_SIZE.lg}
+      color={color}
+      strokeWidth={stroke}
+      aria-hidden
+    />
+  );
 }
 
 /** Onglets Entreprises / Particuliers / Tous (soulignement, compteurs, gating Premium). */
@@ -53,12 +72,16 @@ export default function TabsNav({ value, onTabAttempt, counts, isPremium }: Tabs
             type="button"
             onClick={() => onTabAttempt(id)}
             className={`group relative pb-3 -mb-px text-left transition-colors duration-150 ${
-              active ? 'font-semibold text-ink' : 'font-medium text-[#6B7280] hover:text-ink/80'
+              active ? 'font-semibold' : 'font-medium text-[#6B7280] hover:text-ink/80'
             }`}
-            style={{ fontSize: 13, letterSpacing: '-0.01em' }}
+            style={{
+              fontSize: 13,
+              letterSpacing: '-0.01em',
+              color: active ? ICON_COLORS.primary : undefined,
+            }}
           >
             <span className="inline-flex items-center gap-2 flex-wrap">
-              <TabIcon kind={icon} />
+              <TabIcon kind={icon} active={active} />
               <span>{label}</span>
               <span
                 className="font-medium tabular"

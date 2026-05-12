@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
 export default function ZoneSection() {
   const [address, setAddress] = useState('');
@@ -20,7 +21,10 @@ export default function ZoneSection() {
         className="rounded-2xl bg-soft-gray flex items-center justify-center mb-5"
         style={{ height: 220 }}
       >
-        <span className="text-mute" style={{ fontSize: 13 }}>🗺️ Carte interactive à venir</span>
+        <span className="text-mute inline-flex items-center gap-2" style={{ fontSize: 13 }}>
+          <ICONS.map size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
+          Carte interactive à venir
+        </span>
       </div>
 
       <div className="flex flex-col gap-4">

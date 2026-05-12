@@ -1,6 +1,6 @@
 'use client';
 
-import { Map } from 'lucide-react';
+import { ICONS } from '@/lib/iconMapping';
 
 const PARIS_MAPS_URL =
   'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Paris, France');
@@ -15,7 +15,7 @@ export default function MapViewPlaceholder() {
         className="rounded-2xl bg-white/80 border border-black/[0.06] flex items-center justify-center mb-5"
         style={{ width: 72, height: 72 }}
       >
-        <Map className="text-accent" size={40} strokeWidth={1.5} aria-hidden />
+        <ICONS.map className="text-accent" size={40} strokeWidth={2} aria-hidden />
       </div>
       <p className="font-semibold text-ink mb-1" style={{ fontSize: 16, letterSpacing: '-0.02em' }}>
         Vue carte interactive

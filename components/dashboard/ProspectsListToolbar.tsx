@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, List, Map } from 'lucide-react';
+import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
 export type ProspectsViewMode = 'liste' | 'carte';
 
@@ -41,7 +41,7 @@ export default function ProspectsListToolbar({
             }`}
             style={{ fontSize: 13 }}
           >
-            <List size={16} strokeWidth={viewMode === 'liste' ? 2.2 : 1.8} />
+            <ICONS.list size={ICON_SIZE.md} color={viewMode === 'liste' ? '#fff' : ICON_COLORS.neutral} strokeWidth={2} />
             Liste
           </button>
           <button
@@ -54,7 +54,7 @@ export default function ProspectsListToolbar({
             }`}
             style={{ fontSize: 13 }}
           >
-            <Map size={16} strokeWidth={viewMode === 'carte' ? 2.2 : 1.8} />
+            <ICONS.map size={ICON_SIZE.md} color={viewMode === 'carte' ? '#fff' : ICON_COLORS.neutral} strokeWidth={2} />
             Carte
           </button>
         </div>
@@ -65,7 +65,7 @@ export default function ProspectsListToolbar({
           className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white text-mute hover:text-ink hover:border-black/20 hover:bg-black/[0.02] transition-all duration-200 font-medium"
           style={{ padding: '8px 14px', fontSize: 13 }}
         >
-          <Download size={16} strokeWidth={1.8} />
+          <ICONS.download size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} />
           Exporter CSV
         </button>
       </div>

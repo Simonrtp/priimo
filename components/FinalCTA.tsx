@@ -86,7 +86,7 @@ export default function FinalCTA() {
         </div>
 
         <div className="mt-7 text-xs text-gray-500">
-          © 2025 Priimo · Fait en France 🇫🇷
+          © 2025 Priimo · Fait en France
         </div>
       </div>
     </section>

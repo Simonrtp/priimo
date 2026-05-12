@@ -1,9 +1,10 @@
 'use client';
 
-import type { Lead, LeadSegmentTab, LifeEvent } from '@/types/lead';
+import type { Lead, LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
 import { getMainSignalLabel, formatPrice } from '@/lib/utils';
+import { ICONS, ICON_COLORS, ICON_SIZE, lifeEventChipMeta } from '@/lib/iconMapping';
 
 interface LeadCardProps {
   lead: Lead;
@@ -15,19 +16,40 @@ interface LeadCardProps {
   onStatusChange: (status: Lead['status']) => void;
 }
 
-const lifeEventLabels: Record<Exclude<LifeEvent, null>, string> = {
-  dissolution_sci: '⚡ Dissolution SCI',
-  liquidation: '🔥 Liquidation',
-  cession_parts: '🔄 Cession de parts',
-  changement_gerant: '👤 Changement gérant',
-  deces_associe: '⚫ Décès associé',
-};
-
-function leftSegmentIcon(tab: LeadSegmentTab, lead: Lead): string | null {
+function SegmentRowIcon({ tab, lead }: { tab: LeadSegmentTab; lead: Lead }) {
   if (tab === 'particuliers') return null;
-  if (tab === 'entreprises') return lead.legalForm ? '🏢' : null;
-  if (lead.segment === 'entreprise' && lead.legalForm) return '🏢';
-  return '👤';
+  if (tab === 'entreprises' && !lead.legalForm) return null;
+  if (tab === 'tous' && lead.segment === 'entreprise' && lead.legalForm) {
+    return (
+      <ICONS.building
+        className="flex-shrink-0"
+        size={ICON_SIZE.sm}
+        color={ICON_COLORS.muted500}
+        strokeWidth={2}
+        aria-hidden
+      />
+    );
+  }
+  if (tab === 'tous') {
+    return (
+      <ICONS.user
+        className="flex-shrink-0"
+        size={ICON_SIZE.sm}
+        color={ICON_COLORS.muted500}
+        strokeWidth={2}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <ICONS.building
+      className="flex-shrink-0"
+      size={ICON_SIZE.sm}
+      color={ICON_COLORS.muted500}
+      strokeWidth={2}
+      aria-hidden
+    />
+  );
 }
 
 export default function LeadCard({
@@ -42,7 +64,6 @@ export default function LeadCard({
   const isHighIntent = lead.score >= 80 && lead.lifeEvent !== null;
   const year = new Date(lead.purchaseDate).getFullYear();
   const signal = getMainSignalLabel(lead);
-  const segIcon = leftSegmentIcon(segmentTab, lead);
   const showDirectorPhoneHint =
     isPlanPremium &&
     lead.segment === 'entreprise' &&
@@ -65,15 +86,7 @@ export default function LeadCard({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2 mb-0.5">
-          {segIcon && (
-            <span
-              className="flex-shrink-0 leading-none select-none"
-              style={{ fontSize: 14, color: '#374151' }}
-              aria-hidden
-            >
-              {segIcon}
-            </span>
-          )}
+          <SegmentRowIcon tab={segmentTab} lead={lead} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span
@@ -82,14 +95,19 @@ export default function LeadCard({
               >
                 {lead.address}
               </span>
-              {lead.lifeEvent && (
-                <span
-                  className="flex-shrink-0 bg-accent/10 text-accent-dark rounded-full font-medium"
-                  style={{ fontSize: 10, padding: '2px 8px', letterSpacing: '0.01em' }}
-                >
-                  {lifeEventLabels[lead.lifeEvent]}
-                </span>
-              )}
+              {lead.lifeEvent && (() => {
+                const ev = lead.lifeEvent;
+                const { Icon, color, label } = lifeEventChipMeta(ev);
+                return (
+                  <span
+                    className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-accent/10 font-medium text-accent-dark"
+                    style={{ fontSize: 10, padding: '2px 8px', letterSpacing: '0.01em' }}
+                  >
+                    <Icon size={14} color={color} strokeWidth={2} aria-hidden />
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
             {lead.companyOwnerLine && (
               <p className="text-[#374151] font-medium truncate mt-0.5" style={{ fontSize: 12 }}>
@@ -107,12 +125,13 @@ export default function LeadCard({
             {lead.surface} m²
           </p>
           {showDirectorPhoneHint && (
-            <span
-              className="flex-shrink-0 text-[13px] leading-none cursor-default"
-              style={{ color: '#059669' }}
-              title="Coordonnées dirigeant disponibles"
-            >
-              📞
+            <span className="flex-shrink-0 cursor-default" title="Coordonnées dirigeant disponibles">
+              <ICONS.phone
+                size={ICON_SIZE.sm}
+                color={ICON_COLORS.green600}
+                strokeWidth={2}
+                aria-hidden
+              />
             </span>
           )}
         </div>

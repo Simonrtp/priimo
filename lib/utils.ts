@@ -12,7 +12,7 @@ export function splitStreetAndCity(address: string): { streetLine: string; cityZ
 }
 
 export function scoreTierLabel(score: number): string {
-  if (score >= 80) return '★ Très chaud';
+  if (score >= 80) return 'Très chaud';
   if (score >= 60) return 'Chaud';
   return 'Tiède';
 }
@@ -97,10 +97,3 @@ export function getStatusLabel(status: string): string {
   return labels[status] || status;
 }
 
-/** Pastille signal drawer : intensité selon les points. */
-export function signalTierEmoji(pts: number): string {
-  if (pts >= 35) return '🔴';
-  if (pts >= 25) return '🟠';
-  if (pts >= 15) return '🟡';
-  return '🟢';
-}
