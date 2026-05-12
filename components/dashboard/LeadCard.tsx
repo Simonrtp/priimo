@@ -1,6 +1,6 @@
 'use client';
 
-import type { Lead, LeadSegmentTab } from '@/types/lead';
+import type { Lead, LeadSegmentTab, LifeEvent } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
 import { getMainSignalLabel, formatPrice } from '@/lib/utils';
@@ -15,10 +15,12 @@ interface LeadCardProps {
   onStatusChange: (status: Lead['status']) => void;
 }
 
-const lifeEventLabels: Record<string, string> = {
-  liquidation_pro:   '🔥 Liquidation pro',
-  dissolution_sci:   '⚡ Dissolution SCI',
-  cession_entreprise: '🔄 Cession',
+const lifeEventLabels: Record<Exclude<LifeEvent, null>, string> = {
+  dissolution_sci: '⚡ Dissolution SCI',
+  liquidation: '🔥 Liquidation',
+  cession_parts: '🔄 Cession de parts',
+  changement_gerant: '👤 Changement gérant',
+  deces_associe: '⚫ Décès associé',
 };
 
 function leftSegmentIcon(tab: LeadSegmentTab, lead: Lead): string | null {

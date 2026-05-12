@@ -34,20 +34,40 @@ export interface Agent {
   name: string;
 }
 
+/** Signaux détectés sur un lead (union stricte). */
 export type SignalType =
-  | 'liquidation_pro'
   | 'dissolution_sci'
-  | 'cession_entreprise'
+  | 'liquidation'
+  | 'cession_parts'
+  | 'changement_gerant'
+  | 'deces_associe'
   | 'dpe_recent'
+  | 'dpe_passoire'
   | 'detention_longue'
   | 'plus_value'
+  | 'travaux_recents'
   | 'zone_rotation';
 
+/** Événement de vie / société affiché en badge (sous-ensemble des signaux BODACC côté PM). */
 export type LifeEvent =
-  | 'liquidation_pro'
   | 'dissolution_sci'
-  | 'cession_entreprise'
+  | 'liquidation'
+  | 'cession_parts'
+  | 'changement_gerant'
+  | 'deces_associe'
   | null;
+
+/** Signaux BODACC / société — jamais sur des leads « particulier ». */
+export const EVENEMENT_SOCIETE_SIGNALS: readonly SignalType[] = [
+  'dissolution_sci',
+  'liquidation',
+  'cession_parts',
+  'changement_gerant',
+  'deces_associe',
+] as const;
+
+/** Valeur du filtre « Signaux » (inclut le regroupement vue « Tous »). */
+export type SignalFilterValue = 'all' | SignalType | 'evenement_societe';
 
 export interface LeadSignals {
   years_owned: number;
@@ -94,9 +114,15 @@ export interface Lead {
   signalSources: string[];
 }
 
+export function leadHasEvenementSociete(lead: Pick<Lead, 'signalType'>): boolean {
+  return lead.signalType.some((s) =>
+    (EVENEMENT_SOCIETE_SIGNALS as readonly string[]).includes(s),
+  );
+}
+
 export interface Filters {
   minScore: number;
-  signalType: 'all' | SignalType;
+  signalType: SignalFilterValue;
   status: 'all' | LeadStatus;
   /** Filtre agent : tous, non assigné, ou id agent. */
   assignedTo: 'all' | 'unassigned' | string;

@@ -98,6 +98,21 @@ const ENT_NAMES: { form: LegalForm; company: string; line: string; rcs: string }
 const DIR_FIRST = ['Édouard', 'Claire', 'Antoine', 'Paul', 'Camille', 'Julien', 'Sarah', 'Nicolas', 'Hélène', 'Marc', 'Laura', 'David', 'Emma', 'Pierre', 'Julie', 'Alexandre', 'Chloé', 'Vincent', 'Isabelle', 'Thomas'];
 const DIR_LAST = ['Martin', 'Bernard', 'Lefort', 'Durand', 'Petit', 'Roux', 'Simon', 'Laurent', 'Michel', 'Garcia', 'David', 'Bertrand', 'Moreau', 'Fournier', 'Girard', 'Bonnet', 'Dupuis', 'Lambert', 'Fontaine', 'Rousseau'];
 
+const LIFE_ORDER: NonNullable<LifeEvent>[] = [
+  'dissolution_sci',
+  'liquidation',
+  'cession_parts',
+  'changement_gerant',
+  'deces_associe',
+];
+
+function deriveLifeEvent(types: SignalType[]): LifeEvent {
+  for (const ev of LIFE_ORDER) {
+    if (types.includes(ev)) return ev;
+  }
+  return null;
+}
+
 function zipSuffix(z: LeadZoneId): string {
   if (z === 'paris-13') return '75013 Paris';
   if (z === 'paris-14') return '75014 Paris';
@@ -111,51 +126,121 @@ function scoreFor(i: number, kind: 'ent' | 'ind'): number {
   return pat[i % pat.length];
 }
 
-function signalsForEnt(i: number, score: number): { types: SignalType[]; life: LifeEvent; sources: string[] } {
-  if (i < 5) {
-    const bundles: { life: LifeEvent; types: SignalType[]; sources: string[] }[] = [
-      { life: 'liquidation_pro', types: ['liquidation_pro', 'detention_longue', 'plus_value'], sources: ['BODACC du 02/05/2026', 'DVF consolidée', 'Estimation marché Q2 2026'] },
-      { life: 'dissolution_sci', types: ['dissolution_sci', 'plus_value', 'zone_rotation'], sources: ['Greffe Paris du 18/04/2026', 'DVF 2018', 'Indice rotation quartier'] },
-      { life: 'cession_entreprise', types: ['cession_entreprise', 'dpe_recent', 'detention_longue'], sources: ['BODACC du 03/04/2026', 'ADEME DPE', 'DVF 2016'] },
-      { life: 'liquidation_pro', types: ['liquidation_pro', 'plus_value'], sources: ['BODACC du 28/04/2026', 'DVF 2015'] },
-      { life: 'dissolution_sci', types: ['dissolution_sci', 'detention_longue'], sources: ['Greffe Paris du 22/04/2026', 'DVF 2017'] },
-    ];
-    return bundles[i];
-  }
-  return signalsFor(score, false);
+/** Signaux autorisés pour les particuliers (aucun BODACC société). */
+const PARTICULIER_SIGNAL_PRESETS: { types: SignalType[]; sources: string[] }[] = [
+  {
+    types: ['dpe_recent', 'detention_longue', 'plus_value'],
+    sources: ['ADEME DPE', 'DVF historique', 'Estimation marché'],
+  },
+  {
+    types: ['dpe_passoire', 'dpe_recent'],
+    sources: ['ADEME — classes F/G', 'DPE récent'],
+  },
+  {
+    types: ['travaux_recents', 'detention_longue'],
+    sources: ['SITADEL permis déposé 2025', 'DVF'],
+  },
+  {
+    types: ['zone_rotation', 'plus_value'],
+    sources: ['INSEE IRIS rotation', 'Projection valeur'],
+  },
+  {
+    types: ['detention_longue', 'plus_value', 'dpe_recent'],
+    sources: ['DVF', 'DPE', 'Plus-value estimée'],
+  },
+  {
+    types: ['dpe_passoire', 'detention_longue', 'zone_rotation'],
+    sources: ['DPE passoire', 'Détention', 'Marché local'],
+  },
+  {
+    types: ['travaux_recents', 'plus_value', 'dpe_recent'],
+    sources: ['SITADEL', 'DVF', 'ADEME'],
+  },
+  {
+    types: ['detention_longue'],
+    sources: ['DVF cadastrale'],
+  },
+];
+
+function signalsForParticulier(i: number): { types: SignalType[]; sources: string[] } {
+  return PARTICULIER_SIGNAL_PRESETS[i % PARTICULIER_SIGNAL_PRESETS.length];
 }
 
-function signalsFor(score: number, hasLife: boolean): { types: SignalType[]; life: LifeEvent; sources: string[] } {
-  if (hasLife) {
-    const types: SignalType[] = ['liquidation_pro', 'detention_longue', 'plus_value'];
-    return {
-      types,
-      life: 'liquidation_pro',
+/** Premiers leads entreprise : cas BODACC + mix. */
+function signalsForEntPremium(i: number): { types: SignalType[]; sources: string[] } {
+  const bundles: { types: SignalType[]; sources: string[] }[] = [
+    {
+      types: ['liquidation', 'detention_longue', 'plus_value'],
       sources: ['BODACC du 02/05/2026', 'DVF consolidée', 'Estimation marché Q2 2026'],
+    },
+    {
+      types: ['dissolution_sci', 'plus_value', 'zone_rotation'],
+      sources: ['Greffe Paris du 18/04/2026', 'DVF 2018', 'Indice rotation quartier'],
+    },
+    {
+      types: ['cession_parts', 'dpe_recent', 'detention_longue'],
+      sources: ['BODACC / Pappers parts', 'ADEME DPE', 'DVF 2016'],
+    },
+    {
+      types: ['liquidation', 'plus_value'],
+      sources: ['BODACC du 28/04/2026', 'DVF 2015'],
+    },
+    {
+      types: ['dissolution_sci', 'detention_longue'],
+      sources: ['Greffe Paris du 22/04/2026', 'DVF 2017'],
+    },
+  ];
+  return bundles[i];
+}
+
+/** Entreprise sans événement BODACC fort : signaux « patrimoine » + parfois changement dirigeant. */
+function signalsForEnterpriseGeneral(i: number, score: number): { types: SignalType[]; sources: string[] } {
+  if (score >= 70 && i % 4 === 0) {
+    return {
+      types: ['changement_gerant', 'dpe_recent', 'detention_longue'],
+      sources: ['Pappers dirigeants', 'ADEME DPE', 'DVF'],
+    };
+  }
+  if (score >= 60 && i % 5 === 0) {
+    return {
+      types: ['deces_associe', 'cession_parts', 'plus_value'],
+      sources: ['BODACC associés', 'Pappers parts', 'Marché'],
     };
   }
   if (score >= 70) {
     return {
       types: ['dpe_recent', 'detention_longue', 'plus_value'],
-      life: null,
       sources: ['ADEME DPE', 'DVF historique', 'Indice plus-value'],
     };
   }
   if (score >= 50) {
     return {
-      types: ['detention_longue', 'plus_value'],
-      life: null,
-      sources: ['DVF 2015-2019', 'Projection valeur'],
+      types: ['detention_longue', 'plus_value', 'zone_rotation'],
+      sources: ['DVF 2015-2019', 'Projection valeur', 'IRIS'],
     };
   }
   return {
-    types: ['detention_longue'],
-    life: null,
-    sources: ['DVF cadastrale'],
+    types: ['detention_longue', 'dpe_passoire'],
+    sources: ['DVF cadastrale', 'DPE F/G'],
   };
 }
 
-/** Indices entreprise (0–19) avec statut avancé + agent pour la démo. */
+function signalsForEnt(i: number, score: number): { types: SignalType[]; sources: string[] } {
+  if (i < 5) return signalsForEntPremium(i);
+  return signalsForEnterpriseGeneral(i, score);
+}
+
+function mkSignals(types: SignalType[], life: LifeEvent) {
+  const years = 6 + (types.length * 2) % 9;
+  return {
+    years_owned: years,
+    days_since_dpe: 30 + (types.length * 17) % 400,
+    estimated_gain_pct: 8 + (types.length * 5) % 32,
+    life_event: life,
+    zone_rotation_rate: 0.03 + (types.length % 7) * 0.01,
+  };
+}
+
 const ENT_ACTIVE: Record<number, { status: LeadStatus; agent: string | null }> = {
   0: { status: 'contacté', agent: 'agent-1' },
   1: { status: 'intéressé', agent: 'agent-2' },
@@ -184,24 +269,14 @@ const IND_ACTIVE: Record<number, { status: LeadStatus; agent: string | null }> =
   28: { status: 'contacté', agent: 'agent-4' },
 };
 
-function mkSignals(types: SignalType[], life: LifeEvent) {
-  const years = 6 + (types.length * 2) % 9;
-  return {
-    years_owned: years,
-    days_since_dpe: 30 + (types.length * 17) % 400,
-    estimated_gain_pct: 8 + (types.length * 5) % 32,
-    life_event: life,
-    zone_rotation_rate: 0.03 + (types.length % 7) * 0.01,
-  };
-}
-
 function buildEnterprises(): Lead[] {
   return ENT_NAMES.map((meta, i) => {
     const zone = Z[i % 3];
     const streets = BASE[zone].streets;
     const street = streets[i % streets.length];
     const score = scoreFor(i, 'ent');
-    const { types, life, sources } = signalsForEnt(i, score);
+    const { types, sources } = signalsForEnt(i, score);
+    const life = deriveLifeEvent(types);
     const active = ENT_ACTIVE[i];
     const status = active?.status ?? 'nouveau';
     const assignedAgentId = active?.agent ?? (i % 7 === 0 ? 'agent-1' : null);
@@ -260,7 +335,7 @@ function buildParticuliers(): Lead[] {
     const streets = BASE[zone].streets;
     const street = streets[(i + 3) % streets.length];
     const score = scoreFor(i, 'ind');
-    const { types, life, sources } = signalsFor(score, false);
+    const { types, sources } = signalsForParticulier(i);
     const active = IND_ACTIVE[i];
     const status = active?.status ?? 'nouveau';
     const assignedAgentId = active?.agent ?? null;
@@ -281,13 +356,13 @@ function buildParticuliers(): Lead[] {
       lng: BASE[zone].lng + (i % 5) * 0.0018 - 0.003,
       score,
       signalType: types,
-      signals: mkSignals(types, life),
+      signals: mkSignals(types, null),
       propertyType: ['Appartement T2', 'Appartement T3', 'Studio', 'Maison', 'Appartement T4'][i % 5],
       surface: 24 + (i * 5) % 82,
       purchaseDate: `201${3 + (i % 6)}-${String(1 + (i % 11)).padStart(2, '0')}-${String(3 + (i % 24)).padStart(2, '0')}`,
       purchasePrice: 180000 + (i * 27000) % 480000,
       estimatedValue: 0,
-      lifeEvent: life,
+      lifeEvent: null,
       status,
       segment: 'particulier',
       owner: 'individual',

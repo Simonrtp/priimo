@@ -65,20 +65,24 @@ export function getStatusColor(status: string): { bg: string; text: string } {
 }
 
 export function getMainSignalLabel(lead: Pick<Lead, 'signalType' | 'signals'>): string {
-  if (lead.signalType.includes('liquidation_pro')) return 'Liquidation pro détectée';
-  if (lead.signalType.includes('dissolution_sci')) return 'Dissolution SCI détectée';
-  if (lead.signalType.includes('cession_entreprise')) return "Cession d'entreprise détectée";
+  if (lead.signalType.includes('dissolution_sci')) return 'Dissolution SCI en cours';
+  if (lead.signalType.includes('liquidation')) return 'Liquidation détectée';
+  if (lead.signalType.includes('cession_parts')) return 'Cession de parts détectée';
+  if (lead.signalType.includes('changement_gerant')) return 'Changement de gérant';
+  if (lead.signalType.includes('deces_associe')) return "Décès d'associé signalé";
+  if (lead.signalType.includes('dpe_passoire')) return 'DPE passoire (F ou G)';
   if (lead.signalType.includes('dpe_recent')) {
     const months = Math.round(lead.signals.days_since_dpe / 30);
     return `DPE refait il y a ${months} mois`;
   }
+  if (lead.signalType.includes('travaux_recents')) return 'Travaux récents (permis)';
+  if (lead.signalType.includes('zone_rotation')) return 'Zone à forte rotation';
   if (lead.signalType.includes('detention_longue')) {
     return `Détenu depuis ${lead.signals.years_owned} ans`;
   }
   if (lead.signalType.includes('plus_value')) {
     return `Plus-value estimée +${lead.signals.estimated_gain_pct}%`;
   }
-  if (lead.signalType.includes('zone_rotation')) return 'Zone à forte rotation';
   return 'Signal détecté';
 }
 

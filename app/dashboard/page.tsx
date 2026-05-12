@@ -1,13 +1,16 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { mockLeads, mockAgents, MOCK_ZONES } from '@/lib/mock-data';
 import { mockUserIsPremium } from '@/lib/mock-user';
 import type { Lead, Filters, LeadSegmentTab } from '@/types/lead';
+import { leadHasEvenementSociete } from '@/types/lead';
 import StatsBar from '@/components/dashboard/StatsBar';
 import TabsNav from '@/components/dashboard/TabsNav';
 import FiltersBar from '@/components/dashboard/FiltersBar';
+import ProspectsListToolbar, { type ProspectsViewMode } from '@/components/dashboard/ProspectsListToolbar';
+import MapViewPlaceholder from '@/components/dashboard/MapViewPlaceholder';
 import LeadsList from '@/components/dashboard/LeadsList';
 import LeadDrawer from '@/components/dashboard/LeadDrawer';
 import PremiumEnterpriseModal from '@/components/dashboard/PremiumEnterpriseModal';
@@ -22,7 +25,7 @@ function ProspectsBody() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({
     minScore: 0,
     signalType: 'all',
@@ -31,12 +34,17 @@ function ProspectsBody() {
     zoneId: 'all',
   });
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+  const [prospectsView, setProspectsView] = useState<ProspectsViewMode>('liste');
 
   const rawTab = searchParams.get('tab');
   const segmentTab: LeadSegmentTab =
     rawTab === 'entreprises' || rawTab === 'particuliers' || rawTab === 'tous' ? rawTab : 'tous';
 
   const enterpriseViewLocked = !mockUserIsPremium && segmentTab === 'entreprises';
+
+  useEffect(() => {
+    setFilters((f) => ({ ...f, signalType: 'all' }));
+  }, [segmentTab]);
 
   const tabCounts = useMemo(() => {
     const tous = leads.length;
@@ -51,8 +59,9 @@ function ProspectsBody() {
       if (!matchesSegmentTab(l, segmentTab)) return false;
       if (l.score < filters.minScore) return false;
       if (filters.signalType !== 'all') {
-        if (filters.signalType === 'liquidation_pro') { if (!l.lifeEvent) return false; }
-        else if (!l.signalType.includes(filters.signalType)) return false;
+        if (filters.signalType === 'evenement_societe') {
+          if (!leadHasEvenementSociete(l)) return false;
+        } else if (!l.signalType.includes(filters.signalType)) return false;
       }
       if (filters.status !== 'all' && l.status !== filters.status) return false;
       if (filters.assignedTo === 'unassigned') {
@@ -65,13 +74,18 @@ function ProspectsBody() {
     });
   }, [leads, segmentTab, filters, enterpriseViewLocked]);
 
-  const selected = selectedId ? leads.find((l) => l.id === selectedId) ?? null : null;
+  const selected = selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null;
 
   const updateStatus = (id: string, status: Lead['status']) =>
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
 
   const updateLead = (updated: Lead) =>
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+
+  const handleProspectsViewChange = (v: ProspectsViewMode) => {
+    setProspectsView(v);
+    if (v === 'carte') setSelectedLeadId(null);
+  };
 
   const onTabAttempt = (t: LeadSegmentTab) => {
     if (t === 'entreprises' && !mockUserIsPremium) {
@@ -93,32 +107,36 @@ function ProspectsBody() {
         isPremium={mockUserIsPremium}
       />
       <FiltersBar
+        segmentTab={segmentTab}
         filters={filters}
         onFiltersChange={setFilters}
         agents={mockAgents}
         zones={MOCK_ZONES}
-        leadsForExport={filtered}
       />
 
-      <p
-        className="uppercase text-mute tracking-widest mb-3"
-        style={{ fontSize: 9, letterSpacing: '0.15em' }}
-      >
-        {filtered.length} prospect{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
-      </p>
-
-      <LeadsList
-        leads={filtered}
-        segmentTab={segmentTab}
-        isPlanPremium={mockUserIsPremium}
-        enterpriseViewLocked={enterpriseViewLocked}
-        onLeadClick={setSelectedId}
-        onStatusChange={updateStatus}
+      <ProspectsListToolbar
+        count={filtered.length}
+        viewMode={prospectsView}
+        onViewModeChange={handleProspectsViewChange}
+        onExportCsv={() => console.log('Export CSV', filtered)}
       />
+
+      {prospectsView === 'liste' ? (
+        <LeadsList
+          leads={filtered}
+          segmentTab={segmentTab}
+          isPlanPremium={mockUserIsPremium}
+          enterpriseViewLocked={enterpriseViewLocked}
+          onLeadClick={setSelectedLeadId}
+          onStatusChange={updateStatus}
+        />
+      ) : (
+        <MapViewPlaceholder />
+      )}
       <LeadDrawer
         lead={selected}
         isPlanPremium={mockUserIsPremium}
-        onClose={() => setSelectedId(null)}
+        onClose={() => setSelectedLeadId(null)}
         onUpdateLead={updateLead}
       />
       <PremiumEnterpriseModal open={premiumModalOpen} onClose={() => setPremiumModalOpen(false)} />

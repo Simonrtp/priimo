@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { Lead, LeadStatus, ProspectOutcome } from '@/types/lead';
+import type { Lead, LeadStatus, ProspectOutcome, SignalType } from '@/types/lead';
 import { mockAgents } from '@/lib/mock-data';
 import {
   formatDate,
@@ -24,20 +25,26 @@ interface LeadDrawerProps {
   onUpdateLead: (lead: Lead) => void;
 }
 
-const signalMeta: Record<string, { label: string; pts: number }> = {
-  liquidation_pro:   { label: 'Liquidation professionnelle',  pts: 35 },
-  dissolution_sci:   { label: 'Dissolution SCI',              pts: 35 },
-  cession_entreprise:{ label: "Cession d'entreprise",         pts: 30 },
-  dpe_recent:        { label: 'DPE refait récemment',          pts: 20 },
-  detention_longue:  { label: 'Détention longue durée',       pts: 15 },
-  plus_value:        { label: 'Plus-value élevée',            pts: 20 },
-  zone_rotation:     { label: 'Zone à forte rotation',        pts: 10 },
+const signalMeta: Record<SignalType, { label: string; pts: number }> = {
+  dissolution_sci: { label: 'Dissolution SCI en cours', pts: 35 },
+  liquidation: { label: 'Liquidation (amiable ou judiciaire)', pts: 35 },
+  cession_parts: { label: 'Cession de parts sociales', pts: 30 },
+  changement_gerant: { label: 'Changement de gérant', pts: 25 },
+  deces_associe: { label: "Décès d'associé", pts: 28 },
+  dpe_recent: { label: 'DPE refait récemment', pts: 20 },
+  dpe_passoire: { label: 'DPE passoire (classes F ou G)', pts: 22 },
+  detention_longue: { label: 'Détention longue durée', pts: 15 },
+  plus_value: { label: 'Plus-value estimée élevée', pts: 20 },
+  travaux_recents: { label: 'Travaux récents (permis SITADEL)', pts: 18 },
+  zone_rotation: { label: 'Zone à forte rotation', pts: 12 },
 };
 
-const lifeEventLabel: Record<string, string> = {
-  liquidation_pro:    '🔥 Liquidation pro détectée',
-  dissolution_sci:    '⚡ Dissolution SCI détectée',
-  cession_entreprise: "🔄 Cession d'entreprise détectée",
+const lifeEventLabel: Record<NonNullable<Lead['lifeEvent']>, string> = {
+  dissolution_sci: '⚡ Dissolution SCI détectée',
+  liquidation: '🔥 Liquidation détectée',
+  cession_parts: '🔄 Cession de parts détectée',
+  changement_gerant: '👤 Changement de gérant',
+  deces_associe: '⚫ Décès associé signalé',
 };
 
 const outcomeOptions: { value: ProspectOutcome; label: string }[] = [
@@ -65,6 +72,7 @@ function Divider() {
 export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead }: LeadDrawerProps) {
   const [note, setNote] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const [drawerEntered, setDrawerEntered] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -82,6 +90,25 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
     return () => window.removeEventListener('keydown', onKey);
   }, [lead, onClose]);
 
+  useEffect(() => {
+    if (!lead) {
+      setDrawerEntered(false);
+      return;
+    }
+    setDrawerEntered(false);
+    const t = window.setTimeout(() => setDrawerEntered(true), 16);
+    return () => window.clearTimeout(t);
+  }, [lead?.id]);
+
+  useEffect(() => {
+    if (!lead) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [lead]);
+
   if (!lead) return null;
 
   const { streetLine, cityZipLine } = splitStreetAndCity(lead.address);
@@ -92,21 +119,27 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
 
   const statusOptions: LeadStatus[] = ['nouveau', 'contacté', 'intéressé', 'rdv_pris', 'pas_intéressé'];
 
-  return (
+  const panel = (
     <>
       <div
-        className="fixed inset-0 z-40 animate-overlay-in"
-        style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
+        role="presentation"
+        className={`fixed inset-0 z-[90] transition-opacity duration-200 ease-out ${
+          drawerEntered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}
         onClick={onClose}
         aria-hidden
       />
 
       <aside
-        className="fixed right-0 top-0 bottom-0 z-50 flex flex-col bg-white animate-drawer-in relative"
-        style={{ width: 480, boxShadow: '-4px 0 24px rgba(17,24,39,0.08)' }}
+        className={`fixed right-0 top-0 z-[100] flex h-full w-full flex-col bg-white transition-transform duration-[225ms] ease-out xl:w-[480px] relative ${
+          drawerEntered ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        style={{ boxShadow: '-8px 0 24px rgba(0,0,0,0.08)' }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="drawer-address"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex-shrink-0 flex justify-end items-center px-7 pt-5 pb-3 border-b border-black/[0.05]">
           <button
@@ -345,7 +378,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
 
         {toast && (
           <div
-            className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 z-[60] rounded-full bg-ink text-canvas px-4 py-2 font-medium shadow-soft"
+            className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 z-[110] rounded-full bg-ink text-canvas px-4 py-2 font-medium shadow-soft"
             style={{ fontSize: 12 }}
             role="status"
           >
@@ -355,4 +388,6 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
       </aside>
     </>
   );
+
+  return createPortal(panel, document.body);
 }
