@@ -4,9 +4,9 @@ interface ScoreRingProps {
 }
 
 const scoreStyle = (score: number) => {
-  if (score >= 80) return { stroke: '#E8743C', track: '#FFF3EA', text: '#C25E2C' };
-  if (score >= 50) return { stroke: '#3D5A80', track: '#EEF2F7', text: '#293F5C' };
-  return { stroke: '#C8C8BF', track: '#F1F1EE', text: '#9CA3AF' };
+  if (score >= 80) return { stroke: '#E85D2C', track: '#FFEDE3', text: '#C2410C' };
+  if (score >= 60) return { stroke: '#F4A462', track: '#FFF8F0', text: '#B45309' };
+  return { stroke: '#94A3B8', track: '#EEF2F7', text: '#64748B' };
 };
 
 export default function ScoreRing({ score, size = 44 }: ScoreRingProps) {

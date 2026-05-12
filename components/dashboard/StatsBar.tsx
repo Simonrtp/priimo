@@ -51,7 +51,7 @@ export default function StatsBar({ leads }: StatsBarProps) {
     ? Math.round(leads.reduce((s, l) => s + l.score, 0) / leads.length)
     : 0;
 
-  const scoreColor = scoreMoyen >= 70 ? '#E8743C' : scoreMoyen >= 50 ? '#3D5A80' : '#9CA3AF';
+  const scoreColor = scoreMoyen >= 80 ? '#C2410C' : scoreMoyen >= 60 ? '#B45309' : '#64748B';
 
   return (
     <div className="grid grid-cols-3 gap-4 mb-5">

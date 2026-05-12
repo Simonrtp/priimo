@@ -11,6 +11,18 @@ export function splitStreetAndCity(address: string): { streetLine: string; cityZ
   return { streetLine, cityZipLine };
 }
 
+export function scoreTierLabel(score: number): string {
+  if (score >= 80) return '★ Très chaud';
+  if (score >= 60) return 'Chaud';
+  return 'Tiède';
+}
+
+export function scoreTierAccentColor(score: number): string {
+  if (score >= 80) return '#C2410C';
+  if (score >= 60) return '#B45309';
+  return '#64748B';
+}
+
 export function formatPrice(price: number): string {
   return new Intl.NumberFormat('fr-FR').format(price);
 }

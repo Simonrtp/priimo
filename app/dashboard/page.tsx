@@ -2,14 +2,13 @@
 
 import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { mockLeads } from '@/lib/mock-data';
+import { mockLeads, mockAgents, MOCK_ZONES } from '@/lib/mock-data';
 import { mockUserIsPremium } from '@/lib/mock-user';
 import type { Lead, Filters, LeadSegmentTab } from '@/types/lead';
 import StatsBar from '@/components/dashboard/StatsBar';
-import SegmentTabs from '@/components/dashboard/SegmentTabs';
+import TabsNav from '@/components/dashboard/TabsNav';
 import FiltersBar from '@/components/dashboard/FiltersBar';
 import LeadsList from '@/components/dashboard/LeadsList';
-import ExportActions from '@/components/dashboard/ExportActions';
 import LeadDrawer from '@/components/dashboard/LeadDrawer';
 import PremiumEnterpriseModal from '@/components/dashboard/PremiumEnterpriseModal';
 
@@ -24,7 +23,13 @@ function ProspectsBody() {
   const searchParams = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({ minScore: 0, signalType: 'all', status: 'all' });
+  const [filters, setFilters] = useState<Filters>({
+    minScore: 0,
+    signalType: 'all',
+    status: 'all',
+    assignedTo: 'all',
+    zoneId: 'all',
+  });
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
 
   const rawTab = searchParams.get('tab');
@@ -50,6 +55,12 @@ function ProspectsBody() {
         else if (!l.signalType.includes(filters.signalType)) return false;
       }
       if (filters.status !== 'all' && l.status !== filters.status) return false;
+      if (filters.assignedTo === 'unassigned') {
+        if (l.assignedAgentId != null) return false;
+      } else if (filters.assignedTo !== 'all') {
+        if (l.assignedAgentId !== filters.assignedTo) return false;
+      }
+      if (filters.zoneId !== 'all' && l.zoneId !== filters.zoneId) return false;
       return true;
     });
   }, [leads, segmentTab, filters, enterpriseViewLocked]);
@@ -75,13 +86,19 @@ function ProspectsBody() {
   return (
     <>
       <StatsBar leads={enterpriseViewLocked ? leads : filtered} />
-      <SegmentTabs
+      <TabsNav
         value={segmentTab}
         onTabAttempt={onTabAttempt}
         counts={tabCounts}
         isPremium={mockUserIsPremium}
       />
-      <FiltersBar filters={filters} onFiltersChange={setFilters} />
+      <FiltersBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        agents={mockAgents}
+        zones={MOCK_ZONES}
+        leadsForExport={filtered}
+      />
 
       <p
         className="uppercase text-mute tracking-widest mb-3"
@@ -98,7 +115,6 @@ function ProspectsBody() {
         onLeadClick={setSelectedId}
         onStatusChange={updateStatus}
       />
-      <ExportActions leads={filtered} />
       <LeadDrawer
         lead={selected}
         isPlanPremium={mockUserIsPremium}

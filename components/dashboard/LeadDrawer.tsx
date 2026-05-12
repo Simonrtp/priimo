@@ -4,8 +4,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import type { Lead, LeadStatus, ProspectOutcome } from '@/types/lead';
 import { mockAgents } from '@/lib/mock-data';
-import { formatDate, formatPrice, splitStreetAndCity, getStatusLabel, signalTierEmoji } from '@/lib/utils';
+import {
+  formatDate,
+  formatPrice,
+  splitStreetAndCity,
+  getStatusLabel,
+  signalTierEmoji,
+  scoreTierLabel,
+  scoreTierAccentColor,
+} from '@/lib/utils';
 import ScoreRing from './ScoreRing';
+import LeadDrawerEnterprise from './LeadDrawerEnterprise';
+import LeadDrawerIndividual from './LeadDrawerIndividual';
 
 interface LeadDrawerProps {
   lead: Lead | null;
@@ -50,42 +60,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function Divider() {
   return <div className="h-px bg-black/[0.05] my-5" />;
-}
-
-function heatLabel(score: number): string {
-  if (score >= 80) return '★ Très chaud';
-  if (score >= 50) return 'Chaud';
-  return 'Tiède';
-}
-
-function CopyInlineButton({
-  value,
-  onCopied,
-  disabled,
-}: {
-  value: string;
-  onCopied: () => void;
-  disabled?: boolean;
-}) {
-  const copy = async () => {
-    if (!value || disabled) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      onCopied();
-    } catch {
-      /* ignore */
-    }
-  };
-  return (
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); copy(); }}
-      disabled={disabled || !value}
-      className="text-xs font-medium text-accent-dark hover:text-accent disabled:opacity-40 disabled:cursor-not-allowed"
-    >
-      Copier
-    </button>
-  );
 }
 
 export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead }: LeadDrawerProps) {
@@ -146,7 +120,6 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
         </div>
 
         <div className="flex-1 overflow-y-auto px-7 pb-10">
-          {/* ── Section 1 — En-tête ───────────────────── */}
           <div className="flex justify-between gap-5 items-start mb-1">
             <div className="min-w-0 flex-1">
               <h2
@@ -184,89 +157,27 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
               <ScoreRing score={lead.score} size={72} />
               <p
                 className="mt-2 font-semibold text-center leading-tight"
-                style={{ fontSize: 11, color: lead.score >= 80 ? '#C25E2C' : lead.score >= 50 ? '#293F5C' : '#6B7280' }}
+                style={{ fontSize: 11, color: scoreTierAccentColor(lead.score) }}
               >
-                {heatLabel(lead.score)}
+                {scoreTierLabel(lead.score)}
               </p>
             </div>
           </div>
 
           <Divider />
 
-          {/* ── Section 2 — Société (entreprise) ou RGPD (particulier) ── */}
           {isEnterprise ? (
-            <div className="relative rounded-xl overflow-hidden">
-              <div
-                className={`space-y-4 ${!isPlanPremium ? 'blur-[7px] pointer-events-none select-none' : ''}`}
-              >
-                <SectionLabel>Société propriétaire</SectionLabel>
-                <p className="font-semibold text-ink flex items-center gap-2" style={{ fontSize: 14 }}>
-                  <span aria-hidden>🏢</span>
-                  {lead.companyName ?? '—'}
-                </p>
-                {lead.rcs && (
-                  <p className="text-mute" style={{ fontSize: 11.5 }}>
-                    {lead.rcs}
-                  </p>
-                )}
-                <div className="rounded-xl border border-black/[0.06] bg-soft-gray/80 px-4 py-3 space-y-3">
-                  <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-                    Dirigeant
-                  </p>
-                  <p className="font-medium text-ink" style={{ fontSize: 14 }}>
-                    {lead.directorName ?? '—'}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-ink tabular truncate" style={{ fontSize: 13 }}>
-                      {lead.directorPhonePro || '—'}
-                    </span>
-                    <CopyInlineButton
-                      value={lead.directorPhonePro ?? ''}
-                      onCopied={() => showToast('Copié')}
-                      disabled={!isPlanPremium}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-ink truncate" style={{ fontSize: 13 }}>
-                      {lead.directorEmailPro || '—'}
-                    </span>
-                    <CopyInlineButton
-                      value={lead.directorEmailPro ?? ''}
-                      onCopied={() => showToast('Copié')}
-                      disabled={!isPlanPremium}
-                    />
-                  </div>
-                </div>
-              </div>
-              {!isPlanPremium && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 px-4 text-center">
-                  <p className="text-ink font-semibold mb-2" style={{ fontSize: 14 }}>
-                    Contenu Premium
-                  </p>
-                  <p className="text-mute mb-4" style={{ fontSize: 12 }}>
-                    Passez en Premium pour afficher RCS, dirigeant et coordonnées pro.
-                  </p>
-                  <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13, borderRadius: 10 }}>
-                    Passer en Premium
-                  </button>
-                </div>
-              )}
-            </div>
+            <LeadDrawerEnterprise
+              lead={lead}
+              isPlanPremium={isPlanPremium}
+              onCopied={() => showToast('Copié')}
+            />
           ) : (
-            <div
-              className="rounded-xl border border-black/[0.06] bg-soft-gray/60 px-4 py-3 text-mute"
-              style={{ fontSize: 12, lineHeight: 1.55 }}
-            >
-              <span className="font-semibold text-ink">Données & RGPD — </span>
-              Les informations affichées proviennent de sources publiques (DVF, cadastre, DPE). Aucune donnée
-              nominative n’est ajoutée sans base légale adaptée ; la prospection terrain reste sous votre
-              responsabilité.
-            </div>
+            <LeadDrawerIndividual />
           )}
 
           <Divider />
 
-          {/* ── Section 3 — Signaux ───────────────────── */}
           <SectionLabel>Signaux détectés</SectionLabel>
           <div className="flex flex-col gap-4">
             {lead.signalType.map((sig, i) => {
@@ -298,7 +209,6 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
 
           <Divider />
 
-          {/* ── Section 4 — Bien ─────────────────────── */}
           <SectionLabel>Caractéristiques du bien</SectionLabel>
           <ul className="space-y-2.5 text-ink" style={{ fontSize: 13 }}>
             <li className="flex justify-between gap-4">
@@ -325,7 +235,6 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
 
           <Divider />
 
-          {/* ── Section 5 — Gestion ───────────────────── */}
           <SectionLabel>Gestion du lead</SectionLabel>
           <div className="space-y-4">
             <div>
@@ -402,7 +311,6 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
 
           <Divider />
 
-          {/* ── Section 6 — Issue finale ─────────────── */}
           <SectionLabel>Issue finale du prospect</SectionLabel>
           <div className="grid grid-cols-2 gap-2">
             {outcomeOptions.map(({ value, label }) => {

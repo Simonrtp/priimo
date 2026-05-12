@@ -3,7 +3,7 @@
 import { LayoutGrid } from 'lucide-react';
 import type { LeadSegmentTab } from '@/types/lead';
 
-interface SegmentTabsProps {
+export interface TabsNavProps {
   value: LeadSegmentTab;
   onTabAttempt: (v: LeadSegmentTab) => void;
   counts: { tous: number; entreprises: number; particuliers: number };
@@ -37,7 +37,8 @@ function TabIcon({ kind }: { kind: 'building' | 'user' | 'grid' }) {
   return <span className="flex-shrink-0 text-[15px] leading-none" aria-hidden>👤</span>;
 }
 
-export default function SegmentTabs({ value, onTabAttempt, counts, isPremium }: SegmentTabsProps) {
+/** Onglets Entreprises / Particuliers / Tous (soulignement, compteurs, gating Premium). */
+export default function TabsNav({ value, onTabAttempt, counts, isPremium }: TabsNavProps) {
   return (
     <div className="flex gap-10 mb-4 border-b border-black/[0.08]">
       {tabs.map(({ id, label, icon }) => {

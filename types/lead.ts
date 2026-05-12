@@ -1,5 +1,10 @@
 export type LeadSegmentTab = 'tous' | 'entreprises' | 'particuliers';
 
+/** Propriétaire du bien (aligné sur le segment UI). */
+export type LeadOwner = 'enterprise' | 'individual';
+
+export type LeadZoneId = 'paris-13' | 'paris-14' | 'paris-15';
+
 export type LeadStatus =
   | 'nouveau'
   | 'contacté'
@@ -22,6 +27,10 @@ export type ProspectOutcome =
 
 export interface Agent {
   id: string;
+  firstName: string;
+  lastName: string;
+  initials: string;
+  /** Nom complet affiché (listes, selects). */
   name: string;
 }
 
@@ -64,11 +73,14 @@ export interface Lead {
   lifeEvent: LifeEvent;
   status: LeadStatus;
   segment: LeadSegment;
+  /** Redondant avec `segment` pour clarté / exports `Owner`. */
+  owner: LeadOwner;
   legalForm: LegalForm | null;
   assignedAgentId: string | null;
   prospectOutcome: ProspectOutcome;
   notes: string;
   createdAt: string;
+  zoneId: LeadZoneId;
   /** Ligne compacte sous l’adresse (SCI/SARL uniquement). */
   companyOwnerLine: string | null;
   companyName: string | null;
@@ -86,4 +98,7 @@ export interface Filters {
   minScore: number;
   signalType: 'all' | SignalType;
   status: 'all' | LeadStatus;
+  /** Filtre agent : tous, non assigné, ou id agent. */
+  assignedTo: 'all' | 'unassigned' | string;
+  zoneId: 'all' | LeadZoneId;
 }
