@@ -2,14 +2,25 @@
 
 import { usePathname } from 'next/navigation';
 
-const titles: Record<string, string> = {
-  '/dashboard':          'Mes prospects',
-  '/dashboard/settings': 'Paramètres',
-};
+function titleForPath(pathname: string): string {
+  if (pathname === '/dashboard/overview' || pathname.startsWith('/dashboard/overview/')) {
+    return 'Tableau de bord';
+  }
+  if (pathname === '/dashboard' || pathname === '/dashboard/') {
+    return 'Mes prospects';
+  }
+  if (pathname === '/dashboard/territory' || pathname.startsWith('/dashboard/territory/')) {
+    return 'Mon territoire';
+  }
+  if (pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')) {
+    return 'Paramètres';
+  }
+  return 'Dashboard';
+}
 
 export default function TopBar() {
   const pathname = usePathname();
-  const title = titles[pathname] ?? 'Dashboard';
+  const title = titleForPath(pathname);
 
   return (
     <header
