@@ -59,7 +59,7 @@ function TabIcon({ kind, active }: { kind: 'building' | 'user' | 'grid'; active:
 /** Onglets Entreprises / Particuliers / Tous (soulignement, compteurs, gating Premium). */
 export default function TabsNav({ value, onTabAttempt, counts, isPremium }: TabsNavProps) {
   return (
-    <div className="mb-4 flex w-full min-w-0 justify-between gap-2 overflow-x-auto border-b border-black/[0.08] pb-0 md:gap-10">
+    <div className="mb-4 flex justify-start gap-8 border-b border-black/[0.08] pb-0">
       {tabs.map(({ id, label, icon }) => {
         const active = value === id;
         const count = counts[id];
@@ -71,7 +71,7 @@ export default function TabsNav({ value, onTabAttempt, counts, isPremium }: Tabs
             key={id}
             type="button"
             onClick={() => onTabAttempt(id)}
-            className={`group relative min-w-0 flex-1 pb-3 text-center transition-colors duration-150 max-md:min-w-[100px] md:-mb-px md:flex-initial md:text-left ${
+            className={`group relative pb-3 transition-colors duration-150 md:-mb-px ${
               active ? 'font-semibold' : 'font-medium text-[#6B7280] hover:text-ink/80'
             }`}
             style={{
@@ -79,7 +79,7 @@ export default function TabsNav({ value, onTabAttempt, counts, isPremium }: Tabs
               ...(active ? { color: ICON_COLORS.primary } : {}),
             }}
           >
-            <span className="inline-flex flex-col items-center justify-center gap-1 max-md:w-full md:inline-flex md:flex-row md:flex-wrap md:items-center md:gap-2">
+            <span className="inline-flex flex-row flex-wrap items-center gap-2">
               <TabIcon kind={icon} active={active} />
               <span className="text-[14px] max-md:text-[13px]">{label}</span>
               <span

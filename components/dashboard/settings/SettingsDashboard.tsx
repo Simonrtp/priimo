@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, LogOut, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, ChevronDown, Trash2, UserPlus, X } from 'lucide-react';
 import { mockAgents } from '@/lib/mock-data';
 import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
 
@@ -22,13 +22,12 @@ const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
 ];
 
 const AGENT_TAB_LIST: { id: SettingsTabId; label: string }[] = [
-  { id: 'notifications', label: 'Notifications' },
   { id: 'profile', label: 'Mon profil' },
-  { id: 'security', label: 'Sécurité' },
+  { id: 'notifications', label: 'Notifications' },
 ];
 
 function firstSettingsTab(isDirector: boolean): SettingsTabId {
-  return isDirector ? 'agency' : 'notifications';
+  return isDirector ? 'agency' : 'profile';
 }
 
 type TeamRole = 'Directeur' | 'Agent';
@@ -129,8 +128,8 @@ export default function SettingsDashboard() {
                   {id === 'agency' && <SectionAgency onSaved={showSaved} />}
                   {id === 'team' && <SectionTeam onSaved={showSaved} />}
                   {id === 'billing' && <SectionBilling onSaved={showSaved} />}
-                  {id === 'notifications' && <SectionNotifications onSaved={showSaved} />}
-                  {id === 'profile' && <SectionProfile onSaved={showSaved} />}
+                  {id === 'notifications' && <SectionNotifications onSaved={showSaved} simplified={!isDirector} />}
+                  {id === 'profile' && <SectionProfile onSaved={showSaved} readOnlyEmail={!isDirector} />}
                   {id === 'security' && <SectionSecurity onSaved={showSaved} />}
                 </div>
               )}
@@ -165,24 +164,12 @@ export default function SettingsDashboard() {
           {activeTab === 'agency' && <SectionAgency onSaved={showSaved} />}
           {activeTab === 'team' && <SectionTeam onSaved={showSaved} />}
           {activeTab === 'billing' && <SectionBilling onSaved={showSaved} />}
-          {activeTab === 'notifications' && <SectionNotifications onSaved={showSaved} />}
-          {activeTab === 'profile' && <SectionProfile onSaved={showSaved} />}
+          {activeTab === 'notifications' && <SectionNotifications onSaved={showSaved} simplified={!isDirector} />}
+          {activeTab === 'profile' && <SectionProfile onSaved={showSaved} readOnlyEmail={!isDirector} />}
           {activeTab === 'security' && <SectionSecurity onSaved={showSaved} />}
         </div>
       </div>
 
-      <div className="mt-8 border-t border-black/8 pt-6">
-        <button
-          type="button"
-          className="flex min-h-[48px] w-full max-w-xl items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-[15px] font-semibold text-red-700 transition-colors hover:bg-red-50"
-          onClick={() => {
-            console.log('[Settings] Déconnexion');
-          }}
-        >
-          <LogOut size={20} strokeWidth={2} aria-hidden />
-          Déconnexion
-        </button>
-      </div>
     </div>
   );
 }
@@ -231,6 +218,9 @@ function SectionAgency({ onSaved }: { onSaved: (msg?: string) => void }) {
 }
 
 /* ——— Mon équipe ——— */
+
+const roleDisplayLabel = (role: TeamRole): string =>
+  role === 'Agent' ? 'Collaborateur' : role;
 
 function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
   const [rows, setRows] = useState<TeamRow[]>(buildInitialTeam);
@@ -281,7 +271,7 @@ function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
           onClick={() => setInviteOpen(true)}
         >
           <UserPlus size={16} strokeWidth={2} aria-hidden />
-          Inviter un agent
+          Inviter un collaborateur
         </button>
       </div>
 
@@ -303,7 +293,7 @@ function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
                 <td className="px-4 py-3 font-medium text-ink">{row.firstName}</td>
                 <td className="px-3 py-3 text-ink">{row.lastName}</td>
                 <td className="max-w-[200px] truncate px-3 py-3 text-mute">{row.email}</td>
-                <td className="px-3 py-3 text-ink">{row.role}</td>
+                <td className="px-3 py-3 text-ink">{roleDisplayLabel(row.role)}</td>
                 <td className="px-3 py-3">
                   <span
                     className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -347,10 +337,10 @@ function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
               <X size={18} strokeWidth={2} />
             </button>
             <h3 id="invite-dialog-title" className="pr-8 font-semibold text-ink" style={{ fontSize: 17 }}>
-              Inviter un agent
+              Inviter un collaborateur
             </h3>
             <p className="mt-1 text-mute" style={{ fontSize: 13 }}>
-              Un email d&apos;invitation sera envoyé (simulation). Rôle : Agent.
+              Un email d&apos;invitation sera envoyé (simulation). Rôle : Collaborateur.
             </p>
             <div className="mt-5 flex flex-col gap-4">
               <div>
@@ -380,6 +370,7 @@ function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
               >
                 Envoyer l&apos;invitation
               </button>
+
             </div>
           </div>
         </div>
@@ -427,7 +418,7 @@ function SectionBilling({ onSaved }: { onSaved: (msg?: string) => void }) {
 
 /* ——— Mon profil ——— */
 
-function SectionProfile({ onSaved }: { onSaved: (msg?: string) => void }) {
+function SectionProfile({ onSaved, readOnlyEmail = false }: { onSaved: (msg?: string) => void; readOnlyEmail?: boolean }) {
   const [firstName, setFirstName] = useState('Alexandre');
   const [lastName, setLastName] = useState('Martin');
   const [email, setEmail] = useState('a.martin@agencetest.fr');
@@ -460,7 +451,13 @@ function SectionProfile({ onSaved }: { onSaved: (msg?: string) => void }) {
           </div>
           <div>
             <label className={labelClass}>Email</label>
-            <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            {readOnlyEmail ? (
+              <p className="rounded-lg border border-black/8 bg-soft-gray/40 px-[14px] py-[10px] text-[14px] text-mute">
+                {email}
+              </p>
+            ) : (
+              <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            )}
           </div>
           <button
             type="button"
@@ -514,7 +511,7 @@ function SectionProfile({ onSaved }: { onSaved: (msg?: string) => void }) {
 
 /* ——— Notifications ——— */
 
-function SectionNotifications({ onSaved }: { onSaved: (msg?: string) => void }) {
+function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?: string) => void; simplified?: boolean }) {
   const [emailLeads, setEmailLeads] = useState(true);
   const [freq, setFreq] = useState('Hebdomadaire');
   const [alert90, setAlert90] = useState(true);
@@ -559,65 +556,70 @@ function SectionNotifications({ onSaved }: { onSaved: (msg?: string) => void }) 
             <option>Désactivé</option>
           </select>
         </div>
-        <ToggleRow label="Alerte immédiate pour les leads score ≥ 90" checked={alert90} onChange={setAlert90} />
 
-        <div>
-          <label className={labelClass}>Adresses e-mail (équipe)</label>
-          <p className="mb-3 text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
-            Ajoutez les adresses qui doivent recevoir les notifications (collaborateurs, direction, assistantes…).
-            Les options ci-dessus s’appliquent à toutes ces adresses.
-          </p>
-          <ul className="mb-3 flex flex-col gap-2">
-            {notificationEmails.map((addr) => (
-              <li
-                key={addr}
-                className="flex min-h-[48px] items-center justify-between gap-3 rounded-lg border border-black/8 bg-soft-gray/30 px-3 py-2"
-              >
-                <span className="min-w-0 truncate font-medium text-ink" style={{ fontSize: 14 }}>
-                  {addr}
-                </span>
+        {!simplified && (
+          <>
+            <ToggleRow label="Alerte immédiate pour les leads score ≥ 90" checked={alert90} onChange={setAlert90} />
+
+            <div>
+              <label className={labelClass}>Adresses e-mail (équipe)</label>
+              <p className="mb-3 text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
+                Ajoutez les adresses qui doivent recevoir les notifications (collaborateurs, direction, assistantes…).
+                Les options ci-dessus s’appliquent à toutes ces adresses.
+              </p>
+              <ul className="mb-3 flex flex-col gap-2">
+                {notificationEmails.map((addr) => (
+                  <li
+                    key={addr}
+                    className="flex min-h-[48px] items-center justify-between gap-3 rounded-lg border border-black/8 bg-soft-gray/30 px-3 py-2"
+                  >
+                    <span className="min-w-0 truncate font-medium text-ink" style={{ fontSize: 14 }}>
+                      {addr}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-red-50 hover:text-red-700"
+                      aria-label={`Retirer ${addr}`}
+                      onClick={() => removeEmail(addr)}
+                    >
+                      <Trash2 size={18} strokeWidth={2} aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                <input
+                  className={inputClass}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="ex. prenom.nom@agence.fr"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === ‘Enter’) {
+                      e.preventDefault();
+                      addEmail();
+                    }
+                  }}
+                />
                 <button
                   type="button"
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-red-50 hover:text-red-700"
-                  aria-label={`Retirer ${addr}`}
-                  onClick={() => removeEmail(addr)}
+                  className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-lg border border-black/15 bg-white px-4 text-[14px] font-semibold text-ink transition-colors hover:border-accent/40 hover:bg-soft-warm/40"
+                  onClick={addEmail}
                 >
-                  <Trash2 size={18} strokeWidth={2} aria-hidden />
+                  <UserPlus size={18} strokeWidth={2} aria-hidden />
+                  Ajouter
                 </button>
-              </li>
-            ))}
-          </ul>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            <input
-              className={inputClass}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="ex. prenom.nom@agence.fr"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addEmail();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-lg border border-black/15 bg-white px-4 text-[14px] font-semibold text-ink transition-colors hover:border-accent/40 hover:bg-soft-warm/40"
-              onClick={addEmail}
-            >
-              <UserPlus size={18} strokeWidth={2} aria-hidden />
-              Ajouter
-            </button>
-          </div>
-        </div>
+              </div>
+            </div>
+          </>
+        )}
 
         <button
           type="button"
           className="btn btn-primary self-start"
-          style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
+          style={{ padding: ‘10px 20px’, fontSize: 14, borderRadius: 10 }}
           onClick={() => onSaved()}
         >
           Enregistrer les préférences

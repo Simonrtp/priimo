@@ -5,8 +5,6 @@ import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
 
-const isDev = process.env.NODE_ENV === 'development';
-
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
     return 'Mes prospects';
@@ -34,33 +32,34 @@ export default function TopBar() {
         >
           {title === 'Mes prospects' ? 'Prospects' : title}
         </span>
-        {isDev && (
-          <div
-            className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg border border-black/10 bg-white/90 px-1.5 py-1"
-            role="group"
-            aria-label="Simulation de rôle (développement)"
+        <div
+          className="hidden md:flex shrink-0 items-center gap-0.5 rounded-lg bg-gray-100 px-1 py-1"
+          role="group"
+          aria-label="Simulation de rôle (développement)"
+        >
+          <button
+            type="button"
+            onClick={() => setRole('director')}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+              role === 'director'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
-            <span className="pl-1 text-[10px] font-medium uppercase tracking-wide text-mute">Vue</span>
-            <button
-              type="button"
-              onClick={() => setRole('director')}
-              className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
-                role === 'director' ? 'bg-accent text-white' : 'text-mute hover:bg-black/[0.05]'
-              }`}
-            >
-              Directeur
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('agent')}
-              className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
-                role === 'agent' ? 'bg-accent text-white' : 'text-mute hover:bg-black/[0.05]'
-              }`}
-            >
-              Agent
-            </button>
-          </div>
-        )}
+            Directeur
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('agent')}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
+              role === 'agent'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Agent
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">

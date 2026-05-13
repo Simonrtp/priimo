@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HelpCircle, Settings, Target } from 'lucide-react';
+import { MessageCircle, Settings, Target } from 'lucide-react';
+import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 
 const ACCENT = '#E8743C';
 const INACTIVE = '#6B7280';
@@ -42,14 +43,16 @@ function TabItem({
 function HelpTab() {
   return (
     <a
-      href="mailto:support@priimo.fr"
+      href={FOUNDER_WHATSAPP_HREF}
+      target="_blank"
+      rel="noopener noreferrer"
       className="flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 pt-1 text-inherit no-underline"
       style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}
-      aria-label="Aide et support — écrire à support@priimo.fr"
+      aria-label="Écrire au fondateur sur WhatsApp"
     >
-      <HelpCircle size={24} strokeWidth={2} color={INACTIVE} aria-hidden />
+      <MessageCircle size={24} strokeWidth={2} color={INACTIVE} aria-hidden />
       <span className="max-w-full truncate text-center font-medium" style={{ fontSize: 11, color: INACTIVE }}>
-        Aide
+        Fondateur
       </span>
     </a>
   );
