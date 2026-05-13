@@ -14,6 +14,7 @@ interface ProspectsFiltersSheetProps {
   onApply: (f: Filters) => void;
   agents: Agent[];
   zones: ZoneOpt[];
+  showAssignedFilter?: boolean;
 }
 
 function Pill({
@@ -46,6 +47,7 @@ export default function ProspectsFiltersSheet({
   onApply,
   agents,
   zones,
+  showAssignedFilter = true,
 }: ProspectsFiltersSheetProps) {
   const [draft, setDraft] = useState<Filters>(appliedFilters);
 
@@ -64,7 +66,7 @@ export default function ProspectsFiltersSheet({
     draft.minScore > 0 ||
     draft.signalType !== 'all' ||
     draft.status !== 'all' ||
-    draft.assignedTo !== 'all' ||
+    (showAssignedFilter && draft.assignedTo !== 'all') ||
     draft.zoneId !== 'all';
 
   return (
@@ -157,6 +159,7 @@ export default function ProspectsFiltersSheet({
             </div>
           </div>
 
+          {showAssignedFilter && (
           <div className="mb-5">
             <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
               Assigné à
@@ -175,6 +178,7 @@ export default function ProspectsFiltersSheet({
               ))}
             </select>
           </div>
+          )}
 
           <div className="mb-4">
             <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>

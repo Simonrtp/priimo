@@ -29,6 +29,8 @@ interface LeadDrawerProps {
   isPlanPremium: boolean;
   onClose: () => void;
   onUpdateLead: (lead: Lead) => void;
+  /** Faux pour le rôle agent : masque l’assignation. */
+  canAssignLead?: boolean;
 }
 
 const signalMeta: Record<SignalType, { label: string; pts: number }> = {
@@ -72,7 +74,7 @@ function Divider() {
   return <div className="h-px bg-black/[0.05] my-5" />;
 }
 
-export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead }: LeadDrawerProps) {
+export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead, canAssignLead = true }: LeadDrawerProps) {
   const [note, setNote] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [drawerEntered, setDrawerEntered] = useState(false);
@@ -115,7 +117,12 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
   if (!lead) return null;
 
   const { streetLine, cityZipLine } = splitStreetAndCity(lead.address);
-  const plusValue = (((lead.estimatedValue / lead.purchasePrice) - 1) * 100).toFixed(0);
+  const plusValueRaw = lead.purchasePrice > 0
+    ? (((lead.estimatedValue / lead.purchasePrice) - 1) * 100).toFixed(0)
+    : null;
+  const plusValue = plusValueRaw !== null
+    ? (Number(plusValueRaw) >= 0 ? `+${plusValueRaw}%` : `${plusValueRaw}%`)
+    : '—';
   const totalPts = lead.signalType.reduce((acc, sig) => acc + (signalMeta[sig]?.pts ?? 0), 0);
   const isEnterprise = !!lead.legalForm && lead.segment === 'entreprise';
   const year = new Date(lead.purchaseDate).getFullYear();
@@ -277,7 +284,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
               </li>
               <li className="flex justify-between gap-4">
                 <span className="text-mute">Plus-value</span>
-                <span className="font-medium tabular">+{plusValue}%</span>
+                <span className="font-medium tabular">{plusValue}</span>
               </li>
             </ul>
 
@@ -299,6 +306,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
                   ))}
                 </select>
               </div>
+              {canAssignLead && (
               <div>
                 <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>Assigné à</p>
                 <select
@@ -317,6 +325,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
                   ))}
                 </select>
               </div>
+              )}
               <div>
                 <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>Notes internes</p>
                 <textarea

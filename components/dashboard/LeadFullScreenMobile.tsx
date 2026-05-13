@@ -70,9 +70,16 @@ interface LeadFullScreenMobileProps {
   isPlanPremium: boolean;
   onClose: () => void;
   onUpdateLead: (lead: Lead) => void;
+  canAssignLead?: boolean;
 }
 
-export default function LeadFullScreenMobile({ lead, isPlanPremium, onClose, onUpdateLead }: LeadFullScreenMobileProps) {
+export default function LeadFullScreenMobile({
+  lead,
+  isPlanPremium,
+  onClose,
+  onUpdateLead,
+  canAssignLead = true,
+}: LeadFullScreenMobileProps) {
   const [note, setNote] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [entered, setEntered] = useState(false);
@@ -101,7 +108,12 @@ export default function LeadFullScreenMobile({ lead, isPlanPremium, onClose, onU
   }, [onClose]);
 
   const { streetLine, cityZipLine } = splitStreetAndCity(lead.address);
-  const plusValue = (((lead.estimatedValue / lead.purchasePrice) - 1) * 100).toFixed(0);
+  const plusValueRaw = lead.purchasePrice > 0
+    ? (((lead.estimatedValue / lead.purchasePrice) - 1) * 100).toFixed(0)
+    : null;
+  const plusValue = plusValueRaw !== null
+    ? (Number(plusValueRaw) >= 0 ? `+${plusValueRaw}%` : `${plusValueRaw}%`)
+    : '—';
   const totalPts = lead.signalType.reduce((acc, sig) => acc + (signalMeta[sig]?.pts ?? 0), 0);
   const isEnterprise = !!lead.legalForm && lead.segment === 'entreprise';
   const year = new Date(lead.purchaseDate).getFullYear();
@@ -368,7 +380,7 @@ export default function LeadFullScreenMobile({ lead, isPlanPremium, onClose, onU
           </li>
           <li className="flex justify-between gap-4">
             <span className="text-mute">Plus-value</span>
-            <span className="font-medium tabular">+{plusValue}%</span>
+            <span className="font-medium tabular">{plusValue}</span>
           </li>
         </ul>
 
@@ -388,6 +400,7 @@ export default function LeadFullScreenMobile({ lead, isPlanPremium, onClose, onU
               ))}
             </select>
           </div>
+          {canAssignLead && (
           <div>
             <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>Assigné à</label>
             <select
@@ -404,6 +417,7 @@ export default function LeadFullScreenMobile({ lead, isPlanPremium, onClose, onU
               ))}
             </select>
           </div>
+          )}
           <div>
             <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>Notes internes</label>
             <textarea

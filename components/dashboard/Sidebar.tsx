@@ -2,14 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  BarChart3,
-  MapPin,
-  Settings,
-  Target,
-} from 'lucide-react';
-import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
-import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
+import { HelpCircle, Settings, Target } from 'lucide-react';
+import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
 
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
@@ -19,26 +13,14 @@ const LEADS_QUOTA = { treated: 7, max: 15 };
 const navItems: {
   href: string;
   label: string;
-  Icon: typeof BarChart3;
+  Icon: typeof Target;
   match: (pathname: string) => boolean;
 }[] = [
-  {
-    href: '/dashboard/overview',
-    label: 'Tableau de bord',
-    Icon: BarChart3,
-    match: (p) => p === '/dashboard/overview' || p.startsWith('/dashboard/overview/'),
-  },
   {
     href: '/dashboard',
     label: 'Prospects',
     Icon: Target,
     match: (p) => p === '/dashboard' || p === '/dashboard/',
-  },
-  {
-    href: '/dashboard/territory',
-    label: 'Mon territoire',
-    Icon: MapPin,
-    match: (p) => p === '/dashboard/territory' || p.startsWith('/dashboard/territory/'),
   },
   {
     href: '/dashboard/settings',
@@ -50,6 +32,7 @@ const navItems: {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { isDirector } = useDashboardRole();
   const progress = Math.min(100, Math.round((LEADS_QUOTA.treated / LEADS_QUOTA.max) * 100));
 
   return (
@@ -105,53 +88,51 @@ export default function Sidebar() {
 
       <div className="hidden px-3 pb-3 lg:block">
         <a
-          href={FOUNDER_WHATSAPP_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Écrire au fondateur sur WhatsApp"
+          href="mailto:support@priimo.fr"
           className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors hover:text-white"
         >
-          <WhatsAppIcon size={18} className="flex-shrink-0 text-[#25D366] group-hover:text-[#25D366]" />
-          Écrire au fondateur
+          <HelpCircle size={16} strokeWidth={2} className="flex-shrink-0 opacity-90" aria-hidden />
+          Aide &amp; support
         </a>
       </div>
 
-      <div
-        className="mx-1.5 mb-4 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
-        style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
-      >
-        <p
-          className="inline-block rounded-md px-2 py-0.5 font-semibold uppercase tracking-wide"
-          style={{
-            fontSize: 9,
-            letterSpacing: '0.1em',
-            color: ACCENT,
-            backgroundColor: 'rgba(232,116,60,0.15)',
-          }}
-        >
-          PLAN FONDATEUR
-        </p>
-        <p className="mt-2 font-medium text-white" style={{ fontSize: 14 }}>
-          Agence Test
-        </p>
-        <p className="mt-3 text-[11px] tabular text-white/80">
-          {LEADS_QUOTA.treated}/{LEADS_QUOTA.max} leads traités
-        </p>
+      {isDirector ? (
         <div
-          className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
-          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-          role="progressbar"
-          aria-valuenow={LEADS_QUOTA.treated}
-          aria-valuemin={0}
-          aria-valuemax={LEADS_QUOTA.max}
-          aria-label="Progression des leads traités"
+          className="mx-1.5 mb-4 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
+          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
         >
+          <p className="font-medium text-white" style={{ fontSize: 14 }}>
+            Agence Test
+          </p>
+          <p className="mt-3 text-[11px] tabular text-white/80">
+            {LEADS_QUOTA.treated}/{LEADS_QUOTA.max} leads traités
+          </p>
           <div
-            className="h-full rounded-full transition-[width] duration-300"
-            style={{ width: `${progress}%`, backgroundColor: ACCENT }}
-          />
+            className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+            role="progressbar"
+            aria-valuenow={LEADS_QUOTA.treated}
+            aria-valuemin={0}
+            aria-valuemax={LEADS_QUOTA.max}
+            aria-label="Progression des leads traités"
+          >
+            <div
+              className="h-full rounded-full transition-[width] duration-300"
+              style={{ width: `${progress}%`, backgroundColor: ACCENT }}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div
+          className="mx-1.5 mb-4 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
+          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+        >
+          <p className="font-medium text-white" style={{ fontSize: 14 }}>
+            Agence Test
+          </p>
+          <p className="mt-2 text-[12px] text-white/75">Agent</p>
+        </div>
+      )}
     </aside>
   );
 }

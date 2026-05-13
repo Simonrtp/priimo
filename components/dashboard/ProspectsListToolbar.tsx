@@ -8,10 +8,12 @@ interface ProspectsListToolbarProps {
   count: number;
   viewMode: ProspectsViewMode;
   onViewModeChange: (mode: ProspectsViewMode) => void;
-  onExportCsv: () => void;
+  onExportCsv?: () => void;
   /** Mobile : nombre de filtres actifs (hors défaut). */
   filterActiveCount?: number;
   onOpenFilters?: () => void;
+  /** Faux pour le rôle agent : masque « Exporter CSV ». */
+  showExportCsv?: boolean;
 }
 
 export default function ProspectsListToolbar({
@@ -21,6 +23,7 @@ export default function ProspectsListToolbar({
   onExportCsv,
   filterActiveCount = 0,
   onOpenFilters,
+  showExportCsv = true,
 }: ProspectsListToolbarProps) {
   const label = `${count} prospect${count !== 1 ? 's' : ''} trouvé${count !== 1 ? 's' : ''}`;
   const hasActiveFilters = filterActiveCount > 0;
@@ -113,6 +116,7 @@ export default function ProspectsListToolbar({
             </button>
           </div>
 
+          {showExportCsv && onExportCsv && (
           <button
             type="button"
             onClick={onExportCsv}
@@ -122,6 +126,7 @@ export default function ProspectsListToolbar({
             <ICONS.download size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} />
             Exporter CSV
           </button>
+          )}
         </div>
       </div>
     </>

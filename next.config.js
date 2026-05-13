@@ -12,6 +12,14 @@ const nextConfig = {
     removeConsole:
       process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
   },
+  async redirects() {
+    return [
+      { source: "/dashboard/overview", destination: "/dashboard", permanent: true },
+      { source: "/dashboard/overview/:path*", destination: "/dashboard", permanent: true },
+      { source: "/dashboard/territory", destination: "/dashboard", permanent: true },
+      { source: "/dashboard/territory/:path*", destination: "/dashboard", permanent: true },
+    ];
+  },
   async headers() {
     const securityHeaders = [
       // Send only the origin on cross-origin navigation (privacy-friendly default).
@@ -25,6 +33,13 @@ const nextConfig = {
         key: "Permissions-Policy",
         value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
       },
+      // Enforce HTTPS for 2 years; opt-in to preload list.
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+      // Disable the legacy XSS auditor (can itself be exploited in old browsers).
+      { key: "X-XSS-Protection", value: "0" },
     ];
 
     return [

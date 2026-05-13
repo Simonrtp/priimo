@@ -18,6 +18,8 @@ interface FiltersBarProps {
   onFiltersChange: (f: Filters) => void;
   agents: Agent[];
   zones: ZoneOpt[];
+  /** Faux pour le rôle agent : masque le filtre « Assigné à ». */
+  showAssignedFilter?: boolean;
 }
 
 type SignalPill = { value: SignalFilterValue; label: string };
@@ -88,12 +90,13 @@ function Pill({
   );
 }
 
-export function countActiveFilters(f: Filters): number {
+export function countActiveFilters(f: Filters, opts?: { countAssigned?: boolean }): number {
+  const countAssigned = opts?.countAssigned !== false;
   let n = 0;
   if (f.minScore > 0) n++;
   if (f.signalType !== 'all') n++;
   if (f.status !== 'all') n++;
-  if (f.assignedTo !== 'all') n++;
+  if (countAssigned && f.assignedTo !== 'all') n++;
   if (f.zoneId !== 'all') n++;
   return n;
 }
@@ -107,6 +110,7 @@ export default function FiltersBar({
   onFiltersChange,
   agents,
   zones,
+  showAssignedFilter = true,
 }: FiltersBarProps) {
   const signalPills = useMemo(() => getSignalPills(segmentTab), [segmentTab]);
 
@@ -117,7 +121,7 @@ export default function FiltersBar({
     filters.minScore > 0 ||
     filters.signalType !== 'all' ||
     filters.status !== 'all' ||
-    filters.assignedTo !== 'all' ||
+    (showAssignedFilter && filters.assignedTo !== 'all') ||
     filters.zoneId !== 'all';
 
   return (
@@ -192,6 +196,7 @@ export default function FiltersBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-black/[0.06]">
+        {showAssignedFilter && (
         <label className="flex items-center gap-2">
           <span className="uppercase text-mute tracking-widest whitespace-nowrap" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
             Assigné à
@@ -208,6 +213,7 @@ export default function FiltersBar({
             ))}
           </select>
         </label>
+        )}
         <label className="flex items-center gap-2">
           <span className="uppercase text-mute tracking-widest whitespace-nowrap" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
             Zone

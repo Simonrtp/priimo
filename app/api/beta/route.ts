@@ -115,6 +115,11 @@ async function forwardToWebhook(payload: BetaPayload, ip: string): Promise<void>
   const webhookUrl = process.env.BETA_WEBHOOK_URL;
   if (!webhookUrl) return;
 
+  try { new URL(webhookUrl); } catch {
+    console.warn("[beta] BETA_WEBHOOK_URL is not a valid URL — skipping webhook.");
+    return;
+  }
+
   // Soft timeout: we don't want a slow webhook to block the user-facing
   // response for more than ~3s. Failures here are logged but never fail
   // the user's submission — we already have the data in our own logs.

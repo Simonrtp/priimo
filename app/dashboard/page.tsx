@@ -6,6 +6,7 @@ import { mockLeads, mockAgents, MOCK_ZONES } from '@/lib/mock-data';
 import { mockUserIsPremium } from '@/lib/mock-user';
 import type { Lead, Filters, LeadSegmentTab } from '@/types/lead';
 import { leadHasEvenementSociete } from '@/types/lead';
+import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
 import StatsBar from '@/components/dashboard/StatsBar';
 import TabsNav from '@/components/dashboard/TabsNav';
 import FiltersBar, { countActiveFilters } from '@/components/dashboard/FiltersBar';
@@ -26,6 +27,7 @@ function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
 function ProspectsBody() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isDirector } = useDashboardRole();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({
@@ -44,6 +46,12 @@ function ProspectsBody() {
     rawTab === 'entreprises' || rawTab === 'particuliers' || rawTab === 'tous' ? rawTab : 'tous';
 
   const enterpriseViewLocked = !mockUserIsPremium && segmentTab === 'entreprises';
+
+  useEffect(() => {
+    if (!isDirector) {
+      setFilters((f) => ({ ...f, assignedTo: 'all' }));
+    }
+  }, [isDirector]);
 
   useEffect(() => {
     setFilters((f) => ({ ...f, signalType: 'all' }));
@@ -100,7 +108,7 @@ function ProspectsBody() {
     else router.replace(`/dashboard?tab=${t}`, { scroll: false });
   };
 
-  const filterCount = countActiveFilters(filters);
+  const filterCount = countActiveFilters(filters, { countAssigned: isDirector });
 
   return (
     <>
@@ -118,6 +126,7 @@ function ProspectsBody() {
           onFiltersChange={setFilters}
           agents={mockAgents}
           zones={MOCK_ZONES}
+          showAssignedFilter={isDirector}
         />
       </div>
 
@@ -125,9 +134,10 @@ function ProspectsBody() {
         count={filtered.length}
         viewMode={prospectsView}
         onViewModeChange={handleProspectsViewChange}
-        onExportCsv={() => console.log('Export CSV', filtered)}
+        onExportCsv={isDirector ? () => console.log('Export CSV', filtered) : undefined}
         filterActiveCount={filterCount}
         onOpenFilters={() => setFiltersSheetOpen(true)}
+        showExportCsv={isDirector}
       />
 
       <ProspectsFiltersSheet
@@ -138,6 +148,7 @@ function ProspectsBody() {
         onApply={setFilters}
         agents={mockAgents}
         zones={MOCK_ZONES}
+        showAssignedFilter={isDirector}
       />
 
       {prospectsView === 'liste' ? (
@@ -157,6 +168,7 @@ function ProspectsBody() {
         isPlanPremium={mockUserIsPremium}
         onClose={() => setSelectedLeadId(null)}
         onUpdateLead={updateLead}
+        canAssignLead={isDirector}
       />
       {selected && (
         <LeadFullScreenMobile
@@ -164,6 +176,7 @@ function ProspectsBody() {
           isPlanPremium={mockUserIsPremium}
           onClose={() => setSelectedLeadId(null)}
           onUpdateLead={updateLead}
+          canAssignLead={isDirector}
         />
       )}
       <PremiumEnterpriseModal open={premiumModalOpen} onClose={() => setPremiumModalOpen(false)} />
