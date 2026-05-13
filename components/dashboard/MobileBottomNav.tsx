@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BarChart3, LogOut, MapPin, Menu, Settings, Target, X } from 'lucide-react';
+import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
+import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 
 const ACCENT = '#E8743C';
 const INACTIVE = '#6B7280';
@@ -123,11 +125,15 @@ export default function MobileBottomNav() {
               </li>
               <li>
                 <a
-                  href="mailto:support@priimo.fr"
+                  href={FOUNDER_WHATSAPP_HREF}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Écrire au fondateur sur WhatsApp"
                   className="flex min-h-[48px] items-center gap-3 px-4 py-3 text-[15px] font-medium text-ink hover:bg-black/[0.03]"
                   onClick={() => setPlusOpen(false)}
                 >
-                  Aide &amp; support
+                  <WhatsAppIcon size={22} className="flex-shrink-0 text-[#25D366]" />
+                  Écrire au fondateur
                 </a>
               </li>
               <li className="mx-4 my-2 rounded-xl border border-black/8 bg-soft-gray/50 px-3 py-3">

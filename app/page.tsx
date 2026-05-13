@@ -1,3 +1,4 @@
+import CausioScripts from "@/components/landing/CausioScripts";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import ProblemTransformation from "@/components/ProblemTransformation";
@@ -12,6 +13,7 @@ import FinalCTA from "@/components/FinalCTA";
 export default function Page() {
   return (
     <>
+      <CausioScripts />
       {/*
        * Ambient orange wash — extremely subtle, static (no mouse, no animation).
        * Two large radial gradients placed off-axis so the eye perceives a soft

@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3,
-  HelpCircle,
   MapPin,
   Settings,
   Target,
 } from 'lucide-react';
+import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
+import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
@@ -104,11 +105,14 @@ export default function Sidebar() {
 
       <div className="hidden px-3 pb-3 lg:block">
         <a
-          href="mailto:support@priimo.fr"
+          href={FOUNDER_WHATSAPP_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Écrire au fondateur sur WhatsApp"
           className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors hover:text-white"
         >
-          <HelpCircle size={16} strokeWidth={2} className="flex-shrink-0 opacity-90" aria-hidden />
-          Aide &amp; support
+          <WhatsAppIcon size={18} className="flex-shrink-0 text-[#25D366] group-hover:text-[#25D366]" />
+          Écrire au fondateur
         </a>
       </div>
 
