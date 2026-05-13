@@ -8,11 +8,13 @@ import type { Lead, Filters, LeadSegmentTab } from '@/types/lead';
 import { leadHasEvenementSociete } from '@/types/lead';
 import StatsBar from '@/components/dashboard/StatsBar';
 import TabsNav from '@/components/dashboard/TabsNav';
-import FiltersBar from '@/components/dashboard/FiltersBar';
+import FiltersBar, { countActiveFilters } from '@/components/dashboard/FiltersBar';
 import ProspectsListToolbar, { type ProspectsViewMode } from '@/components/dashboard/ProspectsListToolbar';
+import ProspectsFiltersSheet from '@/components/dashboard/ProspectsFiltersSheet';
 import MapViewPlaceholder from '@/components/dashboard/MapViewPlaceholder';
 import LeadsList from '@/components/dashboard/LeadsList';
 import LeadDrawer from '@/components/dashboard/LeadDrawer';
+import LeadFullScreenMobile from '@/components/dashboard/LeadFullScreenMobile';
 import PremiumEnterpriseModal from '@/components/dashboard/PremiumEnterpriseModal';
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -35,6 +37,7 @@ function ProspectsBody() {
   });
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [prospectsView, setProspectsView] = useState<ProspectsViewMode>('liste');
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
 
   const rawTab = searchParams.get('tab');
   const segmentTab: LeadSegmentTab =
@@ -97,6 +100,8 @@ function ProspectsBody() {
     else router.replace(`/dashboard?tab=${t}`, { scroll: false });
   };
 
+  const filterCount = countActiveFilters(filters);
+
   return (
     <>
       <StatsBar leads={enterpriseViewLocked ? leads : filtered} />
@@ -106,19 +111,33 @@ function ProspectsBody() {
         counts={tabCounts}
         isPremium={mockUserIsPremium}
       />
-      <FiltersBar
-        segmentTab={segmentTab}
-        filters={filters}
-        onFiltersChange={setFilters}
-        agents={mockAgents}
-        zones={MOCK_ZONES}
-      />
+      <div className="hidden md:block">
+        <FiltersBar
+          segmentTab={segmentTab}
+          filters={filters}
+          onFiltersChange={setFilters}
+          agents={mockAgents}
+          zones={MOCK_ZONES}
+        />
+      </div>
 
       <ProspectsListToolbar
         count={filtered.length}
         viewMode={prospectsView}
         onViewModeChange={handleProspectsViewChange}
         onExportCsv={() => console.log('Export CSV', filtered)}
+        filterActiveCount={filterCount}
+        onOpenFilters={() => setFiltersSheetOpen(true)}
+      />
+
+      <ProspectsFiltersSheet
+        open={filtersSheetOpen}
+        onClose={() => setFiltersSheetOpen(false)}
+        segmentTab={segmentTab}
+        appliedFilters={filters}
+        onApply={setFilters}
+        agents={mockAgents}
+        zones={MOCK_ZONES}
       />
 
       {prospectsView === 'liste' ? (
@@ -139,6 +158,14 @@ function ProspectsBody() {
         onClose={() => setSelectedLeadId(null)}
         onUpdateLead={updateLead}
       />
+      {selected && (
+        <LeadFullScreenMobile
+          lead={selected}
+          isPlanPremium={mockUserIsPremium}
+          onClose={() => setSelectedLeadId(null)}
+          onUpdateLead={updateLead}
+        />
+      )}
       <PremiumEnterpriseModal open={premiumModalOpen} onClose={() => setPremiumModalOpen(false)} />
     </>
   );

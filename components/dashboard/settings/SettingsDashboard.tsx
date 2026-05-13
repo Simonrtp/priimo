@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, MapPin, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, ChevronDown, MapPin, Trash2, UserPlus, X } from 'lucide-react';
 import { mockAgents } from '@/lib/mock-data';
 
 const inputClass =
@@ -52,6 +52,7 @@ function buildInitialTeam(): TeamRow[] {
 
 export default function SettingsDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('agency');
+  const [mobileOpen, setMobileOpen] = useState<TabId | null>('agency');
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,7 +70,7 @@ export default function SettingsDashboard() {
     <div className="relative max-w-5xl">
       {toast && (
         <div
-          className="fixed right-6 top-6 z-[200] flex items-center gap-2 rounded-lg px-4 py-3 font-medium text-white shadow-lg"
+          className="fixed right-4 top-6 z-[200] flex items-center gap-2 rounded-lg px-4 py-3 font-medium text-white shadow-lg max-md:right-4 max-md:top-auto max-md:bottom-24"
           style={{ backgroundColor: '#059669', fontSize: 14 }}
           role="status"
         >
@@ -87,7 +88,38 @@ export default function SettingsDashboard() {
         </p>
       </header>
 
-      <div className="flex flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft lg:flex-row">
+      <div className="mb-6 flex flex-col gap-0 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:hidden">
+        {TABS.map(({ id, label }) => {
+          const open = mobileOpen === id;
+          return (
+            <div key={id} className="border-b border-black/8 last:border-b-0">
+              <button
+                type="button"
+                className="flex min-h-[48px] w-full items-center justify-between px-4 py-3 text-left"
+                onClick={() => setMobileOpen((o) => (o === id ? null : id))}
+                aria-expanded={open}
+              >
+                <span className="font-semibold text-ink" style={{ fontSize: 16 }}>
+                  {label}
+                </span>
+                <ChevronDown size={20} className={`text-mute transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+              </button>
+              {open && (
+                <div className="border-t border-black/[0.06] bg-white px-4 py-5">
+                  {id === 'agency' && <SectionAgency onSaved={showSaved} />}
+                  {id === 'team' && <SectionTeam onSaved={showSaved} />}
+                  {id === 'zone' && <SectionZone onSaved={showSaved} />}
+                  {id === 'billing' && <SectionBilling onSaved={showSaved} />}
+                  {id === 'notifications' && <SectionNotifications onSaved={showSaved} />}
+                  {id === 'security' && <SectionSecurity onSaved={showSaved} />}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:flex md:flex-row">
         <nav
           className="flex flex-shrink-0 flex-col gap-0.5 border-b border-black/8 bg-soft-gray/40 p-3 lg:w-52 lg:border-b-0 lg:border-r"
           aria-label="Sections paramètres"
@@ -499,7 +531,7 @@ function SectionBilling({ onSaved }: { onSaved: (msg?: string) => void }) {
       <h3 className="mb-4 font-semibold text-ink" style={{ fontSize: 15 }}>
         Comparer les offres
       </h3>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="flex max-md:snap-x max-md:gap-4 max-md:overflow-x-auto max-md:pb-2 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible">
         <PlanCard
           name="Standard"
           price="199 €/mois"
@@ -555,7 +587,7 @@ function PlanCard({
 }) {
   return (
     <div
-      className={`flex flex-col rounded-xl border bg-white p-5 ${
+      className={`flex max-md:min-w-[260px] max-md:flex-shrink-0 max-md:snap-start flex-col rounded-xl border bg-white p-5 md:min-w-0 ${
         highlight ? 'border-2 border-accent shadow-md ring-1 ring-accent/20' : 'border border-black/8 shadow-soft'
       }`}
     >

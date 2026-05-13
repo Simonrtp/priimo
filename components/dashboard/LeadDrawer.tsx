@@ -128,7 +128,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
     <>
       <div
         role="presentation"
-        className={`fixed inset-0 z-40 transition-opacity duration-200 ease-out ${
+        className={`fixed inset-0 z-40 hidden transition-opacity duration-200 ease-out md:block ${
           drawerEntered ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}
@@ -137,7 +137,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
       />
 
       <aside
-        className={`fixed top-0 right-0 bottom-0 z-50 flex h-[100dvh] max-h-[100dvh] w-full max-w-[480px] flex-col bg-white transition-transform duration-[225ms] ease-out ${
+        className={`fixed top-0 right-0 bottom-0 z-50 hidden h-[100dvh] max-h-[100dvh] w-full max-w-[480px] flex-col bg-white transition-transform duration-[225ms] ease-out md:flex ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ boxShadow: '-8px 0 24px rgba(0,0,0,0.08)' }}
@@ -397,7 +397,7 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead 
 
         {toast && (
           <div
-            className="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-ink px-4 py-2 font-medium text-canvas shadow-soft"
+            className="pointer-events-none fixed left-1/2 z-[60] -translate-x-1/2 rounded-full bg-ink px-4 py-2 font-medium text-canvas shadow-soft max-md:bottom-24 md:bottom-6"
             style={{ fontSize: 12 }}
             role="status"
           >

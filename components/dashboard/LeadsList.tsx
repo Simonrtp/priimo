@@ -45,7 +45,7 @@ export default function LeadsList({
   if (leads.length === 0) return <EmptyState />;
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft border border-black/8 overflow-hidden">
+    <div className="flex flex-col gap-2 overflow-hidden max-md:bg-transparent md:gap-0 md:rounded-2xl md:border md:border-black/8 md:bg-white md:shadow-soft">
       {leads.map((lead, i) => (
         <LeadCard
           key={lead.id}

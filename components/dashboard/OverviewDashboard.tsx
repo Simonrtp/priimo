@@ -38,7 +38,7 @@ function OverviewKpiCard({
     deltaTone === 'positive' ? POSITIVE : deltaTone === 'negative' ? NEGATIVE : DELTA_NEUTRAL;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft">
+    <div className="w-[200px] max-md:flex-shrink-0 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft snap-start md:w-auto">
       {accentBar !== 'none' && <div className={`h-[3px] ${bar}`} />}
       <div className="px-5 pb-5" style={{ paddingTop: accentBar === 'none' ? 20 : 16 }}>
         <p
@@ -191,7 +191,8 @@ export default function OverviewDashboard() {
         <h2 id="overview-kpi-heading" className="sr-only">
           Indicateurs clés
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="-mx-4 max-md:px-4 md:mx-0">
+        <div className="flex max-md:snap-x max-md:snap-mandatory max-md:gap-3 max-md:overflow-x-auto max-md:pb-2 md:grid md:grid-cols-2 md:gap-4 xl:grid-cols-4">
           <OverviewKpiCard
             label="Leads reçus ce mois"
             value={47}
@@ -221,11 +222,12 @@ export default function OverviewDashboard() {
             accentBar="blue"
           />
         </div>
+        </div>
       </section>
 
-      {/* Section 2 — Graphique */}
+      {/* Section 2 — Graphique (masqué sur mobile) */}
       <section
-        className="mb-8 rounded-2xl border border-black/8 bg-white px-6 py-6 shadow-soft"
+        className="mb-8 hidden rounded-2xl border border-black/8 bg-white px-6 py-6 shadow-soft md:block"
         aria-labelledby="overview-activity-heading"
       >
         <h2
@@ -263,7 +265,10 @@ export default function OverviewDashboard() {
             <table className="w-full text-left" style={{ fontSize: 13 }}>
               <thead>
                 <tr className="border-b border-black/[0.06] text-mute">
-                  <th className="px-4 py-3 font-medium" scope="col">
+                  <th
+                    className="max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-white max-md:shadow-[2px_0_6px_rgba(0,0,0,0.06)] px-4 py-3 font-medium"
+                    scope="col"
+                  >
                     Agent
                   </th>
                   <th className="px-3 py-3 font-medium tabular" scope="col">
@@ -283,7 +288,9 @@ export default function OverviewDashboard() {
               <tbody>
                 {TEAM_ROWS.map((row) => (
                   <tr key={row.agent} className="border-b border-black/[0.05] last:border-0">
-                    <td className="px-4 py-3.5 font-medium text-ink">{row.agent}</td>
+                    <td className="max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-white max-md:shadow-[2px_0_6px_rgba(0,0,0,0.06)] px-4 py-3.5 font-medium text-ink">
+                      {row.agent}
+                    </td>
                     <td className="px-3 py-3.5 tabular text-ink">{row.assigned}</td>
                     <td className="px-3 py-3.5 tabular text-ink">{row.contacted}</td>
                     <td className="px-3 py-3.5 tabular text-ink">{row.mandates}</td>

@@ -14,15 +14,15 @@ interface KPICardProps {
 function KPICard({ label, value, accentBar = 'none', valueColor = '#111827' }: KPICardProps) {
   const barColors = {
     orange: 'bg-accent',
-    blue:   'bg-blue',
-    none:   'bg-transparent',
+    blue: 'bg-blue',
+    none: 'bg-transparent',
   };
   return (
-    <div className="rounded-2xl bg-white shadow-soft border border-black/8 overflow-hidden">
+    <div className="w-[200px] max-md:flex-shrink-0 md:w-auto rounded-2xl border border-black/8 bg-white shadow-soft overflow-hidden snap-start">
       {accentBar !== 'none' && <div className={`h-[3px] ${barColors[accentBar]}`} />}
       <div className="px-5 pb-5" style={{ paddingTop: accentBar === 'none' ? 20 : 16 }}>
         <p
-          className="uppercase tracking-widest text-mute mb-3"
+          className="mb-3 uppercase tracking-widest text-mute"
           style={{ fontSize: 9, letterSpacing: '0.15em' }}
         >
           {label}
@@ -40,11 +40,11 @@ export default function StatsBar({ leads }: StatsBarProps) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const nouveaux = leads.filter(
-    (l) => l.status === 'nouveau' && new Date(l.createdAt) >= sevenDaysAgo
+    (l) => l.status === 'nouveau' && new Date(l.createdAt) >= sevenDaysAgo,
   ).length;
 
   const contactes = leads.filter(
-    (l) => l.status === 'contacté' || l.status === 'intéressé' || l.status === 'rdv_pris'
+    (l) => l.status === 'contacté' || l.status === 'intéressé' || l.status === 'rdv_pris',
   ).length;
 
   const scoreMoyen = leads.length > 0
@@ -54,10 +54,19 @@ export default function StatsBar({ leads }: StatsBarProps) {
   const scoreColor = scoreMoyen >= 80 ? '#C2410C' : scoreMoyen >= 60 ? '#B45309' : '#64748B';
 
   return (
-    <div className="grid grid-cols-3 gap-4 mb-5">
-      <KPICard label="Nouveaux cette semaine" value={nouveaux}   accentBar="orange" valueColor="#C25E2C" />
-      <KPICard label="Contactés"              value={contactes}  accentBar="blue"   valueColor="#293F5C" />
-      <KPICard label="Score moyen"            value={scoreMoyen} accentBar="none"   valueColor={scoreColor} />
-    </div>
+    <>
+      <div className="-mx-4 mb-5 max-md:px-4 md:mx-0 md:px-0">
+        <div className="flex max-md:snap-x max-md:snap-mandatory max-md:gap-3 max-md:overflow-x-auto max-md:pb-2 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible">
+          <KPICard label="Nouveaux cette semaine" value={nouveaux} accentBar="orange" valueColor="#C25E2C" />
+          <KPICard label="Contactés" value={contactes} accentBar="blue" valueColor="#293F5C" />
+          <KPICard label="Score moyen" value={scoreMoyen} accentBar="none" valueColor={scoreColor} />
+        </div>
+      </div>
+      <div className="mb-2 flex justify-center gap-1.5 md:hidden" aria-hidden>
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+        <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
+        <span className="h-1.5 w-1.5 rounded-full bg-black/15" />
+      </div>
+    </>
   );
 }

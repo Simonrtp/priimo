@@ -24,23 +24,37 @@ export default function TopBar() {
 
   return (
     <header
-      className="bg-canvas/80 backdrop-blur-md border-b border-black/8 flex items-center justify-between px-8 flex-shrink-0"
-      style={{ height: 56 }}
+      className="flex flex-shrink-0 items-center justify-between border-b border-black/8 bg-canvas/80 px-4 backdrop-blur-md md:px-8"
+      style={{ height: undefined }}
     >
-      <span className="font-semibold text-ink tracking-tight" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
-        {title}
+      <span
+        className="font-semibold tracking-tight text-ink max-md:text-[15px] md:py-0"
+        style={{ fontSize: 15, letterSpacing: '-0.01em', lineHeight: '48px' }}
+      >
+        {title === 'Mes prospects' ? 'Prospects' : title}
       </span>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 max-md:gap-0">
         <div
-          className="rounded-full bg-accent/15 text-accent-dark font-semibold flex items-center justify-center tabular"
-          style={{ width: 30, height: 30, fontSize: 11 }}
+          className="hidden items-center gap-3 md:flex"
+        >
+          <div
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-accent/15 text-accent-dark font-semibold tabular"
+            style={{ fontSize: 11 }}
+          >
+            AT
+          </div>
+          <span className="text-ink font-medium" style={{ fontSize: 13 }}>
+            Agence Test
+          </span>
+        </div>
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-accent-dark font-semibold tabular md:hidden"
+          style={{ fontSize: 11 }}
+          aria-hidden
         >
           AT
         </div>
-        <span className="text-ink font-medium" style={{ fontSize: 13 }}>
-          Agence Test
-        </span>
       </div>
     </header>
   );

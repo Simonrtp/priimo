@@ -22,7 +22,7 @@ interface FiltersBarProps {
 
 type SignalPill = { value: SignalFilterValue; label: string };
 
-function getSignalPills(tab: LeadSegmentTab): SignalPill[] {
+export function getSignalPills(tab: LeadSegmentTab): SignalPill[] {
   if (tab === 'particuliers') {
     return [
       { value: 'all', label: 'Tous' },
@@ -60,7 +60,7 @@ function getSignalPills(tab: LeadSegmentTab): SignalPill[] {
   ];
 }
 
-const statusPills: { value: 'all' | LeadStatus; label: string }[] = [
+export const statusPills: { value: 'all' | LeadStatus; label: string }[] = [
   { value: 'all', label: 'Tous' },
   { value: 'nouveau', label: 'Nouveau' },
   { value: 'contacté', label: 'Contacté' },
@@ -86,6 +86,16 @@ function Pill({
       {label}
     </button>
   );
+}
+
+export function countActiveFilters(f: Filters): number {
+  let n = 0;
+  if (f.minScore > 0) n++;
+  if (f.signalType !== 'all') n++;
+  if (f.status !== 'all') n++;
+  if (f.assignedTo !== 'all') n++;
+  if (f.zoneId !== 'all') n++;
+  return n;
 }
 
 const selectClass =
