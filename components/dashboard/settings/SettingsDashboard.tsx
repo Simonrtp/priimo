@@ -397,7 +397,7 @@ function SectionBilling({ onSaved }: { onSaved: (msg?: string) => void }) {
           Les formules et tarifs publics ne sont pas encore publiés. Vous êtes actuellement en{' '}
           <span className="font-medium text-ink">bêta privée</span>. Pour modifier votre abonnement,
           votre moyen de paiement ou consulter vos factures, utilisez le bouton ci-dessous : nous vous enverrons un{' '}
-          <span className="font-medium text-ink">lien sécurisé Stripe</span> (portail client) par e-mail à l'adresse de
+          <span className="font-medium text-ink">lien sécurisé Stripe</span> (portail client) par e-mail à l&apos;adresse de
           votre agence.
         </p>
         <button
@@ -565,7 +565,7 @@ function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?:
               <label className={labelClass}>Adresses e-mail (équipe)</label>
               <p className="mb-3 text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
                 Ajoutez les adresses qui doivent recevoir les notifications (collaborateurs, direction, assistantes…).
-                Les options ci-dessus s'appliquent à toutes ces adresses.
+                Les options ci-dessus s&apos;appliquent à toutes ces adresses.
               </p>
               <ul className="mb-3 flex flex-col gap-2">
                 {notificationEmails.map((addr) => (

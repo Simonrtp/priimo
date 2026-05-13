@@ -95,15 +95,16 @@ export default function LeadDrawer({ lead, isPlanPremium, onClose, onUpdateLead,
     return () => window.removeEventListener('keydown', onKey);
   }, [lead, onClose]);
 
+  const leadId = lead?.id ?? null;
   useEffect(() => {
-    if (!lead) {
+    if (leadId === null) {
       setDrawerEntered(false);
       return;
     }
     setDrawerEntered(false);
     const t = window.setTimeout(() => setDrawerEntered(true), 16);
     return () => window.clearTimeout(t);
-  }, [lead?.id]);
+  }, [leadId]);
 
   useEffect(() => {
     if (!lead) return;
