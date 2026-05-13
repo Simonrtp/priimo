@@ -178,7 +178,7 @@ export default function SettingsDashboard() {
 
 function SectionAgency({ onSaved }: { onSaved: (msg?: string) => void }) {
   const [name, setName] = useState('Agence Test');
-  const [address, setAddress] = useState('14 avenue d’Italie, 75013 Paris');
+  const [address, setAddress] = useState("14 avenue d'Italie, 75013 Paris");
   const [phone, setPhone] = useState('01 42 86 12 34');
   const [email, setEmail] = useState('contact@agencetest.fr');
 
@@ -229,7 +229,7 @@ function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
 
   const remove = (row: TeamRow, displayName: string) => {
     if (row.role === 'Directeur') return;
-    if (!window.confirm(`Retirer ${displayName} de l’équipe ?`)) return;
+    if (!window.confirm(`Retirer ${displayName} de l'équipe ?`)) return;
     setRows((r) => r.filter((x) => x.id !== row.id));
     console.log('[Settings] Agent supprimé', row.id);
     onSaved('Agent retiré');
@@ -397,7 +397,7 @@ function SectionBilling({ onSaved }: { onSaved: (msg?: string) => void }) {
           Les formules et tarifs publics ne sont pas encore publiés. Vous êtes actuellement en{' '}
           <span className="font-medium text-ink">bêta privée</span>. Pour modifier votre abonnement,
           votre moyen de paiement ou consulter vos factures, utilisez le bouton ci-dessous : nous vous enverrons un{' '}
-          <span className="font-medium text-ink">lien sécurisé Stripe</span> (portail client) par e-mail à l’adresse de
+          <span className="font-medium text-ink">lien sécurisé Stripe</span> (portail client) par e-mail à l'adresse de
           votre agence.
         </p>
         <button
@@ -565,7 +565,7 @@ function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?:
               <label className={labelClass}>Adresses e-mail (équipe)</label>
               <p className="mb-3 text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
                 Ajoutez les adresses qui doivent recevoir les notifications (collaborateurs, direction, assistantes…).
-                Les options ci-dessus s’appliquent à toutes ces adresses.
+                Les options ci-dessus s'appliquent à toutes ces adresses.
               </p>
               <ul className="mb-3 flex flex-col gap-2">
                 {notificationEmails.map((addr) => (
@@ -597,7 +597,7 @@ function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?:
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === ‘Enter’) {
+                    if (e.key === 'Enter') {
                       e.preventDefault();
                       addEmail();
                     }
@@ -619,7 +619,7 @@ function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?:
         <button
           type="button"
           className="btn btn-primary self-start"
-          style={{ padding: ‘10px 20px’, fontSize: 14, borderRadius: 10 }}
+          style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
           onClick={() => onSaved()}
         >
           Enregistrer les préférences
