@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MessageCircle, Settings, Target } from 'lucide-react';
+import { Settings, Target } from 'lucide-react';
+import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 
 const ACCENT = '#E8743C';
@@ -50,7 +51,7 @@ function HelpTab() {
       style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}
       aria-label="Écrire au fondateur sur WhatsApp"
     >
-      <MessageCircle size={24} strokeWidth={2} color={INACTIVE} aria-hidden />
+      <WhatsAppIcon size={24} className="text-[#25D366]" />
       <span className="max-w-full truncate text-center font-medium" style={{ fontSize: 11, color: INACTIVE }}>
         Fondateur
       </span>
