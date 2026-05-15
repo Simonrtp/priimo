@@ -1,13 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import Reveal from "./Reveal";
-import BetaForm from "./BetaForm";
 import DashboardMockup from "./DashboardMockup";
 import HeroBackground from "./HeroBackground";
 
 // === HERO SECTION ===
 // Above-the-fold. Animated mouse-reactive background, H1 → subheadline →
-// bullets → inline form. Two-column layout on desktop.
+// bullets → primary CTA. Two-column layout on desktop.
 
 const BULLETS = [
   "Prospects scorés et priorisés sur votre zone",
@@ -44,7 +44,7 @@ export default function HeroSection() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center min-w-0">
-          {/* === LEFT — Copy + Form === */}
+          {/* === LEFT — Copy + CTA === */}
           <div className="lg:col-span-7 min-w-0">
             <Reveal direction="up">
               {/* H1 */}
@@ -72,14 +72,23 @@ export default function HeroSection() {
               </ul>
             </Reveal>
 
-            {/* Inline form */}
-            <Reveal direction="up" delay={120} className="mt-8 max-w-md">
-              <BetaForm id="beta-form" />
-              <p className="mt-3 small-text text-gray-600">
-                Accès gratuit pendant la bêta · Aucune carte bancaire requise ·{" "}
-                <span className="text-gray-900 font-medium normal-case tracking-normal">
-                  47 agences déjà sur liste d&apos;attente
-                </span>
+            {/* Primary CTA */}
+            <Reveal direction="up" delay={120} className="mt-8">
+              <Link
+                href="/signup"
+                className="btn btn-primary px-7 py-4 text-base"
+              >
+                Créer un compte gratuitement
+                <span aria-hidden>→</span>
+              </Link>
+              <p className="mt-4 small-text !normal-case !tracking-normal text-gray-600">
+                Déjà inscrit ?{" "}
+                <Link
+                  href="/login"
+                  className="text-accent-dark font-medium hover:underline"
+                >
+                  Se connecter
+                </Link>
               </p>
             </Reveal>
           </div>

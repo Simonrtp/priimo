@@ -3,7 +3,9 @@
 import { useEffect } from 'react';
 
 const WIDGET_SRC =
-  'https://causio.fr/widget.js?v=dpl_4LkWXpo6ysAptuZTut3Rg2BVJpuq';
+  'https://causio.fr/widget.js?v=dpl_FS1MZUVKmBLnUmXyv1ZXznevWt5F';
+
+const CAUSIO_CHATBOT_ID = '8fd6794c-c92b-4c7c-8616-c42ae86b8869';
 
 /**
  * Charge le widget Causio uniquement sur la landing (monté avec cette page).
@@ -75,9 +77,8 @@ export default function CausioScripts() {
       document.head.appendChild(preconnect);
     }
 
-    (window as Window & { CAUSIO_CONFIG?: { chatbotId: string; apiUrl: string } }).CAUSIO_CONFIG = {
-      chatbotId: 'a57fefed-3176-4771-9aae-e7e93c54e1d0',
-      apiUrl: 'https://causio.fr',
+    (window as Window & { CAUSIO_CONFIG?: { chatbotId: string; apiUrl?: string } }).CAUSIO_CONFIG = {
+      chatbotId: CAUSIO_CHATBOT_ID,
     };
 
     let script: HTMLScriptElement | null = null;

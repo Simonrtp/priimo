@@ -9,7 +9,7 @@ import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 
 // === LANDING PAGE ===
-// Single goal: drive beta sign-ups. Section order matches the spec exactly.
+// Single goal: drive sign-ups to /signup.
 export default function Page() {
   return (
     <>

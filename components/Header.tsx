@@ -1,15 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useBetaModal } from "./BetaModalContext";
 
 // === HEADER ===
 // Fully transparent at the top — lets the animated hero background
 // bleed through. After 50px of scroll, a subtle blurred backdrop and
-// shadow appear to keep the logo + CTA legible over page content.
+// shadow appear to keep the logo + CTAs legible over page content.
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
-  const { open } = useBetaModal();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -17,18 +16,6 @@ export default function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  // The header CTA is the only element that scrolls to the inline form
-  // anchor (#beta-form) — every other CTA on the page opens the modal.
-  const handleHeaderCta = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const target = document.getElementById("beta-form");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-    } else {
-      open();
-    }
-  };
 
   return (
     <header
@@ -40,20 +27,27 @@ export default function Header() {
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2 min-w-0">
-          <a
-            href="#top"
+          <Link
+            href="/"
             className="font-sans text-2xl sm:text-3xl md:text-4xl leading-none font-bold tracking-tight text-accent-dark shrink-0"
           >
             Priimo
-          </a>
-          <a
-            href="#beta-form"
-            onClick={handleHeaderCta}
-            className="btn btn-primary text-xs sm:text-sm py-2 px-3 sm:py-2.5 sm:px-5 shrink-0"
-          >
-            <span className="hidden min-[380px]:inline">Rejoindre la bêta</span>
-            <span className="inline min-[380px]:hidden">La bêta</span>
-          </a>
+          </Link>
+
+          <nav className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-gray-700 hover:text-accent-dark transition px-2 sm:px-3 py-2"
+            >
+              Se connecter
+            </Link>
+            <Link
+              href="/signup"
+              className="btn btn-primary text-xs sm:text-sm py-2 px-3 sm:py-2.5 sm:px-5"
+            >
+              Créer un compte
+            </Link>
+          </nav>
         </div>
       </div>
     </header>

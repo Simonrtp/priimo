@@ -54,11 +54,11 @@ export default function FinalCTA() {
 
         <Reveal direction="scale" delay={250} className="mt-10">
           <CtaButton variant="invert" size="lg">
-            Je rejoins la bêta privée
+            Créer un compte
             <span aria-hidden>→</span>
           </CtaButton>
           <p className="mt-4 small-text !normal-case !tracking-normal text-white/70">
-            Gratuit pendant la bêta · Aucune CB · 47 agences déjà inscrites
+            Essai gratuit · Sans engagement · Sans carte bancaire
           </p>
         </Reveal>
       </div>
@@ -66,7 +66,7 @@ export default function FinalCTA() {
       {/* Footer content merged into the same section for one continuous block */}
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 pt-16 sm:pt-20 pb-10 min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 text-gray-400">
-          <a href="#top" className="font-sans text-2xl font-bold tracking-tight text-white">
+          <a href="/" className="font-sans text-2xl font-bold tracking-tight text-white">
             Priimo
           </a>
 

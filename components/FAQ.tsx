@@ -18,12 +18,12 @@ const FAQS: Item[] = [
     a: "Priimo est un logiciel de prospection prédictive qui croise les données DVF (transactions notariales) et DPE (diagnostics énergétiques) pour identifier les propriétaires les plus susceptibles de vendre dans les 6 prochains mois sur votre zone. Vous recevez chaque semaine une liste d'adresses à prospecter, scorées et priorisées.",
   },
   {
-    q: "La bêta est vraiment gratuite ?",
-    a: "Oui. Pendant toute la durée de la bêta, l'accès est gratuit. En échange, nous vous demandons 20 minutes par semaine pour nous donner votre avis et nous aider à améliorer le produit.",
+    q: "L'essai est-il vraiment gratuit ?",
+    a: "Oui. Vous pouvez créer un compte et tester Priimo gratuitement, sans engagement et sans carte bancaire. En échange, nous apprécions vos retours pour continuer à améliorer le produit.",
   },
   {
-    q: "Combien ça coûtera après la bêta ?",
-    a: "Le tarif fondateur pour les membres bêta sera de 99 €/mois, garanti à vie. Le tarif public sera de 149 €/mois.",
+    q: "Combien ça coûte ensuite ?",
+    a: "Le tarif fondateur pour les premiers inscrits est de 99 €/mois, garanti à vie. Le tarif public est de 149 €/mois.",
   },
   {
     q: "Ça remplace Maline ou Telescop ?",
@@ -93,7 +93,7 @@ export default function FAQ() {
 
         <Reveal direction="scale" delay={250} className="mt-10 flex justify-center">
           <CtaButton>
-            Je rejoins la bêta privée
+            Créer un compte
             <span aria-hidden>→</span>
           </CtaButton>
         </Reveal>

@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { BetaModalProvider } from "@/components/BetaModalContext";
-import BetaModal from "@/components/BetaModal";
 
 // === FONT: Inter only (400–700) ===
 // next/font self-hosts glyphs — preconnect still helps first paint when
@@ -29,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s · Priimo",
   },
   description:
-    "Priimo est le logiciel de prospection immobilière prédictive qui croise DVF, DPE et signaux de vie pour identifier les vendeurs avant qu'ils soient sur le marché. Bêta privée ouverte.",
+    "Priimo est le logiciel de prospection immobilière prédictive qui croise DVF, DPE et signaux de vie pour identifier les vendeurs avant qu'ils soient sur le marché.",
   applicationName: "Priimo",
   keywords: [
     "prospection immobilière",
@@ -86,10 +84,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
-        <BetaModalProvider>
-          {children}
-          <BetaModal />
-        </BetaModalProvider>
+        {children}
       </body>
     </html>
   );
