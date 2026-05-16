@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import CtaButton from "@/components/CtaButton";
 
 // === HEADER ===
 // Totalement transparent en haut — laisse le fond animé du hero respirer.
@@ -34,13 +35,18 @@ export default function Header() {
             Priimo
           </Link>
 
-          <Link
-            href="/login"
-            className="inline-flex items-center rounded-full border border-black/10 bg-white/60 px-4 py-2 text-sm font-medium text-gray-900 backdrop-blur-sm transition hover:bg-white hover:border-black/20"
-          >
-            Se connecter
-          </Link>
-        </div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Link
+              href="/login"
+              className="inline-flex items-center rounded-full border border-black/10 bg-white/60 px-3 py-2 text-xs font-medium text-gray-900 backdrop-blur-sm transition hover:bg-white hover:border-black/20 sm:px-4 sm:text-sm"
+            >
+              Se connecter
+            </Link>
+            <CtaButton className="!rounded-full !px-3 !py-2 text-xs sm:!px-4 sm:text-sm">
+              <span className="sm:hidden">Démo</span>
+              <span className="hidden sm:inline">Réserver une démo</span>
+            </CtaButton>
+          </div>
       </div>
     </header>
   );
