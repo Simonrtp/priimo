@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   role        text          NOT NULL,
   first_name  text          NOT NULL,
   last_name   text          NOT NULL,
+  phone       text,
   created_at  timestamptz   NOT NULL DEFAULT now(),
   updated_at  timestamptz   NOT NULL DEFAULT now(),
   CONSTRAINT profiles_role_check
@@ -109,6 +110,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 COMMENT ON TABLE  public.profiles            IS 'Profils métier liés 1-1 aux utilisateurs auth.users.';
 COMMENT ON COLUMN public.profiles.agency_id  IS 'Agence d''appartenance — un user ne peut être que dans UNE agence.';
 COMMENT ON COLUMN public.profiles.role       IS 'Rôle métier : directeur (1 max par agence) | collaborateur.';
+COMMENT ON COLUMN public.profiles.phone      IS 'Téléphone professionnel du membre (format FR).';
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
 
 CREATE INDEX IF NOT EXISTS idx_profiles_agency_id ON public.profiles (agency_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_role      ON public.profiles (role);

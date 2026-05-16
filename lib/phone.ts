@@ -1,3 +1,14 @@
+/** Numéro français : 0X XX XX XX XX ou +33X XX XX XX XX (espaces ignorés). */
+export const FR_PHONE_REGEX = /^(?:\+33|0)[1-9](?:\d{2}){4}$/;
+
+export function normalizeFrenchPhone(phone: string): string {
+  return phone.replace(/\s+/g, '');
+}
+
+export function isValidFrenchPhone(phone: string): boolean {
+  return FR_PHONE_REGEX.test(normalizeFrenchPhone(phone));
+}
+
 /** Normalise un numéro FR affiché en `href` tel: utilisable sur mobile. */
 export function phoneToTelHref(phone: string): string | null {
   const raw = phone.trim();

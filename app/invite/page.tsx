@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { isValidFrenchPhone } from '@/lib/phone';
 
 type Invitation = {
   role: 'directeur' | 'collaborateur';
@@ -86,6 +87,7 @@ function InvitePageContent() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedCgu, setAcceptedCgu] = useState(false);
@@ -131,12 +133,15 @@ function InvitePageContent() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!acceptedCgu) {
-      setFormError('Vous devez accepter les Conditions Générales d\'Utilisation pour créer votre compte.');
+    if (!e.currentTarget.reportValidity()) return;
+
+    if (!isValidFrenchPhone(phone)) {
+      setFormError('Format de téléphone invalide (ex. 06 12 34 56 78).');
       return;
     }
+
     setSubmitting(true);
     setFormError(null);
 
@@ -154,7 +159,16 @@ function InvitePageContent() {
     const response = await fetch('/api/create-director', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, agencyName, firstName, lastName, email, password, acceptedCgu: true }),
+      body: JSON.stringify({
+        token,
+        agencyName,
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        acceptedCgu: true,
+      }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Erreur création compte');
@@ -168,7 +182,7 @@ function InvitePageContent() {
     const response = await fetch('/api/create-collaborator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, firstName, lastName, email, password, acceptedCgu: true }),
+      body: JSON.stringify({ token, firstName, lastName, email, phone, password, acceptedCgu: true }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Erreur création compte');
@@ -229,7 +243,7 @@ function InvitePageContent() {
               </p>
             </header>
 
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            <form onSubmit={handleSubmit} className="space-y-5">
               {isDirector && (
                 <div>
                   <label htmlFor="agency-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
@@ -303,6 +317,24 @@ function InvitePageContent() {
               </div>
 
               <div>
+                <label htmlFor="phone" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                  Téléphone
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="06 12 34 56 78"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
                 <label htmlFor="password" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
                   Mot de passe
                 </label>
@@ -334,7 +366,7 @@ function InvitePageContent() {
                 </p>
               </div>
 
-              <div className="flex gap-3 items-start rounded-xl border border-black/5 bg-soft-warm/40 px-4 py-3">
+              <div className="flex items-start gap-2.5">
                 <input
                   id="accept-cgu"
                   name="acceptCgu"
@@ -347,15 +379,15 @@ function InvitePageContent() {
                     }
                   }}
                   required
-                  className="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-accent focus:ring-2 focus:ring-accent/20"
+                  className="mt-0.5 size-3.5 shrink-0 rounded border-gray-300/80 text-accent focus:ring-1 focus:ring-accent/15"
                 />
-                <label htmlFor="accept-cgu" className="text-sm text-gray-700 text-pretty leading-snug cursor-pointer">
+                <label htmlFor="accept-cgu" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
                   J&apos;accepte les{' '}
                   <Link
                     href="/cgu"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-accent-dark hover:underline"
+                    className="text-accent-dark hover:underline"
                   >
                     Conditions Générales d&apos;Utilisation
                   </Link>
@@ -373,7 +405,7 @@ function InvitePageContent() {
 
               <button
                 type="submit"
-                disabled={submitting || !acceptedCgu}
+                disabled={submitting}
                 className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (

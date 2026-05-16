@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { normalizeFrenchPhone, validateInviteFields } from '@/lib/invite-account';
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from '@/lib/supabase/env';
 
 function getSupabaseAdmin(): SupabaseClient {
@@ -14,15 +15,18 @@ function getSupabaseAdmin(): SupabaseClient {
 export async function POST(request: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   try {
-    const { token, agencyName, firstName, lastName, email, password, acceptedCgu } =
+    const { token, agencyName, firstName, lastName, email, password, phone, acceptedCgu } =
       await request.json();
 
-    if (acceptedCgu !== true) {
-      return NextResponse.json(
-        { error: 'Vous devez accepter les Conditions Générales d\'Utilisation.' },
-        { status: 400 }
-      );
+    const validationError = validateInviteFields(
+      { agencyName, firstName, lastName, email, password, phone, acceptedCgu },
+      { requireAgencyName: true }
+    );
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
+
+    const normalizedPhone = normalizeFrenchPhone(phone);
 
     // 1. Vérifier le token
     const { data: invitation, error: inviteError } = await supabaseAdmin
@@ -59,7 +63,8 @@ export async function POST(request: Request) {
     const { data: agency, error: agencyError } = await supabaseAdmin
       .from('agencies')
       .insert({
-        name: agencyName,
+        name: agencyName.trim(),
+        phone: normalizedPhone,
         plan: 'fondateur',
       })
       .select()
@@ -81,8 +86,9 @@ export async function POST(request: Request) {
         id: authData.user.id,
         agency_id: agency.id,
         role: 'directeur',
-        first_name: firstName,
-        last_name: lastName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone: normalizedPhone,
       });
 
     if (profileError) {
