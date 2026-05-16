@@ -1,17 +1,121 @@
 'use client';
 
+import Link from 'next/link';
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
+type Invitation = {
+  role: 'directeur' | 'collaborateur';
+  email: string;
+  agency_name?: string | null;
+};
+
+const inputClass =
+  'w-full rounded-xl border bg-white border-black/10 text-gray-900 placeholder-gray-500/70 px-4 py-3 text-base outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15';
+
+function EyeIcon({ open }: { open: boolean }) {
+  if (open) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a19.5 19.5 0 015.06-5.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a19.4 19.4 0 01-3.17 4.19" />
+      <path d="M14.12 14.12a3 3 0 11-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+function InviteShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="min-h-dvh bg-canvas flex flex-col lg:flex-row">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background: [
+            'radial-gradient(900px 700px at 18% 22%, rgba(232, 116, 60, 0.07), transparent 65%)',
+            'radial-gradient(820px 620px at 84% 70%, rgba(232, 116, 60, 0.055), transparent 65%)',
+          ].join(', '),
+        }}
+      />
+      {children}
+    </main>
+  );
+}
+
+function InviteAside({ isDirector }: { isDirector: boolean }) {
+  const perks = isDirector
+    ? [
+        'Espace agence dédié et tableau de bord',
+        'Gestion de votre équipe et des prospects',
+        'Plan fondateur — accès anticipé aux nouveautés',
+      ]
+    : [
+        'Accès aux prospects de votre agence',
+        'Outils de suivi et de prise de rendez-vous',
+        'Collaboration avec votre directeur',
+      ];
+
+  return (
+    <aside className="hidden lg:flex lg:w-[42%] xl:w-[45%] flex-col justify-between border-r border-black/5 bg-white/60 backdrop-blur-sm px-10 xl:px-14 py-12">
+      <div>
+        <Link
+          href="/"
+          className="inline-block font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
+        >
+          Priimo
+        </Link>
+        <p className="mt-10 text-sm font-medium uppercase tracking-wide text-accent-dark">
+          {isDirector ? 'Onboarding directeur' : 'Invitation équipe'}
+        </p>
+        <h2 className="mt-3 font-sans text-3xl font-semibold text-gray-900 text-balance leading-tight">
+          {isDirector
+            ? 'Lancez votre agence sur Priimo en quelques minutes'
+            : 'Rejoignez votre agence sur Priimo'}
+        </h2>
+        <p className="mt-4 text-base text-gray-600 text-pretty max-w-md">
+          {isDirector
+            ? 'Créez votre compte directeur pour configurer votre agence, inviter vos agents et commencer à prospecter.'
+            : 'Finalisez votre inscription pour accéder à l’espace partagé de votre agence.'}
+        </p>
+        <ul className="mt-10 space-y-4">
+          {perks.map((item) => (
+            <li key={item} className="flex gap-3 text-sm text-gray-700">
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-soft-warm text-accent-dark">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </span>
+              <span className="text-pretty">{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-xs text-gray-500 text-pretty">
+        En créant votre compte, vous acceptez les conditions d’utilisation de Priimo.
+      </p>
+    </aside>
+  );
+}
+
 function InviteLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4" />
-        <p className="text-gray-600">Validation de votre invitation...</p>
+    <InviteShell>
+      <div className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="text-center" role="status" aria-live="polite">
+          <span className="spinner mx-auto mb-4 block" aria-hidden />
+          <p className="text-sm text-gray-600">Validation de votre invitation…</p>
+        </div>
       </div>
-    </div>
+    </InviteShell>
   );
 }
 
@@ -27,35 +131,37 @@ function InvitePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
-  
+
   const [token, setToken] = useState('');
-  const [invitation, setInvitation] = useState<any>(null);
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
-  // Form state
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [agencyName, setAgencyName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const isDirector = invitation?.role === 'directeur';
 
   useEffect(() => {
     const tokenParam = searchParams.get('token');
     if (!tokenParam) {
-      setError('Token d\'invitation manquant');
+      setPageError("Token d'invitation manquant");
       setLoading(false);
       return;
     }
-    
+
     setToken(tokenParam);
-    validateToken(tokenParam);
+    void validateToken(tokenParam);
   }, [searchParams]);
 
   async function validateToken(tokenValue: string) {
     try {
-      // Vérifier que le token existe et n'est pas expiré
       const { data, error } = await supabase
         .from('invitations')
         .select('*')
@@ -65,19 +171,17 @@ function InvitePageContent() {
         .single();
 
       if (error || !data) {
-        setError('Invitation invalide ou expirée');
+        setPageError('Invitation invalide ou expirée');
         setLoading(false);
         return;
       }
 
-      setInvitation(data);
+      setInvitation(data as Invitation);
       setEmail(data.email);
-      if (data.agency_name) {
-        setAgencyName(data.agency_name);
-      }
+      if (data.agency_name) setAgencyName(data.agency_name);
       setLoading(false);
-    } catch (err) {
-      setError('Erreur lors de la validation du token');
+    } catch {
+      setPageError('Erreur lors de la validation du token');
       setLoading(false);
     }
   }
@@ -85,218 +189,238 @@ function InvitePageContent() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    setError('');
+    setFormError(null);
 
     try {
-      if (invitation.role === 'directeur') {
-        // Création directeur = créer agence + user + profile
-        await createDirectorAccount();
-      } else {
-        // Création collaborateur = créer user + profile lié à agency_id
-        await createCollaboratorAccount();
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de la création du compte');
+      if (isDirector) await createDirectorAccount();
+      else await createCollaboratorAccount();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de la création du compte';
+      setFormError(message);
       setSubmitting(false);
     }
   }
 
   async function createDirectorAccount() {
-    // IMPORTANT: Cette opération doit se faire via une Edge Function
-    // avec la clé service_role car elle crée agency + profile
-    // Pour le test, on peut appeler un endpoint API Next.js
-    
     const response = await fetch('/api/create-director', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        agencyName,
-        firstName,
-        lastName,
-        email,
-        password,
-      }),
+      body: JSON.stringify({ token, agencyName, firstName, lastName, email, password }),
     });
-
     const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Erreur création compte');
-    }
+    if (!response.ok) throw new Error(data.error || 'Erreur création compte');
 
-    // Connexion automatique
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) throw signInError;
-
-    // Redirection vers dashboard
     router.push('/dashboard');
   }
 
   async function createCollaboratorAccount() {
-    // Similaire mais appelle /api/create-collaborator
     const response = await fetch('/api/create-collaborator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        firstName,
-        lastName,
-        email,
-        password,
-      }),
+      body: JSON.stringify({ token, firstName, lastName, email, password }),
     });
-
     const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Erreur création compte');
-    }
+    if (!response.ok) throw new Error(data.error || 'Erreur création compte');
 
-    // Connexion automatique
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) throw signInError;
-
     router.push('/dashboard');
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Validation de votre invitation...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <InviteLoading />;
 
-  if (error) {
+  if (pageError || !invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-          <div className="text-red-500 text-center">
-            <svg className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 className="text-xl font-semibold mb-2">Invitation invalide</h2>
-            <p className="text-gray-600">{error}</p>
+      <InviteShell>
+        <div className="flex flex-1 items-center justify-center px-4 py-16">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-black/5 shadow-soft p-8 text-center">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+              <svg className="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h1 className="font-sans text-xl font-semibold text-gray-900 text-balance">
+              Invitation invalide
+            </h1>
+            <p className="mt-2 text-sm text-gray-600 text-pretty">{pageError}</p>
+            <Link href="/" className="mt-6 inline-block text-sm font-medium text-accent-dark hover:underline">
+              Retour à l’accueil
+            </Link>
           </div>
         </div>
-      </div>
+      </InviteShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {invitation.role === 'directeur' ? 'Créez votre agence' : 'Rejoignez votre équipe'}
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {invitation.role === 'directeur' 
-              ? 'Configurez votre compte directeur Priimo'
-              : `Vous avez été invité à rejoindre ${invitation.agency_name || 'une agence'}`
-            }
+    <InviteShell>
+      <InviteAside isDirector={isDirector} />
+
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 sm:py-14 lg:py-12">
+        <div className="w-full max-w-[440px]">
+          <div className="mb-6 flex justify-center lg:hidden">
+            <Link
+              href="/"
+              className="font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
+            >
+              Priimo
+            </Link>
+          </div>
+
+          <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-6 sm:p-8">
+            <header className="mb-6">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-soft-warm px-3 py-1 text-xs font-medium text-accent-dark">
+                <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+                {isDirector ? 'Étape unique — création de compte' : 'Invitation agent'}
+              </div>
+              <h1 className="font-sans text-2xl font-semibold text-gray-900 tracking-tight text-balance">
+                {isDirector ? 'Créez votre agence' : 'Rejoignez votre équipe'}
+              </h1>
+              <p className="mt-2 text-sm text-gray-600 text-pretty">
+                {isDirector
+                  ? 'Configurez votre compte directeur Priimo'
+                  : `Vous rejoignez ${invitation.agency_name || 'votre agence'}`}
+              </p>
+            </header>
+
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+              {isDirector && (
+                <div>
+                  <label htmlFor="agency-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                    Nom de l&apos;agence
+                  </label>
+                  <input
+                    id="agency-name"
+                    name="agencyName"
+                    type="text"
+                    required
+                    autoComplete="organization"
+                    value={agencyName}
+                    onChange={(e) => setAgencyName(e.target.value)}
+                    placeholder="Mon Agence Immobilière"
+                    className={inputClass}
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="first-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                    Prénom
+                  </label>
+                  <input
+                    id="first-name"
+                    name="firstName"
+                    type="text"
+                    required
+                    autoComplete="given-name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="last-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                    Nom
+                  </label>
+                  <input
+                    id="last-name"
+                    name="lastName"
+                    type="text"
+                    required
+                    autoComplete="family-name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  readOnly
+                  value={email}
+                  autoComplete="email"
+                  aria-readonly="true"
+                  className={`${inputClass} bg-soft-gray/80 cursor-not-allowed text-gray-700`}
+                />
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Lié à votre invitation — non modifiable
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                  Mot de passe
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Minimum 8 caractères"
+                    aria-describedby="password-hint"
+                    className={`${inputClass} pr-11`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex size-9 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-soft-gray transition"
+                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  >
+                    <EyeIcon open={showPassword} />
+                  </button>
+                </div>
+                <p id="password-hint" className="mt-1.5 text-xs text-gray-500">
+                  Au moins 8 caractères, lettres et chiffres recommandés
+                </p>
+              </div>
+
+              {formError && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {formError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-90"
+              >
+                {submitting ? (
+                  <>
+                    <span className="spinner" aria-hidden />
+                    <span>Création en cours…</span>
+                  </>
+                ) : (
+                  <span>Créer mon compte</span>
+                )}
+              </button>
+            </form>
+          </div>
+
+          <p className="mt-6 text-center text-xs text-gray-500 text-pretty lg:hidden">
+            En créant votre compte, vous acceptez les conditions d’utilisation de Priimo.
           </p>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {invitation.role === 'directeur' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nom de l'agence
-              </label>
-              <input
-                type="text"
-                required
-                value={agencyName}
-                onChange={(e) => setAgencyName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Mon Agence Immobilière"
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Prénom
-              </label>
-              <input
-                type="text"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nom
-              </label>
-              <input
-                type="text"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              readOnly
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="Minimum 8 caractères"
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Création en cours...' : 'Créer mon compte'}
-          </button>
-        </form>
       </div>
-    </div>
+    </InviteShell>
   );
 }
