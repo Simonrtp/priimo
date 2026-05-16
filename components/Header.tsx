@@ -28,7 +28,7 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 min-w-0 sm:h-[4.25rem] sm:px-8">
         <Link
           href="/"
-          className="shrink-0 font-sans text-[1.75rem] font-bold leading-none text-accent-dark sm:text-4xl md:text-[2.75rem]"
+          className="shrink-0 font-sans text-[1.5rem] font-bold leading-none text-accent-dark sm:text-3xl md:text-[2.25rem]"
         >
           Priimo
         </Link>
