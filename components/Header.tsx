@@ -47,6 +47,7 @@ export default function Header() {
               <span className="hidden sm:inline">Réserver une démo</span>
             </CtaButton>
           </div>
+        </div>
       </div>
     </header>
   );
