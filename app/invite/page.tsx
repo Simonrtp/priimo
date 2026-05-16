@@ -12,8 +12,9 @@ type Invitation = {
   agency_name?: string | null;
 };
 
+const labelClass = 'block text-xs font-medium text-gray-900 mb-1';
 const inputClass =
-  'w-full rounded-xl border bg-white border-black/10 text-gray-900 placeholder-gray-500/70 px-4 py-3 text-base outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15';
+  'w-full rounded-lg border bg-white border-black/10 text-gray-900 placeholder-gray-500/70 px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15';
 
 function EyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -36,7 +37,7 @@ function EyeIcon({ open }: { open: boolean }) {
 
 function InviteShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-dvh bg-canvas flex items-center justify-center px-4 py-10 sm:py-16">
+    <main className="h-dvh bg-canvas flex items-center justify-center px-4 py-3 overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 bg-canvas"
@@ -217,36 +218,22 @@ function InvitePageContent() {
 
   return (
     <InviteShell>
-      <div className="w-full max-w-[440px]">
-        <div className="mb-6 flex justify-center">
-          <Link
-            href="/"
-            className="font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
-          >
-            Priimo
-          </Link>
-        </div>
+      <div className="w-full max-w-[420px] rounded-2xl bg-white border border-black/5 shadow-soft p-4 sm:p-5">
+        <header className="mb-3">
+          <h1 className="font-sans text-xl font-semibold text-gray-900 tracking-tight text-balance">
+            {isDirector ? 'Créez votre agence' : 'Rejoignez votre équipe'}
+          </h1>
+          <p className="mt-1 text-xs text-gray-600 text-pretty">
+            {isDirector
+              ? 'Compte directeur'
+              : `Agence : ${invitation.agency_name || 'votre agence'}`}
+          </p>
+        </header>
 
-        <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-6 sm:p-8">
-            <header className="mb-6">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-soft-warm px-3 py-1 text-xs font-medium text-accent-dark">
-                <span className="size-1.5 rounded-full bg-accent" aria-hidden />
-                {isDirector ? 'Étape unique — création de compte' : 'Invitation agent'}
-              </div>
-              <h1 className="font-sans text-2xl font-semibold text-gray-900 tracking-tight text-balance">
-                {isDirector ? 'Créez votre agence' : 'Rejoignez votre équipe'}
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 text-pretty">
-                {isDirector
-                  ? 'Configurez votre compte directeur Priimo'
-                  : `Vous rejoignez ${invitation.agency_name || 'votre agence'}`}
-              </p>
-            </header>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-3">
               {isDirector && (
                 <div>
-                  <label htmlFor="agency-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                  <label htmlFor="agency-name" className={labelClass}>
                     Nom de l&apos;agence
                   </label>
                   <input
@@ -263,9 +250,9 @@ function InvitePageContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="first-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                  <label htmlFor="first-name" className={labelClass}>
                     Prénom
                   </label>
                   <input
@@ -280,7 +267,7 @@ function InvitePageContent() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="last-name" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                  <label htmlFor="last-name" className={labelClass}>
                     Nom
                   </label>
                   <input
@@ -297,7 +284,7 @@ function InvitePageContent() {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                <label htmlFor="email" className={labelClass}>
                   Email
                 </label>
                 <input
@@ -310,14 +297,12 @@ function InvitePageContent() {
                   autoComplete="email"
                   aria-readonly="true"
                   className={`${inputClass} bg-soft-gray/80 cursor-not-allowed text-gray-700`}
+                  title="Lié à votre invitation — non modifiable"
                 />
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Lié à votre invitation — non modifiable
-                </p>
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                <label htmlFor="phone" className={labelClass}>
                   Téléphone
                 </label>
                 <input
@@ -335,7 +320,7 @@ function InvitePageContent() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium tracking-wide mb-1.5 text-gray-900">
+                <label htmlFor="password" className={labelClass}>
                   Mot de passe
                 </label>
                 <div className="relative">
@@ -348,22 +333,18 @@ function InvitePageContent() {
                     autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 8 caractères"
-                    aria-describedby="password-hint"
-                    className={`${inputClass} pr-11`}
+                    placeholder="8 caractères min."
+                    className={`${inputClass} pr-10`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex size-9 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-soft-gray transition"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-soft-gray transition"
                     aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                   >
                     <EyeIcon open={showPassword} />
                   </button>
                 </div>
-                <p id="password-hint" className="mt-1.5 text-xs text-gray-500">
-                  Au moins 8 caractères, lettres et chiffres recommandés
-                </p>
               </div>
 
               <div className="flex items-start gap-2.5">
@@ -381,7 +362,7 @@ function InvitePageContent() {
                   required
                   className="mt-0.5 size-3.5 shrink-0 rounded border-gray-300/80 text-accent focus:ring-1 focus:ring-accent/15"
                 />
-                <label htmlFor="accept-cgu" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
+                <label htmlFor="accept-cgu" className="text-xs text-gray-600 leading-snug cursor-pointer">
                   J&apos;accepte les{' '}
                   <Link
                     href="/cgu"
@@ -397,7 +378,7 @@ function InvitePageContent() {
               {formError && (
                 <div
                   role="alert"
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
                 >
                   {formError}
                 </div>
@@ -406,7 +387,7 @@ function InvitePageContent() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn btn-primary w-full !py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (
                   <>
@@ -417,9 +398,7 @@ function InvitePageContent() {
                   <span>Créer mon compte</span>
                 )}
               </button>
-            </form>
-          </div>
-
+        </form>
       </div>
     </InviteShell>
   );
