@@ -88,6 +88,7 @@ function InvitePageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedCgu, setAcceptedCgu] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isDirector = invitation?.role === 'directeur';
@@ -132,6 +133,10 @@ function InvitePageContent() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!acceptedCgu) {
+      setFormError('Vous devez accepter les Conditions Générales d\'Utilisation pour créer votre compte.');
+      return;
+    }
     setSubmitting(true);
     setFormError(null);
 
@@ -149,7 +154,7 @@ function InvitePageContent() {
     const response = await fetch('/api/create-director', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, agencyName, firstName, lastName, email, password }),
+      body: JSON.stringify({ token, agencyName, firstName, lastName, email, password, acceptedCgu: true }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Erreur création compte');
@@ -163,7 +168,7 @@ function InvitePageContent() {
     const response = await fetch('/api/create-collaborator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, firstName, lastName, email, password }),
+      body: JSON.stringify({ token, firstName, lastName, email, password, acceptedCgu: true }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Erreur création compte');
@@ -329,6 +334,34 @@ function InvitePageContent() {
                 </p>
               </div>
 
+              <div className="flex gap-3 items-start rounded-xl border border-black/5 bg-soft-warm/40 px-4 py-3">
+                <input
+                  id="accept-cgu"
+                  name="acceptCgu"
+                  type="checkbox"
+                  checked={acceptedCgu}
+                  onChange={(e) => {
+                    setAcceptedCgu(e.target.checked);
+                    if (e.target.checked && formError?.includes('Conditions Générales')) {
+                      setFormError(null);
+                    }
+                  }}
+                  required
+                  className="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-accent focus:ring-2 focus:ring-accent/20"
+                />
+                <label htmlFor="accept-cgu" className="text-sm text-gray-700 text-pretty leading-snug cursor-pointer">
+                  J&apos;accepte les{' '}
+                  <Link
+                    href="/cgu"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-accent-dark hover:underline"
+                  >
+                    Conditions Générales d&apos;Utilisation
+                  </Link>
+                </label>
+              </div>
+
               {formError && (
                 <div
                   role="alert"
@@ -340,8 +373,8 @@ function InvitePageContent() {
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-90"
+                disabled={submitting || !acceptedCgu}
+                className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (
                   <>
@@ -355,9 +388,6 @@ function InvitePageContent() {
             </form>
           </div>
 
-        <p className="mt-6 text-center text-xs text-gray-500 text-pretty">
-          En créant votre compte, vous acceptez les conditions d’utilisation de Priimo.
-        </p>
       </div>
     </InviteShell>
   );

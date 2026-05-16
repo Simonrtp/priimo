@@ -14,7 +14,15 @@ function getSupabaseAdmin(): SupabaseClient {
 export async function POST(request: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   try {
-    const { token, agencyName, firstName, lastName, email, password } = await request.json();
+    const { token, agencyName, firstName, lastName, email, password, acceptedCgu } =
+      await request.json();
+
+    if (acceptedCgu !== true) {
+      return NextResponse.json(
+        { error: 'Vous devez accepter les Conditions Générales d\'Utilisation.' },
+        { status: 400 }
+      );
+    }
 
     // 1. Vérifier le token
     const { data: invitation, error: inviteError } = await supabaseAdmin
