@@ -35,14 +35,15 @@ function EyeIcon({ open }: { open: boolean }) {
 
 function InviteShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-dvh bg-canvas flex flex-col lg:flex-row">
+    <main className="min-h-dvh bg-canvas flex items-center justify-center px-4 py-10 sm:py-16">
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10"
+        className="pointer-events-none fixed inset-0 -z-10 bg-canvas"
         style={{
           background: [
-            'radial-gradient(900px 700px at 18% 22%, rgba(232, 116, 60, 0.07), transparent 65%)',
-            'radial-gradient(820px 620px at 84% 70%, rgba(232, 116, 60, 0.055), transparent 65%)',
+            'radial-gradient(1000px 800px at 12% 18%, rgba(232, 116, 60, 0.045), transparent 70%)',
+            'radial-gradient(900px 700px at 88% 82%, rgba(232, 116, 60, 0.035), transparent 70%)',
+            'radial-gradient(600px 500px at 50% 0%, rgba(244, 168, 122, 0.06), transparent 60%)',
           ].join(', '),
         }}
       />
@@ -51,69 +52,12 @@ function InviteShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function InviteAside({ isDirector }: { isDirector: boolean }) {
-  const perks = isDirector
-    ? [
-        'Espace agence dédié et tableau de bord',
-        'Gestion de votre équipe et des prospects',
-        'Plan fondateur — accès anticipé aux nouveautés',
-      ]
-    : [
-        'Accès aux prospects de votre agence',
-        'Outils de suivi et de prise de rendez-vous',
-        'Collaboration avec votre directeur',
-      ];
-
-  return (
-    <aside className="hidden lg:flex lg:w-[42%] xl:w-[45%] flex-col justify-between border-r border-black/5 bg-white/60 backdrop-blur-sm px-10 xl:px-14 py-12">
-      <div>
-        <Link
-          href="/"
-          className="inline-block font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
-        >
-          Priimo
-        </Link>
-        <p className="mt-10 text-sm font-medium uppercase tracking-wide text-accent-dark">
-          {isDirector ? 'Onboarding directeur' : 'Invitation équipe'}
-        </p>
-        <h2 className="mt-3 font-sans text-3xl font-semibold text-gray-900 text-balance leading-tight">
-          {isDirector
-            ? 'Lancez votre agence sur Priimo en quelques minutes'
-            : 'Rejoignez votre agence sur Priimo'}
-        </h2>
-        <p className="mt-4 text-base text-gray-600 text-pretty max-w-md">
-          {isDirector
-            ? 'Créez votre compte directeur pour configurer votre agence, inviter vos agents et commencer à prospecter.'
-            : 'Finalisez votre inscription pour accéder à l’espace partagé de votre agence.'}
-        </p>
-        <ul className="mt-10 space-y-4">
-          {perks.map((item) => (
-            <li key={item} className="flex gap-3 text-sm text-gray-700">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-soft-warm text-accent-dark">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </span>
-              <span className="text-pretty">{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <p className="text-xs text-gray-500 text-pretty">
-        En créant votre compte, vous acceptez les conditions d’utilisation de Priimo.
-      </p>
-    </aside>
-  );
-}
-
 function InviteLoading() {
   return (
     <InviteShell>
-      <div className="flex flex-1 items-center justify-center px-4 py-16">
-        <div className="text-center" role="status" aria-live="polite">
-          <span className="spinner mx-auto mb-4 block" aria-hidden />
-          <p className="text-sm text-gray-600">Validation de votre invitation…</p>
-        </div>
+      <div className="w-full max-w-[440px] text-center" role="status" aria-live="polite">
+        <span className="spinner mx-auto mb-4 block" aria-hidden />
+        <p className="text-sm text-gray-600">Validation de votre invitation…</p>
       </div>
     </InviteShell>
   );
@@ -234,8 +178,7 @@ function InvitePageContent() {
   if (pageError || !invitation) {
     return (
       <InviteShell>
-        <div className="flex flex-1 items-center justify-center px-4 py-16">
-          <div className="w-full max-w-md rounded-2xl bg-white border border-black/5 shadow-soft p-8 text-center">
+        <div className="w-full max-w-[440px] rounded-2xl bg-white border border-black/5 shadow-soft p-8 text-center">
             <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
               <svg className="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -248,7 +191,6 @@ function InvitePageContent() {
             <Link href="/" className="mt-6 inline-block text-sm font-medium text-accent-dark hover:underline">
               Retour à l’accueil
             </Link>
-          </div>
         </div>
       </InviteShell>
     );
@@ -256,20 +198,17 @@ function InvitePageContent() {
 
   return (
     <InviteShell>
-      <InviteAside isDirector={isDirector} />
+      <div className="w-full max-w-[440px]">
+        <div className="mb-6 flex justify-center">
+          <Link
+            href="/"
+            className="font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
+          >
+            Priimo
+          </Link>
+        </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 sm:py-14 lg:py-12">
-        <div className="w-full max-w-[440px]">
-          <div className="mb-6 flex justify-center lg:hidden">
-            <Link
-              href="/"
-              className="font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
-            >
-              Priimo
-            </Link>
-          </div>
-
-          <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-6 sm:p-8">
+        <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-6 sm:p-8">
             <header className="mb-6">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-soft-warm px-3 py-1 text-xs font-medium text-accent-dark">
                 <span className="size-1.5 rounded-full bg-accent" aria-hidden />
@@ -416,10 +355,9 @@ function InvitePageContent() {
             </form>
           </div>
 
-          <p className="mt-6 text-center text-xs text-gray-500 text-pretty lg:hidden">
-            En créant votre compte, vous acceptez les conditions d’utilisation de Priimo.
-          </p>
-        </div>
+        <p className="mt-6 text-center text-xs text-gray-500 text-pretty">
+          En créant votre compte, vous acceptez les conditions d’utilisation de Priimo.
+        </p>
       </div>
     </InviteShell>
   );
