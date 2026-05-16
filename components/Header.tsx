@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import CtaButton from "@/components/CtaButton";
+import { CALENDLY_URL } from "@/lib/calendly";
 
 // === HEADER ===
-// Totalement transparent en haut — laisse le fond animé du hero respirer.
-// Après 50px de scroll, un fond flouté et une légère ombre apparaissent
-// pour garder logo + lien de connexion lisibles sur le contenu.
+// Transparent en haut ; fond flouté après scroll. Actions regroupées en un
+// seul bloc pill (connexion + démo) pour une hiérarchie visuelle claire.
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
 
@@ -20,34 +19,46 @@ export default function Header() {
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,border-color] duration-300 ${
         scrolled
-          ? "bg-canvas/80 backdrop-blur-md shadow-sm border-b border-black/5"
-          : "bg-transparent"
+          ? "border-b border-black/[0.06] bg-canvas/85 shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)] backdrop-blur-md"
+          : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
-        <div className="flex h-14 sm:h-16 items-center justify-between gap-2 min-w-0">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 min-w-0 sm:h-16 sm:px-8">
+        <Link
+          href="/"
+          className="shrink-0 font-sans text-[1.35rem] font-bold leading-none tracking-tight text-accent-dark sm:text-[1.65rem] md:text-[1.85rem]"
+        >
+          Priimo
+        </Link>
+
+        <nav
+          className="inline-flex shrink-0 items-center rounded-full border border-black/[0.07] bg-white/80 p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.06)] backdrop-blur-md"
+          aria-label="Actions du compte"
+        >
           <Link
-            href="/"
-            className="font-sans text-2xl sm:text-3xl md:text-4xl leading-none font-bold tracking-tight text-accent-dark shrink-0"
+            href="/login"
+            className="inline-flex min-h-9 items-center rounded-full px-3.5 text-[13px] font-medium text-gray-600 transition-colors hover:bg-black/[0.04] hover:text-gray-900 sm:px-4"
           >
-            Priimo
+            Se connecter
           </Link>
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Link
-              href="/login"
-              className="inline-flex items-center rounded-full border border-black/10 bg-white/60 px-3 py-2 text-xs font-medium text-gray-900 backdrop-blur-sm transition hover:bg-white hover:border-black/20 sm:px-4 sm:text-sm"
-            >
-              Se connecter
-            </Link>
-            <CtaButton className="!rounded-full !px-3 !py-2 text-xs sm:!px-4 sm:text-sm">
-              <span className="sm:hidden">Démo</span>
-              <span className="hidden sm:inline">Réserver une démo</span>
-            </CtaButton>
-          </div>
-        </div>
+          <span className="mx-0.5 hidden h-4 w-px bg-black/10 sm:block" aria-hidden />
+
+          <a
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-9 items-center gap-1 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#C25E2C] sm:px-4"
+          >
+            <span className="sm:hidden">Démo</span>
+            <span className="hidden sm:inline">Réserver une démo</span>
+            <span className="hidden text-white/90 sm:inline" aria-hidden>
+              →
+            </span>
+          </a>
+        </nav>
       </div>
     </header>
   );
