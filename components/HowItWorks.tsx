@@ -186,7 +186,7 @@ export default function HowItWorks() {
 
           <Reveal direction="scale" delay={250} className="mt-8 lg:mt-10 flex justify-center px-1">
             <CtaButton className="max-w-full">
-              Commencer maintenant
+              Réserver une démo
               <span aria-hidden>→</span>
             </CtaButton>
           </Reveal>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { CALENDLY_URL } from "@/lib/calendly";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -205,10 +206,15 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-600">
-          Pas encore de compte ?{" "}
-          <Link href="/signup" className="text-accent-dark font-medium hover:underline">
-            Créer un compte
-          </Link>
+          Pas encore client ?{" "}
+          <a
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent-dark font-medium hover:underline"
+          >
+            Réserver une démo
+          </a>
         </p>
       </div>
     </main>

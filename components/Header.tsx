@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 // === HEADER ===
-// Fully transparent at the top — lets the animated hero background
-// bleed through. After 50px of scroll, a subtle blurred backdrop and
-// shadow appear to keep the logo + CTAs legible over page content.
+// Totalement transparent en haut — laisse le fond animé du hero respirer.
+// Après 50px de scroll, un fond flouté et une légère ombre apparaissent
+// pour garder logo + lien de connexion lisibles sur le contenu.
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
 
@@ -34,20 +34,12 @@ export default function Header() {
             Priimo
           </Link>
 
-          <nav className="flex items-center gap-2 sm:gap-4 shrink-0">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-gray-700 hover:text-accent-dark transition px-2 sm:px-3 py-2"
-            >
-              Se connecter
-            </Link>
-            <Link
-              href="/signup"
-              className="btn btn-primary text-xs sm:text-sm py-2 px-3 sm:py-2.5 sm:px-5"
-            >
-              Créer un compte
-            </Link>
-          </nav>
+          <Link
+            href="/login"
+            className="inline-flex items-center rounded-full border border-black/10 bg-white/60 px-4 py-2 text-sm font-medium text-gray-900 backdrop-blur-sm transition hover:bg-white hover:border-black/20"
+          >
+            Se connecter
+          </Link>
         </div>
       </div>
     </header>

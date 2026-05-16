@@ -54,11 +54,11 @@ export default function FinalCTA() {
 
         <Reveal direction="scale" delay={250} className="mt-10">
           <CtaButton variant="invert" size="lg">
-            Créer un compte
+            Réserver une démo
             <span aria-hidden>→</span>
           </CtaButton>
           <p className="mt-4 small-text !normal-case !tracking-normal text-white/70">
-            Essai gratuit · Sans engagement · Sans carte bancaire
+            20 minutes · Sans engagement · 100 % personnalisée
           </p>
         </Reveal>
       </div>

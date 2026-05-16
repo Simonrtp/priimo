@@ -9,7 +9,7 @@ import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 
 // === LANDING PAGE ===
-// Single goal: drive sign-ups to /signup.
+// Objectif unique : convertir vers la réservation de démo (Calendly).
 export default function Page() {
   return (
     <>

@@ -236,7 +236,7 @@ export default function ProblemTransformation() {
 
         <Reveal direction="scale" delay={200} className="mt-12 flex justify-center">
           <CtaButton>
-            Créer un compte
+            Réserver une démo
             <span aria-hidden>→</span>
           </CtaButton>
         </Reveal>

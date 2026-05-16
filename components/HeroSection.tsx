@@ -4,6 +4,7 @@ import Link from "next/link";
 import Reveal from "./Reveal";
 import DashboardMockup from "./DashboardMockup";
 import HeroBackground from "./HeroBackground";
+import { CALENDLY_URL } from "@/lib/calendly";
 
 // === HERO SECTION ===
 // Above-the-fold. Animated mouse-reactive background, H1 → subheadline →
@@ -72,17 +73,19 @@ export default function HeroSection() {
               </ul>
             </Reveal>
 
-            {/* Primary CTA */}
+            {/* Primary CTA — Calendly (réservation de démo) */}
             <Reveal direction="up" delay={120} className="mt-8">
-              <Link
-                href="/signup"
+              <a
+                href={CALENDLY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn btn-primary px-7 py-4 text-base"
               >
-                Créer un compte gratuitement
+                Réserver une démo
                 <span aria-hidden>→</span>
-              </Link>
+              </a>
               <p className="mt-4 small-text !normal-case !tracking-normal text-gray-600">
-                Déjà inscrit ?{" "}
+                Déjà client ?{" "}
                 <Link
                   href="/login"
                   className="text-accent-dark font-medium hover:underline"

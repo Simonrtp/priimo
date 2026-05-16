@@ -93,7 +93,7 @@ export default function FAQ() {
 
         <Reveal direction="scale" delay={250} className="mt-10 flex justify-center">
           <CtaButton>
-            Créer un compte
+            Réserver une démo
             <span aria-hidden>→</span>
           </CtaButton>
         </Reveal>

@@ -1,7 +1,8 @@
-import Link from "next/link";
+import { CALENDLY_URL } from "@/lib/calendly";
 
 // === CTA BUTTON ===
-// Centralised CTA. Every CTA on the landing page links to `/signup`.
+// CTA centralisé. Tous les CTA de la landing pointent vers Calendly
+// (réservation de démo). Ouvre dans un nouvel onglet.
 
 type Props = {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ export default function CtaButton({
   variant = "primary",
   size = "md",
   className = "",
-  href = "/signup",
+  href = CALENDLY_URL,
 }: Props) {
   const variantClass =
     variant === "invert"
@@ -27,11 +28,13 @@ export default function CtaButton({
   const sizeClass = size === "lg" ? "px-7 py-4 text-base" : "";
 
   return (
-    <Link
+    <a
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       className={`btn ${variantClass} ${sizeClass} ${className}`}
     >
       {children}
-    </Link>
+    </a>
   );
 }
