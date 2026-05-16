@@ -6,5 +6,5 @@
  * que la variable n'est pas définie côté Vercel.
  */
 export const CALENDLY_URL: string =
-  process.env.NEXT_PUBLIC_CALENDLY_URL ??
+  process.env.NEXT_PUBLIC_CALENDLY_URL?.trim() ||
   "https://calendly.com/simon-ropiot44/nouvelle-reunion";

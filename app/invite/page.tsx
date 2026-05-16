@@ -1,13 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+
+function InviteLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4" />
+        <p className="text-gray-600">Validation de votre invitation...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function InvitePage() {
+  return (
+    <Suspense fallback={<InviteLoading />}>
+      <InvitePageContent />
+    </Suspense>
+  );
+}
+
+function InvitePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createSupabaseBrowserClient();
   
   const [token, setToken] = useState('');
   const [invitation, setInvitation] = useState<any>(null);

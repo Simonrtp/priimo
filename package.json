@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/supabase-js": "^2.105.4",
     "@vercel/blob": "^2.3.3",
     "lucide-react": "^1.14.0",
     "next": "^16.2.6",
@@ -25,8 +27,8 @@
     "@types/react": "18.3.11",
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.20",
-    "eslint": "8.57.1",
-    "eslint-config-next": "^16.2.6",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "16.2.6",
     "postcss": "8.4.47",
     "tailwindcss": "3.4.13",
     "typescript": "5.6.2"
