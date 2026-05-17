@@ -13,7 +13,11 @@ import {
   scoreTierAccentColor,
 } from '@/lib/utils';
 import { ML_FEEDBACK_OPTIONS, SIGNAL_META, STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
+import Select from '@/components/ui/Select';
 import ScoreRing from './ScoreRing';
+
+const mobileSelectTriggerClass =
+  'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-3 text-left text-[14px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10';
 
 interface LeadFullScreenMobileProps {
   lead: Lead;
@@ -299,37 +303,29 @@ export default function LeadFullScreenMobile({
             <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
               Statut
             </p>
-            <select
+            <Select
+              aria-label="Statut du lead"
               value={lead.status}
-              onChange={(e) => handleStatus(e.target.value as LeadStatus)}
-              className="w-full rounded-xl border border-black/8 bg-white px-4 py-3 text-ink focus:border-accent/40 focus:outline-none"
-              style={{ fontSize: 14 }}
-            >
-              {STATUS_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_META[s].label}
-                </option>
-              ))}
-            </select>
+              triggerClassName={mobileSelectTriggerClass}
+              options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+              onChange={(v) => handleStatus(v as LeadStatus)}
+            />
           </div>
           {canAssignLead && (
             <div>
               <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
                 Assigné à
               </p>
-              <select
+              <Select
+                aria-label="Assigné à"
                 value={lead.assignedTo ?? ''}
-                onChange={(e) => handleAssign(e.target.value === '' ? null : e.target.value)}
-                className="w-full rounded-xl border border-black/8 bg-white px-4 py-3 text-ink focus:border-accent/40 focus:outline-none"
-                style={{ fontSize: 14 }}
-              >
-                <option value="">Non assigné</option>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.fullName}
-                  </option>
-                ))}
-              </select>
+                triggerClassName={mobileSelectTriggerClass}
+                options={[
+                  { value: '', label: 'Non assigné' },
+                  ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
+                ]}
+                onChange={(v) => handleAssign(v === '' ? null : v)}
+              />
             </div>
           )}
           <div>

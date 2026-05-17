@@ -1,5 +1,6 @@
 'use client';
 
+import Select from '@/components/ui/Select';
 import type { Filters, LeadStatus, SignalType, TeamMember } from '@/types/lead';
 import { STATUS_META, STATUS_ORDER, SIGNAL_META } from '@/lib/lead-meta';
 
@@ -36,9 +37,6 @@ function Pill({
   );
 }
 
-const selectClass =
-  'border border-black/8 rounded-xl px-3 py-2 text-ink bg-white focus:outline-none focus:border-accent/40 cursor-pointer text-[13px] min-w-[140px]';
-
 export default function FiltersBar({
   filters,
   onFiltersChange,
@@ -59,6 +57,12 @@ export default function FiltersBar({
     filters.signalType !== 'all' ||
     filters.status !== 'all' ||
     (showAssignedFilter && filters.assignedTo !== 'all');
+
+  const assignedOptions = [
+    { value: 'all', label: 'Tous' },
+    { value: 'unassigned', label: 'Non assigné' },
+    ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
+  ];
 
   return (
     <div className="bg-white rounded-2xl shadow-soft border border-black/8 px-5 py-4 mb-4">
@@ -144,21 +148,14 @@ export default function FiltersBar({
             <span className="uppercase text-mute tracking-widest whitespace-nowrap" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
               Assigné à
             </span>
-            <select
-              className={selectClass}
+            <Select
+              aria-label="Assigné à"
               value={filters.assignedTo}
-              onChange={(e) =>
-                onFiltersChange({ ...filters, assignedTo: e.target.value as Filters['assignedTo'] })
+              options={assignedOptions}
+              onChange={(v) =>
+                onFiltersChange({ ...filters, assignedTo: v as Filters['assignedTo'] })
               }
-            >
-              <option value="all">Tous</option>
-              <option value="unassigned">Non assigné</option>
-              {teamMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.fullName}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         </div>
       )}

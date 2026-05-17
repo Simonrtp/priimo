@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Select from '@/components/ui/Select';
 import type { Filters, SignalType, TeamMember } from '@/types/lead';
 import { STATUS_META, STATUS_ORDER, SIGNAL_META } from '@/lib/lead-meta';
 
@@ -39,8 +40,8 @@ function Pill({
   );
 }
 
-const selectClass =
-  'w-full min-h-[44px] rounded-lg border border-black/10 px-[14px] py-2.5 text-[14px] text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
+const sheetSelectTriggerClass =
+  'flex w-full min-h-[44px] items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-[14px] py-2.5 text-left text-[14px] text-ink transition-colors hover:border-black/15 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/25';
 
 export default function ProspectsFiltersSheet({
   open,
@@ -67,6 +68,12 @@ export default function ProspectsFiltersSheet({
     draft.signalType !== 'all' ||
     draft.status !== 'all' ||
     (showAssignedFilter && draft.assignedTo !== 'all');
+
+  const assignedOptions = [
+    { value: 'all', label: 'Tous' },
+    { value: 'unassigned', label: 'Non assigné' },
+    ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
+  ];
 
   return (
     <div
@@ -173,19 +180,13 @@ export default function ProspectsFiltersSheet({
               <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
                 Assigné à
               </label>
-              <select
-                className={selectClass}
+              <Select
+                aria-label="Assigné à"
                 value={draft.assignedTo}
-                onChange={(e) => setDraft({ ...draft, assignedTo: e.target.value as Filters['assignedTo'] })}
-              >
-                <option value="all">Tous</option>
-                <option value="unassigned">Non assigné</option>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.fullName}
-                  </option>
-                ))}
-              </select>
+                options={assignedOptions}
+                triggerClassName={sheetSelectTriggerClass}
+                onChange={(v) => setDraft({ ...draft, assignedTo: v as Filters['assignedTo'] })}
+              />
             </div>
           )}
         </div>

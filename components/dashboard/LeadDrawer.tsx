@@ -19,7 +19,11 @@ import {
   scoreTierAccentColor,
 } from '@/lib/utils';
 import { ML_FEEDBACK_OPTIONS, SIGNAL_META, STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
+import Select from '@/components/ui/Select';
 import ScoreRing from './ScoreRing';
+
+const drawerSelectTriggerClass =
+  'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10';
 
 interface LeadDrawerProps {
   lead: Lead | null;
@@ -396,39 +400,33 @@ export default function LeadDrawer({
                 <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
                   Statut
                 </p>
-                <select
-                  value={lead.status}
-                  onChange={(e) => handleStatus(e.target.value as LeadStatus)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full cursor-pointer rounded-xl border border-black/8 bg-white px-4 py-2.5 text-ink focus:border-accent/40 focus:outline-none"
-                  style={{ fontSize: 13 }}
-                >
-                  {STATUS_ORDER.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_META[s].label}
-                    </option>
-                  ))}
-                </select>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    aria-label="Statut du lead"
+                    value={lead.status}
+                    triggerClassName={drawerSelectTriggerClass}
+                    options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+                    onChange={(v) => handleStatus(v as LeadStatus)}
+                  />
+                </div>
               </div>
               {canAssignLead && (
                 <div>
                   <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
                     Assigné à
                   </p>
-                  <select
-                    value={lead.assignedTo ?? ''}
-                    onChange={(e) => handleAssign(e.target.value === '' ? null : e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full cursor-pointer rounded-xl border border-black/8 bg-white px-4 py-2.5 text-ink focus:border-accent/40 focus:outline-none"
-                    style={{ fontSize: 13 }}
-                  >
-                    <option value="">Non assigné</option>
-                    {teamMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.fullName}
-                      </option>
-                    ))}
-                  </select>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      aria-label="Assigné à"
+                      value={lead.assignedTo ?? ''}
+                      triggerClassName={drawerSelectTriggerClass}
+                      options={[
+                        { value: '', label: 'Non assigné' },
+                        ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
+                      ]}
+                      onChange={(v) => handleAssign(v === '' ? null : v)}
+                    />
+                  </div>
                 </div>
               )}
               <div>
