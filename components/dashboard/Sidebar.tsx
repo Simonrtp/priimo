@@ -2,15 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Settings, Target } from 'lucide-react';
-import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
+import { LogOut, Settings, Target } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
+import { useUser } from '@/lib/hooks/useUser';
+import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
 
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
 
-const LEADS_QUOTA = { treated: 7, max: 15 };
+interface SidebarProps {
+  leadsThisMonth: number;
+  monthlyQuota: number;
+}
 
 const navItems: {
   href: string;
@@ -32,10 +36,17 @@ const navItems: {
   },
 ];
 
-export default function Sidebar() {
+function userInitials(firstName: string, lastName: string): string {
+  const a = firstName.trim().charAt(0).toUpperCase();
+  const b = lastName.trim().charAt(0).toUpperCase();
+  return `${a}${b}` || '?';
+}
+
+export default function Sidebar({ leadsThisMonth, monthlyQuota }: SidebarProps) {
   const pathname = usePathname();
-  const { isDirector } = useDashboardRole();
-  const progress = Math.min(100, Math.round((LEADS_QUOTA.treated / LEADS_QUOTA.max) * 100));
+  const { profile, agency, isDirector } = useUser();
+  const progress = Math.min(100, Math.round((leadsThisMonth / Math.max(1, monthlyQuota)) * 100));
+  const initials = userInitials(profile.first_name, profile.last_name);
 
   return (
     <aside
@@ -101,43 +112,67 @@ export default function Sidebar() {
         </a>
       </div>
 
-      {isDirector ? (
-        <div
-          className="mx-1.5 mb-4 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+      <div
+        className="mx-1.5 mb-3 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
+        style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+      >
+        <p className="truncate font-medium text-white" style={{ fontSize: 14 }} title={agency.name}>
+          {agency.name}
+        </p>
+        <span
+          className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${PLAN_BADGE_CLASSES[agency.plan]}`}
         >
-          <p className="font-medium text-white" style={{ fontSize: 14 }}>
-            Agence Test
-          </p>
-          <p className="mt-3 text-[11px] tabular text-white/80">
-            {LEADS_QUOTA.treated}/{LEADS_QUOTA.max} leads traités
-          </p>
-          <div
-            className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-            role="progressbar"
-            aria-valuenow={LEADS_QUOTA.treated}
-            aria-valuemin={0}
-            aria-valuemax={LEADS_QUOTA.max}
-            aria-label="Progression des leads traités"
-          >
+          {PLAN_LABEL[agency.plan]}
+        </span>
+        {isDirector && (
+          <>
+            <p className="mt-3 text-[11px] tabular text-white/80">
+              {leadsThisMonth}/{monthlyQuota} ce mois
+            </p>
             <div
-              className="h-full rounded-full transition-[width] duration-300"
-              style={{ width: `${progress}%`, backgroundColor: ACCENT }}
-            />
-          </div>
-        </div>
-      ) : (
+              className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
+              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+              role="progressbar"
+              aria-valuenow={leadsThisMonth}
+              aria-valuemin={0}
+              aria-valuemax={monthlyQuota}
+              aria-label="Progression des leads ce mois"
+            >
+              <div
+                className="h-full rounded-full transition-[width] duration-300"
+                style={{ width: `${progress}%`, backgroundColor: ACCENT }}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="mx-1.5 mb-4 hidden items-center gap-2 rounded-[12px] px-3 py-2 lg:mx-3 lg:flex" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
         <div
-          className="mx-1.5 mb-4 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white"
+          aria-hidden
         >
-          <p className="font-medium text-white" style={{ fontSize: 14 }}>
-            Agence Test
-          </p>
-          <p className="mt-2 text-[12px] text-white/75">Agent</p>
+          {initials}
         </div>
-      )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12px] font-medium text-white" title={`${profile.first_name} ${profile.last_name}`}>
+            {profile.first_name} {profile.last_name}
+          </p>
+          <p className="truncate text-[10px] text-white/60" title={isDirector ? 'Directeur' : 'Collaborateur'}>
+            {isDirector ? 'Directeur' : 'Collaborateur'}
+          </p>
+        </div>
+        <form action="/api/auth/signout" method="post" className="flex-shrink-0">
+          <button
+            type="submit"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+          >
+            <LogOut size={16} strokeWidth={2} aria-hidden />
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

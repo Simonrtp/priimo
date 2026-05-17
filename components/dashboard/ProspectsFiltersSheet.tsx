@@ -1,26 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Agent, Filters, LeadSegmentTab, LeadStatus, LeadZoneId } from '@/types/lead';
-import { getSignalPills, statusPills } from '@/components/dashboard/FiltersBar';
-
-interface ZoneOpt { id: LeadZoneId; label: string }
+import type { Filters, SignalType, TeamMember } from '@/types/lead';
+import { STATUS_META, STATUS_ORDER, SIGNAL_META } from '@/lib/lead-meta';
 
 interface ProspectsFiltersSheetProps {
   open: boolean;
   onClose: () => void;
-  segmentTab: LeadSegmentTab;
   appliedFilters: Filters;
   onApply: (f: Filters) => void;
-  agents: Agent[];
-  zones: ZoneOpt[];
+  teamMembers: TeamMember[];
+  availableSignals: SignalType[];
   showAssignedFilter?: boolean;
 }
 
 function Pill({
-  label, active, onClick, activeClass,
+  label,
+  active,
+  onClick,
+  activeClass,
 }: {
-  label: string; active: boolean; onClick: () => void; activeClass: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  activeClass: string;
 }) {
   return (
     <button
@@ -42,11 +45,10 @@ const selectClass =
 export default function ProspectsFiltersSheet({
   open,
   onClose,
-  segmentTab,
   appliedFilters,
   onApply,
-  agents,
-  zones,
+  teamMembers,
+  availableSignals,
   showAssignedFilter = true,
 }: ProspectsFiltersSheetProps) {
   const [draft, setDraft] = useState<Filters>(appliedFilters);
@@ -57,20 +59,22 @@ export default function ProspectsFiltersSheet({
 
   if (!open) return null;
 
-  const signalPills = getSignalPills(segmentTab);
-
   const resetDraft = () =>
-    setDraft({ minScore: 0, signalType: 'all', status: 'all', assignedTo: 'all', zoneId: 'all' });
+    setDraft({ minScore: 0, signalType: 'all', status: 'all', assignedTo: 'all' });
 
   const isDirty =
     draft.minScore > 0 ||
     draft.signalType !== 'all' ||
     draft.status !== 'all' ||
-    (showAssignedFilter && draft.assignedTo !== 'all') ||
-    draft.zoneId !== 'all';
+    (showAssignedFilter && draft.assignedTo !== 'all');
 
   return (
-    <div className="fixed inset-0 z-[80] md:hidden" role="dialog" aria-modal="true" aria-labelledby="filters-sheet-title">
+    <div
+      className="fixed inset-0 z-[80] md:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="filters-sheet-title"
+    >
       <button type="button" className="absolute inset-0 bg-black/40" aria-label="Fermer" onClick={onClose} />
       <div className="absolute bottom-0 left-0 right-0 flex max-h-[90vh] flex-col rounded-t-2xl bg-white shadow-xl">
         <div className="flex flex-shrink-0 items-center justify-between border-b border-black/8 px-4 py-3">
@@ -94,7 +98,10 @@ export default function ProspectsFiltersSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}>
+        <div
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
+        >
           <div className="mb-5">
             <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
               Score minimum
@@ -113,90 +120,74 @@ export default function ProspectsFiltersSheet({
             </div>
           </div>
 
-          <div className="mb-5">
-            <p className="mb-2 font-medium text-gray-700" style={{ fontSize: 14 }}>
-              Signaux
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {signalPills.map((p) => (
+          {availableSignals.length > 0 && (
+            <div className="mb-5">
+              <p className="mb-2 font-medium text-gray-700" style={{ fontSize: 14 }}>
+                Signaux
+              </p>
+              <div className="flex flex-wrap gap-2">
                 <Pill
-                  key={p.value}
-                  label={p.label}
-                  active={draft.signalType === p.value}
-                  onClick={() => setDraft({ ...draft, signalType: p.value })}
-                  activeClass={p.value === 'all' ? 'bg-ink text-white' : 'bg-accent/15 text-accent-dark'}
+                  label="Tous"
+                  active={draft.signalType === 'all'}
+                  onClick={() => setDraft({ ...draft, signalType: 'all' })}
+                  activeClass="bg-ink text-white"
                 />
-              ))}
+                {availableSignals.map((sig) => (
+                  <Pill
+                    key={sig}
+                    label={SIGNAL_META[sig].label}
+                    active={draft.signalType === sig}
+                    onClick={() => setDraft({ ...draft, signalType: sig })}
+                    activeClass="bg-accent/15 text-accent-dark"
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mb-5">
             <p className="mb-2 font-medium text-gray-700" style={{ fontSize: 14 }}>
               Statut
             </p>
             <div className="flex flex-wrap gap-2">
-              {statusPills.map((p) => (
+              <Pill
+                label="Tous"
+                active={draft.status === 'all'}
+                onClick={() => setDraft({ ...draft, status: 'all' })}
+                activeClass="bg-ink text-white"
+              />
+              {STATUS_ORDER.map((s) => (
                 <Pill
-                  key={p.value}
-                  label={p.label}
-                  active={draft.status === p.value}
-                  onClick={() => setDraft({ ...draft, status: p.value })}
-                  activeClass={
-                    p.value === 'all'
-                      ? 'bg-ink text-white'
-                      : p.value === 'nouveau'
-                        ? 'bg-blue/15 text-blue-dark'
-                        : p.value === 'contacté'
-                          ? 'bg-accent/15 text-accent-dark'
-                          : p.value === 'intéressé'
-                            ? 'bg-emerald-500/15 text-emerald-700'
-                            : p.value === 'rdv_pris'
-                              ? 'bg-violet-500/15 text-violet-800'
-                              : 'bg-black/[0.1] text-mute'
-                  }
+                  key={s}
+                  label={STATUS_META[s].label}
+                  active={draft.status === s}
+                  onClick={() => setDraft({ ...draft, status: s })}
+                  activeClass={STATUS_META[s].chipClass}
                 />
               ))}
             </div>
           </div>
 
           {showAssignedFilter && (
-          <div className="mb-5">
-            <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
-              Assigné à
-            </label>
-            <select
-              className={selectClass}
-              value={draft.assignedTo}
-              onChange={(e) => setDraft({ ...draft, assignedTo: e.target.value as Filters['assignedTo'] })}
-            >
-              <option value="all">Tous</option>
-              <option value="unassigned">Non assigné</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="mb-5">
+              <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
+                Assigné à
+              </label>
+              <select
+                className={selectClass}
+                value={draft.assignedTo}
+                onChange={(e) => setDraft({ ...draft, assignedTo: e.target.value as Filters['assignedTo'] })}
+              >
+                <option value="all">Tous</option>
+                <option value="unassigned">Non assigné</option>
+                {teamMembers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
-
-          <div className="mb-4">
-            <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
-              Zone
-            </label>
-            <select
-              className={selectClass}
-              value={draft.zoneId}
-              onChange={(e) => setDraft({ ...draft, zoneId: e.target.value as Filters['zoneId'] })}
-            >
-              <option value="all">Toutes les zones</option>
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.label}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         <div

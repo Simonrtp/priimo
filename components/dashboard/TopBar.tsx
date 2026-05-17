@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
-import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
+import { useUser } from '@/lib/hooks/useUser';
 
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
@@ -15,10 +15,14 @@ function titleForPath(pathname: string): string {
   return 'Dashboard';
 }
 
+function initials(firstName: string, lastName: string): string {
+  return `${firstName.trim().charAt(0).toUpperCase()}${lastName.trim().charAt(0).toUpperCase()}` || '?';
+}
+
 export default function TopBar() {
   const pathname = usePathname();
   const title = titleForPath(pathname);
-  const { role, setRole } = useDashboardRole();
+  const { profile, agency } = useUser();
 
   return (
     <header
@@ -32,34 +36,6 @@ export default function TopBar() {
         >
           {title === 'Mes prospects' ? 'Prospects' : title}
         </span>
-        <div
-          className="hidden md:flex shrink-0 items-center gap-0.5 rounded-lg bg-gray-100 px-1 py-1"
-          role="group"
-          aria-label="Simulation de rôle (développement)"
-        >
-          <button
-            type="button"
-            onClick={() => setRole('director')}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
-              role === 'director'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Directeur
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole('agent')}
-            className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-all ${
-              role === 'agent'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Agent
-          </button>
-        </div>
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
@@ -74,15 +50,15 @@ export default function TopBar() {
         </a>
 
         <div className="flex min-w-0 max-w-[min(12rem,40vw)] items-center gap-2 sm:max-w-none sm:gap-3 lg:max-w-none">
-          <span className="truncate font-medium text-ink" style={{ fontSize: 13 }}>
-            Agence Test
+          <span className="truncate font-medium text-ink" style={{ fontSize: 13 }} title={agency.name}>
+            {agency.name}
           </span>
           <div
             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-dark font-semibold tabular lg:h-[30px] lg:w-[30px]"
             style={{ fontSize: 11 }}
             aria-hidden
           >
-            AT
+            {initials(profile.first_name, profile.last_name)}
           </div>
         </div>
       </div>

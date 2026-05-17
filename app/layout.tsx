@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 // === FONT: Inter only (400–700) ===
@@ -85,6 +86,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

@@ -25,7 +25,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import type { LifeEvent, SignalType } from '@/types/lead';
+import type { SignalType } from '@/types/lead';
 
 export const ICONS = {
   building: Building2,
@@ -73,7 +73,6 @@ export const ICON_COLORS = {
   muted500: '#6B7280',
 } as const;
 
-/** Icône + couleur pour chaque type de signal (liste drawer). */
 export function signalIconForType(sig: SignalType): { Icon: LucideIcon; color: string } {
   switch (sig) {
     case 'dissolution_sci':
@@ -99,36 +98,4 @@ export function signalIconForType(sig: SignalType): { Icon: LucideIcon; color: s
     case 'zone_rotation':
       return { Icon: MapPin, color: ICON_COLORS.info };
   }
-}
-
-export type LifeEventNonNull = Exclude<LifeEvent, null>;
-
-export function lifeEventChipMeta(ev: LifeEventNonNull): { Icon: LucideIcon; color: string; label: string } {
-  switch (ev) {
-    case 'dissolution_sci':
-      return { Icon: AlertTriangle, color: ICON_COLORS.primary, label: 'Dissolution SCI' };
-    case 'liquidation':
-      return { Icon: Flame, color: ICON_COLORS.red600, label: 'Liquidation' };
-    case 'cession_parts':
-      return { Icon: FileText, color: ICON_COLORS.info, label: 'Cession de parts' };
-    case 'changement_gerant':
-      return { Icon: User, color: ICON_COLORS.neutral, label: 'Changement de gérant' };
-    case 'deces_associe':
-      return { Icon: UserX, color: ICON_COLORS.neutral, label: 'Décès associé' };
-  }
-}
-
-export function lifeEventDrawerLabel(ev: LifeEventNonNull): { Icon: LucideIcon; color: string; text: string } {
-  const { Icon, color } = lifeEventChipMeta(ev);
-  const text =
-    ev === 'dissolution_sci'
-      ? 'Dissolution SCI détectée'
-      : ev === 'liquidation'
-        ? 'Liquidation détectée'
-        : ev === 'cession_parts'
-          ? 'Cession de parts détectée'
-          : ev === 'changement_gerant'
-            ? 'Changement de gérant'
-            : 'Décès associé signalé';
-  return { Icon, color, text };
 }

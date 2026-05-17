@@ -35,21 +35,19 @@ function KPICard({ label, value, accentBar = 'none', valueColor = '#111827' }: K
   );
 }
 
-export default function StatsBar({ leads }: StatsBarProps) {
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-  const nouveaux = leads.filter(
-    (l) => l.status === 'nouveau' && new Date(l.createdAt) >= sevenDaysAgo,
-  ).length;
+export default function StatsBar({ leads }: StatsBarProps) {
+  const cutoff = Date.now() - SEVEN_DAYS_MS;
+
+  const nouveaux = leads.filter((l) => l.status === 'nouveau' && Date.parse(l.createdAt) >= cutoff).length;
 
   const contactes = leads.filter(
-    (l) => l.status === 'contacté' || l.status === 'intéressé' || l.status === 'rdv_pris',
+    (l) => l.status === 'contacte' || l.status === 'interesse' || l.status === 'mandat_signe',
   ).length;
 
-  const scoreMoyen = leads.length > 0
-    ? Math.round(leads.reduce((s, l) => s + l.score, 0) / leads.length)
-    : 0;
+  const scoreMoyen =
+    leads.length > 0 ? Math.round(leads.reduce((s, l) => s + l.score, 0) / leads.length) : 0;
 
   const scoreColor = scoreMoyen >= 80 ? '#C2410C' : scoreMoyen >= 60 ? '#B45309' : '#64748B';
 

@@ -13,14 +13,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
     "@vercel/blob": "^2.3.3",
     "lucide-react": "^1.14.0",
     "next": "^16.2.6",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "resend": "^6.12.3"
+    "resend": "^6.12.3",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@types/node": "20.16.10",

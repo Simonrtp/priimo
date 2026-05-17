@@ -3,23 +3,22 @@
 import type { Lead, LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
-import { getMainSignalLabel, formatPrice } from '@/lib/utils';
-import { ICONS, ICON_COLORS, ICON_SIZE, lifeEventChipMeta } from '@/lib/iconMapping';
+import { getMainSignalLabel } from '@/lib/lead-meta';
+import { formatPrice } from '@/lib/utils';
+import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
 interface LeadCardProps {
   lead: Lead;
   index: number;
   isLast: boolean;
   segmentTab: LeadSegmentTab;
-  isPlanPremium: boolean;
   onClick: () => void;
   onStatusChange: (status: Lead['status']) => void;
 }
 
-function SegmentRowIcon({ tab, lead }: { tab: LeadSegmentTab; lead: Lead }) {
+function SegmentRowIcon({ tab, ownerType }: { tab: LeadSegmentTab; ownerType: Lead['ownerType'] }) {
   if (tab === 'particuliers') return null;
-  if (tab === 'entreprises' && !lead.legalForm) return null;
-  if (tab === 'tous' && lead.segment === 'entreprise' && lead.legalForm) {
+  if (tab === 'tous' && ownerType === 'entreprise') {
     return (
       <ICONS.building
         className="flex-shrink-0"
@@ -57,18 +56,17 @@ export default function LeadCard({
   index,
   isLast,
   segmentTab,
-  isPlanPremium,
   onClick,
   onStatusChange,
 }: LeadCardProps) {
-  const isHighIntent = lead.score >= 80 && lead.lifeEvent !== null;
-  const year = new Date(lead.purchaseDate).getFullYear();
+  const isHighIntent = lead.score >= 80 && lead.signals.length > 0;
   const signal = getMainSignalLabel(lead);
-  const showDirectorPhoneHint =
-    isPlanPremium &&
-    lead.segment === 'entreprise' &&
-    lead.directorPhoneProAvailable &&
-    !!lead.directorPhonePro?.trim();
+  const propertyType = lead.propertyType ?? 'Bien';
+  const surface = lead.surfaceM2 != null ? `${lead.surfaceM2} m²` : null;
+  const acquiredPriceLabel =
+    lead.acquiredPrice != null
+      ? `${formatPrice(lead.acquiredPrice)} €${lead.acquiredYear ? ` (${lead.acquiredYear})` : ''}`
+      : null;
 
   return (
     <div
@@ -96,9 +94,13 @@ export default function LeadCard({
           <p className="mt-1 truncate text-mute" style={{ fontSize: 12.5 }}>
             {signal}
             <span className="mx-1.5 opacity-40">·</span>
-            {lead.propertyType}
-            <span className="mx-1.5 opacity-40">·</span>
-            {lead.surface} m²
+            {propertyType}
+            {surface && (
+              <>
+                <span className="mx-1.5 opacity-40">·</span>
+                {surface}
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -107,7 +109,7 @@ export default function LeadCard({
         <ScoreRing score={lead.score} size={44} />
         <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex items-start gap-2">
-            <SegmentRowIcon tab={segmentTab} lead={lead} />
+            <SegmentRowIcon tab={segmentTab} ownerType={lead.ownerType} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -116,55 +118,34 @@ export default function LeadCard({
                 >
                   {lead.address}
                 </span>
-                {lead.lifeEvent && (() => {
-                  const ev = lead.lifeEvent;
-                  const { Icon, color, label } = lifeEventChipMeta(ev);
-                  return (
-                    <span
-                      className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-accent/10 font-medium text-accent-dark"
-                      style={{ fontSize: 10, padding: '2px 8px', letterSpacing: '0.01em' }}
-                    >
-                      <Icon size={14} color={color} strokeWidth={2} aria-hidden />
-                      {label}
-                    </span>
-                  );
-                })()}
               </div>
-              {lead.companyOwnerLine && (
+              {lead.companyName && (
                 <p className="mt-0.5 truncate font-medium text-[#374151]" style={{ fontSize: 12 }}>
-                  {lead.companyOwnerLine}
+                  {lead.companyName}
+                  {lead.companyDirector ? ` — ${lead.companyDirector}` : ''}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <p className="min-w-0 flex-1 truncate text-mute" style={{ fontSize: 12.5 }}>
-              {signal}
-              <span className="mx-1.5 opacity-40">·</span>
-              {lead.propertyType}
-              <span className="mx-1.5 opacity-40">·</span>
-              {lead.surface} m²
-            </p>
-            {showDirectorPhoneHint && (
-              <span className="flex-shrink-0 cursor-default" title="Coordonnées dirigeant disponibles">
-                <ICONS.phone
-                  size={ICON_SIZE.sm}
-                  color={ICON_COLORS.green600}
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </span>
+          <p className="min-w-0 truncate text-mute" style={{ fontSize: 12.5 }}>
+            {signal}
+            <span className="mx-1.5 opacity-40">·</span>
+            {propertyType}
+            {surface && (
+              <>
+                <span className="mx-1.5 opacity-40">·</span>
+                {surface}
+              </>
             )}
+          </p>
+        </div>
+        {acquiredPriceLabel && (
+          <div className="hidden w-[140px] flex-shrink-0 text-right lg:block">
+            <p className="font-medium tabular text-ink" style={{ fontSize: 12.5 }}>
+              {acquiredPriceLabel}
+            </p>
           </div>
-        </div>
-        <div className="hidden w-[110px] flex-shrink-0 text-right lg:block">
-          <p className="font-medium tabular text-ink" style={{ fontSize: 12.5 }}>
-            {formatPrice(lead.purchasePrice)} €
-          </p>
-          <p className="tabular text-mute" style={{ fontSize: 11.5 }}>
-            {year}
-          </p>
-        </div>
+        )}
         <div className="hidden flex-shrink-0 lg:block" onClick={(e) => e.stopPropagation()}>
           <StatusBadge status={lead.status} onChange={onStatusChange} />
         </div>

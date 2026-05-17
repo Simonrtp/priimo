@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CALENDLY_URL } from "@/lib/calendly";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,6 +33,7 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -63,10 +66,18 @@ export default function LoginPage() {
     if (next.email || next.password) return;
 
     setIsSubmitting(true);
-    // TODO: brancher Supabase Auth ici
-    console.log("[login:submit]", { email: email.trim(), password });
-    await new Promise((r) => setTimeout(r, 400));
-    setIsSubmitting(false);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      setErrors({ password: "Email ou mot de passe incorrect." });
+      setIsSubmitting(false);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
   };
 
   return (

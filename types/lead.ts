@@ -1,40 +1,11 @@
+import type { LeadMlFeedbackDb, LeadOwnerTypeDb, LeadStatusDb } from '@/types/database';
+
 export type LeadSegmentTab = 'tous' | 'entreprises' | 'particuliers';
 
-/** Propriétaire du bien (aligné sur le segment UI). */
-export type LeadOwner = 'enterprise' | 'individual';
+export type LeadStatus = LeadStatusDb;
+export type OwnerType = LeadOwnerTypeDb;
+export type MlFeedback = LeadMlFeedbackDb | null;
 
-export type LeadZoneId = 'paris-13' | 'paris-14' | 'paris-15';
-
-export type LeadStatus =
-  | 'nouveau'
-  | 'contacté'
-  | 'intéressé'
-  | 'pas_intéressé'
-  | 'rdv_pris';
-
-/** Personne morale (SCI / SARL) — distinct du segment « entreprise » côté produit. */
-export type LegalForm = 'sci' | 'sarl';
-
-export type LeadSegment = 'entreprise' | 'particulier';
-
-/** Issue finale du prospect (alimente le ML futur). */
-export type ProspectOutcome =
-  | 'none'
-  | 'mandat_signe'
-  | 'vendu_ailleurs'
-  | 'pas_vendeur'
-  | 'pas_contacte';
-
-export interface Agent {
-  id: string;
-  firstName: string;
-  lastName: string;
-  initials: string;
-  /** Nom complet affiché (listes, selects). */
-  name: string;
-}
-
-/** Signaux détectés sur un lead (union stricte). */
 export type SignalType =
   | 'dissolution_sci'
   | 'liquidation'
@@ -48,17 +19,7 @@ export type SignalType =
   | 'travaux_recents'
   | 'zone_rotation';
 
-/** Événement de vie / société affiché en badge (sous-ensemble des signaux BODACC côté PM). */
-export type LifeEvent =
-  | 'dissolution_sci'
-  | 'liquidation'
-  | 'cession_parts'
-  | 'changement_gerant'
-  | 'deces_associe'
-  | null;
-
-/** Signaux BODACC / société — jamais sur des leads « particulier ». */
-export const EVENEMENT_SOCIETE_SIGNALS: readonly SignalType[] = [
+export const COMPANY_EVENT_SIGNALS: readonly SignalType[] = [
   'dissolution_sci',
   'liquidation',
   'cession_parts',
@@ -66,65 +27,73 @@ export const EVENEMENT_SOCIETE_SIGNALS: readonly SignalType[] = [
   'deces_associe',
 ] as const;
 
-/** Valeur du filtre « Signaux » (inclut le regroupement vue « Tous »). */
-export type SignalFilterValue = 'all' | SignalType | 'evenement_societe';
-
-export interface LeadSignals {
-  years_owned: number;
-  days_since_dpe: number;
-  estimated_gain_pct: number;
-  life_event: LifeEvent;
-  zone_rotation_rate: number;
+export interface LeadSignal {
+  type: SignalType;
+  label: string;
+  pts: number;
+  source: string;
 }
 
 export interface Lead {
   id: string;
+  agencyId: string;
   address: string;
-  lat: number;
-  lng: number;
-  score: number;
-  signalType: SignalType[];
-  signals: LeadSignals;
-  propertyType: string;
-  surface: number;
-  purchaseDate: string;
-  purchasePrice: number;
-  estimatedValue: number;
-  lifeEvent: LifeEvent;
-  status: LeadStatus;
-  segment: LeadSegment;
-  /** Redondant avec `segment` pour clarté / exports `Owner`. */
-  owner: LeadOwner;
-  legalForm: LegalForm | null;
-  assignedAgentId: string | null;
-  prospectOutcome: ProspectOutcome;
-  notes: string;
-  createdAt: string;
-  zoneId: LeadZoneId;
-  /** Ligne compacte sous l’adresse (SCI/SARL uniquement). */
-  companyOwnerLine: string | null;
+  city: string | null;
+  postalCode: string | null;
+  propertyType: string | null;
+  surfaceM2: number | null;
+  ownerType: OwnerType;
   companyName: string | null;
-  rcs: string | null;
-  directorName: string | null;
-  directorPhonePro: string | null;
-  directorEmailPro: string | null;
-  /** Téléphone pro disponible côté données (affiché si plan Premium). */
-  directorPhoneProAvailable: boolean;
-  /** Sources alignées sur `signalType` (même ordre, même longueur). */
-  signalSources: string[];
+  companyDirector: string | null;
+  companyPhone: string | null;
+  companyEmail: string | null;
+  score: number;
+  signals: LeadSignal[];
+  acquiredYear: number | null;
+  acquiredPrice: number | null;
+  estimatedValue: number | null;
+  dpeClass: string | null;
+  dpeDate: string | null;
+  status: LeadStatus;
+  notes: string | null;
+  assignedTo: string | null;
+  mlFeedback: MlFeedback;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export function leadHasEvenementSociete(lead: Pick<Lead, 'signalType'>): boolean {
-  return lead.signalType.some((s) =>
-    (EVENEMENT_SOCIETE_SIGNALS as readonly string[]).includes(s),
-  );
+export interface TeamMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  initials: string;
 }
 
 export interface Filters {
   minScore: number;
-  signalType: SignalFilterValue;
+  signalType: 'all' | SignalType;
   status: 'all' | LeadStatus;
-  /** Filtre agent : tous, non assigné, ou id agent. */
   assignedTo: 'all' | 'unassigned' | string;
-  zoneId: 'all' | LeadZoneId;
+}
+
+export const EMPTY_FILTERS: Filters = {
+  minScore: 0,
+  signalType: 'all',
+  status: 'all',
+  assignedTo: 'all',
+};
+
+export function leadHasCompanyEvent(lead: Pick<Lead, 'signals'>): boolean {
+  return lead.signals.some((s) => (COMPANY_EVENT_SIGNALS as readonly string[]).includes(s.type));
+}
+
+export function countActiveFilters(f: Filters, opts?: { countAssigned?: boolean }): number {
+  const countAssigned = opts?.countAssigned !== false;
+  let n = 0;
+  if (f.minScore > 0) n++;
+  if (f.signalType !== 'all') n++;
+  if (f.status !== 'all') n++;
+  if (countAssigned && f.assignedTo !== 'all') n++;
+  return n;
 }

@@ -113,6 +113,8 @@ COMMENT ON COLUMN public.profiles.role       IS 'Rôle métier : directeur (1 ma
 COMMENT ON COLUMN public.profiles.phone      IS 'Téléphone professionnel du membre (format FR).';
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS preferences jsonb NOT NULL DEFAULT '{}'::jsonb;
+COMMENT ON COLUMN public.profiles.preferences IS 'Préférences utilisateur (notifications, etc.) au format JSON.';
 
 CREATE INDEX IF NOT EXISTS idx_profiles_agency_id ON public.profiles (agency_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_role      ON public.profiles (role);

@@ -1,9 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, Trash2, UserPlus, X } from 'lucide-react';
-import { mockAgents } from '@/lib/mock-data';
-import { useDashboardRole } from '@/components/dashboard/DashboardRoleContext';
+import { useRouter } from 'next/navigation';
+import { ChevronDown, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
+import { useUser } from '@/lib/hooks/useUser';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { PLAN_BADGE_CLASSES, PLAN_LABEL, PLAN_PRICE } from '@/lib/plan-meta';
+import type { NotificationPreferences } from '@/types/database';
+import Modal from '@/components/ui/Modal';
+import SectionTeam from './SectionTeam';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -21,83 +27,51 @@ const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'security', label: 'Sécurité' },
 ];
 
-const AGENT_TAB_LIST: { id: SettingsTabId; label: string }[] = [
+const COLLABORATOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'profile', label: 'Mon profil' },
   { id: 'notifications', label: 'Notifications' },
+  { id: 'security', label: 'Sécurité' },
 ];
 
 function firstSettingsTab(isDirector: boolean): SettingsTabId {
   return isDirector ? 'agency' : 'profile';
 }
 
-type TeamRole = 'Directeur' | 'Agent';
-type TeamStatus = 'Actif' | 'Invité';
+export default function SettingsDashboard({ initialTab }: { initialTab?: SettingsTabId }) {
+  const { isDirector } = useUser();
+  const tabs = useMemo(() => (isDirector ? DIRECTOR_TAB_LIST : COLLABORATOR_TAB_LIST), [isDirector]);
 
-interface TeamRow {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: TeamRole;
-  status: TeamStatus;
-}
-
-const AGENT_EMAILS: Record<string, string> = {
-  'agent-1': 'marie.dupont@agencetest.fr',
-  'agent-2': 'thomas.bernard@agencetest.fr',
-  'agent-3': 'lea.martin@agencetest.fr',
-  'agent-4': 'julien.petit@agencetest.fr',
-};
-
-function buildInitialTeam(): TeamRow[] {
-  return mockAgents.map((a, i) => ({
-    id: a.id,
-    firstName: a.firstName,
-    lastName: a.lastName,
-    email: AGENT_EMAILS[a.id] ?? `${a.id}@agencetest.fr`,
-    role: (i === 0 ? 'Directeur' : 'Agent') as TeamRole,
-    status: 'Actif' as TeamStatus,
-  }));
-}
-
-export default function SettingsDashboard() {
-  const { isDirector } = useDashboardRole();
-  const tabs = useMemo(() => (isDirector ? DIRECTOR_TAB_LIST : AGENT_TAB_LIST), [isDirector]);
-
-  const [activeTab, setActiveTab] = useState<SettingsTabId>('agency');
-  const [mobileOpen, setMobileOpen] = useState<SettingsTabId | null>('agency');
-  const [toast, setToast] = useState<string | null>(null);
+  const fallback = firstSettingsTab(isDirector);
+  const startTab = initialTab && tabs.some((t) => t.id === initialTab) ? initialTab : fallback;
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(startTab);
+  const [mobileOpen, setMobileOpen] = useState<SettingsTabId | null>(startTab);
 
   useEffect(() => {
-    const first = firstSettingsTab(isDirector);
-    setActiveTab(first);
-    setMobileOpen(first);
-  }, [isDirector]);
+    if (!tabs.some((t) => t.id === activeTab)) {
+      setActiveTab(fallback);
+      setMobileOpen(fallback);
+    }
+  }, [activeTab, fallback, tabs]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
-
-  const showSaved = useCallback((msg = 'Modifications enregistrées') => {
-    console.log('[Settings]', msg);
-    setToast(msg);
-  }, []);
+  const renderSection = (id: SettingsTabId) => {
+    switch (id) {
+      case 'agency':
+        return isDirector ? <SectionAgency /> : null;
+      case 'team':
+        return isDirector ? <SectionTeam /> : null;
+      case 'billing':
+        return isDirector ? <SectionBilling /> : null;
+      case 'notifications':
+        return <SectionNotifications />;
+      case 'profile':
+        return <SectionProfile />;
+      case 'security':
+        return <SectionSecurity />;
+    }
+  };
 
   return (
     <div className="relative max-w-5xl">
-      {toast && (
-        <div
-          className="fixed right-4 top-6 z-[200] flex items-center gap-2 rounded-lg px-4 py-3 font-medium text-white shadow-lg max-md:right-4 max-md:top-auto max-md:bottom-24"
-          style={{ backgroundColor: '#059669', fontSize: 14 }}
-          role="status"
-        >
-          <Check size={18} strokeWidth={2} aria-hidden />
-          {toast}
-        </div>
-      )}
-
       <header className="mb-6">
         <h1 className="font-semibold tracking-tight text-ink" style={{ fontSize: 22, letterSpacing: '-0.02em' }}>
           Paramètres
@@ -121,17 +95,14 @@ export default function SettingsDashboard() {
                 <span className="font-semibold text-ink" style={{ fontSize: 16 }}>
                   {label}
                 </span>
-                <ChevronDown size={20} className={`text-mute transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+                <ChevronDown
+                  size={20}
+                  className={`text-mute transition-transform ${open ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
               </button>
               {open && (
-                <div className="border-t border-black/[0.06] bg-white px-4 py-5">
-                  {id === 'agency' && <SectionAgency onSaved={showSaved} />}
-                  {id === 'team' && <SectionTeam onSaved={showSaved} />}
-                  {id === 'billing' && <SectionBilling onSaved={showSaved} />}
-                  {id === 'notifications' && <SectionNotifications onSaved={showSaved} simplified={!isDirector} />}
-                  {id === 'profile' && <SectionProfile onSaved={showSaved} readOnlyEmail={!isDirector} />}
-                  {id === 'security' && <SectionSecurity onSaved={showSaved} />}
-                </div>
+                <div className="border-t border-black/[0.06] bg-white px-4 py-5">{renderSection(id)}</div>
               )}
             </div>
           );
@@ -160,27 +131,41 @@ export default function SettingsDashboard() {
           })}
         </nav>
 
-        <div className="min-w-0 flex-1 p-6 sm:p-8">
-          {activeTab === 'agency' && <SectionAgency onSaved={showSaved} />}
-          {activeTab === 'team' && <SectionTeam onSaved={showSaved} />}
-          {activeTab === 'billing' && <SectionBilling onSaved={showSaved} />}
-          {activeTab === 'notifications' && <SectionNotifications onSaved={showSaved} simplified={!isDirector} />}
-          {activeTab === 'profile' && <SectionProfile onSaved={showSaved} readOnlyEmail={!isDirector} />}
-          {activeTab === 'security' && <SectionSecurity onSaved={showSaved} />}
-        </div>
+        <div className="min-w-0 flex-1 p-6 sm:p-8">{renderSection(activeTab)}</div>
       </div>
-
     </div>
   );
 }
 
-/* ——— Mon agence ——— */
+function SectionAgency() {
+  const { agency } = useUser();
+  const router = useRouter();
+  const [name, setName] = useState(agency.name);
+  const [address, setAddress] = useState(agency.address ?? '');
+  const [phone, setPhone] = useState(agency.phone ?? '');
+  const [email, setEmail] = useState(agency.email ?? '');
+  const [saving, setSaving] = useState(false);
 
-function SectionAgency({ onSaved }: { onSaved: (msg?: string) => void }) {
-  const [name, setName] = useState('Agence Test');
-  const [address, setAddress] = useState("14 avenue d'Italie, 75013 Paris");
-  const [phone, setPhone] = useState('01 42 86 12 34');
-  const [email, setEmail] = useState('contact@agencetest.fr');
+  const save = async () => {
+    setSaving(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from('agencies')
+      .update({
+        name: name.trim(),
+        address: address.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+      })
+      .eq('id', agency.id);
+    setSaving(false);
+    if (error) {
+      toast.error(`Impossible d'enregistrer : ${error.message}`);
+      return;
+    }
+    toast.success('Agence mise à jour');
+    router.refresh();
+  };
 
   return (
     <section>
@@ -189,351 +174,137 @@ function SectionAgency({ onSaved }: { onSaved: (msg?: string) => void }) {
       </h2>
       <div className="flex max-w-xl flex-col gap-5">
         <div>
-          <label className={labelClass}>Nom de l&apos;agence</label>
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
+          <label htmlFor="agency-name" className={labelClass}>
+            Nom de l&apos;agence
+          </label>
+          <input id="agency-name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
-          <label className={labelClass}>Adresse postale</label>
-          <input className={inputClass} value={address} onChange={(e) => setAddress(e.target.value)} />
+          <label htmlFor="agency-address" className={labelClass}>
+            Adresse postale
+          </label>
+          <input
+            id="agency-address"
+            className={inputClass}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+          />
         </div>
         <div>
-          <label className={labelClass}>Téléphone</label>
-          <input className={inputClass} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <label htmlFor="agency-phone" className={labelClass}>
+            Téléphone
+          </label>
+          <input
+            id="agency-phone"
+            className={inputClass}
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
         </div>
         <div>
-          <label className={labelClass}>Email de contact</label>
-          <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label htmlFor="agency-email" className={labelClass}>
+            Email de contact
+          </label>
+          <input
+            id="agency-email"
+            className={inputClass}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="rounded-xl border border-dashed border-black/10 bg-soft-gray/40 px-4 py-3 text-mute" style={{ fontSize: 13 }}>
+          <p className="font-medium text-ink">Logo de l&apos;agence</p>
+          <p className="mt-0.5">Bientôt disponible.</p>
         </div>
         <button
           type="button"
-          className="btn btn-primary mt-2 self-start"
+          className="btn btn-primary mt-2 self-start disabled:cursor-not-allowed disabled:opacity-60"
           style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
-          onClick={() => onSaved()}
+          onClick={save}
+          disabled={saving || !name.trim()}
         >
-          Enregistrer les modifications
+          {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
         </button>
       </div>
     </section>
   );
 }
 
-/* ——— Mon équipe ——— */
-
-const roleDisplayLabel = (role: TeamRole): string =>
-  role === 'Agent' ? 'Collaborateur' : role;
-
-function SectionTeam({ onSaved }: { onSaved: (msg?: string) => void }) {
-  const [rows, setRows] = useState<TeamRow[]>(buildInitialTeam);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-
-  const remove = (row: TeamRow, displayName: string) => {
-    if (row.role === 'Directeur') return;
-    if (!window.confirm(`Retirer ${displayName} de l'équipe ?`)) return;
-    setRows((r) => r.filter((x) => x.id !== row.id));
-    console.log('[Settings] Agent supprimé', row.id);
-    onSaved('Agent retiré');
-  };
-
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const submitInvite = () => {
-    const trimmed = inviteEmail.trim();
-    if (!trimmed || !EMAIL_RE.test(trimmed)) return;
-    const id = `invite-${Date.now()}`;
-    setRows((r) => [
-      ...r,
-      {
-        id,
-        firstName: 'Invitation',
-        lastName: 'en attente',
-        email: trimmed,
-        role: 'Agent',
-        status: 'Invité',
-      },
-    ]);
-    console.log('[Settings] Invitation envoyée', { email: trimmed, role: 'Agent' });
-    setInviteOpen(false);
-    setInviteEmail('');
-    onSaved('Invitation envoyée');
-  };
-
-  const statusLabel = (s: TeamStatus) => (s === 'Invité' ? 'Invitation envoyée' : s);
-
-  return (
-    <section>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-semibold text-ink" style={{ fontSize: 18 }}>
-          Mon équipe
-        </h2>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink transition-colors hover:border-accent/40 hover:bg-soft-warm/50"
-          onClick={() => setInviteOpen(true)}
-        >
-          <UserPlus size={16} strokeWidth={2} aria-hidden />
-          Inviter un collaborateur
-        </button>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border border-black/8">
-        <table className="w-full min-w-[520px] text-left" style={{ fontSize: 13 }}>
-          <thead>
-            <tr className="border-b border-black/[0.06] bg-soft-gray/30 text-mute">
-              <th className="px-4 py-3 font-medium">Prénom</th>
-              <th className="px-3 py-3 font-medium">Nom</th>
-              <th className="px-3 py-3 font-medium">Email</th>
-              <th className="px-3 py-3 font-medium">Rôle</th>
-              <th className="px-3 py-3 font-medium">Statut</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b border-black/[0.05] last:border-0">
-                <td className="px-4 py-3 font-medium text-ink">{row.firstName}</td>
-                <td className="px-3 py-3 text-ink">{row.lastName}</td>
-                <td className="max-w-[200px] truncate px-3 py-3 text-mute">{row.email}</td>
-                <td className="px-3 py-3 text-ink">{roleDisplayLabel(row.role)}</td>
-                <td className="px-3 py-3">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      row.status === 'Actif' ? 'bg-emerald-500/10 text-emerald-800' : 'bg-amber-500/10 text-amber-900'
-                    }`}
-                  >
-                    {statusLabel(row.status)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {row.role === 'Directeur' ? (
-                    <span className="text-mute" style={{ fontSize: 12 }}>
-                      —
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1 text-[12px] font-medium text-red-700 transition-colors hover:bg-red-50"
-                      onClick={() => remove(row, `${row.firstName} ${row.lastName}`)}
-                    >
-                      <Trash2 size={14} strokeWidth={2} aria-hidden />
-                      Supprimer
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {inviteOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/25 p-4" role="dialog" aria-modal="true" aria-labelledby="invite-dialog-title">
-          <div className="relative w-full max-w-md rounded-2xl border border-black/8 bg-white p-6 shadow-xl">
-            <button
-              type="button"
-              className="absolute right-4 top-4 rounded-lg p-1 text-mute hover:bg-black/[0.05] hover:text-ink"
-              onClick={() => setInviteOpen(false)}
-              aria-label="Fermer"
-            >
-              <X size={18} strokeWidth={2} />
-            </button>
-            <h3 id="invite-dialog-title" className="pr-8 font-semibold text-ink" style={{ fontSize: 17 }}>
-              Inviter un collaborateur
-            </h3>
-            <p className="mt-1 text-mute" style={{ fontSize: 13 }}>
-              Un email d&apos;invitation sera envoyé (simulation). Rôle : Collaborateur.
-            </p>
-            <div className="mt-5 flex flex-col gap-4">
-              <div>
-                <label className={labelClass}>Email</label>
-                <input
-                  className={inputClass}
-                  type="email"
-                  placeholder="prenom.nom@exemple.fr"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-black/10 px-4 py-2 text-[13px] font-medium text-mute hover:bg-black/[0.03]"
-                onClick={() => setInviteOpen(false)}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ padding: '8px 16px', fontSize: 13, borderRadius: 10 }}
-                onClick={submitInvite}
-              >
-                Envoyer l&apos;invitation
-              </button>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-    </section>
-  );
-}
-
-/* ——— Abonnement ——— */
-
-function SectionBilling({ onSaved }: { onSaved: (msg?: string) => void }) {
+function SectionBilling() {
+  const { agency } = useUser();
   return (
     <section>
       <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
         Abonnement
       </h2>
-
-      <div className="max-w-xl rounded-2xl border border-black/8 bg-white p-6 shadow-soft">
-        <p className="font-semibold text-ink" style={{ fontSize: 16 }}>
-          Votre accès Priimo
-        </p>
-        <p className="mt-2 text-mute" style={{ fontSize: 14, lineHeight: 1.55 }}>
-          Les formules et tarifs publics ne sont pas encore publiés. Vous êtes actuellement en{' '}
-          <span className="font-medium text-ink">bêta privée</span>. Pour modifier votre abonnement,
-          votre moyen de paiement ou consulter vos factures, utilisez le bouton ci-dessous : nous vous enverrons un{' '}
-          <span className="font-medium text-ink">lien sécurisé Stripe</span> (portail client) par e-mail à l&apos;adresse de
-          votre agence.
-        </p>
+      <div className="flex max-w-xl flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
+            Plan actuel
+          </p>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center rounded-full px-3 py-1 font-semibold ${PLAN_BADGE_CLASSES[agency.plan]}`}
+              style={{ fontSize: 12 }}
+            >
+              {PLAN_LABEL[agency.plan]}
+            </span>
+            <span className="font-medium text-ink" style={{ fontSize: 14 }}>
+              {PLAN_PRICE[agency.plan]}
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
+            Prochain renouvellement
+          </p>
+          <p className="text-ink" style={{ fontSize: 14 }}>
+            À venir
+          </p>
+        </div>
         <button
           type="button"
-          className="btn btn-primary mt-6 w-full min-h-[48px] sm:w-auto"
-          style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
-          onClick={() => {
-            console.log('[Settings] Envoi lien portail Stripe (simulation)');
-            onSaved('Un lien Stripe vient de vous être envoyé par e-mail.');
-          }}
+          disabled
+          className="self-start rounded-lg border border-black/10 bg-soft-gray/60 px-4 py-2 font-medium text-mute"
+          style={{ fontSize: 13 }}
         >
-          Modifier mon abonnement
+          Gérer mon abonnement — Disponible bientôt
         </button>
       </div>
     </section>
   );
 }
 
-/* ——— Mon profil ——— */
+function SectionNotifications() {
+  const { user, profile } = useUser();
+  const router = useRouter();
+  const initial = useMemo<NotificationPreferences>(() => {
+    const p = profile.preferences as Partial<NotificationPreferences>;
+    return {
+      newLeads: p.newLeads ?? true,
+      weeklyDigest: p.weeklyDigest ?? true,
+      productTips: p.productTips ?? false,
+    };
+  }, [profile.preferences]);
+  const [prefs, setPrefs] = useState<NotificationPreferences>(initial);
+  const [saving, setSaving] = useState(false);
 
-function SectionProfile({ onSaved, readOnlyEmail = false }: { onSaved: (msg?: string) => void; readOnlyEmail?: boolean }) {
-  const [firstName, setFirstName] = useState('Alexandre');
-  const [lastName, setLastName] = useState('Martin');
-  const [email, setEmail] = useState('a.martin@agencetest.fr');
-  const [oldPw, setOldPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-
-  const savePw = () => {
-    console.log('[Settings] Changement mot de passe (simulation)', { oldPw: '***', newPw: '***' });
-    setOldPw('');
-    setNewPw('');
-    setConfirmPw('');
-    onSaved('Mot de passe mis à jour');
-  };
-
-  return (
-    <section>
-      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
-        Mon profil
-      </h2>
-      <div className="flex max-w-xl flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className={labelClass}>Prénom</label>
-            <input className={inputClass} value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
-          </div>
-          <div>
-            <label className={labelClass}>Nom</label>
-            <input className={inputClass} value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
-          </div>
-          <div>
-            <label className={labelClass}>Email</label>
-            {readOnlyEmail ? (
-              <p className="rounded-lg border border-black/8 bg-soft-gray/40 px-[14px] py-[10px] text-[14px] text-mute">
-                {email}
-              </p>
-            ) : (
-              <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-            )}
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary self-start"
-            style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
-            onClick={() => onSaved('Profil enregistré')}
-          >
-            Enregistrer le profil
-          </button>
-        </div>
-
-        <div className="h-px bg-black/[0.08]" />
-
-        <div>
-          <h3 className="mb-4 font-medium text-ink" style={{ fontSize: 15 }}>
-            Mot de passe
-          </h3>
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className={labelClass}>Mot de passe actuel</label>
-              <input className={inputClass} type="password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>Nouveau mot de passe</label>
-              <input className={inputClass} type="password" autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>Confirmer le nouveau mot de passe</label>
-              <input
-                className={inputClass}
-                type="password"
-                autoComplete="new-password"
-                value={confirmPw}
-                onChange={(e) => setConfirmPw(e.target.value)}
-              />
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary mt-4"
-            style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
-            onClick={savePw}
-          >
-            Mettre à jour le mot de passe
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ——— Notifications ——— */
-
-function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?: string) => void; simplified?: boolean }) {
-  const [emailLeads, setEmailLeads] = useState(true);
-  const [freq, setFreq] = useState('Hebdomadaire');
-  const [alert90, setAlert90] = useState(true);
-  const [notificationEmails, setNotificationEmails] = useState<string[]>(['contact@agencetest.fr']);
-  const [newEmail, setNewEmail] = useState('');
-
-  const addEmail = () => {
-    const trimmed = newEmail.trim().toLowerCase();
-    if (!trimmed) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+  const update = async (next: NotificationPreferences) => {
+    setPrefs(next);
+    setSaving(true);
+    const supabase = createSupabaseBrowserClient();
+    const merged = { ...(profile.preferences ?? {}), ...next };
+    const { error } = await supabase.from('profiles').update({ preferences: merged }).eq('id', user.id);
+    setSaving(false);
+    if (error) {
+      toast.error(`Impossible d'enregistrer : ${error.message}`);
+      setPrefs(initial);
       return;
     }
-    if (notificationEmails.some((e) => e.toLowerCase() === trimmed)) {
-      setNewEmail('');
-      return;
-    }
-    setNotificationEmails((prev) => [...prev, trimmed]);
-    setNewEmail('');
-  };
-
-  const removeEmail = (addr: string) => {
-    setNotificationEmails((prev) => prev.filter((e) => e !== addr));
+    toast.success('Préférences mises à jour');
+    router.refresh();
   };
 
   return (
@@ -541,90 +312,26 @@ function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?:
       <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
         Notifications
       </h2>
-      <div className="flex max-w-xl flex-col gap-6">
+      <ul className="flex max-w-xl flex-col gap-2">
         <ToggleRow
-          label="Recevoir les nouveaux leads par email"
-          checked={emailLeads}
-          onChange={setEmailLeads}
+          label="Recevoir un email quand de nouveaux prospects sont disponibles"
+          checked={prefs.newLeads}
+          disabled={saving}
+          onChange={(v) => update({ ...prefs, newLeads: v })}
         />
-        <div>
-          <label className={labelClass}>Fréquence des rapports</label>
-          <select className={inputClass} value={freq} onChange={(e) => setFreq(e.target.value)}>
-            <option>Quotidien</option>
-            <option>Hebdomadaire</option>
-            <option>Mensuel</option>
-            <option>Désactivé</option>
-          </select>
-        </div>
-
-        {!simplified && (
-          <>
-            <ToggleRow label="Alerte immédiate pour les leads score ≥ 90" checked={alert90} onChange={setAlert90} />
-
-            <div>
-              <label className={labelClass}>Adresses e-mail (équipe)</label>
-              <p className="mb-3 text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
-                Ajoutez les adresses qui doivent recevoir les notifications (collaborateurs, direction, assistantes…).
-                Les options ci-dessus s&apos;appliquent à toutes ces adresses.
-              </p>
-              <ul className="mb-3 flex flex-col gap-2">
-                {notificationEmails.map((addr) => (
-                  <li
-                    key={addr}
-                    className="flex min-h-[48px] items-center justify-between gap-3 rounded-lg border border-black/8 bg-soft-gray/30 px-3 py-2"
-                  >
-                    <span className="min-w-0 truncate font-medium text-ink" style={{ fontSize: 14 }}>
-                      {addr}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-red-50 hover:text-red-700"
-                      aria-label={`Retirer ${addr}`}
-                      onClick={() => removeEmail(addr)}
-                    >
-                      <Trash2 size={18} strokeWidth={2} aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                <input
-                  className={inputClass}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="ex. prenom.nom@agence.fr"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addEmail();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-lg border border-black/15 bg-white px-4 text-[14px] font-semibold text-ink transition-colors hover:border-accent/40 hover:bg-soft-warm/40"
-                  onClick={addEmail}
-                >
-                  <UserPlus size={18} strokeWidth={2} aria-hidden />
-                  Ajouter
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        <button
-          type="button"
-          className="btn btn-primary self-start"
-          style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
-          onClick={() => onSaved()}
-        >
-          Enregistrer les préférences
-        </button>
-      </div>
+        <ToggleRow
+          label="Recevoir un récapitulatif hebdomadaire"
+          checked={prefs.weeklyDigest}
+          disabled={saving}
+          onChange={(v) => update({ ...prefs, weeklyDigest: v })}
+        />
+        <ToggleRow
+          label="Recevoir des conseils produit"
+          checked={prefs.productTips}
+          disabled={saving}
+          onChange={(v) => update({ ...prefs, productTips: v })}
+        />
+      </ul>
     </section>
   );
 }
@@ -632,98 +339,266 @@ function SectionNotifications({ onSaved, simplified = false }: { onSaved: (msg?:
 function ToggleRow({
   label,
   checked,
+  disabled,
   onChange,
 }: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex cursor-default items-center justify-between gap-4 rounded-lg border border-black/8 bg-soft-gray/30 px-4 py-3">
-      <span className="font-medium text-gray-700" style={{ fontSize: 14 }}>
+    <li className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.06] bg-white px-4 py-3">
+      <span className="text-ink" style={{ fontSize: 13.5 }}>
         {label}
       </span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
-        aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-7 w-12 flex-shrink-0 rounded-full transition-colors ${checked ? 'bg-accent' : 'bg-black/15'}`}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+          checked ? 'bg-accent' : 'bg-black/15'
+        }`}
       >
         <span
-          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? 'left-5' : 'left-0.5'}`}
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-soft transition-transform ${
+            checked ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
         />
       </button>
-    </div>
+    </li>
   );
 }
 
-/* ——— Sécurité ——— */
+function SectionProfile() {
+  const { user, profile } = useUser();
+  const router = useRouter();
+  const [firstName, setFirstName] = useState(profile.first_name);
+  const [lastName, setLastName] = useState(profile.last_name);
+  const [saving, setSaving] = useState(false);
+  const [pwdModalOpen, setPwdModalOpen] = useState(false);
 
-function SectionSecurity({ onSaved }: { onSaved: (msg?: string) => void }) {
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from('profiles')
+      .update({ first_name: firstName.trim(), last_name: lastName.trim() })
+      .eq('id', user.id);
+    setSaving(false);
+    if (error) {
+      toast.error(`Impossible d'enregistrer : ${error.message}`);
+      return;
+    }
+    toast.success('Profil mis à jour');
+    router.refresh();
+  };
+
+  return (
+    <section>
+      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
+        Mon profil
+      </h2>
+      <div className="flex max-w-xl flex-col gap-5">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="profile-firstName" className={labelClass}>
+              Prénom
+            </label>
+            <input
+              id="profile-firstName"
+              className={inputClass}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="profile-lastName" className={labelClass}>
+              Nom
+            </label>
+            <input
+              id="profile-lastName"
+              className={inputClass}
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="profile-email" className={labelClass}>
+            Email
+          </label>
+          <input id="profile-email" className={`${inputClass} bg-soft-gray/40`} value={user.email} readOnly />
+          <p className="mt-1 text-mute" style={{ fontSize: 12 }}>
+            Pour modifier votre adresse, contactez le support.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
+            onClick={save}
+            disabled={saving || !firstName.trim() || !lastName.trim()}
+          >
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPwdModalOpen(true)}
+            className="rounded-lg border border-black/10 bg-white px-4 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04]"
+            style={{ fontSize: 13 }}
+          >
+            Changer mon mot de passe
+          </button>
+        </div>
+      </div>
+
+      <ChangePasswordModal open={pwdModalOpen} onClose={() => setPwdModalOpen(false)} />
+    </section>
+  );
+}
+
+function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [newPwd, setNewPwd] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setNewPwd('');
+      setConfirm('');
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (newPwd.length < 8) {
+      toast.error('Le mot de passe doit faire au moins 8 caractères.');
+      return;
+    }
+    if (newPwd !== confirm) {
+      toast.error('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    setSaving(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.updateUser({ password: newPwd });
+    setSaving(false);
+    if (error) {
+      toast.error(`Erreur : ${error.message}`);
+      return;
+    }
+    toast.success('Mot de passe mis à jour');
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Changer mon mot de passe" maxWidth="sm">
+      <div className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="new-password" className={labelClass}>
+            Nouveau mot de passe
+          </label>
+          <input
+            id="new-password"
+            className={inputClass}
+            type="password"
+            value={newPwd}
+            onChange={(e) => setNewPwd(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <div>
+          <label htmlFor="confirm-password" className={labelClass}>
+            Confirmer
+          </label>
+          <input
+            id="confirm-password"
+            className={inputClass}
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="mt-2 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 font-medium text-ink hover:bg-black/[0.04]"
+            style={{ fontSize: 13 }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving || !newPwd || !confirm}
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
+          >
+            {saving ? 'Enregistrement…' : 'Mettre à jour'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function SectionSecurity() {
+  const [signingOut, setSigningOut] = useState(false);
+
+  const signOutEverywhere = useCallback(async () => {
+    setSigningOut(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    setSigningOut(false);
+    if (error) {
+      toast.error(`Erreur : ${error.message}`);
+      return;
+    }
+    window.location.href = '/login';
+  }, []);
 
   return (
     <section>
       <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
         Sécurité
       </h2>
-      <div className="flex max-w-xl flex-col gap-8">
-        <div>
-          <h3 className="mb-2 font-medium text-ink" style={{ fontSize: 15 }}>
-            Sessions
-          </h3>
-          <p className="mb-3 text-mute" style={{ fontSize: 13, lineHeight: 1.55 }}>
-            Déconnectez tous les appareils connectés à votre compte (ordinateurs, tablettes, mobiles).
+      <div className="flex max-w-xl flex-col gap-4">
+        <div className="rounded-xl border border-black/[0.08] bg-white px-4 py-3">
+          <p className="font-medium text-ink" style={{ fontSize: 14 }}>
+            Se déconnecter de tous les appareils
+          </p>
+          <p className="mt-1 text-mute" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+            Termine toutes les sessions actives sur tous vos appareils.
           </p>
           <button
             type="button"
-            className="rounded-lg border border-black/15 bg-white px-4 py-2.5 text-[13px] font-medium text-ink transition-colors hover:border-black/25"
-            onClick={() => {
-              console.log('[Settings] Déconnexion de tous les appareils');
-              onSaved('Sessions révoquées');
-            }}
+            onClick={signOutEverywhere}
+            disabled={signingOut}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ fontSize: 13 }}
           >
-            Se déconnecter de tous les appareils
+            <LogOut size={16} strokeWidth={2} aria-hidden />
+            {signingOut ? 'Déconnexion…' : 'Se déconnecter partout'}
           </button>
         </div>
-
-        <div className="h-px bg-black/[0.08]" />
-
-        <div>
-          <button type="button" className="text-[13px] font-medium text-red-700 underline-offset-2 hover:underline" onClick={() => setDeleteOpen(true)}>
+        <div className="rounded-xl border border-black/[0.08] bg-white px-4 py-3">
+          <p className="font-medium text-ink" style={{ fontSize: 14 }}>
             Supprimer mon compte
-          </button>
+          </p>
+          <p className="mt-1 text-mute" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+            Pour supprimer définitivement votre compte, contactez{' '}
+            <a className="text-accent-dark underline" href="mailto:contact@priimo.fr">
+              contact@priimo.fr
+            </a>
+            .
+          </p>
         </div>
       </div>
-
-      {deleteOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/25 p-4" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
-          <div className="w-full max-w-md rounded-2xl border border-black/8 bg-white p-6 shadow-xl">
-            <h3 id="delete-dialog-title" className="font-semibold text-ink" style={{ fontSize: 17 }}>
-              Suppression de compte
-            </h3>
-            <p className="mt-3 text-mute" style={{ fontSize: 14, lineHeight: 1.6 }}>
-              Pour supprimer définitivement votre compte et vos données, contactez{' '}
-              <a href="mailto:support@priimo.fr" className="font-medium text-accent-dark underline">
-                support@priimo.fr
-              </a>
-              .
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
-                onClick={() => setDeleteOpen(false)}
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

@@ -180,11 +180,7 @@ export async function POST(req: Request) {
 
   const ip = clientIp(req);
 
-  // --- 3. Persist (here: structured log) ---
-  // Vercel captures stdout — these lines are searchable in the dashboard.
-  console.log("[beta:signup]", { ip, ...clean });
-
-  // --- 4. Optional parallel side-effects (never block each other > timeout) ---
+  // --- 3. Optional parallel side-effects (never block each other > timeout) ---
   await Promise.all([forwardToWebhook(clean, ip), persistSignupBlob(clean, ip)]);
 
   return NextResponse.json({ ok: true });
