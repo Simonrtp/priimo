@@ -337,7 +337,7 @@ function InvitePageContent() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Minimum 8 caractères"
                     aria-describedby="password-hint"
-                    className={`${inputClass} pr-11`}
+                    className={`password-field-custom-toggle ${inputClass} pr-11`}
                   />
                   <button
                     type="button"

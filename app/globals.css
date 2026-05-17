@@ -370,6 +370,18 @@ body {
 /* tabular-nums utility */
 .tabular { font-feature-settings: 'tnum'; }
 
+/* Password fields with a custom show/hide toggle — hide browser-native reveal (Edge, Chromium on Windows) */
+.password-field-custom-toggle::-ms-reveal,
+.password-field-custom-toggle::-ms-clear {
+  display: none;
+}
+.password-field-custom-toggle::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
 /* === HERO ANIMATED BACKGROUND === */
 .hero-bg {
   position: absolute;

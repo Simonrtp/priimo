@@ -173,7 +173,7 @@ export default function LoginPage() {
                   aria-invalid={!!errors.password}
                   aria-describedby={errors.password ? "password-error" : undefined}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border bg-white border-black/10 text-gray-900 placeholder-gray-500/70 px-4 py-3 pr-11 text-base outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                  className="password-field-custom-toggle w-full rounded-xl border bg-white border-black/10 text-gray-900 placeholder-gray-500/70 px-4 py-3 pr-11 text-base outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
                 />
                 <button
                   type="button"
