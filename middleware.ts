@@ -1,9 +1,36 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env';
 
 const PUBLIC_ROUTES = new Set(['/', '/login', '/invite', '/cgu']);
 const PUBLIC_API_PREFIXES = ['/api/beta'];
+
+async function getDirectorOnboardingState(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+): Promise<{ isDirector: boolean; needsOnboarding: boolean }> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, agency_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!profile || profile.role !== 'directeur') {
+    return { isDirector: false, needsOnboarding: false };
+  }
+
+  const { data: agency } = await supabase
+    .from('agencies')
+    .select('zone_center_address, zone_latitude, zone_longitude, zone_radius_km')
+    .eq('id', profile.agency_id)
+    .maybeSingle();
+
+  return {
+    isDirector: true,
+    needsOnboarding: agencyNeedsOnboarding(agency),
+  };
+}
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request });
@@ -28,15 +55,38 @@ export async function middleware(request: NextRequest) {
     PUBLIC_ROUTES.has(pathname) || PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (!user && pathname.startsWith('/dashboard')) {
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  if (!user && pathname.startsWith('/onboarding')) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Évite warning lint sur isPublic non utilisé (réservé futures évolutions).
+  if (user) {
+    const onboardingState =
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/onboarding') ||
+      pathname === '/login' ||
+      pathname === '/signup'
+        ? await getDirectorOnboardingState(supabase, user.id)
+        : { isDirector: false, needsOnboarding: false };
+
+    if (onboardingState.isDirector && onboardingState.needsOnboarding) {
+      if (pathname.startsWith('/dashboard')) {
+        return NextResponse.redirect(new URL('/onboarding', request.url));
+      }
+    } else if (pathname.startsWith('/onboarding')) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    if (pathname === '/login' || pathname === '/signup') {
+      const target = onboardingState.isDirector && onboardingState.needsOnboarding
+        ? '/onboarding'
+        : '/dashboard';
+      return NextResponse.redirect(new URL(target, request.url));
+    }
+  }
+
   void isPublic;
 
   return response;

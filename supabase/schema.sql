@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS public.agencies (
   email               text,
   plan                text          NOT NULL DEFAULT 'fondateur',
   zone_center_address text,
+  zone_latitude       double precision,
+  zone_longitude      double precision,
   zone_radius_km      numeric,
   stripe_customer_id  text,
   created_at          timestamptz   NOT NULL DEFAULT now(),
@@ -77,8 +79,13 @@ CREATE TABLE IF NOT EXISTS public.agencies (
 
 COMMENT ON TABLE  public.agencies                     IS 'Agences clientes Priimo (une ligne par agence).';
 COMMENT ON COLUMN public.agencies.plan                IS 'Plan d''abonnement : fondateur | standard | premium | reseau.';
-COMMENT ON COLUMN public.agencies.zone_center_address IS 'Adresse du centre de la zone de prospection (libre, géocodée côté app).';
+COMMENT ON COLUMN public.agencies.zone_center_address IS 'Adresse du centre de la zone de prospection (libellé BAN).';
+COMMENT ON COLUMN public.agencies.zone_latitude       IS 'Latitude du centre de zone (WGS84).';
+COMMENT ON COLUMN public.agencies.zone_longitude      IS 'Longitude du centre de zone (WGS84).';
 COMMENT ON COLUMN public.agencies.zone_radius_km      IS 'Rayon de la zone de prospection en kilomètres.';
+
+ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_latitude double precision;
+ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_longitude double precision;
 COMMENT ON COLUMN public.agencies.stripe_customer_id  IS 'Identifiant client Stripe — rempli au passage à un plan payant.';
 
 CREATE INDEX IF NOT EXISTS idx_agencies_plan ON public.agencies (plan);

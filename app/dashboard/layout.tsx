@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { UserProvider } from '@/components/providers/UserProvider';
@@ -10,6 +11,7 @@ import { PLAN_LEADS_QUOTA } from '@/lib/plan-meta';
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
+  if (profile.role === 'directeur' && agencyNeedsOnboarding(agency)) redirect('/onboarding');
 
   const supabase = await createSupabaseServerClient();
   const monthStart = new Date();

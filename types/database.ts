@@ -31,6 +31,8 @@ export type AgencyRow = {
   email: string | null;
   plan: PlanCode;
   zone_center_address: string | null;
+  zone_latitude: number | null;
+  zone_longitude: number | null;
   zone_radius_km: number | null;
   stripe_customer_id: string | null;
   created_at: string;
@@ -105,6 +107,8 @@ export type AgencyInsert = {
   email?: string | null;
   plan?: PlanCode;
   zone_center_address?: string | null;
+  zone_latitude?: number | null;
+  zone_longitude?: number | null;
   zone_radius_km?: number | null;
   stripe_customer_id?: string | null;
   created_at?: string;

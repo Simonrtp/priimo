@@ -1,11 +1,13 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useUser } from '@/lib/hooks/useUser';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import Modal from '@/components/ui/Modal';
+import { SkeletonTeamList } from '@/components/ui/Skeleton';
 import type { InvitationRow, ProfileRole } from '@/types/database';
 import type { TeamMemberDto } from '@/app/api/team/route';
 
@@ -62,7 +64,7 @@ export default function SectionTeam() {
       ]);
       if (!teamRes.ok) {
         const body = (await teamRes.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? 'Impossible de charger l’équipe.');
+        throw new Error(body.error ?? 'Impossible de charger lâ€™Ã©quipe.');
       }
       const teamBody = (await teamRes.json()) as { members: TeamMemberDto[] };
       setMembers(teamBody.members);
@@ -85,7 +87,7 @@ export default function SectionTeam() {
     <section>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-semibold text-ink" style={{ fontSize: 18 }}>
-          Mon équipe
+          Mon Ã©quipe
         </h2>
         <button
           type="button"
@@ -98,11 +100,7 @@ export default function SectionTeam() {
         </button>
       </div>
 
-      {loading && (
-        <div className="rounded-xl border border-dashed border-black/10 px-4 py-8 text-center text-mute" style={{ fontSize: 13 }}>
-          Chargement de l&apos;équipe…
-        </div>
-      )}
+      {loading && <SkeletonTeamList count={3} />}
 
       {!loading && error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700" style={{ fontSize: 13 }}>
@@ -115,7 +113,7 @@ export default function SectionTeam() {
           <ul className="flex flex-col gap-2">
             {members.length === 0 && (
               <li className="rounded-xl border border-dashed border-black/10 px-4 py-6 text-center text-mute" style={{ fontSize: 13 }}>
-                Aucun membre dans votre équipe.
+                Aucun membre dans votre Ã©quipe.
               </li>
             )}
             {members.map((m) => {
@@ -207,6 +205,7 @@ function InvitationRowItem({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState<'resend' | 'cancel' | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const handleResend = async () => {
     setBusy('resend');
@@ -217,7 +216,7 @@ function InvitationRowItem({
       toast.error(body.error ?? "Impossible de renvoyer l'invitation.");
       return;
     }
-    toast.success('Invitation renvoyée');
+    toast.success('Email renvoyÃ©');
     onChanged();
   };
 
@@ -230,7 +229,8 @@ function InvitationRowItem({
       toast.error(body.error ?? "Impossible d'annuler l'invitation.");
       return;
     }
-    toast.success('Invitation annulée');
+    toast.success('Invitation annulÃ©e');
+    setCancelOpen(false);
     onChanged();
   };
 
@@ -241,7 +241,7 @@ function InvitationRowItem({
           {invitation.email}
         </p>
         <p className="text-mute" style={{ fontSize: 12 }}>
-          Envoyée le {formatDateFr(invitation.created_at)} — expire le {formatDateFr(invitation.expires_at)}
+          EnvoyÃ©e le {formatDateFr(invitation.created_at)} â€” expire le {formatDateFr(invitation.expires_at)}
         </p>
       </div>
       <div className="flex flex-shrink-0 gap-2">
@@ -252,18 +252,30 @@ function InvitationRowItem({
           className="rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-60"
           style={{ fontSize: 12.5 }}
         >
-          {busy === 'resend' ? 'Envoi…' : 'Renvoyer'}
+          {busy === 'resend' ? 'Envoiâ€¦' : 'Renvoyer'}
         </button>
         <button
           type="button"
-          onClick={handleCancel}
+          onClick={() => setCancelOpen(true)}
           disabled={busy !== null}
           className="rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
           style={{ fontSize: 12.5 }}
         >
-          {busy === 'cancel' ? 'Annulation…' : 'Annuler'}
+          Annuler
         </button>
       </div>
+
+      <ConfirmModal
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onConfirm={handleCancel}
+        title="Annuler cette invitation ?"
+        message="L'email n'en recevra pas de notification."
+        primaryLabel="Confirmer l'annulation"
+        secondaryLabel="Annuler"
+        variant="danger"
+        isLoading={busy === 'cancel'}
+      />
     </li>
   );
 }
@@ -304,7 +316,7 @@ function InviteModal({
       toast.error(body.error ?? "Impossible d'envoyer l'invitation.");
       return;
     }
-    toast.success(`Invitation envoyée à ${trimmed}`);
+    toast.success(`Invitation envoyÃ©e Ã  ${trimmed}`);
     onInvited();
   };
 
@@ -347,7 +359,7 @@ function InviteModal({
             className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
             style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
           >
-            {sending ? 'Envoi…' : 'Envoyer l’invitation'}
+            {sending ? 'Envoiâ€¦' : 'Envoyer lâ€™invitation'}
           </button>
         </div>
       </div>
@@ -376,43 +388,21 @@ function ConfirmRemoveModal({
       toast.error(body.error ?? 'Impossible de retirer ce membre.');
       return;
     }
-    toast.success(`${member.firstName} ${member.lastName} retiré(e) de l’équipe`);
+    toast.success("Collaborateur retirÃ© de l'Ã©quipe");
     onRemoved();
   };
 
   return (
-    <Modal
+    <ConfirmModal
       open={member !== null}
       onClose={onClose}
-      title="Retirer un collaborateur"
-      maxWidth="sm"
-    >
-      <p className="text-ink" style={{ fontSize: 14, lineHeight: 1.55 }}>
-        Êtes-vous sûr de vouloir retirer{' '}
-        <span className="font-semibold">
-          {member?.firstName} {member?.lastName}
-        </span>{' '}
-        de votre équipe ? Cette action est irréversible.
-      </p>
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg px-4 py-2 font-medium text-ink hover:bg-black/[0.04]"
-          style={{ fontSize: 13 }}
-        >
-          Annuler
-        </button>
-        <button
-          type="button"
-          onClick={confirm}
-          disabled={removing}
-          className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          style={{ fontSize: 13 }}
-        >
-          {removing ? 'Retrait…' : 'Retirer'}
-        </button>
-      </div>
-    </Modal>
+      onConfirm={confirm}
+      title="Retirer cet agent ?"
+      message="ÃŠtes-vous sÃ»r ? Il ne pourra plus accÃ©der au compte."
+      primaryLabel="Retirer"
+      secondaryLabel="Annuler"
+      variant="danger"
+      isLoading={removing}
+    />
   );
 }

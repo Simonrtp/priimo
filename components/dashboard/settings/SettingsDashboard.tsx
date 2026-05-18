@@ -6,7 +6,15 @@ import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { PLAN_BADGE_CLASSES, PLAN_LABEL, PLAN_PRICE } from '@/lib/plan-meta';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import type { SelectedAddress } from '@/lib/ban';
+import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
+import {
+  ZONE_RADIUS_KM_DEFAULT,
+  ZONE_RADIUS_KM_MAX,
+  ZONE_RADIUS_KM_MIN,
+  clampZoneRadiusKm,
+} from '@/lib/zone-config';
 import type { NotificationPreferences } from '@/types/database';
 import Modal from '@/components/ui/Modal';
 import SectionTeam from './SectionTeam';
@@ -137,6 +145,27 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
   );
 }
 
+function agencyToZoneData(agency: {
+  zone_center_address: string | null;
+  zone_latitude: number | null;
+  zone_longitude: number | null;
+}): SelectedAddress | null {
+  if (
+    !agency.zone_center_address?.trim() ||
+    agency.zone_latitude == null ||
+    agency.zone_longitude == null
+  ) {
+    return null;
+  }
+  return {
+    label: agency.zone_center_address,
+    latitude: agency.zone_latitude,
+    longitude: agency.zone_longitude,
+    city: '',
+    postcode: '',
+  };
+}
+
 function SectionAgency() {
   const { agency } = useUser();
   const router = useRouter();
@@ -144,9 +173,20 @@ function SectionAgency() {
   const [address, setAddress] = useState(agency.address ?? '');
   const [phone, setPhone] = useState(agency.phone ?? '');
   const [email, setEmail] = useState(agency.email ?? '');
+  const [zoneData, setZoneData] = useState<SelectedAddress | null>(() => agencyToZoneData(agency));
+  const [zoneRadiusKm, setZoneRadiusKm] = useState(() => {
+    if (agency.zone_radius_km != null && Number(agency.zone_radius_km) > 0) {
+      return clampZoneRadiusKm(Number(agency.zone_radius_km));
+    }
+    return ZONE_RADIUS_KM_DEFAULT;
+  });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
+    if (!zoneData) {
+      toast.error('Sélectionnez une adresse de zone dans la liste de suggestions.');
+      return;
+    }
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
@@ -156,11 +196,15 @@ function SectionAgency() {
         address: address.trim() || null,
         phone: phone.trim() || null,
         email: email.trim() || null,
+        zone_center_address: zoneData.label,
+        zone_latitude: zoneData.latitude,
+        zone_longitude: zoneData.longitude,
+        zone_radius_km: zoneRadiusKm,
       })
       .eq('id', agency.id);
     setSaving(false);
     if (error) {
-      toast.error(`Impossible d'enregistrer : ${error.message}`);
+      toast.error('Erreur lors de la sauvegarde');
       return;
     }
     toast.success('Agence mise à jour');
@@ -214,6 +258,54 @@ function SectionAgency() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
+
+        <div className="border-t border-black/[0.06] pt-5">
+          <h3 className="mb-4 font-semibold text-ink" style={{ fontSize: 15 }}>
+            Zone de prospection
+          </h3>
+          <div className="space-y-5">
+            <div>
+              <label htmlFor="agency-zone-center" className={labelClass}>
+                Centre de la zone
+              </label>
+              <AddressAutocomplete
+                id="agency-zone-center"
+                value={zoneData?.label ?? agency.zone_center_address ?? ''}
+                onChange={setZoneData}
+                placeholder="Ex : 5 rue Esquirol, 75013 Paris"
+                inputClassName={`${inputClass} pl-10 pr-10`}
+              />
+              {zoneData && (zoneData.city || zoneData.postcode) ? (
+                <p className="mt-2 text-sm text-green-700">
+                  Adresse validée — {zoneData.city} {zoneData.postcode}
+                </p>
+              ) : zoneData ? (
+                <p className="mt-2 text-sm text-green-700">Adresse validée</p>
+              ) : null}
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label htmlFor="agency-zone-radius" className={labelClass}>
+                  Rayon
+                </label>
+                <span className="text-sm font-semibold tabular-nums text-accent-dark">
+                  {zoneRadiusKm} km
+                </span>
+              </div>
+              <input
+                id="agency-zone-radius"
+                type="range"
+                min={ZONE_RADIUS_KM_MIN}
+                max={ZONE_RADIUS_KM_MAX}
+                step={1}
+                value={zoneRadiusKm}
+                onChange={(e) => setZoneRadiusKm(clampZoneRadiusKm(Number(e.target.value)))}
+                className="w-full accent-accent"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-dashed border-black/10 bg-soft-gray/40 px-4 py-3 text-mute" style={{ fontSize: 13 }}>
           <p className="font-medium text-ink">Logo de l&apos;agence</p>
           <p className="mt-0.5">Bientôt disponible.</p>
@@ -223,7 +315,7 @@ function SectionAgency() {
           className="btn btn-primary mt-2 self-start disabled:cursor-not-allowed disabled:opacity-60"
           style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
           onClick={save}
-          disabled={saving || !name.trim()}
+          disabled={saving || !name.trim() || !zoneData}
         >
           {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
         </button>
@@ -244,16 +336,16 @@ function SectionBilling() {
           <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
             Plan actuel
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <span
-              className={`inline-flex items-center rounded-full px-3 py-1 font-semibold ${PLAN_BADGE_CLASSES[agency.plan]}`}
+              className={`inline-flex w-fit items-center rounded-full px-3 py-1 font-semibold ${PLAN_BADGE_CLASSES[agency.plan]}`}
               style={{ fontSize: 12 }}
             >
               {PLAN_LABEL[agency.plan]}
             </span>
-            <span className="font-medium text-ink" style={{ fontSize: 14 }}>
-              {PLAN_PRICE[agency.plan]}
-            </span>
+            <p className="text-mute" style={{ fontSize: 14 }}>
+              La gestion de l&apos;abonnement et la tarification arrivent bientôt.
+            </p>
           </div>
         </div>
         <div className="flex flex-col gap-1">
@@ -389,7 +481,7 @@ function SectionProfile() {
       .eq('id', user.id);
     setSaving(false);
     if (error) {
-      toast.error(`Impossible d'enregistrer : ${error.message}`);
+      toast.error('Erreur lors de la sauvegarde');
       return;
     }
     toast.success('Profil mis à jour');

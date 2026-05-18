@@ -6,8 +6,6 @@ import { LogOut, Settings, Target } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { useUser } from '@/lib/hooks/useUser';
-import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
-
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
 
@@ -119,11 +117,6 @@ export default function Sidebar({ leadsThisMonth, monthlyQuota }: SidebarProps) 
         <p className="truncate font-medium text-white" style={{ fontSize: 14 }} title={agency.name}>
           {agency.name}
         </p>
-        <span
-          className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${PLAN_BADGE_CLASSES[agency.plan]}`}
-        >
-          {PLAN_LABEL[agency.plan]}
-        </span>
         {isDirector && (
           <>
             <p className="mt-3 text-[11px] tabular text-white/80">
