@@ -2,36 +2,22 @@
 
 import { ICONS } from '@/lib/iconMapping';
 
-const PARIS_MAPS_URL =
-  'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Paris, France');
-
 export default function MapViewPlaceholder() {
   return (
-    <div
-      className="rounded-2xl border border-black/8 shadow-soft bg-[#F4F4F2] flex flex-col items-center justify-center text-center px-6"
-      style={{ minHeight: 480 }}
-    >
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-black/8 bg-[#F4F4F2] px-6 text-center shadow-soft" style={{ minHeight: 480 }}>
       <div
-        className="rounded-2xl bg-white/80 border border-black/[0.06] flex items-center justify-center mb-5"
+        className="mb-5 flex items-center justify-center rounded-2xl border border-black/[0.06] bg-white/80"
         style={{ width: 72, height: 72 }}
       >
         <ICONS.map className="text-accent" size={40} strokeWidth={2} aria-hidden />
       </div>
-      <p className="font-semibold text-ink mb-1" style={{ fontSize: 16, letterSpacing: '-0.02em' }}>
-        Vue carte interactive
+      <p className="mb-1 font-semibold text-ink" style={{ fontSize: 16, letterSpacing: '-0.02em' }}>
+        Vue carte
       </p>
-      <p className="text-mute max-w-md mb-6" style={{ fontSize: 13, lineHeight: 1.55 }}>
-        Bientôt disponible — pour l’instant :
+      <p className="max-w-md text-mute" style={{ fontSize: 13, lineHeight: 1.55 }}>
+        Fonctionnalité qui arrive bientôt — vous pourrez visualiser vos prospects sur une carte
+        interactive.
       </p>
-      <a
-        href={PARIS_MAPS_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn btn-primary inline-flex items-center justify-center"
-        style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
-      >
-        Ouvrir dans Google Maps
-      </a>
     </div>
   );
 }

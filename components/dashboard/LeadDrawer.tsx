@@ -220,7 +220,7 @@ export default function LeadDrawer({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-8">
             <div className="mb-1 flex items-start justify-between gap-5">
               <LeadAddressHeader
                 id="drawer-address"

@@ -10,7 +10,10 @@ interface StatusSelectProps {
 
 export default function StatusSelect({ currentStatus, onChange }: StatusSelectProps) {
   return (
-    <div className="absolute right-0 top-full mt-1.5 z-50 bg-white border border-black/8 rounded-xl shadow-soft p-1 min-w-[170px]">
+    <div
+      className="absolute right-0 top-full z-[60] mt-1.5 min-w-[170px] rounded-xl border border-black/10 bg-white p-1 shadow-lg ring-1 ring-black/[0.04]"
+      style={{ backgroundColor: '#ffffff' }}
+    >
       {STATUS_ORDER.map((value) => {
         const meta = STATUS_META[value];
         return (

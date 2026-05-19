@@ -23,6 +23,23 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Remonte la ligne au-dessus des cartes suivantes (sinon le menu passe sous les autres lignes).
+  useEffect(() => {
+    const row = ref.current?.closest('[data-lead-card]');
+    if (!row || !(row instanceof HTMLElement)) return;
+    if (open) {
+      row.style.zIndex = '40';
+      row.style.position = 'relative';
+    } else {
+      row.style.zIndex = '';
+      row.style.position = '';
+    }
+    return () => {
+      row.style.zIndex = '';
+      row.style.position = '';
+    };
+  }, [open]);
+
   const meta = STATUS_META[status];
 
   return (

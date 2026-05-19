@@ -70,6 +70,7 @@ export default function LeadCard({
 
   return (
     <div
+      data-lead-card
       onClick={onClick}
       className={`relative cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-md:rounded-xl max-md:border max-md:border-black/8 max-md:bg-white max-md:px-3 max-md:py-3 max-md:shadow-soft md:hover:bg-black/[0.018] lg:flex lg:items-center lg:gap-4 lg:px-5 lg:py-[18px] lg:shadow-none ${
         !isLast ? 'border-b border-black/[0.05] max-md:border-b-0' : ''

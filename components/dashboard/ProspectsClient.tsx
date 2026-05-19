@@ -20,7 +20,7 @@ import TabsNav from './TabsNav';
 import FiltersBar from './FiltersBar';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
 import ProspectsFiltersSheet from './ProspectsFiltersSheet';
-import LeadsMapViewLoader from './LeadsMapViewLoader';
+import MapViewPlaceholder from './MapViewPlaceholder';
 import LeadsList from './LeadsList';
 import LeadDrawer from './LeadDrawer';
 import LeadFullScreenMobile from './LeadFullScreenMobile';
@@ -29,11 +29,6 @@ interface ProspectsClientProps {
   initialLeads: Lead[];
   teamMembers: TeamMember[];
   isDirector: boolean;
-  agencyZone?: {
-    latitude: number;
-    longitude: number;
-    radiusKm: number | null;
-  } | null;
 }
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -100,7 +95,6 @@ export default function ProspectsClient({
   initialLeads,
   teamMembers,
   isDirector,
-  agencyZone = null,
 }: ProspectsClientProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -256,12 +250,7 @@ export default function ProspectsClient({
           onResetFilters={resetFilters}
         />
       ) : (
-        <LeadsMapViewLoader
-          leads={filtered}
-          selectedLeadId={selectedLeadId}
-          onLeadSelect={setSelectedLeadId}
-          agencyZone={agencyZone}
-        />
+        <MapViewPlaceholder />
       )}
 
       <LeadDrawer

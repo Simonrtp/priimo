@@ -31,7 +31,7 @@ export default function LeadsList({
   }
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden max-md:bg-transparent md:gap-0 md:rounded-2xl md:border md:border-black/8 md:bg-white md:shadow-soft">
+    <div className="flex flex-col gap-2 max-md:bg-transparent md:gap-0 md:overflow-visible md:rounded-2xl md:border md:border-black/8 md:bg-white md:shadow-soft">
       {leads.map((lead, i) => (
         <LeadCard
           key={lead.id}
