@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Select from '@/components/ui/Select';
 import type { Filters, SignalType, TeamMember } from '@/types/lead';
 import { STATUS_META, STATUS_ORDER, SIGNAL_META } from '@/lib/lead-meta';
+import ProspectQuickFilters from '@/components/dashboard/ProspectQuickFilters';
 
 interface ProspectsFiltersSheetProps {
   open: boolean;
@@ -61,12 +62,13 @@ export default function ProspectsFiltersSheet({
   if (!open) return null;
 
   const resetDraft = () =>
-    setDraft({ minScore: 0, signalType: 'all', status: 'all', assignedTo: 'all' });
+    setDraft({ minScore: 0, signalType: 'all', status: 'all', assignedTo: 'all', quickFilter: 'all' });
 
   const isDirty =
     draft.minScore > 0 ||
     draft.signalType !== 'all' ||
     draft.status !== 'all' ||
+    draft.quickFilter !== 'all' ||
     (showAssignedFilter && draft.assignedTo !== 'all');
 
   const assignedOptions = [
@@ -109,6 +111,11 @@ export default function ProspectsFiltersSheet({
           className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
         >
+          <ProspectQuickFilters
+            value={draft.quickFilter}
+            onChange={(quickFilter) => setDraft({ ...draft, quickFilter })}
+          />
+
           <div className="mb-5">
             <label className="mb-2 block font-medium text-gray-700" style={{ fontSize: 14 }}>
               Score minimum

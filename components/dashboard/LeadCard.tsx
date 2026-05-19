@@ -2,8 +2,10 @@
 
 import type { Lead, LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
+import ScoreHeatBadge from './ScoreHeatBadge';
 import StatusBadge from './StatusBadge';
-import { getMainSignalLabel } from '@/lib/lead-meta';
+import DetentionLabel from './DetentionLabel';
+import LeadSignalList from './LeadSignalList';
 import { formatPrice } from '@/lib/utils';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
@@ -60,13 +62,11 @@ export default function LeadCard({
   onStatusChange,
 }: LeadCardProps) {
   const isHighIntent = lead.score >= 80 && lead.signals.length > 0;
-  const signal = getMainSignalLabel(lead);
   const propertyType = lead.propertyType ?? 'Bien';
   const surface = lead.surfaceM2 != null ? `${lead.surfaceM2} m²` : null;
   const acquiredPriceLabel =
-    lead.acquiredPrice != null
-      ? `${formatPrice(lead.acquiredPrice)} €${lead.acquiredYear ? ` (${lead.acquiredYear})` : ''}`
-      : null;
+    lead.acquiredPrice != null ? `${formatPrice(lead.acquiredPrice)} €` : null;
+  const hasDetention = lead.acquiredYear != null;
 
   return (
     <div
@@ -81,7 +81,10 @@ export default function LeadCard({
       )}
 
       <div className="flex items-start gap-3 lg:hidden">
-        <ScoreRing score={lead.score} size={36} />
+        <div className="flex flex-shrink-0 flex-col items-center gap-1">
+          <ScoreRing score={lead.score} size={36} />
+          <ScoreHeatBadge score={lead.score} />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <span className="truncate font-semibold text-ink" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
@@ -91,9 +94,15 @@ export default function LeadCard({
               <StatusBadge status={lead.status} onChange={onStatusChange} />
             </div>
           </div>
-          <p className="mt-1 truncate text-mute" style={{ fontSize: 12.5 }}>
-            {signal}
-            <span className="mx-1.5 opacity-40">·</span>
+          {hasDetention && (
+            <div className="mt-1">
+              <DetentionLabel acquiredYear={lead.acquiredYear} variant="stacked" />
+            </div>
+          )}
+          <div className="mt-2">
+            <LeadSignalList signals={lead.signals} variant="summary" />
+          </div>
+          <p className="mt-1.5 truncate text-mute" style={{ fontSize: 12 }}>
             {propertyType}
             {surface && (
               <>
@@ -106,7 +115,10 @@ export default function LeadCard({
       </div>
 
       <div className="hidden w-full items-center gap-4 lg:flex">
-        <ScoreRing score={lead.score} size={44} />
+        <div className="flex flex-shrink-0 flex-col items-center gap-1.5">
+          <ScoreRing score={lead.score} size={44} />
+          <ScoreHeatBadge score={lead.score} />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex items-start gap-2">
             <SegmentRowIcon tab={segmentTab} ownerType={lead.ownerType} />
@@ -127,9 +139,13 @@ export default function LeadCard({
               )}
             </div>
           </div>
-          <p className="min-w-0 truncate text-mute" style={{ fontSize: 12.5 }}>
-            {signal}
-            <span className="mx-1.5 opacity-40">·</span>
+          {hasDetention && (
+            <div className="mb-1.5">
+              <DetentionLabel acquiredYear={lead.acquiredYear} variant="inline" />
+            </div>
+          )}
+          <LeadSignalList signals={lead.signals} variant="summary" />
+          <p className="mt-1 min-w-0 truncate text-mute" style={{ fontSize: 12 }}>
             {propertyType}
             {surface && (
               <>
@@ -140,7 +156,7 @@ export default function LeadCard({
           </p>
         </div>
         {acquiredPriceLabel && (
-          <div className="hidden w-[140px] flex-shrink-0 text-right lg:block">
+          <div className="hidden w-[120px] flex-shrink-0 text-right lg:block">
             <p className="font-medium tabular text-ink" style={{ fontSize: 12.5 }}>
               {acquiredPriceLabel}
             </p>

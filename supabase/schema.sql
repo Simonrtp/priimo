@@ -349,6 +349,37 @@ CREATE POLICY invitations_insert_director
 
 
 -- =====================================================================
+-- 6.D — Policies `leads` (prospects scorés par agence)
+-- =====================================================================
+-- À exécuter si la table `public.leads` existe déjà en base.
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS leads_select_agency ON public.leads;
+CREATE POLICY leads_select_agency
+  ON public.leads
+  FOR SELECT
+  TO authenticated
+  USING (agency_id = public.current_user_agency_id());
+
+DROP POLICY IF EXISTS leads_update_agency ON public.leads;
+CREATE POLICY leads_update_agency
+  ON public.leads
+  FOR UPDATE
+  TO authenticated
+  USING (agency_id = public.current_user_agency_id())
+  WITH CHECK (agency_id = public.current_user_agency_id());
+
+DROP POLICY IF EXISTS leads_delete_agency ON public.leads;
+CREATE POLICY leads_delete_agency
+  ON public.leads
+  FOR DELETE
+  TO authenticated
+  USING (agency_id = public.current_user_agency_id());
+
+-- INSERT : réservé au service_role / pipeline de scoring (pas depuis le client).
+
+
+-- =====================================================================
 -- 7. Hardening — refus explicite des opérations directes par anon
 -- =====================================================================
 -- Par défaut Supabase laisse anon/authenticated en SELECT sur public.*
@@ -357,3 +388,4 @@ CREATE POLICY invitations_insert_director
 REVOKE ALL ON public.agencies    FROM anon;
 REVOKE ALL ON public.profiles    FROM anon;
 REVOKE ALL ON public.invitations FROM anon;
+REVOKE ALL ON public.leads         FROM anon;

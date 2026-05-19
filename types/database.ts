@@ -67,9 +67,17 @@ export type InvitationRow = {
 export type LeadSignalJson = {
   type: string;
   label: string;
-  pts: number;
-  source: string;
+  pts?: number;
+  points?: number;
+  source?: string;
 };
+
+export type LeadSignalsPayloadJson =
+  | LeadSignalJson[]
+  | {
+      details?: LeadSignalJson[];
+      main_signal_label?: string;
+    };
 
 export type LeadRow = {
   id: string;
@@ -85,7 +93,9 @@ export type LeadRow = {
   company_phone: string | null;
   company_email: string | null;
   score: number;
-  signals: LeadSignalJson[];
+  signals: LeadSignalsPayloadJson;
+  latitude: number | null;
+  longitude: number | null;
   acquired_year: number | null;
   acquired_price: number | null;
   estimated_value: number | null;

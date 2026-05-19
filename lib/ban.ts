@@ -39,6 +39,19 @@ export async function searchBanAddresses(query: string, limit = 5): Promise<BanF
   return data.features ?? [];
 }
 
+/** Géocode une adresse complète (1er résultat BAN). */
+export async function geocodeBanQuery(
+  query: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  const q = query.trim();
+  if (q.length < 3) return null;
+  const features = await searchBanAddresses(q, 1);
+  const feature = features[0];
+  if (!feature) return null;
+  const [lng, lat] = feature.geometry.coordinates;
+  return { latitude: lat, longitude: lng };
+}
+
 export function banFeatureToSelectedAddress(feature: BanFeature): SelectedAddress {
   const [lng, lat] = feature.geometry.coordinates;
   return {

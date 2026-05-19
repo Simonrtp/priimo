@@ -11,14 +11,16 @@ import type {
 } from '@/types/lead';
 import { EMPTY_FILTERS, countActiveFilters } from '@/types/lead';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { updateLead as updateLeadDb } from '@/lib/queries/leads';
+import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
 import { uniqueSignalTypes } from '@/lib/lead-meta';
+import { matchesQuickFilter } from '@/lib/lead-display';
+import ProspectQuickFilters from './ProspectQuickFilters';
 import StatsBar from './StatsBar';
 import TabsNav from './TabsNav';
 import FiltersBar from './FiltersBar';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
 import ProspectsFiltersSheet from './ProspectsFiltersSheet';
-import MapViewPlaceholder from './MapViewPlaceholder';
+import LeadsMapViewLoader from './LeadsMapViewLoader';
 import LeadsList from './LeadsList';
 import LeadDrawer from './LeadDrawer';
 import LeadFullScreenMobile from './LeadFullScreenMobile';
@@ -27,6 +29,11 @@ interface ProspectsClientProps {
   initialLeads: Lead[];
   teamMembers: TeamMember[];
   isDirector: boolean;
+  agencyZone?: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number | null;
+  } | null;
 }
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -93,6 +100,7 @@ export default function ProspectsClient({
   initialLeads,
   teamMembers,
   isDirector,
+  agencyZone = null,
 }: ProspectsClientProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -114,11 +122,16 @@ export default function ProspectsClient({
 
   const availableSignals = useMemo<SignalType[]>(() => uniqueSignalTypes(leads), [leads]);
 
+  const segmentLeads = useMemo(
+    () => leads.filter((l) => matchesSegmentTab(l, segmentTab)),
+    [leads, segmentTab],
+  );
+
   const filtered = useMemo(
     () =>
-      leads.filter((l) => {
-        if (!matchesSegmentTab(l, segmentTab)) return false;
+      segmentLeads.filter((l) => {
         if (l.score < filters.minScore) return false;
+        if (!matchesQuickFilter(l, filters.quickFilter)) return false;
         if (filters.signalType !== 'all') {
           if (!l.signals.some((s) => s.type === filters.signalType)) return false;
         }
@@ -130,7 +143,7 @@ export default function ProspectsClient({
         }
         return true;
       }),
-    [leads, segmentTab, filters],
+    [segmentLeads, filters],
   );
 
   const selected = selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null;
@@ -170,13 +183,35 @@ export default function ProspectsClient({
     [updateLeadHandler],
   );
 
+  const deleteLeadHandler = useCallback(
+    async (id: string) => {
+      const previous = leads;
+      setLeads((prev) => prev.filter((l) => l.id !== id));
+      setSelectedLeadId((current) => (current === id ? null : current));
+      try {
+        await deleteLeadDb(supabase, id);
+        toast.success('Lead supprimé');
+      } catch (e) {
+        setLeads(previous);
+        toast.error(e instanceof Error ? e.message : 'Impossible de supprimer le lead.');
+        throw e;
+      }
+    },
+    [leads, supabase],
+  );
+
   const filterCount = countActiveFilters(filters, { countAssigned: isDirector });
   const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
   return (
     <>
-      <StatsBar leads={filtered} />
+      <StatsBar leads={segmentLeads} />
       <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
+
+      <ProspectQuickFilters
+        value={filters.quickFilter}
+        onChange={(quickFilter) => setFilters((prev) => ({ ...prev, quickFilter }))}
+      />
 
       <div className="hidden md:block">
         <FiltersBar
@@ -221,13 +256,19 @@ export default function ProspectsClient({
           onResetFilters={resetFilters}
         />
       ) : (
-        <MapViewPlaceholder />
+        <LeadsMapViewLoader
+          leads={filtered}
+          selectedLeadId={selectedLeadId}
+          onLeadSelect={setSelectedLeadId}
+          agencyZone={agencyZone}
+        />
       )}
 
       <LeadDrawer
         lead={selected}
         onClose={() => setSelectedLeadId(null)}
         onUpdateLead={updateLeadHandler}
+        onDeleteLead={deleteLeadHandler}
         canAssignLead={isDirector}
         teamMembers={teamMembers}
       />
@@ -236,6 +277,7 @@ export default function ProspectsClient({
           lead={selected}
           onClose={() => setSelectedLeadId(null)}
           onUpdateLead={updateLeadHandler}
+          onDeleteLead={deleteLeadHandler}
           canAssignLead={isDirector}
           teamMembers={teamMembers}
         />

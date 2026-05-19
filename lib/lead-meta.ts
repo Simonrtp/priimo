@@ -89,15 +89,26 @@ export function statusLabel(status: LeadStatus): string {
   return STATUS_META[status].label;
 }
 
-export function getMainSignalLabel(lead: Pick<Lead, 'signals'>): string {
+const KNOWN_SIGNAL_TYPES = new Set<string>(Object.keys(SIGNAL_META));
+
+export function isKnownSignalType(type: string): type is SignalType {
+  return KNOWN_SIGNAL_TYPES.has(type);
+}
+
+export function getMainSignalLabel(lead: Pick<Lead, 'signals' | 'mainSignalLabel'>): string {
+  if (lead.mainSignalLabel?.trim()) return lead.mainSignalLabel.trim();
   if (lead.signals.length === 0) return 'Signal détecté';
-  return lead.signals[0]?.label ?? SIGNAL_META[lead.signals[0]?.type]?.label ?? 'Signal détecté';
+  const top = [...lead.signals].sort((a, b) => b.pts - a.pts)[0];
+  if (!top) return 'Signal détecté';
+  return top.label || (isKnownSignalType(top.type) ? SIGNAL_META[top.type].label : 'Signal détecté');
 }
 
 export function uniqueSignalTypes(leads: Lead[]): SignalType[] {
   const set = new Set<SignalType>();
   for (const lead of leads) {
-    for (const s of lead.signals) set.add(s.type);
+    for (const s of lead.signals) {
+      if (isKnownSignalType(s.type)) set.add(s.type);
+    }
   }
   return Array.from(set);
 }

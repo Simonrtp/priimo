@@ -1,41 +1,62 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, LeadRow, LeadSignalJson, ProfileRow } from '@/types/database';
-import type { Lead, LeadSignal, MlFeedback, SignalType, TeamMember } from '@/types/lead';
+import type { Database, LeadRow, ProfileRow } from '@/types/database';
+import type { Lead, LeadSignal, MlFeedback, TeamMember } from '@/types/lead';
 
 type Client = SupabaseClient<Database>;
 
-const KNOWN_SIGNAL_TYPES: ReadonlySet<string> = new Set<SignalType>([
-  'dissolution_sci',
-  'liquidation',
-  'cession_parts',
-  'changement_gerant',
-  'deces_associe',
-  'dpe_recent',
-  'dpe_passoire',
-  'detention_longue',
-  'plus_value',
-  'travaux_recents',
-  'zone_rotation',
-]);
+type RawSignalItem = {
+  type?: unknown;
+  label?: unknown;
+  pts?: unknown;
+  points?: unknown;
+  source?: unknown;
+};
 
-function normalizeSignals(raw: unknown): LeadSignal[] {
-  if (!Array.isArray(raw)) return [];
-  const out: LeadSignal[] = [];
-  for (const item of raw as LeadSignalJson[]) {
-    if (!item || typeof item !== 'object') continue;
-    const type = item.type;
-    if (typeof type !== 'string' || !KNOWN_SIGNAL_TYPES.has(type)) continue;
-    out.push({
-      type: type as SignalType,
-      label: typeof item.label === 'string' ? item.label : '',
-      pts: typeof item.pts === 'number' ? item.pts : 0,
-      source: typeof item.source === 'string' ? item.source : 'Source Priimo',
-    });
+function parseSignalItem(item: RawSignalItem): LeadSignal | null {
+  if (!item || typeof item !== 'object') return null;
+  const type = typeof item.type === 'string' ? item.type : 'signal';
+  const label = typeof item.label === 'string' ? item.label : '';
+  const pts =
+    typeof item.points === 'number'
+      ? item.points
+      : typeof item.pts === 'number'
+        ? item.pts
+        : 0;
+  const source = typeof item.source === 'string' ? item.source : 'Source Priimo';
+  return { type, label, pts, source };
+}
+
+/** Accepte un tableau legacy ou `{ details: [...], main_signal_label }`. */
+export function normalizeSignals(raw: unknown): {
+  signals: LeadSignal[];
+  mainSignalLabel: string | null;
+} {
+  let items: RawSignalItem[] = [];
+  let mainSignalLabel: string | null = null;
+
+  if (Array.isArray(raw)) {
+    items = raw as RawSignalItem[];
+  } else if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    if (typeof obj.main_signal_label === 'string') {
+      mainSignalLabel = obj.main_signal_label;
+    }
+    if (Array.isArray(obj.details)) {
+      items = obj.details as RawSignalItem[];
+    }
   }
-  return out;
+
+  const signals: LeadSignal[] = [];
+  for (const item of items) {
+    const parsed = parseSignalItem(item);
+    if (parsed) signals.push(parsed);
+  }
+
+  return { signals, mainSignalLabel };
 }
 
 export function mapDbLeadToLead(row: LeadRow): Lead {
+  const { signals, mainSignalLabel } = normalizeSignals(row.signals);
   return {
     id: row.id,
     agencyId: row.agency_id,
@@ -50,7 +71,10 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     companyPhone: row.company_phone,
     companyEmail: row.company_email,
     score: row.score,
-    signals: normalizeSignals(row.signals),
+    signals,
+    mainSignalLabel,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
     acquiredYear: row.acquired_year,
     acquiredPrice: row.acquired_price,
     estimatedValue: row.estimated_value,
@@ -121,5 +145,12 @@ export async function updateLead(supabase: Client, id: string, patch: LeadPatch)
   const { error } = await supabase.from('leads').update(dbPatch).eq('id', id);
   if (error) {
     throw new Error(`Impossible de mettre à jour le prospect : ${error.message}`);
+  }
+}
+
+export async function deleteLead(supabase: Client, id: string): Promise<void> {
+  const { error } = await supabase.from('leads').delete().eq('id', id);
+  if (error) {
+    throw new Error(`Impossible de supprimer le prospect : ${error.message}`);
   }
 }

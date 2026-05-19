@@ -1,3 +1,15 @@
+export function formatLeadAddressQuery(parts: {
+  address: string;
+  postalCode?: string | null;
+  city?: string | null;
+}): string {
+  return [parts.address, parts.postalCode, parts.city].filter(Boolean).join(', ');
+}
+
+export function googleMapsSearchUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 export function splitStreetAndCity(address: string): { streetLine: string; cityZipLine: string } {
   const idx = address.lastIndexOf(',');
   if (idx === -1) return { streetLine: address.trim(), cityZipLine: '' };
@@ -8,10 +20,11 @@ export function splitStreetAndCity(address: string): { streetLine: string; cityZ
   return { streetLine, cityZipLine };
 }
 
-export function scoreTierLabel(score: number): string {
-  if (score >= 80) return 'Très chaud';
+export function scoreTierLabel(score: number): string | null {
+  if (score >= 80) return 'Ultra chaud';
   if (score >= 60) return 'Chaud';
-  return 'Tiède';
+  if (score >= 40) return 'Tiède';
+  return null;
 }
 
 export function scoreTierAccentColor(score: number): string {

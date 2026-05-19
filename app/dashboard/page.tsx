@@ -19,6 +19,15 @@ export default async function DashboardPage() {
       initialLeads={leads}
       teamMembers={teamMembers}
       isDirector={profile.role === 'directeur'}
+      agencyZone={
+        agency.zone_latitude != null && agency.zone_longitude != null
+          ? {
+              latitude: agency.zone_latitude,
+              longitude: agency.zone_longitude,
+              radiusKm: agency.zone_radius_km,
+            }
+          : null
+      }
     />
   );
 }

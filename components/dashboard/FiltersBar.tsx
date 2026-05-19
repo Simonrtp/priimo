@@ -50,12 +50,14 @@ export default function FiltersBar({
       signalType: 'all',
       status: 'all',
       assignedTo: 'all',
+      quickFilter: 'all',
     });
 
   const isDirty =
     filters.minScore > 0 ||
     filters.signalType !== 'all' ||
     filters.status !== 'all' ||
+    filters.quickFilter !== 'all' ||
     (showAssignedFilter && filters.assignedTo !== 'all');
 
   const assignedOptions = [

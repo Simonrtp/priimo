@@ -1,4 +1,5 @@
 import type { LeadMlFeedbackDb, LeadOwnerTypeDb, LeadStatusDb } from '@/types/database';
+import type { QuickFilter } from '@/lib/lead-display';
 
 export type LeadSegmentTab = 'tous' | 'entreprises' | 'particuliers';
 
@@ -28,7 +29,8 @@ export const COMPANY_EVENT_SIGNALS: readonly SignalType[] = [
 ] as const;
 
 export interface LeadSignal {
-  type: SignalType;
+  /** Type backend (ex. duree_detention, dpe_classe) ou type legacy Priimo. */
+  type: string;
   label: string;
   pts: number;
   source: string;
@@ -49,6 +51,9 @@ export interface Lead {
   companyEmail: string | null;
   score: number;
   signals: LeadSignal[];
+  mainSignalLabel: string | null;
+  latitude: number | null;
+  longitude: number | null;
   acquiredYear: number | null;
   acquiredPrice: number | null;
   estimatedValue: number | null;
@@ -75,6 +80,7 @@ export interface Filters {
   signalType: 'all' | SignalType;
   status: 'all' | LeadStatus;
   assignedTo: 'all' | 'unassigned' | string;
+  quickFilter: QuickFilter;
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -82,6 +88,7 @@ export const EMPTY_FILTERS: Filters = {
   signalType: 'all',
   status: 'all',
   assignedTo: 'all',
+  quickFilter: 'all',
 };
 
 export function leadHasCompanyEvent(lead: Pick<Lead, 'signals'>): boolean {
@@ -94,6 +101,7 @@ export function countActiveFilters(f: Filters, opts?: { countAssigned?: boolean 
   if (f.minScore > 0) n++;
   if (f.signalType !== 'all') n++;
   if (f.status !== 'all') n++;
+  if (f.quickFilter !== 'all') n++;
   if (countAssigned && f.assignedTo !== 'all') n++;
   return n;
 }
