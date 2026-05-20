@@ -4,16 +4,15 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import AddressAutocomplete from '@/components/AddressAutocomplete';
-import type { SelectedAddress } from '@/lib/ban';
-import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
+import ZoneSelector from '@/components/ZoneSelector';
 import {
-  ZONE_RADIUS_KM_DEFAULT,
-  ZONE_RADIUS_KM_MAX,
-  ZONE_RADIUS_KM_MIN,
-  clampZoneRadiusKm,
-} from '@/lib/zone-config';
+  agencyRowToZoneValue,
+  defaultRadiusZoneValue,
+  validateZoneValue,
+} from '@/lib/agency-zone';
+import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
 import type { AgencyRow } from '@/types/database';
+import type { ZoneValue } from '@/types/zone';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const labelClass = 'block text-sm font-medium tracking-wide mb-1.5 text-gray-900';
@@ -34,8 +33,9 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
   const [name, setName] = useState(agency.name);
   const [phone, setPhone] = useState(agency.phone ?? '');
   const [email, setEmail] = useState(agency.email ?? userEmail);
-  const [zoneData, setZoneData] = useState<SelectedAddress | null>(null);
-  const [zoneRadiusKm, setZoneRadiusKm] = useState(ZONE_RADIUS_KM_DEFAULT);
+  const [zone, setZone] = useState<ZoneValue>(
+    () => agencyRowToZoneValue(agency) ?? defaultRadiusZoneValue(),
+  );
 
   const progress = step === 1 ? 50 : 100;
 
@@ -67,12 +67,27 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!zoneData) {
-      setError('Sélectionnez une adresse dans la liste de suggestions.');
+    const zoneError = validateZoneValue(zone);
+    if (zoneError) {
+      setError(zoneError);
       return;
     }
     setError(null);
     setSubmitting(true);
+
+    const zonePayload =
+      zone.type === 'postal_codes'
+        ? {
+            zoneType: 'postal_codes' as const,
+            zonePostalCodes: zone.codes,
+          }
+        : {
+            zoneType: 'radius' as const,
+            zoneCenterAddress: zone.address,
+            zoneLatitude: zone.latitude,
+            zoneLongitude: zone.longitude,
+            zoneRadiusKm: zone.radius_km,
+          };
 
     const res = await fetch('/api/onboarding', {
       method: 'POST',
@@ -81,10 +96,7 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
         name: name.trim(),
         phone: normalizeFrenchPhone(phone),
         email: email.trim().toLowerCase(),
-        zoneCenterAddress: zoneData.label,
-        zoneLatitude: zoneData.latitude,
-        zoneLongitude: zoneData.longitude,
-        zoneRadiusKm,
+        ...zonePayload,
       }),
     });
 
@@ -206,73 +218,17 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
                   Définissez le périmètre dans lequel Priimo vous livrera des prospects.
                 </p>
 
-                <div className="mt-6 space-y-6">
-                  <div>
-                    <label htmlFor="zone-center" className={labelClass}>
-                      Adresse du centre de votre zone de prospection
-                    </label>
-                    <AddressAutocomplete
-                      id="zone-center"
-                      value={zoneData?.label ?? ''}
-                      onChange={setZoneData}
-                      placeholder="Ex : 5 rue Esquirol, 75013 Paris"
-                      required
-                      inputClassName={`${inputClass} pl-10 pr-10`}
-                    />
-                    {zoneData ? (
-                      <p className="mt-2 flex items-center gap-1 text-sm text-green-700">
-                        <span aria-hidden>✓</span>
-                        Adresse validée — {zoneData.city} {zoneData.postcode}
-                        <span className="sr-only">
-                          , coordonnées {zoneData.latitude.toFixed(4)}, {zoneData.longitude.toFixed(4)}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="mt-1.5 text-xs text-gray-500">
-                        Tapez au moins 3 caractères, puis choisissez une adresse dans la liste.
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <label htmlFor="zone-radius" className={labelClass}>
-                        Rayon de prospection
-                      </label>
-                      <span className="text-sm font-semibold tabular-nums text-accent-dark">
-                        {zoneRadiusKm} km
-                      </span>
-                    </div>
-                    <input
-                      id="zone-radius"
-                      type="range"
-                      min={ZONE_RADIUS_KM_MIN}
-                      max={ZONE_RADIUS_KM_MAX}
-                      step={1}
-                      value={zoneRadiusKm}
-                      onChange={(e) => setZoneRadiusKm(clampZoneRadiusKm(Number(e.target.value)))}
-                      className="w-full accent-accent"
-                    />
-                    <div className="mt-1 flex justify-between text-xs text-mute tabular-nums">
-                      <span>{ZONE_RADIUS_KM_MIN} km</span>
-                      <span>{Math.round(ZONE_RADIUS_KM_MAX / 2)} km</span>
-                      <span>{ZONE_RADIUS_KM_MAX} km</span>
-                    </div>
-                    {zoneData && (
-                      <p className="mt-3 rounded-xl bg-soft-warm px-4 py-3 text-sm leading-relaxed text-gray-800">
-                        Vous prospecterez dans un rayon de{' '}
-                        <strong className="font-semibold text-accent-dark">{zoneRadiusKm} km</strong> autour de{' '}
-                        <strong className="font-medium">{zoneData.label}</strong>.
-                      </p>
-                    )}
-                  </div>
+                <div className="mt-6">
+                  <ZoneSelector
+                    value={zone}
+                    onChange={(z) => {
+                      setZone(z);
+                      setError(null);
+                    }}
+                    error={error}
+                    addressInputClassName={`${inputClass} pl-10 pr-10`}
+                  />
                 </div>
-
-                {error && (
-                  <p className="mt-4 text-sm text-red-600" role="alert">
-                    {error}
-                  </p>
-                )}
 
                 <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
                   <button
@@ -288,7 +244,7 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting || !zoneData}
+                    disabled={submitting}
                     className="btn btn-primary w-full flex-1 min-h-[48px] disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ backgroundColor: '#E8743C' }}
                   >

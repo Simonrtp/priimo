@@ -6,15 +6,15 @@ import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import AddressAutocomplete from '@/components/AddressAutocomplete';
-import type { SelectedAddress } from '@/lib/ban';
-import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
+import ZoneSelector from '@/components/ZoneSelector';
 import {
-  ZONE_RADIUS_KM_DEFAULT,
-  ZONE_RADIUS_KM_MAX,
-  ZONE_RADIUS_KM_MIN,
-  clampZoneRadiusKm,
-} from '@/lib/zone-config';
+  agencyRowToZoneValue,
+  defaultRadiusZoneValue,
+  validateZoneValue,
+  zoneValueToAgencyPayload,
+} from '@/lib/agency-zone';
+import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
+import type { ZoneValue } from '@/types/zone';
 import type { NotificationPreferences } from '@/types/database';
 import Modal from '@/components/ui/Modal';
 import SectionTeam from './SectionTeam';
@@ -145,27 +145,6 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
   );
 }
 
-function agencyToZoneData(agency: {
-  zone_center_address: string | null;
-  zone_latitude: number | null;
-  zone_longitude: number | null;
-}): SelectedAddress | null {
-  if (
-    !agency.zone_center_address?.trim() ||
-    agency.zone_latitude == null ||
-    agency.zone_longitude == null
-  ) {
-    return null;
-  }
-  return {
-    label: agency.zone_center_address,
-    latitude: agency.zone_latitude,
-    longitude: agency.zone_longitude,
-    city: '',
-    postcode: '',
-  };
-}
-
 function SectionAgency() {
   const { agency } = useUser();
   const router = useRouter();
@@ -173,20 +152,20 @@ function SectionAgency() {
   const [address, setAddress] = useState(agency.address ?? '');
   const [phone, setPhone] = useState(agency.phone ?? '');
   const [email, setEmail] = useState(agency.email ?? '');
-  const [zoneData, setZoneData] = useState<SelectedAddress | null>(() => agencyToZoneData(agency));
-  const [zoneRadiusKm, setZoneRadiusKm] = useState(() => {
-    if (agency.zone_radius_km != null && Number(agency.zone_radius_km) > 0) {
-      return clampZoneRadiusKm(Number(agency.zone_radius_km));
-    }
-    return ZONE_RADIUS_KM_DEFAULT;
-  });
+  const [zone, setZone] = useState<ZoneValue>(
+    () => agencyRowToZoneValue(agency) ?? defaultRadiusZoneValue(),
+  );
+  const [zoneError, setZoneError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!zoneData) {
-      toast.error('Sélectionnez une adresse de zone dans la liste de suggestions.');
+    const err = validateZoneValue(zone);
+    if (err) {
+      setZoneError(err);
+      toast.error(err);
       return;
     }
+    setZoneError(null);
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
@@ -196,10 +175,7 @@ function SectionAgency() {
         address: address.trim() || null,
         phone: phone.trim() || null,
         email: email.trim() || null,
-        zone_center_address: zoneData.label,
-        zone_latitude: zoneData.latitude,
-        zone_longitude: zoneData.longitude,
-        zone_radius_km: zoneRadiusKm,
+        ...zoneValueToAgencyPayload(zone),
       })
       .eq('id', agency.id);
     setSaving(false);
@@ -263,47 +239,15 @@ function SectionAgency() {
           <h3 className="mb-4 font-semibold text-ink" style={{ fontSize: 15 }}>
             Zone de prospection
           </h3>
-          <div className="space-y-5">
-            <div>
-              <label htmlFor="agency-zone-center" className={labelClass}>
-                Centre de la zone
-              </label>
-              <AddressAutocomplete
-                id="agency-zone-center"
-                value={zoneData?.label ?? agency.zone_center_address ?? ''}
-                onChange={setZoneData}
-                placeholder="Ex : 5 rue Esquirol, 75013 Paris"
-                inputClassName={`${inputClass} pl-10 pr-10`}
-              />
-              {zoneData && (zoneData.city || zoneData.postcode) ? (
-                <p className="mt-2 text-sm text-green-700">
-                  Adresse validée — {zoneData.city} {zoneData.postcode}
-                </p>
-              ) : zoneData ? (
-                <p className="mt-2 text-sm text-green-700">Adresse validée</p>
-              ) : null}
-            </div>
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label htmlFor="agency-zone-radius" className={labelClass}>
-                  Rayon
-                </label>
-                <span className="text-sm font-semibold tabular-nums text-accent-dark">
-                  {zoneRadiusKm} km
-                </span>
-              </div>
-              <input
-                id="agency-zone-radius"
-                type="range"
-                min={ZONE_RADIUS_KM_MIN}
-                max={ZONE_RADIUS_KM_MAX}
-                step={1}
-                value={zoneRadiusKm}
-                onChange={(e) => setZoneRadiusKm(clampZoneRadiusKm(Number(e.target.value)))}
-                className="w-full accent-accent"
-              />
-            </div>
-          </div>
+          <ZoneSelector
+            value={zone}
+            onChange={(z) => {
+              setZone(z);
+              setZoneError(null);
+            }}
+            error={zoneError}
+            addressInputClassName={`${inputClass} pl-10 pr-10`}
+          />
         </div>
 
         <div className="rounded-xl border border-dashed border-black/10 bg-soft-gray/40 px-4 py-3 text-mute" style={{ fontSize: 13 }}>
@@ -315,7 +259,7 @@ function SectionAgency() {
           className="btn btn-primary mt-2 self-start disabled:cursor-not-allowed disabled:opacity-60"
           style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
           onClick={save}
-          disabled={saving || !name.trim() || !zoneData}
+          disabled={saving || !name.trim()}
         >
           {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
         </button>

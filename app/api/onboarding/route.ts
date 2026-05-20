@@ -1,66 +1,62 @@
 import { NextResponse } from 'next/server';
+import { validateZoneValue, zoneValueToAgencyPayload } from '@/lib/agency-zone';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { ZONE_RADIUS_KM_MAX, ZONE_RADIUS_KM_MIN } from '@/lib/zone-config';
+import type { ZoneValue } from '@/types/zone';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseZoneFromBody(body: Record<string, unknown>): ZoneValue | null {
+  const zoneType = body.zoneType;
+  if (zoneType === 'postal_codes') {
+    const raw = body.zonePostalCodes;
+    if (!Array.isArray(raw)) return null;
+    const codes = raw
+      .filter((c): c is string => typeof c === 'string')
+      .map((c) => c.trim())
+      .filter(Boolean);
+    return { type: 'postal_codes', codes };
+  }
+
+  if (zoneType === 'radius' || zoneType == null) {
+    const address =
+      typeof body.zoneCenterAddress === 'string' ? body.zoneCenterAddress.trim() : '';
+    const latitude = Number(body.zoneLatitude);
+    const longitude = Number(body.zoneLongitude);
+    const radius_km = Number(body.zoneRadiusKm);
+    return {
+      type: 'radius',
+      address,
+      latitude,
+      longitude,
+      radius_km,
+    };
+  }
+
+  return null;
+}
 
 export async function POST(request: Request) {
   const guard = await requireDirector();
   if (!guard.ok) return guard.response;
 
-  let body: {
-    name?: unknown;
-    phone?: unknown;
-    email?: unknown;
-    zoneCenterAddress?: unknown;
-    zoneLatitude?: unknown;
-    zoneLongitude?: unknown;
-    zoneRadiusKm?: unknown;
-  };
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = (await request.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: 'JSON invalide' }, { status: 400 });
   }
 
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) {
-    return NextResponse.json({ error: 'Le nom de l\'agence est requis.' }, { status: 400 });
+    return NextResponse.json({ error: "Le nom de l'agence est requis." }, { status: 400 });
   }
 
-  const zoneCenterAddress =
-    typeof body.zoneCenterAddress === 'string' ? body.zoneCenterAddress.trim() : '';
-  if (!zoneCenterAddress || zoneCenterAddress.length < 5) {
-    return NextResponse.json(
-      { error: 'Sélectionnez une adresse dans la liste de suggestions.' },
-      { status: 400 },
-    );
-  }
-
-  const zoneLatitude = Number(body.zoneLatitude);
-  const zoneLongitude = Number(body.zoneLongitude);
-  if (
-    !Number.isFinite(zoneLatitude) ||
-    !Number.isFinite(zoneLongitude) ||
-    zoneLatitude < -90 ||
-    zoneLatitude > 90 ||
-    zoneLongitude < -180 ||
-    zoneLongitude > 180
-  ) {
-    return NextResponse.json(
-      { error: 'Adresse invalide : coordonnées GPS manquantes. Choisissez une adresse dans la liste.' },
-      { status: 400 },
-    );
-  }
-
-  const zoneRadiusKm = Number(body.zoneRadiusKm);
-  if (!Number.isFinite(zoneRadiusKm) || zoneRadiusKm < ZONE_RADIUS_KM_MIN || zoneRadiusKm > ZONE_RADIUS_KM_MAX) {
-    return NextResponse.json(
-      { error: `Le rayon doit être compris entre ${ZONE_RADIUS_KM_MIN} et ${ZONE_RADIUS_KM_MAX} km.` },
-      { status: 400 },
-    );
+  const zone = parseZoneFromBody(body);
+  const zoneError = validateZoneValue(zone);
+  if (zoneError) {
+    return NextResponse.json({ error: zoneError }, { status: 400 });
   }
 
   const phoneRaw = typeof body.phone === 'string' ? body.phone.trim() : '';
@@ -80,7 +76,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "L'email est requis." }, { status: 400 });
   }
   if (!EMAIL_REGEX.test(emailRaw)) {
-    return NextResponse.json({ error: 'Format d\'email invalide.' }, { status: 400 });
+    return NextResponse.json({ error: "Format d'email invalide." }, { status: 400 });
   }
   const email = emailRaw;
 
@@ -91,10 +87,7 @@ export async function POST(request: Request) {
       name,
       phone,
       email,
-      zone_center_address: zoneCenterAddress,
-      zone_latitude: zoneLatitude,
-      zone_longitude: zoneLongitude,
-      zone_radius_km: zoneRadiusKm,
+      ...zoneValueToAgencyPayload(zone!),
     })
     .eq('id', guard.agency.id);
 

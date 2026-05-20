@@ -9,15 +9,15 @@ import type {
   SignalType,
   TeamMember,
 } from '@/types/lead';
-import { EMPTY_FILTERS, countActiveFilters } from '@/types/lead';
+import { EMPTY_FILTERS } from '@/types/lead';
+import { countActiveFilters } from '@/lib/filter-state';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
 import { uniqueSignalTypes } from '@/lib/lead-meta';
 import { matchesQuickFilter } from '@/lib/lead-display';
-import ProspectQuickFilters from './ProspectQuickFilters';
 import StatsBar from './StatsBar';
 import TabsNav from './TabsNav';
-import FiltersBar from './FiltersBar';
+import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
 import ProspectsFiltersSheet from './ProspectsFiltersSheet';
 import MapViewPlaceholder from './MapViewPlaceholder';
@@ -202,13 +202,8 @@ export default function ProspectsClient({
       <StatsBar leads={segmentLeads} />
       <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
-      <ProspectQuickFilters
-        value={filters.quickFilter}
-        onChange={(quickFilter) => setFilters((prev) => ({ ...prev, quickFilter }))}
-      />
-
-      <div className="hidden md:block">
-        <FiltersBar
+      <div className="mb-4 hidden md:block">
+        <ProspectsFiltersPanel
           filters={filters}
           onFiltersChange={setFilters}
           teamMembers={teamMembers}

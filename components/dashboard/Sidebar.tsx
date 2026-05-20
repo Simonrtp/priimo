@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LogOut, Settings, Target } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
+import { formatZoneSidebarLabel } from '@/lib/zone-display';
 import { useUser } from '@/lib/hooks/useUser';
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
@@ -45,6 +46,7 @@ export default function Sidebar({ leadsThisMonth, monthlyQuota }: SidebarProps) 
   const { profile, agency, isDirector } = useUser();
   const progress = Math.min(100, Math.round((leadsThisMonth / Math.max(1, monthlyQuota)) * 100));
   const initials = userInitials(profile.first_name, profile.last_name);
+  const zoneLabel = formatZoneSidebarLabel(agency);
 
   return (
     <aside
@@ -117,6 +119,14 @@ export default function Sidebar({ leadsThisMonth, monthlyQuota }: SidebarProps) 
         <p className="truncate font-medium text-white" style={{ fontSize: 14 }} title={agency.name}>
           {agency.name}
         </p>
+        {zoneLabel && (
+          <p
+            className="mt-1.5 truncate text-[11px] leading-snug text-white/65"
+            title={zoneLabel}
+          >
+            {zoneLabel}
+          </p>
+        )}
         {isDirector && (
           <>
             <p className="mt-3 text-[11px] tabular text-white/80">

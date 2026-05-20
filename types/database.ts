@@ -14,6 +14,7 @@ export type LeadMlFeedbackDb =
   | 'vendeur_ailleurs'
   | 'pas_contacte';
 export type LeadOwnerTypeDb = 'particulier' | 'entreprise';
+export type AgencyZoneTypeDb = 'radius' | 'postal_codes';
 
 export type NotificationPreferences = {
   newLeads: boolean;
@@ -30,10 +31,12 @@ export type AgencyRow = {
   phone: string | null;
   email: string | null;
   plan: PlanCode;
+  zone_type: AgencyZoneTypeDb | null;
   zone_center_address: string | null;
   zone_latitude: number | null;
   zone_longitude: number | null;
   zone_radius_km: number | null;
+  zone_postal_codes: string[] | null;
   stripe_customer_id: string | null;
   created_at: string;
   updated_at: string;
@@ -116,10 +119,12 @@ export type AgencyInsert = {
   phone?: string | null;
   email?: string | null;
   plan?: PlanCode;
+  zone_type?: AgencyZoneTypeDb | null;
   zone_center_address?: string | null;
   zone_latitude?: number | null;
   zone_longitude?: number | null;
   zone_radius_km?: number | null;
+  zone_postal_codes?: string[] | null;
   stripe_customer_id?: string | null;
   created_at?: string;
   updated_at?: string;

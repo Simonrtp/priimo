@@ -95,13 +95,4 @@ export function leadHasCompanyEvent(lead: Pick<Lead, 'signals'>): boolean {
   return lead.signals.some((s) => (COMPANY_EVENT_SIGNALS as readonly string[]).includes(s.type));
 }
 
-export function countActiveFilters(f: Filters, opts?: { countAssigned?: boolean }): number {
-  const countAssigned = opts?.countAssigned !== false;
-  let n = 0;
-  if (f.minScore > 0) n++;
-  if (f.signalType !== 'all') n++;
-  if (f.status !== 'all') n++;
-  if (f.quickFilter !== 'all') n++;
-  if (countAssigned && f.assignedTo !== 'all') n++;
-  return n;
-}
+export { countActiveFilters } from '@/lib/filter-state';
