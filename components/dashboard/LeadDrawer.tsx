@@ -16,6 +16,8 @@ import LeadSignalList from './LeadSignalList';
 import DetentionLabel from './DetentionLabel';
 import PlusValueTooltip from './PlusValueTooltip';
 import LeadDeleteSection from './LeadDeleteSection';
+import SciDirectorPendingNotice from './SciDirectorPendingNotice';
+import { isSciDirectorPending } from '@/types/lead';
 
 const drawerSelectTriggerClass =
   'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10';
@@ -45,6 +47,8 @@ function Divider() {
 }
 
 function EnterpriseBlock({ lead }: { lead: Lead }) {
+  const directorPending = isSciDirectorPending(lead);
+
   return (
     <div className="space-y-4">
       <SectionLabel>Société propriétaire</SectionLabel>
@@ -52,39 +56,43 @@ function EnterpriseBlock({ lead }: { lead: Lead }) {
         <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
         {lead.companyName ?? '—'}
       </p>
-      <div className="space-y-3 rounded-xl border border-black/[0.06] bg-[#F1F1EE]/90 px-4 py-3">
-        <p className="uppercase tracking-widest text-mute" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-          Dirigeant
-        </p>
-        <p className="font-medium text-ink" style={{ fontSize: 14 }}>
-          {lead.companyDirector ?? '—'}
-        </p>
-        {lead.companyPhone && (
-          <a
-            href={`tel:${lead.companyPhone}`}
-            className="flex items-center gap-2 text-accent-dark hover:underline"
-            style={{ fontSize: 13 }}
-          >
-            <PhoneIcon size={ICON_SIZE.sm} color={ICON_COLORS.green600} strokeWidth={2} aria-hidden />
-            {lead.companyPhone}
-          </a>
-        )}
-        {lead.companyEmail && (
-          <a
-            href={`mailto:${lead.companyEmail}`}
-            className="flex items-center gap-2 text-accent-dark hover:underline"
-            style={{ fontSize: 13 }}
-          >
-            <MailIcon size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
-            {lead.companyEmail}
-          </a>
-        )}
-        {!lead.companyPhone && !lead.companyEmail && (
-          <p className="text-mute" style={{ fontSize: 12 }}>
-            Coordonnées non disponibles.
+      {directorPending ? (
+        <SciDirectorPendingNotice />
+      ) : (
+        <div className="space-y-3 rounded-xl border border-black/[0.06] bg-[#F1F1EE]/90 px-4 py-3">
+          <p className="uppercase tracking-widest text-mute" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
+            Dirigeant
           </p>
-        )}
-      </div>
+          <p className="font-medium text-ink" style={{ fontSize: 14 }}>
+            {lead.companyDirector ?? '—'}
+          </p>
+          {lead.companyPhone && (
+            <a
+              href={`tel:${lead.companyPhone}`}
+              className="flex items-center gap-2 text-accent-dark hover:underline"
+              style={{ fontSize: 13 }}
+            >
+              <PhoneIcon size={ICON_SIZE.sm} color={ICON_COLORS.green600} strokeWidth={2} aria-hidden />
+              {lead.companyPhone}
+            </a>
+          )}
+          {lead.companyEmail && (
+            <a
+              href={`mailto:${lead.companyEmail}`}
+              className="flex items-center gap-2 text-accent-dark hover:underline"
+              style={{ fontSize: 13 }}
+            >
+              <MailIcon size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
+              {lead.companyEmail}
+            </a>
+          )}
+          {!lead.companyPhone && !lead.companyEmail && (
+            <p className="text-mute" style={{ fontSize: 12 }}>
+              Coordonnées non disponibles.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

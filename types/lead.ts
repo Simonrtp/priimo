@@ -95,4 +95,8 @@ export function leadHasCompanyEvent(lead: Pick<Lead, 'signals'>): boolean {
   return lead.signals.some((s) => (COMPANY_EVENT_SIGNALS as readonly string[]).includes(s.type));
 }
 
+export function isSciDirectorPending(lead: Pick<Lead, 'ownerType' | 'companyDirector'>): boolean {
+  return lead.ownerType === 'entreprise' && lead.companyDirector === null;
+}
+
 export { countActiveFilters } from '@/lib/filter-state';

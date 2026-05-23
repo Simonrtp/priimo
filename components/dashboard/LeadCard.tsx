@@ -1,6 +1,6 @@
 'use client';
 
-import type { Lead, LeadSegmentTab } from '@/types/lead';
+import { isSciDirectorPending, type Lead, type LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import ScoreHeatBadge from './ScoreHeatBadge';
 import StatusBadge from './StatusBadge';
@@ -133,9 +133,16 @@ export default function LeadCard({
                 </span>
               </div>
               {lead.companyName && (
-                <p className="mt-0.5 truncate font-medium text-[#374151]" style={{ fontSize: 12 }}>
-                  {lead.companyName}
-                  {lead.companyDirector ? ` — ${lead.companyDirector}` : ''}
+                <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-y-0.5 font-medium text-[#374151]" style={{ fontSize: 12 }}>
+                  <span className="truncate">
+                    {lead.companyName}
+                    {lead.companyDirector ? ` — ${lead.companyDirector}` : ''}
+                  </span>
+                  {isSciDirectorPending(lead) && (
+                    <span className="ml-2 inline-flex shrink-0 items-center rounded-md border border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] font-normal text-orange-700">
+                      Contacts bientôt
+                    </span>
+                  )}
                 </p>
               )}
             </div>
