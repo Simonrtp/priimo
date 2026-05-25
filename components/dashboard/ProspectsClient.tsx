@@ -15,6 +15,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
 import { uniqueSignalTypes } from '@/lib/lead-meta';
 import { matchesQuickFilter } from '@/lib/lead-display';
+import { isDpeUnder30Days, sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
 import StatsBar from './StatsBar';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
@@ -102,6 +103,7 @@ export default function ProspectsClient({
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [prospectsView, setProspectsView] = useState<ProspectsViewMode>('liste');
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  const [sortMode, setSortMode] = useState<ProspectsSortMode>('score');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -121,24 +123,24 @@ export default function ProspectsClient({
     [leads, segmentTab],
   );
 
-  const filtered = useMemo(
-    () =>
-      segmentLeads.filter((l) => {
-        if (l.score < filters.minScore) return false;
-        if (!matchesQuickFilter(l, filters.quickFilter)) return false;
-        if (filters.signalType !== 'all') {
-          if (!l.signals.some((s) => s.type === filters.signalType)) return false;
-        }
-        if (filters.status !== 'all' && l.status !== filters.status) return false;
-        if (filters.assignedTo === 'unassigned') {
-          if (l.assignedTo != null) return false;
-        } else if (filters.assignedTo !== 'all') {
-          if (l.assignedTo !== filters.assignedTo) return false;
-        }
-        return true;
-      }),
-    [segmentLeads, filters],
-  );
+  const filtered = useMemo(() => {
+    const list = segmentLeads.filter((l) => {
+      if (l.score < filters.minScore) return false;
+      if (!matchesQuickFilter(l, filters.quickFilter)) return false;
+      if (filters.dpeUnder30Only && !isDpeUnder30Days(l)) return false;
+      if (filters.signalType !== 'all') {
+        if (!l.signals.some((s) => s.type === filters.signalType)) return false;
+      }
+      if (filters.status !== 'all' && l.status !== filters.status) return false;
+      if (filters.assignedTo === 'unassigned') {
+        if (l.assignedTo != null) return false;
+      } else if (filters.assignedTo !== 'all') {
+        if (l.assignedTo !== filters.assignedTo) return false;
+      }
+      return true;
+    });
+    return sortProspects(list, sortMode);
+  }, [segmentLeads, filters, sortMode]);
 
   const selected = selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null;
 
@@ -219,6 +221,8 @@ export default function ProspectsClient({
           setProspectsView(v);
           if (v === 'carte') setSelectedLeadId(null);
         }}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
         onExportCsv={isDirector ? () => exportLeadsToCsv(filtered) : undefined}
         filterActiveCount={filterCount}
         onOpenFilters={() => setFiltersSheetOpen(true)}

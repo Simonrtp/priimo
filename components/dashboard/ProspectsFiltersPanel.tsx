@@ -103,6 +103,18 @@ export default function ProspectsFiltersPanel({
 
       <div className="my-4 border-t border-black/[0.06]" />
 
+      <SectionLabel>DPE</SectionLabel>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        <Pill
+          label="Uniquement DPE < 30 jours"
+          active={filters.dpeUnder30Only}
+          onClick={() => set({ dpeUnder30Only: !filters.dpeUnder30Only })}
+          activeClass="bg-red-50 text-red-800 ring-1 ring-red-200/80"
+        />
+      </div>
+
+      <div className="my-4 border-t border-black/[0.06]" />
+
       <SectionLabel>Statut</SectionLabel>
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Pill

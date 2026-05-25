@@ -49,5 +49,6 @@ export function countActiveFilters(f: Filters, opts?: { countAssigned?: boolean 
   if (f.status !== 'all') n++;
   if (f.quickFilter !== 'all') n++;
   if (countAssigned && f.assignedTo !== 'all') n++;
+  if (f.dpeUnder30Only) n++;
   return n;
 }

@@ -6,6 +6,8 @@ import ScoreHeatBadge from './ScoreHeatBadge';
 import StatusBadge from './StatusBadge';
 import DetentionLabel from './DetentionLabel';
 import LeadSignalList from './LeadSignalList';
+import LeadSourceBadges from './LeadSourceBadges';
+import DpeFreshnessChip from './DpeFreshnessChip';
 import { formatPrice } from '@/lib/utils';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
@@ -88,9 +90,34 @@ export default function LeadCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <span className="truncate font-semibold text-ink" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
-              {lead.address}
-            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <span
+                  className="truncate font-semibold text-ink"
+                  style={{ fontSize: 14, letterSpacing: '-0.01em' }}
+                >
+                  {lead.address}
+                </span>
+                <DpeFreshnessChip lead={lead} />
+              </div>
+              {lead.companyName && (
+                <p
+                  className="mt-0.5 flex min-w-0 flex-wrap items-center gap-y-0.5 font-medium text-[#374151]"
+                  style={{ fontSize: 12 }}
+                >
+                  <span className="truncate">
+                    {lead.companyName}
+                    {lead.companyDirector ? ` — ${lead.companyDirector}` : ''}
+                  </span>
+                  {isSciDirectorPending(lead) && (
+                    <span className="ml-2 inline-flex shrink-0 items-center rounded-md border border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] font-normal text-orange-700">
+                      Contacts bientôt
+                    </span>
+                  )}
+                </p>
+              )}
+              <LeadSourceBadges lead={lead} className="mt-1" />
+            </div>
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
               <StatusBadge status={lead.status} onChange={onStatusChange} />
             </div>
@@ -124,13 +151,14 @@ export default function LeadCard({
           <div className="mb-0.5 flex items-start gap-2">
             <SegmentRowIcon tab={segmentTab} ownerType={lead.ownerType} />
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <span
                   className="truncate font-semibold text-ink"
                   style={{ fontSize: 14, letterSpacing: '-0.01em' }}
                 >
                   {lead.address}
                 </span>
+                <DpeFreshnessChip lead={lead} />
               </div>
               {lead.companyName && (
                 <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-y-0.5 font-medium text-[#374151]" style={{ fontSize: 12 }}>
@@ -145,6 +173,7 @@ export default function LeadCard({
                   )}
                 </p>
               )}
+              <LeadSourceBadges lead={lead} className="mt-1" />
             </div>
           </div>
           {hasDetention && (

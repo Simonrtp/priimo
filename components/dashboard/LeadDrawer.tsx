@@ -17,6 +17,8 @@ import DetentionLabel from './DetentionLabel';
 import PlusValueTooltip from './PlusValueTooltip';
 import LeadDeleteSection from './LeadDeleteSection';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
+import LeadSourceBadges from './LeadSourceBadges';
+import DpeFreshnessChip from './DpeFreshnessChip';
 import { isSciDirectorPending } from '@/types/lead';
 
 const drawerSelectTriggerClass =
@@ -230,13 +232,19 @@ export default function LeadDrawer({
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-8">
             <div className="mb-1 flex items-start justify-between gap-5">
-              <LeadAddressHeader
-                id="drawer-address"
-                address={lead.address}
-                postalCode={lead.postalCode}
-                city={lead.city}
-                size="drawer"
-              />
+              <div className="min-w-0 flex-1">
+                <LeadAddressHeader
+                  id="drawer-address"
+                  address={lead.address}
+                  postalCode={lead.postalCode}
+                  city={lead.city}
+                  size="drawer"
+                />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <DpeFreshnessChip lead={lead} />
+                </div>
+                <LeadSourceBadges lead={lead} className="mt-2" />
+              </div>
               <div className="flex flex-shrink-0 flex-col items-center gap-2 pt-0.5">
                 <ScoreRing score={lead.score} size={72} />
                 <ScoreHeatBadge score={lead.score} />

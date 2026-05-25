@@ -81,6 +81,7 @@ export interface Filters {
   status: 'all' | LeadStatus;
   assignedTo: 'all' | 'unassigned' | string;
   quickFilter: QuickFilter;
+  dpeUnder30Only: boolean;
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -89,6 +90,7 @@ export const EMPTY_FILTERS: Filters = {
   status: 'all',
   assignedTo: 'all',
   quickFilter: 'all',
+  dpeUnder30Only: false,
 };
 
 export function leadHasCompanyEvent(lead: Pick<Lead, 'signals'>): boolean {
