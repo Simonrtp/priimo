@@ -250,10 +250,6 @@ function SectionAgency() {
           />
         </div>
 
-        <div className="rounded-xl border border-dashed border-black/10 bg-soft-gray/40 px-4 py-3 text-mute" style={{ fontSize: 13 }}>
-          <p className="font-medium text-ink">Logo de l&apos;agence</p>
-          <p className="mt-0.5">Bientôt disponible.</p>
-        </div>
         <button
           type="button"
           className="btn btn-primary mt-2 self-start disabled:cursor-not-allowed disabled:opacity-60"
