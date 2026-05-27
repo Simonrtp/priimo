@@ -10,11 +10,6 @@ import { useUser } from '@/lib/hooks/useUser';
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
 
-interface SidebarProps {
-  leadsThisMonth: number;
-  monthlyQuota: number;
-}
-
 const navItems: {
   href: string;
   label: string;
@@ -41,10 +36,9 @@ function userInitials(firstName: string, lastName: string): string {
   return `${a}${b}` || '?';
 }
 
-export default function Sidebar({ leadsThisMonth, monthlyQuota }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname();
   const { profile, agency, isDirector } = useUser();
-  const progress = Math.min(100, Math.round((leadsThisMonth / Math.max(1, monthlyQuota)) * 100));
   const initials = userInitials(profile.first_name, profile.last_name);
   const zoneLabel = formatZoneSidebarLabel(agency);
 
@@ -126,27 +120,6 @@ export default function Sidebar({ leadsThisMonth, monthlyQuota }: SidebarProps) 
           >
             {zoneLabel}
           </p>
-        )}
-        {isDirector && (
-          <>
-            <p className="mt-3 text-[11px] tabular text-white/80">
-              {leadsThisMonth}/{monthlyQuota} ce mois
-            </p>
-            <div
-              className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
-              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-              role="progressbar"
-              aria-valuenow={leadsThisMonth}
-              aria-valuemin={0}
-              aria-valuemax={monthlyQuota}
-              aria-label="Progression des leads ce mois"
-            >
-              <div
-                className="h-full rounded-full transition-[width] duration-300"
-                style={{ width: `${progress}%`, backgroundColor: ACCENT }}
-              />
-            </div>
-          </>
         )}
       </div>
 
