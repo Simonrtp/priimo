@@ -2,7 +2,6 @@
 
 import { isSciDirectorPending, type Lead, type LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
-import ScoreHeatBadge from './ScoreHeatBadge';
 import StatusBadge from './StatusBadge';
 import DetentionLabel from './DetentionLabel';
 import LeadSignalList from './LeadSignalList';
@@ -84,9 +83,8 @@ export default function LeadCard({
       )}
 
       <div className="flex items-start gap-3 lg:hidden">
-        <div className="flex flex-shrink-0 flex-col items-center gap-1">
+        <div className="flex flex-shrink-0 flex-col items-center">
           <ScoreRing score={lead.score} size={36} />
-          <ScoreHeatBadge score={lead.score} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -143,9 +141,8 @@ export default function LeadCard({
       </div>
 
       <div className="hidden w-full items-center gap-4 lg:flex">
-        <div className="flex flex-shrink-0 flex-col items-center gap-1.5">
+        <div className="flex flex-shrink-0 flex-col items-center">
           <ScoreRing score={lead.score} size={44} />
-          <ScoreHeatBadge score={lead.score} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex items-start gap-2">

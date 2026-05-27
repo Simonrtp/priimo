@@ -10,7 +10,6 @@ import LeadAddressHeader from './LeadAddressHeader';
 import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
 import Select from '@/components/ui/Select';
 import ScoreRing from './ScoreRing';
-import ScoreHeatBadge from './ScoreHeatBadge';
 import LeadSignalList from './LeadSignalList';
 import DetentionLabel from './DetentionLabel';
 import PlusValueTooltip from './PlusValueTooltip';
@@ -144,9 +143,8 @@ export default function LeadFullScreenMobile({
             </div>
             <LeadSourceBadges lead={lead} className="mt-2" />
           </div>
-          <div className="flex flex-shrink-0 flex-col items-center gap-1.5">
+          <div className="flex flex-shrink-0 flex-col items-center">
             <ScoreRing score={lead.score} size={64} />
-            <ScoreHeatBadge score={lead.score} />
           </div>
         </div>
 

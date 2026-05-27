@@ -74,33 +74,6 @@ export function formatDetentionLong(acquiredYear: number | null): string | null 
   return `Détention : ${formatDetentionYearsLabel(years)} (acquis en ${acquiredYear})`;
 }
 
-export interface ScoreHeatTier {
-  label: string;
-  chipClass: string;
-}
-
-export function scoreHeatTier(score: number): ScoreHeatTier | null {
-  if (score >= 80) {
-    return {
-      label: '🔥 Ultra chaud',
-      chipClass: 'bg-red-100 text-red-800 ring-1 ring-red-200/80',
-    };
-  }
-  if (score >= 60) {
-    return {
-      label: '🟠 Chaud',
-      chipClass: 'bg-orange-100 text-orange-800 ring-1 ring-orange-200/80',
-    };
-  }
-  if (score >= 40) {
-    return {
-      label: '🟡 Tiède',
-      chipClass: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80',
-    };
-  }
-  return null;
-}
-
 function metaForType(type: string) {
   return type in SIGNAL_META ? SIGNAL_META[type as SignalType] : undefined;
 }

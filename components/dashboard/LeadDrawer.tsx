@@ -11,7 +11,6 @@ import LeadAddressHeader from './LeadAddressHeader';
 import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
 import Select from '@/components/ui/Select';
 import ScoreRing from './ScoreRing';
-import ScoreHeatBadge from './ScoreHeatBadge';
 import LeadSignalList from './LeadSignalList';
 import DetentionLabel from './DetentionLabel';
 import PlusValueTooltip from './PlusValueTooltip';
@@ -245,9 +244,8 @@ export default function LeadDrawer({
                 </div>
                 <LeadSourceBadges lead={lead} className="mt-2" />
               </div>
-              <div className="flex flex-shrink-0 flex-col items-center gap-2 pt-0.5">
+              <div className="flex flex-shrink-0 flex-col items-center pt-0.5">
                 <ScoreRing score={lead.score} size={72} />
-                <ScoreHeatBadge score={lead.score} />
               </div>
             </div>
 
