@@ -1,9 +1,17 @@
 'use client';
 
+import { useId, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import type { Filters, LeadStatus, SignalType, TeamMember } from '@/types/lead';
 import { STATUS_META, STATUS_ORDER, SIGNAL_META } from '@/lib/lead-meta';
-import { advancedSignalTypes, filtersAreDirty, patchFilters, resetFilters } from '@/lib/filter-state';
+import {
+  advancedSignalTypes,
+  countActiveFilters,
+  filtersAreDirty,
+  patchFilters,
+  resetFilters,
+} from '@/lib/filter-state';
 import ProspectQuickFilters from './ProspectQuickFilters';
 
 interface ProspectsFiltersPanelProps {
@@ -62,9 +70,14 @@ export default function ProspectsFiltersPanel({
   className = '',
   plain = false,
 }: ProspectsFiltersPanelProps) {
+  const panelId = useId();
+  const [expanded, setExpanded] = useState(true);
+  const collapsible = !plain;
+
   const set = (patch: Partial<Filters>) => onFiltersChange(patchFilters(filters, patch));
 
   const dirty = filtersAreDirty(filters, { countAssigned: showAssignedFilter });
+  const activeCount = countActiveFilters(filters, { countAssigned: showAssignedFilter });
   const extraSignals = advancedSignalTypes(availableSignals);
 
   const assignedOptions = [
@@ -79,10 +92,41 @@ export default function ProspectsFiltersPanel({
 
   return (
     <div className={shellClass}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="font-semibold text-ink" style={{ fontSize: 13, letterSpacing: '-0.01em' }}>
-          Filtres
-        </p>
+      <div
+        className={`flex items-center justify-between gap-3 ${expanded || !collapsible ? 'mb-4' : ''}`}
+      >
+        {collapsible ? (
+          <button
+            type="button"
+            id={`${panelId}-trigger`}
+            aria-expanded={expanded}
+            aria-controls={`${panelId}-body`}
+            onClick={() => setExpanded((v) => !v)}
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-left transition-colors hover:text-ink"
+          >
+            <span className="font-semibold text-ink" style={{ fontSize: 13, letterSpacing: '-0.01em' }}>
+              Filtres
+            </span>
+            {!expanded && activeCount > 0 && (
+              <span
+                className="inline-flex items-center rounded-full bg-accent/15 px-2 py-0.5 font-medium tabular text-accent-dark"
+                style={{ fontSize: 11 }}
+              >
+                {activeCount} actif{activeCount > 1 ? 's' : ''}
+              </span>
+            )}
+            <ChevronDown
+              className={`ml-auto h-4 w-4 shrink-0 text-mute transition-transform duration-200 ease-out ${
+                expanded ? 'rotate-180' : ''
+              }`}
+              aria-hidden
+            />
+          </button>
+        ) : (
+          <p className="font-semibold text-ink" style={{ fontSize: 13, letterSpacing: '-0.01em' }}>
+            Filtres
+          </p>
+        )}
         {dirty && (
           <button
             type="button"
@@ -95,6 +139,8 @@ export default function ProspectsFiltersPanel({
         )}
       </div>
 
+      {(!collapsible || expanded) && (
+        <div id={`${panelId}-body`} role="region" aria-labelledby={collapsible ? `${panelId}-trigger` : undefined}>
       <ProspectQuickFilters
         value={filters.quickFilter}
         onChange={(quickFilter) => set({ quickFilter })}
@@ -186,6 +232,8 @@ export default function ProspectsFiltersPanel({
             onChange={(v) => set({ assignedTo: v as Filters['assignedTo'] })}
           />
         </>
+      )}
+        </div>
       )}
     </div>
   );
