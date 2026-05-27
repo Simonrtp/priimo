@@ -28,22 +28,6 @@ export function SkeletonProspectList({ count = 6 }: { count?: number }) {
   );
 }
 
-export function SkeletonStatsBar() {
-  return (
-    <div className="mb-4 flex gap-3 overflow-x-auto pb-1">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div
-          key={i}
-          className="w-[200px] max-md:flex-shrink-0 md:flex-1 rounded-2xl border border-black/8 bg-white p-5 shadow-soft"
-        >
-          <SkeletonLine className="mb-4 h-2 w-16" />
-          <SkeletonLine className="h-10 w-14" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function SkeletonTeamMember() {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white px-4 py-3">

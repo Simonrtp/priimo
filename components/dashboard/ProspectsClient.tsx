@@ -16,7 +16,6 @@ import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/qu
 import { uniqueSignalTypes } from '@/lib/lead-meta';
 import { matchesQuickFilter } from '@/lib/lead-display';
 import { isDpeUnder30Days, sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
-import StatsBar from './StatsBar';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
@@ -201,7 +200,6 @@ export default function ProspectsClient({
 
   return (
     <>
-      <StatsBar leads={segmentLeads} />
       <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
       <div className="mb-4 hidden md:block">
