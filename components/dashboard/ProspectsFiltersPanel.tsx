@@ -36,23 +36,23 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+const PILL_ACTIVE_CLASS = 'bg-ink text-canvas';
+
 function Pill({
   label,
   active,
   onClick,
-  activeClass,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
-  activeClass: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`rounded-full font-medium transition-colors duration-150 ${
-        active ? activeClass : 'bg-black/[0.05] text-mute hover:bg-black/[0.09] hover:text-ink'
+        active ? PILL_ACTIVE_CLASS : 'bg-black/[0.05] text-mute hover:bg-black/[0.09] hover:text-ink'
       }`}
       style={{ fontSize: 11.5, padding: '5px 12px', letterSpacing: '0.01em' }}
     >
@@ -155,7 +155,6 @@ export default function ProspectsFiltersPanel({
           label="Uniquement DPE < 30 jours"
           active={filters.dpeUnder30Only}
           onClick={() => set({ dpeUnder30Only: !filters.dpeUnder30Only })}
-          activeClass="bg-red-50 text-red-800 ring-1 ring-red-200/80"
         />
       </div>
 
@@ -167,7 +166,6 @@ export default function ProspectsFiltersPanel({
           label="Tous"
           active={filters.status === 'all'}
           onClick={() => set({ status: 'all' })}
-          activeClass="bg-ink text-canvas"
         />
         {STATUS_ORDER.map((s) => (
           <Pill
@@ -175,7 +173,6 @@ export default function ProspectsFiltersPanel({
             label={STATUS_META[s].label}
             active={filters.status === s}
             onClick={() => set({ status: s as LeadStatus })}
-            activeClass={STATUS_META[s].chipClass}
           />
         ))}
       </div>
@@ -214,7 +211,6 @@ export default function ProspectsFiltersPanel({
                     signalType: filters.signalType === sig ? 'all' : sig,
                   })
                 }
-                activeClass="bg-accent/15 text-accent-dark ring-1 ring-accent/20"
               />
             ))}
           </div>
