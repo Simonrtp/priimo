@@ -6,18 +6,13 @@ import { Phone as PhoneIcon, Mail as MailIcon, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Lead, LeadStatus, TeamMember } from '@/types/lead';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
-import { formatDate, formatPrice } from '@/lib/utils';
-import LeadAddressHeader from './LeadAddressHeader';
+import { formatDate } from '@/lib/utils';
 import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
 import Select from '@/components/ui/Select';
-import ScoreRing from './ScoreRing';
-import LeadSignalList from './LeadSignalList';
-import DetentionLabel from './DetentionLabel';
-import PlusValueTooltip from './PlusValueTooltip';
+import LeadDetailHeader from './LeadDetailHeader';
+import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
-import LeadSourceBadges from './LeadSourceBadges';
-import DpeFreshnessChip from './DpeFreshnessChip';
 import { isSciDirectorPending } from '@/types/lead';
 
 const drawerSelectTriggerClass =
@@ -51,7 +46,7 @@ function EnterpriseBlock({ lead }: { lead: Lead }) {
   const directorPending = isSciDirectorPending(lead);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <SectionLabel>Société propriétaire</SectionLabel>
       <p className="flex items-center gap-2 font-semibold text-ink" style={{ fontSize: 14 }}>
         <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
@@ -60,11 +55,11 @@ function EnterpriseBlock({ lead }: { lead: Lead }) {
       {directorPending ? (
         <SciDirectorPendingNotice />
       ) : (
-        <div className="space-y-3 rounded-xl border border-black/[0.06] bg-[#F1F1EE]/90 px-4 py-3">
-          <p className="uppercase tracking-widest text-mute" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
+        <div className="space-y-2">
+          <p className="text-mute" style={{ fontSize: 11.5 }}>
             Dirigeant
           </p>
-          <p className="font-medium text-ink" style={{ fontSize: 14 }}>
+          <p className="font-medium text-ink" style={{ fontSize: 13 }}>
             {lead.companyDirector ?? '—'}
           </p>
           {lead.companyPhone && (
@@ -187,12 +182,6 @@ export default function LeadDrawer({
 
   if (!lead) return null;
 
-  const plusValueRaw =
-    lead.acquiredPrice && lead.acquiredPrice > 0 && lead.estimatedValue
-      ? (((lead.estimatedValue / lead.acquiredPrice) - 1) * 100).toFixed(0)
-      : null;
-  const plusValue =
-    plusValueRaw !== null ? (Number(plusValueRaw) >= 0 ? `+${plusValueRaw}%` : `${plusValueRaw}%`) : '—';
   const isEnterprise = lead.ownerType === 'entreprise';
 
   const panel = (
@@ -229,25 +218,8 @@ export default function LeadDrawer({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-8">
-            <div className="mb-1 flex items-start justify-between gap-5">
-              <div className="min-w-0 flex-1">
-                <LeadAddressHeader
-                  id="drawer-address"
-                  address={lead.address}
-                  postalCode={lead.postalCode}
-                  city={lead.city}
-                  size="drawer"
-                />
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <DpeFreshnessChip lead={lead} />
-                </div>
-                <LeadSourceBadges lead={lead} className="mt-2" />
-              </div>
-              <div className="flex flex-shrink-0 flex-col items-center pt-0.5">
-                <ScoreRing score={lead.score} size={72} />
-              </div>
-            </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-6">
+            <LeadDetailHeader lead={lead} titleId="drawer-address" />
 
             {isEnterprise && (
               <>
@@ -259,60 +231,7 @@ export default function LeadDrawer({
             <Divider />
 
             <SectionLabel>Signaux détectés</SectionLabel>
-            <LeadSignalList signals={lead.signals} variant="detail" />
-
-            <Divider />
-
-            <SectionLabel>Caractéristiques du bien</SectionLabel>
-            <ul className="space-y-2.5 text-ink" style={{ fontSize: 13 }}>
-              {lead.propertyType && (
-                <li className="flex justify-between gap-4">
-                  <span className="text-mute">Type</span>
-                  <span className="text-right font-medium">{lead.propertyType}</span>
-                </li>
-              )}
-              {lead.surfaceM2 != null && (
-                <li className="flex justify-between gap-4">
-                  <span className="text-mute">Surface</span>
-                  <span className="font-medium tabular">{lead.surfaceM2} m²</span>
-                </li>
-              )}
-              {lead.acquiredYear != null && (
-                <li className="flex justify-between gap-4">
-                  <span className="text-mute">Détention</span>
-                  <span className="text-right">
-                    <DetentionLabel acquiredYear={lead.acquiredYear} variant="stacked" />
-                  </span>
-                </li>
-              )}
-              {lead.acquiredPrice != null && (
-                <li className="flex justify-between gap-4">
-                  <span className="text-mute">Prix d’acquisition</span>
-                  <span className="font-medium tabular">{formatPrice(lead.acquiredPrice)} €</span>
-                </li>
-              )}
-              {lead.estimatedValue != null && (
-                <li className="flex justify-between gap-4">
-                  <span className="text-mute">Valeur estimée</span>
-                  <span className="font-medium tabular">{formatPrice(lead.estimatedValue)} €</span>
-                </li>
-              )}
-              {plusValueRaw !== null && (
-                <li className="flex justify-between gap-4">
-                  <span className="flex items-center gap-1.5 text-mute">
-                    Plus-value
-                    <PlusValueTooltip />
-                  </span>
-                  <span className="font-medium tabular">{plusValue}</span>
-                </li>
-              )}
-              {lead.dpeClass && (
-                <li className="flex justify-between gap-4">
-                  <span className="text-mute">DPE</span>
-                  <span className="font-medium tabular">{lead.dpeClass}</span>
-                </li>
-              )}
-            </ul>
+            <LeadDisplaySignals displaySignals={lead.displaySignals} />
 
             <Divider />
 

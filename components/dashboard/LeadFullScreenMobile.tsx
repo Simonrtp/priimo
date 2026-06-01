@@ -5,18 +5,13 @@ import { ArrowLeft, Building2, Mail as MailIcon, Phone as PhoneIcon } from 'luci
 import { toast } from 'sonner';
 import type { Lead, LeadStatus, TeamMember } from '@/types/lead';
 import { ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
-import { formatDate, formatPrice } from '@/lib/utils';
-import LeadAddressHeader from './LeadAddressHeader';
+import { formatDate } from '@/lib/utils';
 import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
 import Select from '@/components/ui/Select';
-import ScoreRing from './ScoreRing';
-import LeadSignalList from './LeadSignalList';
-import DetentionLabel from './DetentionLabel';
-import PlusValueTooltip from './PlusValueTooltip';
+import LeadDetailHeader from './LeadDetailHeader';
+import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
-import LeadSourceBadges from './LeadSourceBadges';
-import DpeFreshnessChip from './DpeFreshnessChip';
 import { isSciDirectorPending } from '@/types/lead';
 
 const mobileSelectTriggerClass =
@@ -105,12 +100,6 @@ export default function LeadFullScreenMobile({
     }
   }, [lead.id, lead.notes, note, onUpdateLead]);
 
-  const plusValueRaw =
-    lead.acquiredPrice && lead.acquiredPrice > 0 && lead.estimatedValue
-      ? (((lead.estimatedValue / lead.acquiredPrice) - 1) * 100).toFixed(0)
-      : null;
-  const plusValue =
-    plusValueRaw !== null ? (Number(plusValueRaw) >= 0 ? `+${plusValueRaw}%` : `${plusValueRaw}%`) : '—';
   const isEnterprise = lead.ownerType === 'entreprise';
 
   return (
@@ -127,31 +116,18 @@ export default function LeadFullScreenMobile({
         >
           <ArrowLeft size={20} strokeWidth={2} />
         </button>
-        <LeadAddressHeader
-          address={lead.address}
-          postalCode={lead.postalCode}
-          city={lead.city}
-          size="mobile"
-        />
+        <p className="truncate font-semibold text-ink" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
+          Détail du lead
+        </p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-10 pt-4">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <DpeFreshnessChip lead={lead} />
-            </div>
-            <LeadSourceBadges lead={lead} className="mt-2" />
-          </div>
-          <div className="flex flex-shrink-0 flex-col items-center">
-            <ScoreRing score={lead.score} size={64} />
-          </div>
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-10 pt-5">
+        <LeadDetailHeader lead={lead} compact />
 
         {isEnterprise && (
           <>
             <Divider />
-            <div className="space-y-4">
+            <div className="space-y-3">
               <SectionLabel>Société propriétaire</SectionLabel>
               <p className="flex items-center gap-2 font-semibold text-ink" style={{ fontSize: 14 }}>
                 <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
@@ -160,8 +136,8 @@ export default function LeadFullScreenMobile({
               {isSciDirectorPending(lead) ? (
                 <SciDirectorPendingNotice />
               ) : (
-                <div className="space-y-3 rounded-xl border border-black/[0.06] bg-[#F1F1EE]/90 px-4 py-3">
-                  <p className="uppercase tracking-widest text-mute" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
+                <div className="space-y-2">
+                  <p className="text-mute" style={{ fontSize: 11.5 }}>
                     Dirigeant
                   </p>
                   <p className="font-medium text-ink" style={{ fontSize: 14 }}>
@@ -196,54 +172,7 @@ export default function LeadFullScreenMobile({
         <Divider />
 
         <SectionLabel>Signaux détectés</SectionLabel>
-        <LeadSignalList signals={lead.signals} variant="detail" />
-
-        <Divider />
-
-        <SectionLabel>Caractéristiques du bien</SectionLabel>
-        <ul className="space-y-2.5 text-ink" style={{ fontSize: 13 }}>
-          {lead.propertyType && (
-            <li className="flex justify-between gap-4">
-              <span className="text-mute">Type</span>
-              <span className="font-medium">{lead.propertyType}</span>
-            </li>
-          )}
-          {lead.surfaceM2 != null && (
-            <li className="flex justify-between gap-4">
-              <span className="text-mute">Surface</span>
-              <span className="font-medium tabular">{lead.surfaceM2} m²</span>
-            </li>
-          )}
-          {lead.acquiredYear != null && (
-            <li className="flex justify-between gap-4">
-              <span className="text-mute">Détention</span>
-              <span className="text-right">
-                <DetentionLabel acquiredYear={lead.acquiredYear} variant="stacked" />
-              </span>
-            </li>
-          )}
-          {lead.acquiredPrice != null && (
-            <li className="flex justify-between gap-4">
-              <span className="text-mute">Prix d’acquisition</span>
-              <span className="font-medium tabular">{formatPrice(lead.acquiredPrice)} €</span>
-            </li>
-          )}
-          {lead.estimatedValue != null && (
-            <li className="flex justify-between gap-4">
-              <span className="text-mute">Valeur estimée</span>
-              <span className="font-medium tabular">{formatPrice(lead.estimatedValue)} €</span>
-            </li>
-          )}
-          {plusValueRaw !== null && (
-            <li className="flex justify-between gap-4">
-              <span className="flex items-center gap-1.5 text-mute">
-                Plus-value
-                <PlusValueTooltip />
-              </span>
-              <span className="font-medium tabular">{plusValue}</span>
-            </li>
-          )}
-        </ul>
+        <LeadDisplaySignals displaySignals={lead.displaySignals} />
 
         <Divider />
 

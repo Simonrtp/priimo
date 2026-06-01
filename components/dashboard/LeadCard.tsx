@@ -66,7 +66,9 @@ export default function LeadCard({
   const propertyType = lead.propertyType ?? 'Bien';
   const surface = lead.surfaceM2 != null ? `${lead.surfaceM2} m²` : null;
   const acquiredPriceLabel =
-    lead.acquiredPrice != null ? `${formatPrice(lead.acquiredPrice)} €` : null;
+    lead.acquiredPrice != null && lead.acquiredPriceReliable !== false
+      ? `${formatPrice(lead.acquiredPrice)} €`
+      : null;
   const hasDetention = lead.acquiredYear != null;
 
   return (

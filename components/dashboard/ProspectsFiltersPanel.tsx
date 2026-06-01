@@ -71,7 +71,7 @@ export default function ProspectsFiltersPanel({
   plain = false,
 }: ProspectsFiltersPanelProps) {
   const panelId = useId();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const collapsible = !plain;
 
   const set = (patch: Partial<Filters>) => onFiltersChange(patchFilters(filters, patch));

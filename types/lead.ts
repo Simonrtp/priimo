@@ -1,5 +1,6 @@
 import type { LeadMlFeedbackDb, LeadOwnerTypeDb, LeadStatusDb } from '@/types/database';
 import type { QuickFilter } from '@/lib/lead-display';
+import type { DisplaySignals } from '@/lib/display-signals';
 
 export type LeadSegmentTab = 'tous' | 'entreprises' | 'particuliers';
 
@@ -28,12 +29,22 @@ export const COMPANY_EVENT_SIGNALS: readonly SignalType[] = [
   'deces_associe',
 ] as const;
 
+export type SignalCategory =
+  | 'profil_bien'
+  | 'cycle_detention'
+  | 'marche_valeur'
+  | 'evenements_vie'
+  | 'copropriete'
+  | 'dpe';
+
 export interface LeadSignal {
   /** Type backend (ex. duree_detention, dpe_classe) ou type legacy Priimo. */
   type: string;
   label: string;
   pts: number;
   source: string;
+  /** Catégorie fournie par le pipeline. Optionnelle (legacy). */
+  category?: SignalCategory | string | null;
 }
 
 export interface Lead {
@@ -52,11 +63,17 @@ export interface Lead {
   score: number;
   signals: LeadSignal[];
   mainSignalLabel: string | null;
+  /** Source de vérité pour le panneau de détail (familles + tooltips). */
+  displaySignals: DisplaySignals;
   latitude: number | null;
   longitude: number | null;
   acquiredYear: number | null;
   acquiredPrice: number | null;
+  /** Faux si le pipeline a marqué le prix d'achat comme non fiable. Null = inconnu (traité comme fiable). */
+  acquiredPriceReliable: boolean | null;
   estimatedValue: number | null;
+  rooms: number | null;
+  floor: number | null;
   dpeClass: string | null;
   dpeDate: string | null;
   status: LeadStatus;

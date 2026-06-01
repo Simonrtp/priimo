@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, LeadRow, ProfileRow } from '@/types/database';
 import type { Lead, LeadSignal, MlFeedback, TeamMember } from '@/types/lead';
+import { parseDisplaySignals } from '@/lib/display-signals';
 
 type Client = SupabaseClient<Database>;
 
@@ -10,6 +11,7 @@ type RawSignalItem = {
   pts?: unknown;
   points?: unknown;
   source?: unknown;
+  category?: unknown;
 };
 
 function parseSignalItem(item: RawSignalItem): LeadSignal | null {
@@ -23,7 +25,8 @@ function parseSignalItem(item: RawSignalItem): LeadSignal | null {
         ? item.pts
         : 0;
   const source = typeof item.source === 'string' ? item.source : 'Source Priimo';
-  return { type, label, pts, source };
+  const category = typeof item.category === 'string' ? item.category : null;
+  return { type, label, pts, source, category };
 }
 
 /** Accepte un tableau legacy ou `{ details: [...], main_signal_label }`. */
@@ -73,11 +76,15 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     score: row.score,
     signals,
     mainSignalLabel,
+    displaySignals: parseDisplaySignals(row.display_signals),
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
     acquiredYear: row.acquired_year,
     acquiredPrice: row.acquired_price,
+    acquiredPriceReliable: row.acquired_price_reliable ?? null,
     estimatedValue: row.estimated_value,
+    rooms: row.rooms ?? null,
+    floor: row.floor ?? null,
     dpeClass: row.dpe_class,
     dpeDate: row.dpe_date,
     status: row.status,
@@ -89,6 +96,25 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
   };
 }
 
+/**
+ * On utilise `*` car certaines colonnes optionnelles (display_signals,
+ * rooms, floor, …) ne sont créées qu'après application des migrations
+ * — un SELECT explicite échouerait tant qu'elles n'existent pas.
+ *
+ * `internal_signals` (secret scoring) est filtré côté parser via
+ * `stripInternalSignals` : même si la colonne est transmise sur le
+ * réseau, plus aucun code applicatif n'y a accès. Pour une exclusion
+ * réseau stricte, mettre en place une vue Postgres `leads_public`
+ * (whitelist de colonnes) et y sélectionner ici.
+ */
+function stripInternalSignals<T extends object>(row: T): T {
+  if ('internal_signals' in row) {
+    const { internal_signals: _strip, ...rest } = row as T & { internal_signals?: unknown };
+    return rest as T;
+  }
+  return row;
+}
+
 export async function fetchLeads(supabase: Client): Promise<Lead[]> {
   const { data, error } = await supabase
     .from('leads')
@@ -98,7 +124,7 @@ export async function fetchLeads(supabase: Client): Promise<Lead[]> {
   if (error) {
     throw new Error(`Impossible de charger les prospects : ${error.message}`);
   }
-  return (data ?? []).map(mapDbLeadToLead);
+  return (data ?? []).map((row) => mapDbLeadToLead(stripInternalSignals(row)));
 }
 
 function buildInitials(firstName: string, lastName: string): string {

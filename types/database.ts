@@ -73,6 +73,7 @@ export type LeadSignalJson = {
   pts?: number;
   points?: number;
   source?: string;
+  category?: string;
 };
 
 export type LeadSignalsPayloadJson =
@@ -97,11 +98,19 @@ export type LeadRow = {
   company_email: string | null;
   score: number;
   signals: LeadSignalsPayloadJson;
+  /** JSON par famille destiné à l'affichage agent (jamais de points). */
+  display_signals?: unknown;
+  /** JAMAIS lu côté client — détail pondéré utilisé par le scoring. */
+  internal_signals?: unknown;
   latitude: number | null;
   longitude: number | null;
   acquired_year: number | null;
   acquired_price: number | null;
+  /** Si renseigné par le pipeline : indique la fiabilité du prix d'achat (DVF). */
+  acquired_price_reliable?: boolean | null;
   estimated_value: number | null;
+  rooms?: number | null;
+  floor?: number | null;
   dpe_class: string | null;
   dpe_date: string | null;
   status: LeadStatusDb;
@@ -172,7 +181,10 @@ export type LeadInsert = {
   signals?: LeadSignalJson[];
   acquired_year?: number | null;
   acquired_price?: number | null;
+  acquired_price_reliable?: boolean | null;
   estimated_value?: number | null;
+  rooms?: number | null;
+  floor?: number | null;
   dpe_class?: string | null;
   dpe_date?: string | null;
   status?: LeadStatusDb;
