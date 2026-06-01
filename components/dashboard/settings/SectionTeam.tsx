@@ -359,7 +359,7 @@ function InviteModal({
             className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
             style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
           >
-            {sending ? 'Envoiâ€¦' : 'Envoyer lâ€™invitation'}
+            {sending ? 'Envoi…' : "Envoyer l'invitation"}
           </button>
         </div>
       </div>
