@@ -48,35 +48,49 @@ function SignalFamilyDisclosure({
   const [open, setOpen] = useState(false);
   const panelId = useId();
 
+  const toggle = () => setOpen((v) => !v);
+
   return (
     <div className="py-2">
-      <div className="flex items-start gap-2">
-        <p
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex w-full cursor-pointer items-start gap-2 rounded-md py-0.5 text-left transition-colors duration-150 hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
+      >
+        <span
           className="min-w-0 flex-1 font-semibold leading-snug text-ink"
           style={{ fontSize: 13 }}
         >
           {title}
-        </p>
+        </span>
         {tooltip && (
-          <span className="flex-shrink-0 pt-0.5">
+          <span
+            className="flex-shrink-0 pt-0.5"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <InfoTooltip content={tooltip} placement="top-end" iconSize={13} />
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls={panelId}
-          aria-label={open ? 'Replier les détails' : 'Afficher les détails'}
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-mute transition-colors duration-150 hover:bg-black/[0.04] hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+        <span
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center text-mute"
+          aria-hidden
         >
           <ChevronDown
             size={16}
             strokeWidth={2.25}
             className={`transition-transform duration-150 ease-out ${open ? 'rotate-180' : ''}`}
-            aria-hidden
           />
-        </button>
+        </span>
       </div>
 
       <div id={panelId} hidden={!open} className="mt-2 pl-1">
