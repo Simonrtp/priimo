@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Filters, SignalType, TeamMember } from '@/types/lead';
+import type { Filters, Lead, TeamMember } from '@/types/lead';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 
 interface ProspectsFiltersSheetProps {
@@ -10,7 +10,7 @@ interface ProspectsFiltersSheetProps {
   appliedFilters: Filters;
   onApply: (f: Filters) => void;
   teamMembers: TeamMember[];
-  availableSignals: SignalType[];
+  leads: Lead[];
   showAssignedFilter?: boolean;
 }
 
@@ -20,7 +20,7 @@ export default function ProspectsFiltersSheet({
   appliedFilters,
   onApply,
   teamMembers,
-  availableSignals,
+  leads,
   showAssignedFilter = true,
 }: ProspectsFiltersSheetProps) {
   const [draft, setDraft] = useState<Filters>(appliedFilters);
@@ -67,7 +67,7 @@ export default function ProspectsFiltersSheet({
             filters={draft}
             onFiltersChange={setDraft}
             teamMembers={teamMembers}
-            availableSignals={availableSignals}
+            leads={leads}
             showAssignedFilter={showAssignedFilter}
           />
         </div>

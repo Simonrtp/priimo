@@ -2,20 +2,12 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import type {
-  Filters,
-  Lead,
-  LeadSegmentTab,
-  SignalType,
-  TeamMember,
-} from '@/types/lead';
+import type { Filters, Lead, LeadSegmentTab, TeamMember } from '@/types/lead';
 import { EMPTY_FILTERS } from '@/types/lead';
-import { countActiveFilters } from '@/lib/filter-state';
+import { countActiveLeadFilters, matchesLeadFilters } from '@/lib/lead-filters';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
-import { uniqueSignalTypes } from '@/lib/lead-meta';
-import { matchesQuickFilter } from '@/lib/lead-display';
-import { isDpeUnder30Days, sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
+import { sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
@@ -115,29 +107,13 @@ export default function ProspectsClient({
     [leads],
   );
 
-  const availableSignals = useMemo<SignalType[]>(() => uniqueSignalTypes(leads), [leads]);
-
   const segmentLeads = useMemo(
     () => leads.filter((l) => matchesSegmentTab(l, segmentTab)),
     [leads, segmentTab],
   );
 
   const filtered = useMemo(() => {
-    const list = segmentLeads.filter((l) => {
-      if (l.score < filters.minScore) return false;
-      if (!matchesQuickFilter(l, filters.quickFilter)) return false;
-      if (filters.dpeUnder30Only && !isDpeUnder30Days(l)) return false;
-      if (filters.signalType !== 'all') {
-        if (!l.signals.some((s) => s.type === filters.signalType)) return false;
-      }
-      if (filters.status !== 'all' && l.status !== filters.status) return false;
-      if (filters.assignedTo === 'unassigned') {
-        if (l.assignedTo != null) return false;
-      } else if (filters.assignedTo !== 'all') {
-        if (l.assignedTo !== filters.assignedTo) return false;
-      }
-      return true;
-    });
+    const list = segmentLeads.filter((l) => matchesLeadFilters(l, filters));
     return sortProspects(list, sortMode);
   }, [segmentLeads, filters, sortMode]);
 
@@ -195,7 +171,7 @@ export default function ProspectsClient({
     [leads, supabase],
   );
 
-  const filterCount = countActiveFilters(filters, { countAssigned: isDirector });
+  const filterCount = countActiveLeadFilters(filters, { countAssigned: isDirector });
   const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
   return (
@@ -207,7 +183,7 @@ export default function ProspectsClient({
           filters={filters}
           onFiltersChange={setFilters}
           teamMembers={teamMembers}
-          availableSignals={availableSignals}
+          leads={segmentLeads}
           showAssignedFilter={isDirector}
         />
       </div>
@@ -233,7 +209,7 @@ export default function ProspectsClient({
         appliedFilters={filters}
         onApply={setFilters}
         teamMembers={teamMembers}
-        availableSignals={availableSignals}
+        leads={segmentLeads}
         showAssignedFilter={isDirector}
       />
 

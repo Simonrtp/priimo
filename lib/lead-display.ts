@@ -1,23 +1,6 @@
 import type { Lead, LeadSignal, SignalType } from '@/types/lead';
 import { SIGNAL_META } from '@/lib/lead-meta';
 
-export type QuickFilter =
-  | 'all'
-  | 'ultra_hot'
-  | 'hot'
-  | 'passoire'
-  | 'dpe_recent'
-  | 'detention_5_9';
-
-export const QUICK_FILTER_LABELS: Record<QuickFilter, string> = {
-  all: 'Tous',
-  ultra_hot: '🔥 Ultra chaud (score ≥ 80)',
-  hot: '🟠 Chaud (60-79)',
-  passoire: 'Passoire thermique',
-  dpe_recent: 'DPE récent',
-  detention_5_9: 'Détention 5-9 ans',
-};
-
 export const SIGNAL_EMOJI: Record<SignalType, string> = {
   dissolution_sci: '🏢',
   liquidation: '📋',
@@ -101,27 +84,6 @@ export function isPassoireSignal(signal: LeadSignal): boolean {
 
 export function isDpeRecentSignal(signal: LeadSignal): boolean {
   return signal.type === 'dpe_recent' || /dpe.*récent/i.test(signal.label);
-}
-
-export function matchesQuickFilter(lead: Lead, filter: QuickFilter): boolean {
-  switch (filter) {
-    case 'all':
-      return true;
-    case 'ultra_hot':
-      return lead.score >= 80;
-    case 'hot':
-      return lead.score >= 60 && lead.score < 80;
-    case 'passoire':
-      return lead.signals.some(isPassoireSignal);
-    case 'dpe_recent':
-      return lead.signals.some(isDpeRecentSignal);
-    case 'detention_5_9': {
-      const years = getDetentionYears(lead.acquiredYear);
-      return years != null && years >= 5 && years <= 9;
-    }
-    default:
-      return true;
-  }
 }
 
 export function isActiveLeadStatus(status: Lead['status']): boolean {

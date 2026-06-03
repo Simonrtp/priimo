@@ -1,6 +1,7 @@
 import type { LeadMlFeedbackDb, LeadOwnerTypeDb, LeadStatusDb } from '@/types/database';
-import type { QuickFilter } from '@/lib/lead-display';
 import type { DisplaySignals } from '@/lib/display-signals';
+import type { LeadFilters } from '@/lib/lead-filters';
+import { EMPTY_LEAD_FILTERS } from '@/lib/lead-filters';
 
 export type LeadSegmentTab = 'tous' | 'entreprises' | 'particuliers';
 
@@ -92,23 +93,9 @@ export interface TeamMember {
   initials: string;
 }
 
-export interface Filters {
-  minScore: number;
-  signalType: 'all' | SignalType;
-  status: 'all' | LeadStatus;
-  assignedTo: 'all' | 'unassigned' | string;
-  quickFilter: QuickFilter;
-  dpeUnder30Only: boolean;
-}
+export type Filters = LeadFilters;
 
-export const EMPTY_FILTERS: Filters = {
-  minScore: 0,
-  signalType: 'all',
-  status: 'all',
-  assignedTo: 'all',
-  quickFilter: 'all',
-  dpeUnder30Only: false,
-};
+export const EMPTY_FILTERS = EMPTY_LEAD_FILTERS;
 
 export function leadHasCompanyEvent(lead: Pick<Lead, 'signals'>): boolean {
   return lead.signals.some((s) => (COMPANY_EVENT_SIGNALS as readonly string[]).includes(s.type));
@@ -118,4 +105,9 @@ export function isSciDirectorPending(lead: Pick<Lead, 'ownerType' | 'companyDire
   return lead.ownerType === 'entreprise' && lead.companyDirector === null;
 }
 
-export { countActiveFilters } from '@/lib/filter-state';
+export {
+  countActiveLeadFilters as countActiveFilters,
+  leadFiltersAreDirty as filtersAreDirty,
+  resetLeadFilters as resetFilters,
+  patchLeadFilters as patchFilters,
+} from '@/lib/lead-filters';
