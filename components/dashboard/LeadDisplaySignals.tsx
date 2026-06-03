@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import {
   formatDpeAgeLabel,
@@ -20,16 +21,14 @@ interface LeadDisplaySignalsProps {
 
 function ItemLine({ item }: { item: DisplayItem }) {
   return (
-    <li
-      className="flex items-baseline gap-1.5 text-ink"
-      style={{ fontSize: 12.5, lineHeight: 1.5 }}
-    >
-      <span aria-hidden className="text-mute/70" style={{ fontSize: 10 }}>
-        •
-      </span>
+    <li className="flex items-baseline gap-2 py-0.5 text-ink" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+      <span
+        aria-hidden
+        className="mt-[0.35em] h-1 w-1 flex-shrink-0 rounded-full bg-mute/40"
+      />
       <span className="min-w-0 flex-1">{item.label}</span>
       {item.tooltip && (
-        <InfoTooltip content={item.tooltip} placement="top-end" iconSize={12} className="ml-1" />
+        <InfoTooltip content={item.tooltip} placement="top-end" iconSize={12} className="ml-0.5" />
       )}
     </li>
   );
@@ -39,40 +38,57 @@ function SignalFamilyAccordion({
   title,
   tooltip,
   children,
-  defaultOpen = false,
+  emphasized = false,
 }: {
   title: React.ReactNode;
   tooltip?: string | null;
   children: React.ReactNode;
-  defaultOpen?: boolean;
+  /** Mise en avant légère (ex. cascade). */
+  emphasized?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   const panelId = useId();
 
   return (
-    <div>
+    <div
+      className={`overflow-hidden rounded-xl border transition-colors duration-150 ${
+        open
+          ? 'border-black/[0.08] bg-white shadow-soft'
+          : emphasized
+            ? 'border-accent/20 bg-soft-warm/60'
+            : 'border-black/[0.06] bg-[#FAFAF7]'
+      }`}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex w-full items-baseline gap-1.5 py-1 text-left font-semibold text-ink transition-colors hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
-        style={{ fontSize: 13, lineHeight: 1.4 }}
+        className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1 ${
+          open ? 'bg-black/[0.015]' : 'hover:bg-black/[0.03]'
+        }`}
       >
         <span
           aria-hidden
-          className="inline-block flex-shrink-0 text-accent transition-transform duration-150 ease-out"
-          style={{
-            fontSize: 11,
-            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
-          }}
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-colors duration-150 ${
+            open ? 'bg-accent/15 text-accent' : 'bg-black/[0.05] text-mute'
+          }`}
         >
-          ▸
+          <ChevronRight
+            size={14}
+            strokeWidth={2.25}
+            className={`transition-transform duration-150 ease-out ${open ? 'rotate-90' : ''}`}
+          />
         </span>
-        <span className="min-w-0 flex-1">{title}</span>
+        <span
+          className={`min-w-0 flex-1 leading-snug ${open ? 'font-semibold text-ink' : 'font-medium text-ink'}`}
+          style={{ fontSize: 13 }}
+        >
+          {title}
+        </span>
         {tooltip && (
           <span
-            className="ml-1 flex-shrink-0"
+            className="flex-shrink-0"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
@@ -80,12 +96,13 @@ function SignalFamilyAccordion({
           </span>
         )}
       </button>
+
       <div
         id={panelId}
         hidden={!open}
-        className="mt-1.5 pl-4"
+        className="border-t border-black/[0.05] px-3 pb-3 pt-2"
       >
-        {children}
+        <div className="border-l-2 border-accent/25 pl-3">{children}</div>
       </div>
     </div>
   );
@@ -107,9 +124,9 @@ function DpePanel({ family }: { family: DpeDisplayFamily }) {
   );
 
   return (
-    <SignalFamilyAccordion title={title} defaultOpen>
+    <SignalFamilyAccordion title={title}>
       {family.items.length > 0 ? (
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {family.items.map((item, i) => (
             <ItemLine key={`dpe-${i}`} item={item} />
           ))}
@@ -131,20 +148,21 @@ function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
   }
 
   return (
-    <SignalFamilyAccordion title={headParts.join(' — ')} tooltip={family.tooltip} defaultOpen>
+    <SignalFamilyAccordion title={headParts.join(' — ')} tooltip={family.tooltip} emphasized>
       {family.dates.length > 0 ? (
         <ul>
           <li
-            className="flex items-baseline gap-1.5 text-ink"
+            className="flex items-baseline gap-2 py-0.5 text-ink"
             style={{ fontSize: 12.5, lineHeight: 1.5 }}
           >
-            <span aria-hidden className="text-mute/70" style={{ fontSize: 10 }}>
-              •
-            </span>
+            <span
+              aria-hidden
+              className="mt-[0.35em] h-1 w-1 flex-shrink-0 rounded-full bg-mute/40"
+            />
             <span className="min-w-0 flex-1 tabular">
               {family.dates.map((d, i) => (
                 <span key={`${d}-${i}`}>
-                  {i > 0 && <span className="mx-1 opacity-50">·</span>}
+                  {i > 0 && <span className="mx-1.5 text-mute/50">·</span>}
                   {d}
                 </span>
               ))}
@@ -168,8 +186,8 @@ function ItemsFamilyPanel({
   family: CoproprieteDisplayFamily | EvenementsVieDisplayFamily;
 }) {
   return (
-    <SignalFamilyAccordion title={title} tooltip={family.tooltip} defaultOpen>
-      <ul className="space-y-1">
+    <SignalFamilyAccordion title={title} tooltip={family.tooltip}>
+      <ul className="space-y-0.5">
         {family.items.map((item, i) => (
           <ItemLine key={`${title}-${i}`} item={item} />
         ))}
@@ -179,8 +197,8 @@ function ItemsFamilyPanel({
 }
 
 /**
- * Familles de `display_signals` en volets dépliables (accordéon).
- * Lignes épurées, sans cartes ni points de scoring.
+ * Familles de `display_signals` en volets dépliables.
+ * Tous fermés par défaut à l'ouverture du lead.
  */
 export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignalsProps) {
   if (isDisplaySignalsEmpty(displaySignals)) {
@@ -192,7 +210,7 @@ export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignal
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-2">
       {displaySignals.dpe && <DpePanel family={displaySignals.dpe} />}
       {displaySignals.cascade && <CascadePanel family={displaySignals.cascade} />}
       {displaySignals.copropriete && (

@@ -172,7 +172,7 @@ export default function LeadFullScreenMobile({
         <Divider />
 
         <SectionLabel>Signaux détectés</SectionLabel>
-        <LeadDisplaySignals displaySignals={lead.displaySignals} />
+        <LeadDisplaySignals key={lead.id} displaySignals={lead.displaySignals} />
 
         <Divider />
 
