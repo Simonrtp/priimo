@@ -1,3 +1,6 @@
+'use client';
+
+import { useId, useState } from 'react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import {
   formatDpeAgeLabel,
@@ -13,29 +16,6 @@ import {
 
 interface LeadDisplaySignalsProps {
   displaySignals: DisplaySignals;
-}
-
-function FamilyHead({
-  children,
-  tooltip,
-}: {
-  children: React.ReactNode;
-  tooltip?: string | null;
-}) {
-  return (
-    <p
-      className="flex items-baseline gap-1.5 font-semibold text-ink"
-      style={{ fontSize: 13, lineHeight: 1.4 }}
-    >
-      <span aria-hidden className="text-accent-dark opacity-80">
-        ▸
-      </span>
-      <span className="min-w-0 flex-1">{children}</span>
-      {tooltip && (
-        <InfoTooltip content={tooltip} placement="top-end" iconSize={13} className="ml-1" />
-      )}
-    </p>
-  );
 }
 
 function ItemLine({ item }: { item: DisplayItem }) {
@@ -55,42 +35,105 @@ function ItemLine({ item }: { item: DisplayItem }) {
   );
 }
 
-function DpeBlock({ family }: { family: DpeDisplayFamily }) {
+function SignalFamilyAccordion({
+  title,
+  tooltip,
+  children,
+  defaultOpen = false,
+}: {
+  title: React.ReactNode;
+  tooltip?: string | null;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex w-full items-baseline gap-1.5 py-1 text-left font-semibold text-ink transition-colors hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
+        style={{ fontSize: 13, lineHeight: 1.4 }}
+      >
+        <span
+          aria-hidden
+          className="inline-block flex-shrink-0 text-accent transition-transform duration-150 ease-out"
+          style={{
+            fontSize: 11,
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}
+        >
+          ▸
+        </span>
+        <span className="min-w-0 flex-1">{title}</span>
+        {tooltip && (
+          <span
+            className="ml-1 flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <InfoTooltip content={tooltip} placement="top-end" iconSize={13} />
+          </span>
+        )}
+      </button>
+      <div
+        id={panelId}
+        hidden={!open}
+        className="mt-1.5 pl-4"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DpePanel({ family }: { family: DpeDisplayFamily }) {
   const date = formatDpeDateForDisplay(family.date);
   const age = formatDpeAgeLabel(family.ageJours);
   const parts: string[] = [];
   if (family.classe) parts.push(`DPE ${family.classe}`);
   else parts.push('DPE');
   if (date) parts.push(`fait le ${date}`);
-  const head = parts.join(' — ');
+
+  const title = (
+    <>
+      {parts.join(' — ')}
+      {age && <span className="font-normal text-mute"> ({age})</span>}
+    </>
+  );
+
   return (
-    <div>
-      <FamilyHead>
-        {head}
-        {age && <span className="ml-1 font-normal text-mute"> ({age})</span>}
-      </FamilyHead>
-      {family.items.length > 0 && (
-        <ul className="mt-1.5 space-y-1 pl-4">
+    <SignalFamilyAccordion title={title} defaultOpen>
+      {family.items.length > 0 ? (
+        <ul className="space-y-1">
           {family.items.map((item, i) => (
             <ItemLine key={`dpe-${i}`} item={item} />
           ))}
         </ul>
+      ) : (
+        <p className="text-mute" style={{ fontSize: 12.5 }}>
+          Aucun détail supplémentaire.
+        </p>
       )}
-    </div>
+    </SignalFamilyAccordion>
   );
 }
 
-function CascadeBlock({ family }: { family: CascadeDisplayFamily }) {
+function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
   const headParts: string[] = ['Cascade de vente'];
   if (family.nbVentes != null) {
     const word = family.nbVentes > 1 ? 'ventes' : 'vente';
     headParts.push(`${family.nbVentes} ${word} dans l’immeuble`);
   }
+
   return (
-    <div>
-      <FamilyHead tooltip={family.tooltip}>{headParts.join(' — ')}</FamilyHead>
-      {family.dates.length > 0 && (
-        <ul className="mt-1.5 pl-4">
+    <SignalFamilyAccordion title={headParts.join(' — ')} tooltip={family.tooltip} defaultOpen>
+      {family.dates.length > 0 ? (
+        <ul>
           <li
             className="flex items-baseline gap-1.5 text-ink"
             style={{ fontSize: 12.5, lineHeight: 1.5 }}
@@ -108,12 +151,16 @@ function CascadeBlock({ family }: { family: CascadeDisplayFamily }) {
             </span>
           </li>
         </ul>
+      ) : (
+        <p className="text-mute" style={{ fontSize: 12.5 }}>
+          Aucune date disponible.
+        </p>
       )}
-    </div>
+    </SignalFamilyAccordion>
   );
 }
 
-function ItemsFamilyBlock({
+function ItemsFamilyPanel({
   title,
   family,
 }: {
@@ -121,23 +168,19 @@ function ItemsFamilyBlock({
   family: CoproprieteDisplayFamily | EvenementsVieDisplayFamily;
 }) {
   return (
-    <div>
-      <FamilyHead tooltip={family.tooltip}>{title}</FamilyHead>
-      {family.items.length > 0 && (
-        <ul className="mt-1.5 space-y-1 pl-4">
-          {family.items.map((item, i) => (
-            <ItemLine key={`${title}-${i}`} item={item} />
-          ))}
-        </ul>
-      )}
-    </div>
+    <SignalFamilyAccordion title={title} tooltip={family.tooltip} defaultOpen>
+      <ul className="space-y-1">
+        {family.items.map((item, i) => (
+          <ItemLine key={`${title}-${i}`} item={item} />
+        ))}
+      </ul>
+    </SignalFamilyAccordion>
   );
 }
 
 /**
- * Restitue les familles de `display_signals` en lignes épurées.
- * Aucune carte encadrée, aucun nombre de points : seuls les libellés
- * et tooltips fournis par le pipeline sont affichés.
+ * Familles de `display_signals` en volets dépliables (accordéon).
+ * Lignes épurées, sans cartes ni points de scoring.
  */
 export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignalsProps) {
   if (isDisplaySignalsEmpty(displaySignals)) {
@@ -149,14 +192,14 @@ export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignal
   }
 
   return (
-    <div className="space-y-4">
-      {displaySignals.dpe && <DpeBlock family={displaySignals.dpe} />}
-      {displaySignals.cascade && <CascadeBlock family={displaySignals.cascade} />}
+    <div className="space-y-3">
+      {displaySignals.dpe && <DpePanel family={displaySignals.dpe} />}
+      {displaySignals.cascade && <CascadePanel family={displaySignals.cascade} />}
       {displaySignals.copropriete && (
-        <ItemsFamilyBlock title="Copropriété" family={displaySignals.copropriete} />
+        <ItemsFamilyPanel title="Copropriété" family={displaySignals.copropriete} />
       )}
       {displaySignals.evenementsVie && (
-        <ItemsFamilyBlock title="Événements de vie" family={displaySignals.evenementsVie} />
+        <ItemsFamilyPanel title="Événements de vie" family={displaySignals.evenementsVie} />
       )}
     </div>
   );
