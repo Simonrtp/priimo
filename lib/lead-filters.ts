@@ -2,7 +2,12 @@ import type { Lead } from '@/types/lead';
 import { getDetentionYears } from '@/lib/lead-display';
 import { isDpeUnder30Days } from '@/lib/lead-dpe';
 /** Familles affichables issues de `display_signals`. */
-export type DisplayFamilyKey = 'dpe' | 'cascade' | 'copropriete' | 'evenements_vie';
+export type DisplayFamilyKey =
+  | 'dpe'
+  | 'cascade'
+  | 'copropriete'
+  | 'evenements_vie'
+  | 'entreprise';
 
 export type ScoreTierFilter = 'all' | 'ultra_hot' | 'hot';
 
@@ -11,6 +16,7 @@ export const DISPLAY_FAMILY_LABELS: Record<DisplayFamilyKey, string> = {
   cascade: 'Cascade de vente',
   copropriete: 'Copropriété',
   evenements_vie: 'Événements de vie',
+  entreprise: 'Événement société',
 };
 
 export const SCORE_TIER_LABELS: Record<ScoreTierFilter, string> = {
@@ -53,6 +59,7 @@ const DISPLAY_FAMILY_ORDER: DisplayFamilyKey[] = [
   'cascade',
   'copropriete',
   'evenements_vie',
+  'entreprise',
 ];
 
 export function leadHasDisplayFamily(
@@ -69,6 +76,8 @@ export function leadHasDisplayFamily(
       return ds.copropriete !== null;
     case 'evenements_vie':
       return ds.evenementsVie !== null;
+    case 'entreprise':
+      return ds.entreprise !== null;
     default:
       return false;
   }

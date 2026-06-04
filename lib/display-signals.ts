@@ -37,6 +37,25 @@ export interface CoproprieteDisplayFamily {
 }
 
 export interface EvenementsVieDisplayFamily {
+  /** Titre de section fourni par le pipeline (sinon libellé UI par défaut). */
+  label: string | null;
+  items: DisplayItem[];
+  tooltip: string | null;
+}
+
+export interface EntrepriseDisplayFamily {
+  sciName: string | null;
+  siren: string | null;
+  eventType: string | null;
+  eventDate: string | null;
+  items: DisplayItem[];
+  /** Présent côté pipeline ; non affiché (enrichissement Pappers = bloc dirigeant). */
+  enrichmentPappers: unknown;
+}
+
+export interface GenericDisplayFamily {
+  key: string;
+  title: string;
   items: DisplayItem[];
   tooltip: string | null;
 }
@@ -50,6 +69,9 @@ export interface DisplaySignals {
   cascade: CascadeDisplayFamily | null;
   copropriete: CoproprieteDisplayFamily | null;
   evenementsVie: EvenementsVieDisplayFamily | null;
+  entreprise: EntrepriseDisplayFamily | null;
+  /** Familles futures non typées explicitement (clé JSON → section générique). */
+  extraFamilies: GenericDisplayFamily[];
   plusValue: PlusValueDisplay | null;
 }
 
@@ -58,8 +80,36 @@ export const EMPTY_DISPLAY_SIGNALS: DisplaySignals = {
   cascade: null,
   copropriete: null,
   evenementsVie: null,
+  entreprise: null,
+  extraFamilies: [],
   plusValue: null,
 };
+
+/** Clés JSON connues (hors méta filtrage). */
+const PARSED_FAMILY_KEYS = new Set([
+  'dpe',
+  'cascade',
+  'copropriete',
+  'evenements_vie',
+  'entreprise',
+  'plus_value',
+]);
+
+const DEFAULT_FAMILY_TITLES: Record<string, string> = {
+  dpe: 'DPE',
+  cascade: 'Cascade de vente',
+  copropriete: 'Copropriété',
+  evenements_vie: 'Événements de vie',
+  entreprise: 'Événement société',
+};
+
+export type DisplaySection =
+  | { kind: 'dpe'; family: DpeDisplayFamily }
+  | { kind: 'cascade'; family: CascadeDisplayFamily }
+  | { kind: 'copropriete'; family: CoproprieteDisplayFamily }
+  | { kind: 'evenements_vie'; family: EvenementsVieDisplayFamily }
+  | { kind: 'entreprise'; family: EntrepriseDisplayFamily }
+  | { kind: 'generic'; family: GenericDisplayFamily };
 
 // ─── Helpers défensifs ─────────────────────────────────────────────────
 
@@ -105,6 +155,15 @@ function parseItems(raw: unknown): DisplayItem[] {
   return out;
 }
 
+function humanizeFamilyKey(key: string): string {
+  return (
+    DEFAULT_FAMILY_TITLES[key] ??
+    key
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
 // ─── Familles ─────────────────────────────────────────────────────────
 
 function parseDpe(raw: unknown): DpeDisplayFamily | null {
@@ -131,7 +190,7 @@ function parseCascade(raw: unknown): CascadeDisplayFamily | null {
     ? obj.dates.filter((d): d is string => typeof d === 'string' && d.trim().length > 0)
     : [];
   const tooltip = asString(obj.tooltip);
-  if (nbVentes === null && dates.length === 0) return null;
+  if (nbVentes === null && dates.length === 0 && !tooltip) return null;
   return { nbVentes, dates, tooltip };
 }
 
@@ -144,6 +203,46 @@ function parseSimpleItemsFamily(
   const tooltip = asString(obj.tooltip);
   if (items.length === 0) return null;
   return { items, tooltip };
+}
+
+function parseEvenementsVie(raw: unknown): EvenementsVieDisplayFamily | null {
+  const obj = asObject(raw);
+  if (!obj) return null;
+  const items = parseItems(obj.items);
+  const label = asString(obj.label);
+  const tooltip = asString(obj.tooltip);
+  if (items.length === 0 && !label) return null;
+  return { label, items, tooltip };
+}
+
+function parseEntreprise(raw: unknown): EntrepriseDisplayFamily | null {
+  const obj = asObject(raw);
+  if (!obj) return null;
+  const sciName = asString(obj.sci_name);
+  const siren = asString(obj.siren);
+  const eventType = asString(obj.event_type);
+  const eventDate = asString(obj.event_date);
+  const items = parseItems(obj.items);
+  const enrichmentPappers = obj.enrichment_pappers ?? null;
+  if (!sciName && !siren && !eventType && !eventDate && items.length === 0) return null;
+  return {
+    sciName,
+    siren,
+    eventType,
+    eventDate,
+    items,
+    enrichmentPappers,
+  };
+}
+
+function parseGenericFamily(key: string, raw: unknown): GenericDisplayFamily | null {
+  const obj = asObject(raw);
+  if (!obj) return null;
+  const items = parseItems(obj.items);
+  const tooltip = asString(obj.tooltip);
+  const title = asString(obj.label) ?? humanizeFamilyKey(key);
+  if (items.length === 0) return null;
+  return { key, title, items, tooltip };
 }
 
 function parsePlusValue(raw: unknown): PlusValueDisplay | null {
@@ -159,23 +258,48 @@ function parsePlusValue(raw: unknown): PlusValueDisplay | null {
 export function parseDisplaySignals(raw: unknown): DisplaySignals {
   const root = asObject(raw);
   if (!root) return EMPTY_DISPLAY_SIGNALS;
+
+  const extraFamilies: GenericDisplayFamily[] = [];
+  for (const [key, value] of Object.entries(root)) {
+    if (PARSED_FAMILY_KEYS.has(key) || value == null) continue;
+    const generic = parseGenericFamily(key, value);
+    if (generic) extraFamilies.push(generic);
+  }
+
   return {
     dpe: parseDpe(root.dpe),
     cascade: parseCascade(root.cascade),
     copropriete: parseSimpleItemsFamily(root.copropriete),
-    evenementsVie: parseSimpleItemsFamily(root.evenements_vie),
+    evenementsVie: parseEvenementsVie(root.evenements_vie),
+    entreprise: parseEntreprise(root.entreprise),
+    extraFamilies,
     plusValue: parsePlusValue(root.plus_value),
   };
 }
 
-/** True quand AUCUNE famille (hors plus_value, méta) n'a de contenu. */
+/** Sections affichables dans l'ordre produit (familles connues puis génériques). */
+export function getDisplaySections(ds: DisplaySignals): DisplaySection[] {
+  const sections: DisplaySection[] = [];
+  if (ds.dpe) sections.push({ kind: 'dpe', family: ds.dpe });
+  if (ds.cascade) sections.push({ kind: 'cascade', family: ds.cascade });
+  if (ds.copropriete) sections.push({ kind: 'copropriete', family: ds.copropriete });
+  if (ds.evenementsVie) sections.push({ kind: 'evenements_vie', family: ds.evenementsVie });
+  if (ds.entreprise) sections.push({ kind: 'entreprise', family: ds.entreprise });
+  for (const family of ds.extraFamilies) {
+    sections.push({ kind: 'generic', family });
+  }
+  return sections;
+}
+
+/** True quand aucune famille affichable (hors plus_value, méta). */
 export function isDisplaySignalsEmpty(ds: DisplaySignals): boolean {
-  return (
-    ds.dpe === null &&
-    ds.cascade === null &&
-    ds.copropriete === null &&
-    ds.evenementsVie === null
-  );
+  return getDisplaySections(ds).length === 0;
+}
+
+/** Items entreprise à lister sous le titre (évite de dupliquer event_type). */
+export function entrepriseDetailItems(family: EntrepriseDisplayFamily): DisplayItem[] {
+  if (!family.eventType) return family.items;
+  return family.items.filter((item) => item.label !== family.eventType);
 }
 
 // ─── Formatage léger pour l'UI ────────────────────────────────────────

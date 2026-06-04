@@ -4,20 +4,28 @@ import { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import {
+  entrepriseDetailItems,
   formatDpeAgeLabel,
   formatDpeDateForDisplay,
+  getDisplaySections,
   isDisplaySignalsEmpty,
   type CascadeDisplayFamily,
-  type CoproprieteDisplayFamily,
   type DisplayItem,
+  type DisplaySection,
   type DisplaySignals,
   type DpeDisplayFamily,
+  type EntrepriseDisplayFamily,
   type EvenementsVieDisplayFamily,
 } from '@/lib/display-signals';
 
 interface LeadDisplaySignalsProps {
   displaySignals: DisplaySignals;
 }
+
+type ItemsFamily = {
+  items: DisplayItem[];
+  tooltip: string | null;
+};
 
 function ItemLine({ item }: { item: DisplayItem }) {
   return (
@@ -33,6 +41,23 @@ function ItemLine({ item }: { item: DisplayItem }) {
         <InfoTooltip content={item.tooltip} placement="top-end" iconSize={12} className="ml-0.5" />
       )}
     </li>
+  );
+}
+
+function ItemsList({ items }: { items: DisplayItem[] }) {
+  if (items.length === 0) {
+    return (
+      <p className="pl-3 text-mute" style={{ fontSize: 12.5 }}>
+        Aucun détail supplémentaire.
+      </p>
+    );
+  }
+  return (
+    <ul className="space-y-1 pl-3">
+      {items.map((item, i) => (
+        <ItemLine key={i} item={item} />
+      ))}
+    </ul>
   );
 }
 
@@ -117,17 +142,7 @@ function DpePanel({ family }: { family: DpeDisplayFamily }) {
 
   return (
     <SignalFamilyDisclosure title={title}>
-      {family.items.length > 0 ? (
-        <ul className="space-y-1 pl-3">
-          {family.items.map((item, i) => (
-            <ItemLine key={`dpe-${i}`} item={item} />
-          ))}
-        </ul>
-      ) : (
-        <p className="pl-3 text-mute" style={{ fontSize: 12.5 }}>
-          Aucun détail supplémentaire.
-        </p>
-      )}
+      <ItemsList items={family.items} />
     </SignalFamilyDisclosure>
   );
 }
@@ -169,26 +184,63 @@ function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
   );
 }
 
-function ItemsFamilyPanel({
-  title,
-  family,
-}: {
-  title: string;
-  family: CoproprieteDisplayFamily | EvenementsVieDisplayFamily;
-}) {
+function ItemsFamilyPanel({ title, family }: { title: string; family: ItemsFamily }) {
   return (
     <SignalFamilyDisclosure title={title} tooltip={family.tooltip}>
-      <ul className="space-y-1 pl-3">
-        {family.items.map((item, i) => (
-          <ItemLine key={`${title}-${i}`} item={item} />
-        ))}
-      </ul>
+      <ItemsList items={family.items} />
     </SignalFamilyDisclosure>
   );
 }
 
+function EntreprisePanel({ family }: { family: EntrepriseDisplayFamily }) {
+  const date = formatDpeDateForDisplay(family.eventDate);
+  const headline =
+    family.eventType ?? family.items[0]?.label ?? 'Événement société';
+  const detailItems = entrepriseDetailItems(family);
+
+  const title = (
+    <>
+      {headline}
+      {date && <span className="font-normal text-mute"> — {date}</span>}
+      {family.siren && (
+        <span className="font-normal text-mute"> · SIREN {family.siren}</span>
+      )}
+    </>
+  );
+
+  return (
+    <SignalFamilyDisclosure title={title}>
+      <ItemsList items={detailItems} />
+    </SignalFamilyDisclosure>
+  );
+}
+
+function DisplaySectionView({ section }: { section: DisplaySection }) {
+  switch (section.kind) {
+    case 'dpe':
+      return <DpePanel family={section.family} />;
+    case 'cascade':
+      return <CascadePanel family={section.family} />;
+    case 'copropriete':
+      return <ItemsFamilyPanel title="Copropriété" family={section.family} />;
+    case 'evenements_vie':
+      return (
+        <ItemsFamilyPanel
+          title={section.family.label ?? 'Événements de vie'}
+          family={section.family}
+        />
+      );
+    case 'entreprise':
+      return <EntreprisePanel family={section.family} />;
+    case 'generic':
+      return <ItemsFamilyPanel title={section.family.title} family={section.family} />;
+    default:
+      return null;
+  }
+}
+
 /**
- * Familles de `display_signals` — lignes de texte + bouton pour déplier.
+ * Familles de `display_signals` — lignes de texte + accordéon.
  * Tous fermés par défaut à l'ouverture du lead.
  */
 export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignalsProps) {
@@ -200,16 +252,20 @@ export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignal
     );
   }
 
+  const sections = getDisplaySections(displaySignals);
+
   return (
     <div>
-      {displaySignals.dpe && <DpePanel family={displaySignals.dpe} />}
-      {displaySignals.cascade && <CascadePanel family={displaySignals.cascade} />}
-      {displaySignals.copropriete && (
-        <ItemsFamilyPanel title="Copropriété" family={displaySignals.copropriete} />
-      )}
-      {displaySignals.evenementsVie && (
-        <ItemsFamilyPanel title="Événements de vie" family={displaySignals.evenementsVie} />
-      )}
+      {sections.map((section) => (
+        <DisplaySectionView
+          key={
+            section.kind === 'generic'
+              ? `generic-${section.family.key}`
+              : section.kind
+          }
+          section={section}
+        />
+      ))}
     </div>
   );
 }

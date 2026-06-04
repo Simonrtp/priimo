@@ -18,5 +18,5 @@
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS display_signals  jsonb;
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS internal_signals jsonb;
 
-COMMENT ON COLUMN public.leads.display_signals  IS 'JSON par famille (dpe, cascade, copropriete, evenements_vie, plus_value) lu uniquement pour l''affichage agent.';
+COMMENT ON COLUMN public.leads.display_signals  IS 'JSON par famille (dpe, cascade, copropriete, evenements_vie, entreprise, plus_value, …) lu uniquement pour l''affichage agent.';
 COMMENT ON COLUMN public.leads.internal_signals IS 'JSON détaillé des signaux pondérés utilisés pour le scoring — NE JAMAIS lire côté client.';
