@@ -1,13 +1,18 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { Filters, Lead, LeadSegmentTab, TeamMember } from '@/types/lead';
 import { EMPTY_FILTERS } from '@/types/lead';
-import { countActiveLeadFilters, matchesLeadFilters } from '@/lib/lead-filters';
+import {
+  countActiveLeadFilters,
+  matchesLeadFilters,
+  sanitizeSignalFamilyForLeads,
+} from '@/lib/lead-filters';
+import { partitionLeadsForDisplay } from '@/lib/lead-delivery';
+import { sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
-import { sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
@@ -16,11 +21,14 @@ import MapViewPlaceholder from './MapViewPlaceholder';
 import LeadsList from './LeadsList';
 import LeadDrawer from './LeadDrawer';
 import LeadFullScreenMobile from './LeadFullScreenMobile';
+import PipelineUpdateBanner from './PipelineUpdateBanner';
 
 interface ProspectsClientProps {
   initialLeads: Lead[];
   teamMembers: TeamMember[];
   isDirector: boolean;
+  initialShowPipelineBanner: boolean;
+  initialNewBatchCount: number;
 }
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -87,8 +95,11 @@ export default function ProspectsClient({
   initialLeads,
   teamMembers,
   isDirector,
+  initialShowPipelineBanner,
+  initialNewBatchCount,
 }: ProspectsClientProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [showPipelineBanner, setShowPipelineBanner] = useState(initialShowPipelineBanner);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [segmentTab, setSegmentTab] = useState<LeadSegmentTab>('tous');
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -112,10 +123,27 @@ export default function ProspectsClient({
     [leads, segmentTab],
   );
 
-  const filtered = useMemo(() => {
-    const list = segmentLeads.filter((l) => matchesLeadFilters(l, filters));
-    return sortProspects(list, sortMode);
-  }, [segmentLeads, filters, sortMode]);
+  useEffect(() => {
+    setFilters((prev) => {
+      const next = sanitizeSignalFamilyForLeads(prev, segmentLeads);
+      return next === prev ? prev : next;
+    });
+  }, [segmentTab, segmentLeads]);
+
+  const filtered = useMemo(
+    () => segmentLeads.filter((l) => matchesLeadFilters(l, filters)),
+    [segmentLeads, filters],
+  );
+
+  const partitioned = useMemo(
+    () => partitionLeadsForDisplay(filtered, leads, sortMode),
+    [filtered, leads, sortMode],
+  );
+
+  const filteredForExport = useMemo(
+    () => sortProspects(filtered, sortMode),
+    [filtered, sortMode],
+  );
 
   const selected = selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null;
 
@@ -174,8 +202,38 @@ export default function ProspectsClient({
   const filterCount = countActiveLeadFilters(filters, { countAssigned: isDirector });
   const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
+  const dismissPipelineBanner = useCallback(async () => {
+    setShowPipelineBanner(false);
+    try {
+      const res = await fetch('/api/dashboard/leads-last-seen', { method: 'POST' });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? 'Erreur réseau');
+      }
+      const data = (await res.json()) as { leadsLastSeenAt?: string };
+      if (!data.leadsLastSeenAt) {
+        throw new Error('Réponse serveur invalide');
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Impossible de marquer les leads comme vus.');
+    }
+  }, []);
+
+  const viewNewLeads = useCallback(() => {
+    document.getElementById('prospects-leads-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    void dismissPipelineBanner();
+  }, [dismissPipelineBanner]);
+
   return (
     <>
+      {showPipelineBanner && initialNewBatchCount > 0 && (
+        <PipelineUpdateBanner
+          newCount={initialNewBatchCount}
+          onDismiss={() => void dismissPipelineBanner()}
+          onViewNew={viewNewLeads}
+        />
+      )}
+
       <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
       <div className="mb-4 hidden md:block">
@@ -197,7 +255,7 @@ export default function ProspectsClient({
         }}
         sortMode={sortMode}
         onSortModeChange={setSortMode}
-        onExportCsv={isDirector ? () => exportLeadsToCsv(filtered) : undefined}
+        onExportCsv={isDirector ? () => exportLeadsToCsv(filteredForExport) : undefined}
         filterActiveCount={filterCount}
         onOpenFilters={() => setFiltersSheetOpen(true)}
         showExportCsv={isDirector}
@@ -215,7 +273,9 @@ export default function ProspectsClient({
 
       {prospectsView === 'liste' ? (
         <LeadsList
-          leads={filtered}
+          newBatch={partitioned.newBatch}
+          previousTotal={partitioned.previousTotal}
+          previousGroups={partitioned.previousGroups}
           segmentTab={segmentTab}
           hasAnyLead={leads.length > 0}
           onLeadClick={setSelectedLeadId}

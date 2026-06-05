@@ -15,6 +15,7 @@ interface LeadCardProps {
   index: number;
   isLast: boolean;
   segmentTab: LeadSegmentTab;
+  showNewBadge?: boolean;
   onClick: () => void;
   onStatusChange: (status: Lead['status']) => void;
 }
@@ -59,6 +60,7 @@ export default function LeadCard({
   index,
   isLast,
   segmentTab,
+  showNewBadge = false,
   onClick,
   onStatusChange,
 }: LeadCardProps) {
@@ -98,6 +100,11 @@ export default function LeadCard({
                 >
                   {lead.address}
                 </span>
+                {showNewBadge && (
+                  <span className="inline-flex shrink-0 items-center rounded-md border border-accent/25 bg-accent/[0.08] px-1.5 py-0.5 text-[10px] font-medium text-accent-dark">
+                    Nouveau
+                  </span>
+                )}
                 <DpeFreshnessChip lead={lead} />
               </div>
               {lead.companyName && (
@@ -157,6 +164,11 @@ export default function LeadCard({
                 >
                   {lead.address}
                 </span>
+                {showNewBadge && (
+                  <span className="inline-flex shrink-0 items-center rounded-md border border-accent/25 bg-accent/[0.08] px-1.5 py-0.5 text-[10px] font-medium text-accent-dark">
+                    Nouveau
+                  </span>
+                )}
                 <DpeFreshnessChip lead={lead} />
               </div>
               {lead.companyName && (

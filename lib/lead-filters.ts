@@ -83,6 +83,17 @@ export function leadHasDisplayFamily(
   }
 }
 
+/** Réinitialise `signalFamily` si la famille n'existe pas dans l'onglet courant. */
+export function sanitizeSignalFamilyForLeads(
+  filters: LeadFilters,
+  leads: Pick<Lead, 'displaySignals'>[],
+): LeadFilters {
+  if (filters.signalFamily === 'all') return filters;
+  const available = availableDisplayFamilies(leads);
+  if (available.includes(filters.signalFamily)) return filters;
+  return { ...filters, signalFamily: 'all' };
+}
+
 export function availableDisplayFamilies(leads: Pick<Lead, 'displaySignals'>[]): DisplayFamilyKey[] {
   const set = new Set<DisplayFamilyKey>();
   for (const lead of leads) {

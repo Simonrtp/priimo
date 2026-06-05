@@ -50,6 +50,8 @@ export type ProfileRow = {
   last_name: string;
   phone: string | null;
   preferences: ProfilePreferences;
+  /** Dernière visite du dashboard prospects (bandeau pipeline). */
+  leads_last_seen_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -117,6 +119,8 @@ export type LeadRow = {
   notes: string | null;
   assigned_to: string | null;
   ml_feedback: LeadMlFeedbackDb | null;
+  /** Date du lot pipeline (YYYY-MM-DD). */
+  delivered_at?: string;
   created_at: string;
   updated_at: string;
 };

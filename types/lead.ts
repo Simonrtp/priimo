@@ -81,6 +81,8 @@ export interface Lead {
   notes: string | null;
   assignedTo: string | null;
   mlFeedback: MlFeedback;
+  /** Date du lot pipeline (YYYY-MM-DD). */
+  deliveredAt: string;
   createdAt: string;
   updatedAt: string;
 }
