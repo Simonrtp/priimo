@@ -12,10 +12,8 @@ import {
   leadFiltersAreDirty,
   patchLeadFilters,
   resetLeadFilters,
-  SCORE_TIER_LABELS,
   showPropertyFilterSection,
   type DisplayFamilyKey,
-  type ScoreTierFilter,
 } from '@/lib/lead-filters';
 
 interface ProspectsFiltersPanelProps {
@@ -62,54 +60,6 @@ function Pill({
     >
       {label}
     </button>
-  );
-}
-
-const SCORE_TIERS: ScoreTierFilter[] = ['all', 'ultra_hot', 'hot'];
-
-function PriorityFilterSection({
-  filters,
-  onPatch,
-}: {
-  filters: Filters;
-  onPatch: (patch: Partial<Filters>) => void;
-}) {
-  return (
-    <div className="mb-4">
-      <SectionLabel>Priorité</SectionLabel>
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {SCORE_TIERS.map((tier) => (
-          <Pill
-            key={tier}
-            label={SCORE_TIER_LABELS[tier]}
-            active={filters.scoreTier === tier}
-            onClick={() =>
-              onPatch({
-                scoreTier: tier === 'all' ? 'all' : filters.scoreTier === tier ? 'all' : tier,
-              })
-            }
-          />
-        ))}
-      </div>
-      <div className="flex items-center gap-3">
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={filters.minScore}
-          onChange={(e) => onPatch({ minScore: +e.target.value })}
-          className="h-2 min-w-0 flex-1 accent-accent"
-          aria-label="Score minimum"
-        />
-        <span
-          className="w-8 flex-shrink-0 text-right font-bold tabular text-accent-dark"
-          style={{ fontSize: 13 }}
-        >
-          {filters.minScore}
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -198,8 +148,6 @@ export default function ProspectsFiltersPanel({
           </button>
         )}
       </div>
-
-      <PriorityFilterSection filters={filters} onPatch={set} />
 
       {(!collapsible || expanded) && (
         <div
