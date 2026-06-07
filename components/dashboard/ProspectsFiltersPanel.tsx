@@ -5,16 +5,20 @@ import { ChevronDown } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import type { Filters, Lead, LeadStatus, TeamMember } from '@/types/lead';
 import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
+import { PROSPECTS_SORT_LABELS, type ProspectsSortMode } from '@/lib/lead-dpe';
 import {
   availableDisplayFamilies,
   countActiveLeadFilters,
   DISPLAY_FAMILY_LABELS,
+  hasDpeDateInLeads,
   leadFiltersAreDirty,
   patchLeadFilters,
   resetLeadFilters,
   showPropertyFilterSection,
   type DisplayFamilyKey,
 } from '@/lib/lead-filters';
+
+const SORT_MODES: ProspectsSortMode[] = ['score', 'dpe_recent'];
 
 interface ProspectsFiltersPanelProps {
   filters: Filters;
@@ -83,6 +87,7 @@ export default function ProspectsFiltersPanel({
 
   const displayFamilies = useMemo(() => availableDisplayFamilies(leads), [leads]);
   const propertyAvailability = useMemo(() => showPropertyFilterSection(leads), [leads]);
+  const canSortByDpe = useMemo(() => hasDpeDateInLeads(leads), [leads]);
 
   const showPropertySection =
     propertyAvailability.passoire ||
@@ -155,6 +160,26 @@ export default function ProspectsFiltersPanel({
           role="region"
           aria-labelledby={collapsible ? `${panelId}-trigger` : undefined}
         >
+          {canSortByDpe && (
+            <>
+              <SectionLabel>Tri</SectionLabel>
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {SORT_MODES.map((mode) => (
+                  <Pill
+                    key={mode}
+                    label={
+                      mode === 'score'
+                        ? `${PROSPECTS_SORT_LABELS[mode]} (défaut)`
+                        : PROSPECTS_SORT_LABELS[mode]
+                    }
+                    active={filters.sortBy === mode}
+                    onClick={() => set({ sortBy: mode })}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
           {displayFamilies.length > 0 && (
             <>
               <div className="my-4 border-t border-black/[0.06]" />

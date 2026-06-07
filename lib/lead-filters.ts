@@ -1,6 +1,6 @@
 import type { Lead } from '@/types/lead';
 import { getDetentionYears } from '@/lib/lead-display';
-import { isDpeUnder30Days } from '@/lib/lead-dpe';
+import { isDpeUnder30Days, type ProspectsSortMode } from '@/lib/lead-dpe';
 /** Familles affichables issues de `display_signals`. */
 export type DisplayFamilyKey =
   | 'dpe'
@@ -40,6 +40,8 @@ export interface LeadFilters {
   prixAchatConnu: boolean;
   status: Lead['status'] | 'all';
   assignedTo: 'all' | 'unassigned' | string;
+  /** Tri de la liste : score (défaut) ou date DPE décroissante. */
+  sortBy: ProspectsSortMode;
 }
 
 export const EMPTY_LEAD_FILTERS: LeadFilters = {
@@ -52,6 +54,7 @@ export const EMPTY_LEAD_FILTERS: LeadFilters = {
   prixAchatConnu: false,
   status: 'all',
   assignedTo: 'all',
+  sortBy: 'score',
 };
 
 const DISPLAY_FAMILY_ORDER: DisplayFamilyKey[] = [
@@ -92,6 +95,15 @@ export function sanitizeSignalFamilyForLeads(
   const available = availableDisplayFamilies(leads);
   if (available.includes(filters.signalFamily)) return filters;
   return { ...filters, signalFamily: 'all' };
+}
+
+/** Réinitialise le tri DPE si aucun lead de l'onglet n'a de date DPE. */
+export function sanitizeSortByForLeads(
+  filters: LeadFilters,
+  leads: Pick<Lead, 'dpeDate'>[],
+): LeadFilters {
+  if (filters.sortBy !== 'dpe_recent' || hasDpeDateInLeads(leads)) return filters;
+  return { ...filters, sortBy: 'score' };
 }
 
 export function availableDisplayFamilies(leads: Pick<Lead, 'displaySignals'>[]): DisplayFamilyKey[] {
@@ -198,6 +210,7 @@ export function countActiveLeadFilters(
   if (f.prixAchatConnu) n++;
   if (f.status !== 'all') n++;
   if (countAssigned && f.assignedTo !== 'all') n++;
+  if (f.sortBy !== 'score') n++;
   return n;
 }
 
@@ -207,6 +220,11 @@ export function leadFiltersAreDirty(f: LeadFilters, opts?: { countAssigned?: boo
 
 export function resetLeadFilters(): LeadFilters {
   return { ...EMPTY_LEAD_FILTERS };
+}
+
+/** Au moins un lead avec une date DPE (tri par fraîcheur possible). */
+export function hasDpeDateInLeads(leads: Pick<Lead, 'dpeDate'>[]): boolean {
+  return leads.some((l) => l.dpeDate != null);
 }
 
 /** Au moins un filtre « bien » ou « signaux » disponible dans la liste. */

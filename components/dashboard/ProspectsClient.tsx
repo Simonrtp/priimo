@@ -8,9 +8,10 @@ import {
   countActiveLeadFilters,
   matchesLeadFilters,
   sanitizeSignalFamilyForLeads,
+  sanitizeSortByForLeads,
 } from '@/lib/lead-filters';
 import { partitionLeadsForDisplay } from '@/lib/lead-delivery';
-import { sortProspects, type ProspectsSortMode } from '@/lib/lead-dpe';
+import { sortProspects } from '@/lib/lead-dpe';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
 import TabsNav from './TabsNav';
@@ -105,7 +106,6 @@ export default function ProspectsClient({
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [prospectsView, setProspectsView] = useState<ProspectsViewMode>('liste');
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<ProspectsSortMode>('score');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -125,7 +125,8 @@ export default function ProspectsClient({
 
   useEffect(() => {
     setFilters((prev) => {
-      const next = sanitizeSignalFamilyForLeads(prev, segmentLeads);
+      let next = sanitizeSignalFamilyForLeads(prev, segmentLeads);
+      next = sanitizeSortByForLeads(next, segmentLeads);
       return next === prev ? prev : next;
     });
   }, [segmentTab, segmentLeads]);
@@ -136,13 +137,13 @@ export default function ProspectsClient({
   );
 
   const partitioned = useMemo(
-    () => partitionLeadsForDisplay(filtered, leads, sortMode),
-    [filtered, leads, sortMode],
+    () => partitionLeadsForDisplay(filtered, leads, filters.sortBy),
+    [filtered, leads, filters.sortBy],
   );
 
   const filteredForExport = useMemo(
-    () => sortProspects(filtered, sortMode),
-    [filtered, sortMode],
+    () => sortProspects(filtered, filters.sortBy),
+    [filtered, filters.sortBy],
   );
 
   const selected = selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null;
@@ -253,8 +254,6 @@ export default function ProspectsClient({
           setProspectsView(v);
           if (v === 'carte') setSelectedLeadId(null);
         }}
-        sortMode={sortMode}
-        onSortModeChange={setSortMode}
         onExportCsv={isDirector ? () => exportLeadsToCsv(filteredForExport) : undefined}
         filterActiveCount={filterCount}
         onOpenFilters={() => setFiltersSheetOpen(true)}
@@ -274,8 +273,8 @@ export default function ProspectsClient({
       {prospectsView === 'liste' ? (
         <LeadsList
           newBatch={partitioned.newBatch}
-          previousTotal={partitioned.previousTotal}
           previousGroups={partitioned.previousGroups}
+          filters={filters}
           segmentTab={segmentTab}
           hasAnyLead={leads.length > 0}
           onLeadClick={setSelectedLeadId}

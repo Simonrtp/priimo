@@ -1,22 +1,13 @@
 'use client';
 
-import Select from '@/components/ui/Select';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
-import type { ProspectsSortMode } from '@/lib/lead-dpe';
 
 export type ProspectsViewMode = 'liste' | 'carte';
-
-const SORT_OPTIONS: { value: ProspectsSortMode; label: string }[] = [
-  { value: 'score', label: 'Score (par défaut)' },
-  { value: 'dpe_recent', label: 'DPE le plus récent' },
-];
 
 interface ProspectsListToolbarProps {
   count: number;
   viewMode: ProspectsViewMode;
   onViewModeChange: (mode: ProspectsViewMode) => void;
-  sortMode: ProspectsSortMode;
-  onSortModeChange: (mode: ProspectsSortMode) => void;
   onExportCsv?: () => void;
   /** Mobile : nombre de filtres actifs (hors défaut). */
   filterActiveCount?: number;
@@ -29,8 +20,6 @@ export default function ProspectsListToolbar({
   count,
   viewMode,
   onViewModeChange,
-  sortMode,
-  onSortModeChange,
   onExportCsv,
   filterActiveCount = 0,
   onOpenFilters,
@@ -41,17 +30,6 @@ export default function ProspectsListToolbar({
 
   return (
     <>
-      <div className="mb-2 flex items-center gap-2 md:hidden">
-        <Select
-          aria-label="Tri des prospects"
-          value={sortMode}
-          options={SORT_OPTIONS}
-          onChange={(v) => onSortModeChange(v as ProspectsSortMode)}
-          className="min-w-0 flex-1"
-          triggerClassName="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-3 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10"
-        />
-      </div>
-
       <div className="mb-3 flex items-center justify-between gap-2 md:hidden">
         <p className="min-w-0 truncate font-semibold tabular text-ink" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
           {count} prospect{count !== 1 ? 's' : ''}
@@ -105,14 +83,6 @@ export default function ProspectsListToolbar({
         </p>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Select
-            aria-label="Tri des prospects"
-            value={sortMode}
-            options={SORT_OPTIONS}
-            onChange={(v) => onSortModeChange(v as ProspectsSortMode)}
-            triggerClassName="flex min-w-[180px] items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-3 py-2 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10"
-          />
-
           <div
             className="inline-flex rounded-xl border border-black/10 bg-black/[0.03] p-0.5"
             role="group"

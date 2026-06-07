@@ -111,12 +111,15 @@ export function partitionLeadsForDisplay(
       deliveredAt,
       label: formatDeliveryBatchLabel(deliveredAt),
       leads: sortProspects(byDate.get(deliveredAt) ?? [], sortMode),
-    }));
+    }))
+    .filter((g) => g.leads.length > 0);
+
+  const previousTotal = previousGroups.reduce((n, g) => n + g.leads.length, 0);
 
   return {
     latestDeliveredAt,
     newBatch: sortProspects(newBatchRaw, sortMode),
-    previousTotal: previousRaw.length,
+    previousTotal,
     previousGroups,
   };
 }

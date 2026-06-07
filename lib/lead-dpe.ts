@@ -2,6 +2,11 @@ import type { Lead } from '@/types/lead';
 
 export type ProspectsSortMode = 'score' | 'dpe_recent';
 
+export const PROSPECTS_SORT_LABELS: Record<ProspectsSortMode, string> = {
+  score: 'Score',
+  dpe_recent: 'DPE le plus récent',
+};
+
 export type DpeFreshnessTier = 'hot' | 'recent';
 
 /** Jours écoulés depuis la date DPE (date du jour locale, minuit). */

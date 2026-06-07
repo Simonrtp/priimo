@@ -47,9 +47,14 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1 rounded-full font-medium transition-opacity duration-150 hover:opacity-80 ${meta.chipClass}`}
-        style={{ fontSize: 11, padding: '3px 10px 3px 10px', letterSpacing: '0.01em' }}
+        className={`flex items-center gap-1.5 rounded-full font-medium transition-opacity duration-150 hover:opacity-80 ${meta.chipClass}`}
+        style={{ fontSize: 11, padding: '3px 10px 3px 8px', letterSpacing: '0.01em' }}
       >
+        <span
+          className="flex-shrink-0 rounded-full"
+          style={{ width: 7, height: 7, backgroundColor: meta.dotColor }}
+          aria-hidden
+        />
         {meta.label}
         <ChevronDown size={10} strokeWidth={2.5} aria-hidden />
       </button>
