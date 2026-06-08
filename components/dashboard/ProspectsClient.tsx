@@ -226,7 +226,7 @@ export default function ProspectsClient({
   }, [dismissPipelineBanner]);
 
   return (
-    <>
+    <div className="w-full min-w-0">
       {showPipelineBanner && initialNewBatchCount > 0 && (
         <PipelineUpdateBanner
           newCount={initialNewBatchCount}
@@ -235,7 +235,22 @@ export default function ProspectsClient({
         />
       )}
 
-      <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
+      <div className="mb-3 max-md:pt-4 md:mb-3">
+        <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
+
+        <ProspectsListToolbar
+          count={filtered.length}
+          viewMode={prospectsView}
+          onViewModeChange={(v) => {
+            setProspectsView(v);
+            if (v === 'carte') setSelectedLeadId(null);
+          }}
+          onExportCsv={isDirector ? () => exportLeadsToCsv(filteredForExport) : undefined}
+          filterActiveCount={filterCount}
+          onOpenFilters={() => setFiltersSheetOpen(true)}
+          showExportCsv={isDirector}
+        />
+      </div>
 
       <div className="mb-4 hidden md:block">
         <ProspectsFiltersPanel
@@ -246,19 +261,6 @@ export default function ProspectsClient({
           showAssignedFilter={isDirector}
         />
       </div>
-
-      <ProspectsListToolbar
-        count={filtered.length}
-        viewMode={prospectsView}
-        onViewModeChange={(v) => {
-          setProspectsView(v);
-          if (v === 'carte') setSelectedLeadId(null);
-        }}
-        onExportCsv={isDirector ? () => exportLeadsToCsv(filteredForExport) : undefined}
-        filterActiveCount={filterCount}
-        onOpenFilters={() => setFiltersSheetOpen(true)}
-        showExportCsv={isDirector}
-      />
 
       <ProspectsFiltersSheet
         open={filtersSheetOpen}
@@ -303,6 +305,6 @@ export default function ProspectsClient({
           teamMembers={teamMembers}
         />
       )}
-    </>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 import { MapPin } from 'lucide-react';
 import type { Lead } from '@/types/lead';
-import { formatPrice, formatLeadAddressQuery, googleMapsSearchUrl, splitStreetAndCity } from '@/lib/utils';
+import { formatLeadAddressQuery, googleMapsSearchUrl, splitStreetAndCity } from '@/lib/utils';
 import { formatDetentionPrimary } from '@/lib/lead-display';
+import { formatAcquiredPriceLine, hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import ScoreRing from './ScoreRing';
 
 interface LeadDetailHeaderProps {
@@ -15,8 +16,8 @@ interface LeadDetailHeaderProps {
     | 'floor'
     | 'acquiredYear'
     | 'acquiredPrice'
+    | 'acquiredPriceReliable'
     | 'score'
-    | 'displaySignals'
   >;
   /** id du titre — sert au `aria-labelledby` du drawer. */
   titleId?: string;
@@ -46,10 +47,8 @@ function joinDot(parts: (string | null | undefined)[]): React.ReactNode {
 /**
  * En-tête du panneau de détail :
  *   1. Bouton discret « 📍 Voir sur Google Maps »
- *   2. Lignes grises épurées : adresse, type/surface/étage, détention/prix
+ *   2. Lignes grises épurées : adresse, type/surface/étage, détention, prix d'achat
  *   3. Cercle de score à droite, en évidence
- *
- * Aucune carte encadrée — uniquement des lignes.
  */
 export default function LeadDetailHeader({
   lead,
@@ -64,20 +63,16 @@ export default function LeadDetailHeader({
   const { streetLine, cityZipLine } = splitStreetAndCity(fullAddress);
   const mapsUrl = googleMapsSearchUrl(fullAddress);
 
-  const priceAvailable = lead.displaySignals.plusValue?.available === true;
-  const priceLabel =
-    priceAvailable && lead.acquiredPrice != null && lead.acquiredPrice > 0
-      ? `${formatPrice(lead.acquiredPrice)} €`
-      : 'Prix d’achat indisponible';
-
   const detentionLabel = formatDetentionPrimary(lead.acquiredYear);
+  const acquiredPriceLine = hasDisplayableAcquiredPrice(lead)
+    ? formatAcquiredPriceLine(lead, { strictReliable: true })
+    : null;
 
   const typeLine = joinDot([
     lead.propertyType,
     lead.surfaceM2 != null && lead.surfaceM2 > 0 ? `${lead.surfaceM2} m²` : null,
     formatFloor(lead.floor),
   ]);
-  const detentionLine = joinDot([detentionLabel, priceLabel]);
 
   const streetSize = compact ? 16 : 17;
   const metaSize = compact ? 12.5 : 13;
@@ -116,9 +111,14 @@ export default function LeadDetailHeader({
               {typeLine}
             </p>
           )}
-          {detentionLine && (
+          {detentionLabel && (
             <p className="text-mute" style={{ fontSize: metaSize }}>
-              {detentionLine}
+              {detentionLabel}
+            </p>
+          )}
+          {acquiredPriceLine && (
+            <p className="text-mute" style={{ fontSize: metaSize }}>
+              {acquiredPriceLine}
             </p>
           )}
         </div>

@@ -79,12 +79,15 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
   };
 
   return (
-    <div className="relative max-w-5xl">
-      <header className="mb-6">
-        <h1 className="font-semibold tracking-tight text-ink" style={{ fontSize: 22, letterSpacing: '-0.02em' }}>
+    <div className="relative w-full min-w-0 max-w-5xl max-md:pt-4">
+      <header className="mb-4 md:mb-6">
+        <h1
+          className="max-md:hidden font-semibold tracking-tight text-ink"
+          style={{ fontSize: 22, letterSpacing: '-0.02em' }}
+        >
           Paramètres
         </h1>
-        <p className="mt-1 text-mute" style={{ fontSize: 14 }}>
+        <p className="text-pretty text-mute max-md:mt-0 md:mt-1" style={{ fontSize: 14 }}>
           Gérez votre agence, votre équipe et vos préférences.
         </p>
       </header>
@@ -96,7 +99,7 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
             <div key={id} className="border-b border-black/8 last:border-b-0">
               <button
                 type="button"
-                className="flex min-h-[48px] w-full items-center justify-between px-4 py-3 text-left"
+                className="flex min-h-[48px] w-full items-center justify-between px-3 py-3 text-left sm:px-4"
                 onClick={() => setMobileOpen((o) => (o === id ? null : id))}
                 aria-expanded={open}
               >
@@ -105,21 +108,23 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
                 </span>
                 <ChevronDown
                   size={20}
-                  className={`text-mute transition-transform ${open ? 'rotate-180' : ''}`}
+                  className={`shrink-0 text-mute transition-transform ${open ? 'rotate-180' : ''}`}
                   aria-hidden
                 />
               </button>
               {open && (
-                <div className="border-t border-black/[0.06] bg-white px-4 py-5">{renderSection(id)}</div>
+                <div className="overflow-x-hidden border-t border-black/[0.06] bg-white px-3 py-4 sm:px-4 sm:py-5">
+                  {renderSection(id)}
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      <div className="hidden flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:flex md:flex-row">
+      <div className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:flex md:flex-row">
         <nav
-          className="flex flex-shrink-0 flex-col gap-0.5 border-b border-black/8 bg-soft-gray/40 p-3 lg:w-52 lg:border-b-0 lg:border-r"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-black/8 bg-soft-gray/40 p-2 [scrollbar-width:none] sm:p-3 lg:w-52 lg:flex-col lg:overflow-x-visible lg:border-b-0 lg:border-r [&::-webkit-scrollbar]:hidden"
           aria-label="Sections paramètres"
         >
           {tabs.map(({ id, label }) => {
@@ -129,7 +134,7 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition-colors ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition-colors lg:w-full ${
                   active ? 'bg-white text-ink shadow-sm ring-1 ring-black/6' : 'text-mute hover:bg-white/60 hover:text-ink'
                 }`}
               >
@@ -139,7 +144,7 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
           })}
         </nav>
 
-        <div className="min-w-0 flex-1 p-6 sm:p-8">{renderSection(activeTab)}</div>
+        <div className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">{renderSection(activeTab)}</div>
       </div>
     </div>
   );
@@ -189,10 +194,10 @@ function SectionAgency() {
 
   return (
     <section>
-      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
+      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
         Mon agence
       </h2>
-      <div className="flex max-w-xl flex-col gap-5">
+      <div className="flex w-full max-w-xl flex-col gap-5">
         <div>
           <label htmlFor="agency-name" className={labelClass}>
             Nom de l&apos;agence
@@ -252,7 +257,7 @@ function SectionAgency() {
 
         <button
           type="button"
-          className="btn btn-primary mt-2 self-start disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn btn-primary mt-2 w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:self-start"
           style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
           onClick={save}
           disabled={saving || !name.trim()}
@@ -268,10 +273,10 @@ function SectionBilling() {
   const { agency } = useUser();
   return (
     <section>
-      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
+      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
         Abonnement
       </h2>
-      <div className="flex max-w-xl flex-col gap-5">
+      <div className="flex w-full max-w-xl flex-col gap-5">
         <div className="flex flex-col gap-1">
           <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
             Plan actuel
@@ -299,7 +304,7 @@ function SectionBilling() {
         <button
           type="button"
           disabled
-          className="self-start rounded-lg border border-black/10 bg-soft-gray/60 px-4 py-2 font-medium text-mute"
+          className="w-full rounded-lg border border-black/10 bg-soft-gray/60 px-4 py-2 font-medium text-mute sm:w-auto sm:self-start"
           style={{ fontSize: 13 }}
         >
           Gérer mon abonnement — Disponible bientôt
@@ -341,10 +346,10 @@ function SectionNotifications() {
 
   return (
     <section>
-      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
+      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
         Notifications
       </h2>
-      <ul className="flex max-w-xl flex-col gap-2">
+      <ul className="flex w-full max-w-xl flex-col gap-2">
         <ToggleRow
           label="Recevoir un email quand de nouveaux prospects sont disponibles"
           checked={prefs.newLeads}
@@ -380,8 +385,8 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <li className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.06] bg-white px-4 py-3">
-      <span className="text-ink" style={{ fontSize: 13.5 }}>
+    <li className="flex flex-col gap-3 rounded-xl border border-black/[0.06] bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <span className="min-w-0 text-pretty text-ink" style={{ fontSize: 13.5 }}>
         {label}
       </span>
       <button
@@ -390,7 +395,7 @@ function ToggleRow({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`relative inline-flex h-6 w-11 shrink-0 self-end items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:self-center ${
           checked ? 'bg-accent' : 'bg-black/15'
         }`}
       >
@@ -430,11 +435,11 @@ function SectionProfile() {
 
   return (
     <section>
-      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
+      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
         Mon profil
       </h2>
-      <div className="flex max-w-xl flex-col gap-5">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="flex w-full max-w-xl flex-col gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="profile-firstName" className={labelClass}>
               Prénom
@@ -467,10 +472,10 @@ function SectionProfile() {
             Pour modifier votre adresse, contactez le support.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <button
             type="button"
-            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
             onClick={save}
             disabled={saving || !firstName.trim() || !lastName.trim()}
@@ -480,7 +485,7 @@ function SectionProfile() {
           <button
             type="button"
             onClick={() => setPwdModalOpen(true)}
-            className="rounded-lg border border-black/10 bg-white px-4 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04]"
+            className="w-full rounded-lg border border-black/10 bg-white px-4 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] sm:w-auto"
             style={{ fontSize: 13 }}
           >
             Changer mon mot de passe
@@ -555,11 +560,11 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
             autoComplete="new-password"
           />
         </div>
-        <div className="mt-2 flex justify-end gap-2">
+        <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 font-medium text-ink hover:bg-black/[0.04]"
+            className="w-full rounded-lg px-4 py-2 font-medium text-ink hover:bg-black/[0.04] sm:w-auto"
             style={{ fontSize: 13 }}
           >
             Annuler
@@ -568,7 +573,7 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
             type="button"
             onClick={submit}
             disabled={saving || !newPwd || !confirm}
-            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
           >
             {saving ? 'Enregistrement…' : 'Mettre à jour'}
@@ -596,10 +601,10 @@ function SectionSecurity() {
 
   return (
     <section>
-      <h2 className="mb-6 font-semibold text-ink" style={{ fontSize: 18 }}>
+      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
         Sécurité
       </h2>
-      <div className="flex max-w-xl flex-col gap-4">
+      <div className="flex w-full max-w-xl flex-col gap-4">
         <div className="rounded-xl border border-black/[0.08] bg-white px-4 py-3">
           <p className="font-medium text-ink" style={{ fontSize: 14 }}>
             Se déconnecter de tous les appareils

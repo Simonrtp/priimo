@@ -17,6 +17,12 @@ import {
   type EntrepriseDisplayFamily,
   type EvenementsVieDisplayFamily,
 } from '@/lib/display-signals';
+import {
+  EVENEMENTS_VIE_SECTION_INTRO,
+  EVENEMENTS_VIE_SECTION_TITLE,
+  EVENEMENTS_VIE_SECTION_TOOLTIP,
+  reformulateEvenementsVieFamily,
+} from '@/lib/evenements-vie-display';
 
 interface LeadDisplaySignalsProps {
   displaySignals: DisplaySignals;
@@ -215,6 +221,22 @@ function EntreprisePanel({ family }: { family: EntrepriseDisplayFamily }) {
   );
 }
 
+function EvenementsViePanel({ family }: { family: EvenementsVieDisplayFamily }) {
+  const display = reformulateEvenementsVieFamily(family);
+
+  return (
+    <SignalFamilyDisclosure
+      title={display.label ?? EVENEMENTS_VIE_SECTION_TITLE}
+      tooltip={display.tooltip ?? EVENEMENTS_VIE_SECTION_TOOLTIP}
+    >
+      <p className="mb-2 pl-3 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.55 }}>
+        {EVENEMENTS_VIE_SECTION_INTRO}
+      </p>
+      <ItemsList items={display.items} />
+    </SignalFamilyDisclosure>
+  );
+}
+
 function DisplaySectionView({ section }: { section: DisplaySection }) {
   switch (section.kind) {
     case 'dpe':
@@ -224,12 +246,7 @@ function DisplaySectionView({ section }: { section: DisplaySection }) {
     case 'copropriete':
       return <ItemsFamilyPanel title="Copropriété" family={section.family} />;
     case 'evenements_vie':
-      return (
-        <ItemsFamilyPanel
-          title={section.family.label ?? 'Événements de vie'}
-          family={section.family}
-        />
-      );
+      return <EvenementsViePanel family={section.family} />;
     case 'entreprise':
       return <EntreprisePanel family={section.family} />;
     case 'generic':

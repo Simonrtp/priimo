@@ -8,7 +8,7 @@ interface EmptyStateProps {
 export default function EmptyState({ variant = 'no-leads', onResetFilters }: EmptyStateProps) {
   if (variant === 'no-leads') {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-black/8 bg-white py-20 text-center">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-black/8 bg-white px-4 py-16 text-center sm:px-6 sm:py-20">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-soft-gray">
           <Inbox size={28} className="text-mute" strokeWidth={1.5} aria-hidden />
         </div>
@@ -24,7 +24,7 @@ export default function EmptyState({ variant = 'no-leads', onResetFilters }: Emp
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-black/8 bg-white py-16 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-black/8 bg-white px-4 py-16 text-center sm:px-6">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-soft-gray">
         <SlidersHorizontal size={20} className="text-mute" strokeWidth={1.5} aria-hidden />
       </div>

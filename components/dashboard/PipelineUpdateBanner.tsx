@@ -21,7 +21,7 @@ export default function PipelineUpdateBanner({
   return (
     <div
       role="status"
-      className="mb-4 flex items-start gap-3 rounded-xl border border-accent/20 bg-accent/[0.06] px-4 py-3"
+      className="mb-4 flex flex-col gap-3 rounded-xl border border-accent/20 bg-accent/[0.06] px-4 py-3 sm:flex-row sm:items-start"
     >
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-ink" style={{ fontSize: 13, lineHeight: 1.45 }}>
@@ -42,7 +42,7 @@ export default function PipelineUpdateBanner({
       <button
         type="button"
         onClick={onDismiss}
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.06] hover:text-ink"
+        className="flex size-8 shrink-0 items-center justify-center self-end rounded-lg text-mute transition-colors hover:bg-black/[0.06] hover:text-ink sm:self-start"
         aria-label="Fermer le bandeau"
       >
         <X size={18} strokeWidth={2} aria-hidden />

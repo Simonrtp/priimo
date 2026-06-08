@@ -47,8 +47,8 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 rounded-full font-medium transition-opacity duration-150 hover:opacity-80 ${meta.chipClass}`}
-        style={{ fontSize: 11, padding: '3px 10px 3px 8px', letterSpacing: '0.01em' }}
+        className="flex min-h-[32px] items-center gap-1.5 rounded-full bg-black/[0.06] font-medium text-ink transition-opacity duration-150 hover:opacity-80"
+        style={{ fontSize: 11, padding: '4px 10px 4px 8px', letterSpacing: '0.01em' }}
       >
         <span
           className="flex-shrink-0 rounded-full"

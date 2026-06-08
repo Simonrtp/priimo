@@ -29,6 +29,8 @@ interface ProspectsFiltersPanelProps {
   showAssignedFilter?: boolean;
   className?: string;
   plain?: boolean;
+  /** Masque l'en-tête « Filtres » (ex. bottom sheet mobile). */
+  hideHeader?: boolean;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -75,6 +77,7 @@ export default function ProspectsFiltersPanel({
   showAssignedFilter = true,
   className = '',
   plain = false,
+  hideHeader = false,
 }: ProspectsFiltersPanelProps) {
   const panelId = useId();
   const [expanded, setExpanded] = useState(false);
@@ -107,8 +110,9 @@ export default function ProspectsFiltersPanel({
 
   return (
     <div className={shellClass}>
+      {!hideHeader && (
       <div
-        className="mb-3 flex items-center justify-between gap-3"
+        className={`flex items-center justify-between gap-3${!collapsible || expanded ? ' mb-3' : ''}`}
       >
         {collapsible ? (
           <button
@@ -117,9 +121,12 @@ export default function ProspectsFiltersPanel({
             aria-expanded={expanded}
             aria-controls={`${panelId}-body`}
             onClick={() => setExpanded((v) => !v)}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-left transition-colors hover:text-ink"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors hover:text-ink"
           >
-            <span className="font-semibold text-ink" style={{ fontSize: 13, letterSpacing: '-0.01em' }}>
+            <span
+              className="inline-flex items-center font-semibold leading-none text-ink"
+              style={{ fontSize: 13, letterSpacing: '-0.01em' }}
+            >
               Filtres
             </span>
             {!expanded && activeCount > 0 && (
@@ -146,13 +153,14 @@ export default function ProspectsFiltersPanel({
           <button
             type="button"
             onClick={() => onFiltersChange(resetLeadFilters())}
-            className="flex-shrink-0 text-mute transition-colors hover:text-ink"
+            className="shrink-0 text-mute transition-colors hover:text-ink"
             style={{ fontSize: 12, fontWeight: 500 }}
           >
             Réinitialiser
           </button>
         )}
       </div>
+      )}
 
       {(!collapsible || expanded) && (
         <div

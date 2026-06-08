@@ -73,6 +73,11 @@ export interface Lead {
   /** Faux si le pipeline a marqué le prix d'achat comme non fiable. Null = inconnu (traité comme fiable). */
   acquiredPriceReliable: boolean | null;
   estimatedValue: number | null;
+  estimationLow: number | null;
+  estimationHigh: number | null;
+  estimationConfidence: string | null;
+  estimationBasis: string | null;
+  plusValuePct: number | null;
   rooms: number | null;
   floor: number | null;
   dpeClass: string | null;

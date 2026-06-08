@@ -85,14 +85,14 @@ export default function SectionTeam() {
 
   return (
     <section>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-semibold text-ink" style={{ fontSize: 18 }}>
-          Mon Ã©quipe
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="hidden font-semibold text-ink md:block" style={{ fontSize: 18 }}>
+          Mon équipe
         </h2>
         <button
           type="button"
           onClick={() => setInviteOpen(true)}
-          className="btn btn-primary inline-flex items-center gap-2"
+          className="btn btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
           style={{ padding: '8px 16px', fontSize: 13, borderRadius: 10 }}
         >
           <UserPlus size={16} strokeWidth={2} aria-hidden />
@@ -122,40 +122,46 @@ export default function SectionTeam() {
               return (
                 <li
                   key={m.id}
-                  className="flex items-center gap-3 rounded-xl border border-black/[0.06] bg-white px-4 py-3"
+                  className="flex flex-col gap-3 rounded-xl border border-black/[0.06] bg-white px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4"
                 >
-                  <div
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full font-semibold text-white"
-                    style={{ backgroundColor: bg, fontSize: 13 }}
-                    aria-hidden
-                  >
-                    {initialsFor(m.firstName, m.lastName)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink" style={{ fontSize: 14 }}>
-                      {m.firstName} {m.lastName}
-                    </p>
-                    <p className="truncate text-mute" style={{ fontSize: 12.5 }}>
-                      {m.email}
-                    </p>
-                  </div>
-                  <span
-                    className={`inline-flex flex-shrink-0 items-center rounded-full px-2.5 py-1 font-semibold ${roleChipClass(m.role)}`}
-                    style={{ fontSize: 11 }}
-                  >
-                    {roleLabel(m.role)}
-                  </span>
-                  {canRemove && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmRemove(m)}
-                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-red-50 hover:text-red-600"
-                      aria-label={`Retirer ${m.firstName} ${m.lastName}`}
-                      title="Retirer"
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full font-semibold text-white"
+                      style={{ backgroundColor: bg, fontSize: 13 }}
+                      aria-hidden
                     >
-                      <Trash2 size={16} strokeWidth={2} aria-hidden />
-                    </button>
-                  )}
+                      {initialsFor(m.firstName, m.lastName)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink" style={{ fontSize: 14 }}>
+                        {m.firstName} {m.lastName}
+                      </p>
+                      <p className="truncate text-mute" style={{ fontSize: 12.5 }}>
+                        {m.email}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pl-[52px] sm:shrink-0 sm:justify-end sm:pl-0">
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 font-semibold ${roleChipClass(m.role)}`}
+                      style={{ fontSize: 11 }}
+                    >
+                      {roleLabel(m.role)}
+                    </span>
+                    {canRemove ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemove(m)}
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Retirer ${m.firstName} ${m.lastName}`}
+                        title="Retirer"
+                      >
+                        <Trash2 size={16} strokeWidth={2} aria-hidden />
+                      </button>
+                    ) : (
+                      <span className="size-9 shrink-0 sm:hidden" aria-hidden />
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -244,21 +250,21 @@ function InvitationRowItem({
           EnvoyÃ©e le {formatDateFr(invitation.created_at)} â€” expire le {formatDateFr(invitation.expires_at)}
         </p>
       </div>
-      <div className="flex flex-shrink-0 gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0">
         <button
           type="button"
           onClick={handleResend}
           disabled={busy !== null}
-          className="rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           style={{ fontSize: 12.5 }}
         >
-          {busy === 'resend' ? 'Envoiâ€¦' : 'Renvoyer'}
+          {busy === 'resend' ? 'Envoi…' : 'Renvoyer'}
         </button>
         <button
           type="button"
           onClick={() => setCancelOpen(true)}
           disabled={busy !== null}
-          className="rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           style={{ fontSize: 12.5 }}
         >
           Annuler
@@ -343,11 +349,11 @@ function InviteModal({
             autoComplete="email"
           />
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 font-medium text-ink hover:bg-black/[0.04]"
+            className="w-full rounded-lg px-4 py-2 font-medium text-ink hover:bg-black/[0.04] sm:w-auto"
             style={{ fontSize: 13 }}
           >
             Annuler
@@ -356,7 +362,7 @@ function InviteModal({
             type="button"
             onClick={submit}
             disabled={sending || !email.trim()}
-            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
           >
             {sending ? 'Envoi…' : "Envoyer l'invitation"}

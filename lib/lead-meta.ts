@@ -35,32 +35,32 @@ export const STATUS_META: Record<LeadStatus, { label: string; chipClass: string;
   nouveau: {
     label: 'Nouveau',
     chipClass: 'bg-blue/10 text-blue-dark',
-    dotColor: '#3D5A80',
+    dotColor: '#93B4E0',
   },
   contacte: {
     label: 'Contacté',
     chipClass: 'bg-accent/10 text-accent-dark',
-    dotColor: '#E8743C',
+    dotColor: '#F5A882',
   },
   interesse: {
     label: 'Intéressé',
     chipClass: 'bg-emerald-500/10 text-emerald-700',
-    dotColor: '#059669',
+    dotColor: '#8FD4A8',
   },
   pas_interesse: {
     label: 'Pas intéressé',
     chipClass: 'bg-black/[0.07] text-mute',
-    dotColor: '#9CA3AF',
+    dotColor: '#B8C0CC',
   },
   mandat_signe: {
     label: 'Mandat signé',
     chipClass: 'bg-emerald-500/20 text-emerald-800',
-    dotColor: '#047857',
+    dotColor: '#DFC87A',
   },
   vendeur_ailleurs: {
     label: 'Vendeur ailleurs',
     chipClass: 'bg-violet-500/10 text-violet-800',
-    dotColor: '#7C3AED',
+    dotColor: '#B8A4E8',
   },
 };
 

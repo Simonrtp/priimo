@@ -17,7 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar />
-          <main className="max-md:pb-[calc(5rem+env(safe-area-inset-bottom))] flex-1 overflow-y-auto p-4 md:p-8">
+          <main className="max-md:px-4 max-md:pt-0 max-md:pb-[calc(5rem+env(safe-area-inset-bottom))] flex-1 overflow-y-auto md:p-8">
             {children}
           </main>
         </div>

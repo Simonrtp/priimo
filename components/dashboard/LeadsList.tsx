@@ -42,14 +42,14 @@ function PreviousLeadsSection({
   let runningIndex = indexOffset;
 
   return (
-    <div className="border-t border-black/[0.08]">
+    <div className="border-t border-black/[0.08] max-md:rounded-xl max-md:border max-md:border-black/8 max-md:bg-white max-md:shadow-soft">
       <button
         type="button"
         id={`${panelId}-trigger`}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-black/[0.02] md:px-5"
+        className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.02] sm:px-4 md:px-5"
       >
         <span className="min-w-0 flex-1 font-semibold leading-snug text-mute" style={{ fontSize: 13 }}>
           Leads précédents ({total})
@@ -146,7 +146,7 @@ export default function LeadsList({
   return (
     <div
       id="prospects-leads-list"
-      className="flex flex-col max-md:gap-2 md:gap-0 md:overflow-visible md:rounded-2xl md:border md:border-black/8 md:bg-white md:shadow-soft"
+      className="flex w-full min-w-0 flex-col max-md:gap-2 md:gap-0 md:overflow-visible md:rounded-2xl md:border md:border-black/8 md:bg-white md:shadow-soft"
     >
       {visibleNewBatch.map((lead, i) => (
         <LeadCard

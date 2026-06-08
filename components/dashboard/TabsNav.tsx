@@ -33,37 +33,47 @@ function TabIcon({ kind, active }: { kind: 'building' | 'user' | 'grid'; active:
 
 export default function TabsNav({ value, onTabChange, counts }: TabsNavProps) {
   return (
-    <div className="mb-4 flex justify-start gap-8 border-b border-black/[0.08] pb-0">
-      {tabs.map(({ id, label, icon }) => {
-        const active = value === id;
-        const count = counts[id];
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onTabChange(id)}
-            className={`group relative pb-3 transition-colors duration-150 md:-mb-px ${
-              active ? 'font-semibold' : 'font-medium text-[#6B7280] hover:text-ink/80'
-            }`}
-            style={{
-              letterSpacing: '-0.01em',
-              ...(active ? { color: ICON_COLORS.primary } : {}),
-            }}
-          >
-            <span className="inline-flex flex-row flex-wrap items-center gap-2">
+    <div className="mb-2 border-b border-black/[0.08] md:mb-4">
+      <div
+        className="grid grid-cols-3 md:flex md:justify-start md:gap-8"
+        role="tablist"
+        aria-label="Type de prospects"
+      >
+        {tabs.map(({ id, label, icon }) => {
+          const active = value === id;
+          const count = counts[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={`${label} (${count})`}
+              onClick={() => onTabChange(id)}
+              className={`group relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 px-1 pb-3 transition-colors duration-150 md:-mb-px md:min-h-0 md:flex-row md:items-center md:gap-2 md:px-0 md:pb-3 ${
+                active ? 'font-semibold' : 'font-medium text-[#6B7280] hover:text-ink/80'
+              }`}
+              style={{
+                letterSpacing: '-0.01em',
+                ...(active ? { color: ICON_COLORS.primary } : {}),
+              }}
+            >
               <TabIcon kind={icon} active={active} />
-              <span className="text-[14px] max-md:text-[13px]">{label}</span>
-              <span className="font-medium tabular" style={{ fontSize: 11.5, color: '#9CA3AF' }}>
+              <span className="hidden text-[14px] md:inline">{label}</span>
+              <span
+                className="font-medium tabular text-[10px] md:text-[11.5px]"
+                style={{ color: '#9CA3AF' }}
+              >
                 ({count})
               </span>
-            </span>
-            <span
-              className="absolute left-0 right-0 bottom-0 h-[2px] rounded-full pointer-events-none"
-              style={{ backgroundColor: active ? '#E8743C' : 'transparent' }}
-            />
-          </button>
-        );
-      })}
+              <span
+                className="pointer-events-none absolute bottom-0 left-2 right-2 h-[2px] rounded-full md:left-0 md:right-0"
+                style={{ backgroundColor: active ? '#E8743C' : 'transparent' }}
+              />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

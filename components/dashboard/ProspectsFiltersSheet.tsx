@@ -1,7 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import type { Filters, Lead, TeamMember } from '@/types/lead';
+import {
+  countActiveLeadFilters,
+  leadFiltersAreDirty,
+  resetLeadFilters,
+} from '@/lib/lead-filters';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 
 interface ProspectsFiltersSheetProps {
@@ -29,6 +35,15 @@ export default function ProspectsFiltersSheet({
     if (open) setDraft(appliedFilters);
   }, [open, appliedFilters]);
 
+  const dirty = useMemo(
+    () => leadFiltersAreDirty(draft, { countAssigned: showAssignedFilter }),
+    [draft, showAssignedFilter],
+  );
+  const activeCount = useMemo(
+    () => countActiveLeadFilters(draft, { countAssigned: showAssignedFilter }),
+    [draft, showAssignedFilter],
+  );
+
   if (!open) return null;
 
   return (
@@ -44,26 +59,51 @@ export default function ProspectsFiltersSheet({
         aria-label="Fermer"
         onClick={onClose}
       />
-      <div className="absolute bottom-0 left-0 right-0 flex max-h-[90vh] flex-col rounded-t-2xl bg-white shadow-xl">
-        <div className="flex flex-shrink-0 items-center justify-end border-b border-black/8 px-4 py-3">
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-mute hover:bg-black/[0.05]"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            <span className="text-xl leading-none" aria-hidden>
-              {'\u00D7'}
-            </span>
-          </button>
+      <div className="absolute bottom-0 left-0 right-0 flex max-h-[min(90dvh,720px)] flex-col rounded-t-2xl bg-white shadow-xl">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-black/8 px-4 py-3">
+          <div className="min-w-0">
+            <h2
+              id="filters-sheet-title"
+              className="font-semibold text-ink"
+              style={{ fontSize: 17, letterSpacing: '-0.01em' }}
+            >
+              Filtres
+            </h2>
+            {activeCount > 0 && (
+              <p className="mt-0.5 text-mute" style={{ fontSize: 12 }}>
+                {activeCount} actif{activeCount > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {dirty && (
+              <button
+                type="button"
+                onClick={() => setDraft(resetLeadFilters())}
+                className="rounded-lg px-2 py-2 text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+                style={{ fontSize: 12, fontWeight: 500 }}
+              >
+                Réinitialiser
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex size-11 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.05] hover:text-ink"
+              onClick={onClose}
+              aria-label="Fermer"
+            >
+              <X size={20} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
         </div>
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-4 py-2"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
         >
           <ProspectsFiltersPanel
             plain
+            hideHeader
             filters={draft}
             onFiltersChange={setDraft}
             teamMembers={teamMembers}
@@ -73,7 +113,7 @@ export default function ProspectsFiltersSheet({
         </div>
 
         <div
-          className="flex-shrink-0 border-t border-black/8 bg-white p-4"
+          className="shrink-0 border-t border-black/8 bg-white p-4"
           style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
         >
           <button

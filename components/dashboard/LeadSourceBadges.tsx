@@ -11,7 +11,7 @@ export default function LeadSourceBadges({ lead, className = '' }: LeadSourceBad
   if (labels.length === 0) return null;
 
   return (
-    <p className={`flex flex-wrap items-center gap-1 text-mute opacity-70 ${className}`} style={{ fontSize: 11 }}>
+    <p className={`flex flex-wrap items-center gap-1 text-mute opacity-70 max-md:gap-0.5 max-md:text-[10px] ${className}`} style={{ fontSize: 11 }}>
       {labels.map((label, i) => (
         <span key={label} className="inline-flex items-center">
           {i > 0 && <span className="mx-0.5 opacity-60" aria-hidden>·</span>}

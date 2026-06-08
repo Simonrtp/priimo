@@ -1,5 +1,6 @@
 'use client';
 
+import { SlidersHorizontal } from 'lucide-react';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
 export type ProspectsViewMode = 'liste' | 'carte';
@@ -30,49 +31,57 @@ export default function ProspectsListToolbar({
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-2 md:hidden">
-        <p className="min-w-0 truncate font-semibold tabular text-ink" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
-          {count} prospect{count !== 1 ? 's' : ''}
-        </p>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {onOpenFilters && (
-            <button
-              type="button"
-              onClick={onOpenFilters}
-              className={`min-h-[44px] rounded-lg px-3 text-[13px] font-semibold transition-colors ${
-                hasActiveFilters
-                  ? 'bg-orange-100 text-accent-dark ring-1 ring-accent/25'
-                  : 'bg-gray-100 text-ink'
-              }`}
-            >
-              Filtres{hasActiveFilters ? ` (${filterActiveCount})` : ''}
-            </button>
-          )}
-          <div
-            className="inline-flex rounded-xl border border-black/10 bg-black/[0.03] p-0.5"
-            role="group"
-            aria-label="Mode d’affichage"
+      <div className="md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <p
+            className="min-w-0 truncate font-semibold tabular text-ink"
+            style={{ fontSize: 14, letterSpacing: '-0.01em' }}
           >
-            <button
-              type="button"
-              onClick={() => onViewModeChange('liste')}
-              className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] transition-colors ${
-                viewMode === 'liste' ? 'bg-accent text-white shadow-sm' : 'text-[#374151]'
-              }`}
-              aria-label="Liste"
+            {count} prospect{count !== 1 ? 's' : ''}
+          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            {onOpenFilters && (
+              <button
+                type="button"
+                onClick={onOpenFilters}
+                className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors ${
+                  hasActiveFilters
+                    ? 'bg-orange-100 text-accent-dark ring-1 ring-accent/25'
+                    : 'bg-gray-100 text-ink'
+                }`}
+              >
+                <SlidersHorizontal size={16} strokeWidth={2} aria-hidden />
+                Filtres{hasActiveFilters ? ` (${filterActiveCount})` : ''}
+              </button>
+            )}
+            <div
+              className="inline-flex rounded-xl border border-black/10 bg-black/[0.03] p-0.5"
+              role="group"
+              aria-label="Mode d’affichage"
             >
-              <ICONS.list size={ICON_SIZE.md} color={viewMode === 'liste' ? '#fff' : ICON_COLORS.neutral} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => onViewModeChange('carte')}
-              className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] transition-colors ${
-                viewMode === 'carte' ? 'bg-accent text-white shadow-sm' : 'text-[#374151]'
-              }`}
-              aria-label="Carte"
-            >
-              <ICONS.map size={ICON_SIZE.md} color={viewMode === 'carte' ? '#fff' : ICON_COLORS.neutral} strokeWidth={2} />
-            </button>
+              <button
+                type="button"
+                onClick={() => onViewModeChange('liste')}
+                className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] transition-colors ${
+                  viewMode === 'liste' ? 'bg-accent text-white shadow-sm' : 'text-[#374151]'
+                }`}
+                aria-label="Liste"
+                aria-pressed={viewMode === 'liste'}
+              >
+                <ICONS.list size={ICON_SIZE.md} color={viewMode === 'liste' ? '#fff' : ICON_COLORS.neutral} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewModeChange('carte')}
+                className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] transition-colors ${
+                  viewMode === 'carte' ? 'bg-accent text-white shadow-sm' : 'text-[#374151]'
+                }`}
+                aria-label="Carte"
+                aria-pressed={viewMode === 'carte'}
+              >
+                <ICONS.map size={ICON_SIZE.md} color={viewMode === 'carte' ? '#fff' : ICON_COLORS.neutral} strokeWidth={2} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

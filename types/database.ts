@@ -111,6 +111,11 @@ export type LeadRow = {
   /** Si renseigné par le pipeline : indique la fiabilité du prix d'achat (DVF). */
   acquired_price_reliable?: boolean | null;
   estimated_value: number | null;
+  estimation_low?: number | null;
+  estimation_high?: number | null;
+  estimation_confidence?: string | null;
+  estimation_basis?: string | null;
+  plus_value_pct?: number | null;
   rooms?: number | null;
   floor?: number | null;
   dpe_class: string | null;

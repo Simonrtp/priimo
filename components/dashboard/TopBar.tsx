@@ -43,7 +43,7 @@ export default function TopBar() {
           href={FOUNDER_WHATSAPP_HREF}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex lg:hidden h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-black/10 text-[#25D366] transition-colors hover:bg-black/[0.04]"
+          className="flex lg:hidden h-11 w-11 shrink-0 items-center justify-center text-[#25D366] transition-opacity hover:opacity-80"
           aria-label="Écrire au fondateur sur WhatsApp"
         >
           <WhatsAppIcon size={22} />
