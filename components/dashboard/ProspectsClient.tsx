@@ -163,6 +163,8 @@ export default function ProspectsClient({
           notes: patch.notes,
           assignedTo: patch.assignedTo,
           mlFeedback: patch.mlFeedback,
+          mlFeedbackReason: patch.mlFeedbackReason,
+          mlFeedbackAt: patch.mlFeedbackAt,
         });
       } catch (e) {
         applyLeadPatch(id, previous);

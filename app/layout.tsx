@@ -24,11 +24,11 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Priimo — Trouvez vos mandats vendeurs avant vos concurrents",
+    default: "Priimo — Détectez les vendeurs avant la mise en ligne",
     template: "%s · Priimo",
   },
   description:
-    "Priimo est le logiciel de prospection immobilière prédictive qui croise DVF, DPE et signaux de vie pour identifier les vendeurs avant qu'ils soient sur le marché.",
+    "Priimo croise DVF, DPE, BODACC et le registre des copropriétés pour repérer les propriétaires susceptibles de vendre. Liste hebdomadaire scorée, secteur exclusif, module SCI. Conforme post-interdiction de la pige.",
   applicationName: "Priimo",
   keywords: [
     "prospection immobilière",
@@ -38,6 +38,10 @@ export const metadata: Metadata = {
     "logiciel immobilier",
     "agence immobilière",
     "prédictif",
+    "signaux de vie",
+    "prospection vendeurs",
+    "SCI",
+    "secteur exclusif",
   ],
   authors: [{ name: "Priimo" }],
   creator: "Priimo",
@@ -46,7 +50,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Priimo — Prospection immobilière prédictive",
     description:
-      "Identifiez vos prochains mandats vendeurs 6 mois à l'avance. Simple, abordable, conforme.",
+      "Les signaux publics qui précèdent une vente, livrés chaque semaine sur votre secteur exclusif.",
     url: "/",
     siteName: "Priimo",
     locale: "fr_FR",
@@ -56,7 +60,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Priimo — Prospection immobilière prédictive",
     description:
-      "Identifiez vos prochains mandats vendeurs 6 mois à l'avance. Simple, abordable, conforme.",
+      "Les signaux publics qui précèdent une vente, livrés chaque semaine sur votre secteur exclusif.",
   },
   icons: {
     icon: [{ url: "/Logo.png", type: "image/png" }],

@@ -1,13 +1,12 @@
 import {
   Building2,
   Check,
-  CircleSlash,
   FileText,
-  Flame,
   Hammer,
   Handshake,
   HeartCrack,
   Pause,
+  PhoneOff,
   Repeat,
   ScrollText,
   TrendingUp,
@@ -80,9 +79,9 @@ export const ML_FEEDBACK_OPTIONS: {
   color: string;
 }[] = [
   { value: 'mandat_signe', label: 'Mandat signé', Icon: Check, color: '#047857' },
-  { value: 'vendeur_ailleurs', label: 'Vendu ailleurs', Icon: Flame, color: '#3D5A80' },
+  { value: 'vendeur_perdu', label: 'Vendeur mais perdu', Icon: Repeat, color: '#3D5A80' },
   { value: 'pas_vendeur', label: 'Pas vendeur', Icon: X, color: '#B91C1C' },
-  { value: 'pas_contacte', label: 'Pas contacté', Icon: CircleSlash, color: '#6B7280' },
+  { value: 'injoignable', label: 'Injoignable / mauvais contact', Icon: PhoneOff, color: '#6B7280' },
 ];
 
 export function statusLabel(status: LeadStatus): string {

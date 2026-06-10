@@ -96,6 +96,8 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     notes: row.notes,
     assignedTo: row.assigned_to,
     mlFeedback: row.ml_feedback ?? null,
+    mlFeedbackReason: row.ml_feedback_reason ?? null,
+    mlFeedbackAt: row.ml_feedback_at ?? null,
     deliveredAt: row.delivered_at ?? row.created_at.slice(0, 10),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -166,6 +168,8 @@ export interface LeadPatch {
   notes?: string | null;
   assignedTo?: string | null;
   mlFeedback?: MlFeedback;
+  mlFeedbackReason?: string | null;
+  mlFeedbackAt?: string | null;
 }
 
 export async function updateLead(supabase: Client, id: string, patch: LeadPatch): Promise<void> {
@@ -174,6 +178,8 @@ export async function updateLead(supabase: Client, id: string, patch: LeadPatch)
   if (patch.notes !== undefined) dbPatch.notes = patch.notes;
   if (patch.assignedTo !== undefined) dbPatch.assigned_to = patch.assignedTo;
   if (patch.mlFeedback !== undefined) dbPatch.ml_feedback = patch.mlFeedback;
+  if (patch.mlFeedbackReason !== undefined) dbPatch.ml_feedback_reason = patch.mlFeedbackReason;
+  if (patch.mlFeedbackAt !== undefined) dbPatch.ml_feedback_at = patch.mlFeedbackAt;
   const { error } = await supabase.from('leads').update(dbPatch).eq('id', id);
   if (error) {
     throw new Error(`Impossible de mettre à jour le prospect : ${error.message}`);

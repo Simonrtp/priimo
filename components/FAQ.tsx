@@ -14,28 +14,28 @@ type Item = {
 
 const FAQS: Item[] = [
   {
-    q: "C'est quoi exactement Priimo ?",
-    a: "Priimo est un logiciel de prospection prédictive qui croise les données DVF (transactions notariales) et DPE (diagnostics énergétiques) pour identifier les propriétaires les plus susceptibles de vendre dans les 6 prochains mois sur votre zone. Vous recevez chaque semaine une liste d'adresses à prospecter, scorées et priorisées.",
+    q: "C'est quoi exactement, Priimo ?",
+    a: "Priimo croise cinq bases publiques françaises (DVF, DPE, BODACC, copropriétés, permis) pour repérer les signaux qui précèdent une mise en vente : DPE refait, ventes en série dans un immeuble, copropriété fragilisée, SCI en dissolution. Chaque semaine, vous recevez une liste d'adresses scorées et priorisées sur votre secteur exclusif — avec le contexte pour agir.",
   },
   {
-    q: "L'essai est-il vraiment gratuit ?",
-    a: "Oui. Vous pouvez créer un compte et tester Priimo gratuitement, sans engagement et sans carte bancaire. En échange, nous apprécions vos retours pour continuer à améliorer le produit.",
+    q: "Comment essayer Priimo ?",
+    a: "L'accès se fait sur invitation, après un échange de 20 minutes pour délimiter votre secteur et vérifier qu'il est disponible. Chaque agence démarre ensuite par un mois d'essai gratuit, sans carte bancaire et sans engagement. En échange, nous vous demandons une chose : nous dire ce que donnent les adresses sur le terrain.",
   },
   {
-    q: "Combien ça coûte ensuite ?",
-    a: "Le tarif fondateur pour les premiers inscrits est de 99 €/mois, garanti à vie. Le tarif public est de 149 €/mois.",
+    q: "Combien ça coûte ?",
+    a: "Les dix premières agences bénéficient du tarif fondateur : 100 €/mois, garanti 12 mois, en échange de retours réguliers. Le tarif standard est de 199 €/mois. Sans engagement de durée, avec un secteur exclusif par agence. Un seul mandat supplémentaire rembourse largement une année d'abonnement.",
   },
   {
-    q: "Ça remplace Maline ou Telescop ?",
-    a: "Priimo fait le même travail de détection de vendeurs potentiels, avec une interface conçue pour être opérationnelle sans formation. Nous sommes 3x moins chers et sans engagement.",
+    q: "Quelle différence avec Maline ou Telescop ?",
+    a: "Le même socle de données publiques, une philosophie différente. Là où ces outils misent sur le volume et demandent une vraie prise en main, Priimo livre une liste courte et priorisée — 15 à 30 adresses par mois, expliquées une à une — plus un module SCI avec dirigeants identifiés. Et votre secteur est exclusif : une seule agence par zone.",
   },
   {
-    q: "Est-ce que c'est conforme RGPD ?",
-    a: "Oui. Priimo utilise exclusivement des données publiques (DVF, DPE, cadastre) — aucune donnée personnelle n'est collectée sans consentement. Le porte-à-porte sur une adresse est légal et ne nécessite aucun consentement préalable.",
+    q: "Est-ce conforme au RGPD ?",
+    a: "Priimo travaille exclusivement à partir de bases publiques françaises. Pour les particuliers, nous fournissons des adresses et des signaux — jamais de nom ni de téléphone : votre prospection se fait sur le terrain ou par courrier, en conformité avec l'interdiction de la pige téléphonique (août 2025). Pour les sociétés, les informations de dirigeants proviennent de registres légaux publics.",
   },
   {
     q: "Combien de temps pour être opérationnel ?",
-    a: "20 minutes. Vous définissez votre zone sur la carte, et votre première liste de prospects apparaît immédiatement. Aucune formation requise.",
+    a: "Un appel de 20 minutes pour délimiter votre secteur, une invitation, et votre première liste vous attend à la connexion. Aucune installation, aucune formation : si votre équipe sait lire une liste d'adresses, elle sait utiliser Priimo. Le tableau de bord fonctionne sur ordinateur comme sur mobile.",
   },
 ];
 

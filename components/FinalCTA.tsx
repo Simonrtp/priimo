@@ -5,9 +5,9 @@ import CtaButton from "./CtaButton";
 // Full-bleed accent background, white text, single big CTA.
 
 const POINTS = [
-  "Identifiez les vendeurs 6 mois à l'avance",
-  "Guidez vos agents vers les bonnes portes",
-  "Opérationnel en 20 minutes",
+  "Les signaux de vente, avant la mise en ligne",
+  "15 à 30 adresses priorisées par mois",
+  "Secteur exclusif — premier arrivé, premier servi",
 ];
 
 function CheckIcon() {
@@ -35,7 +35,7 @@ export default function FinalCTA() {
       <div className="relative mx-auto max-w-4xl px-4 sm:px-8 pt-16 sm:pt-28 text-center min-w-0">
         <Reveal direction="up">
           <h2 className="text-h1-on-dark text-balance px-1 mb-headline">
-            Vos concurrents prospectent déjà avec de la data. Et vous&nbsp;?
+            Sur votre secteur, il n&apos;y aura qu&apos;une seule agence équipée.
           </h2>
         </Reveal>
 
@@ -58,7 +58,7 @@ export default function FinalCTA() {
             <span aria-hidden>→</span>
           </CtaButton>
           <p className="mt-4 small-text !normal-case !tracking-normal text-white/70">
-            20 minutes · Sans engagement · 100 % personnalisée
+            20 minutes · Sans engagement · Disponibilité du secteur vérifiée en direct
           </p>
         </Reveal>
       </div>
@@ -86,7 +86,7 @@ export default function FinalCTA() {
         </div>
 
         <div className="mt-7 text-xs text-gray-500">
-          © 2025 Priimo · Fait en France
+          © 2026 Priimo · Fait en France
         </div>
       </div>
     </section>

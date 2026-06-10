@@ -11,9 +11,9 @@ import { CALENDLY_URL } from "@/lib/calendly";
 // bullets → primary CTA. Two-column layout on desktop.
 
 const BULLETS = [
-  "Prospects scorés et priorisés sur votre zone",
-  "Opérationnel en 20 minutes, sans formation",
-  "Conforme post-interdiction pige téléphonique",
+  "Une liste courte, scorée et priorisée — jamais du volume",
+  "Secteur exclusif : une seule agence par zone",
+  "100 % données publiques, conforme post-interdiction de la pige (2025)",
 ];
 
 function CheckIcon() {
@@ -50,14 +50,14 @@ export default function HeroSection() {
             <Reveal direction="up">
               {/* H1 */}
               <h1 className="text-h1 headline text-balance mb-headline">
-                Trouvez vos prochains mandats avant vos concurrents.
+                Sachez qui va vendre sur votre secteur — avant la mise en ligne.
               </h1>
 
               {/* Subheadline */}
               <p className="text-body max-w-xl mb-body mt-0">
-                Priimo croise les données DVF, DPE et signaux de vie pour
-                identifier les propriétaires susceptibles de vendre — et dit
-                à vos agents exactement où aller cette semaine.
+                Un DPE refait, des ventes en série dans l&apos;immeuble, une copropriété qui
+                décroche : autant de signaux publics qui précèdent une mise en vente. Priimo les
+                croise et vous livre chaque semaine les adresses à travailler en priorité.
               </p>
 
               {/* Bullets */}

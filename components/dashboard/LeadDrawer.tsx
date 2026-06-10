@@ -12,6 +12,7 @@ import Select from '@/components/ui/Select';
 import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
+import LeadMlFeedbackFields from './LeadMlFeedbackFields';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import { isSciDirectorPending } from '@/types/lead';
 
@@ -251,6 +252,11 @@ export default function LeadDrawer({
                   />
                 </div>
               </div>
+              <LeadMlFeedbackFields
+                lead={lead}
+                onUpdateLead={onUpdateLead}
+                selectTriggerClassName={drawerSelectTriggerClass}
+              />
               {canAssignLead && (
                 <div>
                   <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>

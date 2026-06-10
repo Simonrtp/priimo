@@ -52,20 +52,20 @@ function RouteIcon() {
 const STEPS: Step[] = [
   {
     num: "01",
-    title: "Définissez votre zone",
-    body: "Tracez votre secteur de prospection sur la carte. Priimo analyse automatiquement tous les biens de votre zone.",
+    title: "Réservez votre secteur",
+    body: "Votre zone est exclusive : une seule agence par secteur. Nous la délimitons ensemble lors d'un appel de 20 minutes.",
     Icon: MapIcon,
   },
   {
     num: "02",
-    title: "Recevez votre liste de la semaine",
-    body: "Chaque lundi, une liste de prospects scorés apparaît dans votre tableau de bord, avec le signal qui explique le score.",
+    title: "Recevez votre liste du lundi",
+    body: "Chaque lundi, les nouvelles adresses scorées arrivent dans votre tableau de bord, avec les signaux qui expliquent chaque score.",
     Icon: ListIcon,
   },
   {
     num: "03",
-    title: "Envoyez vos agents sur le terrain",
-    body: "Partagez la carte interactive avec vos agents. Ils savent exactement où aller, dans quel ordre, et pourquoi.",
+    title: "Envoyez vos agents au bon endroit",
+    body: "Chaque adresse part avec son contexte : signaux, copropriété, historique. Export CSV ou lien Google Maps pour le terrain.",
     Icon: RouteIcon,
   },
 ];
@@ -148,7 +148,7 @@ export default function HowItWorks() {
         <div className="w-full mx-auto max-w-6xl px-4 sm:px-8 py-6 sm:py-10 min-w-0">
           <Reveal direction="up">
             <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
-              Simple. Précis. Opérationnel en 20 minutes.
+              De votre secteur au terrain, en trois étapes.
             </h2>
           </Reveal>
 

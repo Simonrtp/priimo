@@ -10,9 +10,9 @@ export type LeadStatusDb =
   | 'vendeur_ailleurs';
 export type LeadMlFeedbackDb =
   | 'mandat_signe'
+  | 'vendeur_perdu'
   | 'pas_vendeur'
-  | 'vendeur_ailleurs'
-  | 'pas_contacte';
+  | 'injoignable';
 export type LeadOwnerTypeDb = 'particulier' | 'entreprise';
 export type AgencyZoneTypeDb = 'radius' | 'postal_codes';
 
@@ -124,6 +124,8 @@ export type LeadRow = {
   notes: string | null;
   assigned_to: string | null;
   ml_feedback: LeadMlFeedbackDb | null;
+  ml_feedback_reason?: string | null;
+  ml_feedback_at?: string | null;
   /** Date du lot pipeline (YYYY-MM-DD). */
   delivered_at?: string;
   created_at: string;
@@ -200,6 +202,8 @@ export type LeadInsert = {
   notes?: string | null;
   assigned_to?: string | null;
   ml_feedback?: LeadMlFeedbackDb | null;
+  ml_feedback_reason?: string | null;
+  ml_feedback_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };

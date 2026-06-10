@@ -12,35 +12,35 @@ const BEFORE: Item[] = [
   {
     title: "Du porte-à-porte à l'aveugle",
     description:
-      "Vos agents frappent à des portes au hasard, sans savoir lesquelles sont vraiment chaudes.",
+      "Vos agents frappent à des portes au hasard, sans savoir lesquelles cachent un projet de vente.",
   },
   {
-    title: "Toujours en retard sur la concurrence",
+    title: "Des leads déjà grillés",
     description:
-      "Vous perdez des mandats parce que vos concurrents ont déjà appelé avant vous.",
+      "Quand un bien apparaît sur les portails, le vendeur a déjà reçu cinq appels — et souvent choisi son agence.",
   },
   {
-    title: "Aucune visibilité terrain",
+    title: "Aucune mémoire de prospection",
     description:
-      "Vous ne savez pas ce que fait votre équipe, ni ce qui a déjà été couvert.",
+      "Qui a frappé où, quand, avec quel résultat : tout est dans des carnets, rien n'est partagé.",
   },
 ];
 
 const AFTER: Item[] = [
   {
-    title: "Une liste prête chaque semaine",
+    title: "Une liste prête chaque lundi",
     description:
-      "Chaque agent reçoit ses adresses prioritaires, scorées et géolocalisées.",
+      "Chaque semaine, les adresses prioritaires de votre secteur, scorées et expliquées : votre équipe sait où aller.",
   },
   {
-    title: "6 mois d'avance sur le marché",
+    title: "L'amont du marché",
     description:
-      "Vous identifiez les vendeurs avant qu'ils ne mettent leur bien en ligne.",
+      "Un DPE se commande des mois avant une vente. Priimo capte ces signaux avant la mise en ligne du bien.",
   },
   {
-    title: "Couverture terrain en temps réel",
+    title: "Une prospection qui laisse des traces",
     description:
-      "Vous voyez instantanément ce qui est traité, par qui, et ce qu'il reste à couvrir.",
+      "Statuts, notes, résultats : chaque adresse travaillée enrichit votre historique et affine le scoring de votre secteur.",
   },
 ];
 
@@ -210,7 +210,8 @@ export default function ProblemTransformation() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <h2 className="text-h1-on-dark text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
-            La pige est morte. Et le porte-à-porte à l&apos;aveugle, c&apos;est du temps perdu.
+            La pige est interdite. Les portails arrivent trop tard. Le terrain se fait à
+            l&apos;aveugle.
           </h2>
         </Reveal>
 
@@ -219,7 +220,7 @@ export default function ProblemTransformation() {
             <ComparisonCard
               variant="before"
               label="Avant Priimo"
-              tagline="Beaucoup d'efforts, peu de résultats."
+              tagline="Beaucoup d'efforts, peu de mandats."
               items={BEFORE}
             />
           </Reveal>
@@ -228,7 +229,7 @@ export default function ProblemTransformation() {
             <ComparisonCard
               variant="after"
               label="Avec Priimo"
-              tagline="Moins d'effort, plus de mandats signés."
+              tagline="Moins de portes. Plus de mandats."
               items={AFTER}
             />
           </Reveal>

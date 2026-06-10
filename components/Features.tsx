@@ -53,23 +53,23 @@ function ShareIcon() {
 
 const FEATURES: Feature[] = [
   {
-    title: "Scoring prédictif DVF + DPE",
-    body: "Priimo croise les transactions notariales, les diagnostics énergétiques et les signaux de vie pour attribuer un score de probabilité de vente à chaque bien de votre zone.",
+    title: "Un score nourri par cinq bases publiques",
+    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire : Priimo croise les signaux qui précèdent une vente et note chaque adresse de 0 à 100.",
     Icon: ChartIcon,
   },
   {
-    title: "Carte interactive des prospects",
-    body: "Visualisez vos prospects sur une carte, filtrez par score, et générez un itinéraire optimisé pour chaque agent en un clic.",
+    title: "Le module Entreprises : SCI et dirigeants",
+    body: "Dissolutions, liquidations, cessions de parts publiées au BODACC — avec l'identité du dirigeant et ses coordonnées professionnelles. Des mandats que personne d'autre ne voit venir.",
     Icon: MapPinIcon,
   },
   {
-    title: "Tableau de bord directeur",
-    body: "Suivez la couverture terrain de votre équipe, les contacts passés cette semaine, et les prospects chauds encore non contactés.",
+    title: "Le suivi de votre équipe",
+    body: "Statuts, assignation, notes : vous voyez qui travaille quoi, ce qui a donné un rendez-vous, et ce qui reste à couvrir.",
     Icon: DashboardIcon,
   },
   {
-    title: "Export et partage",
-    body: "Exportez votre liste en CSV ou partagez un lien Google Maps directement avec vos agents sur le terrain.",
+    title: "Export et partage en un clic",
+    body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos agents ont leurs adresses en poche sur le terrain.",
     Icon: ShareIcon,
   },
 ];
@@ -80,7 +80,7 @@ export default function Features() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
-            Tout ce dont une agence a besoin pour prospecter intelligemment.
+            Le sérieux des données. La simplicité du terrain.
           </h2>
         </Reveal>
 

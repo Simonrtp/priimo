@@ -12,34 +12,34 @@ type Prospect = {
 
 const PROSPECTS: Prospect[] = [
   {
-    address: "12 rue des Tilleuls",
-    city: "Bordeaux 33000",
+    address: "14 rue de la Folie-Méricourt",
+    city: "Paris 11e",
     score: 94,
-    signals: ["DPE refait", "Détenu 11 ans"],
+    signals: ["DPE refait · 3 sem.", "3 ventes immeuble"],
   },
   {
-    address: "8 avenue Pasteur",
-    city: "Bordeaux 33200",
-    score: 89,
-    signals: ["Succession", "Zone +12% rotation"],
+    address: "8 rue Saint-Maur",
+    city: "Paris 11e",
+    score: 91,
+    signals: ["Profil transmission", "Détenu 20+ ans"],
   },
   {
-    address: "27 cours Victor Hugo",
-    city: "Bordeaux 33000",
-    score: 86,
-    signals: ["DPE F", "Détenu 14 ans"],
+    address: "27 rue de Charonne",
+    city: "Paris 11e",
+    score: 88,
+    signals: ["DPE G · loi Climat", "Location interdite"],
   },
   {
-    address: "3 place Gambetta",
-    city: "Bordeaux 33000",
-    score: 81,
-    signals: ["Travaux récents"],
+    address: "3 passage Beslay",
+    city: "Paris 11e",
+    score: 84,
+    signals: ["Copro sans syndic", "DPE récent"],
   },
   {
-    address: "45 rue Sainte-Catherine",
-    city: "Bordeaux 33000",
-    score: 78,
-    signals: ["Locataire parti"],
+    address: "45 boulevard Voltaire",
+    city: "Paris 11e",
+    score: 90,
+    signals: ["Dissolution SCI", "Dirigeant identifié"],
   },
 ];
 
@@ -76,15 +76,15 @@ export default function DashboardMockup() {
               Liste de la semaine
             </div>
             <div className="font-sans text-base sm:text-lg leading-tight mt-0.5 break-words">
-              Bordeaux Centre · 47 prospects
+              Paris 11e · 22 prospects
             </div>
           </div>
           <div className="text-left sm:text-right shrink-0">
             <div className="text-[11px] uppercase tracking-wider text-white/40">
-              Couverture
+              Score moyen
             </div>
             <div className="font-sans text-lg leading-tight mt-0.5 text-accent-light font-bold">
-              68%
+              86
             </div>
           </div>
         </div>
@@ -130,10 +130,10 @@ export default function DashboardMockup() {
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-white/5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between text-[11px] text-white/45">
-          <span className="shrink-0">Mis à jour il y a 2 min</span>
+          <span className="shrink-0">Mis à jour lundi</span>
           <span className="inline-flex flex-wrap items-center gap-1.5 min-w-0">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-light animate-pulse" />
-            <span className="break-words">Données DVF · DPE · ADEME</span>
+            <span className="break-words">DVF · DPE ADEME · BODACC</span>
           </span>
         </div>
       </div>
