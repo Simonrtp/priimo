@@ -11,7 +11,7 @@ import { CALENDLY_URL } from "@/lib/calendly";
 // bullets → primary CTA. Two-column layout on desktop.
 
 const BULLETS = [
-  "Une liste courte, scorée et priorisée — la qualité, jamais le volume",
+  "Une liste courte, scorée et priorisée — la qualité, jamais de volume",
   "Secteur exclusif : une seule agence par zone",
   "100 % données publiques en France, conforme post-interdiction de la pige (2025)",
 ];
@@ -50,8 +50,7 @@ export default function HeroSection() {
             <Reveal direction="up">
               {/* H1 */}
               <h1 className="text-h1 headline text-balance mb-headline">
-                Vos concurrents lisent les annonces en ligne. Vous sonnez déjà chez le
-                vendeur.
+                Arrêtez de chasser les vendeurs. Recevez leurs adresses chaque lundi.
               </h1>
 
               {/* Subheadline */}
