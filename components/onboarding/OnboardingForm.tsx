@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import Footer from '@/components/Footer';
 import ZoneSelector from '@/components/ZoneSelector';
 import {
   agencyRowToZoneValue,
@@ -269,6 +270,7 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
           </form>
         </div>
       </div>
+      <Footer />
     </main>
   );
 }

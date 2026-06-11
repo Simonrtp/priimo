@@ -24,11 +24,11 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Priimo — Détectez les vendeurs avant la mise en ligne",
+    default: "Priimo — Logiciel de prospection immobilière prédictive",
     template: "%s · Priimo",
   },
   description:
-    "Priimo croise DVF, DPE, BODACC et le registre des copropriétés pour repérer les propriétaires susceptibles de vendre. Liste hebdomadaire scorée, secteur exclusif, module SCI. Conforme post-interdiction de la pige.",
+    "Le logiciel de prospection prédictive des agences immobilières : signaux DVF, DPE, BODACC et copropriétés croisés, liste hebdomadaire d'adresses scorées, secteur exclusif, module SCI.",
   applicationName: "Priimo",
   keywords: [
     "prospection immobilière",
@@ -39,6 +39,7 @@ export const metadata: Metadata = {
     "agence immobilière",
     "prédictif",
     "signaux de vie",
+    "événements de vie",
     "prospection vendeurs",
     "SCI",
     "secteur exclusif",
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Priimo — Prospection immobilière prédictive",
     description:
-      "Les signaux publics qui précèdent une vente, livrés chaque semaine sur votre secteur exclusif.",
+      "Événements de vie et signaux publics, livrés chaque semaine sur votre secteur exclusif.",
     url: "/",
     siteName: "Priimo",
     locale: "fr_FR",
@@ -60,7 +61,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Priimo — Prospection immobilière prédictive",
     description:
-      "Les signaux publics qui précèdent une vente, livrés chaque semaine sur votre secteur exclusif.",
+      "Événements de vie et signaux publics, livrés chaque semaine sur votre secteur exclusif.",
   },
   icons: {
     icon: [{ url: "/Logo.png", type: "image/png" }],

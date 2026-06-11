@@ -15,19 +15,15 @@ type Item = {
 const FAQS: Item[] = [
   {
     q: "C'est quoi exactement, Priimo ?",
-    a: "Priimo croise cinq bases publiques françaises (DVF, DPE, BODACC, copropriétés, permis) pour repérer les signaux qui précèdent une mise en vente : DPE refait, ventes en série dans un immeuble, copropriété fragilisée, SCI en dissolution. Chaque semaine, vous recevez une liste d'adresses scorées et priorisées sur votre secteur exclusif — avec le contexte pour agir.",
+    a: "Priimo est un logiciel de prospection prédictive pour agences immobilières. Il croise des bases publiques françaises (DVF, DPE, BODACC, copropriétés, permis de construire) pour repérer les signaux qui précèdent une mise en vente : DPE refait, ventes en série dans un immeuble, copropriété fragilisée, SCI en dissolution. Chaque semaine, vous recevez une liste d'adresses scorées et priorisées sur votre secteur exclusif, avec le contexte pour agir.",
   },
   {
-    q: "Comment essayer Priimo ?",
-    a: "L'accès se fait sur invitation, après un échange de 20 minutes pour délimiter votre secteur et vérifier qu'il est disponible. Chaque agence démarre ensuite par un mois d'essai gratuit, sans carte bancaire et sans engagement. En échange, nous vous demandons une chose : nous dire ce que donnent les adresses sur le terrain.",
+    q: "Est-ce que ça fonctionne vraiment ?",
+    a: "Priimo ne promet pas des mandats par magie : il repère les événements de vie et signaux publics qui précèdent une vente — DPE refait, ventes en série, copropriété fragilisée, SCI en dissolution. Chaque adresse est scorée et expliquée, pour que votre équipe sache où frapper en priorité. Le mois d'essai gratuit, sans engagement, sert justement à le vérifier sur votre secteur, avec vos agents sur le terrain.",
   },
   {
-    q: "Combien ça coûte ?",
-    a: "Les dix premières agences bénéficient du tarif fondateur : 100 €/mois, garanti 12 mois, en échange de retours réguliers. Le tarif standard est de 199 €/mois. Sans engagement de durée, avec un secteur exclusif par agence. Un seul mandat supplémentaire rembourse largement une année d'abonnement.",
-  },
-  {
-    q: "Quelle différence avec Maline ou Telescop ?",
-    a: "Le même socle de données publiques, une philosophie différente. Là où ces outils misent sur le volume et demandent une vraie prise en main, Priimo livre une liste courte et priorisée — 15 à 30 adresses par mois, expliquées une à une — plus un module SCI avec dirigeants identifiés. Et votre secteur est exclusif : une seule agence par zone.",
+    q: "Comment essayer Priimo gratuitement ?",
+    a: "Chaque agence bénéficie d'un mois d'essai gratuit, sans engagement et sans carte bancaire — vous pouvez arrêter quand vous voulez. L'accès se fait sur invitation, après un échange de 20 minutes pour délimiter votre secteur et vérifier qu'il est disponible. En échange, nous vous demandons une chose : nous dire ce que donnent les adresses sur le terrain.",
   },
   {
     q: "Est-ce conforme au RGPD ?",

@@ -54,8 +54,9 @@ export default function DataReassurance() {
         <Reveal direction="fade" delay={250}>
           <p className="mt-6 text-body text-center max-w-2xl mx-auto">
             Priimo s&apos;appuie exclusivement sur des bases publiques françaises — DVF, DPE
-            ADEME, BODACC, registre des copropriétés. Les mêmes données que les leaders du
-            marché ; le travail de croisement et de scoring en plus.
+            ADEME, BODACC, registre des copropriétés — pour croiser signaux marché et
+            événements de vie sur chaque bien. Les mêmes données que les leaders du marché ; le
+            travail de lecture et de scoring en plus.
           </p>
         </Reveal>
       </div>

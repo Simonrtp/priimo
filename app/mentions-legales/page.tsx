@@ -1,15 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-import { CguContent } from '@/components/legal/CguContent';
+import { LegalArticleContent } from '@/components/legal/LegalArticleContent';
+import { MENTIONS_LAST_UPDATED } from '@/lib/legal/contact';
 
 export const metadata: Metadata = {
-  title: 'Conditions Générales d\'Utilisation',
-  description: 'CGU du service Priimo — prospection immobilière prédictive pour agences.',
+  title: 'Mentions légales',
+  description: 'Mentions légales du site et du service Priimo.',
   robots: { index: true, follow: true },
 };
 
-export default function CguPage() {
+export default function MentionsLegalesPage() {
   return (
     <main className="min-h-dvh bg-canvas flex flex-col">
       <div
@@ -34,9 +35,9 @@ export default function CguPage() {
       </header>
       <div className="flex-1 mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14">
         <h1 className="font-sans text-3xl font-bold text-gray-900 text-balance tracking-tight mb-2">
-          Conditions Générales d&apos;Utilisation
+          Mentions légales
         </h1>
-        <CguContent />
+        <LegalArticleContent filename="mentions-legales.md" lastUpdated={MENTIONS_LAST_UPDATED} />
         <p className="mt-12 text-center border-t border-black/10 pt-8">
           <Link href="/" className="text-sm font-medium text-accent-dark hover:underline">
             ← Retour à l&apos;accueil

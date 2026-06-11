@@ -1,15 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-import { CguContent } from '@/components/legal/CguContent';
+import { LegalArticleContent } from '@/components/legal/LegalArticleContent';
+import { CONFIDENTIALITE_LAST_UPDATED } from '@/lib/legal/contact';
 
 export const metadata: Metadata = {
-  title: 'Conditions Générales d\'Utilisation',
-  description: 'CGU du service Priimo — prospection immobilière prédictive pour agences.',
+  title: 'Politique de confidentialité',
+  description: 'Politique de confidentialité et protection des données — Priimo.',
   robots: { index: true, follow: true },
 };
 
-export default function CguPage() {
+export default function PolitiqueConfidentialitePage() {
   return (
     <main className="min-h-dvh bg-canvas flex flex-col">
       <div
@@ -34,9 +35,9 @@ export default function CguPage() {
       </header>
       <div className="flex-1 mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14">
         <h1 className="font-sans text-3xl font-bold text-gray-900 text-balance tracking-tight mb-2">
-          Conditions Générales d&apos;Utilisation
+          Politique de confidentialité
         </h1>
-        <CguContent />
+        <LegalArticleContent filename="confidentialite.md" lastUpdated={CONFIDENTIALITE_LAST_UPDATED} />
         <p className="mt-12 text-center border-t border-black/10 pt-8">
           <Link href="/" className="text-sm font-medium text-accent-dark hover:underline">
             ← Retour à l&apos;accueil

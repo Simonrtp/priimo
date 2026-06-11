@@ -53,8 +53,8 @@ function ShareIcon() {
 
 const FEATURES: Feature[] = [
   {
-    title: "Un score nourri par cinq bases publiques",
-    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire : Priimo croise les signaux qui précèdent une vente et note chaque adresse de 0 à 100.",
+    title: "Un score prédictif sur chaque adresse",
+    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur.",
     Icon: ChartIcon,
   },
   {
@@ -80,7 +80,7 @@ export default function Features() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
-            Le sérieux des données. La simplicité du terrain.
+            Un moteur prédictif fait le tri. Vos agents font les mandats.
           </h2>
         </Reveal>
 

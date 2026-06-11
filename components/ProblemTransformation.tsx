@@ -12,7 +12,7 @@ const BEFORE: Item[] = [
   {
     title: "Du porte-à-porte à l'aveugle",
     description:
-      "Vos agents frappent à des portes au hasard, sans savoir lesquelles cachent un projet de vente.",
+      "Porte-à-porte, des milliers de flyers distribués : vos agents passent des journées à frapper dans le vent, sans savoir quelle porte cache un projet de vente.",
   },
   {
     title: "Des leads déjà grillés",
@@ -30,12 +30,12 @@ const AFTER: Item[] = [
   {
     title: "Une liste prête chaque lundi",
     description:
-      "Chaque semaine, les adresses prioritaires de votre secteur, scorées et expliquées : votre équipe sait où aller.",
+      "Chaque semaine, les adresses prioritaires de votre secteur, scorées et expliquées : votre équipe sait où aller et pourquoi.",
   },
   {
-    title: "L'amont du marché",
+    title: "Avant la mise en ligne",
     description:
-      "Un DPE se commande des mois avant une vente. Priimo capte ces signaux avant la mise en ligne du bien.",
+      "Un DPE refait, un bien détenu vingt ans sans travaux, une cascade de ventes dans l'immeuble : autant d'événements de vie que Priimo repère sur le bien — avant qu'une annonce n'apparaisse.",
   },
   {
     title: "Une prospection qui laisse des traces",

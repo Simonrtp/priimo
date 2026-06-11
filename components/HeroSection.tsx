@@ -11,9 +11,9 @@ import { CALENDLY_URL } from "@/lib/calendly";
 // bullets → primary CTA. Two-column layout on desktop.
 
 const BULLETS = [
-  "Une liste courte, scorée et priorisée — jamais du volume",
+  "Une liste courte, scorée et priorisée — la qualité, jamais le volume",
   "Secteur exclusif : une seule agence par zone",
-  "100 % données publiques, conforme post-interdiction de la pige (2025)",
+  "100 % données publiques en France, conforme post-interdiction de la pige (2025)",
 ];
 
 function CheckIcon() {
@@ -50,14 +50,16 @@ export default function HeroSection() {
             <Reveal direction="up">
               {/* H1 */}
               <h1 className="text-h1 headline text-balance mb-headline">
-                Sachez qui va vendre sur votre secteur — avant la mise en ligne.
+                Vos concurrents lisent les annonces en ligne. Vous sonnez déjà chez le
+                vendeur.
               </h1>
 
               {/* Subheadline */}
               <p className="text-body max-w-xl mb-body mt-0">
-                Un DPE refait, des ventes en série dans l&apos;immeuble, une copropriété qui
-                décroche : autant de signaux publics qui précèdent une mise en vente. Priimo les
-                croise et vous livre chaque semaine les adresses à travailler en priorité.
+                Priimo est le logiciel de prospection prédictive qui lit les signaux publics
+                précédant une vente : événements de vie sur le bien, DPE refait, ventes en série
+                dans l&apos;immeuble, copropriété qui décroche. Chaque lundi, il vous livre les
+                adresses prioritaires de votre secteur.
               </p>
 
               {/* Bullets */}

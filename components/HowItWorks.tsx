@@ -59,13 +59,13 @@ const STEPS: Step[] = [
   {
     num: "02",
     title: "Recevez votre liste du lundi",
-    body: "Chaque lundi, les nouvelles adresses scorées arrivent dans votre tableau de bord, avec les signaux qui expliquent chaque score.",
+    body: "Chaque lundi, les nouvelles adresses scorées arrivent dans votre tableau de bord, avec les signaux — dont les événements de vie sur le bien — qui expliquent chaque score.",
     Icon: ListIcon,
   },
   {
     num: "03",
     title: "Envoyez vos agents au bon endroit",
-    body: "Chaque adresse part avec son contexte : signaux, copropriété, historique. Export CSV ou lien Google Maps pour le terrain.",
+    body: "Chaque adresse part avec son contexte : signaux, copropriété, historique du bien. Export CSV ou lien Google Maps pour le terrain.",
     Icon: RouteIcon,
   },
 ];

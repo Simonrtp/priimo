@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Footer from '@/components/Footer';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { isValidFrenchPhone } from '@/lib/phone';
 
@@ -37,7 +38,7 @@ function EyeIcon({ open }: { open: boolean }) {
 
 function InviteShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-dvh bg-canvas flex items-center justify-center px-4 py-10 sm:py-16">
+    <main className="min-h-dvh bg-canvas flex flex-col">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 bg-canvas"
@@ -49,7 +50,10 @@ function InviteShell({ children }: { children: React.ReactNode }) {
           ].join(', '),
         }}
       />
-      {children}
+      <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
+        {children}
+      </div>
+      <Footer />
     </main>
   );
 }

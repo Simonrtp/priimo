@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Footer from "@/components/Footer";
 import { CALENDLY_URL } from "@/lib/calendly";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -81,7 +82,8 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-dvh bg-canvas flex items-center justify-center px-4 py-10 sm:py-16">
+    <main className="min-h-dvh bg-canvas flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10"
@@ -228,6 +230,8 @@ export default function LoginPage() {
           </a>
         </p>
       </div>
+      </div>
+      <Footer />
     </main>
   );
 }

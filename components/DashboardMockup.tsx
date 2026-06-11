@@ -21,7 +21,7 @@ const PROSPECTS: Prospect[] = [
     address: "8 rue Saint-Maur",
     city: "Paris 11e",
     score: 91,
-    signals: ["Profil transmission", "Détenu 20+ ans"],
+    signals: ["Événement de vie", "Détenu 20+ ans"],
   },
   {
     address: "27 rue de Charonne",
