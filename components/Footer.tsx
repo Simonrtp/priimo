@@ -35,6 +35,11 @@ function FooterContent() {
         <nav aria-label="Liens utiles">
           <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <li>
+              <Link href="/" className="hover:text-white transition">
+                Accueil
+              </Link>
+            </li>
+            <li>
               <Link href="/mentions-legales" className="hover:text-white transition">
                 Mentions légales
               </Link>
