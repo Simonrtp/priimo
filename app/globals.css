@@ -311,7 +311,7 @@ body {
   border-top-color: #E8743C;
 }
 
-/* === DASHBOARD MOCKUP TILT === */
+/* === DASHBOARD MOCKUP TILT (statique) === */
 .tilt {
   transform: perspective(1400px) rotateX(2deg) rotateY(-3deg);
   transform-origin: center;
@@ -320,6 +320,22 @@ body {
 @media (max-width: 768px) {
   .tilt {
     transform: none;
+  }
+}
+
+/* === TILT 3D SUR CARTES (souris) === */
+.tilt-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.tilt-card.tilt-card--reset {
+  transition: transform 0.45s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  .tilt-card.tilt-card--reset {
+    transition: none;
   }
 }
 

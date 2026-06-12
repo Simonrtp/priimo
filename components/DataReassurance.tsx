@@ -36,17 +36,17 @@ export default function DataReassurance() {
           {POINTS.map((p, i) => {
             const ItemIcon = p.Icon;
             return (
-            <Reveal key={p.label} direction="scale" delay={i * 90} as="li">
-              <div className="flex items-center gap-3 rounded-xl bg-white border border-black/10 shadow-soft px-5 py-4 h-full">
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10"
-                  aria-hidden
-                >
-                  <ItemIcon size={ICON_SIZE.sm} color={p.color} strokeWidth={2} />
-                </span>
-                <span className="text-sm font-medium text-gray-900">{p.label}</span>
-              </div>
-            </Reveal>
+              <Reveal key={p.label} direction="scale" delay={i * 90} as="li">
+                <div className="flex items-center gap-3 rounded-xl bg-white border border-black/10 shadow-soft px-5 py-4 h-full">
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10"
+                    aria-hidden
+                  >
+                    <ItemIcon size={ICON_SIZE.sm} color={p.color} strokeWidth={2} />
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">{p.label}</span>
+                </div>
+              </Reveal>
             );
           })}
         </ul>

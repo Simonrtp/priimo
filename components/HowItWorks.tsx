@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
+import { useTiltCard } from "@/lib/use-tilt-card";
 
 // === HOW IT WORKS (Section D) ===
 // Desktop (md+): sticky scroll-jacking — cards 01 → 02 → 03 while pinned.
@@ -71,6 +72,48 @@ const STEPS: Step[] = [
 ];
 
 const MD_QUERY = "(min-width: 768px)";
+
+function StepCard({
+  step,
+  isCurrent,
+  isFuture,
+}: {
+  step: Step;
+  isCurrent: boolean;
+  isFuture: boolean;
+}) {
+  const tiltRef = useTiltCard(7);
+
+  const wrapperClass = isFuture
+    ? "opacity-0 translate-y-10 scale-95 max-md:opacity-100 max-md:translate-y-0 max-md:scale-100"
+    : "opacity-100 translate-y-0 scale-100";
+
+  const cardClass = isFuture
+    ? "shadow-none border-black/5 max-md:shadow-md max-md:border-black/10"
+    : isCurrent
+      ? "shadow-xl border-accent/30"
+      : "shadow-md border-black/10";
+
+  return (
+    <div
+      className={`transform-gpu transition-all duration-700 ease-out min-w-0 h-full ${wrapperClass}`}
+    >
+      <div
+        ref={tiltRef}
+        className={`tilt-card rounded-2xl bg-white border p-5 sm:p-7 h-full ${cardClass}`}
+      >
+        <div className="font-sans text-5xl sm:text-6xl md:text-7xl text-blue leading-none font-bold">
+          {step.num}
+        </div>
+        <div className="mt-4 sm:mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent-dark">
+          <step.Icon />
+        </div>
+        <h3 className="text-h3 text-balance mt-3 sm:mt-4">{step.title}</h3>
+        <p className="text-body mt-2">{step.body}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function HowItWorks() {
   const [activeStep, setActiveStep] = useState(0);
@@ -152,36 +195,15 @@ export default function HowItWorks() {
             </h2>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-8 sm:mt-10 lg:mt-14">
-            {STEPS.map((step, i) => {
-              const isCurrent = i === stepForCard;
-              const isFuture = i > stepForCard;
-              const stateClass = isFuture
-                ? "opacity-0 translate-y-10 scale-95 shadow-none border-black/5 max-md:opacity-100 max-md:translate-y-0 max-md:scale-100 max-md:shadow-md max-md:border-black/10"
-                : isCurrent
-                ? "opacity-100 translate-y-0 scale-100 shadow-xl border-accent/30"
-                : "opacity-100 translate-y-0 scale-100 shadow-md border-black/10";
-
-              return (
-                <div
-                  key={step.num}
-                  className={`rounded-2xl bg-white border p-5 sm:p-7 h-full transform-gpu transition-all duration-700 ease-out min-w-0 ${stateClass}`}
-                >
-                  <div className="font-sans text-5xl sm:text-6xl md:text-7xl text-blue leading-none font-bold">
-                    {step.num}
-                  </div>
-                  <div className="mt-4 sm:mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent-dark">
-                    <step.Icon />
-                  </div>
-                  <h3 className="text-h3 text-balance mt-3 sm:mt-4">
-                    {step.title}
-                  </h3>
-                  <p className="text-body mt-2">
-                    {step.body}
-                  </p>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-8 sm:mt-10 lg:mt-14 [perspective:1200px]">
+            {STEPS.map((step, i) => (
+              <StepCard
+                key={step.num}
+                step={step}
+                isCurrent={i === stepForCard}
+                isFuture={i > stepForCard}
+              />
+            ))}
           </div>
 
           <Reveal direction="scale" delay={250} className="mt-8 lg:mt-10 flex justify-center px-1">
