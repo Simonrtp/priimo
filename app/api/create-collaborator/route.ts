@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import {
+  getValidInvitationByToken,
+  normalizeInviteEmail,
+} from '@/lib/invitations/validate';
 import { normalizeFrenchPhone, validateInviteFields } from '@/lib/invite-account';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 
@@ -20,23 +24,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
+    const normalizedEmail = normalizeInviteEmail(email);
     const normalizedPhone = normalizeFrenchPhone(phone);
 
-    const { data: invitation, error: inviteError } = await supabaseAdmin
-      .from('invitations')
-      .select('*')
-      .eq('token', token)
-      .eq('role', 'collaborateur')
-      .is('used_at', null)
-      .gt('expires_at', new Date().toISOString())
-      .single();
+    const { invitation, error: inviteLookupError } = await getValidInvitationByToken(token);
+    if (!invitation || invitation.role !== 'collaborateur' || !invitation.agency_id) {
+      return NextResponse.json(
+        { error: inviteLookupError ?? 'Invitation invalide ou expirée' },
+        { status: 400 },
+      );
+    }
 
-    if (inviteError || !invitation || !invitation.agency_id) {
-      return NextResponse.json({ error: 'Invitation invalide ou expirée' }, { status: 400 });
+    if (normalizedEmail !== invitation.email) {
+      return NextResponse.json(
+        { error: "L'email ne correspond pas à celui de l'invitation." },
+        { status: 400 },
+      );
     }
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
     });
@@ -68,9 +75,9 @@ export async function POST(request: Request) {
     await supabaseAdmin
       .from('invitations')
       .update({ used_at: new Date().toISOString() })
-      .eq('token', token);
+      .eq('token', token.trim());
 
-    return NextResponse.json({ success: true, userId: authData.user.id });
+    return NextResponse.json({ success: true, userId: authData.user.id, role: 'collaborateur' as const });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';
     return NextResponse.json({ error: message }, { status: 500 });

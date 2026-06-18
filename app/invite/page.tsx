@@ -114,23 +114,23 @@ function InvitePageContent() {
 
   async function validateToken(tokenValue: string) {
     try {
-      const { data, error } = await supabase
-        .from('invitations')
-        .select('*')
-        .eq('token', tokenValue)
-        .is('used_at', null)
-        .gt('expires_at', new Date().toISOString())
-        .single();
+      const response = await fetch(
+        `/api/invitations/validate?token=${encodeURIComponent(tokenValue.trim())}`,
+      );
+      const data = (await response.json()) as {
+        invitation?: Invitation;
+        error?: string;
+      };
 
-      if (error || !data) {
-        setPageError('Invitation invalide ou expirée');
+      if (!response.ok || !data.invitation) {
+        setPageError(data.error ?? 'Invitation invalide ou expirée');
         setLoading(false);
         return;
       }
 
-      setInvitation(data as Invitation);
-      setEmail(data.email);
-      if (data.agency_name) setAgencyName(data.agency_name);
+      setInvitation(data.invitation);
+      setEmail(data.invitation.email);
+      if (data.invitation.agency_name) setAgencyName(data.invitation.agency_name);
       setLoading(false);
     } catch {
       setPageError('Erreur lors de la validation du token');
@@ -160,6 +160,17 @@ function InvitePageContent() {
     }
   }
 
+  async function finishSignIn(destination: '/onboarding' | '/dashboard') {
+    const loginEmail = email.trim().toLowerCase();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password,
+    });
+    if (signInError) throw signInError;
+    router.refresh();
+    router.push(destination);
+  }
+
   async function createDirectorAccount() {
     const response = await fetch('/api/create-director', {
       method: 'POST',
@@ -178,9 +189,7 @@ function InvitePageContent() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Erreur création compte');
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) throw signInError;
-    router.push('/dashboard');
+    await finishSignIn('/onboarding');
   }
 
   async function createCollaboratorAccount() {
@@ -192,9 +201,7 @@ function InvitePageContent() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Erreur création compte');
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) throw signInError;
-    router.push('/dashboard');
+    await finishSignIn('/dashboard');
   }
 
   if (loading) return <InviteLoading />;
