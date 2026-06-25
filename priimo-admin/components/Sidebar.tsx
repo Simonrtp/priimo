@@ -1,0 +1,85 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Building2, Home, Mail, MapPin, Users } from 'lucide-react';
+
+const nav = [
+  { href: '/', label: "Vue d'ensemble", icon: Home },
+  { href: '/agences', label: 'Agences', icon: Building2 },
+  { href: '/leads', label: 'Leads', icon: MapPin },
+  { href: '/utilisateurs', label: 'Utilisateurs', icon: Users },
+  { href: '/invitations', label: 'Invitations', icon: Mail },
+];
+
+export function Sidebar({
+  supabaseOk,
+  onNavigate,
+  className = '',
+}: {
+  supabaseOk: boolean;
+  onNavigate?: () => void;
+  className?: string;
+}) {
+  const pathname = usePathname();
+
+  return (
+    <aside
+      className={`flex w-60 shrink-0 flex-col border-r border-white/[0.06] bg-panel ${className}`}
+    >
+      {/* Logo + indicateur LOCAL ONLY */}
+      <div className="flex items-center gap-2.5 border-b border-white/[0.06] px-5 py-5">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500/70" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-indigo-500" />
+        </span>
+        <div className="leading-tight">
+          <p className="text-sm font-semibold tracking-tight text-white">Priimo</p>
+          <p className="text-[10px] uppercase tracking-widest text-white/30">Local only</p>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-1 p-3">
+        {nav.map(({ href, label, icon: Icon }) => {
+          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={onNavigate}
+              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                active
+                  ? 'border-r-2 border-indigo-500 bg-indigo-500/10 text-indigo-300'
+                  : 'text-white/55 hover:bg-white/[0.03] hover:text-white'
+              }`}
+            >
+              <Icon
+                className={`h-[18px] w-[18px] shrink-0 ${
+                  active ? 'text-indigo-400' : 'text-white/40 group-hover:text-white/70'
+                }`}
+              />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Bloc connexion Supabase */}
+      <div className="border-t border-white/[0.06] p-3">
+        <div className="flex items-center gap-2.5 rounded-lg bg-white/[0.02] px-3 py-2.5">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${
+              supabaseOk ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-red-500'
+            }`}
+          />
+          <div className="leading-tight">
+            <p className="text-xs font-medium text-white/70">
+              Supabase {supabaseOk ? 'connecté' : 'hors-ligne'}
+            </p>
+            <p className="text-[10px] text-white/30">service_role · RLS bypass</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}

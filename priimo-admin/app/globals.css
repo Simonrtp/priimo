@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0a0a0f;
+  color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image: radial-gradient(
+      900px circle at 0% 0%,
+      rgba(99, 102, 241, 0.06),
+      transparent 45%
+    ),
+    radial-gradient(700px circle at 100% 0%, rgba(139, 92, 246, 0.05), transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Scrollbars discrètes adaptées au thème sombre */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Texte en dégradé indigo → violet pour les valeurs KPI */
+.text-gradient-indigo {
+  background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Tables sombres */
+table.data-table {
+  @apply w-full border-collapse text-left text-xs;
+}
+
+table.data-table thead th {
+  @apply sticky top-0 z-10 border-b border-white/[0.06] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-white/40 backdrop-blur;
+  background-color: rgba(17, 17, 24, 0.95);
+}
+
+table.data-table tbody td {
+  @apply border-b border-white/[0.04] px-3 py-2.5 align-middle text-white/80;
+}
+
+table.data-table tbody tr {
+  @apply transition-colors;
+}
+
+table.data-table tbody tr:hover {
+  @apply bg-white/[0.02];
+}
+
+/* Champs de formulaire sombres */
+.input-dark {
+  @apply rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20;
+}
