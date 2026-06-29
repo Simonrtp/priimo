@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { validateZoneValue, zoneValueToAgencyPayload } from '@/lib/agency-zone';
+import {
+  parsePostalCodesFromBody,
+  validateAgencyPostalCodes,
+} from '@/lib/agency-postal-codes';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -80,6 +84,23 @@ export async function POST(request: Request) {
   }
   const email = emailRaw;
 
+  const address = typeof body.address === 'string' ? body.address.trim() : '';
+  if (!address || address.length < 5) {
+    return NextResponse.json(
+      { error: "Sélectionnez l'adresse de l'agence dans la liste de suggestions." },
+      { status: 400 },
+    );
+  }
+
+  const codesPostaux = parsePostalCodesFromBody(body.codesPostaux);
+  if (!codesPostaux) {
+    return NextResponse.json({ error: 'Codes postaux invalides.' }, { status: 400 });
+  }
+  const postalCodesError = validateAgencyPostalCodes(codesPostaux);
+  if (postalCodesError) {
+    return NextResponse.json({ error: postalCodesError }, { status: 400 });
+  }
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from('agencies')
@@ -87,6 +108,8 @@ export async function POST(request: Request) {
       name,
       phone,
       email,
+      address,
+      codes_postaux: codesPostaux,
       ...zoneValueToAgencyPayload(zone!),
     })
     .eq('id', guard.agency.id);

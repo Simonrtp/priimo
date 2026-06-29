@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS public.agencies (
   phone               text,
   email               text,
   plan                text          NOT NULL DEFAULT 'fondateur',
+  codes_postaux       text[],
   zone_type           text          NOT NULL DEFAULT 'radius',
   zone_center_address text,
   zone_latitude       double precision,
@@ -83,6 +84,7 @@ CREATE TABLE IF NOT EXISTS public.agencies (
 
 COMMENT ON TABLE  public.agencies                     IS 'Agences clientes Priimo (une ligne par agence).';
 COMMENT ON COLUMN public.agencies.plan                IS 'Plan d''abonnement : fondateur | standard | premium | reseau.';
+COMMENT ON COLUMN public.agencies.codes_postaux       IS 'Secteur(s) de prospection — codes postaux couverts par l''agence.';
 COMMENT ON COLUMN public.agencies.zone_center_address IS 'Adresse du centre de la zone de prospection (libellé BAN).';
 COMMENT ON COLUMN public.agencies.zone_latitude       IS 'Latitude du centre de zone (WGS84).';
 COMMENT ON COLUMN public.agencies.zone_longitude      IS 'Longitude du centre de zone (WGS84).';
@@ -91,6 +93,7 @@ COMMENT ON COLUMN public.agencies.zone_type           IS 'Mode de zone : radius 
 COMMENT ON COLUMN public.agencies.zone_postal_codes   IS 'Codes postaux Paris (75001–75020) si zone_type = postal_codes.';
 
 ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_type text NOT NULL DEFAULT 'radius';
+ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS codes_postaux text[];
 ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_postal_codes text[];
 ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_latitude double precision;
 ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_longitude double precision;

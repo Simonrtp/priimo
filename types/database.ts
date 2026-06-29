@@ -31,6 +31,8 @@ export type AgencyRow = {
   phone: string | null;
   email: string | null;
   plan: PlanCode;
+  /** Secteur(s) de prospection — codes postaux couverts par l'agence. */
+  codes_postaux: string[] | null;
   zone_type: AgencyZoneTypeDb | null;
   zone_center_address: string | null;
   zone_latitude: number | null;
@@ -139,6 +141,7 @@ export type AgencyInsert = {
   phone?: string | null;
   email?: string | null;
   plan?: PlanCode;
+  codes_postaux?: string[] | null;
   zone_type?: AgencyZoneTypeDb | null;
   zone_center_address?: string | null;
   zone_latitude?: number | null;

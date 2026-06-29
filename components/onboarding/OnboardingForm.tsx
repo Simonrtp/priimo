@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import Footer from '@/components/Footer';
 import ZoneSelector from '@/components/ZoneSelector';
 import {
@@ -11,6 +12,7 @@ import {
   defaultRadiusZoneValue,
   validateZoneValue,
 } from '@/lib/agency-zone';
+import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
 import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
 import type { AgencyRow } from '@/types/database';
 import type { ZoneValue } from '@/types/zone';
@@ -25,6 +27,11 @@ interface OnboardingFormProps {
   userEmail: string;
 }
 
+function initialPostalCodes(agency: AgencyRow): string[] {
+  if (agency.codes_postaux?.length) return [...agency.codes_postaux];
+  return [];
+}
+
 export default function OnboardingForm({ agency, userEmail }: OnboardingFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
@@ -34,11 +41,55 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
   const [name, setName] = useState(agency.name);
   const [phone, setPhone] = useState(agency.phone ?? '');
   const [email, setEmail] = useState(agency.email ?? userEmail);
+  const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(() =>
+    agency.address
+      ? {
+          label: agency.address,
+          latitude: 0,
+          longitude: 0,
+          city: '',
+          postcode: agency.codes_postaux?.[0] ?? '',
+        }
+      : null,
+  );
+  const [postalCodes, setPostalCodes] = useState<string[]>(() => initialPostalCodes(agency));
+  const [extraCodeInput, setExtraCodeInput] = useState('');
   const [zone, setZone] = useState<ZoneValue>(
     () => agencyRowToZoneValue(agency) ?? defaultRadiusZoneValue(),
   );
 
+  const primaryPostcode = agencyAddress?.postcode?.trim() || postalCodes[0] || null;
   const progress = step === 1 ? 50 : 100;
+
+  const handleAddressChange = (selected: SelectedAddress | null) => {
+    setAgencyAddress(selected);
+    if (selected?.postcode && isValidFrenchPostcode(selected.postcode)) {
+      setPostalCodes([normalizeFrenchPostcode(selected.postcode)]);
+    } else if (!selected) {
+      setPostalCodes([]);
+    }
+    setError(null);
+  };
+
+  const addExtraPostalCode = () => {
+    const code = normalizeFrenchPostcode(extraCodeInput);
+    if (!isValidFrenchPostcode(code)) {
+      setError('Code postal invalide (5 chiffres).');
+      return;
+    }
+    if (postalCodes.includes(code)) {
+      setExtraCodeInput('');
+      return;
+    }
+    setPostalCodes((prev) => [...prev, code].sort());
+    setExtraCodeInput('');
+    setError(null);
+  };
+
+  const removePostalCode = (code: string) => {
+    if (postalCodes.length <= 1) return;
+    setPostalCodes((prev) => prev.filter((c) => c !== code));
+  };
 
   const goNext = () => {
     if (!name.trim()) {
@@ -62,6 +113,18 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
       setError("Format d'email invalide.");
       return;
     }
+    if (!agencyAddress?.label?.trim()) {
+      setError("Sélectionnez l'adresse de l'agence dans la liste de suggestions.");
+      return;
+    }
+    if (!agencyAddress.postcode || !isValidFrenchPostcode(agencyAddress.postcode)) {
+      setError("Impossible de déduire le code postal — choisissez une adresse dans la liste.");
+      return;
+    }
+    if (postalCodes.length === 0) {
+      setError('Au moins un code postal de secteur est requis.');
+      return;
+    }
     setError(null);
     setStep(2);
   };
@@ -71,6 +134,10 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
     const zoneError = validateZoneValue(zone);
     if (zoneError) {
       setError(zoneError);
+      return;
+    }
+    if (!agencyAddress?.label?.trim()) {
+      setError("L'adresse de l'agence est requise.");
       return;
     }
     setError(null);
@@ -97,6 +164,8 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
         name: name.trim(),
         phone: normalizeFrenchPhone(phone),
         email: email.trim().toLowerCase(),
+        address: agencyAddress.label.trim(),
+        codesPostaux: postalCodes,
         ...zonePayload,
       }),
     });
@@ -175,6 +244,81 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
                       autoComplete="organization"
                     />
                   </div>
+
+                  <div>
+                    <label htmlFor="agency-address" className={labelClass}>
+                      Adresse de l&apos;agence
+                    </label>
+                    <AddressAutocomplete
+                      id="agency-address"
+                      value={agencyAddress?.label ?? ''}
+                      onChange={handleAddressChange}
+                      placeholder="Ex : 12 rue de la Paix, Paris"
+                      required
+                      inputClassName={`${inputClass} pl-10 pr-10`}
+                    />
+                    {primaryPostcode ? (
+                      <p className="mt-2 text-sm font-medium text-accent-dark">
+                        Secteur : <span className="tabular-nums">{primaryPostcode}</span>
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {postalCodes.length > 0 && (
+                    <div>
+                      <p className={labelClass}>Secteurs couverts</p>
+                      <p className="mb-2 text-xs text-gray-600">
+                        Le code postal de votre agence est pré-rempli. Ajoutez des arrondissements
+                        ou codes postaux limitrophes si besoin.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {postalCodes.map((code) => (
+                          <span
+                            key={code}
+                            className="inline-flex items-center gap-1 rounded-lg border border-black/8 bg-soft-warm px-2.5 py-1 text-sm font-medium tabular-nums text-ink"
+                          >
+                            {code}
+                            {postalCodes.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removePostalCode(code)}
+                                className="ml-0.5 rounded p-0.5 text-mute hover:bg-black/5 hover:text-ink"
+                                aria-label={`Retirer ${code}`}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={5}
+                          value={extraCodeInput}
+                          onChange={(e) => setExtraCodeInput(e.target.value.replace(/\D/g, ''))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addExtraPostalCode();
+                            }
+                          }}
+                          placeholder="Ex : 75006"
+                          className={`${inputClass} flex-1`}
+                          aria-label="Ajouter un code postal"
+                        />
+                        <button
+                          type="button"
+                          onClick={addExtraPostalCode}
+                          className="btn btn-ghost shrink-0 min-h-[48px] px-4"
+                        >
+                          Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label htmlFor="agency-phone" className={labelClass}>
                       Téléphone

@@ -22,6 +22,7 @@ export type AgencyRow = {
   phone: string | null;
   email: string | null;
   plan: PlanCode;
+  codes_postaux: string[] | null;
   zone_type: string | null;
   zone_center_address: string | null;
   zone_latitude: number | null;
