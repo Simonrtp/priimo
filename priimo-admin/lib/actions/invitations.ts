@@ -6,12 +6,14 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import type { InvitationInsert } from '@/lib/types/database';
 import { buildInviteUrl } from '@/lib/utils/format';
 
+/** Durée de validité par défaut des invitations créées depuis l'admin (6 mois). */
+export const INVITATION_VALIDITY_DAYS = 180;
+
 export type CreateInvitationInput = {
   email: string;
   role: 'directeur' | 'collaborateur';
   agencyName: string;
   agencyId?: string;
-  validityDays: number;
 };
 
 export type CreateInvitationResult =
@@ -21,7 +23,6 @@ export type CreateInvitationResult =
 export async function createInvitation(input: CreateInvitationInput): Promise<CreateInvitationResult> {
   const email = input.email.trim().toLowerCase();
   const agencyName = input.agencyName.trim();
-  const validityDays = input.validityDays > 0 ? input.validityDays : 7;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: 'Adresse email invalide.' };
@@ -37,7 +38,9 @@ export async function createInvitation(input: CreateInvitationInput): Promise<Cr
 
   const admin = createSupabaseAdminClient();
   const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + validityDays * 24 * 3600 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + INVITATION_VALIDITY_DAYS * 24 * 3600 * 1000,
+  ).toISOString();
 
   const row: InvitationInsert =
     input.role === 'directeur'

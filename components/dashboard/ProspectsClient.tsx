@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import type { Filters, Lead, LeadSegmentTab, TeamMember } from '@/types/lead';
 import { EMPTY_FILTERS } from '@/types/lead';
@@ -13,13 +14,25 @@ import {
 import { partitionLeadsForDisplay } from '@/lib/lead-delivery';
 import { sortProspects } from '@/lib/lead-dpe';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { deleteLead as deleteLeadDb, updateLead as updateLeadDb } from '@/lib/queries/leads';
+import {
+  deleteLead as deleteLeadDb,
+  updateLead as updateLeadDb,
+  updateLeadCoordinates,
+} from '@/lib/queries/leads';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
 import ProspectsFiltersSheet from './ProspectsFiltersSheet';
-import MapViewPlaceholder from './MapViewPlaceholder';
 import LeadsList from './LeadsList';
+
+const LeadMapView = dynamic(() => import('./map/LeadMapView'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[calc(100dvh-240px)] min-h-[480px] items-center justify-center rounded-2xl border border-black/8 bg-[#F4F4F2] text-sm text-mute shadow-soft">
+      Chargement de la carte…
+    </div>
+  ),
+});
 import LeadDrawer from './LeadDrawer';
 import LeadFullScreenMobile from './LeadFullScreenMobile';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
@@ -174,6 +187,16 @@ export default function ProspectsClient({
     [applyLeadPatch, leads, supabase],
   );
 
+  const handleLeadGeocoded = useCallback(
+    (id: string, latitude: number, longitude: number) => {
+      applyLeadPatch(id, { latitude, longitude });
+      void updateLeadCoordinates(supabase, id, latitude, longitude).catch(() => {
+        // échec de persistance non bloquant : la carte reste à jour en mémoire
+      });
+    },
+    [applyLeadPatch, supabase],
+  );
+
   const onStatusInline = useCallback(
     async (id: string, status: Lead['status']) => {
       try {
@@ -286,7 +309,11 @@ export default function ProspectsClient({
           onResetFilters={resetFilters}
         />
       ) : (
-        <MapViewPlaceholder />
+        <LeadMapView
+          leads={filtered}
+          onOpenDetail={setSelectedLeadId}
+          onGeocoded={handleLeadGeocoded}
+        />
       )}
 
       <LeadDrawer

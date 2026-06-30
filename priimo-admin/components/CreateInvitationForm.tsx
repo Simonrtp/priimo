@@ -25,7 +25,6 @@ export function CreateInvitationForm({ agencies }: { agencies: Pick<AgencyRow, '
           role: String(fd.get('role') ?? 'directeur') as 'directeur' | 'collaborateur',
           agencyName: String(fd.get('agencyName') ?? ''),
           agencyId: String(fd.get('agencyId') ?? '') || undefined,
-          validityDays: Number(fd.get('validityDays') ?? 7),
         });
 
         if (!result.ok) {
@@ -105,19 +104,6 @@ export function CreateInvitationForm({ agencies }: { agencies: Pick<AgencyRow, '
           </label>
         )}
 
-        <label className="text-xs">
-          <span className="mb-1.5 block font-medium uppercase tracking-widest text-white/40">
-            Validité (jours)
-          </span>
-          <input
-            name="validityDays"
-            type="number"
-            min={1}
-            max={90}
-            defaultValue={7}
-            className="input-dark w-full"
-          />
-        </label>
       </div>
 
       {error && (

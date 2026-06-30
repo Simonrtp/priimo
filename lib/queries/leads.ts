@@ -186,6 +186,25 @@ export async function updateLead(supabase: Client, id: string, patch: LeadPatch)
   }
 }
 
+/**
+ * Persiste les coordonnées géocodées d'un lead (géocodage BAN de secours).
+ * Évite de re-géocoder à chaque ouverture de la carte.
+ */
+export async function updateLeadCoordinates(
+  supabase: Client,
+  id: string,
+  latitude: number,
+  longitude: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from('leads')
+    .update({ latitude, longitude } as Partial<LeadRow>)
+    .eq('id', id);
+  if (error) {
+    throw new Error(`Impossible d'enregistrer les coordonnées : ${error.message}`);
+  }
+}
+
 export async function deleteLead(supabase: Client, id: string): Promise<void> {
   const { error } = await supabase.from('leads').delete().eq('id', id);
   if (error) {
