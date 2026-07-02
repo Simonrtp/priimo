@@ -14,6 +14,7 @@ import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadMlFeedbackFields from './LeadMlFeedbackFields';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
+import ParticulierContactPendingHint from './ParticulierContactPendingHint';
 import { isSciDirectorPending } from '@/types/lead';
 
 const drawerSelectTriggerClass =
@@ -221,6 +222,8 @@ export default function LeadDrawer({
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-6">
             <LeadDetailHeader lead={lead} titleId="drawer-address" />
+
+            {!isEnterprise && <ParticulierContactPendingHint />}
 
             {isEnterprise && (
               <>

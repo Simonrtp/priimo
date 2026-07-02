@@ -110,10 +110,10 @@ export async function sendCollaboratorInvitationEmail(params: {
   const inviteUrl = buildInviteUrl(params.token);
 
   const intro = params.directorFullName
-    ? `${escapeHtml(params.directorFullName)}, directeur de ${safeAgency}, vous invite à rejoindre son agence sur Priimo,
-                la plateforme de prospection immobilière prédictive.`
-    : `L'agence ${safeAgency} vous invite à la rejoindre sur Priimo,
-                la plateforme de prospection immobilière prédictive.`;
+    ? `${escapeHtml(params.directorFullName)} vous a ouvert un accès à Priimo, l'outil que votre agence utilise
+                pour repérer, avant les autres, les biens de votre secteur sur le point d'être mis en vente.`
+    : `L'agence ${safeAgency} vous a ouvert un accès à Priimo, l'outil qu'elle utilise
+                pour repérer, avant les autres, les biens de votre secteur sur le point d'être mis en vente.`;
 
   const html = renderInvitationEmailHtml({
     title: `Bienvenue dans l'équipe ${safeAgency}`,
@@ -122,8 +122,19 @@ export async function sendCollaboratorInvitationEmail(params: {
               <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#111827;">
                 ${intro}
               </p>
+              <p style="margin:0 0 8px;font-size:14px;line-height:1.55;color:#111827;">
+                Concrètement, dès la connexion vous trouverez :
+              </p>
+              <ul style="margin:0 0 12px;padding-left:20px;font-size:14px;line-height:1.7;color:#111827;">
+                <li>Vos leads du secteur, classés par priorité (un score par adresse)</li>
+                <li>Pour chaque bien, le signal qui explique pourquoi il remonte (DPE récent, succession, dissolution…)</li>
+                <li>Une carte pour organiser vos tournées et votre boîtage ciblé</li>
+              </ul>
+              <p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#6B7280;">
+                Sur les particuliers&nbsp;: coordonnées propriétaire prochainement (conformité RGPD en cours).
+              </p>
               <p style="margin:0;font-size:14px;line-height:1.55;color:#6B7280;">
-                Cliquez sur le bouton ci-dessous pour créer votre compte et accéder à votre tableau de bord.
+                Créez votre compte en un clic ci-dessous — un guide de 30 secondes vous accueille à la première connexion.
               </p>`,
   });
 

@@ -47,7 +47,7 @@ const STEP_DEFS: TourStepDef[] = [
   },
   {
     anchors: ['drawer-signals', 'drawer-signals-mobile'],
-    body: 'Ici, LE signal : pourquoi ce bien remonte (DPE tout récent, succession probable, copropriété en mouvement, cascade de vente…). C\u2019est ton angle d\u2019approche.',
+    body: 'Ici, LE signal : pourquoi ce bien remonte (DPE tout récent, succession probable, copropriété en mouvement, cascade de vente, dissolution…). C\u2019est ton angle d\u2019approche.',
     placement: 'left',
     inDrawer: true,
   },
@@ -58,7 +58,7 @@ const STEP_DEFS: TourStepDef[] = [
   },
   {
     anchors: null,
-    body: 'Ce que Priimo te dit, c\u2019est LESQUELS des biens de ton secteur bougent vraiment en ce moment. À partir de là, c\u2019est du boîtage ciblé — au lieu de tracter 400 boîtes au hasard, tu cibles les immeubles où il se passe quelque chose. C\u2019est ça qui change tout.',
+    body: 'Ce que Priimo te dit, c\u2019est LESQUELS des biens de ton secteur bougent vraiment en ce moment. À partir de là, c\u2019est du boîtage ciblé — au lieu de tracter 1000 boîtes au hasard, tu cibles les immeubles où il se passe quelque chose. C\u2019est ça qui change tout.',
   },
   {
     anchors: ['lead-feedback', 'lead-feedback-mobile'],

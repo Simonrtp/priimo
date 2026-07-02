@@ -13,6 +13,7 @@ import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadMlFeedbackFields from './LeadMlFeedbackFields';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
+import ParticulierContactPendingHint from './ParticulierContactPendingHint';
 import { isSciDirectorPending } from '@/types/lead';
 
 const mobileSelectTriggerClass =
@@ -125,6 +126,8 @@ export default function LeadFullScreenMobile({
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-10 pt-5">
         <LeadDetailHeader lead={lead} compact />
 
+        {!isEnterprise && <ParticulierContactPendingHint />}
+
         {isEnterprise && (
           <>
             <Divider />
@@ -163,6 +166,11 @@ export default function LeadFullScreenMobile({
                       <MailIcon size={18} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
                       {lead.companyEmail}
                     </a>
+                  )}
+                  {!lead.companyPhone && !lead.companyEmail && (
+                    <p className="text-mute" style={{ fontSize: 12 }}>
+                      Coordonnées non disponibles.
+                    </p>
                   )}
                 </div>
               )}

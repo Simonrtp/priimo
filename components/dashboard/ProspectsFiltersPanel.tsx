@@ -95,7 +95,6 @@ export default function ProspectsFiltersPanel({
   const showPropertySection =
     propertyAvailability.passoire ||
     propertyAvailability.dpeUnder30 ||
-    propertyAvailability.detention5to9 ||
     propertyAvailability.prixAchat;
 
   const assignedOptions = [
@@ -232,13 +231,6 @@ export default function ProspectsFiltersPanel({
                     label="DPE refait < 30 j"
                     active={filters.dpeUnder30Only}
                     onClick={() => set({ dpeUnder30Only: !filters.dpeUnder30Only })}
-                  />
-                )}
-                {propertyAvailability.detention5to9 && (
-                  <Pill
-                    label="Détention 5-9 ans"
-                    active={filters.detention5to9}
-                    onClick={() => set({ detention5to9: !filters.detention5to9 })}
                   />
                 )}
                 {propertyAvailability.prixAchat && (

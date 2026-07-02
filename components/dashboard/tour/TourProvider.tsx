@@ -7,8 +7,9 @@ import DashboardTour from './DashboardTour';
 
 /**
  * Orchestration de la visite guidée :
- * - auto  : premier login (profiles.onboarding_completed_at null) → au terme
- *   de la visite (ou si passée), on écrit la date pour ne plus la relancer ;
+ * - auto  : première connexion après création du compte
+ *   (profiles.onboarding_completed_at null) → la date est écrite dès le
+ *   déclenchement : jamais relancée automatiquement (ni refresh, ni relogin) ;
  * - manual: bouton « Revoir le guide » (TopBar) → ne touche jamais au flag.
  */
 
@@ -40,12 +41,18 @@ export default function DashboardTourProvider({ children }: { children: React.Re
   const [pendingManual, setPendingManual] = useState(false);
   const autoTriggered = useRef(false);
 
-  // Premier login : lance la visite automatiquement sur la page prospects.
+  // Première connexion (création du compte) : lance la visite automatiquement
+  // sur la page prospects. Le flag est écrit IMMÉDIATEMENT, pas à la fin :
+  // un refresh en cours de guide ou une reconnexion ne la redéclenche jamais —
+  // ensuite, uniquement via le bouton Aide.
   useEffect(() => {
     if (!onProspects || autoTriggered.current || mode !== null) return;
     if (profile.onboarding_completed_at) return;
     autoTriggered.current = true;
     setMode('auto');
+    void fetch('/api/dashboard/onboarding-complete', { method: 'POST' }).catch(() => {
+      // Échec réseau : le guide se relancera au prochain chargement, sans gravité.
+    });
   }, [onProspects, profile.onboarding_completed_at, mode]);
 
   // Relance manuelle demandée depuis une autre page : attendre d'être revenu.
@@ -66,12 +73,8 @@ export default function DashboardTourProvider({ children }: { children: React.Re
   }, [onProspects, router]);
 
   const handleEnd = useCallback(() => {
-    if (mode === 'auto') {
-      // Fire-and-forget : un échec réseau relancera simplement le guide au prochain login.
-      void fetch('/api/dashboard/onboarding-complete', { method: 'POST' }).catch(() => {});
-    }
     setMode(null);
-  }, [mode]);
+  }, []);
 
   return (
     <TourContext.Provider value={{ startTour }}>

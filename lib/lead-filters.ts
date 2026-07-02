@@ -1,5 +1,4 @@
 import type { Lead } from '@/types/lead';
-import { getDetentionYears } from '@/lib/lead-display';
 import { isDpeUnder30Days, type ProspectsSortMode } from '@/lib/lead-dpe';
 /** Familles affichables issues de `display_signals`. */
 export type DisplayFamilyKey =
@@ -34,8 +33,6 @@ export interface LeadFilters {
   passoireOnly: boolean;
   /** Diagnostic refait depuis moins de 30 jours. */
   dpeUnder30Only: boolean;
-  /** Propriétaire depuis 5 à 9 ans (DVF). */
-  detention5to9: boolean;
   /** Prix d'achat DVF jugé fiable par le pipeline. */
   prixAchatConnu: boolean;
   status: Lead['status'] | 'all';
@@ -50,7 +47,6 @@ export const EMPTY_LEAD_FILTERS: LeadFilters = {
   signalFamily: 'all',
   passoireOnly: false,
   dpeUnder30Only: false,
-  detention5to9: false,
   prixAchatConnu: false,
   status: 'all',
   assignedTo: 'all',
@@ -161,11 +157,6 @@ export function matchesLeadFilters(lead: Lead, filters: LeadFilters): boolean {
   if (filters.passoireOnly && !isPassoireLead(lead)) return false;
   if (filters.dpeUnder30Only && !isDpeUnder30Days(lead)) return false;
 
-  if (filters.detention5to9) {
-    const years = getDetentionYears(lead.acquiredYear);
-    if (years == null || years < 5 || years > 9) return false;
-  }
-
   if (filters.prixAchatConnu && !hasPrixAchatConnu(lead)) return false;
 
   if (filters.status !== 'all' && lead.status !== filters.status) return false;
@@ -206,7 +197,6 @@ export function countActiveLeadFilters(
   if (f.signalFamily !== 'all') n++;
   if (f.passoireOnly) n++;
   if (f.dpeUnder30Only) n++;
-  if (f.detention5to9) n++;
   if (f.prixAchatConnu) n++;
   if (f.status !== 'all') n++;
   if (countAssigned && f.assignedTo !== 'all') n++;
@@ -229,17 +219,15 @@ export function hasDpeDateInLeads(leads: Pick<Lead, 'dpeDate'>[]): boolean {
 
 /** Au moins un filtre « bien » ou « signaux » disponible dans la liste. */
 export function showPropertyFilterSection(
-  leads: Pick<Lead, 'displaySignals' | 'dpeClass' | 'dpeDate' | 'acquiredYear' | 'signals'>[],
+  leads: Pick<Lead, 'displaySignals' | 'dpeClass' | 'dpeDate' | 'signals'>[],
 ): {
   passoire: boolean;
   dpeUnder30: boolean;
-  detention5to9: boolean;
   prixAchat: boolean;
 } {
   return {
     passoire: leads.some((l) => isPassoireLead(l)),
     dpeUnder30: leads.some((l) => l.dpeDate != null),
-    detention5to9: leads.some((l) => getDetentionYears(l.acquiredYear) != null),
     prixAchat: leads.some((l) => hasPrixAchatConnu(l)),
   };
 }
