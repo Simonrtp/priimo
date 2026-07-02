@@ -1,4 +1,5 @@
 import type { Lead } from '@/types/lead';
+import { scoreRgb } from './score-color';
 
 export type GeoLead = Lead & { latitude: number; longitude: number };
 
@@ -47,12 +48,13 @@ export type ScoreHeat = {
 };
 
 /**
- * Échelle de chaleur calibrée sur la plage réellement présente.
- * Tous les leads livrés ont score >= 60 : on étire donc la couleur entre
- * le min et le max du lot pour que le meilleur ressorte vraiment.
- *   - haut de plage  → vert vif, plus gros (opportunité maximale)
- *   - milieu         → orange / ambre
- *   - bas de plage   → jaune
+ * Échelle de chaleur des marqueurs, alignée sur la couleur des leads
+ * (lib/score-color.ts) : orange basé sur l'orange Priimo #E8743C.
+ *   - couleur : orange TRÈS FONCÉ pour les très chauds → presque jaune pour
+ *     les moins forts (teinte absolue via scoreRgb, cohérente avec les badges).
+ *   - taille  : le meilleur du lot ressort (relative à la plage présente).
+ * Le texte du marqueur passe en blanc (fonds foncés) ou orange brûlé
+ * (fonds clairs) selon la luminance, pour rester lisible.
  */
 export function buildScoreHeatScale(scores: number[]) {
   const min = scores.length ? Math.min(...scores) : 0;
@@ -62,24 +64,14 @@ export function buildScoreHeatScale(scores: number[]) {
   return function heatFor(score: number): ScoreHeat {
     const t = span > 0 ? Math.max(0, Math.min(1, (score - min) / span)) : 1;
 
-    let color: string;
-    let glow: string;
-    let text: string;
-    if (t >= 0.66) {
-      color = '#16A34A'; // vert vif — top
-      glow = 'rgba(22, 163, 74, 0.45)';
-      text = '#FFFFFF';
-    } else if (t >= 0.33) {
-      color = '#F97316'; // orange / ambre — milieu
-      glow = 'rgba(249, 115, 22, 0.4)';
-      text = '#FFFFFF';
-    } else {
-      color = '#FACC15'; // jaune — bas de plage
-      glow = 'rgba(250, 204, 21, 0.45)';
-      text = '#713F12';
-    }
+    const [r, g, b] = scoreRgb(score);
+    const color = `rgb(${r}, ${g}, ${b})`;
+    const glow = `rgba(${r}, ${g}, ${b}, 0.45)`;
+    // Luminance perçue → texte lisible sur le marqueur.
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    const text = luminance < 140 ? '#FFFFFF' : '#7C2D12';
 
-    const size = Math.round(34 + t * 16); // 34px → 50px
+    const size = Math.round(34 + t * 16); // 34px → 50px : le meilleur du lot ressort
 
     return { color, glow, text, size, t };
   };

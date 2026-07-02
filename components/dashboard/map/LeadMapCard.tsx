@@ -2,17 +2,16 @@
 
 import type { Lead } from '@/types/lead';
 import { getMainSignalLabel } from '@/lib/lead-meta';
-import type { ScoreHeat } from '@/lib/lead-geo';
+import ScoreRing from '../ScoreRing';
 
 interface LeadMapCardProps {
   lead: Lead;
-  heat: ScoreHeat;
   active: boolean;
   onClick: () => void;
   onHover: (hovering: boolean) => void;
 }
 
-export default function LeadMapCard({ lead, heat, active, onClick, onHover }: LeadMapCardProps) {
+export default function LeadMapCard({ lead, active, onClick, onHover }: LeadMapCardProps) {
   const typeLabel = lead.ownerType === 'entreprise' ? 'SCI / Entreprise' : 'Particulier';
   const signal = getMainSignalLabel(lead);
 
@@ -23,18 +22,13 @@ export default function LeadMapCard({ lead, heat, active, onClick, onHover }: Le
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       data-active={active}
-      className={`group flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-all duration-150 ${
+      className={`group flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
         active
-          ? 'border-accent/40 bg-orange-50/70 shadow-soft'
-          : 'border-black/8 bg-white hover:border-black/15 hover:bg-black/[0.015]'
+          ? 'border-primary-400/50 bg-primary-50 shadow-clay-sm'
+          : 'border-primary-100 bg-surface hover:border-primary-200 hover:bg-primary-50/40'
       }`}
     >
-      <span
-        className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-bold tabular shadow-sm"
-        style={{ backgroundColor: heat.color, color: heat.text }}
-      >
-        {lead.score}
-      </span>
+      <ScoreRing score={lead.score} size={36} className="mt-0.5" />
 
       <span className="min-w-0 flex-1">
         <span

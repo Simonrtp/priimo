@@ -1,10 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Mail, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, Mail, MapPin, StickyNote, Users } from 'lucide-react';
 import { Badge, ScoreBadge } from '@/components/Badge';
 import { EmptyState } from '@/components/EmptyState';
 import { KpiCard } from '@/components/KpiCard';
 import { Panel } from '@/components/Panel';
+import { RelanceBadge } from '@/components/RelanceBadge';
+import { NotesButton } from '@/components/notes/NotesButton';
+import { NotesPanel } from '@/components/notes/NotesPanel';
+import { getNotes, getNotesByEntity } from '@/lib/notes/store';
 import { fetchAgencyDetail } from '@/lib/queries/admin';
 import {
   LEAD_STATUS_LABELS,
@@ -21,7 +25,11 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function AgenceDetailPage({ params }: { params: { id: string } }) {
-  const { agency, profiles, invitations, leads } = await fetchAgencyDetail(params.id);
+  const [{ agency, profiles, invitations, leads }, agencyNotes, profileNotes] = await Promise.all([
+    fetchAgencyDetail(params.id),
+    getNotes('agency', params.id),
+    getNotesByEntity('profile'),
+  ]);
   if (!agency) notFound();
 
   const scored = leads.filter((l) => typeof l.score === 'number');
@@ -84,6 +92,20 @@ export default async function AgenceDetailPage({ params }: { params: { id: strin
         ))}
       </Panel>
 
+      {/* Notes agence : appels, rendez-vous, suivi commercial */}
+      <Panel
+        title={
+          <span className="inline-flex items-center gap-2">
+            <StickyNote className="h-4 w-4 text-amber-400" />
+            Notes de suivi
+          </span>
+        }
+        subtitle="Appels, rendez-vous, infos à retenir — visible uniquement dans l'admin"
+        bodyClassName="p-5"
+      >
+        <NotesPanel entityType="agency" entityId={agency.id} initialNotes={agencyNotes} />
+      </Panel>
+
       {/* Leads */}
       <Panel title="Leads" subtitle={`${leads.length} lead(s)`} bodyClassName="overflow-x-auto">
         {leads.length === 0 ? (
@@ -131,6 +153,8 @@ export default async function AgenceDetailPage({ params }: { params: { id: strin
                 <th>Rôle</th>
                 <th>Téléphone</th>
                 <th>Inscrit le</th>
+                <th>Relance fondateur</th>
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -146,6 +170,22 @@ export default async function AgenceDetailPage({ params }: { params: { id: strin
                   </td>
                   <td className="text-white/60">{p.phone ?? '—'}</td>
                   <td className="whitespace-nowrap text-white/50">{formatDate(p.created_at)}</td>
+                  <td className="whitespace-nowrap">
+                    {p.role === 'directeur' ? (
+                      <RelanceBadge registeredAt={p.created_at} size="sm" />
+                    ) : (
+                      <span className="text-white/25">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap">
+                    <NotesButton
+                      entityType="profile"
+                      entityId={p.id}
+                      title={`${p.first_name} ${p.last_name}`}
+                      subtitle={agency.name}
+                      initialNotes={profileNotes.get(p.id) ?? []}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

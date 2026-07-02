@@ -1,9 +1,11 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { HelpCircle } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { useUser } from '@/lib/hooks/useUser';
+import { useDashboardTour } from '@/components/dashboard/tour/TourProvider';
 
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
@@ -23,6 +25,7 @@ export default function TopBar() {
   const pathname = usePathname();
   const title = titleForPath(pathname);
   const { profile, agency } = useUser();
+  const { startTour } = useDashboardTour();
 
   return (
     <header
@@ -39,10 +42,21 @@ export default function TopBar() {
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={startTour}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink lg:h-9 lg:w-9"
+          aria-label="Revoir le guide de prise en main"
+          title="Revoir le guide"
+        >
+          <HelpCircle size={20} strokeWidth={2} aria-hidden />
+        </button>
+
         <a
           href={FOUNDER_WHATSAPP_HREF}
           target="_blank"
           rel="noopener noreferrer"
+          data-tour="whatsapp-mobile"
           className="flex lg:hidden h-11 w-11 shrink-0 items-center justify-center text-[#25D366] transition-opacity hover:opacity-80"
           aria-label="Écrire au fondateur sur WhatsApp"
         >

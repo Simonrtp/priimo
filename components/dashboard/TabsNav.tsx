@@ -19,8 +19,12 @@ const tabs: {
   { id: 'tous', label: 'Tous', icon: 'grid' },
 ];
 
+// Tokens de la charte (color accepte une var CSS) — accent indigo du dashboard agence.
+const PRIMARY_600 = 'var(--primary-600)';
+const PRIMARY_500 = 'var(--primary-500)';
+
 function TabIcon({ kind, active }: { kind: 'building' | 'user' | 'grid'; active: boolean }) {
-  const color = active ? ICON_COLORS.primary : ICON_COLORS.neutral;
+  const color = active ? PRIMARY_600 : ICON_COLORS.neutral;
   const stroke = 2;
   if (kind === 'grid') {
     return <ICONS.layoutGrid className="flex-shrink-0" size={ICON_SIZE.lg} color={color} strokeWidth={stroke} aria-hidden />;
@@ -55,7 +59,7 @@ export default function TabsNav({ value, onTabChange, counts }: TabsNavProps) {
               }`}
               style={{
                 letterSpacing: '-0.01em',
-                ...(active ? { color: ICON_COLORS.primary } : {}),
+                ...(active ? { color: PRIMARY_600 } : {}),
               }}
             >
               <TabIcon kind={icon} active={active} />
@@ -68,7 +72,7 @@ export default function TabsNav({ value, onTabChange, counts }: TabsNavProps) {
               </span>
               <span
                 className="pointer-events-none absolute bottom-0 left-2 right-2 h-[2px] rounded-full md:left-0 md:right-0"
-                style={{ backgroundColor: active ? '#E8743C' : 'transparent' }}
+                style={{ backgroundColor: active ? PRIMARY_500 : 'transparent' }}
               />
             </button>
           );

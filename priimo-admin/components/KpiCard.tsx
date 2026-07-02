@@ -1,9 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-type Accent = 'indigo' | 'emerald' | 'amber' | 'sky';
+type Accent = 'indigo' | 'emerald' | 'amber' | 'sky' | 'danger';
 
-const accents: Record<Accent, { circle: string; icon: string; glow: string }> = {
+const accents: Record<Accent, { circle: string; icon: string; glow: string; border?: string }> = {
   indigo: {
     circle: 'bg-indigo-500/10 ring-indigo-500/20',
     icon: 'text-indigo-400',
@@ -24,6 +24,12 @@ const accents: Record<Accent, { circle: string; icon: string; glow: string }> = 
     icon: 'text-sky-400',
     glow: 'hover:shadow-[0_0_24px_rgba(56,189,248,0.18)] hover:border-sky-500/30',
   },
+  danger: {
+    circle: 'bg-red-500/10 ring-red-500/20',
+    icon: 'text-red-400',
+    glow: 'hover:shadow-[0_0_24px_rgba(239,68,68,0.2)] hover:border-red-500/40',
+    border: 'border-red-500/25',
+  },
 };
 
 export function KpiCard({
@@ -43,7 +49,7 @@ export function KpiCard({
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] p-5 backdrop-blur-sm transition-all duration-300 ${a.glow}`}
+      className={`group relative overflow-hidden rounded-2xl border bg-white/[0.03] p-5 backdrop-blur-sm transition-all duration-300 ${a.border ?? 'border-white/[0.06]'} ${a.glow}`}
     >
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-medium uppercase tracking-widest text-white/40">{label}</p>

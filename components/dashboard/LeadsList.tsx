@@ -146,7 +146,8 @@ export default function LeadsList({
   return (
     <div
       id="prospects-leads-list"
-      className="flex w-full min-w-0 flex-col max-md:gap-2 md:gap-0 md:overflow-visible md:rounded-2xl md:border md:border-black/8 md:bg-white md:shadow-soft"
+      data-tour="leads-list"
+      className="flex w-full min-w-0 flex-col max-md:gap-2 md:gap-0 md:overflow-visible md:rounded-clay-lg md:bg-surface md:shadow-clay"
     >
       {visibleNewBatch.map((lead, i) => (
         <LeadCard

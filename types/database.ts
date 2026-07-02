@@ -54,6 +54,8 @@ export type ProfileRow = {
   preferences: ProfilePreferences;
   /** Dernière visite du dashboard prospects (bandeau pipeline). */
   leads_last_seen_at?: string | null;
+  /** Visite guidée du dashboard terminée (ou passée) — null = à afficher au prochain login. */
+  onboarding_completed_at?: string | null;
   created_at: string;
   updated_at: string;
 };

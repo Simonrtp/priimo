@@ -32,22 +32,79 @@ const config: Config = {
           ink: "#15110F",
           inkBlue: "#15202F",
         },
+
+        // === PRIIMO Design System — tokens clay (PRIIMO_DESIGN_SYSTEM.md §1.6) ===
+        // Additifs : n'écrasent pas la palette de marque orange/bleu ci-dessus.
+        bg: { base: "var(--bg-base)", subtle: "var(--bg-subtle)" },
+        surface: { DEFAULT: "var(--surface)", 2: "var(--surface-2)" },
+        primary: {
+          50: "var(--primary-50)",
+          100: "var(--primary-100)",
+          200: "var(--primary-200)",
+          400: "var(--primary-400)",
+          500: "var(--primary-500)",
+          600: "var(--primary-600)",
+          700: "var(--primary-700)",
+        },
+        violet: { 400: "var(--violet-400)", 500: "var(--violet-500)" },
+        text: {
+          strong: "var(--text-strong)",
+          DEFAULT: "var(--text)",
+          muted: "var(--text-muted)",
+          subtle: "var(--text-subtle)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
+        info: "var(--info)",
+        score: {
+          high: "var(--score-high)",
+          good: "var(--score-good)",
+          mid: "var(--score-mid)",
+          low: "var(--score-low)",
+        },
       },
       fontFamily: {
-        // Single stack: Inter via next/font → --font-sans (layout.tsx)
+        // Corps (Inter) → --font-body ; Display (Plus Jakarta Sans) → --font-display ;
+        // Mono (JetBrains Mono) → --font-mono. Chargés via next/font (layout.tsx).
         sans: [
-          "var(--font-sans)",
+          "var(--font-body)",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
           "Roboto",
           "sans-serif",
         ],
+        display: [
+          "var(--font-display)",
+          "var(--font-body)",
+          "system-ui",
+          "sans-serif",
+        ],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
         soft: "0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.05)",
         cta: "0 6px 20px rgba(232, 116, 60, 0.25)",
         ctaHover: "0 10px 28px rgba(232, 116, 60, 0.35)",
+        // === Ombres clay (PRIIMO_DESIGN_SYSTEM.md §4.3) ===
+        "clay-sm": "var(--clay-sm)",
+        clay: "var(--clay)",
+        "clay-lg": "var(--clay-lg)",
+        "clay-pressed": "var(--clay-pressed)",
+        "clay-inset": "var(--clay-inset)",
+        "clay-primary": "var(--clay-primary)",
+      },
+      borderRadius: {
+        // §3 — rayons clay généreux
+        clay: "16px",
+        "clay-lg": "24px",
+        "clay-xl": "32px",
+      },
+      transitionTimingFunction: {
+        // §7.1 — courbes signature
+        clay: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        soft: "cubic-bezier(0.4, 0, 0.2, 1)",
       },
       keyframes: {
         fadeIn: {

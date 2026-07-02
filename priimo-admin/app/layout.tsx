@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AppShell } from '@/components/AppShell';
-import { checkSupabaseConnection } from '@/lib/queries/admin';
+import { checkSupabaseConnection, fetchDirectorFollowupCount } from '@/lib/queries/admin';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -17,12 +17,17 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const supabaseOk = await checkSupabaseConnection();
+  const [supabaseOk, followupCount] = await Promise.all([
+    checkSupabaseConnection(),
+    fetchDirectorFollowupCount().catch(() => 0),
+  ]);
 
   return (
     <html lang="fr">
       <body className={`${inter.variable} font-sans`}>
-        <AppShell supabaseOk={supabaseOk}>{children}</AppShell>
+        <AppShell supabaseOk={supabaseOk} followupCount={followupCount}>
+          {children}
+        </AppShell>
       </body>
     </html>
   );

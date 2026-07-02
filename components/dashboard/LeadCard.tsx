@@ -76,22 +76,31 @@ export default function LeadCard({
   return (
     <div
       data-lead-card
+      data-lead-id={lead.id}
+      data-tour={index === 0 ? 'lead-card' : undefined}
       onClick={onClick}
-      className={`relative cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-md:rounded-xl max-md:border max-md:border-black/8 max-md:bg-white max-md:px-3.5 max-md:py-3.5 max-md:shadow-soft md:hover:bg-black/[0.018] lg:flex lg:items-center lg:gap-4 lg:px-5 lg:py-[18px] lg:shadow-none ${
+      className={`relative cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-md:rounded-2xl max-md:bg-surface max-md:px-3.5 max-md:py-3.5 max-md:shadow-clay-sm md:hover:bg-black/[0.018] lg:flex lg:items-center lg:gap-4 lg:px-5 lg:py-[18px] lg:shadow-none ${
         !isLast ? 'border-b border-black/[0.05] max-md:border-b-0' : ''
       }`}
       style={{ animationDelay: `${index * 38}ms` }}
     >
       {isHighIntent && (
-        <span className="absolute left-0 top-4 bottom-4 hidden w-[3px] bg-accent rounded-r-[2px] lg:block" />
+        <span className="absolute left-0 top-4 bottom-4 hidden w-[3px] bg-accent-dark rounded-r-[2px] lg:block" />
       )}
 
       <div className="flex items-start gap-3 lg:hidden">
-        <div className="flex shrink-0 flex-col items-center pt-0.5">
-          <ScoreRing score={lead.score} size={40} />
+        <div
+          className="flex shrink-0 flex-col items-center pt-0.5"
+          data-tour={index === 0 ? 'lead-score-mobile' : undefined}
+        >
+          <ScoreRing score={lead.score} size={36} />
         </div>
         <div className="min-w-0 flex-1">
-          <div onClick={(e) => e.stopPropagation()}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="inline-block"
+            data-tour={index === 0 ? 'lead-feedback-mobile' : undefined}
+          >
             <StatusBadge status={lead.status} onChange={onStatusChange} />
           </div>
 
@@ -144,7 +153,10 @@ export default function LeadCard({
       </div>
 
       <div className="hidden w-full items-center gap-4 lg:flex">
-        <div className="flex flex-shrink-0 flex-col items-center">
+        <div
+          className="flex flex-shrink-0 flex-col items-center"
+          data-tour={index === 0 ? 'lead-score' : undefined}
+        >
           <ScoreRing score={lead.score} size={44} />
         </div>
         <div className="min-w-0 flex-1">
@@ -196,7 +208,11 @@ export default function LeadCard({
             </p>
           </div>
         )}
-        <div className="hidden flex-shrink-0 lg:block" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="hidden flex-shrink-0 lg:block"
+          onClick={(e) => e.stopPropagation()}
+          data-tour={index === 0 ? 'lead-feedback' : undefined}
+        >
           <StatusBadge status={lead.status} onChange={onStatusChange} />
         </div>
       </div>

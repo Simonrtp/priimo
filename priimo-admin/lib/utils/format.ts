@@ -93,12 +93,22 @@ export const DIRECTOR_FOLLOWUP_DAYS = 14;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export type DirectorFollowupStatus = 'upcoming' | 'due' | 'overdue';
+/**
+ * `overdue`/`due` : la relance doit être faite (en retard ou aujourd'hui).
+ * `soon` : relance dans les 3 prochains jours — à anticiper.
+ * `upcoming` : relance plus lointaine.
+ */
+export type DirectorFollowupStatus = 'overdue' | 'due' | 'soon' | 'upcoming';
+
+/** Statuts pour lesquels une action de relance est effectivement attendue. */
+export const ACTIONABLE_FOLLOWUP_STATUSES: DirectorFollowupStatus[] = ['overdue', 'due', 'soon'];
 
 export function getDirectorFollowupInfo(registeredAt: string): {
   followupAt: Date;
   status: DirectorFollowupStatus;
+  diffDays: number;
   label: string;
+  shortLabel: string;
 } {
   const registered = new Date(registeredAt);
   const followupAt = new Date(registered.getTime() + DIRECTOR_FOLLOWUP_DAYS * MS_PER_DAY);
@@ -119,17 +129,41 @@ export function getDirectorFollowupInfo(registeredAt: string): {
     return {
       followupAt,
       status: 'overdue',
-      label: overdue === 1 ? 'Relance · il y a 1 j' : `Relance · il y a ${overdue} j`,
+      diffDays,
+      label: overdue === 1 ? 'À relancer · en retard de 1 j' : `À relancer · en retard de ${overdue} j`,
+      shortLabel: overdue === 1 ? 'Retard 1 j' : `Retard ${overdue} j`,
     };
   }
 
   if (diffDays === 0) {
-    return { followupAt, status: 'due', label: 'Relance aujourd\u2019hui' };
+    return {
+      followupAt,
+      status: 'due',
+      diffDays,
+      label: 'À relancer aujourd\u2019hui',
+      shortLabel: 'Aujourd\u2019hui',
+    };
   }
 
   if (diffDays === 1) {
-    return { followupAt, status: 'upcoming', label: 'Relance demain' };
+    return { followupAt, status: 'soon', diffDays, label: 'À relancer demain', shortLabel: 'Demain' };
   }
 
-  return { followupAt, status: 'upcoming', label: `Relance le ${dateLabel}` };
+  if (diffDays <= 3) {
+    return {
+      followupAt,
+      status: 'soon',
+      diffDays,
+      label: `À relancer dans ${diffDays} j`,
+      shortLabel: `Dans ${diffDays} j`,
+    };
+  }
+
+  return {
+    followupAt,
+    status: 'upcoming',
+    diffDays,
+    label: `Relance le ${dateLabel}`,
+    shortLabel: dateLabel,
+  };
 }

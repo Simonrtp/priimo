@@ -20,6 +20,7 @@ import {
   updateLeadCoordinates,
 } from '@/lib/queries/leads';
 import TabsNav from './TabsNav';
+import DashboardKpis from './DashboardKpis';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar, { type ProspectsViewMode } from './ProspectsListToolbar';
 import ProspectsFiltersSheet from './ProspectsFiltersSheet';
@@ -28,7 +29,7 @@ import LeadsList from './LeadsList';
 const LeadMapView = dynamic(() => import('./map/LeadMapView'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[calc(100dvh-240px)] min-h-[480px] items-center justify-center rounded-2xl border border-black/8 bg-[#F4F4F2] text-sm text-mute shadow-soft">
+    <div className="flex h-[calc(100dvh-240px)] min-h-[480px] items-center justify-center rounded-clay-lg bg-surface text-sm text-text-muted shadow-clay">
       Chargement de la carte…
     </div>
   ),
@@ -228,6 +229,23 @@ export default function ProspectsClient({
   const filterCount = countActiveLeadFilters(filters, { countAssigned: isDirector });
   const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
+  // Visite guidée : ouverture/fermeture du panneau de détail du premier lead
+  // (l'étape « signal » pointe la section Signaux détectés, dans le panneau).
+  useEffect(() => {
+    const openFirstLead = () => {
+      const card = document.querySelector<HTMLElement>('[data-tour="lead-card"]');
+      const id = card?.dataset.leadId;
+      if (id) setSelectedLeadId(id);
+    };
+    const closeLead = () => setSelectedLeadId(null);
+    window.addEventListener('priimo-tour:open-lead', openFirstLead);
+    window.addEventListener('priimo-tour:close-lead', closeLead);
+    return () => {
+      window.removeEventListener('priimo-tour:open-lead', openFirstLead);
+      window.removeEventListener('priimo-tour:close-lead', closeLead);
+    };
+  }, []);
+
   const dismissPipelineBanner = useCallback(async () => {
     setShowPipelineBanner(false);
     try {
@@ -260,7 +278,11 @@ export default function ProspectsClient({
         />
       )}
 
-      <div className="mb-3 max-md:pt-4 md:mb-3">
+      <div className="max-md:pt-4">
+        <DashboardKpis leads={leads} newBatchCount={initialNewBatchCount} />
+      </div>
+
+      <div className="mb-3 md:mb-3">
         <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
         <ProspectsListToolbar

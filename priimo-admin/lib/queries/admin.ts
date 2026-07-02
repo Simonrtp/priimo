@@ -1,6 +1,10 @@
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import type { AgencyRow, InvitationRow, LeadRow, ProfileRow } from '@/lib/types/database';
-import { getInvitationStatus } from '@/lib/utils/format';
+import {
+  ACTIONABLE_FOLLOWUP_STATUSES,
+  getDirectorFollowupInfo,
+  getInvitationStatus,
+} from '@/lib/utils/format';
 
 /**
  * Lève une erreur explicite si la requête Supabase échoue.
@@ -316,6 +320,64 @@ export async function fetchAllProfiles(): Promise<ProfileWithEmail[]> {
     email: emailMap.get(profile.id) ?? '—',
     agency_name: agencyMap.get(profile.agency_id) ?? '—',
   }));
+}
+
+/**
+ * Version légère (sans jointure email / pagination auth) pour un affichage
+ * global (ex. badge de navigation) sans coût de requête inutile.
+ */
+export async function fetchDirectorFollowupCount(): Promise<number> {
+  const admin = createSupabaseAdminClient();
+  const rows = unwrap(
+    await admin.from('profiles').select('created_at').eq('role', 'directeur'),
+    'profiles.followupCount',
+  ) as Pick<ProfileRow, 'created_at'>[];
+
+  return rows.filter((r) => ACTIONABLE_FOLLOWUP_STATUSES.includes(getDirectorFollowupInfo(r.created_at).status))
+    .length;
+}
+
+export type DirectorFollowup = ProfileWithEmail & {
+  followup: ReturnType<typeof getDirectorFollowupInfo>;
+};
+
+export type DirectorFollowupsSummary = {
+  items: DirectorFollowup[];
+  overdueCount: number;
+  dueTodayCount: number;
+  soonCount: number;
+  actionableCount: number;
+};
+
+/**
+ * Relances fondateur (J+14) à faire auprès des directeurs d'agence, triées
+ * par urgence (les plus en retard / les plus proches en premier).
+ */
+export async function fetchDirectorFollowups(): Promise<DirectorFollowupsSummary> {
+  const profiles = await fetchAllProfiles();
+
+  const items = profiles
+    .filter((p) => p.role === 'directeur')
+    .map((p) => ({ ...p, followup: getDirectorFollowupInfo(p.created_at) }))
+    .sort((a, b) => a.followup.diffDays - b.followup.diffDays);
+
+  let overdueCount = 0;
+  let dueTodayCount = 0;
+  let soonCount = 0;
+
+  for (const item of items) {
+    if (item.followup.status === 'overdue') overdueCount += 1;
+    else if (item.followup.status === 'due') dueTodayCount += 1;
+    else if (item.followup.status === 'soon') soonCount += 1;
+  }
+
+  return {
+    items: items.filter((item) => ACTIONABLE_FOLLOWUP_STATUSES.includes(item.followup.status)),
+    overdueCount,
+    dueTodayCount,
+    soonCount,
+    actionableCount: overdueCount + dueTodayCount + soonCount,
+  };
 }
 
 export async function fetchAllInvitations(): Promise<

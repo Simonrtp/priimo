@@ -20,3 +20,16 @@ export async function initializeLeadsLastSeenAt(supabase: Client, profileId: str
 export async function markLeadsAsSeen(supabase: Client, profileId: string): Promise<string> {
   return initializeLeadsLastSeenAt(supabase, profileId);
 }
+
+/** Visite guidée terminée (ou passée) : ne plus la relancer automatiquement. */
+export async function markOnboardingCompleted(supabase: Client, profileId: string): Promise<string> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed_at: now })
+    .eq('id', profileId);
+  if (error) {
+    throw new Error(`Impossible d'enregistrer la fin du guide : ${error.message}`);
+  }
+  return now;
+}

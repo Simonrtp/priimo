@@ -15,6 +15,7 @@ import {
 } from '@/lib/lead-geo';
 import { geocodeBanQuery } from '@/lib/ban';
 import LeadMapCard from './LeadMapCard';
+import ScoreRing from '../ScoreRing';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 const MAP_STYLE = 'mapbox://styles/mapbox/light-v11';
@@ -131,12 +132,12 @@ export default function LeadMapView({ leads, onOpenDetail, onGeocoded }: LeadMap
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-black/8 bg-[#F4F4F2] px-6 py-16 text-center shadow-soft">
-        <MapPin className="mb-4 text-accent" size={36} strokeWidth={2} aria-hidden />
-        <p className="mb-1 font-semibold text-ink" style={{ fontSize: 15 }}>
+      <div className="flex flex-col items-center justify-center rounded-clay-lg bg-surface px-6 py-16 text-center shadow-clay">
+        <MapPin className="mb-4 text-primary-500" size={36} strokeWidth={2} aria-hidden />
+        <p className="mb-1 font-semibold text-text-strong" style={{ fontSize: 15 }}>
           Carte indisponible
         </p>
-        <p className="max-w-sm text-mute" style={{ fontSize: 13, lineHeight: 1.55 }}>
+        <p className="max-w-sm text-text-muted" style={{ fontSize: 13, lineHeight: 1.55 }}>
           La variable <code className="rounded bg-black/5 px-1">NEXT_PUBLIC_MAPBOX_TOKEN</code> n&apos;est
           pas configurée. Ajoutez-la dans <code className="rounded bg-black/5 px-1">.env.local</code> pour
           activer la vue carte.
@@ -151,7 +152,6 @@ export default function LeadMapView({ leads, onOpenDetail, onGeocoded }: LeadMap
         <LeadMapCard
           key={lead.id}
           lead={lead}
-          heat={heatFor(lead.score)}
           active={lead.id === activeId}
           onClick={() => focusLead(lead)}
           onHover={(h) => setHoveredId(h ? lead.id : null)}
@@ -171,11 +171,11 @@ export default function LeadMapView({ leads, onOpenDetail, onGeocoded }: LeadMap
   );
 
   return (
-    <div className="relative flex h-[calc(100dvh-240px)] min-h-[480px] overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:h-[calc(100dvh-260px)]">
+    <div className="priimo-map relative flex h-[calc(100dvh-240px)] min-h-[480px] overflow-hidden rounded-clay-lg bg-surface shadow-clay md:h-[calc(100dvh-260px)]">
       {/* Panneau résultats (desktop) */}
-      <aside className="hidden w-[380px] flex-shrink-0 flex-col border-r border-black/8 md:flex">
-        <div className="border-b border-black/[0.06] px-4 py-3">
-          <p className="font-semibold text-ink" style={{ fontSize: 13.5 }}>
+      <aside className="hidden w-[380px] flex-shrink-0 flex-col border-r border-primary-100 md:flex">
+        <div className="border-b border-primary-100 px-4 py-3">
+          <p className="font-semibold text-text-strong" style={{ fontSize: 13.5 }}>
             {geoLeads.length} prospect{geoLeads.length !== 1 ? 's' : ''} sur la carte
           </p>
         </div>
@@ -221,22 +221,15 @@ export default function LeadMapView({ leads, onOpenDetail, onGeocoded }: LeadMap
                   aria-label={`Prospect ${lead.address}, score ${lead.score}`}
                   onMouseEnter={() => setHoveredId(lead.id)}
                   onMouseLeave={() => setHoveredId(null)}
-                  className="flex cursor-pointer items-center justify-center rounded-full font-bold tabular transition-all duration-200 ease-out"
-                  style={{
-                    width: heat.size,
-                    height: heat.size,
-                    backgroundColor: heat.color,
-                    color: heat.text,
-                    fontSize: Math.round(heat.size * 0.34),
-                    border: '2px solid rgba(255,255,255,0.9)',
-                    boxShadow: emphasized
-                      ? `0 0 0 6px ${heat.glow}, 0 6px 16px rgba(0,0,0,0.28)`
-                      : '0 2px 6px rgba(0,0,0,0.22)',
-                    transform: emphasized ? 'scale(1.18)' : 'scale(1)',
-                    zIndex: emphasized ? 10 : 1,
-                  }}
+                  className="cursor-pointer"
+                  style={{ zIndex: emphasized ? 10 : 1 }}
                 >
-                  {lead.score}
+                  <ScoreRing
+                    score={lead.score}
+                    size={heat.size}
+                    emphasized={emphasized}
+                    glowColor={heat.glow}
+                  />
                 </div>
               </Marker>
             );
@@ -275,7 +268,7 @@ export default function LeadMapView({ leads, onOpenDetail, onGeocoded }: LeadMap
         <button
           type="button"
           onClick={() => setShowMobileList(true)}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-ink px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg md:hidden"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-primary-600 px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg md:hidden"
         >
           Voir la liste ({geoLeads.length})
         </button>
@@ -289,8 +282,8 @@ export default function LeadMapView({ leads, onOpenDetail, onGeocoded }: LeadMap
             onClick={() => setShowMobileList(false)}
             aria-hidden
           />
-          <div className="relative max-h-[72%] overflow-hidden rounded-t-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3">
+          <div className="relative max-h-[72%] overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg">
+            <div className="flex items-center justify-between border-b border-primary-100 px-4 py-3">
               <p className="font-semibold text-ink" style={{ fontSize: 14 }}>
                 {geoLeads.length} prospect{geoLeads.length !== 1 ? 's' : ''}
               </p>
@@ -325,7 +318,7 @@ function MapButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 bg-white/95 text-ink shadow-sm backdrop-blur transition-colors hover:bg-white"
+      className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary-100 bg-white/95 text-text-strong shadow-clay-sm backdrop-blur transition-colors hover:bg-white"
     >
       {children}
     </button>
@@ -362,9 +355,7 @@ function LeadMapPopup({
       </div>
 
       <div className="mt-1.5 flex items-center gap-2">
-        <span className="inline-flex items-center rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold tabular text-white">
-          {lead.score}
-        </span>
+        <ScoreRing score={lead.score} size={36} />
         <span className="text-mute" style={{ fontSize: 11.5 }}>
           {typeLabel}
           {lead.postalCode ? ` · ${lead.postalCode}` : ''}
@@ -384,7 +375,7 @@ function LeadMapPopup({
       <button
         type="button"
         onClick={() => onOpenDetail(lead.id)}
-        className="mt-2.5 w-full rounded-lg bg-accent px-3 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-dark"
+        className="mt-2.5 w-full rounded-xl bg-primary-600 px-3 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-primary-700"
       >
         Voir le détail
       </button>

@@ -7,16 +7,18 @@ import { Sidebar } from '@/components/Sidebar';
 export function AppShell({
   children,
   supabaseOk,
+  followupCount = 0,
 }: {
   children: ReactNode;
   supabaseOk: boolean;
+  followupCount?: number;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen">
       {/* Sidebar desktop */}
-      <Sidebar supabaseOk={supabaseOk} className="hidden md:flex" />
+      <Sidebar supabaseOk={supabaseOk} followupCount={followupCount} className="hidden md:flex" />
 
       {/* Drawer mobile */}
       {open && (
@@ -26,7 +28,7 @@ export function AppShell({
             onClick={() => setOpen(false)}
           />
           <div className="absolute left-0 top-0 h-full animate-fade-in">
-            <Sidebar supabaseOk={supabaseOk} onNavigate={() => setOpen(false)} />
+            <Sidebar supabaseOk={supabaseOk} followupCount={followupCount} onNavigate={() => setOpen(false)} />
           </div>
           <button
             type="button"

@@ -14,10 +14,12 @@ const nav = [
 
 export function Sidebar({
   supabaseOk,
+  followupCount = 0,
   onNavigate,
   className = '',
 }: {
   supabaseOk: boolean;
+  followupCount?: number;
   onNavigate?: () => void;
   className?: string;
 }) {
@@ -39,9 +41,25 @@ export function Sidebar({
         </div>
       </div>
 
+      {/* Alerte relances — visible en permanence tant qu'il y en a en attente */}
+      {followupCount > 0 ? (
+        <Link
+          href="/utilisateurs"
+          onClick={onNavigate}
+          className="mx-3 mt-3 flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-300 transition hover:bg-amber-500/15"
+        >
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400/70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+          </span>
+          {followupCount} relance{followupCount > 1 ? 's' : ''} fondateur à faire
+        </Link>
+      ) : null}
+
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+          const showBadge = href === '/utilisateurs' && followupCount > 0;
           return (
             <Link
               key={href}
@@ -58,7 +76,12 @@ export function Sidebar({
                   active ? 'text-indigo-400' : 'text-white/40 group-hover:text-white/70'
                 }`}
               />
-              {label}
+              <span className="flex-1">{label}</span>
+              {showBadge ? (
+                <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500/90 px-1.5 text-[10px] font-bold text-black">
+                  {followupCount}
+                </span>
+              ) : null}
             </Link>
           );
         })}

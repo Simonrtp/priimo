@@ -17,6 +17,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# notes admin locales (peuvent contenir des infos clients)
+/data/
+
 # misc
 .DS_Store
 *.pem

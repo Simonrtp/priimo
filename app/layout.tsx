@@ -1,16 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-// === FONT: Inter only (400–700) ===
-// next/font self-hosts glyphs — preconnect still helps first paint when
-// subsets are fetched from Google during build; included for spec compliance.
+// === FONTS (next/font — self-hosted, aucun <link> externe) ===
+// Corps & données : Inter → --font-sans / --font-body (PRIIMO_DESIGN_SYSTEM.md §2.1)
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+// Display (titres, valeurs KPI héro) : Plus Jakarta Sans → --font-display (option B)
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+// Chiffres techniques / IDs : JetBrains Mono → --font-mono
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -85,7 +100,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={inter.variable}>
+    <html
+      lang="fr"
+      className={`${inter.variable} ${jakarta.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

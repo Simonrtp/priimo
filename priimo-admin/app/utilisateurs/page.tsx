@@ -1,8 +1,10 @@
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/Badge';
-import { DirectorFollowupHint } from '@/components/DirectorFollowupHint';
+import { RelanceBadge } from '@/components/RelanceBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { Panel, PageHeader } from '@/components/Panel';
+import { NotesButton } from '@/components/notes/NotesButton';
+import { getNotesByEntity } from '@/lib/notes/store';
 import { fetchAllProfiles } from '@/lib/queries/admin';
 import { ROLE_LABELS, formatDate } from '@/lib/utils/format';
 
@@ -10,7 +12,10 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function UtilisateursPage() {
-  const profiles = await fetchAllProfiles();
+  const [profiles, profileNotes] = await Promise.all([
+    fetchAllProfiles(),
+    getNotesByEntity('profile'),
+  ]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -29,6 +34,8 @@ export default async function UtilisateursPage() {
                 <th>Agence</th>
                 <th>Téléphone</th>
                 <th>Inscrit le</th>
+                <th>Relance fondateur</th>
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -45,11 +52,22 @@ export default async function UtilisateursPage() {
                   </td>
                   <td className="max-w-[180px] truncate text-white/60">{p.agency_name}</td>
                   <td className="text-white/60">{p.phone ?? '—'}</td>
-                  <td className="whitespace-nowrap text-white/50">
-                    {formatDate(p.created_at)}
+                  <td className="whitespace-nowrap text-white/50">{formatDate(p.created_at)}</td>
+                  <td className="whitespace-nowrap">
                     {p.role === 'directeur' ? (
-                      <DirectorFollowupHint registeredAt={p.created_at} />
-                    ) : null}
+                      <RelanceBadge registeredAt={p.created_at} size="sm" />
+                    ) : (
+                      <span className="text-white/25">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap">
+                    <NotesButton
+                      entityType="profile"
+                      entityId={p.id}
+                      title={`${p.first_name} ${p.last_name}`}
+                      subtitle={p.agency_name}
+                      initialNotes={profileNotes.get(p.id) ?? []}
+                    />
                   </td>
                 </tr>
               ))}

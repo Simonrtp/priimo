@@ -99,6 +99,7 @@ export default function Sidebar() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Écrire au fondateur sur WhatsApp"
+          data-tour="whatsapp"
           className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors hover:text-white"
         >
           <WhatsAppIcon size={18} className="flex-shrink-0 text-[#25D366] group-hover:text-[#25D366]" />
