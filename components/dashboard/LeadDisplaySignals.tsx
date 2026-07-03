@@ -9,6 +9,7 @@ import {
   formatDpeDateForDisplay,
   getDisplaySections,
   isDisplaySignalsEmpty,
+  resolveDpeAgeJours,
   type CascadeDisplayFamily,
   type DisplayItem,
   type DisplaySection,
@@ -26,6 +27,8 @@ import {
 
 interface LeadDisplaySignalsProps {
   displaySignals: DisplaySignals;
+  /** Date DPE canonique (colonne leads.dpe_date) — prioritaire pour l'âge relatif. */
+  dpeDate?: string | null;
 }
 
 type ItemsFamily = {
@@ -131,9 +134,10 @@ function SignalFamilyDisclosure({
   );
 }
 
-function DpePanel({ family }: { family: DpeDisplayFamily }) {
-  const date = formatDpeDateForDisplay(family.date);
-  const age = formatDpeAgeLabel(family.ageJours);
+function DpePanel({ family, dpeDate }: { family: DpeDisplayFamily; dpeDate: string | null }) {
+  const dateRaw = dpeDate ?? family.date;
+  const date = formatDpeDateForDisplay(dateRaw);
+  const age = formatDpeAgeLabel(resolveDpeAgeJours(family, dpeDate));
   const parts: string[] = [];
   if (family.classe) parts.push(`DPE ${family.classe}`);
   else parts.push('DPE');
@@ -237,10 +241,16 @@ function EvenementsViePanel({ family }: { family: EvenementsVieDisplayFamily }) 
   );
 }
 
-function DisplaySectionView({ section }: { section: DisplaySection }) {
+function DisplaySectionView({
+  section,
+  dpeDate,
+}: {
+  section: DisplaySection;
+  dpeDate: string | null;
+}) {
   switch (section.kind) {
     case 'dpe':
-      return <DpePanel family={section.family} />;
+      return <DpePanel family={section.family} dpeDate={dpeDate} />;
     case 'cascade':
       return <CascadePanel family={section.family} />;
     case 'copropriete':
@@ -260,7 +270,10 @@ function DisplaySectionView({ section }: { section: DisplaySection }) {
  * Familles de `display_signals` — lignes de texte + accordéon.
  * Tous fermés par défaut à l'ouverture du lead.
  */
-export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignalsProps) {
+export default function LeadDisplaySignals({
+  displaySignals,
+  dpeDate = null,
+}: LeadDisplaySignalsProps) {
   if (isDisplaySignalsEmpty(displaySignals)) {
     return (
       <p className="text-mute" style={{ fontSize: 12.5 }}>
@@ -281,6 +294,7 @@ export default function LeadDisplaySignals({ displaySignals }: LeadDisplaySignal
               : section.kind
           }
           section={section}
+          dpeDate={dpeDate}
         />
       ))}
     </div>

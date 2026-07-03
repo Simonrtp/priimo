@@ -4,7 +4,9 @@ import { RelanceBadge } from '@/components/RelanceBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { Panel, PageHeader } from '@/components/Panel';
 import { NotesButton } from '@/components/notes/NotesButton';
+import { OnboardingCallCheckbox } from '@/components/OnboardingCallCheckbox';
 import { getNotesByEntity } from '@/lib/notes/store';
+import { getOnboardingCallsByProfile } from '@/lib/onboarding-calls/store';
 import { fetchAllProfiles } from '@/lib/queries/admin';
 import { ROLE_LABELS, formatDate } from '@/lib/utils/format';
 
@@ -12,14 +14,15 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function UtilisateursPage() {
-  const [profiles, profileNotes] = await Promise.all([
+  const [profiles, profileNotes, onboardingCalls] = await Promise.all([
     fetchAllProfiles(),
     getNotesByEntity('profile'),
+    getOnboardingCallsByProfile(),
   ]);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Utilisateurs" subtitle={`${profiles.length} profil(s) — lecture seule`} />
+      <PageHeader title="Utilisateurs" subtitle={`${profiles.length} profil(s)`} />
 
       <Panel bodyClassName="overflow-x-auto">
         {profiles.length === 0 ? (
@@ -34,6 +37,7 @@ export default async function UtilisateursPage() {
                 <th>Agence</th>
                 <th>Téléphone</th>
                 <th>Inscrit le</th>
+                <th>Appel onboarding</th>
                 <th>Relance fondateur</th>
                 <th>Notes</th>
               </tr>
@@ -53,6 +57,14 @@ export default async function UtilisateursPage() {
                   <td className="max-w-[180px] truncate text-white/60">{p.agency_name}</td>
                   <td className="text-white/60">{p.phone ?? '—'}</td>
                   <td className="whitespace-nowrap text-white/50">{formatDate(p.created_at)}</td>
+                  <td className="whitespace-nowrap text-center">
+                    <OnboardingCallCheckbox
+                      profileId={p.id}
+                      profileName={`${p.first_name} ${p.last_name}`}
+                      initialDone={onboardingCalls.has(p.id)}
+                      completedAt={onboardingCalls.get(p.id)?.completedAt ?? null}
+                    />
+                  </td>
                   <td className="whitespace-nowrap">
                     {p.role === 'directeur' ? (
                       <RelanceBadge registeredAt={p.created_at} size="sm" />

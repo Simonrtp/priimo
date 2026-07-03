@@ -1,3 +1,5 @@
+import { daysSinceDpe } from '@/lib/lead-dpe';
+
 /**
  * Modèle et parsing du JSON `display_signals` exposé au client.
  *
@@ -316,8 +318,41 @@ export function formatDpeDateForDisplay(raw: string | null): string | null {
   return raw;
 }
 
-/** "il y a {n} j", null si n inconnu. */
+/** Normalise une date DPE (colonne ou display_signals) en YYYY-MM-DD. */
+export function parseDpeDisplayDate(raw: string | null): string | null {
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const fr = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (fr) return `${fr[3]}-${fr[2]}-${fr[1]}`;
+  return null;
+}
+
+/**
+ * Âge du DPE recalculé à l'affichage (date du jour).
+ * `age_jours` du pipeline est volontairement ignoré : il est figé au moment
+ * de l'insertion et devient faux avec le temps.
+ */
+export function resolveDpeAgeJours(
+  family: Pick<DpeDisplayFamily, 'date'>,
+  dpeDate: string | null = null,
+): number | null {
+  const fromColumn = daysSinceDpe(dpeDate);
+  if (fromColumn !== null) return fromColumn;
+  const parsed = parseDpeDisplayDate(family.date);
+  if (parsed) return daysSinceDpe(parsed);
+  return null;
+}
+
+/** Libellé relatif recalculé à chaque affichage. */
 export function formatDpeAgeLabel(ageJours: number | null): string | null {
   if (ageJours === null || ageJours < 0) return null;
-  return `il y a ${ageJours} j`;
+  if (ageJours === 0) return "aujourd'hui";
+  if (ageJours === 1) return 'hier';
+  if (ageJours < 7) return `il y a ${ageJours} jours`;
+  if (ageJours < 30) {
+    const weeks = Math.floor(ageJours / 7);
+    return weeks === 1 ? 'il y a 1 semaine' : `il y a ${weeks} semaines`;
+  }
+  return `il y a ${ageJours} jours`;
 }

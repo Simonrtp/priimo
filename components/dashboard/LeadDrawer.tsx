@@ -236,7 +236,11 @@ export default function LeadDrawer({
 
             <div data-tour="drawer-signals">
               <SectionLabel>Signaux détectés</SectionLabel>
-              <LeadDisplaySignals key={lead.id} displaySignals={lead.displaySignals} />
+              <LeadDisplaySignals
+                key={lead.id}
+                displaySignals={lead.displaySignals}
+                dpeDate={lead.dpeDate}
+              />
             </div>
 
             <Divider />

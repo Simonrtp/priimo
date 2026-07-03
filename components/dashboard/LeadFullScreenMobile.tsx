@@ -182,7 +182,11 @@ export default function LeadFullScreenMobile({
 
         <div data-tour="drawer-signals-mobile">
           <SectionLabel>Signaux détectés</SectionLabel>
-          <LeadDisplaySignals key={lead.id} displaySignals={lead.displaySignals} />
+          <LeadDisplaySignals
+            key={lead.id}
+            displaySignals={lead.displaySignals}
+            dpeDate={lead.dpeDate}
+          />
         </div>
 
         <Divider />

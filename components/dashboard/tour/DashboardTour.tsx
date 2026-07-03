@@ -53,12 +53,12 @@ const STEP_DEFS: TourStepDef[] = [
   },
   {
     anchors: ['view-toggle', 'view-toggle-mobile'],
-    body: 'Sur la carte, chaque point est un lead géolocalisé. Idéal pour organiser ta tournée ou ton boîtage par rue.',
+    body: 'Sur la carte, chaque point est un lead géolocalisé. Idéal pour organiser ta tournée de prospection par rue — porte-à-porte, boîtage ou simple repérage.',
     placement: 'bottom',
   },
   {
     anchors: null,
-    body: 'Ce que Priimo te dit, c\u2019est LESQUELS des biens de ton secteur bougent vraiment en ce moment. À partir de là, c\u2019est du boîtage ciblé — au lieu de tracter 1000 boîtes au hasard, tu cibles les immeubles où il se passe quelque chose. C\u2019est ça qui change tout.',
+    body: 'Ce que Priimo te dit, c\u2019est LESQUELS des biens de ton secteur bougent vraiment en ce moment. Porte-à-porte, tournée de rue, boîtage\u2026 tu cibles les immeubles où il se passe quelque chose, au lieu de prospecter ton secteur au hasard. C\u2019est ça qui change tout.',
   },
   {
     anchors: ['lead-feedback', 'lead-feedback-mobile'],
