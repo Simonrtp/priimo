@@ -6,8 +6,9 @@ import CtaButton from "./CtaButton";
 import { useTiltCard } from "@/lib/use-tilt-card";
 
 // === HOW IT WORKS (Section D) ===
-// Desktop (md+): sticky scroll-jacking — cards 01 → 02 → 03 while pinned.
-// Mobile: normal flow — all cards visible (no h-screen trap), same content.
+// Desktop (md+): sticky scroll-jacking — cards 01 → 02 → 03 while pinned, avec
+// un rail de progression qui suit l'étape active. Mobile: flux normal.
+// Logique de scroll inchangée ; refonte visuelle uniquement.
 
 type Step = {
   num: string;
@@ -82,17 +83,21 @@ function StepCard({
   isCurrent: boolean;
   isFuture: boolean;
 }) {
-  const tiltRef = useTiltCard(7);
+  const tiltRef = useTiltCard(6);
 
   const wrapperClass = isFuture
     ? "opacity-0 translate-y-10 scale-95 max-md:opacity-100 max-md:translate-y-0 max-md:scale-100"
     : "opacity-100 translate-y-0 scale-100";
 
-  const cardClass = isFuture
-    ? "shadow-none border-black/5 max-md:shadow-md max-md:border-black/10"
-    : isCurrent
-      ? "shadow-xl border-accent/30"
-      : "shadow-md border-black/10";
+  // État « actif » : liseré accent + ombre chaude. Style inline pour dépasser
+  // la spécificité de `.landing .glass` (bordure/ombre par défaut).
+  const activeStyle = isCurrent
+    ? {
+        borderColor: "rgba(232,116,60,0.45)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.9), 0 30px 60px -30px rgba(232,116,60,0.45)",
+      }
+    : undefined;
 
   return (
     <div
@@ -100,15 +105,25 @@ function StepCard({
     >
       <div
         ref={tiltRef}
-        className={`tilt-card rounded-2xl bg-white border p-5 sm:p-7 h-full ${cardClass}`}
+        style={activeStyle}
+        className="tilt-card glass grad-border relative rounded-[24px] p-6 sm:p-7 h-full overflow-hidden"
       >
-        <div className="font-sans text-5xl sm:text-6xl md:text-7xl text-blue leading-none font-bold">
-          {step.num}
+        {/* Numéro display en dégradé (actif = orange, à venir = indigo) */}
+        <div className="font-display text-6xl sm:text-7xl leading-none font-bold">
+          <span className={isCurrent ? "text-grad" : "text-indigo-500/30"}>
+            {step.num}
+          </span>
         </div>
-        <div className="mt-4 sm:mt-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent-dark">
+        <div
+          className={`mt-5 inline-flex h-11 w-11 items-center justify-center rounded-2xl transition-colors duration-500 ${
+            isCurrent
+              ? "bg-accent/12 text-accent-dark"
+              : "bg-indigo-500/10 text-indigo-600"
+          }`}
+        >
           <step.Icon />
         </div>
-        <h3 className="text-h3 text-balance mt-3 sm:mt-4">{step.title}</h3>
+        <h3 className="text-h3 text-balance mt-4">{step.title}</h3>
         <p className="text-body mt-2">{step.body}</p>
       </div>
     </div>
@@ -120,7 +135,6 @@ export default function HowItWorks() {
   /** null = SSR / first paint — use mobile-safe layout until we know the viewport */
   const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
 
-  // Track viewport — scroll-jacking only makes sense when 3 columns fit.
   useEffect(() => {
     const mq = window.matchMedia(MD_QUERY);
     const apply = () => setIsDesktop(mq.matches);
@@ -183,19 +197,53 @@ export default function HowItWorks() {
     >
       <div
         className={
-          desktop
-            ? "sticky top-0 min-h-0 h-[100dvh] flex items-center"
-            : "relative"
+          desktop ? "sticky top-0 min-h-0 h-[100dvh] flex items-center" : "relative"
         }
       >
         <div className="w-full mx-auto max-w-6xl px-4 sm:px-8 py-6 sm:py-10 min-w-0">
           <Reveal direction="up">
-            <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
+            <div className="flex justify-center">
+              <span className="kicker mb-5">
+                <span className="kicker__dot" />
+                En 3 étapes
+              </span>
+            </div>
+            <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1">
               De votre secteur au terrain, en trois étapes.
             </h2>
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-8 sm:mt-10 lg:mt-14 [perspective:1200px]">
+          {/* Rail de progression (desktop) */}
+          {desktop && (
+            <div
+              aria-hidden
+              className="mx-auto mt-8 flex max-w-md items-center gap-2"
+            >
+              {STEPS.map((s, i) => (
+                <div key={s.num} className="flex flex-1 items-center gap-2">
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold transition-all duration-500 ${
+                      i <= activeStep
+                        ? "bg-accent text-white shadow-[0_6px_16px_-4px_rgba(232,116,60,0.6)]"
+                        : "bg-white text-gray-400 ring-1 ring-black/10"
+                    }`}
+                  >
+                    {s.num}
+                  </span>
+                  {i < STEPS.length - 1 && (
+                    <span className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-black/8">
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-accent-light transition-all duration-500"
+                        style={{ width: i < activeStep ? "100%" : "0%" }}
+                      />
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-8 sm:mt-10 lg:mt-12 [perspective:1200px]">
             {STEPS.map((step, i) => (
               <StepCard
                 key={step.num}
@@ -209,7 +257,9 @@ export default function HowItWorks() {
           <Reveal direction="scale" delay={250} className="mt-8 lg:mt-10 flex justify-center px-1">
             <CtaButton className="max-w-full">
               Réserver une démo
-              <span aria-hidden>→</span>
+              <span data-arrow aria-hidden>
+                →
+              </span>
             </CtaButton>
           </Reveal>
         </div>

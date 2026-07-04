@@ -2,9 +2,9 @@ import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
 
 // === PROBLEM / TRANSFORMATION (Section C) ===
-// Editorial "before / after" panels with refined detailing:
-// numbered items, decorative ghost numbers, gradient dividers,
-// surface tinted with the column's color and a soft inner glow.
+// Refonte 2.0 : panneau sombre chaud/bleuté, deux cartes « avant / avec »
+// en verre sombre, connecteur de transformation au centre (desktop),
+// numérotation fantôme et hairlines dégradés. Textes inchangés.
 
 type Item = { title: string; description: string };
 
@@ -71,45 +71,40 @@ type CardProps = {
 function ComparisonCard({ variant, label, tagline, items }: CardProps) {
   const isBefore = variant === "before";
 
-  // Color tokens per variant
   const tones = isBefore
     ? {
-        ring: "border-blue/25",
-        glow: "rgba(123, 154, 192, 0.22)",
-        accent: "text-blue-glow",
-        chipBg: "bg-blue/15",
-        chipBorder: "border-blue/30",
-        chipText: "text-blue-glow",
+        ring: "border-white/10",
+        glow: "rgba(99, 102, 241, 0.24)",
+        chipBg: "bg-indigo-500/15",
+        chipBorder: "border-indigo-400/30",
+        chipText: "text-indigo-300",
         ghost: "text-white/[0.05]",
-        divider: "from-blue/30",
-        marker: "bg-blue/15 text-blue-glow border-blue/25",
-        title: "text-white",
+        divider: "from-indigo-400/40",
+        marker: "bg-indigo-500/15 text-indigo-300 border-indigo-400/25",
         desc: "text-white/65",
         Icon: CrossIcon,
       }
     : {
         ring: "border-accent/30",
-        glow: "rgba(232, 116, 60, 0.20)",
-        accent: "text-accent-light",
+        glow: "rgba(232, 116, 60, 0.22)",
         chipBg: "bg-accent/15",
         chipBorder: "border-accent/30",
         chipText: "text-accent-light",
         ghost: "text-white/[0.06]",
-        divider: "from-accent/40",
+        divider: "from-accent/50",
         marker: "bg-accent/15 text-accent-light border-accent/25",
-        title: "text-white",
         desc: "text-white/70",
         Icon: CheckIcon,
       };
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border ${tones.ring} bg-gradient-to-b from-white/[0.05] to-white/[0.015] backdrop-blur-sm h-full transition-colors duration-300`}
+      className={`group relative h-full overflow-hidden rounded-[26px] border ${tones.ring} bg-gradient-to-b from-white/[0.06] to-white/[0.015] backdrop-blur-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-white/25`}
     >
       {/* Soft directional glow */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 -left-24 h-64 w-64 rounded-full blur-3xl opacity-70"
+        className="pointer-events-none absolute -top-24 -left-24 h-64 w-64 rounded-full blur-3xl opacity-70 transition-opacity duration-500 group-hover:opacity-100"
         style={{ background: tones.glow }}
       />
 
@@ -119,10 +114,10 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
         className={`absolute top-0 inset-x-6 h-px bg-gradient-to-r ${tones.divider} via-white/10 to-transparent`}
       />
 
-      {/* Decorative ghost number in corner */}
+      {/* Decorative ghost mark in corner */}
       <span
         aria-hidden
-        className={`pointer-events-none select-none absolute -right-3 -top-2 font-sans text-[110px] leading-none font-bold ${tones.ghost}`}
+        className={`pointer-events-none select-none absolute -right-3 -top-4 font-display text-[120px] leading-none font-bold ${tones.ghost}`}
       >
         {isBefore ? "—" : "+"}
       </span>
@@ -146,7 +141,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
         </div>
 
         {/* Tagline */}
-        <p className="mt-5 font-sans text-xl sm:text-2xl font-semibold text-white leading-snug">
+        <p className="mt-5 font-display text-xl sm:text-2xl font-bold text-white leading-snug tracking-tight">
           {tagline}
         </p>
 
@@ -168,7 +163,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
                 </span>
               </div>
               <div>
-                <h4 className={`font-sans text-[15px] sm:text-base font-semibold ${tones.title}`}>
+                <h4 className="font-sans text-[15px] sm:text-base font-semibold text-white">
                   {item.title}
                 </h4>
                 <p className={`mt-1 text-[14px] leading-relaxed ${tones.desc}`}>
@@ -185,8 +180,8 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
 
 export default function ProblemTransformation() {
   return (
-    <section className="relative overflow-hidden py-14 sm:py-24 mx-2 sm:mx-0 rounded-2xl sm:rounded-[36px] bg-gradient-to-br from-[#0A0D11] via-[#131A24] to-[#070A0E] text-white">
-      {/* Same subtle dot pattern as the footer block for visual consistency */}
+    <section className="relative overflow-hidden py-14 sm:py-24 mx-2 sm:mx-0 rounded-[28px] sm:rounded-[40px] bg-gradient-to-br from-[#0A0D11] via-[#131A24] to-[#070A0E] text-white">
+      {/* Subtle dot pattern */}
       <div
         aria-hidden
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -197,25 +192,42 @@ export default function ProblemTransformation() {
         }}
       />
 
-      {/* Subtle directional glow to keep depth (matches existing card glows) */}
+      {/* Directional glow to keep depth */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-25"
         style={{
           background:
-            "radial-gradient(700px 380px at 20% 20%, rgba(123, 154, 192, 0.16), transparent 70%), radial-gradient(700px 380px at 85% 75%, rgba(232, 116, 60, 0.12), transparent 70%)",
+            "radial-gradient(700px 380px at 20% 20%, rgba(99, 102, 241, 0.18), transparent 70%), radial-gradient(700px 380px at 85% 75%, rgba(232, 116, 60, 0.14), transparent 70%)",
         }}
       />
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="text-h1-on-dark text-center max-w-3xl mx-auto text-balance px-1 mb-subheading">
+          <div className="flex justify-center">
+            <span className="kicker kicker--light mb-5">
+              <span className="kicker__dot" />
+              Le constat
+            </span>
+          </div>
+          <h2 className="text-h1-on-dark text-center max-w-3xl mx-auto text-balance px-1">
             La pige est interdite. Les portails arrivent trop tard. Le terrain se fait à
             l&apos;aveugle.
           </h2>
         </Reveal>
 
-        <div className="grid md:grid-cols-2 gap-5 lg:gap-7 mt-12">
+        <div className="relative grid md:grid-cols-2 gap-5 lg:gap-7 mt-12">
+          {/* Connecteur de transformation (desktop) */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 hidden md:flex -translate-x-1/2 -translate-y-1/2 h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-[#0E141C] text-accent-light shadow-[0_10px_30px_-8px_rgba(232,116,60,0.5)]"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </div>
+
           <Reveal direction="left">
             <ComparisonCard
               variant="before"
@@ -238,7 +250,9 @@ export default function ProblemTransformation() {
         <Reveal direction="scale" delay={200} className="mt-12 flex justify-center">
           <CtaButton>
             Réserver une démo
-            <span aria-hidden>→</span>
+            <span data-arrow aria-hidden>
+              →
+            </span>
           </CtaButton>
         </Reveal>
       </div>

@@ -7,8 +7,9 @@ import HeroBackground from "./HeroBackground";
 import { CALENDLY_URL } from "@/lib/calendly";
 
 // === HERO SECTION ===
-// Above-the-fold. Animated mouse-reactive background, H1 → subheadline →
-// bullets → primary CTA. Two-column layout on desktop.
+// Above-the-fold. Fond réactif à la souris, kicker « live », H1 avec mot-clé en
+// dégradé chaud animé, bullets premium, CTA à balayage lumineux. Le mockup produit
+// flotte à droite avec des chips de signal animées.
 
 const BULLETS = [
   "Une liste courte, scorée et priorisée — la qualité, jamais de volume",
@@ -19,12 +20,12 @@ const BULLETS = [
 function CheckIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="3"
+      strokeWidth="3.2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -38,19 +39,26 @@ export default function HeroSection() {
   return (
     <section
       id="top"
-      className="relative isolate overflow-hidden pt-28 sm:pt-32 pb-16 sm:pb-24"
+      className="relative isolate overflow-hidden pt-28 sm:pt-36 pb-16 sm:pb-28"
     >
       {/* Animated, mouse-reactive background */}
       <HeroBackground />
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
-        <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center min-w-0">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center min-w-0">
           {/* === LEFT — Copy + CTA === */}
           <div className="lg:col-span-7 min-w-0">
             <Reveal direction="up">
-              {/* H1 */}
+              {/* Kicker indigo — « prédictive » = intelligence (accent cool) */}
+              <span className="kicker kicker--indigo mb-5">
+                <span className="kicker__dot" />
+                Prospection prédictive
+              </span>
+
+              {/* H1 — mot-clé « chaque lundi » en dégradé */}
               <h1 className="text-h1 headline text-balance mb-headline">
-                Arrêtez de chasser les vendeurs. Recevez leurs adresses chaque lundi.
+                Arrêtez de chasser les vendeurs. Recevez leurs adresses{" "}
+                <span className="text-grad">chaque lundi</span>.
               </h1>
 
               {/* Subheadline */}
@@ -62,38 +70,47 @@ export default function HeroSection() {
               </p>
 
               {/* Bullets */}
-              <ul className="mt-6 space-y-2.5">
-                {BULLETS.map((b) => (
-                  <li key={b} className="flex items-start gap-2.5 text-gray-900">
-                    <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-dark">
-                      <CheckIcon />
-                    </span>
-                    <span className="text-body !text-gray-900">{b}</span>
-                  </li>
+              <ul className="mt-7 space-y-3">
+                {BULLETS.map((b, i) => (
+                  <Reveal as="li" key={b} direction="up" delay={80 + i * 90}>
+                    <div className="flex items-start gap-3 text-gray-900">
+                      <span
+                        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white"
+                        style={{ background: "linear-gradient(135deg,#f6ad63,#e8743c)" }}
+                      >
+                        <CheckIcon />
+                      </span>
+                      <span className="text-body !text-gray-900">{b}</span>
+                    </div>
+                  </Reveal>
                 ))}
               </ul>
             </Reveal>
 
             {/* Primary CTA — Calendly (réservation de démo) */}
-            <Reveal direction="up" delay={120} className="mt-8">
-              <a
-                href={CALENDLY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary px-7 py-4 text-base"
-              >
-                Réserver une démo
-                <span aria-hidden>→</span>
-              </a>
-              <p className="mt-4 small-text !normal-case !tracking-normal text-gray-600">
-                Déjà client ?{" "}
-                <Link
-                  href="/login"
-                  className="text-accent-dark font-medium hover:underline"
+            <Reveal direction="up" delay={120} className="mt-9">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                <a
+                  href={CALENDLY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary px-7 py-4 text-base"
                 >
-                  Se connecter
-                </Link>
-              </p>
+                  Réserver une démo
+                  <span data-arrow aria-hidden>
+                    →
+                  </span>
+                </a>
+                <p className="small-text !normal-case !tracking-normal text-gray-600">
+                  Déjà client ?{" "}
+                  <Link
+                    href="/login"
+                    className="font-medium text-accent-dark hover:underline"
+                  >
+                    Se connecter
+                  </Link>
+                </p>
+              </div>
             </Reveal>
           </div>
 

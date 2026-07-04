@@ -10,33 +10,30 @@ import FinalCTA from "@/components/FinalCTA";
 
 // === LANDING PAGE ===
 // Objectif unique : convertir vers la réservation de démo (Calendly).
+// Refonte visuelle 2.0 — tout est scopé sous `.landing` (voir globals.css) ;
+// le dashboard, le login et les pages légales ne sont pas affectés.
 export default function Page() {
   return (
-    <>
+    <div className="landing">
       <CausioScripts />
+
       {/*
-       * Ambient orange wash — extremely subtle, static (no mouse, no animation).
-       * Two large radial gradients placed off-axis so the eye perceives a soft
-       * peachy glow rather than a uniform tint. Sits behind every section with
-       * a transparent background; sections that declare their own background
-       * (Hero, ProblemTransformation, FinalCTA) cover it naturally.
+       * Fond de scène : nappes d'aurore floues qui dérivent lentement,
+       * posées derrière chaque section (transparent). Les sections qui
+       * déclarent leur propre fond (Hero, ProblemTransformation, FinalCTA)
+       * le recouvrent naturellement. Grain + dégradés chauds : gérés en CSS
+       * sur `.landing` et `.landing-aurora`.
        */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          background: [
-            "radial-gradient(900px 700px at 18% 22%, rgba(232, 116, 60, 0.07), transparent 65%)",
-            "radial-gradient(820px 620px at 84% 70%, rgba(232, 116, 60, 0.055), transparent 65%)",
-            "radial-gradient(700px 520px at 50% 110%, rgba(232, 116, 60, 0.04), transparent 70%)",
-          ].join(", "),
-        }}
-      />
+      <div aria-hidden className="landing-aurora">
+        <span />
+        <span />
+        <span />
+      </div>
 
       {/* === A — HEADER === */}
       <Header />
 
-      <main className="relative min-w-0 overflow-x-clip">
+      <main className="relative z-10 min-w-0 overflow-x-clip">
         {/* === B — HERO === */}
         <HeroSection />
 
@@ -58,6 +55,6 @@ export default function Page() {
         {/* === J — FINAL CTA === */}
         <FinalCTA />
       </main>
-    </>
+    </div>
   );
 }

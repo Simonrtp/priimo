@@ -565,10 +565,10 @@ body {
     ),
     radial-gradient(
       900px 700px at calc(100% - var(--mx, 50%)) calc(100% - var(--my, 50%)),
-      rgba(61, 90, 128, 0.15),
+      rgba(99, 102, 241, 0.16),
       transparent 70%
     ),
-    linear-gradient(180deg, #FFF7F0 0%, #FAFAF9 75%);
+    linear-gradient(180deg, #FFF6F5 0%, #FAFAFB 75%);
   transition: background 60ms linear;
 }
 
@@ -596,8 +596,8 @@ body {
   height: 520px;
   bottom: -160px;
   right: -120px;
-  opacity: 0.60;
-  background: radial-gradient(circle, rgba(123, 154, 192, 0.55) 0%, rgba(123, 154, 192, 0) 70%);
+  opacity: 0.55;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.5) 0%, rgba(99, 102, 241, 0) 70%);
   animation: floatB 18s ease-in-out infinite;
 }
 
@@ -610,4 +610,377 @@ body {
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 80%);
           mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 80%);
   opacity: 0.7;
+}
+
+/* ════════════════════════════════════════════════════════════
+   LANDING 2.0 — refonte visuelle premium (orange chaud)
+   Tout est scopé sous `.landing` : le dashboard, le login et les
+   pages légales ne sont pas affectés. Aucun texte n'est modifié,
+   uniquement la couche de design.
+   ════════════════════════════════════════════════════════════ */
+
+/* Angle animable pour les bordures dégradées rotatives */
+@property --l-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* --- Tokens & fond de scène --- */
+.landing {
+  --l-accent: #e8743c;
+  --l-accent-dark: #c25e2c;
+  --l-accent-light: #f4a87a;
+  --l-accent-glow: #ffb585;
+  --l-blue: #3d5a80;
+  --l-blue-light: #7b9ac0;
+  /* Indigo secondaire (= --primary-500 de la charte clay) — accent « cool » :
+     intelligence, données, confiance. Complète l'orange en duotone. */
+  --l-indigo: #6366f1;
+  --l-indigo-dark: #4f46e5;
+  --l-indigo-light: #818cf8;
+  --l-indigo-glow: #c7d2fe;
+  --l-ink: #14110f;
+  --l-warm: linear-gradient(135deg, #f6ad63 0%, #e8743c 48%, #c25e2c 100%);
+  --l-cool: linear-gradient(135deg, #818cf8 0%, #6366f1 55%, #4f46e5 100%);
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(1200px 760px at 12% -8%, #fff3e8 0%, transparent 56%),
+    radial-gradient(1080px 900px at 104% -2%, #edeffe 0%, transparent 52%),
+    radial-gradient(900px 700px at 50% 120%, #fbeee2 0%, transparent 60%),
+    linear-gradient(180deg, #fcfaf7 0%, #f7f5f3 100%);
+}
+
+/* Grain fin (texture papier) sur toute la scène */
+.landing::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Nappes d'aurore floues qui dérivent lentement (fixed, derrière tout) */
+.landing-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.landing-aurora span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.landing-aurora span:nth-child(1) {
+  width: 46vw;
+  height: 46vw;
+  top: -12vw;
+  left: -8vw;
+  background: radial-gradient(circle, rgba(255, 181, 133, 0.55), transparent 70%);
+  animation: auroraDrift 22s ease-in-out infinite;
+}
+.landing-aurora span:nth-child(2) {
+  width: 44vw;
+  height: 44vw;
+  top: 28vh;
+  right: -14vw;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.42), transparent 70%);
+  animation: auroraDrift 28s ease-in-out infinite reverse;
+}
+.landing-aurora span:nth-child(3) {
+  width: 40vw;
+  height: 40vw;
+  bottom: -14vw;
+  left: 22vw;
+  background: radial-gradient(circle, rgba(244, 162, 89, 0.38), transparent 70%);
+  animation: auroraDrift 26s ease-in-out infinite;
+}
+
+@keyframes auroraDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(4%, -3%) scale(1.08); }
+  66%      { transform: translate(-3%, 4%) scale(0.94); }
+}
+
+/* --- Typographie display sur les titres de la landing uniquement --- */
+.landing h1,
+.landing .text-h1,
+.landing .headline,
+.landing .text-h1-on-dark,
+.landing h2,
+.landing .text-h2,
+.landing .text-h2-on-dark {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  letter-spacing: -0.028em;
+}
+
+/* Mot-clé mis en avant : dégradé chaud animé */
+.landing .text-grad {
+  background: linear-gradient(100deg, #e8743c, #f4a259, #c25e2c, #e8743c);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradPan 7s linear infinite;
+}
+@keyframes gradPan {
+  to { background-position: 220% center; }
+}
+
+/* --- Kicker (eyebrow) — signposting graphique, mots repris de la section --- */
+.landing .kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.72rem;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--l-accent-dark);
+}
+.landing .kicker--light {
+  color: var(--l-accent-light);
+}
+.landing .kicker__dot {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--l-accent);
+}
+.landing .kicker__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--l-accent);
+  animation: livePulse 2.4s ease-out infinite;
+}
+@keyframes livePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(232, 116, 60, 0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(232, 116, 60, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(232, 116, 60, 0); }
+}
+
+/* Trait décoratif sous les titres centrés */
+.landing .accent-rule {
+  width: 56px;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--l-warm);
+  margin-inline: auto;
+}
+
+/* --- Surfaces verre (glass) sur canvas chaud --- */
+.landing .glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 24px 48px -28px rgba(60, 40, 20, 0.35),
+    0 10px 24px -18px rgba(232, 116, 60, 0.22);
+}
+.landing .glass-hover {
+  transition: transform 0.4s var(--ease-clay), box-shadow 0.4s var(--ease-soft),
+    border-color 0.4s var(--ease-soft);
+}
+.landing .glass-hover:hover {
+  transform: translateY(-6px);
+  border-color: rgba(232, 116, 60, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 32px 60px -30px rgba(60, 40, 20, 0.4),
+    0 16px 32px -18px rgba(232, 116, 60, 0.3);
+}
+
+/* Bordure dégradée rotative (cartes mises en avant, au survol) */
+.landing .grad-border {
+  position: relative;
+}
+.landing .grad-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--l-angle),
+    rgba(232, 116, 60, 0),
+    rgba(232, 116, 60, 0.6),
+    rgba(99, 102, 241, 0.55),
+    rgba(232, 116, 60, 0)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.landing .grad-border:hover::before {
+  opacity: 1;
+  animation: spinBorder 4s linear infinite;
+}
+@keyframes spinBorder {
+  to { --l-angle: 360deg; }
+}
+
+/* --- Boutons premium (uniquement dans la landing) --- */
+.landing .btn-primary {
+  background-color: transparent;
+  background-image: var(--l-warm);
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 10px 26px rgba(232, 116, 60, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.landing .btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 80%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.7s var(--ease-soft);
+  pointer-events: none;
+}
+.landing .btn-primary:hover::after {
+  transform: translateX(130%);
+}
+.landing .btn-primary:hover {
+  background-image: var(--l-warm);
+  box-shadow:
+    0 16px 34px rgba(232, 116, 60, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.landing .btn-invert {
+  position: relative;
+  overflow: hidden;
+}
+.landing .btn-invert::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(232, 116, 60, 0.18) 50%,
+    transparent 80%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.7s var(--ease-soft);
+  pointer-events: none;
+}
+.landing .btn-invert:hover::after {
+  transform: translateX(130%);
+}
+/* Flèche du CTA qui glisse au survol */
+.landing .btn [data-arrow] {
+  display: inline-block;
+  transition: transform 0.3s var(--ease-clay);
+}
+.landing .btn:hover [data-arrow] {
+  transform: translateX(4px);
+}
+
+/* --- Chips de signal flottantes (hero) --- */
+.landing .float-chip {
+  animation: chipFloat 6s ease-in-out infinite;
+}
+.landing .float-chip:nth-child(2) { animation-duration: 7.5s; animation-delay: -1.5s; }
+.landing .float-chip:nth-child(3) { animation-duration: 8.5s; animation-delay: -3s; }
+@keyframes chipFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+
+/* Voile lumineux qui traverse une surface (dashboard mockup) */
+.landing .sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 48%,
+    transparent 62%
+  );
+  transform: translateX(-100%);
+  animation: sheenSweep 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes sheenSweep {
+  0%, 60% { transform: translateX(-100%); }
+  100%    { transform: translateX(100%); }
+}
+
+/* Dégradés de section pour panneaux clairs — chaud (orange) / froid (indigo) */
+.landing .warm-panel {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 244, 234, 0.9), transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, rgba(238, 242, 247, 0.9), transparent 55%),
+    rgba(255, 255, 255, 0.6);
+}
+.landing .cool-panel {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(224, 231, 255, 0.9), transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, rgba(255, 244, 234, 0.75), transparent 55%),
+    rgba(255, 255, 255, 0.6);
+}
+
+/* Mot-clé « cool » : dégradé indigo animé (miroir de .text-grad) */
+.landing .text-grad-cool {
+  background: linear-gradient(100deg, #6366f1, #818cf8, #4f46e5, #6366f1);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradPan 7s linear infinite;
+}
+
+/* Variante indigo du kicker (ex. sécurité / données) */
+.landing .kicker--indigo {
+  color: var(--l-indigo-dark);
+}
+.landing .kicker--indigo .kicker__dot {
+  background: var(--l-indigo);
+}
+.landing .kicker--indigo .kicker__dot::after {
+  background: var(--l-indigo);
+  animation-name: livePulseIndigo;
+}
+@keyframes livePulseIndigo {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-aurora span,
+  .landing .text-grad,
+  .landing .text-grad-cool,
+  .landing .kicker__dot::after,
+  .landing .float-chip,
+  .landing .sheen::before,
+  .landing .grad-border:hover::before {
+    animation: none !important;
+  }
 }

@@ -5,7 +5,9 @@ import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
 
 // === FAQ (Section I) ===
-// Accordion: click to expand. Animation via CSS max-height + opacity.
+// Refonte 2.0 : chaque question devient une carte verre ; la carte active
+// s'entoure d'un liseré accent, l'icône +/- pivote. Animation via CSS
+// max-height + opacity (globals.css). Textes inchangés.
 
 type Item = {
   q: string;
@@ -35,26 +37,52 @@ const FAQS: Item[] = [
   },
 ];
 
-function FAQItem({ q, a, isOpen, onToggle, idx }: Item & { isOpen: boolean; onToggle: () => void; idx: number }) {
+function FAQItem({
+  q,
+  a,
+  isOpen,
+  onToggle,
+  idx,
+}: Item & { isOpen: boolean; onToggle: () => void; idx: number }) {
   const id = `faq-${idx}`;
   return (
-    <div className="border-b border-black/8">
+    <div
+      className="glass overflow-hidden rounded-[20px] transition-all duration-300"
+      style={
+        isOpen
+          ? {
+              borderColor: "rgba(232,116,60,0.45)",
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.9), 0 26px 50px -30px rgba(232,116,60,0.45)",
+            }
+          : undefined
+      }
+    >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={id}
-        className="w-full flex items-start sm:items-center justify-between gap-3 py-5 text-left min-w-0"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left min-w-0 sm:px-6 sm:py-5"
       >
-        <h3 className="text-h3 text-gray-900 min-w-0 flex-1 pr-2 text-balance">{q}</h3>
-        <span className={`faq-chevron shrink-0 text-gray-500 ${isOpen ? "open" : ""}`} aria-hidden>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <h3 className="text-h3 min-w-0 flex-1 pr-2 text-balance !text-[16px] sm:!text-[18px]">
+          {q}
+        </h3>
+        <span
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all duration-300 ${
+            isOpen
+              ? "rotate-180 bg-accent text-white"
+              : "bg-black/5 text-gray-500"
+          }`}
+          aria-hidden
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </span>
       </button>
       <div id={id} className={`faq-content ${isOpen ? "open" : ""}`}>
-        <p className="pb-5 pr-8 text-body">{a}</p>
+        <p className="px-5 pb-5 pr-10 text-body sm:px-6">{a}</p>
       </div>
     </div>
   );
@@ -64,33 +92,40 @@ export default function FAQ() {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
 
   return (
-    <section className="py-14 sm:py-24">
+    <section className="py-16 sm:py-28">
       <div className="mx-auto max-w-3xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
-          <h2 className="text-h2 text-center text-gray-900 text-balance px-1 mb-subheading">
+          <div className="flex justify-center">
+            <span className="kicker mb-5">
+              <span className="kicker__dot" />
+              FAQ
+            </span>
+          </div>
+          <h2 className="text-h2 text-center text-gray-900 text-balance px-1">
             Questions fréquentes
           </h2>
         </Reveal>
 
-        <Reveal direction="up" delay={120} className="mt-8 sm:mt-10">
-          <div className="rounded-2xl border border-black/8 bg-white/60 px-4 sm:px-7">
-            {FAQS.map((item, i) => (
+        <div className="mt-8 space-y-3 sm:mt-10 sm:space-y-4">
+          {FAQS.map((item, i) => (
+            <Reveal key={item.q} direction="up" delay={i * 70}>
               <FAQItem
-                key={item.q}
                 idx={i}
                 q={item.q}
                 a={item.a}
                 isOpen={openIdx === i}
                 onToggle={() => setOpenIdx(openIdx === i ? null : i)}
               />
-            ))}
-          </div>
-        </Reveal>
+            </Reveal>
+          ))}
+        </div>
 
-        <Reveal direction="scale" delay={250} className="mt-10 flex justify-center">
+        <Reveal direction="scale" delay={200} className="mt-10 flex justify-center">
           <CtaButton>
             Réserver une démo
-            <span aria-hidden>→</span>
+            <span data-arrow aria-hidden>
+              →
+            </span>
           </CtaButton>
         </Reveal>
       </div>

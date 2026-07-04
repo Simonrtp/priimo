@@ -1,7 +1,7 @@
 // === DASHBOARD MOCKUP ===
-// Stylised, static placeholder for the product visual in the hero.
-// Dark surface, list of fictional prospects with score badges + signal tags.
-// The 3D tilt is applied via the `.tilt` class (see globals.css).
+// Visuel produit du hero. Refonte 2.0 : surface sombre chaude/bleutée, chrome
+// vitré, badges de score en dégradé, balayage lumineux (sheen), badge de score
+// flottant. Contenu (prospects, signaux) inchangé — placeholder fictif.
 
 type Prospect = {
   address: string;
@@ -44,26 +44,53 @@ const PROSPECTS: Prospect[] = [
 ];
 
 function scoreColor(score: number) {
-  // Hot scores in orange (brand "alert"), mid-tier in slate blue (cool/neutral)
-  if (score >= 90) return "bg-orange-500/20 text-orange-200 border-orange-400/35";
-  if (score >= 85) return "bg-[rgba(123,154,192,0.20)] text-[#B8CDE3] border-[rgba(123,154,192,0.35)]";
-  return "bg-[rgba(123,154,192,0.14)] text-[#B8CDE3]/90 border-[rgba(123,154,192,0.25)]";
+  // Heat duotone : scores chauds (≥90) en orange, intermédiaires en indigo (cool).
+  if (score >= 90)
+    return "bg-gradient-to-br from-orange-400/25 to-orange-500/10 text-orange-100 border-orange-400/40";
+  if (score >= 85)
+    return "bg-indigo-500/20 text-indigo-200 border-indigo-400/40";
+  return "bg-indigo-500/12 text-indigo-200/90 border-indigo-400/25";
 }
 
 export default function DashboardMockup() {
   return (
-    <div className="tilt relative w-full max-w-full min-w-0 overflow-x-clip">
-      {/* Aura — warm orange + cool blue glow (tighter on mobile to avoid horizontal scroll) */}
-      <div className="absolute -inset-2 sm:-inset-4 rounded-[28px] bg-accent/25 blur-2xl opacity-50" aria-hidden />
-      <div className="absolute -inset-3 sm:-inset-6 rounded-[28px] bg-blue/20 blur-3xl opacity-40 -z-10" aria-hidden />
+    <div className="tilt relative w-full max-w-full min-w-0">
+      {/* Aura — warm orange + cool blue glow */}
+      <div
+        className="absolute -inset-3 sm:-inset-6 rounded-[32px] bg-accent/25 blur-3xl opacity-50"
+        aria-hidden
+      />
+      <div
+        className="absolute -inset-4 sm:-inset-8 rounded-[32px] bg-indigo-500/20 blur-3xl opacity-40 -z-10"
+        aria-hidden
+      />
+
+      {/* Badge de score flottant (valeur issue des données) */}
+      <div
+        className="float-chip absolute -left-4 top-10 z-20 hidden sm:flex items-center gap-2.5 rounded-2xl border border-white/70 bg-white/80 px-3.5 py-2.5 shadow-[0_16px_34px_-18px_rgba(60,40,20,0.5)] backdrop-blur-md"
+        aria-hidden
+      >
+        <span
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-white"
+          style={{ background: "linear-gradient(135deg,#f6ad63,#e8743c)" }}
+        >
+          94
+        </span>
+        <div className="leading-tight">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            Score max
+          </div>
+          <div className="text-[13px] font-semibold text-gray-900">Priorité haute</div>
+        </div>
+      </div>
 
       {/* Surface: warm-blue dark — sits between #1A1612 (warm) and #15202F (cool) */}
-      <div className="relative rounded-2xl bg-soft-inkBlue text-white shadow-2xl ring-1 ring-white/10 overflow-hidden">
+      <div className="sheen relative rounded-[22px] bg-soft-inkBlue text-white shadow-2xl ring-1 ring-white/10 overflow-hidden">
         {/* Window chrome */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-          <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FF6159]/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FFBD2E]/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]/70" />
           <div className="ml-2 sm:ml-3 min-w-0 text-[10px] sm:text-[11px] text-white/50 tracking-wide truncate">
             priimo.app · Tableau de bord
           </div>
@@ -75,7 +102,7 @@ export default function DashboardMockup() {
             <div className="text-[11px] uppercase tracking-wider text-white/40">
               Liste de la semaine
             </div>
-            <div className="font-sans text-base sm:text-lg leading-tight mt-0.5 break-words">
+            <div className="font-display text-base sm:text-lg leading-tight mt-0.5 break-words">
               Paris 11e · 22 prospects
             </div>
           </div>
@@ -83,7 +110,7 @@ export default function DashboardMockup() {
             <div className="text-[11px] uppercase tracking-wider text-white/40">
               Score moyen
             </div>
-            <div className="font-sans text-lg leading-tight mt-0.5 text-accent-light font-bold">
+            <div className="font-display text-lg leading-tight mt-0.5 text-accent-light font-bold">
               86
             </div>
           </div>
@@ -92,9 +119,12 @@ export default function DashboardMockup() {
         {/* Prospect list */}
         <ul className="divide-y divide-white/5">
           {PROSPECTS.map((p) => (
-            <li key={p.address} className="flex items-center gap-3 px-5 py-3.5">
+            <li
+              key={p.address}
+              className="flex items-center gap-3 px-5 py-3.5 transition-colors duration-300 hover:bg-white/[0.03]"
+            >
               <div
-                className={`shrink-0 w-11 h-11 rounded-xl border flex items-center justify-center font-sans font-semibold text-sm ${scoreColor(
+                className={`shrink-0 w-11 h-11 rounded-xl border flex items-center justify-center font-display font-semibold text-sm ${scoreColor(
                   p.score
                 )}`}
               >
@@ -120,7 +150,16 @@ export default function DashboardMockup() {
                 aria-hidden
                 className="ml-1 text-white/30 hover:text-white/60 transition shrink-0"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>
