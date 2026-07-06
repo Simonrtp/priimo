@@ -42,7 +42,7 @@ const STEP_DEFS: TourStepDef[] = [
   },
   {
     anchors: ['lead-score', 'lead-score-mobile'],
-    body: 'Ce score, c\u2019est la « probabilité » qu\u2019un bien soit sur le point de bouger. Plus il est haut, plus le signal est fort. Commence par le haut de la liste.',
+    body: 'Ce score, c\u2019est la « probabilité » qu\u2019un bien soit sur le point de bouger. Plus il est haut, plus le signal est fort. Commence par le haut de la liste 😉',
     placement: 'right',
   },
   {
@@ -71,8 +71,9 @@ const STEP_DEFS: TourStepDef[] = [
     placement: 'right',
   },
   {
-    anchors: null,
-    body: 'C\u2019est parti 🚀 Tu peux relancer ce guide à tout moment via le bouton Aide, en haut.',
+    anchors: ['guide-relaunch'],
+    body: 'C\u2019est parti 🚀 Clique sur le bouton ? avec le cercle pour explorer tes prospects.',
+    placement: 'bottom',
   },
 ];
 

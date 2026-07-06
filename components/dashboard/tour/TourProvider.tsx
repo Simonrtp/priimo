@@ -44,7 +44,7 @@ export default function DashboardTourProvider({ children }: { children: React.Re
   // Première connexion (création du compte) : lance la visite automatiquement
   // sur la page prospects. Le flag est écrit IMMÉDIATEMENT, pas à la fin :
   // un refresh en cours de guide ou une reconnexion ne la redéclenche jamais —
-  // ensuite, uniquement via le bouton Aide.
+  // ensuite, uniquement via le bouton « Revoir le guide » (TopBar).
   useEffect(() => {
     if (!onProspects || autoTriggered.current || mode !== null) return;
     if (profile.onboarding_completed_at) return;

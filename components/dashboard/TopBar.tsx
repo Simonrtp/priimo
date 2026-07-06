@@ -45,6 +45,7 @@ export default function TopBar() {
         <button
           type="button"
           onClick={startTour}
+          data-tour="guide-relaunch"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink lg:h-9 lg:w-9"
           aria-label="Revoir le guide de prise en main"
           title="Revoir le guide"
