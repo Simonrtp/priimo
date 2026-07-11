@@ -61,11 +61,11 @@ export default function FinalCTA() {
         </Reveal>
 
         <Reveal direction="up" delay={120}>
-          <ul className="mt-8 flex flex-col sm:flex-row items-stretch justify-center gap-3 sm:gap-4">
+          <ul className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-10 lg:flex-row lg:gap-4">
             {POINTS.map((p) => (
               <li
                 key={p}
-                className="flex items-center justify-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-body !text-white/90 backdrop-blur-sm"
+                className="flex min-w-0 items-center justify-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-body !text-white/90 backdrop-blur-sm"
               >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/25 text-accent-light">
                   <CheckIcon />

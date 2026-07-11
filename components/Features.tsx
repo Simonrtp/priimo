@@ -119,7 +119,7 @@ export default function Features() {
           </h2>
         </Reveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6 mt-12 min-w-0">
+        <div className="grid min-w-0 grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-6 mt-12">
           {FEATURES.map((f, i) => {
             // Bento : cartes 0 et 3 larges (2 colonnes sur lg), 1 et 2 étroites.
             const wide = i === 0 || i === 3;

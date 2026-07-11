@@ -1,39 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { ListOrdered, MapPinned, ShieldCheck, type LucideIcon } from "lucide-react";
 import Reveal from "./Reveal";
 import DashboardMockup from "./DashboardMockup";
 import HeroBackground from "./HeroBackground";
 import { CALENDLY_URL } from "@/lib/calendly";
 
 // === HERO SECTION ===
-// Above-the-fold. Fond réactif à la souris, kicker « live », H1 avec mot-clé en
-// dégradé chaud animé, bullets premium, CTA à balayage lumineux. Le mockup produit
-// flotte à droite avec des chips de signal animées.
+// Above-the-fold. Fond réactif à la souris, H1 avec mot-clé en dégradé chaud
+// animé, bullets avec icônes, CTA. Le mockup produit flotte à droite.
 
-const BULLETS = [
-  "Une liste courte, scorée et priorisée — la qualité, jamais de volume",
-  "Secteur exclusif : une seule agence par zone",
-  "100 % données publiques en France, conforme post-interdiction de la pige (2025)",
+const BULLETS: { text: string; Icon: LucideIcon }[] = [
+  {
+    text: "Une liste courte, scorée et priorisée — la qualité, jamais de volume",
+    Icon: ListOrdered,
+  },
+  {
+    text: "Secteur exclusif : une seule agence par zone",
+    Icon: MapPinned,
+  },
+  {
+    text: "100 % données publiques en France, conforme post-interdiction de la pige (2025)",
+    Icon: ShieldCheck,
+  },
 ];
-
-function CheckIcon() {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
 
 export default function HeroSection() {
   return (
@@ -49,12 +40,6 @@ export default function HeroSection() {
           {/* === LEFT — Copy + CTA === */}
           <div className="lg:col-span-7 min-w-0">
             <Reveal direction="up">
-              {/* Kicker indigo — « prédictive » = intelligence (accent cool) */}
-              <span className="kicker kicker--indigo mb-5">
-                <span className="kicker__dot" />
-                Prospection prédictive
-              </span>
-
               {/* H1 — mot-clé « chaque lundi » en dégradé */}
               <h1 className="text-h1 headline text-balance mb-headline">
                 Arrêtez de chasser les vendeurs. Recevez leurs adresses{" "}
@@ -71,16 +56,16 @@ export default function HeroSection() {
 
               {/* Bullets */}
               <ul className="mt-7 space-y-3">
-                {BULLETS.map((b, i) => (
-                  <Reveal as="li" key={b} direction="up" delay={80 + i * 90}>
+                {BULLETS.map(({ text, Icon }, i) => (
+                  <Reveal as="li" key={text} direction="up" delay={80 + i * 90}>
                     <div className="flex items-start gap-3 text-gray-900">
                       <span
-                        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white"
-                        style={{ background: "linear-gradient(135deg,#f6ad63,#e8743c)" }}
+                        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-white"
+                        aria-hidden
                       >
-                        <CheckIcon />
+                        <Icon size={13} strokeWidth={2.25} />
                       </span>
-                      <span className="text-body !text-gray-900">{b}</span>
+                      <span className="text-body !text-gray-900">{text}</span>
                     </div>
                   </Reveal>
                 ))}

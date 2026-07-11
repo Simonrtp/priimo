@@ -48,7 +48,7 @@ export default function DataReassurance() {
                 Vos données sont en sécurité.
               </h2>
 
-              <ul className="mt-8 grid sm:grid-cols-3 gap-4 sm:gap-5">
+              <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
                 {POINTS.map((p, i) => {
                   const ItemIcon = p.Icon;
                   return (

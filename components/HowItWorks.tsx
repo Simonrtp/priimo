@@ -1,14 +1,9 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
-import { useTiltCard } from "@/lib/use-tilt-card";
 
 // === HOW IT WORKS (Section D) ===
-// Desktop (md+): sticky scroll-jacking — cards 01 → 02 → 03 while pinned, avec
-// un rail de progression qui suit l'étape active. Mobile: flux normal.
-// Logique de scroll inchangée ; refonte visuelle uniquement.
+// Flux normal sur tous les breakpoints — pas de sticky / scroll-jacking qui
+// clippe le contenu dans un viewport fixe.
 
 type Step = {
   num: string;
@@ -72,197 +67,52 @@ const STEPS: Step[] = [
   },
 ];
 
-const MD_QUERY = "(min-width: 768px)";
-
-function StepCard({
-  step,
-  isCurrent,
-  isFuture,
-}: {
-  step: Step;
-  isCurrent: boolean;
-  isFuture: boolean;
-}) {
-  const tiltRef = useTiltCard(6);
-
-  const wrapperClass = isFuture
-    ? "opacity-0 translate-y-10 scale-95 max-md:opacity-100 max-md:translate-y-0 max-md:scale-100"
-    : "opacity-100 translate-y-0 scale-100";
-
-  // État « actif » : liseré accent + ombre chaude. Style inline pour dépasser
-  // la spécificité de `.landing .glass` (bordure/ombre par défaut).
-  const activeStyle = isCurrent
-    ? {
-        borderColor: "rgba(232,116,60,0.45)",
-        boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.9), 0 30px 60px -30px rgba(232,116,60,0.45)",
-      }
-    : undefined;
-
+function StepCard({ step, index }: { step: Step; index: number }) {
   return (
-    <div
-      className={`transform-gpu transition-all duration-700 ease-out min-w-0 h-full ${wrapperClass}`}
-    >
-      <div
-        ref={tiltRef}
-        style={activeStyle}
-        className="tilt-card glass grad-border relative rounded-[24px] p-6 sm:p-7 h-full overflow-hidden"
-      >
-        {/* Numéro display en dégradé (actif = orange, à venir = indigo) */}
-        <div className="font-display text-6xl sm:text-7xl leading-none font-bold">
-          <span className={isCurrent ? "text-grad" : "text-indigo-500/30"}>
-            {step.num}
-          </span>
+    <Reveal direction="up" delay={index * 90} className="h-full min-w-0">
+      <div className="glass grad-border relative flex h-full flex-col overflow-hidden rounded-[24px] p-6 sm:p-7">
+        <div className="font-display text-5xl sm:text-6xl leading-none font-bold">
+          <span className="text-grad">{step.num}</span>
         </div>
-        <div
-          className={`mt-5 inline-flex h-11 w-11 items-center justify-center rounded-2xl transition-colors duration-500 ${
-            isCurrent
-              ? "bg-accent/12 text-accent-dark"
-              : "bg-indigo-500/10 text-indigo-600"
-          }`}
-        >
+        <div className="mt-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/12 text-accent-dark">
           <step.Icon />
         </div>
         <h3 className="text-h3 text-balance mt-4">{step.title}</h3>
-        <p className="text-body mt-2">{step.body}</p>
+        <p className="text-body mt-2 flex-1">{step.body}</p>
       </div>
-    </div>
+    </Reveal>
   );
 }
 
 export default function HowItWorks() {
-  const [activeStep, setActiveStep] = useState(0);
-  /** null = SSR / first paint — use mobile-safe layout until we know the viewport */
-  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const mq = window.matchMedia(MD_QUERY);
-    const apply = () => setIsDesktop(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  const desktop = isDesktop === true;
-
-  useEffect(() => {
-    if (!desktop) return;
-
-    let rafId = 0;
-    let ticking = false;
-
-    const update = () => {
-      const section = document.getElementById("how-it-works");
-      if (!section) {
-        ticking = false;
-        return;
-      }
-
-      const rect = section.getBoundingClientRect();
-      const vh = window.innerHeight;
-
-      const totalScroll = Math.max(rect.height - vh, 1);
-      const scrolled = -rect.top;
-      const progress = Math.max(0, Math.min(1, scrolled / totalScroll));
-
-      const step = progress < 0.34 ? 0 : progress < 0.67 ? 1 : 2;
-      setActiveStep(step);
-      ticking = false;
-    };
-
-    const onScroll = () => {
-      if (!ticking) {
-        ticking = true;
-        rafId = requestAnimationFrame(update);
-      }
-    };
-
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [desktop]);
-
-  const stepForCard = desktop ? activeStep : 2;
-
   return (
-    <section
-      id="how-it-works"
-      className={desktop ? "relative min-h-[260vh]" : "relative py-14 sm:py-20"}
-    >
-      <div
-        className={
-          desktop ? "sticky top-0 min-h-0 h-[100dvh] flex items-center" : "relative"
-        }
-      >
-        <div className="w-full mx-auto max-w-6xl px-4 sm:px-8 py-6 sm:py-10 min-w-0">
-          <Reveal direction="up">
-            <div className="flex justify-center">
-              <span className="kicker mb-5">
-                <span className="kicker__dot" />
-                En 3 étapes
-              </span>
-            </div>
-            <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1">
-              De votre secteur au terrain, en trois étapes.
-            </h2>
-          </Reveal>
+    <section id="how-it-works" className="relative z-10 bg-canvas py-14 sm:py-20 lg:py-28">
+      <div className="mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-8">
+        <Reveal direction="up">
+          <h2 className="text-h1 headline mx-auto max-w-3xl text-balance px-1 text-center">
+            De votre secteur au terrain, en trois étapes.
+          </h2>
+        </Reveal>
 
-          {/* Rail de progression (desktop) */}
-          {desktop && (
+        <div className="mt-10 grid grid-cols-1 items-stretch gap-4 sm:mt-12 sm:gap-6 md:grid-cols-2 lg:mt-14 lg:grid-cols-3 lg:gap-8">
+          {STEPS.map((step, i) => (
             <div
-              aria-hidden
-              className="mx-auto mt-8 flex max-w-md items-center gap-2"
+              key={step.num}
+              className={`min-w-0 ${i === 2 ? "md:col-span-2 lg:col-span-1" : ""}`}
             >
-              {STEPS.map((s, i) => (
-                <div key={s.num} className="flex flex-1 items-center gap-2">
-                  <span
-                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold transition-all duration-500 ${
-                      i <= activeStep
-                        ? "bg-accent text-white shadow-[0_6px_16px_-4px_rgba(232,116,60,0.6)]"
-                        : "bg-white text-gray-400 ring-1 ring-black/10"
-                    }`}
-                  >
-                    {s.num}
-                  </span>
-                  {i < STEPS.length - 1 && (
-                    <span className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-black/8">
-                      <span
-                        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-accent-light transition-all duration-500"
-                        style={{ width: i < activeStep ? "100%" : "0%" }}
-                      />
-                    </span>
-                  )}
-                </div>
-              ))}
+              <StepCard step={step} index={i} />
             </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-8 sm:mt-10 lg:mt-12 [perspective:1200px]">
-            {STEPS.map((step, i) => (
-              <StepCard
-                key={step.num}
-                step={step}
-                isCurrent={i === stepForCard}
-                isFuture={i > stepForCard}
-              />
-            ))}
-          </div>
-
-          <Reveal direction="scale" delay={250} className="mt-8 lg:mt-10 flex justify-center px-1">
-            <CtaButton className="max-w-full">
-              Réserver une démo
-              <span data-arrow aria-hidden>
-                →
-              </span>
-            </CtaButton>
-          </Reveal>
+          ))}
         </div>
+
+        <Reveal direction="scale" delay={250} className="mt-10 flex justify-center px-1 sm:mt-12 lg:mt-14">
+          <CtaButton className="max-w-full">
+            Réserver une démo
+            <span data-arrow aria-hidden>
+              →
+            </span>
+          </CtaButton>
+        </Reveal>
       </div>
     </section>
   );

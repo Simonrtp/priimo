@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
+import { HelpCircle } from 'lucide-react';
 import type { CallBackProps, Step, TooltipRenderProps } from 'react-joyride';
 import ClayButton from '@/components/ui/ClayButton';
 
@@ -24,11 +25,30 @@ const Joyride = dynamic(() => import('react-joyride'), { ssr: false });
 type TourStepDef = {
   /** Ancres data-tour candidates (desktop d'abord) — null : bulle centrée. */
   anchors: string[] | null;
-  body: string;
+  body: ReactNode;
   placement?: Step['placement'];
   /** Nécessite le panneau de détail ouvert (cible résolue à l'activation). */
   inDrawer?: boolean;
 };
+
+/** Même icône que le bouton « Revoir le guide » dans la TopBar. */
+function GuideRelaunchIcon({ className = '' }: { className?: string }) {
+  return (
+    <HelpCircle
+      size={20}
+      strokeWidth={2}
+      className={`inline-block shrink-0 align-[-0.25em] text-mute ${className}`}
+      aria-hidden
+    />
+  );
+}
+
+const FINALE_BODY = (
+  <>
+    C&apos;est parti 🚀 Clique sur le bouton <GuideRelaunchIcon /> en haut pour revoir
+    l&apos;onboarding.
+  </>
+);
 
 const STEP_DEFS: TourStepDef[] = [
   {
@@ -71,9 +91,8 @@ const STEP_DEFS: TourStepDef[] = [
     placement: 'right',
   },
   {
-    anchors: ['guide-relaunch'],
-    body: 'C\u2019est parti 🚀 Clique sur le bouton ? avec le cercle pour explorer tes prospects.',
-    placement: 'bottom',
+    anchors: null,
+    body: FINALE_BODY,
   },
 ];
 
@@ -152,9 +171,9 @@ function ClayTooltip({
         {index + 1}/{size}
       </p>
 
-      <p className="mt-2 text-pretty leading-relaxed text-text" style={{ fontSize: 14 }}>
+      <div className="mt-2 text-pretty leading-relaxed text-text" style={{ fontSize: 14 }}>
         {step.content}
-      </p>
+      </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         {!isLastStep ? (

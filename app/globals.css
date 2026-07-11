@@ -838,59 +838,46 @@ body {
   to { --l-angle: 360deg; }
 }
 
-/* --- Boutons premium (uniquement dans la landing) --- */
+/* --- Boutons landing : couleur unie + hover lift --- */
 .landing .btn-primary {
-  background-color: transparent;
-  background-image: var(--l-warm);
+  background-color: #e8743c;
+  background-image: none;
   position: relative;
-  overflow: hidden;
-  box-shadow:
-    0 10px 26px rgba(232, 116, 60, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
-}
-.landing .btn-primary::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.45) 50%,
-    transparent 80%
-  );
-  transform: translateX(-130%);
-  transition: transform 0.7s var(--ease-soft);
-  pointer-events: none;
-}
-.landing .btn-primary:hover::after {
-  transform: translateX(130%);
+  box-shadow: 0 6px 20px rgba(232, 116, 60, 0.28);
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    background-color 200ms ease;
 }
 .landing .btn-primary:hover {
-  background-image: var(--l-warm);
-  box-shadow:
-    0 16px 34px rgba(232, 116, 60, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background-color: #c25e2c;
+  background-image: none;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(232, 116, 60, 0.38);
+}
+.landing .btn-primary:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 6px 16px rgba(232, 116, 60, 0.28);
 }
 .landing .btn-invert {
-  position: relative;
-  overflow: hidden;
+  background-color: #ffffff;
+  color: #c25e2c;
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    background-color 200ms ease;
 }
-.landing .btn-invert::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent 20%,
-    rgba(232, 116, 60, 0.18) 50%,
-    transparent 80%
-  );
-  transform: translateX(-130%);
-  transition: transform 0.7s var(--ease-soft);
-  pointer-events: none;
+.landing .btn-invert:hover {
+  background-color: #fff3ea;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
 }
-.landing .btn-invert:hover::after {
-  transform: translateX(130%);
+.landing .btn-invert:active {
+  transform: translateY(0) scale(1);
+}
+.landing .btn-ghost:hover {
+  transform: translateY(-2px);
+  background-color: rgba(232, 116, 60, 0.08);
 }
 /* Flèche du CTA qui glisse au survol */
 .landing .btn [data-arrow] {

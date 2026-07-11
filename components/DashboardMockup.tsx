@@ -1,7 +1,6 @@
 // === DASHBOARD MOCKUP ===
-// Visuel produit du hero. Refonte 2.0 : surface sombre chaude/bleutée, chrome
-// vitré, badges de score en dégradé, balayage lumineux (sheen), badge de score
-// flottant. Contenu (prospects, signaux) inchangé — placeholder fictif.
+// Visuel produit du hero. Surface sombre chaude/bleutée, chrome vitré, badges de
+// score, balayage lumineux (sheen). Contenu fictif placeholder.
 
 type Prospect = {
   address: string;
@@ -64,25 +63,6 @@ export default function DashboardMockup() {
         className="absolute -inset-4 sm:-inset-8 rounded-[32px] bg-indigo-500/20 blur-3xl opacity-40 -z-10"
         aria-hidden
       />
-
-      {/* Badge de score flottant (valeur issue des données) */}
-      <div
-        className="float-chip absolute -left-4 top-10 z-20 hidden sm:flex items-center gap-2.5 rounded-2xl border border-white/70 bg-white/80 px-3.5 py-2.5 shadow-[0_16px_34px_-18px_rgba(60,40,20,0.5)] backdrop-blur-md"
-        aria-hidden
-      >
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-white"
-          style={{ background: "linear-gradient(135deg,#f6ad63,#e8743c)" }}
-        >
-          94
-        </span>
-        <div className="leading-tight">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-            Score max
-          </div>
-          <div className="text-[13px] font-semibold text-gray-900">Priorité haute</div>
-        </div>
-      </div>
 
       {/* Surface: warm-blue dark — sits between #1A1612 (warm) and #15202F (cool) */}
       <div className="sheen relative rounded-[22px] bg-soft-inkBlue text-white shadow-2xl ring-1 ring-white/10 overflow-hidden">
