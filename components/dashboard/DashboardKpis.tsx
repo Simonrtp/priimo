@@ -66,7 +66,7 @@ export default function DashboardKpis({ leads, newBatchCount }: DashboardKpisPro
         <ClayCard
           key={key}
           padding="md"
-          className="animate-clay-pop w-[42%] shrink-0 snap-start md:w-auto"
+          className="animate-clay-pop w-[42%] shrink-0 snap-start max-md:border max-md:border-black/[0.06] max-md:shadow-none md:w-auto"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
