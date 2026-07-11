@@ -61,15 +61,19 @@ export default function DashboardKpis({ leads, newBatchCount }: DashboardKpisPro
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+    <div className="app-snap -mx-4 mb-4 flex gap-3 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0">
       {kpis.map(({ key, label, value, Icon, tint }) => (
-        <ClayCard key={key} padding="md" className="animate-clay-pop">
+        <ClayCard
+          key={key}
+          padding="md"
+          className="animate-clay-pop w-[42%] shrink-0 snap-start md:w-auto"
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-subtle">
+              <p className="line-clamp-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
                 {label}
               </p>
-              <p className="mt-2 font-display text-3xl font-bold leading-none tabular-nums text-primary-500 md:text-4xl">
+              <p className="mt-2 font-display text-[2rem] font-bold leading-none tabular-nums text-primary-500 md:text-4xl">
                 {value}
               </p>
             </div>

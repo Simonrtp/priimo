@@ -15,11 +15,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <UserProvider user={user} profile={profile} agency={agency}>
       <DashboardTourProvider>
-        <div className="flex bg-bg-base" style={{ height: '100vh', overflow: 'hidden' }}>
+        <div className="flex bg-bg-base" style={{ height: '100dvh', overflow: 'hidden' }}>
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
             <TopBar />
-            <main className="max-md:px-4 max-md:pt-0 max-md:pb-[calc(5rem+env(safe-area-inset-bottom))] flex-1 overflow-y-auto md:p-8">
+            <main className="max-md:px-4 max-md:pt-0 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] flex-1 overflow-y-auto md:p-8">
               {children}
             </main>
           </div>

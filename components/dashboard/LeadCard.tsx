@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronRight } from 'lucide-react';
 import { isSciDirectorPending, type Lead, type LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
@@ -79,10 +80,10 @@ export default function LeadCard({
       data-lead-id={lead.id}
       data-tour={index === 0 ? 'lead-card' : undefined}
       onClick={onClick}
-      className={`relative cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-md:rounded-2xl max-md:bg-surface max-md:px-3.5 max-md:py-3.5 max-md:shadow-clay-sm md:hover:bg-black/[0.018] lg:flex lg:items-center lg:gap-4 lg:px-5 lg:py-[18px] lg:shadow-none ${
+      className={`relative cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-md:rounded-2xl max-md:bg-surface max-md:px-3.5 max-md:py-3.5 max-md:shadow-clay-sm max-md:transition max-md:duration-150 max-md:active:scale-[0.985] max-md:active:bg-black/[0.01] md:hover:bg-black/[0.018] lg:flex lg:items-center lg:gap-4 lg:px-5 lg:py-[18px] lg:shadow-none ${
         !isLast ? 'border-b border-black/[0.05] max-md:border-b-0' : ''
       }`}
-      style={{ animationDelay: `${index * 38}ms` }}
+      style={{ animationDelay: `${index * 38}ms`, WebkitTapHighlightColor: 'transparent' }}
     >
       {isHighIntent && (
         <span className="absolute left-0 top-4 bottom-4 hidden w-[3px] bg-accent-dark rounded-r-[2px] lg:block" />
@@ -150,6 +151,12 @@ export default function LeadCard({
             <LeadSignalList signals={lead.signals} variant="summary" />
           </div>
         </div>
+        <ChevronRight
+          size={18}
+          strokeWidth={2}
+          className="mt-0.5 shrink-0 self-center text-text-subtle"
+          aria-hidden
+        />
       </div>
 
       <div className="hidden w-full items-center gap-4 lg:flex">

@@ -29,13 +29,13 @@ export default function TopBar() {
 
   return (
     <header
-      className="flex min-h-[48px] flex-shrink-0 items-center justify-between gap-2 border-b border-black/8 bg-canvas/80 px-4 backdrop-blur-md md:px-8"
-      style={{ height: undefined }}
+      className="flex min-h-[52px] flex-shrink-0 items-center justify-between gap-2 border-b border-black/[0.06] px-4 backdrop-blur-xl max-md:bg-[rgba(249,250,255,0.78)] md:min-h-[48px] md:border-black/8 md:bg-canvas/80 md:px-8 md:backdrop-blur-md"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span
-          className="min-w-0 truncate font-semibold tracking-tight text-ink max-md:text-[15px]"
-          style={{ fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.25 }}
+          className="min-w-0 truncate font-bold tracking-tight text-ink text-[19px] md:text-[15px] md:font-semibold"
+          style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}
         >
           {title === 'Mes prospects' ? 'Prospects' : title}
         </span>
@@ -68,7 +68,7 @@ export default function TopBar() {
             {agency.name}
           </span>
           <div
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-dark font-semibold tabular lg:h-[30px] lg:w-[30px]"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-semibold tabular lg:h-[30px] lg:w-[30px]"
             style={{ fontSize: 11 }}
             aria-hidden
           >

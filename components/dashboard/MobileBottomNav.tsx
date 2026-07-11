@@ -6,12 +6,10 @@ import { Settings, Target } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 
-const ACCENT = '#E8743C';
-const INACTIVE = '#6B7280';
-
-function matchProspects(p: string) {
-  return p === '/dashboard' || p === '/dashboard/';
-}
+// Tab bar mobile façon app native : barre flottante translucide, pastille
+// active indigo (charte clay), retour tactile. Desktop : masquée (md:hidden).
+const ACTIVE = '#4F46E5'; // primary-600
+const INACTIVE = '#64748B'; // text-muted
 
 function TabItem({
   href,
@@ -27,13 +25,19 @@ function TabItem({
   return (
     <Link
       href={href}
-      className="flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 pt-1"
-      style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}
+      aria-current={active ? 'page' : undefined}
+      className="app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5"
     >
-      <Icon size={24} strokeWidth={2} color={active ? ACCENT : INACTIVE} aria-hidden />
       <span
-        className="max-w-full truncate text-center font-medium"
-        style={{ fontSize: 11, color: active ? ACCENT : INACTIVE }}
+        className={`flex h-8 w-[52px] items-center justify-center rounded-full transition-colors duration-200 ${
+          active ? 'bg-primary-100' : 'bg-transparent'
+        }`}
+      >
+        <Icon size={22} strokeWidth={active ? 2.4 : 2} color={active ? ACTIVE : INACTIVE} aria-hidden />
+      </span>
+      <span
+        className="max-w-full truncate text-center font-semibold"
+        style={{ fontSize: 11, color: active ? ACTIVE : INACTIVE, letterSpacing: '-0.01em' }}
       >
         {label}
       </span>
@@ -47,12 +51,13 @@ function HelpTab() {
       href={FOUNDER_WHATSAPP_HREF}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 pt-1 text-inherit no-underline"
-      style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}
+      className="app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5 text-inherit no-underline"
       aria-label="Écrire au fondateur sur WhatsApp"
     >
-      <WhatsAppIcon size={24} className="text-[#25D366]" />
-      <span className="max-w-full truncate text-center font-medium" style={{ fontSize: 11, color: INACTIVE }}>
+      <span className="flex h-8 w-[52px] items-center justify-center rounded-full">
+        <WhatsAppIcon size={22} className="text-[#25D366]" />
+      </span>
+      <span className="max-w-full truncate text-center font-semibold" style={{ fontSize: 11, color: INACTIVE, letterSpacing: '-0.01em' }}>
         Fondateur
       </span>
     </a>
@@ -62,14 +67,17 @@ function HelpTab() {
 export default function MobileBottomNav() {
   const pathname = usePathname();
 
-  const activeProspects = matchProspects(pathname);
+  const activeProspects = pathname === '/dashboard' || pathname === '/dashboard/';
   const activeSettings =
     pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/');
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-200 bg-white md:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="app-tabbar fixed inset-x-3 bottom-0 z-50 flex rounded-[26px] px-1.5 pt-1 md:hidden"
+      style={{
+        marginBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingBottom: 8,
+      }}
       aria-label="Navigation mobile"
     >
       <TabItem href="/dashboard" label="Prospects" Icon={Target} active={activeProspects} />
