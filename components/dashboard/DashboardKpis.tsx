@@ -61,13 +61,10 @@ export default function DashboardKpis({ leads, newBatchCount }: DashboardKpisPro
   ];
 
   return (
-    <div className="app-snap -mx-4 mb-4 flex gap-3 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0">
+    // KPI masqués sur mobile (app mobile épurée) — visibles à partir de md.
+    <div className="mb-4 hidden gap-4 md:grid md:grid-cols-4">
       {kpis.map(({ key, label, value, Icon, tint }) => (
-        <ClayCard
-          key={key}
-          padding="md"
-          className="animate-clay-pop w-[42%] shrink-0 snap-start max-md:border max-md:border-black/[0.06] max-md:shadow-none md:w-auto"
-        >
+        <ClayCard key={key} padding="md" className="animate-clay-pop">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="line-clamp-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">
