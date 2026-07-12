@@ -51,6 +51,7 @@ function HelpTab() {
       href={FOUNDER_WHATSAPP_HREF}
       target="_blank"
       rel="noopener noreferrer"
+      data-tour="whatsapp-mobile"
       className="app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5 text-inherit no-underline"
       aria-label="Écrire au fondateur sur WhatsApp"
     >

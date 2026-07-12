@@ -37,6 +37,8 @@ const LeadMapView = dynamic(() => import('./map/LeadMapView'), {
 import LeadDrawer from './LeadDrawer';
 import LeadFullScreenMobile from './LeadFullScreenMobile';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
+import DashboardWelcome from './DashboardWelcome';
+import { useUser } from '@/lib/hooks/useUser';
 
 interface ProspectsClientProps {
   initialLeads: Lead[];
@@ -113,6 +115,7 @@ export default function ProspectsClient({
   initialShowPipelineBanner,
   initialNewBatchCount,
 }: ProspectsClientProps) {
+  const { profile } = useUser();
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [showPipelineBanner, setShowPipelineBanner] = useState(initialShowPipelineBanner);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -283,6 +286,7 @@ export default function ProspectsClient({
       </div>
 
       <div className="mb-3 md:mb-3">
+        <DashboardWelcome firstName={profile.first_name} />
         <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
         <ProspectsListToolbar

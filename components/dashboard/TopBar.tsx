@@ -2,19 +2,17 @@
 
 import { usePathname } from 'next/navigation';
 import { HelpCircle } from 'lucide-react';
-import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
-import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { useUser } from '@/lib/hooks/useUser';
 import { useDashboardTour } from '@/components/dashboard/tour/TourProvider';
 
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return 'Mes prospects';
+    return 'Priimo';
   }
   if (pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')) {
     return 'Paramètres';
   }
-  return 'Dashboard';
+  return 'Priimo';
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -37,7 +35,7 @@ export default function TopBar() {
           className="min-w-0 truncate font-bold tracking-tight text-ink text-[19px] md:text-[15px] md:font-semibold"
           style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}
         >
-          {title === 'Mes prospects' ? 'Prospects' : title}
+          {title}
         </span>
       </div>
 
@@ -51,17 +49,6 @@ export default function TopBar() {
         >
           <HelpCircle size={20} strokeWidth={2} aria-hidden />
         </button>
-
-        <a
-          href={FOUNDER_WHATSAPP_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-tour="whatsapp-mobile"
-          className="flex lg:hidden h-11 w-11 shrink-0 items-center justify-center text-[#25D366] transition-opacity hover:opacity-80"
-          aria-label="Écrire au fondateur sur WhatsApp"
-        >
-          <WhatsAppIcon size={22} />
-        </a>
 
         <div className="flex min-w-0 max-w-[min(12rem,40vw)] items-center gap-2 sm:max-w-none sm:gap-3 lg:max-w-none">
           <span className="truncate font-medium text-ink" style={{ fontSize: 13 }} title={agency.name}>
