@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { pickDashboardWelcomeMessage, welcomeTypeDelay } from '@/lib/dashboard-welcome';
+import { renderWithPriimoBrand } from '@/components/brand/PriimoWord';
 
 type DashboardWelcomeProps = {
   firstName: string;
@@ -100,7 +101,7 @@ export default function DashboardWelcome({ firstName, className = '' }: Dashboar
         aria-live={done ? 'polite' : 'off'}
         aria-label={done ? undefined : message}
       >
-        {displayed}
+        {renderWithPriimoBrand(displayed)}
         {!done && (
           <span
             className="welcome-type-cursor ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.12em] rounded-full bg-primary-500 align-middle"

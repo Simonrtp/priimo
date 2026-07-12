@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PriimoWord } from "@/components/brand/PriimoWord";
 import { CALENDLY_URL } from "@/lib/calendly";
 
 // === HEADER ===
@@ -28,9 +29,9 @@ export default function Header() {
       >
         <Link
           href="/"
-          className="group shrink-0 font-display text-[1.5rem] font-bold leading-none sm:text-[1.75rem] md:text-[2rem]"
+          className="group shrink-0 text-[1.5rem] leading-none sm:text-[1.75rem] md:text-[2rem]"
         >
-          <span className="text-grad">Priimo</span>
+          <PriimoWord className="text-[1.5rem] font-bold sm:text-[1.75rem] md:text-[2rem]">Priimo</PriimoWord>
         </Link>
 
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">

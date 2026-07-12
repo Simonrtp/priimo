@@ -82,6 +82,7 @@ const config: Config = {
           "sans-serif",
         ],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        brand: ["var(--font-brand)", "Georgia", "Times New Roman", "serif"],
       },
       boxShadow: {
         soft: "0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.05)",

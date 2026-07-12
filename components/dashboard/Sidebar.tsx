@@ -6,6 +6,7 @@ import { LogOut, Settings, Target } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { formatZoneSidebarLabel } from '@/lib/zone-display';
+import { PriimoWord } from '@/components/brand/PriimoWord';
 import { useUser } from '@/lib/hooks/useUser';
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
@@ -50,12 +51,7 @@ export default function Sidebar() {
       }}
     >
       <div className="px-2 pb-2 pt-5 lg:px-5">
-        <span
-          className="hidden font-bold tracking-tight lg:block"
-          style={{ fontSize: 22, letterSpacing: '-0.03em', color: ACCENT }}
-        >
-          Priimo
-        </span>
+        <PriimoWord className="hidden text-[22px] font-bold tracking-[-0.03em] lg:block">Priimo</PriimoWord>
         <div
           className="flex h-10 w-10 items-center justify-center rounded-lg font-bold lg:hidden"
           style={{ backgroundColor: 'rgba(232,116,60,0.2)', color: ACCENT, fontSize: 16 }}

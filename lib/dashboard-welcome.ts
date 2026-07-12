@@ -1,96 +1,96 @@
-const SESSION_KEY = 'priimo-welcome-msg-v2';
+const SESSION_KEY = 'priimo-welcome-msg-v3';
 
 const MONDAY: string[] = [
-  'Bon lundi {name}. Votre liste de prospects pour la semaine est prête.',
-  'Bon lundi {name}. C\'est reparti pour une semaine de prospection avec Priimo.',
-  'Bon lundi {name}. Quelqu\'un dans votre secteur veut probablement vendre bientôt.',
-  'Bon lundi {name}. Un café, et on attaque la prospection. ☕',
+  'Bon lundi {name}. Votre liste de la semaine est arrivée. Avant même votre café.',
+  'Bon lundi {name}. Nouvelle semaine, nouvelles adresses. Les mauvaises portes, c\'était avant.',
+  'Bon lundi {name}. Pendant que vous dormiez, on a fait le tri.',
+  'Bon lundi {name}. Café, liste, terrain. Dans cet ordre.',
 ];
 
 const TUESDAY: string[] = [
-  'Bon mardi {name}. Un bon prospect vaut dix portes frappées au hasard.',
-  'Bon mardi {name}. Votre secteur bouge. Profitez-en avant les autres.',
-  'Bon mardi {name}. C\'est le moment idéal pour relancer vos prospects.',
+  'Bon mardi {name}. Une bonne adresse vaut cent portes au hasard.',
+  'Bon mardi {name}. Le lundi on découvre, le mardi on décroche.',
+  'Bon mardi {name}. Vos concurrents lisent encore les annonces. Vous, vous avez la liste.',
 ];
 
 const WEDNESDAY: string[] = [
-  'Bon mercredi {name}. On est à mi-semaine. Relancez vos prospects en attente.',
-  'Bon mercredi {name}. Il reste encore deux jours avant le week-end.',
-  'Bon mercredi {name}. Votre liste peut encore vous surprendre aujourd\'hui.',
+  'Bon mercredi {name}. Mi-semaine : le bon moment pour relancer ceux qui n\'ont pas répondu.',
+  'Bon mercredi {name}. Les mandats se signent rarement tout seuls. Sauf peut-être aujourd\'hui.',
+  'Bon mercredi {name}. La moitié de la semaine est passée. Pas la moitié des mandats, j\'espère.',
 ];
 
 const THURSDAY: string[] = [
-  'Bon jeudi {name}. Il vous reste deux jours pour signer un mandat cette semaine.',
-  'Bon jeudi {name}. Qui allez-vous appeler en premier aujourd\'hui ?',
-  'Bon jeudi {name}. Presque vendredi. Un coup de fil avant la fin de semaine ?',
+  'Bon jeudi {name}. Encore deux jours pour transformer une adresse en mandat.',
+  'Bon jeudi {name}. Qui appelez-vous en premier aujourd\'hui ?',
+  'Bon jeudi {name}. Presque vendredi. Presque le week-end. Presque un mandat ?',
 ];
 
 const FRIDAY: string[] = [
-  'Bon vendredi {name}. Une dernière chance de signer avant le week-end ?',
-  'Bon vendredi {name}. Finissez la semaine avec un mandat. Ça fait plaisir. 😄',
-  'Bon vendredi {name}. Un mandat avant l\'apéro, ça se tente non ?',
+  'Bon vendredi {name}. Un dernier rendez-vous avant le week-end ?',
+  'Bon vendredi {name}. Signer le vendredi, c\'est le meilleur début de week-end.',
+  'Bon vendredi {name}. Un mandat avant l\'apéro. Ça se tente.',
 ];
 
 const WEEKEND: string[] = [
-  'Bon week-end {name}. Priimo continue de surveiller votre secteur. 😉',
-  'Bon week-end {name}. Un bon prospect reste un bon prospect, même le samedi.',
-  'Bon week-end {name}. Votre secteur ne dort jamais tout à fait.',
+  'Bon week-end {name}. Samedi, jour des visites. Et peut-être d\'un mandat.',
+  'Bon week-end {name}. La liste sera toujours là lundi. Promis.',
+  'Bon week-end {name}. Une bonne adresse reste une bonne adresse, même le dimanche.',
 ];
 
 const EARLY_MORNING: string[] = [
-  'Bonjour {name}. L\'heure du café et de Priimo, non ? ☕',
-  'Bonjour {name}. Votre secteur se lève tôt. Vous aussi, apparemment.',
-  'Bonjour {name}. Un café, et on attaque la prospection ?',
-  'Bonjour {name}. Vous êtes debout tôt. Les vendeurs ne dorment pas non plus.',
+  'Bonjour {name}. Debout avant le soleil. Les mandats aiment ça.',
+  'Bonjour {name}. Premier café, première adresse.',
+  'Bonjour {name}. À cette heure-ci, vos concurrents dorment encore.',
+  'Bonjour {name}. Il est tôt. Votre liste est déjà réveillée.',
 ];
 
 const MORNING: string[] = [
-  'Bon retour {name}. Votre secteur a des vendeurs à vous proposer.',
-  'Bonne matinée {name}. Qui allez-vous appeler en premier ?',
-  'Bonjour {name}. C\'est le moment idéal pour décrocher un rendez-vous.',
-  'Bonne matinée {name}. Votre liste de prospects vous attend.',
+  'Bonjour {name}. La meilleure heure pour décrocher un rendez-vous.',
+  'Bonne matinée {name}. Votre liste vous attend. Elle est patiente, mais quand même.',
+  'Bonjour {name}. On commence par quelle adresse ?',
+  'Bonne matinée {name}. Une adresse, un appel, un rendez-vous. La recette est simple.',
 ];
 
 const MIDDAY: string[] = [
-  'Bon midi {name}. Vous avez faim ? Vos prospects attendront après le déjeuner.',
-  'Bonjour {name}. Profitez de votre pause déjeuner. La prospection reprendra après.',
-  'Bon midi {name}. Un bon repas, et on reprend la prospection ensuite ?',
-  'Bonjour {name}. C\'est l\'heure du déjeuner. Vos prospects seront toujours là après.',
+  'Bon appétit {name}. Les adresses ne s\'envolent pas pendant le déjeuner.',
+  'Bonjour {name}. Pause déjeuner. Les mandats attendront une heure.',
+  'Bon midi {name}. Personne n\'a jamais signé un mandat le ventre vide.',
+  'Bon midi {name}. Même les meilleurs prospecteurs déjeunent.',
 ];
 
 const AFTERNOON: string[] = [
   'Bon après-midi {name}. C\'est souvent l\'après-midi que les mandats se signent.',
-  'Bon après-midi {name}. Il reste encore du temps pour un mandat aujourd\'hui.',
-  'Bon après-midi {name}. Pensez à relancer vos prospects en attente avant ce soir.',
-  'Bon après-midi {name}. Vous allez faire du bon travail. J\'en suis sûr.',
+  'Bon après-midi {name}. Il reste du temps. Il reste des adresses.',
+  'Bon après-midi {name}. Les prospects en attente ne se relancent pas tout seuls.',
+  'Bon après-midi {name}. Une porte de plus avant ce soir ?',
 ];
 
 const EVENING: string[] = [
-  'Bonsoir {name}. Une dernière passe sur vos prospects avant de partir ?',
-  'Bonsoir {name}. Encore un appel avant de ranger la valise ?',
-  'Bonsoir {name}. Vous méritez un bon prospect avant de couper.',
-  'Bonsoir {name}. Presque l\'heure de partir. Ou presque l\'heure de signer ? 😉',
+  'Bonsoir {name}. Un dernier coup d\'œil sur la liste avant de fermer ?',
+  'Bonsoir {name}. Journée finie. Sauf si un mandat vous attend encore.',
+  'Bonsoir {name}. Vous avez bien travaillé. La liste sera là demain.',
+  'Bonsoir {name}. Encore là ? Le mandat n\'est peut-être pas loin.',
 ];
 
 const LATE_NIGHT: string[] = [
-  'Bonsoir {name}. Vous êtes encore là ? Priimo aussi, visiblement. 🌙',
-  'Bonsoir {name}. Il est tard, mais un bon prospect reste un bon prospect.',
-  'Bonsoir {name}. Prospection tard dans la nuit ? Bravo pour votre motivation.',
-  'Bonsoir {name}. Travail tard ou simple curiosité ? Dans les deux cas, bienvenue.',
+  'Bonsoir {name}. Il est tard. La liste ne s\'enfuira pas cette nuit.',
+  'Bonsoir {name}. À cette heure, même les vendeurs dorment.',
+  'Bonsoir {name}. Insomnie ou inspiration ? Dans les deux cas, bienvenue.',
+  'Bonsoir {name}. Les meilleures idées viennent la nuit. Les mandats, plutôt en journée.',
 ];
 
 const ANYTIME: string[] = [
-  'Content de vous revoir, {name} !',
-  'Bon retour {name}. Vos prospects n\'attendent que vous. 👋',
+  'Content de vous revoir, {name}.',
+  'Bon retour {name}. Vos adresses n\'attendent que vous.',
   'Ravi de vous retrouver, {name}.',
-  'Bonjour {name}. On va trouver des vendeurs motivés aujourd\'hui. 😄',
-  'Bonjour {name}. Vos prospects sont là. À vous de jouer. ⚡',
-  'Bonjour {name}. Une belle surprise vous attend dans votre liste.',
-  'Bonjour {name}. On se remet au boulot ?',
-  'Bienvenue {name}. Quelqu\'un dans votre secteur va vendre. Pourquoi pas avec vous ?',
-  'Bonjour {name}. Priimo a repéré de l\'activité dans votre secteur.',
+  'Bonjour {name}. Moins de portes, plus de mandats. On y va ?',
   'Bonjour {name}. Votre prochain mandat est peut-être dans cette liste.',
-  'Bon retour {name}. Votre secteur a des choses intéressantes à vous montrer.',
+  'Bienvenue {name}. Quelqu\'un dans votre secteur va vendre. Autant que ce soit avec vous.',
+  'Bonjour {name}. On ne frappe plus au hasard. On frappe où il faut.',
+  'Bon retour {name}. On reprend là où vous vous étiez arrêté.',
+  'Bonjour {name}. Une adresse bien choisie vaut mieux qu\'une journée de porte-à-porte.',
+  'Bonjour {name}. Prêt à transformer une adresse en mandat ?',
+  'Bonjour {name}. Bonne prospection. Et bonne chance, même si vous n\'en aurez pas besoin.',
 ];
 
 const BY_DAY: Record<number, string[]> = {
@@ -126,14 +126,6 @@ function pickRandom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)]!;
 }
 
-/** Rejette les anciens messages (tirets longs, formulations obsolètes). */
-function isValidWelcomeMessage(message: string): boolean {
-  if (!message.trim()) return false;
-  if (/[—…]/.test(message)) return false;
-  if (/pause mandat|prospect chaud|prospect tiède|pipeline/i.test(message)) return false;
-  return true;
-}
-
 function buildWelcomeMessage(firstName: string): string {
   const now = new Date();
   const timePool = timePoolForHour(now.getHours());
@@ -144,15 +136,14 @@ function buildWelcomeMessage(firstName: string): string {
 
 /**
  * Message d'accueil varié, léger et un peu humoristique.
- * Phrases complètes, vocabulaire simple, sans tiret long (—).
  * Stable pendant la session navigateur (sessionStorage), nouveau tirage à chaque connexion.
  */
 export function pickDashboardWelcomeMessage(firstName: string): string {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem('priimo-welcome-msg');
+    sessionStorage.removeItem('priimo-welcome-msg-v2');
     const stored = sessionStorage.getItem(SESSION_KEY);
-    if (stored && isValidWelcomeMessage(stored)) return stored;
-    if (stored) sessionStorage.removeItem(SESSION_KEY);
+    if (stored) return stored;
   }
 
   const message = buildWelcomeMessage(firstName);
@@ -170,6 +161,7 @@ export function welcomeTypeDelay(char: string, nextChar?: string): number {
   if (char === ' ') return base + 35;
   if (char === ',' || char === ';') return base + 90;
   if (char === '.' || char === '!' || char === '?') return base + 160;
+  if (char === ':') return base + 100;
   if (nextChar === ' ' && (char === ',' || char === '.')) return base + 60;
   return base;
 }
