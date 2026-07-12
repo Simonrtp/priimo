@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Reveal from "./Reveal";
 
 // === FEATURES (Section E) ===
@@ -8,6 +9,7 @@ import Reveal from "./Reveal";
 type Feature = {
   title: string;
   body: string;
+  href: string;
   Icon: () => React.JSX.Element;
 };
 
@@ -57,21 +59,25 @@ const FEATURES: Feature[] = [
   {
     title: "Un score prédictif sur chaque adresse",
     body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur.",
+    href: "/fonctionnalites/scoring",
     Icon: ChartIcon,
   },
   {
     title: "Le module Entreprises : SCI et dirigeants",
     body: "Dissolutions, liquidations, cessions de parts publiées au BODACC — avec l'identité du dirigeant et ses coordonnées professionnelles. Des mandats que personne d'autre ne voit venir.",
+    href: "/fonctionnalites/sci",
     Icon: MapPinIcon,
   },
   {
     title: "Le suivi de votre équipe",
     body: "Statuts, assignation, notes : vous voyez qui travaille quoi, ce qui a donné un rendez-vous, et ce qui reste à couvrir.",
+    href: "/fonctionnalites/livraison#suivi",
     Icon: DashboardIcon,
   },
   {
     title: "Export et partage en un clic",
     body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos agents ont leurs adresses en poche sur le terrain.",
+    href: "/fonctionnalites/livraison#export",
     Icon: ShareIcon,
   },
 ];
@@ -136,8 +142,9 @@ export default function Features() {
 
             return (
               <Reveal key={f.title} direction={direction} delay={delay} className={`h-full ${span}`}>
-                <div
-                  className={`group glass glass-hover grad-border relative h-full overflow-hidden rounded-[24px] p-6 sm:p-8 ${panelTint}`}
+                <Link
+                  href={f.href}
+                  className={`group glass glass-hover grad-border relative block h-full overflow-hidden rounded-[24px] p-6 sm:p-8 ${panelTint} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/50`}
                 >
                   <div
                     className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${iconChip} shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:-rotate-6`}
@@ -149,7 +156,7 @@ export default function Features() {
                   </h3>
                   <p className="text-body mt-2 max-w-xl">{f.body}</p>
                   {i === 0 && <ScoreGauge />}
-                </div>
+                </Link>
               </Reveal>
             );
           })}
