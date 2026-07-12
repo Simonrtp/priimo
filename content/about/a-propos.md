@@ -12,7 +12,7 @@ C'est la seule étude de marché que j'ai faite : écouter des gens me dire, san
 
 ## Le problème que personne n'avait résolu
 
-Trouver un vendeur avant qu'il ne soit sur le marché, c'est le métier le plus difficile de l'immobilier. Le téléphone se ferme. Les portails vendent des contacts que dix agences ont déjà appelés. Et le porte-à-porte, c'est cent portes pour une bonne.
+Trouver un vendeur avant qu'il ne soit sur le marché, c'est le métier le plus difficile de l'immobilier. Le téléphone se ferme. Les portails vendent des contacts que dix agences ont déjà appelés. Et le porte-à-porte, c'est mille portes pour une bonne.
 
 Pourtant, les signaux existent. Ils sont même **publics**.
 
