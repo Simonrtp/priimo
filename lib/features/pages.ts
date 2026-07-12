@@ -1,4 +1,6 @@
 export type FeatureSection = {
+  /** Clé stable pour piocher le texte dans les compositions de page. */
+  key?: string;
   id?: string;
   title: string;
   paragraphs: string[];
@@ -17,6 +19,13 @@ export type FeaturePageContent = {
   enClair: string;
 };
 
+/** Récupère une section par sa clé (texte inchangé — pour les compositions). */
+export function getSection(content: FeaturePageContent, key: string): FeatureSection {
+  const section = content.sections.find((s) => s.key === key);
+  if (!section) throw new Error(`Section introuvable : ${key}`);
+  return section;
+}
+
 export const SCORING_PAGE: FeaturePageContent = {
   meta: {
     title: 'Scoring prédictif',
@@ -30,12 +39,14 @@ export const SCORING_PAGE: FeaturePageContent = {
     'Un DPE coûte entre 100 et 250 euros. Personne ne le refait par plaisir. Priimo lit ce genre de signaux dans les données publiques, et vous dit où aller.',
   sections: [
     {
+      key: 'signal',
       title: 'Le signal que tout le monde a sous les yeux',
       paragraphs: [
         'Le DPE est obligatoire pour vendre ou louer, il coûte cher, il se commande des mois avant la mise en vente. Un DPE refait sur un bien qui n\'est pas à vendre, c\'est une intention qui se prépare. C\'est la base de la détection Priimo.',
       ],
     },
     {
+      key: 'sources',
       id: 'sources',
       title: 'Cinq bases publiques, croisées',
       paragraphs: [
@@ -43,12 +54,14 @@ export const SCORING_PAGE: FeaturePageContent = {
       ],
     },
     {
+      key: 'score',
       title: 'Un score, de 0 à 100',
       paragraphs: [
         'Chaque adresse est notée. Le score combine la fraîcheur du diagnostic, la pression réglementaire (loi Climat), l\'activité de l\'immeuble, la durée de détention et le contexte de la copropriété. Les meilleures adresses remontent.',
       ],
     },
     {
+      key: 'pourquoi',
       id: 'signaux',
       title: 'Le pourquoi, toujours affiché',
       paragraphs: [
@@ -72,18 +85,21 @@ export const SCI_PAGE: FeaturePageContent = {
     'Quand une SCI se dissout, un patrimoine immobilier va être partagé. C\'est public, c\'est daté — et c\'est le seul lead où nous pouvons vous donner un contact direct.',
   sections: [
     {
+      key: 'dissolution',
       title: 'Une dissolution, c\'est un bien qui bouge',
       paragraphs: [
         'Une SCI qui se dissout, se liquide, ou dont les parts sont cédées : dans tous les cas, le patrimoine détenu va changer de mains. Ces événements sont publiés au BODACC, le bulletin officiel. Priimo les surveille en continu.',
       ],
     },
     {
+      key: 'contact',
       title: 'Le seul lead avec un contact',
       paragraphs: [
         'Pour un particulier, Priimo ne donne jamais de nom ni de téléphone : ce sont des données personnelles. Pour une société, c\'est différent. Les dirigeants et les coordonnées professionnelles figurent dans les registres légaux publics. Vous recevez donc : la société, l\'événement, le dirigeant, et son contact pro.',
       ],
     },
     {
+      key: 'rare',
       title: 'Un signal rare, jamais rempli artificiellement',
       paragraphs: [
         'Les dissolutions ne se commandent pas. Certaines semaines il y en a trois, d\'autres aucune. Priimo ne comble jamais un quota avec des SCI faibles pour faire du volume : vous recevez celles qui existent, quand elles existent.',
@@ -107,12 +123,14 @@ export const LIVRAISON_PAGE: FeaturePageContent = {
     'Une liste courte, expliquée, sur un secteur qui n\'appartient qu\'à vous — et de quoi la travailler à plusieurs sans rien perdre.',
   sections: [
     {
+      key: 'liste',
       title: 'La liste du lundi',
       paragraphs: [
         'Chaque semaine, les nouvelles adresses prioritaires arrivent dans votre tableau de bord. Une liste courte : les meilleures, pas toutes. Nous ne promettons pas de volume — un outil qui promet trente prospects et en livre cinq de qualité, ça s\'appelle une déception.',
       ],
     },
     {
+      key: 'secteur',
       id: 'secteur',
       title: 'Votre secteur n\'appartient qu\'à vous',
       paragraphs: [
@@ -120,6 +138,7 @@ export const LIVRAISON_PAGE: FeaturePageContent = {
       ],
     },
     {
+      key: 'suivi',
       id: 'suivi',
       title: 'Travailler la liste à plusieurs',
       paragraphs: [
@@ -127,12 +146,14 @@ export const LIVRAISON_PAGE: FeaturePageContent = {
       ],
     },
     {
+      key: 'feedback',
       title: 'Dites-nous ce que ça a donné',
       paragraphs: [
         'Pour chaque adresse travaillée, vos agents indiquent le résultat : mandat signé, vendeur perdu, pas vendeur, injoignable. Ce retour n\'est pas décoratif : il entraîne le moteur. Plus vous nous dites la vérité du terrain, plus les listes suivantes sont justes. C\'est la seule façon honnête de faire progresser un scoring.',
       ],
     },
     {
+      key: 'export',
       id: 'export',
       title: 'Sur le terrain',
       paragraphs: [

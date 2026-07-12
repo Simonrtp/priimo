@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
 
@@ -73,60 +74,60 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
 
   const tones = isBefore
     ? {
-        ring: "border-white/10",
-        glow: "rgba(99, 102, 241, 0.24)",
-        chipBg: "bg-indigo-500/15",
-        chipBorder: "border-indigo-400/30",
-        chipText: "text-indigo-300",
+        glow: "rgba(255, 255, 255, 0.06)",
+        chipBg: "bg-white/10",
+        chipText: "text-white/80",
         ghost: "text-white/[0.05]",
-        divider: "from-indigo-400/40",
-        marker: "bg-indigo-500/15 text-indigo-300 border-indigo-400/25",
-        desc: "text-white/65",
+        marker: "bg-white/10 text-white/80",
+        desc: "text-white/75",
         Icon: CrossIcon,
       }
     : {
-        ring: "border-accent/30",
-        glow: "rgba(232, 116, 60, 0.22)",
+        glow: "rgba(232, 116, 60, 0.12)",
         chipBg: "bg-accent/15",
-        chipBorder: "border-accent/30",
         chipText: "text-accent-light",
         ghost: "text-white/[0.06]",
-        divider: "from-accent/50",
-        marker: "bg-accent/15 text-accent-light border-accent/25",
-        desc: "text-white/70",
+        marker: "bg-accent/15 text-accent-light",
+        desc: "text-white/80",
         Icon: CheckIcon,
       };
 
   return (
-    <div
-      className={`group relative h-full overflow-hidden rounded-[26px] border ${tones.ring} bg-gradient-to-b from-white/[0.06] to-white/[0.015] backdrop-blur-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-white/25`}
-    >
+    <div className="group relative isolate h-full overflow-hidden rounded-[26px] shadow-[0_20px_50px_-28px_rgba(0,0,0,0.55)] transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.65)]">
+      {/* Glass léger */}
+      <div
+        aria-hidden
+        className="absolute inset-0 rounded-[26px] bg-white/[0.07] backdrop-blur-md backdrop-saturate-125"
+      />
+      <div
+        aria-hidden
+        className={`absolute inset-0 rounded-[26px] ${
+          isBefore
+            ? "bg-gradient-to-b from-white/[0.08] to-white/[0.02]"
+            : "bg-gradient-to-b from-white/[0.09] via-accent/[0.04] to-white/[0.02]"
+        }`}
+      />
+
       {/* Soft directional glow */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 -left-24 h-64 w-64 rounded-full blur-3xl opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+        className="pointer-events-none absolute -top-24 -left-24 h-64 w-64 rounded-full blur-3xl opacity-50 transition-opacity duration-500 group-hover:opacity-75"
         style={{ background: tones.glow }}
-      />
-
-      {/* Top hairline */}
-      <div
-        aria-hidden
-        className={`absolute top-0 inset-x-6 h-px bg-gradient-to-r ${tones.divider} via-white/10 to-transparent`}
       />
 
       {/* Decorative ghost mark in corner */}
       <span
         aria-hidden
-        className={`pointer-events-none select-none absolute -right-3 -top-4 font-display text-[120px] leading-none font-bold ${tones.ghost}`}
+        className={`pointer-events-none absolute -right-3 -top-4 z-[1] select-none font-display text-[120px] leading-none font-bold ${tones.ghost}`}
       >
         {isBefore ? "—" : "+"}
       </span>
 
-      <div className="relative p-7 sm:p-8">
+      <div className="relative z-[2] p-7 sm:p-8">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div
-            className={`inline-flex items-center gap-2 rounded-full border ${tones.chipBorder} ${tones.chipBg} px-2.5 py-1`}
+            className={`inline-flex items-center gap-2 rounded-full ${tones.chipBg} px-2.5 py-1`}
           >
             <span className={`flex h-4 w-4 items-center justify-center rounded-full ${tones.chipBg} ${tones.chipText}`}>
               <tones.Icon />
@@ -135,7 +136,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
               {label}
             </span>
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/30">
+          <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-white/45">
             {isBefore ? "État actuel" : "Avec Priimo"}
           </span>
         </div>
@@ -145,11 +146,8 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
           {tagline}
         </p>
 
-        {/* Divider */}
-        <div className={`mt-5 h-px bg-gradient-to-r ${tones.divider} via-white/10 to-transparent`} />
-
         {/* Items */}
-        <ol className="mt-5 space-y-5">
+        <ol className="mt-6 space-y-5">
           {items.map((item) => (
             <li
               key={item.title}
@@ -157,7 +155,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
             >
               <div className="pt-0.5">
                 <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg border ${tones.marker}`}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg ${tones.marker}`}
                 >
                   <tones.Icon />
                 </span>
@@ -202,7 +200,34 @@ export default function ProblemTransformation() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
+      {/* Haussmann — fond bas, fondu dans le dégradé (sans impact layout) */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[52%] max-h-[520px] overflow-hidden">
+        <Image
+          src="/haussmann.webp"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover object-bottom"
+          quality={88}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(
+              to bottom,
+              #131A24 0%,
+              rgba(19, 26, 36, 0.94) 10%,
+              rgba(10, 13, 17, 0.82) 24%,
+              rgba(10, 13, 17, 0.58) 40%,
+              rgba(7, 10, 14, 0.32) 58%,
+              rgba(7, 10, 14, 0.1) 74%,
+              transparent 92%
+            )`,
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <div className="flex justify-center">
             <span className="kicker kicker--light mb-5">

@@ -1,6 +1,7 @@
 import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
 import Footer from "./Footer";
+import FooterLandscapeBg from "./FooterLandscapeBg";
 
 // === FINAL CTA (Section J) ===
 // Refonte 2.0 : panneau sombre, grande orbe orange floue, points de preuve en
@@ -47,7 +48,9 @@ export default function FinalCTA() {
         style={{ background: "radial-gradient(circle, #6366F1 0%, transparent 70%)" }}
       />
 
-      <div className="relative mx-auto max-w-4xl px-4 sm:px-8 pt-16 sm:pt-28 text-center min-w-0">
+      <FooterLandscapeBg />
+
+      <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-8 pt-16 sm:pt-28 text-center min-w-0">
         <Reveal direction="up">
           <div className="flex justify-center">
             <span className="kicker kicker--light mb-6">

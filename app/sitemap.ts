@@ -1,10 +1,10 @@
 import type { MetadataRoute } from 'next';
-import { getAllPosts } from '@/lib/blog/posts';
+import { getPublishedPosts } from '@/lib/blog/posts';
 import { SITE_URL } from '@/lib/site-url';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const posts = getAllPosts();
+  const posts = getPublishedPosts();
 
   const staticPages: MetadataRoute.Sitemap = [
     {

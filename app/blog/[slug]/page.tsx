@@ -44,7 +44,7 @@ export default async function BlogArticlePage({ params }: PageProps) {
 
           <div className="min-w-0 lg:max-w-[800px]">
             <header>
-              <h1 className="font-sans text-[1.75rem] font-bold leading-[1.15] tracking-[-0.02em] text-gray-900 text-balance sm:text-[2.25rem] lg:text-[2.5rem]">
+              <h1 className="text-h1 headline text-balance">
                 {post.title}
               </h1>
               <p className="small-text mt-4 !normal-case !tracking-normal text-gray-500">

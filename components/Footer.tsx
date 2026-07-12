@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FooterLandscapeBg from "./FooterLandscapeBg";
 
 /** Arrondi en haut uniquement — bas plat, pleine largeur */
 export const FOOTER_SHELL_CLASS =
@@ -9,6 +10,39 @@ type FooterProps = {
   embedded?: boolean;
   className?: string;
 };
+
+type FooterLink = {
+  label: string;
+  href: string;
+  external?: boolean;
+};
+
+const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
+  {
+    title: "Fonctionnalités",
+    links: [
+      { label: "Scoring prédictif", href: "/fonctionnalites/scoring" },
+      { label: "Module SCI", href: "/fonctionnalites/sci" },
+      { label: "Liste hebdomadaire", href: "/fonctionnalites/livraison" },
+    ],
+  },
+  {
+    title: "Ressources",
+    links: [
+      { label: "Blog", href: "/blog" },
+      { label: "À propos", href: "/a-propos" },
+    ],
+  },
+  {
+    title: "Légal",
+    links: [
+      { label: "Mentions légales", href: "/mentions-legales" },
+      { label: "Confidentialité", href: "/politique-de-confidentialite" },
+      { label: "CGU", href: "/cgu" },
+      { label: "Contact", href: "mailto:hello@priimo.fr", external: true },
+    ],
+  },
+];
 
 function FooterPattern() {
   return (
@@ -24,41 +58,55 @@ function FooterPattern() {
   );
 }
 
+function FooterColumn({ title, links }: { title: string; links: FooterLink[] }) {
+  const linkClass =
+    "inline-block text-[15px] font-medium text-white/85 transition-colors duration-200 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50";
+
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-semibold uppercase text-white/70 [letter-spacing:0.08em]">{title}</p>
+      <ul className="mt-3.5 space-y-3">
+        {links.map((link) => (
+          <li key={link.href}>
+            {link.external ? (
+              <a href={link.href} className={linkClass}>
+                {link.label}
+              </a>
+            ) : (
+              <Link href={link.href} className={linkClass}>
+                {link.label}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FooterContent() {
   return (
-    <div className="relative mx-auto max-w-6xl px-4 sm:px-8 pt-16 sm:pt-20 pb-10 min-w-0">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 text-gray-400">
-        <Link href="/" className="font-sans text-2xl font-bold tracking-tight text-white">
-          Priimo
-        </Link>
+    <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-8 pt-16 sm:pt-20 pb-10 min-w-0">
+      <div className="flex flex-col gap-10 lg:grid lg:grid-cols-4 lg:gap-10">
+        <div className="min-w-0">
+          <Link href="/" className="font-sans text-2xl font-bold tracking-tight text-white">
+            Priimo
+          </Link>
+          <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/60">
+            Prospection immobilière prédictive, sur données publiques.
+          </p>
+        </div>
 
-        <nav aria-label="Liens utiles">
-          <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <li>
-              <Link href="/" className="hover:text-white transition">
-                Accueil
-              </Link>
-            </li>
-            <li>
-              <Link href="/mentions-legales" className="hover:text-white transition">
-                Mentions légales
-              </Link>
-            </li>
-            <li>
-              <Link href="/politique-de-confidentialite" className="hover:text-white transition">
-                Politique de confidentialité
-              </Link>
-            </li>
-            <li>
-              <a href="mailto:hello@priimo.fr" className="hover:text-white transition">
-                Contact
-              </a>
-            </li>
-          </ul>
-        </nav>
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-3">
+          {FOOTER_COLUMNS.map((column) => (
+            <FooterColumn key={column.title} title={column.title} links={column.links} />
+          ))}
+        </div>
       </div>
 
-      <div className="mt-7 text-xs text-gray-500">© 2026 Priimo · Fait en France</div>
+      <div className="mt-10 border-t border-white/15 pt-6 text-xs text-white/50">
+        © 2026 Priimo · Fait en France
+      </div>
     </div>
   );
 }
@@ -71,6 +119,7 @@ export default function Footer({ embedded = false, className = "" }: FooterProps
   return (
     <footer className={[FOOTER_SHELL_CLASS, className].filter(Boolean).join(" ")}>
       <FooterPattern />
+      <FooterLandscapeBg />
       <FooterContent />
     </footer>
   );

@@ -32,6 +32,7 @@ function parseFrontMatter(data: Record<string, unknown>, content: string, filena
       typeof data.authorImage === 'string' ? data.authorImage : undefined,
     ),
     ogImage: typeof data.ogImage === 'string' ? data.ogImage : undefined,
+    draft: data.draft === true,
     content,
   };
 }
@@ -50,10 +51,16 @@ export function getAllPosts(): BlogPostSummary[] {
   });
 
   return posts.sort((a, b) => {
-    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return a.slug.localeCompare(b.slug);
+    const aDraft = a.draft === true;
+    const bDraft = b.draft === true;
+    if (aDraft !== bDraft) return aDraft ? 1 : -1;
+    if (aDraft) return new Date(a.date).getTime() - new Date(b.date).getTime();
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
+}
+
+export function getPublishedPosts(): BlogPostSummary[] {
+  return getAllPosts().filter((post) => !post.draft);
 }
 
 export function getPostBySlug(slug: string): BlogPost | null {
@@ -64,7 +71,7 @@ export function getPostBySlug(slug: string): BlogPost | null {
     const raw = fs.readFileSync(directPath, 'utf8');
     const { data, content } = matter(raw);
     const post = parseFrontMatter(data as Record<string, unknown>, content, `${slug}.md`);
-    if (post.slug !== slug) return null;
+    if (post.slug !== slug || post.draft) return null;
     return post;
   }
 
@@ -73,12 +80,12 @@ export function getPostBySlug(slug: string): BlogPost | null {
     const raw = fs.readFileSync(path.join(BLOG_DIR, filename), 'utf8');
     const { data, content } = matter(raw);
     const post = parseFrontMatter(data as Record<string, unknown>, content, filename);
-    if (post.slug === slug) return post;
+    if (post.slug === slug && !post.draft) return post;
   }
 
   return null;
 }
 
 export function getAllSlugs(): string[] {
-  return getAllPosts().map((post) => post.slug);
+  return getPublishedPosts().map((post) => post.slug);
 }

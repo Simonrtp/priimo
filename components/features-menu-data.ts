@@ -28,13 +28,13 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     items: [
       {
         title: 'Scoring prédictif',
-        description: 'Chaque adresse notée de 0 à 100',
+        description: 'Score de 0 à 100',
         href: '/fonctionnalites/scoring',
         icon: Target,
       },
       {
         title: 'Signaux expliqués',
-        description: 'Le pourquoi derrière chaque lead',
+        description: 'Le pourquoi de chaque lead',
         href: '/fonctionnalites/scoring#signaux',
         icon: Lightbulb,
       },
@@ -51,19 +51,19 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     items: [
       {
         title: 'Liste hebdomadaire',
-        description: 'Les adresses prioritaires, chaque lundi',
+        description: 'Priorités chaque lundi',
         href: '/fonctionnalites/livraison',
         icon: CalendarCheck,
       },
       {
         title: 'Module Entreprises',
-        description: 'SCI en dissolution, dirigeant identifié',
+        description: 'SCI, dirigeant identifié',
         href: '/fonctionnalites/sci',
         icon: Building2,
       },
       {
         title: 'Secteur exclusif',
-        description: 'Une seule agence par zone',
+        description: 'Une agence par zone',
         href: '/fonctionnalites/livraison#secteur',
         icon: MapPin,
       },
@@ -74,13 +74,13 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     items: [
       {
         title: 'Suivi des prospects',
-        description: 'Statuts, assignation, notes',
+        description: 'Statuts et notes',
         href: '/fonctionnalites/livraison#suivi',
         icon: ListChecks,
       },
       {
         title: 'Export et partage',
-        description: 'CSV ou lien Google Maps',
+        description: 'CSV ou Google Maps',
         href: '/fonctionnalites/livraison#export',
         icon: Share2,
       },

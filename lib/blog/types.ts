@@ -8,6 +8,7 @@ export interface BlogPostFrontMatter {
   author: string;
   authorImage?: string;
   ogImage?: string;
+  draft?: boolean;
 }
 
 export interface BlogPost extends BlogPostFrontMatter {

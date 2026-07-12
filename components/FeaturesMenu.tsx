@@ -30,17 +30,17 @@ function FeatureMenuItemLink({
   return (
     <Link
       href={href}
-      className={`group flex items-start gap-3 rounded-xl transition-colors duration-150 hover:bg-[#FFF7F0] ${
-        compact ? 'px-2 py-2' : 'px-3 py-2.5'
+      className={`group flex items-start gap-2.5 rounded-lg transition-colors duration-150 hover:bg-[#FFF7F0] ${
+        compact ? 'px-2 py-1.5' : 'px-2 py-2'
       }`}
       onClick={onNavigate}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-black/6 bg-white text-gray-600 transition-colors duration-150 group-hover:border-accent/20 group-hover:text-accent">
-        <Icon size={compact ? 16 : 18} strokeWidth={1.75} aria-hidden />
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/6 bg-white text-gray-600 transition-colors duration-150 group-hover:border-accent/20 group-hover:text-accent">
+        <Icon size={compact ? 15 : 16} strokeWidth={1.75} aria-hidden />
       </span>
       <span className="min-w-0 pt-0.5">
-        <span className="block text-[14px] font-semibold leading-snug text-gray-900">{title}</span>
-        <span className="mt-0.5 block text-[12px] leading-snug text-gray-500 text-pretty">{description}</span>
+        <span className="block text-[13px] font-semibold leading-snug text-gray-900">{title}</span>
+        <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">{description}</span>
       </span>
     </Link>
   );
@@ -108,7 +108,7 @@ export function FeaturesMegaPanel({ open, onOpenChange, panelId }: FeaturesMenuP
     <div
       ref={panelRef}
       id={panelId}
-      className={`absolute left-0 right-0 top-[calc(100%-10px)] z-40 hidden pt-4 lg:block ${
+      className={`absolute left-0 top-[calc(100%-10px)] z-40 hidden w-[min(calc(100vw-2rem),44rem)] pt-3 lg:block ${
         open ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
       onMouseEnter={() => onOpenChange(true)}
@@ -121,10 +121,10 @@ export function FeaturesMegaPanel({ open, onOpenChange, panelId }: FeaturesMenuP
         }`}
         role="menu"
       >
-        <div className="grid grid-cols-1 gap-6 px-5 py-6 sm:px-6 lg:grid-cols-3 lg:gap-8 lg:px-8 lg:py-7">
+        <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:px-5 lg:grid-cols-3 lg:gap-5 lg:px-5 lg:py-5">
           {FEATURE_MENU_GROUPS.map((group) => (
             <div key={group.title} className="min-w-0">
-              <p className="mb-3 text-[11px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">
+              <p className="mb-2 text-[10px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">
                 {group.title}
               </p>
               <ul className="space-y-1">
