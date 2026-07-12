@@ -722,6 +722,7 @@ body {
 /* --- Typographie display sur les titres de la landing uniquement --- */
 .landing h1,
 .landing .text-h1,
+.landing .text-hero,
 .landing .headline,
 .landing .text-h1-on-dark,
 .landing h2,
@@ -742,6 +743,40 @@ body {
 }
 @keyframes gradPan {
   to { background-position: 220% center; }
+}
+
+/* H1 hero landing — impact fort, lignes étalées */
+.landing .text-hero {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-weight: 700;
+  color: #111827;
+  font-size: 2.375rem;
+  line-height: 1.14;
+  letter-spacing: -0.022em;
+}
+@media (min-width: 640px) {
+  .landing .text-hero {
+    font-size: 3rem;
+    line-height: 1.12;
+  }
+}
+@media (min-width: 768px) {
+  .landing .text-hero {
+    font-size: 3.375rem;
+    line-height: 1.11;
+  }
+}
+@media (min-width: 1024px) {
+  .landing .text-hero {
+    font-size: 3.875rem;
+    line-height: 1.1;
+  }
+}
+@media (min-width: 1280px) {
+  .landing .text-hero {
+    font-size: 4.125rem;
+    line-height: 1.08;
+  }
 }
 
 /* --- Kicker (eyebrow) — signposting graphique, mots repris de la section --- */

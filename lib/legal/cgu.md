@@ -90,7 +90,7 @@ Le Client reconnaît que certaines Données Publiques utilisées par Priimo peuv
 
 En particulier, le Client s'interdit de :
 
-- Contacter des personnes physiques par téléphone à des fins de prospection commerciale sans consentement préalable (interdiction de la pige téléphonique en vigueur depuis août 2025).
+- Contacter des personnes physiques par téléphone à des fins de prospection commerciale sans consentement préalable (interdiction de la pige téléphonique à compter du 11 août 2026).
 - Constituer ou enrichir des fichiers de personnes physiques avec des données personnelles non autorisées (nom, téléphone personnel, raisons personnelles de vente).
 - Utiliser les Prospects à des fins autres que la prospection immobilière légale (porte-à-porte, courrier postal ciblé, contact professionnel pour les SCI/SARL).
 

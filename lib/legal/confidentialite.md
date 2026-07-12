@@ -73,7 +73,7 @@ Certains sous-traitants (Vercel, Supabase) peuvent traiter des données hors UE.
 
 ## 10. Prospection par le Client
 
-Le Client (agence) reste **responsable de traitement** des opérations de prospection qu'il mène à partir des adresses fournies. Il doit respecter le RGPD, l'interdiction de la pige téléphonique (2025) et les règles applicables au porte-à-porte et au courrier. Voir les CGU pour le détail des obligations.
+Le Client (agence) reste **responsable de traitement** des opérations de prospection qu'il mène à partir des adresses fournies. Il doit respecter le RGPD, l'interdiction de la pige téléphonique (11 août 2026) et les règles applicables au porte-à-porte et au courrier. Voir les CGU pour le détail des obligations.
 
 ## 11. Modifications
 

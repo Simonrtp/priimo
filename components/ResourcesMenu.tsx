@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown, Newspaper, Users } from 'lucide-react';
 import { formatBlogDate } from '@/lib/blog/format';
 import type { BlogPostSummary } from '@/lib/blog/types';
+import { MenuIconBox } from '@/components/MenuIconBox';
 
 type ResourcesMenuProps = {
   latestPost: BlogPostSummary | null;
@@ -214,21 +215,19 @@ export default function ResourcesMenu({
 
             <div className="min-w-0 sm:min-w-[11.5rem] sm:pl-5">
               <p className="label mb-3 text-accent">Ressources</p>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0.5">
                 <Link
                   href="/blog"
-                  className="group flex items-start gap-3 rounded-xl p-3 transition-colors hover:bg-soft-gray/80 -mx-1"
+                  className="group flex items-start gap-3 rounded-2xl px-2.5 py-2.5 transition-all duration-200 hover:bg-[#FFF7F0]"
                   role="menuitem"
                   onClick={() => setOpen(false)}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/6 bg-soft-gray/70 text-gray-700 transition-colors group-hover:border-accent/20 group-hover:bg-accent/10 group-hover:text-accent-dark">
-                    <Newspaper size={18} strokeWidth={2} aria-hidden />
-                  </span>
+                  <MenuIconBox icon={Newspaper} />
                   <span className="min-w-0 pt-0.5">
-                    <span className="block text-[15px] font-semibold text-gray-900 transition-colors group-hover:text-accent-dark">
+                    <span className="block text-[13px] font-semibold leading-snug text-gray-900">
                       Blog
                     </span>
-                    <span className="mt-1 block text-[13px] leading-snug text-gray-500 text-pretty">
+                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500 text-pretty">
                       Articles, conseil, formations
                     </span>
                   </span>
@@ -236,18 +235,16 @@ export default function ResourcesMenu({
 
                 <Link
                   href="/a-propos"
-                  className="group flex items-start gap-3 rounded-xl p-3 transition-colors hover:bg-soft-gray/80 -mx-1"
+                  className="group flex items-start gap-3 rounded-2xl px-2.5 py-2.5 transition-all duration-200 hover:bg-[#FFF7F0]"
                   role="menuitem"
                   onClick={() => setOpen(false)}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/6 bg-soft-gray/70 text-gray-700 transition-colors group-hover:border-accent/20 group-hover:bg-accent/10 group-hover:text-accent-dark">
-                    <Users size={18} strokeWidth={2} aria-hidden />
-                  </span>
+                  <MenuIconBox icon={Users} />
                   <span className="min-w-0 pt-0.5">
-                    <span className="block text-[15px] font-semibold text-gray-900 transition-colors group-hover:text-accent-dark">
+                    <span className="block text-[13px] font-semibold leading-snug text-gray-900">
                       À propos
                     </span>
-                    <span className="mt-1 block text-[13px] leading-snug text-gray-500 text-pretty">
+                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500 text-pretty">
                       Moi, Simon étudiant
                     </span>
                   </span>

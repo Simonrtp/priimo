@@ -1,13 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Building2,
-  CalendarCheck,
+  CalendarDays,
+  ClipboardList,
   Database,
-  Lightbulb,
-  ListChecks,
-  MapPin,
+  Gauge,
+  MapPinned,
   Share2,
-  Target,
+  Sparkles,
 } from 'lucide-react';
 
 export type FeatureMenuItem = {
@@ -30,13 +30,13 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
         title: 'Scoring prédictif',
         description: 'Score de 0 à 100',
         href: '/fonctionnalites/scoring',
-        icon: Target,
+        icon: Gauge,
       },
       {
         title: 'Signaux expliqués',
         description: 'Le pourquoi de chaque lead',
         href: '/fonctionnalites/scoring#signaux',
-        icon: Lightbulb,
+        icon: Sparkles,
       },
       {
         title: 'Données publiques',
@@ -53,7 +53,7 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
         title: 'Liste hebdomadaire',
         description: 'Priorités chaque lundi',
         href: '/fonctionnalites/livraison',
-        icon: CalendarCheck,
+        icon: CalendarDays,
       },
       {
         title: 'Module Entreprises',
@@ -65,7 +65,7 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
         title: 'Secteur exclusif',
         description: 'Une agence par zone',
         href: '/fonctionnalites/livraison#secteur',
-        icon: MapPin,
+        icon: MapPinned,
       },
     ],
   },
@@ -76,7 +76,7 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
         title: 'Suivi des prospects',
         description: 'Statuts et notes',
         href: '/fonctionnalites/livraison#suivi',
-        icon: ListChecks,
+        icon: ClipboardList,
       },
       {
         title: 'Export et partage',

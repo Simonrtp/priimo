@@ -29,7 +29,7 @@ const FAQS: Item[] = [
   },
   {
     q: "Est-ce conforme au RGPD ?",
-    a: "Priimo travaille exclusivement à partir de bases publiques françaises. Pour les particuliers, nous fournissons des adresses et des signaux — jamais de nom ni de téléphone : votre prospection se fait sur le terrain ou par courrier, en conformité avec l'interdiction de la pige téléphonique (août 2025). Pour les sociétés, les informations de dirigeants proviennent de registres légaux publics.",
+    a: "Priimo travaille exclusivement à partir de bases publiques françaises. Pour les particuliers, nous fournissons des adresses et des signaux — jamais de nom ni de téléphone : votre prospection se fait sur le terrain ou par courrier, en conformité avec l'interdiction de la pige téléphonique (11 août 2026). Pour les sociétés, les informations de dirigeants proviennent de registres légaux publics.",
   },
   {
     q: "Combien de temps pour être opérationnel ?",

@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronDown } from 'lucide-react';
 import { FEATURE_MENU_GROUPS } from '@/components/features-menu-data';
+import { MenuIconBox } from '@/components/MenuIconBox';
 
 type FeaturesMenuProps = {
   open: boolean;
@@ -16,7 +17,7 @@ function FeatureMenuItemLink({
   href,
   title,
   description,
-  icon: Icon,
+  icon,
   onNavigate,
   compact = false,
 }: {
@@ -30,14 +31,12 @@ function FeatureMenuItemLink({
   return (
     <Link
       href={href}
-      className={`group flex items-start gap-2.5 rounded-lg transition-colors duration-150 hover:bg-[#FFF7F0] ${
-        compact ? 'px-2 py-1.5' : 'px-2 py-2'
+      className={`group flex items-start gap-3 rounded-2xl transition-all duration-200 hover:bg-[#FFF7F0] ${
+        compact ? 'px-2 py-1.5' : 'px-2.5 py-2.5'
       }`}
       onClick={onNavigate}
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/6 bg-white text-gray-600 transition-colors duration-150 group-hover:border-accent/20 group-hover:text-accent">
-        <Icon size={compact ? 15 : 16} strokeWidth={1.75} aria-hidden />
-      </span>
+      <MenuIconBox icon={icon} compact={compact} />
       <span className="min-w-0 pt-0.5">
         <span className="block text-[13px] font-semibold leading-snug text-gray-900">{title}</span>
         <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">{description}</span>
@@ -116,12 +115,12 @@ export function FeaturesMegaPanel({ open, onOpenChange, panelId }: FeaturesMenuP
       aria-hidden={!open}
     >
       <div
-        className={`overflow-hidden rounded-b-2xl border border-t-0 border-black/8 bg-white/95 shadow-[0_24px_48px_-24px_rgba(17,24,39,0.28)] backdrop-blur-xl transition-all duration-150 ease-out ${
+        className={`overflow-hidden rounded-[28px] border border-black/[0.07] bg-white/95 shadow-[0_28px_60px_-24px_rgba(17,24,39,0.22)] backdrop-blur-xl transition-all duration-200 ease-out ${
           open ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
         }`}
         role="menu"
       >
-        <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:px-5 lg:grid-cols-3 lg:gap-5 lg:px-5 lg:py-5">
+        <div className="grid grid-cols-1 gap-4 px-5 py-5 sm:px-6 lg:grid-cols-3 lg:gap-6 lg:px-6 lg:py-6">
           {FEATURE_MENU_GROUPS.map((group) => (
             <div key={group.title} className="min-w-0">
               <p className="mb-2 text-[10px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">

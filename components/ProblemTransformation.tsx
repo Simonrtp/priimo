@@ -200,14 +200,23 @@ export default function ProblemTransformation() {
         }}
       />
 
-      {/* Haussmann — fond bas, fondu dans le dégradé (sans impact layout) */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[52%] max-h-[520px] overflow-hidden">
+      {/* Haussmann — fond bas, fondu progressif dans le dégradé (sans impact layout) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[62%] max-h-[580px] overflow-hidden"
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.08) 12%, rgba(0,0,0,0.45) 28%, rgba(0,0,0,0.82) 44%, black 58%, black 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.08) 12%, rgba(0,0,0,0.45) 28%, rgba(0,0,0,0.82) 44%, black 58%, black 100%)",
+        }}
+      >
         <Image
           src="/haussmann.webp"
           alt=""
           fill
           sizes="100vw"
-          className="object-cover object-bottom"
+          className="object-cover object-bottom opacity-90"
           quality={88}
         />
         <div
@@ -215,13 +224,13 @@ export default function ProblemTransformation() {
           style={{
             background: `linear-gradient(
               to bottom,
-              #131A24 0%,
-              rgba(19, 26, 36, 0.94) 10%,
-              rgba(10, 13, 17, 0.82) 24%,
-              rgba(10, 13, 17, 0.58) 40%,
-              rgba(7, 10, 14, 0.32) 58%,
-              rgba(7, 10, 14, 0.1) 74%,
-              transparent 92%
+              rgba(19, 26, 36, 0) 0%,
+              rgba(19, 26, 36, 0.35) 16%,
+              rgba(10, 13, 17, 0.55) 32%,
+              rgba(10, 13, 17, 0.38) 48%,
+              rgba(7, 10, 14, 0.22) 64%,
+              rgba(7, 10, 14, 0.08) 80%,
+              transparent 100%
             )`,
           }}
         />
