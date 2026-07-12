@@ -23,7 +23,7 @@ async function getDirectorOnboardingState(
   const { data: agency } = await supabase
     .from('agencies')
     .select(
-      'zone_type, zone_center_address, zone_latitude, zone_longitude, zone_radius_km, zone_postal_codes',
+      'address, codes_postaux, zone_type, zone_center_address, zone_latitude, zone_longitude, zone_radius_km, zone_postal_codes',
     )
     .eq('id', profile.agency_id)
     .maybeSingle();

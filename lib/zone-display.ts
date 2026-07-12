@@ -3,6 +3,13 @@ import { resolveAgencyZoneType } from '@/lib/agency-zone';
 
 /** Libellé court pour la sidebar (max 3 codes postaux visibles). */
 export function formatZoneSidebarLabel(agency: AgencyRow): string | null {
+  const agencyCodes = agency.codes_postaux;
+  if (agencyCodes && agencyCodes.length > 0) {
+    const codes = [...agencyCodes].sort();
+    if (codes.length <= 3) return `Zone : ${codes.join(', ')}`;
+    return `Zone : ${codes.slice(0, 3).join(', ')} +${codes.length - 3}`;
+  }
+
   const zoneType = resolveAgencyZoneType(agency);
 
   if (zoneType === 'postal_codes') {

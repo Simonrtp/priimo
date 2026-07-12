@@ -6,15 +6,10 @@ import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import ZoneSelector from '@/components/ZoneSelector';
-import {
-  agencyRowToZoneValue,
-  defaultRadiusZoneValue,
-  validateZoneValue,
-  zoneValueToAgencyPayload,
-} from '@/lib/agency-zone';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
+import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
+import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
-import type { ZoneValue } from '@/types/zone';
 import type { NotificationPreferences } from '@/types/database';
 import Modal from '@/components/ui/Modal';
 import SectionTeam from './SectionTeam';
@@ -161,33 +156,65 @@ function SectionAgency() {
   const { agency } = useUser();
   const router = useRouter();
   const [name, setName] = useState(agency.name);
-  const [address, setAddress] = useState(agency.address ?? '');
+  const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(() =>
+    agency.address
+      ? {
+          label: agency.address,
+          latitude: 0,
+          longitude: 0,
+          city: '',
+          postcode: agency.codes_postaux?.[0] ?? '',
+        }
+      : null,
+  );
   const [phone, setPhone] = useState(agency.phone ?? '');
   const [email, setEmail] = useState(agency.email ?? '');
-  const [zone, setZone] = useState<ZoneValue>(
-    () => agencyRowToZoneValue(agency) ?? defaultRadiusZoneValue(),
-  );
-  const [zoneError, setZoneError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const primaryPostcode =
+    agencyAddress?.postcode?.trim() || agency.codes_postaux?.[0]?.trim() || null;
+  const coveredPostalCodes = agency.codes_postaux ?? [];
+
   const save = async () => {
-    const err = validateZoneValue(zone);
-    if (err) {
-      setZoneError(err);
+    const addressLabel = agencyAddress?.label?.trim() ?? '';
+    if (!addressLabel || addressLabel.length < 5) {
+      const err = "Sélectionnez l'adresse de l'agence dans la liste de suggestions.";
+      setAddressError(err);
       toast.error(err);
       return;
     }
-    setZoneError(null);
+    const postcode = agencyAddress?.postcode
+      ? normalizeFrenchPostcode(agencyAddress.postcode)
+      : '';
+    if (!isValidFrenchPostcode(postcode)) {
+      const err = 'Adresse invalide : code postal manquant.';
+      setAddressError(err);
+      toast.error(err);
+      return;
+    }
+    setAddressError(null);
+
+    const initialPrimary = agency.codes_postaux?.[0] ?? null;
+    const extraCodes = (agency.codes_postaux ?? []).filter((c) => c !== initialPrimary);
+    const codesPostaux = [postcode, ...extraCodes.filter((c) => c !== postcode)];
+
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
       .from('agencies')
       .update({
         name: name.trim(),
-        address: address.trim() || null,
+        address: addressLabel,
         phone: phone.trim() || null,
         email: email.trim() || null,
-        ...zoneValueToAgencyPayload(zone),
+        codes_postaux: codesPostaux,
+        zone_type: null,
+        zone_center_address: null,
+        zone_latitude: null,
+        zone_longitude: null,
+        zone_radius_km: null,
+        zone_postal_codes: null,
       })
       .eq('id', agency.id);
     setSaving(false);
@@ -213,14 +240,28 @@ function SectionAgency() {
         </div>
         <div>
           <label htmlFor="agency-address" className={labelClass}>
-            Adresse postale
+            Adresse de l&apos;agence
           </label>
-          <input
+          <AddressAutocomplete
             id="agency-address"
-            className={inputClass}
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            value={agencyAddress?.label ?? ''}
+            onChange={(selected) => {
+              setAgencyAddress(selected);
+              setAddressError(null);
+            }}
+            placeholder="Ex : 12 rue de la Paix, Paris"
+            inputClassName={`${inputClass} pl-10 pr-10`}
           />
+          {primaryPostcode ? (
+            <p className="mt-2 text-sm font-medium text-accent-dark">
+              Secteur : <span className="tabular-nums">{primaryPostcode}</span>
+            </p>
+          ) : null}
+          {addressError ? (
+            <p className="mt-2 text-sm text-red-600" role="alert">
+              {addressError}
+            </p>
+          ) : null}
         </div>
         <div>
           <label htmlFor="agency-phone" className={labelClass}>
@@ -247,19 +288,39 @@ function SectionAgency() {
           />
         </div>
 
-        <div className="border-t border-black/[0.06] pt-5">
-          <h3 className="mb-4 font-semibold text-ink" style={{ fontSize: 15 }}>
-            Zone de prospection
-          </h3>
-          <ZoneSelector
-            value={zone}
-            onChange={(z) => {
-              setZone(z);
-              setZoneError(null);
-            }}
-            error={zoneError}
-            addressInputClassName={`${inputClass} pl-10 pr-10`}
-          />
+        {coveredPostalCodes.length > 0 ? (
+          <div className="border-t border-black/[0.06] pt-5">
+            <p className={labelClass}>Secteurs couverts</p>
+            <p className="mb-3 text-xs text-mute">
+              Vos prospects sont filtrés par code postal. Le secteur principal correspond à
+              l&apos;adresse de votre agence.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {coveredPostalCodes.map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center rounded-lg border border-black/8 bg-soft-warm px-2.5 py-1 text-sm font-medium tabular-nums text-ink"
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="rounded-xl border border-black/[0.08] bg-soft-warm/40 px-4 py-3">
+          <p className="text-sm text-ink" style={{ lineHeight: 1.55 }}>
+            Pour ajouter ou modifier un code postal supplémentaire,{' '}
+            <a
+              href={FOUNDER_WHATSAPP_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-accent-dark underline underline-offset-2 hover:text-accent"
+            >
+              contactez-moi sur WhatsApp
+            </a>
+            .
+          </p>
         </div>
 
         <button

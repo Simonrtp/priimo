@@ -140,13 +140,7 @@ export default function HeroSection() {
       </div>
 
       {/* Démo produit — vidéo en boucle */}
-      <div className="relative mx-auto mt-6 min-w-0 w-full max-w-4xl px-3 sm:mt-8 sm:max-w-5xl sm:px-5 lg:max-w-[1180px]">
-        <Reveal direction="up" delay={150}>
-          <p className="mx-auto mb-3 max-w-xl px-1 text-center text-[12.5px] leading-snug text-gray-500 sm:mb-4 sm:text-[13px]">
-            Voici ce que reçoit une agence chaque lundi.
-          </p>
-        </Reveal>
-
+      <div className="relative mx-auto mt-6 min-w-0 w-full max-w-5xl px-2 sm:mt-8 sm:max-w-6xl sm:px-4 lg:max-w-[1280px] lg:px-5 xl:max-w-[1360px]">
         <Reveal direction="scale" delay={180}>
           <div className="relative mx-auto w-full min-w-0 overflow-hidden rounded-[20px] bg-white shadow-[0_40px_100px_-36px_rgba(30,27,75,0.36)] ring-1 ring-black/[0.06] sm:rounded-[24px]">
             <HeroVideo />
