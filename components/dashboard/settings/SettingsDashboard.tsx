@@ -61,6 +61,13 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
     }
   }, [activeTab, fallback, tabs]);
 
+  useEffect(() => {
+    if (initialTab && tabs.some((t) => t.id === initialTab)) {
+      setActiveTab(initialTab);
+      setMobileOpen(initialTab);
+    }
+  }, [initialTab, tabs]);
+
   const renderSection = (id: SettingsTabId) => {
     switch (id) {
       case 'agency':

@@ -1,107 +1,95 @@
 const SESSION_KEY = 'priimo-welcome-msg';
 
-/** Messages du lundi — livraison hebdo, énergie de début de semaine. */
 const MONDAY: string[] = [
-  'Quoi de mieux que de commencer à prospecter avec Priimo 😉, {name} ?',
-  'Bon lundi {name} — votre liste de la semaine est prête.',
-  'Lundi = jour de chasse aux mandats. Bon courage {name} !',
-  'Nouvelle semaine, nouveaux leads. C\'est parti {name} 🚀',
+  'Bon lundi {name}. Votre liste de prospects pour la semaine est prête.',
+  'Bon lundi {name}. C\'est reparti pour une semaine de prospection avec Priimo.',
+  'Bon lundi {name}. Quelqu\'un dans votre secteur veut probablement vendre.',
+  'Bon lundi {name}. Un café, et on attaque la prospection. ☕',
 ];
 
 const TUESDAY: string[] = [
-  'Mardi productif {name} — qui allez-vous appeler en premier ?',
-  'Bon mardi {name} ! Votre secteur bouge, profitez-en.',
-  'Hey {name}, la prospection attend personne… sauf vous 😄',
+  'Bon mardi {name}. Un bon prospect vaut dix portes frappées au hasard.',
+  'Bon mardi {name}. Votre secteur bouge, profitez-en avant les autres.',
+  'Hey {name}, c\'est mardi. Le moment idéal pour relancer vos prospects.',
 ];
 
 const WEDNESDAY: string[] = [
-  'Mercredi {name} — mi-semaine, mi-mandats (on espère).',
-  'Bon mercredi {name} ! Un lead bien travaillé vaut dix portes frappées.',
-  'Milieu de semaine {name} : parfait pour relancer vos prospects chauds.',
+  'Bon mercredi {name}. On est à mi-semaine, le moment de relancer vos prospects tièdes.',
+  'Bon mercredi {name}. Il reste encore deux jours avant le week-end.',
+  'Hey {name}, en milieu de semaine, votre liste peut encore vous surprendre.',
 ];
 
 const THURSDAY: string[] = [
-  'Jeudi {name} — encore deux jours pour signer ce mandat 💪',
-  'Bon jeudi {name} ! Votre pipeline vous dit bonjour.',
-  'Presque vendredi {name}, mais les mandats ne signent pas tout seuls 😉',
+  'Bon jeudi {name}. Il vous reste deux jours pour signer ce mandat.',
+  'Bon jeudi {name}. Qui allez-vous appeler en premier aujourd\'hui ?',
+  'Hey {name}, presque vendredi. Un coup de fil avant la fin de semaine ?',
 ];
 
 const FRIDAY: string[] = [
-  'Vendredi {name} — une dernière passe sur vos leads avant le week-end ?',
-  'Bon vendredi {name} ! Finissez la semaine en beauté.',
-  'Friday mood {name} : un mandat avant l\'apéro, ça se tente non ? 😄',
+  'Bon vendredi {name}. Une dernière chance de signer avant le week-end ?',
+  'Bon vendredi {name}. Finissez la semaine avec un mandat, ça fait plaisir. 😄',
+  'Hey {name}, c\'est vendredi. Un mandat avant l\'apéro, ça se tente non ?',
 ];
 
 const WEEKEND: string[] = [
-  'Bon week-end {name} — Priimo veille sur votre secteur 😉',
-  'Hey {name}, même le week-end on peut jeter un œil à un bon lead…',
-  'Bienvenue {name} — votre agence ne dort jamais (enfin, presque).',
+  'Bon week-end {name}. Priimo continue de surveiller votre secteur. 😉',
+  'Hey {name}, même le week-end un bon prospect reste un bon prospect.',
+  'Bon week-end {name}. Votre secteur ne dort jamais tout à fait.',
 ];
 
-/** 5h–9h — réveil, café, mise en route. */
 const EARLY_MORNING: string[] = [
-  'L\'heure du café et de Priimo, {name} ? ☕',
-  'Bonjour {name} — le secteur se lève, et vous ?',
-  'Premier café, premier lead ? Bonne matinée {name}.',
-  'Tôt le matin {name} ? Les mandats n\'attendent pas le réveil de tout le monde 😄',
-  'Belle matinée {name} — on attaque la journée ?',
+  'Bonjour {name}. L\'heure du café et de Priimo, non ? ☕',
+  'Bonjour {name}. Votre secteur se lève tôt, et vous aussi apparemment.',
+  'Bonjour {name}. Un café, et on attaque la prospection ?',
+  'Bonjour {name}. Tôt debout ? Les vendeurs ne dorment pas non plus.',
 ];
 
-/** 9h–12h — matinée active. */
 const MORNING: string[] = [
-  'Belle matinée {name} — votre secteur a des choses à vous dire.',
-  'Bon retour {name} — prêt pour une matinée efficace ?',
-  'Hey {name}, c\'est le moment idéal pour décrocher un rendez-vous.',
-  'Matinée en vue {name} — qui est votre prochain appel ?',
-  'Bonjour {name} ! La prospection, c\'est maintenant ou jamais (enfin, surtout maintenant).',
+  'Bon retour {name}. Votre secteur a des vendeurs à vous proposer.',
+  'Bonne matinée {name}. Qui allez-vous appeler en premier ?',
+  'Bonjour {name}. C\'est le moment idéal pour décrocher un rendez-vous.',
+  'Bonne matinée {name}. Votre liste de prospects vous attend.',
 ];
 
-/** 12h–14h — pause déjeuner. */
 const MIDDAY: string[] = [
-  'Un petit creux, {name} ?',
-  'Pause déjeuner {name} — ou pause mandat ? Les deux se cumulent mal 😄',
-  'Midi {name} : sandwich ou signature ? (On ne juge pas.)',
-  'Hey {name}, on mange vite et on rappelle ce lead chaud ?',
-  'L\'heure du déjeuner {name} — votre pipeline, lui, ne fait pas de pause.',
+  'Hey {name}, un petit creux ?',
+  'Bonjour {name}. Pause déjeuner ou pause prospection ? Les deux si vous êtes motivé.',
+  'Hey {name}, on mange vite et on rappelle ce prospect chaud ?',
+  'Bon midi {name}. Vos prospects n\'attendent pas la fin du déjeuner.',
 ];
 
-/** 14h–18h — après-midi. */
 const AFTERNOON: string[] = [
-  'Bel après-midi {name} — encore de la marge pour un mandat.',
-  'Après-midi {name} : parfait pour relancer vos prospects tièdes.',
-  'Hey {name}, l\'après-midi est souvent là que ça se signe.',
-  'Bon retour {name} — votre secteur a des choses à vous dire.',
-  'Après-midi productif {name} ? On en parie oui 💪',
+  'Bon après-midi {name}. C\'est souvent l\'après-midi que les mandats se signent.',
+  'Bon après-midi {name}. Il reste encore du temps pour un mandat aujourd\'hui.',
+  'Hey {name}, relancez ce prospect tiède avant la fin de journée.',
+  'Bon après-midi {name}. Vous allez faire du bon travail, j\'en suis sûr.',
 ];
 
-/** 18h–22h — fin de journée. */
 const EVENING: string[] = [
-  'Fin de journée {name} — une dernière passe sur vos leads ?',
-  'Bonsoir {name} — demain est un autre jour (mais ce soir compte aussi).',
-  'Hey {name}, encore un appel avant de ranger la valise ?',
-  'Soirée {name} — vous méritez un bon lead avant de couper.',
-  'Presque l\'heure de partir {name}… ou presque l\'heure de signer ? 😉',
+  'Bonsoir {name}. Une dernière passe sur vos prospects avant de partir ?',
+  'Bonsoir {name}. Encore un appel avant de ranger la valise ?',
+  'Bonsoir {name}. Vous méritez un bon prospect avant de couper.',
+  'Hey {name}, presque l\'heure de partir. Ou presque l\'heure de signer ? 😉',
 ];
 
-/** 22h–5h — tard le soir / nuit. */
 const LATE_NIGHT: string[] = [
-  'Encore là {name} ? Priimo aussi, visiblement 🌙',
-  'Tard le soir {name} — dévouement ou procrastination ? On ne dit rien.',
-  'Hey {name}, même à cette heure, un bon lead reste un bon lead.',
-  'Nuit blanche prospection {name} ? Respect.',
+  'Hey {name}, encore là ? Priimo aussi visiblement. 🌙',
+  'Bonsoir {name}. Tard dans la nuit, mais un bon prospect reste un bon prospect.',
+  'Hey {name}, nuit blanche prospection ? Chapeau.',
+  'Bonsoir {name}. Dévouement ou procrastination ? On ne juge pas.',
 ];
 
 const ANYTIME: string[] = [
-  'Content de vous revoir, {name} !',
-  'Bienvenue {name} — prêt à transformer des adresses en mandats ?',
-  'Hey {name}, vos prospects n\'attendent que vous 👋',
-  'Ravi de vous retrouver {name} !',
-  'Bon retour {name} — votre secteur a des choses à vous dire.',
-  'Allez {name}, on va faire des heureux (des vendeurs, pas des acheteurs) 😄',
-  'Bienvenue {name} — aujourd\'hui est un bon jour pour prospecter.',
-  '{name}, vos leads sont là. À vous de jouer ⚡',
-  'Tiens {name}, une bonne surprise vous attend dans votre liste.',
+  'Content de vous revoir {name} !',
+  'Hey {name}, vos prospects n\'attendent que vous. 👋',
+  'Ravi de vous retrouver {name}.',
+  'Hey {name}, on va trouver des vendeurs heureux aujourd\'hui. 😄',
+  '{name}, vos prospects sont là. À vous de jouer. ⚡',
+  'Hey {name}, une belle surprise vous attend dans votre liste.',
   'On se remet au boulot {name} ?',
+  'Bienvenue {name}. Quelqu\'un dans votre secteur va vendre, pourquoi pas avec vous ?',
+  'Hey {name}, Priimo a repéré de l\'activité dans votre secteur.',
+  'Prêt {name} ? Votre prochain mandat est peut-être dans cette liste.',
 ];
 
 const BY_DAY: Record<number, string[]> = {
@@ -151,7 +139,6 @@ export function pickDashboardWelcomeMessage(firstName: string): string {
   const now = new Date();
   const timePool = timePoolForHour(now.getHours());
   const dayPool = BY_DAY[now.getDay()] ?? ANYTIME;
-  // Le créneau horaire est doublé pour favoriser les messages du moment.
   const pool = [...timePool, ...timePool, ...dayPool, ...ANYTIME];
   const message = applyName(pickRandom(pool), firstName);
 
@@ -160,4 +147,14 @@ export function pickDashboardWelcomeMessage(firstName: string): string {
   }
 
   return message;
+}
+
+/** Délai entre deux caractères (ms), plus long après la ponctuation. */
+export function welcomeTypeDelay(char: string, nextChar?: string): number {
+  const base = 22 + Math.random() * 28;
+  if (char === ' ') return base + 35;
+  if (char === ',' || char === ';') return base + 90;
+  if (char === '.' || char === '!' || char === '?') return base + 160;
+  if (nextChar === ' ' && (char === ',' || char === '.')) return base + 60;
+  return base;
 }

@@ -124,6 +124,15 @@
   animation: clay-pop var(--dur-slow) var(--ease-clay) both;
 }
 
+@keyframes welcome-cursor-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.welcome-type-cursor {
+  animation: welcome-cursor-blink 0.9s ease-in-out infinite;
+}
+
 /* §7.4 Garde-fou global : respecter prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *,

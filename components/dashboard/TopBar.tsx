@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { HelpCircle } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
@@ -54,13 +55,15 @@ export default function TopBar() {
           <span className="truncate font-medium text-ink" style={{ fontSize: 13 }} title={agency.name}>
             {agency.name}
           </span>
-          <div
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-semibold tabular lg:h-[30px] lg:w-[30px]"
+          <Link
+            href="/dashboard/settings?tab=profile"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-semibold tabular transition-colors hover:bg-primary-200 lg:h-[30px] lg:w-[30px]"
             style={{ fontSize: 11 }}
-            aria-hidden
+            aria-label="Mon profil"
+            title="Mon profil"
           >
             {initials(profile.first_name, profile.last_name)}
-          </div>
+          </Link>
         </div>
       </div>
     </header>
