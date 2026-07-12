@@ -105,7 +105,7 @@ function ScoreGauge() {
 
 export default function Features() {
   return (
-    <section className="py-16 sm:py-28">
+    <section id="features" className="py-16 sm:py-28">
       <div className="relative mx-auto max-w-6xl px-4 sm:px-8 min-w-0">
         <Reveal direction="up">
           <div className="flex justify-center">

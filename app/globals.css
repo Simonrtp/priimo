@@ -1081,3 +1081,136 @@ body {
     animation: none !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════
+   BLOG — typographie article (Inter, colonne ~760-800px)
+   ════════════════════════════════════════════════════════════ */
+
+html:has(.blog-article-page) {
+  scroll-behavior: smooth;
+}
+
+.blog-scroll-anchor {
+  scroll-margin-top: 7.5rem;
+}
+
+.blog-prose-h2 {
+  margin-top: 3.5rem;
+  margin-bottom: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #e8743c;
+  text-wrap: balance;
+}
+
+@media (min-width: 640px) {
+  .blog-prose-h2 {
+    font-size: 2rem;
+  }
+}
+
+.blog-prose-h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1f2937;
+}
+
+.blog-prose-h3-sources {
+  margin-top: 3rem;
+  font-size: 1.125rem;
+}
+
+.blog-prose-h3-sources + .blog-prose-ul {
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.blog-prose-h3-sources + .blog-prose-ul .blog-prose-li {
+  font-size: 0.9375rem;
+}
+
+.blog-prose-p {
+  margin-top: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: #1f2937;
+  text-wrap: pretty;
+}
+
+@media (min-width: 640px) {
+  .blog-prose-p,
+  .blog-prose-li {
+    font-size: 1.125rem;
+  }
+}
+
+.blog-prose-p:first-child {
+  margin-top: 0;
+}
+
+.blog-prose-ul,
+.blog-prose-ol {
+  margin-top: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.blog-prose-ul {
+  list-style: disc;
+}
+
+.blog-prose-ol {
+  list-style: decimal;
+}
+
+.blog-prose-li {
+  margin-top: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: #1f2937;
+}
+
+.blog-toc-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 116, 60, 0.35) transparent;
+}
+
+.blog-prose-blockquote {
+  margin-top: 1.5rem;
+  border-left: 4px solid #e8743c;
+  border-radius: 0 12px 12px 0;
+  background: rgba(255, 247, 240, 0.75);
+  padding: 1rem 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: #374151;
+}
+
+.blog-prose-link {
+  color: #e8743c;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.blog-prose-link:hover {
+  color: #c25e2c;
+}
+
+.blog-prose--compact .blog-prose-p {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+}
+
+.blog-prose--compact .blog-prose-p:first-child {
+  margin-top: 0;
+}

@@ -3,18 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { HelpCircle } from 'lucide-react';
-import { PriimoWord } from '@/components/brand/PriimoWord';
 import { useUser } from '@/lib/hooks/useUser';
 import { useDashboardTour } from '@/components/dashboard/tour/TourProvider';
 
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return 'Priimo';
+    return 'Prospects';
   }
   if (pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')) {
     return 'Paramètres';
   }
-  return 'Priimo';
+  return 'Prospects';
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -37,11 +36,7 @@ export default function TopBar() {
           className="min-w-0 truncate font-bold tracking-tight text-ink text-[19px] md:text-[15px] md:font-semibold"
           style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}
         >
-          {title === 'Priimo' ? (
-            <PriimoWord className="text-[19px] font-bold md:text-[15px]">Priimo</PriimoWord>
-          ) : (
-            title
-          )}
+          {title}
         </span>
       </div>
 

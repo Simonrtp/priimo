@@ -1,5 +1,5 @@
 import CausioScripts from "@/components/landing/CausioScripts";
-import Header from "@/components/Header";
+import SiteHeader from "@/components/SiteHeader";
 import HeroSection from "@/components/HeroSection";
 import ProblemTransformation from "@/components/ProblemTransformation";
 import HowItWorks from "@/components/HowItWorks";
@@ -31,7 +31,7 @@ export default function Page() {
       </div>
 
       {/* === A — HEADER === */}
-      <Header />
+      <SiteHeader />
 
       <main className="relative z-10 min-w-0 overflow-x-clip">
         {/* === B — HERO === */}
