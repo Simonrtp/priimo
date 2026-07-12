@@ -281,15 +281,20 @@ export default function ProspectsClient({
         />
       )}
 
-      <div className="max-md:pt-4">
-        <DashboardKpis leads={leads} newBatchCount={initialNewBatchCount} />
-      </div>
+      <div className="flex flex-col">
+        <DashboardWelcome
+          firstName={profile.first_name}
+          className="order-2 mb-3 md:order-1 md:mb-4"
+        />
 
-      <div className="mb-3 md:mb-3">
-        <DashboardWelcome firstName={profile.first_name} />
-        <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
+        <div className="order-1 max-md:pt-4 md:order-2">
+          <DashboardKpis leads={leads} newBatchCount={initialNewBatchCount} />
+        </div>
 
-        <ProspectsListToolbar
+        <div className="order-3 mb-3 md:mb-3">
+          <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
+
+          <ProspectsListToolbar
           count={filtered.length}
           viewMode={prospectsView}
           onViewModeChange={(v) => {
@@ -301,6 +306,7 @@ export default function ProspectsClient({
           onOpenFilters={() => setFiltersSheetOpen(true)}
           showExportCsv={isDirector}
         />
+        </div>
       </div>
 
       <div className="mb-4 hidden md:block">

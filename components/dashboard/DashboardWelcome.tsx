@@ -3,26 +3,31 @@
 import { useEffect, useState } from 'react';
 import { pickDashboardWelcomeMessage } from '@/lib/dashboard-welcome';
 
-export default function DashboardWelcome({ firstName }: { firstName: string }) {
+type DashboardWelcomeProps = {
+  firstName: string;
+  className?: string;
+};
+
+export default function DashboardWelcome({ firstName, className = '' }: DashboardWelcomeProps) {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setMessage(pickDashboardWelcomeMessage(firstName));
   }, [firstName]);
 
+  const baseClass =
+    'font-display text-pretty font-medium leading-snug text-[var(--text-strong)] text-[17px] md:text-[19px]';
+
   if (!message) {
     return (
-      <p
-        className="mb-3 min-h-[1.25rem] text-[15px] font-medium leading-snug text-ink md:mb-4 md:text-base"
-        aria-hidden
-      >
+      <p className={`${baseClass} min-h-[1.35rem] ${className}`} aria-hidden>
         &nbsp;
       </p>
     );
   }
 
   return (
-    <p className="mb-3 text-[15px] font-medium leading-snug text-ink md:mb-4 md:text-base">
+    <p className={`${baseClass} ${className}`} aria-live="polite">
       {message}
     </p>
   );

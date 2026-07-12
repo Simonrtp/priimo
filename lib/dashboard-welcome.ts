@@ -38,6 +38,59 @@ const WEEKEND: string[] = [
   'Bienvenue {name} — votre agence ne dort jamais (enfin, presque).',
 ];
 
+/** 5h–9h — réveil, café, mise en route. */
+const EARLY_MORNING: string[] = [
+  'L\'heure du café et de Priimo, {name} ? ☕',
+  'Bonjour {name} — le secteur se lève, et vous ?',
+  'Premier café, premier lead ? Bonne matinée {name}.',
+  'Tôt le matin {name} ? Les mandats n\'attendent pas le réveil de tout le monde 😄',
+  'Belle matinée {name} — on attaque la journée ?',
+];
+
+/** 9h–12h — matinée active. */
+const MORNING: string[] = [
+  'Belle matinée {name} — votre secteur a des choses à vous dire.',
+  'Bon retour {name} — prêt pour une matinée efficace ?',
+  'Hey {name}, c\'est le moment idéal pour décrocher un rendez-vous.',
+  'Matinée en vue {name} — qui est votre prochain appel ?',
+  'Bonjour {name} ! La prospection, c\'est maintenant ou jamais (enfin, surtout maintenant).',
+];
+
+/** 12h–14h — pause déjeuner. */
+const MIDDAY: string[] = [
+  'Un petit creux, {name} ?',
+  'Pause déjeuner {name} — ou pause mandat ? Les deux se cumulent mal 😄',
+  'Midi {name} : sandwich ou signature ? (On ne juge pas.)',
+  'Hey {name}, on mange vite et on rappelle ce lead chaud ?',
+  'L\'heure du déjeuner {name} — votre pipeline, lui, ne fait pas de pause.',
+];
+
+/** 14h–18h — après-midi. */
+const AFTERNOON: string[] = [
+  'Bel après-midi {name} — encore de la marge pour un mandat.',
+  'Après-midi {name} : parfait pour relancer vos prospects tièdes.',
+  'Hey {name}, l\'après-midi est souvent là que ça se signe.',
+  'Bon retour {name} — votre secteur a des choses à vous dire.',
+  'Après-midi productif {name} ? On en parie oui 💪',
+];
+
+/** 18h–22h — fin de journée. */
+const EVENING: string[] = [
+  'Fin de journée {name} — une dernière passe sur vos leads ?',
+  'Bonsoir {name} — demain est un autre jour (mais ce soir compte aussi).',
+  'Hey {name}, encore un appel avant de ranger la valise ?',
+  'Soirée {name} — vous méritez un bon lead avant de couper.',
+  'Presque l\'heure de partir {name}… ou presque l\'heure de signer ? 😉',
+];
+
+/** 22h–5h — tard le soir / nuit. */
+const LATE_NIGHT: string[] = [
+  'Encore là {name} ? Priimo aussi, visiblement 🌙',
+  'Tard le soir {name} — dévouement ou procrastination ? On ne dit rien.',
+  'Hey {name}, même à cette heure, un bon lead reste un bon lead.',
+  'Nuit blanche prospection {name} ? Respect.',
+];
+
 const ANYTIME: string[] = [
   'Content de vous revoir, {name} !',
   'Bienvenue {name} — prêt à transformer des adresses en mandats ?',
@@ -47,6 +100,8 @@ const ANYTIME: string[] = [
   'Allez {name}, on va faire des heureux (des vendeurs, pas des acheteurs) 😄',
   'Bienvenue {name} — aujourd\'hui est un bon jour pour prospecter.',
   '{name}, vos leads sont là. À vous de jouer ⚡',
+  'Tiens {name}, une bonne surprise vous attend dans votre liste.',
+  'On se remet au boulot {name} ?',
 ];
 
 const BY_DAY: Record<number, string[]> = {
@@ -58,6 +113,15 @@ const BY_DAY: Record<number, string[]> = {
   5: FRIDAY,
   6: WEEKEND,
 };
+
+function timePoolForHour(hour: number): string[] {
+  if (hour >= 5 && hour < 9) return EARLY_MORNING;
+  if (hour >= 9 && hour < 12) return MORNING;
+  if (hour >= 12 && hour < 14) return MIDDAY;
+  if (hour >= 14 && hour < 18) return AFTERNOON;
+  if (hour >= 18 && hour < 22) return EVENING;
+  return LATE_NIGHT;
+}
 
 function formatName(firstName: string): string {
   const trimmed = firstName.trim();
@@ -75,6 +139,7 @@ function pickRandom<T>(items: T[]): T {
 
 /**
  * Message d'accueil varié, léger et un peu humoristique.
+ * Mélange créneau horaire + jour de la semaine + messages génériques.
  * Stable pendant la session navigateur (sessionStorage), nouveau tirage à chaque connexion.
  */
 export function pickDashboardWelcomeMessage(firstName: string): string {
@@ -83,8 +148,11 @@ export function pickDashboardWelcomeMessage(firstName: string): string {
     if (stored) return stored;
   }
 
-  const dayPool = BY_DAY[new Date().getDay()] ?? ANYTIME;
-  const pool = [...dayPool, ...ANYTIME];
+  const now = new Date();
+  const timePool = timePoolForHour(now.getHours());
+  const dayPool = BY_DAY[now.getDay()] ?? ANYTIME;
+  // Le créneau horaire est doublé pour favoriser les messages du moment.
+  const pool = [...timePool, ...timePool, ...dayPool, ...ANYTIME];
   const message = applyName(pickRandom(pool), firstName);
 
   if (typeof window !== 'undefined') {
