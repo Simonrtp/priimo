@@ -1086,7 +1086,8 @@ body {
    BLOG — typographie article (Inter, colonne ~760-800px)
    ════════════════════════════════════════════════════════════ */
 
-html:has(.blog-article-page) {
+html:has(.blog-article-page),
+html:has(.feature-page) {
   scroll-behavior: smooth;
 }
 
