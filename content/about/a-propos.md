@@ -2,7 +2,7 @@
 
 Je m'appelle Simon. J'ai 20 ans, je suis étudiant en école d'ingénieurs, et j'ai construit Priimo.
 
-Avant Priimo, je vendais un autre outil aux agences immobilières. Un chatbot. Pour le vendre, j'ai fait ce que font tous les fondateurs qui n'ont pas de budget : j'ai appelé des agences, une par une, et j'ai posé des questions.
+Avant Priimo, je vendais un autre outil aux agences immobilières : un [chatbot](https://causio.fr). Pour le vendre, j'ai fait ce que font tous les fondateurs qui n'ont pas de budget : j'ai appelé des agences, une par une, et j'ai posé des questions.
 
 Ce n'est pas le chatbot qui les intéressait.
 
