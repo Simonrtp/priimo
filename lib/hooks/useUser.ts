@@ -2,13 +2,16 @@
 
 import { createContext, useContext } from 'react';
 import type { AgencyRow, ProfileRow } from '@/types/database';
+import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 
 export interface UserContextValue {
   user: { id: string; email: string };
   profile: ProfileRow;
   agency: AgencyRow;
+  memberships: ProfileAgencyMembership[];
   isDirector: boolean;
   isCollaborator: boolean;
+  hasMultipleAgencies: boolean;
 }
 
 export const UserContext = createContext<UserContextValue | null>(null);

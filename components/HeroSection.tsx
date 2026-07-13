@@ -41,9 +41,10 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-body mx-auto mt-0 max-w-[820px] leading-[1.7] mb-4 sm:mb-5 sm:max-w-[880px] lg:max-w-[960px]">
-              Priimo est le logiciel de prospection prédictive qui repère les signaux publics
-              précédant une vente — DPE refait, SCI en dissolution — et vous livre chaque lundi
-              les adresses prioritaires de votre secteur.
+              Priimo est le logiciel de prospection prédictive pour les agences immobilières qui
+              repère des signaux publics et privés précédant une vente — DPE refait, SCI en
+              dissolution, événement de vie, copro — et vous livre chaque lundi les adresses
+              prioritaires de votre secteur.
             </p>
 
             <ul className="mt-4 flex flex-col items-center gap-2.5 sm:mt-5 lg:flex-row lg:flex-wrap lg:justify-center lg:gap-x-6 lg:gap-y-2 xl:gap-x-8">
@@ -102,20 +103,6 @@ export default function HeroSection() {
           <div className="relative mx-auto w-full min-w-0 overflow-hidden rounded-[20px] bg-white shadow-[0_40px_100px_-36px_rgba(30,27,75,0.36)] ring-1 ring-black/[0.06] sm:rounded-[24px]">
             <HeroVideo />
           </div>
-        </Reveal>
-
-        <Reveal direction="up" delay={220} className="mt-6 flex justify-center sm:mt-8">
-          <a
-            href={CALENDLY_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-ghost px-5 py-2.5 text-sm"
-          >
-            Réserver une démo
-            <span data-arrow aria-hidden>
-              →
-            </span>
-          </a>
         </Reveal>
       </div>
     </section>

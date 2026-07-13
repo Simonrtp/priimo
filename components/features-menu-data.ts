@@ -39,8 +39,8 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
         icon: Sparkles,
       },
       {
-        title: 'Données publiques',
-        description: 'DPE, DVF, BODACC, copropriétés',
+        title: 'Bases de données',
+        description: 'DPE, DVF, BODACC, données privées',
         href: '/fonctionnalites/scoring#sources',
         icon: Database,
       },

@@ -7,11 +7,11 @@
 Les termes suivants, lorsqu'ils sont employés avec une majuscule dans les présentes Conditions Générales d'Utilisation (« CGU »), ont la signification suivante :
 
 - **« Priimo »** ou **« Nous »** : désigne l'auto-entreprise exploitant le service Priimo, immatriculée, représentée par Simon ROPIOT, dont le siège social est situé au 27 rue A. Peunaud, Paris.
-- **« Service »** : désigne la plateforme SaaS Priimo accessible à l'adresse priimo.fr, permettant aux agences immobilières d'identifier des propriétaires susceptibles de vendre leur bien immobilier grâce à l'analyse de données publiques et à un algorithme de scoring prédictif.
+- **« Service »** : désigne la plateforme SaaS Priimo accessible à l'adresse priimo.fr, permettant aux agences immobilières d'identifier des propriétaires susceptibles de vendre leur bien immobilier grâce à l'analyse de bases de données immobilières et à un algorithme de scoring prédictif.
 - **« Client »** ou **« Vous »** : désigne toute agence immobilière ou mandataire indépendant ayant souscrit un abonnement au Service.
 - **« Directeur »** : désigne l'utilisateur principal du Client, ayant accès à toutes les fonctionnalités du Service, y compris la gestion de l'équipe et de l'abonnement.
 - **« Collaborateur »** : désigne un utilisateur rattaché au compte d'un Directeur, ayant accès aux fonctionnalités de prospection mais sans droits d'administration.
-- **« Données Publiques »** : désigne les données issues de sources publiques françaises (DVF, DPE ADEME, BODACC, Cadastre, INSEE) utilisées par Priimo pour générer les Prospects.
+- **« Données Publiques »** : désigne les données issues de sources publiques françaises (DVF, DPE ADEME, BODACC, Cadastre, INSEE) parmi les bases utilisées par Priimo pour générer les Prospects.
 - **« Prospects »** : désigne les biens immobiliers et informations associées fournis par le Service, identifiés comme ayant une probabilité élevée de mise en vente.
 - **« Zone Exclusive »** : désigne le territoire géographique défini lors de la souscription, sur lequel le Client bénéficie d'un accès exclusif aux Prospects générés par le Service.
 
@@ -66,13 +66,14 @@ Le Service permet au Client de :
 
 ### 4.2 Méthodologie
 
-Priimo génère les Prospects en croisant des Données Publiques françaises avec un algorithme propriétaire de scoring prédictif. Les sources de données incluent, sans s'y limiter :
+Priimo génère les Prospects en croisant des bases de données françaises (publiques et privées, dont notamment les Données Publiques) avec un algorithme propriétaire de scoring prédictif. Les sources de données incluent, sans s'y limiter :
 
 - **DVF** (Demandes de Valeurs Foncières) : transactions immobilières.
 - **DPE ADEME** : diagnostics de performance énergétique.
 - **BODACC** : événements juridiques des sociétés (dissolutions, liquidations, cessions).
 - **Cadastre** : identification des propriétaires de biens immobiliers.
 - **INSEE / IRIS** : données démographiques et économiques.
+- **Données privées** : événements de vie (décès, successions, mutations, etc.) utilisés pour qualifier les prospects.
 
 Le scoring est ajusté en continu sur la base des retours des Clients (mandats signés, prospects non convertis).
 
@@ -94,7 +95,7 @@ En particulier, le Client s'interdit de :
 - Constituer ou enrichir des fichiers de personnes physiques avec des données personnelles non autorisées (nom, téléphone personnel, raisons personnelles de vente).
 - Utiliser les Prospects à des fins autres que la prospection immobilière légale (porte-à-porte, courrier postal ciblé, contact professionnel pour les SCI/SARL).
 
-**Pour les Prospects identifiés comme détenus par des personnes morales (SCI, SARL) :** le Client peut utiliser les coordonnées professionnelles fournies (nom du dirigeant, téléphone professionnel, email professionnel) conformément à la législation applicable, ces données étant de nature publique et commerciale.
+**Pour les Prospects identifiés comme détenus par des personnes morales (SCI, SARL) :** le Client peut utiliser les coordonnées professionnelles fournies (nom du dirigeant, téléphone professionnel, email professionnel) conformément à la législation applicable, ces données étant de nature commerciale et issues de registres officiels.
 
 ### 5.2 Utilisation autorisée
 

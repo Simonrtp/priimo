@@ -4,13 +4,13 @@ import {
   Building2,
   LayoutGrid,
   Hammer,
+  LockKeyhole,
   type LucideIcon,
 } from 'lucide-react';
 import Reveal from '@/components/Reveal';
 
 // === SOURCE GRID (bloc C) ===
-// Les cinq bases publiques croisées par Priimo. Icône + source + apport en une
-// ligne. 2 colonnes mobile / 3 colonnes desktop, léger lift au survol.
+// Les bases croisées par Priimo. Icône + source + apport en une ligne.
 
 type Source = {
   Icon: LucideIcon;
@@ -28,6 +28,7 @@ const SOURCES: Source[] = [
     brings: 'Les copros fragilisées',
   },
   { Icon: Hammer, name: 'Permis de construire', brings: 'Les chantiers en cours' },
+  { Icon: LockKeyhole, name: 'Données privées', brings: 'Les événements de vie' },
 ];
 
 export default function SourceGrid() {

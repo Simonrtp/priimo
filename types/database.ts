@@ -48,6 +48,8 @@ export type ProfileRow = {
   id: string;
   agency_id: string;
   role: ProfileRole;
+  /** Agence affichée dans le dashboard ; NULL = agency_id. */
+  active_agency_id?: string | null;
   first_name: string;
   last_name: string;
   phone: string | null;
@@ -155,6 +157,20 @@ export type AgencyInsert = {
   updated_at?: string;
 };
 
+export type ProfileAgencyRow = {
+  profile_id: string;
+  agency_id: string;
+  role: ProfileRole;
+  created_at: string;
+};
+
+export type ProfileAgencyInsert = {
+  profile_id: string;
+  agency_id: string;
+  role: ProfileRole;
+  created_at?: string;
+};
+
 export type ProfileInsert = {
   id: string;
   agency_id: string;
@@ -162,6 +178,7 @@ export type ProfileInsert = {
   first_name: string;
   last_name: string;
   phone?: string | null;
+  active_agency_id?: string | null;
   preferences?: ProfilePreferences;
   created_at?: string;
   updated_at?: string;
@@ -240,9 +257,16 @@ export type Database = {
         Update: Partial<LeadRow>;
         Relationships: [];
       };
+      profile_agencies: {
+        Row: ProfileAgencyRow;
+        Insert: ProfileAgencyInsert;
+        Update: Partial<ProfileAgencyRow>;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
+      current_user_agency_ids: { Args: Record<string, never>; Returns: string[] };
       current_user_agency_id: { Args: Record<string, never>; Returns: string };
       current_user_role: { Args: Record<string, never>; Returns: string };
     };

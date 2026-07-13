@@ -24,7 +24,7 @@ Selon votre usage, nous pouvons traiter :
 - **Données de prise de contact** : informations transmises via Calendly, email ou WhatsApp.
 - **Données techniques** : logs, adresse IP, type de navigateur, à des fins de sécurité et de bon fonctionnement.
 
-**Prospects affichés dans le service** : Priimo croise des **données publiques** (DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, cadastre). Pour les **particuliers**, nous affichons des adresses et signaux — **pas de nom ni de téléphone personnel**. Pour les **sociétés (SCI/SARL)**, des informations de dirigeants issues de registres légaux publics peuvent être présentées.
+**Prospects affichés dans le service** : Priimo croise des **bases de données** françaises (DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, cadastre, données privées pour les événements de vie). Pour les **particuliers**, nous affichons des adresses et signaux — **pas de nom ni de téléphone personnel**. Pour les **sociétés (SCI/SARL)**, des informations de dirigeants issues de registres légaux officiels peuvent être présentées.
 
 ## 4. Finalités et bases légales
 

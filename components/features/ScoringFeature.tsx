@@ -39,7 +39,7 @@ export default function ScoringFeature() {
           />
         </Band>
 
-        {/* 3 — Cinq bases publiques croisées */}
+        {/* 3 — Bases de données croisées */}
         <Band tone="cream">
           <SectionHead
             id={sources.id}

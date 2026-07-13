@@ -14,7 +14,7 @@ C'est la seule étude de marché que j'ai faite : écouter des gens me dire, san
 
 Trouver un vendeur avant qu'il ne soit sur le marché, c'est le métier le plus difficile de l'immobilier. Le téléphone se ferme. Les portails vendent des contacts que dix agences ont déjà appelés. Et le porte-à-porte, c'est mille portes pour une bonne.
 
-Pourtant, les signaux existent. Ils sont même **publics**.
+Pourtant, les signaux existent. Ils sont là, **dans les données**.
 
 Un DPE coûte entre 100 et 250 euros. Personne ne le refait par plaisir : on le refait pour vendre ou pour louer. Une SCI qui se dissout, c'est un patrimoine qui va être partagé. Un immeuble où trois appartements changent de mains en un an, c'est un immeuble qui bouge. Une copropriété qui perd son syndic, c'est une copropriété en difficulté.
 
@@ -30,7 +30,7 @@ J'ai vu ce que les agences reprochent aux outils qu'elles ont essayés. J'en ai 
 
 **J'explique toujours pourquoi.** Un score sans explication, c'est une boîte noire — et une boîte noire ne se défend pas devant un agent. Chaque lead Priimo arrive avec ses signaux : ce qui a été détecté, et ce que ça veut dire.
 
-**Je ne vends pas de données personnelles.** Priimo travaille sur des données publiques. Pour les particuliers, vous recevez une adresse et un contexte — jamais un nom acheté à un courtier.
+**Je ne vends pas de données personnelles.** Priimo croise des bases de données publiques et privées. Pour les particuliers, vous recevez une adresse et un contexte — jamais un nom acheté à un courtier.
 
 **Je ne vends pas le même secteur à deux agences.** Un avantage que tout le monde a n'est plus un avantage.
 

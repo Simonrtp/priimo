@@ -8,12 +8,12 @@ import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
 import DashboardTourProvider from '@/components/dashboard/tour/TourProvider';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, agency } = await getServerUser();
+  const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
   if (profile.role === 'directeur' && agencyNeedsOnboarding(agency)) redirect('/onboarding');
 
   return (
-    <UserProvider user={user} profile={profile} agency={agency}>
+    <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
       <DashboardTourProvider>
         <div className="flex bg-bg-base" style={{ height: '100dvh', overflow: 'hidden' }}>
           <Sidebar />

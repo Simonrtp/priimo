@@ -7,6 +7,7 @@ import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { formatZoneSidebarLabel } from '@/lib/zone-display';
 import { PriimoWord } from '@/components/brand/PriimoWord';
+import AgencySwitcher from '@/components/dashboard/AgencySwitcher';
 import { useUser } from '@/lib/hooks/useUser';
 const NAV_ICON = '#7B9AC0';
 const ACCENT = '#E8743C';
@@ -107,17 +108,7 @@ export default function Sidebar() {
         className="mx-1.5 mb-3 hidden rounded-[12px] px-3 py-3 lg:mx-3 lg:block"
         style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
       >
-        <p className="truncate font-medium text-white" style={{ fontSize: 14 }} title={agency.name}>
-          {agency.name}
-        </p>
-        {zoneLabel && (
-          <p
-            className="mt-1.5 truncate text-[11px] leading-snug text-white/65"
-            title={zoneLabel}
-          >
-            {zoneLabel}
-          </p>
-        )}
+        <AgencySwitcher zoneLabel={zoneLabel} />
       </div>
 
       <div className="mx-1.5 mb-4 hidden items-center gap-2 rounded-[12px] px-3 py-2 lg:mx-3 lg:flex" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>

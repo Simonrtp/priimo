@@ -75,7 +75,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Priimo — Prospection immobilière prédictive",
     description:
-      "Événements de vie et signaux publics, livrés chaque semaine sur votre secteur exclusif.",
+      "Événements de vie et signaux de marché, livrés chaque semaine sur votre secteur exclusif.",
     url: "/",
     siteName: "Priimo",
     locale: "fr_FR",
@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Priimo — Prospection immobilière prédictive",
     description:
-      "Événements de vie et signaux publics, livrés chaque semaine sur votre secteur exclusif.",
+      "Événements de vie et signaux de marché, livrés chaque semaine sur votre secteur exclusif.",
   },
   icons: {
     icon: [{ url: "/Logo.png", type: "image/png" }],

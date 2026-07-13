@@ -72,6 +72,20 @@ export async function POST(request: Request) {
       );
     }
 
+    const { error: membershipError } = await supabaseAdmin.from('profile_agencies').insert({
+      profile_id: authData.user.id,
+      agency_id: invitation.agency_id,
+      role: 'collaborateur',
+    });
+
+    if (membershipError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return NextResponse.json(
+        { error: 'Erreur rattachement agence : ' + membershipError.message },
+        { status: 500 },
+      );
+    }
+
     await supabaseAdmin
       .from('invitations')
       .update({ used_at: new Date().toISOString() })

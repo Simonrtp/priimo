@@ -30,13 +30,13 @@ export const SCORING_PAGE: FeaturePageContent = {
   meta: {
     title: 'Scoring prédictif',
     description:
-      'Comment Priimo lit les signaux publics — DPE, DVF, BODACC, copropriétés — pour noter chaque adresse de 0 à 100 et expliquer pourquoi.',
+      'Comment Priimo lit les signaux immobiliers — DPE, DVF, BODACC, copropriétés — pour noter chaque adresse de 0 à 100 et expliquer pourquoi.',
     path: '/fonctionnalites/scoring',
   },
   label: 'DÉTECTION',
   h1: 'Comment Priimo sait qui va vendre',
   accroche:
-    'Un DPE coûte entre 100 et 250 euros. Personne ne le refait par plaisir. Priimo lit ce genre de signaux dans les données publiques, et vous dit où aller.',
+    'Un DPE coûte entre 100 et 250 euros. Personne ne le refait par plaisir. Priimo lit ce genre de signaux dans ses bases de données, et vous dit où aller.',
   sections: [
     {
       key: 'signal',
@@ -48,9 +48,9 @@ export const SCORING_PAGE: FeaturePageContent = {
     {
       key: 'sources',
       id: 'sources',
-      title: 'Cinq bases publiques, croisées',
+      title: 'Bases de données, croisées',
       paragraphs: [
-        'DPE (ADEME) : l\'intention. DVF : les ventes réelles, l\'historique, les cascades d\'immeuble. BODACC : les SCI qui se dissolvent. Registre des copropriétés : les copropriétés fragilisées. Permis de construire : les chantiers en cours. Toutes publiques, toutes gratuites, toutes illisibles brutes. Priimo les croise.',
+        'DPE (ADEME) : l\'intention. DVF : les ventes réelles, l\'historique, les cascades d\'immeuble. BODACC : les SCI qui se dissolvent. Registre des copropriétés : les copropriétés fragilisées. Permis de construire : les chantiers en cours. Données privées : les événements de vie. Brutes, elles sont illisibles. Priimo les croise.',
       ],
     },
     {
@@ -69,7 +69,7 @@ export const SCORING_PAGE: FeaturePageContent = {
       ],
     },
   ],
-  enClair: 'Priimo ne devine pas. Il lit des faits publics, les croise, et vous montre lesquels comptent.',
+  enClair: 'Priimo ne devine pas. Il lit des faits vérifiables, les croise, et vous montre lesquels comptent.',
 };
 
 export const SCI_PAGE: FeaturePageContent = {

@@ -2,15 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const VIDEO_SRC_DESKTOP = "/Priimo Video2.mp4";
-const VIDEO_SRC_MOBILE = "/Priimo Video 3.mp4";
-
-function pickVideoSrc(): string {
-  if (typeof window === "undefined") return VIDEO_SRC_DESKTOP;
-  return window.matchMedia("(max-width: 767px)").matches
-    ? VIDEO_SRC_MOBILE
-    : VIDEO_SRC_DESKTOP;
-}
+const VIDEO_SRC = "/Priimo Video5.mp4";
 
 /** Vidéo hero : source chargée uniquement à l'approche du viewport, lecture au scroll. */
 export default function HeroVideo() {
@@ -27,7 +19,7 @@ export default function HeroVideo() {
       ([entry]) => {
         if (!entry.isIntersecting) return;
 
-        setVideoSrc((current) => current ?? pickVideoSrc());
+        setVideoSrc((current) => current ?? VIDEO_SRC);
 
         if (hasPlayedRef.current) return;
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;

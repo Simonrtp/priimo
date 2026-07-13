@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
+import { resolveActiveAgencyId, resolveActiveRole } from '@/lib/auth/active-agency';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env';
 
 const PUBLIC_ROUTES = new Set(['/', '/login', '/invite', '/cgu']);
@@ -12,11 +13,24 @@ async function getDirectorOnboardingState(
 ): Promise<{ isDirector: boolean; needsOnboarding: boolean }> {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, agency_id')
+    .select('role, agency_id, active_agency_id')
     .eq('id', userId)
     .maybeSingle();
 
-  if (!profile || profile.role !== 'directeur') {
+  if (!profile) {
+    return { isDirector: false, needsOnboarding: false };
+  }
+
+  const { data: membershipRows } = await supabase
+    .from('profile_agencies')
+    .select('agency_id, role')
+    .eq('profile_id', userId);
+
+  const memberships = membershipRows ?? [];
+  const activeAgencyId = resolveActiveAgencyId(profile, memberships);
+  const activeRole = resolveActiveRole(profile, memberships, activeAgencyId);
+
+  if (activeRole !== 'directeur') {
     return { isDirector: false, needsOnboarding: false };
   }
 
@@ -25,7 +39,7 @@ async function getDirectorOnboardingState(
     .select(
       'address, codes_postaux, zone_type, zone_center_address, zone_latitude, zone_longitude, zone_radius_km, zone_postal_codes',
     )
-    .eq('id', profile.agency_id)
+    .eq('id', activeAgencyId)
     .maybeSingle();
 
   return {

@@ -78,6 +78,7 @@ export async function POST(request: Request) {
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: authData.user.id,
       agency_id: agency.id,
+      active_agency_id: agency.id,
       role: 'directeur',
       first_name: firstName.trim(),
       last_name: lastName.trim(),
@@ -89,6 +90,21 @@ export async function POST(request: Request) {
       await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
       return NextResponse.json(
         { error: 'Erreur création profil : ' + profileError.message },
+        { status: 500 },
+      );
+    }
+
+    const { error: membershipError } = await supabaseAdmin.from('profile_agencies').insert({
+      profile_id: authData.user.id,
+      agency_id: agency.id,
+      role: 'directeur',
+    });
+
+    if (membershipError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
+      return NextResponse.json(
+        { error: 'Erreur rattachement agence : ' + membershipError.message },
         { status: 500 },
       );
     }

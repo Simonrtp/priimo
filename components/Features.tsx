@@ -58,7 +58,7 @@ function ShareIcon() {
 const FEATURES: Feature[] = [
   {
     title: "Un score prédictif sur chaque adresse",
-    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur.",
+    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, données privées : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur.",
     href: "/fonctionnalites/scoring",
     Icon: ChartIcon,
   },

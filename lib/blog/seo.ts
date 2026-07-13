@@ -7,7 +7,7 @@ const DEFAULT_OG = '/Logo.png';
 export function blogIndexMetadata(): Metadata {
   const title = 'Le blog Priimo';
   const description =
-    'Prospection immobilière, données publiques et réglementation — ce qu\'il faut savoir pour trouver des vendeurs avant le marché.';
+    'Prospection immobilière, bases de données et réglementation — ce qu\'il faut savoir pour trouver des vendeurs avant le marché.';
 
   return {
     title,

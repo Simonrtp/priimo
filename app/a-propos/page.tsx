@@ -11,12 +11,12 @@ import { CALENDLY_URL } from '@/lib/calendly';
 export const metadata: Metadata = {
   title: 'À propos',
   description:
-    'Simon Ropiot, fondateur de Priimo : pourquoi un étudiant en école d\'ingénieurs a construit un outil de prospection immobilière basé sur les données publiques.',
+    'Simon Ropiot, fondateur de Priimo : pourquoi un étudiant en école d\'ingénieurs a construit un outil de prospection immobilière basé sur le croisement de bases de données.',
   alternates: { canonical: '/a-propos' },
   openGraph: {
     title: 'À propos — Priimo',
     description:
-      'L\'histoire de Priimo : écouter les agences, croiser les données publiques, et refuser le volume aveugle.',
+      'L\'histoire de Priimo : écouter les agences, croiser les bases de données, et refuser le volume aveugle.',
     url: '/a-propos',
     type: 'website',
     locale: 'fr_FR',
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'À propos — Priimo',
     description:
-      'L\'histoire de Priimo : écouter les agences, croiser les données publiques, et refuser le volume aveugle.',
+      'L\'histoire de Priimo : écouter les agences, croiser les bases de données, et refuser le volume aveugle.',
     images: ['/Tintin_image_2.jpg'],
   },
   robots: { index: true, follow: true },

@@ -93,7 +93,7 @@ function FooterContent() {
             Priimo
           </Link>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/60">
-            Prospection immobilière prédictive, sur données publiques.
+            Prospection immobilière prédictive, sur bases de données croisées.
           </p>
         </div>
 

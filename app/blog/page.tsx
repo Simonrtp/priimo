@@ -15,7 +15,7 @@ export default function BlogIndexPage() {
       <main className="mx-auto w-full max-w-[1200px] px-5 pb-8 pt-28 sm:px-8 sm:pb-12 sm:pt-32 min-w-0">
         <h1 className="text-h1 max-w-3xl text-balance">Le blog Priimo</h1>
         <p className="text-body mt-4 max-w-2xl text-pretty sm:mt-5">
-          Prospection immobilière, données publiques et réglementation — ce qu&apos;il faut savoir
+          Prospection immobilière, bases de données et réglementation — ce qu&apos;il faut savoir
           pour trouver des vendeurs avant le marché.
         </p>
 

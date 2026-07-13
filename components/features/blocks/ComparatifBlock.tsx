@@ -117,7 +117,7 @@ export default function ComparatifBlock() {
               />
               <p className="text-[12.5px] leading-snug text-gray-600">
                 <span className="font-semibold text-gray-800">Contact direct</span>{' '}
-                — données légales publiques.
+                — registres officiels.
               </p>
             </div>
           </div>

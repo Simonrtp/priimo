@@ -17,11 +17,11 @@ type Item = {
 const FAQS: Item[] = [
   {
     q: "C'est quoi exactement, Priimo ?",
-    a: "Priimo est un logiciel de prospection prédictive pour agences immobilières. Il croise des bases publiques françaises (DVF, DPE, BODACC, copropriétés, permis de construire) pour repérer les signaux qui précèdent une mise en vente : DPE refait, ventes en série dans un immeuble, copropriété fragilisée, SCI en dissolution. Chaque semaine, vous recevez une liste d'adresses scorées et priorisées sur votre secteur exclusif, avec le contexte pour agir.",
+    a: "Priimo est un logiciel de prospection prédictive pour agences immobilières. Il croise des bases de données françaises (DVF, DPE, BODACC, copropriétés, permis de construire, données privées) pour repérer les signaux qui précèdent une mise en vente : DPE refait, ventes en série dans un immeuble, copropriété fragilisée, SCI en dissolution, événements de vie. Chaque semaine, vous recevez une liste d'adresses scorées et priorisées sur votre secteur exclusif, avec le contexte pour agir.",
   },
   {
     q: "Est-ce que ça fonctionne vraiment ?",
-    a: "Priimo ne promet pas des mandats par magie : il repère les événements de vie et signaux publics qui précèdent une vente — DPE refait, ventes en série, copropriété fragilisée, SCI en dissolution. Chaque adresse est scorée et expliquée, pour que votre équipe sache où frapper en priorité. Le mois d'essai gratuit, sans engagement, sert justement à le vérifier sur votre secteur, avec vos agents sur le terrain.",
+    a: "Priimo ne promet pas des mandats par magie : il repère les événements de vie et signaux de marché qui précèdent une vente — DPE refait, ventes en série, copropriété fragilisée, SCI en dissolution. Chaque adresse est scorée et expliquée, pour que votre équipe sache où frapper en priorité. Le mois d'essai gratuit, sans engagement, sert justement à le vérifier sur votre secteur, avec vos agents sur le terrain.",
   },
   {
     q: "Comment essayer Priimo gratuitement ?",
@@ -29,7 +29,7 @@ const FAQS: Item[] = [
   },
   {
     q: "Est-ce conforme au RGPD ?",
-    a: "Priimo travaille exclusivement à partir de bases publiques françaises. Pour les particuliers, nous fournissons des adresses et des signaux — jamais de nom ni de téléphone : votre prospection se fait sur le terrain ou par courrier, en conformité avec l'interdiction de la pige téléphonique (11 août 2026). Pour les sociétés, les informations de dirigeants proviennent de registres légaux publics.",
+    a: "Priimo croise des bases de données françaises, publiques et privées. Pour les particuliers, nous fournissons des adresses et des signaux — jamais de nom ni de téléphone : votre prospection se fait sur le terrain ou par courrier, en conformité avec l'interdiction de la pige téléphonique (11 août 2026). Pour les sociétés, les informations de dirigeants proviennent de registres légaux officiels.",
   },
   {
     q: "Combien de temps pour être opérationnel ?",
