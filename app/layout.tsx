@@ -112,10 +112,6 @@ export default function RootLayout({
       lang="fr"
       className={`${inter.variable} ${jakarta.variable} ${jetbrainsMono.variable} ${libreBaskerville.variable}`}
     >
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
         {children}
         <Toaster richColors position="top-right" />

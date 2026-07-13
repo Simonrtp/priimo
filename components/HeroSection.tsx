@@ -1,10 +1,8 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useRef } from "react";
 import { ListOrdered, MapPinned, ShieldCheck, type LucideIcon } from "lucide-react";
 import Reveal from "./Reveal";
 import HeroBackground from "./HeroBackground";
+import HeroVideo from "./HeroVideo";
 import { CALENDLY_URL } from "@/lib/calendly";
 
 // === HERO SECTION ===
@@ -24,47 +22,6 @@ const BULLETS: { text: string; Icon: LucideIcon }[] = [
     Icon: ShieldCheck,
   },
 ];
-
-function HeroVideo() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const hasStartedRef = useRef(false);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting || hasStartedRef.current) return;
-        hasStartedRef.current = true;
-        void video.play().catch(() => {
-          hasStartedRef.current = false;
-        });
-        observer.disconnect();
-      },
-      { threshold: 0.3 },
-    );
-
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <video
-      ref={videoRef}
-      className="block h-auto w-full"
-      loop
-      muted
-      playsInline
-      preload="metadata"
-      aria-label="Démonstration du tableau de bord Priimo"
-    >
-      <source src="/Priimo Video.mp4" type="video/mp4" />
-    </video>
-  );
-}
 
 export default function HeroSection() {
   return (

@@ -18,7 +18,9 @@ export default function FooterLandscapeBg() {
         fill
         sizes="100vw"
         className="object-cover object-bottom opacity-[0.88]"
-        quality={88}
+        quality={75}
+        loading="lazy"
+        fetchPriority="low"
       />
       {/* Fondu progressif vers le dégradé sombre de la section */}
       <div

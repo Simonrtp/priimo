@@ -217,7 +217,9 @@ export default function ProblemTransformation() {
           fill
           sizes="100vw"
           className="object-cover object-bottom opacity-90"
-          quality={88}
+          quality={75}
+          loading="lazy"
+          fetchPriority="low"
         />
         <div
           className="absolute inset-0"
