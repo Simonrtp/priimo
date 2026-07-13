@@ -2,13 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const VIDEO_SRC = "/Priimo Video2.mp4";
+const VIDEO_SRC_DESKTOP = "/Priimo Video2.mp4";
+const VIDEO_SRC_MOBILE = "/Priimo Video 3.mp4";
+
+function pickVideoSrc(): string {
+  if (typeof window === "undefined") return VIDEO_SRC_DESKTOP;
+  return window.matchMedia("(max-width: 767px)").matches
+    ? VIDEO_SRC_MOBILE
+    : VIDEO_SRC_DESKTOP;
+}
 
 /** Vidéo hero : source chargée uniquement à l'approche du viewport, lecture au scroll. */
 export default function HeroVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [srcLoaded, setSrcLoaded] = useState(false);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const hasPlayedRef = useRef(false);
 
   useEffect(() => {
@@ -19,13 +27,13 @@ export default function HeroVideo() {
       ([entry]) => {
         if (!entry.isIntersecting) return;
 
-        setSrcLoaded((loaded) => loaded || true);
+        setVideoSrc((current) => current ?? pickVideoSrc());
 
         if (hasPlayedRef.current) return;
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
         const video = videoRef.current;
-        if (!video || !video.src) return;
+        if (!video || !video.currentSrc) return;
 
         hasPlayedRef.current = true;
         void video.play().catch(() => {
@@ -40,7 +48,7 @@ export default function HeroVideo() {
   }, []);
 
   useEffect(() => {
-    if (!srcLoaded) return;
+    if (!videoSrc) return;
 
     const video = videoRef.current;
     if (!video) return;
@@ -63,7 +71,7 @@ export default function HeroVideo() {
     video.addEventListener("loadeddata", tryPlay, { once: true });
     tryPlay();
     return () => video.removeEventListener("loadeddata", tryPlay);
-  }, [srcLoaded]);
+  }, [videoSrc]);
 
   return (
     <div ref={containerRef} className="w-full">
@@ -76,7 +84,7 @@ export default function HeroVideo() {
         preload="none"
         aria-label="Démonstration du tableau de bord Priimo"
       >
-        {srcLoaded ? <source src={VIDEO_SRC} type="video/mp4" /> : null}
+        {videoSrc ? <source src={videoSrc} type="video/mp4" /> : null}
       </video>
     </div>
   );
