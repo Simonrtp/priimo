@@ -179,7 +179,7 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
       <header className="flex-shrink-0 px-4 pt-6 pb-4 sm:px-6">
         <div className="mx-auto w-full max-w-[480px]">
           <Link href="/" className="inline-block">
-            <PriimoLogo className="h-8" priority />
+            <PriimoLogo className="h-10" priority />
           </Link>
           <p className="mt-4 text-sm text-gray-600">Configuration de votre espace directeur</p>
         </div>

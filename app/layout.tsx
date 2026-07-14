@@ -90,8 +90,11 @@ export const metadata: Metadata = {
     images: ["/logoprii.png"],
   },
   icons: {
-    icon: [{ url: "/faviconpriimo.png", type: "image/png" }],
-    apple: [{ url: "/faviconpriimo.png", type: "image/png" }],
+    icon: [
+      { url: "/faviconpriimo.png", type: "image/png", sizes: "32x32" },
+      { url: "/faviconpriimo.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/faviconpriimo.png", type: "image/png", sizes: "180x180" }],
     shortcut: "/faviconpriimo.png",
   },
   formatDetection: { telephone: false, address: false, email: false },

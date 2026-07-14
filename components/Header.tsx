@@ -96,7 +96,7 @@ export default function Header({ latestPost = null }: HeaderProps) {
             >
               <PriimoLogo
                 priority
-                className="h-7 sm:h-8 md:h-9"
+                className="h-8 sm:h-9 md:h-10"
                 imageClassName="transition-opacity duration-200 group-hover:opacity-90"
               />
             </Link>

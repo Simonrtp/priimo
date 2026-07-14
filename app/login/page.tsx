@@ -99,7 +99,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px]">
         <div className="flex justify-center mb-6">
           <Link href="/" className="inline-block">
-            <PriimoLogo className="h-9" priority />
+            <PriimoLogo className="h-10" priority />
           </Link>
         </div>
 
