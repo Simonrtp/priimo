@@ -91,7 +91,7 @@ function FooterContent() {
       <div className="flex flex-col gap-10 lg:grid lg:grid-cols-4 lg:gap-10">
         <div className="min-w-0">
           <Link href="/" className="inline-block">
-            <PriimoLogo className="h-10" />
+            <PriimoLogo className="h-12" />
           </Link>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/60">
             Prospection immobilière prédictive, sur bases de données croisées.

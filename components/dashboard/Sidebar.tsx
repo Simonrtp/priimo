@@ -52,10 +52,10 @@ export default function Sidebar() {
     >
       <div className="px-2 pb-2 pt-5 lg:px-5">
         <Link href="/dashboard" className="hidden lg:block">
-          <PriimoLogo className="h-10" />
+          <PriimoLogo className="h-12" />
         </Link>
-        <Link href="/dashboard" className="mx-auto block size-12 lg:hidden" aria-label="Priimo">
-          <PriimoLogo variant="mark" className="size-12" />
+        <Link href="/dashboard" className="mx-auto block size-14 lg:hidden" aria-label="Priimo">
+          <PriimoLogo variant="mark" className="size-14" />
         </Link>
       </div>
 
