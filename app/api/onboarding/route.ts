@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { validateZoneValue, zoneValueToAgencyPayload } from '@/lib/agency-zone';
 import {
   parsePostalCodesFromBody,
   validateAgencyPostalCodes,
@@ -7,38 +6,24 @@ import {
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import type { ZoneValue } from '@/types/zone';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function parseZoneFromBody(body: Record<string, unknown>): ZoneValue | null {
-  const zoneType = body.zoneType;
-  if (zoneType === 'postal_codes') {
-    const raw = body.zonePostalCodes;
-    if (!Array.isArray(raw)) return null;
-    const codes = raw
-      .filter((c): c is string => typeof c === 'string')
-      .map((c) => c.trim())
-      .filter(Boolean);
-    return { type: 'postal_codes', codes };
+function parseCoordinates(body: Record<string, unknown>): { latitude: number; longitude: number } | null {
+  const latitude = Number(body.latitude);
+  const longitude = Number(body.longitude);
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) {
+    return null;
   }
-
-  if (zoneType === 'radius' || zoneType == null) {
-    const address =
-      typeof body.zoneCenterAddress === 'string' ? body.zoneCenterAddress.trim() : '';
-    const latitude = Number(body.zoneLatitude);
-    const longitude = Number(body.zoneLongitude);
-    const radius_km = Number(body.zoneRadiusKm);
-    return {
-      type: 'radius',
-      address,
-      latitude,
-      longitude,
-      radius_km,
-    };
-  }
-
-  return null;
+  return { latitude, longitude };
 }
 
 export async function POST(request: Request) {
@@ -55,12 +40,6 @@ export async function POST(request: Request) {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) {
     return NextResponse.json({ error: "Le nom de l'agence est requis." }, { status: 400 });
-  }
-
-  const zone = parseZoneFromBody(body);
-  const zoneError = validateZoneValue(zone);
-  if (zoneError) {
-    return NextResponse.json({ error: zoneError }, { status: 400 });
   }
 
   const phoneRaw = typeof body.phone === 'string' ? body.phone.trim() : '';
@@ -92,6 +71,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const coords = parseCoordinates(body);
+  if (!coords) {
+    return NextResponse.json(
+      { error: 'Adresse invalide : choisissez une adresse dans la liste de suggestions.' },
+      { status: 400 },
+    );
+  }
+
   const codesPostaux = parsePostalCodesFromBody(body.codesPostaux);
   if (!codesPostaux) {
     return NextResponse.json({ error: 'Codes postaux invalides.' }, { status: 400 });
@@ -110,7 +97,8 @@ export async function POST(request: Request) {
       email,
       address,
       codes_postaux: codesPostaux,
-      ...zoneValueToAgencyPayload(zone!),
+      latitude: coords.latitude,
+      longitude: coords.longitude,
     })
     .eq('id', guard.agency.id);
 

@@ -20,13 +20,13 @@ export function featurePageMetadata({ title, description, path }: FeaturePageMet
       type: 'website',
       locale: 'fr_FR',
       siteName: 'Priimo',
-      images: [{ url: '/Logo.png', alt: 'Priimo' }],
+      images: [{ url: '/logoprii.png', alt: 'Priimo' }],
     },
     twitter: {
       card: 'summary_large_image',
       title: ogTitle,
       description,
-      images: ['/Logo.png'],
+      images: ['/logoprii.png'],
     },
     robots: { index: true, follow: true },
   };

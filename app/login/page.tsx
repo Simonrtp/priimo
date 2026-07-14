@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
+import { PriimoLogo } from "@/components/brand/PriimoLogo";
 import { CALENDLY_URL } from "@/lib/calendly";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -97,11 +98,8 @@ export default function LoginPage() {
 
       <div className="w-full max-w-[420px]">
         <div className="flex justify-center mb-6">
-          <Link
-            href="/"
-            className="font-sans text-3xl leading-none font-bold tracking-tight text-accent-dark"
-          >
-            Priimo
+          <Link href="/" className="inline-block">
+            <PriimoLogo className="h-9" priority />
           </Link>
         </div>
 

@@ -31,12 +31,13 @@ export async function POST(request: Request) {
     (u) => (u.email ?? '').toLowerCase() === rawEmail,
   );
   if (existingUser) {
-    const { data: existingProfile } = await admin
-      .from('profiles')
-      .select('id, agency_id')
-      .eq('id', existingUser.id)
+    const { data: existingMembership } = await admin
+      .from('profile_agencies')
+      .select('agency_id')
+      .eq('profile_id', existingUser.id)
+      .eq('agency_id', guard.agency.id)
       .maybeSingle();
-    if (existingProfile && existingProfile.agency_id === guard.agency.id) {
+    if (existingMembership) {
       return NextResponse.json(
         { error: 'Cet utilisateur fait déjà partie de votre agence.' },
         { status: 409 },

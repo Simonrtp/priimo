@@ -64,39 +64,26 @@ CREATE TABLE IF NOT EXISTS public.agencies (
   phone               text,
   email               text,
   plan                text          NOT NULL DEFAULT 'fondateur',
-  codes_postaux       text[],
-  zone_type           text          NOT NULL DEFAULT 'radius',
-  zone_center_address text,
-  zone_latitude       double precision,
-  zone_longitude      double precision,
-  zone_radius_km      numeric,
-  zone_postal_codes   text[],
+  codes_postaux       text[]        NOT NULL DEFAULT '{}',
+  latitude            double precision,
+  longitude           double precision,
   stripe_customer_id  text,
   created_at          timestamptz   NOT NULL DEFAULT now(),
   updated_at          timestamptz   NOT NULL DEFAULT now(),
   CONSTRAINT agencies_plan_check
-    CHECK (plan IN ('fondateur', 'standard', 'premium', 'reseau')),
-  CONSTRAINT agencies_zone_radius_positive
-    CHECK (zone_radius_km IS NULL OR zone_radius_km > 0),
-  CONSTRAINT agencies_zone_type_check
-    CHECK (zone_type IN ('radius', 'postal_codes'))
+    CHECK (plan IN ('fondateur', 'standard', 'premium', 'reseau'))
 );
 
 COMMENT ON TABLE  public.agencies                     IS 'Agences clientes Priimo (une ligne par agence).';
 COMMENT ON COLUMN public.agencies.plan                IS 'Plan d''abonnement : fondateur | standard | premium | reseau.';
+COMMENT ON COLUMN public.agencies.address             IS 'Adresse de l''agence (libellé BAN).';
+COMMENT ON COLUMN public.agencies.latitude            IS 'Latitude WGS84 du géocodage BAN de l''adresse agence.';
+COMMENT ON COLUMN public.agencies.longitude           IS 'Longitude WGS84 du géocodage BAN de l''adresse agence.';
 COMMENT ON COLUMN public.agencies.codes_postaux       IS 'Secteur(s) de prospection — codes postaux couverts par l''agence.';
-COMMENT ON COLUMN public.agencies.zone_center_address IS 'Adresse du centre de la zone de prospection (libellé BAN).';
-COMMENT ON COLUMN public.agencies.zone_latitude       IS 'Latitude du centre de zone (WGS84).';
-COMMENT ON COLUMN public.agencies.zone_longitude      IS 'Longitude du centre de zone (WGS84).';
-COMMENT ON COLUMN public.agencies.zone_radius_km      IS 'Rayon de la zone de prospection en kilomètres.';
-COMMENT ON COLUMN public.agencies.zone_type           IS 'Mode de zone : radius | postal_codes.';
-COMMENT ON COLUMN public.agencies.zone_postal_codes   IS 'Codes postaux Paris (75001–75020) si zone_type = postal_codes.';
 
-ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_type text NOT NULL DEFAULT 'radius';
-ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS codes_postaux text[];
-ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_postal_codes text[];
-ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_latitude double precision;
-ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS zone_longitude double precision;
+ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS codes_postaux text[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS latitude double precision;
+ALTER TABLE public.agencies ADD COLUMN IF NOT EXISTS longitude double precision;
 COMMENT ON COLUMN public.agencies.stripe_customer_id  IS 'Identifiant client Stripe — rempli au passage à un plan payant.';
 
 CREATE INDEX IF NOT EXISTS idx_agencies_plan ON public.agencies (plan);
@@ -114,35 +101,22 @@ CREATE TRIGGER trg_agencies_set_updated_at
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.profiles (
   id          uuid          PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  agency_id   uuid          NOT NULL    REFERENCES public.agencies(id) ON DELETE CASCADE,
-  role        text          NOT NULL,
   first_name  text          NOT NULL,
   last_name   text          NOT NULL,
   phone       text,
+  active_agency_id uuid     REFERENCES public.agencies(id) ON DELETE SET NULL,
   created_at  timestamptz   NOT NULL DEFAULT now(),
-  updated_at  timestamptz   NOT NULL DEFAULT now(),
-  CONSTRAINT profiles_role_check
-    CHECK (role IN ('directeur', 'collaborateur'))
+  updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE  public.profiles            IS 'Profils métier liés 1-1 aux utilisateurs auth.users.';
-COMMENT ON COLUMN public.profiles.agency_id  IS 'Agence d''appartenance — un user ne peut être que dans UNE agence.';
-COMMENT ON COLUMN public.profiles.role       IS 'Rôle métier : directeur (1 max par agence) | collaborateur.';
-COMMENT ON COLUMN public.profiles.phone      IS 'Téléphone professionnel du membre (format FR).';
+COMMENT ON TABLE  public.profiles                 IS 'Profils métier liés 1-1 aux utilisateurs auth.users.';
+COMMENT ON COLUMN public.profiles.active_agency_id IS 'Agence affichée dans le dashboard ; NULL = première agence (profile_agencies).';
+COMMENT ON COLUMN public.profiles.phone           IS 'Téléphone professionnel du membre (format FR).';
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS preferences jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS active_agency_id uuid REFERENCES public.agencies(id) ON DELETE SET NULL;
-COMMENT ON COLUMN public.profiles.active_agency_id IS 'Agence affichée dans le dashboard ; NULL = agency_id.';
 COMMENT ON COLUMN public.profiles.preferences IS 'Préférences utilisateur (notifications, etc.) au format JSON.';
-
-CREATE INDEX IF NOT EXISTS idx_profiles_agency_id ON public.profiles (agency_id);
-CREATE INDEX IF NOT EXISTS idx_profiles_role      ON public.profiles (role);
-
--- Unicité : un seul directeur par agence (index partiel).
-CREATE UNIQUE INDEX IF NOT EXISTS uq_profiles_one_director_per_agency
-  ON public.profiles (agency_id)
-  WHERE role = 'directeur';
 
 -- Trigger updated_at
 DROP TRIGGER IF EXISTS trg_profiles_set_updated_at ON public.profiles;
@@ -175,6 +149,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_agencies_one_director_per_agency
   ON public.profile_agencies (agency_id)
   WHERE role = 'directeur';
 
+-- ---------------------------------------------------------------------
+-- 3.c Table `agency_requests` (demandes de secteur)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.agency_requests (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  requested_by   uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  agency_name    text        NOT NULL,
+  address        text        NOT NULL,
+  codes_postaux  text[]      NOT NULL DEFAULT '{}',
+  message        text,
+  status         text        NOT NULL DEFAULT 'en_attente',
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  handled_at     timestamptz,
+  CONSTRAINT agency_requests_status_check
+    CHECK (status IN ('en_attente', 'acceptee', 'refusee'))
+);
+
+ALTER TABLE public.agency_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS agency_requests_select_own ON public.agency_requests;
+CREATE POLICY agency_requests_select_own
+  ON public.agency_requests FOR SELECT TO authenticated
+  USING (requested_by = auth.uid());
+
+DROP POLICY IF EXISTS agency_requests_insert_own ON public.agency_requests;
+CREATE POLICY agency_requests_insert_own
+  ON public.agency_requests FOR INSERT TO authenticated
+  WITH CHECK (requested_by = auth.uid() AND status = 'en_attente');
+
 
 -- ---------------------------------------------------------------------
 -- 4. Table `invitations`
@@ -196,8 +199,8 @@ CREATE TABLE IF NOT EXISTS public.invitations (
   -- à l'acceptation) ; un collaborateur DOIT être rattaché à une agence.
   CONSTRAINT invitations_agency_consistency
     CHECK (
-      (role = 'directeur'     AND agency_id IS NULL) OR
       (role = 'collaborateur' AND agency_id IS NOT NULL)
+      OR role = 'directeur'
     )
 );
 
@@ -231,14 +234,7 @@ SET search_path = public
 AS $$
   SELECT pa.agency_id
   FROM public.profile_agencies pa
-  WHERE pa.profile_id = auth.uid()
-  UNION
-  SELECT p.agency_id
-  FROM public.profiles p
-  WHERE p.id = auth.uid()
-    AND NOT EXISTS (
-      SELECT 1 FROM public.profile_agencies pa2 WHERE pa2.profile_id = p.id
-    );
+  WHERE pa.profile_id = auth.uid();
 $$;
 
 CREATE OR REPLACE FUNCTION public.current_user_agency_id()
@@ -261,7 +257,13 @@ AS $$
             AND pa.agency_id = p.active_agency_id
         )
     ),
-    (SELECT p.agency_id FROM public.profiles p WHERE p.id = auth.uid())
+    (
+      SELECT pa.agency_id
+      FROM public.profile_agencies pa
+      WHERE pa.profile_id = auth.uid()
+      ORDER BY pa.created_at
+      LIMIT 1
+    )
   );
 $$;
 
@@ -272,15 +274,10 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT COALESCE(
-    (
-      SELECT pa.role
-      FROM public.profile_agencies pa
-      WHERE pa.profile_id = auth.uid()
-        AND pa.agency_id = public.current_user_agency_id()
-    ),
-    (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid())
-  );
+  SELECT pa.role
+  FROM public.profile_agencies pa
+  WHERE pa.profile_id = auth.uid()
+    AND pa.agency_id = public.current_user_agency_id();
 $$;
 
 -- Restreindre l'EXECUTE : authenticated only (anon n'a aucune raison d'appeler).
@@ -350,7 +347,7 @@ CREATE POLICY agencies_update_director
 -- 6.B — Policies `profiles`
 -- =====================================================================
 
--- SELECT : son propre profil + ceux des autres membres de son agence.
+-- SELECT : son propre profil + membres de l'agence active.
 DROP POLICY IF EXISTS profiles_select_self_or_agency ON public.profiles;
 CREATE POLICY profiles_select_self_or_agency
   ON public.profiles
@@ -358,7 +355,12 @@ CREATE POLICY profiles_select_self_or_agency
   TO authenticated
   USING (
     id = auth.uid()
-    OR agency_id = public.current_user_agency_id()
+    OR EXISTS (
+      SELECT 1
+      FROM public.profile_agencies pa
+      WHERE pa.profile_id = profiles.id
+        AND pa.agency_id = public.current_user_agency_id()
+    )
   );
 
 -- UPDATE : son propre profil OU un directeur sur ses collaborateurs.
@@ -371,16 +373,26 @@ CREATE POLICY profiles_update_self_or_director
     id = auth.uid()
     OR (
       public.current_user_role() = 'directeur'
-      AND agency_id = public.current_user_agency_id()
-      AND role = 'collaborateur'
+      AND EXISTS (
+        SELECT 1
+        FROM public.profile_agencies pa
+        WHERE pa.profile_id = profiles.id
+          AND pa.agency_id = public.current_user_agency_id()
+          AND pa.role = 'collaborateur'
+      )
     )
   )
   WITH CHECK (
     id = auth.uid()
     OR (
       public.current_user_role() = 'directeur'
-      AND agency_id = public.current_user_agency_id()
-      AND role = 'collaborateur'
+      AND EXISTS (
+        SELECT 1
+        FROM public.profile_agencies pa
+        WHERE pa.profile_id = profiles.id
+          AND pa.agency_id = public.current_user_agency_id()
+          AND pa.role = 'collaborateur'
+      )
     )
   );
 
@@ -392,8 +404,13 @@ CREATE POLICY profiles_delete_director
   TO authenticated
   USING (
     public.current_user_role() = 'directeur'
-    AND agency_id = public.current_user_agency_id()
-    AND role = 'collaborateur'
+    AND EXISTS (
+      SELECT 1
+      FROM public.profile_agencies pa
+      WHERE pa.profile_id = profiles.id
+        AND pa.agency_id = public.current_user_agency_id()
+        AND pa.role = 'collaborateur'
+    )
   );
 
 -- INSERT : aucune policy → bloqué. Création via service_role (acceptation

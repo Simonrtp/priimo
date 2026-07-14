@@ -56,30 +56,44 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: agency, error: agencyError } = await supabaseAdmin
-      .from('agencies')
-      .insert({
-        name: resolvedAgencyName,
-        phone: normalizedPhone,
-        email: normalizedEmail,
-        plan: 'fondateur',
-      })
-      .select()
-      .single();
+    let agency: { id: string };
 
-    if (agencyError || !agency) {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json(
-        { error: 'Erreur création agence : ' + (agencyError?.message ?? 'inconnue') },
-        { status: 500 },
-      );
+    if (invitation.agency_id) {
+      const { data: existingAgency, error: loadAgencyErr } = await supabaseAdmin
+        .from('agencies')
+        .select('id')
+        .eq('id', invitation.agency_id)
+        .maybeSingle();
+      if (loadAgencyErr || !existingAgency) {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        return NextResponse.json({ error: 'Agence liée à l\'invitation introuvable.' }, { status: 400 });
+      }
+      agency = existingAgency;
+    } else {
+      const { data: newAgency, error: agencyError } = await supabaseAdmin
+        .from('agencies')
+        .insert({
+          name: resolvedAgencyName,
+          phone: normalizedPhone,
+          email: normalizedEmail,
+          plan: 'fondateur',
+        })
+        .select('id')
+        .single();
+
+      if (agencyError || !newAgency) {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        return NextResponse.json(
+          { error: 'Erreur création agence : ' + (agencyError?.message ?? 'inconnue') },
+          { status: 500 },
+        );
+      }
+      agency = newAgency;
     }
 
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: authData.user.id,
-      agency_id: agency.id,
       active_agency_id: agency.id,
-      role: 'directeur',
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       phone: normalizedPhone,

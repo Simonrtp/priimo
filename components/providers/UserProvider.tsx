@@ -2,12 +2,12 @@
 
 import { useMemo } from 'react';
 import { UserContext, type UserContextValue } from '@/lib/hooks/useUser';
-import type { AgencyRow, ProfileRow } from '@/types/database';
+import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 
 interface UserProviderProps {
   user: { id: string; email: string };
-  profile: ProfileRow;
+  profile: ContextualProfile;
   agency: AgencyRow;
   memberships: ProfileAgencyMembership[];
   children: React.ReactNode;

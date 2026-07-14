@@ -57,8 +57,7 @@ export async function POST(request: Request) {
 
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: authData.user.id,
-      agency_id: invitation.agency_id,
-      role: 'collaborateur',
+      active_agency_id: invitation.agency_id,
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       phone: normalizedPhone,

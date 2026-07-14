@@ -8,11 +8,11 @@ import { useUser } from '@/lib/hooks/useUser';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
-import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
 import type { NotificationPreferences } from '@/types/database';
 import Modal from '@/components/ui/Modal';
 import SectionTeam from './SectionTeam';
+import SectionRequestSector from './SectionRequestSector';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -160,8 +160,8 @@ function SectionAgency() {
     agency.address
       ? {
           label: agency.address,
-          latitude: 0,
-          longitude: 0,
+          latitude: agency.latitude ?? 0,
+          longitude: agency.longitude ?? 0,
           city: '',
           postcode: agency.codes_postaux?.[0] ?? '',
         }
@@ -199,6 +199,21 @@ function SectionAgency() {
     const extraCodes = (agency.codes_postaux ?? []).filter((c) => c !== initialPrimary);
     const codesPostaux = [postcode, ...extraCodes.filter((c) => c !== postcode)];
 
+    const hasFreshCoords =
+      agencyAddress &&
+      Number.isFinite(agencyAddress.latitude) &&
+      Number.isFinite(agencyAddress.longitude) &&
+      !(agencyAddress.latitude === 0 && agencyAddress.longitude === 0);
+    const latitude = hasFreshCoords ? agencyAddress!.latitude : agency.latitude;
+    const longitude = hasFreshCoords ? agencyAddress!.longitude : agency.longitude;
+
+    if (latitude == null || longitude == null) {
+      const err = "Resélectionnez l'adresse de l'agence dans la liste de suggestions.";
+      setAddressError(err);
+      toast.error(err);
+      return;
+    }
+
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
@@ -209,12 +224,8 @@ function SectionAgency() {
         phone: phone.trim() || null,
         email: email.trim() || null,
         codes_postaux: codesPostaux,
-        zone_type: null,
-        zone_center_address: null,
-        zone_latitude: null,
-        zone_longitude: null,
-        zone_radius_km: null,
-        zone_postal_codes: null,
+        latitude,
+        longitude,
       })
       .eq('id', agency.id);
     setSaving(false);
@@ -308,20 +319,7 @@ function SectionAgency() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-black/[0.08] bg-soft-warm/40 px-4 py-3">
-          <p className="text-sm text-ink" style={{ lineHeight: 1.55 }}>
-            Pour ajouter ou modifier un code postal supplémentaire,{' '}
-            <a
-              href={FOUNDER_WHATSAPP_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-accent-dark underline underline-offset-2 hover:text-accent"
-            >
-              contactez-moi sur WhatsApp
-            </a>
-            .
-          </p>
-        </div>
+        <SectionRequestSector />
 
         <button
           type="button"

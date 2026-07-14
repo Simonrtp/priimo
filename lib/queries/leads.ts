@@ -152,10 +152,21 @@ export function mapProfileToTeamMember(p: ProfileRow): TeamMember {
 }
 
 export async function fetchTeamMembers(supabase: Client, agencyId: string): Promise<TeamMember[]> {
+  const { data: links, error: linksError } = await supabase
+    .from('profile_agencies')
+    .select('profile_id')
+    .eq('agency_id', agencyId);
+  if (linksError) {
+    throw new Error(`Impossible de charger l'équipe : ${linksError.message}`);
+  }
+
+  const profileIds = (links ?? []).map((l) => l.profile_id);
+  if (profileIds.length === 0) return [];
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('agency_id', agencyId)
+    .in('id', profileIds)
     .order('first_name', { ascending: true });
   if (error) {
     throw new Error(`Impossible de charger l'équipe : ${error.message}`);

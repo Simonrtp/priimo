@@ -12,21 +12,19 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: target, error: loadErr } = await admin
-    .from('profiles')
-    .select('id, agency_id, role')
-    .eq('id', profileId)
+  const { data: membership, error: loadErr } = await admin
+    .from('profile_agencies')
+    .select('role')
+    .eq('profile_id', profileId)
+    .eq('agency_id', guard.agency.id)
     .maybeSingle();
   if (loadErr) {
     return NextResponse.json({ error: loadErr.message }, { status: 500 });
   }
-  if (!target) {
+  if (!membership) {
     return NextResponse.json({ error: 'Membre introuvable.' }, { status: 404 });
   }
-  if (target.agency_id !== guard.agency.id) {
-    return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 });
-  }
-  if (target.role === 'directeur') {
+  if (membership.role === 'directeur') {
     return NextResponse.json({ error: 'Impossible de retirer le directeur.' }, { status: 400 });
   }
 

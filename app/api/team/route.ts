@@ -18,10 +18,25 @@ export async function GET() {
   }
 
   const admin = createSupabaseAdminClient();
+  const { data: links, error: linksErr } = await admin
+    .from('profile_agencies')
+    .select('profile_id, role')
+    .eq('agency_id', agency.id);
+  if (linksErr) {
+    return NextResponse.json({ error: linksErr.message }, { status: 500 });
+  }
+
+  const profileIds = (links ?? []).map((l) => l.profile_id);
+  if (profileIds.length === 0) {
+    return NextResponse.json({ members: [] });
+  }
+
+  const roleByProfileId = new Map((links ?? []).map((l) => [l.profile_id, l.role as ProfileRole]));
+
   const { data: profiles, error: profilesErr } = await admin
     .from('profiles')
-    .select('id, first_name, last_name, role')
-    .eq('agency_id', agency.id);
+    .select('id, first_name, last_name')
+    .in('id', profileIds);
   if (profilesErr) {
     return NextResponse.json({ error: profilesErr.message }, { status: 500 });
   }
@@ -40,7 +55,7 @@ export async function GET() {
       id: p.id,
       firstName: p.first_name,
       lastName: p.last_name,
-      role: p.role,
+      role: roleByProfileId.get(p.id) ?? 'collaborateur',
       email: emailById.get(p.id) ?? '',
     }))
     .sort((a, b) => {

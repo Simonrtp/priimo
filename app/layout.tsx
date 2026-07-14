@@ -80,17 +80,19 @@ export const metadata: Metadata = {
     siteName: "Priimo",
     locale: "fr_FR",
     type: "website",
+    images: [{ url: "/logoprii.png", alt: "Priimo" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Priimo — Prospection immobilière prédictive",
     description:
       "Événements de vie et signaux de marché, livrés chaque semaine sur votre secteur exclusif.",
+    images: ["/logoprii.png"],
   },
   icons: {
-    icon: [{ url: "/Logo.png", type: "image/png" }],
-    apple: [{ url: "/Logo.png", type: "image/png" }],
-    shortcut: "/Logo.png",
+    icon: [{ url: "/faviconpriimo.png", type: "image/png" }],
+    apple: [{ url: "/faviconpriimo.png", type: "image/png" }],
+    shortcut: "/faviconpriimo.png",
   },
   formatDetection: { telephone: false, address: false, email: false },
 };

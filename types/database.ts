@@ -14,7 +14,6 @@ export type LeadMlFeedbackDb =
   | 'pas_vendeur'
   | 'injoignable';
 export type LeadOwnerTypeDb = 'particulier' | 'entreprise';
-export type AgencyZoneTypeDb = 'radius' | 'postal_codes';
 
 export type NotificationPreferences = {
   newLeads: boolean;
@@ -32,13 +31,10 @@ export type AgencyRow = {
   email: string | null;
   plan: PlanCode;
   /** Secteur(s) de prospection — codes postaux couverts par l'agence. */
-  codes_postaux: string[] | null;
-  zone_type: AgencyZoneTypeDb | null;
-  zone_center_address: string | null;
-  zone_latitude: number | null;
-  zone_longitude: number | null;
-  zone_radius_km: number | null;
-  zone_postal_codes: string[] | null;
+  codes_postaux: string[];
+  /** Coordonnées WGS84 du géocodage BAN de l'adresse de l'agence. */
+  latitude: number | null;
+  longitude: number | null;
   stripe_customer_id: string | null;
   created_at: string;
   updated_at: string;
@@ -46,9 +42,7 @@ export type AgencyRow = {
 
 export type ProfileRow = {
   id: string;
-  agency_id: string;
-  role: ProfileRole;
-  /** Agence affichée dans le dashboard ; NULL = agency_id. */
+  /** Agence affichée dans le dashboard ; NULL = première agence (profile_agencies). */
   active_agency_id?: string | null;
   first_name: string;
   last_name: string;
@@ -61,6 +55,9 @@ export type ProfileRow = {
   created_at: string;
   updated_at: string;
 };
+
+/** Profil enrichi avec le rôle dans l'agence active (calculé, non stocké en base). */
+export type ContextualProfile = ProfileRow & { role: ProfileRole };
 
 export type InvitationRow = {
   id: string;
@@ -145,13 +142,9 @@ export type AgencyInsert = {
   phone?: string | null;
   email?: string | null;
   plan?: PlanCode;
-  codes_postaux?: string[] | null;
-  zone_type?: AgencyZoneTypeDb | null;
-  zone_center_address?: string | null;
-  zone_latitude?: number | null;
-  zone_longitude?: number | null;
-  zone_radius_km?: number | null;
-  zone_postal_codes?: string[] | null;
+  codes_postaux?: string[];
+  latitude?: number | null;
+  longitude?: number | null;
   stripe_customer_id?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -173,8 +166,6 @@ export type ProfileAgencyInsert = {
 
 export type ProfileInsert = {
   id: string;
-  agency_id: string;
-  role: ProfileRole;
   first_name: string;
   last_name: string;
   phone?: string | null;
@@ -230,6 +221,32 @@ export type LeadInsert = {
   updated_at?: string;
 };
 
+export type AgencyRequestStatusDb = 'en_attente' | 'acceptee' | 'refusee';
+
+export type AgencyRequestRow = {
+  id: string;
+  requested_by: string;
+  agency_name: string;
+  address: string;
+  codes_postaux: string[];
+  message: string | null;
+  status: AgencyRequestStatusDb;
+  created_at: string;
+  handled_at: string | null;
+};
+
+export type AgencyRequestInsert = {
+  requested_by: string;
+  agency_name: string;
+  address: string;
+  codes_postaux: string[];
+  message?: string | null;
+  status?: AgencyRequestStatusDb;
+  id?: string;
+  created_at?: string;
+  handled_at?: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -261,6 +278,12 @@ export type Database = {
         Row: ProfileAgencyRow;
         Insert: ProfileAgencyInsert;
         Update: Partial<ProfileAgencyRow>;
+        Relationships: [];
+      };
+      agency_requests: {
+        Row: AgencyRequestRow;
+        Insert: AgencyRequestInsert;
+        Update: Partial<AgencyRequestRow>;
         Relationships: [];
       };
     };

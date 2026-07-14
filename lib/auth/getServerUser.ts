@@ -5,11 +5,11 @@ import {
   resolveActiveRole,
   type ProfileAgencyMembership,
 } from '@/lib/auth/active-agency';
-import type { AgencyRow, ProfileRow } from '@/types/database';
+import type { AgencyRow, ContextualProfile, ProfileRow } from '@/types/database';
 
 export interface ServerUser {
   user: { id: string; email: string } | null;
-  profile: ProfileRow | null;
+  profile: ContextualProfile | null;
   agency: AgencyRow | null;
   memberships: ProfileAgencyMembership[];
 }
@@ -32,20 +32,34 @@ export async function getServerUser(): Promise<ServerUser> {
     .eq('profile_id', user.id);
 
   const rows = membershipRows ?? [];
-  const fallbackRows =
-    rows.length > 0
-      ? rows
-      : [{ agency_id: profile.agency_id, role: profile.role as ProfileRow['role'] }];
+  if (rows.length === 0) {
+    return {
+      user: { id: user.id, email: user.email ?? '' },
+      profile: null,
+      agency: null,
+      memberships: [],
+    };
+  }
 
-  const { data: agencies } = await supabase.from('agencies').select('*');
+  const agencyIds = rows.map((r) => r.agency_id);
+  const { data: agencies } = await supabase.from('agencies').select('*').in('id', agencyIds);
   const agencyList = agencies ?? [];
 
-  const memberships = buildAgencyMemberships(fallbackRows, agencyList);
+  const memberships = buildAgencyMemberships(rows, agencyList);
   const activeAgencyId = resolveActiveAgencyId(profile, memberships);
-  const activeRole = resolveActiveRole(profile, memberships, activeAgencyId);
-  const agency = agencyList.find((a) => a.id === activeAgencyId) ?? null;
+  const activeRole = activeAgencyId ? resolveActiveRole(memberships, activeAgencyId) : null;
 
-  const contextualProfile: ProfileRow = {
+  if (!activeAgencyId || !activeRole) {
+    return {
+      user: { id: user.id, email: user.email ?? '' },
+      profile: null,
+      agency: null,
+      memberships,
+    };
+  }
+
+  const agency = agencyList.find((a) => a.id === activeAgencyId) ?? null;
+  const contextualProfile: ContextualProfile = {
     ...profile,
     role: activeRole,
   };

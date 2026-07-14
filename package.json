@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test lib/auth/active-agency.test.ts"
+    "test": "npx --yes tsx --test lib/auth/active-agency.test.ts lib/admin/postal-collisions.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

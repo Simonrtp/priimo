@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
-import { PriimoWord } from "@/components/brand/PriimoWord";
+import { PriimoLogo } from "@/components/brand/PriimoLogo";
 import ResourcesMenu from "@/components/ResourcesMenu";
 import {
   FeaturesMegaPanel,
@@ -91,10 +91,14 @@ export default function Header({ latestPost = null }: HeaderProps) {
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
             <Link
               href="/"
-              className="group shrink-0 text-[1.5rem] leading-none sm:text-[1.75rem] md:text-[2rem]"
+              className="group shrink-0 leading-none"
               onClick={() => setMobileNavOpen(false)}
             >
-              <PriimoWord className="text-[1.5rem] font-bold sm:text-[1.75rem] md:text-[2rem]">Priimo</PriimoWord>
+              <PriimoLogo
+                priority
+                className="h-7 sm:h-8 md:h-9"
+                imageClassName="transition-opacity duration-200 group-hover:opacity-90"
+              />
             </Link>
 
             <nav className="hidden min-w-0 items-center gap-6 lg:flex" aria-label="Navigation principale">

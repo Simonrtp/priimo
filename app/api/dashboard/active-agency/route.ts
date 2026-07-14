@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { canAccessAgency } from '@/lib/auth/active-agency';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
@@ -20,8 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'agencyId requis' }, { status: 400 });
   }
 
-  const allowed = memberships.some((m) => m.agency_id === agencyId);
-  if (!allowed) {
+  if (!canAccessAgency(memberships, agencyId)) {
     return NextResponse.json({ error: 'Agence non autorisée' }, { status: 403 });
   }
 

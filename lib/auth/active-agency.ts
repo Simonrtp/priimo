@@ -1,35 +1,45 @@
-import type { AgencyRow, ProfileRole, ProfileRow } from '@/types/database';
+import type { ProfileRole } from '@/types/database';
 
 export type ProfileAgencyMembership = {
   agency_id: string;
   role: ProfileRole;
-  agency?: AgencyRow;
+  agency?: import('@/types/database').AgencyRow;
 };
 
-/** Résout l'agence active (client / middleware sans SQL helper). */
-export function resolveActiveAgencyId(
-  profile: Pick<ProfileRow, 'agency_id' | 'active_agency_id'>,
+/** Vérifie qu'un utilisateur appartient à une agence (garde app + tests RLS). */
+export function canAccessAgency(
   memberships: Pick<ProfileAgencyMembership, 'agency_id'>[],
-): string {
-  const memberIds = new Set(memberships.map((m) => m.agency_id));
-  const candidate = profile.active_agency_id ?? profile.agency_id;
-  if (memberIds.has(candidate)) return candidate;
-  return profile.agency_id;
+  agencyId: string,
+): boolean {
+  return memberships.some((m) => m.agency_id === agencyId);
 }
 
-/** Rôle dans l'agence active. */
+/** Résout l'agence active depuis les memberships + active_agency_id. */
+export function resolveActiveAgencyId(
+  profile: { active_agency_id?: string | null },
+  memberships: Pick<ProfileAgencyMembership, 'agency_id'>[],
+): string | null {
+  if (memberships.length === 0) return null;
+
+  const memberIds = new Set(memberships.map((m) => m.agency_id));
+  const candidate = profile.active_agency_id;
+  if (candidate && memberIds.has(candidate)) return candidate;
+
+  return memberships[0]!.agency_id;
+}
+
+/** Rôle dans l'agence active (source : profile_agencies). */
 export function resolveActiveRole(
-  profile: Pick<ProfileRow, 'agency_id' | 'role'>,
   memberships: Pick<ProfileAgencyMembership, 'agency_id' | 'role'>[],
   activeAgencyId: string,
-): ProfileRole {
+): ProfileRole | null {
   const membership = memberships.find((m) => m.agency_id === activeAgencyId);
-  return membership?.role ?? profile.role;
+  return membership?.role ?? null;
 }
 
 export function buildAgencyMemberships(
   rows: { agency_id: string; role: ProfileRole }[],
-  agencies: AgencyRow[],
+  agencies: import('@/types/database').AgencyRow[],
 ): ProfileAgencyMembership[] {
   const byId = new Map(agencies.map((a) => [a.id, a]));
   return rows.map((row) => ({

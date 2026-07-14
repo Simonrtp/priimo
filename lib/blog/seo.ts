@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { absoluteUrl } from '@/lib/site-url';
 import type { BlogPost, BlogPostSummary } from './types';
 
-const DEFAULT_OG = '/Logo.png';
+const DEFAULT_OG = '/logoprii.png';
 
 export function blogIndexMetadata(): Metadata {
   const title = 'Le blog Priimo';
@@ -78,14 +78,14 @@ export function blogArticleJsonLd(post: BlogPost) {
       name: 'Priimo',
       logo: {
         '@type': 'ImageObject',
-        url: absoluteUrl('/Logo.png'),
+        url: absoluteUrl('/logoprii.png'),
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': absoluteUrl(`/blog/${post.slug}`),
     },
-    image: absoluteUrl(post.ogImage ?? '/Logo.png'),
+    image: absoluteUrl(post.ogImage ?? '/logoprii.png'),
     keywords: post.tags.join(', '),
   };
 }

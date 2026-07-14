@@ -1,12 +1,12 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import type { AgencyRow, ProfileRow } from '@/types/database';
+import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 
 export interface UserContextValue {
   user: { id: string; email: string };
-  profile: ProfileRow;
+  profile: ContextualProfile;
   agency: AgencyRow;
   memberships: ProfileAgencyMembership[];
   isDirector: boolean;

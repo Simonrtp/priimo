@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import type { AgencyRow, ProfileRow } from '@/types/database';
+import type { AgencyRow, ContextualProfile } from '@/types/database';
 
 export type RequireDirectorResult =
-  | { ok: true; user: { id: string; email: string }; profile: ProfileRow; agency: AgencyRow }
+  | { ok: true; user: { id: string; email: string }; profile: ContextualProfile; agency: AgencyRow }
   | { ok: false; response: NextResponse };
 
 export async function requireDirector(): Promise<RequireDirectorResult> {

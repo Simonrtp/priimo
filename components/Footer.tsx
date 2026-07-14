@@ -1,5 +1,6 @@
 import Link from "next/link";
 import FooterLandscapeBg from "./FooterLandscapeBg";
+import { PriimoLogo } from "@/components/brand/PriimoLogo";
 
 /** Arrondi en haut uniquement — bas plat, pleine largeur */
 export const FOOTER_SHELL_CLASS =
@@ -89,8 +90,8 @@ function FooterContent() {
     <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-8 pt-16 sm:pt-20 pb-10 min-w-0">
       <div className="flex flex-col gap-10 lg:grid lg:grid-cols-4 lg:gap-10">
         <div className="min-w-0">
-          <Link href="/" className="font-sans text-2xl font-bold tracking-tight text-white">
-            Priimo
+          <Link href="/" className="inline-block">
+            <PriimoLogo className="h-8" />
           </Link>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-white/60">
             Prospection immobilière prédictive, sur bases de données croisées.

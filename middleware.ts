@@ -13,7 +13,7 @@ async function getDirectorOnboardingState(
 ): Promise<{ isDirector: boolean; needsOnboarding: boolean }> {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, agency_id, active_agency_id')
+    .select('active_agency_id')
     .eq('id', userId)
     .maybeSingle();
 
@@ -28,16 +28,16 @@ async function getDirectorOnboardingState(
 
   const memberships = membershipRows ?? [];
   const activeAgencyId = resolveActiveAgencyId(profile, memberships);
-  const activeRole = resolveActiveRole(profile, memberships, activeAgencyId);
+  const activeRole = activeAgencyId ? resolveActiveRole(memberships, activeAgencyId) : null;
 
-  if (activeRole !== 'directeur') {
+  if (activeRole !== 'directeur' || !activeAgencyId) {
     return { isDirector: false, needsOnboarding: false };
   }
 
   const { data: agency } = await supabase
     .from('agencies')
     .select(
-      'address, codes_postaux, zone_type, zone_center_address, zone_latitude, zone_longitude, zone_radius_km, zone_postal_codes',
+      'address, codes_postaux',
     )
     .eq('id', activeAgencyId)
     .maybeSingle();
