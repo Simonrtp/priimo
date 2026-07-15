@@ -91,11 +91,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/faviconpriimo.png", type: "image/png", sizes: "32x32" },
-      { url: "/faviconpriimo.png", type: "image/png", sizes: "192x192" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/icon-48.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
     ],
-    apple: [{ url: "/faviconpriimo.png", type: "image/png", sizes: "180x180" }],
-    shortcut: "/faviconpriimo.png",
+    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.ico",
   },
   formatDetection: { telephone: false, address: false, email: false },
 };

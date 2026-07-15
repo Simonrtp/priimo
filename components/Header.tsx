@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X } from "lucide-react";
 import { PriimoLogo } from "@/components/brand/PriimoLogo";
 import ResourcesMenu from "@/components/ResourcesMenu";
 import {
   FeaturesMegaPanel,
-  FeaturesMenuMobile,
   FeaturesMenuTrigger,
 } from "@/components/FeaturesMenu";
 import { CALENDLY_URL } from "@/lib/calendly";
@@ -18,13 +16,12 @@ type HeaderProps = {
 };
 
 // === HEADER ===
-// Refonte 2.0 : barre flottante en verre (glass) qui se contracte au scroll.
-// Logo en dégradé chaud animé ; « Se connecter » = lien texte ; CTA = btn-primary.
+// Barre flottante en verre (glass) qui se contracte au scroll.
+// Navigation complète desktop ; mobile = logo + connexion + CTA démo (sans menu hamburger).
 type NavMenu = "features" | "resources" | null;
 
 export default function Header({ latestPost = null }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeNavMenu, setActiveNavMenu] = useState<NavMenu>(null);
   const headerRootRef = useRef<HTMLDivElement>(null);
 
@@ -39,37 +36,6 @@ export default function Header({ latestPost = null }: HeaderProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    if (!mobileNavOpen) return;
-
-    const onPointerDown = (event: MouseEvent | TouchEvent) => {
-      if (!headerRootRef.current?.contains(event.target as Node)) {
-        setMobileNavOpen(false);
-      }
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileNavOpen(false);
-    };
-
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [mobileNavOpen]);
-
-  useEffect(() => {
-    if (featuresOpen) setMobileNavOpen(false);
-  }, [featuresOpen]);
-
-  useEffect(() => {
-    if (mobileNavOpen) setActiveNavMenu(null);
-  }, [mobileNavOpen]);
-
   const setFeaturesOpen = (open: boolean) => {
     setActiveNavMenu(open ? "features" : null);
   };
@@ -82,18 +48,14 @@ export default function Header({ latestPost = null }: HeaderProps) {
     <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-5 sm:pt-4">
       <div ref={headerRootRef} className="relative w-full max-w-6xl min-w-0">
         <div
-          className={`relative z-10 flex w-full items-center justify-between gap-3 rounded-full px-3 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] min-w-0 sm:gap-4 sm:px-6 ${
+          className={`relative z-10 flex w-full items-center justify-between gap-2 rounded-full px-3 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] min-w-0 sm:gap-4 sm:px-6 ${
             scrolled
               ? "h-14 border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl sm:h-[3.75rem]"
               : "h-16 border border-transparent bg-transparent sm:h-[4.25rem]"
           }`}
         >
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
-            <Link
-              href="/"
-              className="group shrink-0 leading-none"
-              onClick={() => setMobileNavOpen(false)}
-            >
+            <Link href="/" className="group shrink-0 leading-none">
               <PriimoLogo
                 priority
                 className="h-10 sm:h-11 md:h-12"
@@ -118,8 +80,7 @@ export default function Header({ latestPost = null }: HeaderProps) {
           <div className="flex shrink-0 items-center gap-2 sm:gap-4 lg:gap-6">
             <Link
               href="/login"
-              className="group relative hidden min-h-11 items-center text-[14px] font-medium text-gray-700 transition-colors duration-200 hover:text-accent-dark min-[420px]:inline-flex sm:text-[15px]"
-              onClick={() => setMobileNavOpen(false)}
+              className="group relative inline-flex min-h-11 items-center text-[13px] font-medium text-gray-700 transition-colors duration-200 hover:text-accent-dark sm:text-[15px]"
             >
               Se connecter
               <span
@@ -140,16 +101,6 @@ export default function Header({ latestPost = null }: HeaderProps) {
                 →
               </span>
             </a>
-
-            <button
-              type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/8 text-gray-700 transition-colors hover:bg-soft-gray/80 lg:hidden"
-              aria-expanded={mobileNavOpen}
-              aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
-              onClick={() => setMobileNavOpen((value) => !value)}
-            >
-              {mobileNavOpen ? <X size={20} strokeWidth={2} aria-hidden /> : <Menu size={20} strokeWidth={2} aria-hidden />}
-            </button>
           </div>
         </div>
 
@@ -158,24 +109,6 @@ export default function Header({ latestPost = null }: HeaderProps) {
           onOpenChange={setFeaturesOpen}
           panelId={featuresPanelId}
         />
-
-        {mobileNavOpen && (
-          <div className="relative z-20 mt-2 overflow-hidden rounded-2xl border border-black/8 bg-white/95 shadow-[0_20px_40px_-24px_rgba(17,24,39,0.3)] backdrop-blur-xl lg:hidden">
-            <div className="px-4 py-3 min-[420px]:hidden">
-              <Link
-                href="/login"
-                className="flex min-h-11 items-center text-[15px] font-medium text-gray-700"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Se connecter
-              </Link>
-            </div>
-            <FeaturesMenuMobile open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
-            <div className="border-t border-black/6 px-4 py-3 lg:hidden">
-              <ResourcesMenu latestPost={latestPost} />
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

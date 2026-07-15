@@ -147,68 +147,6 @@ export function FeaturesMegaPanel({ open, onOpenChange, panelId }: FeaturesMenuP
   );
 }
 
-export function FeaturesMenuMobile({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const sectionId = useId();
-
-  useEffect(() => {
-    if (!open) setExpanded(false);
-  }, [open]);
-
-  if (!open) return null;
-
-  return (
-    <div className="border-t border-black/6 px-4 py-3 lg:hidden">
-      <button
-        type="button"
-        className="flex w-full min-h-11 items-center justify-between text-left text-[15px] font-semibold text-gray-900"
-        aria-expanded={expanded}
-        aria-controls={sectionId}
-        onClick={() => setExpanded((value) => !value)}
-      >
-        Fonctionnalités
-        <ChevronDown
-          size={18}
-          className={`shrink-0 text-gray-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-          aria-hidden
-        />
-      </button>
-
-      {expanded && (
-        <div id={sectionId} className="mt-2 space-y-4 pb-1">
-          {FEATURE_MENU_GROUPS.map((group) => (
-            <div key={group.title}>
-              <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">
-                {group.title}
-              </p>
-              <ul className="space-y-0.5">
-                {group.items.map((item) => (
-                  <li key={item.title}>
-                    <FeatureMenuItemLink
-                      href={item.href}
-                      title={item.title}
-                      description={item.description}
-                      icon={item.icon}
-                      compact
-                      onNavigate={() => onOpenChange(false)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function useFeaturesMenu() {
   const [open, setOpen] = useState(false);
   const panelId = useId();
