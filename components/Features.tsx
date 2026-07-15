@@ -156,11 +156,15 @@ export default function Features() {
                   </h3>
                   <p className="text-body mt-2 max-w-xl">{f.body}</p>
                   {i === 0 && <ScoreGauge />}
-                  <span className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-[#E8743C] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(232,116,60,0.28)] transition-colors duration-200 group-hover:bg-[#C25E2C] sm:text-[14px]">
+                  <span className="relative mt-auto inline-flex w-fit items-center gap-1.5 text-[13px] font-medium text-gray-700 transition-colors duration-200 group-hover:text-accent-dark sm:text-[14px]">
                     Voir la page
                     <span data-arrow aria-hidden>
                       →
                     </span>
+                    <span
+                      className="absolute -bottom-0.5 left-0 h-px w-0 bg-accent transition-all duration-200 ease-out group-hover:w-full"
+                      aria-hidden
+                    />
                   </span>
                 </Link>
               </Reveal>
