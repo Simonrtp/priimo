@@ -144,7 +144,7 @@ export default function Features() {
               <Reveal key={f.title} direction={direction} delay={delay} className={`h-full ${span}`}>
                 <Link
                   href={f.href}
-                  className={`group glass glass-hover grad-border relative block h-full overflow-hidden rounded-[24px] p-6 sm:p-8 ${panelTint} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/50`}
+                  className={`group glass glass-hover grad-border relative flex h-full flex-col overflow-hidden rounded-[24px] p-6 sm:p-8 ${panelTint} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent/50`}
                 >
                   <div
                     className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${iconChip} shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-transform duration-500 ease-out group-hover:scale-110 group-hover:-rotate-6`}
@@ -156,6 +156,12 @@ export default function Features() {
                   </h3>
                   <p className="text-body mt-2 max-w-xl">{f.body}</p>
                   {i === 0 && <ScoreGauge />}
+                  <span className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-[#E8743C] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(232,116,60,0.28)] transition-colors duration-200 group-hover:bg-[#C25E2C] sm:text-[14px]">
+                    Voir la page
+                    <span data-arrow aria-hidden>
+                      →
+                    </span>
+                  </span>
                 </Link>
               </Reveal>
             );

@@ -283,14 +283,14 @@ export default function ProblemTransformation() {
           </Reveal>
         </div>
 
-        <Reveal direction="scale" delay={200} className="mt-12 flex justify-center">
-          <CtaButton>
+        <div className="mt-12 flex justify-center">
+          <CtaButton className="relative z-20 border-0 bg-[#E8743C] shadow-[0_10px_28px_rgba(232,116,60,0.45)] hover:bg-[#C25E2C] hover:shadow-[0_12px_32px_rgba(232,116,60,0.5)]">
             Réserver une démo
             <span data-arrow aria-hidden>
               →
             </span>
           </CtaButton>
-        </Reveal>
+        </div>
       </div>
     </section>
   );

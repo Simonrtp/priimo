@@ -908,8 +908,11 @@ body {
 .landing .btn-primary {
   background-color: #e8743c;
   background-image: none;
+  opacity: 1;
   position: relative;
   box-shadow: 0 6px 20px rgba(232, 116, 60, 0.28);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   transition:
     transform 200ms ease,
     box-shadow 200ms ease,
