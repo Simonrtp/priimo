@@ -98,7 +98,7 @@ export default function HeroSection() {
       </div>
 
       {/* Démo produit — vidéo en boucle */}
-      <div className="relative mx-auto mt-6 min-w-0 w-full max-w-5xl px-2 sm:mt-8 sm:max-w-6xl sm:px-4 lg:max-w-[1280px] lg:px-5 xl:max-w-[1360px]">
+      <div className="relative mx-auto mt-6 min-w-0 w-full max-w-4xl px-2 sm:mt-8 sm:max-w-[980px] sm:px-4 lg:max-w-[1120px]">
         <Reveal direction="scale" delay={180}>
           <div className="relative mx-auto w-full min-w-0 overflow-hidden rounded-[20px] bg-white shadow-[0_40px_100px_-36px_rgba(30,27,75,0.36)] ring-1 ring-black/[0.06] sm:rounded-[24px]">
             <HeroVideo />
