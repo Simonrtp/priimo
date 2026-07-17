@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ListOrdered, MapPinned, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Database, MapPinned, Target, type LucideIcon } from "lucide-react";
 import Reveal from "./Reveal";
 import HeroBackground from "./HeroBackground";
 import HeroVideo from "./HeroVideo";
@@ -10,16 +10,16 @@ import { CALENDLY_URL } from "@/lib/calendly";
 
 const BULLETS: { text: string; Icon: LucideIcon }[] = [
   {
-    text: "Liste courte et priorisée",
-    Icon: ListOrdered,
+    text: "Data",
+    Icon: Database,
   },
   {
-    text: "Secteur exclusif",
+    text: "Secteur",
     Icon: MapPinned,
   },
   {
-    text: "Prêt pour l'interdiction de la pige (11 août 2026)",
-    Icon: ShieldCheck,
+    text: "Prospection",
+    Icon: Target,
   },
 ];
 
@@ -62,7 +62,7 @@ export default function HeroSection() {
                   >
                     <Icon size={11} strokeWidth={2.25} />
                   </span>
-                  <span className="text-left text-[12.5px] leading-snug text-gray-600 sm:text-[13px]">
+                  <span className="text-left text-[12.5px] font-semibold uppercase tracking-[0.14em] text-gray-600 sm:text-[13px]">
                     {text}
                   </span>
                 </Reveal>
