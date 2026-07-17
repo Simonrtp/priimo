@@ -54,15 +54,15 @@ export default function HeroSection() {
                   key={text}
                   direction="up"
                   delay={80 + i * 90}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2.5"
                 >
                   <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/12 text-accent-dark"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/12 text-accent-dark"
                     aria-hidden
                   >
-                    <Icon size={11} strokeWidth={2.25} />
+                    <Icon size={13} strokeWidth={2.25} />
                   </span>
-                  <span className="text-left text-[12.5px] font-semibold uppercase tracking-[0.14em] text-gray-600 sm:text-[13px]">
+                  <span className="text-left text-[13.5px] font-semibold uppercase tracking-[0.14em] text-gray-600 sm:text-[14.5px]">
                     {text}
                   </span>
                 </Reveal>
