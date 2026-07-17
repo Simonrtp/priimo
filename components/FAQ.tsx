@@ -21,7 +21,7 @@ const FAQS: Item[] = [
   },
   {
     q: "Est-ce que ça fonctionne vraiment ?",
-    a: "Priimo ne promet pas des mandats par magie : il repère les événements de vie et signaux de marché qui précèdent une vente — DPE refait, ventes en série, copropriété fragilisée, SCI en dissolution. Chaque adresse est scorée et expliquée, pour que votre équipe sache où frapper en priorité. Le mois d'essai gratuit, sans engagement, sert justement à le vérifier sur votre secteur, avec vos agents sur le terrain.",
+    a: "Priimo ne promet pas des mandats par magie : il repère les événements de vie et signaux de marché qui précèdent une vente — DPE refait, ventes en série, copropriété fragilisée, SCI en dissolution. Chaque adresse est scorée et expliquée, pour que vous sachiez où frapper en priorité. Le mois d'essai gratuit, sans engagement, sert justement à le vérifier sur votre secteur, sur le terrain.",
   },
   {
     q: "Comment essayer Priimo gratuitement ?",
@@ -33,7 +33,11 @@ const FAQS: Item[] = [
   },
   {
     q: "Combien de temps pour être opérationnel ?",
-    a: "Un appel de 20 minutes pour délimiter votre secteur, une invitation, et votre première liste vous attend à la connexion. Aucune installation, aucune formation : si votre équipe sait lire une liste d'adresses, elle sait utiliser Priimo. Le tableau de bord fonctionne sur ordinateur comme sur mobile.",
+    a: "Un appel de 20 minutes pour délimiter votre secteur, une invitation, et votre première liste vous attend à la connexion. Aucune installation, aucune formation : si vous savez lire une liste d'adresses, vous savez utiliser Priimo. Le tableau de bord fonctionne sur ordinateur comme sur mobile.",
+  },
+  {
+    q: "Je suis agent ou négociateur, pas directeur. Priimo me concerne ?",
+    a: "Oui — c'est même vous qui l'utilisez le plus. La liste du lundi, les signaux, les statuts : c'est l'outil de celui qui est sur le terrain. L'abonnement, lui, est pris par l'agence, car le secteur est exclusif. Si Priimo vous parle, montrez cette page à votre directeur — ou réservez une démo et venez à deux. Beaucoup d'outils entrent dans une agence parce qu'un agent les a repérés en premier.",
   },
 ];
 

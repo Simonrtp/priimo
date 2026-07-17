@@ -13,7 +13,7 @@ const BEFORE: Item[] = [
   {
     title: "Du porte-à-porte à l'aveugle",
     description:
-      "Porte-à-porte, des milliers de flyers distribués : vos agents passent des journées à frapper dans le vent, sans savoir quelle porte cache un projet de vente.",
+      "Des journées de porte-à-porte au hasard, sans savoir quelles portes cachent un projet de vente.",
   },
   {
     title: "Des leads déjà grillés",
@@ -31,7 +31,7 @@ const AFTER: Item[] = [
   {
     title: "Une liste prête chaque lundi",
     description:
-      "Chaque semaine, les adresses prioritaires de votre secteur, scorées et expliquées : votre équipe sait où aller et pourquoi.",
+      "Chaque semaine, les adresses prioritaires de votre secteur, scorées et expliquées : vous savez où aller dès le lundi matin.",
   },
   {
     title: "Avant la mise en ligne",

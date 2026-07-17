@@ -69,14 +69,14 @@ const FEATURES: Feature[] = [
     Icon: MapPinIcon,
   },
   {
-    title: "Le suivi de votre équipe",
+    title: "Une liste travaillée en équipe",
     body: "Statuts, assignation, notes : vous voyez qui travaille quoi, ce qui a donné un rendez-vous, et ce qui reste à couvrir.",
     href: "/fonctionnalites/livraison#suivi",
     Icon: DashboardIcon,
   },
   {
     title: "Export et partage en un clic",
-    body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos agents ont leurs adresses en poche sur le terrain.",
+    body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos adresses en poche sur le terrain.",
     href: "/fonctionnalites/livraison#export",
     Icon: ShareIcon,
   },
@@ -121,7 +121,7 @@ export default function Features() {
             </span>
           </div>
           <h2 className="text-h2 text-center max-w-3xl mx-auto text-balance px-1">
-            Un moteur prédictif fait le tri. Vos agents font les mandats.
+            Un moteur prédictif fait le tri. Vous faites les mandats.
           </h2>
         </Reveal>
 

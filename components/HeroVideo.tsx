@@ -10,6 +10,13 @@ const CONTROL_COLOR = "#6366F1";
 const MAGNETIC_MAX = 58;
 const BUTTON_FADE_MS = 220;
 
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
+}
+
 /** Vidéo hero : aperçu de la 1re frame, lecture manuelle via bouton central ou clic sur la vidéo. */
 export default function HeroVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -19,11 +26,14 @@ export default function HeroVideo() {
   const [isReady, setIsReady] = useState(false);
   const [iconMode, setIconMode] = useState<"play" | "pause">("play");
   const [isMobile, setIsMobile] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const pendingPlayRef = useRef(false);
   const targetOffsetRef = useRef({ x: 0, y: 0 });
   const currentOffsetRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
   const videoSrc = isMobile ? VIDEO_MOBILE : VIDEO_DESKTOP;
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MEDIA);
@@ -37,6 +47,8 @@ export default function HeroVideo() {
     setIsPlaying(false);
     setIconMode("play");
     setIsReady(false);
+    setCurrentTime(0);
+    setDuration(0);
     pendingPlayRef.current = false;
   }, [videoSrc]);
 
@@ -53,9 +65,14 @@ export default function HeroVideo() {
       setIsPlaying(false);
       setIconMode("play");
     };
+    const onTimeUpdate = () => setCurrentTime(video.currentTime);
+    const onDurationChange = () => {
+      if (Number.isFinite(video.duration)) setDuration(video.duration);
+    };
 
     const primeFirstFrame = () => {
       setIsReady(true);
+      onDurationChange();
       if (!pendingPlayRef.current && video.paused) {
         video.currentTime = 0.01;
       }
@@ -64,6 +81,9 @@ export default function HeroVideo() {
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("ended", onEnded);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("loadedmetadata", onDurationChange);
+    video.addEventListener("durationchange", onDurationChange);
     video.addEventListener("loadeddata", primeFirstFrame);
 
     if (video.readyState >= 2) primeFirstFrame();
@@ -72,6 +92,9 @@ export default function HeroVideo() {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEnded);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("loadedmetadata", onDurationChange);
+      video.removeEventListener("durationchange", onDurationChange);
       video.removeEventListener("loadeddata", primeFirstFrame);
     };
   }, [videoSrc]);
@@ -205,49 +228,90 @@ export default function HeroVideo() {
     }
   }
 
+  function handleSeek(value: number) {
+    const video = videoRef.current;
+    if (!video || !duration) return;
+    video.currentTime = value;
+    setCurrentTime(value);
+  }
+
   return (
-    <div
-      ref={containerRef}
-      role="button"
-      tabIndex={0}
-      onClick={handleContainerClick}
-      onKeyDown={handleContainerKeyDown}
-      aria-label={isPlaying ? "Mettre la démo en pause" : "Lire la démo Priimo"}
-      className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1]"
-    >
-      <video
-        key={videoSrc}
-        ref={videoRef}
-        className={`pointer-events-none block h-full w-full object-cover transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
-        src={videoSrc}
-        loop
-        muted
-        playsInline
-        preload="metadata"
-        aria-hidden
-      />
+    <div className="w-full">
+      <div
+        ref={containerRef}
+        role="button"
+        tabIndex={0}
+        onClick={handleContainerClick}
+        onKeyDown={handleContainerKeyDown}
+        aria-label={isPlaying ? "Mettre la démo en pause" : "Lire la démo Priimo"}
+        className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1]"
+      >
+        <video
+          key={videoSrc}
+          ref={videoRef}
+          className={`pointer-events-none block h-full w-full object-cover transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
+          src={videoSrc}
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden
+        />
+
+        <div
+          ref={buttonWrapRef}
+          className={`pointer-events-none absolute left-1/2 top-1/2 z-10 will-change-transform transition-opacity ease-out motion-reduce:transition-none ${
+            isPlaying ? "opacity-0" : "opacity-100"
+          }`}
+          style={{
+            transform: "translate(-50%, -50%)",
+            transitionDuration: isPlaying ? `${BUTTON_FADE_MS}ms` : "300ms",
+          }}
+          aria-hidden
+        >
+          <span
+            className="flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full text-white shadow-[0_14px_36px_-10px_rgba(99,102,241,0.6)] sm:h-[4.75rem] sm:w-[4.75rem]"
+            style={{ backgroundColor: CONTROL_COLOR }}
+          >
+            {iconMode === "pause" ? (
+              <Pause size={30} strokeWidth={2.25} fill="currentColor" aria-hidden />
+            ) : (
+              <Play size={30} strokeWidth={2.25} fill="currentColor" className="ml-1" aria-hidden />
+            )}
+          </span>
+        </div>
+      </div>
 
       <div
-        ref={buttonWrapRef}
-        className={`pointer-events-none absolute left-1/2 top-1/2 z-10 will-change-transform transition-opacity ease-out motion-reduce:transition-none ${
-          isPlaying ? "opacity-0" : "opacity-100"
-        }`}
-        style={{
-          transform: "translate(-50%, -50%)",
-          transitionDuration: isPlaying ? `${BUTTON_FADE_MS}ms` : "300ms",
-        }}
-        aria-hidden
+        className="border-t border-black/[0.06] bg-white px-4 py-3 sm:px-5 sm:py-3.5"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
       >
-        <span
-          className="flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full text-white shadow-[0_14px_36px_-10px_rgba(99,102,241,0.6)] sm:h-[4.75rem] sm:w-[4.75rem]"
-          style={{ backgroundColor: CONTROL_COLOR }}
-        >
-          {iconMode === "pause" ? (
-            <Pause size={30} strokeWidth={2.25} fill="currentColor" aria-hidden />
-          ) : (
-            <Play size={30} strokeWidth={2.25} fill="currentColor" className="ml-1" aria-hidden />
-          )}
-        </span>
+        <label htmlFor="hero-video-progress" className="sr-only">
+          Position dans la vidéo
+        </label>
+        <input
+          id="hero-video-progress"
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.01}
+          value={Math.min(currentTime, duration || 0)}
+          disabled={!duration}
+          onChange={(event) => handleSeek(Number(event.target.value))}
+          className="hero-video-range block h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/[0.08] accent-[#6366F1] disabled:cursor-default disabled:opacity-50"
+          style={{
+            background: `linear-gradient(to right, ${CONTROL_COLOR} ${progressPercent}%, rgba(0,0,0,0.08) ${progressPercent}%)`,
+          }}
+          aria-valuemin={0}
+          aria-valuemax={duration || 0}
+          aria-valuenow={currentTime}
+          aria-valuetext={`${formatTime(currentTime)} sur ${formatTime(duration)}`}
+        />
+        <div className="mt-2 flex items-center justify-between text-[11px] font-medium tabular-nums text-gray-500 sm:text-xs">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
       </div>
     </div>
   );

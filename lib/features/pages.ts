@@ -117,7 +117,7 @@ export const LIVRAISON_PAGE: FeaturePageContent = {
       'Chaque lundi, une liste courte sur votre secteur exclusif. Statuts, assignation, notes, retours terrain et export CSV ou Google Maps.',
     path: '/fonctionnalites/livraison',
   },
-  label: 'VOTRE ÉQUIPE',
+  label: 'SUR LE TERRAIN',
   h1: 'Chaque lundi, la liste. Le reste de la semaine, le terrain.',
   accroche:
     'Une liste courte, expliquée, sur un secteur qui n\'appartient qu\'à vous — et de quoi la travailler à plusieurs sans rien perdre.',
@@ -149,7 +149,7 @@ export const LIVRAISON_PAGE: FeaturePageContent = {
       key: 'feedback',
       title: 'Dites-nous ce que ça a donné',
       paragraphs: [
-        'Pour chaque adresse travaillée, vos agents indiquent le résultat : mandat signé, vendeur perdu, pas vendeur, injoignable. Ce retour n\'est pas décoratif : il entraîne le moteur. Plus vous nous dites la vérité du terrain, plus les listes suivantes sont justes. C\'est la seule façon honnête de faire progresser un scoring.',
+        'Pour chaque adresse travaillée, vous indiquez le résultat : mandat signé, vendeur perdu, pas vendeur, injoignable. Ce retour n\'est pas décoratif : il entraîne le moteur. Plus vous nous dites la vérité du terrain, plus les listes suivantes sont justes. C\'est la seule façon honnête de faire progresser un scoring.',
       ],
     },
     {
@@ -157,9 +157,9 @@ export const LIVRAISON_PAGE: FeaturePageContent = {
       id: 'export',
       title: 'Sur le terrain',
       paragraphs: [
-        'Export CSV, ou lien Google Maps partagé directement avec l\'agent qui part en tournée. Vos adresses dans sa poche.',
+        'Export CSV, ou lien Google Maps partagé en un clic : vos adresses en poche sur le terrain.',
       ],
     },
   ],
-  enClair: 'Priimo ne remplace pas vos agents. Il leur évite de frapper aux mauvaises portes.',
+  enClair: 'Priimo ne fait pas les mandats à votre place. Il vous évite de frapper aux mauvaises portes.',
 };

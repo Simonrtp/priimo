@@ -61,7 +61,7 @@ const STEPS: Step[] = [
   },
   {
     num: "03",
-    title: "Envoyez vos agents au bon endroit",
+    title: "Partez frapper aux bonnes portes",
     body: "Chaque adresse part avec son contexte : signaux, copropriété, historique du bien. Export CSV ou lien Google Maps pour le terrain.",
     Icon: RouteIcon,
   },

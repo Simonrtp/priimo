@@ -23,7 +23,7 @@ const STEPS: Step[] = [
   {
     Icon: MapPin,
     kicker: 'La semaine',
-    title: 'Vos agents travaillent',
+    title: 'Vous travaillez la liste',
     line: 'Terrain, appels, portes : chaque adresse est expliquée.',
   },
   {

@@ -70,7 +70,7 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     ],
   },
   {
-    title: 'VOTRE ÉQUIPE',
+    title: 'SUR LE TERRAIN',
     items: [
       {
         title: 'Suivi des prospects',
