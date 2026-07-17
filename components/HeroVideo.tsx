@@ -9,6 +9,7 @@ const MOBILE_MEDIA = "(max-width: 767px)";
 const CONTROL_COLOR = "#6366F1";
 const MAGNETIC_MAX = 58;
 const BUTTON_FADE_MS = 220;
+const TIMELINE_FADE_MS = 220;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -28,19 +29,34 @@ export default function HeroVideo() {
   const [isMobile, setIsMobile] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isTimelineFocused, setIsTimelineFocused] = useState(false);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const pendingPlayRef = useRef(false);
   const targetOffsetRef = useRef({ x: 0, y: 0 });
   const currentOffsetRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
+  const progressRafRef = useRef<number | null>(null);
+  const isScrubbingRef = useRef(false);
   const videoSrc = isMobile ? VIDEO_MOBILE : VIDEO_DESKTOP;
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progressRatio = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
+  const showTimeline = isCoarsePointer || isHovered || isScrubbing || isTimelineFocused;
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MEDIA);
-    const update = () => setIsMobile(mq.matches);
+    const pointerMq = window.matchMedia("(pointer: coarse)");
+    const update = () => {
+      setIsMobile(mq.matches);
+      setIsCoarsePointer(pointerMq.matches);
+    };
     update();
     mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
+    pointerMq.addEventListener("change", update);
+    return () => {
+      mq.removeEventListener("change", update);
+      pointerMq.removeEventListener("change", update);
+    };
   }, []);
 
   useEffect(() => {
@@ -184,6 +200,25 @@ export default function HeroVideo() {
     };
   }, [isPlaying]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isPlaying) return;
+
+    const tick = () => {
+      if (!isScrubbingRef.current) {
+        setCurrentTime(video.currentTime);
+      }
+      progressRafRef.current = requestAnimationFrame(tick);
+    };
+
+    progressRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (progressRafRef.current !== null) {
+        cancelAnimationFrame(progressRafRef.current);
+      }
+    };
+  }, [isPlaying, videoSrc]);
+
   async function startPlayback() {
     const video = videoRef.current;
     if (!video || !video.paused) return;
@@ -228,11 +263,91 @@ export default function HeroVideo() {
     }
   }
 
+  function handleContainerMouseEnter() {
+    setIsHovered(true);
+  }
+
+  function handleContainerMouseLeave() {
+    setIsHovered(false);
+  }
+
   function handleSeek(value: number) {
     const video = videoRef.current;
     if (!video || !duration) return;
-    video.currentTime = value;
-    setCurrentTime(value);
+    const next = Math.min(duration, Math.max(0, value));
+    video.currentTime = next;
+    setCurrentTime(next);
+  }
+
+  function seekFromClientX(clientX: number, track: HTMLElement) {
+    if (!duration) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    handleSeek(ratio * duration);
+  }
+
+  function handleProgressPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    if (!duration) return;
+    isScrubbingRef.current = true;
+    setIsScrubbing(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    seekFromClientX(event.clientX, event.currentTarget);
+  }
+
+  function handleProgressPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isScrubbingRef.current) return;
+    event.stopPropagation();
+    seekFromClientX(event.clientX, event.currentTarget);
+  }
+
+  function handleProgressPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isScrubbingRef.current) return;
+    event.stopPropagation();
+    isScrubbingRef.current = false;
+    setIsScrubbing(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const { clientX, clientY } = event;
+      const inside =
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom;
+      if (!inside) setIsHovered(false);
+    }
+  }
+
+  function handleTimelineFocus() {
+    setIsTimelineFocused(true);
+  }
+
+  function handleTimelineBlur(event: React.FocusEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setIsTimelineFocused(false);
+    }
+  }
+
+  function handleProgressKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    if (!duration) return;
+    const step = event.shiftKey ? 10 : 5;
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      handleSeek(currentTime + step);
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      handleSeek(currentTime - step);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      handleSeek(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      handleSeek(duration);
+    }
   }
 
   return (
@@ -243,6 +358,8 @@ export default function HeroVideo() {
         tabIndex={0}
         onClick={handleContainerClick}
         onKeyDown={handleContainerKeyDown}
+        onMouseEnter={handleContainerMouseEnter}
+        onMouseLeave={handleContainerMouseLeave}
         aria-label={isPlaying ? "Mettre la démo en pause" : "Lire la démo Priimo"}
         className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1]"
       >
@@ -280,37 +397,61 @@ export default function HeroVideo() {
             )}
           </span>
         </div>
-      </div>
 
-      <div
-        className="border-t border-black/[0.06] bg-white px-4 py-3 sm:px-5 sm:py-3.5"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-      >
-        <label htmlFor="hero-video-progress" className="sr-only">
-          Position dans la vidéo
-        </label>
-        <input
-          id="hero-video-progress"
-          type="range"
-          min={0}
-          max={duration || 0}
-          step={0.01}
-          value={Math.min(currentTime, duration || 0)}
-          disabled={!duration}
-          onChange={(event) => handleSeek(Number(event.target.value))}
-          className="hero-video-range block h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/[0.08] accent-[#6366F1] disabled:cursor-default disabled:opacity-50"
-          style={{
-            background: `linear-gradient(to right, ${CONTROL_COLOR} ${progressPercent}%, rgba(0,0,0,0.08) ${progressPercent}%)`,
-          }}
-          aria-valuemin={0}
-          aria-valuemax={duration || 0}
-          aria-valuenow={currentTime}
-          aria-valuetext={`${formatTime(currentTime)} sur ${formatTime(duration)}`}
-        />
-        <div className="mt-2 flex items-center justify-between text-[11px] font-medium tabular-nums text-gray-500 sm:text-xs">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+        <div
+          className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/60 via-black/25 to-transparent px-4 pb-3 pt-10 transition-opacity ease-out motion-reduce:transition-none sm:px-5 sm:pb-3.5 sm:pt-12 ${
+            showTimeline ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          style={{ transitionDuration: `${TIMELINE_FADE_MS}ms` }}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+          onFocus={handleTimelineFocus}
+          onBlur={handleTimelineBlur}
+        >
+          <div
+            className={`flex items-center gap-2.5 sm:gap-3 ${
+              showTimeline ? "pointer-events-auto" : "pointer-events-none"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <span className="w-9 shrink-0 text-[10px] font-medium tabular-nums text-white/85 sm:text-[11px]">
+              {formatTime(currentTime)}
+            </span>
+
+            <div
+              role="slider"
+              tabIndex={duration ? 0 : -1}
+              aria-label="Position dans la vidéo"
+              aria-valuemin={0}
+              aria-valuemax={duration || 0}
+              aria-valuenow={currentTime}
+              aria-valuetext={`${formatTime(currentTime)} sur ${formatTime(duration)}`}
+              aria-disabled={!duration}
+              className="group relative h-5 flex-1 cursor-pointer touch-none outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:cursor-default"
+              onPointerDown={handleProgressPointerDown}
+              onPointerMove={handleProgressPointerMove}
+              onPointerUp={handleProgressPointerUp}
+              onPointerCancel={handleProgressPointerUp}
+              onKeyDown={handleProgressKeyDown}
+            >
+              <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 overflow-hidden rounded-full bg-white/20">
+                <div
+                  className="h-full origin-left rounded-full bg-[#6366F1] will-change-transform"
+                  style={{ transform: `scaleX(${progressRatio})` }}
+                />
+              </div>
+              <div
+                className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-[0_0_0_2px_rgba(99,102,241,0.85)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
+                style={{ left: `${progressRatio * 100}%` }}
+                aria-hidden
+              />
+            </div>
+
+            <span className="w-9 shrink-0 text-right text-[10px] font-medium tabular-nums text-white/85 sm:text-[11px]">
+              {formatTime(duration)}
+            </span>
+          </div>
         </div>
       </div>
     </div>
