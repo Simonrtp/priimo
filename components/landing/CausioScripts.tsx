@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { removeCausioWidget } from '@/lib/causio-widget';
 
 const WIDGET_SRC =
   'https://causio.fr/widget.js?v=dpl_FS1MZUVKmBLnUmXyv1ZXznevWt5F';
@@ -107,8 +108,7 @@ export default function CausioScripts() {
       cancelled = true;
       if (idleId !== undefined) window.cancelIdleCallback(idleId);
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-      script?.remove();
-      preconnect?.remove();
+      removeCausioWidget();
     };
   }, []);
 

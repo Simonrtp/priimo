@@ -8,6 +8,7 @@ import {
   FeaturesMegaPanel,
   FeaturesMenuTrigger,
 } from "@/components/FeaturesMenu";
+import MobileNav from "@/components/MobileNav";
 import { CALENDLY_URL } from "@/lib/calendly";
 import type { BlogPostSummary } from "@/lib/blog/types";
 
@@ -17,7 +18,7 @@ type HeaderProps = {
 
 // === HEADER ===
 // Barre flottante en verre (glass) qui se contracte au scroll.
-// Navigation complète desktop ; mobile = logo + connexion + CTA démo (sans menu hamburger).
+// Desktop : méga-menu au hover. Mobile : hamburger + panneau latéral.
 type NavMenu = "features" | "resources" | null;
 
 export default function Header({ latestPost = null }: HeaderProps) {
@@ -77,10 +78,10 @@ export default function Header({ latestPost = null }: HeaderProps) {
             </nav>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4 lg:gap-6">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
             <Link
               href="/login"
-              className="group relative inline-flex min-h-11 items-center text-[13px] font-medium text-gray-700 transition-colors duration-200 hover:text-accent-dark sm:text-[15px]"
+              className="group relative hidden min-h-11 items-center text-[13px] font-medium text-gray-700 transition-colors duration-200 hover:text-accent-dark sm:text-[15px] lg:inline-flex"
             >
               Se connecter
               <span
@@ -89,11 +90,13 @@ export default function Header({ latestPost = null }: HeaderProps) {
               />
             </Link>
 
+            <MobileNav />
+
             <a
               href={CALENDLY_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-primary inline-flex min-h-11 items-center gap-1.5 px-4 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]"
+              className="btn btn-primary inline-flex min-h-11 items-center gap-1.5 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]"
             >
               <span className="sm:hidden">Démo</span>
               <span className="hidden sm:inline">Réserver une démo</span>

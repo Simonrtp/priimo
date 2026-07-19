@@ -30,6 +30,18 @@ export default function LivraisonFeature() {
           label={LIVRAISON_PAGE.label}
           h1={LIVRAISON_PAGE.h1}
           accroche={LIVRAISON_PAGE.accroche}
+          media={
+            <video
+              src="/priimo-liste.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              className="block w-full rounded-[20px]"
+              aria-hidden
+            />
+          }
         />
 
         {/* 2 — Le parcours en 3 temps */}

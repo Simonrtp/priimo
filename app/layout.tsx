@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Libre_Baskerville } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
+import CausioRouteGuard from "@/components/landing/CausioRouteGuard";
 import "./globals.css";
 
 // === FONTS (next/font — self-hosted, aucun <link> externe) ===
@@ -121,6 +122,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jakarta.variable} ${jetbrainsMono.variable} ${libreBaskerville.variable}`}
     >
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
+        <CausioRouteGuard />
         {children}
         <Toaster richColors position="top-right" />
         <Analytics />

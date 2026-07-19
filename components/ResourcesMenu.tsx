@@ -137,7 +137,7 @@ export default function ResourcesMenu({
   return (
     <div
       ref={rootRef}
-      className="relative"
+      className="relative hidden lg:block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
