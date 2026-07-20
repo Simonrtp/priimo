@@ -29,7 +29,7 @@ export default function FeatureHero({ label, h1, accroche, media }: FeatureHeroP
           </p>
 
           {hasMedia ? (
-            <div className="mt-3 grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_min(100%,380px)] lg:items-start lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-x-12">
+            <div className="mt-3 grid items-center gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_min(100%,380px)] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-x-12">
               <div className="min-w-0">
                 <h1 className="text-h1 headline text-balance">{h1}</h1>
                 <p className="text-body mt-4 text-gray-600 text-pretty">{accroche}</p>

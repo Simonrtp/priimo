@@ -93,7 +93,6 @@ export async function POST(request: Request) {
 
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: authData.user.id,
-      active_agency_id: agency.id,
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       phone: normalizedPhone,
@@ -101,7 +100,9 @@ export async function POST(request: Request) {
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
+      if (!invitation.agency_id) {
+        await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
+      }
       return NextResponse.json(
         { error: 'Erreur création profil : ' + profileError.message },
         { status: 500 },
@@ -116,9 +117,27 @@ export async function POST(request: Request) {
 
     if (membershipError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
+      if (!invitation.agency_id) {
+        await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
+      }
       return NextResponse.json(
         { error: 'Erreur rattachement agence : ' + membershipError.message },
+        { status: 500 },
+      );
+    }
+
+    const { error: activeAgencyError } = await supabaseAdmin
+      .from('profiles')
+      .update({ active_agency_id: agency.id })
+      .eq('id', authData.user.id);
+
+    if (activeAgencyError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      if (!invitation.agency_id) {
+        await supabaseAdmin.from('agencies').delete().eq('id', agency.id);
+      }
+      return NextResponse.json(
+        { error: 'Erreur agence active : ' + activeAgencyError.message },
         { status: 500 },
       );
     }

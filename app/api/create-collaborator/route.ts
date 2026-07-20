@@ -57,7 +57,6 @@ export async function POST(request: Request) {
 
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: authData.user.id,
-      active_agency_id: invitation.agency_id,
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       phone: normalizedPhone,
@@ -81,6 +80,19 @@ export async function POST(request: Request) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return NextResponse.json(
         { error: 'Erreur rattachement agence : ' + membershipError.message },
+        { status: 500 },
+      );
+    }
+
+    const { error: activeAgencyError } = await supabaseAdmin
+      .from('profiles')
+      .update({ active_agency_id: invitation.agency_id })
+      .eq('id', authData.user.id);
+
+    if (activeAgencyError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return NextResponse.json(
+        { error: 'Erreur agence active : ' + activeAgencyError.message },
         { status: 500 },
       );
     }
