@@ -165,19 +165,20 @@ function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
   }
 
   return (
-    <SignalFamilyDisclosure title={headParts.join(' — ')} tooltip={family.tooltip}>
-      <ul className="pl-3">
-        <li
-          className="flex items-baseline gap-1.5 text-ink"
-          style={{ fontSize: 12.5, lineHeight: 1.5 }}
-        >
-          <span aria-hidden className="text-mute/60" style={{ fontSize: 10 }}>
-            •
-          </span>
-          <span className="min-w-0 flex-1">Vente récente dans l’immeuble</span>
-        </li>
-      </ul>
-    </SignalFamilyDisclosure>
+    <div className="flex items-start gap-2 py-2">
+      <span
+        className="min-w-0 flex-1 font-semibold leading-snug text-ink"
+        style={{ fontSize: 13 }}
+      >
+        {headParts.join(' — ')}
+      </span>
+      <InfoTooltip
+        content="Vente récente dans l’immeuble"
+        placement="top-end"
+        iconSize={13}
+        className="pt-0.5"
+      />
+    </div>
   );
 }
 
