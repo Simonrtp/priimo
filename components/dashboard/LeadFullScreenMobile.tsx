@@ -3,16 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Mail as MailIcon, MapPin, Phone as PhoneIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Lead, LeadStatus, TeamMember } from '@/types/lead';
+import type { Lead, TeamMember } from '@/types/lead';
 import { ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 import { formatDate } from '@/lib/utils';
-import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
-import Select from '@/components/ui/Select';
 import ClayButton from '@/components/ui/ClayButton';
 import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
-import LeadMlFeedbackFields from './LeadMlFeedbackFields';
+import LeadAssigneeControl from './LeadAssigneeControl';
+import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
 import { isSciDirectorPending } from '@/types/lead';
@@ -26,6 +25,7 @@ interface LeadFullScreenMobileProps {
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   onDeleteLead: (id: string) => Promise<void>;
   canAssignLead?: boolean;
+  currentUserId?: string | null;
   teamMembers: TeamMember[];
 }
 
@@ -52,6 +52,7 @@ export default function LeadFullScreenMobile({
   onUpdateLead,
   onDeleteLead,
   canAssignLead = true,
+  currentUserId,
   teamMembers,
 }: LeadFullScreenMobileProps) {
   const [note, setNote] = useState('');
@@ -95,28 +96,6 @@ export default function LeadFullScreenMobile({
       document.body.style.overflow = prev;
     };
   }, []);
-
-  const handleStatus = useCallback(
-    async (next: LeadStatus) => {
-      try {
-        await onUpdateLead(lead.id, { status: next });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Erreur lors du changement de statut.');
-      }
-    },
-    [lead.id, onUpdateLead],
-  );
-
-  const handleAssign = useCallback(
-    async (memberId: string | null) => {
-      try {
-        await onUpdateLead(lead.id, { assignedTo: memberId });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erreur lors de l'assignation.");
-      }
-    },
-    [lead.id, onUpdateLead],
-  );
 
   const saveNote = useCallback(async () => {
     const trimmed = note.trim();
@@ -234,41 +213,20 @@ export default function LeadFullScreenMobile({
 
         <SectionLabel>Gestion du lead</SectionLabel>
         <div className="space-y-4">
-          <div>
-            <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-              Statut
-            </p>
-            <Select
-              aria-label="Statut du lead"
-              value={lead.status}
-              triggerClassName={mobileSelectTriggerClass}
-              options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))}
-              onChange={(v) => handleStatus(v as LeadStatus)}
-            />
-          </div>
-          <LeadMlFeedbackFields
+          <LeadStatusControl
             lead={lead}
             onUpdateLead={onUpdateLead}
             selectTriggerClassName={mobileSelectTriggerClass}
             reasonFontSize={14}
           />
-          {canAssignLead && (
-            <div>
-              <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-                Assigné à
-              </p>
-              <Select
-                aria-label="Assigné à"
-                value={lead.assignedTo ?? ''}
-                triggerClassName={mobileSelectTriggerClass}
-                options={[
-                  { value: '', label: 'Non assigné' },
-                  ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
-                ]}
-                onChange={(v) => handleAssign(v === '' ? null : v)}
-              />
-            </div>
-          )}
+          <LeadAssigneeControl
+            lead={lead}
+            teamMembers={teamMembers}
+            onUpdateLead={onUpdateLead}
+            canAssignAnyone={canAssignLead}
+            currentUserId={currentUserId}
+            selectTriggerClassName={mobileSelectTriggerClass}
+          />
           <div>
             <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
               Notes internes

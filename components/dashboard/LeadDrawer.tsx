@@ -4,15 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Phone as PhoneIcon, Mail as MailIcon, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Lead, LeadStatus, TeamMember } from '@/types/lead';
+import type { Lead, TeamMember } from '@/types/lead';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 import { formatDate } from '@/lib/utils';
-import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
-import Select from '@/components/ui/Select';
 import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
-import LeadMlFeedbackFields from './LeadMlFeedbackFields';
+import LeadAssigneeControl from './LeadAssigneeControl';
+import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
 import { isSciDirectorPending } from '@/types/lead';
@@ -26,6 +25,7 @@ interface LeadDrawerProps {
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   onDeleteLead: (id: string) => Promise<void>;
   canAssignLead?: boolean;
+  currentUserId?: string | null;
   teamMembers: TeamMember[];
 }
 
@@ -101,6 +101,7 @@ export default function LeadDrawer({
   onUpdateLead,
   onDeleteLead,
   canAssignLead = true,
+  currentUserId,
   teamMembers,
 }: LeadDrawerProps) {
   const [note, setNote] = useState('');
@@ -139,30 +140,6 @@ export default function LeadDrawer({
       document.body.style.overflow = prev;
     };
   }, [lead]);
-
-  const handleStatus = useCallback(
-    async (next: LeadStatus) => {
-      if (!lead) return;
-      try {
-        await onUpdateLead(lead.id, { status: next });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Erreur lors du changement de statut.');
-      }
-    },
-    [lead, onUpdateLead],
-  );
-
-  const handleAssign = useCallback(
-    async (memberId: string | null) => {
-      if (!lead) return;
-      try {
-        await onUpdateLead(lead.id, { assignedTo: memberId });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erreur lors de l'assignation.");
-      }
-    },
-    [lead, onUpdateLead],
-  );
 
   const saveNote = useCallback(async () => {
     if (!lead) return;
@@ -247,44 +224,19 @@ export default function LeadDrawer({
 
             <SectionLabel>Gestion du lead</SectionLabel>
             <div className="space-y-4">
-              <div>
-                <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-                  Statut
-                </p>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    aria-label="Statut du lead"
-                    value={lead.status}
-                    triggerClassName={drawerSelectTriggerClass}
-                    options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_META[s].label }))}
-                    onChange={(v) => handleStatus(v as LeadStatus)}
-                  />
-                </div>
-              </div>
-              <LeadMlFeedbackFields
+              <LeadStatusControl
                 lead={lead}
                 onUpdateLead={onUpdateLead}
                 selectTriggerClassName={drawerSelectTriggerClass}
               />
-              {canAssignLead && (
-                <div>
-                  <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-                    Assigné à
-                  </p>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Select
-                      aria-label="Assigné à"
-                      value={lead.assignedTo ?? ''}
-                      triggerClassName={drawerSelectTriggerClass}
-                      options={[
-                        { value: '', label: 'Non assigné' },
-                        ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
-                      ]}
-                      onChange={(v) => handleAssign(v === '' ? null : v)}
-                    />
-                  </div>
-                </div>
-              )}
+              <LeadAssigneeControl
+                lead={lead}
+                teamMembers={teamMembers}
+                onUpdateLead={onUpdateLead}
+                canAssignAnyone={canAssignLead}
+                currentUserId={currentUserId}
+                selectTriggerClassName={drawerSelectTriggerClass}
+              />
               <div>
                 <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
                   Notes internes

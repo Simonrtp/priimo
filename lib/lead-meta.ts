@@ -84,6 +84,17 @@ export const ML_FEEDBACK_OPTIONS: {
   { value: 'injoignable', label: 'Injoignable / mauvais contact', Icon: PhoneOff, color: '#6B7280' },
 ];
 
+// Statut unifié : chaque statut terminal alimente automatiquement le feedback ML.
+// Les statuts en cours (nouveau/contacté/intéressé) n'envoient aucun signal.
+export const STATUS_TO_ML_FEEDBACK: Record<LeadStatus, MlFeedback> = {
+  nouveau: null,
+  contacte: null,
+  interesse: null,
+  mandat_signe: 'mandat_signe',
+  pas_interesse: 'pas_vendeur',
+  vendeur_ailleurs: 'vendeur_perdu',
+};
+
 export function statusLabel(status: LeadStatus): string {
   return STATUS_META[status].label;
 }
