@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, MapPinned, Target, type LucideIcon } from "lucide-react";
+import { MapPinned, ShieldCheck, Zap, type LucideIcon } from "lucide-react";
 import Reveal from "./Reveal";
 import HeroBackground from "./HeroBackground";
 import HeroVideo from "./HeroVideo";
@@ -10,16 +10,16 @@ import { CALENDLY_URL } from "@/lib/calendly";
 
 const BULLETS: { text: string; Icon: LucideIcon }[] = [
   {
-    text: "Data",
-    Icon: Database,
+    text: "Arrivez avant les portails et avant vos concurrents",
+    Icon: Zap,
   },
   {
-    text: "Secteur",
+    text: "Un secteur exclusif : personne d'autre sur votre zone",
     Icon: MapPinned,
   },
   {
-    text: "Prospection",
-    Icon: Target,
+    text: "Conforme post-interdiction de la pige (11 août 2026)",
+    Icon: ShieldCheck,
   },
 ];
 
@@ -41,10 +41,10 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-body mx-auto mt-0 max-w-[820px] leading-[1.7] mb-4 sm:mb-5 sm:max-w-[880px] lg:max-w-[960px]">
-              Priimo est le logiciel de prospection prédictive pour les agences immobilières qui
-              repère des signaux publics et privés précédant une vente — DPE refait, SCI en
-              dissolution, événement de vie, copro — et vous livre chaque lundi les adresses
-              prioritaires de votre secteur.
+              Priimo croise les données publiques et privées qui précèdent une vente :
+              événement de vie, ventes en cascade, copropriété fragilisée, SCI en
+              dissolution, DVF &amp; DPE, etc. et vous livre chaque lundi les adresses où
+              un mandat se prépare.
             </p>
 
             <ul className="mt-4 flex flex-col items-center gap-2.5 sm:mt-5 lg:flex-row lg:flex-wrap lg:justify-center lg:gap-x-6 lg:gap-y-2 xl:gap-x-8">
@@ -62,7 +62,7 @@ export default function HeroSection() {
                   >
                     <Icon size={13} strokeWidth={2.25} />
                   </span>
-                  <span className="text-left text-[13.5px] font-semibold uppercase tracking-[0.14em] text-gray-600 sm:text-[14.5px]">
+                  <span className="text-left text-[13.5px] font-semibold text-gray-600 sm:text-[14.5px]">
                     {text}
                   </span>
                 </Reveal>

@@ -361,7 +361,7 @@ export default function HeroVideo() {
         onMouseEnter={handleContainerMouseEnter}
         onMouseLeave={handleContainerMouseLeave}
         aria-label={isPlaying ? "Mettre la démo en pause" : "Lire la démo Priimo"}
-        className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1]"
+        className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <video
           key={videoSrc}

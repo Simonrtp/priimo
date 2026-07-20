@@ -2,102 +2,94 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Menu, Newspaper, Users, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import { FEATURE_MENU_GROUPS } from '@/components/features-menu-data';
-import { MenuIconBox } from '@/components/MenuIconBox';
-import { CALENDLY_URL } from '@/lib/calendly';
 
-type ExpandedSection = 'features' | 'resources' | null;
+type SectionKey = 'features' | 'resources';
 
 const RESOURCE_LINKS = [
-  { href: '/blog', title: 'Blog', icon: Newspaper },
-  { href: '/a-propos', title: 'À propos', icon: Users },
+  { href: '/blog', title: 'Blog' },
+  { href: '/a-propos', title: 'À propos' },
 ] as const;
+
+const TRANSITION_MS = 200;
+const PANEL_GAP = 8;
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-export default function MobileNav() {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState<ExpandedSection>(null);
-  const [mounted, setMounted] = useState(false);
-  const [renderPanel, setRenderPanel] = useState(false);
-  const [panelShown, setPanelShown] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+// Verre du header : réutilisé pour que le panneau soit visuellement identique.
+const PANEL_SURFACE =
+  'rounded-[28px] border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl';
+const SECTION_BUTTON =
+  'group flex w-full items-center justify-between gap-3 py-4 text-left text-[17px] font-medium text-gray-900 transition-colors hover:text-accent-dark';
+const SUBLINK =
+  'block py-2 text-[15px] font-medium text-gray-700 transition-colors hover:text-accent-dark';
 
-  const close = useCallback(() => {
-    setOpen(false);
-    setExpanded(null);
-  }, []);
-
-  const openMenu = useCallback(() => {
-    setOpen(true);
-  }, []);
-
-  const toggleMenu = useCallback(() => {
-    if (open) close();
-    else openMenu();
-  }, [close, open, openMenu]);
-
-  const toggleSection = useCallback((section: 'features' | 'resources') => {
-    setExpanded((prev) => (prev === section ? null : section));
-  }, []);
-
-  const handleNavigate = useCallback(() => {
-    close();
-  }, [close]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    close();
-  }, [pathname, close]);
+/** Monte le panneau puis déclenche la transition d'entrée / sortie. */
+function usePanelTransition(open: boolean) {
+  const [render, setRender] = useState(false);
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setPanelShown(false);
-      const timeout = window.setTimeout(() => setRenderPanel(false), 200);
+      setShown(false);
+      const timeout = window.setTimeout(() => setRender(false), TRANSITION_MS);
       return () => window.clearTimeout(timeout);
     }
 
-    setRenderPanel(true);
+    setRender(true);
     const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => setPanelShown(true));
+      window.requestAnimationFrame(() => setShown(true));
     });
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
-  useEffect(() => {
-    if (!open || !panelShown) return;
+  return { render, shown };
+}
 
-    const previousOverflow = document.body.style.overflow;
+/** Bloque le scroll du body tant que le menu est ouvert. */
+function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+
+    const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previous;
     };
-  }, [open, panelShown]);
+  }, [active]);
+}
 
+/** Piège le focus dans le conteneur et ferme sur Échap. */
+function useFocusTrap(
+  active: boolean,
+  containerRef: RefObject<HTMLElement | null>,
+  onEscape: () => void,
+) {
   useEffect(() => {
-    if (!open || !panelShown) return;
+    if (!active) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        close();
+        onEscape();
         return;
       }
 
-      if (event.key !== 'Tab' || !panelRef.current) return;
+      if (event.key !== 'Tab' || !containerRef.current) return;
 
       const focusables = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+        containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
       );
       if (focusables.length === 0) return;
 
@@ -115,172 +107,209 @@ export default function MobileNav() {
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, panelShown, close]);
+  }, [active, containerRef, onEscape]);
+}
+
+/** Suit le bas du header flottant pour ancrer le panneau juste en dessous. */
+function useHeaderBottom(active: boolean, anchorRef: RefObject<HTMLElement | null>) {
+  const [bottom, setBottom] = useState(0);
 
   useEffect(() => {
-    if (open && panelShown) {
-      const firstFocusable = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      firstFocusable?.focus();
-      return;
-    }
+    if (!active) return;
 
-    if (!open && !renderPanel) {
+    const measure = () => {
+      const header = anchorRef.current?.closest('header');
+      if (header) setBottom(header.getBoundingClientRect().bottom);
+    };
+
+    measure();
+    window.addEventListener('scroll', measure, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('scroll', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, [active, anchorRef]);
+
+  return bottom;
+}
+
+function useMounted() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted;
+}
+
+function SectionChevron({ open }: { open: boolean }) {
+  const Icon = open ? ChevronDown : ChevronRight;
+  return (
+    <Icon
+      size={18}
+      className="shrink-0 text-gray-400 transition-colors group-hover:text-accent"
+      aria-hidden
+    />
+  );
+}
+
+function CollapsibleSection({
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="border-b border-black/[0.06]">
+      <button type="button" className={SECTION_BUTTON} aria-expanded={open} onClick={onToggle}>
+        {label}
+        <SectionChevron open={open} />
+      </button>
+      {open ? children : null}
+    </div>
+  );
+}
+
+function PanelLink({
+  href,
+  onNavigate,
+  children,
+}: {
+  href: string;
+  onNavigate: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Link href={href} className={SUBLINK} onClick={onNavigate}>
+      {children}
+    </Link>
+  );
+}
+
+export default function MobileNav() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<SectionKey | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const mounted = useMounted();
+  const { render, shown } = usePanelTransition(open);
+  const headerBottom = useHeaderBottom(render, triggerRef);
+  const active = open && shown;
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setExpanded(null);
+  }, []);
+
+  const toggleSection = useCallback((section: SectionKey) => {
+    setExpanded((prev) => (prev === section ? null : section));
+  }, []);
+
+  useScrollLock(active);
+  useFocusTrap(active, panelRef, close);
+
+  // Fermer à chaque changement de route.
+  useEffect(() => {
+    close();
+  }, [pathname, close]);
+
+  // Focus dans le panneau à l'ouverture, retour au déclencheur à la fermeture.
+  useEffect(() => {
+    if (active) {
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
+    } else if (!render) {
       triggerRef.current?.focus();
     }
-  }, [open, panelShown, renderPanel]);
+  }, [active, render]);
 
   const panel =
-    renderPanel && mounted
+    mounted && render
       ? createPortal(
           <div className="fixed inset-0 z-[60] lg:hidden" role="presentation">
             <div
-              className={`absolute inset-0 bg-black/25 transition-opacity duration-200 ease-out motion-reduce:transition-none ${
-                panelShown ? 'opacity-100' : 'opacity-0'
+              className={`absolute inset-0 bg-black/20 transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+                shown ? 'opacity-100' : 'opacity-0'
               }`}
               aria-hidden
               onClick={close}
             />
 
             <div
-              ref={panelRef}
-              id="mobile-nav-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Menu de navigation"
-              aria-hidden={!panelShown}
-              className={`absolute inset-y-0 right-0 flex w-full max-w-[min(100%,20.5rem)] flex-col bg-white shadow-[-10px_0_40px_-12px_rgba(17,24,39,0.18)] transition-transform duration-200 ease-out motion-reduce:transition-none ${
-                panelShown ? 'translate-x-0' : 'translate-x-full'
-              }`}
+              className="absolute inset-x-0 flex justify-center px-3 sm:px-5"
+              style={{ top: headerBottom + PANEL_GAP }}
             >
-              <nav
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 pt-24"
-                aria-label="Navigation mobile"
+              <div
+                ref={panelRef}
+                id="mobile-nav-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Menu de navigation"
+                aria-hidden={!shown}
+                className={`flex w-full max-w-6xl flex-col transition-all duration-200 ease-out motion-reduce:transition-none ${
+                  shown ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'
+                }`}
               >
-                <div className="border-b border-black/[0.06]">
-                  <button
-                    type="button"
-                    className={`flex w-full items-center justify-between gap-3 py-4 text-left text-[16px] font-semibold transition-colors ${
-                      expanded === 'features' ? 'text-accent-dark' : 'text-gray-800'
-                    }`}
-                    aria-expanded={expanded === 'features'}
-                    onClick={() => toggleSection('features')}
+                <nav
+                  className={`overflow-y-auto overscroll-contain px-5 pb-4 pt-2 sm:px-6 ${PANEL_SURFACE}`}
+                  style={{ maxHeight: `calc(100dvh - ${headerBottom + 3 * PANEL_GAP}px)` }}
+                  aria-label="Navigation mobile"
+                >
+                  <CollapsibleSection
+                    label="Fonctionnalités"
+                    open={expanded === 'features'}
+                    onToggle={() => toggleSection('features')}
                   >
-                    Fonctionnalités
-                    <ChevronDown
-                      size={18}
-                      className={`shrink-0 text-gray-400 transition-transform duration-200 ${
-                        expanded === 'features' ? 'rotate-180 text-accent-dark' : ''
-                      }`}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {expanded === 'features' && (
-                    <div className="space-y-5 pb-5">
+                    <div className="space-y-4 pb-4 pl-1">
                       {FEATURE_MENU_GROUPS.map((group) => (
                         <div key={group.title}>
-                          <p className="mb-2 text-[10px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase text-accent [letter-spacing:0.08em]">
                             {group.title}
                           </p>
-                          <ul className="space-y-1">
+                          <ul>
                             {group.items.map((item) => (
                               <li key={item.title}>
-                                <Link
-                                  href={item.href}
-                                  className="group flex items-center gap-3 rounded-xl px-1 py-2.5 text-[15px] font-medium text-gray-800 transition-colors hover:text-accent-dark"
-                                  onClick={handleNavigate}
-                                >
-                                  <MenuIconBox
-                                    icon={item.icon}
-                                    compact
-                                    className={
-                                      expanded === 'features'
-                                        ? 'border-accent/20 text-accent-dark'
-                                        : undefined
-                                    }
-                                  />
+                                <PanelLink href={item.href} onNavigate={close}>
                                   {item.title}
-                                </Link>
+                                </PanelLink>
                               </li>
                             ))}
                           </ul>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </CollapsibleSection>
 
-                <div className="border-b border-black/[0.06]">
-                  <button
-                    type="button"
-                    className={`flex w-full items-center justify-between gap-3 py-4 text-left text-[16px] font-semibold transition-colors ${
-                      expanded === 'resources' ? 'text-accent-dark' : 'text-gray-800'
-                    }`}
-                    aria-expanded={expanded === 'resources'}
-                    onClick={() => toggleSection('resources')}
+                  <CollapsibleSection
+                    label="Ressources"
+                    open={expanded === 'resources'}
+                    onToggle={() => toggleSection('resources')}
                   >
-                    Ressources
-                    <ChevronDown
-                      size={18}
-                      className={`shrink-0 text-gray-400 transition-transform duration-200 ${
-                        expanded === 'resources' ? 'rotate-180 text-accent-dark' : ''
-                      }`}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {expanded === 'resources' && (
-                    <ul className="space-y-1 pb-5">
+                    <ul className="pb-4 pl-1">
                       {RESOURCE_LINKS.map((item) => (
                         <li key={item.href}>
-                          <Link
-                            href={item.href}
-                            className="group flex items-center gap-3 rounded-xl px-1 py-2.5 text-[15px] font-medium text-gray-800 transition-colors hover:text-accent-dark"
-                            onClick={handleNavigate}
-                          >
-                            <MenuIconBox
-                              icon={item.icon}
-                              compact
-                              className={
-                                expanded === 'resources'
-                                  ? 'border-accent/20 text-accent-dark'
-                                  : undefined
-                              }
-                            />
+                          <PanelLink href={item.href} onNavigate={close}>
                             {item.title}
-                          </Link>
+                          </PanelLink>
                         </li>
                       ))}
                     </ul>
-                  )}
-                </div>
+                  </CollapsibleSection>
 
-                <Link
-                  href="/login"
-                  className="group relative inline-flex min-h-11 w-full items-center py-4 text-[15px] font-medium text-gray-800 transition-colors hover:text-accent-dark"
-                  onClick={handleNavigate}
-                >
-                  Se connecter
-                  <span
-                    className="absolute bottom-3 left-0 h-px w-0 bg-accent transition-all duration-200 ease-out group-hover:w-full"
-                    aria-hidden
-                  />
-                </Link>
-              </nav>
-
-              <div className="shrink-0 border-t border-black/[0.06] px-5 pb-8 pt-6">
-                <a
-                  href={CALENDLY_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary inline-flex w-full min-h-12 items-center justify-center gap-1.5 px-6 py-3 text-[15px]"
-                  onClick={close}
-                >
-                  Réserver une démo
-                  <span data-arrow aria-hidden>
-                    →
-                  </span>
-                </a>
+                  <Link href="/login" className="group flex w-full py-4" onClick={close}>
+                    <span className="relative inline-flex text-[17px] font-medium text-gray-900 transition-colors duration-200 group-hover:text-accent-dark">
+                      Se connecter
+                      <span
+                        className="absolute -bottom-0.5 left-0 h-px w-0 bg-accent transition-all duration-200 ease-out group-hover:w-full"
+                        aria-hidden
+                      />
+                    </span>
+                  </Link>
+                </nav>
               </div>
             </div>
           </div>,
@@ -293,11 +322,11 @@ export default function MobileNav() {
       <button
         ref={triggerRef}
         type="button"
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-colors duration-200 hover:text-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6366F1] lg:hidden"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-colors duration-200 hover:text-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:hidden"
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
-        onClick={toggleMenu}
+        onClick={() => setOpen((prev) => !prev)}
       >
         {open ? (
           <X size={22} strokeWidth={2} aria-hidden />

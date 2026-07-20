@@ -58,25 +58,25 @@ function ShareIcon() {
 const FEATURES: Feature[] = [
   {
     title: "Un score prédictif sur chaque adresse",
-    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, données privées : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur.",
+    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, données privées : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur. Résultat : vous ne frappez qu'aux portes qui comptent.",
     href: "/fonctionnalites/scoring",
     Icon: ChartIcon,
   },
   {
     title: "Le module Entreprises : SCI et dirigeants",
-    body: "Dissolutions, liquidations, cessions de parts publiées au BODACC — avec l'identité du dirigeant et ses coordonnées professionnelles. Des mandats que personne d'autre ne voit venir.",
+    body: "Dissolutions, liquidations, cessions de parts publiées au BODACC — avec l'identité du dirigeant et ses coordonnées professionnelles. Des mandats que personne d'autre ne voit venir avec un contact direct.",
     href: "/fonctionnalites/sci",
     Icon: MapPinIcon,
   },
   {
     title: "Une liste travaillée en équipe",
-    body: "Statuts, assignation, notes : vous voyez qui travaille quoi, ce qui a donné un rendez-vous, et ce qui reste à couvrir.",
+    body: "Statuts, assignation, notes : vous voyez qui travaille quoi, ce qui a donné un rendez-vous, et ce qui reste à couvrir. Plus rien ne tombe entre deux carnets.",
     href: "/fonctionnalites/livraison#suivi",
     Icon: DashboardIcon,
   },
   {
     title: "Export et partage en un clic",
-    body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos adresses en poche sur le terrain.",
+    body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos adresses en poche sur le terrain. Votre agent part en tournée avec ses adresses triées — pas avec un annuaire.",
     href: "/fonctionnalites/livraison#export",
     Icon: ShareIcon,
   },

@@ -18,7 +18,7 @@ type HeaderProps = {
 
 // === HEADER ===
 // Barre flottante en verre (glass) qui se contracte au scroll.
-// Desktop : méga-menu au hover. Mobile : hamburger + panneau latéral.
+// Desktop : méga-menu au hover. Mobile : hamburger + menu déroulant plein largeur.
 type NavMenu = "features" | "resources" | null;
 
 export default function Header({ latestPost = null }: HeaderProps) {
@@ -90,8 +90,6 @@ export default function Header({ latestPost = null }: HeaderProps) {
               />
             </Link>
 
-            <MobileNav />
-
             <a
               href={CALENDLY_URL}
               target="_blank"
@@ -104,6 +102,8 @@ export default function Header({ latestPost = null }: HeaderProps) {
                 →
               </span>
             </a>
+
+            <MobileNav />
           </div>
         </div>
 

@@ -29,19 +29,19 @@ const BEFORE: Item[] = [
 
 const AFTER: Item[] = [
   {
-    title: "Une liste prête chaque lundi",
+    title: "Des mandats avant les portails",
     description:
-      "Chaque semaine, les adresses prioritaires de votre secteur, scorées et expliquées : vous savez où aller dès le lundi matin.",
+      "Vos leads arrivent des semaines avant la mise en ligne du bien. Le vendeur n'a encore parlé à personne — vous êtes le premier à sa porte.",
   },
   {
-    title: "Avant la mise en ligne",
+    title: "Chaque adresse est expliquée",
     description:
-      "Un DPE refait, un bien détenu vingt ans sans travaux, une cascade de ventes dans l'immeuble : autant d'événements de vie que Priimo repère sur le bien — avant qu'une annonce n'apparaisse.",
+      "Détention longue, succession, copro en difficulté… : vous savez pourquoi cette adresse est là, et quoi dire en arrivant.",
   },
   {
-    title: "Une prospection qui laisse des traces",
+    title: "Chaque contact laisse une trace",
     description:
-      "Statuts, notes, résultats : chaque adresse travaillée enrichit votre historique et affine le scoring de votre secteur.",
+      "Qui a frappé où, quand, avec quel résultat : votre prospection construit un historique qui affine la liste suivante.",
   },
 ];
 
