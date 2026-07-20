@@ -322,7 +322,7 @@ export default function MobileNav() {
       <button
         ref={triggerRef}
         type="button"
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-colors duration-200 hover:text-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:hidden"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 outline-none transition-colors duration-200 [-webkit-tap-highlight-color:transparent] hover:text-accent-dark focus:outline-none focus-visible:outline-none lg:hidden"
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
