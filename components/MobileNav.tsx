@@ -28,12 +28,14 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 // Verre du header : réutilisé pour que le panneau soit visuellement identique.
+// Aucun contour ni halo de tap sur mobile.
+const NO_OUTLINE = 'outline-none focus:outline-none focus-visible:outline-none [-webkit-tap-highlight-color:transparent]';
 const PANEL_SURFACE =
   'rounded-[28px] border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl';
 const SECTION_BUTTON =
-  'group flex w-full items-center justify-between gap-3 py-4 text-left text-[17px] font-medium text-gray-900 transition-colors hover:text-accent-dark';
+  `group flex w-full items-center justify-between gap-3 py-4 text-left text-[17px] font-medium text-gray-900 transition-colors hover:text-accent-dark ${NO_OUTLINE}`;
 const SUBLINK =
-  'block py-2 text-[15px] font-medium text-gray-700 transition-colors hover:text-accent-dark';
+  `block py-2 text-[15px] font-medium text-gray-700 transition-colors hover:text-accent-dark ${NO_OUTLINE}`;
 
 /** Monte le panneau puis déclenche la transition d'entrée / sortie. */
 function usePanelTransition(open: boolean) {
@@ -300,7 +302,7 @@ export default function MobileNav() {
                     </ul>
                   </CollapsibleSection>
 
-                  <Link href="/login" className="group flex w-full py-4" onClick={close}>
+                  <Link href="/login" className={`group flex w-full py-4 ${NO_OUTLINE}`} onClick={close}>
                     <span className="relative inline-flex text-[17px] font-medium text-gray-900 transition-colors duration-200 group-hover:text-accent-dark">
                       Se connecter
                       <span
@@ -322,7 +324,7 @@ export default function MobileNav() {
       <button
         ref={triggerRef}
         type="button"
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 outline-none transition-colors duration-200 [-webkit-tap-highlight-color:transparent] hover:text-accent-dark focus:outline-none focus-visible:outline-none lg:hidden"
+        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-colors duration-200 hover:text-accent-dark lg:hidden ${NO_OUTLINE}`}
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
