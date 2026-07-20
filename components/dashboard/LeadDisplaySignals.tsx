@@ -166,30 +166,17 @@ function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
 
   return (
     <SignalFamilyDisclosure title={headParts.join(' — ')} tooltip={family.tooltip}>
-      {family.dates.length > 0 ? (
-        <ul className="pl-3">
-          <li
-            className="flex items-baseline gap-1.5 text-ink"
-            style={{ fontSize: 12.5, lineHeight: 1.5 }}
-          >
-            <span aria-hidden className="text-mute/60" style={{ fontSize: 10 }}>
-              •
-            </span>
-            <span className="min-w-0 flex-1 tabular">
-              {family.dates.map((d, i) => (
-                <span key={`${d}-${i}`}>
-                  {i > 0 && <span className="mx-1 opacity-50">·</span>}
-                  {d}
-                </span>
-              ))}
-            </span>
-          </li>
-        </ul>
-      ) : (
-        <p className="pl-3 text-mute" style={{ fontSize: 12.5 }}>
-          Aucune date disponible.
-        </p>
-      )}
+      <ul className="pl-3">
+        <li
+          className="flex items-baseline gap-1.5 text-ink"
+          style={{ fontSize: 12.5, lineHeight: 1.5 }}
+        >
+          <span aria-hidden className="text-mute/60" style={{ fontSize: 10 }}>
+            •
+          </span>
+          <span className="min-w-0 flex-1">Vente récente dans l’immeuble</span>
+        </li>
+      </ul>
     </SignalFamilyDisclosure>
   );
 }
