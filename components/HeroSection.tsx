@@ -10,15 +10,15 @@ import { CALENDLY_URL } from "@/lib/calendly";
 
 const BULLETS: { text: string; Icon: LucideIcon }[] = [
   {
-    text: "Arrivez avant les portails et avant vos concurrents",
+    text: "Arrivez avant vos concurrents",
     Icon: Zap,
   },
   {
-    text: "Un secteur exclusif : personne d'autre sur votre zone",
+    text: "Un secteur exclusif",
     Icon: MapPinned,
   },
   {
-    text: "Conforme post-interdiction de la pige (11 août 2026)",
+    text: "Conforme post-interdiction de la pige",
     Icon: ShieldCheck,
   },
 ];
