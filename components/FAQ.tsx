@@ -93,7 +93,7 @@ function FAQItem({
 }
 
 export default function FAQ() {
-  const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
     <section className="py-16 sm:py-28">
