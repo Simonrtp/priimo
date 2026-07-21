@@ -98,6 +98,8 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     mlFeedback: row.ml_feedback ?? null,
     mlFeedbackReason: row.ml_feedback_reason ?? null,
     mlFeedbackAt: row.ml_feedback_at ?? null,
+    marcheStatut: row.marche_statut ?? null,
+    marcheVerifieLe: row.marche_verifie_le ?? null,
     deliveredAt: row.delivered_at ?? row.created_at.slice(0, 10),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

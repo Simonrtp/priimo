@@ -88,6 +88,10 @@ export interface Lead {
   mlFeedback: MlFeedback;
   mlFeedbackReason: string | null;
   mlFeedbackAt: string | null;
+  /** Vérification marché : présence sur les portails à la livraison. NULL = non vérifié (leads antérieurs). */
+  marcheStatut: string | null;
+  /** Horodatage ISO de la vérification marché par le pipeline. */
+  marcheVerifieLe: string | null;
   /** Date du lot pipeline (YYYY-MM-DD). */
   deliveredAt: string;
   createdAt: string;

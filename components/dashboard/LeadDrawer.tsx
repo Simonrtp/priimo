@@ -11,6 +11,7 @@ import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadAssigneeControl from './LeadAssigneeControl';
+import LeadMarketCheck from './LeadMarketCheck';
 import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
@@ -206,6 +207,13 @@ export default function LeadDrawer({
               <>
                 <Divider />
                 <EnterpriseBlock lead={lead} />
+              </>
+            )}
+
+            {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
+              <>
+                <Divider />
+                <LeadMarketCheck lead={lead} />
               </>
             )}
 

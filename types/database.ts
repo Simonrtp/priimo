@@ -129,6 +129,10 @@ export type LeadRow = {
   ml_feedback: LeadMlFeedbackDb | null;
   ml_feedback_reason?: string | null;
   ml_feedback_at?: string | null;
+  /** Vérification marché : présence sur les portails au moment de la livraison. NULL = non vérifié (leads antérieurs). */
+  marche_statut?: string | null;
+  /** Horodatage de la vérification marché par le pipeline. */
+  marche_verifie_le?: string | null;
   /** Date du lot pipeline (YYYY-MM-DD). */
   delivered_at?: string;
   created_at: string;
