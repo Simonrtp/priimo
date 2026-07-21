@@ -90,6 +90,7 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     plusValuePct: row.plus_value_pct != null ? Number(row.plus_value_pct) : null,
     rooms: row.rooms ?? null,
     floor: row.floor ?? null,
+    etage: row.etage ?? null,
     dpeClass: row.dpe_class,
     dpeDate: row.dpe_date,
     status: row.status,

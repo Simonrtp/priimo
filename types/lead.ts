@@ -79,7 +79,10 @@ export interface Lead {
   estimationBasis: string | null;
   plusValuePct: number | null;
   rooms: number | null;
+  /** @deprecated colonne héritée VIDE — ne jamais utiliser. Voir `etage`. */
   floor: number | null;
+  /** Étage sous forme texte : "RDC", "1", "2"… (source de vérité). */
+  etage: string | null;
   dpeClass: string | null;
   dpeDate: string | null;
   status: LeadStatus;

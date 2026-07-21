@@ -89,3 +89,25 @@ export function isDpeRecentSignal(signal: LeadSignal): boolean {
 export function isActiveLeadStatus(status: Lead['status']): boolean {
   return status !== 'pas_interesse' && status !== 'vendeur_ailleurs';
 }
+
+/**
+ * Formate l'étage à partir du champ texte `etage` ("RDC", "1", "2"…).
+ * - "RDC"/"0" -> "Rez-de-chaussée" ; "1" -> "1er étage" ; N>=2 -> "Ne étage".
+ * - Une maison n'affiche jamais d'étage (peu pertinent).
+ * - Valeur absente ou non exploitable -> null (rien affiché).
+ */
+export function formatEtage(
+  etage: string | null | undefined,
+  propertyType: string | null | undefined,
+): string | null {
+  if (!etage) return null;
+  if (propertyType === 'Maison') return null;
+  const raw = etage.trim();
+  if (!raw) return null;
+  if (/^rdc$/i.test(raw)) return 'Rez-de-chaussée';
+  const n = Number.parseInt(raw, 10);
+  if (Number.isNaN(n)) return null;
+  if (n <= 0) return 'Rez-de-chaussée';
+  if (n === 1) return '1er étage';
+  return `${n}e étage`;
+}

@@ -8,8 +8,23 @@ import DetentionLabel from './DetentionLabel';
 import LeadSignalList from './LeadSignalList';
 import LeadSourceBadges from './LeadSourceBadges';
 import { formatPrice } from '@/lib/utils';
+import { formatEtage } from '@/lib/lead-display';
 import { hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
+
+function PropertyMetaLine({ segments, className }: { segments: string[]; className?: string }) {
+  if (segments.length === 0) return null;
+  return (
+    <p className={`text-mute ${className ?? ''}`} style={{ fontSize: 12 }}>
+      {segments.map((seg, i) => (
+        <span key={`${seg}-${i}`}>
+          {i > 0 && <span className="mx-1.5 opacity-40">·</span>}
+          {seg}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 interface LeadCardProps {
   lead: Lead;
@@ -66,8 +81,12 @@ export default function LeadCard({
   onStatusChange,
 }: LeadCardProps) {
   const isHighIntent = lead.score >= 80 && lead.signals.length > 0;
-  const propertyType = lead.propertyType ?? 'Bien';
   const surface = lead.surfaceM2 != null ? `${lead.surfaceM2} m²` : null;
+  const propertySegments = [
+    lead.propertyType,
+    surface,
+    formatEtage(lead.etage, lead.propertyType),
+  ].filter((s): s is string => Boolean(s));
   const acquiredPriceLabel =
     hasDisplayableAcquiredPrice(lead) && lead.acquiredPrice != null
       ? `${formatPrice(lead.acquiredPrice)} €`
@@ -112,15 +131,7 @@ export default function LeadCard({
             {lead.address}
           </p>
 
-          <p className="mt-1 text-mute" style={{ fontSize: 12 }}>
-            {propertyType}
-            {surface && (
-              <>
-                <span className="mx-1.5 opacity-40">·</span>
-                {surface}
-              </>
-            )}
-          </p>
+          <PropertyMetaLine segments={propertySegments} className="mt-1" />
 
           {lead.companyName && (
             <p
@@ -198,15 +209,7 @@ export default function LeadCard({
             </div>
           )}
           <LeadSignalList signals={lead.signals} variant="summary" />
-          <p className="mt-1 min-w-0 truncate text-mute" style={{ fontSize: 12 }}>
-            {propertyType}
-            {surface && (
-              <>
-                <span className="mx-1.5 opacity-40">·</span>
-                {surface}
-              </>
-            )}
-          </p>
+          <PropertyMetaLine segments={propertySegments} className="mt-1 min-w-0 truncate" />
         </div>
         {acquiredPriceLabel && (
           <div className="hidden w-[120px] flex-shrink-0 text-right lg:block">

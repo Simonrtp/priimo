@@ -1,7 +1,7 @@
-import { MapPin } from 'lucide-react';
+import { Building2, Home, MapPin } from 'lucide-react';
 import type { Lead } from '@/types/lead';
 import { formatLeadAddressQuery, googleMapsSearchUrl, splitStreetAndCity } from '@/lib/utils';
-import { formatDetentionPrimary } from '@/lib/lead-display';
+import { formatDetentionPrimary, formatEtage } from '@/lib/lead-display';
 import { formatAcquiredPriceLine, hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import ScoreRing from './ScoreRing';
 
@@ -13,7 +13,7 @@ interface LeadDetailHeaderProps {
     | 'postalCode'
     | 'propertyType'
     | 'surfaceM2'
-    | 'floor'
+    | 'etage'
     | 'acquiredYear'
     | 'acquiredPrice'
     | 'acquiredPriceReliable'
@@ -23,14 +23,6 @@ interface LeadDetailHeaderProps {
   titleId?: string;
   /** Affichage compact pour le plein-écran mobile (police légèrement plus dense). */
   compact?: boolean;
-}
-
-function formatFloor(floor: number | null): string | null {
-  if (floor == null) return null;
-  if (floor === 0) return 'RDC';
-  if (floor < 0) return `Sous-sol ${Math.abs(floor)}`;
-  if (floor === 1) return '1ᵉʳ étage';
-  return `${floor}ᵉ étage`;
 }
 
 function joinDot(parts: (string | null | undefined)[]): React.ReactNode {
@@ -71,8 +63,9 @@ export default function LeadDetailHeader({
   const typeLine = joinDot([
     lead.propertyType,
     lead.surfaceM2 != null && lead.surfaceM2 > 0 ? `${lead.surfaceM2} m²` : null,
-    formatFloor(lead.floor),
+    formatEtage(lead.etage, lead.propertyType),
   ]);
+  const TypeIcon = lead.propertyType === 'Maison' ? Home : lead.propertyType ? Building2 : null;
 
   const streetSize = compact ? 16 : 17;
   const metaSize = compact ? 12.5 : 13;
@@ -107,8 +100,9 @@ export default function LeadDetailHeader({
             </p>
           )}
           {typeLine && (
-            <p className="text-mute" style={{ fontSize: metaSize }}>
-              {typeLine}
+            <p className="flex items-center gap-1.5 text-mute" style={{ fontSize: metaSize }}>
+              {TypeIcon && <TypeIcon size={13} strokeWidth={2} className="shrink-0" aria-hidden />}
+              <span>{typeLine}</span>
             </p>
           )}
           {detentionLabel && (

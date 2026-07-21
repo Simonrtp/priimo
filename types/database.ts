@@ -120,7 +120,10 @@ export type LeadRow = {
   estimation_basis?: string | null;
   plus_value_pct?: number | null;
   rooms?: number | null;
+  /** @deprecated colonne héritée VIDE — ne jamais utiliser. Voir `etage` (text). */
   floor?: number | null;
+  /** Étage sous forme texte : "RDC", "1", "2"… (source de vérité pour l'affichage). */
+  etage?: string | null;
   dpe_class: string | null;
   dpe_date: string | null;
   status: LeadStatusDb;
