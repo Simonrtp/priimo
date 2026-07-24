@@ -254,6 +254,88 @@ export type AgencyRequestInsert = {
   handled_at?: string | null;
 };
 
+export type EstimationRequestRow = {
+  id: string;
+  created_at: string;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  postal_code: string | null;
+  insee_code: string | null;
+  property_type: string | null;
+  surface_m2: number | null;
+  rooms: number | null;
+  floor: string | null;
+  has_elevator: boolean | null;
+  bathrooms: number | null;
+  features: unknown;
+  view_type: string | null;
+  construction_year: number | null;
+  dpe_class: string | null;
+  condition_rating: number | null;
+  is_owner: boolean | null;
+  residence_type: string | null;
+  sale_timeline: string | null;
+  civility: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  email: string | null;
+  consent_given: boolean;
+  consent_text: string | null;
+  consent_version: string | null;
+  consent_at: string | null;
+  consent_ip: string | null;
+  consent_user_agent: string | null;
+  estimation_low: number | null;
+  estimation_value: number | null;
+  estimation_high: number | null;
+  estimation_confidence: number | null;
+  status: string;
+  assigned_agency_id: string | null;
+};
+
+export type EstimationRequestInsert = {
+  id?: string;
+  created_at?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  postal_code?: string | null;
+  insee_code?: string | null;
+  property_type?: string | null;
+  surface_m2?: number | null;
+  rooms?: number | null;
+  floor?: string | null;
+  has_elevator?: boolean | null;
+  bathrooms?: number | null;
+  features?: unknown;
+  view_type?: string | null;
+  construction_year?: number | null;
+  dpe_class?: string | null;
+  condition_rating?: number | null;
+  is_owner?: boolean | null;
+  residence_type?: string | null;
+  sale_timeline?: string | null;
+  civility?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  consent_given?: boolean;
+  consent_text?: string | null;
+  consent_version?: string | null;
+  consent_at?: string | null;
+  consent_ip?: string | null;
+  consent_user_agent?: string | null;
+  estimation_low?: number | null;
+  estimation_value?: number | null;
+  estimation_high?: number | null;
+  estimation_confidence?: number | null;
+  status?: string;
+  assigned_agency_id?: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -291,6 +373,12 @@ export type Database = {
         Row: AgencyRequestRow;
         Insert: AgencyRequestInsert;
         Update: Partial<AgencyRequestRow>;
+        Relationships: [];
+      };
+      estimation_requests: {
+        Row: EstimationRequestRow;
+        Insert: EstimationRequestInsert;
+        Update: Partial<EstimationRequestRow>;
         Relationships: [];
       };
     };

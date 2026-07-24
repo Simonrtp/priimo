@@ -43,8 +43,9 @@ export default function HeroSection() {
             <p className="text-body mx-auto mt-0 max-w-[820px] leading-[1.7] mb-4 sm:mb-5 sm:max-w-[880px] lg:max-w-[960px]">
               Priimo croise les données publiques et privées qui précèdent une vente :
               événement de vie, ventes en cascade, copropriété fragilisée, SCI en
-              dissolution, DVF &amp; DPE, etc. et vous livre chaque lundi les adresses où
-              un mandat se prépare.
+              dissolution, DVF et DPE. Chaque lundi, vous recevez les adresses où un
+              mandat se prépare, vérifiées absentes des portails de vente, donc pas
+              déjà prises par une autre agence.
             </p>
 
             <ul className="mt-4 flex flex-col items-center gap-2.5 sm:mt-5 lg:flex-row lg:flex-wrap lg:justify-center lg:gap-x-6 lg:gap-y-2 xl:gap-x-8">

@@ -4,7 +4,7 @@ import {
   Building2,
   LayoutGrid,
   Hammer,
-  LockKeyhole,
+  Map,
   type LucideIcon,
 } from 'lucide-react';
 import Reveal from '@/components/Reveal';
@@ -28,7 +28,7 @@ const SOURCES: Source[] = [
     brings: 'Les copros fragilisées',
   },
   { Icon: Hammer, name: 'Permis de construire', brings: 'Les chantiers en cours' },
-  { Icon: LockKeyhole, name: 'Données privées', brings: 'Les événements de vie' },
+  { Icon: Map, name: 'Cadastre', brings: 'La localisation précise' },
 ];
 
 export default function SourceGrid() {

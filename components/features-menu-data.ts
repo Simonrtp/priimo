@@ -7,6 +7,7 @@ import {
   Gauge,
   MapPinned,
   Share2,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react';
 
@@ -28,19 +29,25 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     items: [
       {
         title: 'Scoring prédictif',
-        description: 'Score de 0 à 100',
+        description: 'Par quelle porte commencer',
         href: '/fonctionnalites/scoring',
         icon: Gauge,
       },
       {
         title: 'Signaux expliqués',
-        description: 'Le pourquoi de chaque lead',
+        description: 'Quoi dire en arrivant',
         href: '/fonctionnalites/scoring#signaux',
         icon: Sparkles,
       },
       {
-        title: 'Bases de données',
-        description: 'DPE, DVF, BODACC, données privées',
+        title: 'Vérification marché',
+        description: 'Aucune adresse déjà en vente',
+        href: '/fonctionnalites/scoring#verification',
+        icon: ShieldCheck,
+      },
+      {
+        title: 'Sources croisées',
+        description: 'DPE, DVF, BODACC, cadastre, copropriétés',
         href: '/fonctionnalites/scoring#sources',
         icon: Database,
       },
@@ -51,19 +58,19 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     items: [
       {
         title: 'Liste hebdomadaire',
-        description: 'Priorités chaque lundi',
+        description: 'Votre semaine prête chaque lundi',
         href: '/fonctionnalites/livraison',
         icon: CalendarDays,
       },
       {
         title: 'Module Entreprises',
-        description: 'SCI, dirigeant identifié',
+        description: 'Un interlocuteur joignable après le 11 août',
         href: '/fonctionnalites/sci',
         icon: Building2,
       },
       {
         title: 'Secteur exclusif',
-        description: 'Une agence par zone',
+        description: 'Livré à vous seul',
         href: '/fonctionnalites/livraison#secteur',
         icon: MapPinned,
       },
@@ -74,13 +81,13 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
     items: [
       {
         title: 'Suivi des prospects',
-        description: 'Statuts et notes',
+        description: 'Qui a fait quoi, où ça en est',
         href: '/fonctionnalites/livraison#suivi',
         icon: ClipboardList,
       },
       {
         title: 'Export et partage',
-        description: 'CSV ou Google Maps',
+        description: 'Vos tournées préparées',
         href: '/fonctionnalites/livraison#export',
         icon: Share2,
       },

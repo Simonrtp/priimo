@@ -18,6 +18,7 @@ export default function SciFeature() {
   const dissolution = getSection(SCI_PAGE, 'dissolution');
   const contact = getSection(SCI_PAGE, 'contact');
   const rare = getSection(SCI_PAGE, 'rare');
+  const cadre = getSection(SCI_PAGE, 'cadre');
 
   return (
     <>
@@ -55,6 +56,15 @@ export default function SciFeature() {
             paragraphs={rare.paragraphs}
             visual={<RarityStrip />}
           />
+        </Band>
+
+        {/* 6 — Cadre de l'échange */}
+        <Band tone="cream" space="tight">
+          <div className="mx-auto max-w-[680px] rounded-2xl border border-[#3D5A80]/25 bg-white px-5 py-4 sm:px-6 sm:py-5">
+            <p className="text-[15px] leading-relaxed text-gray-700 sm:text-base">
+              {cadre.paragraphs[0]}
+            </p>
+          </div>
         </Band>
       </main>
       <FinalCTA />

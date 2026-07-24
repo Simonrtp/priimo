@@ -4,6 +4,8 @@ export type SelectedAddress = {
   longitude: number;
   city: string;
   postcode: string;
+  /** Code INSEE commune (BAN `citycode`). */
+  citycode?: string;
 };
 
 export type BanFeature = {
@@ -12,6 +14,7 @@ export type BanFeature = {
     score: number;
     city: string;
     postcode: string;
+    citycode?: string;
     context: string;
   };
   geometry: {
@@ -60,5 +63,6 @@ export function banFeatureToSelectedAddress(feature: BanFeature): SelectedAddres
     longitude: lng,
     city: feature.properties.city,
     postcode: feature.properties.postcode,
+    citycode: feature.properties.citycode ?? '',
   };
 }

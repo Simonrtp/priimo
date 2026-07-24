@@ -19,6 +19,9 @@ export default function ScoringFeature() {
   const sources = getSection(SCORING_PAGE, 'sources');
   const score = getSection(SCORING_PAGE, 'score');
   const pourquoi = getSection(SCORING_PAGE, 'pourquoi');
+  const verification = getSection(SCORING_PAGE, 'verification');
+  const verificationComment = getSection(SCORING_PAGE, 'verification-comment');
+  const verificationDisclaimer = getSection(SCORING_PAGE, 'verification-disclaimer');
 
   return (
     <>
@@ -69,7 +72,31 @@ export default function ScoringFeature() {
           />
         </Band>
 
-        {/* 6 — Manifeste */}
+        {/* 6 — Vérification marché (après le scoring) */}
+        <Band tone="white" id={verification.id}>
+          <SectionHead
+            title={verification.title}
+            paragraphs={verification.paragraphs}
+          />
+          <div className="mx-auto mt-10 max-w-[680px] sm:mt-12">
+            <h3 className="blog-prose-h2 !mt-0 !text-[1.35rem] sm:!text-[1.5rem]">
+              {verificationComment.title}
+            </h3>
+            <p className="blog-prose-p text-pretty">
+              {verificationComment.paragraphs[0]}
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-[680px] rounded-2xl border border-[#3D5A80]/25 bg-[#FFF7F0] px-5 py-4 sm:mt-10 sm:px-6 sm:py-5">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#3D5A80]">
+              {verificationDisclaimer.title}
+            </p>
+            <p className="mt-2 text-[15px] leading-relaxed text-gray-700 sm:text-base">
+              {verificationDisclaimer.paragraphs[0]}
+            </p>
+          </div>
+        </Band>
+
+        {/* 7 — Manifeste */}
         <Statement text={SCORING_PAGE.enClair} />
       </main>
       <FinalCTA />
