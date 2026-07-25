@@ -1,8 +1,7 @@
 'use client';
 
-import { Building2, Phone } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import type { Lead } from '@/types/lead';
-import { hasOwnerBlock } from '@/lib/lead-contacts';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 
 const OWNER_PHONE_HINT =
@@ -21,7 +20,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 /** Bloc propriétaire + autres contacts immeuble (affichage défensif si colonnes absentes). */
 export default function LeadOwnerContacts({ lead }: { lead: Lead }) {
-  const showOwner = hasOwnerBlock(lead);
+  const showOwner =
+    Boolean(lead.ownerName?.trim()) ||
+    (lead.ownerAge != null && lead.ownerAge > 0) ||
+    Boolean(lead.ownerPhone?.trim());
   const immeubleContacts = lead.contactsImmeuble;
   const showImmeuble = immeubleContacts.length > 0;
 
@@ -42,18 +44,6 @@ export default function LeadOwnerContacts({ lead }: { lead: Lead }) {
                   </span>
                 )}
               </p>
-            )}
-
-            {lead.ownerCompany?.trim() && (
-              <div className="rounded-xl border border-[#3D5A80]/15 bg-[#FFF7F0] px-3 py-2.5">
-                <p className="text-mute" style={{ fontSize: 11 }}>
-                  Bien détenu par une société
-                </p>
-                <p className="mt-0.5 flex items-center gap-2 font-medium text-ink" style={{ fontSize: 13 }}>
-                  <Building2 size={14} strokeWidth={2} className="shrink-0 text-[#3D5A80]" aria-hidden />
-                  {lead.ownerCompany.trim()}
-                </p>
-              </div>
             )}
 
             {lead.ownerPhone?.trim() && (
