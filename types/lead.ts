@@ -1,5 +1,6 @@
 import type { LeadMlFeedbackDb, LeadOwnerTypeDb, LeadStatusDb } from '@/types/database';
 import type { DisplaySignals } from '@/lib/display-signals';
+import type { ImmeubleContact } from '@/lib/lead-contacts';
 import type { LeadFilters } from '@/lib/lead-filters';
 import { EMPTY_LEAD_FILTERS } from '@/lib/lead-filters';
 
@@ -95,6 +96,13 @@ export interface Lead {
   marcheStatut: string | null;
   /** Horodatage ISO de la vérification marché par le pipeline. */
   marcheVerifieLe: string | null;
+  ownerName: string | null;
+  ownerAge: number | null;
+  ownerCompany: string | null;
+  ownerSiren: string | null;
+  ownerPhone: string | null;
+  /** Sociétés présentes dans l'immeuble (déjà filtrées : type immeuble + téléphone). */
+  contactsImmeuble: ImmeubleContact[];
   /** Date du lot pipeline (YYYY-MM-DD). */
   deliveredAt: string;
   createdAt: string;

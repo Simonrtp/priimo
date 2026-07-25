@@ -12,9 +12,11 @@ import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadAssigneeControl from './LeadAssigneeControl';
 import LeadMarketCheck from './LeadMarketCheck';
+import LeadOwnerContacts from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
+import { hasOwnerBlock } from '@/lib/lead-contacts';
 import { isSciDirectorPending } from '@/types/lead';
 
 const drawerSelectTriggerClass =
@@ -201,7 +203,7 @@ export default function LeadDrawer({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-6">
             <LeadDetailHeader lead={lead} titleId="drawer-address" />
 
-            {!isEnterprise && <ParticulierContactPendingHint />}
+            {!isEnterprise && !hasOwnerBlock(lead) && <ParticulierContactPendingHint />}
 
             {isEnterprise && (
               <>
@@ -214,6 +216,13 @@ export default function LeadDrawer({
               <>
                 <Divider />
                 <LeadMarketCheck lead={lead} />
+              </>
+            )}
+
+            {(hasOwnerBlock(lead) || lead.contactsImmeuble.length > 0) && (
+              <>
+                <Divider />
+                <LeadOwnerContacts lead={lead} />
               </>
             )}
 

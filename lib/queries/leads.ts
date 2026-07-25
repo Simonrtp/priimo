@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, LeadRow, ProfileRow } from '@/types/database';
 import type { Lead, LeadSignal, MlFeedback, TeamMember } from '@/types/lead';
 import { parseDisplaySignals } from '@/lib/display-signals';
+import { parseContactsImmeuble } from '@/lib/lead-contacts';
 
 type Client = SupabaseClient<Database>;
 
@@ -101,6 +102,12 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     mlFeedbackAt: row.ml_feedback_at ?? null,
     marcheStatut: row.marche_statut ?? null,
     marcheVerifieLe: row.marche_verifie_le ?? null,
+    ownerName: row.owner_name ?? null,
+    ownerAge: row.owner_age ?? null,
+    ownerCompany: row.owner_company ?? null,
+    ownerSiren: row.owner_siren ?? null,
+    ownerPhone: row.owner_phone ?? null,
+    contactsImmeuble: parseContactsImmeuble(row.contacts_immeuble),
     deliveredAt: row.delivered_at ?? row.created_at.slice(0, 10),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

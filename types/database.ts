@@ -136,6 +136,18 @@ export type LeadRow = {
   marche_statut?: string | null;
   /** Horodatage de la vérification marché par le pipeline. */
   marche_verifie_le?: string | null;
+  /** Nom du propriétaire (pipeline contacts). */
+  owner_name?: string | null;
+  /** Âge du propriétaire (années). */
+  owner_age?: number | null;
+  /** Société détentrice éventuelle. */
+  owner_company?: string | null;
+  /** SIREN de la société détentrice. */
+  owner_siren?: string | null;
+  /** Téléphone professionnel du contact propriétaire. */
+  owner_phone?: string | null;
+  /** Autres sociétés présentes à l'adresse (jsonb). */
+  contacts_immeuble?: unknown;
   /** Date du lot pipeline (YYYY-MM-DD). */
   delivered_at?: string;
   created_at: string;

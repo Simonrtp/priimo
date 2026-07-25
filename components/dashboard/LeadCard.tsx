@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Phone } from 'lucide-react';
 import { isSciDirectorPending, type Lead, type LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
@@ -9,19 +9,38 @@ import LeadSignalList from './LeadSignalList';
 import LeadSourceBadges from './LeadSourceBadges';
 import { formatPrice } from '@/lib/utils';
 import { formatEtage } from '@/lib/lead-display';
+import { hasAnyLeadPhone } from '@/lib/lead-contacts';
 import { hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
-function PropertyMetaLine({ segments, className }: { segments: string[]; className?: string }) {
-  if (segments.length === 0) return null;
+function PropertyMetaLine({
+  segments,
+  showPhone,
+  className,
+}: {
+  segments: string[];
+  showPhone?: boolean;
+  className?: string;
+}) {
+  if (segments.length === 0 && !showPhone) return null;
   return (
-    <p className={`text-mute ${className ?? ''}`} style={{ fontSize: 12 }}>
-      {segments.map((seg, i) => (
-        <span key={`${seg}-${i}`}>
-          {i > 0 && <span className="mx-1.5 opacity-40">·</span>}
-          {seg}
-        </span>
-      ))}
+    <p className={`flex min-w-0 items-center gap-1.5 text-mute ${className ?? ''}`} style={{ fontSize: 12 }}>
+      {showPhone && (
+        <Phone
+          size={12}
+          strokeWidth={2.2}
+          className="shrink-0 text-[#3D5A80]"
+          aria-label="Téléphone disponible"
+        />
+      )}
+      <span className="min-w-0 truncate">
+        {segments.map((seg, i) => (
+          <span key={`${seg}-${i}`}>
+            {i > 0 && <span className="mx-1.5 opacity-40">·</span>}
+            {seg}
+          </span>
+        ))}
+      </span>
     </p>
   );
 }
@@ -92,6 +111,7 @@ export default function LeadCard({
       ? `${formatPrice(lead.acquiredPrice)} €`
       : null;
   const hasDetention = lead.acquiredYear != null;
+  const showPhone = hasAnyLeadPhone(lead);
 
   return (
     <div
@@ -131,7 +151,7 @@ export default function LeadCard({
             {lead.address}
           </p>
 
-          <PropertyMetaLine segments={propertySegments} className="mt-1" />
+          <PropertyMetaLine segments={propertySegments} showPhone={showPhone} className="mt-1" />
 
           {lead.companyName && (
             <p
@@ -209,7 +229,11 @@ export default function LeadCard({
             </div>
           )}
           <LeadSignalList signals={lead.signals} variant="summary" />
-          <PropertyMetaLine segments={propertySegments} className="mt-1 min-w-0 truncate" />
+          <PropertyMetaLine
+            segments={propertySegments}
+            showPhone={showPhone}
+            className="mt-1 min-w-0"
+          />
         </div>
         {acquiredPriceLabel && (
           <div className="hidden w-[120px] flex-shrink-0 text-right lg:block">
