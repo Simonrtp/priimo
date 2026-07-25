@@ -11,7 +11,6 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import { FEATURE_MENU_GROUPS } from '@/components/features-menu-data';
 
 type SectionKey = 'features' | 'resources';
@@ -21,21 +20,24 @@ const RESOURCE_LINKS = [
   { href: '/a-propos', title: 'À propos' },
 ] as const;
 
-const TRANSITION_MS = 200;
+const TRANSITION_MS = 280;
 const PANEL_GAP = 8;
+
+/** Courbe d’ouverture fluide (ease-out expressif). */
+const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const EASE_IN = 'cubic-bezier(0.4, 0, 1, 1)';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 // Verre du header : réutilisé pour que le panneau soit visuellement identique.
 // Aucun contour ni halo de tap sur mobile.
-const NO_OUTLINE = 'outline-none focus:outline-none focus-visible:outline-none [-webkit-tap-highlight-color:transparent]';
+const NO_OUTLINE =
+  'outline-none focus:outline-none focus-visible:outline-none [-webkit-tap-highlight-color:transparent]';
 const PANEL_SURFACE =
   'rounded-[28px] border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl';
-const SECTION_BUTTON =
-  `group flex w-full items-center justify-between gap-3 py-4 text-left text-[17px] font-medium text-gray-900 transition-colors hover:text-accent-dark ${NO_OUTLINE}`;
-const SUBLINK =
-  `block py-2 text-[15px] font-medium text-gray-700 transition-colors hover:text-accent-dark ${NO_OUTLINE}`;
+const SECTION_BUTTON = `group flex w-full items-center justify-between gap-3 py-4 text-left text-[17px] font-medium text-gray-900 transition-colors hover:text-accent-dark ${NO_OUTLINE}`;
+const SUBLINK = `block py-2 text-[15px] font-medium text-gray-700 transition-colors hover:text-accent-dark ${NO_OUTLINE}`;
 
 /** Monte le panneau puis déclenche la transition d'entrée / sortie. */
 function usePanelTransition(open: boolean) {
@@ -142,14 +144,54 @@ function useMounted() {
   return mounted;
 }
 
-function SectionChevron({ open }: { open: boolean }) {
-  const Icon = open ? ChevronDown : ChevronRight;
+/** Hamburger → croix morphée (transform uniquement). */
+function MenuToggleIcon({ open }: { open: boolean }) {
+  const bar =
+    'absolute left-0 h-[1.75px] w-full origin-center rounded-full bg-current will-change-transform motion-reduce:transition-none';
+  const timing = `transition-[transform,opacity] duration-200 ease-out`;
+
   return (
-    <Icon
-      size={18}
-      className="shrink-0 text-gray-400 transition-colors group-hover:text-accent"
+    <span className="relative block h-3.5 w-[18px]" aria-hidden>
+      <span
+        className={`${bar} ${timing} top-0`}
+        style={{
+          transform: open ? 'translateY(6px) rotate(45deg)' : 'translateY(0) rotate(0deg)',
+        }}
+      />
+      <span
+        className={`${bar} ${timing} top-[6px]`}
+        style={{
+          opacity: open ? 0 : 1,
+          transform: open ? 'scaleX(0.4)' : 'scaleX(1)',
+        }}
+      />
+      <span
+        className={`${bar} ${timing} top-3`}
+        style={{
+          transform: open ? 'translateY(-6px) rotate(-45deg)' : 'translateY(0) rotate(0deg)',
+        }}
+      />
+    </span>
+  );
+}
+
+function SectionChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0 text-gray-400 transition-transform duration-200 ease-out group-hover:text-accent motion-reduce:transition-none"
+      style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
       aria-hidden
-    />
+    >
+      <path d="M9 18l6-6-6-6" />
+    </svg>
   );
 }
 
@@ -158,19 +200,39 @@ function CollapsibleSection({
   open,
   onToggle,
   children,
+  delayMs = 0,
+  shown,
 }: {
   label: string;
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
+  delayMs?: number;
+  shown: boolean;
 }) {
   return (
-    <div className="border-b border-black/[0.06]">
+    <div
+      className="border-b border-black/[0.06] transition-[opacity,transform] duration-[280ms] motion-reduce:transition-none"
+      style={{
+        transitionTimingFunction: shown ? EASE_OUT : EASE_IN,
+        transitionDelay: shown ? `${delayMs}ms` : '0ms',
+        opacity: shown ? 1 : 0,
+        transform: shown ? 'translateY(0)' : 'translateY(-6px)',
+      }}
+    >
       <button type="button" className={SECTION_BUTTON} aria-expanded={open} onClick={onToggle}>
         {label}
         <SectionChevron open={open} />
       </button>
-      {open ? children : null}
+      <div
+        className="grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
+        style={{
+          gridTemplateRows: open ? '1fr' : '0fr',
+          opacity: open ? 1 : 0,
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">{children}</div>
+      </div>
     </div>
   );
 }
@@ -234,9 +296,11 @@ export default function MobileNav() {
       ? createPortal(
           <div className="fixed inset-0 z-[60] lg:hidden" role="presentation">
             <div
-              className={`absolute inset-0 bg-black/20 transition-opacity duration-200 ease-out motion-reduce:transition-none ${
-                shown ? 'opacity-100' : 'opacity-0'
-              }`}
+              className="absolute inset-0 bg-black/25 backdrop-blur-[2px] transition-[opacity,backdrop-filter] duration-[280ms] motion-reduce:transition-none motion-reduce:backdrop-blur-none"
+              style={{
+                transitionTimingFunction: shown ? EASE_OUT : EASE_IN,
+                opacity: shown ? 1 : 0,
+              }}
               aria-hidden
               onClick={close}
             />
@@ -252,9 +316,16 @@ export default function MobileNav() {
                 aria-modal="true"
                 aria-label="Menu de navigation"
                 aria-hidden={!shown}
-                className={`flex w-full max-w-6xl flex-col transition-all duration-200 ease-out motion-reduce:transition-none ${
-                  shown ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'
-                }`}
+                className="flex w-full max-w-6xl origin-top flex-col will-change-transform motion-reduce:transition-none"
+                style={{
+                  transitionProperty: 'opacity, transform',
+                  transitionDuration: `${TRANSITION_MS}ms`,
+                  transitionTimingFunction: shown ? EASE_OUT : EASE_IN,
+                  opacity: shown ? 1 : 0,
+                  transform: shown
+                    ? 'translateY(0) scale(1)'
+                    : 'translateY(-10px) scale(0.97)',
+                }}
               >
                 <nav
                   className={`overflow-y-auto overscroll-contain px-5 pb-4 pt-2 sm:px-6 ${PANEL_SURFACE}`}
@@ -265,6 +336,8 @@ export default function MobileNav() {
                     label="Fonctionnalités"
                     open={expanded === 'features'}
                     onToggle={() => toggleSection('features')}
+                    delayMs={40}
+                    shown={shown}
                   >
                     <div className="space-y-4 pb-4 pl-1">
                       {FEATURE_MENU_GROUPS.map((group) => (
@@ -290,6 +363,8 @@ export default function MobileNav() {
                     label="Ressources"
                     open={expanded === 'resources'}
                     onToggle={() => toggleSection('resources')}
+                    delayMs={80}
+                    shown={shown}
                   >
                     <ul className="pb-4 pl-1">
                       {RESOURCE_LINKS.map((item) => (
@@ -302,7 +377,17 @@ export default function MobileNav() {
                     </ul>
                   </CollapsibleSection>
 
-                  <Link href="/login" className={`group flex w-full py-4 ${NO_OUTLINE}`} onClick={close}>
+                  <Link
+                    href="/login"
+                    className={`group flex w-full py-4 transition-[opacity,transform] duration-[280ms] motion-reduce:transition-none ${NO_OUTLINE}`}
+                    style={{
+                      transitionTimingFunction: shown ? EASE_OUT : EASE_IN,
+                      transitionDelay: shown ? '120ms' : '0ms',
+                      opacity: shown ? 1 : 0,
+                      transform: shown ? 'translateY(0)' : 'translateY(-6px)',
+                    }}
+                    onClick={close}
+                  >
                     <span className="relative inline-flex text-[17px] font-medium text-gray-900 transition-colors duration-200 group-hover:text-accent-dark">
                       Se connecter
                       <span
@@ -324,17 +409,13 @@ export default function MobileNav() {
       <button
         ref={triggerRef}
         type="button"
-        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-colors duration-200 hover:text-accent-dark lg:hidden ${NO_OUTLINE}`}
+        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-[color,transform] duration-200 ease-out hover:text-accent-dark active:scale-95 lg:hidden ${NO_OUTLINE}`}
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
         onClick={() => setOpen((prev) => !prev)}
       >
-        {open ? (
-          <X size={22} strokeWidth={2} aria-hidden />
-        ) : (
-          <Menu size={22} strokeWidth={2} aria-hidden />
-        )}
+        <MenuToggleIcon open={open} />
       </button>
       {panel}
     </>

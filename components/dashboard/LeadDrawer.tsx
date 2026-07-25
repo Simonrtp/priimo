@@ -16,6 +16,7 @@ import LeadOwnerContacts from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
+import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 import { hasOwnerBlock } from '@/lib/lead-contacts';
 import { isSciDirectorPending } from '@/types/lead';
 
@@ -32,69 +33,56 @@ interface LeadDrawerProps {
   teamMembers: TeamMember[];
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      className="mb-3 uppercase tracking-widest text-mute"
-      style={{ fontSize: 9, letterSpacing: '0.18em' }}
-    >
-      {children}
-    </p>
-  );
-}
-
-function Divider() {
-  return <div className="h-px bg-black/[0.05] my-5" />;
-}
-
 function EnterpriseBlock({ lead }: { lead: Lead }) {
   const directorPending = isSciDirectorPending(lead);
 
   return (
-    <div className="space-y-3">
-      <SectionLabel>Société propriétaire</SectionLabel>
-      <p className="flex items-center gap-2 font-semibold text-ink" style={{ fontSize: 14 }}>
-        <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
-        {lead.companyName ?? '—'}
-      </p>
-      {directorPending ? (
-        <SciDirectorPendingNotice />
-      ) : (
-        <div className="space-y-2">
-          <p className="text-mute" style={{ fontSize: 11.5 }}>
-            Dirigeant
-          </p>
-          <p className="font-medium text-ink" style={{ fontSize: 13 }}>
-            {lead.companyDirector ?? '—'}
-          </p>
-          {lead.companyPhone && (
-            <a
-              href={`tel:${lead.companyPhone}`}
-              className="flex items-center gap-2 text-accent-dark hover:underline"
-              style={{ fontSize: 13 }}
-            >
-              <PhoneIcon size={ICON_SIZE.sm} color={ICON_COLORS.green600} strokeWidth={2} aria-hidden />
-              {lead.companyPhone}
-            </a>
-          )}
-          {lead.companyEmail && (
-            <a
-              href={`mailto:${lead.companyEmail}`}
-              className="flex items-center gap-2 text-accent-dark hover:underline"
-              style={{ fontSize: 13 }}
-            >
-              <MailIcon size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
-              {lead.companyEmail}
-            </a>
-          )}
-          {!lead.companyPhone && !lead.companyEmail && (
-            <p className="text-mute" style={{ fontSize: 12 }}>
-              Coordonnées non disponibles.
+    <DetailSection>
+      <DetailSectionLabel>Société propriétaire</DetailSectionLabel>
+      <div className="space-y-3">
+        <p className="flex items-center gap-2 font-semibold text-ink" style={{ fontSize: 14 }}>
+          <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
+          {lead.companyName ?? '—'}
+        </p>
+        {directorPending ? (
+          <SciDirectorPendingNotice />
+        ) : (
+          <div className="space-y-2">
+            <p className="text-mute" style={{ fontSize: 11 }}>
+              Dirigeant
             </p>
-          )}
-        </div>
-      )}
-    </div>
+            <p className="font-medium text-ink" style={{ fontSize: 13 }}>
+              {lead.companyDirector ?? '—'}
+            </p>
+            {lead.companyPhone && (
+              <a
+                href={`tel:${lead.companyPhone}`}
+                className="flex items-center gap-2 text-accent-dark hover:underline"
+                style={{ fontSize: 13 }}
+              >
+                <PhoneIcon size={ICON_SIZE.sm} color={ICON_COLORS.green600} strokeWidth={2} aria-hidden />
+                {lead.companyPhone}
+              </a>
+            )}
+            {lead.companyEmail && (
+              <a
+                href={`mailto:${lead.companyEmail}`}
+                className="flex items-center gap-2 text-accent-dark hover:underline"
+                style={{ fontSize: 13 }}
+              >
+                <MailIcon size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
+                {lead.companyEmail}
+              </a>
+            )}
+            {!lead.companyPhone && !lead.companyEmail && (
+              <p className="text-mute" style={{ fontSize: 12 }}>
+                Coordonnées non disponibles.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </DetailSection>
   );
 }
 
@@ -110,6 +98,8 @@ export default function LeadDrawer({
   const [note, setNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [drawerEntered, setDrawerEntered] = useState(false);
+  /** Après l'anim d'entrée : on retire `transform` (casse le spotlight Joyride). */
+  const [drawerSettled, setDrawerSettled] = useState(false);
 
   useEffect(() => {
     setNote('');
@@ -128,11 +118,17 @@ export default function LeadDrawer({
   useEffect(() => {
     if (leadId === null) {
       setDrawerEntered(false);
+      setDrawerSettled(false);
       return;
     }
     setDrawerEntered(false);
-    const t = window.setTimeout(() => setDrawerEntered(true), 16);
-    return () => window.clearTimeout(t);
+    setDrawerSettled(false);
+    const enter = window.setTimeout(() => setDrawerEntered(true), 16);
+    const settle = window.setTimeout(() => setDrawerSettled(true), 260);
+    return () => {
+      window.clearTimeout(enter);
+      window.clearTimeout(settle);
+    };
   }, [leadId]);
 
   useEffect(() => {
@@ -165,6 +161,8 @@ export default function LeadDrawer({
   if (!lead) return null;
 
   const isEnterprise = lead.ownerType === 'entreprise';
+  const noteDirty = Boolean(note.trim());
+  const canSave = noteDirty && !savingNote;
 
   const panel = (
     <>
@@ -179,8 +177,10 @@ export default function LeadDrawer({
       />
 
       <aside
-        className={`fixed top-0 right-0 bottom-0 z-50 hidden h-[100dvh] max-h-[100dvh] w-full max-w-[480px] flex-col bg-white transition-transform duration-[225ms] ease-out md:flex ${
-          drawerEntered ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-0 right-0 bottom-0 z-50 hidden h-[100dvh] max-h-[100dvh] w-full max-w-[480px] flex-col bg-white ease-out md:flex ${
+          drawerSettled
+            ? ''
+            : `transition-transform duration-[225ms] ${drawerEntered ? 'translate-x-0' : 'translate-x-full'}`
         }`}
         style={{ boxShadow: '-8px 0 24px rgba(0,0,0,0.08)' }}
         role="dialog"
@@ -200,97 +200,97 @@ export default function LeadDrawer({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 pb-10 pt-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-7 pb-10 pt-6">
             <LeadDetailHeader lead={lead} titleId="drawer-address" />
 
-            {!isEnterprise && !hasOwnerBlock(lead) && <ParticulierContactPendingHint />}
-
-            {isEnterprise && (
-              <>
-                <Divider />
-                <EnterpriseBlock lead={lead} />
-              </>
+            {!isEnterprise && !hasOwnerBlock(lead) && (
+              <div className="mt-4">
+                <ParticulierContactPendingHint />
+              </div>
             )}
 
+            {isEnterprise && <EnterpriseBlock lead={lead} />}
+
             {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
-              <>
-                <Divider />
-                <LeadMarketCheck lead={lead} />
-              </>
+              <DetailSection>
+                <LeadMarketCheck lead={lead} tourAnchor="drawer-market" />
+              </DetailSection>
             )}
 
             {(hasOwnerBlock(lead) || lead.contactsImmeuble.length > 0) && (
-              <>
-                <Divider />
-                <LeadOwnerContacts lead={lead} />
-              </>
+              <LeadOwnerContacts lead={lead} tourContactsAnchor="drawer-contacts" />
             )}
 
-            <Divider />
-
-            <div data-tour="drawer-signals">
-              <SectionLabel>Signaux détectés</SectionLabel>
-              <LeadDisplaySignals
-                key={lead.id}
-                displaySignals={lead.displaySignals}
-                dpeDate={lead.dpeDate}
-              />
-            </div>
-
-            <Divider />
-
-            <SectionLabel>Gestion du lead</SectionLabel>
-            <div className="space-y-4">
-              <LeadStatusControl
-                lead={lead}
-                onUpdateLead={onUpdateLead}
-                selectTriggerClassName={drawerSelectTriggerClass}
-              />
-              <LeadAssigneeControl
-                lead={lead}
-                teamMembers={teamMembers}
-                onUpdateLead={onUpdateLead}
-                canAssignAnyone={canAssignLead}
-                currentUserId={currentUserId}
-                selectTriggerClassName={drawerSelectTriggerClass}
-              />
-              <div>
-                <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-                  Notes internes
-                </p>
-                <textarea
-                  rows={4}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="Notes visibles uniquement par votre agence…"
-                  className="placeholder-mute/60 min-h-[100px] w-full resize-y rounded-xl border border-black/8 px-4 py-3 text-ink focus:border-accent/40 focus:outline-none"
-                  style={{ fontSize: 13, lineHeight: 1.6 }}
+            <DetailSection>
+              <div data-tour="drawer-signals">
+                <DetailSectionLabel>Signaux détectés</DetailSectionLabel>
+                <LeadDisplaySignals
+                  key={lead.id}
+                  displaySignals={lead.displaySignals}
+                  dpeDate={lead.dpeDate}
                 />
-                {lead.notes?.trim() && (
-                  <p
-                    className="mt-2 whitespace-pre-wrap rounded-xl bg-soft-warm px-4 py-3 text-ink"
-                    style={{ fontSize: 12.5, lineHeight: 1.55 }}
-                  >
-                    {lead.notes}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    saveNote();
-                  }}
-                  disabled={savingNote || !note.trim()}
-                  className="btn btn-primary mt-2 disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
-                >
-                  {savingNote ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
               </div>
-            </div>
+            </DetailSection>
 
-            <LeadDeleteSection leadId={lead.id} onDelete={onDeleteLead} className="mt-6" />
+            <DetailSection>
+              <DetailSectionLabel>Gestion du lead</DetailSectionLabel>
+              <div className="space-y-4">
+                <LeadStatusControl
+                  lead={lead}
+                  onUpdateLead={onUpdateLead}
+                  selectTriggerClassName={drawerSelectTriggerClass}
+                  tourAnchor="drawer-status"
+                />
+                <LeadAssigneeControl
+                  lead={lead}
+                  teamMembers={teamMembers}
+                  onUpdateLead={onUpdateLead}
+                  canAssignAnyone={canAssignLead}
+                  currentUserId={currentUserId}
+                  selectTriggerClassName={drawerSelectTriggerClass}
+                />
+                <div>
+                  <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
+                    Notes internes
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="Notes visibles uniquement par votre agence…"
+                    className="placeholder-mute/60 min-h-[100px] w-full resize-y rounded-xl border border-black/8 bg-white px-4 py-3 text-ink focus:border-accent/40 focus:outline-none"
+                    style={{ fontSize: 13, lineHeight: 1.6 }}
+                  />
+                  {lead.notes?.trim() && (
+                    <p
+                      className="mt-2 whitespace-pre-wrap rounded-xl border border-black/[0.06] bg-white px-4 py-3 text-ink"
+                      style={{ fontSize: 12.5, lineHeight: 1.55 }}
+                    >
+                      {lead.notes}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void saveNote();
+                    }}
+                    disabled={!canSave}
+                    className={`mt-3 inline-flex items-center justify-center rounded-[10px] px-[18px] py-2 font-semibold transition-colors ${
+                      canSave
+                        ? 'bg-[#E8743C] text-white hover:bg-[#C25E2C]'
+                        : 'bg-[#E8743C]/35 text-white cursor-not-allowed'
+                    }`}
+                    style={{ fontSize: 13 }}
+                  >
+                    {savingNote ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+
+              <LeadDeleteSection leadId={lead.id} onDelete={onDeleteLead} className="mt-2" />
+            </DetailSection>
           </div>
         </div>
       </aside>

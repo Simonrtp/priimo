@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface LeadDeleteSectionProps {
@@ -28,14 +27,13 @@ export default function LeadDeleteSection({ leadId, onDelete, className = '' }: 
 
   return (
     <>
-      <div className={`border-t border-black/[0.06] pt-6 ${className}`}>
+      <div className={`pt-4 text-center ${className}`}>
         <button
           type="button"
           onClick={() => setConfirmOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 font-medium text-red-700 transition-colors hover:bg-red-50"
-          style={{ fontSize: 13 }}
+          className="text-mute transition-colors hover:text-ink focus:outline-none focus-visible:underline"
+          style={{ fontSize: 12 }}
         >
-          <Trash2 size={16} strokeWidth={2} aria-hidden />
           Supprimer ce lead
         </button>
       </div>
@@ -48,7 +46,7 @@ export default function LeadDeleteSection({ leadId, onDelete, className = '' }: 
         message="Cette action est irréversible. Le lead disparaîtra définitivement de votre liste."
         primaryLabel="Supprimer"
         secondaryLabel="Annuler"
-        variant="danger"
+        variant="primary"
         isLoading={deleting}
       />
     </>

@@ -18,7 +18,7 @@ const BULLETS: { text: string; Icon: LucideIcon }[] = [
     Icon: MapPinned,
   },
   {
-    text: "Conforme post-interdiction de la pige",
+    text: "Conforme post-interdiction de la pige (11 août 2026)",
     Icon: ShieldCheck,
   },
 ];
@@ -41,11 +41,11 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-body mx-auto mt-0 max-w-[820px] leading-[1.7] mb-4 sm:mb-5 sm:max-w-[880px] lg:max-w-[960px]">
-              Priimo croise les données publiques et privées qui précèdent une vente :
-              événement de vie, ventes en cascade, copropriété fragilisée, SCI en
-              dissolution, DVF et DPE. Chaque lundi, vous recevez les adresses où un
-              mandat se prépare, vérifiées absentes des portails de vente, donc pas
-              déjà prises par une autre agence.
+              Priimo croise données publiques et privées pour repérer les logements où
+              une vente se prépare. Chaque lundi, une liste courte sur votre secteur :
+              l&apos;adresse, le propriétaire quand il est identifiable, le contexte, et
+              les contacts professionnels de l&apos;immeuble. Chaque adresse est
+              vérifiée absente des portails de vente.
             </p>
 
             <ul className="mt-4 flex flex-col items-center gap-2.5 sm:mt-5 lg:flex-row lg:flex-wrap lg:justify-center lg:gap-x-6 lg:gap-y-2 xl:gap-x-8">

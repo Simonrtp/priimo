@@ -1,47 +1,71 @@
 'use client';
 
-import { ChevronRight, Phone } from 'lucide-react';
+import { ChevronRight, Phone, ShieldCheck } from 'lucide-react';
 import { isSciDirectorPending, type Lead, type LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
-import DetentionLabel from './DetentionLabel';
 import LeadSignalList from './LeadSignalList';
-import LeadSourceBadges from './LeadSourceBadges';
 import { formatPrice } from '@/lib/utils';
 import { formatEtage } from '@/lib/lead-display';
 import { hasAnyLeadPhone } from '@/lib/lead-contacts';
 import { hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
+const SLATE = '#3D5A80';
+
 function PropertyMetaLine({
   segments,
-  showPhone,
   className,
 }: {
   segments: string[];
-  showPhone?: boolean;
   className?: string;
 }) {
-  if (segments.length === 0 && !showPhone) return null;
+  if (segments.length === 0) return null;
   return (
-    <p className={`flex min-w-0 items-center gap-1.5 text-mute ${className ?? ''}`} style={{ fontSize: 12 }}>
+    <p className={`min-w-0 truncate text-mute ${className ?? ''}`} style={{ fontSize: 13 }}>
+      {segments.map((seg, i) => (
+        <span key={`${seg}-${i}`}>
+          {i > 0 && <span className="mx-1.5 opacity-40">·</span>}
+          {seg}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** Icônes à côté de l’adresse : téléphone + hors portails. */
+function AddressSignalIcons({
+  showPhone,
+  horsMarche,
+}: {
+  showPhone: boolean;
+  horsMarche: boolean;
+}) {
+  if (!showPhone && !horsMarche) return null;
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 self-center"
+      aria-label="Signaux contact et marché"
+    >
       {showPhone && (
         <Phone
-          size={12}
+          size={14}
           strokeWidth={2.2}
-          className="shrink-0 text-[#3D5A80]"
+          className="shrink-0"
+          style={{ color: SLATE }}
           aria-label="Téléphone disponible"
         />
       )}
-      <span className="min-w-0 truncate">
-        {segments.map((seg, i) => (
-          <span key={`${seg}-${i}`}>
-            {i > 0 && <span className="mx-1.5 opacity-40">·</span>}
-            {seg}
-          </span>
-        ))}
-      </span>
-    </p>
+      {horsMarche && (
+        <ShieldCheck
+          size={14}
+          strokeWidth={2.2}
+          className="shrink-0"
+          style={{ color: SLATE }}
+          aria-label="Absent des portails de vente"
+        />
+      )}
+    </span>
   );
 }
 
@@ -95,7 +119,7 @@ export default function LeadCard({
   index,
   isLast,
   segmentTab,
-  showNewBadge = false,
+  showNewBadge: _showNewBadge = false,
   onClick,
   onStatusChange,
 }: LeadCardProps) {
@@ -110,8 +134,8 @@ export default function LeadCard({
     hasDisplayableAcquiredPrice(lead) && lead.acquiredPrice != null
       ? `${formatPrice(lead.acquiredPrice)} €`
       : null;
-  const hasDetention = lead.acquiredYear != null;
   const showPhone = hasAnyLeadPhone(lead);
+  const horsMarche = lead.marcheStatut === 'hors_marche' && Boolean(lead.marcheVerifieLe);
 
   return (
     <div
@@ -119,21 +143,22 @@ export default function LeadCard({
       data-lead-id={lead.id}
       data-tour={index === 0 ? 'lead-card' : undefined}
       onClick={onClick}
-      className={`relative cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-md:rounded-2xl max-md:bg-surface max-md:px-3.5 max-md:py-3.5 max-md:shadow-clay-sm max-md:transition max-md:duration-150 max-md:active:scale-[0.985] max-md:active:bg-black/[0.01] md:hover:bg-black/[0.018] lg:flex lg:items-center lg:gap-4 lg:px-5 lg:py-[18px] lg:shadow-none ${
-        !isLast ? 'border-b border-black/[0.05] max-md:border-b-0' : ''
+      className={`relative h-full cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-surface max-lg:px-4 max-lg:py-5 max-lg:shadow-clay-sm max-md:active:scale-[0.985] max-md:active:bg-black/[0.01] lg:flex lg:h-auto lg:items-center lg:gap-5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-6 lg:py-6 lg:shadow-none ${
+        !isLast ? 'lg:border-b lg:border-black/[0.05]' : ''
       }`}
       style={{ animationDelay: `${index * 38}ms`, WebkitTapHighlightColor: 'transparent' }}
     >
       {isHighIntent && (
-        <span className="absolute left-0 top-4 bottom-4 hidden w-[3px] bg-accent-dark rounded-r-[2px] lg:block" />
+        <span className="absolute left-0 top-4 bottom-4 hidden w-[3px] rounded-r-[2px] bg-accent-dark lg:block" />
       )}
 
-      <div className="flex items-start gap-3 lg:hidden">
+      {/* Mobile + tablette : carte verticale */}
+      <div className="flex h-full items-start gap-3.5 lg:hidden">
         <div
           className="flex shrink-0 flex-col items-center pt-0.5"
           data-tour={index === 0 ? 'lead-score-mobile' : undefined}
         >
-          <ScoreRing score={lead.score} size={36} />
+          <ScoreRing score={lead.score} size={40} />
         </div>
         <div className="min-w-0 flex-1">
           <div
@@ -145,18 +170,19 @@ export default function LeadCard({
           </div>
 
           <p
-            className="mt-2 text-pretty font-semibold leading-snug text-ink"
-            style={{ fontSize: 14, letterSpacing: '-0.01em' }}
+            className="mt-2.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-pretty font-semibold leading-snug text-ink"
+            style={{ fontSize: 15, letterSpacing: '-0.01em' }}
           >
-            {lead.address}
+            <span className="min-w-0">{lead.address}</span>
+            <AddressSignalIcons showPhone={showPhone} horsMarche={horsMarche} />
           </p>
 
-          <PropertyMetaLine segments={propertySegments} showPhone={showPhone} className="mt-1" />
+          <PropertyMetaLine segments={propertySegments} className="mt-1.5" />
 
           {lead.companyName && (
             <p
-              className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-[#374151]"
-              style={{ fontSize: 12 }}
+              className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 font-medium text-[#374151]"
+              style={{ fontSize: 13 }}
             >
               <span className="line-clamp-1 min-w-0">
                 {lead.companyName}
@@ -170,15 +196,13 @@ export default function LeadCard({
             </p>
           )}
 
-          <LeadSourceBadges lead={lead} className="mt-1.5" />
-
-          {hasDetention && (
-            <div className="mt-1.5">
-              <DetentionLabel acquiredYear={lead.acquiredYear} variant="stacked" />
-            </div>
+          {acquiredPriceLabel && (
+            <p className="mt-2 font-medium tabular text-ink" style={{ fontSize: 13 }}>
+              {acquiredPriceLabel}
+            </p>
           )}
 
-          <div className="mt-1.5">
+          <div className="mt-2">
             <LeadSignalList signals={lead.signals} variant="summary" />
           </div>
         </div>
@@ -190,25 +214,27 @@ export default function LeadCard({
         />
       </div>
 
-      <div className="hidden w-full items-center gap-4 lg:flex">
+      {/* Desktop large : ligne horizontale */}
+      <div className="hidden w-full items-center gap-5 lg:flex">
         <div
           className="flex flex-shrink-0 flex-col items-center"
           data-tour={index === 0 ? 'lead-score' : undefined}
         >
-          <ScoreRing score={lead.score} size={44} />
+          <ScoreRing score={lead.score} size={48} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-0.5 flex items-start gap-2">
+          <div className="mb-1 flex items-start gap-2.5">
             <SegmentRowIcon tab={segmentTab} ownerType={lead.ownerType} />
             <div className="min-w-0 flex-1">
               <p
-                className="text-pretty font-semibold leading-snug text-ink"
-                style={{ fontSize: 14, letterSpacing: '-0.01em' }}
+                className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-pretty font-semibold leading-snug text-ink"
+                style={{ fontSize: 15, letterSpacing: '-0.01em' }}
               >
-                {lead.address}
+                <span className="min-w-0">{lead.address}</span>
+                <AddressSignalIcons showPhone={showPhone} horsMarche={horsMarche} />
               </p>
               {lead.companyName && (
-                <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-y-0.5 font-medium text-[#374151]" style={{ fontSize: 12 }}>
+                <p className="mt-1 flex min-w-0 flex-wrap items-center gap-y-0.5 font-medium text-[#374151]" style={{ fontSize: 13 }}>
                   <span className="truncate">
                     {lead.companyName}
                     {lead.companyDirector ? ` — ${lead.companyDirector}` : ''}
@@ -220,28 +246,16 @@ export default function LeadCard({
                   )}
                 </p>
               )}
-              <LeadSourceBadges lead={lead} className="mt-1" />
             </div>
           </div>
-          {hasDetention && (
-            <div className="mb-1.5">
-              <DetentionLabel acquiredYear={lead.acquiredYear} variant="inline" />
-            </div>
-          )}
-          <LeadSignalList signals={lead.signals} variant="summary" />
-          <PropertyMetaLine
-            segments={propertySegments}
-            showPhone={showPhone}
-            className="mt-1 min-w-0"
-          />
-        </div>
-        {acquiredPriceLabel && (
-          <div className="hidden w-[120px] flex-shrink-0 text-right lg:block">
-            <p className="font-medium tabular text-ink" style={{ fontSize: 12.5 }}>
+          {acquiredPriceLabel && (
+            <p className="mb-2 font-medium tabular text-ink" style={{ fontSize: 13 }}>
               {acquiredPriceLabel}
             </p>
-          </div>
-        )}
+          )}
+          <LeadSignalList signals={lead.signals} variant="summary" />
+          <PropertyMetaLine segments={propertySegments} className="mt-1.5 min-w-0" />
+        </div>
         <div
           className="hidden flex-shrink-0 lg:block"
           onClick={(e) => e.stopPropagation()}

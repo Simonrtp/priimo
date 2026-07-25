@@ -9,17 +9,11 @@ import ClayButton from '@/components/ui/ClayButton';
 const Joyride = dynamic(() => import('react-joyride'), { ssr: false });
 
 /**
- * Visite guidée du dashboard prospects — PRIIMO_DESIGN_SYSTEM.md :
- * bulles = surface clay arrondie (rounded-clay-lg + shadow-clay-lg),
- * « Suivant » = ClayButton primaire, « Passer » discret, overlay léger.
+ * Visite guidée du dashboard prospects (8 étapes).
  *
- * Les cibles sont des attributs data-tour posés sur les vrais éléments.
- * Desktop et mobile ayant des blocs séparés (hidden md:/lg:), chaque étape
- * accepte plusieurs ancres et on retient la première réellement visible.
- *
- * L'étape « signal » pointe la section « Signaux détectés » du panneau de
- * détail : la visite est pilotée (stepIndex contrôlé) pour ouvrir le panneau
- * du premier lead avant cette étape et le refermer après.
+ * Étapes drawer : bulle centrée (jamais coupée) + spotlight custom via un
+ * proxy `position: fixed` sur body (Joyride v2 mal positionne le spotlight
+ * dans un panneau fixed/transform → bandeau blanc).
  */
 
 type TourStepDef = {
@@ -27,9 +21,12 @@ type TourStepDef = {
   anchors: string[] | null;
   body: ReactNode;
   placement?: Step['placement'];
-  /** Nécessite le panneau de détail ouvert (cible résolue à l'activation). */
+  /** Nécessite le panneau de détail ouvert. */
   inDrawer?: boolean;
 };
+
+const TOUR_PROXY_ID = 'priimo-tour-spotlight-proxy';
+const OVERLAY = 'rgba(21, 32, 47, 0.38)';
 
 /** Même icône que le bouton « Revoir le guide » dans la TopBar. */
 function GuideRelaunchIcon({ className = '' }: { className?: string }) {
@@ -53,37 +50,32 @@ const FINALE_BODY = (
 const STEP_DEFS: TourStepDef[] = [
   {
     anchors: null,
-    body: 'Bienvenue sur Priimo 👋 En 30 secondes, voici comment transformer cette page en rendez-vous vendeur.',
+    body: "Chaque lundi, une petite liste sur ton secteur — pas 200 fiches à trier. Des adresses où ça bouge vraiment, et que personne n'a encore travaillées.",
   },
   {
     anchors: ['lead-card'],
-    body: 'Voici tes leads, classés par priorité. Priimo a passé au crible les biens de ton secteur et fait remonter ceux où il se passe quelque chose.',
+    body: "Chaque ligne = une adresse. Le score (0 à 100), c'est à quel point une vente a l'air de se préparer. Tu commences par le haut, tout simplement ;)",
     placement: 'bottom',
   },
   {
-    anchors: ['lead-score', 'lead-score-mobile'],
-    body: 'Ce score, c\u2019est la « probabilité » qu\u2019un bien soit sur le point de bouger. Plus il est haut, plus le signal est fort. Commence par le haut de la liste 😉',
-    placement: 'right',
-  },
-  {
-    anchors: ['drawer-signals', 'drawer-signals-mobile'],
-    body: 'Ici, LE signal : pourquoi ce bien remonte (DPE tout récent, succession probable, copropriété en mouvement, cascade de vente, dissolution…). C\u2019est ton angle d\u2019approche.',
-    placement: 'left',
+    anchors: ['drawer-market', 'drawer-market-mobile'],
+    body: "Avant de te la livrer, on vérifie qu'elle n'est sur aucun portail d'annonces. Ce badge = aucune agence ne l'affiche en vente. Terrain libre.",
     inDrawer: true,
   },
   {
-    anchors: ['view-toggle', 'view-toggle-mobile'],
-    body: 'Sur la carte, chaque point est un lead géolocalisé. Idéal pour organiser ta tournée de prospection par rue — porte-à-porte, boîtage ou simple repérage.',
-    placement: 'bottom',
+    anchors: ['drawer-signals', 'drawer-signals-mobile'],
+    body: "Le pourquoi de l'adresse : DPE refait, cascade de ventes dans l'immeuble, société en dissolution… C'est ton angle quand tu sonnes.",
+    inDrawer: true,
   },
   {
-    anchors: null,
-    body: 'Ce que Priimo te dit, c\u2019est LESQUELS des biens de ton secteur bougent vraiment en ce moment. Porte-à-porte, tournée de rue, boîtage\u2026 tu cibles les immeubles où il se passe quelque chose, au lieu de prospecter ton secteur au hasard. C\u2019est ça qui change tout.',
+    anchors: ['drawer-contacts', 'drawer-contacts-mobile'],
+    body: "Et voilà le plus utile : le propriétaire (quand c'est une société) + les numéros pros des voisins dans l'immeuble. Eux, tu peux encore les appeler après le 11 août 2026 — contrairement aux particuliers.",
+    inDrawer: true,
   },
   {
-    anchors: ['lead-feedback', 'lead-feedback-mobile'],
-    body: 'Après avoir travaillé un lead, dis à Priimo ce que ça a donné (mandat signé, pas vendeur, injoignable…). Plus tu donnes ton retour, plus tes prochains leads sont précis.',
-    placement: 'left',
+    anchors: ['drawer-status', 'drawer-status-mobile'],
+    body: "Après chaque contact, dis-nous ce que ça a donné : mandat, pas vendeur, injoignable… C'est tout ce qu'on te demande — et ça affine le score sur ton secteur.",
+    inDrawer: true,
   },
   {
     anchors: ['whatsapp', 'whatsapp-mobile'],
@@ -105,12 +97,141 @@ function findVisibleAnchor(names: string[]): HTMLElement | null {
   return null;
 }
 
-function buildSteps(): { steps: Step[]; drawerStepIndex: number } {
-  const steps: Step[] = [];
-  let drawerStepIndex = -1;
+function ensureTourProxy(): HTMLElement {
+  let el = document.getElementById(TOUR_PROXY_ID);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = TOUR_PROXY_ID;
+    el.setAttribute('data-tour', 'tour-proxy');
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText =
+      'position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;z-index:0;margin:0;padding:0;border:0;';
+    document.body.appendChild(el);
+  }
+  return el;
+}
 
-  const hasFirstCard = Boolean(document.querySelector('[data-tour="lead-card"]'));
-  // Le panneau s'affiche en drawer (md+) ou plein écran mobile (<md).
+function clearTourProxySpotlight() {
+  const el = document.getElementById(TOUR_PROXY_ID);
+  if (!el) return;
+  el.style.boxShadow = 'none';
+  el.style.zIndex = '0';
+  el.style.width = '0';
+  el.style.height = '0';
+}
+
+function removeTourProxy() {
+  document.getElementById(TOUR_PROXY_ID)?.remove();
+}
+
+type MeasureMode = 'auto' | 'contain';
+
+/**
+ * Mesure serrée : si le wrapper est un block pleine largeur mais le contenu
+ * utile est plus étroit (ex. badge marché), on cadre le contenu.
+ * `contain` : garde toute la hauteur visible (étape contacts), sans crop.
+ */
+function measureTourTarget(root: HTMLElement, mode: MeasureMode = 'auto'): DOMRect {
+  const rootRect = root.getBoundingClientRect();
+  const display = window.getComputedStyle(root).display;
+
+  // Badge / inline : déjà la bonne boîte.
+  if (display === 'inline' || display === 'inline-flex' || display === 'inline-block') {
+    return rootRect;
+  }
+
+  if (mode === 'contain') {
+    // Cadre depuis le haut du bloc jusqu'à la limite viewport (pas de coupe au milieu).
+    const available = Math.max(48, window.innerHeight - rootRect.top - 12);
+    const height = Math.min(rootRect.height, available);
+    return new DOMRect(rootRect.left, rootRect.top, rootRect.width, height);
+  }
+
+  // Cherche le plus grand enfant « dense » nettement plus étroit que le wrapper.
+  let best: DOMRect | null = null;
+  const children = root.querySelectorAll<HTMLElement>(':scope > *');
+  for (const child of children) {
+    const r = child.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    if (rootRect.width > r.width + 40 && r.width / rootRect.width < 0.72) {
+      if (!best || r.width * r.height > best.width * best.height) best = r;
+    }
+  }
+  if (best) return best;
+
+  // Sections moyennes : limite douce pour éviter un bandeau vertical énorme.
+  const maxH = Math.min(rootRect.height, Math.round(window.innerHeight * 0.4));
+  if (maxH < rootRect.height - 1) {
+    const top = rootRect.top + (rootRect.height - maxH) / 2;
+    return new DOMRect(rootRect.left, top, rootRect.width, maxH);
+  }
+  return rootRect;
+}
+
+/**
+ * Aligne le proxy sur la vraie cible + halo spotlight (box-shadow).
+ * Padding + radius pour un encadrement propre, collé au contenu.
+ */
+function syncTourProxy(selector: string, withSpotlight: boolean): boolean {
+  const target = document.querySelector<HTMLElement>(selector);
+  if (!target || target.offsetParent === null) return false;
+
+  // Contacts : on aligne en haut pour tout le bloc (proprio + numéros) entre dans le cadre.
+  const isContacts = selector.includes('drawer-contacts');
+  target.scrollIntoView({
+    block: isContacts ? 'start' : 'center',
+    inline: 'nearest',
+  });
+
+  const rect = measureTourTarget(target, isContacts ? 'contain' : 'auto');
+  if (rect.width < 2 || rect.height < 2) return false;
+
+  const pad = isContacts ? 12 : 10;
+  const top = Math.max(8, Math.round(rect.top) - pad);
+  const left = Math.max(8, Math.round(rect.left) - pad);
+  const width = Math.min(
+    Math.round(rect.width) + pad * 2,
+    window.innerWidth - left - 8,
+  );
+  const height = Math.min(
+    Math.round(rect.height) + pad * 2,
+    window.innerHeight - top - 8,
+  );
+  const radius = isContacts
+    ? 16
+    : Math.min(16, Math.round(Math.min(width, height) / 3));
+
+  const proxy = ensureTourProxy();
+  proxy.style.top = `${top}px`;
+  proxy.style.left = `${left}px`;
+  proxy.style.width = `${width}px`;
+  proxy.style.height = `${height}px`;
+  proxy.style.borderRadius = `${radius}px`;
+  proxy.style.background = 'transparent';
+  proxy.style.outline = 'none';
+
+  if (withSpotlight) {
+    proxy.style.zIndex = '89';
+    proxy.style.boxShadow = `0 0 0 2px rgba(255,255,255,0.55), 0 0 0 9999px ${OVERLAY}`;
+  } else {
+    proxy.style.zIndex = '0';
+    proxy.style.boxShadow = 'none';
+  }
+  return true;
+}
+
+type BuiltSteps = {
+  steps: Step[];
+  drawerStepIndices: Set<number>;
+  drawerSelectors: Map<number, string>;
+};
+
+function buildSteps(): BuiltSteps {
+  const steps: Step[] = [];
+  const drawerStepIndices = new Set<number>();
+  const drawerSelectors = new Map<number, string>();
+
+  const hasLeads = Boolean(document.querySelector('[data-tour="lead-card"]'));
   const isDesktopDrawer = window.matchMedia('(min-width: 768px)').matches;
 
   for (const def of STEP_DEFS) {
@@ -125,21 +246,33 @@ function buildSteps(): { steps: Step[]; drawerStepIndex: number } {
     }
 
     if (def.inDrawer) {
-      // Panneau fermé au lancement : cible en sélecteur CSS, résolue par
-      // joyride au moment où l'étape s'active (panneau alors ouvert).
-      if (!hasFirstCard) continue;
-      drawerStepIndex = steps.length;
+      if (!hasLeads) continue;
+      const index = steps.length;
+      drawerStepIndices.add(index);
+      const anchor = isDesktopDrawer ? def.anchors[0]! : (def.anchors[1] ?? def.anchors[0]!);
+      // Marché : le data-tour est sur le badge inline (LeadMarketCheck).
+      const selector = `[data-tour="${anchor}"]`;
+      drawerSelectors.set(index, selector);
+      // Bulle centrée = jamais coupée. Overlay Joyride off : spotlight = proxy.
       steps.push({
-        target: `[data-tour="${isDesktopDrawer ? def.anchors[0] : def.anchors[1] ?? def.anchors[0]}"]`,
-        placement: def.placement ?? 'auto',
+        target: 'body',
+        placement: 'center',
         content: def.body,
         disableBeacon: true,
+        disableScrolling: true,
+        styles: {
+          options: {
+            overlayColor: 'transparent',
+            arrowColor: 'transparent',
+            zIndex: 100,
+          },
+        },
       });
       continue;
     }
 
     const el = findVisibleAnchor(def.anchors);
-    if (!el) continue; // élément absent (ex. pas de lead) : étape sautée
+    if (!el) continue;
     steps.push({
       target: el,
       placement: def.placement ?? 'auto',
@@ -148,10 +281,10 @@ function buildSteps(): { steps: Step[]; drawerStepIndex: number } {
     });
   }
 
-  return { steps, drawerStepIndex };
+  return { steps, drawerStepIndices, drawerSelectors };
 }
 
-/** Bulle clay custom : progression « 2/9 », Passer discret, Suivant primaire. */
+/** Bulle clay custom : progression « 2/8 », Passer discret, Suivant primaire. */
 function ClayTooltip({
   index,
   size,
@@ -165,7 +298,7 @@ function ClayTooltip({
   return (
     <div
       {...tooltipProps}
-      className="w-[min(360px,calc(100vw-32px))] rounded-clay-lg bg-surface p-5 shadow-clay-lg"
+      className="w-[min(360px,calc(100vw-32px))] max-h-[min(70dvh,480px)] overflow-y-auto rounded-clay-lg bg-surface p-5 shadow-clay-lg"
     >
       <p className="font-semibold tabular-nums text-text-subtle" style={{ fontSize: 11.5 }}>
         {index + 1}/{size}
@@ -219,12 +352,10 @@ function ClayTooltip({
   );
 }
 
-/** Délai d'ouverture du panneau (animation 225 ms + rendu). */
-const DRAWER_OPEN_DELAY = 450;
+const DRAWER_OPEN_DELAY = 520;
 const DRAWER_CLOSE_DELAY = 250;
 
 interface DashboardTourProps {
-  /** Fin de visite (terminée ou passée). */
   onEnd: () => void;
 }
 
@@ -232,39 +363,91 @@ export default function DashboardTour({ onEnd }: DashboardTourProps) {
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const drawerStepIndex = useRef(-1);
+  const drawerStepIndices = useRef<Set<number>>(new Set());
+  const drawerSelectors = useRef<Map<number, string>>(new Map());
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    // Laisse la page se peindre (cartes lead en fade-in) avant de mesurer les cibles.
+    ensureTourProxy();
     const t = setTimeout(() => {
       const built = buildSteps();
-      drawerStepIndex.current = built.drawerStepIndex;
+      drawerStepIndices.current = built.drawerStepIndices;
+      drawerSelectors.current = built.drawerSelectors;
       setSteps(built.steps);
     }, 500);
     return () => {
       clearTimeout(t);
       if (transitionTimer.current) clearTimeout(transitionTimer.current);
+      removeTourProxy();
     };
   }, []);
 
+  // Spotlight proxy pendant les étapes drawer + resync au scroll.
+  useEffect(() => {
+    if (!steps) return;
+    const selector = drawerSelectors.current.get(stepIndex);
+    if (!selector) {
+      clearTourProxySpotlight();
+      return;
+    }
+
+    const sync = () => {
+      syncTourProxy(selector, true);
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    document.addEventListener('scroll', sync, true);
+    return () => {
+      window.removeEventListener('resize', sync);
+      document.removeEventListener('scroll', sync, true);
+    };
+  }, [stepIndex, steps]);
+
   if (!steps || steps.length === 0) return null;
 
+  const needsDrawer = (index: number) => drawerStepIndices.current.has(index);
+
+  const prepareDrawerStep = (index: number): boolean => {
+    const selector = drawerSelectors.current.get(index);
+    if (!selector) return true;
+    return syncTourProxy(selector, true);
+  };
+
   const goTo = (nextIndex: number, fromIndex: number) => {
-    const entersDrawer = nextIndex === drawerStepIndex.current;
-    const leavesDrawer = fromIndex === drawerStepIndex.current;
+    const entersDrawer = needsDrawer(nextIndex) && !needsDrawer(fromIndex);
+    const leavesDrawer = !needsDrawer(nextIndex) && needsDrawer(fromIndex);
+    const staysInDrawer = needsDrawer(nextIndex) && needsDrawer(fromIndex);
 
     if (entersDrawer) {
       window.dispatchEvent(new Event('priimo-tour:open-lead'));
-      transitionTimer.current = setTimeout(() => setStepIndex(nextIndex), DRAWER_OPEN_DELAY);
+      transitionTimer.current = setTimeout(() => {
+        if (!prepareDrawerStep(nextIndex)) {
+          goTo(nextIndex > fromIndex ? nextIndex + 1 : nextIndex - 1, fromIndex);
+          return;
+        }
+        setStepIndex(nextIndex);
+      }, DRAWER_OPEN_DELAY);
       return;
     }
+
     if (leavesDrawer) {
+      clearTourProxySpotlight();
       window.dispatchEvent(new Event('priimo-tour:close-lead'));
       transitionTimer.current = setTimeout(() => setStepIndex(nextIndex), DRAWER_CLOSE_DELAY);
       return;
     }
+
+    if (staysInDrawer) {
+      if (!prepareDrawerStep(nextIndex)) {
+        goTo(nextIndex > fromIndex ? nextIndex + 1 : nextIndex - 1, fromIndex);
+        return;
+      }
+      transitionTimer.current = setTimeout(() => setStepIndex(nextIndex), 40);
+      return;
+    }
+
+    clearTourProxySpotlight();
     setStepIndex(nextIndex);
   };
 
@@ -272,8 +455,9 @@ export default function DashboardTour({ onEnd }: DashboardTourProps) {
     const { status, type, action, index } = data;
 
     if (status === 'finished' || status === 'skipped') {
-      // Referme le panneau si la visite se termine pendant l'étape signal.
+      clearTourProxySpotlight();
       window.dispatchEvent(new Event('priimo-tour:close-lead'));
+      removeTourProxy();
       onEnd();
       return;
     }
@@ -281,7 +465,6 @@ export default function DashboardTour({ onEnd }: DashboardTourProps) {
     if (type === 'step:after') {
       goTo(action === 'prev' ? index - 1 : index + 1, index);
     } else if (type === 'error:target_not_found') {
-      // Cible introuvable (cas limite) : on avance sans bloquer la visite.
       goTo(index + 1, index);
     }
   };
@@ -302,7 +485,7 @@ export default function DashboardTour({ onEnd }: DashboardTourProps) {
       styles={{
         options: {
           arrowColor: '#ffffff',
-          overlayColor: 'rgba(21, 32, 47, 0.38)',
+          overlayColor: OVERLAY,
           zIndex: 90,
         },
         spotlight: {

@@ -70,6 +70,10 @@ function ItemsList({ items }: { items: DisplayItem[] }) {
   );
 }
 
+/**
+ * Ligne dépliable : chevron uniquement (pas de ? sur la même ligne).
+ * L’infobulle éventuelle devient un texte secondaire sous le titre une fois ouvert.
+ */
 function SignalFamilyDisclosure({
   title,
   tooltip,
@@ -86,16 +90,9 @@ function SignalFamilyDisclosure({
 
   return (
     <div className="py-2">
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={toggle}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggle();
-          }
-        }}
         aria-expanded={open}
         aria-controls={panelId}
         className="flex w-full cursor-pointer items-start gap-2 rounded-md py-0.5 text-left transition-colors duration-150 hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
@@ -106,15 +103,6 @@ function SignalFamilyDisclosure({
         >
           {title}
         </span>
-        {tooltip && (
-          <span
-            className="flex-shrink-0 pt-0.5"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <InfoTooltip content={tooltip} placement="top-end" iconSize={13} />
-          </span>
-        )}
         <span
           className="flex h-7 w-7 flex-shrink-0 items-center justify-center text-mute"
           aria-hidden
@@ -125,9 +113,14 @@ function SignalFamilyDisclosure({
             className={`transition-transform duration-150 ease-out ${open ? 'rotate-180' : ''}`}
           />
         </span>
-      </div>
+      </button>
 
       <div id={panelId} hidden={!open} className="mt-2 pl-1">
+        {tooltip && (
+          <p className="mb-2 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.5 }}>
+            {tooltip}
+          </p>
+        )}
         {children}
       </div>
     </div>

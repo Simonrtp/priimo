@@ -39,6 +39,7 @@ import LeadFullScreenMobile from './LeadFullScreenMobile';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import DashboardWelcome from './DashboardWelcome';
 import { useUser } from '@/lib/hooks/useUser';
+import { pickTourLeadId } from '@/lib/tour-lead';
 
 interface ProspectsClientProps {
   initialLeads: Lead[];
@@ -232,22 +233,25 @@ export default function ProspectsClient({
   const filterCount = countActiveLeadFilters(filters, { countAssigned: isDirector });
   const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
-  // Visite guidée : ouverture/fermeture du panneau de détail du premier lead
-  // (l'étape « signal » pointe la section Signaux détectés, dans le panneau).
+  // Visite guidée : ouvre le lead le plus riche (hors marché + numéros pros).
   useEffect(() => {
-    const openFirstLead = () => {
-      const card = document.querySelector<HTMLElement>('[data-tour="lead-card"]');
-      const id = card?.dataset.leadId;
+    const openTourLead = () => {
+      try {
+        sessionStorage.setItem('priimo-tour-expand-contacts', '1');
+      } catch {
+        // sessionStorage indisponible
+      }
+      const id = pickTourLeadId(filtered.length > 0 ? filtered : leads);
       if (id) setSelectedLeadId(id);
     };
     const closeLead = () => setSelectedLeadId(null);
-    window.addEventListener('priimo-tour:open-lead', openFirstLead);
+    window.addEventListener('priimo-tour:open-lead', openTourLead);
     window.addEventListener('priimo-tour:close-lead', closeLead);
     return () => {
-      window.removeEventListener('priimo-tour:open-lead', openFirstLead);
+      window.removeEventListener('priimo-tour:open-lead', openTourLead);
       window.removeEventListener('priimo-tour:close-lead', closeLead);
     };
-  }, []);
+  }, [filtered, leads]);
 
   const dismissPipelineBanner = useCallback(async () => {
     setShowPipelineBanner(false);

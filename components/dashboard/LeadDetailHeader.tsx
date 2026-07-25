@@ -1,8 +1,8 @@
 import { Building2, Home, MapPin } from 'lucide-react';
 import type { Lead } from '@/types/lead';
-import { formatLeadAddressQuery, googleMapsSearchUrl, splitStreetAndCity } from '@/lib/utils';
-import { formatDetentionPrimary, formatEtage } from '@/lib/lead-display';
-import { formatAcquiredPriceLine, hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
+import { formatLeadAddressQuery, formatPrice, googleMapsSearchUrl } from '@/lib/utils';
+import { formatEtage } from '@/lib/lead-display';
+import { hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import ScoreRing from './ScoreRing';
 
 interface LeadDetailHeaderProps {
@@ -36,11 +36,39 @@ function joinDot(parts: (string | null | undefined)[]): React.ReactNode {
   ));
 }
 
+/** Retire CP / ville déjà collés dans le champ adresse pour éviter les doublons. */
+function streetOnly(
+  address: string,
+  postalCode?: string | null,
+  city?: string | null,
+): string {
+  let street = address.trim();
+  if (postalCode?.trim()) {
+    const cp = postalCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    street = street.replace(new RegExp(`[,\\s]*${cp}\\b.*$`, 'i'), '').trim();
+  }
+  if (city?.trim()) {
+    const c = city.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    street = street.replace(new RegExp(`[,\\s]*${c}\\s*$`, 'i'), '').trim();
+  }
+  street = street.replace(/,?\s*\d{5}(\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-']*)?\s*$/u, '').trim();
+  return street || address.trim();
+}
+
+function cityLine(postalCode?: string | null, city?: string | null): string | null {
+  const cp = postalCode?.trim() || '';
+  const c = city?.trim() || '';
+  if (cp && c) return `${cp} ${c}`;
+  if (c) return c;
+  if (cp) return cp;
+  return null;
+}
+
 /**
  * En-tête du panneau de détail :
- *   1. Bouton discret « 📍 Voir sur Google Maps »
- *   2. Lignes grises épurées : adresse, type/surface/étage, détention, prix d'achat
- *   3. Cercle de score à droite, en évidence
+ *   1. Lien Google Maps
+ *   2. Rue · CP ville · type/surface/étage · prix étiqueté
+ *   3. Score à droite (libellé Score)
  */
 export default function LeadDetailHeader({
   lead,
@@ -52,13 +80,14 @@ export default function LeadDetailHeader({
     postalCode: lead.postalCode,
     city: lead.city,
   });
-  const { streetLine, cityZipLine } = splitStreetAndCity(fullAddress);
+  const streetLine = streetOnly(lead.address, lead.postalCode, lead.city);
+  const cityZipLine = cityLine(lead.postalCode, lead.city);
   const mapsUrl = googleMapsSearchUrl(fullAddress);
 
-  const detentionLabel = formatDetentionPrimary(lead.acquiredYear);
-  const acquiredPriceLine = hasDisplayableAcquiredPrice(lead)
-    ? formatAcquiredPriceLine(lead, { strictReliable: true })
-    : null;
+  const priceLine =
+    hasDisplayableAcquiredPrice(lead) && lead.acquiredPrice != null
+      ? `${formatPrice(lead.acquiredPrice)} €`
+      : null;
 
   const typeLine = joinDot([
     lead.propertyType,
@@ -105,19 +134,22 @@ export default function LeadDetailHeader({
               <span>{typeLine}</span>
             </p>
           )}
-          {detentionLabel && (
-            <p className="text-mute" style={{ fontSize: metaSize }}>
-              {detentionLabel}
-            </p>
-          )}
-          {acquiredPriceLine && (
-            <p className="text-mute" style={{ fontSize: metaSize }}>
-              {acquiredPriceLine}
-            </p>
+          {priceLine && (
+            <div className="pt-1">
+              <p className="text-mute" style={{ fontSize: 11 }}>
+                Dernier prix d&apos;acquisition
+              </p>
+              <p className="font-medium tabular text-ink" style={{ fontSize: metaSize }}>
+                {priceLine}
+              </p>
+            </div>
           )}
         </div>
         <div className="flex flex-shrink-0 flex-col items-center pt-0.5">
           <ScoreRing score={lead.score} size={compact ? 64 : 76} />
+          <p className="mt-1 text-mute" style={{ fontSize: 10 }}>
+            Score
+          </p>
         </div>
       </div>
     </div>

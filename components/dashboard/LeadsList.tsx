@@ -42,7 +42,7 @@ function PreviousLeadsSection({
   let runningIndex = indexOffset;
 
   return (
-    <div className="border-t border-black/[0.08] max-md:rounded-xl max-md:border max-md:border-black/8 max-md:bg-white max-md:shadow-soft">
+    <div className="md:col-span-2 max-lg:rounded-xl max-lg:border max-lg:border-black/8 max-lg:bg-white max-lg:shadow-soft lg:col-span-1 lg:rounded-none lg:border-0 lg:border-t lg:border-black/[0.08] lg:bg-transparent lg:shadow-none">
       <button
         type="button"
         id={`${panelId}-trigger`}
@@ -64,11 +64,14 @@ function PreviousLeadsSection({
       </button>
 
       {open && (
-        <div id={panelId}>
+        <div
+          id={panelId}
+          className="md:grid md:grid-cols-2 md:gap-3 md:px-3 md:pb-3 lg:block lg:px-0 lg:pb-0"
+        >
           {groups.map((group, groupIdx) => (
-            <div key={group.deliveredAt}>
+            <div key={group.deliveredAt} className="contents lg:block">
               <p
-                className="border-t border-black/[0.05] bg-black/[0.02] px-4 py-2 uppercase tracking-widest text-mute md:px-5"
+                className="col-span-2 border-t border-black/[0.05] bg-black/[0.02] px-4 py-2 uppercase tracking-widest text-mute max-lg:rounded-lg max-lg:border-0 max-lg:bg-transparent md:px-1 lg:rounded-none lg:border-t lg:bg-black/[0.02] lg:px-5"
                 style={{ fontSize: 9, letterSpacing: '0.14em' }}
               >
                 {group.label}
@@ -147,7 +150,7 @@ export default function LeadsList({
     <div
       id="prospects-leads-list"
       data-tour="leads-list"
-      className="flex w-full min-w-0 flex-col max-md:gap-2 md:gap-0 md:overflow-visible md:rounded-clay-lg md:bg-surface md:shadow-clay"
+      className="flex w-full min-w-0 flex-col gap-2 md:grid md:grid-cols-2 md:gap-3 lg:flex lg:flex-col lg:gap-0 lg:overflow-visible lg:rounded-clay-lg lg:bg-surface lg:shadow-clay"
     >
       {visibleNewBatch.map((lead, i) => (
         <LeadCard

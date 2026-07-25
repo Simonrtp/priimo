@@ -1,103 +1,233 @@
 'use client';
 
-import { Phone } from 'lucide-react';
+import { useId, useState } from 'react';
+import { ChevronDown, Phone } from 'lucide-react';
 import type { Lead } from '@/types/lead';
+import {
+  hasOwnerBlock,
+  immeubleCategorieLabel,
+  type ImmeubleContact,
+  type ImmeubleContactCategorie,
+} from '@/lib/lead-contacts';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 
 const OWNER_PHONE_HINT =
   "Contact professionnel. L'échange doit porter sur la société et le bien qu'elle détient. Le démarchage téléphonique d'un particulier sans consentement préalable est interdit depuis le 11 août 2026.";
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+const COMPANY_NOTICE =
+  "Bien détenu par une société — l'échange doit porter sur la société et le bien qu'elle détient.";
+
+const CATEGORIE_BADGE: Record<ImmeubleContactCategorie, string> = {
+  commerce: 'bg-[#E8743C]/12 text-[#C25E2C]',
+  professionnel: 'bg-[#3D5A80]/12 text-[#3D5A80]',
+  domicile_pro: 'bg-black/[0.06] text-mute',
+};
+
+function ImmeubleContactCard({ contact }: { contact: ImmeubleContact }) {
   return (
-    <p
-      className="mb-3 uppercase tracking-widest text-mute"
-      style={{ fontSize: 9, letterSpacing: '0.18em' }}
-    >
-      {children}
-    </p>
+    <li className="rounded-xl border border-black/[0.06] bg-white px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium text-ink" style={{ fontSize: 13 }}>
+          {contact.companyName}
+        </p>
+        <span
+          className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CATEGORIE_BADGE[contact.categorie]}`}
+        >
+          {immeubleCategorieLabel(contact.categorie)}
+        </span>
+      </div>
+      {contact.nafLibelle && (
+        <p className="mt-0.5 text-mute" style={{ fontSize: 11.5 }}>
+          {contact.nafLibelle}
+        </p>
+      )}
+      <a
+        href={`tel:${contact.phone}`}
+        className="mt-1.5 inline-flex items-center gap-1.5 font-medium text-[#3D5A80] hover:underline"
+        style={{ fontSize: 13 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Phone size={13} strokeWidth={2.2} aria-hidden />
+        {contact.phone}
+      </a>
+    </li>
   );
 }
 
-/** Bloc propriétaire + autres contacts immeuble (affichage défensif si colonnes absentes). */
-export default function LeadOwnerContacts({ lead }: { lead: Lead }) {
-  const showOwner =
-    Boolean(lead.ownerName?.trim()) ||
-    (lead.ownerAge != null && lead.ownerAge > 0) ||
-    Boolean(lead.ownerPhone?.trim());
-  const immeubleContacts = lead.contactsImmeuble;
+const TOUR_EXPAND_CONTACTS_KEY = 'priimo-tour-expand-contacts';
+
+function shouldExpandContactsForTour(fallbackOpen: boolean): boolean {
+  try {
+    if (sessionStorage.getItem(TOUR_EXPAND_CONTACTS_KEY) === '1') {
+      sessionStorage.removeItem(TOUR_EXPAND_CONTACTS_KEY);
+      return true;
+    }
+  } catch {
+    // sessionStorage indisponible
+  }
+  return fallbackOpen;
+}
+
+function ImmeubleContactsSection({ contacts }: { contacts: ImmeubleContact[] }) {
+  const count = contacts.length;
+  const [open, setOpen] = useState(() => shouldExpandContactsForTour(count <= 3));
+  const panelId = useId();
+
+  return (
+    <DetailSection>
+      <button
+        type="button"
+        id={`${panelId}-trigger`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+      >
+        <div className="min-w-0 flex-1">
+          <DetailSectionLabel className="mb-0">
+            Autres contacts à cette adresse · {count}
+          </DetailSectionLabel>
+        </div>
+        <ChevronDown
+          size={16}
+          strokeWidth={2.2}
+          className={`shrink-0 text-mute transition-transform duration-200 ease-out motion-reduce:transition-none ${
+            open ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        />
+      </button>
+
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={`${panelId}-trigger`}
+        className="grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
+        style={{
+          gridTemplateRows: open ? '1fr' : '0fr',
+          opacity: open ? 1 : 0,
+        }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <ul className={`space-y-2 ${open ? 'mt-3' : ''}`}>
+            {contacts.map((contact, index) => (
+              <ImmeubleContactCard
+                key={`${contact.companyName}-${contact.phone}-${index}`}
+                contact={contact}
+              />
+            ))}
+          </ul>
+        </div>
+      </div>
+    </DetailSection>
+  );
+}
+
+function OwnerSection({ lead }: { lead: Lead }) {
+  const name = lead.ownerName?.trim() || null;
+  const company = lead.ownerCompany?.trim() || null;
+  const phone = lead.ownerPhone?.trim() || null;
+  const age = lead.ownerAge != null && lead.ownerAge > 0 ? lead.ownerAge : null;
+  // Rôle juridique Pappers : company_director quand distinct du nom (qualité / mandat).
+  const roleRaw = lead.companyDirector?.trim() || null;
+  const role =
+    roleRaw && name && roleRaw.toLocaleLowerCase('fr') !== name.toLocaleLowerCase('fr')
+      ? roleRaw
+      : roleRaw && !name
+        ? roleRaw
+        : null;
+
+  return (
+    <DetailSection>
+      <DetailSectionLabel>Propriétaire</DetailSectionLabel>
+      <div className="space-y-3">
+        {(name || age != null) && (
+          <div>
+            <p className="font-semibold text-ink" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>
+              {name || 'Propriétaire'}
+              {age != null && (
+                <span className="ml-2 font-normal text-mute" style={{ fontSize: 13 }}>
+                  {age} ans
+                </span>
+              )}
+            </p>
+            {role && (
+              <p className="mt-1 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.45 }}>
+                {role}
+              </p>
+            )}
+          </div>
+        )}
+
+        {company && (
+          <div className="space-y-2">
+            <div>
+              <p className="text-mute" style={{ fontSize: 11 }}>
+                Société propriétaire
+              </p>
+              <p className="mt-0.5 font-medium text-ink" style={{ fontSize: 13 }}>
+                {company}
+              </p>
+            </div>
+            <p
+              className="rounded-xl px-3 py-2.5 text-pretty"
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                backgroundColor: '#FFF7F0',
+                color: '#3D5A80',
+              }}
+            >
+              {COMPANY_NOTICE}
+            </p>
+          </div>
+        )}
+
+        {phone && (
+          <div className="flex items-center gap-2">
+            <a
+              href={`tel:${phone}`}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#E8743C]/10 px-3.5 py-2 font-semibold text-[#C25E2C] transition-colors hover:bg-[#E8743C]/15"
+              style={{ fontSize: 14 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Phone size={16} strokeWidth={2.2} aria-hidden />
+              {phone}
+            </a>
+            <InfoTooltip content={OWNER_PHONE_HINT} placement="top-end" iconSize={14} />
+          </div>
+        )}
+      </div>
+    </DetailSection>
+  );
+}
+
+/**
+ * Bloc propriétaire + autres contacts immeuble.
+ * Chaque bloc est une DetailSection autonome (filet + marges unifiés).
+ */
+export default function LeadOwnerContacts({
+  lead,
+  tourContactsAnchor,
+}: {
+  lead: Lead;
+  /** Ancre visite guidée sur le bloc propriétaire + numéros pros immeuble. */
+  tourContactsAnchor?: string;
+}) {
+  const showOwner = hasOwnerBlock(lead);
+  const immeubleContacts = lead.contactsImmeuble ?? [];
   const showImmeuble = immeubleContacts.length > 0;
 
   if (!showOwner && !showImmeuble) return null;
 
   return (
-    <div className="space-y-5">
-      {showOwner && (
-        <div>
-          <SectionLabel>Propriétaire</SectionLabel>
-          <div className="space-y-2.5">
-            {(lead.ownerName || lead.ownerAge != null) && (
-              <p className="font-semibold text-ink" style={{ fontSize: 14 }}>
-                {lead.ownerName?.trim() || 'Propriétaire'}
-                {lead.ownerAge != null && lead.ownerAge > 0 && (
-                  <span className="ml-2 font-normal text-mute" style={{ fontSize: 13 }}>
-                    {lead.ownerAge} ans
-                  </span>
-                )}
-              </p>
-            )}
-
-            {lead.ownerPhone?.trim() && (
-              <div className="flex items-center gap-2">
-                <a
-                  href={`tel:${lead.ownerPhone.trim()}`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#E8743C]/10 px-3.5 py-2 font-semibold text-[#C25E2C] transition-colors hover:bg-[#E8743C]/15"
-                  style={{ fontSize: 14 }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Phone size={16} strokeWidth={2.2} aria-hidden />
-                  {lead.ownerPhone.trim()}
-                </a>
-                <InfoTooltip content={OWNER_PHONE_HINT} placement="top-end" iconSize={14} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showImmeuble && (
-        <div>
-          <SectionLabel>Autres contacts à cette adresse</SectionLabel>
-          <p className="mb-2.5 text-mute" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
-            Sociétés présentes dans l&apos;immeuble.
-          </p>
-          <ul className="space-y-2">
-            {immeubleContacts.map((contact) => (
-              <li
-                key={`${contact.companyName}-${contact.phone}`}
-                className="rounded-xl border border-black/[0.06] bg-white px-3 py-2.5"
-              >
-                <p className="font-medium text-ink" style={{ fontSize: 13 }}>
-                  {contact.companyName}
-                </p>
-                {contact.nafLibelle && (
-                  <p className="mt-0.5 text-mute" style={{ fontSize: 11.5 }}>
-                    {contact.nafLibelle}
-                  </p>
-                )}
-                <a
-                  href={`tel:${contact.phone}`}
-                  className="mt-1.5 inline-flex items-center gap-1.5 font-medium text-[#3D5A80] hover:underline"
-                  style={{ fontSize: 13 }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Phone size={13} strokeWidth={2.2} aria-hidden />
-                  {contact.phone}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <div
+      data-tour={tourContactsAnchor}
+      className="border-t border-black/[0.05] pt-5"
+    >
+      {showOwner && <OwnerSection lead={lead} />}
+      {showImmeuble && <ImmeubleContactsSection contacts={immeubleContacts} />}
     </div>
   );
 }

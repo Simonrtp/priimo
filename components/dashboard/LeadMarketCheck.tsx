@@ -10,12 +10,20 @@ const CREAM = '#FFF7F0';
  * Les leads antérieurs (marche_statut NULL) n'affichent rien — pas de mention
  * "non vérifié" pour ne pas les dévaloriser.
  */
-export default function LeadMarketCheck({ lead }: { lead: Lead }) {
+export default function LeadMarketCheck({
+  lead,
+  tourAnchor,
+}: {
+  lead: Lead;
+  /** Ancre visite guidée — sur le badge lui-même (pas un wrapper pleine largeur). */
+  tourAnchor?: string;
+}) {
   if (lead.marcheStatut !== 'hors_marche' || !lead.marcheVerifieLe) return null;
 
   return (
     <div
-      className="inline-flex items-center gap-2 rounded-xl border px-3 py-2"
+      data-tour={tourAnchor}
+      className="inline-flex w-fit max-w-full items-center gap-2 rounded-xl border px-3 py-2"
       style={{ backgroundColor: CREAM, borderColor: 'rgba(61,90,128,0.28)', color: SLATE }}
     >
       <ShieldCheck size={16} strokeWidth={2.2} aria-hidden />

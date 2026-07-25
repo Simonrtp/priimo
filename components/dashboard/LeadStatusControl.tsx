@@ -11,6 +11,8 @@ interface LeadStatusControlProps {
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   selectTriggerClassName: string;
   reasonFontSize?: number;
+  /** Ancre visite guidée — cadrée sur le sélecteur statut uniquement. */
+  tourAnchor?: string;
 }
 
 export default function LeadStatusControl({
@@ -18,6 +20,7 @@ export default function LeadStatusControl({
   onUpdateLead,
   selectTriggerClassName,
   reasonFontSize = 13,
+  tourAnchor,
 }: LeadStatusControlProps) {
   const [reason, setReason] = useState(lead.mlFeedbackReason ?? '');
   const reasonDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,7 +88,7 @@ export default function LeadStatusControl({
 
   return (
     <div className="space-y-3">
-      <div>
+      <div data-tour={tourAnchor}>
         <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
           Statut
         </p>
