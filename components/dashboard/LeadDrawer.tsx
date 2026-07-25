@@ -12,7 +12,7 @@ import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadAssigneeControl from './LeadAssigneeControl';
 import LeadMarketCheck from './LeadMarketCheck';
-import LeadOwnerContacts from './LeadOwnerContacts';
+import { LeadImmeubleContacts, LeadOwnerBlock } from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
@@ -211,14 +211,12 @@ export default function LeadDrawer({
 
             {isEnterprise && <EnterpriseBlock lead={lead} />}
 
+            <LeadOwnerBlock lead={lead} />
+
             {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
               <DetailSection>
                 <LeadMarketCheck lead={lead} tourAnchor="drawer-market" />
               </DetailSection>
-            )}
-
-            {(hasOwnerBlock(lead) || lead.contactsImmeuble.length > 0) && (
-              <LeadOwnerContacts lead={lead} tourContactsAnchor="drawer-contacts" />
             )}
 
             <DetailSection>
@@ -231,6 +229,8 @@ export default function LeadDrawer({
                 />
               </div>
             </DetailSection>
+
+            <LeadImmeubleContacts lead={lead} tourAnchor="drawer-contacts" />
 
             <DetailSection>
               <DetailSectionLabel>Gestion du lead</DetailSectionLabel>

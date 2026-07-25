@@ -13,8 +13,8 @@ export function DetailSectionLabel({
 }) {
   return (
     <p
-      className={`uppercase tracking-widest text-mute ${className}`}
-      style={{ fontSize: 9, letterSpacing: '0.18em' }}
+      className={`font-semibold uppercase text-ink/75 ${className}`}
+      style={{ fontSize: 12, letterSpacing: '0.06em' }}
     >
       {children}
     </p>
@@ -24,12 +24,17 @@ export function DetailSectionLabel({
 export function DetailSection({
   children,
   className = '',
+  'data-tour': dataTour,
 }: {
   children: ReactNode;
   className?: string;
+  'data-tour'?: string;
 }) {
   return (
-    <section className={`border-t border-black/[0.05] py-5 first:border-t-0 first:pt-0 ${className}`}>
+    <section
+      data-tour={dataTour}
+      className={`border-t border-black/[0.05] py-5 first:border-t-0 first:pt-0 ${className}`}
+    >
       {children}
     </section>
   );

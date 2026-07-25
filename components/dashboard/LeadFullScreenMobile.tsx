@@ -11,7 +11,7 @@ import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadAssigneeControl from './LeadAssigneeControl';
 import LeadMarketCheck from './LeadMarketCheck';
-import LeadOwnerContacts from './LeadOwnerContacts';
+import { LeadImmeubleContacts, LeadOwnerBlock } from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import ParticulierContactPendingHint from './ParticulierContactPendingHint';
@@ -198,14 +198,12 @@ export default function LeadFullScreenMobile({
           </DetailSection>
         )}
 
+        <LeadOwnerBlock lead={lead} />
+
         {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
           <DetailSection>
             <LeadMarketCheck lead={lead} tourAnchor="drawer-market-mobile" />
           </DetailSection>
-        )}
-
-        {(hasOwnerBlock(lead) || lead.contactsImmeuble.length > 0) && (
-          <LeadOwnerContacts lead={lead} tourContactsAnchor="drawer-contacts-mobile" />
         )}
 
         <DetailSection>
@@ -214,6 +212,8 @@ export default function LeadFullScreenMobile({
             <LeadDisplaySignals key={lead.id} displaySignals={lead.displaySignals} dpeDate={lead.dpeDate} />
           </div>
         </DetailSection>
+
+        <LeadImmeubleContacts lead={lead} tourAnchor="drawer-contacts-mobile" />
 
         <DetailSection>
           <DetailSectionLabel>Gestion du lead</DetailSectionLabel>

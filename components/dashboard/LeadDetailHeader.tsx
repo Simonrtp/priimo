@@ -135,14 +135,10 @@ export default function LeadDetailHeader({
             </p>
           )}
           {priceLine && (
-            <div className="pt-1">
-              <p className="text-mute" style={{ fontSize: 11 }}>
-                Dernier prix d&apos;acquisition
-              </p>
-              <p className="font-medium tabular text-ink" style={{ fontSize: metaSize }}>
-                {priceLine}
-              </p>
-            </div>
+            <p className="pt-1 tabular text-ink" style={{ fontSize: metaSize }}>
+              <span className="text-mute">Prix d&apos;achat à&nbsp;:</span>{' '}
+              <span className="font-medium">{priceLine}</span>
+            </p>
           )}
         </div>
         <div className="flex flex-shrink-0 flex-col items-center pt-0.5">

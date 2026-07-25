@@ -56,8 +56,9 @@ function ImmeubleContactCard({ contact }: { contact: ImmeubleContact }) {
 }
 
 const TOUR_EXPAND_CONTACTS_KEY = 'priimo-tour-expand-contacts';
+const CONTACTS_PREVIEW = 2;
 
-function shouldExpandContactsForTour(fallbackOpen: boolean): boolean {
+function consumeTourExpandFlag(): boolean {
   try {
     if (sessionStorage.getItem(TOUR_EXPAND_CONTACTS_KEY) === '1') {
       sessionStorage.removeItem(TOUR_EXPAND_CONTACTS_KEY);
@@ -66,16 +67,31 @@ function shouldExpandContactsForTour(fallbackOpen: boolean): boolean {
   } catch {
     // sessionStorage indisponible
   }
-  return fallbackOpen;
+  return false;
 }
 
-function ImmeubleContactsSection({ contacts }: { contacts: ImmeubleContact[] }) {
+function ImmeubleContactsSection({
+  contacts,
+  tourAnchor,
+}: {
+  contacts: ImmeubleContact[];
+  tourAnchor?: string;
+}) {
   const count = contacts.length;
-  const [open, setOpen] = useState(() => shouldExpandContactsForTour(count <= 3));
+  // Ouvert par défaut : les 2 premiers contacts sont visibles.
+  const [boot] = useState(() => {
+    const tour = consumeTourExpandFlag();
+    return { open: true, showAll: tour };
+  });
+  const [open, setOpen] = useState(boot.open);
+  const [showAll, setShowAll] = useState(boot.showAll);
   const panelId = useId();
 
+  const visible = showAll ? contacts : contacts.slice(0, CONTACTS_PREVIEW);
+  const hiddenCount = Math.max(0, count - CONTACTS_PREVIEW);
+
   return (
-    <DetailSection>
+    <DetailSection data-tour={tourAnchor}>
       <button
         type="button"
         id={`${panelId}-trigger`}
@@ -111,13 +127,39 @@ function ImmeubleContactsSection({ contacts }: { contacts: ImmeubleContact[] }) 
       >
         <div className="min-h-0 overflow-hidden">
           <ul className={`space-y-2 ${open ? 'mt-3' : ''}`}>
-            {contacts.map((contact, index) => (
+            {visible.map((contact, index) => (
               <ImmeubleContactCard
                 key={`${contact.companyName}-${contact.phone}-${index}`}
                 contact={contact}
               />
             ))}
           </ul>
+          {open && hiddenCount > 0 && !showAll && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAll(true);
+              }}
+              className="mt-2.5 text-[#3D5A80] transition-colors hover:text-ink hover:underline focus:outline-none focus-visible:underline"
+              style={{ fontSize: 12.5, fontWeight: 500 }}
+            >
+              Afficher {hiddenCount} de plus
+            </button>
+          )}
+          {open && showAll && count > CONTACTS_PREVIEW && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAll(false);
+              }}
+              className="mt-2.5 text-mute transition-colors hover:text-ink hover:underline focus:outline-none focus-visible:underline"
+              style={{ fontSize: 12.5, fontWeight: 500 }}
+            >
+              Afficher moins
+            </button>
+          )}
         </div>
       </div>
     </DetailSection>
@@ -203,31 +245,23 @@ function OwnerSection({ lead }: { lead: Lead }) {
   );
 }
 
-/**
- * Bloc propriétaire + autres contacts immeuble.
- * Chaque bloc est une DetailSection autonome (filet + marges unifiés).
- */
-export default function LeadOwnerContacts({
+/** Bloc propriétaire seul (au-dessus des signaux). */
+export function LeadOwnerBlock({ lead }: { lead: Lead }) {
+  if (!hasOwnerBlock(lead)) return null;
+  return <OwnerSection lead={lead} />;
+}
+
+/** Contacts immeuble — à placer sous Signaux détectés. */
+export function LeadImmeubleContacts({
   lead,
-  tourContactsAnchor,
+  tourAnchor,
 }: {
   lead: Lead;
-  /** Ancre visite guidée sur le bloc propriétaire + numéros pros immeuble. */
-  tourContactsAnchor?: string;
+  /** Ancre visite guidée (numéros pros à l'adresse). */
+  tourAnchor?: string;
 }) {
-  const showOwner = hasOwnerBlock(lead);
-  const immeubleContacts = lead.contactsImmeuble ?? [];
-  const showImmeuble = immeubleContacts.length > 0;
-
-  if (!showOwner && !showImmeuble) return null;
-
-  return (
-    <div
-      data-tour={tourContactsAnchor}
-      className="border-t border-black/[0.05] pt-5"
-    >
-      {showOwner && <OwnerSection lead={lead} />}
-      {showImmeuble && <ImmeubleContactsSection contacts={immeubleContacts} />}
-    </div>
-  );
+  const contacts = lead.contactsImmeuble ?? [];
+  if (contacts.length === 0) return null;
+  // Section directe (pas de wrapper) pour garder le filet border-t des DetailSection.
+  return <ImmeubleContactsSection contacts={contacts} tourAnchor={tourAnchor} />;
 }
