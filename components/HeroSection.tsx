@@ -109,7 +109,14 @@ export default function HeroSection() {
                       transform: 'rotate(-8deg)',
                     }}
                   >
-                    1 mois gratuit sans engagement
+                    1 mois{' '}
+                    <span className="rounded-[2px] px-0.5 [box-decoration-break:clone] [background:linear-gradient(transparent_12%,rgba(99,102,241,0.22)_12%,rgba(99,102,241,0.22)_88%,transparent_88%)]">
+                      gratuit
+                    </span>{' '}
+                    sans{' '}
+                    <span className="rounded-[2px] px-0.5 [box-decoration-break:clone] [background:linear-gradient(transparent_12%,rgba(99,102,241,0.22)_12%,rgba(99,102,241,0.22)_88%,transparent_88%)]">
+                      engagement
+                    </span>
                   </p>
                 </div>
               </div>
