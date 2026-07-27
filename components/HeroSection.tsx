@@ -44,7 +44,7 @@ export default function HeroSection() {
               Priimo croise données publiques et privées pour repérer les logements où
               une vente se prépare. Chaque lundi, une liste courte sur votre secteur :
               l&apos;adresse, le propriétaire quand il est identifiable, le contexte, et
-              les contacts professionnels de l&apos;immeuble. Chaque adresse est
+              les contacts des voisins de l&apos;immeuble. Chaque adresse est
               vérifiée absente des portails de vente.
             </p>
 
@@ -73,17 +73,47 @@ export default function HeroSection() {
 
           <Reveal direction="up" delay={120} className="mt-5 sm:mt-6">
             <div className="flex flex-col items-center gap-2.5">
-              <a
-                href={CALENDLY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary w-full px-6 py-3.5 text-[15px] sm:w-auto sm:px-7 sm:py-3.5"
-              >
-                Réserver une démo
-                <span data-arrow aria-hidden>
-                  →
-                </span>
-              </a>
+              {/*
+                Mobile : bouton + flèche + texte en ligne.
+                Desktop : bouton centré ; flèche/texte en absolute à sa droite.
+              */}
+              <div className="relative flex w-full max-w-[22rem] items-center justify-start gap-2 sm:w-auto sm:max-w-none sm:justify-center">
+                <a
+                  href={CALENDLY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary shrink-0 px-4 py-2.5 text-[13.5px] sm:px-7 sm:py-3.5 sm:text-[15px]"
+                >
+                  Réserver une démo
+                  <span data-arrow aria-hidden>
+                    →
+                  </span>
+                </a>
+
+                <div className="flex items-center gap-1 sm:absolute sm:left-[calc(100%+0.15rem)] sm:top-[42%] sm:-translate-y-1/2 sm:gap-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/cta-arrow.png"
+                    alt=""
+                    width={160}
+                    height={34}
+                    className="h-auto w-[5.5rem] shrink-0 object-contain sm:w-28"
+                    aria-hidden
+                    draggable={false}
+                  />
+                  <p
+                    className="max-w-[7rem] text-left text-[12px] font-semibold leading-[1.2] text-gray-900 sm:max-w-[8.75rem] sm:text-[13px]"
+                    style={{
+                      fontFamily:
+                        'var(--font-display), var(--font-sans), system-ui, sans-serif',
+                      transform: 'rotate(-8deg)',
+                    }}
+                  >
+                    1 mois gratuit sans engagement
+                  </p>
+                </div>
+              </div>
+
               <p className="small-text !normal-case !tracking-normal text-gray-600">
                 Déjà client ?{" "}
                 <Link

@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
 import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
-import type { NotificationPreferences } from '@/types/database';
 import Modal from '@/components/ui/Modal';
 import SectionTeam from './SectionTeam';
 import SectionRequestSector from './SectionRequestSector';
@@ -19,21 +18,17 @@ const inputClass =
 
 const labelClass = 'mb-1.5 block font-medium text-gray-700';
 
-type SettingsTabId = 'agency' | 'team' | 'billing' | 'notifications' | 'profile' | 'security';
+type SettingsTabId = 'agency' | 'team' | 'billing' | 'profile';
 
 const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'agency', label: 'Mon agence' },
   { id: 'team', label: 'Mon équipe' },
   { id: 'billing', label: 'Abonnement' },
-  { id: 'notifications', label: 'Notifications' },
   { id: 'profile', label: 'Mon profil' },
-  { id: 'security', label: 'Sécurité' },
 ];
 
 const COLLABORATOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'profile', label: 'Mon profil' },
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'security', label: 'Sécurité' },
 ];
 
 function firstSettingsTab(isDirector: boolean): SettingsTabId {
@@ -71,12 +66,8 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
         return isDirector ? <SectionTeam /> : null;
       case 'billing':
         return isDirector ? <SectionBilling /> : null;
-      case 'notifications':
-        return <SectionNotifications />;
       case 'profile':
         return <SectionProfile />;
-      case 'security':
-        return <SectionSecurity />;
     }
   };
 
@@ -380,101 +371,6 @@ function SectionBilling() {
   );
 }
 
-function SectionNotifications() {
-  const { user, profile } = useUser();
-  const router = useRouter();
-  const initial = useMemo<NotificationPreferences>(() => {
-    const p = profile.preferences as Partial<NotificationPreferences>;
-    return {
-      newLeads: p.newLeads ?? true,
-      weeklyDigest: p.weeklyDigest ?? true,
-      productTips: p.productTips ?? false,
-    };
-  }, [profile.preferences]);
-  const [prefs, setPrefs] = useState<NotificationPreferences>(initial);
-  const [saving, setSaving] = useState(false);
-
-  const update = async (next: NotificationPreferences) => {
-    setPrefs(next);
-    setSaving(true);
-    const supabase = createSupabaseBrowserClient();
-    const merged = { ...(profile.preferences ?? {}), ...next };
-    const { error } = await supabase.from('profiles').update({ preferences: merged }).eq('id', user.id);
-    setSaving(false);
-    if (error) {
-      toast.error(`Impossible d'enregistrer : ${error.message}`);
-      setPrefs(initial);
-      return;
-    }
-    toast.success('Préférences mises à jour');
-    router.refresh();
-  };
-
-  return (
-    <section>
-      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
-        Notifications
-      </h2>
-      <ul className="flex w-full max-w-xl flex-col gap-2">
-        <ToggleRow
-          label="Recevoir un email quand de nouveaux prospects sont disponibles"
-          checked={prefs.newLeads}
-          disabled={saving}
-          onChange={(v) => update({ ...prefs, newLeads: v })}
-        />
-        <ToggleRow
-          label="Recevoir un récapitulatif hebdomadaire"
-          checked={prefs.weeklyDigest}
-          disabled={saving}
-          onChange={(v) => update({ ...prefs, weeklyDigest: v })}
-        />
-        <ToggleRow
-          label="Recevoir des conseils produit"
-          checked={prefs.productTips}
-          disabled={saving}
-          onChange={(v) => update({ ...prefs, productTips: v })}
-        />
-      </ul>
-    </section>
-  );
-}
-
-function ToggleRow({
-  label,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <li className="flex flex-col gap-3 rounded-xl border border-black/[0.06] bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <span className="min-w-0 text-pretty text-ink" style={{ fontSize: 13.5 }}>
-        {label}
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 self-end items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:self-center ${
-          checked ? 'bg-accent' : 'bg-black/15'
-        }`}
-      >
-        <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-soft transition-transform ${
-            checked ? 'translate-x-5' : 'translate-x-0.5'
-          }`}
-        />
-      </button>
-    </li>
-  );
-}
-
 function SectionProfile() {
   const { user, profile } = useUser();
   const router = useRouter();
@@ -647,61 +543,5 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
         </div>
       </div>
     </Modal>
-  );
-}
-
-function SectionSecurity() {
-  const [signingOut, setSigningOut] = useState(false);
-
-  const signOutEverywhere = useCallback(async () => {
-    setSigningOut(true);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signOut({ scope: 'global' });
-    setSigningOut(false);
-    if (error) {
-      toast.error(`Erreur : ${error.message}`);
-      return;
-    }
-    window.location.href = '/login';
-  }, []);
-
-  return (
-    <section>
-      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
-        Sécurité
-      </h2>
-      <div className="flex w-full max-w-xl flex-col gap-4">
-        <div className="rounded-xl border border-black/[0.08] bg-white px-4 py-3">
-          <p className="font-medium text-ink" style={{ fontSize: 14 }}>
-            Se déconnecter de tous les appareils
-          </p>
-          <p className="mt-1 text-mute" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
-            Termine toutes les sessions actives sur tous vos appareils.
-          </p>
-          <button
-            type="button"
-            onClick={signOutEverywhere}
-            disabled={signingOut}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ fontSize: 13 }}
-          >
-            <LogOut size={16} strokeWidth={2} aria-hidden />
-            {signingOut ? 'Déconnexion…' : 'Se déconnecter partout'}
-          </button>
-        </div>
-        <div className="rounded-xl border border-black/[0.08] bg-white px-4 py-3">
-          <p className="font-medium text-ink" style={{ fontSize: 14 }}>
-            Supprimer mon compte
-          </p>
-          <p className="mt-1 text-mute" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
-            Pour supprimer définitivement votre compte, contactez{' '}
-            <a className="text-accent-dark underline" href="mailto:contact@priimo.fr">
-              contact@priimo.fr
-            </a>
-            .
-          </p>
-        </div>
-      </div>
-    </section>
   );
 }

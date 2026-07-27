@@ -20,4 +20,5 @@ export type BlogPostSummary = BlogPostFrontMatter;
 export type MarkdownBlock =
   | { type: 'markdown'; content: string }
   | { type: 'priimo'; content: string }
+  | { type: 'cta'; content: string }
   | { type: 'note'; content: string };

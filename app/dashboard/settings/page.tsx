@@ -2,16 +2,9 @@ import { notFound } from 'next/navigation';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import SettingsDashboard from '@/components/dashboard/settings/SettingsDashboard';
 
-type SettingsTabId = 'agency' | 'team' | 'billing' | 'notifications' | 'profile' | 'security';
+type SettingsTabId = 'agency' | 'team' | 'billing' | 'profile';
 const DIRECTOR_ONLY: ReadonlySet<SettingsTabId> = new Set(['agency', 'team', 'billing']);
-const VALID_TABS: ReadonlySet<SettingsTabId> = new Set([
-  'agency',
-  'team',
-  'billing',
-  'notifications',
-  'profile',
-  'security',
-]);
+const VALID_TABS: ReadonlySet<SettingsTabId> = new Set(['agency', 'team', 'billing', 'profile']);
 
 function parseTab(raw: string | string[] | undefined): SettingsTabId | undefined {
   if (typeof raw !== 'string') return undefined;

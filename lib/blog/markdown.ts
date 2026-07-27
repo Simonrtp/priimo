@@ -1,8 +1,8 @@
 import type { MarkdownBlock } from './types';
 
-const BLOCK_RE = /:::(priimo|note)\n([\s\S]*?):::/g;
+const BLOCK_RE = /:::(priimo|cta|note)\n([\s\S]*?):::/g;
 
-/** Découpe le markdown en blocs standard + encadrés Priimo / notes. */
+/** Découpe le markdown en blocs standard + encadrés Priimo / CTA / notes. */
 export function parseBlogBlocks(source: string): MarkdownBlock[] {
   const blocks: MarkdownBlock[] = [];
   let lastIndex = 0;
@@ -14,7 +14,7 @@ export function parseBlogBlocks(source: string): MarkdownBlock[] {
       if (chunk) blocks.push({ type: 'markdown', content: chunk });
     }
     blocks.push({
-      type: match[1] as 'priimo' | 'note',
+      type: match[1] as 'priimo' | 'cta' | 'note',
       content: match[2]?.trim() ?? '',
     });
     lastIndex = index + match[0].length;

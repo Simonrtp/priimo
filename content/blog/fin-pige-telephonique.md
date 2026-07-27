@@ -51,6 +51,10 @@ Quatre voies restent ouvertes. Elles sont plus étroites que le téléphone à f
 
 **Les professionnels.** Marchands de biens, investisseurs en société, administrateurs de biens, notaires, apporteurs d'affaires : le régime d'opposition s'applique, pas l'interdiction de principe. C'est un terrain de chasse que beaucoup d'agences sous-exploitent.
 
+:::cta
+Quand le téléphone se ferme côté particuliers, les propriétaires en société deviennent un segment stratégique. [Voir comment Priimo les surface sur votre secteur](/)
+:::
+
 Et tout le reste — celui qui n'est pas du téléphone — continue d'exister :
 
 - **Le courrier**, qui redevient soudain un canal moderne
@@ -80,6 +84,10 @@ La différence est nette. Envoyer un courrier à mille propriétaires pris au ha
 
 La valeur bascule du canal vers le **ciblage**. Ce n'est plus « comment je les contacte », c'est « qui je contacte ».
 
+:::cta
+C'est exactement ce que Priimo prépare chaque lundi : une liste courte d'adresses hors portails, choisies pour le terrain et le courrier — pas pour le volume. [Découvrir la méthode](/)
+:::
+
 ## Votre checklist pour cette semaine
 
 Huit questions à poser dans votre agence, avant le 11 août :
@@ -96,6 +104,11 @@ Huit questions à poser dans votre agence, avant le 11 août :
 Si vous répondez non à plus de trois de ces questions, vous avez un mois pour vous en occuper.
 
 Le téléphone était le canal le plus facile. Il n'a jamais été le meilleur. Ce que la loi supprime, ce n'est pas votre capacité à trouver des vendeurs — c'est votre droit de les chercher au hasard.
+
+:::priimo
+**Priimo** aide les agences à passer du volume aveugle au ciblage utile : chaque lundi, des adresses où un projet de vente se prépare, vérifiées absentes des portails.
+[Découvrir Priimo](/) · [En savoir plus avec un expert](https://calendly.com/simon-ropiot44/nouvelle-reunion)
+:::
 
 ---
 

@@ -6,6 +6,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import BlogCallout from './BlogCallout';
 import BlogNote from './BlogNote';
+import BlogSoftCta from './BlogSoftCta';
 import { parseBlogBlocks } from '@/lib/blog/markdown';
 import { countH2InMarkdown } from '@/lib/blog/toc';
 import type { TocItem } from '@/lib/blog/toc';
@@ -116,6 +117,13 @@ export default function BlogMarkdown({ source, headings }: BlogMarkdownProps) {
             <BlogCallout key={`priimo-${index}`}>
               <MarkdownChunk content={block.content} headings={[]} />
             </BlogCallout>
+          );
+        }
+        if (block.type === 'cta') {
+          return (
+            <BlogSoftCta key={`cta-${index}`}>
+              <MarkdownChunk content={block.content} headings={[]} />
+            </BlogSoftCta>
           );
         }
         if (block.type === 'note') {

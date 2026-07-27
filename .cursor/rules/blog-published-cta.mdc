@@ -1,0 +1,50 @@
+---
+description: CTAs soft obligatoires dans les articles de blog publiés (pas de « prendre RDV »)
+globs: content/blog/**/*.md
+alwaysApply: false
+---
+
+# Blog publié — CTAs stratégiques
+
+Tout article **publié** (`draft` absent ou `false`) doit contenir des CTAs soft, contextualisés. Pas de hard sell.
+
+## Ton interdit
+
+- « Réserver une démo », « Prendre RDV », « Booker un call », urgence artificielle
+- CTA générique sans lien avec le paragraphe précédent
+- Plus d’un encadré Priimo lourd (`:::priimo`) par article
+
+## Ton attendu
+
+Formulations du type :
+- En savoir plus avec un expert
+- Voir comment ça fonctionne
+- Découvrir ce que contient une livraison
+- Voir comment Priimo surface X sur votre secteur
+
+Lien principal : `/` (produit). Lien secondaire soft éventuel : Calendly, libellé « En savoir plus avec un expert » (jamais « démo » / « RDV »).
+
+## Placement
+
+1. **Mid-article** (`:::cta`) — 1 à 2 blocs, après un insight actionnable (ciblage, SCI, courrier, signaux…).
+2. **Fin d’article** (`:::priimo`) — 1 encadré produit, avant disclaimer / sources.
+3. Le footer UI (`BlogArticleFooter`) reste soft ; ne pas le dupliquer en dur dans le markdown.
+
+## Format
+
+```md
+:::cta
+Quand le volume aveugle disparaît, le ciblage devient le levier.
+[Voir comment Priimo sélectionne les adresses](/)
+:::
+
+:::priimo
+**Priimo** livre chaque lundi… [Découvrir Priimo](/) · [En savoir plus avec un expert](https://calendly.com/simon-ropiot44/nouvelle-reunion)
+:::
+```
+
+## Densité
+
+- Article court (~7 min) : 1 `:::cta` + 1 `:::priimo`
+- Article long (~12 min) : 2 `:::cta` + 1 `:::priimo`
+- Ne jamais interrompre une checklist, une liste de sources, ou un disclaimer juridique

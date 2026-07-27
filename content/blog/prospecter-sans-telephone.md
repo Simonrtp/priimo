@@ -92,6 +92,11 @@ Deux précautions, cependant :
 C'est un gisement modeste en volume, mais c'est aujourd'hui l'un des rares
 segments où le téléphone reste un outil de conquête.
 
+:::cta
+Sur votre secteur, Priimo signale les biens détenus en société et les contacts
+professionnels associés — quand ils existent. [Voir comment ça fonctionne](/)
+:::
+
 ## Le courrier adressé, grand gagnant de la réforme
 
 Le courrier postal n'est pas concerné par l'obligation de consentement préalable.
@@ -112,6 +117,12 @@ Trois choses à savoir pour qu'il fonctionne :
 À l'heure où le téléphone se ferme, une boîte aux lettres est nettement moins
 encombrée qu'il y a dix ans. C'est un avantage à prendre maintenant, avant que
 tout le monde y revienne.
+
+:::cta
+Un courrier ne vaut que si l'adresse le mérite. Priimo livre chaque semaine des
+adresses hors portails, avec le contexte utile pour écrire quelque chose de
+précis. [Découvrir ce que contient une livraison](/)
+:::
 
 ## Le terrain n'est pas concerné
 
@@ -195,7 +206,8 @@ avantage réel sur celles qui découvriront le problème le 12 août.
 **Priimo** livre chaque lundi aux agences immobilières une liste courte
 d'adresses sur leur secteur, où un projet de vente se prépare — chacune
 vérifiée absente des portails d'annonces. Adresse, contexte, et contacts
-professionnels lorsqu'ils existent. [En savoir plus](/)
+professionnels lorsqu'ils existent.
+[Découvrir Priimo](/) · [En savoir plus avec un expert](https://calendly.com/simon-ropiot44/nouvelle-reunion)
 :::
 
 ---
