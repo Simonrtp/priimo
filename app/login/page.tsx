@@ -68,6 +68,26 @@ export default function LoginPage() {
     if (next.email || next.password) return;
 
     setIsSubmitting(true);
+    try {
+      const gate = await fetch('/api/auth/login-gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (gate.status === 429) {
+        setErrors({ password: 'Trop de tentatives. Réessayez dans quelques minutes.' });
+        setIsSubmitting(false);
+        return;
+      }
+      if (!gate.ok) {
+        setErrors({ password: 'Connexion temporairement indisponible.' });
+        setIsSubmitting(false);
+        return;
+      }
+    } catch {
+      // Si le gate est down, on laisse Supabase gérer (pas de blocage total).
+    }
+
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),

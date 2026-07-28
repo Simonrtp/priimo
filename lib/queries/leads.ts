@@ -115,34 +115,73 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
 }
 
 /**
- * On utilise `*` car certaines colonnes optionnelles (display_signals,
- * rooms, floor, …) ne sont créées qu'après application des migrations
- * — un SELECT explicite échouerait tant qu'elles n'existent pas.
- *
- * `internal_signals` (secret scoring) est filtré côté parser via
- * `stripInternalSignals` : même si la colonne est transmise sur le
- * réseau, plus aucun code applicatif n'y a accès. Pour une exclusion
- * réseau stricte, mettre en place une vue Postgres `leads_public`
- * (whitelist de colonnes) et y sélectionner ici.
+ * Colonnes exposées au client dashboard — exclut `internal_signals`.
+ * Si une migration ajoute une colonne affichée, l'ajouter ici.
  */
-function stripInternalSignals<T extends object>(row: T): T {
-  if ('internal_signals' in row) {
-    const { internal_signals: _strip, ...rest } = row as T & { internal_signals?: unknown };
-    return rest as T;
-  }
-  return row;
-}
+export const LEADS_CLIENT_SELECT = [
+  'id',
+  'agency_id',
+  'address',
+  'city',
+  'postal_code',
+  'property_type',
+  'surface_m2',
+  'owner_type',
+  'company_name',
+  'company_director',
+  'company_phone',
+  'company_email',
+  'score',
+  'signals',
+  'display_signals',
+  'latitude',
+  'longitude',
+  'acquired_year',
+  'acquired_price',
+  'acquired_price_reliable',
+  'estimated_value',
+  'estimation_low',
+  'estimation_high',
+  'estimation_confidence',
+  'estimation_basis',
+  'plus_value_pct',
+  'rooms',
+  'floor',
+  'etage',
+  'dpe_class',
+  'dpe_date',
+  'status',
+  'notes',
+  'assigned_to',
+  'ml_feedback',
+  'ml_feedback_reason',
+  'ml_feedback_at',
+  'marche_statut',
+  'marche_verifie_le',
+  'owner_name',
+  'owner_age',
+  'owner_company',
+  'owner_siren',
+  'owner_phone',
+  'contacts_immeuble',
+  'delivered_at',
+  'created_at',
+  'updated_at',
+].join(',');
 
+/**
+ * Charge les leads de l'agence active (RLS).
+ */
 export async function fetchLeads(supabase: Client): Promise<Lead[]> {
   const { data, error } = await supabase
     .from('leads')
-    .select('*')
+    .select(LEADS_CLIENT_SELECT)
     .order('score', { ascending: false })
     .order('created_at', { ascending: false });
   if (error) {
     throw new Error(`Impossible de charger les prospects : ${error.message}`);
   }
-  return (data ?? []).map((row) => mapDbLeadToLead(stripInternalSignals(row)));
+  return (data ?? []).map((row) => mapDbLeadToLead(row as LeadRow));
 }
 
 function buildInitials(firstName: string, lastName: string): string {
@@ -175,13 +214,23 @@ export async function fetchTeamMembers(supabase: Client, agencyId: string): Prom
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, first_name, last_name')
     .in('id', profileIds)
     .order('first_name', { ascending: true });
   if (error) {
     throw new Error(`Impossible de charger l'équipe : ${error.message}`);
   }
-  return (data ?? []).map(mapProfileToTeamMember);
+  return (data ?? []).map((p) =>
+    mapProfileToTeamMember({
+      id: p.id,
+      first_name: p.first_name,
+      last_name: p.last_name,
+      phone: null,
+      preferences: {},
+      created_at: '',
+      updated_at: '',
+    }),
+  );
 }
 
 export interface LeadPatch {

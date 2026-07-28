@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import {
@@ -9,6 +10,7 @@ import {
   type EstimationViewType,
 } from '@/lib/estimation';
 import { sendEstimationNotificationToAdmin } from '@/lib/email/sendEstimationEmail';
+import { clientIpFromRequest, pruneRateLimitBuckets, rateLimit } from '@/lib/rate-limit';
 import type { EstimationRequestInsert } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -16,6 +18,7 @@ export const runtime = 'nodejs';
 type PartialBody = {
   mode: 'partial';
   id?: string | null;
+  editToken?: string | null;
   address: string;
   latitude: number;
   longitude: number;
@@ -32,6 +35,7 @@ type PartialBody = {
 type CompleteBody = {
   mode: 'complete';
   id?: string | null;
+  editToken?: string | null;
   address: string;
   latitude: number;
   longitude: number;
@@ -59,12 +63,6 @@ type CompleteBody = {
   consentGiven: boolean;
 };
 
-function clientIp(req: Request): string | null {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() || null;
-  return req.headers.get('x-real-ip');
-}
-
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -74,7 +72,26 @@ function isValidPhone(phone: string): boolean {
   return digits.length >= 10;
 }
 
+function newEditToken(): string {
+  return randomBytes(32).toString('hex');
+}
+
+function rateLimitResponse(retryAfterSec: number) {
+  return NextResponse.json(
+    { error: 'Trop de requêtes. Réessayez dans un instant.' },
+    {
+      status: 429,
+      headers: { 'Retry-After': String(retryAfterSec) },
+    },
+  );
+}
+
 export async function POST(req: Request) {
+  pruneRateLimitBuckets();
+  const ip = clientIpFromRequest(req);
+  const rl = rateLimit(`estimation:${ip}`, { limit: 30, windowMs: 60 * 60 * 1000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec);
+
   let body: PartialBody | CompleteBody;
   try {
     body = (await req.json()) as PartialBody | CompleteBody;
@@ -94,6 +111,7 @@ export async function POST(req: Request) {
   }
 
   const admin = createSupabaseAdminClient();
+  const editToken = typeof body.editToken === 'string' ? body.editToken.trim() : '';
 
   if (body.mode === 'partial') {
     const row: EstimationRequestInsert = {
@@ -113,27 +131,37 @@ export async function POST(req: Request) {
     };
 
     if (body.id) {
+      if (!editToken) {
+        return NextResponse.json({ error: 'Jeton d’édition manquant.' }, { status: 403 });
+      }
       const { data, error } = await admin
         .from('estimation_requests')
         .update(row)
         .eq('id', body.id)
-        .select('id')
-        .single();
+        .eq('edit_token', editToken)
+        .select('id, edit_token')
+        .maybeSingle();
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('[estimation] partial update', error);
+        return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
       }
-      return NextResponse.json({ id: data.id });
+      if (!data) {
+        return NextResponse.json({ error: 'Demande introuvable.' }, { status: 404 });
+      }
+      return NextResponse.json({ id: data.id, editToken: data.edit_token });
     }
 
+    const token = newEditToken();
     const { data, error } = await admin
       .from('estimation_requests')
-      .insert(row)
-      .select('id')
+      .insert({ ...row, edit_token: token })
+      .select('id, edit_token')
       .single();
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[estimation] partial insert', error);
+      return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
     }
-    return NextResponse.json({ id: data.id });
+    return NextResponse.json({ id: data.id, editToken: data.edit_token });
   }
 
   // ——— complete ———
@@ -200,7 +228,7 @@ export async function POST(req: Request) {
     consent_text: CONFIG_ESTIMATION.CONSENT_TEXT,
     consent_version: CONFIG_ESTIMATION.CONSENT_VERSION,
     consent_at: now,
-    consent_ip: clientIp(req),
+    consent_ip: ip === 'unknown' ? null : ip,
     consent_user_agent: req.headers.get('user-agent'),
     estimation_low: result.low,
     estimation_value: result.value,
@@ -210,22 +238,40 @@ export async function POST(req: Request) {
   };
 
   let requestId = body.id ?? null;
+  let responseToken = editToken;
 
   if (requestId) {
-    const { error } = await admin.from('estimation_requests').update(row).eq('id', requestId);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!editToken) {
+      return NextResponse.json({ error: 'Jeton d’édition manquant.' }, { status: 403 });
     }
-  } else {
     const { data, error } = await admin
       .from('estimation_requests')
-      .insert(row)
-      .select('id')
+      .update(row)
+      .eq('id', requestId)
+      .eq('edit_token', editToken)
+      .select('id, edit_token')
+      .maybeSingle();
+    if (error) {
+      console.error('[estimation] complete update', error);
+      return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json({ error: 'Demande introuvable.' }, { status: 404 });
+    }
+    responseToken = data.edit_token;
+  } else {
+    responseToken = newEditToken();
+    const { data, error } = await admin
+      .from('estimation_requests')
+      .insert({ ...row, edit_token: responseToken })
+      .select('id, edit_token')
       .single();
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[estimation] complete insert', error);
+      return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
     }
     requestId = data.id;
+    responseToken = data.edit_token;
   }
 
   try {
@@ -254,6 +300,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     id: requestId,
+    editToken: responseToken,
     available: result.available,
     low: result.low,
     value: result.value,

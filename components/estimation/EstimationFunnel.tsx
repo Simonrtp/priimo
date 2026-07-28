@@ -155,6 +155,7 @@ function ChoiceCard({
 export default function EstimationFunnel() {
   const [step, setStep] = useState<Step>('accueil');
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [editToken, setEditToken] = useState<string | null>(null);
 
   const [address, setAddress] = useState<SelectedAddress | null>(null);
   const [propertyType, setPropertyType] = useState<EstimationPropertyType | null>(null);
@@ -223,6 +224,7 @@ export default function EstimationFunnel() {
         body: JSON.stringify({
           mode: 'partial',
           id: requestId,
+          editToken,
           address: address.label,
           latitude: address.latitude,
           longitude: address.longitude,
@@ -236,8 +238,9 @@ export default function EstimationFunnel() {
           bathrooms,
         }),
       });
-      const data = (await res.json()) as { id?: string };
+      const data = (await res.json()) as { id?: string; editToken?: string };
       if (data.id) setRequestId(data.id);
+      if (data.editToken) setEditToken(data.editToken);
     } catch {
       // non bloquant : mesure d'abandon
     }
@@ -245,6 +248,7 @@ export default function EstimationFunnel() {
     address,
     propertyType,
     requestId,
+    editToken,
     surfaceM2,
     rooms,
     isApartment,
@@ -280,6 +284,7 @@ export default function EstimationFunnel() {
         body: JSON.stringify({
           mode: 'complete',
           id: requestId,
+          editToken,
           address: address.label,
           latitude: address.latitude,
           longitude: address.longitude,
@@ -313,6 +318,8 @@ export default function EstimationFunnel() {
         setSubmitting(false);
         return;
       }
+      if (typeof data.editToken === 'string') setEditToken(data.editToken);
+      if (typeof data.id === 'string') setRequestId(data.id);
       setResult({
         available: data.available,
         low: data.low,

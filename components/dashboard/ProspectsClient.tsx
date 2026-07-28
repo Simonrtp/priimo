@@ -34,8 +34,8 @@ const LeadMapView = dynamic(() => import('./map/LeadMapView'), {
     </div>
   ),
 });
-import LeadDrawer from './LeadDrawer';
-import LeadFullScreenMobile from './LeadFullScreenMobile';
+const LeadDrawer = dynamic(() => import('./LeadDrawer'), { ssr: false });
+const LeadFullScreenMobile = dynamic(() => import('./LeadFullScreenMobile'), { ssr: false });
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import DashboardWelcome from './DashboardWelcome';
 import { useUser } from '@/lib/hooks/useUser';
@@ -215,6 +215,10 @@ export default function ProspectsClient({
 
   const deleteLeadHandler = useCallback(
     async (id: string) => {
+      if (!isDirector) {
+        toast.error('Seul le directeur peut supprimer un lead.');
+        return;
+      }
       const previous = leads;
       setLeads((prev) => prev.filter((l) => l.id !== id));
       setSelectedLeadId((current) => (current === id ? null : current));
@@ -227,7 +231,7 @@ export default function ProspectsClient({
         throw e;
       }
     },
-    [leads, supabase],
+    [isDirector, leads, supabase],
   );
 
   const filterCount = countActiveLeadFilters(filters, { countAssigned: isDirector });
@@ -358,6 +362,7 @@ export default function ProspectsClient({
         onUpdateLead={updateLeadHandler}
         onDeleteLead={deleteLeadHandler}
         canAssignLead={isDirector}
+        canDeleteLead={isDirector}
         currentUserId={profile?.id ?? null}
         teamMembers={teamMembers}
       />
@@ -368,6 +373,7 @@ export default function ProspectsClient({
           onUpdateLead={updateLeadHandler}
           onDeleteLead={deleteLeadHandler}
           canAssignLead={isDirector}
+          canDeleteLead={isDirector}
           currentUserId={profile?.id ?? null}
           teamMembers={teamMembers}
         />

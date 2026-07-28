@@ -83,7 +83,6 @@ components/
   Header.tsx                 # Header fixe transparent, blur au scroll
   HeroSection.tsx            # Hero + form inline + visuel
   HeroBackground.tsx         # Fond animé réactif souris
-  DashboardMockup.tsx        # Mockup dashboard stylisé
   BetaForm.tsx               # Formulaire (POST /api/beta + validation)
   BetaModal.tsx              # Modale globale (mêmes champs que le form inline)
   BetaModalContext.tsx       # Provider + hook useBetaModal()
@@ -124,6 +123,5 @@ Blob / webhook.
 |---|---|
 | Couleur d'accentuation | `tailwind.config.ts` → `colors.accent` |
 | Compteur "47 agences" | recherche globale `47 agences` |
-| Liste prospects mockup | `components/DashboardMockup.tsx` (`PROSPECTS`) |
 | Questions FAQ | `components/FAQ.tsx` (`FAQS`) |
 | Widget chat Causio | `app/layout.tsx` → `CAUSIO_CONFIG.chatbotId` + URL `widget.js` |

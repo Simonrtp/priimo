@@ -479,7 +479,10 @@ CREATE POLICY leads_delete_agency
   ON public.leads
   FOR DELETE
   TO authenticated
-  USING (agency_id = public.current_user_agency_id());
+  USING (
+    agency_id = public.current_user_agency_id()
+    AND public.current_user_role() = 'directeur'
+  );
 
 -- INSERT : réservé au service_role / pipeline de scoring (pas depuis le client).
 

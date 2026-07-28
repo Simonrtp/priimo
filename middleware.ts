@@ -4,8 +4,19 @@ import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
 import { resolveActiveAgencyId, resolveActiveRole } from '@/lib/auth/active-agency';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env';
 
-const PUBLIC_ROUTES = new Set(['/', '/login', '/invite', '/cgu']);
-const PUBLIC_API_PREFIXES = ['/api/beta'];
+/** Routes marketing / légales : pas de getUser (latence). */
+const SKIP_AUTH_PREFIXES = [
+  '/blog',
+  '/fonctionnalites',
+  '/comparatifs',
+  '/a-propos',
+  '/cgu',
+  '/confidentialite',
+  '/mentions-legales',
+  '/estimation',
+];
+
+const PUBLIC_EXACT = new Set(['/', '/login', '/invite', '/cgu', '/signup']);
 
 async function getDirectorOnboardingState(
   supabase: ReturnType<typeof createServerClient>,
@@ -36,9 +47,7 @@ async function getDirectorOnboardingState(
 
   const { data: agency } = await supabase
     .from('agencies')
-    .select(
-      'address, codes_postaux',
-    )
+    .select('address, codes_postaux')
     .eq('id', activeAgencyId)
     .maybeSingle();
 
@@ -49,6 +58,25 @@ async function getDirectorOnboardingState(
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const skipAuth =
+    pathname === '/' ||
+    SKIP_AUTH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  // Assets / APIs publiques : passer sans session refresh.
+  if (
+    skipAuth &&
+    !pathname.startsWith('/dashboard') &&
+    !pathname.startsWith('/onboarding') &&
+    !pathname.startsWith('/admin') &&
+    pathname !== '/login' &&
+    pathname !== '/signup' &&
+    pathname !== '/invite'
+  ) {
+    return NextResponse.next();
+  }
+
   const response = NextResponse.next({ request });
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
@@ -66,26 +94,20 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-  const isPublic =
-    PUBLIC_ROUTES.has(pathname) || PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
-
-  if (!user && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  if (!user && pathname.startsWith('/onboarding')) {
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding') || pathname.startsWith('/admin'))) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   if (user) {
-    const onboardingState =
+    const needsOnboardingCheck =
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/onboarding') ||
       pathname === '/login' ||
-      pathname === '/signup'
-        ? await getDirectorOnboardingState(supabase, user.id)
-        : { isDirector: false, needsOnboarding: false };
+      pathname === '/signup';
+
+    const onboardingState = needsOnboardingCheck
+      ? await getDirectorOnboardingState(supabase, user.id)
+      : { isDirector: false, needsOnboarding: false };
 
     if (onboardingState.isDirector && onboardingState.needsOnboarding) {
       if (pathname.startsWith('/dashboard')) {
@@ -96,20 +118,25 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname === '/login' || pathname === '/signup') {
-      const target = onboardingState.isDirector && onboardingState.needsOnboarding
-        ? '/onboarding'
-        : '/dashboard';
+      const target =
+        onboardingState.isDirector && onboardingState.needsOnboarding
+          ? '/onboarding'
+          : '/dashboard';
       return NextResponse.redirect(new URL(target, request.url));
     }
   }
 
-  void isPublic;
+  void PUBLIC_EXACT;
 
   return response;
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.webp|.*\\.gif|.*\\.ico).*)',
+    /*
+     * Auth / redirects only where needed — skip static assets.
+     * Marketing pages still match but short-circuit without getUser above.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|mp4|webm|woff2?)$).*)',
   ],
 };

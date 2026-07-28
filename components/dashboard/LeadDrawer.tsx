@@ -1,27 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Phone as PhoneIcon, Mail as MailIcon, Building2 } from 'lucide-react';
-import { toast } from 'sonner';
 import type { Lead, TeamMember } from '@/types/lead';
-import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
-import { formatDate } from '@/lib/utils';
-import LeadDetailHeader from './LeadDetailHeader';
-import LeadDisplaySignals from './LeadDisplaySignals';
-import LeadDeleteSection from './LeadDeleteSection';
-import LeadAssigneeControl from './LeadAssigneeControl';
-import LeadMarketCheck from './LeadMarketCheck';
-import { LeadImmeubleContacts, LeadOwnerBlock } from './LeadOwnerContacts';
-import LeadStatusControl from './LeadStatusControl';
-import SciDirectorPendingNotice from './SciDirectorPendingNotice';
-import ParticulierContactPendingHint from './ParticulierContactPendingHint';
-import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
-import { hasOwnerBlock } from '@/lib/lead-contacts';
-import { isSciDirectorPending } from '@/types/lead';
-
-const drawerSelectTriggerClass =
-  'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10';
+import { ICONS, ICON_COLORS } from '@/lib/iconMapping';
+import LeadDetailBody from './LeadDetailBody';
 
 interface LeadDrawerProps {
   lead: Lead | null;
@@ -29,61 +12,9 @@ interface LeadDrawerProps {
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   onDeleteLead: (id: string) => Promise<void>;
   canAssignLead?: boolean;
+  canDeleteLead?: boolean;
   currentUserId?: string | null;
   teamMembers: TeamMember[];
-}
-
-function EnterpriseBlock({ lead }: { lead: Lead }) {
-  const directorPending = isSciDirectorPending(lead);
-
-  return (
-    <DetailSection>
-      <DetailSectionLabel>Société propriétaire</DetailSectionLabel>
-      <div className="space-y-3">
-        <p className="flex items-center gap-2 font-semibold text-ink" style={{ fontSize: 14 }}>
-          <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
-          {lead.companyName ?? '—'}
-        </p>
-        {directorPending ? (
-          <SciDirectorPendingNotice />
-        ) : (
-          <div className="space-y-2">
-            <p className="text-mute" style={{ fontSize: 11 }}>
-              Dirigeant
-            </p>
-            <p className="font-medium text-ink" style={{ fontSize: 13 }}>
-              {lead.companyDirector ?? '—'}
-            </p>
-            {lead.companyPhone && (
-              <a
-                href={`tel:${lead.companyPhone}`}
-                className="flex items-center gap-2 text-accent-dark hover:underline"
-                style={{ fontSize: 13 }}
-              >
-                <PhoneIcon size={ICON_SIZE.sm} color={ICON_COLORS.green600} strokeWidth={2} aria-hidden />
-                {lead.companyPhone}
-              </a>
-            )}
-            {lead.companyEmail && (
-              <a
-                href={`mailto:${lead.companyEmail}`}
-                className="flex items-center gap-2 text-accent-dark hover:underline"
-                style={{ fontSize: 13 }}
-              >
-                <MailIcon size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
-                {lead.companyEmail}
-              </a>
-            )}
-            {!lead.companyPhone && !lead.companyEmail && (
-              <p className="text-mute" style={{ fontSize: 12 }}>
-                Coordonnées non disponibles.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </DetailSection>
-  );
 }
 
 export default function LeadDrawer({
@@ -92,18 +23,12 @@ export default function LeadDrawer({
   onUpdateLead,
   onDeleteLead,
   canAssignLead = true,
+  canDeleteLead = false,
   currentUserId,
   teamMembers,
 }: LeadDrawerProps) {
-  const [note, setNote] = useState('');
-  const [savingNote, setSavingNote] = useState(false);
   const [drawerEntered, setDrawerEntered] = useState(false);
-  /** Après l'anim d'entrée : on retire `transform` (casse le spotlight Joyride). */
   const [drawerSettled, setDrawerSettled] = useState(false);
-
-  useEffect(() => {
-    setNote('');
-  }, [lead?.id]);
 
   useEffect(() => {
     if (!lead) return;
@@ -140,29 +65,7 @@ export default function LeadDrawer({
     };
   }, [lead]);
 
-  const saveNote = useCallback(async () => {
-    if (!lead) return;
-    const trimmed = note.trim();
-    if (!trimmed) return;
-    setSavingNote(true);
-    const stamp = formatDate(new Date().toISOString());
-    const nextNotes = lead.notes?.trim() ? `${lead.notes.trim()}\n\n[${stamp}] ${trimmed}` : trimmed;
-    try {
-      await onUpdateLead(lead.id, { notes: nextNotes });
-      setNote('');
-      toast.success('Note enregistrée');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer la note.");
-    } finally {
-      setSavingNote(false);
-    }
-  }, [lead, note, onUpdateLead]);
-
   if (!lead) return null;
-
-  const isEnterprise = lead.ownerType === 'entreprise';
-  const noteDirty = Boolean(note.trim());
-  const canSave = noteDirty && !savingNote;
 
   const panel = (
     <>
@@ -201,96 +104,17 @@ export default function LeadDrawer({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-7 pb-10 pt-6">
-            <LeadDetailHeader lead={lead} titleId="drawer-address" />
-
-            {!isEnterprise && !hasOwnerBlock(lead) && (
-              <div className="mt-4">
-                <ParticulierContactPendingHint />
-              </div>
-            )}
-
-            {isEnterprise && <EnterpriseBlock lead={lead} />}
-
-            <LeadOwnerBlock lead={lead} />
-
-            {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
-              <DetailSection>
-                <LeadMarketCheck lead={lead} tourAnchor="drawer-market" />
-              </DetailSection>
-            )}
-
-            <DetailSection>
-              <div data-tour="drawer-signals">
-                <DetailSectionLabel>Signaux détectés</DetailSectionLabel>
-                <LeadDisplaySignals
-                  key={lead.id}
-                  displaySignals={lead.displaySignals}
-                  dpeDate={lead.dpeDate}
-                />
-              </div>
-            </DetailSection>
-
-            <LeadImmeubleContacts lead={lead} tourAnchor="drawer-contacts" />
-
-            <DetailSection>
-              <DetailSectionLabel>Gestion du lead</DetailSectionLabel>
-              <div className="space-y-4">
-                <LeadStatusControl
-                  lead={lead}
-                  onUpdateLead={onUpdateLead}
-                  selectTriggerClassName={drawerSelectTriggerClass}
-                  tourAnchor="drawer-status"
-                />
-                <LeadAssigneeControl
-                  lead={lead}
-                  teamMembers={teamMembers}
-                  onUpdateLead={onUpdateLead}
-                  canAssignAnyone={canAssignLead}
-                  currentUserId={currentUserId}
-                  selectTriggerClassName={drawerSelectTriggerClass}
-                />
-                <div>
-                  <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-                    Notes internes
-                  </p>
-                  <textarea
-                    rows={4}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder="Notes visibles uniquement par votre agence…"
-                    className="placeholder-mute/60 min-h-[100px] w-full resize-y rounded-xl border border-black/8 bg-white px-4 py-3 text-ink focus:border-accent/40 focus:outline-none"
-                    style={{ fontSize: 13, lineHeight: 1.6 }}
-                  />
-                  {lead.notes?.trim() && (
-                    <p
-                      className="mt-2 whitespace-pre-wrap rounded-xl border border-black/[0.06] bg-white px-4 py-3 text-ink"
-                      style={{ fontSize: 12.5, lineHeight: 1.55 }}
-                    >
-                      {lead.notes}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void saveNote();
-                    }}
-                    disabled={!canSave}
-                    className={`mt-3 inline-flex items-center justify-center rounded-[10px] px-[18px] py-2 font-semibold transition-colors ${
-                      canSave
-                        ? 'bg-[#E8743C] text-white hover:bg-[#C25E2C]'
-                        : 'bg-[#E8743C]/35 text-white cursor-not-allowed'
-                    }`}
-                    style={{ fontSize: 13 }}
-                  >
-                    {savingNote ? 'Enregistrement…' : 'Enregistrer'}
-                  </button>
-                </div>
-              </div>
-
-              <LeadDeleteSection leadId={lead.id} onDelete={onDeleteLead} className="mt-2" />
-            </DetailSection>
+            <LeadDetailBody
+              lead={lead}
+              onUpdateLead={onUpdateLead}
+              onDeleteLead={onDeleteLead}
+              canAssignLead={canAssignLead}
+              canDeleteLead={canDeleteLead}
+              currentUserId={currentUserId}
+              teamMembers={teamMembers}
+              variant="desktop"
+              headerTitleId="drawer-address"
+            />
           </div>
         </div>
       </aside>

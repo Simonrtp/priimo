@@ -37,6 +37,9 @@
   ],
   "exclude": [
     "node_modules",
-    "saas-boilerplate"
+    "saas-boilerplate",
+    "awesome-cursorrules",
+    "awesome-cursor-rules-mdc",
+    "cursor-plugin"
   ]
 }

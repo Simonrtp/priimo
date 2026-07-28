@@ -6,12 +6,21 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 interface LeadDeleteSectionProps {
   leadId: string;
   onDelete: (id: string) => Promise<void>;
+  /** Suppression réservée au directeur (RLS + UI). */
+  canDelete?: boolean;
   className?: string;
 }
 
-export default function LeadDeleteSection({ leadId, onDelete, className = '' }: LeadDeleteSectionProps) {
+export default function LeadDeleteSection({
+  leadId,
+  onDelete,
+  canDelete = false,
+  className = '',
+}: LeadDeleteSectionProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  if (!canDelete) return null;
 
   const handleConfirm = async () => {
     setDeleting(true);

@@ -1,6 +1,14 @@
 node_modules
 .next
 out
-.env*.local
+.env
+.env.*
+!.env.example
 .DS_Store
 *.log
+
+# Vendored / reference clones (not part of the running app)
+saas-boilerplate/
+awesome-cursorrules/
+awesome-cursor-rules-mdc/
+cursor-plugin/

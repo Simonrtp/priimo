@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { ChevronRight, Phone, ShieldCheck } from 'lucide-react';
 import { isSciDirectorPending, type Lead, type LeadSegmentTab } from '@/types/lead';
 import ScoreRing from './ScoreRing';
@@ -114,7 +115,7 @@ function SegmentRowIcon({ tab, ownerType }: { tab: LeadSegmentTab; ownerType: Le
   );
 }
 
-export default function LeadCard({
+function LeadCard({
   lead,
   index,
   isLast,
@@ -143,10 +144,10 @@ export default function LeadCard({
       data-lead-id={lead.id}
       data-tour={index === 0 ? 'lead-card' : undefined}
       onClick={onClick}
-      className={`relative h-full cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-surface max-lg:px-4 max-lg:py-5 max-lg:shadow-clay-sm max-md:active:scale-[0.985] max-md:active:bg-black/[0.01] lg:flex lg:h-auto lg:items-center lg:gap-5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-6 lg:py-6 lg:shadow-none ${
+      className={`relative h-full cursor-pointer transition-colors duration-150 animate-lead-reveal hover:bg-black/[0.018] max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-surface max-lg:px-4 max-lg:py-5 max-lg:shadow-clay-sm max-md:active:scale-[0.985] max-md:active:bg-black/[0.01] lg:flex lg:h-auto lg:items-center lg:gap-5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-6 lg:py-6 lg:shadow-none [content-visibility:auto] [contain-intrinsic-size:auto_140px] ${
         !isLast ? 'lg:border-b lg:border-black/[0.05]' : ''
       }`}
-      style={{ animationDelay: `${index * 38}ms`, WebkitTapHighlightColor: 'transparent' }}
+      style={{ animationDelay: `${Math.min(index, 24) * 38}ms`, WebkitTapHighlightColor: 'transparent' }}
     >
       {isHighIntent && (
         <span className="absolute left-0 top-4 bottom-4 hidden w-[3px] rounded-r-[2px] bg-accent-dark lg:block" />
@@ -267,3 +268,5 @@ export default function LeadCard({
     </div>
   );
 }
+
+export default memo(LeadCard);

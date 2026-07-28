@@ -1,110 +1,40 @@
 import { NextResponse } from 'next/server';
-import {
-  getValidInvitationByToken,
-  normalizeInviteEmail,
-} from '@/lib/invitations/validate';
-import { normalizeFrenchPhone, validateInviteFields } from '@/lib/invite-account';
-import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { provisionInviteAccount } from '@/lib/invitations/provision-account';
+import { clientIpFromRequest, pruneRateLimitBuckets, rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
-  const supabaseAdmin = createSupabaseAdminClient();
+  pruneRateLimitBuckets();
+  const ip = clientIpFromRequest(request);
+  const rl = rateLimit(`create-collaborator:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Trop de requêtes. Réessayez plus tard.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   try {
-    const { token, firstName, lastName, email, password, phone, acceptedCgu } =
-      await request.json();
-
-    const validationError = validateInviteFields({
-      firstName,
-      lastName,
-      email,
-      password,
-      phone,
-      acceptedCgu,
+    const body = await request.json();
+    const result = await provisionInviteAccount({
+      token: typeof body.token === 'string' ? body.token : '',
+      firstName: typeof body.firstName === 'string' ? body.firstName : '',
+      lastName: typeof body.lastName === 'string' ? body.lastName : '',
+      email: typeof body.email === 'string' ? body.email : '',
+      password: typeof body.password === 'string' ? body.password : '',
+      phone: typeof body.phone === 'string' ? body.phone : '',
+      acceptedCgu: Boolean(body.acceptedCgu),
+      expectedRole: 'collaborateur',
     });
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
-    const normalizedEmail = normalizeInviteEmail(email);
-    const normalizedPhone = normalizeFrenchPhone(phone);
-
-    const { invitation, error: inviteLookupError } = await getValidInvitationByToken(token);
-    if (!invitation || invitation.role !== 'collaborateur' || !invitation.agency_id) {
-      return NextResponse.json(
-        { error: inviteLookupError ?? 'Invitation invalide ou expirée' },
-        { status: 400 },
-      );
-    }
-
-    if (normalizedEmail !== invitation.email) {
-      return NextResponse.json(
-        { error: "L'email ne correspond pas à celui de l'invitation." },
-        { status: 400 },
-      );
-    }
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: normalizedEmail,
-      password,
-      email_confirm: true,
+    return NextResponse.json({
+      success: true,
+      userId: result.userId,
+      role: result.role,
     });
-
-    if (authError || !authData.user) {
-      return NextResponse.json(
-        { error: 'Erreur création utilisateur : ' + (authError?.message ?? 'inconnue') },
-        { status: 500 },
-      );
-    }
-
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
-      id: authData.user.id,
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      phone: normalizedPhone,
-    });
-
-    if (profileError) {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json(
-        { error: 'Erreur création profil : ' + profileError.message },
-        { status: 500 },
-      );
-    }
-
-    const { error: membershipError } = await supabaseAdmin.from('profile_agencies').insert({
-      profile_id: authData.user.id,
-      agency_id: invitation.agency_id,
-      role: 'collaborateur',
-    });
-
-    if (membershipError) {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json(
-        { error: 'Erreur rattachement agence : ' + membershipError.message },
-        { status: 500 },
-      );
-    }
-
-    const { error: activeAgencyError } = await supabaseAdmin
-      .from('profiles')
-      .update({ active_agency_id: invitation.agency_id })
-      .eq('id', authData.user.id);
-
-    if (activeAgencyError) {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json(
-        { error: 'Erreur agence active : ' + activeAgencyError.message },
-        { status: 500 },
-      );
-    }
-
-    await supabaseAdmin
-      .from('invitations')
-      .update({ used_at: new Date().toISOString() })
-      .eq('token', token.trim());
-
-    return NextResponse.json({ success: true, userId: authData.user.id, role: 'collaborateur' as const });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Erreur serveur';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[create-collaborator]', error);
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
   }
 }

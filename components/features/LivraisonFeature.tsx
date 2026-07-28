@@ -37,7 +37,7 @@ export default function LivraisonFeature() {
               loop
               muted
               playsInline
-              preload="auto"
+              preload="metadata"
               className="block w-full rounded-[20px]"
               aria-hidden
             />

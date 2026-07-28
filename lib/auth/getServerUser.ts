@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
   buildAgencyMemberships,
@@ -14,14 +15,18 @@ export interface ServerUser {
   memberships: ProfileAgencyMembership[];
 }
 
-export async function getServerUser(): Promise<ServerUser> {
+async function getServerUserUncached(): Promise<ServerUser> {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { user: null, profile: null, agency: null, memberships: [] };
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, created_at, updated_at')
+    .eq('id', user.id)
+    .single();
   if (!profile) {
     return { user: { id: user.id, email: user.email ?? '' }, profile: null, agency: null, memberships: [] };
   }
@@ -46,7 +51,7 @@ export async function getServerUser(): Promise<ServerUser> {
   const agencyList = agencies ?? [];
 
   const memberships = buildAgencyMemberships(rows, agencyList);
-  const activeAgencyId = resolveActiveAgencyId(profile, memberships);
+  const activeAgencyId = resolveActiveAgencyId(profile as ProfileRow, memberships);
   const activeRole = activeAgencyId ? resolveActiveRole(memberships, activeAgencyId) : null;
 
   if (!activeAgencyId || !activeRole) {
@@ -60,7 +65,7 @@ export async function getServerUser(): Promise<ServerUser> {
 
   const agency = agencyList.find((a) => a.id === activeAgencyId) ?? null;
   const contextualProfile: ContextualProfile = {
-    ...profile,
+    ...(profile as ProfileRow),
     role: activeRole,
   };
 
@@ -71,3 +76,6 @@ export async function getServerUser(): Promise<ServerUser> {
     memberships,
   };
 }
+
+/** Déduplique layout + page dans le même rendu RSC. */
+export const getServerUser = cache(getServerUserUncached);

@@ -376,7 +376,7 @@ export default function HeroVideo() {
           loop
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           aria-hidden
         />
 

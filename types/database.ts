@@ -305,6 +305,8 @@ export type EstimationRequestRow = {
   estimation_confidence: number | null;
   status: string;
   assigned_agency_id: string | null;
+  /** Secret opaque — jamais exposé hors API estimation + client funnel. */
+  edit_token: string;
 };
 
 export type EstimationRequestInsert = {
@@ -346,6 +348,7 @@ export type EstimationRequestInsert = {
   estimation_confidence?: number | null;
   status?: string;
   assigned_agency_id?: string | null;
+  edit_token?: string;
 };
 
 export type Database = {
