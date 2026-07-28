@@ -181,7 +181,7 @@ export async function fetchLeads(supabase: Client): Promise<Lead[]> {
   if (error) {
     throw new Error(`Impossible de charger les prospects : ${error.message}`);
   }
-  return (data ?? []).map((row) => mapDbLeadToLead(row as LeadRow));
+  return (data ?? []).map((row) => mapDbLeadToLead(row as unknown as LeadRow));
 }
 
 function buildInitials(firstName: string, lastName: string): string {
