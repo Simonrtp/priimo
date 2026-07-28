@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import Reveal from '@/components/Reveal';
+import HeroBackground from '@/components/HeroBackground';
 
 // === FEATURE HERO ===
 // En-tête commun des pages /fonctionnalites/* :
-// fond crème unique + H1 display (même échelle / police partout).
+// même fond que le hero d'accueil + H1 display unifié.
 
 type FeatureHeroProps = {
   label: string;
@@ -17,9 +18,10 @@ export default function FeatureHero({ label, h1, accroche, media }: FeatureHeroP
   const hasMedia = Boolean(media);
 
   return (
-    <header className="bg-[#FFF7F0] pt-28 pb-12 sm:pt-32 sm:pb-16">
+    <header className="relative isolate overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20">
+      <HeroBackground />
       <div
-        className={`mx-auto min-w-0 px-5 sm:px-8 ${
+        className={`relative mx-auto min-w-0 px-5 sm:px-8 ${
           hasMedia ? 'max-w-6xl' : 'max-w-[760px]'
         }`}
       >
@@ -46,6 +48,11 @@ export default function FeatureHero({ label, h1, accroche, media }: FeatureHeroP
           )}
         </Reveal>
       </div>
+      {/* Fondu vers la section suivante (fond blanc) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-white sm:h-24"
+      />
     </header>
   );
 }

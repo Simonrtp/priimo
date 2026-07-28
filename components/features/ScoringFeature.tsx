@@ -10,11 +10,14 @@ import LeadCardMock, { SignauxCard } from './blocks/LeadCardMock';
 import SourceGrid from './blocks/SourceGrid';
 import ScoreBreakdown from './blocks/ScoreBreakdown';
 import Statement from './blocks/Statement';
+import ContactsPreview from './blocks/ContactsPreview';
+import { Building2, Store } from 'lucide-react';
 
 // === PAGE FONCTIONNALITÉS · SCORING ===
 // Refonte visuelle : mêmes textes, mise en scène dense et rythmée.
 
 export default function ScoringFeature() {
+  const contacts = getSection(SCORING_PAGE, 'contacts');
   const signal = getSection(SCORING_PAGE, 'signal');
   const sources = getSection(SCORING_PAGE, 'sources');
   const score = getSection(SCORING_PAGE, 'score');
@@ -33,8 +36,28 @@ export default function ScoringFeature() {
           accroche={SCORING_PAGE.accroche}
         />
 
-        {/* 2 — Le signal (texte / carte de lead) */}
+        {/* 2 — Contacts (propriétaire / voisins) — placé haut */}
         <Band tone="white">
+          <FeatureSplit
+            id="contacts"
+            title={contacts.title}
+            paragraphs={contacts.paragraphs}
+            bullets={[
+              {
+                Icon: Building2,
+                text: 'Propriétaire en société : numéro professionnel du dirigeant, quand il est identifiable.',
+              },
+              {
+                Icon: Store,
+                text: 'Sinon : contacts pros des voisins de l’immeuble — pour le terrain et le réseau local.',
+              },
+            ]}
+            visual={<ContactsPreview />}
+          />
+        </Band>
+
+        {/* 3 — Le signal (texte / carte de lead) */}
+        <Band tone="cream">
           <FeatureSplit
             title={signal.title}
             paragraphs={signal.paragraphs}
@@ -42,8 +65,8 @@ export default function ScoringFeature() {
           />
         </Band>
 
-        {/* 3 — Bases de données croisées */}
-        <Band tone="cream">
+        {/* 4 — Bases de données croisées */}
+        <Band tone="white">
           <SectionHead
             id={sources.id}
             title={sources.title}
@@ -52,8 +75,8 @@ export default function ScoringFeature() {
           <SourceGrid />
         </Band>
 
-        {/* 4 — Un score de 0 à 100 (breakdown / texte) */}
-        <Band tone="white">
+        {/* 5 — Un score de 0 à 100 (breakdown / texte) */}
+        <Band tone="cream">
           <FeatureSplit
             reversed
             title={score.title}
@@ -62,8 +85,8 @@ export default function ScoringFeature() {
           />
         </Band>
 
-        {/* 5 — Le pourquoi, toujours affiché (texte / gros plan signaux) */}
-        <Band tone="cream">
+        {/* 6 — Le pourquoi, toujours affiché (texte / gros plan signaux) */}
+        <Band tone="white">
           <FeatureSplit
             id={pourquoi.id}
             title={pourquoi.title}
@@ -72,8 +95,8 @@ export default function ScoringFeature() {
           />
         </Band>
 
-        {/* 6 — Vérification marché (après le scoring) */}
-        <Band tone="white" id={verification.id}>
+        {/* 7 — Vérification marché (après le scoring) */}
+        <Band tone="cream" id={verification.id}>
           <SectionHead
             title={verification.title}
             paragraphs={verification.paragraphs}
@@ -86,7 +109,7 @@ export default function ScoringFeature() {
               {verificationComment.paragraphs[0]}
             </p>
           </div>
-          <div className="mx-auto mt-8 max-w-[680px] rounded-2xl border border-[#3D5A80]/25 bg-[#FFF7F0] px-5 py-4 sm:mt-10 sm:px-6 sm:py-5">
+          <div className="mx-auto mt-8 max-w-[680px] rounded-2xl border border-[#3D5A80]/25 bg-white px-5 py-4 sm:mt-10 sm:px-6 sm:py-5">
             <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#3D5A80]">
               {verificationDisclaimer.title}
             </p>
@@ -96,7 +119,7 @@ export default function ScoringFeature() {
           </div>
         </Band>
 
-        {/* 7 — Manifeste */}
+        {/* 8 — Manifeste */}
         <Statement text={SCORING_PAGE.enClair} />
       </main>
       <FinalCTA />

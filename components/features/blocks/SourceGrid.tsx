@@ -19,7 +19,7 @@ type Source = {
 };
 
 const SOURCES: Source[] = [
-  { Icon: FileText, name: 'DPE — ADEME', brings: 'L’intention de vendre' },
+  { Icon: FileText, name: 'DPE — ADEME', brings: 'L’intention, filtrée hors portails' },
   { Icon: TrendingUp, name: 'DVF', brings: 'Les ventes réelles' },
   { Icon: Building2, name: 'BODACC', brings: 'Les SCI qui bougent' },
   {

@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
-const VIDEO_DESKTOP = "/Priimo%20Video5.mp4";
-const VIDEO_MOBILE = "/Priimo%20Videeo.mp4";
-const MOBILE_MEDIA = "(max-width: 767px)";
+const VIDEO_SRC = "/priimo-video-v2.mp4";
+const AUTOPLAY_DELAY_MS = 1500;
 const CONTROL_COLOR = "#6366F1";
 const MAGNETIC_MAX = 58;
 const BUTTON_FADE_MS = 220;
@@ -18,7 +17,7 @@ function formatTime(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
-/** Vidéo hero : aperçu de la 1re frame, lecture manuelle via bouton central ou clic sur la vidéo. */
+/** Vidéo hero : aperçu de la 1re frame, autoplay après 1,5s, contrôles manuels. */
 export default function HeroVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,7 +25,6 @@ export default function HeroVideo() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [iconMode, setIconMode] = useState<"play" | "pause">("play");
-  const [isMobile, setIsMobile] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -34,39 +32,22 @@ export default function HeroVideo() {
   const [isTimelineFocused, setIsTimelineFocused] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const pendingPlayRef = useRef(false);
+  const autoplayTriggeredRef = useRef(false);
   const targetOffsetRef = useRef({ x: 0, y: 0 });
   const currentOffsetRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
   const progressRafRef = useRef<number | null>(null);
   const isScrubbingRef = useRef(false);
-  const videoSrc = isMobile ? VIDEO_MOBILE : VIDEO_DESKTOP;
   const progressRatio = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
   const showTimeline = isCoarsePointer || isHovered || isScrubbing || isTimelineFocused;
 
   useEffect(() => {
-    const mq = window.matchMedia(MOBILE_MEDIA);
     const pointerMq = window.matchMedia("(pointer: coarse)");
-    const update = () => {
-      setIsMobile(mq.matches);
-      setIsCoarsePointer(pointerMq.matches);
-    };
+    const update = () => setIsCoarsePointer(pointerMq.matches);
     update();
-    mq.addEventListener("change", update);
     pointerMq.addEventListener("change", update);
-    return () => {
-      mq.removeEventListener("change", update);
-      pointerMq.removeEventListener("change", update);
-    };
+    return () => pointerMq.removeEventListener("change", update);
   }, []);
-
-  useEffect(() => {
-    setIsPlaying(false);
-    setIconMode("play");
-    setIsReady(false);
-    setCurrentTime(0);
-    setDuration(0);
-    pendingPlayRef.current = false;
-  }, [videoSrc]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -113,13 +94,13 @@ export default function HeroVideo() {
       video.removeEventListener("durationchange", onDurationChange);
       video.removeEventListener("loadeddata", primeFirstFrame);
     };
-  }, [videoSrc]);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !pendingPlayRef.current) return;
 
-    const startPlayback = () => {
+    const startPending = () => {
       pendingPlayRef.current = false;
       void video.play().catch(() => {
         setIsPlaying(false);
@@ -128,13 +109,37 @@ export default function HeroVideo() {
     };
 
     if (video.readyState >= 2) {
-      startPlayback();
+      startPending();
       return;
     }
 
-    video.addEventListener("loadeddata", startPlayback, { once: true });
-    return () => video.removeEventListener("loadeddata", startPlayback);
-  }, [isReady, videoSrc]);
+    video.addEventListener("loadeddata", startPending, { once: true });
+    return () => video.removeEventListener("loadeddata", startPending);
+  }, [isReady]);
+
+  // Autoplay 1,5s après l'arrivée sur la page (sauf reduced-motion).
+  useEffect(() => {
+    if (autoplayTriggeredRef.current) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timer = window.setTimeout(() => {
+      if (autoplayTriggeredRef.current) return;
+      autoplayTriggeredRef.current = true;
+      const video = videoRef.current;
+      if (!video || !video.paused) return;
+      setIconMode("pause");
+      pendingPlayRef.current = true;
+      if (video.readyState >= 2) {
+        pendingPlayRef.current = false;
+        void video.play().catch(() => {
+          setIsPlaying(false);
+          setIconMode("play");
+        });
+      }
+    }, AUTOPLAY_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -217,12 +222,13 @@ export default function HeroVideo() {
         cancelAnimationFrame(progressRafRef.current);
       }
     };
-  }, [isPlaying, videoSrc]);
+  }, [isPlaying]);
 
   async function startPlayback() {
     const video = videoRef.current;
     if (!video || !video.paused) return;
 
+    autoplayTriggeredRef.current = true;
     setIconMode("pause");
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
@@ -364,14 +370,13 @@ export default function HeroVideo() {
         className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <video
-          key={videoSrc}
           ref={videoRef}
           className={`pointer-events-none block h-full w-full object-cover transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
-          src={videoSrc}
+          src={VIDEO_SRC}
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           aria-hidden
         />
 

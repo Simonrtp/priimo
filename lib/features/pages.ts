@@ -30,19 +30,26 @@ export const SCORING_PAGE: FeaturePageContent = {
   meta: {
     title: 'Scoring prédictif',
     description:
-      'Comment Priimo lit les signaux immobiliers — DPE, DVF, BODACC, copropriétés — pour noter chaque adresse de 0 à 100 et expliquer pourquoi.',
+      'Comment Priimo lit 35 signaux immobiliers — DPE filtrés hors portails, DVF, BODACC, copropriétés — pour noter chaque adresse de 0 à 100 et expliquer pourquoi.',
     path: '/fonctionnalites/scoring',
   },
   label: 'DÉTECTION',
-  h1: 'Comment Priimo sait qui va vendre',
+  h1: 'Comment Priimo sait qui va vendre ?',
   accroche:
-    'Un DPE coûte entre 100 et 250 euros. Personne ne le refait par plaisir. Priimo lit ce genre de signaux dans ses bases de données, et vous dit où aller.',
+    'Priimo croise 35 signaux — DPE filtrés hors portails, veille concurrentielle, copropriété, événements de vie, ventes en cascade… — pour repérer où une vente se prépare, et vous dire où aller.',
   sections: [
+    {
+      key: 'contacts',
+      title: 'Des numéros à appeler, pas seulement une adresse',
+      paragraphs: [
+        'Chaque lead arrive avec des contacts professionnels quand ils existent. Si le bien est détenu par une société, vous pouvez avoir le numéro du propriétaire. Sinon, les numéros pros des voisins de l\'immeuble — commerces, cabinets, lignes professionnelles — pour travailler le terrain et le réseau local.',
+      ],
+    },
     {
       key: 'signal',
       title: 'Le signal que tout le monde a sous les yeux',
       paragraphs: [
-        'Le DPE est obligatoire pour vendre ou louer, il coûte cher, il se commande des mois avant la mise en vente. Un DPE refait sur un bien qui n\'est pas à vendre, c\'est une intention qui se prépare. C\'est la base de la détection Priimo.',
+        'Le DPE est obligatoire pour vendre ou louer, il coûte cher, il se commande des mois avant la mise en vente. Un DPE refait, c\'est souvent une intention qui se prépare — à condition que le bien ne soit pas déjà en ligne. Priimo le filtre systématiquement : chaque DPE est confronté aux annonces des portails (SeLoger, Leboncoin, et les autres). S\'il correspond à un bien déjà publié, il est écarté. Vous ne recevez jamais le DPE d\'un mandat qu\'une autre agence a déjà mis sur le marché.',
       ],
     },
     {
@@ -50,14 +57,14 @@ export const SCORING_PAGE: FeaturePageContent = {
       id: 'sources',
       title: 'Bases de données, croisées',
       paragraphs: [
-        'DPE (ADEME) : l\'intention. DVF : les ventes réelles, l\'historique, les cascades d\'immeuble. BODACC : les SCI qui se dissolvent. Registre des copropriétés : les copropriétés fragilisées. Permis de construire : les chantiers en cours. Cadastre : la localisation précise. Brutes, elles sont illisibles. Priimo les croise.',
+        'Une trentaine de signaux, croisés. DPE (ADEME), filtrés hors portails : l\'intention, pas l\'annonce déjà prise. DVF : les ventes réelles, l\'historique, les cascades d\'immeuble. Événements de vie : les moments où un projet de vente devient probable. BODACC : les SCI qui se dissolvent. Registre des copropriétés : les copropriétés fragilisées. Permis de construire : les chantiers en cours. Cadastre : la localisation précise. Brutes, ces sources sont illisibles. Priimo les croise — et écarte ce qui est déjà chez la concurrence.',
       ],
     },
     {
       key: 'score',
       title: 'Un score, de 0 à 100',
       paragraphs: [
-        'Chaque adresse est notée. Le score combine la fraîcheur du diagnostic, la pression réglementaire (loi Climat), l\'activité de l\'immeuble, la durée de détention et le contexte de la copropriété. Les meilleures adresses remontent.',
+        'Chaque adresse est notée. Le score combine la fraîcheur du diagnostic (déjà vérifié hors portails), la pression réglementaire (loi Climat), l\'activité de l\'immeuble, la durée de détention et le contexte de la copropriété. Les meilleures adresses remontent.',
       ],
     },
     {
@@ -65,7 +72,7 @@ export const SCORING_PAGE: FeaturePageContent = {
       id: 'signaux',
       title: 'Le pourquoi, toujours affiché',
       paragraphs: [
-        'C\'est ce qui distingue Priimo. Chaque lead arrive avec ses signaux expliqués : « DPE G refait il y a 3 semaines », « 2 ventes dans l\'immeuble cette année », « détenu depuis 9 ans ». Un score sans explication est une boîte noire — et une boîte noire ne se défend pas devant un agent. Vous savez pourquoi cette adresse est là, donc vous savez quoi dire.',
+        'C\'est ce qui distingue Priimo. Chaque lead arrive avec ses signaux expliqués : « DPE G refait il y a 3 semaines — absent des portails », « 2 ventes dans l\'immeuble cette année », « détenu depuis 9 ans ». Un score sans explication est une boîte noire — et une boîte noire ne se défend pas devant un agent. Vous savez pourquoi cette adresse est là, donc vous savez quoi dire.',
       ],
     },
     {
@@ -74,8 +81,8 @@ export const SCORING_PAGE: FeaturePageContent = {
       title:
         'Un diagnostic récent ne suffit pas. Encore faut-il que le bien soit libre.',
       paragraphs: [
-        'La plupart des diagnostics fraîchement réalisés correspondent à des biens déjà confiés à une agence. C\'est la raison pour laquelle une simple liste de DPE ne vaut rien.',
-        'Priimo va plus loin : chaque adresse retenue est confrontée aux annonces réellement en ligne. Si le bien est en vente quelque part, il est retiré de votre liste avant livraison.',
+        'La plupart des diagnostics fraîchement réalisés correspondent à des biens déjà confiés à une agence. C\'est la raison pour laquelle une simple liste de DPE ne vaut rien — et pourquoi la veille concurrentielle est au cœur de Priimo.',
+        'Chaque adresse retenue est confrontée aux annonces réellement en ligne sur SeLoger, Leboncoin et les autres portails. Si le bien est en vente quelque part, il est retiré de votre liste avant livraison. Résultat : vous ne recevez jamais un DPE « après coup », quand une autre agence du secteur a déjà publié.',
         'Ce qui reste est l\'anomalie utile : un propriétaire qui a engagé la démarche de vente, et dont le bien n\'est apparu nulle part.',
       ],
     },
@@ -83,7 +90,7 @@ export const SCORING_PAGE: FeaturePageContent = {
       key: 'verification-comment',
       title: 'Comment',
       paragraphs: [
-        'Une annonce ne publie jamais l\'adresse. Elle publie en revanche la carte d\'identité du bien : surface au mètre près, classe énergétique, classe GES, consommation, étage, localisation approchée. Le diagnostic contient la même carte d\'identité — plus l\'adresse. Priimo rapproche les deux. Quand tout concorde, le bien est déjà sur le marché.',
+        'Une annonce ne publie jamais l\'adresse. Elle publie en revanche la carte d\'identité du bien : surface au mètre près, classe énergétique, classe GES, consommation, étage, localisation approchée. Le diagnostic contient la même carte d\'identité — plus l\'adresse. Priimo rapproche les deux sur les portails. Quand tout concorde, le bien est déjà sur le marché : le DPE est filtré, il ne vous est pas livré.',
       ],
     },
     {
@@ -94,7 +101,8 @@ export const SCORING_PAGE: FeaturePageContent = {
       ],
     },
   ],
-  enClair: 'Priimo ne devine pas. Il lit des faits vérifiables, les croise, et vous montre lesquels comptent.',
+  enClair:
+    'Priimo ne vous donne pas des DPE au hasard. Il lit des faits vérifiables, filtre ce qui est déjà en ligne chez la concurrence, et vous montre ce qui reste vraiment ouvert.',
 };
 
 export const SCI_PAGE: FeaturePageContent = {

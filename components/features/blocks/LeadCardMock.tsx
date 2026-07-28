@@ -18,7 +18,7 @@ const SIGNALS: MockSignal[] = [
   {
     Icon: FileText,
     lead: 'DPE G',
-    detail: 'fait il y a 3 semaines',
+    detail: 'fait il y a 3 semaines · hors portails',
     tint: '#C2410C',
     chip: '#FFF0E6',
   },
