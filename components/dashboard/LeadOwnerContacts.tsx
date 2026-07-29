@@ -15,9 +15,6 @@ import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 const OWNER_PHONE_HINT =
   "Contact professionnel. L'échange doit porter sur la société et le bien qu'elle détient. Le démarchage téléphonique d'un particulier sans consentement préalable est interdit depuis le 11 août 2026.";
 
-const COMPANY_NOTICE =
-  "Bien détenu par une société — l'échange doit porter sur la société et le bien qu'elle détient.";
-
 const CATEGORIE_BADGE: Record<ImmeubleContactCategorie, string> = {
   commerce: 'bg-[#E8743C]/12 text-[#C25E2C]',
   professionnel: 'bg-[#3D5A80]/12 text-[#3D5A80]',
@@ -203,25 +200,12 @@ function OwnerSection({ lead }: { lead: Lead }) {
         )}
 
         {company && (
-          <div className="space-y-2">
-            <div>
-              <p className="text-mute" style={{ fontSize: 11 }}>
-                Société propriétaire
-              </p>
-              <p className="mt-0.5 font-medium text-ink" style={{ fontSize: 13 }}>
-                {company}
-              </p>
-            </div>
-            <p
-              className="rounded-xl px-3 py-2.5 text-pretty"
-              style={{
-                fontSize: 12,
-                lineHeight: 1.45,
-                backgroundColor: '#FFF7F0',
-                color: '#3D5A80',
-              }}
-            >
-              {COMPANY_NOTICE}
+          <div>
+            <p className="text-mute" style={{ fontSize: 11 }}>
+              Société propriétaire
+            </p>
+            <p className="mt-0.5 font-medium text-ink" style={{ fontSize: 13 }}>
+              {company}
             </p>
           </div>
         )}

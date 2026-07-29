@@ -170,6 +170,13 @@ export default function ProspectsClient({
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   }, []);
 
+  const handleScriptApprocheChange = useCallback(
+    (id: string, script: NonNullable<Lead['scriptApproche']>) => {
+      applyLeadPatch(id, { scriptApproche: script });
+    },
+    [applyLeadPatch],
+  );
+
   const updateLeadHandler = useCallback(
     async (id: string, patch: Partial<Lead>) => {
       const previous = leads.find((l) => l.id === id);
@@ -361,6 +368,7 @@ export default function ProspectsClient({
         onClose={() => setSelectedLeadId(null)}
         onUpdateLead={updateLeadHandler}
         onDeleteLead={deleteLeadHandler}
+        onScriptApprocheChange={handleScriptApprocheChange}
         canAssignLead={isDirector}
         canDeleteLead={isDirector}
         currentUserId={profile?.id ?? null}
@@ -372,6 +380,7 @@ export default function ProspectsClient({
           onClose={() => setSelectedLeadId(null)}
           onUpdateLead={updateLeadHandler}
           onDeleteLead={deleteLeadHandler}
+          onScriptApprocheChange={handleScriptApprocheChange}
           canAssignLead={isDirector}
           canDeleteLead={isDirector}
           currentUserId={profile?.id ?? null}

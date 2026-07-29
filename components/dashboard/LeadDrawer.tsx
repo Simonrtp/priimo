@@ -11,6 +11,7 @@ interface LeadDrawerProps {
   onClose: () => void;
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   onDeleteLead: (id: string) => Promise<void>;
+  onScriptApprocheChange?: (id: string, script: NonNullable<Lead['scriptApproche']>) => void;
   canAssignLead?: boolean;
   canDeleteLead?: boolean;
   currentUserId?: string | null;
@@ -22,6 +23,7 @@ export default function LeadDrawer({
   onClose,
   onUpdateLead,
   onDeleteLead,
+  onScriptApprocheChange,
   canAssignLead = true,
   canDeleteLead = false,
   currentUserId,
@@ -108,6 +110,11 @@ export default function LeadDrawer({
               lead={lead}
               onUpdateLead={onUpdateLead}
               onDeleteLead={onDeleteLead}
+              onScriptApprocheChange={
+                onScriptApprocheChange
+                  ? (script) => onScriptApprocheChange(lead.id, script)
+                  : undefined
+              }
               canAssignLead={canAssignLead}
               canDeleteLead={canDeleteLead}
               currentUserId={currentUserId}

@@ -158,19 +158,10 @@ function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
   }
 
   return (
-    <div className="flex items-start gap-2 py-2">
-      <span
-        className="min-w-0 flex-1 font-semibold leading-snug text-ink"
-        style={{ fontSize: 13 }}
-      >
+    <div className="py-2">
+      <span className="font-semibold leading-snug text-ink" style={{ fontSize: 13 }}>
         {headParts.join(' — ')}
       </span>
-      <InfoTooltip
-        content="Vente récente dans l’immeuble"
-        placement="top-end"
-        iconSize={13}
-        className="pt-0.5"
-      />
     </div>
   );
 }

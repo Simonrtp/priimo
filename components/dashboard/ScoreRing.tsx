@@ -45,8 +45,8 @@ export default function ScoreRing({
         height: size,
         transform: emphasized ? 'scale(1.14)' : 'scale(1)',
         boxShadow: emphasized
-          ? `0 0 0 4px ${glowColor ?? 'rgba(232, 93, 44, 0.28)'}, 0 6px 16px rgba(0,0,0,0.18)`
-          : '0 1px 4px rgba(0,0,0,0.08)',
+          ? `0 0 0 4px ${glowColor ?? 'rgba(232, 93, 44, 0.28)'}`
+          : 'none',
       }}
       aria-label={`Score ${score}`}
     >

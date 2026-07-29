@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, Mail as MailIcon, Phone as PhoneIcon } from 'lucide-react';
-import { toast } from 'sonner';
 import type { Lead, TeamMember } from '@/types/lead';
 import { isSciDirectorPending } from '@/types/lead';
+import { useUser } from '@/lib/hooks/useUser';
 import { ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
+import { notifyError, notifySuccess } from '@/lib/notify';
 import { formatDate } from '@/lib/utils';
 import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
@@ -21,10 +22,68 @@ import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 const DEFAULT_SELECT =
   'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10';
 
+/** En-tête d’une note : date + auteur + heure. */
+function formatNoteMeta(author: string, at: Date = new Date()): string {
+  const day = formatDate(at.toISOString());
+  const time = at.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `[${day}] Fait par : ${author} à ${time}`;
+}
+
+function resolveAuthorName(
+  profile: { first_name?: string | null; last_name?: string | null },
+  currentUserId: string | null | undefined,
+  teamMembers: TeamMember[],
+): string {
+  const fromProfile = [profile.first_name, profile.last_name]
+    .map((s) => (typeof s === 'string' ? s.trim() : ''))
+    .filter(Boolean)
+    .join(' ');
+  if (fromProfile) return fromProfile;
+  if (currentUserId) {
+    const member = teamMembers.find((m) => m.id === currentUserId);
+    if (member?.fullName?.trim()) return member.fullName.trim();
+  }
+  return 'Agent';
+}
+
+type NoteEntry = { meta: string | null; body: string };
+
+/** Découpe le blob notes pour un affichage lisible (rétrocompat anciennes notes). */
+function parseNotesEntries(raw: string): NoteEntry[] {
+  return raw
+    .split(/\n\n+/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const lines = block.split('\n');
+      const first = lines[0] ?? '';
+      const authored = first.match(
+        /^\[([^\]]+)\]\s*Fait par\s*:\s*(.+?)\s+à\s+(\d{1,2}[:h]\d{2})\s*$/i,
+      );
+      if (authored) {
+        return {
+          meta: `${authored[1]} · Fait par : ${authored[2]} à ${authored[3].replace('h', ':')}`,
+          body: lines.slice(1).join('\n').trim() || '—',
+        };
+      }
+      const dated = first.match(/^\[([^\]]+)\]\s*(.*)$/);
+      if (dated) {
+        const restSameLine = dated[2]?.trim() ?? '';
+        const rest = [restSameLine, ...lines.slice(1)].filter(Boolean).join('\n').trim();
+        return {
+          meta: dated[1],
+          body: rest || '—',
+        };
+      }
+      return { meta: null, body: block };
+    });
+}
+
 type LeadDetailBodyProps = {
   lead: Lead;
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   onDeleteLead: (id: string) => Promise<void>;
+  onScriptApprocheChange?: (script: NonNullable<Lead['scriptApproche']>) => void;
   canAssignLead?: boolean;
   canDeleteLead?: boolean;
   currentUserId?: string | null;
@@ -95,6 +154,7 @@ export default function LeadDetailBody({
   lead,
   onUpdateLead,
   onDeleteLead,
+  onScriptApprocheChange,
   canAssignLead = true,
   canDeleteLead = false,
   currentUserId,
@@ -103,8 +163,19 @@ export default function LeadDetailBody({
   headerCompact = false,
   headerTitleId,
 }: LeadDetailBodyProps) {
+  const { profile } = useUser();
   const [note, setNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+
+  const authorName = useMemo(
+    () => resolveAuthorName(profile, currentUserId, teamMembers),
+    [profile, currentUserId, teamMembers],
+  );
+
+  const noteEntries = useMemo(
+    () => (lead.notes?.trim() ? parseNotesEntries(lead.notes) : []),
+    [lead.notes],
+  );
 
   useEffect(() => {
     setNote('');
@@ -114,20 +185,18 @@ export default function LeadDetailBody({
     const trimmed = note.trim();
     if (!trimmed) return;
     setSavingNote(true);
-    const stamp = formatDate(new Date().toISOString());
-    const nextNotes = lead.notes?.trim()
-      ? `${lead.notes.trim()}\n\n[${stamp}] ${trimmed}`
-      : trimmed;
+    const entry = `${formatNoteMeta(authorName)}\n${trimmed}`;
+    const nextNotes = lead.notes?.trim() ? `${lead.notes.trim()}\n\n${entry}` : entry;
     try {
       await onUpdateLead(lead.id, { notes: nextNotes });
       setNote('');
-      toast.success('Note enregistrée');
+      notifySuccess('Note enregistrée', { id: `note-${lead.id}` });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer la note.");
+      notifyError(e instanceof Error ? e.message : "Impossible d'enregistrer la note.");
     } finally {
       setSavingNote(false);
     }
-  }, [lead.id, lead.notes, note, onUpdateLead]);
+  }, [authorName, lead.id, lead.notes, note, onUpdateLead]);
 
   const isEnterprise = lead.ownerType === 'entreprise';
   const isMobile = variant === 'mobile';
@@ -158,7 +227,7 @@ export default function LeadDetailBody({
 
       <LeadOwnerBlock lead={lead} />
 
-      <LeadApproachScript lead={lead} />
+      <LeadApproachScript lead={lead} onScriptChange={onScriptApprocheChange} />
 
       {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
         <DetailSection>
@@ -220,13 +289,27 @@ export default function LeadDetailBody({
               }`}
               style={{ fontSize: isMobile ? 14 : 13, lineHeight: 1.6 }}
             />
-            {lead.notes?.trim() && (
-              <p
-                className="mt-2 whitespace-pre-wrap rounded-xl border border-black/[0.06] bg-white px-4 py-3 text-ink"
-                style={{ fontSize: isMobile ? 13 : 12.5, lineHeight: 1.55 }}
-              >
-                {lead.notes}
-              </p>
+            {noteEntries.length > 0 && (
+              <ul className="mt-2 space-y-2">
+                {noteEntries.map((entry, index) => (
+                  <li
+                    key={`${entry.meta ?? 'note'}-${index}`}
+                    className="rounded-xl border border-black/[0.06] bg-white px-4 py-3"
+                  >
+                    {entry.meta && (
+                      <p className="text-mute" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                        {entry.meta}
+                      </p>
+                    )}
+                    <p
+                      className={`whitespace-pre-wrap text-ink ${entry.meta ? 'mt-1' : ''}`}
+                      style={{ fontSize: isMobile ? 13 : 12.5, lineHeight: 1.55 }}
+                    >
+                      {entry.body}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             )}
             <button
               type="button"

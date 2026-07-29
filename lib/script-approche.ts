@@ -16,6 +16,12 @@ export type ApproachVariante = {
 
 export type ScriptApproche = Partial<Record<ApproachCanal, ApproachVariante>>;
 
+/** Format persisté en base (pipeline + génération on-demand). */
+export type ScriptApprocheStored = {
+  genere_le: string;
+  variantes: ScriptApproche;
+};
+
 const CANAL_LABELS: Record<ApproachCanal, string> = {
   porte: 'À la porte',
   telephone: 'Par téléphone',
@@ -24,6 +30,9 @@ const CANAL_LABELS: Record<ApproachCanal, string> = {
 
 /** Ordre d'affichage des onglets. */
 export const APPROACH_CANAL_ORDER: ApproachCanal[] = ['porte', 'telephone', 'courrier'];
+
+/** Limite haute — le prompt d'appel doit tenir entier (pas de coupe mid-phrase). */
+export const MAX_OUVERTURE_CHARS = 1200;
 
 export function approachCanalLabel(canal: ApproachCanal): string {
   return CANAL_LABELS[canal];
@@ -41,6 +50,12 @@ function pickString(obj: Record<string, unknown>, keys: string[]): string | null
     if (value) return value;
   }
   return null;
+}
+
+function truncateOuverture(text: string | null): string | null {
+  if (!text) return null;
+  if (text.length <= MAX_OUVERTURE_CHARS) return text;
+  return `${text.slice(0, MAX_OUVERTURE_CHARS - 1).trimEnd()}…`;
 }
 
 function parseObjections(raw: unknown): ApproachObjection[] {
@@ -64,7 +79,9 @@ function parseVariante(raw: unknown): ApproachVariante | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const obj = raw as Record<string, unknown>;
   const angle = pickString(obj, ['angle', 'note', 'conseil', 'pour_vous']);
-  const ouverture = pickString(obj, ['ouverture', 'opening', 'script', 'lettre', 'texte']);
+  const ouverture = truncateOuverture(
+    pickString(obj, ['ouverture', 'opening', 'script', 'lettre', 'texte']),
+  );
   const question = pickString(obj, ['question', 'relance', 'puis']);
   const sortie = pickString(obj, ['sortie', 'closing', 'conclusion', 'conclure']);
   const objections = parseObjections(obj.objections ?? obj.reponses ?? obj.faq);
@@ -76,7 +93,7 @@ function parseVariante(raw: unknown): ApproachVariante | null {
   return { angle, ouverture, question, objections, sortie };
 }
 
-function normalizeCanalKey(key: string): ApproachCanal | null {
+export function normalizeCanalKey(key: string): ApproachCanal | null {
   const k = key.trim().toLowerCase().replace(/[\s-]+/g, '_');
   if (
     k === 'porte' ||
@@ -103,9 +120,25 @@ function normalizeCanalKey(key: string): ApproachCanal | null {
   return null;
 }
 
+function parseCanauxFromEntries(
+  entries: Iterable<[string, unknown]>,
+  into: ScriptApproche,
+): void {
+  for (const [key, value] of entries) {
+    const canal = normalizeCanalKey(key);
+    if (!canal) continue;
+    const variante = parseVariante(value);
+    if (!variante) continue;
+    if (!into[canal]) into[canal] = variante;
+  }
+}
+
 /**
  * Parse défensif de `script_approche` (jsonb).
- * Retourne null s'il n'y a aucune variante exploitable.
+ * Accepte :
+ * - format simple : `{ intro }` ou `{ texte }`
+ * - format plat : `{ porte, telephone?, courrier }`
+ * - format pipeline / on-demand : `{ genere_le, variantes: { … } }`
  */
 export function parseScriptApproche(raw: unknown): ScriptApproche | null {
   if (raw == null) return null;
@@ -118,13 +151,27 @@ export function parseScriptApproche(raw: unknown): ScriptApproche | null {
   }
   if (typeof raw !== 'object' || Array.isArray(raw)) return null;
 
+  const root = raw as Record<string, unknown>;
   const result: ScriptApproche = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    const canal = normalizeCanalKey(key);
-    if (!canal) continue;
-    const variante = parseVariante(value);
-    if (!variante) continue;
-    if (!result[canal]) result[canal] = variante;
+
+  const nested = root.variantes;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    parseCanauxFromEntries(Object.entries(nested as Record<string, unknown>), result);
+  }
+
+  // Rétrocompat : canaux à la racine (ignore genere_le / variantes / intro).
+  parseCanauxFromEntries(Object.entries(root), result);
+
+  // Format simple on-demand : un seul texte d'intro.
+  const intro = asTrimmedString(root.intro) ?? asTrimmedString(root.texte);
+  if (intro && !result.porte?.ouverture) {
+    result.porte = {
+      angle: null,
+      ouverture: truncateOuverture(intro),
+      question: null,
+      objections: [],
+      sortie: null,
+    };
   }
 
   return Object.keys(result).length > 0 ? result : null;
@@ -132,4 +179,86 @@ export function parseScriptApproche(raw: unknown): ScriptApproche | null {
 
 export function listAvailableCanaux(script: ScriptApproche): ApproachCanal[] {
   return APPROACH_CANAL_ORDER.filter((canal) => Boolean(script[canal]));
+}
+
+/** Texte unique affiché à l'agent (intro bien) — premier ouverture dispo. */
+export function extractApproachIntro(script: ScriptApproche): string | null {
+  for (const canal of APPROACH_CANAL_ORDER) {
+    const text = script[canal]?.ouverture?.trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+/**
+ * Met en évidence chiffres / faits clés (**markdown** + détection auto).
+ * Retourne des segments pour rendu React (gras = true).
+ */
+export function emphasizeApproachFacts(
+  text: string,
+): Array<{ text: string; bold: boolean }> {
+  // 1) Honorer le markdown **…**
+  const withMd: Array<{ text: string; bold: boolean }> = [];
+  const mdRe = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = mdRe.exec(text)) !== null) {
+    if (m.index > last) withMd.push({ text: text.slice(last, m.index), bold: false });
+    withMd.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) withMd.push({ text: text.slice(last), bold: false });
+  if (withMd.length === 0) withMd.push({ text, bold: false });
+
+  // 2) Sur le plain text, gras auto sur chiffres / infos métier.
+  const factRe =
+    /(?:classe(?:\s+le\s+bien)?\s+en\s+[A-G]|catégorie\s+[A-G]|\ben\s+[A-G]\b|\d+(?:[.,]\d+)?\s*(?:m²|m2|%)|\d+\s*(?:ventes?|ans?)|\d+(?:er|ère|eme|ème)\s*étage|\d+(?:er|ère|eme|ème)\b|20\d{2}|au\s+\d+(?:er|ère|eme|ème)\b)/gi;
+
+  const out: Array<{ text: string; bold: boolean }> = [];
+  for (const part of withMd) {
+    if (part.bold) {
+      out.push(part);
+      continue;
+    }
+    let i = 0;
+    factRe.lastIndex = 0;
+    let fm: RegExpExecArray | null;
+    while ((fm = factRe.exec(part.text)) !== null) {
+      if (fm.index > i) out.push({ text: part.text.slice(i, fm.index), bold: false });
+      out.push({ text: fm[0], bold: true });
+      i = fm.index + fm[0].length;
+    }
+    if (i < part.text.length) out.push({ text: part.text.slice(i), bold: false });
+  }
+  return out;
+}
+
+/** Version plain (sans **) pour la copie presse-papier. */
+export function stripApproachMarkup(text: string): string {
+  return text.replace(/\*\*([^*]+)\*\*/g, '$1');
+}
+
+export function toStoredScriptApproche(script: ScriptApproche): ScriptApprocheStored {
+  return {
+    genere_le: new Date().toISOString(),
+    variantes: script,
+  };
+}
+
+/** Persistance du format simple (un texte). */
+export function toStoredIntro(intro: string): ScriptApprocheStored & { intro: string } {
+  const text = truncateOuverture(intro.trim()) ?? intro.trim();
+  return {
+    genere_le: new Date().toISOString(),
+    intro: text,
+    variantes: {
+      porte: {
+        angle: null,
+        ouverture: text,
+        question: null,
+        objections: [],
+        sortie: null,
+      },
+    },
+  };
 }

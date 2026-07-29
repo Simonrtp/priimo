@@ -85,9 +85,11 @@ export default function DashboardTourProvider({ children }: { children: React.Re
 
   // Première connexion : lance la visite seulement s'il y a des leads.
   // Sans leads : message d'accueil une fois (session), sans écrire le flag.
+  // Ne jamais spammer un compte déjà actif (visite guidée faite, ou leads déjà vus).
   useEffect(() => {
     if (!onProspects || autoTriggered.current || mode !== null) return;
     if (profile.onboarding_completed_at) return;
+    if (profile.leads_last_seen_at) return;
 
     const t = window.setTimeout(() => {
       if (!hasLeadCardsInDom()) {
@@ -110,7 +112,7 @@ export default function DashboardTourProvider({ children }: { children: React.Re
     }, 600);
 
     return () => window.clearTimeout(t);
-  }, [onProspects, profile.onboarding_completed_at, mode]);
+  }, [onProspects, profile.onboarding_completed_at, profile.leads_last_seen_at, mode]);
 
   // Relance manuelle demandée depuis une autre page : attendre d'être revenu.
   useEffect(() => {
