@@ -62,9 +62,6 @@ export async function sendInvitationEmail(params: CollaboratorInvitationParams):
                 <li>Pour chaque bien, le signal qui explique pourquoi il remonte (DPE récent, succession, dissolution…)</li>
                 <li>Une carte pour organiser vos tournées de prospection sur le terrain</li>
               </ul>
-              <p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#6B7280;">
-                Sur les particuliers&nbsp;: coordonnées propriétaire prochainement (conformité RGPD en cours).
-              </p>
               <p style="margin:0;font-size:14px;line-height:1.55;color:#6B7280;">
                 Créez votre compte en un clic ci-dessous — un guide de 30 secondes vous accueille à la première connexion.
               </p>`,

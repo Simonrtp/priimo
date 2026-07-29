@@ -3,6 +3,7 @@ import type { Database, LeadRow, ProfileRow } from '@/types/database';
 import type { Lead, LeadSignal, MlFeedback, TeamMember } from '@/types/lead';
 import { parseDisplaySignals } from '@/lib/display-signals';
 import { parseContactsImmeuble } from '@/lib/lead-contacts';
+import { parseScriptApproche } from '@/lib/script-approche';
 
 type Client = SupabaseClient<Database>;
 
@@ -108,6 +109,7 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     ownerSiren: row.owner_siren ?? null,
     ownerPhone: row.owner_phone ?? null,
     contactsImmeuble: parseContactsImmeuble(row.contacts_immeuble),
+    scriptApproche: parseScriptApproche(row.script_approche),
     deliveredAt: row.delivered_at ?? row.created_at.slice(0, 10),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -164,6 +166,7 @@ export const LEADS_CLIENT_SELECT = [
   'owner_siren',
   'owner_phone',
   'contacts_immeuble',
+  'script_approche',
   'delivered_at',
   'created_at',
   'updated_at',

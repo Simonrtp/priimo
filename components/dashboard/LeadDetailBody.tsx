@@ -7,7 +7,6 @@ import type { Lead, TeamMember } from '@/types/lead';
 import { isSciDirectorPending } from '@/types/lead';
 import { ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 import { formatDate } from '@/lib/utils';
-import { hasOwnerBlock } from '@/lib/lead-contacts';
 import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
@@ -16,7 +15,7 @@ import LeadMarketCheck from './LeadMarketCheck';
 import { LeadImmeubleContacts, LeadOwnerBlock } from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
-import ParticulierContactPendingHint from './ParticulierContactPendingHint';
+import LeadApproachScript from './LeadApproachScript';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 
 const DEFAULT_SELECT =
@@ -149,12 +148,6 @@ export default function LeadDetailBody({
         titleId={headerTitleId}
       />
 
-      {!isEnterprise && !hasOwnerBlock(lead) && (
-        <div className="mt-4">
-          <ParticulierContactPendingHint />
-        </div>
-      )}
-
       {isEnterprise && (
         <EnterpriseBlock
           lead={lead}
@@ -164,6 +157,8 @@ export default function LeadDetailBody({
       )}
 
       <LeadOwnerBlock lead={lead} />
+
+      <LeadApproachScript lead={lead} />
 
       {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
         <DetailSection>

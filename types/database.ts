@@ -148,6 +148,11 @@ export type LeadRow = {
   owner_phone?: string | null;
   /** Autres sociétés présentes à l'adresse (jsonb). */
   contacts_immeuble?: unknown;
+  /**
+   * Scripts d'approche terrain (jsonb) : variantes porte / téléphone / courrier.
+   * Null ou absent = pas de section « Votre approche ».
+   */
+  script_approche?: unknown;
   /** Date du lot pipeline (YYYY-MM-DD). */
   delivered_at?: string;
   created_at: string;

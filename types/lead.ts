@@ -1,6 +1,7 @@
 import type { LeadMlFeedbackDb, LeadOwnerTypeDb, LeadStatusDb } from '@/types/database';
 import type { DisplaySignals } from '@/lib/display-signals';
 import type { ImmeubleContact } from '@/lib/lead-contacts';
+import type { ScriptApproche } from '@/lib/script-approche';
 import type { LeadFilters } from '@/lib/lead-filters';
 import { EMPTY_LEAD_FILTERS } from '@/lib/lead-filters';
 
@@ -103,6 +104,8 @@ export interface Lead {
   ownerPhone: string | null;
   /** Sociétés présentes dans l'immeuble (déjà filtrées : type immeuble + téléphone). */
   contactsImmeuble: ImmeubleContact[];
+  /** Scripts d'approche terrain (null = section masquée). */
+  scriptApproche: ScriptApproche | null;
   /** Date du lot pipeline (YYYY-MM-DD). */
   deliveredAt: string;
   createdAt: string;
