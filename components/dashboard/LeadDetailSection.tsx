@@ -33,7 +33,7 @@ export function DetailSection({
   return (
     <section
       data-tour={dataTour}
-      className={`border-t border-black/[0.05] py-5 first:border-t-0 first:pt-0 ${className}`}
+      className={`min-w-0 border-t border-black/[0.05] py-5 first:border-t-0 first:pt-6 ${className}`}
     >
       {children}
     </section>

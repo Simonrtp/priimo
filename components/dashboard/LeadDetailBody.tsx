@@ -1,26 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Mail as MailIcon, Phone as PhoneIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Lead, TeamMember } from '@/types/lead';
-import { isSciDirectorPending } from '@/types/lead';
 import { useUser } from '@/lib/hooks/useUser';
-import { ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { formatDate } from '@/lib/utils';
 import LeadDetailHeader from './LeadDetailHeader';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadAssigneeControl from './LeadAssigneeControl';
-import LeadMarketCheck from './LeadMarketCheck';
-import { LeadImmeubleContacts, LeadOwnerBlock } from './LeadOwnerContacts';
+import { LeadWhoYouSpeakTo } from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
-import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import LeadApproachScript from './LeadApproachScript';
+import LeadActionBar from './LeadActionBar';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 
-const DEFAULT_SELECT =
-  'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10';
+const SUIVI_SELECT =
+  'flex w-full items-center justify-between gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-left text-[12.5px] text-ink/85 transition-colors hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10';
 
 /** En-tête d’une note : date + auteur + heure. */
 function formatNoteMeta(author: string, at: Date = new Date()): string {
@@ -46,7 +42,12 @@ function resolveAuthorName(
   return 'Agent';
 }
 
-type NoteEntry = { meta: string | null; body: string };
+type NoteEntry = {
+  dateLabel: string | null;
+  authorLabel: string | null;
+  body: string;
+  hasAuthor: boolean;
+};
 
 /** Découpe le blob notes pour un affichage lisible (rétrocompat anciennes notes). */
 function parseNotesEntries(raw: string): NoteEntry[] {
@@ -62,8 +63,10 @@ function parseNotesEntries(raw: string): NoteEntry[] {
       );
       if (authored) {
         return {
-          meta: `${authored[1]} · Fait par : ${authored[2]} à ${authored[3].replace('h', ':')}`,
+          dateLabel: authored[1],
+          authorLabel: `Fait par : ${authored[2]} à ${authored[3].replace('h', ':')}`,
           body: lines.slice(1).join('\n').trim() || '—',
+          hasAuthor: true,
         };
       }
       const dated = first.match(/^\[([^\]]+)\]\s*(.*)$/);
@@ -71,11 +74,13 @@ function parseNotesEntries(raw: string): NoteEntry[] {
         const restSameLine = dated[2]?.trim() ?? '';
         const rest = [restSameLine, ...lines.slice(1)].filter(Boolean).join('\n').trim();
         return {
-          meta: dated[1],
+          dateLabel: dated[1],
+          authorLabel: null,
           body: rest || '—',
+          hasAuthor: false,
         };
       }
-      return { meta: null, body: block };
+      return { dateLabel: null, authorLabel: null, body: block, hasAuthor: false };
     });
 }
 
@@ -94,59 +99,6 @@ type LeadDetailBodyProps = {
   headerTitleId?: string;
 };
 
-function EnterpriseBlock({
-  lead,
-  linkClassName,
-  directorSize,
-}: {
-  lead: Lead;
-  linkClassName: string;
-  directorSize: number;
-}) {
-  const directorPending = isSciDirectorPending(lead);
-
-  return (
-    <DetailSection>
-      <DetailSectionLabel>Société propriétaire</DetailSectionLabel>
-      <div className="space-y-3">
-        <p className="flex items-center gap-2 font-semibold text-ink" style={{ fontSize: 14 }}>
-          <Building2 size={ICON_SIZE.sm} color={ICON_COLORS.muted500} strokeWidth={2} aria-hidden />
-          {lead.companyName ?? '—'}
-        </p>
-        {directorPending ? (
-          <SciDirectorPendingNotice />
-        ) : (
-          <div className="space-y-2">
-            <p className="text-mute" style={{ fontSize: 11 }}>
-              Dirigeant
-            </p>
-            <p className="font-medium text-ink" style={{ fontSize: directorSize }}>
-              {lead.companyDirector ?? '—'}
-            </p>
-            {lead.companyPhone && (
-              <a href={`tel:${lead.companyPhone}`} className={linkClassName} style={{ fontSize: directorSize }}>
-                <PhoneIcon size={ICON_SIZE.sm} color={ICON_COLORS.green600} strokeWidth={2} aria-hidden />
-                {lead.companyPhone}
-              </a>
-            )}
-            {lead.companyEmail && (
-              <a href={`mailto:${lead.companyEmail}`} className={linkClassName} style={{ fontSize: directorSize }}>
-                <MailIcon size={ICON_SIZE.sm} color={ICON_COLORS.neutral} strokeWidth={2} aria-hidden />
-                {lead.companyEmail}
-              </a>
-            )}
-            {!lead.companyPhone && !lead.companyEmail && (
-              <p className="text-mute" style={{ fontSize: 12 }}>
-                Coordonnées non disponibles.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </DetailSection>
-  );
-}
-
 /**
  * Corps partagé drawer desktop + plein écran mobile.
  */
@@ -164,6 +116,7 @@ export default function LeadDetailBody({
   headerTitleId,
 }: LeadDetailBodyProps) {
   const { profile } = useUser();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [note, setNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
@@ -172,9 +125,15 @@ export default function LeadDetailBody({
     [profile, currentUserId, teamMembers],
   );
 
-  const noteEntries = useMemo(
-    () => (lead.notes?.trim() ? parseNotesEntries(lead.notes) : []),
-    [lead.notes],
+  const noteEntries = useMemo(() => {
+    const parsed = lead.notes?.trim() ? parseNotesEntries(lead.notes) : [];
+    // Plus récente en premier (les notes sont appendées en fin de blob).
+    return [...parsed].reverse();
+  }, [lead.notes]);
+
+  const showAuthorOnNotes = useMemo(
+    () => noteEntries.length > 0 && noteEntries.every((e) => e.hasAuthor),
+    [noteEntries],
   );
 
   useEffect(() => {
@@ -198,147 +157,152 @@ export default function LeadDetailBody({
     }
   }, [authorName, lead.id, lead.notes, note, onUpdateLead]);
 
-  const isEnterprise = lead.ownerType === 'entreprise';
   const isMobile = variant === 'mobile';
-  const selectClass = isMobile
-    ? 'flex w-full items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-4 py-3 text-left text-[14px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100'
-    : DEFAULT_SELECT;
   const noteDirty = Boolean(note.trim());
-  const canSave = noteDirty && !savingNote;
-  const linkClass = isMobile
-    ? 'flex min-h-[44px] items-center gap-2 font-medium text-[#3D5A80]'
-    : 'flex items-center gap-2 text-accent-dark hover:underline';
+  const canAdd = noteDirty && !savingNote;
+  const padX = isMobile ? 'px-4 min-[400px]:px-5' : 'px-7';
+  const suiviSelect = isMobile
+    ? 'flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-black/[0.08] bg-white px-3.5 py-2.5 text-left text-[14px] text-ink/90 transition-colors hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10'
+    : SUIVI_SELECT;
 
   return (
-    <>
-      <LeadDetailHeader
-        lead={lead}
-        compact={headerCompact}
-        titleId={headerTitleId}
-      />
-
-      {isEnterprise && (
-        <EnterpriseBlock
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* Pas de padding horizontal ici : sinon le sticky laisse le contenu défiler dans les marges. */}
+      <div
+        ref={scrollRef}
+        className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-white"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <LeadDetailHeader
           lead={lead}
-          linkClassName={linkClass}
-          directorSize={isMobile ? 14 : 13}
+          dense={headerCompact || isMobile}
+          titleId={headerTitleId}
+          scrollParentRef={scrollRef}
+          marketTourAnchor={isMobile ? 'drawer-market-mobile' : 'drawer-market'}
+          padClassName={padX}
         />
-      )}
 
-      <LeadOwnerBlock lead={lead} />
+        <div className={`min-w-0 ${padX} pb-6`}>
+          <DetailSection>
+            <div data-tour={isMobile ? 'drawer-signals-mobile' : 'drawer-signals'}>
+              <DetailSectionLabel>Pourquoi cette adresse</DetailSectionLabel>
+              <LeadDisplaySignals
+                key={lead.id}
+                displaySignals={lead.displaySignals}
+                dpeDate={lead.dpeDate}
+              />
+            </div>
+          </DetailSection>
 
-      <LeadApproachScript lead={lead} onScriptChange={onScriptApprocheChange} />
-
-      {lead.marcheStatut === 'hors_marche' && lead.marcheVerifieLe && (
-        <DetailSection>
-          <LeadMarketCheck
+          <LeadWhoYouSpeakTo
             lead={lead}
-            tourAnchor={isMobile ? 'drawer-market-mobile' : 'drawer-market'}
+            tourAnchor={isMobile ? 'drawer-contacts-mobile' : 'drawer-contacts'}
           />
-        </DetailSection>
-      )}
 
-      <DetailSection>
-        <div data-tour={isMobile ? 'drawer-signals-mobile' : 'drawer-signals'}>
-          <DetailSectionLabel>Signaux détectés</DetailSectionLabel>
-          <LeadDisplaySignals
-            key={lead.id}
-            displaySignals={lead.displaySignals}
-            dpeDate={lead.dpeDate}
-          />
-        </div>
-      </DetailSection>
+          <LeadApproachScript lead={lead} onScriptChange={onScriptApprocheChange} />
 
-      <LeadImmeubleContacts
-        lead={lead}
-        tourAnchor={isMobile ? 'drawer-contacts-mobile' : 'drawer-contacts'}
-      />
+          <DetailSection>
+            <DetailSectionLabel>Suivi</DetailSectionLabel>
+            <div className="space-y-3.5">
+              <LeadStatusControl
+                lead={lead}
+                onUpdateLead={onUpdateLead}
+                selectTriggerClassName={suiviSelect}
+                reasonFontSize={isMobile ? 14 : 12.5}
+                labelClassName="mb-1 text-mute/80"
+                labelFontSize={11}
+                tourAnchor={isMobile ? 'drawer-status-mobile' : 'drawer-status'}
+                stackTrailing={isMobile}
+                trailing={
+                  <LeadAssigneeControl
+                    lead={lead}
+                    teamMembers={teamMembers}
+                    onUpdateLead={onUpdateLead}
+                    canAssignAnyone={canAssignLead}
+                    currentUserId={currentUserId}
+                    selectTriggerClassName={suiviSelect}
+                  />
+                }
+              />
 
-      <DetailSection>
-        <DetailSectionLabel>Gestion du lead</DetailSectionLabel>
-        <div className="space-y-4">
-          <LeadStatusControl
-            lead={lead}
-            onUpdateLead={onUpdateLead}
-            selectTriggerClassName={selectClass}
-            reasonFontSize={isMobile ? 14 : undefined}
-            tourAnchor={isMobile ? 'drawer-status-mobile' : 'drawer-status'}
-          />
-          <LeadAssigneeControl
-            lead={lead}
-            teamMembers={teamMembers}
-            onUpdateLead={onUpdateLead}
-            canAssignAnyone={canAssignLead}
-            currentUserId={currentUserId}
-            selectTriggerClassName={selectClass}
-          />
-          <div>
-            <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-              Notes internes
-            </p>
-            <textarea
-              rows={4}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Notes visibles uniquement par votre agence…"
-              className={`placeholder-mute/60 min-h-[100px] w-full resize-y rounded-xl border border-black/8 bg-white px-4 py-3 text-ink focus:outline-none ${
-                isMobile
-                  ? 'focus:border-[#E8743C]/40 focus:ring-2 focus:ring-[#E8743C]/15'
-                  : 'focus:border-accent/40'
-              }`}
-              style={{ fontSize: isMobile ? 14 : 13, lineHeight: 1.6 }}
-            />
-            {noteEntries.length > 0 && (
-              <ul className="mt-2 space-y-2">
-                {noteEntries.map((entry, index) => (
-                  <li
-                    key={`${entry.meta ?? 'note'}-${index}`}
-                    className="rounded-xl border border-black/[0.06] bg-white px-4 py-3"
-                  >
-                    {entry.meta && (
-                      <p className="text-mute" style={{ fontSize: 11, lineHeight: 1.4 }}>
-                        {entry.meta}
-                      </p>
-                    )}
-                    <p
-                      className={`whitespace-pre-wrap text-ink ${entry.meta ? 'mt-1' : ''}`}
-                      style={{ fontSize: isMobile ? 13 : 12.5, lineHeight: 1.55 }}
+              <div>
+                <p className="mb-1 text-mute/80" style={{ fontSize: 11 }}>
+                  Notes
+                </p>
+                <div className={`flex gap-2 ${isMobile ? 'flex-col items-stretch' : 'items-start'}`}>
+                  <textarea
+                    rows={isMobile ? 3 : 2}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="Ajouter une note…"
+                    className="placeholder-mute/55 min-h-[64px] w-full min-w-0 resize-y rounded-lg border border-black/[0.08] bg-white px-3 py-2.5 text-ink/90 focus:border-black/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                    style={{ fontSize: isMobile ? 16 : 12.5, lineHeight: 1.5 }}
+                  />
+                  {noteDirty && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void saveNote();
+                      }}
+                      disabled={!canAdd}
+                      className={`rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ${
+                        isMobile ? 'min-h-11 w-full px-4 py-2.5' : 'shrink-0 px-3.5 py-2'
+                      } ${
+                        canAdd
+                          ? 'bg-[#E8743C] text-white hover:bg-[#C25E2C]'
+                          : 'cursor-not-allowed bg-black/[0.08] text-mute'
+                      }`}
+                      style={{ fontSize: isMobile ? 14 : 12.5 }}
                     >
-                      {entry.body}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void saveNote();
-              }}
-              disabled={!canSave}
-              className={`mt-3 inline-flex items-center justify-center rounded-[10px] font-semibold transition-colors ${
-                isMobile ? 'min-h-[44px] px-5' : 'px-[18px] py-2'
-              } ${
-                canSave
-                  ? 'bg-[#E8743C] text-white hover:bg-[#C25E2C]'
-                  : 'cursor-not-allowed bg-[#E8743C]/35 text-white'
-              }`}
-              style={{ fontSize: isMobile ? 14 : 13 }}
-            >
-              {savingNote ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          </div>
-        </div>
+                      {savingNote ? '…' : 'Ajouter'}
+                    </button>
+                  )}
+                </div>
 
-        <LeadDeleteSection
-          leadId={lead.id}
-          onDelete={onDeleteLead}
-          canDelete={canDeleteLead}
-          className="mt-2"
-        />
-      </DetailSection>
-    </>
+                {noteEntries.length > 0 && (
+                  <ul className="mt-3 space-y-0 divide-y divide-black/[0.05] border-t border-black/[0.05]">
+                    {noteEntries.map((entry, index) => {
+                      const meta = showAuthorOnNotes
+                        ? [entry.dateLabel, entry.authorLabel].filter(Boolean).join(' · ')
+                        : entry.dateLabel;
+                      return (
+                        <li key={`${entry.dateLabel ?? 'note'}-${index}`} className="py-2.5">
+                          {meta && (
+                            <p className="text-mute/75" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                              {meta}
+                            </p>
+                          )}
+                          <p
+                            className={`whitespace-pre-wrap text-ink/85 ${meta ? 'mt-0.5' : ''}`}
+                            style={{ fontSize: isMobile ? 13 : 12.5, lineHeight: 1.5 }}
+                          >
+                            {entry.body}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-black/[0.05] pt-4">
+              <LeadDeleteSection
+                leadId={lead.id}
+                onDelete={onDeleteLead}
+                canDelete={canDeleteLead}
+                className="!pt-0 text-left"
+              />
+            </div>
+          </DetailSection>
+        </div>
+      </div>
+
+      <div className={padX}>
+        <LeadActionBar lead={lead} dense={isMobile} />
+      </div>
+    </div>
   );
 }

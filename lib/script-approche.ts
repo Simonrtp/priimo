@@ -238,6 +238,29 @@ export function stripApproachMarkup(text: string): string {
   return text.replace(/\*\*([^*]+)\*\*/g, '$1');
 }
 
+/**
+ * Sépare « Bonjour …, » du reste pour l’affichage (salut sur sa propre ligne).
+ */
+export function splitApproachGreeting(text: string): {
+  greeting: string | null;
+  body: string;
+} {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(Bonjour\b[^,\n]*),(\s*)/i);
+  if (!match) return { greeting: null, body: trimmed };
+  const greeting = `${match[1].trim()},`;
+  const body = trimmed.slice(match[0].length).replace(/^\n+/, '').trimStart();
+  return { greeting, body };
+}
+
+/** Texte prêt à copier : salut puis corps à la ligne. */
+export function formatApproachForCopy(text: string): string {
+  const plain = stripApproachMarkup(text);
+  const { greeting, body } = splitApproachGreeting(plain);
+  if (!greeting) return plain;
+  return body ? `${greeting}\n${body}` : greeting;
+}
+
 export function toStoredScriptApproche(script: ScriptApproche): ScriptApprocheStored {
   return {
     genere_le: new Date().toISOString(),

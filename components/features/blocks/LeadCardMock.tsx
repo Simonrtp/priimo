@@ -25,7 +25,7 @@ const SIGNALS: MockSignal[] = [
   {
     Icon: TrendingUp,
     lead: 'Cascade de vente',
-    detail: '2 ventes dans l’immeuble',
+    detail: '2 ventes récentes dans l’immeuble',
     tint: '#B45309',
     chip: '#FEF3E2',
   },

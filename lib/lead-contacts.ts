@@ -13,8 +13,8 @@ export type ImmeubleContact = {
 
 const CATEGORIE_LABELS: Record<ImmeubleContactCategorie, string> = {
   commerce: 'Commerce',
-  professionnel: 'Professionnel',
-  domicile_pro: 'Pro à domicile',
+  professionnel: 'Société',
+  domicile_pro: 'Résident',
 };
 
 export function immeubleCategorieLabel(categorie: ImmeubleContactCategorie): string {

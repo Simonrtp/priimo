@@ -36,12 +36,12 @@ export default function LeadDeleteSection({
 
   return (
     <>
-      <div className={`pt-4 text-center ${className}`}>
+      <div className={`pt-4 ${className}`}>
         <button
           type="button"
           onClick={() => setConfirmOpen(true)}
-          className="text-mute transition-colors hover:text-ink focus:outline-none focus-visible:underline"
-          style={{ fontSize: 12 }}
+          className="text-left text-mute/70 transition-colors hover:text-mute focus:outline-none focus-visible:underline"
+          style={{ fontSize: 11 }}
         >
           Supprimer ce lead
         </button>

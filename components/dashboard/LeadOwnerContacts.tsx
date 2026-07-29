@@ -1,227 +1,193 @@
 'use client';
 
-import { useId, useState } from 'react';
-import { ChevronDown, Phone } from 'lucide-react';
+import { useMemo } from 'react';
 import type { Lead } from '@/types/lead';
+import { isSciDirectorPending } from '@/types/lead';
 import {
+  hasAnyLeadPhone,
   hasOwnerBlock,
   immeubleCategorieLabel,
   type ImmeubleContact,
-  type ImmeubleContactCategorie,
 } from '@/lib/lead-contacts';
+import {
+  namesShareSameTokenSet,
+  shortenOwnerRole,
+  toDisplayPersonName,
+} from '@/lib/lead-person-display';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 
-const OWNER_PHONE_HINT =
-  "Contact professionnel. L'échange doit porter sur la société et le bien qu'elle détient. Le démarchage téléphonique d'un particulier sans consentement préalable est interdit depuis le 11 août 2026.";
+const CONTACTS_LEGAL_HINT =
+  "Contacts professionnels. L'échange doit porter sur la société et le bien qu'elle détient. Le démarchage téléphonique d'un particulier sans consentement préalable est interdit à compter du 11 août 2026.";
 
-const CATEGORIE_BADGE: Record<ImmeubleContactCategorie, string> = {
-  commerce: 'bg-[#E8743C]/12 text-[#C25E2C]',
-  professionnel: 'bg-[#3D5A80]/12 text-[#3D5A80]',
-  domicile_pro: 'bg-black/[0.06] text-mute',
-};
-
-function ImmeubleContactCard({ contact }: { contact: ImmeubleContact }) {
+function ImmeubleContactRow({ contact }: { contact: ImmeubleContact }) {
   return (
-    <li className="rounded-xl border border-black/[0.06] bg-white px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="font-medium text-ink" style={{ fontSize: 13 }}>
-          {contact.companyName}
+    <li className="min-w-0 border-t border-black/[0.05] py-3 first:border-t-0 first:pt-0">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <p className="min-w-0 break-words font-medium text-ink" style={{ fontSize: 13.5 }}>
+          {toDisplayPersonName(contact.companyName)}
         </p>
-        <span
-          className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${CATEGORIE_BADGE[contact.categorie]}`}
-        >
+        <span className="shrink-0 text-mute" style={{ fontSize: 12 }}>
           {immeubleCategorieLabel(contact.categorie)}
         </span>
       </div>
       {contact.nafLibelle && (
-        <p className="mt-0.5 text-mute" style={{ fontSize: 11.5 }}>
+        <p className="mt-0.5 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.4 }}>
           {contact.nafLibelle}
         </p>
       )}
       <a
         href={`tel:${contact.phone}`}
-        className="mt-1.5 inline-flex items-center gap-1.5 font-medium text-[#3D5A80] hover:underline"
+        className="mt-1 inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
         style={{ fontSize: 13 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Phone size={13} strokeWidth={2.2} aria-hidden />
         {contact.phone}
       </a>
     </li>
   );
 }
 
-const TOUR_EXPAND_CONTACTS_KEY = 'priimo-tour-expand-contacts';
-const CONTACTS_PREVIEW = 2;
+function OwnerPersonBlock({ lead }: { lead: Lead }) {
+  const nameRaw = lead.ownerName?.trim() || null;
+  const companyRaw = lead.ownerCompany?.trim() || null;
+  const age = lead.ownerAge != null && lead.ownerAge > 0 ? lead.ownerAge : null;
 
-function consumeTourExpandFlag(): boolean {
-  try {
-    if (sessionStorage.getItem(TOUR_EXPAND_CONTACTS_KEY) === '1') {
-      sessionStorage.removeItem(TOUR_EXPAND_CONTACTS_KEY);
-      return true;
-    }
-  } catch {
-    // sessionStorage indisponible
-  }
-  return false;
+  const roleRaw = lead.companyDirector?.trim() || null;
+  const roleDistinct =
+    roleRaw &&
+    (!nameRaw || roleRaw.toLocaleLowerCase('fr') !== nameRaw.toLocaleLowerCase('fr'))
+      ? roleRaw
+      : roleRaw && !nameRaw
+        ? roleRaw
+        : null;
+  const role = roleDistinct ? shortenOwnerRole(roleDistinct) : null;
+
+  const companyIsPersonDup =
+    Boolean(nameRaw && companyRaw && namesShareSameTokenSet(nameRaw, companyRaw));
+
+  const societyPart = companyRaw
+    ? companyIsPersonDup
+      ? 'bien détenu en société'
+      : toDisplayPersonName(companyRaw)
+    : null;
+
+  const secondary = [role, societyPart].filter(Boolean).join(' · ');
+
+  const displayName = nameRaw ? toDisplayPersonName(nameRaw) : null;
+  if (!displayName && age == null && !secondary && !companyRaw) return null;
+
+  return (
+    <div>
+      {(displayName || age != null) && (
+        <p className="break-words font-semibold text-ink" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>
+          {displayName || 'Propriétaire'}
+          {age != null && (
+            <span className="ml-2 whitespace-nowrap font-normal text-mute" style={{ fontSize: 13 }}>
+              {age} ans
+            </span>
+          )}
+        </p>
+      )}
+      {secondary && (
+        <p className="mt-1 break-words text-pretty text-mute" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+          {secondary}
+        </p>
+      )}
+    </div>
+  );
 }
 
-function ImmeubleContactsSection({
-  contacts,
+function EnterpriseExtras({ lead }: { lead: Lead }) {
+  if (lead.ownerType !== 'entreprise') return null;
+  if (isSciDirectorPending(lead)) {
+    return (
+      <div className="mt-3">
+        <SciDirectorPendingNotice />
+      </div>
+    );
+  }
+
+  // Données société déjà couvertes par le bloc propriétaire (ownerCompany / director).
+  // N’affiche un complément que si companyName apporte une info distincte sans owner.
+  const company = lead.companyName?.trim();
+  const director = lead.companyDirector?.trim();
+  const ownerName = lead.ownerName?.trim();
+  if (!company && !director) return null;
+  if (ownerName || lead.ownerCompany?.trim()) return null;
+
+  return (
+    <div className="space-y-1">
+      {director && (
+        <p className="font-semibold text-ink" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>
+          {toDisplayPersonName(director)}
+        </p>
+      )}
+      {company && (
+        <p className="text-mute" style={{ fontSize: 12.5 }}>
+          {toDisplayPersonName(company)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Section « À qui vous parlez » — propriétaire + contacts immeuble (lignes plates).
+ */
+export function LeadWhoYouSpeakTo({
+  lead,
   tourAnchor,
 }: {
-  contacts: ImmeubleContact[];
+  lead: Lead;
   tourAnchor?: string;
 }) {
-  const count = contacts.length;
-  // Ouvert par défaut : les 2 premiers contacts sont visibles.
-  const [boot] = useState(() => {
-    const tour = consumeTourExpandFlag();
-    return { open: true, showAll: tour };
-  });
-  const [open, setOpen] = useState(boot.open);
-  const [showAll, setShowAll] = useState(boot.showAll);
-  const panelId = useId();
+  const contacts = lead.contactsImmeuble ?? [];
+  const showOwner = hasOwnerBlock(lead);
+  const showEnterprise =
+    lead.ownerType === 'entreprise' &&
+    (Boolean(lead.companyName?.trim()) ||
+      Boolean(lead.companyDirector?.trim()) ||
+      isSciDirectorPending(lead));
 
-  const visible = showAll ? contacts : contacts.slice(0, CONTACTS_PREVIEW);
-  const hiddenCount = Math.max(0, count - CONTACTS_PREVIEW);
+  const visible = useMemo(() => showOwner || showEnterprise || contacts.length > 0, [
+    showOwner,
+    showEnterprise,
+    contacts.length,
+  ]);
+
+  if (!visible) return null;
+
+  const showLegal = hasAnyLeadPhone(lead);
 
   return (
     <DetailSection data-tour={tourAnchor}>
-      <button
-        type="button"
-        id={`${panelId}-trigger`}
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-      >
-        <div className="min-w-0 flex-1">
-          <DetailSectionLabel className="mb-0">
-            Autres contacts à cette adresse · {count}
-          </DetailSectionLabel>
-        </div>
-        <ChevronDown
-          size={16}
-          strokeWidth={2.2}
-          className={`shrink-0 text-mute transition-transform duration-200 ease-out motion-reduce:transition-none ${
-            open ? 'rotate-180' : ''
-          }`}
-          aria-hidden
-        />
-      </button>
+      <DetailSectionLabel>À qui vous parlez</DetailSectionLabel>
 
-      <div
-        id={panelId}
-        role="region"
-        aria-labelledby={`${panelId}-trigger`}
-        className="grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
-        style={{
-          gridTemplateRows: open ? '1fr' : '0fr',
-          opacity: open ? 1 : 0,
-        }}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <ul className={`space-y-2 ${open ? 'mt-3' : ''}`}>
-            {visible.map((contact, index) => (
-              <ImmeubleContactCard
-                key={`${contact.companyName}-${contact.phone}-${index}`}
-                contact={contact}
-              />
-            ))}
-          </ul>
-          {open && hiddenCount > 0 && !showAll && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAll(true);
-              }}
-              className="mt-2.5 text-[#3D5A80] transition-colors hover:text-ink hover:underline focus:outline-none focus-visible:underline"
-              style={{ fontSize: 12.5, fontWeight: 500 }}
-            >
-              Afficher {hiddenCount} de plus
-            </button>
-          )}
-          {open && showAll && count > CONTACTS_PREVIEW && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAll(false);
-              }}
-              className="mt-2.5 text-mute transition-colors hover:text-ink hover:underline focus:outline-none focus-visible:underline"
-              style={{ fontSize: 12.5, fontWeight: 500 }}
-            >
-              Afficher moins
-            </button>
-          )}
-        </div>
-      </div>
-    </DetailSection>
-  );
-}
+      <div className="space-y-4">
+        {showOwner && <OwnerPersonBlock lead={lead} />}
+        {showEnterprise && <EnterpriseExtras lead={lead} />}
 
-function OwnerSection({ lead }: { lead: Lead }) {
-  const name = lead.ownerName?.trim() || null;
-  const company = lead.ownerCompany?.trim() || null;
-  const phone = lead.ownerPhone?.trim() || null;
-  const age = lead.ownerAge != null && lead.ownerAge > 0 ? lead.ownerAge : null;
-  // Rôle juridique Pappers : company_director quand distinct du nom (qualité / mandat).
-  const roleRaw = lead.companyDirector?.trim() || null;
-  const role =
-    roleRaw && name && roleRaw.toLocaleLowerCase('fr') !== name.toLocaleLowerCase('fr')
-      ? roleRaw
-      : roleRaw && !name
-        ? roleRaw
-        : null;
-
-  return (
-    <DetailSection>
-      <DetailSectionLabel>Propriétaire</DetailSectionLabel>
-      <div className="space-y-3">
-        {(name || age != null) && (
+        {contacts.length > 0 && (
           <div>
-            <p className="font-semibold text-ink" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>
-              {name || 'Propriétaire'}
-              {age != null && (
-                <span className="ml-2 font-normal text-mute" style={{ fontSize: 13 }}>
-                  {age} ans
-                </span>
-              )}
+            <p className="mb-2 font-medium text-ink" style={{ fontSize: 12.5 }}>
+              Dans l&apos;immeuble
             </p>
-            {role && (
-              <p className="mt-1 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.45 }}>
-                {role}
-              </p>
-            )}
+            <ul>
+              {contacts.map((contact, index) => (
+                <ImmeubleContactRow
+                  key={`${contact.companyName}-${contact.phone}-${index}`}
+                  contact={contact}
+                />
+              ))}
+            </ul>
           </div>
         )}
 
-        {company && (
-          <div>
-            <p className="text-mute" style={{ fontSize: 11 }}>
-              Société propriétaire
-            </p>
-            <p className="mt-0.5 font-medium text-ink" style={{ fontSize: 13 }}>
-              {company}
-            </p>
-          </div>
-        )}
-
-        {phone && (
-          <div className="flex items-center gap-2">
-            <a
-              href={`tel:${phone}`}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#E8743C]/10 px-3.5 py-2 font-semibold text-[#C25E2C] transition-colors hover:bg-[#E8743C]/15"
-              style={{ fontSize: 14 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Phone size={16} strokeWidth={2.2} aria-hidden />
-              {phone}
-            </a>
-            <InfoTooltip content={OWNER_PHONE_HINT} placement="top-end" iconSize={14} />
+        {showLegal && (
+          <div className="flex justify-end pt-0.5">
+            <InfoTooltip content={CONTACTS_LEGAL_HINT} placement="top-end" iconSize={14} />
           </div>
         )}
       </div>
@@ -229,23 +195,19 @@ function OwnerSection({ lead }: { lead: Lead }) {
   );
 }
 
-/** Bloc propriétaire seul (au-dessus des signaux). */
+/** @deprecated Utiliser LeadWhoYouSpeakTo */
 export function LeadOwnerBlock({ lead }: { lead: Lead }) {
-  if (!hasOwnerBlock(lead)) return null;
-  return <OwnerSection lead={lead} />;
+  return <LeadWhoYouSpeakTo lead={lead} />;
 }
 
-/** Contacts immeuble — à placer sous Signaux détectés. */
+/** @deprecated Fusionné dans LeadWhoYouSpeakTo */
 export function LeadImmeubleContacts({
   lead,
   tourAnchor,
 }: {
   lead: Lead;
-  /** Ancre visite guidée (numéros pros à l'adresse). */
   tourAnchor?: string;
 }) {
-  const contacts = lead.contactsImmeuble ?? [];
-  if (contacts.length === 0) return null;
-  // Section directe (pas de wrapper) pour garder le filet border-t des DetailSection.
-  return <ImmeubleContactsSection contacts={contacts} tourAnchor={tourAnchor} />;
+  if ((lead.contactsImmeuble?.length ?? 0) === 0) return null;
+  return <LeadWhoYouSpeakTo lead={lead} tourAnchor={tourAnchor} />;
 }

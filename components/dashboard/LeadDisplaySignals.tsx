@@ -95,10 +95,10 @@ function SignalFamilyDisclosure({
         onClick={toggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex w-full cursor-pointer items-start gap-2 rounded-md py-0.5 text-left transition-colors duration-150 hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
+        className="flex min-h-10 w-full cursor-pointer items-start gap-2 rounded-md py-0.5 text-left transition-colors duration-150 hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
       >
         <span
-          className="min-w-0 flex-1 font-semibold leading-snug text-ink"
+          className="min-w-0 flex-1 break-words text-pretty font-semibold leading-snug text-ink"
           style={{ fontSize: 13 }}
         >
           {title}
@@ -153,13 +153,14 @@ function DpePanel({ family, dpeDate }: { family: DpeDisplayFamily; dpeDate: stri
 function CascadePanel({ family }: { family: CascadeDisplayFamily }) {
   const headParts: string[] = ['Cascade de vente'];
   if (family.nbVentes != null) {
-    const word = family.nbVentes > 1 ? 'ventes' : 'vente';
+    const word =
+      family.nbVentes > 1 ? 'ventes récentes' : 'vente récente';
     headParts.push(`${family.nbVentes} ${word} dans l’immeuble`);
   }
 
   return (
     <div className="py-2">
-      <span className="font-semibold leading-snug text-ink" style={{ fontSize: 13 }}>
+      <span className="break-words text-pretty font-semibold leading-snug text-ink" style={{ fontSize: 13 }}>
         {headParts.join(' — ')}
       </span>
     </div>

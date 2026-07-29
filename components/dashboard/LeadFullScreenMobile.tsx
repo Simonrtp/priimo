@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, MapPin, Phone as PhoneIcon } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type { Lead, TeamMember } from '@/types/lead';
-import { ICON_COLORS } from '@/lib/iconMapping';
-import { googleMapsSearchUrl, formatLeadAddressQuery } from '@/lib/utils';
 import LeadDetailBody from './LeadDetailBody';
 
 interface LeadFullScreenMobileProps {
@@ -62,13 +60,9 @@ export default function LeadFullScreenMobile({
     setDragging(false);
   };
 
-  const isEnterprise = lead.ownerType === 'entreprise';
-  const phone = isEnterprise ? lead.companyPhone : null;
-  const mapsHref = googleMapsSearchUrl(formatLeadAddressQuery(lead));
-
   return (
     <div
-      className="animate-app-push fixed inset-0 z-[70] flex flex-col bg-white md:hidden"
+      className="animate-app-push fixed inset-0 z-[70] flex h-dvh max-h-dvh w-full min-w-0 flex-col overflow-hidden bg-white md:hidden"
       style={{
         transform: dragX ? `translateX(${dragX}px)` : undefined,
         transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.22,1,0.36,1)',
@@ -80,67 +74,38 @@ export default function LeadFullScreenMobile({
       onPointerCancel={endDrag}
     >
       <header
-        className="app-navbar flex flex-shrink-0 items-center gap-1 border-b border-black/[0.06] bg-white px-2 py-2.5"
+        className="app-navbar flex w-full min-w-0 flex-shrink-0 items-center gap-1 border-b border-black/[0.06] bg-white px-2 py-2.5"
         style={{ paddingTop: 'max(10px, env(safe-area-inset-top))' }}
       >
         <button
           type="button"
           onClick={onClose}
-          className="app-press flex h-11 w-11 items-center justify-center rounded-full text-[#3D5A80]"
+          className="app-press flex size-11 shrink-0 items-center justify-center rounded-full text-[#3D5A80] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
           aria-label="Retour"
         >
           <ArrowLeft size={22} strokeWidth={2.2} />
         </button>
-        <p className="truncate font-bold text-ink" style={{ fontSize: 16, letterSpacing: '-0.02em' }}>
+        <p className="min-w-0 flex-1 truncate font-bold text-ink" style={{ fontSize: 16, letterSpacing: '-0.02em' }}>
           Détail du lead
         </p>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-5 pb-6 pt-5">
-        <LeadDetailBody
-          lead={lead}
-          onUpdateLead={onUpdateLead}
-          onDeleteLead={onDeleteLead}
-          onScriptApprocheChange={
-            onScriptApprocheChange
-              ? (script) => onScriptApprocheChange(lead.id, script)
-              : undefined
-          }
-          canAssignLead={canAssignLead}
-          canDeleteLead={canDeleteLead}
-          currentUserId={currentUserId}
-          teamMembers={teamMembers}
-          variant="mobile"
-          headerCompact
-        />
-      </div>
-
-      <div
-        className="app-actionbar flex flex-shrink-0 items-center gap-2.5 border-t border-black/[0.05] bg-white px-4 pt-3"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-      >
-        <a
-          href={mapsHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="app-press flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#E8743C] font-semibold text-white"
-          style={{ fontSize: 15 }}
-        >
-          <MapPin size={18} strokeWidth={2.2} aria-hidden />
-          Ouvrir dans Maps
-        </a>
-        {phone && (
-          <a
-            href={`tel:${phone}`}
-            className="app-press flex min-h-[50px] items-center justify-center gap-2 rounded-xl border border-black/[0.08] bg-white px-5 font-semibold text-[#3D5A80]"
-            style={{ fontSize: 15 }}
-            aria-label={`Appeler ${lead.companyDirector ?? lead.companyName ?? ''}`}
-          >
-            <PhoneIcon size={18} color={ICON_COLORS.green600} strokeWidth={2.2} aria-hidden />
-            Appeler
-          </a>
-        )}
-      </div>
+      <LeadDetailBody
+        lead={lead}
+        onUpdateLead={onUpdateLead}
+        onDeleteLead={onDeleteLead}
+        onScriptApprocheChange={
+          onScriptApprocheChange
+            ? (script) => onScriptApprocheChange(lead.id, script)
+            : undefined
+        }
+        canAssignLead={canAssignLead}
+        canDeleteLead={canDeleteLead}
+        currentUserId={currentUserId}
+        teamMembers={teamMembers}
+        variant="mobile"
+        headerCompact
+      />
     </div>
   );
 }

@@ -250,7 +250,7 @@ function buildSteps(): BuiltSteps {
       const index = steps.length;
       drawerStepIndices.add(index);
       const anchor = isDesktopDrawer ? def.anchors[0]! : (def.anchors[1] ?? def.anchors[0]!);
-      // Marché : le data-tour est sur le badge inline (LeadMarketCheck).
+      // Marché : le data-tour est sur le libellé Vérifié (en-tête).
       const selector = `[data-tour="${anchor}"]`;
       drawerSelectors.set(index, selector);
       // Bulle centrée = jamais coupée. Overlay Joyride off : spotlight = proxy.

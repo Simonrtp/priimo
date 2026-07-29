@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -23,6 +24,8 @@ interface InfoTooltipProps {
   placement?: InfoTooltipPlacement;
   className?: string;
   iconSize?: number;
+  /** Déclencheur personnalisé (remplace l’icône d’aide). */
+  children?: ReactNode;
 }
 
 type Coords = { top: number; left: number };
@@ -89,6 +92,7 @@ export default function InfoTooltip({
   placement = 'top-start',
   className = '',
   iconSize = 14,
+  children,
 }: InfoTooltipProps) {
   const tooltipId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -96,6 +100,7 @@ export default function InfoTooltip({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
+  const hasCustomTrigger = children != null;
 
   useEffect(() => setMounted(true), []);
 
@@ -168,7 +173,11 @@ export default function InfoTooltip({
       <button
         ref={triggerRef}
         type="button"
-        className="inline-flex rounded-full text-mute/80 transition-colors hover:text-mute focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+        className={
+          hasCustomTrigger
+            ? 'inline-flex items-center rounded-sm text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30'
+            : 'inline-flex rounded-full text-mute/80 transition-colors hover:text-mute focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30'
+        }
         aria-describedby={open ? tooltipId : undefined}
         aria-expanded={open}
         tabIndex={0}
@@ -184,8 +193,14 @@ export default function InfoTooltip({
           }
         }}
       >
-        <CircleHelp size={iconSize} strokeWidth={2} aria-hidden />
-        <span className="sr-only">Plus d&apos;informations</span>
+        {hasCustomTrigger ? (
+          children
+        ) : (
+          <>
+            <CircleHelp size={iconSize} strokeWidth={2} aria-hidden />
+            <span className="sr-only">Plus d&apos;informations</span>
+          </>
+        )}
       </button>
       {tooltip}
     </span>

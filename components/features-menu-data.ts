@@ -35,7 +35,7 @@ export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
       },
       {
         title: 'Signaux expliqués',
-        description: 'Quoi dire en arrivant',
+        description: 'Votre approche porte ou téléphone',
         href: '/fonctionnalites/scoring#signaux',
         icon: Sparkles,
       },

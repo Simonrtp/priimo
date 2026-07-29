@@ -98,31 +98,29 @@ export default function LeadDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.05] hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.05] hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
               aria-label="Fermer"
             >
               <ICONS.x size={20} color={ICON_COLORS.neutral} strokeWidth={2} />
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-7 pb-10 pt-6">
-            <LeadDetailBody
-              lead={lead}
-              onUpdateLead={onUpdateLead}
-              onDeleteLead={onDeleteLead}
-              onScriptApprocheChange={
-                onScriptApprocheChange
-                  ? (script) => onScriptApprocheChange(lead.id, script)
-                  : undefined
-              }
-              canAssignLead={canAssignLead}
-              canDeleteLead={canDeleteLead}
-              currentUserId={currentUserId}
-              teamMembers={teamMembers}
-              variant="desktop"
-              headerTitleId="drawer-address"
-            />
-          </div>
+          <LeadDetailBody
+            lead={lead}
+            onUpdateLead={onUpdateLead}
+            onDeleteLead={onDeleteLead}
+            onScriptApprocheChange={
+              onScriptApprocheChange
+                ? (script) => onScriptApprocheChange(lead.id, script)
+                : undefined
+            }
+            canAssignLead={canAssignLead}
+            canDeleteLead={canDeleteLead}
+            currentUserId={currentUserId}
+            teamMembers={teamMembers}
+            variant="desktop"
+            headerTitleId="drawer-address"
+          />
         </div>
       </aside>
     </>

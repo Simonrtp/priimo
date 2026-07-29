@@ -43,8 +43,8 @@ export default function LeadAssigneeControl({
 
   return (
     <div>
-      <p className="mb-1.5 text-mute" style={{ fontSize: 11 }}>
-        Assigné à
+      <p className="mb-1.5 text-mute/80" style={{ fontSize: 11 }}>
+        Assigné
       </p>
       <div onClick={(e) => e.stopPropagation()}>
         <Select
