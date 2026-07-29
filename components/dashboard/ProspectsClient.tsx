@@ -369,7 +369,7 @@ export default function ProspectsClient({
         onUpdateLead={updateLeadHandler}
         onDeleteLead={deleteLeadHandler}
         onScriptApprocheChange={handleScriptApprocheChange}
-        canAssignLead={isDirector}
+        canAssignLead
         canDeleteLead={isDirector}
         currentUserId={profile?.id ?? null}
         teamMembers={teamMembers}
@@ -381,7 +381,7 @@ export default function ProspectsClient({
           onUpdateLead={updateLeadHandler}
           onDeleteLead={deleteLeadHandler}
           onScriptApprocheChange={handleScriptApprocheChange}
-          canAssignLead={isDirector}
+          canAssignLead
           canDeleteLead={isDirector}
           currentUserId={profile?.id ?? null}
           teamMembers={teamMembers}
