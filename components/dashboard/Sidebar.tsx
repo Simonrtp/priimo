@@ -45,7 +45,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden h-screen flex-shrink-0 flex-col border-r border-white/10 md:flex md:w-16 lg:w-[220px]"
+      className="relative z-[45] hidden h-screen flex-shrink-0 flex-col border-r border-white/10 md:flex md:w-16 lg:w-[220px]"
       style={{
         background: 'linear-gradient(180deg, #1E3148 0%, #15202F 100%)',
       }}
@@ -54,8 +54,8 @@ export default function Sidebar() {
         <Link href="/dashboard" className="hidden lg:block">
           <PriimoLogo className="h-12" />
         </Link>
-        <Link href="/dashboard" className="mx-auto block size-14 lg:hidden" aria-label="Priimo">
-          <PriimoLogo variant="mark" className="size-14" />
+        <Link href="/dashboard" className="mx-auto block size-9 lg:hidden" aria-label="Priimo">
+          <PriimoLogo variant="mark" className="size-9" />
         </Link>
       </div>
 

@@ -115,9 +115,9 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
         })}
       </div>
 
-      <div className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:flex md:flex-row">
+      <div className="hidden min-h-0 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-soft md:flex md:flex-row">
         <nav
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-black/8 bg-soft-gray/40 p-2 [scrollbar-width:none] sm:p-3 lg:w-52 lg:flex-col lg:overflow-x-visible lg:border-b-0 lg:border-r [&::-webkit-scrollbar]:hidden"
+          className="flex w-44 shrink-0 flex-col gap-1 self-stretch border-r border-black/8 bg-soft-gray/40 p-2 sm:w-48 sm:p-3"
           aria-label="Sections paramètres"
         >
           {tabs.map(({ id, label }) => {
@@ -127,8 +127,10 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition-colors lg:w-full ${
-                  active ? 'bg-white text-ink shadow-sm ring-1 ring-black/6' : 'text-mute hover:bg-white/60 hover:text-ink'
+                className={`w-full rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition-colors ${
+                  active
+                    ? 'bg-white text-ink shadow-sm ring-1 ring-black/6'
+                    : 'text-mute hover:bg-white/60 hover:text-ink'
                 }`}
               >
                 {label}
@@ -137,7 +139,9 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
           })}
         </nav>
 
-        <div className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">{renderSection(activeTab)}</div>
+        <div className="min-w-0 flex-1 overflow-x-hidden p-5 sm:p-6 lg:p-8">
+          {renderSection(activeTab)}
+        </div>
       </div>
     </div>
   );

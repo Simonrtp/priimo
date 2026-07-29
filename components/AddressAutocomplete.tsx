@@ -29,6 +29,8 @@ export default function AddressAutocomplete({
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** true seulement après saisie utilisateur — évite de rouvrir la BAN sur une adresse déjà enregistrée. */
+  const userEditedRef = useRef(false);
 
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<BanFeature[]>([]);
@@ -38,14 +40,37 @@ export default function AddressAutocomplete({
 
   useEffect(() => {
     setQuery(value);
+    userEditedRef.current = false;
+    setSuggestions([]);
+    setShowDropdown(false);
+    setActiveIndex(-1);
   }, [value]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
+    // Adresse déjà connue / sync props : pas de suggestions ni d’appel BAN.
+    if (!userEditedRef.current) {
+      setSuggestions([]);
+      setIsLoading(false);
+      setShowDropdown(false);
+      setActiveIndex(-1);
+      return;
+    }
+
     if (query.trim().length < 3) {
       setSuggestions([]);
       setIsLoading(false);
+      setShowDropdown(false);
+      setActiveIndex(-1);
+      return;
+    }
+
+    // Identique à la valeur validée : rien à proposer.
+    if (value.trim() && query.trim() === value.trim()) {
+      setSuggestions([]);
+      setIsLoading(false);
+      setShowDropdown(false);
       setActiveIndex(-1);
       return;
     }
@@ -68,7 +93,7 @@ export default function AddressAutocomplete({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, value]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,6 +108,7 @@ export default function AddressAutocomplete({
 
   const selectFeature = (feature: BanFeature) => {
     const selected = banFeatureToSelectedAddress(feature);
+    userEditedRef.current = false;
     setQuery(selected.label);
     setShowDropdown(false);
     setSuggestions([]);
@@ -92,6 +118,7 @@ export default function AddressAutocomplete({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value;
+    userEditedRef.current = true;
     setQuery(next);
     onChange(null);
   };
@@ -126,7 +153,9 @@ export default function AddressAutocomplete({
           type="text"
           value={query}
           onChange={handleInputChange}
-          onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+          onFocus={() => {
+            if (userEditedRef.current && suggestions.length > 0) setShowDropdown(true);
+          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           required={required}

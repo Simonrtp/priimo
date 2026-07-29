@@ -56,13 +56,13 @@ const STEPS: Step[] = [
   {
     num: "02",
     title: "Recevez votre liste du lundi",
-    body: "Chaque lundi, les nouvelles adresses scorées arrivent dans votre tableau de bord, avec les signaux — dont les événements de vie sur le bien — qui expliquent chaque score.",
+    body: "Chaque lundi, une liste courte arrive dans votre tableau de bord. Chaque adresse est notée, expliquée, et vérifiée absente des portails : aucune n'est déjà affichée par un concurrent.",
     Icon: ListIcon,
   },
   {
     num: "03",
     title: "Partez frapper aux bonnes portes",
-    body: "Chaque adresse part avec son contexte : signaux, copropriété, historique du bien. Export CSV ou lien Google Maps pour le terrain.",
+    body: "Nom du propriétaire, contacts de l'immeuble, contexte du bien — et ce qu'il faut dire en arrivant, rédigé pour chaque adresse. Votre tournée s'ouvre dans Google Maps.",
     Icon: RouteIcon,
   },
 ];

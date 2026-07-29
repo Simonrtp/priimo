@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import PostalCodesEditor, { postalCodesFromAddress } from '@/components/PostalCodesEditor';
 import type { AgencyRequestRow } from '@/types/database';
 
 const inputClass =
@@ -20,14 +19,14 @@ const STATUS_LABEL: Record<AgencyRequestRow['status'], string> = {
 export default function SectionRequestSector() {
   const [agencyName, setAgencyName] = useState('');
   const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(null);
-  const [postalCodes, setPostalCodes] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [requests, setRequests] = useState<AgencyRequestRow[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
 
-  const primaryPostcode = agencyAddress?.postcode?.trim() || postalCodes[0] || null;
+  const primaryPostcode = agencyAddress?.postcode?.trim() || null;
+  const postalCodes = primaryPostcode ? [primaryPostcode] : [];
 
   const loadRequests = useCallback(async () => {
     setLoadingRequests(true);
@@ -46,11 +45,6 @@ export default function SectionRequestSector() {
 
   const handleAddressChange = (selected: SelectedAddress | null) => {
     setAgencyAddress(selected);
-    if (selected?.postcode) {
-      setPostalCodes((prev) => postalCodesFromAddress(prev, selected.postcode));
-    } else if (!selected) {
-      setPostalCodes([]);
-    }
   };
 
   const submit = async () => {
@@ -63,7 +57,7 @@ export default function SectionRequestSector() {
       return;
     }
     if (postalCodes.length === 0) {
-      toast.error('Au moins un code postal est requis.');
+      toast.error("Sélectionnez une adresse avec un code postal.");
       return;
     }
 
@@ -89,7 +83,6 @@ export default function SectionRequestSector() {
     setSubmitted(true);
     setAgencyName('');
     setAgencyAddress(null);
-    setPostalCodes([]);
     setMessage('');
     toast.success('Demande envoyée');
     void loadRequests();
@@ -143,14 +136,12 @@ export default function SectionRequestSector() {
             placeholder="Ex : 12 rue de Belleville, Paris"
             inputClassName={`${inputClass} pl-10 pr-10`}
           />
+          {primaryPostcode ? (
+            <p className="mt-2 text-sm font-medium text-accent-dark">
+              Secteur : <span className="tabular-nums">{primaryPostcode}</span>
+            </p>
+          ) : null}
         </div>
-
-        <PostalCodesEditor
-          postalCodes={postalCodes}
-          onChange={setPostalCodes}
-          primaryPostcode={primaryPostcode}
-          labelClass={labelClass}
-        />
 
         <div>
           <label htmlFor="request-message" className={labelClass}>

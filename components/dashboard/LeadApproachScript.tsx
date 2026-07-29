@@ -1,11 +1,21 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { Check, ChevronDown, Copy, RefreshCw, Sparkles } from 'lucide-react';
 import type { Lead } from '@/types/lead';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { extractApproachIntro, emphasizeApproachFacts, stripApproachMarkup } from '@/lib/script-approche';
-import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
+import { DetailSection } from './LeadDetailSection';
+
+/** Dégradé signature section Approche / IA (bleu → violet → magenta). */
+const APPROACH_GRADIENT = 'linear-gradient(90deg, #4A7AFF 0%, #907CF7 52%, #D866B0 100%)';
+
+const approachGradientTextStyle: CSSProperties = {
+  backgroundImage: APPROACH_GRADIENT,
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  color: 'transparent',
+};
 
 async function copyText(text: string) {
   try {
@@ -37,17 +47,20 @@ function MistralThinking({ label = 'Mistral rédige le prompt…' }: { label?: s
   return (
     <div className="flex items-center gap-3 py-1" aria-live="polite" role="status">
       <span className="inline-flex gap-1.5" aria-hidden>
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink" />
         <span
-          className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink"
-          style={{ animationDelay: '150ms' }}
+          className="h-1.5 w-1.5 animate-pulse rounded-full"
+          style={{ background: '#4A7AFF' }}
         />
         <span
-          className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink"
-          style={{ animationDelay: '300ms' }}
+          className="h-1.5 w-1.5 animate-pulse rounded-full"
+          style={{ background: '#907CF7', animationDelay: '150ms' }}
+        />
+        <span
+          className="h-1.5 w-1.5 animate-pulse rounded-full"
+          style={{ background: '#D866B0', animationDelay: '300ms' }}
         />
       </span>
-      <p className="font-medium text-ink" style={{ fontSize: 13 }}>
+      <p className="font-medium" style={{ fontSize: 13, ...approachGradientTextStyle }}>
         {label}
       </p>
     </div>
@@ -145,12 +158,17 @@ export default function LeadApproachScript({
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-1.5">
-            <DetailSectionLabel className="mb-0">Votre approche</DetailSectionLabel>
-            <span
-              className="inline-flex items-center gap-1 font-semibold uppercase tracking-[0.06em] text-violet-600"
-              style={{ fontSize: 12 }}
+            <p
+              className="mb-0 font-semibold uppercase"
+              style={{ fontSize: 12, letterSpacing: '0.06em', ...approachGradientTextStyle }}
             >
-              <Sparkles size={12} strokeWidth={2.4} className="text-violet-500" aria-hidden />
+              Votre approche
+            </p>
+            <span
+              className="inline-flex items-center gap-1 font-semibold uppercase"
+              style={{ fontSize: 12, letterSpacing: '0.06em', ...approachGradientTextStyle }}
+            >
+              <Sparkles size={12} strokeWidth={2.4} aria-hidden style={{ color: '#907CF7' }} />
               IA
             </span>
           </div>
@@ -184,26 +202,31 @@ export default function LeadApproachScript({
             )}
 
             {!generating && intro && (
-              <div className="rounded-2xl border-2 border-ink bg-white px-3.5 py-3">
-                <div className="mb-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void copyText(intro).then(() => setCopied(true));
-                    }}
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-                    style={{ fontSize: 12.5 }}
-                  >
-                    {copied ? (
-                      <Check size={14} strokeWidth={2.2} aria-hidden />
-                    ) : (
-                      <Copy size={14} strokeWidth={2.2} aria-hidden />
-                    )}
-                    {copied ? 'Copié' : 'Copier'}
-                  </button>
+              <div
+                className="rounded-2xl p-[2px]"
+                style={{ background: APPROACH_GRADIENT }}
+              >
+                <div className="rounded-[14px] bg-white px-3.5 py-3">
+                  <div className="mb-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void copyText(intro).then(() => setCopied(true));
+                      }}
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-[#907CF7]/40"
+                      style={{ fontSize: 12.5 }}
+                    >
+                      {copied ? (
+                        <Check size={14} strokeWidth={2.2} aria-hidden />
+                      ) : (
+                        <Copy size={14} strokeWidth={2.2} aria-hidden />
+                      )}
+                      {copied ? 'Copié' : 'Copier'}
+                    </button>
+                  </div>
+                  <ApproachText text={intro} />
                 </div>
-                <ApproachText text={intro} />
               </div>
             )}
 
@@ -215,8 +238,8 @@ export default function LeadApproachScript({
                   e.stopPropagation();
                   void generate(false);
                 }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 font-semibold text-white transition-colors hover:bg-black disabled:cursor-wait disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink/30"
-                style={{ fontSize: 14 }}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#907CF7]/40"
+                style={{ fontSize: 14, background: APPROACH_GRADIENT }}
               >
                 <Sparkles size={16} strokeWidth={2.2} aria-hidden />
                 Préparer l’approche
@@ -231,11 +254,8 @@ export default function LeadApproachScript({
                   e.stopPropagation();
                   void generate(true);
                 }}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/45"
-                style={{
-                  fontSize: 13,
-                  background: 'linear-gradient(90deg, #4A7AFF 0%, #907CF7 55%, #D866B0 100%)',
-                }}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#907CF7]/45"
+                style={{ fontSize: 13, background: APPROACH_GRADIENT }}
               >
                 <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
                 Refaire
