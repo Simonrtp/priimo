@@ -31,6 +31,8 @@ export default function HeroVideo() {
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isTimelineFocused, setIsTimelineFocused] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  /** Mobile : barre de progression visible seulement après un tap. */
+  const [touchControlsVisible, setTouchControlsVisible] = useState(false);
   const pendingPlayRef = useRef(false);
   const autoplayTriggeredRef = useRef(false);
   const targetOffsetRef = useRef({ x: 0, y: 0 });
@@ -38,8 +40,11 @@ export default function HeroVideo() {
   const rafRef = useRef<number | null>(null);
   const progressRafRef = useRef<number | null>(null);
   const isScrubbingRef = useRef(false);
+  const touchHideTimerRef = useRef<number | null>(null);
   const progressRatio = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
-  const showTimeline = isCoarsePointer || isHovered || isScrubbing || isTimelineFocused;
+  const showTimeline = isCoarsePointer
+    ? touchControlsVisible || isScrubbing || isTimelineFocused
+    : isHovered || isScrubbing || isTimelineFocused;
 
   useEffect(() => {
     const pointerMq = window.matchMedia("(pointer: coarse)");
@@ -48,6 +53,29 @@ export default function HeroVideo() {
     pointerMq.addEventListener("change", update);
     return () => pointerMq.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (touchHideTimerRef.current !== null) {
+        window.clearTimeout(touchHideTimerRef.current);
+      }
+    };
+  }, []);
+
+  function scheduleTouchControlsHide() {
+    if (touchHideTimerRef.current !== null) {
+      window.clearTimeout(touchHideTimerRef.current);
+    }
+    touchHideTimerRef.current = window.setTimeout(() => {
+      if (!isScrubbingRef.current) setTouchControlsVisible(false);
+    }, 2800);
+  }
+
+  function revealTouchControls() {
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    setTouchControlsVisible(true);
+    scheduleTouchControlsHide();
+  }
 
   useEffect(() => {
     const video = videoRef.current;
@@ -259,6 +287,7 @@ export default function HeroVideo() {
   }
 
   function handleContainerClick() {
+    revealTouchControls();
     void togglePlayback();
   }
 
@@ -297,6 +326,10 @@ export default function HeroVideo() {
     if (!duration) return;
     isScrubbingRef.current = true;
     setIsScrubbing(true);
+    setTouchControlsVisible(true);
+    if (touchHideTimerRef.current !== null) {
+      window.clearTimeout(touchHideTimerRef.current);
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     seekFromClientX(event.clientX, event.currentTarget);
   }
@@ -313,6 +346,7 @@ export default function HeroVideo() {
     isScrubbingRef.current = false;
     setIsScrubbing(false);
     event.currentTarget.releasePointerCapture(event.pointerId);
+    scheduleTouchControlsHide();
 
     const container = containerRef.current;
     if (container) {
