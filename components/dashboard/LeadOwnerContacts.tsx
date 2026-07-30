@@ -52,6 +52,7 @@ function ImmeubleContactRow({ contact }: { contact: ImmeubleContact }) {
 function OwnerPersonBlock({ lead }: { lead: Lead }) {
   const nameRaw = lead.ownerName?.trim() || null;
   const companyRaw = lead.ownerCompany?.trim() || null;
+  const phone = lead.ownerPhone?.trim() || null;
   const age = lead.ownerAge != null && lead.ownerAge > 0 ? lead.ownerAge : null;
 
   const roleRaw = lead.companyDirector?.trim() || null;
@@ -76,7 +77,7 @@ function OwnerPersonBlock({ lead }: { lead: Lead }) {
   const secondary = [role, societyPart].filter(Boolean).join(' · ');
 
   const displayName = nameRaw ? toDisplayPersonName(nameRaw) : null;
-  if (!displayName && age == null && !secondary && !companyRaw) return null;
+  if (!displayName && age == null && !secondary && !companyRaw && !phone) return null;
 
   return (
     <div>
@@ -94,6 +95,23 @@ function OwnerPersonBlock({ lead }: { lead: Lead }) {
         <p className="mt-1 break-words text-pretty text-mute" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
           {secondary}
         </p>
+      )}
+      {phone && (
+        <div className="mt-2">
+          <a
+            href={`tel:${phone}`}
+            className="inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+            style={{ fontSize: 13 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {phone}
+          </a>
+          {lead.ownerPhoneSource === 'probable' && (
+            <p className="mt-1 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.45 }}>
+              Société immobilière domiciliée à cette adresse — lien avec le bien non confirmé.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

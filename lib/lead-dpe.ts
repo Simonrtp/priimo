@@ -1,10 +1,11 @@
 import type { Lead } from '@/types/lead';
 
-export type ProspectsSortMode = 'score' | 'dpe_recent';
+export type ProspectsSortMode = 'score' | 'dpe_recent' | 'joignables';
 
 export const PROSPECTS_SORT_LABELS: Record<ProspectsSortMode, string> = {
   score: 'Score',
   dpe_recent: 'DPE le plus récent',
+  joignables: "Joignables d'abord",
 };
 
 export type DpeFreshnessTier = 'hot' | 'recent';
@@ -49,6 +50,29 @@ export function sortProspects(leads: Lead[], mode: ProspectsSortMode): Lead[] {
       const aTime = a.dpeDate ? new Date(a.dpeDate).getTime() : Number.NEGATIVE_INFINITY;
       const bTime = b.dpeDate ? new Date(b.dpeDate).getTime() : Number.NEGATIVE_INFINITY;
       if (bTime !== aTime) return bTime - aTime;
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }
+  if (mode === 'joignables') {
+    const rank = (c: Lead['contactabilite']): number => {
+      switch (c) {
+        case 'direct':
+          return 0;
+        case 'nominatif':
+          return 1;
+        case 'immeuble':
+          return 2;
+        case 'aucun':
+          return 3;
+        default:
+          return 4;
+      }
+    };
+    return copy.sort((a, b) => {
+      const ra = rank(a.contactabilite);
+      const rb = rank(b.contactabilite);
+      if (ra !== rb) return ra - rb;
       if (b.score !== a.score) return b.score - a.score;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });

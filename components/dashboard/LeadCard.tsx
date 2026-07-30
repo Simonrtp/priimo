@@ -8,7 +8,7 @@ import StatusBadge from './StatusBadge';
 import LeadSignalList from './LeadSignalList';
 import { formatPrice } from '@/lib/utils';
 import { formatEtage } from '@/lib/lead-display';
-import { hasAnyLeadPhone } from '@/lib/lead-contacts';
+import { hasDirectContactPhone } from '@/lib/lead-contacts';
 import { hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import { ICONS, ICON_COLORS, ICON_SIZE } from '@/lib/iconMapping';
 
@@ -135,7 +135,7 @@ function LeadCard({
     hasDisplayableAcquiredPrice(lead) && lead.acquiredPrice != null
       ? `${formatPrice(lead.acquiredPrice)} €`
       : null;
-  const showPhone = hasAnyLeadPhone(lead);
+  const showPhone = hasDirectContactPhone(lead);
   const horsMarche = lead.marcheStatut === 'hors_marche' && Boolean(lead.marcheVerifieLe);
 
   return (

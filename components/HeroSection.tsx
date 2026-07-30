@@ -90,35 +90,35 @@ export default function HeroSection() {
                   </span>
                 </a>
 
-                <div className="flex items-center justify-center gap-2 overflow-visible sm:absolute sm:left-[calc(100%+0.4rem)] sm:top-[42%] sm:-translate-y-1/2 sm:justify-start sm:gap-2.5">
+                <div className="flex items-center justify-center gap-1.5 overflow-visible sm:absolute sm:left-[calc(100%+0.4rem)] sm:top-[42%] sm:-translate-y-1/2 sm:justify-start sm:gap-2.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/cta-arrow.png"
                     alt=""
                     width={160}
                     height={34}
-                    className="h-auto w-[4.75rem] shrink-0 object-contain object-right sm:w-[6.5rem]"
+                    className="h-auto w-9 shrink-0 object-contain object-right sm:w-[6.5rem]"
                     aria-hidden
                     draggable={false}
                   />
                   <p
-                    className="shrink-0 text-left text-[12.5px] font-semibold leading-[1.25] text-gray-900 sm:text-[13px]"
+                    className="shrink-0 text-left text-[12.5px] font-semibold leading-[1.3] text-gray-900 sm:text-[13px]"
                     style={{
                       fontFamily:
                         'var(--font-display), var(--font-sans), system-ui, sans-serif',
                       transform: 'rotate(-8deg)',
-                      // Marge pour que la rotation + la pointe de flèche
-                      // ne mangent pas le début du texte.
                       paddingLeft: '0.15rem',
                       paddingRight: '0.35rem',
                       paddingBottom: '0.2rem',
                     }}
                   >
-                    1 mois{' '}
+                    1 mois
+                    <br />
                     <span className="rounded-[2px] px-0.5 [box-decoration-break:clone] [background:linear-gradient(transparent_12%,rgba(99,102,241,0.22)_12%,rgba(99,102,241,0.22)_88%,transparent_88%)]">
                       gratuit
                     </span>{' '}
-                    sans{' '}
+                    sans
+                    <br />
                     <span className="rounded-[2px] px-0.5 [box-decoration-break:clone] [background:linear-gradient(transparent_12%,rgba(99,102,241,0.22)_12%,rgba(99,102,241,0.22)_88%,transparent_88%)]">
                       engagement
                     </span>

@@ -18,7 +18,7 @@ import {
   type DisplayFamilyKey,
 } from '@/lib/lead-filters';
 
-const SORT_MODES: ProspectsSortMode[] = ['score', 'dpe_recent'];
+const SORT_MODES: ProspectsSortMode[] = ['score', 'dpe_recent', 'joignables'];
 
 interface ProspectsFiltersPanelProps {
   filters: Filters;

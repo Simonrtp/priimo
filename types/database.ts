@@ -146,6 +146,16 @@ export type LeadRow = {
   owner_siren?: string | null;
   /** Téléphone professionnel du contact propriétaire. */
   owner_phone?: string | null;
+  /**
+   * Qualité du téléphone propriétaire côté pipeline :
+   * 'cible' = contact direct ; 'probable' = société immo domiciliée (lien non confirmé).
+   */
+  owner_phone_source?: string | null;
+  /**
+   * Meilleur niveau de joignabilité du lead :
+   * 'direct' | 'nominatif' | 'immeuble' | 'aucun' (ou null si non renseigné).
+   */
+  contactabilite?: string | null;
   /** Autres sociétés présentes à l'adresse (jsonb). */
   contacts_immeuble?: unknown;
   /**

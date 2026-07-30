@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, LeadRow, ProfileRow } from '@/types/database';
 import type { Lead, LeadSignal, MlFeedback, TeamMember } from '@/types/lead';
 import { parseDisplaySignals } from '@/lib/display-signals';
-import { parseContactsImmeuble } from '@/lib/lead-contacts';
+import { parseContactsImmeuble, parseContactabilite, parseOwnerPhoneSource } from '@/lib/lead-contacts';
 import { parseScriptApproche } from '@/lib/script-approche';
 
 type Client = SupabaseClient<Database>;
@@ -108,6 +108,8 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     ownerCompany: row.owner_company ?? null,
     ownerSiren: row.owner_siren ?? null,
     ownerPhone: row.owner_phone ?? null,
+    ownerPhoneSource: parseOwnerPhoneSource(row.owner_phone_source),
+    contactabilite: parseContactabilite(row.contactabilite),
     contactsImmeuble: parseContactsImmeuble(row.contacts_immeuble),
     scriptApproche: parseScriptApproche(row.script_approche),
     deliveredAt: row.delivered_at ?? row.created_at.slice(0, 10),
@@ -165,6 +167,8 @@ export const LEADS_CLIENT_SELECT = [
   'owner_company',
   'owner_siren',
   'owner_phone',
+  'owner_phone_source',
+  'contactabilite',
   'contacts_immeuble',
   'script_approche',
   'delivered_at',

@@ -102,6 +102,15 @@ export interface Lead {
   ownerCompany: string | null;
   ownerSiren: string | null;
   ownerPhone: string | null;
+  /**
+   * Source du téléphone propriétaire : 'cible' | 'probable' | null.
+   * 'probable' = société immobilière domiciliée, lien avec le bien non confirmé.
+   */
+  ownerPhoneSource: 'cible' | 'probable' | null;
+  /**
+   * Joignabilité : 'direct' | 'nominatif' | 'immeuble' | 'aucun' | null.
+   */
+  contactabilite: 'direct' | 'nominatif' | 'immeuble' | 'aucun' | null;
   /** Sociétés présentes dans l'immeuble (déjà filtrées : type immeuble + téléphone). */
   contactsImmeuble: ImmeubleContact[];
   /** Scripts d'approche terrain (null = section masquée). */

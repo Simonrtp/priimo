@@ -103,3 +103,28 @@ export function hasAnyLeadPhone(
   if (lead.ownerPhone?.trim()) return true;
   return lead.contactsImmeuble.some((c) => Boolean(c.phone));
 }
+
+/** Icône téléphone liste : uniquement un vrai contact direct propriétaire. */
+export function hasDirectContactPhone(
+  lead: Pick<Lead, 'contactabilite'>,
+): boolean {
+  return lead.contactabilite === 'direct';
+}
+
+export function parseContactabilite(
+  raw: unknown,
+): Lead['contactabilite'] {
+  const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (v === 'direct' || v === 'nominatif' || v === 'immeuble' || v === 'aucun') {
+    return v;
+  }
+  return null;
+}
+
+export function parseOwnerPhoneSource(
+  raw: unknown,
+): Lead['ownerPhoneSource'] {
+  const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (v === 'cible' || v === 'probable') return v;
+  return null;
+}
