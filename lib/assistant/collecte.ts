@@ -28,7 +28,7 @@ import type {
 } from '@/types/database';
 import type { AssistantIntent, IntentType } from './intent';
 import { labelCherche } from './intent';
-import { adresseCorrespond, escapeIlike, nomCorrespond } from './normalize';
+import { adresseCorrespond, escapeIlike, nomCorrespond, searchPatterns } from './normalize';
 
 type Client = SupabaseClient<Database>;
 
@@ -371,6 +371,7 @@ function pushBien(
   acc: { lignes: CollecteLigne[]; sources: AssistantSource[] },
   b: CollecteBien,
   noms?: ReadonlyMap<string, string>,
+  proprietaire?: string | null,
 ): void {
   acc.lignes.push({
     kind: 'bien',
@@ -381,7 +382,9 @@ function pushBien(
       adresse: b.address,
       prix: b.price,
       surface: b.surfaceM2,
+      pieces: b.rooms,
       statut_mandat: b.mandatStatut,
+      proprietaire,
       date_creation: b.createdAt,
       date_maj: b.updatedAt,
     }),
@@ -425,48 +428,47 @@ function pushNote(
   });
 }
 
+function matchImmeuble(
+  banId: string | null,
+  texte: string | null,
+  recordBanId: string | null,
+  ...addressFields: Array<string | null | undefined>
+): boolean {
+  if (banId && recordBanId === banId) return true;
+  if (texte) return adresseCorrespond(texte, ...addressFields);
+  return false;
+}
+
 function onImmeuble(
   lead: CollecteLead,
   banId: string | null,
   texte: string | null,
-  parTexte: boolean,
 ): boolean {
-  if (!parTexte && banId) return lead.banId === banId;
-  if (!texte) return false;
-  return adresseCorrespond(texte, lead.address, lead.adresseNormalisee, lead.city, lead.postalCode);
+  return matchImmeuble(banId, texte, lead.banId, lead.address, lead.adresseNormalisee, lead.city, lead.postalCode);
 }
 
 function contactOnImmeuble(
   c: CollecteContact,
   banId: string | null,
   texte: string | null,
-  parTexte: boolean,
 ): boolean {
-  if (!parTexte && banId) return c.banId === banId;
-  if (!texte) return false;
-  return adresseCorrespond(texte, c.address);
+  return matchImmeuble(banId, texte, c.banId, c.address);
 }
 
 function bienOnImmeuble(
   b: CollecteBien,
   banId: string | null,
   texte: string | null,
-  parTexte: boolean,
 ): boolean {
-  if (!parTexte && banId) return b.banId === banId;
-  if (!texte) return false;
-  return adresseCorrespond(texte, b.address, b.city, b.postalCode);
+  return matchImmeuble(banId, texte, b.banId, b.address, b.city, b.postalCode);
 }
 
 function noteOnImmeuble(
   n: CollecteNote,
   banId: string | null,
   texte: string | null,
-  parTexte: boolean,
 ): boolean {
-  if (!parTexte && banId) return n.banId === banId;
-  if (!texte) return false;
-  return adresseCorrespond(texte, n.adresseNormalisee);
+  return matchImmeuble(banId, texte, n.banId, n.adresseNormalisee);
 }
 
 function collectImmeuble(
@@ -483,7 +485,7 @@ function collectImmeuble(
     byDateDesc(
       visLeads(
         ctx.viewer,
-        snap.leads.filter((l) => onImmeuble(l, banId, texte, parTexte)),
+        snap.leads.filter((l) => onImmeuble(l, banId, texte)),
       ),
       (l) => l.deliveredAt ?? l.createdAt,
     ),
@@ -493,12 +495,34 @@ function collectImmeuble(
     byDateDesc(
       visContacts(
         ctx.viewer,
-        snap.contacts.filter((c) => contactOnImmeuble(c, banId, texte, parTexte)),
+        snap.contacts.filter((c) => contactOnImmeuble(c, banId, texte)),
       ),
       (c) => c.createdAt,
     ),
   );
   const contactIds = new Set(contacts.map((c) => c.id));
+
+  const biens = cap(
+    byDateDesc(
+      visBiens(
+        ctx.viewer,
+        snap.biens.filter((b) => bienOnImmeuble(b, banId, texte)),
+      ),
+      (b) => b.updatedAt ?? b.createdAt,
+    ),
+  );
+
+  const ownerIds = new Set(
+    biens.map((b) => b.proprietaireContactId).filter((id): id is string => Boolean(id)),
+  );
+  const extraOwners = visContacts(
+    ctx.viewer,
+    snap.contacts.filter((c) => ownerIds.has(c.id) && !contactIds.has(c.id)),
+  );
+  for (const owner of extraOwners) {
+    contacts.push(owner);
+    contactIds.add(owner.id);
+  }
   const contactName = (id: string) => contacts.find((c) => c.id === id)?.fullName ?? null;
 
   const interactions = cap(
@@ -511,21 +535,11 @@ function collectImmeuble(
     ),
   );
 
-  const biens = cap(
-    byDateDesc(
-      visBiens(
-        ctx.viewer,
-        snap.biens.filter((b) => bienOnImmeuble(b, banId, texte, parTexte)),
-      ),
-      (b) => b.updatedAt ?? b.createdAt,
-    ),
-  );
-
   const notes = cap(
     byDateDesc(
       visNotes(
         ctx.viewer,
-        snap.notes.filter((n) => noteOnImmeuble(n, banId, texte, parTexte)),
+        snap.notes.filter((n) => noteOnImmeuble(n, banId, texte)),
       ),
       (n) => n.createdAt,
     ),
@@ -535,7 +549,9 @@ function collectImmeuble(
   for (const l of leads) pushLead(acc, l, ctx.auteurNoms);
   for (const c of contacts) pushContact(acc, c, ctx.auteurNoms);
   for (const i of interactions) pushInteraction(acc, i, contactName(i.contactId), ctx.auteurNoms);
-  for (const b of biens) pushBien(acc, b, ctx.auteurNoms);
+  for (const b of biens) {
+    pushBien(acc, b, ctx.auteurNoms, b.proprietaireContactId ? contactName(b.proprietaireContactId) : null);
+  }
   for (const n of notes) pushNote(acc, n, ctx.auteurNoms);
 
   return {
@@ -662,7 +678,7 @@ function collectAcquereurs(
 
   let cible: RapprochableBien | null = null;
   if (banId || texte) {
-    const match = biensVisibles.find((b) => bienOnImmeuble(b, banId, texte, parTexte));
+    const match = biensVisibles.find((b) => bienOnImmeuble(b, banId, texte));
     if (match) cible = toRapprochable(match);
   }
 
@@ -954,8 +970,18 @@ async function loadSnapshot(
     loadAllVisible?: boolean;
   },
 ): Promise<AgencySnapshot> {
-  const like = opts.adresseTexte ? `%${escapeIlike(opts.adresseTexte)}%` : null;
+  const addressPatterns = opts.adresseTexte ? searchPatterns(opts.adresseTexte) : [];
   const nomLike = opts.nom ? `%${escapeIlike(opts.nom)}%` : null;
+
+  function addressOr(fields: readonly string[]): string | null {
+    const parts: string[] = [];
+    if (opts.banId) parts.push(`ban_id.eq."${opts.banId}"`);
+    for (const p of addressPatterns) {
+      const like = `%${escapeIlike(p)}%`;
+      for (const f of fields) parts.push(`${f}.ilike."${like}"`);
+    }
+    return parts.length > 0 ? parts.join(',') : null;
+  }
 
   const leadQ = supabase
     .from('leads')
@@ -993,16 +1019,15 @@ async function loadSnapshot(
     .order('created_at', { ascending: false })
     .limit(COLLECTE_LIMITE);
 
-  if (opts.banId) {
-    leadQ.eq('ban_id', opts.banId);
-    contactQ.eq('ban_id', opts.banId);
-    bienQ.eq('ban_id', opts.banId);
-    noteQ.eq('ban_id', opts.banId);
-  } else if (like && !opts.loadAllVisible) {
-    leadQ.or(`address.ilike."${like}",adresse_normalisee.ilike."${like}"`);
-    contactQ.or(`address.ilike."${like}"`);
-    bienQ.or(`address.ilike."${like}"`);
-    noteQ.or(`adresse_normalisee.ilike."${like}"`);
+  if (!opts.loadAllVisible) {
+    const leadOr = addressOr(['address', 'adresse_normalisee']);
+    const contactOr = addressOr(['address']);
+    const bienOr = addressOr(['address']);
+    const noteOr = addressOr(['adresse_normalisee', 'transcript']);
+    if (leadOr) leadQ.or(leadOr);
+    if (contactOr) contactQ.or(contactOr);
+    if (bienOr) bienQ.or(bienOr);
+    if (noteOr) noteQ.or(noteOr);
   }
 
   if (nomLike) {
@@ -1024,6 +1049,27 @@ async function loadSnapshot(
   ]);
 
   const contacts = (contactRows as unknown as ContactRow[]).map(mapContactRow);
+  const biens = (bienRows as unknown as BienRow[]).map(mapBienRow);
+  const knownContactIds = new Set(contacts.map((c) => c.id));
+  const missingOwnerIds = [
+    ...new Set(
+      biens
+        .map((b) => b.proprietaireContactId)
+        .filter((id): id is string => Boolean(id) && !knownContactIds.has(id)),
+    ),
+  ];
+  if (missingOwnerIds.length > 0) {
+    const extraRows = await fetchLimited(
+      supabase
+        .from('contacts')
+        .select(
+          'id, agency_id, created_by, first_name, last_name, contact_type, phone, email, secteur, postal_codes, budget_min, budget_max, surface_min, surface_max, rooms_min, summary, last_interaction_at, source, lead_id, address, ban_id, assigned_to, created_at, updated_at',
+        )
+        .eq('agency_id', agencyId)
+        .in('id', missingOwnerIds),
+    );
+    contacts.push(...(extraRows as unknown as ContactRow[]).map(mapContactRow));
+  }
   const contactIds = contacts.map((c) => c.id);
 
   let interactions: CollecteInteraction[] = [];
@@ -1060,7 +1106,7 @@ async function loadSnapshot(
     leads: (leadRows as unknown as LeadRow[]).map(mapLeadRow),
     contacts,
     interactions,
-    biens: (bienRows as unknown as BienRow[]).map(mapBienRow),
+    biens,
     notes: (noteRows as unknown as VoiceNoteRow[]).map((row) => {
       const n = mapDbVoiceNote(row);
       return {
@@ -1104,11 +1150,7 @@ export async function collecter(
   const snapshot = await loadSnapshot(supabase, ctx.agencyId, {
     banId: banId && !rechercheParTexte ? banId : null,
     adresseTexte:
-      rechercheParTexte || (intent.type === 'recherche_acquereur' && intent.adresse)
-        ? intent.adresse
-        : intent.type === 'immeuble' && rechercheParTexte
-          ? intent.adresse
-          : null,
+      intent.type === 'immeuble' || intent.type === 'recherche_acquereur' ? intent.adresse : null,
     nom: intent.type === 'personne' ? intent.nom : null,
     since,
     loadAllVisible: intent.type === 'recherche_acquereur' || intent.type === 'activite',

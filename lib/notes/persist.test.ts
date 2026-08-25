@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { persistThenExtract } from './persist';
+import { emptyReviewPayload } from './build-review';
 
 describe('persistThenExtract', () => {
   it('enregistre la note même si l’extraction échoue', async () => {
@@ -20,5 +21,14 @@ describe('persistThenExtract', () => {
       async () => undefined,
     );
     assert.equal(result.extractFailed, false);
+  });
+});
+
+describe('emptyReviewPayload', () => {
+  it('donne une fiche vide pour afficher le texte sans attendre l’extraction', () => {
+    const payload = emptyReviewPayload('n1', 'voisin au 12');
+    assert.equal(payload.voiceNoteId, 'n1');
+    assert.equal(payload.transcript, 'voisin au 12');
+    assert.equal(payload.personnes.length, 0);
   });
 });

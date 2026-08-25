@@ -154,7 +154,7 @@ describe('countKindsInViewport', () => {
         point({ id: 'out', kind: 'lead', banId: 'b', latitude: 48.85, longitude: 2.35 }),
         point({ id: 'c', kind: 'contact', banId: 'a', latitude: 50.63, longitude: 3.06 }),
       ],
-      { west: 3.0, south: 50.6, east: 3.1, north: 50.7 },
+      { west: 3.0, south: 50.6, east: 3.1, north: 50.7, zoom: 14 },
     );
     assert.equal(counts.lead, 1);
     assert.equal(counts.contact, 1);

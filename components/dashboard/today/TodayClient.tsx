@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Mic } from 'lucide-react';
+import { Check } from 'lucide-react';
 import type { TodayCard } from '@/lib/today/cards';
 import type { Lead } from '@/types/lead';
 import type { GeoCoord } from '@/lib/carte/coords';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { notifyError } from '@/lib/notify';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
-import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import TodayCardView from './TodayCardView';
 import AgencyOverviewBlock from './AgencyOverviewBlock';
 import type { AgencyOverview } from '@/lib/today/agency-overview';
@@ -32,7 +32,7 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function EmptyState({ onDictate }: { onDictate: () => void }) {
+function EmptyState() {
   return (
     <div className="flex flex-col items-center py-12 text-center">
       <div
@@ -47,10 +47,7 @@ function EmptyState({ onDictate }: { onDictate: () => void }) {
         Rien ne vous attend pour le moment. Ce que vous croisez sur le terrain se note ici en quelques secondes.
       </p>
       <div className="mt-8">
-        <WorkspaceButton type="button" onClick={onDictate}>
-          <Mic size={16} strokeWidth={2} aria-hidden />
-          Dicter une note
-        </WorkspaceButton>
+        <NoteCreateChooser variant="toolbar" />
       </div>
     </div>
   );
@@ -193,7 +190,7 @@ export default function TodayClient({
       <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
         <div className="min-w-0 lg:col-span-3">
           {workCards.length === 0 && emptyKind === 'rien' ? (
-            <EmptyState onDictate={openCapture} />
+            <EmptyState />
           ) : workCards.length === 0 ? (
             <p className="py-6 text-[14px] text-text-muted">Aucune tâche en attente dans la pile.</p>
           ) : (

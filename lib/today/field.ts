@@ -17,6 +17,9 @@ export const FIELD = {
 /** Fond shell dashboard (sidebar / header desktop). */
 export const SHELL_GRADIENT = 'linear-gradient(180deg, #1E3148 0%, #15202F 100%)';
 
+/** Classe CSS : dégradé bleu + grain discret (voir globals.css `.priimo-shell-bg`). */
+export const SHELL_BG_CLASS = 'priimo-shell-bg';
+
 /**
  * Jours ouvrés de l'agence, `Date.getDay()` : 0 = dimanche.
  * Défaut lundi–samedi : un dimanche ne casse jamais la série.

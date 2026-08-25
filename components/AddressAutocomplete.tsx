@@ -9,6 +9,8 @@ export type { SelectedAddress };
 interface AddressAutocompleteProps {
   value?: string;
   onChange: (data: SelectedAddress | null) => void;
+  /** Saisie libre (même sans suggestion choisie). */
+  onQueryChange?: (query: string) => void;
   placeholder?: string;
   required?: boolean;
   id?: string;
@@ -21,6 +23,7 @@ const defaultInputClass =
 export default function AddressAutocomplete({
   value = '',
   onChange,
+  onQueryChange,
   placeholder = 'Ex : 12 rue de la Paix, Paris',
   required = false,
   id,
@@ -120,6 +123,7 @@ export default function AddressAutocomplete({
     const next = e.target.value;
     userEditedRef.current = true;
     setQuery(next);
+    onQueryChange?.(next);
     onChange(null);
   };
 

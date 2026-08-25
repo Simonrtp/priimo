@@ -14,16 +14,23 @@ export const MAP_LAYER_LABELS: Record<MapPointKind, string> = {
   note: 'Notes terrain',
 };
 
-export type MapLayerState = Record<MapPointKind, boolean>;
+export const PARCELLES_LAYER_ID = 'parcelles';
+export const PARCELLES_LAYER_LABEL = 'Parcelles';
+
+export type MapLayerState = Record<MapPointKind, boolean> & {
+  parcelles: boolean;
+};
 
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
   lead: true,
   contact: true,
   bien: false,
   note: true,
+  parcelles: false,
 };
 
 export const MAP_LAYERS_STORAGE_KEY = 'priimo-carte-layers';
+export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 
 export function parseMapLayers(raw: unknown): MapLayerState {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_MAP_LAYERS };
@@ -33,6 +40,7 @@ export function parseMapLayers(raw: unknown): MapLayerState {
     contact: row.contact !== false,
     bien: row.bien === true,
     note: row.note !== false,
+    parcelles: row.parcelles === true,
   };
 }
 
@@ -50,6 +58,23 @@ export function readStoredMapLayers(): MapLayerState {
 export function persistMapLayers(state: MapLayerState): void {
   try {
     window.localStorage.setItem(MAP_LAYERS_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // quota / mode privé
+  }
+}
+
+export function readLayersPanelOpen(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return window.localStorage.getItem(MAP_LAYERS_PANEL_STORAGE_KEY) !== 'collapsed';
+  } catch {
+    return true;
+  }
+}
+
+export function persistLayersPanelOpen(open: boolean): void {
+  try {
+    window.localStorage.setItem(MAP_LAYERS_PANEL_STORAGE_KEY, open ? 'open' : 'collapsed');
   } catch {
     // quota / mode privé
   }

@@ -418,7 +418,7 @@ export type VoiceNoteStatusDb = 'transcrit' | 'valide' | 'erreur';
 export type VoiceNoteVisibiliteDb = 'agence' | 'privee';
 export type VoiceNoteStatutDb = 'brute' | 'revue';
 export type NoteSourceInfoDb = 'proprietaire' | 'gardien' | 'voisin' | 'tiers' | 'agent';
-export type NoteLienEntiteDb = 'contact' | 'bien' | 'lead' | 'immeuble';
+export type NoteLienEntiteDb = 'contact' | 'bien' | 'lead' | 'immeuble' | 'parcelle';
 export type NoteLienConfianceDb = 'certain' | 'probable';
 export type NoteLienCreeParDb = 'agent' | 'extraction' | 'reconciliation';
 export type ContactInteractionKindDb = 'note' | 'appel' | 'visite' | 'vocal' | 'email';
@@ -671,6 +671,44 @@ export type NoteLienInsert = {
   cree_par: NoteLienCreeParDb;
   cree_le?: string;
   is_demo?: boolean;
+};
+
+export type ParcelleSyntheseRow = {
+  idu: string;
+  code_insee: string | null;
+  code_postal: string | null;
+  evenements_count: number;
+  lots: number | null;
+  periode_construction: string | null;
+  procedure_en_cours: string | null;
+  updated_at: string;
+};
+
+export type ParcelleAdresseRow = {
+  id: string;
+  idu: string;
+  libelle: string;
+  principale: boolean;
+  ban_id: string | null;
+  code_postal: string | null;
+  nom_commune: string | null;
+};
+
+export type ParcelleVenteRow = {
+  id: string;
+  idu: string;
+  date_mutation: string;
+  prix: number | null;
+  surface: number | null;
+  prix_m2: number | null;
+};
+
+export type ParcelleDiagnosticRow = {
+  id: string;
+  idu: string;
+  date_diag: string | null;
+  etiquette: string | null;
+  type: string | null;
 };
 
 export type ContactInteractionRow = {
@@ -983,11 +1021,43 @@ export type Database = {
         Update: Partial<NoteLienRow>;
         Relationships: [];
       };
+      parcelle_synthese: {
+        Row: ParcelleSyntheseRow;
+        Insert: ParcelleSyntheseRow;
+        Update: Partial<ParcelleSyntheseRow>;
+        Relationships: [];
+      };
+      parcelle_adresses: {
+        Row: ParcelleAdresseRow;
+        Insert: Omit<ParcelleAdresseRow, 'id'> & { id?: string };
+        Update: Partial<ParcelleAdresseRow>;
+        Relationships: [];
+      };
+      parcelle_ventes: {
+        Row: ParcelleVenteRow;
+        Insert: Omit<ParcelleVenteRow, 'id'> & { id?: string };
+        Update: Partial<ParcelleVenteRow>;
+        Relationships: [];
+      };
+      parcelle_diagnostics: {
+        Row: ParcelleDiagnosticRow;
+        Insert: Omit<ParcelleDiagnosticRow, 'id'> & { id?: string };
+        Update: Partial<ParcelleDiagnosticRow>;
+        Relationships: [];
+      };
       contact_interactions: {
         Row: ContactInteractionRow;
         Insert: ContactInteractionInsert;
         Update: Partial<ContactInteractionRow>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'contact_interactions_contact_id_fkey';
+            columns: ['contact_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       today_dismissals: {
         Row: TodayDismissalRow;

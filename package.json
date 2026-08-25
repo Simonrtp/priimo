@@ -6,12 +6,12 @@
     "node": ">=18.18.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "npx --yes tsx --test lib/auth/active-agency.test.ts lib/admin/postal-collisions.test.ts lib/matching/rapprochement.test.ts lib/today/cards.test.ts lib/today/sortie.test.ts lib/today/metier-cards.test.ts lib/today/agency-overview.test.ts lib/today/tournee.test.ts lib/today/field.test.ts lib/today/static-map.test.ts lib/today/visual-level.test.ts lib/today/quadrant.test.ts lib/today/directions.test.ts lib/metier/mandat.test.ts lib/notes/date-relative.test.ts lib/diffusion/diffusion.test.ts lib/import/import.test.ts lib/queries/agency-members.test.ts lib/agency/assignees.test.ts lib/carte/points.test.ts lib/carte/cluster.test.ts lib/carte/buildings.test.ts lib/geo/ban.test.ts lib/assistant/intent.test.ts lib/assistant/collecte.test.ts lib/assistant/repondre.test.ts lib/assistant/suggestions.test.ts lib/voice/extract.test.ts lib/notes/visibility.test.ts lib/notes/match.test.ts lib/notes/reconcilier.test.ts lib/notes/persist.test.ts lib/notes/propositions.test.ts lib/device.test.ts lib/lead-recap.test.ts lib/facade/street-view.test.ts lib/pipeline/position.test.ts lib/pipeline/prise.test.ts",
+    "test": "npx --yes tsx --test lib/auth/active-agency.test.ts lib/admin/postal-collisions.test.ts lib/matching/rapprochement.test.ts lib/today/cards.test.ts lib/today/sortie.test.ts lib/today/metier-cards.test.ts lib/today/agency-overview.test.ts lib/today/tournee.test.ts lib/today/field.test.ts lib/today/static-map.test.ts lib/today/visual-level.test.ts lib/today/quadrant.test.ts lib/today/directions.test.ts lib/metier/mandat.test.ts lib/notes/date-relative.test.ts lib/diffusion/diffusion.test.ts lib/import/import.test.ts lib/queries/agency-members.test.ts lib/agency/assignees.test.ts lib/carte/points.test.ts lib/carte/cluster.test.ts lib/carte/buildings.test.ts lib/carte/layers.test.ts lib/carte/parcelle.test.ts lib/geo/ban.test.ts lib/assistant/intent.test.ts lib/assistant/collecte.test.ts lib/assistant/repondre.test.ts lib/assistant/suggestions.test.ts lib/assistant/search.test.ts lib/voice/extract.test.ts lib/notes/visibility.test.ts lib/notes/match.test.ts lib/notes/reconcilier.test.ts lib/notes/persist.test.ts lib/notes/propositions.test.ts lib/device.test.ts lib/lead-recap.test.ts lib/facade/street-view.test.ts lib/pipeline/position.test.ts lib/pipeline/prise.test.ts",
     "seed:demo": "npx tsx scripts/seed-demo-agency.ts",
     "seed:demo:fresh": "npx tsx scripts/seed-demo-agency.ts --purge",
     "purge:demo": "npx tsx scripts/purge-demo-agency.ts"
@@ -31,7 +31,7 @@
     "papaparse": "^5.6.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-joyride": "^2.9.3",
+    "react-joyride": "^3.2.0",
     "react-map-gl": "^7.1.9",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",

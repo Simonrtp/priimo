@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Mic, Search, Upload } from 'lucide-react';
+import { Download, Search, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER } from '@/types/contact';
@@ -9,8 +9,8 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportContactsCsv } from '@/lib/import/export-contacts';
 import Select from '@/components/ui/Select';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import ImportWizard from '@/components/dashboard/import/ImportWizard';
+import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
@@ -70,8 +70,6 @@ export default function ContactsClient({
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = useState<Contact | null>(null);
-
-  const { openCapture } = useVoiceCapture();
 
   const secteurs = useMemo(() => {
     const set = new Set<string>();
@@ -134,10 +132,7 @@ export default function ContactsClient({
             : `${contacts.length} ${contacts.length > 1 ? 'personnes suivies' : 'personne suivie'}`
         }
         primaryAction={
-          <WorkspaceButton type="button" onClick={() => openCapture()}>
-            <Mic size={16} strokeWidth={2} aria-hidden />
-            Dicter une note
-          </WorkspaceButton>
+          <NoteCreateChooser variant="toolbar" />
         }
         secondaryAction={
           <>

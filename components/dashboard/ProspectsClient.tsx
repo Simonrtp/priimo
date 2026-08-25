@@ -18,10 +18,9 @@ import { deleteLead as deleteLeadDb } from '@/lib/queries/leads';
 import { entreeStage } from '@/lib/queries/lead-stages';
 import { nextStagePosition } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
+import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
-import type { MapPoint, UnplacedRecord, WithoutPositionCount } from '@/lib/carte/points';
 import { useUser } from '@/lib/hooks/useUser';
-import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { pickTourLeadId } from '@/lib/tour-lead';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
@@ -39,16 +38,6 @@ import LostReasonDialog from './pipeline/LostReasonDialog';
 
 const LeadDrawer = dynamic(() => import('./LeadDrawer'), { ssr: false });
 const LeadFullScreenMobile = dynamic(() => import('./LeadFullScreenMobile'), { ssr: false });
-const SectorMapClient = dynamic(() => import('./carte/SectorMapClient'), { ssr: false });
-const CarteMobile = dynamic(() => import('@/app/dashboard/_mobile/CarteMobile'), { ssr: false });
-
-export type ProspectionMapData = {
-  points: MapPoint[];
-  withoutPosition: WithoutPositionCount;
-  unplaced: UnplacedRecord[];
-  agencyPostalCodes: string[];
-  center: { latitude: number | null; longitude: number | null };
-};
 
 interface ProspectsClientProps {
   initialLeads: Lead[];
@@ -60,7 +49,6 @@ interface ProspectsClientProps {
   initialSelectedLeadId?: string | null;
   listFilter?: 'sans-position' | 'non-assignes-14j' | null;
   initialVue?: ProspectionVue;
-  mapData: ProspectionMapData;
 }
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -91,12 +79,10 @@ export default function ProspectsClient({
   initialSelectedLeadId = null,
   listFilter = null,
   initialVue = 'liste',
-  mapData,
 }: ProspectsClientProps) {
   const { profile } = useUser();
-  const device = useDevice();
   const router = useRouter();
-  const wide = useWideViewport(device === 'desktop');
+  const wide = useWideViewport(false);
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
   const vueFromUrl = vueState;
   const vue: ProspectionVue = vueFromUrl === 'pipeline' && !wide ? 'liste' : vueFromUrl;
@@ -116,10 +102,6 @@ export default function ProspectsClient({
   const [lostReason, setLostReason] = useState('');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const mapMembers = useMemo(
-    () => teamMembers.map((m) => ({ id: m.id, fullName: m.fullName })),
-    [teamMembers],
-  );
 
   const tabCounts = useMemo(
     () => ({
@@ -238,7 +220,7 @@ export default function ProspectsClient({
       const gate = entreeStage(stages);
       const userId = profile?.id;
       if (!lead || !gate || !userId) {
-        toast.error('Impossible de prendre ce lead pour le moment.');
+        toast.error('Impossible d’ajouter ce lead au pipeline pour le moment.');
         return;
       }
       const now = new Date().toISOString();
@@ -266,7 +248,7 @@ export default function ProspectsClient({
           assignedTo: lead.assignedTo,
           stageChangedAt: lead.stageChangedAt,
         });
-        toast.error(e instanceof Error ? e.message : 'Le lead n’a pas pu être pris.');
+        toast.error(e instanceof Error ? e.message : 'Le lead n’a pas pu être ajouté au pipeline.');
       }
     },
     [applyLeadPatch, leads, profile?.id, stages],
@@ -296,6 +278,9 @@ export default function ProspectsClient({
           stageChangedAt: now,
           lostReason: stage.type === 'perdu' ? lostReasonValue ?? null : null,
         });
+        const fromStage = lead.stageId ? stages.find((s) => s.id === lead.stageId) : null;
+        const victory = pipelineVictoryKind(fromStage, stage);
+        if (victory) celebratePipelineVictory(victory);
       } catch (e) {
         applyLeadPatch(id, {
           stageId: lead.stageId,
@@ -400,38 +385,6 @@ export default function ProspectsClient({
           onViewNew={viewNewLeads}
         />
       )}
-
-      {vue === 'carte' ? (
-        <>
-          <div className="mb-3 flex justify-end">{switcher}</div>
-          {device === 'mobile' ? (
-            <div className="relative h-[calc(100dvh-var(--field-nav-height)-7.5rem)] min-h-[280px] overflow-hidden rounded-xl">
-              <CarteMobile
-                points={mapData.points}
-                withoutPosition={mapData.withoutPosition}
-                unplaced={mapData.unplaced}
-                agencyPostalCodes={mapData.agencyPostalCodes}
-                center={mapData.center}
-                members={mapMembers}
-                isDirector={isDirector}
-                fillParent
-                hideAccount
-              />
-            </div>
-          ) : (
-            <SectorMapClient
-              points={mapData.points}
-              withoutPosition={mapData.withoutPosition}
-              unplaced={mapData.unplaced}
-              agencyPostalCodes={mapData.agencyPostalCodes}
-              center={mapData.center}
-              members={mapMembers}
-              isDirector={isDirector}
-              embedded
-            />
-          )}
-        </>
-      ) : null}
 
       {vue === 'pipeline' ? (
         <>

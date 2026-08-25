@@ -16,6 +16,9 @@ import VoiceLockHint from './VoiceLockHint';
 import { useUser } from '@/lib/hooks/useUser';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
+import { emptyReviewPayload } from '@/lib/notes/build-review';
+import { joinVoiceTranscripts } from '@/lib/voice/extract';
+import { hydrateNoteReview, LIVE_FLUSH_MS, transcribeLive } from '@/lib/voice/live';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 
 type Phase = 'recording' | 'processing' | 'review';
@@ -25,11 +28,13 @@ export default function VoiceCaptureDialog({
   streamPromise,
   variant = 'desktop',
   adresse = null,
+  parcelleIdu = null,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
   variant?: 'desktop' | 'mobile';
   adresse?: string | null;
+  parcelleIdu?: string | null;
 }) {
   const router = useRouter();
   const { profile } = useUser();
@@ -61,6 +66,10 @@ export default function VoiceCaptureDialog({
   const transcriptRef = useRef(transcript);
   const voiceNoteIdRef = useRef(voiceNoteId);
   const gpsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const liveInFlightRef = useRef(false);
+  const liveTextRef = useRef('');
+  const takeBaseRef = useRef('');
+  const mimeRef = useRef('audio/webm');
   transcriptRef.current = transcript;
   voiceNoteIdRef.current = voiceNoteId;
 
@@ -119,7 +128,18 @@ export default function VoiceCaptureDialog({
   }, [releaseMic]);
 
   async function upload(blob: Blob, durationSeconds: number) {
-    setPhase('processing');
+    const preview = joinVoiceTranscripts(takeBaseRef.current, liveTextRef.current);
+    if (preview.trim()) {
+      setTranscript(preview);
+      if (voiceNoteIdRef.current) {
+        setReview(emptyReviewPayload(voiceNoteIdRef.current, preview));
+        setPhase('review');
+      } else {
+        setPhase('processing');
+      }
+    } else {
+      setPhase('processing');
+    }
     setError(null);
     releaseMic();
 
@@ -143,6 +163,7 @@ export default function VoiceCaptureDialog({
     }
     const adresse = gpsAddress?.trim();
     if (adresse) form.append('adresse', adresse);
+    if (parcelleIdu) form.append('parcelleIdu', parcelleIdu);
 
     const abortToReview = Boolean(continueId) || previous.length > 0;
 
@@ -150,6 +171,7 @@ export default function VoiceCaptureDialog({
       const res = await fetch('/api/dashboard/voice-notes', { method: 'POST', body: form });
       const data = (await res.json()) as NoteReviewPayload & {
         suggestedAssignee?: { id: string; fullName: string } | null;
+        extractionPending?: boolean;
         error?: string;
       };
 
@@ -172,14 +194,22 @@ export default function VoiceCaptureDialog({
         return;
       }
 
+      const nextTranscript = data.transcript ?? previous;
       setVoiceNoteId(data.voiceNoteId);
-      setTranscript(data.transcript ?? previous);
+      setTranscript(nextTranscript);
       setReview(data);
       setSuggestedAssigneeId(data.suggestedAssignee?.id ?? null);
       setPhase('review');
 
       if (!data.transcript) {
         notifyError("La dictée n'a pas pu être transcrite. Vous pouvez saisir le texte à la main.");
+      }
+
+      if (data.extractionPending && data.voiceNoteId && nextTranscript.trim()) {
+        void hydrateNoteReview(data.voiceNoteId, nextTranscript).then((hydrated) => {
+          if (cancelledRef.current || !hydrated) return;
+          setReview(hydrated);
+        });
       }
     } catch {
       if (cancelledRef.current) return;
@@ -219,13 +249,20 @@ export default function VoiceCaptureDialog({
       }
 
       const mimeType = pickAudioMimeType();
+      mimeRef.current = mimeType || 'audio/webm';
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       chunksRef.current = [];
+      liveTextRef.current = '';
+      takeBaseRef.current = transcriptRef.current;
+      let flushTimer = 0;
+      let flushSoon = 0;
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
+        window.clearInterval(flushTimer);
+        window.clearTimeout(flushSoon);
         const durationSeconds = Math.max(
           1,
           Math.round((Date.now() - startedAtRef.current) / 1000),
@@ -249,6 +286,22 @@ export default function VoiceCaptureDialog({
       startedAtRef.current = Date.now();
       setMicStream(stream);
       setMicReady(true);
+
+      const flush = () => {
+        if (cancelledRef.current || liveInFlightRef.current) return;
+        if (recorderRef.current?.state !== 'recording') return;
+        const blob = new Blob(chunksRef.current, { type: mimeRef.current });
+        liveInFlightRef.current = true;
+        void transcribeLive(blob)
+          .then((text) => {
+            if (text && !cancelledRef.current) liveTextRef.current = text;
+          })
+          .finally(() => {
+            liveInFlightRef.current = false;
+          });
+      };
+      flushTimer = window.setInterval(flush, LIVE_FLUSH_MS);
+      flushSoon = window.setTimeout(flush, 1800);
     } catch (error) {
       notifyError(micErrorMessage(error));
       if (transcriptRef.current.trim()) {
@@ -423,11 +476,19 @@ export default function VoiceCaptureDialog({
         >
           {phase === 'processing' ? (
             <div className="w-full max-w-sm" aria-busy="true" aria-label="Mise en texte de la dictée">
-              <div className="h-3 w-3/4 animate-pulse rounded bg-black/[0.08]" />
-              <div className="mt-3 h-3 w-full animate-pulse rounded bg-black/[0.06]" />
-              <div className="mt-3 h-3 w-2/3 animate-pulse rounded bg-black/[0.06]" />
+              {transcript.trim() ? (
+                <p className="text-pretty text-left text-text" style={{ fontSize: 15 }}>
+                  {transcript}
+                </p>
+              ) : (
+                <>
+                  <div className="h-3 w-3/4 animate-pulse rounded bg-black/[0.08]" />
+                  <div className="mt-3 h-3 w-full animate-pulse rounded bg-black/[0.06]" />
+                  <div className="mt-3 h-3 w-2/3 animate-pulse rounded bg-black/[0.06]" />
+                </>
+              )}
               <p className="mt-6 text-pretty text-center text-text-muted" style={{ fontSize: 14 }}>
-                Mise en texte de la dictée…
+                {transcript.trim() ? 'Enregistrement de la note…' : 'Mise en texte de la dictée…'}
               </p>
             </div>
           ) : (
@@ -545,14 +606,22 @@ export default function VoiceCaptureDialog({
           <div className="flex flex-col items-center px-5 py-8 text-center sm:px-6">
             {phase === 'processing' ? (
               <>
-                <div
-                  className="size-10 rounded-full border-2 border-black/10 border-t-blue motion-safe:animate-spin"
-                  aria-hidden
-                />
+                {transcript.trim() ? (
+                  <p className="w-full max-w-sm text-pretty text-left text-text" style={{ fontSize: 15 }}>
+                    {transcript}
+                  </p>
+                ) : (
+                  <div
+                    className="size-10 rounded-full border-2 border-black/10 border-t-blue motion-safe:animate-spin"
+                    aria-hidden
+                  />
+                )}
                 <p className="mt-5 text-pretty text-text-muted" style={{ fontSize: 14 }}>
-                  {hasPriorTake
-                    ? 'Mise en forme de ce que vous avez ajouté…'
-                    : 'Mise en texte de la dictée…'}
+                  {transcript.trim()
+                    ? 'Enregistrement de la note…'
+                    : hasPriorTake
+                      ? 'Mise en forme de ce que vous avez ajouté…'
+                      : 'Mise en texte de la dictée…'}
                 </p>
               </>
             ) : (

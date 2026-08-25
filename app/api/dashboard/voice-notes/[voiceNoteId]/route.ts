@@ -114,7 +114,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ voiceNoteId
     return NextResponse.json({ error: 'Dictée introuvable' }, { status: 404 });
   }
 
-  if (note.storage_path) {
+  if (note.storage_path && !note.storage_path.endsWith('.typed')) {
     const { error: storageError } = await admin.storage.from(BUCKET).remove([note.storage_path]);
     if (storageError) console.error('[voice] suppression audio', storageError);
   }

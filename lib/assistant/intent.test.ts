@@ -35,7 +35,7 @@ describe('parseIntent — robustesse', () => {
   });
 });
 
-describe('interprétation — dix questions types', () => {
+describe('interprétation — questions types', () => {
   it('extrait le type et l’adresse attendus pour chaque exemple', async () => {
     const seen: Array<Record<string, unknown>> = [];
     const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
@@ -53,7 +53,7 @@ describe('interprétation — dix questions types', () => {
       );
     }) as typeof fetch;
 
-    assert.equal(INTERPRET_EXAMPLES.length, 10);
+    assert.equal(INTERPRET_EXAMPLES.length, 11);
 
     for (const ex of INTERPRET_EXAMPLES) {
       const intent = await interpretQuestion(ex.question, 'test-key', fetchImpl);

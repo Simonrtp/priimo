@@ -37,9 +37,10 @@
   border: 1.5px solid #f4efe8;
 }
 
-.priimo-pin-wrap {
-  position: relative;
-  display: inline-flex;
+.priimo-pin--parcelle {
+  width: 16px;
+  height: 16px;
+  border-width: 1.5px;
 }
 
 .priimo-map .mapboxgl-marker {

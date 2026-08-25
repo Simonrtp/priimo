@@ -7,7 +7,7 @@ import type { FieldWeekSnapshot } from '@/lib/today/semaine';
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { Lead } from '@/types/lead';
 import { dateKeyParis } from '@/lib/today/calendar';
-import { snoozeUntil, SHELL_GRADIENT } from '@/lib/today/field';
+import { snoozeUntil, SHELL_BG_CLASS } from '@/lib/today/field';
 import {
   buildSortie,
   buildTourneeFromSortie,
@@ -235,7 +235,7 @@ export default function AujourdhuiMobile({
 
   return (
     <div className="field-page-enter flex min-h-0 flex-1 flex-col bg-[#15202F]">
-      <div className="flex-shrink-0 overflow-hidden" style={{ background: SHELL_GRADIENT }}>
+      <div className={`${SHELL_BG_CLASS} flex-shrink-0 overflow-hidden`}>
         <StatusBand
           prenom={firstName}
           remaining={remaining}

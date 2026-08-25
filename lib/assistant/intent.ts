@@ -248,6 +248,17 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
     },
   },
   {
+    question: "Qu'est-ce que tu sais de la rue Vitruve ?",
+    intent: {
+      type: 'immeuble',
+      adresse: 'rue Vitruve',
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: null, statut_mandat: null },
+    },
+  },
+  {
     question: 'Quel temps fera-t-il demain à Paris ?',
     intent: {
       type: 'inconnu',

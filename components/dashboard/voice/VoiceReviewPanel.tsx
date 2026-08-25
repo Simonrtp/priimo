@@ -43,6 +43,7 @@ export default function VoiceReviewPanel({
   onContinue,
   onDone,
   onDiscard,
+  typed = false,
 }: {
   review: NoteReviewPayload;
   transcript: string;
@@ -52,9 +53,11 @@ export default function VoiceReviewPanel({
   currentUserId?: string;
   suggestedAssigneeId: string | null;
   saving: boolean;
-  onContinue: () => void;
+  onContinue?: () => void;
   onDone: (contactId?: string | null) => void;
   onDiscard: () => void;
+  /** Note tapée : pas de « compléter la dictée ». */
+  typed?: boolean;
 }) {
   const [visibilite, setVisibilite] = useState<VoiceNoteVisibilite>(review.visibilite);
   const [sourceInfo, setSourceInfo] = useState<NoteSourceInfo | ''>(review.sourceInfo ?? '');
@@ -125,7 +128,7 @@ export default function VoiceReviewPanel({
         roomsMin: review.rooms,
         surfaceMin: review.surface,
         summary: transcript.trim() || null,
-        source: 'vocal',
+        source: typed ? 'manuel' : 'vocal',
         voiceNoteId: review.voiceNoteId,
       }),
     });
@@ -250,21 +253,27 @@ export default function VoiceReviewPanel({
             className="mb-4 font-semibold uppercase text-text-subtle"
             style={{ fontSize: 11, letterSpacing: '0.08em' }}
           >
-            Ce que vous avez dit
+            {typed ? 'Votre note' : 'Ce que vous avez dit'}
           </h3>
           <label htmlFor="voice-transcript" className="sr-only">
-            Transcription de la dictée
+            {typed ? 'Texte de la note' : 'Transcription de la dictée'}
           </label>
           <TextArea
             id="voice-transcript"
             value={transcript}
             onChange={(e) => onTranscript(e.target.value)}
             rows={8}
-            placeholder="La transcription n'a rien donné. Écrivez ici ce que vous vouliez noter."
+            placeholder={
+              typed
+                ? 'Corrigez le texte si besoin.'
+                : "La transcription n'a rien donné. Écrivez ici ce que vous vouliez noter."
+            }
             className="flex-1 lg:min-h-[280px]"
           />
           <p className="mt-3 text-pretty text-text-muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-            Corrigez votre phrase si besoin, puis mettez à jour.
+            {typed
+              ? 'Corrigez si besoin, puis mettez à jour les propositions.'
+              : 'Corrigez votre phrase si besoin, puis mettez à jour.'}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <WorkspaceButton
@@ -276,14 +285,16 @@ export default function VoiceReviewPanel({
               <RefreshCw size={15} strokeWidth={2} aria-hidden className={refreshing ? 'animate-spin' : undefined} />
               {refreshing ? 'Mise à jour…' : 'Mettre à jour'}
             </WorkspaceButton>
-            <button
-              type="button"
-              onClick={onContinue}
-              disabled={locked}
-              className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Compléter la dictée
-            </button>
+            {onContinue ? (
+              <button
+                type="button"
+                onClick={onContinue}
+                disabled={locked}
+                className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Compléter la dictée
+              </button>
+            ) : null}
           </div>
           {review.extractFailed ? (
             <p className="mt-3 text-pretty text-text-muted" style={{ fontSize: 13 }}>
@@ -535,7 +546,11 @@ export default function VoiceReviewPanel({
         onClose={() => !deleting && setConfirmDelete(false)}
         onConfirm={() => void supprimer()}
         title="Annuler cette note"
-        message="La dictée et l’audio seront effacés. Cette action est définitive."
+        message={
+          typed
+            ? 'La note sera effacée. Cette action est définitive.'
+            : 'La dictée et l’audio seront effacés. Cette action est définitive.'
+        }
         primaryLabel="Annuler"
         secondaryLabel="Retour"
         variant="danger"

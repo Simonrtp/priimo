@@ -38,6 +38,7 @@ export async function transcribeAudio(
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
+    signal: AbortSignal.timeout(12_000),
   });
 
   if (!res.ok) {

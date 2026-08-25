@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import type { Lead, LeadStage, TeamMember } from '@/types/lead';
 import { fractionalPosition, positionNeighbors } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
+import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import PipelineColumn from './PipelineColumn';
 import PipelineLeadCard from './PipelineLeadCard';
 import LostReasonDialog from './LostReasonDialog';
@@ -63,6 +64,7 @@ export default function PipelineBoard({
     snapshotCols: Columns;
   } | null>(null);
   const [lostReason, setLostReason] = useState('');
+  const [mandatCelebrateTick, setMandatCelebrateTick] = useState(0);
 
   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
@@ -116,6 +118,12 @@ export default function PipelineBoard({
       };
       try {
         await patchLeadPipeline(leadId, patch);
+        const fromStage = previousLead.stageId ? stagesById.get(previousLead.stageId) : null;
+        const victory = toStage ? pipelineVictoryKind(fromStage, toStage) : null;
+        if (victory) {
+          celebratePipelineVictory(victory);
+          if (victory === 'mandat') setMandatCelebrateTick((t) => t + 1);
+        }
       } catch (e) {
         onLeadsChange((prev) => prev.map((lead) => (lead.id === leadId ? previousLead : lead)));
         toast.error(e instanceof Error ? e.message : 'Le déplacement n’a pas pu être enregistré.');
@@ -249,6 +257,7 @@ export default function PipelineBoard({
                 .filter((lead): lead is Lead => Boolean(lead))}
               membersById={membersById}
               onOpen={onOpen}
+              celebrateTick={stage.cle === 'mandat' ? mandatCelebrateTick : 0}
             />
           ))}
         </div>

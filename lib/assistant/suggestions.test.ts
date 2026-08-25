@@ -59,6 +59,7 @@ describe('questionForSuggestion', () => {
       kind: 'lead',
       label: '13 rue des Mûriers, 75020 Paris',
       subtitle: 'Prospect',
+      href: '/dashboard/prospection?lead=1',
     });
     assert.match(q, /13 rue des Mûriers/);
   });

@@ -47,6 +47,31 @@ export type NoteReviewPayload = {
   secteur: string | null;
 };
 
+export function emptyReviewPayload(
+  voiceNoteId: string,
+  transcript: string | null,
+  visibilite: NoteReviewPayload['visibilite'] = 'agence',
+): NoteReviewPayload {
+  return {
+    voiceNoteId,
+    transcript,
+    visibilite,
+    sourceInfo: null,
+    extractFailed: false,
+    personnes: [],
+    immeuble: null,
+    relance: null,
+    promesse: null,
+    rendezVous: null,
+    visite: null,
+    details: [],
+    prix: null,
+    rooms: null,
+    surface: null,
+    secteur: null,
+  };
+}
+
 export function buildReviewPayload(args: {
   voiceNoteId: string;
   transcript: string | null;

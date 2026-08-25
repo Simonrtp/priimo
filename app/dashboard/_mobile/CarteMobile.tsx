@@ -16,11 +16,14 @@ import {
 import {
   MAP_LAYER_LABELS,
   MAP_LAYER_ORDER,
+  PARCELLES_LAYER_LABEL,
   activeKindSet,
   persistMapLayers,
   readStoredMapLayers,
   type MapLayerState,
 } from '@/lib/carte/layers';
+import { PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
+import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import {
   withoutPositionTotal,
   type MapPoint,
@@ -34,6 +37,7 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import MobileMapCanvas, { type MobileMapHandle } from './MobileMapCanvas';
 import MobileSheet from './MobileSheet';
@@ -110,6 +114,8 @@ export default function CarteMobile({
   const { route, waypoints } = useWalkingRoute(itineraryStops);
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
+  const parcelle = useParcelleMap(layers.parcelles);
+  const mapZoom = viewport?.zoom ?? null;
   const filtered = useMemo(
     () =>
       filterMapEntities(points, {
@@ -196,15 +202,29 @@ export default function CarteMobile({
         selectedBanId={selectedBanId}
         mapRef={mapApi}
         onSelect={(building) => {
+          parcelle.closeParcelle();
           setSelectedBanId(building.banId);
           setLayersOpen(false);
           setMissingOpen(false);
         }}
-        onDeselect={() => setSelectedBanId(null)}
+        onDeselect={() => {
+          setSelectedBanId(null);
+          parcelle.closeParcelle();
+        }}
         onViewport={setViewport}
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={route?.geometry ?? null}
+        parcellesEnabled={layers.parcelles}
+        parcelleEventIdus={parcelle.eventIdus}
+        parcelleNoteMarkers={parcelle.noteMarkers}
+        selectedParcelleIdu={parcelle.selectedIdu}
+        onSelectParcelle={(idu) => {
+          setSelectedBanId(null);
+          setLayersOpen(false);
+          setMissingOpen(false);
+          parcelle.openParcelle(idu);
+        }}
       />
 
       <div
@@ -286,6 +306,33 @@ export default function CarteMobile({
               </li>
             );
           })}
+          <li>
+            <label className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl px-1 ${
+              viewport && viewport.zoom < PARCELLE_MIN_ZOOM ? 'opacity-55' : ''
+            }`}>
+              <input
+                type="checkbox"
+                className="size-4 rounded border-black/20"
+                style={{ accentColor: '#3D5A80' }}
+                checked={layers.parcelles}
+                onChange={() =>
+                  setLayers((prev) => {
+                    const next = { ...prev, parcelles: !prev.parcelles };
+                    persistMapLayers(next);
+                    return next;
+                  })
+                }
+              />
+              <span className={`flex-1 text-[14.5px] font-medium ${layers.parcelles ? 'text-text-strong' : 'text-text-muted'}`}>
+                {PARCELLES_LAYER_LABEL}
+                {mapZoom !== null && mapZoom < PARCELLE_MIN_ZOOM ? (
+                  <span className="mt-0.5 block text-[12px] font-normal text-text-subtle">
+                    Zoomez pour afficher
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          </li>
         </ul>
         {missingTotal > 0 ? (
           <button
@@ -442,6 +489,12 @@ export default function CarteMobile({
       ) : null}
 
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
+      <ParcelleDrawer
+        fiche={parcelle.fiche}
+        loading={parcelle.loading}
+        onClose={parcelle.closeParcelle}
+        onNotesChanged={parcelle.refreshAfterNotes}
+      />
     </div>
   );
 }

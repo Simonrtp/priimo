@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { contactGeocodeQuery, geocodeToColumns } from '@/lib/geo/fields';
+import { contactGeocodeQuery, geocodeToColumns, type BanGeoColumns } from '@/lib/geo/fields';
 import { CONTACTS_SELECT, mapDbContactToContact } from '@/lib/queries/contacts';
 import { extractNotePropositions, type NoteExtraction } from '@/lib/notes/propositions';
 import { buildReviewPayload, type NoteReviewPayload } from '@/lib/notes/build-review';
@@ -16,18 +16,23 @@ export async function extractAndBuildReview(args: {
   transcript: string;
   visibilite: VoiceNoteVisibilite;
   keepGps: boolean;
+  /** Ne pas écraser l'adresse / BAN déjà posés (note écrite). */
+  keepAdresse?: boolean;
+  initialGeo?: BanGeoColumns;
 }): Promise<NoteReviewPayload> {
   const transcript = args.transcript.trim();
   let extraction: NoteExtraction | null = null;
   let extractFailed = false;
-  let geo = {
-    ban_id: null as string | null,
-    adresse_normalisee: null as string | null,
-    geocode_score: null as number | null,
-    latitude: null as number | null,
-    longitude: null as number | null,
-    geocode_le: null as string | null,
-  };
+  let geo: BanGeoColumns = args.initialGeo
+    ? { ...args.initialGeo }
+    : {
+        ban_id: null,
+        adresse_normalisee: null,
+        geocode_score: null,
+        latitude: null,
+        longitude: null,
+        geocode_le: null,
+      };
 
   let apiKey: string | null = null;
   try {
@@ -39,10 +44,12 @@ export async function extractAndBuildReview(args: {
   if (apiKey && transcript) {
     try {
       extraction = await extractNotePropositions(transcript, apiKey);
-      const query = contactGeocodeQuery(extraction.address, null, null);
-      if (query) {
-        const columns = await geocodeToColumns(query.adresse, query.codePostal);
-        geo = { ...geo, ...columns };
+      if (!args.keepAdresse) {
+        const query = contactGeocodeQuery(extraction.address, null, null);
+        if (query) {
+          const columns = await geocodeToColumns(query.adresse, query.codePostal);
+          geo = { ...geo, ...columns };
+        }
       }
       await args.admin
         .from('voice_notes')
@@ -51,10 +58,14 @@ export async function extractAndBuildReview(args: {
           structured: extraction,
           source_info: extraction.sourceInfo,
           ...(args.keepGps ? {} : { latitude: geo.latitude, longitude: geo.longitude }),
-          ban_id: geo.ban_id,
-          adresse_normalisee: geo.adresse_normalisee,
-          geocode_score: geo.geocode_score,
-          geocode_le: geo.geocode_le,
+          ...(args.keepAdresse
+            ? {}
+            : {
+                ban_id: geo.ban_id,
+                adresse_normalisee: geo.adresse_normalisee,
+                geocode_score: geo.geocode_score,
+                geocode_le: geo.geocode_le,
+              }),
           status: 'transcrit',
         })
         .eq('id', args.voiceNoteId)

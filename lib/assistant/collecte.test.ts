@@ -4,6 +4,7 @@ import {
   collectFromSnapshot,
   scopeByAgency,
   type AgencySnapshot,
+  type CollecteBien,
   type CollecteContact,
   type CollecteLead,
 } from './collecte';
@@ -74,6 +75,26 @@ function contact(over: Partial<CollecteContact> = {}): CollecteContact {
     createdBy: 'dir-1',
     leadId: null,
     criteria: emptyCriteria,
+    ...over,
+  };
+}
+
+function bien(over: Partial<CollecteBien> = {}): CollecteBien {
+  return {
+    id: 'bien-1',
+    agencyId: AGENCY_A,
+    banId: '75120_vitruve_00005',
+    address: '5 Rue Vitruve',
+    city: 'Paris',
+    postalCode: '75020',
+    price: 856152,
+    surfaceM2: 88,
+    rooms: 2,
+    mandatStatut: 'mandat_simple',
+    createdAt: '2026-04-01T10:00:00.000Z',
+    updatedAt: '2026-04-01T10:00:00.000Z',
+    createdBy: 'dir-1',
+    proprietaireContactId: 'ct-owner',
     ...over,
   };
 }
@@ -199,3 +220,31 @@ describe('collecte — activité', () => {
     assert.equal(result.lignes.filter((l) => l.kind === 'contact').map((l) => l.id).join(), 'ct-restant');
   });
 });
+
+describe('collecte — rue sans numéro', () => {
+  it('trouve le bien même si le BAN géocodé n’est pas celui de l’immeuble', () => {
+    const owner = contact({
+      id: 'ct-owner',
+      fullName: 'Hélène Nguyen',
+      firstName: 'Hélène',
+      lastName: 'Nguyen',
+      address: null,
+      banId: null,
+    });
+    const result = collectFromSnapshot(intentImmeuble('rue Vitruve'), {
+      ...emptySnap,
+      biens: [bien()],
+      contacts: [owner],
+    }, {
+      agencyId: AGENCY_A,
+      viewer: director,
+      banId: '75120_street_vitruve',
+      rechercheParTexte: false,
+    });
+
+    assert.equal(result.lignes.some((l) => l.kind === 'bien' && l.id === 'bien-1'), true);
+    assert.equal(result.lignes.some((l) => l.kind === 'contact' && l.id === 'ct-owner'), true);
+    assert.match(JSON.stringify(result.lignes), /Hélène Nguyen/);
+  });
+});
+

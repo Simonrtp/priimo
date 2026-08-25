@@ -3,22 +3,14 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { fetchLeads, fetchTeamMembers } from '@/lib/queries/leads';
 import { fetchLeadStages } from '@/lib/queries/lead-stages';
-import { fetchContactsSafe, fetchVoiceNotesSafe } from '@/lib/queries/contacts';
-import { fetchBiensSafe } from '@/lib/queries/biens';
 import { viewerFromProfile } from '@/lib/agency/visibility';
-import {
-  visibleBiensFor,
-  visibleContactsFor,
-  visibleLeadsFor,
-  visibleVoiceNotesFor,
-} from '@/lib/agency/scope-records';
+import { visibleLeadsFor } from '@/lib/agency/scope-records';
 import { initializeLeadsLastSeenAt } from '@/lib/queries/profiles';
 import {
   countLatestBatchLeads,
   shouldShowPipelineBanner,
 } from '@/lib/lead-delivery';
-import { buildSectorMapPoints } from '@/lib/carte/points';
-import { parseProspectionVue } from '@/components/dashboard/ProspectsViewSwitch';
+import { parseProspectionVue } from '@/lib/prospection/vue';
 import ProspectsClient from '@/components/dashboard/ProspectsClient';
 
 export const metadata = {
@@ -33,14 +25,16 @@ export default async function ProspectionPage({
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
 
+  const params = await searchParams;
+  if (params.vue === 'carte') {
+    redirect('/dashboard/carte');
+  }
+
   const supabase = await createSupabaseServerClient();
-  const [leads, teamMembers, stages, contacts, biens, notes] = await Promise.all([
+  const [leads, teamMembers, stages] = await Promise.all([
     fetchLeads(supabase),
     fetchTeamMembers(supabase, agency.id),
     fetchLeadStages(supabase),
-    fetchContactsSafe(supabase),
-    fetchBiensSafe(supabase),
-    fetchVoiceNotesSafe(supabase),
   ]);
   const viewer = viewerFromProfile(profile);
   const visibleLeads = visibleLeadsFor(viewer, leads);
@@ -56,22 +50,11 @@ export default async function ProspectionPage({
 
   const newBatchCount = countLatestBatchLeads(visibleLeads);
 
-  const { lead: leadParam, filtre, vue: vueRaw } = await searchParams;
+  const { lead: leadParam, filtre, vue: vueRaw } = params;
   const selectedLeadId = leadParam && visibleLeads.some((l) => l.id === leadParam) ? leadParam : null;
   const listFilter =
     filtre === 'sans-position' || filtre === 'non-assignes-14j' ? filtre : null;
   const vue = parseProspectionVue(vueRaw);
-
-  const { points, withoutPosition, unplaced } = buildSectorMapPoints({
-    agencyId: agency.id,
-    leads: visibleLeads,
-    contacts: visibleContactsFor(viewer, contacts).map((c) => ({
-      ...c,
-      postalCodes: c.criteria.postalCodes,
-    })),
-    biens: visibleBiensFor(viewer, biens),
-    notes: visibleVoiceNotesFor(viewer, notes),
-  });
 
   return (
     <ProspectsClient
@@ -84,13 +67,6 @@ export default async function ProspectionPage({
       initialSelectedLeadId={selectedLeadId}
       listFilter={listFilter}
       initialVue={vue}
-      mapData={{
-        points,
-        withoutPosition,
-        unplaced,
-        agencyPostalCodes: agency.codes_postaux ?? [],
-        center: { latitude: agency.latitude, longitude: agency.longitude },
-      }}
     />
   );
 }

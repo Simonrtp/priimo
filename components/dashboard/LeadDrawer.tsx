@@ -71,10 +71,10 @@ export default function LeadDrawer({
     <>
       <div
         role="presentation"
-        className={`fixed inset-0 z-40 hidden transition-opacity duration-200 ease-out md:block ${
+        className={`fixed inset-x-0 bottom-0 z-40 hidden transition-opacity duration-200 ease-out md:block ${
           drawerEntered ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}
+        style={{ top: 'var(--dashboard-topbar-height)', backgroundColor: 'rgba(0,0,0,0.15)' }}
         onClick={onClose}
         aria-hidden
       />

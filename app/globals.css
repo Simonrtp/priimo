@@ -28,6 +28,16 @@
   --violet-500: #8b5cf6;
   --gradient-brand: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
 
+  /* Bleu shell dashboard (sidebar, header) */
+  --priimo-shell-top: #1e3148;
+  --priimo-shell-bottom: #15202f;
+  --sidebar-width-expanded: 220px;
+  --sidebar-width-collapsed: 68px;
+  --sidebar-width: var(--sidebar-width-expanded);
+  --sidebar-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --sidebar-dur: 180ms;
+  --dashboard-topbar-height: 56px;
+
   /* §1.3 Couleurs sémantiques */
   --success: #10b981;
   --success-bg: #d1fae5;
@@ -107,6 +117,101 @@
 
   /* §2.1 Corps de texte par défaut (Inter, self-hosted via next/font) */
   --font-body: var(--font-sans);
+}
+
+/* Bleu shell Priimo — dégradé + grain à peine perceptible */
+.priimo-shell-bg {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--priimo-shell-bottom);
+  background-image: linear-gradient(
+    180deg,
+    var(--priimo-shell-top) 0%,
+    var(--priimo-shell-bottom) 100%
+  );
+}
+
+.priimo-shell-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  mix-blend-mode: soft-light;
+}
+
+.priimo-shell-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Header au-dessus du panneau workspace (recherche, menus déroulants). */
+.priimo-shell-bg > header {
+  z-index: 30;
+}
+
+#dashboard-sidebar {
+  width: var(--sidebar-width);
+  transition: width var(--sidebar-dur) var(--sidebar-ease);
+  overflow: visible;
+}
+
+#dashboard-sidebar[data-collapsed='true'] {
+  --sidebar-width: var(--sidebar-width-collapsed);
+}
+
+#dashboard-sidebar .sidebar-nav-label {
+  max-width: 160px;
+  opacity: 1;
+  transition:
+    max-width var(--sidebar-dur) var(--sidebar-ease),
+    opacity calc(var(--sidebar-dur) * 0.85) var(--sidebar-ease);
+}
+
+#dashboard-sidebar[data-collapsed='true'] .sidebar-nav-label {
+  max-width: 0;
+  opacity: 0;
+}
+
+#dashboard-sidebar .sidebar-voice-copy {
+  max-width: 140px;
+  opacity: 1;
+  transition:
+    max-width var(--sidebar-dur) var(--sidebar-ease),
+    opacity calc(var(--sidebar-dur) * 0.85) var(--sidebar-ease);
+}
+
+#dashboard-sidebar[data-collapsed='true'] .sidebar-voice-copy {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#dashboard-sidebar .sidebar-footer-extra {
+  max-height: 120px;
+  opacity: 1;
+  transition:
+    max-height var(--sidebar-dur) var(--sidebar-ease),
+    opacity calc(var(--sidebar-dur) * 0.85) var(--sidebar-ease);
+}
+
+#dashboard-sidebar[data-collapsed='true'] .sidebar-footer-extra {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dashboard-sidebar,
+  #dashboard-sidebar .sidebar-nav-label,
+  #dashboard-sidebar .sidebar-voice-copy,
+  #dashboard-sidebar .sidebar-footer-extra {
+    transition-duration: 0ms;
+  }
 }
 
 /* §7.2 Entrée — apparition douce */
@@ -1355,11 +1460,35 @@ html:has(.feature-page) {
   to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes pipeline-mandat-celebrate {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(46, 125, 91, 0);
+  }
+  35% {
+    transform: scale(1.012);
+    box-shadow: 0 0 0 3px rgba(46, 125, 91, 0.22);
+  }
+  70% {
+    transform: scale(1.006);
+    box-shadow: 0 8px 28px rgba(46, 125, 91, 0.28);
+  }
+}
+
+.pipeline-column-celebrate {
+  animation: pipeline-mandat-celebrate 1.65s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .field-page-enter,
   .field-fiche-enter {
     animation-duration: 80ms;
     animation-timing-function: ease-out;
+  }
+
+  .pipeline-column-celebrate {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(46, 125, 91, 0.35);
   }
 }
 

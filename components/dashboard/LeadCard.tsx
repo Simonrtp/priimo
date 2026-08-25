@@ -134,9 +134,10 @@ function LeadCard({
             e.stopPropagation();
             onTake();
           }}
-          className="inline-flex min-h-[32px] items-center rounded-full bg-accent px-3 text-[12px] font-semibold text-white"
+          aria-label="Ajouter au pipeline"
+          className="inline-flex min-h-[32px] items-center rounded-full bg-accent px-3 text-[11.5px] font-semibold text-white sm:text-[12px]"
         >
-          Prendre
+          Ajouter au pipeline
         </button>
       );
     }

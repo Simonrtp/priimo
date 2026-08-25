@@ -36,11 +36,12 @@ export default forwardRef<
   VoiceGestureCaptureHandle,
   {
     adresse?: string | null;
+    parcelleIdu?: string | null;
     streamPromise?: Promise<MediaStream> | null;
     onLockedChange: (locked: boolean) => void;
     onClose: () => void;
   }
->(function VoiceGestureCapture({ adresse = null, streamPromise, onLockedChange, onClose }, ref) {
+>(function VoiceGestureCapture({ adresse = null, parcelleIdu = null, streamPromise, onLockedChange, onClose }, ref) {
   const router = useRouter();
 
   const [phase, setPhase] = useState<Phase>('recording');
@@ -121,6 +122,7 @@ export default forwardRef<
     }
     const addr = gpsAddress?.trim();
     if (addr) form.append('adresse', addr);
+    if (parcelleIdu) form.append('parcelleIdu', parcelleIdu);
 
     try {
       const res = await fetch('/api/dashboard/voice-notes', { method: 'POST', body: form });
@@ -140,6 +142,13 @@ export default forwardRef<
       }
 
       setVoiceNoteId(data.voiceNoteId);
+      if (data.voiceNoteId && data.transcript) {
+        void fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}/rafraichir`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: data.transcript }),
+        });
+      }
       try {
         await fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}`, {
           method: 'PATCH',

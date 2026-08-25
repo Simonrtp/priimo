@@ -15,6 +15,7 @@ export type MapViewport = {
   south: number;
   east: number;
   north: number;
+  zoom: number;
 };
 
 export type BuildingMarker = {

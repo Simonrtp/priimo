@@ -7,7 +7,7 @@ import type { NoteLienRow } from '@/types/database';
 
 export const runtime = 'nodejs';
 
-const TYPES: readonly NoteLienEntite[] = ['contact', 'bien', 'lead', 'immeuble'];
+const TYPES: readonly NoteLienEntite[] = ['contact', 'bien', 'lead', 'immeuble', 'parcelle'];
 const CONFIANCE: readonly NoteLienConfiance[] = ['certain', 'probable'];
 const CREES: readonly NoteLienCreePar[] = ['agent', 'extraction', 'reconciliation'];
 

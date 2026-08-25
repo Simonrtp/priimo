@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
+import { extractAndBuildReview } from '@/lib/notes/extract-review';
 import { mapDbVoiceNote } from '@/lib/queries/contacts';
 import { mapDbNoteLien, NOTE_LIENS_SELECT } from '@/lib/notes/liens';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
+import { suggestMemberFromText } from '@/lib/agency/match-member';
+import { EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
+import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
+import { normalizeIdu } from '@/lib/carte/parcelle';
+import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 import type { NoteLienEntite, NoteLien, TerrainNote } from '@/types/contact';
 import type { NoteLienRow, VoiceNoteRow } from '@/types/database';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
-const TYPES: readonly NoteLienEntite[] = ['contact', 'bien', 'lead', 'immeuble'];
+const TYPES: readonly NoteLienEntite[] = ['contact', 'bien', 'lead', 'immeuble', 'parcelle'];
 
 export async function GET(req: Request) {
   const { user, profile, agency, memberships } = await getServerUser();
@@ -104,4 +112,116 @@ export async function GET(req: Request) {
     .filter((n) => canSeeVoiceNote(viewer, { visibilite: n.visibilite, createdBy: n.createdBy }));
 
   return NextResponse.json({ notes });
+}
+
+const MAX_TYPED_CHARS = 8000;
+const MIN_TYPED_CHARS = 8;
+
+function readCoord(body: Record<string, unknown>, key: string): number | null {
+  const raw = body[key];
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return raw;
+}
+
+/** Note écrite : même table que la dictée, sans audio. */
+export async function POST(req: Request) {
+  const ip = clientIpFromRequest(req);
+  const limit = rateLimit(`note-typed:${ip}`, { limit: 40, windowMs: 60 * 60 * 1000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: 'Trop de notes coup sur coup. Réessayez dans un instant.' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } },
+    );
+  }
+
+  const { user, profile, agency, memberships } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
+  }
+
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  if (text.length < MIN_TYPED_CHARS) {
+    return NextResponse.json({ error: 'Écrivez un peu plus pour enregistrer la note.' }, { status: 400 });
+  }
+  const transcript = text.slice(0, MAX_TYPED_CHARS);
+  const adresseRaw = typeof body.adresse === 'string' ? body.adresse.trim().slice(0, 240) : '';
+  const gpsLat = readCoord(body, 'latitude');
+  const gpsLng = readCoord(body, 'longitude');
+  const parcelleIdu = normalizeIdu(typeof body.parcelleIdu === 'string' ? body.parcelleIdu : null);
+
+  const admin = createSupabaseAdminClient();
+  const voiceNoteId = crypto.randomUUID();
+  const storagePath = `${agency.id}/${voiceNoteId}.typed`;
+
+  const geoFromAdresse = adresseRaw.length >= 3 ? await geocodeToColumns(adresseRaw) : { ...EMPTY_BAN_GEO };
+  const hasClientCoords = gpsLat !== null && gpsLng !== null;
+  const geo = {
+    ...geoFromAdresse,
+    latitude: hasClientCoords ? gpsLat : geoFromAdresse.latitude,
+    longitude: hasClientCoords ? gpsLng : geoFromAdresse.longitude,
+    adresse_normalisee: geoFromAdresse.adresse_normalisee ?? (adresseRaw || null),
+  };
+  const keepAdresse = Boolean(geo.adresse_normalisee);
+  const keepGps = hasClientCoords || geo.latitude !== null;
+
+  try {
+    const { error } = await admin.from('voice_notes').insert({
+      id: voiceNoteId,
+      agency_id: agency.id,
+      created_by: profile.id,
+      storage_path: storagePath,
+      duration_seconds: null,
+      mime_type: 'text/plain',
+      transcript,
+      structured: null,
+      status: 'transcrit',
+      statut: 'brute',
+      visibilite: 'agence',
+      adresse_normalisee: geo.adresse_normalisee,
+      ban_id: geo.ban_id,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      geocode_score: geo.geocode_score,
+      geocode_le: geo.geocode_le,
+    });
+    if (error) throw error;
+    if (parcelleIdu) {
+      await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: voiceNoteId, idu: parcelleIdu });
+    }
+  } catch (err) {
+    console.error('[notes] écriture', err);
+    return NextResponse.json({ error: "La note n'a pas pu être enregistrée" }, { status: 500 });
+  }
+
+  let suggestedAssignee: { id: string; fullName: string } | null = null;
+  try {
+    const members = await fetchMembersOfMyAgency(agency.id, memberships);
+    const hit = suggestMemberFromText(transcript, members, profile.id);
+    if (hit) suggestedAssignee = { id: hit.id, fullName: hit.fullName };
+  } catch (err) {
+    console.error('[notes] suggestion d’assignation', err);
+  }
+
+  const review = await extractAndBuildReview({
+    admin,
+    agencyId: agency.id,
+    voiceNoteId,
+    transcript,
+    visibilite: 'agence',
+    keepGps,
+    keepAdresse,
+    initialGeo: geo,
+  });
+
+  return NextResponse.json({
+    ...review,
+    suggestedAssignee,
+  });
 }

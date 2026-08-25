@@ -33,7 +33,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const admin = createSupabaseAdminClient();
   const { data: note } = await admin
     .from('voice_notes')
-    .select('id, agency_id, created_by, visibilite, latitude, longitude')
+    .select(
+      'id, agency_id, created_by, visibilite, latitude, longitude, ban_id, adresse_normalisee, geocode_score, geocode_le, storage_path',
+    )
     .eq('id', voiceNoteId)
     .eq('agency_id', agency.id)
     .maybeSingle();
@@ -44,6 +46,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
 
   const visibilite: VoiceNoteVisibilite = note.visibilite === 'privee' ? 'privee' : 'agence';
   const keepGps = note.latitude != null && note.longitude != null;
+  const typed = Boolean(note.storage_path?.endsWith('.typed'));
+  const keepAdresse = typed && Boolean(note.adresse_normalisee || note.ban_id);
 
   const review = await extractAndBuildReview({
     admin,
@@ -52,6 +56,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     transcript,
     visibilite,
     keepGps,
+    keepAdresse,
+    initialGeo: keepAdresse
+      ? {
+          ban_id: note.ban_id,
+          adresse_normalisee: note.adresse_normalisee,
+          geocode_score: note.geocode_score,
+          latitude: note.latitude,
+          longitude: note.longitude,
+          geocode_le: note.geocode_le,
+        }
+      : undefined,
   });
 
   return NextResponse.json(review);

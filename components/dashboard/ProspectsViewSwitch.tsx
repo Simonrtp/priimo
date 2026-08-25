@@ -1,31 +1,19 @@
 'use client';
 
-import { LayoutList, Columns3, Map } from 'lucide-react';
+import { LayoutList, Columns3 } from 'lucide-react';
+import type { ProspectionVue } from '@/lib/prospection/vue';
 
-export type ProspectionVue = 'liste' | 'pipeline' | 'carte';
-
-export function parseProspectionVue(raw: string | undefined | null): ProspectionVue {
-  if (raw === 'pipeline' || raw === 'carte') return raw;
-  return 'liste';
-}
-
-export function prospectionHref(current: URLSearchParams, vue: ProspectionVue): string {
-  const params = new URLSearchParams(current.toString());
-  if (vue === 'liste') params.delete('vue');
-  else params.set('vue', vue);
-  const q = params.toString();
-  return q ? `/dashboard/prospection?${q}` : '/dashboard/prospection';
-}
+export type { ProspectionVue } from '@/lib/prospection/vue';
+export { parseProspectionVue, prospectionHref } from '@/lib/prospection/vue';
 
 const ITEMS: {
   id: ProspectionVue;
   label: string;
-  Icon: typeof Map;
+  Icon: typeof LayoutList;
   desktopOnly?: boolean;
 }[] = [
   { id: 'liste', label: 'Liste', Icon: LayoutList },
   { id: 'pipeline', label: 'Pipeline', Icon: Columns3, desktopOnly: true },
-  { id: 'carte', label: 'Carte', Icon: Map },
 ];
 
 export default function ProspectsViewSwitch({

@@ -192,7 +192,7 @@ export default function TopBar() {
       className="relative z-10 flex min-h-[80px] flex-shrink-0 flex-col max-md:border-b max-md:border-black/[0.06] max-md:backdrop-blur-xl max-md:bg-[rgba(249,250,255,0.78)] md:min-h-[56px] md:bg-transparent"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="flex min-h-[80px] items-center gap-4 px-4 md:min-h-[56px] md:px-6 lg:px-8">
+      <div className="flex min-h-[80px] items-center gap-4 px-4 md:min-h-[56px] md:pl-9 md:pr-6 lg:pl-12 lg:pr-8">
         <div className="flex min-w-0 shrink-0 items-center gap-2 md:hidden">
           <span
             className="min-w-0 truncate font-bold tracking-tight text-ink"
@@ -202,8 +202,10 @@ export default function TopBar() {
           </span>
         </div>
 
-        <div className="hidden min-w-0 flex-1 md:flex">
-          <AssistantSearchBar tone="shell" />
+        <div className="hidden min-w-0 flex-1 md:block">
+          <div className="w-full max-w-md">
+            <AssistantSearchBar tone="shell" />
+          </div>
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2 md:gap-2">

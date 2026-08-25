@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { HelpCircle } from 'lucide-react';
-import type { CallBackProps, Step, TooltipRenderProps } from 'react-joyride';
+import type { EventData, Step, TooltipRenderProps } from 'react-joyride';
 import ClayButton from '@/components/ui/ClayButton';
 
-const Joyride = dynamic(() => import('react-joyride'), { ssr: false });
+const Joyride = dynamic(() => import('react-joyride').then((m) => m.Joyride), { ssr: false });
 
 /**
  * Visite guidée du dashboard prospects (8 étapes).
@@ -240,7 +240,7 @@ function buildSteps(): BuiltSteps {
         target: 'body',
         placement: 'center',
         content: def.body,
-        disableBeacon: true,
+        skipBeacon: true,
       });
       continue;
     }
@@ -258,15 +258,11 @@ function buildSteps(): BuiltSteps {
         target: 'body',
         placement: 'center',
         content: def.body,
-        disableBeacon: true,
-        disableScrolling: true,
-        styles: {
-          options: {
-            overlayColor: 'transparent',
-            arrowColor: 'transparent',
-            zIndex: 100,
-          },
-        },
+        skipBeacon: true,
+        skipScroll: true,
+        hideOverlay: true,
+        arrowColor: 'transparent',
+        zIndex: 100,
       });
       continue;
     }
@@ -277,7 +273,7 @@ function buildSteps(): BuiltSteps {
       target: el,
       placement: def.placement ?? 'auto',
       content: def.body,
-      disableBeacon: true,
+      skipBeacon: true,
     });
   }
 
@@ -451,7 +447,7 @@ export default function DashboardTour({ onEnd }: DashboardTourProps) {
     setStepIndex(nextIndex);
   };
 
-  const handleCallback = (data: CallBackProps) => {
+  const handleEvent = (data: EventData) => {
     const { status, type, action, index } = data;
 
     if (status === 'finished' || status === 'skipped') {
@@ -475,22 +471,19 @@ export default function DashboardTour({ onEnd }: DashboardTourProps) {
       stepIndex={stepIndex}
       run
       continuous
-      disableOverlayClose
       scrollToFirstStep
-      scrollOffset={140}
-      spotlightPadding={8}
-      floaterProps={{ disableAnimation: reducedMotion }}
       tooltipComponent={ClayTooltip}
-      callback={handleCallback}
-      styles={{
-        options: {
-          arrowColor: '#ffffff',
-          overlayColor: OVERLAY,
-          zIndex: 90,
-        },
-        spotlight: {
-          borderRadius: 16,
-        },
+      onEvent={handleEvent}
+      options={{
+        overlayClickAction: false,
+        arrowColor: '#ffffff',
+        overlayColor: OVERLAY,
+        zIndex: 90,
+        spotlightPadding: 8,
+        spotlightRadius: 16,
+        scrollOffset: 140,
+        skipBeacon: true,
+        scrollDuration: reducedMotion ? 0 : 300,
       }}
     />
   );

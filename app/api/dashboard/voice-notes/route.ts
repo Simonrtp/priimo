@@ -6,11 +6,13 @@ import { MistralKeyMissingError, requireMistralKey, transcribeAudio } from '@/li
 import { joinVoiceTranscripts } from '@/lib/voice/extract';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { persistThenExtract } from '@/lib/notes/persist';
-import { extractAndBuildReview } from '@/lib/notes/extract-review';
+import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { suggestMemberFromText } from '@/lib/agency/match-member';
+import { normalizeIdu } from '@/lib/carte/parcelle';
+import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 const BUCKET = 'voice-notes';
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -85,42 +87,57 @@ export async function POST(req: Request) {
   const previousTranscript = typeof previousRaw === 'string' ? previousRaw : '';
   const continueIdRaw = form.get('continueNoteId');
   const continueNoteId = typeof continueIdRaw === 'string' && continueIdRaw.trim() ? continueIdRaw.trim() : null;
+  const parcelleIdu = normalizeIdu(typeof form.get('parcelleIdu') === 'string' ? String(form.get('parcelleIdu')) : null);
 
   const admin = createSupabaseAdminClient();
   const voiceNoteId = continueNoteId ?? crypto.randomUUID();
   const storagePath = `${agency.id}/${voiceNoteId}.${extensionFor(mime)}`;
 
-  if (!continueNoteId) {
-    const { error: uploadError } = await admin.storage
-      .from(BUCKET)
-      .upload(storagePath, audio, { contentType: mime, upsert: false });
+  let transcript: string | null = null;
+  let apiKey: string | null = null;
+  try {
+    apiKey = requireMistralKey();
+  } catch (err) {
+    if (!(err instanceof MistralKeyMissingError)) {
+      console.error('[voice] clé', err);
+    }
+  }
 
+  const transcribePromise = apiKey
+    ? transcribeAudio(audio, `dictee.${extensionFor(mime)}`, apiKey).catch((err) => {
+        console.error('[voice] transcription', err);
+        return null;
+      })
+    : Promise.resolve(null);
+
+  if (!continueNoteId) {
+    const [{ error: uploadError }, transcribed] = await Promise.all([
+      admin.storage.from(BUCKET).upload(storagePath, audio, { contentType: mime, upsert: false }),
+      transcribePromise,
+    ]);
+    transcript = transcribed;
     if (uploadError) {
       console.error('[voice] upload', uploadError);
       return NextResponse.json({ error: "L'enregistrement n'a pas pu être conservé" }, { status: 500 });
     }
   } else {
-    const { data: existing } = await admin
-      .from('voice_notes')
-      .select('id, agency_id, created_by, visibilite, storage_path')
-      .eq('id', continueNoteId)
-      .eq('agency_id', agency.id)
-      .maybeSingle();
+    const [{ data: existing }, transcribed] = await Promise.all([
+      admin
+        .from('voice_notes')
+        .select('id, agency_id, created_by, visibilite, storage_path')
+        .eq('id', continueNoteId)
+        .eq('agency_id', agency.id)
+        .maybeSingle(),
+      transcribePromise,
+    ]);
+    transcript = transcribed;
     if (!existing || existing.created_by !== profile.id) {
       return NextResponse.json({ error: 'Dictée introuvable' }, { status: 404 });
     }
-  }
-
-  let transcript: string | null = null;
-  let apiKey: string | null = null;
-  try {
-    apiKey = requireMistralKey();
-    transcript = await transcribeAudio(audio, `dictee.${extensionFor(mime)}`, apiKey);
-  } catch (err) {
-    if (err instanceof MistralKeyMissingError) {
-      apiKey = null;
-    } else {
-      console.error('[voice] transcription', err);
+    if (existing.storage_path) {
+      await admin.storage
+        .from(BUCKET)
+        .upload(existing.storage_path, audio, { contentType: mime, upsert: true });
     }
   }
 
@@ -182,6 +199,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "La dictée n'a pas pu être enregistrée" }, { status: 500 });
   }
 
+  if (parcelleIdu) {
+    await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: savedId, idu: parcelleIdu });
+  }
+
   let suggestedAssignee: { id: string; fullName: string } | null = null;
   if (joined) {
     try {
@@ -193,17 +214,11 @@ export async function POST(req: Request) {
     }
   }
 
-  const review = await extractAndBuildReview({
-    admin,
-    agencyId: agency.id,
-    voiceNoteId: savedId,
-    transcript: joined,
-    visibilite: 'agence',
-    keepGps: gpsLat !== null,
-  });
+  const review = emptyReviewPayload(savedId, joined || null, 'agence');
 
   return NextResponse.json({
     ...review,
     suggestedAssignee,
+    extractionPending: Boolean(joined),
   });
 }

@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useRef } from 'react';
-import { Building2, CalendarCheck, Map, Mic, Square, Settings, Target, Users } from 'lucide-react';
+import { Building2, CalendarCheck, Map, Settings, Target, Users } from 'lucide-react';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
-import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 
 const ACTIVE = '#4F46E5';
 const INACTIVE = '#64748B';
@@ -112,55 +111,8 @@ function FieldTab({
 
 function FieldBottomNav() {
   const pathname = usePathname();
-  const {
-    beginGestureCapture,
-    gestureActive,
-    gestureLocked,
-    gesturePointerMove,
-    gesturePointerUp,
-    gesturePointerCancel,
-    stopLockedGesture,
-  } = useVoiceCapture();
   const activeToday = pathname === '/dashboard' || pathname === '/dashboard/';
   const activeCarte = pathname.startsWith('/dashboard/carte');
-  const holdStartYRef = useRef(0);
-  const holdStartXRef = useRef(0);
-
-  function onMicPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
-    if (gestureLocked) {
-      e.preventDefault();
-      stopLockedGesture();
-      return;
-    }
-    if (gestureActive) return;
-    e.preventDefault();
-    holdStartYRef.current = e.clientY;
-    holdStartXRef.current = e.clientX;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    beginGestureCapture();
-  }
-
-  function onMicPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
-    if (!gestureActive || gestureLocked) return;
-    const deltaY = holdStartYRef.current - e.clientY;
-    const deltaX = e.clientX - holdStartXRef.current;
-    gesturePointerMove(deltaY, deltaX);
-  }
-
-  function onMicPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-    if (gestureLocked) return;
-    if (gestureActive) gesturePointerUp();
-  }
-
-  function onMicPointerCancel(e: React.PointerEvent<HTMLButtonElement>) {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-    if (gestureActive) gesturePointerCancel();
-  }
 
   return (
     <nav
@@ -176,30 +128,12 @@ function FieldBottomNav() {
         <div className="w-16 flex-shrink-0" aria-hidden />
         <FieldTab href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
 
-        <button
-          type="button"
-          onPointerDown={onMicPointerDown}
-          onPointerMove={onMicPointerMove}
-          onPointerUp={onMicPointerUp}
-          onPointerCancel={onMicPointerCancel}
-          aria-label={
-            gestureLocked ? 'Terminer la dictée' : gestureActive ? 'Maintenir pour dicter' : 'Dicter'
-          }
-          aria-pressed={gestureActive}
-          className={`app-press absolute left-1/2 z-10 flex size-16 -translate-x-1/2 touch-none select-none items-center justify-center rounded-full text-white transition-transform duration-150 ${
-            gestureActive && !gestureLocked ? 'scale-110' : ''
-          } bg-accent`}
-          style={{
-            top: -12,
-            boxShadow: '0 8px 20px rgba(232, 116, 60, 0.38)',
-          }}
+        <div
+          className="absolute left-1/2 z-10 -translate-x-1/2"
+          style={{ top: -12 }}
         >
-          {gestureLocked ? (
-            <Square size={24} strokeWidth={2.2} aria-hidden />
-          ) : (
-            <Mic size={26} strokeWidth={2.2} aria-hidden />
-          )}
-        </button>
+          <NoteCreateChooser variant="fab" />
+        </div>
       </div>
     </nav>
   );

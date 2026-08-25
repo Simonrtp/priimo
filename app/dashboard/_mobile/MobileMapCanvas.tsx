@@ -14,7 +14,9 @@ import { toGeoCoord } from '@/lib/carte/coords';
 import { clusterBuildings } from '@/lib/carte/cluster';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
+import ParcellesLayer, { PARCELLES_FILL_LAYER_ID } from '@/components/dashboard/carte/ParcellesLayer';
 import type { ItineraireStop } from '@/lib/today/directions';
+import type { ParcelleNoteMarker } from '@/lib/carte/parcelle';
 
 export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }) => void;
@@ -29,6 +31,7 @@ function boundsToViewport(map: MapRef): MapViewport | null {
     south: b.getSouth(),
     east: b.getEast(),
     north: b.getNorth(),
+    zoom: map.getZoom(),
   };
 }
 
@@ -48,6 +51,11 @@ export default function MobileMapCanvas({
   onCluster,
   itineraryStops = null,
   itineraryGeometry = null,
+  parcellesEnabled = false,
+  parcelleEventIdus = [],
+  parcelleNoteMarkers = [],
+  selectedParcelleIdu = null,
+  onSelectParcelle,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -59,6 +67,11 @@ export default function MobileMapCanvas({
   onCluster: (children: BuildingMarker[]) => void;
   itineraryStops?: readonly ItineraireStop[] | null;
   itineraryGeometry?: GeoJSON.LineString | null;
+  parcellesEnabled?: boolean;
+  parcelleEventIdus?: readonly string[];
+  parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
+  selectedParcelleIdu?: string | null;
+  onSelectParcelle?: (idu: string) => void;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -180,6 +193,7 @@ export default function MobileMapCanvas({
         attributionControl={false}
         dragRotate={false}
         pitchWithRotate={false}
+        interactiveLayerIds={parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []}
         onLoad={() => {
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
@@ -195,13 +209,30 @@ export default function MobileMapCanvas({
               south: b.getSouth(),
               east: b.getEast(),
               north: b.getNorth(),
+              zoom: event.target.getZoom(),
             });
           }
           setZoom(event.target.getZoom());
         }}
-        onClick={() => onDeselect()}
+        onClick={(event) => {
+          if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
+            const hits = event.target.queryRenderedFeatures(event.point, {
+              layers: [PARCELLES_FILL_LAYER_ID],
+            });
+            if (hits.length > 0) return;
+          }
+          onDeselect();
+        }}
         style={{ width: '100%', height: '100%' }}
       >
+        <ParcellesLayer
+          mapRef={mapRef}
+          enabled={parcellesEnabled}
+          eventIdus={parcelleEventIdus}
+          noteMarkers={parcelleNoteMarkers}
+          selectedIdu={selectedParcelleIdu}
+          onPick={(idu) => onSelectParcelle?.(idu)}
+        />
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer
             geometry={itineraryGeometry}

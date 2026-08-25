@@ -38,12 +38,12 @@ export default function WorkspaceBackdrop() {
   const Icon = ICONS[variantForPath(pathname)];
 
   return (
-    <div className="pointer-events-none absolute inset-0 bg-bg-base" aria-hidden>
+    <div className="pointer-events-none absolute inset-0" aria-hidden>
       <div className="absolute inset-0 flex items-center justify-center">
         <Icon
           className="size-[min(68vh,560px)] text-blue-light"
           strokeWidth={1}
-          style={{ opacity: 0.12 }}
+          style={{ opacity: 0.07 }}
           aria-hidden
         />
       </div>
