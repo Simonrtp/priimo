@@ -24,6 +24,7 @@ export default function LeadAssigneeControl({
 }: LeadAssigneeControlProps) {
   const handleAssign = useCallback(
     async (memberId: string | null) => {
+      if (memberId !== null && !teamMembers.some((m) => m.id === memberId)) return;
       try {
         await onUpdateLead(lead.id, { assignedTo: memberId });
         if (memberId == null) {
@@ -44,11 +45,11 @@ export default function LeadAssigneeControl({
   return (
     <div>
       <p className="mb-1.5 text-mute/80" style={{ fontSize: 11 }}>
-        Assigné
+        Assigner à
       </p>
       <div onClick={(e) => e.stopPropagation()}>
         <Select
-          aria-label="Assigné à"
+          aria-label="Assigner à"
           value={lead.assignedTo ?? ''}
           triggerClassName={selectTriggerClassName}
           options={[

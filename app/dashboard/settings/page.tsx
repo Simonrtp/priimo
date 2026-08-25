@@ -1,10 +1,10 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import SettingsDashboard from '@/components/dashboard/settings/SettingsDashboard';
+import { fetchTeamSettingsData } from '@/lib/queries/team-settings';
+import SettingsDashboard, { type SettingsTabId } from '@/components/dashboard/settings/SettingsDashboard';
 
-type SettingsTabId = 'agency' | 'team' | 'billing' | 'profile';
-const DIRECTOR_ONLY: ReadonlySet<SettingsTabId> = new Set(['agency', 'team', 'billing']);
-const VALID_TABS: ReadonlySet<SettingsTabId> = new Set(['agency', 'team', 'billing', 'profile']);
+const DIRECTOR_ONLY: ReadonlySet<SettingsTabId> = new Set(['agency', 'billing', 'team']);
+const VALID_TABS: ReadonlySet<SettingsTabId> = new Set(['agency', 'billing', 'profile', 'team']);
 
 function parseTab(raw: string | string[] | undefined): SettingsTabId | undefined {
   if (typeof raw !== 'string') return undefined;
@@ -16,8 +16,8 @@ interface PageProps {
 }
 
 export default async function SettingsPage({ searchParams }: PageProps) {
-  const { profile } = await getServerUser();
-  if (!profile) notFound();
+  const { user, profile, agency, memberships } = await getServerUser();
+  if (!user || !profile || !agency) redirect('/login');
 
   const sp = await searchParams;
   const tab = parseTab(sp.tab);
@@ -25,5 +25,10 @@ export default async function SettingsPage({ searchParams }: PageProps) {
     notFound();
   }
 
-  return <SettingsDashboard initialTab={tab} />;
+  const team =
+    profile.role === 'directeur'
+      ? await fetchTeamSettingsData(agency.id, memberships, user.id)
+      : null;
+
+  return <SettingsDashboard initialTab={tab} team={team} />;
 }

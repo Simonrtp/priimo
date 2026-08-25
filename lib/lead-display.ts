@@ -111,3 +111,44 @@ export function formatEtage(
   if (n === 1) return '1er étage';
   return `${n}e étage`;
 }
+
+function isEtageConfirmed(etage: string | null | undefined): boolean {
+  const raw = (etage ?? '').trim();
+  if (!raw) return false;
+  if (/^rdc$/i.test(raw) || raw === '0') return false;
+  const n = Number.parseInt(raw, 10);
+  return !Number.isNaN(n) && n >= 1;
+}
+
+/** Étage pour la liste leads : jamais « Rez-de-chaussée », RDC/absent → non confirmé. */
+export function formatEtageForList(
+  etage: string | null | undefined,
+  propertyType: string | null | undefined,
+): string | null {
+  if (propertyType === 'Maison') return null;
+  if (!isEtageConfirmed(etage)) return 'étage non confirmé';
+  const n = Number.parseInt((etage ?? '').trim(), 10);
+  if (n === 1) return '1er étage';
+  return `${n}e étage`;
+}
+
+/** Ligne 1 liste : « rue · CP ». */
+export function leadListAddressLine(
+  address: string,
+  postalCode?: string | null,
+  city?: string | null,
+): string {
+  let street = address.trim();
+  if (postalCode?.trim()) {
+    const cp = postalCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    street = street.replace(new RegExp(`[,\\s]*${cp}\\b.*$`, 'i'), '').trim();
+  }
+  if (city?.trim()) {
+    const c = city.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    street = street.replace(new RegExp(`[,\\s]*${c}\\s*$`, 'i'), '').trim();
+  }
+  street = street.replace(/,?\s*\d{5}(\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-']*)?\s*$/u, '').trim();
+  const cp = postalCode?.trim() || '';
+  if (street && cp) return `${street} · ${cp}`;
+  return street || cp || address.trim();
+}

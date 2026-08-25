@@ -14,6 +14,7 @@ export type LeadMlFeedbackDb =
   | 'pas_vendeur'
   | 'injoignable';
 export type LeadOwnerTypeDb = 'particulier' | 'entreprise';
+export type LeadStageTypeDb = 'entree' | 'intermediaire' | 'gagne' | 'perdu';
 
 export type NotificationPreferences = {
   newLeads: boolean;
@@ -109,6 +110,10 @@ export type LeadRow = {
   internal_signals?: unknown;
   latitude: number | null;
   longitude: number | null;
+  ban_id?: string | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
   acquired_year: number | null;
   acquired_price: number | null;
   /** Si renseigné par le pipeline : indique la fiabilité du prix d'achat (DVF). */
@@ -129,6 +134,13 @@ export type LeadRow = {
   status: LeadStatusDb;
   notes: string | null;
   assigned_to: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  stage_id?: string | null;
+  stage_position?: number | null;
+  taken_at?: string | null;
+  stage_changed_at?: string | null;
+  lost_reason?: string | null;
   ml_feedback: LeadMlFeedbackDb | null;
   ml_feedback_reason?: string | null;
   ml_feedback_at?: string | null;
@@ -159,14 +171,24 @@ export type LeadRow = {
   /** Autres sociétés présentes à l'adresse (jsonb). */
   contacts_immeuble?: unknown;
   /**
-   * Scripts d'approche terrain (jsonb) : variantes porte / téléphone / courrier.
-   * Null ou absent = pas de section « Votre approche ».
+   * Ancien script d’appel généré (jsonb). Plus affiché — le récap agent
+   * est calculé à la volée depuis la fiche.
    */
   script_approche?: unknown;
   /** Date du lot pipeline (YYYY-MM-DD). */
   delivered_at?: string;
   created_at: string;
   updated_at: string;
+};
+
+export type LeadStageRow = {
+  id: string;
+  agency_id: string;
+  cle: string;
+  libelle: string;
+  ordre: number;
+  type: LeadStageTypeDb;
+  created_at: string;
 };
 
 export type AgencyInsert = {
@@ -237,6 +259,12 @@ export type LeadInsert = {
   company_phone?: string | null;
   company_email?: string | null;
   signals?: LeadSignalJson[];
+  latitude?: number | null;
+  longitude?: number | null;
+  ban_id?: string | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
   acquired_year?: number | null;
   acquired_price?: number | null;
   acquired_price_reliable?: boolean | null;
@@ -248,6 +276,8 @@ export type LeadInsert = {
   status?: LeadStatusDb;
   notes?: string | null;
   assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
   ml_feedback?: LeadMlFeedbackDb | null;
   ml_feedback_reason?: string | null;
   ml_feedback_at?: string | null;
@@ -366,6 +396,348 @@ export type EstimationRequestInsert = {
   edit_token?: string;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Espace de travail agent : contacts, biens, dictées, échanges                */
+/* -------------------------------------------------------------------------- */
+
+export type ContactTypeDb = 'vendeur' | 'acquereur' | 'locataire' | 'autre';
+export type ContactSourceDb = 'manuel' | 'vocal' | 'prospection';
+export type MandatStatutDb =
+  | 'estimation'
+  | 'mandat_simple'
+  | 'mandat_exclusif'
+  | 'compromis'
+  | 'vendu'
+  | 'archive';
+export type HonorairesAChargeDb = 'vendeur' | 'acquereur' | 'partage';
+export type DpeLettreDb = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
+export type VoiceNoteStatusDb = 'transcrit' | 'valide' | 'erreur';
+export type VoiceNoteVisibiliteDb = 'agence' | 'privee';
+export type VoiceNoteStatutDb = 'brute' | 'revue';
+export type NoteSourceInfoDb = 'proprietaire' | 'gardien' | 'voisin' | 'tiers' | 'agent';
+export type NoteLienEntiteDb = 'contact' | 'bien' | 'lead' | 'immeuble';
+export type NoteLienConfianceDb = 'certain' | 'probable';
+export type NoteLienCreeParDb = 'agent' | 'extraction' | 'reconciliation';
+export type ContactInteractionKindDb = 'note' | 'appel' | 'visite' | 'vocal' | 'email';
+
+export type ContactRow = {
+  id: string;
+  agency_id: string;
+  created_by: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  contact_type: ContactTypeDb;
+  phone: string | null;
+  email: string | null;
+  secteur: string | null;
+  postal_codes: string[];
+  budget_min: number | null;
+  budget_max: number | null;
+  surface_min: number | null;
+  surface_max: number | null;
+  rooms_min: number | null;
+  summary: string | null;
+  last_interaction_at: string | null;
+  source: ContactSourceDb;
+  lead_id: string | null;
+  address?: string | null;
+  ban_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
+  assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContactInsert = {
+  id?: string;
+  agency_id: string;
+  created_by?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  contact_type?: ContactTypeDb;
+  phone?: string | null;
+  email?: string | null;
+  secteur?: string | null;
+  postal_codes?: string[];
+  budget_min?: number | null;
+  budget_max?: number | null;
+  surface_min?: number | null;
+  surface_max?: number | null;
+  rooms_min?: number | null;
+  summary?: string | null;
+  last_interaction_at?: string | null;
+  source?: ContactSourceDb;
+  lead_id?: string | null;
+  address?: string | null;
+  ban_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
+  assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type BienRow = {
+  id: string;
+  agency_id: string;
+  created_by: string | null;
+  address: string;
+  city: string | null;
+  postal_code: string | null;
+  property_type: string | null;
+  surface_m2: number | null;
+  rooms: number | null;
+  price: number | null;
+  mandat_statut: MandatStatutDb;
+  proprietaire_contact_id: string | null;
+  lead_id: string | null;
+  ban_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
+  notes: string | null;
+  listing_title: string | null;
+  listing_description: string | null;
+  photos: string[];
+  dpe_lettre: DpeLettreDb | null;
+  dpe_kwh: number | null;
+  ges_lettre: DpeLettreDb | null;
+  ges_kg_co2: number | null;
+  dpe_vierge: boolean;
+  dpe_date: string | null;
+  honoraires_montant: number | null;
+  honoraires_a_charge: HonorairesAChargeDb | null;
+  honoraires_pourcent: number | null;
+  mandat_numero: string | null;
+  mandat_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BienInsert = {
+  id?: string;
+  agency_id: string;
+  created_by?: string | null;
+  address: string;
+  city?: string | null;
+  postal_code?: string | null;
+  property_type?: string | null;
+  surface_m2?: number | null;
+  rooms?: number | null;
+  price?: number | null;
+  mandat_statut?: MandatStatutDb;
+  proprietaire_contact_id?: string | null;
+  lead_id?: string | null;
+  ban_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
+  notes?: string | null;
+  listing_title?: string | null;
+  listing_description?: string | null;
+  photos?: string[];
+  dpe_lettre?: DpeLettreDb | null;
+  dpe_kwh?: number | null;
+  ges_lettre?: DpeLettreDb | null;
+  ges_kg_co2?: number | null;
+  dpe_vierge?: boolean;
+  dpe_date?: string | null;
+  honoraires_montant?: number | null;
+  honoraires_a_charge?: HonorairesAChargeDb | null;
+  honoraires_pourcent?: number | null;
+  mandat_numero?: string | null;
+  mandat_date?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type VoiceNoteRow = {
+  id: string;
+  agency_id: string;
+  created_by: string | null;
+  /** Chemin dans le bucket PRIVÉ `voice-notes`. Jamais exposé au navigateur. */
+  storage_path: string;
+  duration_seconds: number | null;
+  mime_type: string | null;
+  transcript: string | null;
+  structured: unknown;
+  status: VoiceNoteStatusDb;
+  contact_id: string | null;
+  ban_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
+  assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  visibilite?: VoiceNoteVisibiliteDb;
+  source_info?: NoteSourceInfoDb | null;
+  statut?: VoiceNoteStatutDb;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VoiceNoteInsert = {
+  id?: string;
+  agency_id: string;
+  created_by?: string | null;
+  storage_path: string;
+  duration_seconds?: number | null;
+  mime_type?: string | null;
+  transcript?: string | null;
+  structured?: unknown;
+  status?: VoiceNoteStatusDb;
+  contact_id?: string | null;
+  ban_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  adresse_normalisee?: string | null;
+  geocode_score?: number | null;
+  geocode_le?: string | null;
+  assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  visibilite?: VoiceNoteVisibiliteDb;
+  source_info?: NoteSourceInfoDb | null;
+  statut?: VoiceNoteStatutDb;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type NoteLienRow = {
+  id: string;
+  note_id: string;
+  agency_id: string;
+  entite_type: NoteLienEntiteDb;
+  entite_id: string;
+  confiance: NoteLienConfianceDb;
+  cree_par: NoteLienCreeParDb;
+  cree_le: string;
+};
+
+export type NoteLienInsert = {
+  id?: string;
+  note_id: string;
+  agency_id: string;
+  entite_type: NoteLienEntiteDb;
+  entite_id: string;
+  confiance: NoteLienConfianceDb;
+  cree_par: NoteLienCreeParDb;
+  cree_le?: string;
+};
+
+export type ContactInteractionRow = {
+  id: string;
+  agency_id: string;
+  contact_id: string;
+  author_id: string | null;
+  kind: ContactInteractionKindDb;
+  body: string;
+  voice_note_id: string | null;
+  assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
+export type TodayDismissalRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  card_key: string;
+  /** NULL = ignorée définitivement. */
+  snoozed_until: string | null;
+  created_at: string;
+};
+
+export type TodayDismissalInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  card_key: string;
+  snoozed_until?: string | null;
+  created_at?: string;
+};
+
+export type ContactInteractionInsert = {
+  id?: string;
+  agency_id: string;
+  contact_id: string;
+  author_id?: string | null;
+  kind?: ContactInteractionKindDb;
+  body: string;
+  voice_note_id?: string | null;
+  assigned_to?: string | null;
+  assigned_by?: string | null;
+  assigned_at?: string | null;
+  occurred_at?: string;
+  created_at?: string;
+};
+
+export type AgencyAlertKindDb = 'baisse_prix' | 'mandat_a_recuperer';
+
+export type AgencyAlertRow = {
+  id: string;
+  agency_id: string;
+  created_by: string;
+  kind: AgencyAlertKindDb;
+  contact_id: string | null;
+  lead_id: string | null;
+  body: string | null;
+  created_at: string;
+};
+
+export type AgencyAlertInsert = {
+  id?: string;
+  agency_id: string;
+  created_by: string;
+  kind: AgencyAlertKindDb;
+  contact_id?: string | null;
+  lead_id?: string | null;
+  body?: string | null;
+  created_at?: string;
+};
+
+export type AssistantQueryRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  question: string;
+  detected_type: string;
+  lignes_count: number;
+  duration_ms: number;
+  created_at: string;
+};
+
+export type AssistantQueryInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  question: string;
+  detected_type: string;
+  lignes_count?: number;
+  duration_ms?: number;
+  created_at?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -393,6 +765,12 @@ export type Database = {
         Update: Partial<LeadRow>;
         Relationships: [];
       };
+      lead_stages: {
+        Row: LeadStageRow;
+        Insert: Omit<LeadStageRow, 'id' | 'created_at'> & { id?: string; created_at?: string };
+        Update: Partial<LeadStageRow>;
+        Relationships: [];
+      };
       profile_agencies: {
         Row: ProfileAgencyRow;
         Insert: ProfileAgencyInsert;
@@ -409,6 +787,54 @@ export type Database = {
         Row: EstimationRequestRow;
         Insert: EstimationRequestInsert;
         Update: Partial<EstimationRequestRow>;
+        Relationships: [];
+      };
+      contacts: {
+        Row: ContactRow;
+        Insert: ContactInsert;
+        Update: Partial<ContactRow>;
+        Relationships: [];
+      };
+      biens: {
+        Row: BienRow;
+        Insert: BienInsert;
+        Update: Partial<BienRow>;
+        Relationships: [];
+      };
+      voice_notes: {
+        Row: VoiceNoteRow;
+        Insert: VoiceNoteInsert;
+        Update: Partial<VoiceNoteRow>;
+        Relationships: [];
+      };
+      note_liens: {
+        Row: NoteLienRow;
+        Insert: NoteLienInsert;
+        Update: Partial<NoteLienRow>;
+        Relationships: [];
+      };
+      contact_interactions: {
+        Row: ContactInteractionRow;
+        Insert: ContactInteractionInsert;
+        Update: Partial<ContactInteractionRow>;
+        Relationships: [];
+      };
+      today_dismissals: {
+        Row: TodayDismissalRow;
+        Insert: TodayDismissalInsert;
+        Update: Partial<TodayDismissalRow>;
+        Relationships: [];
+      };
+      agency_alerts: {
+        Row: AgencyAlertRow;
+        Insert: AgencyAlertInsert;
+        Update: Partial<AgencyAlertRow>;
+        Relationships: [];
+      };
+      assistant_queries: {
+        Row: AssistantQueryRow;
+        Insert: AssistantQueryInsert;
+        Update: Partial<AssistantQueryRow>;
         Relationships: [];
       };
     };

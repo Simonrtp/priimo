@@ -1,0 +1,47 @@
+.priimo-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid #f4efe8;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(21, 32, 47, 0.28);
+  line-height: 1;
+}
+
+.priimo-pin--on {
+  box-shadow: 0 0 0 3px rgba(232, 116, 60, 0.35);
+}
+
+.priimo-pin-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e8743c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  border: 1.5px solid #f4efe8;
+}
+
+.priimo-pin-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.priimo-map .mapboxgl-marker {
+  z-index: auto;
+}

@@ -6,13 +6,13 @@ import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
 interface StatusSelectProps {
   currentStatus: LeadStatus;
   onChange: (status: LeadStatus) => void;
+  className?: string;
 }
 
-export default function StatusSelect({ currentStatus, onChange }: StatusSelectProps) {
+export default function StatusSelect({ currentStatus, onChange, className = '' }: StatusSelectProps) {
   return (
     <div
-      className="absolute right-0 top-full z-[60] mt-1.5 min-w-[170px] rounded-xl border border-black/10 bg-white p-1 shadow-lg ring-1 ring-black/[0.04]"
-      style={{ backgroundColor: '#ffffff' }}
+      className={`min-w-[170px] rounded-xl border border-black/10 bg-white p-1 shadow-lg ring-1 ring-black/[0.04] ${className}`}
     >
       {STATUS_ORDER.map((value) => {
         const meta = STATUS_META[value];
@@ -21,14 +21,14 @@ export default function StatusSelect({ currentStatus, onChange }: StatusSelectPr
             key={value}
             type="button"
             onClick={() => onChange(value)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-left transition-colors duration-100 ${
+            className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-100 ${
               value === currentStatus
-                ? 'bg-black/[0.04] text-ink font-medium'
+                ? 'bg-black/[0.04] font-medium text-ink'
                 : 'text-mute hover:bg-black/[0.04] hover:text-ink'
             }`}
           >
             <span
-              className="rounded-full flex-shrink-0"
+              className="flex-shrink-0 rounded-full"
               style={{ width: 7, height: 7, backgroundColor: meta.dotColor }}
             />
             {meta.label}

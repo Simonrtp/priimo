@@ -121,6 +121,23 @@ export function parseContactabilite(
   return null;
 }
 
+const CONTACTABILITE_LIST_LABELS: Record<
+  Exclude<Lead['contactabilite'], null | 'aucun'>,
+  string
+> = {
+  direct: 'Tél. direct',
+  nominatif: 'Nominatif',
+  immeuble: 'Immeuble',
+};
+
+/** Libellé court pour la ligne meta des leads (liste). */
+export function contactabiliteListLabel(
+  contactabilite: Lead['contactabilite'],
+): string | null {
+  if (!contactabilite || contactabilite === 'aucun') return null;
+  return CONTACTABILITE_LIST_LABELS[contactabilite] ?? null;
+}
+
 export function parseOwnerPhoneSource(
   raw: unknown,
 ): Lead['ownerPhoneSource'] {

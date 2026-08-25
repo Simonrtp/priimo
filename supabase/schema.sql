@@ -298,11 +298,15 @@ ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profile_agencies ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profile_agencies_select_own ON public.profile_agencies;
-CREATE POLICY profile_agencies_select_own
+DROP POLICY IF EXISTS profile_agencies_select_self_or_agency ON public.profile_agencies;
+CREATE POLICY profile_agencies_select_self_or_agency
   ON public.profile_agencies
   FOR SELECT
   TO authenticated
-  USING (profile_id = auth.uid());
+  USING (
+    profile_id = auth.uid()
+    OR agency_id = public.current_user_agency_id()
+  );
 
 -- Important : `service_role` (clé serveur Supabase) bypasse TOUJOURS RLS.
 -- Toutes les opérations privilégiées (création d'agence, acceptation

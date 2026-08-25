@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
 import { resolveActiveAgencyId, resolveActiveRole } from '@/lib/auth/active-agency';
+import { deviceFromHints } from '@/lib/device';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env';
 
 /** Routes marketing / légales : pas de getUser (latence). */
@@ -77,7 +78,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.next({ request });
+  const device = deviceFromHints({
+    ua: request.headers.get('user-agent') ?? '',
+    chMobile: request.headers.get('sec-ch-ua-mobile'),
+    cookie: request.headers.get('cookie'),
+  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-device', device);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set('x-device', device);
+  response.headers.append('Vary', 'User-Agent');
+  response.headers.append('Accept-CH', 'Sec-CH-UA-Mobile');
+  response.headers.set('Critical-CH', 'Sec-CH-UA-Mobile');
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {
@@ -136,7 +148,9 @@ export const config = {
     /*
      * Auth / redirects only where needed — skip static assets.
      * Marketing pages still match but short-circuit without getUser above.
+     * Les fichiers de la PWA sont exclus : le service worker les redemande
+     * régulièrement et ils n'ont aucune raison de coûter un getUser().
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|mp4|webm|woff2?)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.json|offline\\.html|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|mp4|webm|woff2?)$).*)',
   ],
 };

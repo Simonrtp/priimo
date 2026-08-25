@@ -1,3 +1,5 @@
+import { geocodeAdresse, searchBan, type BanSearchFeature } from '@/lib/geo/ban';
+
 export type SelectedAddress = {
   label: string;
   latitude: number;
@@ -16,43 +18,47 @@ export type BanFeature = {
     postcode: string;
     citycode?: string;
     context: string;
+    id?: string;
   };
   geometry: {
     coordinates: [number, number];
   };
 };
 
-type BanSearchResponse = {
-  features?: BanFeature[];
-};
-
-const BAN_SEARCH_URL = 'https://api-adresse.data.gouv.fr/search/';
-
-export async function searchBanAddresses(query: string, limit = 5): Promise<BanFeature[]> {
-  const params = new URLSearchParams({
-    q: query,
-    limit: String(limit),
-    autocomplete: '1',
-  });
-  const response = await fetch(`${BAN_SEARCH_URL}?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Recherche adresse indisponible.');
-  }
-  const data = (await response.json()) as BanSearchResponse;
-  return data.features ?? [];
+function asBanFeature(feature: BanSearchFeature): BanFeature | null {
+  const props = feature.properties;
+  const coords = feature.geometry?.coordinates;
+  if (!props || !coords) return null;
+  if (typeof props.label !== 'string' || typeof props.score !== 'number') return null;
+  return {
+    properties: {
+      label: props.label,
+      score: props.score,
+      city: props.city ?? '',
+      postcode: props.postcode ?? '',
+      citycode: props.citycode,
+      context: props.context ?? '',
+      id: props.id,
+    },
+    geometry: { coordinates: coords },
+  };
 }
 
-/** Géocode une adresse complète (1er résultat BAN). */
+export async function searchBanAddresses(query: string, limit = 5): Promise<BanFeature[]> {
+  const features = await searchBan(query, { limit });
+  return features.flatMap((feature) => {
+    const mapped = asBanFeature(feature);
+    return mapped ? [mapped] : [];
+  });
+}
+
+/** Géocode une adresse complète via le service partagé (seuil BAN 0.4). */
 export async function geocodeBanQuery(
   query: string,
 ): Promise<{ latitude: number; longitude: number } | null> {
-  const q = query.trim();
-  if (q.length < 3) return null;
-  const features = await searchBanAddresses(q, 1);
-  const feature = features[0];
-  if (!feature) return null;
-  const [lng, lat] = feature.geometry.coordinates;
-  return { latitude: lat, longitude: lng };
+  const hit = await geocodeAdresse(query);
+  if (!hit) return null;
+  return { latitude: hit.lat, longitude: hit.lng };
 }
 
 export function banFeatureToSelectedAddress(feature: BanFeature): SelectedAddress {

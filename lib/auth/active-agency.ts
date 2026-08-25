@@ -8,7 +8,7 @@ export type ProfileAgencyMembership = {
 
 /** Vérifie qu'un utilisateur appartient à une agence (garde app + tests RLS). */
 export function canAccessAgency(
-  memberships: Pick<ProfileAgencyMembership, 'agency_id'>[],
+  memberships: readonly Pick<ProfileAgencyMembership, 'agency_id'>[],
   agencyId: string,
 ): boolean {
   return memberships.some((m) => m.agency_id === agencyId);

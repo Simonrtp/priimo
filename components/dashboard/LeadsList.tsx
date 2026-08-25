@@ -1,8 +1,8 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { Filters, Lead, LeadSegmentTab } from '@/types/lead';
+import type { Filters, Lead, LeadSegmentTab, LeadStage } from '@/types/lead';
 import type { DeliveryBatchGroup } from '@/lib/lead-delivery';
 import { matchesLeadFilters } from '@/lib/lead-filters';
 import { sortProspects } from '@/lib/lead-dpe';
@@ -17,6 +17,9 @@ interface LeadsListProps {
   hasAnyLead: boolean;
   onLeadClick: (id: string) => void;
   onStatusChange: (id: string, status: Lead['status']) => void;
+  stages?: readonly LeadStage[];
+  onTake?: (id: string) => void;
+  onStageChange?: (id: string, stageId: string) => void;
   onResetFilters?: () => void;
 }
 
@@ -26,53 +29,55 @@ function PreviousLeadsSection({
   indexOffset,
   onLeadClick,
   onStatusChange,
+  stages,
+  onTake,
+  onStageChange,
 }: {
   groups: DeliveryBatchGroup[];
   segmentTab: LeadSegmentTab;
   indexOffset: number;
   onLeadClick: (id: string) => void;
   onStatusChange: (id: string, status: Lead['status']) => void;
+  stages?: readonly LeadStage[];
+  onTake?: (id: string) => void;
+  onStageChange?: (id: string, stageId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const panelId = useId();
 
   const total = groups.reduce((n, g) => n + g.leads.length, 0);
   if (total === 0) return null;
 
   let runningIndex = indexOffset;
 
+  // Les cartes dépliées sont des frères du bouton, pas ses enfants : sur mobile
+  // et tablette elles gardent ainsi leur propre carte et l'écart de la grille,
+  // au lieu d'être encastrées dans un second cadre.
   return (
-    <div className="md:col-span-2 max-lg:rounded-xl max-lg:border max-lg:border-black/8 max-lg:bg-white max-lg:shadow-soft lg:col-span-1 lg:rounded-none lg:border-0 lg:border-t lg:border-black/[0.08] lg:bg-transparent lg:shadow-none">
+    <>
       <button
         type="button"
-        id={`${panelId}-trigger`}
         aria-expanded={open}
-        aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.02] sm:px-4 md:px-5"
+        className="flex min-h-[48px] w-full items-center gap-2 text-left transition-[box-shadow,border-color] duration-150 md:col-span-2 max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-white max-lg:px-4 max-lg:py-3.5 max-lg:shadow-clay-sm max-lg:hover:border-black/[0.09] max-lg:hover:shadow-clay lg:bg-white lg:px-6 lg:py-4 lg:hover:shadow-[inset_0_0_0_9999px_rgba(10,13,17,0.018)]"
       >
-        <span className="min-w-0 flex-1 font-semibold leading-snug text-mute" style={{ fontSize: 13 }}>
+        <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-mute">
           Leads précédents ({total})
         </span>
         <ChevronDown
           size={16}
-          className={`flex-shrink-0 text-mute transition-transform duration-150 ease-out ${
+          className={`flex-shrink-0 text-mute transition-transform duration-200 ease-out ${
             open ? 'rotate-180' : ''
           }`}
           aria-hidden
         />
       </button>
 
-      {open && (
-        <div
-          id={panelId}
-          className="md:grid md:grid-cols-2 md:gap-3 md:px-3 md:pb-3 lg:block lg:px-0 lg:pb-0"
-        >
-          {groups.map((group, groupIdx) => (
-            <div key={group.deliveredAt} className="contents lg:block">
+      {open
+        ? groups.map((group, groupIdx) => (
+            <Fragment key={group.deliveredAt}>
               <p
-                className="col-span-2 border-t border-black/[0.05] bg-black/[0.02] px-4 py-2 uppercase tracking-widest text-mute max-lg:rounded-lg max-lg:border-0 max-lg:bg-transparent md:px-1 lg:rounded-none lg:border-t lg:bg-black/[0.02] lg:px-5"
-                style={{ fontSize: 9, letterSpacing: '0.14em' }}
+                className="text-[9px] uppercase text-mute md:col-span-2 max-lg:px-1 max-lg:pt-1 lg:border-t lg:border-black/[0.05] lg:bg-bg-subtle lg:px-6 lg:py-2"
+                style={{ letterSpacing: '0.14em' }}
               >
                 {group.label}
               </p>
@@ -88,16 +93,19 @@ function PreviousLeadsSection({
                     index={cardIndex}
                     isLast={isLastGroup && isLastLead}
                     segmentTab={segmentTab}
+                    stagger={false}
                     onClick={() => onLeadClick(lead.id)}
                     onStatusChange={(s) => onStatusChange(lead.id, s)}
+                    stages={stages}
+                    onTake={onTake ? () => onTake(lead.id) : undefined}
+                    onStageChange={onStageChange ? (stageId) => onStageChange(lead.id, stageId) : undefined}
                   />
                 );
               })}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            </Fragment>
+          ))
+        : null}
+    </>
   );
 }
 
@@ -109,6 +117,9 @@ export default function LeadsList({
   hasAnyLead,
   onLeadClick,
   onStatusChange,
+  stages,
+  onTake,
+  onStageChange,
   onResetFilters,
 }: LeadsListProps) {
   const visibleNewBatch = useMemo(
@@ -150,7 +161,7 @@ export default function LeadsList({
     <div
       id="prospects-leads-list"
       data-tour="leads-list"
-      className="flex w-full min-w-0 flex-col gap-2 md:grid md:grid-cols-2 md:gap-3 lg:flex lg:flex-col lg:gap-0 lg:overflow-visible lg:rounded-clay-lg lg:bg-surface lg:shadow-clay"
+      className="flex w-full min-w-0 flex-col gap-2 md:grid md:grid-cols-2 md:gap-3 lg:flex lg:flex-col lg:gap-0 lg:overflow-hidden lg:rounded-clay-lg lg:bg-white lg:shadow-clay"
     >
       {visibleNewBatch.map((lead, i) => (
         <LeadCard
@@ -162,6 +173,9 @@ export default function LeadsList({
           showNewBadge
           onClick={() => onLeadClick(lead.id)}
           onStatusChange={(s) => onStatusChange(lead.id, s)}
+          stages={stages}
+          onTake={onTake ? () => onTake(lead.id) : undefined}
+          onStageChange={onStageChange ? (stageId) => onStageChange(lead.id, stageId) : undefined}
         />
       ))}
 
@@ -171,6 +185,9 @@ export default function LeadsList({
         indexOffset={visibleNewBatch.length}
         onLeadClick={onLeadClick}
         onStatusChange={onStatusChange}
+        stages={stages}
+        onTake={onTake}
+        onStageChange={onStageChange}
       />
     </div>
   );

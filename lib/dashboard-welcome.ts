@@ -1,96 +1,93 @@
-const SESSION_KEY = 'priimo-welcome-msg-v3';
+const SESSION_KEY = 'priimo-welcome-msg-v4';
 
 const MONDAY: string[] = [
-  'Bon lundi {name}. Votre liste de la semaine est arrivée. Avant même votre café.',
-  'Bon lundi {name}. Nouvelle semaine, nouvelles adresses. Les mauvaises portes, c\'était avant.',
-  'Bon lundi {name}. Pendant que vous dormiez, on a fait le tri.',
-  'Bon lundi {name}. Café, liste, terrain. Dans cet ordre.',
+  'Bon lundi {name}. Votre semaine commence ici — on voit ce qui vous attend.',
+  'Bon lundi {name}. La pile est prête pour la semaine.',
+  'Bon lundi {name}. Un écran, une journée. Le reste peut attendre.',
+  'Bon lundi {name}. Café, puis la première action de la liste.',
 ];
 
 const TUESDAY: string[] = [
-  'Bon mardi {name}. Une bonne adresse vaut cent portes au hasard.',
-  'Bon mardi {name}. Le lundi on découvre, le mardi on décroche.',
-  'Bon mardi {name}. Vos concurrents lisent encore les annonces. Vous, vous avez la liste.',
+  'Bon mardi {name}. Une relance bien placée vaut dix rappels au hasard.',
+  'Bon mardi {name}. Hier c\'était la découverte, aujourd\'hui c\'est l\'action.',
+  'Bon mardi {name}. Vos contacts et vos adresses sont au même endroit maintenant.',
 ];
 
 const WEDNESDAY: string[] = [
-  'Bon mercredi {name}. Mi-semaine : le bon moment pour relancer ceux qui n\'ont pas répondu.',
-  'Bon mercredi {name}. Les mandats se signent rarement tout seuls. Sauf peut-être aujourd\'hui.',
-  'Bon mercredi {name}. La moitié de la semaine est passée. Pas la moitié des mandats, j\'espère.',
+  'Bon mercredi {name}. Mi-semaine : le bon moment pour relancer ceux qu\'on a laissés en suspens.',
+  'Bon mercredi {name}. La pile est là pour vous éviter de tout garder en tête.',
+  'Bon mercredi {name}. Moitié de semaine passée. Et vous, où en êtes-vous ?',
 ];
 
 const THURSDAY: string[] = [
-  'Bon jeudi {name}. Encore deux jours pour transformer une adresse en mandat.',
-  'Bon jeudi {name}. Qui appelez-vous en premier aujourd\'hui ?',
-  'Bon jeudi {name}. Presque vendredi. Presque le week-end. Presque un mandat ?',
+  'Bon jeudi {name}. Encore deux jours pour vider la pile.',
+  'Bon jeudi {name}. Par quelle carte commencez-vous ?',
+  'Bon jeudi {name}. Presque vendredi — une action de plus ne fera pas de mal.',
 ];
 
 const FRIDAY: string[] = [
-  'Bon vendredi {name}. Un dernier rendez-vous avant le week-end ?',
-  'Bon vendredi {name}. Signer le vendredi, c\'est le meilleur début de week-end.',
-  'Bon vendredi {name}. Un mandat avant l\'apéro. Ça se tente.',
+  'Bon vendredi {name}. Un dernier coup de fil avant le week-end ?',
+  'Bon vendredi {name}. Finir la journée à jour, ça change un week-end.',
+  'Bon vendredi {name}. Une relance de plus, puis vous pourrez fermer l\'écran.',
 ];
 
 const WEEKEND: string[] = [
-  'Bon week-end {name}. Samedi, jour des visites. Et peut-être d\'un mandat.',
-  'Bon week-end {name}. La liste sera toujours là lundi. Promis.',
-  'Bon week-end {name}. Une bonne adresse reste une bonne adresse, même le dimanche.',
+  'Bon week-end {name}. Samedi, jour des visites — notez ce que vous croisez.',
+  'Bon week-end {name}. Rien ne presse. La pile sera là lundi.',
+  'Bon week-end {name}. Une dictée après une visite, et c\'est rangé.',
 ];
 
 const EARLY_MORNING: string[] = [
-  'Bonjour {name}. Debout avant le soleil. Les mandats aiment ça.',
-  'Bonjour {name}. Premier café, première adresse.',
-  'Bonjour {name}. À cette heure-ci, vos concurrents dorment encore.',
-  'Bonjour {name}. Il est tôt. Votre liste est déjà réveillée.',
+  'Bonjour {name}. Debout tôt : la journée est déjà préparée pour vous.',
+  'Bonjour {name}. Premier café, première carte.',
+  'Bonjour {name}. À cette heure, votre pile n\'a pas encore bougé.',
+  'Bonjour {name}. Il est tôt. Vos actions du jour, elles, sont prêtes.',
 ];
 
 const MORNING: string[] = [
-  'Bonjour {name}. La meilleure heure pour décrocher un rendez-vous.',
-  'Bonne matinée {name}. Votre liste vous attend. Elle est patiente, mais quand même.',
-  'Bonjour {name}. On commence par quelle adresse ?',
-  'Bonne matinée {name}. Une adresse, un appel, un rendez-vous. La recette est simple.',
+  'Bonjour {name}. La matinée est faite pour traiter ce qui compte.',
+  'Bonne matinée {name}. Voici ce qui vous attend — sans rien oublier.',
+  'Bonjour {name}. On commence par laquelle ?',
+  'Bonne matinée {name}. Une carte, une action, et la pile diminue.',
 ];
 
 const MIDDAY: string[] = [
-  'Bon appétit {name}. Les adresses ne s\'envolent pas pendant le déjeuner.',
-  'Bonjour {name}. Pause déjeuner. Les mandats attendront une heure.',
+  'Bon appétit {name}. Vos relances ne s\'envolent pas pendant le déjeuner.',
+  'Bonjour {name}. Pause déjeuner. La pile attendra une heure.',
   'Bon midi {name}. Personne n\'a jamais signé un mandat le ventre vide.',
-  'Bon midi {name}. Même les meilleurs prospecteurs déjeunent.',
+  'Bon midi {name}. Reposez-vous — le travail est déjà rangé ici.',
 ];
 
 const AFTERNOON: string[] = [
-  'Bon après-midi {name}. C\'est souvent l\'après-midi que les mandats se signent.',
-  'Bon après-midi {name}. Il reste du temps. Il reste des adresses.',
-  'Bon après-midi {name}. Les prospects en attente ne se relancent pas tout seuls.',
-  'Bon après-midi {name}. Une porte de plus avant ce soir ?',
+  'Bon après-midi {name}. C\'est souvent l\'après-midi que les choses avancent.',
+  'Bon après-midi {name}. Il reste du temps. Il reste des cartes.',
+  'Bon après-midi {name}. Les relances en attente ne partent pas toutes seules.',
+  'Bon après-midi {name}. Une action de plus avant ce soir ?',
 ];
 
 const EVENING: string[] = [
-  'Bonsoir {name}. Un dernier coup d\'œil sur la liste avant de fermer ?',
-  'Bonsoir {name}. Journée finie. Sauf si un mandat vous attend encore.',
-  'Bonsoir {name}. Vous avez bien travaillé. La liste sera là demain.',
-  'Bonsoir {name}. Encore là ? Le mandat n\'est peut-être pas loin.',
+  'Bonsoir {name}. Un dernier coup d\'œil sur la pile avant de fermer ?',
+  'Bonsoir {name}. Journée finie. Demain, elle repartira propre.',
+  'Bonsoir {name}. Vous avez bien avancé. Le reste attendra demain.',
+  'Bonsoir {name}. Encore là ? Une carte, et c\'est peut-être fini.',
 ];
 
 const LATE_NIGHT: string[] = [
-  'Bonsoir {name}. Il est tard. La liste ne s\'enfuira pas cette nuit.',
-  'Bonsoir {name}. À cette heure, même les vendeurs dorment.',
+  'Bonsoir {name}. Il est tard. Rien ne presse cette nuit.',
+  'Bonsoir {name}. À cette heure, même vos contacts dorment.',
   'Bonsoir {name}. Insomnie ou inspiration ? Dans les deux cas, bienvenue.',
-  'Bonsoir {name}. Les meilleures idées viennent la nuit. Les mandats, plutôt en journée.',
+  'Bonsoir {name}. Les meilleures idées viennent la nuit. Les actions, plutôt en journée.',
 ];
 
 const ANYTIME: string[] = [
   'Content de vous revoir, {name}.',
-  'Bon retour {name}. Vos adresses n\'attendent que vous.',
+  'Bon retour {name}. Voici ce qui vous attend aujourd\'hui.',
   'Ravi de vous retrouver, {name}.',
-  'Bonjour {name}. Moins de portes, plus de mandats. On y va ?',
-  'Bonjour {name}. Votre prochain mandat est peut-être dans cette liste.',
-  'Bienvenue {name}. Quelqu\'un dans votre secteur va vendre. Autant que ce soit avec vous.',
-  'Bonjour {name}. On ne frappe plus au hasard. On frappe où il faut.',
+  'Bonjour {name}. Une pile claire, une journée plus simple.',
+  'Bonjour {name}. Votre prochaine action est peut-être la première carte.',
+  'Bienvenue {name}. Le travail est déjà préparé — il reste à le faire.',
   'Bon retour {name}. On reprend là où vous vous étiez arrêté.',
-  'Bonjour {name}. Une adresse bien choisie vaut mieux qu\'une journée de porte-à-porte.',
-  'Bonjour {name}. Prêt à transformer une adresse en mandat ?',
-  'Bonjour {name}. Bonne prospection. Et bonne chance, même si vous n\'en aurez pas besoin.',
+  'Bonjour {name}. Une carte à la fois, et la journée avance.',
 ];
 
 const BY_DAY: Record<number, string[]> = {
@@ -142,6 +139,7 @@ export function pickDashboardWelcomeMessage(firstName: string): string {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem('priimo-welcome-msg');
     sessionStorage.removeItem('priimo-welcome-msg-v2');
+    sessionStorage.removeItem('priimo-welcome-msg-v3');
     const stored = sessionStorage.getItem(SESSION_KEY);
     if (stored) return stored;
   }

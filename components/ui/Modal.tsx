@@ -10,13 +10,15 @@ interface ModalProps {
   title: string;
   description?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
 const MAX_WIDTH_CLASS: Record<NonNullable<ModalProps['maxWidth']>, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
+  xl: 'max-w-2xl',
+  '2xl': 'max-w-4xl',
 };
 
 export default function Modal({
@@ -37,11 +39,13 @@ export default function Modal({
     previousFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         onClose();
       }
     };
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -52,7 +56,7 @@ export default function Modal({
     focusable?.focus();
 
     return () => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       document.body.style.overflow = prevOverflow;
       previousFocusRef.current?.focus?.();
     };
@@ -62,7 +66,7 @@ export default function Modal({
 
   const node = (
     <div
-      className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center"
+      className="fixed inset-0 z-[130] flex items-end justify-center p-4 sm:items-center"
       role="presentation"
     >
       <div
@@ -76,15 +80,19 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`relative w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto rounded-2xl bg-white shadow-xl`}
+        className={`relative flex max-h-[calc(100dvh-2rem)] w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto flex-col rounded-2xl bg-white shadow-xl`}
       >
-        <div className="flex items-start justify-between gap-4 px-5 pt-5">
+        <div className="flex flex-shrink-0 items-start justify-between gap-4 px-5 pt-5">
           <div className="min-w-0">
-            <h3 id={titleId} className="font-semibold text-ink" style={{ fontSize: 17, letterSpacing: '-0.01em' }}>
+            <h3
+              id={titleId}
+              className="text-balance text-[16px] font-semibold text-ink sm:text-[17px]"
+              style={{ letterSpacing: '-0.01em' }}
+            >
               {title}
             </h3>
             {description && (
-              <p id={descriptionId} className="mt-1 text-mute" style={{ fontSize: 13, lineHeight: 1.5 }}>
+              <p id={descriptionId} className="mt-1 text-pretty text-[13px] text-mute" style={{ lineHeight: 1.5 }}>
                 {description}
               </p>
             )}
@@ -98,7 +106,9 @@ export default function Modal({
             <X size={18} strokeWidth={2} aria-hidden />
           </button>
         </div>
-        <div className="px-5 pb-5 pt-4">{children}</div>
+        {/* Les formulaires longs (critères d'un acquéreur) doivent défiler dans la carte,
+            pas déborder sous le pli sur un écran de portable. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">{children}</div>
       </div>
     </div>
   );

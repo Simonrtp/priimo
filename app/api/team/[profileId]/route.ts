@@ -1,6 +1,98 @@
 import { NextResponse } from 'next/server';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import type { ProfileRole } from '@/types/database';
+
+const ROLES: readonly ProfileRole[] = ['directeur', 'collaborateur'];
+
+/**
+ * Change le rôle d'un membre dans l'agence active. Un seul directeur :
+ * promouvoir un collaborateur transfère le rôle — l'ancien directeur
+ * devient collaborateur.
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ profileId: string }> },
+) {
+  const guard = await requireDirector();
+  if (!guard.ok) return guard.response;
+  const { profileId } = await params;
+
+  let body: { role?: unknown };
+  try {
+    body = (await request.json()) as { role?: unknown };
+  } catch {
+    return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
+  }
+
+  const role = typeof body.role === 'string' ? body.role : '';
+  if (!(ROLES as readonly string[]).includes(role)) {
+    return NextResponse.json({ error: 'Rôle inconnu' }, { status: 400 });
+  }
+  const nextRole = role as ProfileRole;
+
+  if (profileId === guard.user.id) {
+    return NextResponse.json(
+      { error: 'Vous ne pouvez pas modifier votre propre rôle.' },
+      { status: 400 },
+    );
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: membership, error: loadErr } = await admin
+    .from('profile_agencies')
+    .select('role')
+    .eq('profile_id', profileId)
+    .eq('agency_id', guard.agency.id)
+    .maybeSingle();
+  if (loadErr) {
+    console.error('[team/role] load', loadErr);
+    return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
+  }
+  if (!membership) {
+    return NextResponse.json({ error: 'Membre introuvable dans cette agence.' }, { status: 404 });
+  }
+  if (membership.role === nextRole) {
+    return NextResponse.json({ success: true });
+  }
+  if (membership.role === 'directeur') {
+    return NextResponse.json(
+      { error: 'Impossible de modifier le rôle du directeur en place.' },
+      { status: 400 },
+    );
+  }
+
+  if (nextRole === 'directeur') {
+    const { error: demoteErr } = await admin
+      .from('profile_agencies')
+      .update({ role: 'collaborateur' })
+      .eq('profile_id', guard.user.id)
+      .eq('agency_id', guard.agency.id);
+    if (demoteErr) {
+      console.error('[team/role] demote', demoteErr);
+      return NextResponse.json({ error: 'Le rôle n\'a pas pu être transféré.' }, { status: 500 });
+    }
+
+    const { error: promoteErr } = await admin
+      .from('profile_agencies')
+      .update({ role: 'directeur' })
+      .eq('profile_id', profileId)
+      .eq('agency_id', guard.agency.id);
+    if (promoteErr) {
+      console.error('[team/role] promote', promoteErr);
+      await admin
+        .from('profile_agencies')
+        .update({ role: 'directeur' })
+        .eq('profile_id', guard.user.id)
+        .eq('agency_id', guard.agency.id);
+      return NextResponse.json({ error: 'Le rôle n\'a pas pu être transféré.' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, transferred: true });
+  }
+
+  return NextResponse.json({ error: 'Rôle inchangé' }, { status: 400 });
+}
 
 /**
  * Retire un collaborateur de l'agence active.

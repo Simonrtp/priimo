@@ -28,10 +28,10 @@ const nextConfig = {
       { key: "X-Content-Type-Options", value: "nosniff" },
       // Disallow embedding in iframes (blocks clickjacking).
       { key: "X-Frame-Options", value: "DENY" },
-      // Disable browser features we never need.
+      // Micro autorisé sur l'origine (dictée vocale) ; caméra et géoloc restent désactivées.
       {
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+        value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
       },
       // Enforce HTTPS for 2 years; opt-in to preload list.
       {
@@ -46,6 +46,26 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        // Le navigateur revalide le script à chaque contrôle de mise à jour :
+        // sans cela, une version corrigée du worker peut rester coincée en cache.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/manifest.json",
+        headers: [
+          { key: "Content-Type", value: "application/manifest+json; charset=utf-8" },
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
+      },
+      {
+        source: "/offline.html",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
     ];
   },

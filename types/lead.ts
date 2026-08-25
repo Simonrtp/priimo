@@ -68,6 +68,7 @@ export interface Lead {
   mainSignalLabel: string | null;
   /** Source de vérité pour le panneau de détail (familles + tooltips). */
   displaySignals: DisplaySignals;
+  banId: string | null;
   latitude: number | null;
   longitude: number | null;
   acquiredYear: number | null;
@@ -90,6 +91,11 @@ export interface Lead {
   status: LeadStatus;
   notes: string | null;
   assignedTo: string | null;
+  stageId: string | null;
+  stagePosition: number | null;
+  takenAt: string | null;
+  stageChangedAt: string | null;
+  lostReason: string | null;
   mlFeedback: MlFeedback;
   mlFeedbackReason: string | null;
   mlFeedbackAt: string | null;
@@ -113,7 +119,7 @@ export interface Lead {
   contactabilite: 'direct' | 'nominatif' | 'immeuble' | 'aucun' | null;
   /** Sociétés présentes dans l'immeuble (déjà filtrées : type immeuble + téléphone). */
   contactsImmeuble: ImmeubleContact[];
-  /** Scripts d'approche terrain (null = section masquée). */
+  /** Ancien script d’appel généré — plus affiché. Le récap agent est calculé à la volée. */
   scriptApproche: ScriptApproche | null;
   /** Date du lot pipeline (YYYY-MM-DD). */
   deliveredAt: string;
@@ -128,6 +134,17 @@ export interface TeamMember {
   fullName: string;
   initials: string;
 }
+
+export type LeadStageType = 'entree' | 'intermediaire' | 'gagne' | 'perdu';
+
+export type LeadStage = {
+  id: string;
+  agencyId: string;
+  cle: string;
+  libelle: string;
+  ordre: number;
+  type: LeadStageType;
+};
 
 export type Filters = LeadFilters;
 

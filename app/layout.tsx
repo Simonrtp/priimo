@@ -3,7 +3,13 @@ import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Libre_Baskerville } from "nex
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import CausioRouteGuard from "@/components/landing/CausioRouteGuard";
+import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import "./globals.css";
+
+// Chromium n'émet `beforeinstallprompt` qu'une seule fois, et souvent avant que
+// React ne soit hydraté. Ce script s'exécute avant tout le reste et met
+// l'événement de côté, pour que le bouton « Installer » le retrouve plus tard.
+const INSTALL_PROMPT_CAPTURE = `(function(){var w=window;w.__priimoInstallPrompt=null;w.addEventListener("beforeinstallprompt",function(e){e.preventDefault();w.__priimoInstallPrompt=e;w.dispatchEvent(new Event("priimo:installready"))});w.addEventListener("appinstalled",function(){w.__priimoInstallPrompt=null;w.dispatchEvent(new Event("priimo:installed"))})})();`;
 
 // === FONTS (next/font — self-hosted, aucun <link> externe) ===
 // Corps & données : Inter → --font-sans / --font-body (PRIIMO_DESIGN_SYSTEM.md §2.1)
@@ -100,7 +106,12 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
     shortcut: "/favicon.ico",
   },
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Priimo",
+    statusBarStyle: "default",
+  },
   formatDetection: { telephone: false, address: false, email: false },
 };
 
@@ -109,6 +120,8 @@ export const viewport: Viewport = {
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,
+  // L'application installée occupe l'écran jusque sous l'encoche.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -121,10 +134,14 @@ export default function RootLayout({
       lang="fr"
       className={`${inter.variable} ${jakarta.variable} ${jetbrainsMono.variable} ${libreBaskerville.variable}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CAPTURE }} />
+      </head>
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
         <CausioRouteGuard />
         {children}
         <Toaster richColors position="top-right" />
+        <ServiceWorkerRegistrar />
         <Analytics />
       </body>
     </html>

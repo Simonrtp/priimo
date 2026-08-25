@@ -32,7 +32,7 @@ export function useDashboardTour(): TourContextValue {
 }
 
 function isProspectsPage(pathname: string): boolean {
-  return pathname === '/dashboard' || pathname === '/dashboard/';
+  return pathname.startsWith('/dashboard/prospection');
 }
 
 function hasLeadCardsInDom(): boolean {
@@ -135,7 +135,7 @@ export default function DashboardTourProvider({ children }: { children: React.Re
       setMode('manual');
     } else {
       setPendingManual(true);
-      router.push('/dashboard');
+      router.push('/dashboard/prospection');
     }
   }, [onProspects, router]);
 

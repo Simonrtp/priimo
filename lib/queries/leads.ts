@@ -4,6 +4,7 @@ import type { Lead, LeadSignal, MlFeedback, TeamMember } from '@/types/lead';
 import { parseDisplaySignals } from '@/lib/display-signals';
 import { parseContactsImmeuble, parseContactabilite, parseOwnerPhoneSource } from '@/lib/lead-contacts';
 import { parseScriptApproche } from '@/lib/script-approche';
+import { assignmentMeta } from '@/lib/agency/assignees';
 
 type Client = SupabaseClient<Database>;
 
@@ -79,6 +80,7 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     signals,
     mainSignalLabel,
     displaySignals: parseDisplaySignals(row.display_signals),
+    banId: row.ban_id ?? null,
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
     acquiredYear: row.acquired_year,
@@ -98,6 +100,11 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     status: row.status,
     notes: row.notes,
     assignedTo: row.assigned_to,
+    stageId: row.stage_id ?? null,
+    stagePosition: row.stage_position != null ? Number(row.stage_position) : null,
+    takenAt: row.taken_at ?? null,
+    stageChangedAt: row.stage_changed_at ?? null,
+    lostReason: row.lost_reason ?? null,
     mlFeedback: row.ml_feedback ?? null,
     mlFeedbackReason: row.ml_feedback_reason ?? null,
     mlFeedbackAt: row.ml_feedback_at ?? null,
@@ -122,7 +129,7 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
  * Colonnes exposées au client dashboard — exclut `internal_signals`.
  * Si une migration ajoute une colonne affichée, l'ajouter ici.
  */
-export const LEADS_CLIENT_SELECT = [
+const LEADS_CLIENT_COLUMNS = [
   'id',
   'agency_id',
   'address',
@@ -157,6 +164,11 @@ export const LEADS_CLIENT_SELECT = [
   'status',
   'notes',
   'assigned_to',
+  'stage_id',
+  'stage_position',
+  'taken_at',
+  'stage_changed_at',
+  'lost_reason',
   'ml_feedback',
   'ml_feedback_reason',
   'ml_feedback_at',
@@ -174,21 +186,40 @@ export const LEADS_CLIENT_SELECT = [
   'delivered_at',
   'created_at',
   'updated_at',
-].join(',');
+] as const;
+
+const LEADS_BAN_COLUMNS = [
+  'ban_id',
+  'adresse_normalisee',
+  'geocode_score',
+  'geocode_le',
+] as const;
+
+export const LEADS_CLIENT_SELECT = [...LEADS_CLIENT_COLUMNS, ...LEADS_BAN_COLUMNS].join(',');
+const LEADS_CLIENT_SELECT_LEGACY = LEADS_CLIENT_COLUMNS.join(',');
 
 /**
  * Charge les leads de l'agence active (RLS).
  */
 export async function fetchLeads(supabase: Client): Promise<Lead[]> {
-  const { data, error } = await supabase
+  const first = await supabase
     .from('leads')
     .select(LEADS_CLIENT_SELECT)
     .order('score', { ascending: false })
     .order('created_at', { ascending: false });
-  if (error) {
-    throw new Error(`Impossible de charger les prospects : ${error.message}`);
+
+  const result = first.error
+    ? await supabase
+        .from('leads')
+        .select(LEADS_CLIENT_SELECT_LEGACY)
+        .order('score', { ascending: false })
+        .order('created_at', { ascending: false })
+    : first;
+
+  if (result.error) {
+    throw new Error(`Impossible de charger les prospects : ${result.error.message}`);
   }
-  return (data ?? []).map((row) => mapDbLeadToLead(row as unknown as LeadRow));
+  return (result.data ?? []).map((row) => mapDbLeadToLead(row as unknown as LeadRow));
 }
 
 function buildInitials(firstName: string, lastName: string): string {
@@ -249,11 +280,25 @@ export interface LeadPatch {
   mlFeedbackAt?: string | null;
 }
 
-export async function updateLead(supabase: Client, id: string, patch: LeadPatch): Promise<void> {
+export async function updateLead(
+  supabase: Client,
+  id: string,
+  patch: LeadPatch,
+  actorId?: string,
+): Promise<void> {
   const dbPatch: Partial<LeadRow> = {};
   if (patch.status !== undefined) dbPatch.status = patch.status;
   if (patch.notes !== undefined) dbPatch.notes = patch.notes;
-  if (patch.assignedTo !== undefined) dbPatch.assigned_to = patch.assignedTo;
+  if (patch.assignedTo !== undefined) {
+    if (actorId) {
+      const meta = assignmentMeta(patch.assignedTo, actorId);
+      dbPatch.assigned_to = meta.assigned_to;
+      dbPatch.assigned_by = meta.assigned_by;
+      dbPatch.assigned_at = meta.assigned_at;
+    } else {
+      dbPatch.assigned_to = patch.assignedTo;
+    }
+  }
   if (patch.mlFeedback !== undefined) dbPatch.ml_feedback = patch.mlFeedback;
   if (patch.mlFeedbackReason !== undefined) dbPatch.ml_feedback_reason = patch.mlFeedbackReason;
   if (patch.mlFeedbackAt !== undefined) dbPatch.ml_feedback_at = patch.mlFeedbackAt;
@@ -272,11 +317,21 @@ export async function updateLeadCoordinates(
   id: string,
   latitude: number,
   longitude: number,
+  extra?: {
+    banId?: string | null;
+    adresseNormalisee?: string | null;
+    geocodeScore?: number | null;
+  },
 ): Promise<void> {
-  const { error } = await supabase
-    .from('leads')
-    .update({ latitude, longitude } as Partial<LeadRow>)
-    .eq('id', id);
+  const patch: Partial<LeadRow> = {
+    latitude,
+    longitude,
+    geocode_le: new Date().toISOString(),
+  };
+  if (extra?.banId !== undefined) patch.ban_id = extra.banId;
+  if (extra?.adresseNormalisee !== undefined) patch.adresse_normalisee = extra.adresseNormalisee;
+  if (extra?.geocodeScore !== undefined) patch.geocode_score = extra.geocodeScore;
+  const { error } = await supabase.from('leads').update(patch).eq('id', id);
   if (error) {
     throw new Error(`Impossible d'enregistrer les coordonnées : ${error.message}`);
   }

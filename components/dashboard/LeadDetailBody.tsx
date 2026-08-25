@@ -6,14 +6,18 @@ import { useUser } from '@/lib/hooks/useUser';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { formatDate } from '@/lib/utils';
 import LeadDetailHeader from './LeadDetailHeader';
+import FacadeLead from './FacadeLead';
 import LeadDisplaySignals from './LeadDisplaySignals';
 import LeadDeleteSection from './LeadDeleteSection';
 import LeadAssigneeControl from './LeadAssigneeControl';
+import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
+import { postAgencyAlert } from '@/lib/agency/post-alert';
 import { LeadWhoYouSpeakTo } from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import LeadApproachScript from './LeadApproachScript';
 import LeadActionBar from './LeadActionBar';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
+import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 
 const SUIVI_SELECT =
   'flex w-full items-center justify-between gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-left text-[12.5px] text-ink/85 transition-colors hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10';
@@ -88,7 +92,6 @@ type LeadDetailBodyProps = {
   lead: Lead;
   onUpdateLead: (id: string, patch: Partial<Lead>) => Promise<void>;
   onDeleteLead: (id: string) => Promise<void>;
-  onScriptApprocheChange?: (script: NonNullable<Lead['scriptApproche']>) => void;
   canAssignLead?: boolean;
   canDeleteLead?: boolean;
   currentUserId?: string | null;
@@ -106,7 +109,6 @@ export default function LeadDetailBody({
   lead,
   onUpdateLead,
   onDeleteLead,
-  onScriptApprocheChange,
   canAssignLead = true,
   canDeleteLead = false,
   currentUserId,
@@ -173,6 +175,13 @@ export default function LeadDetailBody({
         className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-white"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
+        <div className={`${padX} pt-4 min-[400px]:pt-5`}>
+          <FacadeLead leadId={lead.id} className="h-[200px] w-full" />
+          <p className="mt-1.5 text-mute" style={{ fontSize: 12 }}>
+            Façade de l&apos;immeuble
+          </p>
+        </div>
+
         <LeadDetailHeader
           lead={lead}
           dense={headerCompact || isMobile}
@@ -199,10 +208,28 @@ export default function LeadDetailBody({
             tourAnchor={isMobile ? 'drawer-contacts-mobile' : 'drawer-contacts'}
           />
 
-          <LeadApproachScript lead={lead} onScriptChange={onScriptApprocheChange} />
+          <LeadApproachScript lead={lead} />
 
           <DetailSection>
-            <DetailSectionLabel>Suivi</DetailSectionLabel>
+            <div className="flex items-start justify-between gap-3">
+              <DetailSectionLabel>Suivi</DetailSectionLabel>
+              <ActionMenu
+                items={[
+                  {
+                    label: 'Signaler une baisse de prix',
+                    onSelect: () => {
+                      void postAgencyAlert({ kind: 'baisse_prix', leadId: lead.id });
+                    },
+                  },
+                  {
+                    label: 'Signaler un mandat à récupérer',
+                    onSelect: () => {
+                      void postAgencyAlert({ kind: 'mandat_a_recuperer', leadId: lead.id });
+                    },
+                  },
+                ]}
+              />
+            </div>
             <div className="space-y-3.5">
               <LeadStatusControl
                 lead={lead}
@@ -286,6 +313,15 @@ export default function LeadDetailBody({
                   </ul>
                 )}
               </div>
+            </div>
+
+            <div className="mt-6 border-t border-black/[0.05] pt-4">
+              <DetailSectionLabel>Notes terrain</DetailSectionLabel>
+              <NotesTerrainList
+                entiteType="lead"
+                entiteId={lead.id}
+                currentUserId={currentUserId ?? undefined}
+              />
             </div>
 
             <div className="mt-6 border-t border-black/[0.05] pt-4">

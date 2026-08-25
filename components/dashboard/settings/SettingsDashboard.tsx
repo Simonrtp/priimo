@@ -9,8 +9,9 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
 import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
+import type { TeamSettingsData } from '@/lib/queries/team-settings';
+import EquipeClient from '@/components/dashboard/equipe/EquipeClient';
 import Modal from '@/components/ui/Modal';
-import SectionTeam from './SectionTeam';
 import SectionRequestSector from './SectionRequestSector';
 
 const inputClass =
@@ -18,7 +19,7 @@ const inputClass =
 
 const labelClass = 'mb-1.5 block font-medium text-gray-700';
 
-type SettingsTabId = 'agency' | 'team' | 'billing' | 'profile';
+export type SettingsTabId = 'agency' | 'team' | 'billing' | 'profile';
 
 const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'agency', label: 'Mon agence' },
@@ -35,7 +36,13 @@ function firstSettingsTab(isDirector: boolean): SettingsTabId {
   return isDirector ? 'agency' : 'profile';
 }
 
-export default function SettingsDashboard({ initialTab }: { initialTab?: SettingsTabId }) {
+export default function SettingsDashboard({
+  initialTab,
+  team,
+}: {
+  initialTab?: SettingsTabId;
+  team?: TeamSettingsData | null;
+}) {
   const { isDirector } = useUser();
   const tabs = useMemo(() => (isDirector ? DIRECTOR_TAB_LIST : COLLABORATOR_TAB_LIST), [isDirector]);
 
@@ -63,7 +70,14 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
       case 'agency':
         return isDirector ? <SectionAgency /> : null;
       case 'team':
-        return isDirector ? <SectionTeam /> : null;
+        return isDirector && team ? (
+          <EquipeClient
+            embedded
+            currentUserId={team.currentUserId}
+            initialMembers={team.members}
+            initialInvitations={team.invitations}
+          />
+        ) : null;
       case 'billing':
         return isDirector ? <SectionBilling /> : null;
       case 'profile':
@@ -81,7 +95,7 @@ export default function SettingsDashboard({ initialTab }: { initialTab?: Setting
           Paramètres
         </h1>
         <p className="text-pretty text-mute max-md:mt-0 md:mt-1" style={{ fontSize: 14 }}>
-          Gérez votre agence, votre équipe et vos préférences.
+          Gérez votre agence et vos préférences.
         </p>
       </header>
 

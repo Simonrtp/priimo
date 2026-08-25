@@ -559,14 +559,15 @@ body {
   animation: leadReveal 0.32s ease-out both;
 }
 
-/* === VUE CARTE (Mapbox) — harmonisation clay indigo ===
-   « Le lit de la carte » : on teinte UNIQUEMENT le canvas des tuiles vers un
-   voile indigo doux, cohérent avec le dashboard. Les marqueurs (.mapboxgl-marker),
-   popups et contrôles ne sont pas filtrés → ils gardent leurs vraies couleurs.
-   NB : écart assumé vs charte §9.2 (« ne pas colorer le fond ») à la demande de Simon.
-   Valeurs facilement ajustables (intensité du voile). */
+/* === VUE CARTE (Mapbox streets) — voile crème chaud, pas papier blanc ===
+   On teinte UNIQUEMENT le canvas des tuiles. Marqueurs, popups et contrôles
+   gardent leurs vraies couleurs. */
+.priimo-map .mapboxgl-map,
+.priimo-map .mapboxgl-canvas-container {
+  background: #c8c0b4;
+}
 .priimo-map .mapboxgl-canvas {
-  filter: grayscale(0.35) sepia(0.22) saturate(1.25) hue-rotate(196deg) brightness(1.02);
+  filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
 
 /* Popup en surface clay (arrondi généreux + ombre clay) */
@@ -1296,4 +1297,104 @@ html:has(.feature-page) {
 
 .blog-prose--compact .blog-prose-p:first-child {
   margin-top: 0;
+}
+
+/* Barre de recherche dashboard : même forme qu’avant, bordure dégradée au focus. */
+.assistant-search-field {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+}
+.assistant-search-field:hover {
+  border-color: rgba(0, 0, 0, 0.16);
+}
+.assistant-search-field:focus-within {
+  border-color: transparent;
+  background-image:
+    linear-gradient(#fff, #fff),
+    linear-gradient(90deg, rgba(74, 122, 255, 0.4) 0%, rgba(144, 124, 247, 0.4) 52%, rgba(216, 102, 176, 0.4) 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 0 0 3px rgba(144, 124, 247, 0.12);
+}
+
+/* Terrain mobile — distinct du desktop, jamais un desktop rétréci. */
+.dashboard-mobile {
+  --field-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+  --field-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.dashboard-mobile:has(.field-map) > main {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.dashboard-mobile .app-press {
+  transition: transform 100ms ease-out;
+}
+.dashboard-mobile .app-press:active {
+  transform: scale(0.97);
+}
+
+.field-page-enter {
+  animation: field-fade-in 150ms ease-out both;
+}
+
+.field-fiche-enter {
+  animation: field-slide-in 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes field-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes field-slide-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-page-enter,
+  .field-fiche-enter {
+    animation-duration: 80ms;
+    animation-timing-function: ease-out;
+  }
+}
+
+.priimo-pin-field {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 2px rgba(21, 32, 47, 0.28);
+}
+
+.priimo-pin-field--score {
+  width: 22px;
+  height: 22px;
+  font-size: 9px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.priimo-pin-field--cluster {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  background: #1e3148;
 }
