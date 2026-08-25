@@ -8,6 +8,8 @@ export type SelectedAddress = {
   postcode: string;
   /** Code INSEE commune (BAN `citycode`). */
   citycode?: string;
+  /** Identifiant BAN, pour rattacher un immeuble. */
+  id?: string;
 };
 
 export type BanFeature = {
@@ -70,5 +72,6 @@ export function banFeatureToSelectedAddress(feature: BanFeature): SelectedAddres
     city: feature.properties.city,
     postcode: feature.properties.postcode,
     citycode: feature.properties.citycode ?? '',
+    id: feature.properties.id,
   };
 }

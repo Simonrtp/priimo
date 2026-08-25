@@ -62,6 +62,7 @@ export type MappableContact = Pick<
   | 'assignedTo'
   | 'lastInteractionAt'
   | 'createdAt'
+  | 'source'
 > & { postalCodes?: string[] };
 
 export type MappableBien = Pick<
@@ -176,10 +177,12 @@ function placeable(
   banId: string | null | undefined,
   latitude: number | null | undefined,
   longitude: number | null | undefined,
+  fallbackBanId?: string | null,
 ): { banId: string; latitude: number; longitude: number } | null {
-  const id = (banId ?? '').trim();
   const coord = toGeoCoord(latitude, longitude);
-  if (!id || !coord) return null;
+  if (!coord) return null;
+  const id = (banId ?? '').trim() || (fallbackBanId ?? '').trim();
+  if (!id) return null;
   return { banId: id, ...coord };
 }
 
@@ -206,6 +209,7 @@ export function leadToMapPoint(lead: MappableLead): MapPoint | null {
 }
 
 export function contactToMapPoint(contact: MappableContact): MapPoint | null {
+  if (contact.source === 'vocal') return null;
   const placed = placeable(contact.banId, contact.latitude, contact.longitude);
   if (!placed) return null;
   const postalCode = postalFromList(contact.postalCodes);
@@ -230,7 +234,7 @@ export function contactToMapPoint(contact: MappableContact): MapPoint | null {
 }
 
 export function bienToMapPoint(bien: MappableBien): MapPoint | null {
-  const placed = placeable(bien.banId, bien.latitude, bien.longitude);
+  const placed = placeable(bien.banId, bien.latitude, bien.longitude, `bien:${bien.id}`);
   if (!placed) return null;
   return {
     id: `bien:${bien.id}`,
@@ -372,7 +376,8 @@ export function buildSectorMapPoints({
         recordId: bien.id,
         title: bien.address,
         href: `/dashboard/biens?fiche=${bien.id}`,
-        geocodeQuery: bien.address.trim() || null,
+        geocodeQuery:
+          [bien.address, bien.postalCode, bien.city].filter(Boolean).join(' ').trim() || null,
         postalCode: bien.postalCode,
       });
       continue;
@@ -381,9 +386,7 @@ export function buildSectorMapPoints({
   }
 
   for (const note of ownNotes) {
-    const linked = note.hasFicheLink ?? Boolean(note.contactId);
-    if (linked) continue;
-    const point = noteToMapPoint(note);
+    const point = noteToBuildingPoint(note);
     if (!point) {
       notesWithout += 1;
       unplaced.push({

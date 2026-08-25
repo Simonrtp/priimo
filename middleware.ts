@@ -23,20 +23,17 @@ async function getDirectorOnboardingState(
   supabase: ReturnType<typeof createServerClient>,
   userId: string,
 ): Promise<{ isDirector: boolean; needsOnboarding: boolean }> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('active_agency_id')
-    .eq('id', userId)
-    .maybeSingle();
+  const [profileRes, membershipRes] = await Promise.all([
+    supabase.from('profiles').select('active_agency_id').eq('id', userId).maybeSingle(),
+    supabase.from('profile_agencies').select('agency_id, role').eq('profile_id', userId),
+  ]);
 
+  const profile = profileRes.data;
   if (!profile) {
     return { isDirector: false, needsOnboarding: false };
   }
 
-  const { data: membershipRows } = await supabase
-    .from('profile_agencies')
-    .select('agency_id, role')
-    .eq('profile_id', userId);
+  const membershipRows = membershipRes.data;
 
   const memberships = membershipRows ?? [];
   const activeAgencyId = resolveActiveAgencyId(profile, memberships);

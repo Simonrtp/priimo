@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { timed } from '@/lib/perf/timing';
 import {
   buildAgencyMemberships,
   resolveActiveAgencyId,
@@ -15,30 +16,38 @@ export interface ServerUser {
   memberships: ProfileAgencyMembership[];
 }
 
+const AGENCIES_SELECT =
+  'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, created_at, updated_at';
+
 async function getServerUserUncached(): Promise<ServerUser> {
-  const supabase = await createSupabaseServerClient();
+  return timed('getServerUser', async () => {
+  const supabase = await timed('createSupabaseServerClient', () => createSupabaseServerClient());
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await timed('auth.getUser', () => supabase.auth.getUser());
   if (!user) return { user: null, profile: null, agency: null, memberships: [] };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select(
-      'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at',
-    )
-    .eq('id', user.id)
-    .single();
+  const [profileRes, membershipRes] = await Promise.all([
+    timed('profiles.select', async () =>
+      supabase
+        .from('profiles')
+        .select(
+          'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at',
+        )
+        .eq('id', user.id)
+        .single(),
+    ),
+    timed('profile_agencies.select', async () =>
+      supabase.from('profile_agencies').select('agency_id, role').eq('profile_id', user.id),
+    ),
+  ]);
+
+  const profile = profileRes.data;
   if (!profile) {
     return { user: { id: user.id, email: user.email ?? '' }, profile: null, agency: null, memberships: [] };
   }
 
-  const { data: membershipRows } = await supabase
-    .from('profile_agencies')
-    .select('agency_id, role')
-    .eq('profile_id', user.id);
-
-  const rows = membershipRows ?? [];
+  const rows = membershipRes.data ?? [];
   if (rows.length === 0) {
     return {
       user: { id: user.id, email: user.email ?? '' },
@@ -49,7 +58,9 @@ async function getServerUserUncached(): Promise<ServerUser> {
   }
 
   const agencyIds = rows.map((r) => r.agency_id);
-  const { data: agencies } = await supabase.from('agencies').select('*').in('id', agencyIds);
+  const { data: agencies } = await timed('agencies.select', async () =>
+    supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds),
+  );
   const agencyList = agencies ?? [];
 
   const memberships = buildAgencyMemberships(rows, agencyList);
@@ -77,6 +88,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
     agency,
     memberships,
   };
+  });
 }
 
 /** Déduplique layout + page dans le même rendu RSC. */

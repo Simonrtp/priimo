@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { formatEtageForList, leadListAddressLine } from '../lead-display.js';
-import { parseFacadeFormat, streetViewStaticUrl } from './street-view.js';
+import { parseFacadeFormat, parseFacadeGeoParams, streetViewStaticUrl } from './street-view.js';
 
 describe('formatEtageForList', () => {
   it('affiche « étage non confirmé » si absent ou RDC', () => {
@@ -53,5 +53,24 @@ describe('streetViewStaticUrl', () => {
     assert.equal(parseFacadeFormat('detail'), 'detail');
     assert.equal(parseFacadeFormat('liste'), 'liste');
     assert.equal(parseFacadeFormat(null), 'liste');
+  });
+});
+
+describe('parseFacadeGeoParams', () => {
+  it('lit des coordonnées utilisables', () => {
+    const parsed = parseFacadeGeoParams(
+      new URLSearchParams({ lat: '48.86386', lng: '2.39775', format: 'detail' }),
+    );
+    assert.deepEqual(parsed, {
+      latitude: 48.86386,
+      longitude: 2.39775,
+      format: 'detail',
+    });
+  });
+
+  it('refuse l’origine et les valeurs manquantes', () => {
+    assert.equal(parseFacadeGeoParams(new URLSearchParams({ lat: '0', lng: '0' })), null);
+    assert.equal(parseFacadeGeoParams(new URLSearchParams()), null);
+    assert.equal(parseFacadeGeoParams(new URLSearchParams({ lat: 'abc', lng: '2' })), null);
   });
 });

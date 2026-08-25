@@ -15,8 +15,9 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { normalizePhotoUrls } from '@/lib/bien-input';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 
 interface FormState {
@@ -186,13 +187,23 @@ export default function BienFormDialog({
       maxWidth="xl"
     >
       <form onSubmit={submit} className="flex flex-col gap-6">
-        <Field label="Adresse" htmlFor="bien-address">
-          <TextInput
+        <Field label="Adresse" htmlFor="bien-address" hint="Choisissez une proposition : code postal et ville se remplissent">
+          <AddressAutocomplete
             id="bien-address"
             required
             value={form.address}
-            onChange={(e) => set('address', e.target.value)}
-            placeholder="12 rue de la Monnaie"
+            onChange={(data: SelectedAddress | null) => {
+              if (!data) return;
+              setForm((f) => ({
+                ...f,
+                address: data.label,
+                postalCode: data.postcode.replace(/[^\d]/g, '').slice(0, 5) || f.postalCode,
+                city: data.city || f.city,
+              }));
+            }}
+            onQueryChange={(q) => set('address', q)}
+            placeholder="12 rue de la Monnaie, Lille"
+            inputClassName={ADDRESS_FIELD_INPUT_CLASS}
           />
         </Field>
 

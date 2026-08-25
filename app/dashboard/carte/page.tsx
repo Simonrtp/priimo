@@ -35,12 +35,14 @@ export default async function CartePage({
 
   const supabase = await createSupabaseServerClient();
   const viewer = viewerFromProfile(profile);
-  const [leads, contacts, biens, notes, members] = await Promise.all([
+  const [leads, contacts, biens, notes, members, device, params] = await Promise.all([
     fetchLeads(supabase),
     fetchContactsSafe(supabase),
     fetchBiensSafe(supabase),
     fetchVoiceNotesSafe(supabase),
     fetchMembersOfMyAgency(agency.id, memberships),
+    getDevice(),
+    searchParams,
   ]);
 
   const visibleLeads = visibleLeadsFor(viewer, leads);
@@ -55,8 +57,7 @@ export default async function CartePage({
     notes: visibleVoiceNotesFor(viewer, notes),
   });
 
-  const { immeuble, itineraire } = await searchParams;
-  const device = await getDevice();
+  const { immeuble, itineraire } = params;
   const membersUi = members.map((m) => ({ id: m.id, fullName: m.fullName }));
   const plan = itineraire === '1' ? buildSortie(visibleLeads, profile.id, null) : null;
   const itineraryStops = plan ? toItineraireStops(plan.ordered) : null;

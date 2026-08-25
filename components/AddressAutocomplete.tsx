@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2, MapPin } from 'lucide-react';
 import { banFeatureToSelectedAddress, searchBanAddresses, type BanFeature, type SelectedAddress } from '@/lib/ban';
 
@@ -15,6 +16,7 @@ interface AddressAutocompleteProps {
   required?: boolean;
   id?: string;
   inputClassName?: string;
+  'aria-label'?: string;
 }
 
 const defaultInputClass =
@@ -28,6 +30,7 @@ export default function AddressAutocomplete({
   required = false,
   id,
   inputClassName = defaultInputClass,
+  'aria-label': ariaLabel,
 }: AddressAutocompleteProps) {
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,10 +43,11 @@ export default function AddressAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
+    if (userEditedRef.current) return;
     setQuery(value);
-    userEditedRef.current = false;
     setSuggestions([]);
     setShowDropdown(false);
     setActiveIndex(-1);
@@ -52,7 +56,6 @@ export default function AddressAutocomplete({
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    // Adresse déjà connue / sync props : pas de suggestions ni d’appel BAN.
     if (!userEditedRef.current) {
       setSuggestions([]);
       setIsLoading(false);
@@ -62,15 +65,6 @@ export default function AddressAutocomplete({
     }
 
     if (query.trim().length < 3) {
-      setSuggestions([]);
-      setIsLoading(false);
-      setShowDropdown(false);
-      setActiveIndex(-1);
-      return;
-    }
-
-    // Identique à la valeur validée : rien à proposer.
-    if (value.trim() && query.trim() === value.trim()) {
       setSuggestions([]);
       setIsLoading(false);
       setShowDropdown(false);
@@ -96,18 +90,40 @@ export default function AddressAutocomplete({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, value]);
+  }, [query]);
+
+  useLayoutEffect(() => {
+    if (!showDropdown) {
+      setMenuBox(null);
+      return;
+    }
+    function place() {
+      const el = containerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setMenuBox({ top: r.bottom + 6, left: r.left, width: r.width });
+    }
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [showDropdown, suggestions.length]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-        setActiveIndex(-1);
-      }
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      const list = document.getElementById(listId);
+      if (list?.contains(target)) return;
+      setShowDropdown(false);
+      setActiveIndex(-1);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [listId]);
 
   const selectFeature = (feature: BanFeature) => {
     const selected = banFeatureToSelectedAddress(feature);
@@ -145,6 +161,43 @@ export default function AddressAutocomplete({
     }
   };
 
+  const list =
+    showDropdown && suggestions.length > 0 && menuBox && typeof document !== 'undefined'
+      ? createPortal(
+          <ul
+            id={listId}
+            role="listbox"
+            style={{ top: menuBox.top, left: menuBox.left, width: menuBox.width }}
+            className="fixed z-[140] max-h-60 overflow-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft"
+          >
+            {suggestions.map((feature, index) => {
+              const isActive = index === activeIndex;
+              return (
+                <li key={`${feature.properties.label}-${index}`} role="presentation">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={() => selectFeature(feature)}
+                    className={`flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                      isActive ? 'bg-soft-warm text-ink' : 'text-ink hover:bg-black/[0.04]'
+                    }`}
+                  >
+                    <MapPin className="mt-0.5 size-4 flex-shrink-0 text-mute" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{feature.properties.label}</span>
+                      <span className="block truncate text-xs text-mute">{feature.properties.context}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>,
+          document.body,
+        )
+      : null;
+
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
@@ -168,6 +221,7 @@ export default function AddressAutocomplete({
           aria-expanded={showDropdown}
           aria-controls={listId}
           aria-autocomplete="list"
+          aria-label={ariaLabel}
           className={inputClassName}
         />
         {isLoading && (
@@ -177,38 +231,7 @@ export default function AddressAutocomplete({
           />
         )}
       </div>
-
-      {showDropdown && suggestions.length > 0 && (
-        <ul
-          id={listId}
-          role="listbox"
-          className="absolute z-20 mt-1.5 max-h-60 w-full overflow-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft"
-        >
-          {suggestions.map((feature, index) => {
-            const isActive = index === activeIndex;
-            return (
-              <li key={`${feature.properties.label}-${index}`} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  onClick={() => selectFeature(feature)}
-                  className={`flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                    isActive ? 'bg-soft-warm text-ink' : 'text-ink hover:bg-black/[0.04]'
-                  }`}
-                >
-                  <MapPin className="mt-0.5 size-4 flex-shrink-0 text-mute" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{feature.properties.label}</span>
-                    <span className="block truncate text-xs text-mute">{feature.properties.context}</span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {list}
     </div>
   );
 }

@@ -8,12 +8,18 @@ export function facadeLeadSrc(leadId: string, format: 'liste' | 'detail' = 'deta
   return `/api/facade/${leadId}?format=${format}`;
 }
 
-type FacadeLeadProps = {
-  leadId: string;
+export function facadeGeoSrc(
+  latitude: number,
+  longitude: number,
+  format: 'liste' | 'detail' = 'detail',
+): string {
+  return `/api/facade/geo?lat=${latitude.toFixed(5)}&lng=${longitude.toFixed(5)}&format=${format}`;
+}
+
+type FacadeImageProps = {
+  src: string;
   className?: string;
-  /** Lazy-load pour les vignettes hors écran dans la liste. */
   lazy?: boolean;
-  format?: 'liste' | 'detail';
 };
 
 function FacadeFallback({ className }: { className?: string }) {
@@ -28,7 +34,7 @@ function FacadeFallback({ className }: { className?: string }) {
   );
 }
 
-export default function FacadeLead({ leadId, className, lazy = false, format = 'detail' }: FacadeLeadProps) {
+function FacadeImage({ src, className, lazy = false }: FacadeImageProps) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -37,7 +43,7 @@ export default function FacadeLead({ leadId, className, lazy = false, format = '
 
   return (
     <img
-      src={facadeLeadSrc(leadId, format)}
+      src={src}
       alt=""
       aria-hidden
       className={`object-cover object-top rounded-lg ${className ?? ''}`}
@@ -46,4 +52,38 @@ export default function FacadeLead({ leadId, className, lazy = false, format = '
       onError={() => setFailed(true)}
     />
   );
+}
+
+type FacadeLeadProps = {
+  leadId: string;
+  className?: string;
+  /** Lazy-load pour les vignettes hors écran dans la liste. */
+  lazy?: boolean;
+  format?: 'liste' | 'detail';
+};
+
+export default function FacadeLead({
+  leadId,
+  className,
+  lazy = false,
+  format = 'detail',
+}: FacadeLeadProps) {
+  return <FacadeImage src={facadeLeadSrc(leadId, format)} className={className} lazy={lazy} />;
+}
+
+export function FacadeStreetView({
+  latitude,
+  longitude,
+  className,
+  lazy = false,
+  format = 'detail',
+}: {
+  latitude: number;
+  longitude: number;
+  className?: string;
+  lazy?: boolean;
+  format?: 'liste' | 'detail';
+}) {
+  const src = facadeGeoSrc(latitude, longitude, format);
+  return <FacadeImage key={src} src={src} className={className} lazy={lazy} />;
 }

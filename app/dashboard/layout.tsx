@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { getDevice } from '@/lib/device-server';
+import { beginDashboardTiming, markServerTimingReady, timed } from '@/lib/perf/timing';
 import { UserProvider } from '@/components/providers/UserProvider';
 import DeviceProvider from '@/components/dashboard/device/DeviceProvider';
 import DeviceSync from '@/components/dashboard/device/DeviceSync';
@@ -18,14 +19,15 @@ import { SHELL_BG_CLASS } from '@/lib/today/field';
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  beginDashboardTiming();
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
   if (profile.role === 'directeur' && agencyNeedsOnboarding(agency)) redirect('/onboarding');
 
-  const device = await getDevice();
+  const device = await timed('getDevice(layout)', () => getDevice());
   const isMobile = device === 'mobile';
 
-  return (
+  const tree = (
     <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
       <DeviceProvider device={device}>
         <DeviceSync serverDevice={device} />
@@ -62,4 +64,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </DeviceProvider>
     </UserProvider>
   );
+
+  markServerTimingReady();
+  return tree;
 }

@@ -1,23 +1,16 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NotebookPen, X } from 'lucide-react';
-import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import { Field, TextArea } from '@/components/dashboard/workspace/Field';
-import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import VoiceReviewPanel from '@/components/dashboard/voice/VoiceReviewPanel';
+import TypedNoteGuide, { type TypedNoteSubmitPayload } from '@/components/dashboard/notes/TypedNoteGuide';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { useUser } from '@/lib/hooks/useUser';
-import { notifySuccess } from '@/lib/notify';
 import { readDevicePosition } from '@/lib/voice/gps';
-import { reverseGeocode } from '@/lib/geo/ban';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-
-const fieldInputClass =
-  'w-full rounded-xl border border-black/[0.10] bg-surface py-2.5 pl-10 pr-10 text-[14px] text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15';
 
 export default function TypedNoteDialog({
   onClose,
@@ -31,34 +24,23 @@ export default function TypedNoteDialog({
   const router = useRouter();
   const device = useDevice();
   const { profile } = useUser();
-  const textId = useId();
-  const addrId = useId();
   const field = device === 'mobile';
 
-  const [text, setText] = useState('');
-  const [adresseLabel, setAdresseLabel] = useState(adresse?.trim() ?? '');
   const [deviceCoords, setDeviceCoords] = useState<{ latitude: number; longitude: number } | null>(
     null,
   );
-  const [banCoords, setBanCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<NoteReviewPayload | null>(null);
   const [transcript, setTranscript] = useState('');
   const [members, setMembers] = useState<NameMatchMember[]>([]);
   const [suggestedAssigneeId, setSuggestedAssigneeId] = useState<string | null>(null);
-  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    if (adresse) setAdresseLabel(adresse.trim());
-    void readDevicePosition().then(async (pos) => {
-      if (!pos) return;
-      setDeviceCoords((prev) => prev ?? pos);
-      if (adresse) return;
-      const hit = await reverseGeocode(pos.latitude, pos.longitude);
-      if (hit) setAdresseLabel((current) => current || hit.adresse_normalisee);
+    void readDevicePosition().then((pos) => {
+      if (pos) setDeviceCoords((prev) => prev ?? pos);
     });
-  }, [adresse]);
+  }, []);
 
   useEffect(() => {
     if (!review) return;
@@ -79,37 +61,24 @@ export default function TypedNoteDialog({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !saving && !closing && !review) onClose();
+      if (e.key === 'Escape' && !saving && !review) onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, saving, closing, review]);
+  }, [onClose, saving, review]);
 
-  function onAddress(data: SelectedAddress | null) {
-    if (!data) {
-      setBanCoords(null);
-      return;
-    }
-    setAdresseLabel(data.label);
-    setBanCoords({ latitude: data.latitude, longitude: data.longitude });
-  }
-
-  async function submit() {
-    const body = text.trim();
-    if (body.length < 8) {
-      setError('Écrivez un peu plus pour enregistrer la note.');
-      return;
-    }
+  async function submit(payload: TypedNoteSubmitPayload) {
     setSaving(true);
     setError(null);
-    const coords = banCoords ?? deviceCoords;
+    const coords = payload.banCoords ?? deviceCoords;
     try {
       const res = await fetch('/api/dashboard/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: body,
-          adresse: adresseLabel.trim() || undefined,
+          text: payload.transcript,
+          draft: payload.draft,
+          adresse: payload.adresse || undefined,
           latitude: coords?.latitude,
           longitude: coords?.longitude,
           parcelleIdu: parcelleIdu || undefined,
@@ -120,32 +89,22 @@ export default function TypedNoteDialog({
         suggestedAssignee?: { id: string } | null;
       };
       if (!res.ok) throw new Error(data.error ?? 'save');
-      setTranscript(data.transcript ?? body);
+      setTranscript(data.transcript ?? payload.transcript);
       setSuggestedAssigneeId(data.suggestedAssignee?.id ?? null);
       setReview(data);
     } catch (err) {
-      setError(err instanceof Error && err.message !== 'save' ? err.message : "La note n'a pas pu être enregistrée");
+      setError(
+        err instanceof Error && err.message !== 'save'
+          ? err.message
+          : "La note n'a pas pu être enregistrée",
+      );
     } finally {
       setSaving(false);
     }
   }
 
-  async function terminer(contactId?: string | null) {
-    const id = review?.voiceNoteId;
-    if (!id || closing) return;
-    setClosing(true);
-    try {
-      await fetch(`/api/dashboard/voice-notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ terminer: true }),
-      });
-    } catch {
-      /* déjà en base */
-    }
-    notifySuccess('Note enregistrée');
+  function onReviewDone(contactId?: string | null) {
     router.refresh();
-    onClose();
     if (contactId) router.push(`/dashboard/contacts?fiche=${contactId}`);
   }
 
@@ -155,53 +114,14 @@ export default function TypedNoteDialog({
   }));
 
   const form = (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-5 sm:px-6">
-      <Field
-        label="Adresse"
-        htmlFor={addrId}
-        hint="Optionnel — pour rattacher la note à un immeuble."
-      >
-        <AddressAutocomplete
-          id={addrId}
-          value={adresseLabel}
-          onChange={onAddress}
-          onQueryChange={(q) => setAdresseLabel(q)}
-          placeholder="Rue, numéro, ville…"
-          inputClassName={fieldInputClass}
-        />
-      </Field>
-      <Field label="Note" htmlFor={textId}>
-        <TextArea
-          id={textId}
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            if (error) setError(null);
-          }}
-          rows={field ? 10 : 8}
-          placeholder="Ce que vous venez de vivre, ce qu’il faut retenir…"
-          autoFocus
-        />
-      </Field>
-      {error ? (
-        <p className="text-pretty text-[13.5px] text-text" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <div className="mt-auto flex gap-2.5 pt-2">
-        <WorkspaceButton type="button" variant="secondary" onClick={onClose} className="flex-1 sm:flex-none">
-          Annuler
-        </WorkspaceButton>
-        <WorkspaceButton
-          type="button"
-          onClick={() => void submit()}
-          disabled={saving}
-          className="flex-1 sm:flex-none"
-        >
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </WorkspaceButton>
-      </div>
-    </div>
+    <TypedNoteGuide
+      field={field}
+      initialAdresse={adresse?.trim() ?? ''}
+      saving={saving}
+      error={error}
+      onCancel={onClose}
+      onSubmit={(payload) => void submit(payload)}
+    />
   );
 
   const reviewPanel =
@@ -214,9 +134,9 @@ export default function TypedNoteDialog({
         members={memberOptions}
         currentUserId={profile?.id}
         suggestedAssigneeId={suggestedAssigneeId}
-        saving={closing}
         typed
-        onDone={(contactId) => void terminer(contactId)}
+        onDismiss={onClose}
+        onDone={onReviewDone}
         onDiscard={() => {
           router.refresh();
           onClose();
@@ -264,7 +184,7 @@ export default function TypedNoteDialog({
     >
       <div
         className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-clay-lg bg-surface shadow-clay-lg ${
-          review ? 'max-w-[1040px]' : 'max-w-[440px]'
+          review ? 'max-w-[1040px]' : 'max-w-[500px]'
         }`}
       >
         <header className="flex flex-shrink-0 items-center gap-3 border-b border-black/[0.06] px-5 py-4 sm:px-6">

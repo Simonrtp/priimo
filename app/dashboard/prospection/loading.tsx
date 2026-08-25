@@ -2,10 +2,10 @@ import { SkeletonProspectList } from '@/components/ui/Skeleton';
 
 export default function ProspectionLoading() {
   return (
-    <>
-      <div className="mb-4 h-10 animate-pulse rounded-xl bg-gray-200" />
-      <div className="mb-4 hidden h-24 animate-pulse rounded-2xl bg-gray-200 md:block" />
+    <div className="w-full min-w-0">
+      <div className="mb-4 h-10 w-64 animate-pulse rounded-clay bg-black/[0.06]" />
+      <div className="mb-4 hidden h-24 animate-pulse rounded-clay bg-black/[0.05] md:block" />
       <SkeletonProspectList count={6} />
-    </>
+    </div>
   );
 }

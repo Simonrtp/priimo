@@ -36,6 +36,10 @@ export function Field({
 const inputClass =
   'w-full rounded-xl border border-black/[0.10] bg-surface px-3 py-2.5 text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15';
 
+/** Même champ que TextInput, avec place pour l’icône pin de l’autocomplete BAN. */
+export const ADDRESS_FIELD_INPUT_CLASS =
+  'w-full rounded-xl border border-black/[0.10] bg-surface py-2.5 pl-10 pr-10 text-[14px] text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15';
+
 export function TextInput({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${inputClass} ${className}`} style={{ fontSize: 14 }} {...rest} />;
 }

@@ -37,6 +37,7 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import MobileMapCanvas, { type MobileMapHandle } from './MobileMapCanvas';
@@ -141,8 +142,8 @@ export default function CarteMobile({
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
   const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
   const counts = useMemo(
-    () => countKindsInViewport(filteredAllKinds, viewport),
-    [filteredAllKinds, viewport],
+    () => countKindsInViewport(filteredAllKinds, null),
+    [filteredAllKinds],
   );
   const missingTotal = withoutPositionTotal(withoutPosition);
 
@@ -388,6 +389,7 @@ export default function CarteMobile({
       >
         {selected ? (
           <div className="flex flex-col gap-4">
+            <ImmeubleFacade latitude={selected.latitude} longitude={selected.longitude} />
             {entitiesByKind(selected.entities.filter((e) => e.kind !== 'note')).map((group) => (
               <section key={group.kind}>
                 <p className="font-semibold uppercase text-text-subtle" style={{ fontSize: 11 }}>

@@ -19,9 +19,11 @@ export async function extractAndBuildReview(args: {
   /** Ne pas écraser l'adresse / BAN déjà posés (note écrite). */
   keepAdresse?: boolean;
   initialGeo?: BanGeoColumns;
+  /** Note écrite guidée : on ne relance pas l’IA. */
+  providedExtraction?: NoteExtraction | null;
 }): Promise<NoteReviewPayload> {
   const transcript = args.transcript.trim();
-  let extraction: NoteExtraction | null = null;
+  let extraction: NoteExtraction | null = args.providedExtraction ?? null;
   let extractFailed = false;
   let geo: BanGeoColumns = args.initialGeo
     ? { ...args.initialGeo }
@@ -35,13 +37,35 @@ export async function extractAndBuildReview(args: {
       };
 
   let apiKey: string | null = null;
-  try {
-    apiKey = requireMistralKey();
-  } catch {
-    apiKey = null;
+  if (!extraction) {
+    try {
+      apiKey = requireMistralKey();
+    } catch {
+      apiKey = null;
+    }
   }
 
-  if (apiKey && transcript) {
+  if (extraction) {
+    await args.admin
+      .from('voice_notes')
+      .update({
+        transcript,
+        structured: extraction,
+        source_info: extraction.sourceInfo,
+        ...(args.keepGps ? {} : { latitude: geo.latitude, longitude: geo.longitude }),
+        ...(args.keepAdresse
+          ? {}
+          : {
+              ban_id: geo.ban_id,
+              adresse_normalisee: geo.adresse_normalisee,
+              geocode_score: geo.geocode_score,
+              geocode_le: geo.geocode_le,
+            }),
+        status: 'transcrit',
+      })
+      .eq('id', args.voiceNoteId)
+      .eq('agency_id', args.agencyId);
+  } else if (apiKey && transcript) {
     try {
       extraction = await extractNotePropositions(transcript, apiKey);
       if (!args.keepAdresse) {

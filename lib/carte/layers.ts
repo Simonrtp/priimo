@@ -24,7 +24,7 @@ export type MapLayerState = Record<MapPointKind, boolean> & {
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
   lead: true,
   contact: true,
-  bien: false,
+  bien: true,
   note: true,
   parcelles: false,
 };
@@ -38,7 +38,7 @@ export function parseMapLayers(raw: unknown): MapLayerState {
   return {
     lead: row.lead !== false,
     contact: row.contact !== false,
-    bien: row.bien === true,
+    bien: row.bien !== false,
     note: row.note !== false,
     parcelles: row.parcelles === true,
   };

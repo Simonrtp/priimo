@@ -8,8 +8,9 @@ import { EMPTY_CONTACT_INPUT } from '@/lib/contact-input';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 
 function fromContact(contact: Contact): ContactInputFields {
@@ -142,13 +143,16 @@ export default function ContactFormDialog({
           </Field>
         </div>
 
-        <Field label="Adresse" htmlFor="contact-address" hint="Pour la placer sur la carte, sans bloquer la fiche">
-          <TextInput
+        <Field label="Adresse" htmlFor="contact-address" hint="Choisissez une proposition pour la placer sur la carte">
+          <AddressAutocomplete
             id="contact-address"
             value={fields.address ?? ''}
-            onChange={(e) => set('address', e.target.value || null)}
+            onChange={(data: SelectedAddress | null) => {
+              if (data) set('address', data.label);
+            }}
+            onQueryChange={(q) => set('address', q.trim() || null)}
             placeholder="12 rue de la Monnaie, Lille"
-            autoComplete="street-address"
+            inputClassName={ADDRESS_FIELD_INPUT_CLASS}
           />
         </Field>
 

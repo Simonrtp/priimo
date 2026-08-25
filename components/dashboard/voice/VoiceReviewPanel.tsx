@@ -3,25 +3,45 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { ContactType, NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
-import { CONTACT_TYPE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
+import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
 import type { ContactMatch } from '@/lib/notes/match';
+import type { ExtractedPersonne } from '@/lib/notes/propositions';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Select from '@/components/ui/Select';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import { Field, TextArea } from '@/components/dashboard/workspace/Field';
+import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
   ...Object.entries(NOTE_SOURCE_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
-function personTitle(p: PersonneProposal['personne']): string {
-  const name = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Personne';
-  const type = CONTACT_TYPE_LABELS[p.type as ContactType];
-  return type ? `${name} · ${type}` : name;
+const TYPE_OPTIONS = CONTACT_TYPE_ORDER.map((value) => ({
+  value,
+  label: CONTACT_TYPE_LABELS[value],
+}));
+
+const BLANK_PERSONNE: ExtractedPersonne = {
+  firstName: '',
+  lastName: '',
+  phone: null,
+  email: null,
+  type: 'autre',
+};
+
+function personEditors(review: NoteReviewPayload): PersonneProposal[] {
+  if (review.personnes.length > 0) return review.personnes;
+  return [{ id: 'p-new', personne: BLANK_PERSONNE, matches: [] }];
+}
+
+function parsePositiveInt(raw: string, max: number): number | null {
+  const n = Number(raw.replace(/[^\d]/g, ''));
+  if (!Number.isFinite(n) || n <= 0 || n > max) return null;
+  return Math.round(n);
 }
 
 function pickMatch(matches: readonly ContactMatch[]): ContactMatch | null {
@@ -39,9 +59,9 @@ export default function VoiceReviewPanel({
   members,
   currentUserId,
   suggestedAssigneeId,
-  saving,
   onContinue,
   onDone,
+  onDismiss,
   onDiscard,
   typed = false,
 }: {
@@ -52,9 +72,9 @@ export default function VoiceReviewPanel({
   members: readonly AssigneeOption[];
   currentUserId?: string;
   suggestedAssigneeId: string | null;
-  saving: boolean;
   onContinue?: () => void;
   onDone: (contactId?: string | null) => void;
+  onDismiss: () => void;
   onDiscard: () => void;
   /** Note tapée : pas de « compléter la dictée ». */
   typed?: boolean;
@@ -63,14 +83,44 @@ export default function VoiceReviewPanel({
   const [sourceInfo, setSourceInfo] = useState<NoteSourceInfo | ''>(review.sourceInfo ?? '');
   const [relanceAssignee, setRelanceAssignee] = useState<string | null>(suggestedAssigneeId);
   const [promesseAssignee, setPromesseAssignee] = useState<string | null>(suggestedAssigneeId);
-  const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const lastExtracted = (review.transcript ?? '').trim();
   const dirty = transcript.trim() !== lastExtracted;
   const canRefresh = transcript.trim().length > 0 && (dirty || review.extractFailed);
-  const locked = saving || busy || refreshing || deleting;
+  const locked = refreshing || deleting;
+
+  function patchPersonnes(next: PersonneProposal[]) {
+    onReviewChange({ ...review, personnes: next });
+  }
+
+  function patchPersonne(id: string, patch: Partial<ExtractedPersonne>) {
+    const current = personEditors(review);
+    patchPersonnes(
+      current.map((p) => (p.id === id ? { ...p, personne: { ...p.personne, ...patch } } : p)),
+    );
+  }
+
+  function patchFiche(patch: Partial<Pick<NoteReviewPayload, 'secteur' | 'prix' | 'rooms' | 'surface'>>) {
+    onReviewChange({ ...review, ...patch });
+  }
+
+  function patchAdresse(address: string, selected?: SelectedAddress | null) {
+    const trimmed = (selected?.label ?? address).trim();
+    onReviewChange({
+      ...review,
+      immeuble: trimmed
+        ? {
+            address: trimmed,
+            adresseNormalisee: selected?.label ?? review.immeuble?.adresseNormalisee ?? trimmed,
+            banId: selected?.id ?? review.immeuble?.banId ?? null,
+            score: review.immeuble?.score ?? null,
+            confiance: selected?.id ? 'certain' : review.immeuble?.confiance ?? null,
+          }
+        : null,
+    });
+  }
 
   async function patchNote(body: Record<string, unknown>) {
     const res = await fetch(`/api/dashboard/voice-notes/${review.voiceNoteId}`, {
@@ -111,8 +161,8 @@ export default function VoiceReviewPanel({
     }
   }
 
-  async function createContact(p: PersonneProposal): Promise<string> {
-    const address = review.immeuble?.adresseNormalisee ?? review.immeuble?.address ?? null;
+  async function createContact(p: PersonneProposal, fiche: NoteReviewPayload, summary: string): Promise<string> {
+    const address = fiche.immeuble?.adresseNormalisee ?? fiche.immeuble?.address ?? null;
     const res = await fetch('/api/dashboard/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -123,13 +173,13 @@ export default function VoiceReviewPanel({
         phone: p.personne.phone,
         email: p.personne.email,
         address,
-        secteur: review.secteur,
-        budgetMax: review.prix,
-        roomsMin: review.rooms,
-        surfaceMin: review.surface,
-        summary: transcript.trim() || null,
+        secteur: fiche.secteur,
+        budgetMax: fiche.prix,
+        roomsMin: fiche.rooms,
+        surfaceMin: fiche.surface,
+        summary: summary.trim() || null,
         source: typed ? 'manuel' : 'vocal',
-        voiceNoteId: review.voiceNoteId,
+        voiceNoteId: fiche.voiceNoteId,
       }),
     });
     const data = (await res.json()) as { error?: string; contact?: { id: string } };
@@ -159,72 +209,85 @@ export default function VoiceReviewPanel({
     }
   }
 
-  async function terminer() {
+  function terminer() {
     if (locked) return;
-    setBusy(true);
-    try {
-      let contactId: string | null = null;
-      for (const p of review.personnes) {
-        const match = pickMatch(p.matches);
-        if (match) {
-          try {
-            await addLien('contact', match.contactId, match.confiance);
-          } catch {
-            // Le rattachement se fera à la réconciliation.
+    const snap = review;
+    const text = transcript;
+    const relanceTo = relanceAssignee;
+    const promesseTo = promesseAssignee;
+    onDismiss();
+    void (async () => {
+      try {
+        let contactId: string | null = null;
+        for (const p of personEditors(snap)) {
+          const match = pickMatch(p.matches);
+          if (match) {
+            try {
+              await addLien('contact', match.contactId, match.confiance);
+            } catch {
+              // Le rattachement se fera à la réconciliation.
+            }
+            contactId = contactId ?? match.contactId;
+          } else if (p.personne.firstName || p.personne.lastName) {
+            contactId = contactId ?? (await createContact(p, snap, text));
           }
-          contactId = contactId ?? match.contactId;
-        } else if (p.personne.firstName || p.personne.lastName) {
-          contactId = contactId ?? (await createContact(p));
         }
-      }
-      if (review.immeuble?.banId && review.immeuble.confiance) {
-        try {
-          await addLien('immeuble', review.immeuble.banId, review.immeuble.confiance);
-        } catch {
-          // La note reste, l’immeuble pourra être rattaché plus tard.
+        if (snap.immeuble?.banId && snap.immeuble.confiance) {
+          try {
+            await addLien('immeuble', snap.immeuble.banId, snap.immeuble.confiance);
+          } catch {
+            // La note reste, l’immeuble pourra être rattaché plus tard.
+          }
         }
-      }
-      if (review.relance) {
-        try {
-          await patchNote({
-            relance: { at: review.relance.at, assignedTo: relanceAssignee },
-          });
-        } catch {
-          // La relance n’est pas bloquante.
+        if (snap.relance) {
+          try {
+            await patchNote({
+              relance: { at: snap.relance.at, assignedTo: relanceTo },
+            });
+          } catch {
+            // La relance n’est pas bloquante.
+          }
         }
-      }
-      const metierPayload: Record<string, unknown> = { contactId };
-      if (review.promesse?.accepted) {
-        metierPayload.promesse = {
-          accepted: true,
-          intitule: review.promesse.intitule,
-          echeance: review.promesse.echeance,
-          assignedTo: promesseAssignee,
-        };
-      }
-      if (review.rendezVous?.accepted) {
-        metierPayload.rendezVous = { ...review.rendezVous, accepted: true };
-      }
-      if (review.visite?.accepted) {
-        metierPayload.visite = { ...review.visite, accepted: true };
-      }
-      if (review.promesse?.accepted || review.rendezVous?.accepted || review.visite?.accepted) {
-        try {
-          const res = await fetch(`/api/dashboard/voice-notes/${review.voiceNoteId}/metier`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(metierPayload),
-          });
-          if (!res.ok) throw new Error('metier');
-        } catch {
-          notifyError('Engagement ou rendez-vous non enregistré');
+        const metierPayload: Record<string, unknown> = { contactId };
+        if (snap.promesse?.accepted) {
+          metierPayload.promesse = {
+            accepted: true,
+            intitule: snap.promesse.intitule,
+            echeance: snap.promesse.echeance,
+            assignedTo: promesseTo,
+          };
         }
+        if (snap.rendezVous?.accepted) {
+          metierPayload.rendezVous = { ...snap.rendezVous, accepted: true };
+        }
+        if (snap.visite?.accepted) {
+          metierPayload.visite = { ...snap.visite, accepted: true };
+        }
+        if (snap.promesse?.accepted || snap.rendezVous?.accepted || snap.visite?.accepted) {
+          try {
+            const res = await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}/metier`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(metierPayload),
+            });
+            if (!res.ok) throw new Error('metier');
+          } catch {
+            notifyError('Engagement ou rendez-vous non enregistré');
+          }
+        }
+        await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ terminer: true }),
+        });
+        notifySuccess('Votre note a bien été enregistrée', {
+          id: `voice-saved-${snap.voiceNoteId}`,
+        });
+        onDone(contactId);
+      } catch {
+        notifyError("Le contact n'a pas pu être créé");
       }
-      onDone(contactId);
-    } catch {
-      notifyError("Le contact n'a pas pu être créé");
-      setBusy(false);
-    }
+    })();
   }
 
   async function supprimer() {
@@ -242,8 +305,6 @@ export default function VoiceReviewPanel({
       setDeleting(false);
     }
   }
-
-  const showImmeubleSeul = Boolean(review.immeuble) && review.personnes.length === 0;
 
   return (
     <>
@@ -333,41 +394,78 @@ export default function VoiceReviewPanel({
               />
             </Field>
 
-            {review.personnes.length === 0 &&
-            !review.immeuble &&
-            !review.relance &&
-            !review.promesse &&
-            !review.rendezVous &&
-            !review.visite ? (
-              <p className="text-pretty text-text-muted" style={{ fontSize: 14 }}>
-                Rien à rattacher. Terminer conserve la note telle quelle.
-              </p>
-            ) : null}
+            <p
+              id="voice-review-hint"
+              className="text-pretty text-text-muted"
+              style={{ fontSize: 13, lineHeight: 1.45 }}
+            >
+              Pré-rempli d’après la dictée. Corrigez si l’oral a été mal compris.
+            </p>
 
-            {review.personnes.map((p) => {
+            {personEditors(review).map((p) => {
               const match = pickMatch(p.matches);
-              const extras = [p.personne.phone, p.personne.email].filter(Boolean);
+              const displayName =
+                [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
+                'Nouveau contact';
               return (
-                <article key={p.id} className="rounded-xl border border-black/[0.08] px-4 py-3.5">
+                <article
+                  key={p.id}
+                  className="flex flex-col gap-3 rounded-xl border border-black/[0.08] px-4 py-3.5"
+                  aria-describedby="voice-review-hint"
+                >
                   <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                    {personTitle(p.personne)}
+                    {displayName} · {CONTACT_TYPE_LABELS[p.personne.type]}
                   </p>
-                  {extras.map((line) => (
-                    <p key={line} className="mt-1 text-[13px] text-text-muted">
-                      {line}
-                    </p>
-                  ))}
-                  {review.details.map((line) => (
-                    <p key={line} className="mt-1 text-[13.5px] text-text" style={{ lineHeight: 1.45 }}>
-                      {line}
-                    </p>
-                  ))}
+                  <Field label="Type" htmlFor={`voice-type-${p.id}`}>
+                    <Select
+                      id={`voice-type-${p.id}`}
+                      value={p.personne.type}
+                      onChange={(v) => patchPersonne(p.id, { type: v as ContactType })}
+                      options={TYPE_OPTIONS}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field label="Prénom" htmlFor={`voice-fn-${p.id}`}>
+                      <TextInput
+                        id={`voice-fn-${p.id}`}
+                        value={p.personne.firstName}
+                        onChange={(e) => patchPersonne(p.id, { firstName: e.target.value })}
+                        autoComplete="off"
+                      />
+                    </Field>
+                    <Field label="Nom" htmlFor={`voice-ln-${p.id}`}>
+                      <TextInput
+                        id={`voice-ln-${p.id}`}
+                        value={p.personne.lastName}
+                        onChange={(e) => patchPersonne(p.id, { lastName: e.target.value })}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field label="Téléphone" htmlFor={`voice-phone-${p.id}`}>
+                      <TextInput
+                        id={`voice-phone-${p.id}`}
+                        type="tel"
+                        value={p.personne.phone ?? ''}
+                        onChange={(e) => patchPersonne(p.id, { phone: e.target.value.trim() || null })}
+                        autoComplete="off"
+                      />
+                    </Field>
+                    <Field label="Email" htmlFor={`voice-email-${p.id}`}>
+                      <TextInput
+                        id={`voice-email-${p.id}`}
+                        type="email"
+                        value={p.personne.email ?? ''}
+                        onChange={(e) => patchPersonne(p.id, { email: e.target.value.trim() || null })}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  </div>
                   {match ? (
-                    <p className="mt-2 text-[13px] text-text-muted">
-                      Déjà en fichier : {match.label}
-                    </p>
+                    <p className="text-[13px] text-text-muted">Déjà en fichier : {match.label}</p>
                   ) : p.matches.length > 1 ? (
-                    <p className="mt-2 text-[13px] text-text-muted">
+                    <p className="text-[13px] text-text-muted">
                       Plusieurs fiches possibles. Terminer créera une nouvelle fiche.
                     </p>
                   ) : null}
@@ -375,20 +473,46 @@ export default function VoiceReviewPanel({
               );
             })}
 
-            {showImmeubleSeul ? (
-              <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">
-                <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                  {review.immeuble?.adresseNormalisee ?? review.immeuble?.address}
-                </p>
-                {review.details
-                  .filter((line) => line !== (review.immeuble?.adresseNormalisee ?? review.immeuble?.address))
-                  .map((line) => (
-                    <p key={line} className="mt-1 text-[13.5px] text-text" style={{ lineHeight: 1.45 }}>
-                      {line}
-                    </p>
-                  ))}
-              </article>
-            ) : null}
+            <article className="flex flex-col gap-3 rounded-xl border border-black/[0.08] px-4 py-3.5">
+              <Field label="Adresse" htmlFor="voice-address">
+                <AddressAutocomplete
+                  id="voice-address"
+                  value={review.immeuble?.adresseNormalisee ?? review.immeuble?.address ?? ''}
+                  onChange={(data) => {
+                    if (data) patchAdresse(data.label, data);
+                  }}
+                  onQueryChange={(q) => patchAdresse(q)}
+                  placeholder="Rattacher à un immeuble…"
+                  inputClassName={ADDRESS_FIELD_INPUT_CLASS}
+                />
+              </Field>
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Surface m²" htmlFor="voice-surface">
+                  <TextInput
+                    id="voice-surface"
+                    inputMode="numeric"
+                    value={review.surface != null ? String(review.surface) : ''}
+                    onChange={(e) => patchFiche({ surface: parsePositiveInt(e.target.value, 100_000) })}
+                  />
+                </Field>
+                <Field label="Pièces" htmlFor="voice-rooms">
+                  <TextInput
+                    id="voice-rooms"
+                    inputMode="numeric"
+                    value={review.rooms != null ? String(review.rooms) : ''}
+                    onChange={(e) => patchFiche({ rooms: parsePositiveInt(e.target.value, 50) })}
+                  />
+                </Field>
+                <Field label="Prix €" htmlFor="voice-prix">
+                  <TextInput
+                    id="voice-prix"
+                    inputMode="numeric"
+                    value={review.prix != null ? String(review.prix) : ''}
+                    onChange={(e) => patchFiche({ prix: parsePositiveInt(e.target.value, 100_000_000) })}
+                  />
+                </Field>
+              </div>
+            </article>
 
             {review.relance ? (
               <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">
@@ -536,8 +660,8 @@ export default function VoiceReviewPanel({
         >
           Annuler
         </button>
-        <WorkspaceButton type="button" onClick={() => void terminer()} disabled={locked}>
-          {busy || saving ? 'Enregistrement…' : 'Terminer'}
+        <WorkspaceButton type="button" onClick={terminer} disabled={locked}>
+          Terminer
         </WorkspaceButton>
       </footer>
 

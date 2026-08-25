@@ -11,12 +11,20 @@ export const BIENS_SELECT_CORE = `
   notes, created_at, updated_at
 `;
 
-export const BIENS_SELECT = `
+export const BIENS_SELECT_GEO = `
   ${BIENS_SELECT_CORE},
-  ban_id, latitude, longitude, adresse_normalisee, geocode_score, geocode_le,
+  ban_id, latitude, longitude, adresse_normalisee, geocode_score, geocode_le
+`;
+
+export const BIENS_SELECT_LISTING = `
   listing_title, listing_description, photos, dpe_lettre, dpe_kwh,
   ges_lettre, ges_kg_co2, dpe_vierge, dpe_date, honoraires_montant,
   honoraires_a_charge, honoraires_pourcent, mandat_numero, mandat_date
+`;
+
+export const BIENS_SELECT = `
+  ${BIENS_SELECT_GEO},
+  ${BIENS_SELECT_LISTING}
 `;
 
 type BienRowWithOwner = BienRow & {
@@ -92,7 +100,16 @@ export async function fetchBiens(supabase: Client): Promise<Bien[]> {
     return ((full.data ?? []) as unknown as BienRowWithOwner[]).map(mapDbBienToBien);
   }
 
-  // Migration d'annonce pas encore appliquée : on lit le socle, les champs d'export restent vides.
+  // Migration d'annonce pas encore appliquée : on garde la géoloc (carte) même sans listing.
+  const withGeo = await supabase
+    .from('biens')
+    .select(`${BIENS_SELECT_GEO}, ${ownerJoin}`)
+    .order('created_at', { ascending: false });
+
+  if (!withGeo.error) {
+    return ((withGeo.data ?? []) as unknown as BienRowWithOwner[]).map(mapDbBienToBien);
+  }
+
   const fallback = await supabase
     .from('biens')
     .select(`${BIENS_SELECT_CORE}, ${ownerJoin}`)

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Navigation } from 'lucide-react';
 import type { Lead } from '@/types/lead';
@@ -13,13 +14,14 @@ import {
   type SortieProgress,
   type SortieStop,
 } from '@/lib/today/sortie';
-import SortieMap from './SortieMap';
-import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import {
   CARTE_ITINERAIRE_HREF,
   toItineraireStops,
   writeItineraireStops,
 } from '@/lib/today/directions';
+import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+
+const SortieMap = dynamic(() => import('./SortieMap'), { ssr: false });
 
 export default function SortiePanel({
   leads,

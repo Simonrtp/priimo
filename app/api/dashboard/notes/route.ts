@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { extractAndBuildReview } from '@/lib/notes/extract-review';
+import { composeTypedNote, parseTypedNoteDraft } from '@/lib/notes/typed-compose';
 import { mapDbVoiceNote } from '@/lib/queries/contacts';
 import { mapDbNoteLien, NOTE_LIENS_SELECT } from '@/lib/notes/liens';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
@@ -147,11 +148,13 @@ export async function POST(req: Request) {
   }
 
   const text = typeof body.text === 'string' ? body.text.trim() : '';
-  if (text.length < MIN_TYPED_CHARS) {
+  const draft = parseTypedNoteDraft(body.draft);
+  const adresseRaw = typeof body.adresse === 'string' ? body.adresse.trim().slice(0, 240) : '';
+  const composed = draft ? composeTypedNote(draft, adresseRaw) : null;
+  const transcript = (composed?.transcript || text).slice(0, MAX_TYPED_CHARS);
+  if (transcript.length < MIN_TYPED_CHARS) {
     return NextResponse.json({ error: 'Écrivez un peu plus pour enregistrer la note.' }, { status: 400 });
   }
-  const transcript = text.slice(0, MAX_TYPED_CHARS);
-  const adresseRaw = typeof body.adresse === 'string' ? body.adresse.trim().slice(0, 240) : '';
   const gpsLat = readCoord(body, 'latitude');
   const gpsLng = readCoord(body, 'longitude');
   const parcelleIdu = normalizeIdu(typeof body.parcelleIdu === 'string' ? body.parcelleIdu : null);
@@ -218,6 +221,7 @@ export async function POST(req: Request) {
     keepGps,
     keepAdresse,
     initialGeo: geo,
+    providedExtraction: composed?.extraction ?? null,
   });
 
   return NextResponse.json({

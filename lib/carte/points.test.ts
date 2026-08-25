@@ -47,6 +47,7 @@ function contact(
     assignedTo: 'marie',
     lastInteractionAt: '2026-08-10T00:00:00.000Z',
     createdAt: '2026-08-01T00:00:00.000Z',
+    source: 'manuel',
     ...partial,
   };
 }
@@ -181,8 +182,19 @@ describe('buildSectorMapPoints', () => {
     assert.equal(withoutPosition.notes, 0);
   });
 
-  it('ignore une note déjà rattachée à un contact', () => {
-    const { points, withoutPosition } = buildSectorMapPoints({
+  it('place un bien géolocalisé même sans ban_id', () => {
+    const { points } = buildSectorMapPoints({
+      agencyId: 'agence-a',
+      leads: [],
+      contacts: [],
+      biens: [bien({ id: 'b-gps', banId: null, latitude: 50.63, longitude: 3.06 })],
+    });
+    assert.equal(points.filter((p) => p.kind === 'bien').length, 1);
+    assert.equal(points[0]?.banId, 'bien:b-gps');
+  });
+
+  it('place une note rattachée à un contact si elle est géolocalisée', () => {
+    const { points } = buildSectorMapPoints({
       agencyId: 'agence-a',
       leads: [],
       contacts: [],
@@ -197,8 +209,26 @@ describe('buildSectorMapPoints', () => {
         }),
       ],
     });
+    assert.equal(points.length, 1);
+    assert.equal(points[0]?.kind, 'note');
+  });
+
+  it('n’affiche pas un contact créé par dictée sur la couche Contacts', () => {
+    const { points } = buildSectorMapPoints({
+      agencyId: 'agence-a',
+      leads: [],
+      contacts: [
+        contact({
+          id: 'c-vocal',
+          source: 'vocal',
+          banId: '59122_c',
+          latitude: 50.63,
+          longitude: 3.06,
+        }),
+      ],
+      biens: [],
+    });
     assert.equal(points.length, 0);
-    assert.equal(withoutPosition.notes, 0);
   });
 
   it('place une note GPS même sans ban_id', () => {

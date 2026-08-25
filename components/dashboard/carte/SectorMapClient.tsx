@@ -27,6 +27,7 @@ import {
 } from '@/lib/carte/layers';
 import { PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
+import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import {
   postalCodesFromPoints,
   withoutPositionTotal,
@@ -305,8 +306,8 @@ export default function SectorMapClient({
   const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
 
   const counts = useMemo(
-    () => countKindsInViewport(filteredAllKinds, viewport),
-    [filteredAllKinds, viewport],
+    () => countKindsInViewport(filteredAllKinds, null),
+    [filteredAllKinds],
   );
 
   const codes = useMemo(
@@ -553,6 +554,8 @@ export default function SectorMapClient({
                 <X size={18} strokeWidth={2} aria-hidden />
               </button>
             </div>
+
+            <ImmeubleFacade latitude={selected.latitude} longitude={selected.longitude} />
 
             <div className="mt-4 flex flex-col gap-4">
               {entitiesByKind(selected.entities.filter((e) => e.kind !== 'note')).map((group) => (

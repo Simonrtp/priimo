@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mic, Square, X } from 'lucide-react';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { notifyError } from '@/lib/notify';
 import { shouldLockVoice } from '@/lib/voice/gesture-lock';
 import { playRecordStartSound, playRecordStopSound } from '@/lib/voice/feedback-sound';
 import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
 import { readDevicePosition } from '@/lib/voice/gps';
 import { reverseGeocode } from '@/lib/geo/ban';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import { ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Field';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceReviewPanel from './VoiceReviewPanel';
 import VoiceLockHint from './VoiceLockHint';
@@ -47,7 +49,6 @@ export default function VoiceCaptureDialog({
   const [review, setReview] = useState<NoteReviewPayload | null>(null);
   const [members, setMembers] = useState<NameMatchMember[]>([]);
   const [suggestedAssigneeId, setSuggestedAssigneeId] = useState<string | null>(null);
-  const [closing, setClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gpsAddress, setGpsAddress] = useState<string | null>(adresse);
   const [editingAddress, setEditingAddress] = useState(false);
@@ -375,22 +376,8 @@ export default function VoiceCaptureDialog({
     await startRecording(false);
   }
 
-  async function terminer(contactId?: string | null) {
-    const id = review?.voiceNoteId ?? voiceNoteId;
-    if (!id || closing) return;
-    setClosing(true);
-    try {
-      await fetch(`/api/dashboard/voice-notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ terminer: true }),
-      });
-    } catch {
-      // La note est déjà en base.
-    }
-    notifySuccess('Note enregistrée');
+  function onReviewDone(contactId?: string | null) {
     router.refresh();
-    onClose();
     if (contactId) router.push(`/dashboard/contacts?fiche=${contactId}`);
   }
 
@@ -501,16 +488,22 @@ export default function VoiceCaptureDialog({
                 </p>
               ) : null}
               {editingAddress ? (
-                <label className="mt-8 w-full max-w-sm">
-                  <span className="sr-only">Adresse</span>
-                  <input
-                    autoFocus
+                <div className="mt-8 w-full max-w-sm text-left">
+                  <AddressAutocomplete
+                    id="voice-capture-address"
+                    aria-label="Adresse"
                     value={gpsAddress ?? ''}
-                    onChange={(e) => setGpsAddress(e.target.value)}
-                    onBlur={() => setEditingAddress(false)}
-                    className="w-full rounded-xl border border-black/[0.1] bg-surface px-3 py-2.5 text-center text-[13.5px] text-text outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    onChange={(data) => {
+                      if (data) {
+                        setGpsAddress(data.label);
+                        setEditingAddress(false);
+                      }
+                    }}
+                    onQueryChange={(q) => setGpsAddress(q)}
+                    placeholder="Rattacher à un immeuble…"
+                    inputClassName={ADDRESS_FIELD_INPUT_CLASS}
                   />
-                </label>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -590,9 +583,9 @@ export default function VoiceCaptureDialog({
             members={memberOptions}
             currentUserId={profile?.id}
             suggestedAssigneeId={suggestedAssigneeId}
-            saving={closing}
             onContinue={() => void continueRecording()}
-            onDone={(contactId) => void terminer(contactId)}
+            onDismiss={onClose}
+            onDone={onReviewDone}
             onDiscard={() => {
               router.refresh();
               onClose();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { TodayCard } from '@/lib/today/cards';
 import type { Lead } from '@/types/lead';
@@ -10,8 +10,6 @@ import { notifyError } from '@/lib/notify';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import TodayCardView from './TodayCardView';
-import AgencyOverviewBlock from './AgencyOverviewBlock';
-import type { AgencyOverview } from '@/lib/today/agency-overview';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
 import TodayStatusBand from './TodayStatusBand';
 import SortiePanel from './SortiePanel';
@@ -59,18 +57,18 @@ export default function TodayClient({
   profileId,
   firstName,
   sectorCenter,
-  agencyOverview = null,
   relancesProgrammees = 0,
   rapprochements = 0,
+  children,
 }: {
   initialCards: TodayCard[];
   initialLeads: Lead[];
   profileId: string;
   firstName: string;
   sectorCenter: GeoCoord | null;
-  agencyOverview?: AgencyOverview | null;
   relancesProgrammees?: number;
   rapprochements?: number;
+  children?: ReactNode;
 }) {
   const day = dateKeyParis(new Date());
   const [cards, setCards] = useState(initialCards);
@@ -247,11 +245,7 @@ export default function TodayClient({
         />
       ) : null}
 
-      {agencyOverview ? (
-        <div className="mt-8">
-          <AgencyOverviewBlock overview={agencyOverview} defaultCollapsed />
-        </div>
-      ) : null}
+      {children}
 
       {sortieOpen && activePlan ? (
         <SortieMode
