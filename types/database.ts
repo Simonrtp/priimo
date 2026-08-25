@@ -53,6 +53,8 @@ export type ProfileRow = {
   leads_last_seen_at?: string | null;
   /** Visite guidée du dashboard terminée (ou passée) — null = à afficher au prochain login. */
   onboarding_completed_at?: string | null;
+  /** Donnée fictive de démo — supprimable via purge-demo-agency. */
+  is_demo?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -227,6 +229,7 @@ export type ProfileInsert = {
   phone?: string | null;
   active_agency_id?: string | null;
   preferences?: ProfilePreferences;
+  is_demo?: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -419,6 +422,13 @@ export type NoteLienEntiteDb = 'contact' | 'bien' | 'lead' | 'immeuble';
 export type NoteLienConfianceDb = 'certain' | 'probable';
 export type NoteLienCreeParDb = 'agent' | 'extraction' | 'reconciliation';
 export type ContactInteractionKindDb = 'note' | 'appel' | 'visite' | 'vocal' | 'email';
+export type MandatTypeDb = 'simple' | 'exclusif' | 'semi_exclusif';
+export type VisiteInteretDb = 'aucun' | 'tiede' | 'chaud' | 'offre';
+export type OffreStatutDb = 'en_attente' | 'acceptee' | 'refusee';
+export type PromesseStatutDb = 'a_faire' | 'faite' | 'reportee';
+export type PromesseCreeParDb = 'dictee' | 'manuel';
+export type RendezVousTypeDb = 'visite' | 'estimation' | 'signature' | 'autre';
+export type RendezVousCreeParDb = 'dictee' | 'fiche_bien' | 'manuel';
 
 export type ContactRow = {
   id: string;
@@ -450,6 +460,7 @@ export type ContactRow = {
   assigned_to?: string | null;
   assigned_by?: string | null;
   assigned_at?: string | null;
+  is_demo?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -484,6 +495,7 @@ export type ContactInsert = {
   assigned_to?: string | null;
   assigned_by?: string | null;
   assigned_at?: string | null;
+  is_demo?: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -523,6 +535,13 @@ export type BienRow = {
   honoraires_pourcent: number | null;
   mandat_numero: string | null;
   mandat_date: string | null;
+  mandat_type: MandatTypeDb | null;
+  mandat_signe_le: string | null;
+  mandat_duree_mois: number;
+  mandat_irrevocable_jusqu_au: string | null;
+  prix_initial: number | null;
+  derniere_baisse_le: string | null;
+  is_demo?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -562,6 +581,13 @@ export type BienInsert = {
   honoraires_pourcent?: number | null;
   mandat_numero?: string | null;
   mandat_date?: string | null;
+  mandat_type?: MandatTypeDb | null;
+  mandat_signe_le?: string | null;
+  mandat_duree_mois?: number;
+  mandat_irrevocable_jusqu_au?: string | null;
+  prix_initial?: number | null;
+  derniere_baisse_le?: string | null;
+  is_demo?: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -590,6 +616,7 @@ export type VoiceNoteRow = {
   visibilite?: VoiceNoteVisibiliteDb;
   source_info?: NoteSourceInfoDb | null;
   statut?: VoiceNoteStatutDb;
+  is_demo?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -617,6 +644,7 @@ export type VoiceNoteInsert = {
   visibilite?: VoiceNoteVisibiliteDb;
   source_info?: NoteSourceInfoDb | null;
   statut?: VoiceNoteStatutDb;
+  is_demo?: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -630,6 +658,7 @@ export type NoteLienRow = {
   confiance: NoteLienConfianceDb;
   cree_par: NoteLienCreeParDb;
   cree_le: string;
+  is_demo?: boolean;
 };
 
 export type NoteLienInsert = {
@@ -641,6 +670,7 @@ export type NoteLienInsert = {
   confiance: NoteLienConfianceDb;
   cree_par: NoteLienCreeParDb;
   cree_le?: string;
+  is_demo?: boolean;
 };
 
 export type ContactInteractionRow = {
@@ -656,6 +686,7 @@ export type ContactInteractionRow = {
   assigned_at?: string | null;
   occurred_at: string;
   created_at: string;
+  is_demo?: boolean;
 };
 
 export type TodayDismissalRow = {
@@ -690,6 +721,7 @@ export type ContactInteractionInsert = {
   assigned_at?: string | null;
   occurred_at?: string;
   created_at?: string;
+  is_demo?: boolean;
 };
 
 export type AgencyAlertKindDb = 'baisse_prix' | 'mandat_a_recuperer';
@@ -702,6 +734,7 @@ export type AgencyAlertRow = {
   contact_id: string | null;
   lead_id: string | null;
   body: string | null;
+  is_demo?: boolean;
   created_at: string;
 };
 
@@ -713,6 +746,7 @@ export type AgencyAlertInsert = {
   contact_id?: string | null;
   lead_id?: string | null;
   body?: string | null;
+  is_demo?: boolean;
   created_at?: string;
 };
 
@@ -736,6 +770,134 @@ export type AssistantQueryInsert = {
   lignes_count?: number;
   duration_ms?: number;
   created_at?: string;
+};
+
+export type VisiteRow = {
+  id: string;
+  agency_id: string;
+  bien_id: string;
+  contact_id: string | null;
+  profile_id: string | null;
+  date_visite: string;
+  compte_rendu_acquereur_fait_le: string | null;
+  compte_rendu_vendeur_fait_le: string | null;
+  retour: string | null;
+  interet: VisiteInteretDb | null;
+  is_demo?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VisiteInsert = {
+  id?: string;
+  agency_id: string;
+  bien_id: string;
+  contact_id?: string | null;
+  profile_id?: string | null;
+  date_visite: string;
+  compte_rendu_acquereur_fait_le?: string | null;
+  compte_rendu_vendeur_fait_le?: string | null;
+  retour?: string | null;
+  interet?: VisiteInteretDb | null;
+  is_demo?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type OffreRow = {
+  id: string;
+  agency_id: string;
+  bien_id: string;
+  contact_id: string | null;
+  montant: number;
+  soumise_le: string;
+  validite_jusqu_au: string | null;
+  statut: OffreStatutDb;
+  compromis_signe_le: string | null;
+  financement_echeance: string | null;
+  preemption_purgee_le: string | null;
+  is_demo?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OffreInsert = {
+  id?: string;
+  agency_id: string;
+  bien_id: string;
+  contact_id?: string | null;
+  montant: number;
+  soumise_le?: string;
+  validite_jusqu_au?: string | null;
+  statut?: OffreStatutDb;
+  compromis_signe_le?: string | null;
+  financement_echeance?: string | null;
+  preemption_purgee_le?: string | null;
+  is_demo?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PromesseRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  contact_id: string | null;
+  note_id: string | null;
+  intitule: string;
+  echeance: string;
+  statut: PromesseStatutDb;
+  cree_par: PromesseCreeParDb;
+  is_demo?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PromesseInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  contact_id?: string | null;
+  note_id?: string | null;
+  intitule: string;
+  echeance: string;
+  statut?: PromesseStatutDb;
+  cree_par?: PromesseCreeParDb;
+  is_demo?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type RendezVousRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  contact_id: string | null;
+  bien_id: string | null;
+  debut: string;
+  fin: string;
+  type: RendezVousTypeDb;
+  lieu: string | null;
+  cree_par: RendezVousCreeParDb;
+  is_demo?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RendezVousInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  contact_id?: string | null;
+  bien_id?: string | null;
+  debut: string;
+  fin: string;
+  type?: RendezVousTypeDb;
+  lieu?: string | null;
+  cree_par?: RendezVousCreeParDb;
+  is_demo?: boolean;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type Database = {
@@ -799,7 +961,15 @@ export type Database = {
         Row: BienRow;
         Insert: BienInsert;
         Update: Partial<BienRow>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'biens_proprietaire_contact_id_fkey';
+            columns: ['proprietaire_contact_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       voice_notes: {
         Row: VoiceNoteRow;
@@ -836,6 +1006,111 @@ export type Database = {
         Insert: AssistantQueryInsert;
         Update: Partial<AssistantQueryRow>;
         Relationships: [];
+      };
+      visites: {
+        Row: VisiteRow;
+        Insert: VisiteInsert;
+        Update: Partial<VisiteRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'visites_bien_id_fkey';
+            columns: ['bien_id'];
+            isOneToOne: false;
+            referencedRelation: 'biens';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'visites_contact_id_fkey';
+            columns: ['contact_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'visites_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      offres: {
+        Row: OffreRow;
+        Insert: OffreInsert;
+        Update: Partial<OffreRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'offres_bien_id_fkey';
+            columns: ['bien_id'];
+            isOneToOne: false;
+            referencedRelation: 'biens';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'offres_contact_id_fkey';
+            columns: ['contact_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      promesses: {
+        Row: PromesseRow;
+        Insert: PromesseInsert;
+        Update: Partial<PromesseRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'promesses_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'promesses_contact_id_fkey';
+            columns: ['contact_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'promesses_note_id_fkey';
+            columns: ['note_id'];
+            isOneToOne: false;
+            referencedRelation: 'voice_notes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      rendez_vous: {
+        Row: RendezVousRow;
+        Insert: RendezVousInsert;
+        Update: Partial<RendezVousRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'rendez_vous_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rendez_vous_contact_id_fkey';
+            columns: ['contact_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rendez_vous_bien_id_fkey';
+            columns: ['bien_id'];
+            isOneToOne: false;
+            referencedRelation: 'biens';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: { [_ in never]: never };

@@ -99,7 +99,7 @@ export default function SortieMap({
         }
         style={{ width: '100%', height: '100%' }}
         scrollZoom
-        attributionPosition="bottom-right"
+        attributionControl={false}
       >
         {itineraryStops.length >= 2 ? (
           <ItineraireLayer geometry={route?.geometry ?? null} stops={itineraryStops} showStops={false} />

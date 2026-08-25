@@ -200,10 +200,10 @@ export default function VoiceReviewPanel({
         };
       }
       if (review.rendezVous?.accepted) {
-        metierPayload.rendezVous = { accepted: true, ...review.rendezVous };
+        metierPayload.rendezVous = { ...review.rendezVous, accepted: true };
       }
       if (review.visite?.accepted) {
-        metierPayload.visite = { accepted: true, ...review.visite };
+        metierPayload.visite = { ...review.visite, accepted: true };
       }
       if (review.promesse?.accepted || review.rendezVous?.accepted || review.visite?.accepted) {
         try {

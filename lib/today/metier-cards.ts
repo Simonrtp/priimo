@@ -26,18 +26,22 @@ import {
 } from '@/lib/metier/mandat';
 
 function cardBase(
-  partial: Omit<TodayCard, 'enjeu' | 'imminence' | 'score' | 'dismissible'>,
+  partial: Omit<TodayCard, 'enjeu' | 'imminence' | 'score' | 'dismissible' | 'priority'> & {
+    priority?: number;
+  },
   enjeu: number,
   imminence: number,
   dismissible = true,
 ): TodayCard {
   const e = ENJEU_PAR_TYPE[partial.type] ?? enjeu;
+  const score = scoreCarte(e, imminence);
   return {
     ...partial,
     enjeu: e,
     imminence,
-    score: scoreCarte(e, imminence),
+    score,
     dismissible,
+    priority: partial.priority ?? 5000 - score,
   };
 }
 

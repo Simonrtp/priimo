@@ -2,6 +2,7 @@
  * Alias legacy — la logique vit dans sortie.ts.
  */
 import type { GeoCoord } from '@/lib/carte/coords';
+import type { Lead } from '@/types/lead';
 import { TOURNEE_RADIUS_M } from './field';
 import {
   buildSortie,
@@ -45,12 +46,7 @@ export function buildTournee(
     banId: null,
     postalCode: null,
   }));
-  const plan = buildSortie(
-    pseudoLeads as Parameters<typeof buildSortie>[0],
-    '',
-    origin,
-    radiusM,
-  );
+  const plan = buildSortie(pseudoLeads as unknown as Lead[], '', origin, radiusM);
   const tour = buildTourneeFromSortie(plan, 2);
   if (!tour) return null;
   return {

@@ -3,8 +3,24 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { parseAssigneeId } from '@/lib/agency/assignees';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
+import type { RendezVousTypeDb, VisiteInteretDb } from '@/types/database';
 
 export const runtime = 'nodejs';
+
+const RDV_TYPES: readonly RendezVousTypeDb[] = ['visite', 'estimation', 'signature', 'autre'];
+const VISITE_INTERETS: readonly VisiteInteretDb[] = ['aucun', 'tiede', 'chaud', 'offre'];
+
+function parseRdvType(value: unknown): RendezVousTypeDb {
+  return typeof value === 'string' && RDV_TYPES.includes(value as RendezVousTypeDb)
+    ? (value as RendezVousTypeDb)
+    : 'autre';
+}
+
+function parseVisiteInteret(value: unknown): VisiteInteretDb | null {
+  return typeof value === 'string' && VISITE_INTERETS.includes(value as VisiteInteretDb)
+    ? (value as VisiteInteretDb)
+    : null;
+}
 
 /** Crée promesse / RDV / visite validés depuis une dictée. */
 export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: string }> }) {
@@ -77,7 +93,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
         bien_id: bienId,
         debut: rdv.debut,
         fin: rdv.fin,
-        type: typeof rdv.type === 'string' ? rdv.type : 'autre',
+        type: parseRdvType(rdv.type),
         lieu: typeof rdv.lieu === 'string' ? rdv.lieu.slice(0, 200) : null,
         cree_par: 'dictee',
       })
@@ -101,7 +117,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
         profile_id: profile.id,
         date_visite: visite.dateVisite,
         retour: typeof visite.retour === 'string' ? visite.retour.slice(0, 2000) : null,
-        interet: typeof visite.interet === 'string' ? visite.interet : null,
+        interet: parseVisiteInteret(visite.interet),
       })
       .select('id')
       .single();

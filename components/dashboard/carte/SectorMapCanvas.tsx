@@ -143,7 +143,7 @@ export default function SectorMapCanvas({
           initialBounds
             ? {
                 bounds: initialBounds,
-                fitBoundsOptions: { padding: 80, maxZoom: 15, pitch: MAP_3D_PITCH, bearing: MAP_3D_BEARING },
+                fitBoundsOptions: { padding: 80, maxZoom: 15 },
               }
             : fallback
               ? { longitude: fallback.longitude, latitude: fallback.latitude, zoom: 13 }

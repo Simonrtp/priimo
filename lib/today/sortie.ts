@@ -252,7 +252,9 @@ export function buildTourneeFromSortie(
   return plan;
 }
 
-export function lineGeoJson(stops: readonly LocatedTask[]): GeoJSON.Feature<GeoJSON.LineString> {
+export function lineGeoJson(
+  stops: readonly { latitude: number; longitude: number }[],
+): GeoJSON.Feature<GeoJSON.LineString> {
   return {
     type: 'Feature',
     properties: {},

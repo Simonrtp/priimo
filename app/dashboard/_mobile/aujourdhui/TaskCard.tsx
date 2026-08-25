@@ -165,7 +165,7 @@ export default function TaskCard({
 
   return (
     <div className="relative overflow-hidden rounded-[20px]">
-      {swipeEnabled && level !== 3 ? (
+      {swipeEnabled ? (
         <div className="absolute inset-0 flex" aria-hidden>
           <div
             className="flex w-1/2 items-center pl-4 text-[13px] font-semibold text-white"
@@ -186,10 +186,10 @@ export default function TaskCard({
         style={{
           backgroundColor: bg,
           borderLeftColor: isBurn ? (overdue ? FIELD.rouge : FIELD.orange) : undefined,
-          transform: exiting ? 'translateX(110%)' : swipeEnabled && level !== 3 ? `translateX(${offset}px)` : undefined,
+          transform: exiting ? 'translateX(110%)' : swipeEnabled ? `translateX(${offset}px)` : undefined,
           opacity: exiting ? 0 : 1,
           transition: exiting ? 'transform 200ms ease-out, opacity 200ms ease-out' : undefined,
-          touchAction: swipeEnabled && level !== 3 ? 'pan-y' : undefined,
+          touchAction: swipeEnabled ? 'pan-y' : undefined,
         }}
         {...swipeHandlers}
       >

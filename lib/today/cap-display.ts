@@ -17,6 +17,7 @@ function groupCard(type: TodayCardType, cards: TodayCard[]): TodayCard {
   const imminence = Math.max(...cards.map((c) => c.imminence));
   const labelFn = GROUP_LABELS[type];
   const headline = labelFn ? labelFn(cards.length) : `${cards.length} actions en attente`;
+  const score = scoreCarte(enjeu, imminence);
   return {
     key: `groupe:${type}`,
     type,
@@ -25,8 +26,9 @@ function groupCard(type: TodayCardType, cards: TodayCard[]): TodayCard {
     action: { kind: 'ouvrir_liste', label: 'Voir tout', cardType: type },
     enjeu,
     imminence,
-    score: scoreCarte(enjeu, imminence),
+    score,
     dismissible: type !== 'echeance_contractuelle',
+    priority: 5000 - score,
     urgent: cards.some((c) => c.urgent),
     groupedKeys: cards.map((c) => c.key),
     geo: top.geo ?? null,

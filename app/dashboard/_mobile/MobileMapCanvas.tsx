@@ -171,7 +171,7 @@ export default function MobileMapCanvas({
           initialBounds
             ? {
                 bounds: initialBounds,
-                fitBoundsOptions: { padding: 60, maxZoom: 15, pitch: MAP_3D_PITCH, bearing: MAP_3D_BEARING },
+                fitBoundsOptions: { padding: 60, maxZoom: 15 },
               }
             : fallback
               ? { longitude: fallback.longitude, latitude: fallback.latitude, zoom: 15 }

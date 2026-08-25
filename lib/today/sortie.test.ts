@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { EMPTY_DISPLAY_SIGNALS } from '@/lib/display-signals';
 import type { Lead } from '@/types/lead';
 import {
   MAX_SORTIE_STOPS,
@@ -32,7 +33,7 @@ function lead(
     score: 70,
     signals: [],
     mainSignalLabel: null,
-    displaySignals: {},
+    displaySignals: EMPTY_DISPLAY_SIGNALS,
     banId: `ban-${id}`,
     latitude: lat,
     longitude: lng,
@@ -53,6 +54,11 @@ function lead(
     status: 'nouveau',
     notes: null,
     assignedTo: null,
+    stageId: null,
+    stagePosition: null,
+    takenAt: null,
+    stageChangedAt: null,
+    lostReason: null,
     mlFeedback: null,
     mlFeedbackReason: null,
     mlFeedbackAt: null,
