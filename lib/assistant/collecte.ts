@@ -1055,7 +1055,7 @@ async function loadSnapshot(
     ...new Set(
       biens
         .map((b) => b.proprietaireContactId)
-        .filter((id): id is string => Boolean(id) && !knownContactIds.has(id)),
+        .filter((id): id is string => typeof id === 'string' && id.length > 0 && !knownContactIds.has(id)),
     ),
   ];
   if (missingOwnerIds.length > 0) {

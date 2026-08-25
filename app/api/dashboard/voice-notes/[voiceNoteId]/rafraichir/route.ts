@@ -59,12 +59,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     keepAdresse,
     initialGeo: keepAdresse
       ? {
-          ban_id: note.ban_id,
-          adresse_normalisee: note.adresse_normalisee,
-          geocode_score: note.geocode_score,
-          latitude: note.latitude,
-          longitude: note.longitude,
-          geocode_le: note.geocode_le,
+          ban_id: note.ban_id ?? null,
+          adresse_normalisee: note.adresse_normalisee ?? null,
+          geocode_score: note.geocode_score ?? null,
+          latitude: note.latitude ?? null,
+          longitude: note.longitude ?? null,
+          geocode_le: note.geocode_le ?? null,
         }
       : undefined,
   });
