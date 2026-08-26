@@ -51,7 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     <Sidebar />
                     <div className={`${SHELL_BG_CLASS} relative flex min-w-0 flex-1 flex-col`}>
                       <TopBar />
-                      <main className="relative min-h-0 flex-1 overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
+                      <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
                         <WorkspacePanel>{children}</WorkspacePanel>
                       </main>
                     </div>

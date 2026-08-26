@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Search, Upload } from 'lucide-react';
+import { Download, Mail, Phone, Search, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportContactsCsv } from '@/lib/import/export-contacts';
+import { formatPhoneDisplay, normalizePhone, telHref } from '@/lib/import/normalize';
 import Select from '@/components/ui/Select';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImportWizard from '@/components/dashboard/import/ImportWizard';
@@ -17,6 +18,9 @@ import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import ContactDetailPanel from './ContactDetailPanel';
 import ContactFormDialog from './ContactFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+
+const SLATE = '#3D5A80';
+const INK = '#1E3148';
 
 function relativeDate(iso: string | null): string {
   if (!iso) return 'Jamais recontacté';
@@ -33,6 +37,86 @@ function normalize(s: string): string {
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .toLocaleLowerCase('fr');
+}
+
+function contactMatchesQuery(contact: Contact, q: string): boolean {
+  if (!q) return true;
+  if (normalize(contact.fullName).includes(q)) return true;
+  if (contact.email && normalize(contact.email).includes(q)) return true;
+  const qDigits = q.replace(/\D/g, '');
+  if (qDigits.length >= 3 && contact.phone) {
+    return normalizePhone(contact.phone).includes(qDigits);
+  }
+  return false;
+}
+
+function ContactRow({
+  contact,
+  assigneeName,
+  onOpen,
+}: {
+  contact: Contact;
+  assigneeName: string | null;
+  onOpen: () => void;
+}) {
+  const meta = [
+    CONTACT_TYPE_LABELS[contact.type],
+    contact.secteur,
+    assigneeName,
+  ].filter(Boolean);
+
+  return (
+    <li className="relative border-l-[3px] bg-[#F7F4EE] even:bg-[#EFEBE3]" style={{ borderLeftColor: SLATE }}>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Ouvrir la fiche de ${contact.fullName}`}
+        className="absolute inset-0 z-0 rounded-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+      />
+      <div className="relative z-[1] flex items-start justify-between gap-3 px-4 py-3 pointer-events-none sm:px-5 sm:py-3.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h2
+              className="min-w-0 truncate text-[16px] font-semibold text-text-strong sm:text-[17px]"
+              style={{ letterSpacing: '-0.015em' }}
+            >
+              {contact.fullName}
+            </h2>
+            {contact.phone ? (
+              <a
+                href={telHref(contact.phone)}
+                onClick={(e) => e.stopPropagation()}
+                className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 font-medium tabular-nums hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:py-0.5"
+                style={{ fontSize: 14, color: INK }}
+                aria-label={`Appeler ${contact.fullName}`}
+              >
+                <Phone size={14} strokeWidth={2.2} aria-hidden />
+                {formatPhoneDisplay(contact.phone)}
+              </a>
+            ) : null}
+            {contact.email ? (
+              <a
+                href={`mailto:${contact.email}`}
+                onClick={(e) => e.stopPropagation()}
+                className="pointer-events-auto inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-lg px-1.5 font-medium hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:max-w-[220px] sm:py-0.5"
+                style={{ fontSize: 14, color: INK }}
+                aria-label={`Écrire à ${contact.fullName}`}
+              >
+                <Mail size={14} strokeWidth={2.2} aria-hidden />
+                <span className="truncate">{contact.email}</span>
+              </a>
+            ) : null}
+          </div>
+          {meta.length > 0 ? (
+            <p className="mt-1 truncate text-[12.5px] text-text-muted sm:text-[13px]">{meta.join(' · ')}</p>
+          ) : null}
+        </div>
+        <span className="flex-shrink-0 pt-0.5 text-[12px] text-text-subtle sm:text-[12.5px]">
+          {relativeDate(contact.lastInteractionAt)}
+        </span>
+      </div>
+    </li>
+  );
 }
 
 export default function ContactsClient({
@@ -83,7 +167,7 @@ export default function ContactsClient({
       if (typeFilter !== 'tous' && c.type !== typeFilter) return false;
       if (secteurFilter !== 'tous' && c.secteur !== secteurFilter) return false;
       if (isDirector && memberFilter !== 'tous' && c.assignedTo !== memberFilter) return false;
-      if (q && !normalize(c.fullName).includes(q)) return false;
+      if (q && !contactMatchesQuery(c, q)) return false;
       if (listFilter === 'sans-position' && c.banId) return false;
       if (listFilter === 'vendeurs-inactifs') {
         if (c.type !== 'vendeur') return false;
@@ -165,7 +249,7 @@ export default function ContactsClient({
       <div className="mb-6 flex flex-wrap items-end gap-3 sm:gap-4 md:mb-8">
         <div className="relative w-full min-w-0 flex-1 sm:w-auto sm:min-w-[220px]">
           <label htmlFor="contacts-search" className="sr-only">
-            Rechercher un contact par nom
+            Rechercher un contact par nom, téléphone ou email
           </label>
           <Search
             size={16}
@@ -178,7 +262,7 @@ export default function ContactsClient({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un nom"
+            placeholder="Rechercher un nom, un téléphone, un email"
             className="w-full rounded-xl border border-black/[0.10] bg-surface py-2.5 pl-9 pr-3 text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
             style={{ fontSize: 14 }}
           />
@@ -258,35 +342,18 @@ export default function ContactsClient({
           </p>
         </WorkspaceCard>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="overflow-hidden rounded-clay border border-[#1E3148]/12 shadow-clay-sm">
           {visible.map((contact) => (
-            <li key={contact.id}>
-              <button
-                type="button"
-                onClick={() => setSelectedId(contact.id)}
-                className="w-full rounded-clay border border-black/[0.06] bg-surface px-4 py-4 text-left shadow-clay-sm transition-colors hover:border-black/[0.12] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-6 sm:py-5"
-              >
-                <div className="flex items-baseline justify-between gap-3 sm:gap-4">
-                  <span
-                    className="min-w-0 truncate text-[16px] font-semibold text-text-strong sm:text-[18px]"
-                    style={{ letterSpacing: '-0.015em' }}
-                  >
-                    {contact.fullName}
-                  </span>
-                  <span className="flex-shrink-0 text-[12px] text-text-subtle sm:text-[12.5px]">
-                    {relativeDate(contact.lastInteractionAt)}
-                  </span>
-                </div>
-                <p className="mt-1.5 truncate text-[13px] text-text-muted sm:text-[13.5px]">
-                  {CONTACT_TYPE_LABELS[contact.type]}
-                  {contact.secteur ? ` · ${contact.secteur}` : ''}
-                  {contact.phone ? ` · ${contact.phone}` : ''}
-                  {isDirector && contact.assignedTo
-                    ? ` · ${members.find((m) => m.id === contact.assignedTo)?.fullName ?? ''}`
-                    : ''}
-                </p>
-              </button>
-            </li>
+            <ContactRow
+              key={contact.id}
+              contact={contact}
+              assigneeName={
+                isDirector && contact.assignedTo
+                  ? (members.find((m) => m.id === contact.assignedTo)?.fullName ?? null)
+                  : null
+              }
+              onOpen={() => setSelectedId(contact.id)}
+            />
           ))}
         </ul>
       )}

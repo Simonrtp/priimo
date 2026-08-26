@@ -23,6 +23,7 @@ import {
   persistLayersPanelOpen,
   readLayersPanelOpen,
   readStoredMapLayers,
+  withCadastreToggled,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
@@ -363,7 +364,7 @@ export default function SectorMapClient({
   }
 
   function toggleCadastre() {
-    setLayers((prev) => ({ ...prev, cadastre: !prev.cadastre }));
+    setLayers((prev) => withCadastreToggled(prev));
   }
 
   function toggleCadastreOverlay(id: CadastreLayerId) {
@@ -451,7 +452,7 @@ export default function SectorMapClient({
         <div className="pointer-events-none absolute right-3 top-3 z-20 hidden md:block">
           <div className="pointer-events-auto">
             {layersPanelOpen ? (
-              <div className="w-[min(100vw-1.5rem,320px)]">
+              <div className="max-h-[calc(100dvh-6.5rem)] w-[min(100vw-1.5rem,320px)] overflow-y-auto">
                 <LayersPanel
                   layers={layers}
                   onToggle={toggleLayer}

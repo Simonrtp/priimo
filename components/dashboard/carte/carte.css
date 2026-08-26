@@ -1,3 +1,8 @@
+.priimo-pin-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .priimo-pin {
   display: flex;
   align-items: center;
@@ -45,4 +50,131 @@
 
 .priimo-map .mapboxgl-marker {
   z-index: auto;
+}
+
+.priimo-hover-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  max-width: 220px;
+  padding: 8px 10px 9px;
+  border-radius: 12px;
+  background: #fffdf9;
+  border: 1px solid rgba(21, 17, 15, 0.08);
+  box-shadow: 0 10px 28px -12px rgba(21, 32, 47, 0.4);
+  color: #15110f;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+
+.priimo-hover-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: #fffdf9;
+  border-right: 1px solid rgba(21, 17, 15, 0.08);
+  border-bottom: 1px solid rgba(21, 17, 15, 0.08);
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+.priimo-pin-wrap:hover .priimo-hover-bubble,
+.priimo-pin-wrap:focus-within .priimo-hover-bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.priimo-pin-wrap--open .priimo-hover-bubble {
+  opacity: 0;
+}
+
+.priimo-hover-kicker {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.priimo-hover-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #15110f;
+}
+
+.priimo-hover-letter {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+
+.priimo-hover-line {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #4b5563;
+}
+
+.priimo-hover-popup.mapboxgl-popup {
+  z-index: 50;
+  pointer-events: none;
+}
+
+.priimo-hover-popup .mapboxgl-popup-content {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.priimo-hover-popup .mapboxgl-popup-tip {
+  display: none;
+}
+
+.priimo-hover-popup .priimo-hover-bubble {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  opacity: 1;
+  transform: none;
+}
+
+@media (hover: none) {
+  .priimo-pin-wrap:hover .priimo-hover-bubble {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+
+  .priimo-pin-wrap:focus-within .priimo-hover-bubble {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .priimo-hover-bubble {
+    transition: none;
+  }
 }

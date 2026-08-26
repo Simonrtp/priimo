@@ -192,7 +192,8 @@ export default function TopBar() {
       className="relative z-10 flex min-h-[80px] flex-shrink-0 flex-col max-md:border-b max-md:border-black/[0.06] max-md:backdrop-blur-xl max-md:bg-[rgba(249,250,255,0.78)] md:min-h-[56px] md:bg-transparent"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="flex min-h-[80px] items-center gap-4 px-4 md:min-h-[56px] md:pl-9 md:pr-6 lg:pl-12 lg:pr-8">
+      {/* Même gouttière que main (md:p-3 / lg:p-4) : la recherche s’aligne sur la carte workspace. */}
+      <div className="flex min-h-[80px] items-center gap-4 px-4 md:min-h-[56px] md:px-3 lg:px-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2 md:hidden">
           <span
             className="min-w-0 truncate font-bold tracking-tight text-ink"

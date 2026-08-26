@@ -10,7 +10,7 @@ import {
   planContactImport,
 } from './contacts';
 import { findBienDuplicate, bienFieldsFromMapped } from './biens';
-import { normalizePhone } from './normalize';
+import { formatPhoneDisplay, normalizePhone, telHref } from './normalize';
 
 describe('suggestMapping', () => {
   it('associe mail et téléphone, ignore le reste', () => {
@@ -59,6 +59,8 @@ describe('findContactDuplicate', () => {
 
   it('reconnaît le même numéro malgré le format', () => {
     assert.equal(normalizePhone('+33 6 12 34 56 78'), '0612345678');
+    assert.equal(formatPhoneDisplay('+33 6 12 34 56 78'), '06 12 34 56 78');
+    assert.equal(telHref('06 12 34 56 78'), 'tel:+33612345678');
     const fields = contactFieldsFromMapped({
       lastName: 'Autre',
       phone: '+33612345678',

@@ -27,7 +27,7 @@ export default function CadastreLayerControls({
   mapZoom: number | null;
   compact?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   useEffect(() => {
     setOpen(readCadastreMenuOpen());
@@ -110,9 +110,16 @@ export default function CadastreLayerControls({
                     onChange={() => onToggleOverlay(id)}
                   />
                   <span
-                    className={`text-[13.5px] font-medium ${active ? 'text-text-strong' : 'text-text-muted'}`}
+                    className={`min-w-0 flex-1 text-[13.5px] font-medium ${
+                      active && !tooFarPoints ? 'text-text-strong' : 'text-text-muted'
+                    }`}
                   >
                     {CADASTRE_LAYER_LABELS[id]}
+                    {tooFarPoints ? (
+                      <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
+                        Zoomez pour afficher
+                      </span>
+                    ) : null}
                   </span>
                 </label>
               </li>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Layer, Marker, Source, type MapRef } from 'react-map-gl';
+import { Layer, Marker, Popup, Source, type MapRef } from 'react-map-gl';
 import type { ExpressionSpecification, MapLayerMouseEvent } from 'mapbox-gl';
 import {
   IGN_PCI_SOURCE_ID,
@@ -20,7 +20,9 @@ import {
   type CadastreImmeublePoint,
   type ParcelleNoteMarker,
 } from '@/lib/carte/parcelle';
-import type { MapLayerState } from '@/lib/carte/layers';
+import type { CadastreLayerId, MapLayerState } from '@/lib/carte/layers';
+import { hoverPreviewFromCadastre, type HoverPreview } from '@/lib/carte/hover-preview';
+import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 
 export const PARCELLES_FILL_LAYER_ID = 'parcelles-fill';
 export const PARCELLES_LINE_LAYER_ID = 'parcelles-line';
@@ -32,8 +34,40 @@ export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 
 const FILL = 'rgba(61, 90, 128, 0.14)';
 const LINE = 'rgba(61, 90, 128, 0.4)';
+const DPE_DOT_IMAGE_ID = 'priimo-dpe-dot';
+const DPE_LETTER_FILTER: ExpressionSpecification = [
+  'in',
+  ['get', 'etiquette'],
+  ['literal', ['A', 'B', 'C', 'D', 'E', 'F', 'G']],
+];
+
+function makeSdfCircle(size = 64): ImageData {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new ImageData(size, size);
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+  ctx.fill();
+  return ctx.getImageData(0, 0, size, size);
+}
 
 type Pin = { parcelleId: string; longitude: number; latitude: number };
+type OverlayHover = { lng: number; lat: number; preview: HoverPreview };
+
+function overlayLayerOf(layerId: string | undefined): CadastreLayerId | null {
+  if (layerId === CADASTRE_DPE_LAYER_ID || layerId === CADASTRE_DPE_LABEL_LAYER_ID) return 'dpe';
+  if (layerId === CADASTRE_VENTES_LAYER_ID) return 'ventes';
+  if (layerId === CADASTRE_COPRO_LAYER_ID) return 'copro';
+  return null;
+}
+
+function pointerCanHover(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
+}
 
 function parcelleIdOf(feature: { properties?: Record<string, unknown> | null } | undefined): string | null {
   return normalizeParcelleId(typeof feature?.properties?.idu === 'string' ? feature.properties.idu : null);
@@ -77,7 +111,13 @@ export default function ParcellesLayer({
   const painted = useRef<Set<string>>(new Set());
   const eventSet = useRef(new Set<string>());
   eventSet.current = new Set(activeParcelleIds);
+  const immeublesRef = useRef(immeubles);
+  immeublesRef.current = immeubles;
+  const selectedParcelleRef = useRef(selectedParcelleId);
+  selectedParcelleRef.current = selectedParcelleId;
   const [pins, setPins] = useState<Pin[]>([]);
+  const [overlayHover, setOverlayHover] = useState<OverlayHover | null>(null);
+  const [dpeIconReady, setDpeIconReady] = useState(false);
 
   const noteByParcelle = useMemo(() => {
     const map = new Map<string, ParcelleNoteMarker>();
@@ -90,7 +130,8 @@ export default function ParcellesLayer({
   const overlayGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
     const features: GeoJSON.Feature[] = [];
     for (const row of immeubles) {
-      const hasDpe = Boolean(row.etiquetteDpe) || row.nbPassoires > 0 || row.nbDpe > 0;
+      const letter = (row.etiquetteDpe ?? '').trim();
+      const hasDpe = /^[A-G]$/.test(letter);
       const hasVente = row.nbTransactions > 0;
       const hasCopro = row.nbLots != null || row.procedureCopro;
       if (!hasDpe && !hasVente && !hasCopro) continue;
@@ -100,11 +141,10 @@ export default function ParcellesLayer({
         properties: {
           banId: row.banId,
           parcelleId: row.parcelleId,
-          etiquette: row.etiquetteDpe ?? (row.nbPassoires > 0 ? 'G' : ''),
-          hasDpe: hasDpe ? 1 : 0,
-          hasVente: hasVente ? 1 : 0,
-          hasCopro: hasCopro ? 1 : 0,
-          procedure: row.procedureCopro ? 1 : 0,
+          etiquette: hasDpe ? letter : '',
+          hasVente: hasVente ? '1' : '0',
+          hasCopro: hasCopro ? '1' : '0',
+          procedure: row.procedureCopro ? '1' : '0',
           prix: priceLabel(row.dernierPrix),
         },
       });
@@ -116,10 +156,24 @@ export default function ParcellesLayer({
     const map = mapRef.current?.getMap();
     if (!map || !enabled) {
       setPins([]);
+      setOverlayHover(null);
+      setDpeIconReady(false);
       return;
     }
 
     let cancelled = false;
+
+    const ensureDpeDot = () => {
+      if (cancelled) return;
+      try {
+        if (!map.hasImage(DPE_DOT_IMAGE_ID)) {
+          map.addImage(DPE_DOT_IMAGE_ID, makeSdfCircle(), { sdf: true });
+        }
+        setDpeIconReady(map.hasImage(DPE_DOT_IMAGE_ID));
+      } catch {
+        setDpeIconReady(false);
+      }
+    };
 
     const paintStates = () => {
       if (cancelled) return;
@@ -212,30 +266,78 @@ export default function ParcellesLayer({
       onPick(parcelleId);
     };
 
+    const onOverlayMove = (e: MapLayerMouseEvent) => {
+      if (!pointerCanHover()) return;
+      const f = e.features?.[0];
+      const layer = overlayLayerOf(f?.layer?.id);
+      const banId = typeof f?.properties?.banId === 'string' ? f.properties.banId : null;
+      const row = banId ? immeublesRef.current.find((item) => item.banId === banId) : undefined;
+      if (!layer || !row) {
+        setOverlayHover(null);
+        return;
+      }
+      if (row.parcelleId && row.parcelleId === selectedParcelleRef.current) {
+        setOverlayHover(null);
+        return;
+      }
+      const canvas = mapCanvas(map);
+      if (canvas) canvas.style.cursor = 'pointer';
+      setOverlayHover({
+        lng: row.longitude,
+        lat: row.latitude,
+        preview: hoverPreviewFromCadastre(row, layer),
+      });
+      if (row.parcelleId) applyHover(row.parcelleId);
+    };
+    const onOverlayLeave = () => setOverlayHover(null);
     const onOverlayClick = (e: MapLayerMouseEvent) => {
       const raw = e.features?.[0]?.properties?.parcelleId;
       const parcelleId = normalizeParcelleId(typeof raw === 'string' ? raw : null);
       if (!parcelleId) return;
       e.originalEvent.stopPropagation();
+      setOverlayHover(null);
       onPick(parcelleId);
     };
 
     map.on('idle', paintStates);
+    map.on('idle', ensureDpeDot);
+    map.on('style.load', ensureDpeDot);
     map.on('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
     map.on('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
     map.on('click', PARCELLES_FILL_LAYER_ID, onClick);
+    map.on('mousemove', CADASTRE_DPE_LAYER_ID, onOverlayMove);
+    map.on('mousemove', CADASTRE_DPE_LABEL_LAYER_ID, onOverlayMove);
+    map.on('mousemove', CADASTRE_VENTES_LAYER_ID, onOverlayMove);
+    map.on('mousemove', CADASTRE_COPRO_LAYER_ID, onOverlayMove);
+    map.on('mouseleave', CADASTRE_DPE_LAYER_ID, onOverlayLeave);
+    map.on('mouseleave', CADASTRE_DPE_LABEL_LAYER_ID, onOverlayLeave);
+    map.on('mouseleave', CADASTRE_VENTES_LAYER_ID, onOverlayLeave);
+    map.on('mouseleave', CADASTRE_COPRO_LAYER_ID, onOverlayLeave);
     map.on('click', CADASTRE_DPE_LAYER_ID, onOverlayClick);
+    map.on('click', CADASTRE_DPE_LABEL_LAYER_ID, onOverlayClick);
     map.on('click', CADASTRE_VENTES_LAYER_ID, onOverlayClick);
     map.on('click', CADASTRE_COPRO_LAYER_ID, onOverlayClick);
     paintStates();
+    ensureDpeDot();
 
     return () => {
       cancelled = true;
       map.off('idle', paintStates);
+      map.off('idle', ensureDpeDot);
+      map.off('style.load', ensureDpeDot);
       map.off('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
       map.off('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
       map.off('click', PARCELLES_FILL_LAYER_ID, onClick);
+      map.off('mousemove', CADASTRE_DPE_LAYER_ID, onOverlayMove);
+      map.off('mousemove', CADASTRE_DPE_LABEL_LAYER_ID, onOverlayMove);
+      map.off('mousemove', CADASTRE_VENTES_LAYER_ID, onOverlayMove);
+      map.off('mousemove', CADASTRE_COPRO_LAYER_ID, onOverlayMove);
+      map.off('mouseleave', CADASTRE_DPE_LAYER_ID, onOverlayLeave);
+      map.off('mouseleave', CADASTRE_DPE_LABEL_LAYER_ID, onOverlayLeave);
+      map.off('mouseleave', CADASTRE_VENTES_LAYER_ID, onOverlayLeave);
+      map.off('mouseleave', CADASTRE_COPRO_LAYER_ID, onOverlayLeave);
       map.off('click', CADASTRE_DPE_LAYER_ID, onOverlayClick);
+      map.off('click', CADASTRE_DPE_LABEL_LAYER_ID, onOverlayClick);
       map.off('click', CADASTRE_VENTES_LAYER_ID, onOverlayClick);
       map.off('click', CADASTRE_COPRO_LAYER_ID, onOverlayClick);
       const canvas = mapCanvas(map);
@@ -303,29 +405,51 @@ export default function ParcellesLayer({
         />
       </Source>
       <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson}>
-        {layers.cadastreDpe ? (
+        {layers.cadastreDpe && dpeIconReady ? (
           <>
             <Layer
               id={CADASTRE_DPE_LAYER_ID}
-              type="circle"
-              filter={['==', ['get', 'hasDpe'], 1]}
+              type="symbol"
+              filter={DPE_LETTER_FILTER}
+              layout={{
+                'icon-image': DPE_DOT_IMAGE_ID,
+                'icon-size': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  14,
+                  0.18,
+                  16,
+                  0.24,
+                  18,
+                  0.3,
+                ],
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+                'icon-pitch-alignment': 'viewport',
+                'icon-rotation-alignment': 'viewport',
+                'symbol-z-elevate': true,
+              }}
               paint={{
-                'circle-radius': 7,
-                'circle-color': dpeMatch,
-                'circle-stroke-width': 1.2,
-                'circle-stroke-color': '#F4EFE8',
+                'icon-color': dpeMatch,
+                'icon-halo-color': '#F4EFE8',
+                'icon-halo-width': 0.9,
               }}
             />
             <Layer
               id={CADASTRE_DPE_LABEL_LAYER_ID}
               type="symbol"
               minzoom={17}
-              filter={['==', ['get', 'hasDpe'], 1]}
+              filter={DPE_LETTER_FILTER}
               layout={{
                 'text-field': ['get', 'etiquette'],
-                'text-size': 10,
+                'text-size': 9,
                 'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
                 'text-allow-overlap': true,
+                'text-ignore-placement': true,
+                'text-pitch-alignment': 'viewport',
+                'text-rotation-alignment': 'viewport',
+                'symbol-z-elevate': true,
               }}
               paint={{ 'text-color': '#FFFFFF' }}
             />
@@ -335,13 +459,15 @@ export default function ParcellesLayer({
           <Layer
             id={CADASTRE_VENTES_LAYER_ID}
             type="symbol"
-            filter={['==', ['get', 'hasVente'], 1]}
+            filter={['==', ['get', 'hasVente'], '1']}
             layout={{
               'text-field': ['get', 'prix'],
               'text-size': 11,
               'text-offset': [0, 1.2],
               'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
               'text-allow-overlap': false,
+              'text-pitch-alignment': 'viewport',
+              'text-rotation-alignment': 'viewport',
             }}
             paint={{ 'text-color': VENTE_FILL, 'text-halo-color': '#F4EFE8', 'text-halo-width': 1.2 }}
           />
@@ -350,21 +476,41 @@ export default function ParcellesLayer({
           <Layer
             id={CADASTRE_COPRO_LAYER_ID}
             type="circle"
-            filter={['==', ['get', 'hasCopro'], 1]}
+            filter={['==', ['get', 'hasCopro'], '1']}
             paint={{
               'circle-radius': 5,
               'circle-color': [
                 'case',
-                ['==', ['get', 'procedure'], 1],
+                ['==', ['get', 'procedure'], '1'],
                 COPRO_PROCEDURE_FILL,
                 COPRO_FILL,
               ],
-              'circle-stroke-width': ['case', ['==', ['get', 'procedure'], 1], 2, 1],
+              'circle-stroke-width': [
+                'case',
+                ['==', ['get', 'procedure'], '1'],
+                2,
+                1,
+              ],
               'circle-stroke-color': '#F4EFE8',
+              'circle-pitch-alignment': 'viewport',
+              'circle-pitch-scale': 'viewport',
             }}
           />
         ) : null}
       </Source>
+      {overlayHover ? (
+        <Popup
+          longitude={overlayHover.lng}
+          latitude={overlayHover.lat}
+          closeButton={false}
+          closeOnClick={false}
+          offset={14}
+          anchor="bottom"
+          className="priimo-hover-popup"
+        >
+          <MapHoverBubble preview={overlayHover.preview} />
+        </Popup>
+      ) : null}
       {pins.map((m) => (
         <Marker
           key={m.parcelleId}

@@ -5,6 +5,8 @@ import './carte.css';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
+import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
+import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
 import { computeLngLatBounds } from '@/lib/carte/bounds';
@@ -18,6 +20,7 @@ import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
+  CADASTRE_DPE_LABEL_LAYER_ID,
   CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
@@ -73,6 +76,7 @@ export default function SectorMapCanvas({
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
+  const [hoveredBanId, setHoveredBanId] = useState<string | null>(null);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -178,6 +182,7 @@ export default function SectorMapCanvas({
             ? [
                 PARCELLES_FILL_LAYER_ID,
                 CADASTRE_DPE_LAYER_ID,
+                CADASTRE_DPE_LABEL_LAYER_ID,
                 CADASTRE_VENTES_LAYER_ID,
                 CADASTRE_COPRO_LAYER_ID,
               ]
@@ -233,6 +238,7 @@ export default function SectorMapCanvas({
         ) : null}
         {buildings.map((building) => {
           const emphasized = building.banId === selectedBanId;
+          const hovered = building.banId === hoveredBanId;
           const appearance = building.appearance;
           const isLead = appearance.kind === 'lead';
           const score = appearance.score ?? 0;
@@ -240,25 +246,37 @@ export default function SectorMapCanvas({
           const text = markerBadgeColor(appearance.color);
           const countLabel =
             building.count > 1 ? `${building.count} fiches à cette adresse` : appearance.title;
+          const tooltipId = `carte-hover-${building.banId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
           return (
             <Marker
               key={building.banId}
               longitude={building.longitude}
               latitude={building.latitude}
               anchor="center"
-              style={{ zIndex: emphasized ? 20 : isLead ? 10 + Math.round(score / 10) : 2 }}
+              style={{
+                zIndex: emphasized ? 20 : hovered ? 32 : isLead ? 10 + Math.round(score / 10) : 2,
+              }}
               onClick={(event) => {
                 event.originalEvent.stopPropagation();
                 onSelect(building);
               }}
             >
-              <span className="priimo-pin-wrap">
+              <span
+                className={`priimo-pin-wrap${emphasized ? ' priimo-pin-wrap--open' : ''}`}
+                onMouseEnter={() => setHoveredBanId(building.banId)}
+                onMouseLeave={() => setHoveredBanId((id) => (id === building.banId ? null : id))}
+              >
                 {isLead && heat ? (
-                  <button type="button" aria-label={countLabel} className="cursor-pointer">
+                  <button
+                    type="button"
+                    aria-label={countLabel}
+                    aria-describedby={tooltipId}
+                    className="cursor-pointer"
+                  >
                     <ScoreRing
                       score={score}
                       size={heat.size}
-                      emphasized={emphasized}
+                      emphasized={emphasized || hovered}
                       glowColor={heat.glow}
                     />
                   </button>
@@ -266,6 +284,7 @@ export default function SectorMapCanvas({
                   <button
                     type="button"
                     aria-label={countLabel}
+                    aria-describedby={tooltipId}
                     className={`priimo-pin${emphasized ? ' priimo-pin--on' : ''}`}
                     style={{ background: appearance.color, color: text }}
                   >
@@ -277,6 +296,10 @@ export default function SectorMapCanvas({
                     {building.count}
                   </span>
                 ) : null}
+                <MapHoverBubble
+                  id={tooltipId}
+                  preview={hoverPreviewFromPoint(appearance, building.count)}
+                />
               </span>
             </Marker>
           );

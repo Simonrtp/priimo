@@ -29,6 +29,22 @@ export function normalizePhone(raw: string): string {
   return digits;
 }
 
+/** Affichage FR groupé par 2, sans toucher au numéro stocké. */
+export function formatPhoneDisplay(raw: string): string {
+  const digits = normalizePhone(raw);
+  if (digits.length === 10) {
+    return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 10)}`;
+  }
+  return raw.trim();
+}
+
+export function telHref(raw: string): string {
+  const digits = normalizePhone(raw);
+  if (digits.length === 10 && digits.startsWith('0')) return `tel:+33${digits.slice(1)}`;
+  const compact = raw.replace(/[^\d+]/g, '');
+  return `tel:${compact || digits}`;
+}
+
 export function isBlankRow(values: readonly string[]): boolean {
   return values.every((v) => !v.trim());
 }

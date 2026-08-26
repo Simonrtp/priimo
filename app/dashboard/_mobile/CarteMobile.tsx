@@ -20,6 +20,7 @@ import {
   anyCadastreLayer,
   persistMapLayers,
   readStoredMapLayers,
+  withCadastreToggled,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
@@ -319,7 +320,7 @@ export default function CarteMobile({
             layers={layers}
             onToggleCadastre={() =>
               setLayers((prev) => {
-                const next = { ...prev, cadastre: !prev.cadastre };
+                const next = withCadastreToggled(prev);
                 persistMapLayers(next);
                 return next;
               })
