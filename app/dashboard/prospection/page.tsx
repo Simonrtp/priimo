@@ -20,7 +20,7 @@ export const metadata = {
 export default async function ProspectionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lead?: string; filtre?: string; vue?: string }>;
+  searchParams: Promise<{ lead?: string; filtre?: string; vue?: string; membre?: string }>;
 }) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
@@ -50,7 +50,7 @@ export default async function ProspectionPage({
 
   const newBatchCount = countLatestBatchLeads(visibleLeads);
 
-  const { lead: leadParam, filtre, vue: vueRaw } = params;
+  const { lead: leadParam, filtre, vue: vueRaw, membre } = params;
   const selectedLeadId = leadParam && visibleLeads.some((l) => l.id === leadParam) ? leadParam : null;
   const listFilter =
     filtre === 'sans-position' ||
@@ -59,7 +59,10 @@ export default async function ProspectionPage({
     filtre === 'estimations'
       ? filtre
       : null;
-  const vue = parseProspectionVue(vueRaw);
+  const vue =
+    listFilter === 'non-pris' || listFilter === 'estimations'
+      ? 'liste'
+      : parseProspectionVue(vueRaw);
 
   return (
     <ProspectsClient
@@ -71,6 +74,7 @@ export default async function ProspectionPage({
       initialNewBatchCount={newBatchCount}
       initialSelectedLeadId={selectedLeadId}
       listFilter={listFilter}
+      memberId={membre ?? null}
       initialVue={vue}
     />
   );

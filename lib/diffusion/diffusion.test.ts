@@ -8,7 +8,7 @@ function annonce(overrides: Partial<Annonce> = {}): Annonce {
   return {
     reference: 'bien-1',
     titre: 'Appartement 3 pièces à Lille',
-    description: 'Bel appartement.',
+    description: 'Bel appartement lumineux au centre-ville avec balcon et cave. Idéal famille.',
     type: 'Appartement',
     adresse: '12 rue de la Monnaie',
     codePostal: '59000',
@@ -29,6 +29,10 @@ function annonce(overrides: Partial<Annonce> = {}): Annonce {
     honorairesMontant: 12000,
     honorairesACharge: 'acquereur',
     honorairesPourcent: 4.8,
+    estCopropriete: false,
+    nombreLots: null,
+    chargesAnnuelles: null,
+    procedureEnCours: null,
     agenceNom: 'Agence Test',
     ...overrides,
   };
@@ -37,19 +41,37 @@ function annonce(overrides: Partial<Annonce> = {}): Annonce {
 describe('assessAnnonce', () => {
   it('signale prix, DPE et mandat comme bloquants quand ils manquent', () => {
     const { blockers } = assessAnnonce(
-      annonce({ prix: null, dpeLettre: null, dpeVierge: false, mandatStatut: 'estimation' }),
+      annonce({
+        prix: null,
+        dpeLettre: null,
+        dpeKwh: null,
+        gesLettre: null,
+        gesKgCo2: null,
+        dpeVierge: false,
+        mandatStatut: 'estimation',
+      }),
     );
-    assert.deepEqual(
-      blockers.map((b) => b.field).sort(),
-      ['dpe', 'mandat', 'prix'],
-    );
+    const fields = blockers.map((b) => b.field);
+    assert.ok(fields.includes('prix'));
+    assert.ok(fields.includes('dpe'));
+    assert.ok(fields.includes('mandat'));
     assert.ok(blockers.every((b) => b.blocking));
   });
 
+  it('exige honoraires et GES chiffrés (obligations FR)', () => {
+    const { blockers } = assessAnnonce(
+      annonce({ honorairesMontant: null, honorairesACharge: null, gesKgCo2: null }),
+    );
+    assert.ok(blockers.some((b) => b.field === 'honoraires'));
+    assert.ok(blockers.some((b) => b.field === 'ges_kg'));
+  });
+
   it('accepte un DPE vierge à la place de l’étiquette', () => {
-    const { blockers } = assessAnnonce(annonce({ dpeLettre: null, dpeVierge: true }));
+    const { blockers } = assessAnnonce(
+      annonce({ dpeLettre: null, dpeKwh: null, gesLettre: null, gesKgCo2: null, dpeVierge: true }),
+    );
     assert.equal(
-      blockers.find((b) => b.field === 'dpe'),
+      blockers.find((b) => b.field === 'dpe' || b.field === 'dpe_kwh'),
       undefined,
     );
   });
@@ -57,6 +79,14 @@ describe('assessAnnonce', () => {
   it('n’accepte pas l’estimation comme mandat de diffusion', () => {
     const { blockers } = assessAnnonce(annonce({ mandatStatut: 'estimation' }));
     assert.ok(blockers.some((b) => b.field === 'mandat'));
+  });
+
+  it('bloque la copro sans lots / charges', () => {
+    const { blockers } = assessAnnonce(
+      annonce({ estCopropriete: true, nombreLots: null, chargesAnnuelles: null }),
+    );
+    assert.ok(blockers.some((b) => b.field === 'copro_lots'));
+    assert.ok(blockers.some((b) => b.field === 'copro_charges'));
   });
 });
 

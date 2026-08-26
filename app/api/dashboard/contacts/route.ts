@@ -21,7 +21,18 @@ import { reconcileOrphanNotes } from '@/lib/notes/run-reconcile';
 
 export const runtime = 'nodejs';
 
-const SOURCES: readonly ContactSourceDb[] = ['manuel', 'vocal', 'prospection'];
+const SOURCES: readonly ContactSourceDb[] = [
+  'manuel',
+  'vocal',
+  'prospection',
+  'portail',
+  'site_agence',
+  'seloger',
+  'bienici',
+  'logicimmo',
+  'leboncoin',
+  'autre_portail',
+];
 
 /** Création d'un contact : saisie manuelle ou dictée validée par l'agent. */
 export async function POST(req: Request) {

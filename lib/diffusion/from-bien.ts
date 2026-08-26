@@ -26,6 +26,10 @@ export function bienToAnnonce(bien: Bien, agenceNom: string | null = null): Anno
     honorairesMontant: bien.honorairesMontant,
     honorairesACharge: bien.honorairesACharge,
     honorairesPourcent: bien.honorairesPourcent,
+    estCopropriete: bien.estCopropriete,
+    nombreLots: bien.nombreLots,
+    chargesAnnuelles: bien.chargesAnnuelles,
+    procedureEnCours: bien.procedureEnCours,
     agenceNom,
   };
 }

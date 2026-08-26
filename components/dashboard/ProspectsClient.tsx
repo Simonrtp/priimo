@@ -48,6 +48,7 @@ interface ProspectsClientProps {
   initialNewBatchCount: number;
   initialSelectedLeadId?: string | null;
   listFilter?: 'sans-position' | 'non-assignes-14j' | 'non-pris' | 'estimations' | null;
+  memberId?: string | null;
   initialVue?: ProspectionVue;
 }
 
@@ -78,6 +79,7 @@ export default function ProspectsClient({
   initialNewBatchCount,
   initialSelectedLeadId = null,
   listFilter = null,
+  memberId = null,
   initialVue = 'liste',
 }: ProspectsClientProps) {
   const { profile } = useUser();
@@ -129,6 +131,7 @@ export default function ProspectsClient({
     const DAY_MS = 86_400_000;
     return segmentLeads.filter((l) => {
       if (!matchesLeadFilters(l, filters)) return false;
+      if (memberId && l.assignedTo !== memberId) return false;
       if (listFilter === 'sans-position' && l.banId) return false;
       if (listFilter === 'non-assignes-14j') {
         if (l.assignedTo) return false;
@@ -142,11 +145,16 @@ export default function ProspectsClient({
       }
       return true;
     });
-  }, [segmentLeads, filters, listFilter, stages]);
+  }, [segmentLeads, filters, listFilter, memberId, stages]);
 
   const partitioned = useMemo(
-    () => partitionLeadsForDisplay(filtered, leads, filters.sortBy),
-    [filtered, leads, filters.sortBy],
+    () =>
+      partitionLeadsForDisplay(
+        filtered,
+        leads,
+        listFilter === 'non-pris' ? 'score' : filters.sortBy,
+      ),
+    [filtered, leads, filters.sortBy, listFilter],
   );
 
   const pipelineLeads = useMemo(() => {

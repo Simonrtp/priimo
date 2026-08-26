@@ -24,12 +24,20 @@ export default function BiensClient({
   contacts,
   initialSelectedBienId = null,
   listFilter = null,
+  memberId = null,
   visitCountByBienId = {},
 }: {
   initialBiens: Bien[];
   contacts: Contact[];
   initialSelectedBienId?: string | null;
-  listFilter?: 'sans-position' | 'mandats-endormis' | 'mandats-actifs' | 'mandats-60j' | null;
+  listFilter?:
+    | 'sans-position'
+    | 'mandats-endormis'
+    | 'mandats-actifs'
+    | 'mandats-exclusifs'
+    | 'mandats-60j'
+    | null;
+  memberId?: string | null;
   visitCountByBienId?: Record<string, number>;
 }) {
   const [biens, setBiens] = useState(initialBiens);
@@ -52,7 +60,8 @@ export default function BiensClient({
 
   const visibleBiens = useMemo(() => {
     const DAY_MS = 86_400_000;
-    return biens.filter((b) => {
+    const list = biens.filter((b) => {
+      if (memberId && b.createdBy !== memberId) return false;
       if (listFilter === 'sans-position' && b.banId) return false;
       if (listFilter === 'mandats-endormis') {
         if (!bienIsActive(b.mandatStatut)) return false;
@@ -60,6 +69,7 @@ export default function BiensClient({
         if (!Number.isFinite(t) || Date.now() - t <= 30 * DAY_MS) return false;
       }
       if (listFilter === 'mandats-actifs' && !isSignedMandat(b.mandatStatut)) return false;
+      if (listFilter === 'mandats-exclusifs' && b.mandatStatut !== 'mandat_exclusif') return false;
       if (listFilter === 'mandats-60j') {
         if (!isSignedMandat(b.mandatStatut)) return false;
         const t = Date.parse(b.mandatDate ?? b.createdAt);
@@ -69,7 +79,13 @@ export default function BiensClient({
       }
       return true;
     });
-  }, [biens, listFilter, visitCountByBienId]);
+    if (listFilter !== 'mandats-60j') return list;
+    return [...list].sort((a, b) => {
+      const ta = Date.parse(a.mandatDate ?? a.createdAt);
+      const tb = Date.parse(b.mandatDate ?? b.createdAt);
+      return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+    });
+  }, [biens, listFilter, memberId, visitCountByBienId]);
 
   const vendeurs = useMemo(() => contacts.filter((c) => c.type === 'vendeur'), [contacts]);
 

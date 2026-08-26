@@ -11,7 +11,7 @@ import { fetchVisitCountByBienIdSafe } from '@/lib/queries/metier-today';
 export default async function BiensPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fiche?: string; filtre?: string }>;
+  searchParams: Promise<{ fiche?: string; filtre?: string; membre?: string }>;
 }) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
@@ -23,12 +23,13 @@ export default async function BiensPage({
   ]);
 
   const visibleContacts = visibleContactsFor(viewerFromProfile(profile), contacts);
-  const { fiche, filtre } = await searchParams;
+  const { fiche, filtre, membre } = await searchParams;
   const selected = fiche && biens.some((b) => b.id === fiche) ? fiche : null;
   const listFilter =
     filtre === 'sans-position' ||
     filtre === 'mandats-endormis' ||
     filtre === 'mandats-actifs' ||
+    filtre === 'mandats-exclusifs' ||
     filtre === 'mandats-60j'
       ? filtre
       : null;
@@ -42,6 +43,7 @@ export default async function BiensPage({
       contacts={visibleContacts}
       initialSelectedBienId={selected}
       listFilter={listFilter}
+      memberId={membre ?? null}
       visitCountByBienId={visitCountByBienId}
     />
   );

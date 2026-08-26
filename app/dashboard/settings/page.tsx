@@ -4,7 +4,13 @@ import { fetchTeamSettingsData } from '@/lib/queries/team-settings';
 import SettingsDashboard, { type SettingsTabId } from '@/components/dashboard/settings/SettingsDashboard';
 
 const DIRECTOR_ONLY: ReadonlySet<SettingsTabId> = new Set(['agency', 'billing', 'team']);
-const VALID_TABS: ReadonlySet<SettingsTabId> = new Set(['agency', 'billing', 'profile', 'team']);
+const VALID_TABS: ReadonlySet<SettingsTabId> = new Set([
+  'agency',
+  'billing',
+  'profile',
+  'team',
+  'integrations',
+]);
 
 function parseTab(raw: string | string[] | undefined): SettingsTabId | undefined {
   if (typeof raw !== 'string') return undefined;

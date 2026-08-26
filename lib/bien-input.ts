@@ -38,6 +38,10 @@ export interface BienInputFields {
   honorairesPourcent: number | null;
   mandatNumero: string | null;
   mandatDate: string | null;
+  estCopropriete: boolean;
+  nombreLots: number | null;
+  chargesAnnuelles: number | null;
+  procedureEnCours: boolean | null;
 }
 
 function str(v: unknown, max: number): string | null {
@@ -138,6 +142,15 @@ export function parseBienInput(raw: unknown): ParsedBienInput {
       honorairesPourcent: decimal(b.honorairesPourcent, 100),
       mandatNumero: str(b.mandatNumero, 80),
       mandatDate: isoDate(b.mandatDate),
+      estCopropriete: b.estCopropriete === true || b.estCopropriete === 'true',
+      nombreLots: num(b.nombreLots, 10_000),
+      chargesAnnuelles: num(b.chargesAnnuelles, 10_000_000),
+      procedureEnCours:
+        b.procedureEnCours === true || b.procedureEnCours === 'true'
+          ? true
+          : b.procedureEnCours === false || b.procedureEnCours === 'false'
+            ? false
+            : null,
     },
   };
 }
@@ -169,5 +182,9 @@ export function bienFieldsToRow(f: BienInputFields) {
     honoraires_pourcent: f.honorairesPourcent,
     mandat_numero: f.mandatNumero,
     mandat_date: f.mandatDate,
+    est_copropriete: f.estCopropriete,
+    nombre_lots: f.estCopropriete ? f.nombreLots : null,
+    charges_annuelles: f.estCopropriete ? f.chargesAnnuelles : null,
+    procedure_en_cours: f.estCopropriete ? f.procedureEnCours : null,
   };
 }

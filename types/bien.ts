@@ -40,6 +40,12 @@ export interface Bien {
   honorairesPourcent: number | null;
   mandatNumero: string | null;
   mandatDate: string | null;
+  /** Négociateur qui porte le mandat (assignation leads portail). */
+  assignedTo: string | null;
+  estCopropriete: boolean;
+  nombreLots: number | null;
+  chargesAnnuelles: number | null;
+  procedureEnCours: boolean | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { VoiceNote } from '@/types/contact';
-import { filterInboxNotes, recentNotesForHome } from './inbox';
+import { filterInboxNotes, isHomeNoteWorthy, recentNotesForHome } from './inbox';
 
 function note(partial: Partial<VoiceNote> & { id: string }): VoiceNote {
   return {
@@ -86,7 +86,12 @@ describe('recentNotesForHome', () => {
       note({ id: 'b', createdBy: 'me' }),
     ];
     assert.deepEqual(
-      recentNotesForHome(notes, { viewerId: 'me', isDirector: false }).map((n) => n.id),
+      recentNotesForHome(notes, {
+        viewerId: 'me',
+        isDirector: false,
+        now: Date.parse('2026-08-26T10:00:00Z'),
+        weekStartKey: '2026-08-24',
+      }).map((n) => n.id),
       ['b'],
     );
   });
@@ -96,6 +101,20 @@ describe('recentNotesForHome', () => {
       note({ id: 'a', createdBy: 'other' }),
       note({ id: 'b', createdBy: 'me' }),
     ];
-    assert.equal(recentNotesForHome(notes, { viewerId: 'me', isDirector: true }).length, 2);
+    assert.equal(
+      recentNotesForHome(notes, {
+        viewerId: 'me',
+        isDirector: true,
+        now: Date.parse('2026-08-26T10:00:00Z'),
+        weekStartKey: '2026-08-24',
+      }).length,
+      2,
+    );
+  });
+
+  it('masque un transcript trop court ou vide de sens', () => {
+    assert.equal(isHomeNoteWorthy('Thank you.'), false);
+    assert.equal(isHomeNoteWorthy('ok merci'), false);
+    assert.equal(isHomeNoteWorthy('Appel à Dupont rue des Lilas'), true);
   });
 });

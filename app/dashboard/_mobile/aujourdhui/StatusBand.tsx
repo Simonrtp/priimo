@@ -44,6 +44,7 @@ export function StatusBand({
   noUrgent,
   onAccount,
   tone = 'light',
+  directorTitle = null,
 }: {
   prenom: string;
   remaining: number;
@@ -53,9 +54,10 @@ export function StatusBand({
   noUrgent: boolean;
   onAccount: () => void;
   tone?: 'light' | 'shell';
+  directorTitle?: string | null;
 }) {
   const shell = tone === 'shell';
-  const title = phraseEtat({ remaining, prenom, emptyKind });
+  const title = directorTitle ?? phraseEtat({ remaining, prenom, emptyKind });
   const notesLine = phraseNotesReturn(relancesProgrammees, rapprochements);
 
   return (
@@ -80,9 +82,13 @@ export function StatusBand({
         >
           {title}
         </p>
-        {noUrgent && emptyKind !== 'rien' && emptyKind !== 'bouclee' ? (
+        {noUrgent && !directorTitle && emptyKind !== 'rien' && emptyKind !== 'bouclee' ? (
           <p className="mt-0.5 text-[12.5px] font-medium" style={{ color: shell ? '#8FD4A8' : FIELD.vert }}>
             Plus rien d&apos;urgent.
+          </p>
+        ) : directorTitle ? (
+          <p className={`mt-0.5 truncate text-[12.5px] ${shell ? 'text-white/65' : 'text-text-muted'}`}>
+            {dateDuJour()}
           </p>
         ) : notesLine ? (
           <p

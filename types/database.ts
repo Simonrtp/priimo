@@ -404,7 +404,17 @@ export type EstimationRequestInsert = {
 /* -------------------------------------------------------------------------- */
 
 export type ContactTypeDb = 'vendeur' | 'acquereur' | 'locataire' | 'gardien' | 'commercant' | 'autre';
-export type ContactSourceDb = 'manuel' | 'vocal' | 'prospection';
+export type ContactSourceDb =
+  | 'manuel'
+  | 'vocal'
+  | 'prospection'
+  | 'portail'
+  | 'site_agence'
+  | 'seloger'
+  | 'bienici'
+  | 'logicimmo'
+  | 'leboncoin'
+  | 'autre_portail';
 export type MandatStatutDb =
   | 'estimation'
   | 'mandat_simple'
@@ -462,6 +472,9 @@ export type ContactRow = {
   assigned_to?: string | null;
   assigned_by?: string | null;
   assigned_at?: string | null;
+  collecte_provenance?: string | null;
+  collecte_at?: string | null;
+  collecte_base_legale?: string | null;
   is_demo?: boolean;
   created_at: string;
   updated_at: string;
@@ -539,6 +552,11 @@ export type BienRow = {
   honoraires_pourcent: number | null;
   mandat_numero: string | null;
   mandat_date: string | null;
+  assigned_to?: string | null;
+  est_copropriete?: boolean;
+  nombre_lots?: number | null;
+  charges_annuelles?: number | null;
+  procedure_en_cours?: boolean | null;
   mandat_type: MandatTypeDb | null;
   mandat_signe_le: string | null;
   mandat_duree_mois: number;
@@ -585,6 +603,11 @@ export type BienInsert = {
   honoraires_pourcent?: number | null;
   mandat_numero?: string | null;
   mandat_date?: string | null;
+  assigned_to?: string | null;
+  est_copropriete?: boolean;
+  nombre_lots?: number | null;
+  charges_annuelles?: number | null;
+  procedure_en_cours?: boolean | null;
   mandat_type?: MandatTypeDb | null;
   mandat_signe_le?: string | null;
   mandat_duree_mois?: number;

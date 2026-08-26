@@ -28,5 +28,7 @@ describe('buildDirectorExceptions', () => {
     const bruno = rows.find((r) => r.memberId === 'b');
     assert.ok(bruno?.items.some((i) => i.label.includes('brute')));
     assert.ok(bruno?.items.some((i) => i.label.includes('activité')));
+    assert.ok(rows[0]?.items[0]?.href?.includes('membre=a'));
+    assert.equal(bruno?.items.find((i) => i.kind === 'inactivite')?.href, null);
   });
 });

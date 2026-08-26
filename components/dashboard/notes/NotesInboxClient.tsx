@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TerrainNote } from '@/types/contact';
 import { formatNoteWhen } from '@/lib/notes/format-when';
+import { FIELD } from '@/lib/today/field';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import Select from '@/components/ui/Select';
@@ -35,19 +36,24 @@ export default function NotesInboxClient({
   initialNoteId = null,
   initialStatut = 'tous',
   initialScope = 'moi',
+  initialMembre = null,
 }: {
   initialNoteId?: string | null;
   initialStatut?: string;
   initialScope?: string;
+  initialMembre?: string | null;
 }) {
   const router = useRouter();
   const [notes, setNotes] = useState<InboxNote[] | null>(null);
   const [statut, setStatut] = useState(initialStatut === 'brute' || initialStatut === 'revue' ? initialStatut : 'tous');
-  const [scope, setScope] = useState(initialScope === 'agence' ? 'agence' : 'moi');
+  const [scope, setScope] = useState(
+    initialMembre ? 'agence' : initialScope === 'agence' ? 'agence' : 'moi',
+  );
   const [period, setPeriod] = useState('tous');
   const [rattachement, setRattachement] = useState('tous');
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState<string | null>(initialNoteId);
+  const membre = initialMembre?.trim() || null;
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({
@@ -57,6 +63,7 @@ export default function NotesInboxClient({
       rattachement,
       q,
     });
+    if (membre) params.set('membre', membre);
     try {
       const res = await fetch(`/api/dashboard/notes/inbox?${params.toString()}`);
       const data = (await res.json()) as { notes?: InboxNote[] };
@@ -64,7 +71,7 @@ export default function NotesInboxClient({
     } catch {
       setNotes([]);
     }
-  }, [statut, scope, period, rattachement, q]);
+  }, [statut, scope, period, rattachement, q, membre]);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -115,7 +122,11 @@ export default function NotesInboxClient({
                   {note.authorName ? <span>· {note.authorName}</span> : null}
                   {note.statut === 'brute' ? (
                     <span className="inline-flex items-center gap-1">
-                      <span className="inline-block size-1.5 rounded-full bg-text-muted" aria-hidden />
+                      <span
+                        className="inline-block size-1.5 rounded-full"
+                        style={{ background: '#3D5A80' }}
+                        aria-hidden
+                      />
                       Brute
                     </span>
                   ) : (

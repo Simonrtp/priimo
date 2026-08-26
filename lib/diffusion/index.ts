@@ -8,14 +8,24 @@ const PROVIDERS: Record<DiffusionProviderId, () => DiffusionProvider> = {
 };
 
 /**
- * Point d'entrée unique. Le jour où une passerelle réelle existe, on ajoute
- * son identifiant ici — aucune page, aucun formulaire n'a besoin de changer.
+ * Point d'entrée export local. Pour la multidiffusion portail, utiliser
+ * `getDiffusionTransport` + `publierAnnonce` (passerelle Ubiflow / Diffuze).
  */
 export function getDiffusionProvider(id: DiffusionProviderId = 'export'): DiffusionProvider {
   return PROVIDERS[id]();
 }
 
 export { ExportDiffusionProvider } from './providers/export';
-export { assessAnnonce, mentionsLegales } from './completeness';
+export {
+  assessAnnonce,
+  assessAnnonceForPortail,
+  assessObligationsFrancaises,
+  canPublish,
+  mentionsLegales,
+  PORTAIL_RULES,
+} from './completeness';
 export { bienToAnnonce } from './from-bien';
-export type { Annonce, DiffusionProvider, DiffusionResult } from './types';
+export { publierAnnonce, cleIdempotence } from './publish';
+export { getDiffusionTransport } from './transport/gateway';
+export type { Annonce, DiffusionProvider, DiffusionResult, DiffusionTransport, PortailId } from './types';
+export { PORTAIL_LABELS } from './types';

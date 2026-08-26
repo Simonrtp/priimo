@@ -3,6 +3,15 @@
  * Uniquement des données que Priimo observe sans saisie d'agent.
  */
 
+import {
+  formatWeekDelta,
+  leadsNonPrisTone,
+  mandats60jTone,
+  mandatsActifsTone,
+  rdvSansSuiteTone,
+  type CounterTone,
+} from '@/lib/today/counter-severity';
+
 export const PORTFOLIO_STALE_MANDAT_DAYS = 60;
 export const PORTFOLIO_STALE_VISIT_MAX = 3;
 export const PORTFOLIO_RDV_SANS_SUITE_DAYS = 7;
@@ -12,6 +21,7 @@ const DAY_MS = 86_400_000;
 export type PortfolioCounterKind =
   | 'mandats-actifs'
   | 'leads-non-pris'
+  | 'rdv-sans-suite'
   | 'estimations'
   | 'mandats-60j';
 
@@ -21,10 +31,21 @@ export type PortfolioCounter = {
   label: string;
   subtitle: string | null;
   href: string;
+  subtitleHref: string | null;
+  previousValue: number | null;
+  deltaLabel: string | null;
+  tone: CounterTone;
 };
 
 export type PortfolioStats = {
   counters: readonly PortfolioCounter[];
+};
+
+export type PortfolioPreviousWeek = {
+  mandatsActifs: number;
+  leadsNonPris: number;
+  rdvSansSuite: number;
+  mandats60j: number;
 };
 
 function ageDays(iso: string | null | undefined, now: number): number | null {
@@ -38,6 +59,13 @@ export function isSignedMandat(statut: string): boolean {
   return statut === 'mandat_simple' || statut === 'mandat_exclusif';
 }
 
+function withDelta(value: number, previous: number | null): Pick<PortfolioCounter, 'previousValue' | 'deltaLabel'> {
+  return {
+    previousValue: previous,
+    deltaLabel: formatWeekDelta(value, previous),
+  };
+}
+
 export function buildPortfolioStats(input: {
   biens: readonly {
     id: string;
@@ -49,26 +77,42 @@ export function buildPortfolioStats(input: {
   leads: readonly { stageId: string | null }[];
   estimationStageId: string | null;
   rendezVousSansSuite: number;
+  previousWeek?: PortfolioPreviousWeek | null;
   now?: number;
 }): PortfolioStats {
   const now = input.now ?? Date.now();
+  const prev = input.previousWeek ?? null;
   const signed = input.biens.filter((b) => isSignedMandat(b.mandatStatut));
   const exclusifs = signed.filter((b) => b.mandatStatut === 'mandat_exclusif').length;
+  const delivered = input.leads.length;
   const nonPris = input.leads.filter((l) => l.stageId == null).length;
 
-  let estimations: { value: number; subtitle: string; href: string };
+  let third: {
+    kind: 'estimations' | 'rdv-sans-suite';
+    value: number;
+    label: string;
+    subtitle: string;
+    href: string;
+    tone: CounterTone;
+  };
   if (input.estimationStageId) {
     const n = input.leads.filter((l) => l.stageId === input.estimationStageId).length;
-    estimations = {
+    third = {
+      kind: 'estimations',
       value: n,
+      label: 'Estimations',
       subtitle: 'Dans le pipeline',
-      href: '/dashboard/prospection?filtre=estimations',
+      href: '/dashboard/prospection?filtre=estimations&vue=liste',
+      tone: rdvSansSuiteTone(n),
     };
   } else {
-    estimations = {
+    third = {
+      kind: 'rdv-sans-suite',
       value: input.rendezVousSansSuite,
-      subtitle: 'RDV sans suite depuis 7 j',
+      label: 'Rendez-vous sans suite',
+      subtitle: 'Terminés depuis plus de 7 j, sans échange après',
       href: '/dashboard/contacts?filtre=rdv-sans-suite',
+      tone: rdvSansSuiteTone(input.rendezVousSansSuite),
     };
   }
 
@@ -87,20 +131,29 @@ export function buildPortfolioStats(input: {
         label: 'Mandats actifs',
         subtitle: exclusifs > 0 ? `${exclusifs} exclusif${exclusifs > 1 ? 's' : ''}` : 'Dont 0 exclusif',
         href: '/dashboard/biens?filtre=mandats-actifs',
+        subtitleHref: '/dashboard/biens?filtre=mandats-exclusifs',
+        tone: mandatsActifsTone(signed.length),
+        ...withDelta(signed.length, prev?.mandatsActifs ?? null),
       },
       {
         kind: 'leads-non-pris',
         value: nonPris,
         label: 'Leads non pris',
         subtitle: 'Livrés, pas encore au kanban',
-        href: '/dashboard/prospection?filtre=non-pris',
+        href: '/dashboard/prospection?filtre=non-pris&vue=liste',
+        subtitleHref: null,
+        tone: leadsNonPrisTone(nonPris, delivered),
+        ...withDelta(nonPris, prev?.leadsNonPris ?? null),
       },
       {
-        kind: 'estimations',
-        value: estimations.value,
-        label: 'Estimations',
-        subtitle: estimations.subtitle,
-        href: estimations.href,
+        kind: third.kind,
+        value: third.value,
+        label: third.label,
+        subtitle: third.subtitle,
+        href: third.href,
+        subtitleHref: null,
+        tone: third.tone,
+        ...withDelta(third.value, prev?.rdvSansSuite ?? null),
       },
       {
         kind: 'mandats-60j',
@@ -108,6 +161,9 @@ export function buildPortfolioStats(input: {
         label: 'Mandats qui pourrissent',
         subtitle: 'Plus de 60 j, moins de 3 visites',
         href: '/dashboard/biens?filtre=mandats-60j',
+        subtitleHref: null,
+        tone: mandats60jTone(stale),
+        ...withDelta(stale, prev?.mandats60j ?? null),
       },
     ],
   };

@@ -14,6 +14,7 @@ import {
   Phone,
   Send,
   Users,
+  Inbox,
   type LucideIcon,
 } from 'lucide-react';
 import type { TodayCard, TodayCardType } from '@/lib/today/cards';
@@ -34,6 +35,7 @@ const TYPE_ICONS: Record<TodayCardType, LucideIcon> = {
   rendez_vous: Calendar,
   transmis: Send,
   alerte: Bell,
+  demande_portail: Inbox,
 };
 
 export default function TodayCardView({

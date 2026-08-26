@@ -35,6 +35,7 @@ const ICONS: Record<Variant, LucideIcon> = {
 
 export default function WorkspaceBackdrop() {
   const pathname = usePathname();
+  if (pathname === '/dashboard' || pathname === '/dashboard/') return null;
   if (pathname.startsWith('/dashboard/contacts')) return null;
   const Icon = ICONS[variantForPath(pathname)];
 

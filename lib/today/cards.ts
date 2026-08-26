@@ -85,7 +85,8 @@ export type TodayCardType =
   | 'nouvelle_adresse'
   | 'rendez_vous'
   | 'transmis'
-  | 'alerte';
+  | 'alerte'
+  | 'demande_portail';
 
 export const TODAY_CARD_LABELS: Record<TodayCardType, string> = {
   echeance_contractuelle: 'Échéance',
@@ -98,6 +99,7 @@ export const TODAY_CARD_LABELS: Record<TodayCardType, string> = {
   relance: 'Relance',
   rapprochement: 'Rapprochement',
   nouvelle_adresse: 'Nouvelle adresse',
+  demande_portail: 'Demande portail',
 };
 
 export type TodayCardAction =
@@ -405,6 +407,65 @@ function cartesAlerte(alerts: readonly TodayAlertItem[]): TodayCard[] {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Demandes portail                                                           */
+/* -------------------------------------------------------------------------- */
+
+export type TodayDemandePortail = {
+  id: string;
+  nom: string | null;
+  telephone: string | null;
+  contactId: string | null;
+  bienId: string | null;
+  bienAdresse: string | null;
+  portail: string;
+  createdAt: string;
+};
+
+function cartesDemandePortail(
+  demandes: readonly TodayDemandePortail[],
+  now: Date,
+): TodayCard[] {
+  return demandes.slice(0, 8).map((d, index) => {
+    const ageH = (now.getTime() - Date.parse(d.createdAt)) / 3_600_000;
+    const imminence = Number.isFinite(ageH) ? Math.max(20, 100 - Math.round(ageH * 4)) : 80;
+    const name = (d.nom ?? 'Acquéreur').trim() || 'Acquéreur';
+    const bien = (d.bienAdresse ?? 'Bien non rattaché').trim();
+    const action =
+      d.telephone
+        ? ({
+            kind: 'appeler' as const,
+            label: 'Appeler',
+            phone: d.telephone,
+            contactId: d.contactId ?? undefined,
+          })
+        : d.contactId
+          ? ({
+              kind: 'ouvrir_contact' as const,
+              label: 'Ouvrir le contact',
+              contactId: d.contactId,
+            })
+          : ({
+              kind: 'ouvrir_liste' as const,
+              label: 'Voir les contacts',
+              cardType: 'demande_portail' as const,
+            });
+
+    return mkCard(
+      {
+        key: `demande_portail:${d.id}`,
+        type: 'demande_portail',
+        headline: name,
+        context: `${bien} · ${d.portail}`,
+        action,
+        urgent: ageH < 4,
+        priority: 50 - index,
+      },
+      imminence,
+    );
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Assemblage                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -421,6 +482,8 @@ export interface BuildTodayInput {
   offres?: readonly TodayOffre[];
   promesses?: readonly TodayPromesse[];
   rendezVous?: readonly TodayRendezVous[];
+  /** Demandes entrantes portail (24–72 h). */
+  demandesPortail?: readonly TodayDemandePortail[];
   now?: Date;
   config?: TodayConfig;
   /** Applique le plafond à 7 cartes avec regroupement. */
@@ -439,6 +502,7 @@ export function buildTodayCards({
   offres = [],
   promesses = [],
   rendezVous = [],
+  demandesPortail = [],
   now = new Date(),
   config = TODAY_CONFIG,
   plafonner = true,
@@ -451,6 +515,7 @@ export function buildTodayCards({
     ...cartesPromesse(promesses, now),
     ...cartesRendezVousMetier(rendezVous, now),
     ...cartesTransmis(assignments),
+    ...cartesDemandePortail(demandesPortail ?? [], now),
     ...cartesRelance(contacts, now, config),
     ...cartesRapprochement(rapprochements, config),
   ];
@@ -492,6 +557,7 @@ export interface TodaySummaryGroup {
 
 /** Ordre d'affichage : le même que celui de la pile. */
 const ORDRE_RESUME: readonly TodayCardType[] = [
+  'demande_portail',
   'echeance_contractuelle',
   'alerte',
   'post_visite',

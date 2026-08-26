@@ -47,6 +47,11 @@ interface FormState {
   honorairesMontant: string;
   honorairesACharge: string;
   honorairesPourcent: string;
+  estCopropriete: boolean;
+  nombreLots: string;
+  chargesAnnuelles: string;
+  /** '' = non renseigné, 'true' / 'false' */
+  procedureEnCours: string;
 }
 
 const EMPTY: FormState = {
@@ -73,6 +78,10 @@ const EMPTY: FormState = {
   honorairesMontant: '',
   honorairesACharge: '',
   honorairesPourcent: '',
+  estCopropriete: false,
+  nombreLots: '',
+  chargesAnnuelles: '',
+  procedureEnCours: '',
 };
 
 function fromBien(bien: Bien): FormState {
@@ -100,6 +109,11 @@ function fromBien(bien: Bien): FormState {
     honorairesMontant: bien.honorairesMontant === null ? '' : String(bien.honorairesMontant),
     honorairesACharge: bien.honorairesACharge ?? '',
     honorairesPourcent: bien.honorairesPourcent === null ? '' : String(bien.honorairesPourcent),
+    estCopropriete: bien.estCopropriete,
+    nombreLots: bien.nombreLots === null ? '' : String(bien.nombreLots),
+    chargesAnnuelles: bien.chargesAnnuelles === null ? '' : String(bien.chargesAnnuelles),
+    procedureEnCours:
+      bien.procedureEnCours === true ? 'true' : bien.procedureEnCours === false ? 'false' : '',
   };
 }
 
@@ -190,6 +204,12 @@ export default function BienFormDialog({
           ...form,
           proprietaireContactId: form.proprietaireContactId || null,
           honorairesACharge: (form.honorairesACharge || null) as HonorairesACharge | null,
+          procedureEnCours:
+            form.procedureEnCours === 'true'
+              ? true
+              : form.procedureEnCours === 'false'
+                ? false
+                : null,
         }),
       });
       const data = (await res.json()) as { bien?: Bien; error?: string };
@@ -474,6 +494,51 @@ export default function BienFormDialog({
               />
             </Field>
           </div>
+        </Section>
+
+        <Section title="Copropriété">
+          <label className="mb-4 flex items-center gap-2 text-[14px] text-text">
+            <input
+              type="checkbox"
+              checked={form.estCopropriete}
+              onChange={(e) => set('estCopropriete', e.target.checked)}
+              className="size-4 rounded border-black/20"
+            />
+            Bien en copropriété
+          </label>
+          {form.estCopropriete ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Nombre de lots" htmlFor="bien-lots" hint="Obligation annonce FR">
+                <TextInput
+                  id="bien-lots"
+                  inputMode="numeric"
+                  value={form.nombreLots}
+                  onChange={(e) => set('nombreLots', e.target.value.replace(/[^\d]/g, ''))}
+                />
+              </Field>
+              <Field label="Charges annuelles" htmlFor="bien-charges" hint="En euros">
+                <TextInput
+                  id="bien-charges"
+                  inputMode="numeric"
+                  value={form.chargesAnnuelles}
+                  onChange={(e) => set('chargesAnnuelles', e.target.value.replace(/[^\d]/g, ''))}
+                />
+              </Field>
+              <Field label="Procédure en cours" htmlFor="bien-procedure">
+                <Select
+                  id="bien-procedure"
+                  value={form.procedureEnCours}
+                  onChange={(v) => set('procedureEnCours', v)}
+                  options={[
+                    { value: '', label: 'À préciser' },
+                    { value: 'false', label: 'Non' },
+                    { value: 'true', label: 'Oui — à mentionner' },
+                  ]}
+                  aria-label="Procédure en cours"
+                />
+              </Field>
+            </div>
+          ) : null}
         </Section>
 
         <Section title="DPE">

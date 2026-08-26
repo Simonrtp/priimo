@@ -6,9 +6,10 @@ import type { TodayCard } from '@/lib/today/cards';
 import type { FieldWeekSnapshot } from '@/lib/today/semaine';
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { Lead } from '@/types/lead';
-import type { VoiceNote } from '@/types/contact';
+import type { HomeNote } from '@/lib/notes/inbox';
 import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
+import { phraseEquipe } from '@/lib/today/accueil-vue';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { snoozeUntil, SHELL_BG_CLASS } from '@/lib/today/field';
 import {
@@ -41,6 +42,7 @@ import PortfolioBand from '@/components/dashboard/today/PortfolioBand';
 import RecentNotesCard from '@/components/dashboard/today/RecentNotesCard';
 import ZoneDuJourCard from '@/components/dashboard/today/ZoneDuJourCard';
 import DirectorExceptions from '@/components/dashboard/today/DirectorExceptions';
+import DirectorMemberPanel from '@/components/dashboard/today/DirectorMemberPanel';
 
 type DoneItem = { key: string; headline: string; at: string };
 
@@ -69,6 +71,7 @@ export default function AujourdhuiMobile({
   recentNotes,
   agencyOrigin,
   isDirector = false,
+  previewingAgent = false,
   directorExceptions = [],
 }: {
   initialCards: TodayCard[];
@@ -78,9 +81,10 @@ export default function AujourdhuiMobile({
   week: FieldWeekSnapshot;
   sectorRef: GeoCoord | null;
   portfolio: PortfolioStats;
-  recentNotes: readonly VoiceNote[];
+  recentNotes: readonly HomeNote[];
   agencyOrigin: GeoCoord | null;
   isDirector?: boolean;
+  previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
 }) {
   const router = useRouter();
@@ -99,6 +103,8 @@ export default function AujourdhuiMobile({
   const [snoozeCard, setSnoozeCard] = useState<TodayCard | null>(null);
   const [confirmDone, setConfirmDone] = useState<TodayCard | null>(null);
   const [termineOpen, setTermineOpen] = useState(false);
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const directorLayout = isDirector && !previewingAgent;
 
   const initialTotal = initialCards.length;
   const hadLevel1Initially = useMemo(
@@ -243,24 +249,34 @@ export default function AujourdhuiMobile({
       <div className={`${SHELL_BG_CLASS} flex-shrink-0 overflow-hidden`}>
         <StatusBand
           prenom={firstName}
-          remaining={isDirector ? directorExceptions.length : remaining}
-          emptyKind={isDirector ? null : emptyKind}
+          remaining={remaining}
+          emptyKind={directorLayout ? null : emptyKind}
           relancesProgrammees={week.relancesProgrammees}
           rapprochements={week.rapprochements}
           noUrgent={noUrgent}
           onAccount={() => setAccountOpen(true)}
           tone="shell"
+          directorTitle={directorLayout ? phraseEquipe(directorExceptions.length) : null}
         />
       </div>
 
       <div className="relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base px-0 pb-4 pt-6">
+        {previewingAgent ? (
+          <p className="mx-4 rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
+            Vue agent — ce que voit un collaborateur.{' '}
+            <a href="/dashboard/settings?tab=profile" className="font-medium text-text underline underline-offset-2">
+              Désactiver dans Paramètres
+            </a>
+            .
+          </p>
+        ) : null}
         <div className="px-4">
           <PortfolioBand stats={portfolio} />
         </div>
 
-        {isDirector ? (
+        {directorLayout ? (
           <div className="px-4">
-            <DirectorExceptions rows={directorExceptions} />
+            <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
           </div>
         ) : emptyKind !== 'rien' ? (
           <>
@@ -302,10 +318,10 @@ export default function AujourdhuiMobile({
 
         <div className="flex flex-col gap-4 px-4">
           <RecentNotesCard notes={recentNotes} />
-          {isDirector ? null : <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />}
+          {directorLayout ? null : <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />}
         </div>
 
-        {isDirector ? null : (
+        {directorLayout ? null : (
           <div className="mt-auto pt-2">
             <MaSemaine
               notes={week.notes}
@@ -342,6 +358,10 @@ export default function AujourdhuiMobile({
       />
 
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
+
+      {openMemberId ? (
+        <DirectorMemberPanel memberId={openMemberId} onClose={() => setOpenMemberId(null)} />
+      ) : null}
     </div>
   );
 }

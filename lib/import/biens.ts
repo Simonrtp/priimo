@@ -123,6 +123,10 @@ export function bienToInput(bien: Bien): BienInputFields {
     honorairesPourcent: bien.honorairesPourcent,
     mandatNumero: bien.mandatNumero,
     mandatDate: bien.mandatDate,
+    estCopropriete: bien.estCopropriete,
+    nombreLots: bien.nombreLots,
+    chargesAnnuelles: bien.chargesAnnuelles,
+    procedureEnCours: bien.procedureEnCours,
   };
 }
 

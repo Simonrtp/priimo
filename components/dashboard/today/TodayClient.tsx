@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { TodayCard } from '@/lib/today/cards';
 import type { Lead } from '@/types/lead';
-import type { VoiceNote } from '@/types/contact';
+import type { HomeNote } from '@/lib/notes/inbox';
+import { phraseEquipe } from '@/lib/today/accueil-vue';
+import DirectorMemberPanel from './DirectorMemberPanel';
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
@@ -74,6 +76,7 @@ export default function TodayClient({
   recentNotes,
   agencyOrigin,
   isDirector = false,
+  previewingAgent = false,
   directorExceptions = [],
   children,
 }: {
@@ -84,9 +87,10 @@ export default function TodayClient({
   relancesProgrammees?: number;
   rapprochements?: number;
   portfolio: PortfolioStats;
-  recentNotes: readonly VoiceNote[];
+  recentNotes: readonly HomeNote[];
   agencyOrigin: GeoCoord | null;
   isDirector?: boolean;
+  previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
   children?: ReactNode;
 }) {
@@ -97,6 +101,7 @@ export default function TodayClient({
   const [sortieOpen, setSortieOpen] = useState(false);
   const [activePlan, setActivePlan] = useState<SortiePlan | null>(null);
   const [gps, setGps] = useState<GeoCoord | null>(null);
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const [sortieProgress, setSortieProgress] = useState<SortieProgress>({
     signature: '',
     done: [],
@@ -162,6 +167,7 @@ export default function TodayClient({
   const emptyKind = total === 0 && initialTotal === 0 ? 'rien' : remaining === 0 && total > 0 ? 'bouclee' : null;
   const noUrgent =
     hadLevel1Initially && layout.level1.length === 0 && (remaining > 0 || doneToday.length > 0);
+  const directorLayout = isDirector && !previewingAgent;
 
   async function dismiss(card: TodayCard, snoozedUntil: string | null, asDone = false) {
     const previous = cards;
@@ -210,6 +216,15 @@ export default function TodayClient({
 
   return (
     <div className="w-full min-w-0 pt-2">
+      {previewingAgent ? (
+        <p className="mb-4 rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
+          Vue agent — ce que voit un collaborateur.{' '}
+          <a href="/dashboard/settings?tab=profile" className="font-medium text-text underline underline-offset-2">
+            Désactiver dans Paramètres
+          </a>
+          .
+        </p>
+      ) : null}
       <TodayStatusBand
         prenom={firstName}
         remaining={remaining}
@@ -219,14 +234,15 @@ export default function TodayClient({
         relancesProgrammees={relancesProgrammees}
         rapprochements={rapprochements}
         noUrgent={noUrgent}
+        directorTitle={directorLayout ? phraseEquipe(directorExceptions.length) : null}
       />
 
       <PortfolioBand stats={portfolio} />
 
       <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
         <div className="min-w-0 lg:col-span-3">
-          {isDirector ? (
-            <DirectorExceptions rows={directorExceptions} />
+          {directorLayout ? (
+            <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
           ) : workCards.length === 0 && emptyKind === 'rien' ? (
             <EmptyState />
           ) : workCards.length === 0 ? (
@@ -267,14 +283,14 @@ export default function TodayClient({
         <div className="min-w-0 lg:col-span-2">
           <div className="flex flex-col gap-4 lg:sticky lg:top-4">
             <RecentNotesCard notes={recentNotes} />
-            {isDirector ? null : (
+            {directorLayout ? null : (
               <ZoneDuJourCard plan={sortiePlan} onStart={handleStartSortie} />
             )}
           </div>
         </div>
       </div>
 
-      {!isDirector && (total > 0 || doneToday.length > 0) ? (
+      {!directorLayout && (total > 0 || doneToday.length > 0) ? (
         <TodayTermineBlock
           items={doneToday}
           expanded={termineOpen || emptyKind === 'bouclee'}
@@ -283,6 +299,10 @@ export default function TodayClient({
       ) : null}
 
       {children}
+
+      {openMemberId ? (
+        <DirectorMemberPanel memberId={openMemberId} onClose={() => setOpenMemberId(null)} />
+      ) : null}
 
       {sortieOpen && activePlan ? (
         <SortieMode

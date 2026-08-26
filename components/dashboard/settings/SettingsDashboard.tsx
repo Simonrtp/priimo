@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
+import { ACCUEIL_VUE_COOKIE, parseAccueilVue, type AccueilVue } from '@/lib/today/accueil-vue';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
@@ -13,22 +14,25 @@ import type { TeamSettingsData } from '@/lib/queries/team-settings';
 import EquipeClient from '@/components/dashboard/equipe/EquipeClient';
 import Modal from '@/components/ui/Modal';
 import SectionRequestSector from './SectionRequestSector';
+import SectionIntegrations from './SectionIntegrations';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
 const labelClass = 'mb-1.5 block font-medium text-gray-700';
 
-export type SettingsTabId = 'agency' | 'team' | 'billing' | 'profile';
+export type SettingsTabId = 'agency' | 'team' | 'billing' | 'integrations' | 'profile';
 
 const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'agency', label: 'Mon agence' },
   { id: 'team', label: 'Mon équipe' },
+  { id: 'integrations', label: 'Connexions' },
   { id: 'billing', label: 'Abonnement' },
   { id: 'profile', label: 'Mon profil' },
 ];
 
 const COLLABORATOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
+  { id: 'integrations', label: 'Connexions' },
   { id: 'profile', label: 'Mon profil' },
 ];
 
@@ -80,6 +84,8 @@ export default function SettingsDashboard({
         ) : null;
       case 'billing':
         return isDirector ? <SectionBilling /> : null;
+      case 'integrations':
+        return <SectionIntegrations />;
       case 'profile':
         return <SectionProfile />;
     }
@@ -389,13 +395,29 @@ function SectionBilling() {
   );
 }
 
+function readAccueilVueCookie(): AccueilVue {
+  if (typeof document === 'undefined') return 'directeur';
+  const match = document.cookie.match(new RegExp(`(?:^|; )${ACCUEIL_VUE_COOKIE}=([^;]*)`));
+  return parseAccueilVue(match?.[1] ? decodeURIComponent(match[1]) : null);
+}
+
+function writeAccueilVueCookie(vue: AccueilVue) {
+  const maxAge = 60 * 60 * 24 * 400;
+  document.cookie = `${ACCUEIL_VUE_COOKIE}=${encodeURIComponent(vue)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
 function SectionProfile() {
-  const { user, profile } = useUser();
+  const { user, profile, isDirector } = useUser();
   const router = useRouter();
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
   const [saving, setSaving] = useState(false);
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
+  const [accueilVue, setAccueilVue] = useState<AccueilVue>('directeur');
+
+  useEffect(() => {
+    setAccueilVue(readAccueilVueCookie());
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -470,6 +492,48 @@ function SectionProfile() {
           >
             Changer mon mot de passe
           </button>
+        </div>
+
+        {isDirector ? (
+          <div className="rounded-xl border border-black/8 bg-soft-gray/30 px-4 py-3.5">
+            <p className="font-medium text-ink" style={{ fontSize: 14 }}>
+              Prévisualiser la vue Accueil agent
+            </p>
+            <p className="mt-1 text-pretty text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
+              Affiche l’Accueil comme un collaborateur : pile de tâches, pas le suivi d’équipe.
+            </p>
+            <label className="mt-3 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 size-4 rounded border-black/20 text-accent focus:ring-accent/30"
+                checked={accueilVue === 'agent'}
+                onChange={(e) => {
+                  const next: AccueilVue = e.target.checked ? 'agent' : 'directeur';
+                  setAccueilVue(next);
+                  writeAccueilVueCookie(next);
+                  toast.success(
+                    next === 'agent'
+                      ? 'Vue agent activée sur l’Accueil'
+                      : 'Vue directeur rétablie sur l’Accueil',
+                  );
+                  router.refresh();
+                }}
+              />
+              <span className="text-[13.5px] text-ink">Voir l’Accueil en tant qu’agent</span>
+            </label>
+          </div>
+        ) : null}
+
+        <div className="border-t border-black/8 pt-5">
+          <form action="/api/auth/signout" method="post">
+            <button
+              type="submit"
+              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[13.5px] font-medium text-ink transition-colors hover:bg-black/[0.04] sm:w-auto"
+            >
+              <LogOut size={16} strokeWidth={2} aria-hidden />
+              Se déconnecter
+            </button>
+          </form>
         </div>
       </div>
 

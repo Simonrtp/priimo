@@ -57,6 +57,7 @@ export async function GET(req: Request) {
     period: asPeriod(url.searchParams.get('period')),
     rattachement: asRattachement(url.searchParams.get('rattachement')),
     q: url.searchParams.get('q') ?? '',
+    auteurId: url.searchParams.get('membre')?.trim() || null,
   });
 
   return NextResponse.json({

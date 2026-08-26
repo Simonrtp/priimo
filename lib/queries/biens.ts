@@ -19,7 +19,8 @@ export const BIENS_SELECT_GEO = `
 export const BIENS_SELECT_LISTING = `
   listing_title, listing_description, photos, dpe_lettre, dpe_kwh,
   ges_lettre, ges_kg_co2, dpe_vierge, dpe_date, honoraires_montant,
-  honoraires_a_charge, honoraires_pourcent, mandat_numero, mandat_date
+  honoraires_a_charge, honoraires_pourcent, mandat_numero, mandat_date,
+  assigned_to, est_copropriete, nombre_lots, charges_annuelles, procedure_en_cours
 `;
 
 export const BIENS_SELECT = `
@@ -87,6 +88,12 @@ export function mapDbBienToBien(row: BienRowWithOwner): Bien {
         : Number(row.honoraires_pourcent),
     mandatNumero: row.mandat_numero ?? null,
     mandatDate: row.mandat_date ?? null,
+    assignedTo: row.assigned_to ?? null,
+    estCopropriete: row.est_copropriete === true,
+    nombreLots: row.nombre_lots ?? null,
+    chargesAnnuelles: row.charges_annuelles ?? null,
+    procedureEnCours:
+      row.procedure_en_cours === true ? true : row.procedure_en_cours === false ? false : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

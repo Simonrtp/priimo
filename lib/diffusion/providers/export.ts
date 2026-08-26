@@ -77,6 +77,12 @@ ${el('a_charge', annonce.honorairesACharge, '      ')}
 ${el('a_charge_libelle', annonce.honorairesACharge ? HONORAIRES_A_CHARGE_LABELS[annonce.honorairesACharge] : null, '      ')}
 ${el('pourcent', annonce.honorairesPourcent, '      ')}
     </honoraires>
+    <copropriete>
+${el('est_copropriete', annonce.estCopropriete, '      ')}
+${el('nombre_lots', annonce.nombreLots, '      ')}
+${el('charges_annuelles', annonce.chargesAnnuelles, '      ')}
+${el('procedure_en_cours', annonce.procedureEnCours, '      ')}
+    </copropriete>
     <photos>
 ${photos || '      <!-- aucune -->'}
     </photos>

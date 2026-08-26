@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
@@ -26,7 +27,11 @@ import { fetchFieldWeek } from '@/lib/queries/field-week';
 import { buildTodayCards } from '@/lib/today/cards';
 import { buildPortfolioStats } from '@/lib/today/portfolio';
 import { buildDirectorExceptions } from '@/lib/today/director-exceptions';
-import { recentNotesForHome } from '@/lib/notes/inbox';
+import { parseAccueilVue, ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
+import { homeNoteAttachment, recentNotesForHome } from '@/lib/notes/inbox';
+import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
+import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
+import { ymdKey, startOfWeekYmd } from '@/lib/today/calendar';
 import { centroidFromCoords } from '@/lib/today/quadrant';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
@@ -63,7 +68,14 @@ async function TodayContent({
   memberships: ProfileAgencyMembership[];
 }) {
   const supabase = await createSupabaseServerClient();
-  const viewer = viewerFromProfile(profile);
+  const cookieStore = await cookies();
+  const previewingAgent =
+    profile.role === 'directeur' &&
+    parseAccueilVue(cookieStore.get(ACCUEIL_VUE_COOKIE)?.value) === 'agent';
+  const layoutDirector = profile.role === 'directeur' && !previewingAgent;
+  const viewer = viewerFromProfile(
+    previewingAgent ? { ...profile, role: 'collaborateur' } : profile,
+  );
   const isDirector = profile.role === 'directeur';
 
   const [leads, contacts, biens, dismissals, members, metier, notes, device, stages, pastRdv, visitCounts] =
@@ -97,6 +109,7 @@ async function TodayContent({
   const visitCountByBienId: Record<string, number> = { ...visitCounts };
   for (const b of metier.biens) visitCountByBienId[b.id] = b.visitCount;
 
+  const prevSnap = await fetchWeeklySnapshot(supabase, agency.id, previousMonday());
   const portfolio = buildPortfolioStats({
     biens: visibleBiens.map((b) => ({
       id: b.id,
@@ -108,13 +121,33 @@ async function TodayContent({
     leads: visibleLeads.map((l) => ({ stageId: l.stageId })),
     estimationStageId,
     rendezVousSansSuite,
+    previousWeek: toPreviousWeek(prevSnap),
   });
 
+  if (isDirector && !previewingAgent) {
+    const byKind = Object.fromEntries(portfolio.counters.map((c) => [c.kind, c]));
+    void upsertWeeklySnapshot(supabase, agency.id, {
+      weekStart: mondayOf(),
+      mandatsActifs: byKind['mandats-actifs']?.value ?? 0,
+      leadsNonPris: byKind['leads-non-pris']?.value ?? 0,
+      rdvSansSuite: byKind['rdv-sans-suite']?.value ?? byKind['estimations']?.value ?? 0,
+      mandats60j: byKind['mandats-60j']?.value ?? 0,
+    });
+  }
+
+  const contactsById = new Map(visibleContacts.map((c) => [c.id, c.fullName]));
   const recentNotes = recentNotesForHome(visibleNotes, {
     viewerId: profile.id,
-    isDirector,
+    isDirector: layoutDirector,
     limit: 5,
-  });
+    weekStartKey: ymdKey(startOfWeekYmd(new Date())),
+  }).map((note) => ({
+    ...note,
+    attachmentLabel: homeNoteAttachment(
+      note,
+      note.contactId ? contactsById.get(note.contactId) ?? null : null,
+    ),
+  }));
 
   const agencyOrigin = toGeoCoord(agency.latitude, agency.longitude);
 
@@ -136,7 +169,7 @@ async function TodayContent({
     ),
   );
 
-  const [assignments, alerts, week] = await Promise.all([
+  const [assignments, alerts, week, demandesPortail] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
       ? timed('fetchAgencyAlerts', () => fetchAgencyAlerts(supabase, names))
@@ -149,6 +182,36 @@ async function TodayContent({
         leads: visibleLeads,
       }),
     ),
+    timed('fetchDemandesPortail', async () => {
+      try {
+        const since = new Date();
+        since.setDate(since.getDate() - 3);
+        const { data } = await supabase
+          .from('leads_portail')
+          .select('id, nom, telephone, contact_id, bien_id, portail, created_at, biens(address)')
+          .eq('agency_id', agency.id)
+          .gte('created_at', since.toISOString())
+          .in('statut', ['importe', 'a_traiter_main'])
+          .order('created_at', { ascending: false })
+          .limit(20);
+        return (data ?? []).map((row) => {
+          const bien = row.biens as { address?: string } | { address?: string }[] | null;
+          const adresse = Array.isArray(bien) ? bien[0]?.address : bien?.address;
+          return {
+            id: row.id as string,
+            nom: (row.nom as string | null) ?? null,
+            telephone: (row.telephone as string | null) ?? null,
+            contactId: (row.contact_id as string | null) ?? null,
+            bienId: (row.bien_id as string | null) ?? null,
+            bienAdresse: adresse ?? null,
+            portail: (row.portail as string) ?? 'portail',
+            createdAt: row.created_at as string,
+          };
+        });
+      } catch {
+        return [];
+      }
+    }),
   ]);
 
   const cards = buildTodayCards({
@@ -158,11 +221,12 @@ async function TodayContent({
     dismissals,
     assignments,
     alerts,
+    demandesPortail,
     ...metier,
   });
 
   let directorExceptions: ReturnType<typeof buildDirectorExceptions> = [];
-  if (isDirector) {
+  if (layoutDirector) {
     const overview = await timed('fetchAgencyOverview(interactions only)', () =>
       fetchAgencyOverview({
         supabase,
@@ -208,6 +272,7 @@ async function TodayContent({
     recentNotes,
     agencyOrigin,
     isDirector,
+    previewingAgent,
     directorExceptions,
   };
 

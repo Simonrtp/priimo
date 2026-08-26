@@ -36,9 +36,14 @@ describe('portfolio', () => {
     const byKind = Object.fromEntries(stats.counters.map((c) => [c.kind, c]));
     assert.equal(byKind['mandats-actifs']?.value, 2);
     assert.equal(byKind['mandats-actifs']?.subtitle, '1 exclusif');
+    assert.equal(byKind['mandats-actifs']?.subtitleHref, '/dashboard/biens?filtre=mandats-exclusifs');
     assert.equal(byKind['leads-non-pris']?.value, 2);
-    assert.equal(byKind['estimations']?.value, 2);
+    assert.equal(byKind['leads-non-pris']?.tone, 'probleme');
+    assert.equal(byKind['rdv-sans-suite']?.value, 2);
+    assert.equal(byKind['rdv-sans-suite']?.label, 'Rendez-vous sans suite');
     assert.equal(byKind['mandats-60j']?.value, 1);
+    assert.equal(byKind['mandats-60j']?.tone, 'probleme');
+    assert.equal(byKind['mandats-actifs']?.deltaLabel, null);
   });
 
   it('ignore un RDV suivi d’une interaction', () => {

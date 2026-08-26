@@ -12,6 +12,7 @@ import {
   assessAnnonce,
   bienToAnnonce,
 } from '@/lib/diffusion';
+import PortailCompletenessPanel from './PortailCompletenessPanel';
 import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 
@@ -79,8 +80,15 @@ export default function ExportAnnonceDialog({
     <Modal open onClose={onClose} title="Exporter l'annonce" maxWidth="lg">
       <p className="text-pretty text-[14px] text-text-muted">
         Priimo prépare un fichier au format de flux immobilier. Vous le transmettez ensuite vous-même.
-        Rien n’est envoyé à un portail.
+        Rien n’est envoyé à un portail depuis cet écran d’export.
       </p>
+
+      <div className="mt-4">
+        <PortailCompletenessPanel
+          annonce={annonce}
+          portails={['seloger', 'bienici', 'logicimmo']}
+        />
+      </div>
 
       {blockers.length > 0 ? (
         <div

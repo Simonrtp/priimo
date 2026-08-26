@@ -1,11 +1,16 @@
 import { isSignedMandat, PORTFOLIO_STALE_MANDAT_DAYS, PORTFOLIO_STALE_VISIT_MAX } from './portfolio';
+import type { CounterTone } from './counter-severity';
 
 const DAY_MS = 86_400_000;
 
+export type DirectorExceptionKind = 'leads-non-pris' | 'notes-brutes' | 'mandats-60j' | 'inactivite';
+
 export type DirectorExceptionItem = {
+  kind: DirectorExceptionKind;
   label: string;
   count: number;
-  href: string;
+  href: string | null;
+  tone: CounterTone;
 };
 
 export type DirectorMemberExceptions = {
@@ -19,6 +24,11 @@ function ageDays(iso: string | null | undefined, now: number): number | null {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return null;
   return (now - t) / DAY_MS;
+}
+
+function memberQuery(href: string, memberId: string): string {
+  const join = href.includes('?') ? '&' : '?';
+  return `${href}${join}membre=${encodeURIComponent(memberId)}`;
 }
 
 /**
@@ -50,9 +60,11 @@ export function buildDirectorExceptions(input: {
     ).length;
     if (nonPris > 0) {
       items.push({
+        kind: 'leads-non-pris',
         label: nonPris > 1 ? 'leads livrés non pris' : 'lead livré non pris',
         count: nonPris,
-        href: '/dashboard/prospection?filtre=non-pris',
+        href: memberQuery('/dashboard/prospection?filtre=non-pris&vue=liste', member.id),
+        tone: 'probleme',
       });
     }
 
@@ -61,9 +73,11 @@ export function buildDirectorExceptions(input: {
     ).length;
     if (brutes > 0) {
       items.push({
+        kind: 'notes-brutes',
         label: brutes > 1 ? 'notes encore brutes' : 'note encore brute',
         count: brutes,
-        href: '/dashboard/notes?statut=brute&scope=agence',
+        href: memberQuery('/dashboard/notes?statut=brute&scope=agence', member.id),
+        tone: 'surveiller',
       });
     }
 
@@ -76,18 +90,22 @@ export function buildDirectorExceptions(input: {
     }).length;
     if (stale > 0) {
       items.push({
+        kind: 'mandats-60j',
         label: stale > 1 ? 'mandats qui pourrissent' : 'mandat qui pourrit',
         count: stale,
-        href: '/dashboard/biens?filtre=mandats-60j',
+        href: memberQuery('/dashboard/biens?filtre=mandats-60j', member.id),
+        tone: 'probleme',
       });
     }
 
     const volume = input.activityVolumeByMemberId[member.id] ?? 0;
     if (volume === 0) {
       items.push({
+        kind: 'inactivite',
         label: 'aucune activité depuis 7 jours',
         count: 1,
-        href: '/dashboard',
+        href: null,
+        tone: 'surveiller',
       });
     }
 
