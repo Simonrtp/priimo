@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Building2, Plus, Users, type LucideIcon } from 'lucide-react';
 import type { Bien } from '@/types/bien';
-import type { Contact, ContactType } from '@/types/contact';
+import type { Contact } from '@/types/contact';
 import { notifySuccess } from '@/lib/notify';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { useUser } from '@/lib/hooks/useUser';
@@ -12,7 +12,12 @@ import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog
 import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 
-type CreateKind = 'contact' | 'bien' | 'acquereur';
+type CreateKind = 'contact' | 'bien';
+
+const CREATE_ITEMS: { value: CreateKind; label: string; Icon: LucideIcon }[] = [
+  { value: 'contact', label: 'Nouveau contact', Icon: Users },
+  { value: 'bien', label: 'Nouveau bien', Icon: Building2 },
+];
 
 export default function CreateMenu({
   className = '',
@@ -96,22 +101,17 @@ export default function CreateMenu({
             id={menuId}
             role="menu"
             aria-label="Créer"
-            className="absolute right-0 top-[calc(100%+6px)] z-[40] min-w-[13.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay-lg"
+            className="absolute right-0 top-[calc(100%+6px)] z-[40] w-max min-w-[13.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-surface pt-1 pb-2.5 shadow-clay-lg"
           >
-            {(
-              [
-                ['contact', 'Nouveau contact'],
-                ['bien', 'Nouveau bien'],
-                ['acquereur', 'Nouvelle recherche acquéreur'],
-              ] as const
-            ).map(([value, label]) => (
+            {CREATE_ITEMS.map(({ value, label, Icon }) => (
               <button
                 key={value}
                 type="button"
                 role="menuitem"
                 onClick={() => pick(value)}
-                className="flex min-h-11 w-full items-center px-3.5 text-left text-[13.5px] font-medium text-text hover:bg-black/[0.04]"
+                className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap px-3.5 text-left text-[13.5px] font-medium text-text hover:bg-black/[0.04]"
               >
+                <Icon size={16} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
                 {label}
               </button>
             ))}
@@ -119,17 +119,15 @@ export default function CreateMenu({
         ) : null}
       </div>
 
-      {kind === 'contact' || kind === 'acquereur' ? (
+      {kind === 'contact' ? (
         <ContactFormDialog
-          key={kind}
           open
           onClose={() => setKind(null)}
           members={members}
           currentUserId={profile.id}
-          initialType={kind === 'acquereur' ? ('acquereur' as ContactType) : undefined}
           skipSuccessToast
           onSaved={(contact) => {
-            notifySuccess(kind === 'acquereur' ? 'Recherche enregistrée' : 'Contact créé', {
+            notifySuccess('Contact créé', {
               duration: 6000,
               action: {
                 label: 'Ouvrir',

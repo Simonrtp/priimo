@@ -85,7 +85,7 @@ describe('formatContactMeta', () => {
       leadAddress: null,
     });
     assert.match(line, /jusqu’à 400 k€/);
-    assert.match(line, /Marie/);
+    assert.match(line, /Fait par Marie/);
     assert.doesNotMatch(line, /Vieux Lille/);
   });
 });

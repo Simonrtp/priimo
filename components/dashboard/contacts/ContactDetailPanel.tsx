@@ -1,36 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Mail, Phone } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
-import type { Contact, ContactInteraction } from '@/types/contact';
-import {
-  INTERACTION_KIND_LABELS,
-  criteriaAreEmpty,
-  typeUsesCriteria,
-} from '@/types/contact';
+import type { Contact } from '@/types/contact';
+import { criteriaAreEmpty, typeUsesCriteria } from '@/types/contact';
 import { evaluerCorrespondance } from '@/lib/matching/rapprochement';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import { TextArea } from '@/components/dashboard/workspace/Field';
+import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import { postAgencyAlert } from '@/lib/agency/post-alert';
-import { notifyError, notifySuccess } from '@/lib/notify';
-import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import { notifyError } from '@/lib/notify';
 import DatePickerField from '@/components/ui/DatePickerField';
-import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 
 function euros(v: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(v)} €`;
-}
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(iso));
 }
 
 function criteriaLines(contact: Contact): string[] {
@@ -70,6 +55,53 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+function payloadFrom(contact: Contact, draft: {
+  summary: string;
+  phone: string;
+  email: string;
+  address: string;
+}) {
+  return {
+    firstName: contact.firstName,
+    lastName: contact.lastName,
+    type: contact.type,
+    phone: draft.phone.trim() || null,
+    email: draft.email.trim() || null,
+    secteur: contact.secteur,
+    address: draft.address.trim() || null,
+    postalCodes: contact.criteria.postalCodes,
+    budgetMin: contact.criteria.budgetMin,
+    budgetMax: contact.criteria.budgetMax,
+    surfaceMin: contact.criteria.surfaceMin,
+    surfaceMax: contact.criteria.surfaceMax,
+    roomsMin: contact.criteria.roomsMin,
+    summary: draft.summary.trim() || null,
+    recontacterLe: contact.recontacterLe,
+    assignedTo: contact.assignedTo,
+  };
+}
+
+function fieldSnapshot(contact: Contact) {
+  return {
+    summary: contact.summary ?? '',
+    phone: contact.phone ?? '',
+    email: contact.email ?? '',
+    address: contact.address ?? '',
+  };
+}
+
+function draftsEqual(
+  a: { summary: string; phone: string; email: string; address: string },
+  b: { summary: string; phone: string; email: string; address: string },
+): boolean {
+  return (
+    a.summary === b.summary &&
+    a.phone === b.phone &&
+    a.email === b.email &&
+    a.address === b.address
+  );
+}
+
 export default function ContactDetailPanel({
   contact,
   biens,
@@ -87,29 +119,24 @@ export default function ContactDetailPanel({
   onDelete: () => void;
   onAssigned: (contact: Contact) => void;
 }) {
-  const [interactions, setInteractions] = useState<ContactInteraction[] | null>(null);
-  const [draft, setDraft] = useState('');
-  const [noteAssignee, setNoteAssignee] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    summary: contact.summary ?? '',
+    phone: contact.phone ?? '',
+    email: contact.email ?? '',
+    address: contact.address ?? '',
+  });
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const draftRef = useRef(draft);
+  const lastSavedRef = useRef(fieldSnapshot(contact));
+  const savingRef = useRef(false);
+  const queuedRef = useRef(false);
+  draftRef.current = draft;
 
   useEffect(() => {
-    let cancelled = false;
-    setInteractions(null);
-
-    void (async () => {
-      try {
-        const res = await fetch(`/api/dashboard/contacts/${contact.id}/interactions`);
-        const data = (await res.json()) as { interactions?: ContactInteraction[] };
-        if (!cancelled) setInteractions(data.interactions ?? []);
-      } catch {
-        if (!cancelled) setInteractions([]);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    const next = fieldSnapshot(contact);
+    setDraft(next);
+    lastSavedRef.current = next;
   }, [contact.id]);
 
   const rapprochements = useMemo(() => {
@@ -133,29 +160,37 @@ export default function ContactDetailPanel({
       .filter((r): r is { bien: Bien; match: NonNullable<typeof r.match> } => r.match !== null);
   }, [biens, contact]);
 
-  async function addNote() {
-    const text = draft.trim();
-    if (!text || saving) return;
-
+  async function saveDraft() {
+    if (savingRef.current) {
+      queuedRef.current = true;
+      return;
+    }
+    const current = draftRef.current;
+    if (draftsEqual(lastSavedRef.current, current)) return;
+    savingRef.current = true;
     setSaving(true);
     try {
-      const res = await fetch(`/api/dashboard/contacts/${contact.id}/interactions`, {
-        method: 'POST',
+      const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: text, kind: 'note', assignedTo: noteAssignee }),
+        body: JSON.stringify(payloadFrom(contact, current)),
       });
-      const data = (await res.json()) as { interaction?: ContactInteraction; error?: string };
-      if (!res.ok || !data.interaction) {
-        notifyError(data.error ?? "L'échange n'a pas pu être enregistré");
+      const data = (await res.json()) as { contact?: Contact; error?: string };
+      if (!res.ok || !data.contact) {
+        notifyError(data.error ?? "Les informations n'ont pas pu être enregistrées");
         return;
       }
-      setInteractions((list) => [data.interaction as ContactInteraction, ...(list ?? [])]);
-      setDraft('');
-      setNoteAssignee(null);
+      lastSavedRef.current = current;
+      onAssigned(data.contact);
     } catch {
-      notifyError("L'échange n'a pas pu être enregistré");
+      notifyError("Les informations n'ont pas pu être enregistrées");
     } finally {
+      savingRef.current = false;
       setSaving(false);
+      if (queuedRef.current) {
+        queuedRef.current = false;
+        void saveDraft();
+      }
     }
   }
 
@@ -174,8 +209,6 @@ export default function ContactDetailPanel({
         return;
       }
       onAssigned(data.contact);
-      const name = members.find((m) => m.id === next)?.fullName;
-      notifySuccess(next ? `Fiche assignée à ${name ?? 'un collègue'}` : 'Fiche non assignée');
     } catch {
       notifyError("L'assignation n'a pas pu être enregistrée");
     } finally {
@@ -184,52 +217,65 @@ export default function ContactDetailPanel({
   }
 
   const criteria = criteriaLines(contact);
+  const addressLabel = contact.type === 'gardien' || contact.type === 'commercant' ? 'Immeuble' : 'Adresse';
 
   return (
     <div
-      className="border-t border-[#1E3148]/10 px-4 pb-5 pt-4 sm:px-5"
+      className="border-t border-[#1E3148]/10 px-4 pb-5 pt-5 sm:px-5"
       role="region"
+      aria-busy={saving}
       aria-label={`Fiche de ${contact.fullName}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        {contact.phone ? (
-          <a
-            href={telHref(contact.phone)}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-clay bg-accent px-3.5 text-[13px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <Phone size={14} strokeWidth={2.2} aria-hidden />
-            {formatPhoneDisplay(contact.phone)}
-          </a>
-        ) : null}
-        {contact.email ? (
-          <a
-            href={`mailto:${contact.email}`}
-            className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-clay border border-black/[0.10] bg-white px-3 text-[13px] font-medium text-text hover:bg-black/[0.03]"
-          >
-            <Mail size={14} strokeWidth={2} className="flex-shrink-0" aria-hidden />
-            <span className="truncate">{contact.email}</span>
-          </a>
-        ) : null}
-          <WorkspaceButton type="button" variant="secondary" onClick={onEdit} className="!min-h-9 !py-1.5">
-          Modifier
-        </WorkspaceButton>
-        <ActionMenu
-          items={[
-            {
-              label: 'Signaler une baisse de prix',
-              onSelect: () => {
-                void postAgencyAlert({ kind: 'baisse_prix', contactId: contact.id });
-              },
-            },
-            {
-              label: 'Signaler un mandat à récupérer',
-              onSelect: () => {
-                void postAgencyAlert({ kind: 'mandat_a_recuperer', contactId: contact.id });
-              },
-            },
-            { label: 'Supprimer ce contact', onSelect: onDelete, destructive: true },
-          ]}
+      <div>
+        <label htmlFor={`contact-note-${contact.id}`} className="sr-only">
+          Note sur {contact.fullName}
+        </label>
+        <TextArea
+          id={`contact-note-${contact.id}`}
+          rows={4}
+          value={draft.summary}
+          onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))}
+          onBlur={() => void saveDraft()}
+          placeholder="Ce qu’il faut se rappeler de cette personne"
+          className="rounded-2xl bg-white"
         />
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 sm:gap-x-6">
+        <Field label="Téléphone" htmlFor={`contact-phone-${contact.id}`}>
+          <TextInput
+            id={`contact-phone-${contact.id}`}
+            type="tel"
+            autoComplete="off"
+            value={draft.phone}
+            onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
+            onBlur={() => void saveDraft()}
+            placeholder="06 12 34 56 78"
+          />
+        </Field>
+        <Field label="Email" htmlFor={`contact-email-${contact.id}`}>
+          <TextInput
+            id={`contact-email-${contact.id}`}
+            type="email"
+            autoComplete="off"
+            value={draft.email}
+            onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+            onBlur={() => void saveDraft()}
+            placeholder="prenom@email.fr"
+          />
+        </Field>
+        <div className="sm:col-span-2">
+          <Field label={addressLabel} htmlFor={`contact-address-${contact.id}`}>
+            <TextInput
+              id={`contact-address-${contact.id}`}
+              autoComplete="off"
+              value={draft.address}
+              onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))}
+              onBlur={() => void saveDraft()}
+              placeholder="12 rue de la Monnaie, Lille"
+            />
+          </Field>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2 sm:gap-x-8">
@@ -271,12 +317,6 @@ export default function ContactDetailPanel({
           />
         </Block>
 
-        {contact.address ? (
-          <Block title={contact.type === 'gardien' || contact.type === 'commercant' ? 'Immeuble' : 'Adresse'}>
-            <p className="text-pretty text-[14px] text-text">{contact.address}</p>
-          </Block>
-        ) : null}
-
         {typeUsesCriteria(contact.type) ? (
           <Block title="Ce qu'il recherche">
             {criteriaAreEmpty(contact.criteria) ? (
@@ -309,79 +349,28 @@ export default function ContactDetailPanel({
         </div>
       ) : null}
 
-      {contact.summary ? (
-        <div className="mt-5">
-          <Block title="Résumé">
-            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-text">{contact.summary}</p>
-          </Block>
-        </div>
-      ) : null}
-
-      <div className="mt-5 border-t border-black/[0.05] pt-4">
-        <Block title="Notes terrain">
-          <NotesTerrainList
-            entiteType="contact"
-            entiteId={contact.id}
-            currentUserId={currentUserId}
-          />
-        </Block>
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <WorkspaceButton type="button" variant="secondary" onClick={onEdit} className="!min-h-9 !py-1.5">
+          Modifier
+        </WorkspaceButton>
+        <ActionMenu
+          items={[
+            {
+              label: 'Signaler une baisse de prix',
+              onSelect: () => {
+                void postAgencyAlert({ kind: 'baisse_prix', contactId: contact.id });
+              },
+            },
+            {
+              label: 'Signaler un mandat à récupérer',
+              onSelect: () => {
+                void postAgencyAlert({ kind: 'mandat_a_recuperer', contactId: contact.id });
+              },
+            },
+            { label: 'Supprimer ce contact', onSelect: onDelete, destructive: true },
+          ]}
+        />
       </div>
-
-      <div className="mt-5">
-        <Block title="Historique">
-          <label htmlFor={`contact-note-${contact.id}`} className="sr-only">
-            Ajouter un échange
-          </label>
-          <TextArea
-            id={`contact-note-${contact.id}`}
-            rows={2}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Ce qui vient de se dire…"
-          />
-          {draft.trim() ? (
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              {members.length > 0 ? (
-                <div className="min-w-0 flex-1">
-                  <p className="mb-1.5 text-[12.5px] font-medium text-text-muted">Assigner à</p>
-                  <AssigneeSelect
-                    id={`contact-note-assignee-${contact.id}`}
-                    value={noteAssignee}
-                    members={members}
-                    currentUserId={currentUserId}
-                    includeUnassigned
-                    onChange={setNoteAssignee}
-                  />
-                </div>
-              ) : null}
-              <WorkspaceButton type="button" onClick={addNote} disabled={saving}>
-                {saving ? 'Enregistrement…' : 'Ajouter'}
-              </WorkspaceButton>
-            </div>
-          ) : null}
-
-          {interactions === null ? (
-            <p className="mt-3 text-[13px] text-text-subtle">Chargement…</p>
-          ) : interactions.length === 0 ? (
-            <p className="mt-3 text-[13px] text-text-subtle">Aucun échange enregistré.</p>
-          ) : (
-            <ul className="mt-4 flex flex-col gap-3.5">
-              {interactions.map((it) => (
-                <li key={it.id}>
-                  <p className="text-[11.5px] text-text-subtle">
-                    {INTERACTION_KIND_LABELS[it.kind]} · {formatDate(it.occurredAt)}
-                  </p>
-                  <p className="mt-0.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-text">
-                    {it.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Block>
-      </div>
-
-      <p className="mt-4 text-[11.5px] text-text-subtle">Créé le {formatDate(contact.createdAt)}</p>
     </div>
   );
 }

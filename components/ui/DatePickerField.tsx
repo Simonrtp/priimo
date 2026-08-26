@@ -44,10 +44,10 @@ type DatePickerFieldProps = {
 };
 
 const triggerDefault =
-  'flex w-full min-w-0 items-center gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2.5 text-left text-text outline-none transition-colors hover:border-black/[0.14] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50';
+  'flex w-full min-w-0 items-center gap-2 rounded-2xl border border-black/[0.10] bg-surface px-3.5 py-2.5 text-left text-text outline-none transition-colors hover:border-black/[0.14] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50';
 
 const triggerCompact =
-  'inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-lg border border-black/[0.10] bg-white px-2 py-1 text-left text-text-muted outline-none transition-colors hover:border-black/[0.14] hover:bg-[#FFF7F0] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-black/[0.10] bg-white px-3 py-0 text-left text-text-muted outline-none transition-colors hover:border-black/[0.14] hover:bg-[#FFF7F0] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function DatePickerField({
   id,
@@ -121,7 +121,7 @@ export default function DatePickerField({
           id={popoverId}
           role="dialog"
           aria-label={ariaLabel}
-          className={`absolute z-50 mt-1.5 w-[17.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-white shadow-clay-lg ${
+          className={`absolute z-50 mt-1.5 w-[17.5rem] overflow-hidden rounded-3xl border border-black/[0.08] bg-white shadow-clay-lg ${
             compact ? 'right-0' : 'left-0'
           }`}
           onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}

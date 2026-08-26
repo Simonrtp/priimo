@@ -28,8 +28,20 @@ export const BIENS_SELECT = `
 `;
 
 type BienRowWithOwner = BienRow & {
-  proprietaire?: { first_name: string | null; last_name: string | null } | null;
+  proprietaire?: {
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+    email: string | null;
+  } | null;
 };
+
+export const BIENS_OWNER_JOIN =
+  'proprietaire:contacts!biens_proprietaire_contact_id_fkey(first_name, last_name, phone, email)';
+
+export function biensSelectWithOwner(select: string = BIENS_SELECT): string {
+  return `${select}, ${BIENS_OWNER_JOIN}`;
+}
 
 export function mapDbBienToBien(row: BienRowWithOwner): Bien {
   const owner = row.proprietaire ?? null;
@@ -51,6 +63,8 @@ export function mapDbBienToBien(row: BienRowWithOwner): Bien {
     mandatStatut: row.mandat_statut,
     proprietaireContactId: row.proprietaire_contact_id,
     proprietaireName: ownerName,
+    proprietairePhone: owner?.phone?.trim() || null,
+    proprietaireEmail: owner?.email?.trim() || null,
     leadId: row.lead_id,
     banId: row.ban_id ?? null,
     latitude: row.latitude ?? null,
@@ -89,11 +103,9 @@ export async function fetchBiensSafe(supabase: Client): Promise<Bien[]> {
 }
 
 export async function fetchBiens(supabase: Client): Promise<Bien[]> {
-  const ownerJoin = 'proprietaire:contacts!biens_proprietaire_contact_id_fkey(first_name, last_name)';
-
   const full = await supabase
     .from('biens')
-    .select(`${BIENS_SELECT}, ${ownerJoin}`)
+    .select(biensSelectWithOwner(BIENS_SELECT))
     .order('created_at', { ascending: false });
 
   if (!full.error) {
@@ -103,7 +115,7 @@ export async function fetchBiens(supabase: Client): Promise<Bien[]> {
   // Migration d'annonce pas encore appliquée : on garde la géoloc (carte) même sans listing.
   const withGeo = await supabase
     .from('biens')
-    .select(`${BIENS_SELECT_GEO}, ${ownerJoin}`)
+    .select(biensSelectWithOwner(BIENS_SELECT_GEO))
     .order('created_at', { ascending: false });
 
   if (!withGeo.error) {
@@ -112,7 +124,7 @@ export async function fetchBiens(supabase: Client): Promise<Bien[]> {
 
   const fallback = await supabase
     .from('biens')
-    .select(`${BIENS_SELECT_CORE}, ${ownerJoin}`)
+    .select(biensSelectWithOwner(BIENS_SELECT_CORE))
     .order('created_at', { ascending: false });
 
   if (fallback.error) throw new Error(full.error.message);

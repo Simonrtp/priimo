@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { bienFieldsToRow, parseBienInput } from '@/lib/bien-input';
 import { geocodeToColumns } from '@/lib/geo/fields';
-import { BIENS_SELECT, mapDbBienToBien } from '@/lib/queries/biens';
+import { BIENS_SELECT, biensSelectWithOwner, mapDbBienToBien } from '@/lib/queries/biens';
 import type { BienRow } from '@/types/database';
 import { reconcileOrphanNotes } from '@/lib/notes/run-reconcile';
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       ...bienFieldsToRow(f),
       ...geo,
     })
-    .select(BIENS_SELECT)
+    .select(biensSelectWithOwner(BIENS_SELECT))
     .single();
 
   if (error || !data) {

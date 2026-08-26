@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Building, ImagePlus } from 'lucide-react';
+import { Building, ImagePlus, Mail, Phone } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { MANDAT_STATUT_LABELS } from '@/types/bien';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -11,6 +11,7 @@ import { BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
 import { FacadeStreetView } from '@/components/dashboard/FacadeLead';
 import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 
 function euros(v: number | null): string | null {
   return v === null ? null : `${new Intl.NumberFormat('fr-FR').format(v)} €`;
@@ -172,31 +173,57 @@ export default function BienListCard({
           </div>
 
           <div className="flex min-w-0 flex-1 items-start gap-2">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <span
-                className="line-clamp-2 block text-[16px] font-semibold text-text-strong sm:text-[18px]"
-                style={{ letterSpacing: '-0.015em' }}
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onEdit}
+                className="w-full min-w-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                {bien.address}
-              </span>
-              <p className="mt-1.5 truncate text-[13px] text-text-muted sm:text-[13.5px]">
-                {[bien.postalCode, bien.city].filter(Boolean).join(' ') ||
-                  'Localisation à compléter'}
-                {details.length > 0 ? ` · ${details.join(' · ')}` : ''}
+                <span
+                  className="line-clamp-2 block text-[16px] font-semibold text-text-strong sm:text-[18px]"
+                  style={{ letterSpacing: '-0.015em' }}
+                >
+                  {bien.address}
+                </span>
+                <p className="mt-1.5 truncate text-[13px] text-text-muted sm:text-[13.5px]">
+                  {[bien.postalCode, bien.city].filter(Boolean).join(' ') ||
+                    'Localisation à compléter'}
+                  {details.length > 0 ? ` · ${details.join(' · ')}` : ''}
+                </p>
+              </button>
+              <p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-text-subtle sm:text-[13px]">
+                <span>
+                  {bien.proprietaireName
+                    ? `Propriétaire : ${bien.proprietaireName}`
+                    : 'Aucun propriétaire rattaché'}
+                </span>
+                {bien.proprietairePhone ? (
+                  <a
+                    href={telHref(bien.proprietairePhone)}
+                    className="inline-flex min-h-8 items-center gap-1 font-medium text-[#3D5A80] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    aria-label={`Appeler ${bien.proprietaireName ?? 'le propriétaire'}`}
+                  >
+                    <Phone size={12} strokeWidth={2.2} aria-hidden />
+                    {formatPhoneDisplay(bien.proprietairePhone)}
+                  </a>
+                ) : null}
+                {bien.proprietaireEmail ? (
+                  <a
+                    href={`mailto:${bien.proprietaireEmail}`}
+                    className="inline-flex min-h-8 max-w-full items-center gap-1 font-medium text-[#3D5A80] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    aria-label={`Écrire à ${bien.proprietaireName ?? 'le propriétaire'}`}
+                  >
+                    <Mail size={12} strokeWidth={2} className="flex-shrink-0" aria-hidden />
+                    <span className="truncate">{bien.proprietaireEmail}</span>
+                  </a>
+                ) : null}
+                {bien.photos.length > 0 ? (
+                  <span>
+                    {bien.photos.length} photo{bien.photos.length > 1 ? 's' : ''}
+                  </span>
+                ) : null}
               </p>
-              <p className="mt-1 text-[12.5px] text-text-subtle sm:text-[13px]">
-                {bien.proprietaireName
-                  ? `Propriétaire : ${bien.proprietaireName}`
-                  : 'Aucun propriétaire rattaché'}
-                {bien.photos.length > 0
-                  ? ` · ${bien.photos.length} photo${bien.photos.length > 1 ? 's' : ''}`
-                  : ''}
-              </p>
-            </button>
+            </div>
             <div className="flex flex-shrink-0 flex-col items-end gap-2">
               <div className="flex items-center gap-1">
                 <span className="text-[12px] text-text-subtle sm:text-[12.5px]">

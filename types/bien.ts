@@ -19,6 +19,8 @@ export interface Bien {
   proprietaireContactId: string | null;
   /** Nom du propriétaire rattaché, résolu à la lecture. */
   proprietaireName: string | null;
+  proprietairePhone: string | null;
+  proprietaireEmail: string | null;
   leadId: string | null;
   banId: string | null;
   latitude: number | null;

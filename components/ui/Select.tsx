@@ -21,7 +21,7 @@ interface SelectProps {
 }
 
 const defaultTriggerClass =
-  'flex w-full min-w-[140px] items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-3 py-2 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
+  'flex w-full min-w-[140px] items-center justify-between gap-2 rounded-2xl border border-black/8 bg-white px-3 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function Select({
   value,
@@ -122,7 +122,7 @@ export default function Select({
           id={listId}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft animate-fadeIn"
+          className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-black/8 bg-white p-1 shadow-soft animate-fadeIn"
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;

@@ -114,6 +114,6 @@ export function formatContactMeta(
     if (contact.secteur) bits.push(contact.secteur);
     if (contact.address) bits.push(contact.address);
   }
-  if (ctx.assigneeName) bits.push(ctx.assigneeName);
+  if (ctx.assigneeName) bits.push(`Fait par ${ctx.assigneeName}`);
   return bits.join(' · ');
 }

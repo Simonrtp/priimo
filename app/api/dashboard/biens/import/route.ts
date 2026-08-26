@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { bienFieldsToRow } from '@/lib/bien-input';
 import { createBanGeocodeCache } from '@/lib/geo/ban';
 import { geocodeToColumns } from '@/lib/geo/fields';
-import { BIENS_SELECT, mapDbBienToBien } from '@/lib/queries/biens';
+import { BIENS_SELECT, biensSelectWithOwner, mapDbBienToBien } from '@/lib/queries/biens';
 import { activeMappedKeys } from '@/lib/import/mapping';
 import {
   BIEN_IMPORT_FIELDS,
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
   const keys = activeMappedKeys(mapping);
 
   const supabase = await createSupabaseServerClient();
-  const { data: existingRows, error: loadError } = await supabase.from('biens').select(BIENS_SELECT);
+  const { data: existingRows, error: loadError } = await supabase.from('biens').select(biensSelectWithOwner(BIENS_SELECT));
 
   if (loadError) {
     console.error('[biens/import] lecture', loadError);
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
           ...bienFieldsToRow(item.fields),
           ...geo,
         })
-        .select(BIENS_SELECT)
+        .select(biensSelectWithOwner(BIENS_SELECT))
         .single();
       if (error || !data) {
         console.error('[biens/import] création', error);
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
       .update({ ...bienFieldsToRow(merged), ...geo })
       .eq('id', item.duplicate.id)
       .eq('agency_id', agency.id)
-      .select(BIENS_SELECT)
+      .select(biensSelectWithOwner(BIENS_SELECT))
       .single();
     if (error || !data) {
       console.error('[biens/import] mise à jour', error);

@@ -3,7 +3,7 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { bienFieldsToRow, parseBienInput } from '@/lib/bien-input';
 import { geocodeToColumns } from '@/lib/geo/fields';
-import { BIENS_SELECT, mapDbBienToBien } from '@/lib/queries/biens';
+import { BIENS_SELECT, biensSelectWithOwner, mapDbBienToBien } from '@/lib/queries/biens';
 import type { BienRow } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -37,7 +37,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ bienId: strin
     .update({ ...bienFieldsToRow(f), ...geo })
     .eq('id', bienId)
     .eq('agency_id', agency.id)
-    .select(BIENS_SELECT)
+    .select(biensSelectWithOwner(BIENS_SELECT))
     .single();
 
   if (error || !data) {

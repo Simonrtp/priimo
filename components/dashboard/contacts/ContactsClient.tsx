@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Download, Phone, Search, Upload } from 'lucide-react';
+import { ChevronDown, Download, Phone, Search, Trash2, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
@@ -113,26 +113,31 @@ function ContactRow({
   const future = isRelanceFuture(contact.recontacterLe, todayKey);
   const callableNow = Boolean(contact.phone) && !future;
   const [mounted, setMounted] = useState(selected);
+  const [expanded, setExpanded] = useState(selected);
 
   useEffect(() => {
     if (selected) {
       setMounted(true);
-      return;
+      const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setExpanded(true));
+      });
+      return () => cancelAnimationFrame(raf);
     }
-    const timer = window.setTimeout(() => setMounted(false), 200);
+    setExpanded(false);
+    const timer = window.setTimeout(() => setMounted(false), 320);
     return () => window.clearTimeout(timer);
   }, [selected]);
 
   return (
     <li
-      className="border-b border-[#1E3148]/12 first:rounded-t-clay last:rounded-b-clay last:border-b-0"
+      className="overflow-hidden border-b border-[#1E3148]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
       style={{
         background: selected ? CREAM : '#FFFFFF',
         borderBottomWidth: 0.5,
       }}
     >
       <div
-        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 hover:bg-[#FFF7F0] sm:px-5"
+        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#FFF7F0] motion-reduce:transition-none sm:px-5"
         style={selected ? { background: CREAM } : undefined}
         onClick={onOpen}
       >
@@ -171,82 +176,87 @@ function ContactRow({
               </button>
             ) : null}
           </div>
-          <p className="mt-0.5 truncate text-[13px] text-text-muted">
-            {incomplete ? (
-              <>
-                {meta ? `${meta} · ` : null}
-                <span>aucun moyen de contact</span>
-              </>
-            ) : (
-              meta || '—'
-            )}
-          </p>
+          <p className="mt-0.5 truncate text-[13px] text-text-muted">{meta || '—'}</p>
         </div>
 
-        <div className="flex w-[11.5rem] flex-shrink-0 flex-col items-end gap-0.5 text-right">
-          <p className="text-[12.5px] text-text-muted">{formatLastInteraction(last)}</p>
-          {callableNow && contact.phone ? (
-            <a
-              href={telHref(contact.phone)}
-              className="inline-flex items-center gap-1 text-[13px] font-medium tabular-nums hover:underline"
-              style={{ color: SLATE }}
-              aria-label={`Appeler ${contact.fullName}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Phone size={12} strokeWidth={2.2} aria-hidden />
-              {formatPhoneDisplay(contact.phone)}
-            </a>
-          ) : contact.recontacterLe ? null : incomplete ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onComplete();
-              }}
-              className="text-[12.5px] font-semibold hover:underline"
-              style={{ color: SLATE }}
-            >
-              Compléter
-            </button>
-          ) : null}
-          <DatePickerField
-            id={`relance-${contact.id}`}
-            variant="compact"
-            value={contact.recontacterLe}
-            onChange={onRelance}
-            stopPropagation
-            aria-label={`Date de relance pour ${contact.fullName}`}
-            className="mt-0.5"
-          />
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex flex-col items-end gap-1.5">
+            <p className="text-[12px] leading-none text-text-muted">{formatLastInteraction(last)}</p>
+            <div className="flex items-center gap-2">
+              {callableNow && contact.phone ? (
+                <a
+                  href={telHref(contact.phone)}
+                  className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium tabular-nums hover:bg-white/80"
+                  style={{ color: SLATE }}
+                  aria-label={`Appeler ${contact.fullName}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Phone size={12} strokeWidth={2.2} aria-hidden />
+                  {formatPhoneDisplay(contact.phone)}
+                </a>
+              ) : incomplete ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onComplete();
+                  }}
+                  className="inline-flex h-8 items-center rounded-full px-2.5 text-[12px] font-semibold"
+                  style={{ background: '#EAEFF5', color: SLATE }}
+                >
+                  Compléter
+                </button>
+              ) : null}
+              <DatePickerField
+                id={`relance-${contact.id}`}
+                variant="compact"
+                value={contact.recontacterLe}
+                onChange={onRelance}
+                stopPropagation
+                aria-label={`Date de relance pour ${contact.fullName}`}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            aria-expanded={selected}
+            aria-controls={`contact-fiche-${contact.id}`}
+            aria-label={selected ? `Fermer la fiche de ${contact.fullName}` : `Ouvrir la fiche de ${contact.fullName}`}
+            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <ChevronDown
+              size={16}
+              strokeWidth={2}
+              aria-hidden
+              className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
+                selected ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            aria-label={`Supprimer ${contact.fullName}`}
+            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <Trash2 size={15} strokeWidth={2} aria-hidden />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
-          aria-expanded={selected}
-          aria-controls={`contact-fiche-${contact.id}`}
-          aria-label={selected ? `Fermer la fiche de ${contact.fullName}` : `Ouvrir la fiche de ${contact.fullName}`}
-          className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <ChevronDown
-            size={16}
-            strokeWidth={2}
-            aria-hidden
-            className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${
-              selected ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
       </div>
 
       <div
         id={`contact-fiche-${contact.id}`}
-        className="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
-        style={{ gridTemplateRows: selected ? '1fr' : '0fr' }}
+        className="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+        style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
       >
-        <div className={`min-h-0 ${selected ? 'overflow-visible' : 'overflow-hidden'}`}>
+        <div className={`min-h-0 ${expanded ? 'overflow-visible' : 'overflow-hidden'}`}>
           {mounted ? (
             <ContactDetailPanel
               contact={contact}
@@ -434,7 +444,7 @@ export default function ContactsClient({
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 md:pt-2 lg:pt-6">
+    <div className="w-full min-w-0 pt-2 md:pt-1 lg:pt-3">
       <PageHeader
         title="Contacts"
         subtitle={
@@ -472,7 +482,7 @@ export default function ContactsClient({
       />
 
       <div className="mb-6 flex flex-wrap items-end gap-3 sm:gap-4 md:mb-8">
-        <div className="relative w-full min-w-0 flex-1 sm:w-auto sm:min-w-[220px]">
+        <div className="relative min-w-0 flex-[1.4] sm:min-w-[280px]">
           <label htmlFor="contacts-search" className="sr-only">
             Rechercher un contact par nom, téléphone ou email
           </label>
@@ -488,7 +498,7 @@ export default function ContactsClient({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un nom, un téléphone, un email"
-            className="w-full rounded-xl border border-black/[0.10] bg-surface py-2.5 pl-9 pr-3 text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
+            className="w-full rounded-2xl border border-black/[0.10] bg-surface py-2.5 pl-9 pr-3 text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
             style={{ fontSize: 14 }}
           />
         </div>
@@ -585,16 +595,15 @@ export default function ContactsClient({
           </p>
         </WorkspaceCard>
       ) : (
-        <ul className="rounded-clay border border-[#1E3148]/12 bg-white shadow-clay-sm">
+        <ul className="overflow-hidden rounded-[32px] border border-[#1E3148]/12 bg-white shadow-clay-sm">
           {visible.map((contact) => (
             <ContactRow
               key={contact.id}
               contact={contact}
               selected={contact.id === selectedId}
               assigneeName={
-                isDirector && contact.assignedTo
-                  ? (members.find((m) => m.id === contact.assignedTo)?.fullName ?? null)
-                  : null
+                members.find((m) => m.id === (contact.assignedTo ?? contact.createdBy))
+                  ?.fullName ?? null
               }
               last={latest[contact.id] ?? null}
               bien={bienForContact(contact, biens)}
@@ -606,10 +615,7 @@ export default function ContactsClient({
               members={members}
               currentUserId={currentUserId}
               onOpen={() => setSelectedId((id) => (id === contact.id ? null : contact.id))}
-              onComplete={() => {
-                setEditing(contact);
-                setFormOpen(true);
-              }}
+              onComplete={() => setSelectedId(contact.id)}
               onMerge={() => openMerge(contact)}
               onRelance={(date) => void patchRelance(contact, date)}
               onEdit={() => {
