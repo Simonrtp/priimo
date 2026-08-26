@@ -30,13 +30,13 @@ export default function VoiceCaptureDialog({
   streamPromise,
   variant = 'desktop',
   adresse = null,
-  parcelleIdu = null,
+  parcelleId = null,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
   variant?: 'desktop' | 'mobile';
   adresse?: string | null;
-  parcelleIdu?: string | null;
+  parcelleId?: string | null;
 }) {
   const router = useRouter();
   const { profile } = useUser();
@@ -164,7 +164,7 @@ export default function VoiceCaptureDialog({
     }
     const adresse = gpsAddress?.trim();
     if (adresse) form.append('adresse', adresse);
-    if (parcelleIdu) form.append('parcelleIdu', parcelleIdu);
+    if (parcelleId) form.append('parcelleId', parcelleId);
 
     const abortToReview = Boolean(continueId) || previous.length > 0;
 

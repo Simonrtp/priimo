@@ -16,13 +16,14 @@ import {
 import {
   MAP_LAYER_LABELS,
   MAP_LAYER_ORDER,
-  PARCELLES_LAYER_LABEL,
   activeKindSet,
+  anyCadastreLayer,
   persistMapLayers,
   readStoredMapLayers,
+  type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import { PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
+import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import {
   withoutPositionTotal,
@@ -115,7 +116,8 @@ export default function CarteMobile({
   const { route, waypoints } = useWalkingRoute(itineraryStops);
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
-  const parcelle = useParcelleMap(layers.parcelles);
+  const cadastreOn = anyCadastreLayer(layers);
+  const parcelle = useParcelleMap(cadastreOn, viewport);
   const mapZoom = viewport?.zoom ?? null;
   const filtered = useMemo(
     () =>
@@ -216,15 +218,21 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={route?.geometry ?? null}
-        parcellesEnabled={layers.parcelles}
-        parcelleEventIdus={parcelle.eventIdus}
+        parcellesEnabled={cadastreOn}
+        activeParcelleIds={parcelle.immeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
         parcelleNoteMarkers={parcelle.noteMarkers}
-        selectedParcelleIdu={parcelle.selectedIdu}
-        onSelectParcelle={(idu) => {
+        selectedParcelleId={parcelle.selectedParcelleId}
+        cadastreImmeubles={parcelle.immeubles}
+        cadastreLayers={{
+          cadastreDpe: layers.cadastreDpe,
+          cadastreVentes: layers.cadastreVentes,
+          cadastreCopro: layers.cadastreCopro,
+        }}
+        onSelectParcelle={(parcelleId) => {
           setSelectedBanId(null);
           setLayersOpen(false);
           setMissingOpen(false);
-          parcelle.openParcelle(idu);
+          parcelle.openParcelle(parcelleId);
         }}
       />
 
@@ -307,33 +315,30 @@ export default function CarteMobile({
               </li>
             );
           })}
-          <li>
-            <label className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl px-1 ${
-              viewport && viewport.zoom < PARCELLE_MIN_ZOOM ? 'opacity-55' : ''
-            }`}>
-              <input
-                type="checkbox"
-                className="size-4 rounded border-black/20"
-                style={{ accentColor: '#3D5A80' }}
-                checked={layers.parcelles}
-                onChange={() =>
-                  setLayers((prev) => {
-                    const next = { ...prev, parcelles: !prev.parcelles };
-                    persistMapLayers(next);
-                    return next;
-                  })
-                }
-              />
-              <span className={`flex-1 text-[14.5px] font-medium ${layers.parcelles ? 'text-text-strong' : 'text-text-muted'}`}>
-                {PARCELLES_LAYER_LABEL}
-                {mapZoom !== null && mapZoom < PARCELLE_MIN_ZOOM ? (
-                  <span className="mt-0.5 block text-[12px] font-normal text-text-subtle">
-                    Zoomez pour afficher
-                  </span>
-                ) : null}
-              </span>
-            </label>
-          </li>
+          <CadastreLayerControls
+            layers={layers}
+            onToggleCadastre={() =>
+              setLayers((prev) => {
+                const next = { ...prev, cadastre: !prev.cadastre };
+                persistMapLayers(next);
+                return next;
+              })
+            }
+            onToggleOverlay={(id: CadastreLayerId) =>
+              setLayers((prev) => {
+                const next =
+                  id === 'dpe'
+                    ? { ...prev, cadastreDpe: !prev.cadastreDpe }
+                    : id === 'ventes'
+                      ? { ...prev, cadastreVentes: !prev.cadastreVentes }
+                      : { ...prev, cadastreCopro: !prev.cadastreCopro };
+                persistMapLayers(next);
+                return next;
+              })
+            }
+            mapZoom={mapZoom}
+            compact
+          />
         </ul>
         {missingTotal > 0 ? (
           <button

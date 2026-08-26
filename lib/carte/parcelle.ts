@@ -1,65 +1,38 @@
-/** Identifiant cadastral PCI (14 caractères, ex. 75104000AD0035). */
-const IDU_RE = /^[0-9A-Z]{8,20}$/;
+import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
+import type { PublicDiagnostic } from '@/lib/carte/dpe-public';
+
+export { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
+export {
+  PUBLIC_DPE_MIN_AGE_MONTHS,
+  DPE_PALETTE,
+  dpeFillColor,
+  filterPublicDiagnostics,
+  isPublicDpeEligible,
+  isPublicDpeTooRecent,
+  parseDpeLetter,
+  type PublicDiagnostic,
+} from '@/lib/carte/dpe-public';
 
 export const PARCELLE_MIN_ZOOM = 16;
+export const CADASTRE_OVERLAY_MIN_ZOOM = 14;
 export const PARCELLE_SLATE = '#3D5A80';
-
-export function normalizeIdu(raw: string | null | undefined): string | null {
-  const value = (raw ?? '').trim().toUpperCase();
-  if (!IDU_RE.test(value)) return null;
-  return value;
-}
-
-export function formatIdu(idu: string): string {
-  const v = idu.trim().toUpperCase();
-  if (v.length === 14) {
-    return `${v.slice(0, 5)} ${v.slice(5, 8)} ${v.slice(8, 10)} ${v.slice(10)}`;
-  }
-  return v;
-}
-
-/** DPE daté il y a moins de 12 mois : hors couche gratuite. */
-export function isPublicDpeTooRecent(dateIso: string | null | undefined, now: Date = new Date()): boolean {
-  if (!dateIso) return false;
-  const t = Date.parse(dateIso);
-  if (!Number.isFinite(t)) return false;
-  const cutoff = new Date(now.getTime());
-  cutoff.setFullYear(cutoff.getFullYear() - 1);
-  return t > cutoff.getTime();
-}
-
-export function isDpeDiagnostic(type: string | null | undefined): boolean {
-  if (!type) return true;
-  return /dpe/i.test(type);
-}
-
-export type PublicDiagnostic = {
-  date: string | null;
-  etiquette: string | null;
-  type: string | null;
-};
-
-export function filterPublicDiagnostics<T extends PublicDiagnostic>(
-  rows: readonly T[],
-  now: Date = new Date(),
-): T[] {
-  return rows.filter((row) => {
-    if (!isDpeDiagnostic(row.type) && row.type) return true;
-    return !isPublicDpeTooRecent(row.date, now);
-  });
-}
+export const COPRO_PROCEDURE_FILL = '#1E3148';
+export const COPRO_FILL = '#5B7C8A';
+export const VENTE_FILL = '#3D5A80';
 
 export type ParcelleVente = {
   date: string;
   prix: number | null;
   surface: number | null;
   prixM2: number | null;
+  typeLocal: string | null;
 };
 
 export type ParcelleCopro = {
   lots: number | null;
   periodeConstruction: string | null;
-  procedureEnCours: string | null;
+  procedureEnCours: boolean;
+  numeroImmatriculation: string | null;
 };
 
 export type ParcelleAgencyItem = {
@@ -71,20 +44,41 @@ export type ParcelleAgencyItem = {
 };
 
 export type ParcelleFiche = {
-  idu: string;
+  parcelleId: string;
   reference: string;
   adresse: string | null;
   videPublic: boolean;
   ventes: ParcelleVente[];
   diagnostics: PublicDiagnostic[];
-  copropriete: ParcelleCopro | null;
+  coproprietes: ParcelleCopro[];
   surCetteParcelle: ParcelleAgencyItem[];
 };
 
 export type ParcelleNoteMarker = {
-  idu: string;
+  parcelleId: string;
   latitude: number | null;
   longitude: number | null;
+};
+
+export type CadastreImmeublePoint = {
+  banId: string;
+  parcelleId: string | null;
+  longitude: number;
+  latitude: number;
+  adresse: string | null;
+  etiquetteDpe: string | null;
+  nbDpe: number;
+  nbPassoires: number;
+  nbTransactions: number;
+  dernierPrix: number | null;
+  prixM2: number | null;
+  nbLots: number | null;
+  procedureCopro: boolean;
+};
+
+export type ParcelleOverlay = {
+  immeubles: CadastreImmeublePoint[];
+  notes: ParcelleNoteMarker[];
 };
 
 type Ring = readonly (readonly number[])[];
@@ -118,4 +112,18 @@ export function centroidLngLat(geometry: unknown): { longitude: number; latitude
   }
   if (n === 0) return null;
   return { longitude: sx / n, latitude: sy / n };
+}
+
+export function emptyParcelleFiche(raw: string): ParcelleFiche {
+  const parcelleId = normalizeParcelleId(raw) ?? (raw ?? '').trim().toUpperCase();
+  return {
+    parcelleId,
+    reference: formatParcelleId(parcelleId),
+    adresse: null,
+    videPublic: true,
+    ventes: [],
+    diagnostics: [],
+    coproprietes: [],
+    surCetteParcelle: [],
+  };
 }

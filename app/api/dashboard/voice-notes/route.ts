@@ -8,7 +8,7 @@ import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { persistThenExtract } from '@/lib/notes/persist';
 import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { suggestMemberFromText } from '@/lib/agency/match-member';
-import { normalizeIdu } from '@/lib/carte/parcelle';
+import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 
 export const runtime = 'nodejs';
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   const previousTranscript = typeof previousRaw === 'string' ? previousRaw : '';
   const continueIdRaw = form.get('continueNoteId');
   const continueNoteId = typeof continueIdRaw === 'string' && continueIdRaw.trim() ? continueIdRaw.trim() : null;
-  const parcelleIdu = normalizeIdu(typeof form.get('parcelleIdu') === 'string' ? String(form.get('parcelleIdu')) : null);
+  const parcelleId = normalizeParcelleId(typeof form.get('parcelleId') === 'string' ? String(form.get('parcelleId')) : null);
 
   const admin = createSupabaseAdminClient();
   const voiceNoteId = continueNoteId ?? crypto.randomUUID();
@@ -199,8 +199,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "La dictée n'a pas pu être enregistrée" }, { status: 500 });
   }
 
-  if (parcelleIdu) {
-    await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: savedId, idu: parcelleIdu });
+  if (parcelleId) {
+    await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: savedId, parcelleId });
   }
 
   let suggestedAssignee: { id: string; fullName: string } | null = null;

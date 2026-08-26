@@ -17,15 +17,16 @@ import {
 import {
   MAP_LAYER_LABELS,
   MAP_LAYER_ORDER,
-  PARCELLES_LAYER_LABEL,
   activeKindSet,
+  anyCadastreLayer,
   persistMapLayers,
   persistLayersPanelOpen,
   readLayersPanelOpen,
   readStoredMapLayers,
+  type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import { PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
+import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import {
@@ -77,7 +78,8 @@ function formatDate(iso: string): string {
 function LayersPanel({
   layers,
   onToggle,
-  onToggleParcelles,
+  onToggleCadastre,
+  onToggleCadastreOverlay,
   mapZoom,
   counts,
   postal,
@@ -93,7 +95,8 @@ function LayersPanel({
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
-  onToggleParcelles: () => void;
+  onToggleCadastre: () => void;
+  onToggleCadastreOverlay: (id: CadastreLayerId) => void;
   mapZoom: number | null;
   counts: Record<MapPointKind, number>;
   postal: string;
@@ -107,7 +110,6 @@ function LayersPanel({
   onPeriod: (v: MapPeriod) => void;
   onCollapse?: () => void;
 }) {
-  const parcellesTooFar = mapZoom !== null && mapZoom < PARCELLE_MIN_ZOOM;
   return (
     <WorkspaceCard className="shadow-clay-sm">
       <div className="flex items-start justify-between gap-2">
@@ -153,33 +155,12 @@ function LayersPanel({
             </li>
           );
         })}
-        <li>
-          <label
-            className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors ${
-              layers.parcelles ? 'bg-black/[0.04]' : 'hover:bg-black/[0.03]'
-            } ${parcellesTooFar ? 'opacity-55' : ''}`}
-          >
-            <input
-              type="checkbox"
-              className="size-4 rounded border-black/20 text-accent focus:ring-accent/30"
-              style={{ accentColor: '#3D5A80' }}
-              checked={layers.parcelles}
-              onChange={onToggleParcelles}
-            />
-            <span
-              className={`min-w-0 flex-1 text-[13.5px] font-medium ${
-                layers.parcelles && !parcellesTooFar ? 'text-text-strong' : 'text-text-muted'
-              }`}
-            >
-              {PARCELLES_LAYER_LABEL}
-              {parcellesTooFar ? (
-                <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                  Zoomez pour afficher
-                </span>
-              ) : null}
-            </span>
-          </label>
-        </li>
+        <CadastreLayerControls
+          layers={layers}
+          onToggleCadastre={onToggleCadastre}
+          onToggleOverlay={onToggleCadastreOverlay}
+          mapZoom={mapZoom}
+        />
       </ul>
 
       <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
@@ -275,7 +256,8 @@ export default function SectorMapClient({
   const { route, waypoints } = useWalkingRoute(itineraryStops);
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
-  const parcelle = useParcelleMap(layers.parcelles);
+  const cadastreOn = anyCadastreLayer(layers);
+  const parcelle = useParcelleMap(cadastreOn, viewport);
   const mapZoom = viewport?.zoom ?? null;
 
   const filtered = useMemo(
@@ -380,11 +362,30 @@ export default function SectorMapClient({
     setLayers((prev) => ({ ...prev, [kind]: !prev[kind] }));
   }
 
+  function toggleCadastre() {
+    setLayers((prev) => ({ ...prev, cadastre: !prev.cadastre }));
+  }
+
+  function toggleCadastreOverlay(id: CadastreLayerId) {
+    setLayers((prev) => {
+      if (id === 'dpe') return { ...prev, cadastreDpe: !prev.cadastreDpe };
+      if (id === 'ventes') return { ...prev, cadastreVentes: !prev.cadastreVentes };
+      return { ...prev, cadastreCopro: !prev.cadastreCopro };
+    });
+  }
+
+  const cadastreLayerFlags = {
+    cadastreDpe: layers.cadastreDpe,
+    cadastreVentes: layers.cadastreVentes,
+    cadastreCopro: layers.cadastreCopro,
+  };
+
   const layersUi = (
     <LayersPanel
       layers={layers}
       onToggle={toggleLayer}
-      onToggleParcelles={() => setLayers((prev) => ({ ...prev, parcelles: !prev.parcelles }))}
+      onToggleCadastre={toggleCadastre}
+      onToggleCadastreOverlay={toggleCadastreOverlay}
       mapZoom={mapZoom}
       counts={counts}
       postal={postal}
@@ -425,15 +426,17 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled={layers.parcelles}
-          parcelleEventIdus={parcelle.eventIdus}
+          parcellesEnabled={cadastreOn}
+          activeParcelleIds={parcelle.immeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
           parcelleNoteMarkers={parcelle.noteMarkers}
-          selectedParcelleIdu={parcelle.selectedIdu}
-          onSelectParcelle={(idu) => {
+          selectedParcelleId={parcelle.selectedParcelleId}
+          cadastreImmeubles={parcelle.immeubles}
+          cadastreLayers={cadastreLayerFlags}
+          onSelectParcelle={(parcelleId) => {
             setSelectedBanId(null);
             setSheetOpen(false);
             setMissingOpen(false);
-            parcelle.openParcelle(idu);
+            parcelle.openParcelle(parcelleId);
           }}
         />
 
@@ -452,7 +455,8 @@ export default function SectorMapClient({
                 <LayersPanel
                   layers={layers}
                   onToggle={toggleLayer}
-                  onToggleParcelles={() => setLayers((prev) => ({ ...prev, parcelles: !prev.parcelles }))}
+                  onToggleCadastre={toggleCadastre}
+                  onToggleCadastreOverlay={toggleCadastreOverlay}
                   mapZoom={mapZoom}
                   counts={counts}
                   postal={postal}

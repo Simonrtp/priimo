@@ -3,9 +3,10 @@ import { describe, it } from 'node:test';
 import { DEFAULT_MAP_LAYERS, parseMapLayers } from './layers';
 
 describe('parseMapLayers', () => {
-  it('laisse les parcelles éteintes par défaut', () => {
-    assert.equal(parseMapLayers(null).parcelles, false);
-    assert.equal(DEFAULT_MAP_LAYERS.parcelles, false);
+  it('laisse le cadastre éteint par défaut', () => {
+    assert.equal(parseMapLayers(null).cadastre, false);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastre, false);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastreDpe, false);
   });
 
   it('n’active les biens par défaut', () => {
@@ -13,8 +14,8 @@ describe('parseMapLayers', () => {
     assert.equal(DEFAULT_MAP_LAYERS.bien, true);
   });
 
-  it('n’active les parcelles que si elles sont explicitement vraies', () => {
-    assert.equal(parseMapLayers({ lead: false, parcelles: true }).parcelles, true);
-    assert.equal(parseMapLayers({ parcelles: 'oui' }).parcelles, false);
+  it('reprend l’ancien interrupteur parcelles', () => {
+    assert.equal(parseMapLayers({ lead: false, parcelles: true }).cadastre, true);
+    assert.equal(parseMapLayers({ cadastre: true, cadastreDpe: true }).cadastreDpe, true);
   });
 });

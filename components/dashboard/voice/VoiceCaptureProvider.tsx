@@ -11,7 +11,7 @@ import TypedNoteDialog from '@/components/dashboard/notes/TypedNoteDialog';
 
 export type VoiceCaptureOptions = {
   adresse?: string;
-  parcelleIdu?: string;
+  parcelleId?: string;
 };
 
 interface VoiceCaptureContextValue {
@@ -39,7 +39,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [open, setOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [adresse, setAdresse] = useState<string | null>(null);
-  const [parcelleIdu, setParcelleIdu] = useState<string | null>(null);
+  const [parcelleId, setParcelleId] = useState<string | null>(null);
   const [gestureSession, setGestureSession] = useState<{ adresse: string | null } | null>(null);
   const [gestureLocked, setGestureLocked] = useState(false);
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
@@ -56,14 +56,14 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     }
     playRecordStartSound();
     setAdresse(opts?.adresse?.trim() || null);
-    setParcelleIdu(opts?.parcelleIdu?.trim() || null);
+    setParcelleId(opts?.parcelleId?.trim() || null);
     setOpen(true);
   }, [composeOpen, device, gestureSession]);
 
   const openCompose = useCallback((opts?: VoiceCaptureOptions) => {
     if (gestureSession || open) return;
     setAdresse(opts?.adresse?.trim() || null);
-    setParcelleIdu(opts?.parcelleIdu?.trim() || null);
+    setParcelleId(opts?.parcelleId?.trim() || null);
     setComposeOpen(true);
   }, [gestureSession, open]);
 
@@ -77,7 +77,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     }
     playRecordStartSound();
     setGestureLocked(false);
-    setParcelleIdu(opts?.parcelleIdu?.trim() || null);
+    setParcelleId(opts?.parcelleId?.trim() || null);
     setGestureSession({ adresse: opts?.adresse?.trim() || null });
   }, [composeOpen, gestureSession, open]);
 
@@ -89,7 +89,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
 
   const handleComposeClose = useCallback(() => {
     setAdresse(null);
-    setParcelleIdu(null);
+    setParcelleId(null);
     setComposeOpen(false);
   }, []);
 
@@ -97,7 +97,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     const pending = streamPromiseRef.current;
     streamPromiseRef.current = null;
     setAdresse(null);
-    setParcelleIdu(null);
+    setParcelleId(null);
     setOpen(false);
     if (pending) {
       void pending.then(stopMicStream).catch(() => undefined);
@@ -138,7 +138,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
         <VoiceGestureCapture
           ref={gestureRef}
           adresse={gestureSession.adresse}
-          parcelleIdu={parcelleIdu}
+          parcelleId={parcelleId}
           streamPromise={streamPromiseRef.current}
           onLockedChange={setGestureLocked}
           onClose={endGestureSession}
@@ -150,19 +150,19 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             onClose={handleClose}
             streamPromise={streamPromiseRef.current}
             adresse={adresse}
-            parcelleIdu={parcelleIdu}
+            parcelleId={parcelleId}
           />
         ) : (
           <VoiceCaptureDialog
             onClose={handleClose}
             streamPromise={streamPromiseRef.current}
             adresse={adresse}
-            parcelleIdu={parcelleIdu}
+            parcelleId={parcelleId}
           />
         )
       ) : null}
       {composeOpen ? (
-        <TypedNoteDialog onClose={handleComposeClose} adresse={adresse} parcelleIdu={parcelleIdu} />
+        <TypedNoteDialog onClose={handleComposeClose} adresse={adresse} parcelleId={parcelleId} />
       ) : null}
     </VoiceCaptureContext.Provider>
   );

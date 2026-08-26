@@ -1,21 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import { normalizeIdu } from '@/lib/carte/parcelle';
+import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 
 type Admin = SupabaseClient<Database>;
 
 export async function linkNoteToParcelle(
   admin: Admin,
-  args: { agencyId: string; noteId: string; idu: string },
+  args: { agencyId: string; noteId: string; parcelleId: string },
 ): Promise<void> {
-  const idu = normalizeIdu(args.idu);
-  if (!idu) return;
+  const parcelleId = normalizeParcelleId(args.parcelleId);
+  if (!parcelleId) return;
   const { error } = await admin.from('note_liens').upsert(
     {
       note_id: args.noteId,
       agency_id: args.agencyId,
       entite_type: 'parcelle',
-      entite_id: idu,
+      entite_id: parcelleId,
       confiance: 'certain',
       cree_par: 'agent',
     },

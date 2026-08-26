@@ -14,11 +14,20 @@ export const MAP_LAYER_LABELS: Record<MapPointKind, string> = {
   note: 'Notes terrain',
 };
 
-export const PARCELLES_LAYER_ID = 'parcelles';
-export const PARCELLES_LAYER_LABEL = 'Parcelles';
+export const CADASTRE_LAYER_IDS = ['dpe', 'ventes', 'copro'] as const;
+export type CadastreLayerId = (typeof CADASTRE_LAYER_IDS)[number];
+
+export const CADASTRE_LAYER_LABELS: Record<CadastreLayerId, string> = {
+  dpe: 'DPE',
+  ventes: 'Ventes',
+  copro: 'Copropriétés',
+};
 
 export type MapLayerState = Record<MapPointKind, boolean> & {
-  parcelles: boolean;
+  cadastre: boolean;
+  cadastreDpe: boolean;
+  cadastreVentes: boolean;
+  cadastreCopro: boolean;
 };
 
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
@@ -26,22 +35,38 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
   contact: true,
   bien: true,
   note: true,
-  parcelles: false,
+  cadastre: false,
+  cadastreDpe: false,
+  cadastreVentes: false,
+  cadastreCopro: false,
 };
 
 export const MAP_LAYERS_STORAGE_KEY = 'priimo-carte-layers';
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
+export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
 export function parseMapLayers(raw: unknown): MapLayerState {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_MAP_LAYERS };
   const row = raw as Record<string, unknown>;
+  const cadastre = row.cadastre === true || row.parcelles === true;
   return {
     lead: row.lead !== false,
     contact: row.contact !== false,
     bien: row.bien !== false,
     note: row.note !== false,
-    parcelles: row.parcelles === true,
+    cadastre,
+    cadastreDpe: row.cadastreDpe === true,
+    cadastreVentes: row.cadastreVentes === true,
+    cadastreCopro: row.cadastreCopro === true,
   };
+}
+
+export function anyCadastreLayer(layers: MapLayerState): boolean {
+  return layers.cadastre || layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+}
+
+export function anyCadastreOverlay(layers: MapLayerState): boolean {
+  return layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
 }
 
 export function readStoredMapLayers(): MapLayerState {
@@ -75,6 +100,23 @@ export function readLayersPanelOpen(): boolean {
 export function persistLayersPanelOpen(open: boolean): void {
   try {
     window.localStorage.setItem(MAP_LAYERS_PANEL_STORAGE_KEY, open ? 'open' : 'collapsed');
+  } catch {
+    // quota / mode privé
+  }
+}
+
+export function readCadastreMenuOpen(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(CADASTRE_MENU_STORAGE_KEY) === 'open';
+  } catch {
+    return false;
+  }
+}
+
+export function persistCadastreMenuOpen(open: boolean): void {
+  try {
+    window.localStorage.setItem(CADASTRE_MENU_STORAGE_KEY, open ? 'open' : 'collapsed');
   } catch {
     // quota / mode privé
   }

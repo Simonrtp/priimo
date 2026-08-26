@@ -79,7 +79,7 @@ export default function ParcellePanel({
         body: JSON.stringify({
           text: body,
           adresse: fiche.adresse ?? undefined,
-          parcelleIdu: fiche.idu,
+          parcelleId: fiche.parcelleId,
         }),
       });
       const data = (await res.json()) as { error?: string; voiceNoteId?: string };
@@ -137,6 +137,7 @@ export default function ParcellePanel({
               <section>
                 <h3 className="mb-2 font-semibold uppercase text-text-subtle" style={{ fontSize: 11 }}>
                   Ventes
+                  <span className="ml-1.5 tabular-nums">{fiche.ventes.length}</span>
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-[13px]">
@@ -185,23 +186,31 @@ export default function ParcellePanel({
               </section>
             ) : null}
 
-            {fiche.copropriete ? (
+            {fiche.coproprietes.length > 0 ? (
               <section>
                 <h3 className="mb-2 font-semibold uppercase text-text-subtle" style={{ fontSize: 11 }}>
                   Copropriété
+                  <span className="ml-1.5 tabular-nums">{fiche.coproprietes.length}</span>
                 </h3>
-                <ul className="flex flex-col gap-1 text-[13.5px] text-text">
-                  {fiche.copropriete.lots != null ? (
-                    <li>
-                      <span className="tabular-nums">{fiche.copropriete.lots}</span> lots
+                <ul className="flex flex-col gap-3 text-[13.5px] text-text">
+                  {fiche.coproprietes.map((copro, i) => (
+                    <li key={`${copro.numeroImmatriculation ?? 'copro'}-${i}`}>
+                      {copro.numeroImmatriculation ? (
+                        <p className="font-medium tabular-nums">{copro.numeroImmatriculation}</p>
+                      ) : null}
+                      {copro.lots != null ? (
+                        <p>
+                          <span className="tabular-nums">{copro.lots}</span> lots
+                        </p>
+                      ) : null}
+                      {copro.periodeConstruction ? (
+                        <p>Période de construction : {copro.periodeConstruction}</p>
+                      ) : null}
+                      {copro.procedureEnCours ? (
+                        <p>Procédure en cours</p>
+                      ) : null}
                     </li>
-                  ) : null}
-                  {fiche.copropriete.periodeConstruction ? (
-                    <li>Période de construction : {fiche.copropriete.periodeConstruction}</li>
-                  ) : null}
-                  {fiche.copropriete.procedureEnCours ? (
-                    <li>Procédure en cours : {fiche.copropriete.procedureEnCours}</li>
-                  ) : null}
+                  ))}
                 </ul>
               </section>
             ) : null}
@@ -241,9 +250,9 @@ export default function ParcellePanel({
             Notes
           </h3>
           <NotesTerrainList
-            key={`${fiche.idu}:${noteTick}`}
+            key={`${fiche.parcelleId}:${noteTick}`}
             entiteType="parcelle"
-            entiteId={fiche.idu}
+            entiteId={fiche.parcelleId}
             currentUserId={profile?.id}
           />
           <div className="mt-4 flex flex-col gap-2.5">
@@ -252,7 +261,7 @@ export default function ParcellePanel({
               onClick={() =>
                 openCapture({
                   adresse: fiche.adresse ?? fiche.reference,
-                  parcelleIdu: fiche.idu,
+                  parcelleId: fiche.parcelleId,
                 })
               }
             >
@@ -308,7 +317,7 @@ export function ParcelleDrawer({
       window.clearTimeout(enter);
       window.clearTimeout(settle);
     };
-  }, [open, fiche?.idu]);
+  }, [open, fiche?.parcelleId]);
 
   useEffect(() => {
     if (!open) return;

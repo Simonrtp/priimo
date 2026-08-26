@@ -15,11 +15,11 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 export default function TypedNoteDialog({
   onClose,
   adresse = null,
-  parcelleIdu = null,
+  parcelleId = null,
 }: {
   onClose: () => void;
   adresse?: string | null;
-  parcelleIdu?: string | null;
+  parcelleId?: string | null;
 }) {
   const router = useRouter();
   const device = useDevice();
@@ -81,7 +81,7 @@ export default function TypedNoteDialog({
           adresse: payload.adresse || undefined,
           latitude: coords?.latitude,
           longitude: coords?.longitude,
-          parcelleIdu: parcelleIdu || undefined,
+          parcelleId: parcelleId || undefined,
         }),
       });
       const data = (await res.json()) as NoteReviewPayload & {

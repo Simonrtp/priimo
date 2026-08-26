@@ -16,9 +16,15 @@ import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import MapZoomControls from '@/components/dashboard/map/MapZoomControls';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
-import ParcellesLayer, { PARCELLES_FILL_LAYER_ID } from '@/components/dashboard/carte/ParcellesLayer';
+import ParcellesLayer, {
+  CADASTRE_COPRO_LAYER_ID,
+  CADASTRE_DPE_LAYER_ID,
+  CADASTRE_VENTES_LAYER_ID,
+  PARCELLES_FILL_LAYER_ID,
+} from '@/components/dashboard/carte/ParcellesLayer';
 import type { ItineraireStop } from '@/lib/today/directions';
-import type { ParcelleNoteMarker } from '@/lib/carte/parcelle';
+import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
+import type { MapLayerState } from '@/lib/carte/layers';
 
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
@@ -42,9 +48,11 @@ export default function SectorMapCanvas({
   itineraryStops = null,
   itineraryGeometry = null,
   parcellesEnabled = false,
-  parcelleEventIdus = [],
+  activeParcelleIds = [],
   parcelleNoteMarkers = [],
-  selectedParcelleIdu = null,
+  selectedParcelleId = null,
+  cadastreImmeubles = [],
+  cadastreLayers = { cadastreDpe: false, cadastreVentes: false, cadastreCopro: false },
   onSelectParcelle,
 }: {
   buildings: readonly BuildingMarker[];
@@ -56,10 +64,12 @@ export default function SectorMapCanvas({
   itineraryStops?: readonly ItineraireStop[] | null;
   itineraryGeometry?: GeoJSON.LineString | null;
   parcellesEnabled?: boolean;
-  parcelleEventIdus?: readonly string[];
+  activeParcelleIds?: readonly string[];
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
-  selectedParcelleIdu?: string | null;
-  onSelectParcelle?: (idu: string) => void;
+  selectedParcelleId?: string | null;
+  cadastreImmeubles?: readonly CadastreImmeublePoint[];
+  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
+  onSelectParcelle?: (parcelleId: string) => void;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -163,7 +173,16 @@ export default function SectorMapCanvas({
               : FRANCE_MAP_VIEW
         }
         attributionControl={false}
-        interactiveLayerIds={parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []}
+        interactiveLayerIds={
+          parcellesEnabled
+            ? [
+                PARCELLES_FILL_LAYER_ID,
+                CADASTRE_DPE_LAYER_ID,
+                CADASTRE_VENTES_LAYER_ID,
+                CADASTRE_COPRO_LAYER_ID,
+              ]
+            : []
+        }
         onLoad={() => {
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
@@ -195,10 +214,12 @@ export default function SectorMapCanvas({
         <ParcellesLayer
           mapRef={mapRef}
           enabled={parcellesEnabled}
-          eventIdus={parcelleEventIdus}
+          activeParcelleIds={activeParcelleIds}
           noteMarkers={parcelleNoteMarkers}
-          selectedIdu={selectedParcelleIdu}
-          onPick={(idu) => onSelectParcelle?.(idu)}
+          selectedParcelleId={selectedParcelleId}
+          immeubles={cadastreImmeubles}
+          layers={cadastreLayers}
+          onPick={(parcelleId) => onSelectParcelle?.(parcelleId)}
         />
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer

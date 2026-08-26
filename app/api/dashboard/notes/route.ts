@@ -12,7 +12,7 @@ import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { suggestMemberFromText } from '@/lib/agency/match-member';
 import { EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
-import { normalizeIdu } from '@/lib/carte/parcelle';
+import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 import type { NoteLienEntite, NoteLien, TerrainNote } from '@/types/contact';
 import type { NoteLienRow, VoiceNoteRow } from '@/types/database';
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
   }
   const gpsLat = readCoord(body, 'latitude');
   const gpsLng = readCoord(body, 'longitude');
-  const parcelleIdu = normalizeIdu(typeof body.parcelleIdu === 'string' ? body.parcelleIdu : null);
+  const parcelleId = normalizeParcelleId(typeof body.parcelleId === 'string' ? body.parcelleId : null);
 
   const admin = createSupabaseAdminClient();
   const voiceNoteId = crypto.randomUUID();
@@ -195,8 +195,8 @@ export async function POST(req: Request) {
       geocode_le: geo.geocode_le,
     });
     if (error) throw error;
-    if (parcelleIdu) {
-      await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: voiceNoteId, idu: parcelleIdu });
+    if (parcelleId) {
+      await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: voiceNoteId, parcelleId });
     }
   } catch (err) {
     console.error('[notes] écriture', err);

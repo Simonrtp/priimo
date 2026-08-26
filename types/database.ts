@@ -673,42 +673,87 @@ export type NoteLienInsert = {
   is_demo?: boolean;
 };
 
-export type ParcelleSyntheseRow = {
-  idu: string;
-  code_insee: string | null;
+export type ParcelleAdresseRow = {
+  parcelle_id: string;
+  ban_id: string;
+  source: string | null;
+  created_at: string;
+  code_postal?: string | null;
+};
+
+export type BuildingRow = {
+  id: string;
+  ban_id: string;
+  adresse: string | null;
+  adresse_normalisee: string | null;
   code_postal: string | null;
-  evenements_count: number;
-  lots: number | null;
-  periode_construction: string | null;
-  procedure_en_cours: string | null;
+  commune: string | null;
+  lat: number | null;
+  lng: number | null;
+  parcelle_id: string | null;
   updated_at: string;
 };
 
-export type ParcelleAdresseRow = {
+export type BuildingTransactionRow = {
   id: string;
-  idu: string;
-  libelle: string;
-  principale: boolean;
+  parcelle_id: string | null;
   ban_id: string | null;
-  code_postal: string | null;
-  nom_commune: string | null;
-};
-
-export type ParcelleVenteRow = {
-  id: string;
-  idu: string;
   date_mutation: string;
-  prix: number | null;
-  surface: number | null;
+  valeur_fonciere: number | null;
+  surface_reelle_bati: number | null;
+  nombre_pieces: number | null;
+  type_local: string | null;
   prix_m2: number | null;
+  source: string | null;
+  id_mutation: string | null;
+  created_at: string;
+  code_postal?: string | null;
 };
 
-export type ParcelleDiagnosticRow = {
+export type BuildingDpeRow = {
   id: string;
-  idu: string;
-  date_diag: string | null;
-  etiquette: string | null;
-  type: string | null;
+  ban_id: string;
+  date_dpe: string | null;
+  etiquette_dpe: string | null;
+  etiquette_ges: string | null;
+  conso_kwh_m2_an: number | null;
+  surface: number | null;
+  etage: number | null;
+  source: string | null;
+  numero_dpe: string | null;
+  created_at: string;
+  code_postal?: string | null;
+};
+
+export type BuildingCoproRow = {
+  id: string;
+  ban_id: string;
+  numero_immatriculation: string | null;
+  nombre_lots: number | null;
+  periode_construction: string | null;
+  procedure_en_cours: boolean | null;
+  date_maj: string | null;
+  source: string | null;
+  created_at: string;
+  code_postal?: string | null;
+};
+
+export type BuildingActivityRow = {
+  ban_id: string;
+  nb_transactions_3ans: number | null;
+  nb_transactions_total: number | null;
+  derniere_transaction_le: string | null;
+  prix_m2_median: number | null;
+  nb_dpe_total: number | null;
+  dernier_dpe_le: string | null;
+  nb_passoires: number | null;
+  nb_lots: number | null;
+  procedure_copro: boolean | null;
+  activite_score: number | null;
+  calcule_le: string | null;
+  code_postal?: string | null;
+  etiquette_dpe?: string | null;
+  dernier_prix?: number | null;
 };
 
 export type ContactInteractionRow = {
@@ -1021,28 +1066,40 @@ export type Database = {
         Update: Partial<NoteLienRow>;
         Relationships: [];
       };
-      parcelle_synthese: {
-        Row: ParcelleSyntheseRow;
-        Insert: ParcelleSyntheseRow;
-        Update: Partial<ParcelleSyntheseRow>;
-        Relationships: [];
-      };
       parcelle_adresses: {
         Row: ParcelleAdresseRow;
-        Insert: Omit<ParcelleAdresseRow, 'id'> & { id?: string };
+        Insert: ParcelleAdresseRow;
         Update: Partial<ParcelleAdresseRow>;
         Relationships: [];
       };
-      parcelle_ventes: {
-        Row: ParcelleVenteRow;
-        Insert: Omit<ParcelleVenteRow, 'id'> & { id?: string };
-        Update: Partial<ParcelleVenteRow>;
+      buildings: {
+        Row: BuildingRow;
+        Insert: Omit<BuildingRow, 'id'> & { id?: string };
+        Update: Partial<BuildingRow>;
         Relationships: [];
       };
-      parcelle_diagnostics: {
-        Row: ParcelleDiagnosticRow;
-        Insert: Omit<ParcelleDiagnosticRow, 'id'> & { id?: string };
-        Update: Partial<ParcelleDiagnosticRow>;
+      building_transactions: {
+        Row: BuildingTransactionRow;
+        Insert: Omit<BuildingTransactionRow, 'id'> & { id?: string };
+        Update: Partial<BuildingTransactionRow>;
+        Relationships: [];
+      };
+      building_dpe: {
+        Row: BuildingDpeRow;
+        Insert: Omit<BuildingDpeRow, 'id'> & { id?: string };
+        Update: Partial<BuildingDpeRow>;
+        Relationships: [];
+      };
+      building_copro: {
+        Row: BuildingCoproRow;
+        Insert: Omit<BuildingCoproRow, 'id'> & { id?: string };
+        Update: Partial<BuildingCoproRow>;
+        Relationships: [];
+      };
+      building_activity: {
+        Row: BuildingActivityRow;
+        Insert: BuildingActivityRow;
+        Update: Partial<BuildingActivityRow>;
         Relationships: [];
       };
       contact_interactions: {
@@ -1188,6 +1245,21 @@ export type Database = {
       current_user_agency_ids: { Args: Record<string, never>; Returns: string[] };
       current_user_agency_id: { Args: Record<string, never>; Returns: string };
       current_user_role: { Args: Record<string, never>; Returns: string };
+      refresh_building_activity: {
+        Args: { p_codes_postaux: string[]; p_dpe_min_age_months: number };
+        Returns: number;
+      };
+      explain_parcelle_queries: {
+        Args: {
+          p_codes_postaux: string[];
+          p_parcelle_id: string;
+          p_south: number;
+          p_north: number;
+          p_west: number;
+          p_east: number;
+        };
+        Returns: Record<string, unknown>;
+      };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
