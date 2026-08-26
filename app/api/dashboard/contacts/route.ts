@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
+import { visibleContactsFor } from '@/lib/agency/scope-records';
+import { viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
+import { findDuplicates } from '@/lib/contacts/duplicates';
 import { contactGeocodeQuery, geocodeToColumns } from '@/lib/geo/fields';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import { CONTACTS_SELECT, mapDbContactToContact } from '@/lib/queries/contacts';
+import {
+  buildFullName,
+  CONTACTS_SELECT,
+  fetchContactById,
+  fetchContactsSafe,
+  mapDbContactToContact,
+} from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import type { ContactRow, ContactSourceDb } from '@/types/database';
@@ -60,6 +69,34 @@ export async function POST(req: Request) {
     : null;
 
   const supabase = await createSupabaseServerClient();
+  const forceCreate = raw.forceCreate === true;
+  const existing = visibleContactsFor(viewerFromProfile(profile), await fetchContactsSafe(supabase));
+  const hits = findDuplicates(
+    {
+      id: '__new__',
+      firstName: f.firstName,
+      lastName: f.lastName,
+      fullName: buildFullName(f.firstName, f.lastName),
+      phone: f.phone,
+      email: f.email,
+    },
+    existing,
+  );
+  const strong = hits.filter((h) => h.strength === 'strong');
+  if (strong.length > 0 && !forceCreate) {
+    return NextResponse.json(
+      {
+        error: 'Un contact similaire existe déjà',
+        matches: strong.map((h) => ({
+          contact: h.other,
+          strength: h.strength,
+          reason: h.reason,
+        })),
+      },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await supabase
     .from('contacts')
     .insert({
@@ -79,8 +116,8 @@ export async function POST(req: Request) {
       surface_max: f.surfaceMax,
       rooms_min: f.roomsMin,
       summary: f.summary,
+      recontacter_le: f.recontacterLe,
       source,
-      last_interaction_at: new Date().toISOString(),
       ...meta,
       ...(geo ?? {}),
     })
@@ -92,7 +129,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Le contact n'a pas pu être créé" }, { status: 500 });
   }
 
-  const contact = mapDbContactToContact(data as unknown as ContactRow);
+  let contact = mapDbContactToContact(data as unknown as ContactRow);
+
+  const toMark = forceCreate ? hits : hits.filter((h) => h.strength === 'weak');
+  if (toMark.length > 0) {
+    const partner = toMark[0]!.other;
+    const { error: markNew } = await supabase
+      .from('contacts')
+      .update({ doublon_de: partner.id })
+      .eq('id', contact.id)
+      .eq('agency_id', agency.id);
+    if (markNew) {
+      console.error('[contacts] marquage doublon', markNew);
+    } else if (!partner.doublonDe) {
+      const { error: markOld } = await supabase
+        .from('contacts')
+        .update({ doublon_de: contact.id })
+        .eq('id', partner.id)
+        .eq('agency_id', agency.id);
+      if (markOld) console.error('[contacts] marquage doublon existant', markOld);
+    }
+    const refreshed = await fetchContactById(supabase, contact.id);
+    if (refreshed) contact = refreshed;
+  }
 
   if (voiceNoteId) {
     const { error: linkError } = await supabase

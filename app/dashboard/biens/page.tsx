@@ -6,6 +6,7 @@ import { fetchContactsSafe } from '@/lib/queries/contacts';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { visibleContactsFor } from '@/lib/agency/scope-records';
 import BiensClient from '@/components/dashboard/biens/BiensClient';
+import { fetchVisitCountByBienIdSafe } from '@/lib/queries/metier-today';
 
 export default async function BiensPage({
   searchParams,
@@ -25,7 +26,15 @@ export default async function BiensPage({
   const { fiche, filtre } = await searchParams;
   const selected = fiche && biens.some((b) => b.id === fiche) ? fiche : null;
   const listFilter =
-    filtre === 'sans-position' || filtre === 'mandats-endormis' ? filtre : null;
+    filtre === 'sans-position' ||
+    filtre === 'mandats-endormis' ||
+    filtre === 'mandats-actifs' ||
+    filtre === 'mandats-60j'
+      ? filtre
+      : null;
+
+  const visitCountByBienId =
+    listFilter === 'mandats-60j' ? await fetchVisitCountByBienIdSafe(supabase) : {};
 
   return (
     <BiensClient
@@ -33,6 +42,7 @@ export default async function BiensPage({
       contacts={visibleContacts}
       initialSelectedBienId={selected}
       listFilter={listFilter}
+      visitCountByBienId={visitCountByBienId}
     />
   );
 }

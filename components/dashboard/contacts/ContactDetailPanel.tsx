@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Mail, Phone, X } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactInteraction } from '@/types/contact';
 import {
-  CONTACT_TYPE_LABELS,
   INTERACTION_KIND_LABELS,
   criteriaAreEmpty,
   typeUsesCriteria,
@@ -20,6 +18,8 @@ import { TextArea } from '@/components/dashboard/workspace/Field';
 import { postAgencyAlert } from '@/lib/agency/post-alert';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import DatePickerField from '@/components/ui/DatePickerField';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 
 function euros(v: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(v)} €`;
@@ -31,20 +31,6 @@ function formatDate(iso: string): string {
     month: 'long',
     year: 'numeric',
   }).format(new Date(iso));
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="border-t border-black/[0.06] px-5 py-5 sm:px-7 sm:py-6">
-      <h3
-        className="mb-4 font-semibold uppercase text-text-subtle"
-        style={{ fontSize: 11, letterSpacing: '0.08em' }}
-      >
-        {title}
-      </h3>
-      {children}
-    </section>
-  );
 }
 
 function criteriaLines(contact: Contact): string[] {
@@ -73,12 +59,22 @@ function criteriaLines(contact: Contact): string[] {
   return lines;
 }
 
+function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
 export default function ContactDetailPanel({
   contact,
   biens,
   members,
   currentUserId,
-  onClose,
   onEdit,
   onDelete,
   onAssigned,
@@ -87,7 +83,6 @@ export default function ContactDetailPanel({
   biens: Bien[];
   members: readonly AssigneeOption[];
   currentUserId: string;
-  onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onAssigned: (contact: Contact) => void;
@@ -97,11 +92,6 @@ export default function ContactDetailPanel({
   const [noteAssignee, setNoteAssignee] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,14 +111,6 @@ export default function ContactDetailPanel({
       cancelled = true;
     };
   }, [contact.id]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const rapprochements = useMemo(() => {
     if (contact.type !== 'acquereur') return [];
@@ -203,255 +185,203 @@ export default function ContactDetailPanel({
 
   const criteria = criteriaLines(contact);
 
-  const panel = (
-    <>
-      <div
-        className="fixed inset-0 z-40 bg-[rgba(21,32,47,0.35)]"
-        onClick={onClose}
-        aria-hidden
-      />
-      <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[520px] flex-col overflow-y-auto bg-surface shadow-clay-lg"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Fiche de ${contact.fullName}`}
-      >
-        <header className="flex items-start justify-between gap-3 px-5 pb-5 pt-6 sm:gap-4 sm:px-7 sm:pb-6 sm:pt-7">
-          <div className="min-w-0">
-            <h2
-              className="text-balance break-words text-[21px] font-semibold tracking-tight text-text-strong sm:text-[26px]"
-              style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}
-            >
-              {contact.fullName}
-            </h2>
-            <p className="mt-1.5 text-[13.5px] text-text-muted sm:text-[14px]">
-              {CONTACT_TYPE_LABELS[contact.type]}
-              {contact.secteur ? ` · ${contact.secteur}` : ''}
-            </p>
-            {contact.address ? (
-              <p className="mt-1 text-pretty text-[13px] text-text-subtle">{contact.address}</p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer la fiche"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+  return (
+    <div
+      className="border-t border-[#1E3148]/10 px-4 pb-5 pt-4 sm:px-5"
+      role="region"
+      aria-label={`Fiche de ${contact.fullName}`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {contact.phone ? (
+          <a
+            href={telHref(contact.phone)}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-clay bg-accent px-3.5 text-[13px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            <X size={18} strokeWidth={2} aria-hidden />
-          </button>
-        </header>
-
-        <div className="flex flex-wrap items-center gap-2.5 px-5 pb-5 sm:gap-3 sm:px-7 sm:pb-6">
-          {contact.phone ? (
-            <WorkspaceButton
-              type="button"
-              onClick={() => {
-                window.location.href = `tel:${contact.phone?.replace(/\s+/g, '')}`;
-              }}
-              className="min-w-0 max-w-full"
-            >
-              <Phone size={16} strokeWidth={2} className="flex-shrink-0" aria-hidden />
-              {/* Le prénom suffit quand la place manque : le nom complet est juste au-dessus. */}
-              <span className="truncate sm:hidden">Appeler</span>
-              <span className="hidden truncate sm:inline">Appeler {contact.fullName}</span>
-            </WorkspaceButton>
-          ) : null}
-          <WorkspaceButton type="button" variant="secondary" onClick={onEdit}>
-            Modifier
-          </WorkspaceButton>
-          <ActionMenu
-            items={[
-              {
-                label: 'Signaler une baisse de prix',
-                onSelect: () => {
-                  void postAgencyAlert({ kind: 'baisse_prix', contactId: contact.id });
-                },
+            <Phone size={14} strokeWidth={2.2} aria-hidden />
+            {formatPhoneDisplay(contact.phone)}
+          </a>
+        ) : null}
+        {contact.email ? (
+          <a
+            href={`mailto:${contact.email}`}
+            className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-clay border border-black/[0.10] bg-white px-3 text-[13px] font-medium text-text hover:bg-black/[0.03]"
+          >
+            <Mail size={14} strokeWidth={2} className="flex-shrink-0" aria-hidden />
+            <span className="truncate">{contact.email}</span>
+          </a>
+        ) : null}
+          <WorkspaceButton type="button" variant="secondary" onClick={onEdit} className="!min-h-9 !py-1.5">
+          Modifier
+        </WorkspaceButton>
+        <ActionMenu
+          items={[
+            {
+              label: 'Signaler une baisse de prix',
+              onSelect: () => {
+                void postAgencyAlert({ kind: 'baisse_prix', contactId: contact.id });
               },
-              {
-                label: 'Signaler un mandat à récupérer',
-                onSelect: () => {
-                  void postAgencyAlert({ kind: 'mandat_a_recuperer', contactId: contact.id });
-                },
+            },
+            {
+              label: 'Signaler un mandat à récupérer',
+              onSelect: () => {
+                void postAgencyAlert({ kind: 'mandat_a_recuperer', contactId: contact.id });
               },
-              { label: 'Supprimer ce contact', onSelect: onDelete, destructive: true },
-            ]}
-          />
-        </div>
+            },
+            { label: 'Supprimer ce contact', onSelect: onDelete, destructive: true },
+          ]}
+        />
+      </div>
 
-        <Section title="Assigner à">
+      <div className="mt-5 grid gap-5 sm:grid-cols-2 sm:gap-x-8">
+        <Block title="Assigner à">
           <AssigneeSelect
-            id="contact-detail-assignee"
+            id={`contact-detail-assignee-${contact.id}`}
             value={contact.assignedTo}
             members={members}
             currentUserId={currentUserId}
             includeUnassigned
             onChange={(id) => void assignContact(id)}
           />
-        </Section>
+        </Block>
 
-        <Section title="Coordonnées">
-          {contact.phone || contact.email ? (
-            <ul className="flex flex-col gap-3">
-              {contact.phone ? (
-                <li className="flex items-center gap-3">
-                  <Phone size={16} strokeWidth={2} className="flex-shrink-0 text-text-subtle" aria-hidden />
-                  <a
-                    href={`tel:${contact.phone.replace(/\s+/g, '')}`}
-                    className="text-text hover:underline"
-                    style={{ fontSize: 15 }}
-                  >
-                    {contact.phone}
-                  </a>
-                </li>
-              ) : null}
-              {contact.email ? (
-                <li className="flex items-center gap-3">
-                  <Mail size={16} strokeWidth={2} className="flex-shrink-0 text-text-subtle" aria-hidden />
-                  <a
-                    href={`mailto:${contact.email}`}
-                    className="break-all text-text hover:underline"
-                    style={{ fontSize: 15 }}
-                  >
-                    {contact.email}
-                  </a>
-                </li>
-              ) : null}
-            </ul>
-          ) : (
-            <p className="text-text-subtle" style={{ fontSize: 14 }}>
-              Aucune coordonnée renseignée.
-            </p>
-          )}
-        </Section>
+        <Block title="Relance">
+          <DatePickerField
+            id={`contact-detail-relance-${contact.id}`}
+            value={contact.recontacterLe}
+            onChange={(next) => {
+              void (async () => {
+                try {
+                  const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recontacterLe: next }),
+                  });
+                  const data = (await res.json()) as { contact?: Contact; error?: string };
+                  if (!res.ok || !data.contact) {
+                    notifyError(data.error ?? "La date de relance n'a pas pu être enregistrée");
+                    return;
+                  }
+                  onAssigned(data.contact);
+                } catch {
+                  notifyError("La date de relance n'a pas pu être enregistrée");
+                }
+              })();
+            }}
+            aria-label="Date de relance"
+          />
+        </Block>
+
+        {contact.address ? (
+          <Block title={contact.type === 'gardien' || contact.type === 'commercant' ? 'Immeuble' : 'Adresse'}>
+            <p className="text-pretty text-[14px] text-text">{contact.address}</p>
+          </Block>
+        ) : null}
 
         {typeUsesCriteria(contact.type) ? (
-          <Section title="Ce qu'il recherche">
+          <Block title="Ce qu'il recherche">
             {criteriaAreEmpty(contact.criteria) ? (
-              <p className="text-text-subtle" style={{ fontSize: 14 }}>
-                Aucun critère renseigné. Sans critères, aucun rapprochement ne peut être proposé.
-              </p>
+              <p className="text-[13.5px] text-text-subtle">Aucun critère renseigné.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-1">
                 {criteria.map((line) => (
-                  <li key={line} className="text-text" style={{ fontSize: 15 }}>
+                  <li key={line} className="text-[14px] text-text">
                     {line}
                   </li>
                 ))}
               </ul>
             )}
-          </Section>
+          </Block>
         ) : null}
+      </div>
 
-        {contact.type === 'acquereur' ? (
-          <Section title="Biens qui correspondent">
-            {rapprochements.length === 0 ? (
-              <p className="text-text-subtle" style={{ fontSize: 14 }}>
-                Aucun bien de l&apos;agence ne correspond pour l&apos;instant.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-4">
-                {rapprochements.map(({ bien, match }) => (
-                  <li key={bien.id}>
-                    <p className="font-medium text-text-strong" style={{ fontSize: 15 }}>
-                      {bien.address}
-                    </p>
-                    <p className="mt-0.5 text-text-muted" style={{ fontSize: 13 }}>
-                      {match.raisons.join(' · ')}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-        ) : null}
+      {contact.type === 'acquereur' && rapprochements.length > 0 ? (
+        <div className="mt-5">
+          <Block title="Biens qui correspondent">
+            <ul className="flex flex-col gap-2.5">
+              {rapprochements.map(({ bien, match }) => (
+                <li key={bien.id}>
+                  <p className="text-[14px] font-medium text-text-strong">{bien.address}</p>
+                  <p className="mt-0.5 text-[12.5px] text-text-muted">{match.raisons.join(' · ')}</p>
+                </li>
+              ))}
+            </ul>
+          </Block>
+        </div>
+      ) : null}
 
-        {contact.summary ? (
-          <Section title="Résumé">
-            <p className="whitespace-pre-wrap text-text" style={{ fontSize: 15, lineHeight: 1.65 }}>
-              {contact.summary}
-            </p>
-          </Section>
-        ) : null}
+      {contact.summary ? (
+        <div className="mt-5">
+          <Block title="Résumé">
+            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-text">{contact.summary}</p>
+          </Block>
+        </div>
+      ) : null}
 
-        <Section title="Notes terrain">
+      <div className="mt-5 border-t border-black/[0.05] pt-4">
+        <Block title="Notes terrain">
           <NotesTerrainList
             entiteType="contact"
             entiteId={contact.id}
             currentUserId={currentUserId}
           />
-        </Section>
+        </Block>
+      </div>
 
-        <Section title="Historique">
-          <div className="mb-5">
-            <label htmlFor="contact-note" className="sr-only">
-              Ajouter un échange
-            </label>
-            <TextArea
-              id="contact-note"
-              rows={3}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Ce qui vient de se dire…"
-            />
-            {draft.trim() ? (
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                {members.length > 0 ? (
-                  <div className="min-w-0 flex-1">
-                    <p className="mb-1.5 text-[12.5px] font-medium text-text-muted">Assigner à</p>
-                    <AssigneeSelect
-                      id="contact-note-assignee"
-                      value={noteAssignee}
-                      members={members}
-                      currentUserId={currentUserId}
-                      includeUnassigned
-                      onChange={setNoteAssignee}
-                    />
-                  </div>
-                ) : null}
-                <WorkspaceButton type="button" onClick={addNote} disabled={saving}>
-                  {saving ? 'Enregistrement…' : 'Ajouter'}
-                </WorkspaceButton>
-              </div>
-            ) : null}
-          </div>
+      <div className="mt-5">
+        <Block title="Historique">
+          <label htmlFor={`contact-note-${contact.id}`} className="sr-only">
+            Ajouter un échange
+          </label>
+          <TextArea
+            id={`contact-note-${contact.id}`}
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Ce qui vient de se dire…"
+          />
+          {draft.trim() ? (
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              {members.length > 0 ? (
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1.5 text-[12.5px] font-medium text-text-muted">Assigner à</p>
+                  <AssigneeSelect
+                    id={`contact-note-assignee-${contact.id}`}
+                    value={noteAssignee}
+                    members={members}
+                    currentUserId={currentUserId}
+                    includeUnassigned
+                    onChange={setNoteAssignee}
+                  />
+                </div>
+              ) : null}
+              <WorkspaceButton type="button" onClick={addNote} disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Ajouter'}
+              </WorkspaceButton>
+            </div>
+          ) : null}
 
           {interactions === null ? (
-            <p className="text-text-subtle" style={{ fontSize: 14 }}>
-              Chargement…
-            </p>
+            <p className="mt-3 text-[13px] text-text-subtle">Chargement…</p>
           ) : interactions.length === 0 ? (
-            <p className="text-text-subtle" style={{ fontSize: 14 }}>
-              Aucun échange enregistré pour le moment.
-            </p>
+            <p className="mt-3 text-[13px] text-text-subtle">Aucun échange enregistré.</p>
           ) : (
-            <ul className="flex flex-col gap-5">
+            <ul className="mt-4 flex flex-col gap-3.5">
               {interactions.map((it) => (
                 <li key={it.id}>
-                  <p className="text-text-subtle" style={{ fontSize: 12 }}>
+                  <p className="text-[11.5px] text-text-subtle">
                     {INTERACTION_KIND_LABELS[it.kind]} · {formatDate(it.occurredAt)}
                   </p>
-                  <p
-                    className="mt-1 whitespace-pre-wrap text-text"
-                    style={{ fontSize: 14.5, lineHeight: 1.6 }}
-                  >
+                  <p className="mt-0.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-text">
                     {it.body}
                   </p>
                 </li>
               ))}
             </ul>
           )}
-        </Section>
+        </Block>
+      </div>
 
-        <div className="px-5 pb-8 pt-4 sm:px-7">
-          <p className="text-text-subtle" style={{ fontSize: 12 }}>
-            Contact créé le {formatDate(contact.createdAt)}
-          </p>
-        </div>
-      </aside>
-    </>
+      <p className="mt-4 text-[11.5px] text-text-subtle">Créé le {formatDate(contact.createdAt)}</p>
+    </div>
   );
-
-  if (!mounted) return null;
-  return createPortal(panel, document.body);
 }

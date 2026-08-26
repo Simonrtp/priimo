@@ -78,7 +78,7 @@ const SYSTEM_PROMPT =
 
 function buildPrompt(transcript: string, noteDate = new Date()): string {
   const ref = noteDate.toISOString().slice(0, 10);
-  return `Note (${ref}):\n${transcript}\n\nJSON:{personnes:[{firstName,lastName,phone,email,type:vendeur|acquereur|locataire|autre}],address,secteur,prix,rooms,surface,source_info:proprietaire|gardien|voisin|tiers|agent|null,relance_jours,relance_libelle,promesse:{intitule,echeance_iso},rendez_vous:{debut_iso,fin_iso,type:visite|estimation|signature|autre,lieu},visite:{date_iso,interet:aucun|tiede|chaud|offre|null,retour,contact_hint}}\nDates relatives (jeudi, lundi, dans 2 semaines) → ISO absolu depuis ${ref}. prix en euros. rooms = pièces (T2=2).`;
+  return `Note (${ref}):\n${transcript}\n\nJSON:{personnes:[{firstName,lastName,phone,email,type:vendeur|acquereur|locataire|gardien|commercant|autre}],address,secteur,prix,rooms,surface,source_info:proprietaire|gardien|voisin|tiers|agent|null,relance_jours,relance_libelle,promesse:{intitule,echeance_iso},rendez_vous:{debut_iso,fin_iso,type:visite|estimation|signature|autre,lieu},visite:{date_iso,interet:aucun|tiede|chaud|offre|null,retour,contact_hint}}\nDates relatives (jeudi, lundi, dans 2 semaines) → ISO absolu depuis ${ref}. prix en euros. rooms = pièces (T2=2).`;
 }
 
 function asString(v: unknown, max: number): string | null {
@@ -120,7 +120,14 @@ export function lignesFicheNote(
   return lignes;
 }
 
-const TYPES: readonly ContactType[] = ['vendeur', 'acquereur', 'locataire', 'autre'];
+const TYPES: readonly ContactType[] = [
+  'vendeur',
+  'acquereur',
+  'locataire',
+  'gardien',
+  'commercant',
+  'autre',
+];
 const SOURCES: readonly NoteSourceInfo[] = ['proprietaire', 'gardien', 'voisin', 'tiers', 'agent'];
 
 function parsePersonne(raw: unknown): ExtractedPersonne | null {

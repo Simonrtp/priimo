@@ -47,6 +47,10 @@ export interface Contact {
   criteria: SearchCriteria;
   summary: string | null;
   lastInteractionAt: string | null;
+  /** Date civile (YYYY-MM-DD) de relance prévue. */
+  recontacterLe: string | null;
+  /** Fiche suspectée d'être un doublon de celle-ci. */
+  doublonDe: string | null;
   source: ContactSource;
   /** Adresse brute saisie — source du géocodage BAN. */
   address: string | null;
@@ -79,6 +83,8 @@ export interface VoiceNote {
   createdBy: string | null;
   durationSeconds: number | null;
   transcript: string | null;
+  /** Brut d'origine, renseigné à la première correction. */
+  transcriptOriginal: string | null;
   status: VoiceNoteStatus;
   statut: VoiceNoteStatut;
   visibilite: VoiceNoteVisibilite;
@@ -91,6 +97,8 @@ export interface VoiceNote {
   assignedTo: string | null;
   postalCode: string | null;
   createdAt: string;
+  /** Vrai si un fichier audio existe (dictée), faux pour une note tapée. */
+  hasAudio: boolean;
   /** Vrai si un lien contact / bien / lead existe — la note n'est plus orpheline. */
   hasFicheLink: boolean;
 }
@@ -128,6 +136,8 @@ export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
   vendeur: 'Vendeur',
   acquereur: 'Acquéreur',
   locataire: 'Locataire',
+  gardien: 'Gardien',
+  commercant: 'Commerçant',
   autre: 'Autre',
 };
 
@@ -135,6 +145,8 @@ export const CONTACT_TYPE_ORDER: readonly ContactType[] = [
   'acquereur',
   'vendeur',
   'locataire',
+  'gardien',
+  'commercant',
   'autre',
 ];
 

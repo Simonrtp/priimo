@@ -199,24 +199,46 @@ function phraseDelai(jours: number): string {
 /* Constructeurs de cartes                                                    */
 /* -------------------------------------------------------------------------- */
 
+function civilKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function cartesRelance(contacts: readonly Contact[], maintenant: Date, config: TodayConfig): TodayCard[] {
   const cartes: TodayCard[] = [];
+  const today = civilKey(maintenant);
 
   for (const contact of contacts) {
-    const reference = contact.lastInteractionAt ?? contact.createdAt;
-    const jours = joursDepuis(reference, maintenant);
-    if (jours === null || jours < config.relanceApresJours) continue;
+    const due = contact.recontacterLe?.slice(0, 10) ?? null;
+    if (due && due > today) continue;
 
-    const enRetard = jours >= config.relanceEnRetardJours;
-    const jamaisRecontacte = contact.lastInteractionAt === null;
+    let jours: number | null;
+    let enRetard: boolean;
+    let contexteRelance: string;
 
-    const contexteParts = [
-      CONTACT_TYPE_LABELS[contact.type],
-      jamaisRecontacte
+    if (due) {
+      jours = joursDepuis(`${due}T12:00:00.000Z`, maintenant);
+      enRetard = due < today;
+      contexteRelance = enRetard
+        ? `relance prévue le ${due.split('-').reverse().join('/')}`
+        : 'à relancer aujourd’hui';
+    } else {
+      const reference = contact.lastInteractionAt ?? contact.createdAt;
+      jours = joursDepuis(reference, maintenant);
+      if (jours === null || jours < config.relanceApresJours) continue;
+      enRetard = jours >= config.relanceEnRetardJours;
+      const jamaisRecontacte = contact.lastInteractionAt === null;
+      contexteRelance = jamaisRecontacte
         ? `rencontré ${phraseDelai(jours)}, jamais recontacté`
-        : `dernier échange ${phraseDelai(jours)}`,
-    ];
+        : `dernier échange ${phraseDelai(jours)}`;
+    }
+
+    const contexteParts = [CONTACT_TYPE_LABELS[contact.type], contexteRelance];
     if (contact.secteur) contexteParts.push(contact.secteur);
+
+    const joursTri = Math.min(Math.max(jours ?? 0, 0), 365);
 
     cartes.push(
       mkCard(
@@ -228,11 +250,18 @@ function cartesRelance(contacts: readonly Contact[], maintenant: Date, config: T
           action: contact.phone
             ? { kind: 'appeler', label: `Appeler ${contact.fullName}`, phone: contact.phone, contactId: contact.id }
             : { kind: 'ouvrir_contact', label: `Ouvrir la fiche de ${contact.fullName}`, contactId: contact.id },
-          priority: (enRetard ? PRIORITE.relanceEnRetard : PRIORITE.relance) - Math.min(jours, 365),
+          priority: (enRetard ? PRIORITE.relanceEnRetard : PRIORITE.relance) - joursTri,
           urgent: enRetard,
           geo: geoFrom(contact.latitude, contact.longitude, contact.address ?? contact.fullName),
         },
-        enRetard ? 100 : imminenceJoursRestants(jours - config.relanceApresJours, config.relanceEnRetardJours - config.relanceApresJours) || 45,
+        enRetard
+          ? 100
+          : due
+            ? 85
+            : imminenceJoursRestants(
+                (jours ?? 0) - config.relanceApresJours,
+                config.relanceEnRetardJours - config.relanceApresJours,
+              ) || 45,
       ),
     );
   }

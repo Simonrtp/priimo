@@ -66,7 +66,7 @@ function DesktopCompactNav() {
       }}
       aria-label="Navigation mobile"
     >
-      <TabItem href="/dashboard" label="Aujourd'hui" Icon={CalendarCheck} active={activeToday} />
+      <TabItem href="/dashboard" label="Accueil" Icon={CalendarCheck} active={activeToday} />
       <TabItem href="/dashboard/prospection" label="Prospects" Icon={Target} active={activeProspects} />
       <TabItem href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
       <TabItem href="/dashboard/contacts" label="Contacts" Icon={Users} active={activeContacts} />
@@ -124,7 +124,7 @@ function FieldBottomNav() {
       aria-label="Navigation terrain"
     >
       <div className="relative flex h-14 items-stretch">
-        <FieldTab href="/dashboard" label="Aujourd'hui" Icon={CalendarCheck} active={activeToday} />
+        <FieldTab href="/dashboard" label="Accueil" Icon={CalendarCheck} active={activeToday} />
         <div className="w-16 flex-shrink-0" aria-hidden />
         <FieldTab href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
 

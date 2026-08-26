@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 type NotifyOpts = {
   id?: string;
   duration?: number;
+  action?: { label: string; onClick: () => void };
 };
 
 /** Confirmation d’action — pastille verte Sonner (design d’origine). */
@@ -17,6 +18,7 @@ export function notifySuccess(message: string, opts?: NotifyOpts) {
   return toast.success(message, {
     id: opts?.id,
     duration: opts?.duration ?? 3200,
+    action: opts?.action,
   });
 }
 

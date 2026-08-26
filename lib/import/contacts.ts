@@ -83,8 +83,10 @@ export function interpretContactType(raw: string): ContactType {
     .toLocaleLowerCase('fr')
     .trim();
   if (/(vendeur|proprietaire|seller)/.test(s)) return 'vendeur';
-  if (/(acquereur|acheteur|buyer|acheteur)/.test(s)) return 'acquereur';
+  if (/(acquereur|acheteur|buyer)/.test(s)) return 'acquereur';
   if (/(locataire|tenant)/.test(s)) return 'locataire';
+  if (/(gardien|concierge)/.test(s)) return 'gardien';
+  if (/(commercant|commerce|commerçant)/.test(s)) return 'commercant';
   if (s === 'autre' || s === 'other') return 'autre';
   return 'autre';
 }
@@ -182,6 +184,7 @@ export function contactToInput(contact: Contact): ContactInputFields {
     surfaceMax: contact.criteria.surfaceMax,
     roomsMin: contact.criteria.roomsMin,
     summary: contact.summary,
+    recontacterLe: contact.recontacterLe,
   };
 }
 

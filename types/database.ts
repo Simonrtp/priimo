@@ -403,7 +403,7 @@ export type EstimationRequestInsert = {
 /* Espace de travail agent : contacts, biens, dictées, échanges                */
 /* -------------------------------------------------------------------------- */
 
-export type ContactTypeDb = 'vendeur' | 'acquereur' | 'locataire' | 'autre';
+export type ContactTypeDb = 'vendeur' | 'acquereur' | 'locataire' | 'gardien' | 'commercant' | 'autre';
 export type ContactSourceDb = 'manuel' | 'vocal' | 'prospection';
 export type MandatStatutDb =
   | 'estimation'
@@ -448,6 +448,8 @@ export type ContactRow = {
   rooms_min: number | null;
   summary: string | null;
   last_interaction_at: string | null;
+  recontacter_le?: string | null;
+  doublon_de?: string | null;
   source: ContactSourceDb;
   lead_id: string | null;
   address?: string | null;
@@ -483,6 +485,8 @@ export type ContactInsert = {
   rooms_min?: number | null;
   summary?: string | null;
   last_interaction_at?: string | null;
+  recontacter_le?: string | null;
+  doublon_de?: string | null;
   source?: ContactSourceDb;
   lead_id?: string | null;
   address?: string | null;
@@ -601,6 +605,8 @@ export type VoiceNoteRow = {
   duration_seconds: number | null;
   mime_type: string | null;
   transcript: string | null;
+  /** Brut conservé à la première édition. */
+  transcript_original?: string | null;
   structured: unknown;
   status: VoiceNoteStatusDb;
   contact_id: string | null;

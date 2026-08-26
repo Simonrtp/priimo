@@ -4,19 +4,31 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { TodayCard } from '@/lib/today/cards';
 import type { Lead } from '@/types/lead';
+import type { VoiceNote } from '@/types/contact';
 import type { GeoCoord } from '@/lib/carte/coords';
+import type { PortfolioStats } from '@/lib/today/portfolio';
+import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { notifyError } from '@/lib/notify';
+import { readDevicePosition } from '@/lib/voice/gps';
+import {
+  buildSortie,
+  resolveSortieOrigin,
+  sortieStorageKey,
+  type SortiePlan,
+  type SortieProgress,
+} from '@/lib/today/sortie';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import TodayCardView from './TodayCardView';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
 import TodayStatusBand from './TodayStatusBand';
-import SortiePanel from './SortiePanel';
 import SortieMode from './SortieMode';
 import TodayTermineBlock from './TodayTermineBlock';
-import type { SortiePlan, SortieProgress } from '@/lib/today/sortie';
-import { sortieStorageKey } from '@/lib/today/sortie';
+import PortfolioBand from './PortfolioBand';
+import RecentNotesCard from './RecentNotesCard';
+import ZoneDuJourCard from './ZoneDuJourCard';
+import DirectorExceptions from './DirectorExceptions';
 
 type DoneItem = { key: string; headline: string; at: string };
 
@@ -56,18 +68,26 @@ export default function TodayClient({
   initialLeads,
   profileId,
   firstName,
-  sectorCenter,
   relancesProgrammees = 0,
   rapprochements = 0,
+  portfolio,
+  recentNotes,
+  agencyOrigin,
+  isDirector = false,
+  directorExceptions = [],
   children,
 }: {
   initialCards: TodayCard[];
   initialLeads: Lead[];
   profileId: string;
   firstName: string;
-  sectorCenter: GeoCoord | null;
   relancesProgrammees?: number;
   rapprochements?: number;
+  portfolio: PortfolioStats;
+  recentNotes: readonly VoiceNote[];
+  agencyOrigin: GeoCoord | null;
+  isDirector?: boolean;
+  directorExceptions?: readonly DirectorMemberExceptions[];
   children?: ReactNode;
 }) {
   const day = dateKeyParis(new Date());
@@ -76,6 +96,7 @@ export default function TodayClient({
   const [termineOpen, setTermineOpen] = useState(false);
   const [sortieOpen, setSortieOpen] = useState(false);
   const [activePlan, setActivePlan] = useState<SortiePlan | null>(null);
+  const [gps, setGps] = useState<GeoCoord | null>(null);
   const [sortieProgress, setSortieProgress] = useState<SortieProgress>({
     signature: '',
     done: [],
@@ -96,6 +117,12 @@ export default function TodayClient({
   }, [initialCards]);
 
   useEffect(() => {
+    void readDevicePosition().then((pos) => {
+      if (pos) setGps(pos);
+    });
+  }, []);
+
+  useEffect(() => {
     setDoneToday(readJson(`priimo-today-done:${day}`, []));
     setSortieProgress(
       readJson(sortieStorageKey(profileId, day), {
@@ -114,6 +141,15 @@ export default function TodayClient({
   useEffect(() => {
     sessionStorage.setItem(sortieStorageKey(profileId, day), JSON.stringify(sortieProgress));
   }, [day, profileId, sortieProgress]);
+
+  const origin = useMemo(
+    () => resolveSortieOrigin(agencyOrigin, gps).origin,
+    [agencyOrigin, gps],
+  );
+  const sortiePlan = useMemo(
+    () => buildSortie(initialLeads, profileId, origin),
+    [initialLeads, profileId, origin],
+  );
 
   const layout = useMemo(() => organizeTodayLayout(cards, now, true), [cards, now]);
   const workCards = useMemo(
@@ -185,9 +221,13 @@ export default function TodayClient({
         noUrgent={noUrgent}
       />
 
+      <PortfolioBand stats={portfolio} />
+
       <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
         <div className="min-w-0 lg:col-span-3">
-          {workCards.length === 0 && emptyKind === 'rien' ? (
+          {isDirector ? (
+            <DirectorExceptions rows={directorExceptions} />
+          ) : workCards.length === 0 && emptyKind === 'rien' ? (
             <EmptyState />
           ) : workCards.length === 0 ? (
             <p className="py-6 text-[14px] text-text-muted">Aucune tâche en attente dans la pile.</p>
@@ -225,19 +265,16 @@ export default function TodayClient({
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <div className="lg:sticky lg:top-4">
-            <SortiePanel
-              leads={initialLeads}
-              profileId={profileId}
-              sectorCenter={sectorCenter}
-              progress={sortieProgress}
-              onStart={handleStartSortie}
-            />
+          <div className="flex flex-col gap-4 lg:sticky lg:top-4">
+            <RecentNotesCard notes={recentNotes} />
+            {isDirector ? null : (
+              <ZoneDuJourCard plan={sortiePlan} onStart={handleStartSortie} />
+            )}
           </div>
         </div>
       </div>
 
-      {total > 0 || doneToday.length > 0 ? (
+      {!isDirector && (total > 0 || doneToday.length > 0) ? (
         <TodayTermineBlock
           items={doneToday}
           expanded={termineOpen || emptyKind === 'bouclee'}

@@ -119,12 +119,14 @@ export default function BienFormDialog({
   bien,
   vendeurs,
   onSaved,
+  skipSuccessToast = false,
 }: {
   open: boolean;
   onClose: () => void;
   bien?: Bien;
   vendeurs: Contact[];
   onSaved: (bien: Bien) => void;
+  skipSuccessToast?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(bien ? fromBien(bien) : EMPTY);
   const [saving, setSaving] = useState(false);
@@ -197,7 +199,9 @@ export default function BienFormDialog({
         return;
       }
 
-      notifySuccess(bien ? 'Bien mis à jour' : 'Bien ajouté');
+      if (!skipSuccessToast) {
+        notifySuccess(bien ? 'Bien mis à jour' : 'Bien ajouté');
+      }
       onSaved(data.bien);
       onClose();
     } catch {

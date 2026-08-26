@@ -23,6 +23,7 @@ export interface ContactInputFields {
   surfaceMax: number | null;
   roomsMin: number | null;
   summary: string | null;
+  recontacterLe: string | null;
 }
 
 export const EMPTY_CONTACT_INPUT: ContactInputFields = {
@@ -40,9 +41,17 @@ export const EMPTY_CONTACT_INPUT: ContactInputFields = {
   surfaceMax: null,
   roomsMin: null,
   summary: null,
+  recontacterLe: null,
 };
 
-const CONTACT_TYPES: readonly ContactType[] = ['vendeur', 'acquereur', 'locataire', 'autre'];
+const CONTACT_TYPES: readonly ContactType[] = [
+  'vendeur',
+  'acquereur',
+  'locataire',
+  'gardien',
+  'commercant',
+  'autre',
+];
 
 function str(v: unknown, max: number): string | null {
   if (typeof v !== 'string') return null;
@@ -113,6 +122,14 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
     return { ok: false, error: 'La surface minimum dépasse le maximum' };
   }
 
+  let recontacterLe: string | null = null;
+  if (b.recontacterLe !== undefined && b.recontacterLe !== null && b.recontacterLe !== '') {
+    if (typeof b.recontacterLe !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.recontacterLe.trim())) {
+      return { ok: false, error: "La date de relance n'est pas valide" };
+    }
+    recontacterLe = b.recontacterLe.trim().slice(0, 10);
+  }
+
   return {
     ok: true,
     fields: {
@@ -130,6 +147,7 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
       surfaceMax,
       roomsMin: num(b.roomsMin, 50),
       summary: str(b.summary, 4000),
+      recontacterLe,
     },
   };
 }

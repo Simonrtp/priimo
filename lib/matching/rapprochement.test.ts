@@ -35,6 +35,8 @@ function acquereur(
     },
     summary: null,
     lastInteractionAt: null,
+    recontacterLe: null,
+    doublonDe: null,
     source: 'manuel',
     address: null,
     banId: null,

@@ -123,6 +123,8 @@ const CONTACT_BADGE: Record<ContactType, string> = {
   vendeur: 'V',
   acquereur: 'A',
   locataire: 'L',
+  gardien: 'G',
+  commercant: 'C',
   autre: '·',
 };
 

@@ -14,9 +14,10 @@ import {
 } from '@/components/dashboard/assistant/AssistantSearchButton';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
+import CreateMenu from '@/components/dashboard/create/CreateMenu';
 
 function titleForPath(pathname: string): string {
-  if (pathname === '/dashboard' || pathname === '/dashboard/') return "Aujourd'hui";
+  if (pathname === '/dashboard' || pathname === '/dashboard/') return 'Accueil';
   if (pathname.startsWith('/dashboard/carte')) return 'Carte';
   if (pathname.startsWith('/dashboard/prospection')) return 'Prospection';
   if (pathname.startsWith('/dashboard/contacts')) return 'Contacts';
@@ -24,7 +25,8 @@ function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard/parametres')) return 'Équipe';
   if (pathname.startsWith('/dashboard/equipe')) return 'Équipe';
   if (pathname.startsWith('/dashboard/settings')) return 'Paramètres';
-  return "Aujourd'hui";
+  if (pathname.startsWith('/dashboard/notes')) return 'Notes';
+  return 'Accueil';
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -203,10 +205,11 @@ export default function TopBar() {
           </span>
         </div>
 
-        <div className="hidden min-w-0 flex-1 md:block">
-          <div className="w-full max-w-md">
+        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+          <div className="min-w-0 w-full max-w-md flex-1">
             <AssistantSearchBar tone="shell" />
           </div>
+          <CreateMenu className="shrink-0" />
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2 md:gap-2">
@@ -253,8 +256,11 @@ export default function TopBar() {
         </div>
       </div>
 
-      <div className="px-4 pb-2 md:hidden">
-        <AssistantMobileSearchBar />
+      <div className="flex items-center gap-2 px-4 pb-2 md:hidden">
+        <div className="min-w-0 flex-1">
+          <AssistantMobileSearchBar />
+        </div>
+        <CreateMenu compact className="shrink-0" />
       </div>
     </header>
   );

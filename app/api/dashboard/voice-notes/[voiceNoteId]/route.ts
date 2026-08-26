@@ -5,6 +5,7 @@ import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import type { VoiceNoteRow } from '@/types/database';
+import { withRejectedKey } from '@/lib/notes/attachment-proposals';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +34,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
   const admin = createSupabaseAdminClient();
   const { data: note } = await admin
     .from('voice_notes')
-    .select('id, agency_id, created_by, structured')
+    .select('id, agency_id, created_by, structured, transcript, transcript_original')
     .eq('id', voiceNoteId)
     .eq('agency_id', agency.id)
     .maybeSingle();
@@ -44,6 +45,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
   }
 
   const patch: Partial<VoiceNoteRow> = {};
+
+  if (typeof body.transcript === 'string') {
+    const next = body.transcript.trim();
+    const current = typeof note.transcript === 'string' ? note.transcript : '';
+    if (next !== current) {
+      patch.transcript = next || null;
+      if (note.transcript_original == null && current) {
+        patch.transcript_original = current;
+      }
+    }
+  }
+
+  if (typeof body.rejectProposal === 'string' && body.rejectProposal.trim()) {
+    patch.structured = withRejectedKey(note.structured, body.rejectProposal.trim());
+  }
 
   if (typeof body.visibilite === 'string' && (VIS as readonly string[]).includes(body.visibilite)) {
     patch.visibilite = body.visibilite as VoiceNoteVisibilite;
@@ -80,11 +96,22 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
     return NextResponse.json({ ok: true });
   }
 
-  const { error } = await admin
+  let { error } = await admin
     .from('voice_notes')
     .update(patch)
     .eq('id', voiceNoteId)
     .eq('agency_id', agency.id);
+
+  if (error && patch.transcript_original !== undefined) {
+    const fallback = { ...patch };
+    delete fallback.transcript_original;
+    const retry = await admin
+      .from('voice_notes')
+      .update(fallback)
+      .eq('id', voiceNoteId)
+      .eq('agency_id', agency.id);
+    error = retry.error;
+  }
 
   if (error) {
     console.error('[voice] patch', error);

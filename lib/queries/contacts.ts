@@ -18,6 +18,14 @@ type Client = SupabaseClient<Database>;
 export const CONTACTS_SELECT = `
   id, agency_id, created_by, first_name, last_name, contact_type, phone, email,
   secteur, address, postal_codes, budget_min, budget_max, surface_min, surface_max,
+  rooms_min, summary, last_interaction_at, recontacter_le, doublon_de, source, lead_id,
+  ban_id, latitude, longitude, adresse_normalisee, geocode_score, geocode_le,
+  assigned_to, assigned_by, assigned_at, created_at, updated_at
+`;
+
+const CONTACTS_SELECT_MID = `
+  id, agency_id, created_by, first_name, last_name, contact_type, phone, email,
+  secteur, address, postal_codes, budget_min, budget_max, surface_min, surface_max,
   rooms_min, summary, last_interaction_at, source, lead_id,
   ban_id, latitude, longitude, adresse_normalisee, geocode_score, geocode_le,
   assigned_to, assigned_by, assigned_at, created_at, updated_at
@@ -73,6 +81,8 @@ export function mapDbContactToContact(row: ContactRow): Contact {
     criteria,
     summary: cleanText(row.summary) || null,
     lastInteractionAt: row.last_interaction_at,
+    recontacterLe: row.recontacter_le ?? null,
+    doublonDe: row.doublon_de ?? null,
     source: row.source,
     leadId: row.lead_id,
     assignedTo: row.assigned_to ?? row.created_by ?? null,
@@ -89,9 +99,12 @@ export async function fetchContacts(supabase: Client): Promise<Contact[]> {
     .select(CONTACTS_SELECT)
     .order('created_at', { ascending: false });
 
-  const result = first.error
-    ? await supabase.from('contacts').select(CONTACTS_SELECT_LEGACY).order('created_at', { ascending: false })
+  const second = first.error
+    ? await supabase.from('contacts').select(CONTACTS_SELECT_MID).order('created_at', { ascending: false })
     : first;
+  const result = second.error
+    ? await supabase.from('contacts').select(CONTACTS_SELECT_LEGACY).order('created_at', { ascending: false })
+    : second;
 
   if (result.error) throw new Error(result.error.message);
   return ((result.data ?? []) as unknown as ContactRow[]).map(mapDbContactToContact);
@@ -99,9 +112,12 @@ export async function fetchContacts(supabase: Client): Promise<Contact[]> {
 
 export async function fetchContactById(supabase: Client, id: string): Promise<Contact | null> {
   const first = await supabase.from('contacts').select(CONTACTS_SELECT).eq('id', id).maybeSingle();
-  const result = first.error
-    ? await supabase.from('contacts').select(CONTACTS_SELECT_LEGACY).eq('id', id).maybeSingle()
+  const second = first.error
+    ? await supabase.from('contacts').select(CONTACTS_SELECT_MID).eq('id', id).maybeSingle()
     : first;
+  const result = second.error
+    ? await supabase.from('contacts').select(CONTACTS_SELECT_LEGACY).eq('id', id).maybeSingle()
+    : second;
 
   if (result.error) throw new Error(result.error.message);
   return result.data ? mapDbContactToContact(result.data as unknown as ContactRow) : null;
@@ -184,6 +200,7 @@ export function mapDbVoiceNote(
     createdBy: row.created_by,
     durationSeconds: row.duration_seconds,
     transcript: row.transcript,
+    transcriptOriginal: row.transcript_original ?? null,
     status: row.status,
     statut: row.statut === 'revue' ? 'revue' : 'brute',
     visibilite,
@@ -196,14 +213,20 @@ export function mapDbVoiceNote(
     assignedTo: row.assigned_to ?? null,
     postalCode: postalCodeFromVoiceNote(row),
     createdAt: row.created_at,
+    hasAudio: Boolean(row.mime_type && row.mime_type !== 'text/plain'),
     hasFicheLink: extra?.hasFicheLink ?? Boolean(row.contact_id),
   };
 }
 
 const VOICE_NOTES_SELECT = `
+  id, agency_id, created_by, duration_seconds, transcript, transcript_original, status, statut, visibilite,
+  source_info, contact_id, ban_id, latitude, longitude, adresse_normalisee, assigned_to,
+  created_at, structured, mime_type
+`;
+const VOICE_NOTES_SELECT_MID = `
   id, agency_id, created_by, duration_seconds, transcript, status, statut, visibilite,
   source_info, contact_id, ban_id, latitude, longitude, adresse_normalisee, assigned_to,
-  created_at, structured
+  created_at, structured, mime_type
 `;
 const VOICE_NOTES_SELECT_LEGACY =
   'id, agency_id, created_by, duration_seconds, transcript, status, contact_id, created_at';
@@ -214,12 +237,18 @@ export async function fetchVoiceNotesSafe(supabase: Client): Promise<VoiceNote[]
       .from('voice_notes')
       .select(VOICE_NOTES_SELECT)
       .order('created_at', { ascending: false });
-    const result = first.error
+    const second = first.error
+      ? await supabase
+          .from('voice_notes')
+          .select(VOICE_NOTES_SELECT_MID)
+          .order('created_at', { ascending: false })
+      : first;
+    const result = second.error
       ? await supabase
           .from('voice_notes')
           .select(VOICE_NOTES_SELECT_LEGACY)
           .order('created_at', { ascending: false })
-      : first;
+      : second;
     if (result.error) throw new Error(result.error.message);
     const rows = (result.data ?? []) as unknown as VoiceNoteRow[];
     const ids = rows.map((r) => r.id);
@@ -267,6 +296,7 @@ export interface ContactPatch {
   roomsMin?: number | null;
   postalCodes?: string[];
   assignedTo?: string | null;
+  recontacterLe?: string | null;
 }
 
 /** Traduit un patch domaine en colonnes DB. Les clés absentes ne sont pas touchées. */
@@ -287,5 +317,67 @@ export function contactPatchToRow(patch: ContactPatch): Partial<ContactRow> {
   if (patch.roomsMin !== undefined) row.rooms_min = patch.roomsMin;
   if (patch.postalCodes !== undefined) row.postal_codes = patch.postalCodes;
   if (patch.assignedTo !== undefined) row.assigned_to = patch.assignedTo;
+  if (patch.recontacterLe !== undefined) row.recontacter_le = patch.recontacterLe;
   return row;
+}
+
+export type LatestInteractionRef = {
+  kind: ContactInteraction['kind'];
+  occurredAt: string;
+};
+
+/** Dernier échange réel par contact, lu dans contact_interactions — pas last_interaction_at. */
+export async function fetchLatestInteractionsSafe(
+  supabase: Client,
+  contactIds: string[],
+): Promise<Record<string, LatestInteractionRef>> {
+  const ids = [...new Set(contactIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+  try {
+    const out: Record<string, LatestInteractionRef> = {};
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      const { data, error } = await supabase
+        .from('contact_interactions')
+        .select('contact_id, kind, occurred_at')
+        .in('contact_id', chunk)
+        .order('occurred_at', { ascending: false });
+      if (error) continue;
+      for (const row of data ?? []) {
+        const id = (row as { contact_id: string }).contact_id;
+        if (out[id]) continue;
+        out[id] = {
+          kind: (row as { kind: ContactInteraction['kind'] }).kind,
+          occurredAt: (row as { occurred_at: string }).occurred_at,
+        };
+      }
+    }
+    return out;
+  } catch (err) {
+    console.error('[contacts] dernières interactions', err);
+    return {};
+  }
+}
+
+export async function fetchLeadAddressesSafe(
+  supabase: Client,
+  leadIds: string[],
+): Promise<Record<string, string>> {
+  const ids = [...new Set(leadIds.filter(Boolean))];
+  if (ids.length === 0) return {};
+  try {
+    const { data, error } = await supabase.from('leads').select('id, address').in('id', ids);
+    if (error) return {};
+    const out: Record<string, string> = {};
+    for (const row of data ?? []) {
+      const id = (row as { id: string }).id;
+      const address = typeof (row as { address?: string | null }).address === 'string'
+        ? (row as { address: string }).address.trim()
+        : '';
+      if (address) out[id] = address;
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }

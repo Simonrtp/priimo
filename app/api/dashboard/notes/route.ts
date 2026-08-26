@@ -74,7 +74,7 @@ export async function GET(req: Request) {
   const { data: noteRows } = await supabase
     .from('voice_notes')
     .select(
-      'id, agency_id, created_by, duration_seconds, transcript, status, statut, visibilite, source_info, contact_id, ban_id, latitude, longitude, adresse_normalisee, assigned_to, created_at, structured, storage_path, mime_type, updated_at',
+      'id, agency_id, created_by, duration_seconds, transcript, transcript_original, status, statut, visibilite, source_info, contact_id, ban_id, latitude, longitude, adresse_normalisee, assigned_to, created_at, structured, storage_path, mime_type, updated_at',
     )
     .eq('agency_id', agency.id)
     .in('id', noteIds)

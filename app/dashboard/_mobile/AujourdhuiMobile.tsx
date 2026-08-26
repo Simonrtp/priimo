@@ -6,12 +6,17 @@ import type { TodayCard } from '@/lib/today/cards';
 import type { FieldWeekSnapshot } from '@/lib/today/semaine';
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { Lead } from '@/types/lead';
+import type { VoiceNote } from '@/types/contact';
+import type { PortfolioStats } from '@/lib/today/portfolio';
+import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { snoozeUntil, SHELL_BG_CLASS } from '@/lib/today/field';
 import {
   buildSortie,
   buildTourneeFromSortie,
+  resolveSortieOrigin,
   sortieStorageKey,
+  type SortiePlan,
   type SortieProgress,
 } from '@/lib/today/sortie';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
@@ -32,7 +37,10 @@ import {
   TermineBlock,
 } from './aujourdhui/Blocks';
 import TaskCard from './aujourdhui/TaskCard';
-import { TourneeCard } from './aujourdhui/Tournee';
+import PortfolioBand from '@/components/dashboard/today/PortfolioBand';
+import RecentNotesCard from '@/components/dashboard/today/RecentNotesCard';
+import ZoneDuJourCard from '@/components/dashboard/today/ZoneDuJourCard';
+import DirectorExceptions from '@/components/dashboard/today/DirectorExceptions';
 
 type DoneItem = { key: string; headline: string; at: string };
 
@@ -56,7 +64,12 @@ export default function AujourdhuiMobile({
   profileId,
   firstName,
   week,
-  sectorRef,
+  sectorRef: _sectorRef,
+  portfolio,
+  recentNotes,
+  agencyOrigin,
+  isDirector = false,
+  directorExceptions = [],
 }: {
   initialCards: TodayCard[];
   initialLeads: Lead[];
@@ -64,6 +77,11 @@ export default function AujourdhuiMobile({
   firstName: string;
   week: FieldWeekSnapshot;
   sectorRef: GeoCoord | null;
+  portfolio: PortfolioStats;
+  recentNotes: readonly VoiceNote[];
+  agencyOrigin: GeoCoord | null;
+  isDirector?: boolean;
+  directorExceptions?: readonly DirectorMemberExceptions[];
 }) {
   const router = useRouter();
   const day = dateKeyParis(new Date());
@@ -76,7 +94,7 @@ export default function AujourdhuiMobile({
     skipped: [],
     dictees: [],
   });
-  const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [origin, setOrigin] = useState<GeoCoord | null>(agencyOrigin);
   const [accountOpen, setAccountOpen] = useState(false);
   const [snoozeCard, setSnoozeCard] = useState<TodayCard | null>(null);
   const [confirmDone, setConfirmDone] = useState<TodayCard | null>(null);
@@ -97,8 +115,10 @@ export default function AujourdhuiMobile({
   }, [day]);
 
   useEffect(() => {
-    void readDevicePosition().then(setOrigin);
-  }, []);
+    void readDevicePosition().then((gps) => {
+      setOrigin(resolveSortieOrigin(agencyOrigin, gps).origin);
+    });
+  }, [agencyOrigin]);
 
   useEffect(() => {
     sessionStorage.setItem(doneStorageKey(day), JSON.stringify(doneToday));
@@ -141,11 +161,6 @@ export default function AujourdhuiMobile({
   const termineExpanded = termineOpen || emptyKind === 'bouclee';
   const noUrgent =
     hadLevel1Initially && layout.level1.length === 0 && (remaining > 0 || doneToday.length > 0);
-
-  const tourDoneCount = useMemo(() => {
-    if (!tournee || sortieProgress.signature !== sortiePlan?.signature) return 0;
-    return sortieProgress.done.length;
-  }, [tournee, sortieProgress, sortiePlan?.signature]);
 
   async function dismiss(card: TodayCard, snoozedUntil: string | null, asDone: boolean) {
     const previous = cards;
@@ -218,19 +233,9 @@ export default function AujourdhuiMobile({
     );
   }
 
-  function tourneeBlock() {
-    if (!tournee || !sortiePlan) return null;
-    return (
-      <TourneeCard
-        tournee={tournee}
-        doneCount={tourDoneCount}
-        sectorRef={sectorRef}
-        onStart={() => {
-          writeItineraireStops(toItineraireStops(tournee.ordered));
-          router.push(CARTE_ITINERAIRE_HREF);
-        }}
-      />
-    );
+  function startZone(plan: SortiePlan) {
+    writeItineraireStops(toItineraireStops(plan.ordered));
+    router.push(CARTE_ITINERAIRE_HREF);
   }
 
   return (
@@ -238,19 +243,26 @@ export default function AujourdhuiMobile({
       <div className={`${SHELL_BG_CLASS} flex-shrink-0 overflow-hidden`}>
         <StatusBand
           prenom={firstName}
-          remaining={remaining}
-          emptyKind={emptyKind}
+          remaining={isDirector ? directorExceptions.length : remaining}
+          emptyKind={isDirector ? null : emptyKind}
           relancesProgrammees={week.relancesProgrammees}
           rapprochements={week.rapprochements}
           noUrgent={noUrgent}
           onAccount={() => setAccountOpen(true)}
           tone="shell"
         />
-        {tournee ? <div className="px-4 pb-5 pt-2">{tourneeBlock()}</div> : null}
       </div>
 
       <div className="relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base px-0 pb-4 pt-6">
-        {emptyKind !== 'rien' ? (
+        <div className="px-4">
+          <PortfolioBand stats={portfolio} />
+        </div>
+
+        {isDirector ? (
+          <div className="px-4">
+            <DirectorExceptions rows={directorExceptions} />
+          </div>
+        ) : emptyKind !== 'rien' ? (
           <>
             {layout.level1ContextLine ? (
               <p className="px-4 text-[13px] font-medium text-text-muted">{layout.level1ContextLine}</p>
@@ -288,14 +300,21 @@ export default function AujourdhuiMobile({
           </>
         ) : null}
 
-        <div className="mt-auto pt-4">
-          <MaSemaine
-            notes={week.notes}
-            contacts={week.contacts}
-            immeubles={week.immeubles}
-            weekNoteGoal={week.weekNoteGoal}
-          />
+        <div className="flex flex-col gap-4 px-4">
+          <RecentNotesCard notes={recentNotes} />
+          {isDirector ? null : <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />}
         </div>
+
+        {isDirector ? null : (
+          <div className="mt-auto pt-2">
+            <MaSemaine
+              notes={week.notes}
+              contacts={week.contacts}
+              immeubles={week.immeubles}
+              weekNoteGoal={week.weekNoteGoal}
+            />
+          </div>
+        )}
       </div>
 
       <SnoozeSheet

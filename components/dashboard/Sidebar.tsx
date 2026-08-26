@@ -35,7 +35,7 @@ const NAV_GROUPS: NavItem[][] = [
   [
     {
       href: '/dashboard',
-      label: "Aujourd'hui",
+      label: 'Accueil',
       Icon: CalendarCheck,
       match: (p) => p === '/dashboard' || p === '/dashboard/',
     },

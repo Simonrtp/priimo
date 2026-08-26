@@ -53,7 +53,12 @@ export default async function ProspectionPage({
   const { lead: leadParam, filtre, vue: vueRaw } = params;
   const selectedLeadId = leadParam && visibleLeads.some((l) => l.id === leadParam) ? leadParam : null;
   const listFilter =
-    filtre === 'sans-position' || filtre === 'non-assignes-14j' ? filtre : null;
+    filtre === 'sans-position' ||
+    filtre === 'non-assignes-14j' ||
+    filtre === 'non-pris' ||
+    filtre === 'estimations'
+      ? filtre
+      : null;
   const vue = parseProspectionVue(vueRaw);
 
   return (

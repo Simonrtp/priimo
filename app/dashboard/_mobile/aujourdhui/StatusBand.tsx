@@ -3,6 +3,7 @@
 import { dateDuJour } from '@/lib/today/cards';
 import { FIELD, phraseEtat, phraseNotesReturn } from '@/lib/today/field';
 import { useUser } from '@/lib/hooks/useUser';
+import CreateMenu from '@/components/dashboard/create/CreateMenu';
 
 function AccountButton({
   onClick,
@@ -96,14 +97,7 @@ export function StatusBand({
           </p>
         )}
       </div>
-      {notesLine ? (
-        <p
-          className="hidden max-w-[38%] flex-shrink-0 text-right text-pretty sm:block"
-          style={{ color: shell ? '#B8CDE3' : FIELD.ardoise, fontSize: 11.5, lineHeight: 1.35 }}
-        >
-          {notesLine}
-        </p>
-      ) : null}
+      <CreateMenu compact />
       <AccountButton onClick={onAccount} tone={tone} className={shell ? 'mt-1' : undefined} />
     </header>
   );

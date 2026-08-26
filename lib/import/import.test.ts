@@ -167,6 +167,7 @@ describe('mergeContactFields', () => {
         surfaceMax: null,
         roomsMin: 3,
         summary: 'Physicienne',
+        recontacterLe: null,
       },
       {
         firstName: 'Marie',
@@ -183,6 +184,7 @@ describe('mergeContactFields', () => {
         surfaceMax: null,
         roomsMin: null,
         summary: null,
+        recontacterLe: null,
       },
       new Set(['phone']),
     );

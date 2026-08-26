@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import MobileAccountMenu, { AvatarButton } from './MobileAccountMenu';
+import CreateMenu from '@/components/dashboard/create/CreateMenu';
 
 function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard/prospection')) return 'Prospection';
@@ -12,6 +13,7 @@ function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard/parametres')) return 'Équipe';
   if (pathname.startsWith('/dashboard/equipe')) return 'Équipe';
   if (pathname.startsWith('/dashboard/settings')) return 'Paramètres';
+  if (pathname.startsWith('/dashboard/notes')) return 'Notes';
   return '';
 }
 
@@ -52,6 +54,7 @@ export default function MobileChrome() {
         <h1 className="min-w-0 flex-1 truncate font-semibold text-text-strong" style={{ fontSize: 17 }}>
           {title}
         </h1>
+        <CreateMenu compact />
         <AvatarButton onClick={() => setAccountOpen(true)} />
       </header>
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />

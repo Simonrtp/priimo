@@ -16,7 +16,7 @@ const SYSTEM_PROMPT =
   'Extrais des champs contact depuis une note dictée (agent immo FR). JSON strict. Null si non dit. Ne devine jamais.';
 
 function buildPrompt(transcript: string): string {
-  return `Note:\n${transcript}\n\nJSON:{firstName,lastName,type:vendeur|acquereur|locataire|autre,phone,email,secteur,address,postalCodes[],budgetMin,budgetMax,surfaceMin,surfaceMax,roomsMin,summary}`;
+  return `Note:\n${transcript}\n\nJSON:{firstName,lastName,type:vendeur|acquereur|locataire|gardien|commercant|autre,phone,email,secteur,address,postalCodes[],budgetMin,budgetMax,surfaceMin,surfaceMax,roomsMin,summary}`;
 }
 
 function asInt(v: unknown, max: number): number | null {
@@ -35,7 +35,14 @@ function asString(v: unknown, max: number): string | null {
   return s.slice(0, max);
 }
 
-const TYPES: readonly ContactType[] = ['vendeur', 'acquereur', 'locataire', 'autre'];
+const TYPES: readonly ContactType[] = [
+  'vendeur',
+  'acquereur',
+  'locataire',
+  'gardien',
+  'commercant',
+  'autre',
+];
 
 /** Relie deux prises de dictée sans perdre ce qui a déjà été dit. */
 export function joinVoiceTranscripts(previous: string, next: string): string {
@@ -69,6 +76,7 @@ export function mergeVoiceFields(
     surfaceMax: incoming.surfaceMax ?? current.surfaceMax,
     roomsMin: incoming.roomsMin ?? current.roomsMin,
     summary: incoming.summary || current.summary,
+    recontacterLe: incoming.recontacterLe || current.recontacterLe,
   };
 }
 
@@ -98,6 +106,7 @@ export function parseExtraction(raw: string): ContactInputFields {
     surfaceMax: asInt(parsed.surfaceMax, 100_000),
     roomsMin: asInt(parsed.roomsMin, 50),
     summary: asString(parsed.summary, 4000),
+    recontacterLe: null,
   };
 }
 

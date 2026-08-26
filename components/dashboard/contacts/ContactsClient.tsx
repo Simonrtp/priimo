@@ -1,36 +1,44 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Mail, Phone, Search, Upload } from 'lucide-react';
+import { ChevronDown, Download, Phone, Search, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
+import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER } from '@/types/contact';
+import {
+  civilToday,
+  duplicatePartnerMap,
+  isIncompleteContact,
+  isRelanceDue,
+  isRelanceFuture,
+} from '@/lib/contacts/duplicates';
+import {
+  contactInitials,
+  formatContactMeta,
+  formatLastInteraction,
+  type LatestInteraction,
+} from '@/lib/contacts/display';
+import type { MergeLinkCounts } from '@/lib/contacts/merge';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportContactsCsv } from '@/lib/import/export-contacts';
 import { formatPhoneDisplay, normalizePhone, telHref } from '@/lib/import/normalize';
 import Select from '@/components/ui/Select';
+import DatePickerField from '@/components/ui/DatePickerField';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImportWizard from '@/components/dashboard/import/ImportWizard';
-import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import ContactDetailPanel from './ContactDetailPanel';
 import ContactFormDialog from './ContactFormDialog';
+import MergeContactsDialog from './MergeContactsDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 
 const SLATE = '#3D5A80';
-const INK = '#1E3148';
+const CREAM = '#FFF7F0';
 
-function relativeDate(iso: string | null): string {
-  if (!iso) return 'Jamais recontacté';
-  const days = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
-  if (days <= 0) return "Vu aujourd'hui";
-  if (days === 1) return 'Vu hier';
-  if (days < 30) return `Vu il y a ${days} jours`;
-  const months = Math.round(days / 30);
-  return months <= 1 ? 'Vu il y a un mois' : `Vu il y a ${months} mois`;
-}
+type EtatFilter = 'tous' | 'relance' | 'incompletes' | 'doublons';
 
 function normalize(s: string): string {
   return s
@@ -50,75 +58,207 @@ function contactMatchesQuery(contact: Contact, q: string): boolean {
   return false;
 }
 
+function bienForContact(contact: Contact, biens: readonly Bien[]): Bien | null {
+  const owned = biens.filter((b) => b.proprietaireContactId === contact.id);
+  return owned.find((b) => bienIsActive(b.mandatStatut)) ?? owned[0] ?? null;
+}
+
 function ContactRow({
   contact,
+  selected,
   assigneeName,
+  last,
+  bien,
+  leadAddress,
+  incomplete,
+  duplicateOf,
+  todayKey,
+  biens,
+  members,
+  currentUserId,
   onOpen,
+  onComplete,
+  onMerge,
+  onRelance,
+  onEdit,
+  onDelete,
+  onAssigned,
 }: {
   contact: Contact;
+  selected: boolean;
   assigneeName: string | null;
+  last: LatestInteraction | null;
+  bien: Bien | null;
+  leadAddress: string | null;
+  incomplete: boolean;
+  duplicateOf: string | null;
+  todayKey: string;
+  biens: Bien[];
+  members: readonly AssigneeOption[];
+  currentUserId: string;
   onOpen: () => void;
+  onComplete: () => void;
+  onMerge: () => void;
+  onRelance: (date: string | null) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAssigned: (contact: Contact) => void;
 }) {
-  const meta = [
-    CONTACT_TYPE_LABELS[contact.type],
-    contact.secteur,
+  const meta = formatContactMeta(contact, {
     assigneeName,
-  ].filter(Boolean);
+    mandatStatut: bien?.mandatStatut ?? null,
+    bienAddress: bien?.address ?? null,
+    leadAddress,
+  });
+  const future = isRelanceFuture(contact.recontacterLe, todayKey);
+  const callableNow = Boolean(contact.phone) && !future;
+  const [mounted, setMounted] = useState(selected);
+
+  useEffect(() => {
+    if (selected) {
+      setMounted(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setMounted(false), 200);
+    return () => window.clearTimeout(timer);
+  }, [selected]);
 
   return (
-    <li className="border-l-[3px] bg-[#F7F4EE] even:bg-[#EFEBE3]" style={{ borderLeftColor: SLATE }}>
-      <div className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
+    <li
+      className="border-b border-[#1E3148]/12 first:rounded-t-clay last:rounded-b-clay last:border-b-0"
+      style={{
+        background: selected ? CREAM : '#FFFFFF',
+        borderBottomWidth: 0.5,
+      }}
+    >
+      <div
+        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 hover:bg-[#FFF7F0] sm:px-5"
+        style={selected ? { background: CREAM } : undefined}
+        onClick={onOpen}
+      >
+        <span
+          className="flex size-10 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
+          style={{ background: '#EAEFF5', color: SLATE }}
+        >
+          {contactInitials(contact)}
+        </span>
+
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <button
-              type="button"
-              onClick={onOpen}
-              className="min-w-0 max-w-full truncate text-left text-[16px] font-semibold text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:text-[17px]"
-              style={{ letterSpacing: '-0.015em' }}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span
+              className="truncate font-semibold text-text-strong"
+              style={{ fontSize: 15, letterSpacing: '-0.01em' }}
             >
               {contact.fullName}
-            </button>
-            {contact.phone ? (
-              <a
-                href={telHref(contact.phone)}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 font-medium tabular-nums hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:py-0.5"
-                style={{ fontSize: 14, color: INK }}
-                aria-label={`Appeler ${contact.fullName}`}
+            </span>
+            <span
+              className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+              style={{ background: '#EAEFF5', color: SLATE }}
+            >
+              {CONTACT_TYPE_LABELS[contact.type]}
+            </span>
+            {duplicateOf ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMerge();
+                }}
+                className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                style={{ background: '#EFEBE3', color: '#1E3148' }}
               >
-                <Phone size={14} strokeWidth={2.2} aria-hidden />
-                {formatPhoneDisplay(contact.phone)}
-              </a>
-            ) : null}
-            {contact.email ? (
-              <a
-                href={`mailto:${contact.email}`}
-                className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-lg px-1.5 font-medium hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:max-w-[220px] sm:py-0.5"
-                style={{ fontSize: 14, color: INK }}
-                aria-label={`Écrire à ${contact.fullName}`}
-              >
-                <Mail size={14} strokeWidth={2.2} aria-hidden />
-                <span className="truncate">{contact.email}</span>
-              </a>
+                Doublon possible
+              </button>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onOpen}
-            className="mt-1 w-full text-left"
-            aria-label={`Ouvrir la fiche de ${contact.fullName}`}
-          >
-            {meta.length > 0 ? (
-              <p className="truncate text-[12.5px] text-text-muted sm:text-[13px]">{meta.join(' · ')}</p>
-            ) : null}
-          </button>
+          <p className="mt-0.5 truncate text-[13px] text-text-muted">
+            {incomplete ? (
+              <>
+                {meta ? `${meta} · ` : null}
+                <span>aucun moyen de contact</span>
+              </>
+            ) : (
+              meta || '—'
+            )}
+          </p>
+        </div>
+
+        <div className="flex w-[11.5rem] flex-shrink-0 flex-col items-end gap-0.5 text-right">
+          <p className="text-[12.5px] text-text-muted">{formatLastInteraction(last)}</p>
+          {callableNow && contact.phone ? (
+            <a
+              href={telHref(contact.phone)}
+              className="inline-flex items-center gap-1 text-[13px] font-medium tabular-nums hover:underline"
+              style={{ color: SLATE }}
+              aria-label={`Appeler ${contact.fullName}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Phone size={12} strokeWidth={2.2} aria-hidden />
+              {formatPhoneDisplay(contact.phone)}
+            </a>
+          ) : contact.recontacterLe ? null : incomplete ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onComplete();
+              }}
+              className="text-[12.5px] font-semibold hover:underline"
+              style={{ color: SLATE }}
+            >
+              Compléter
+            </button>
+          ) : null}
+          <DatePickerField
+            id={`relance-${contact.id}`}
+            variant="compact"
+            value={contact.recontacterLe}
+            onChange={onRelance}
+            stopPropagation
+            aria-label={`Date de relance pour ${contact.fullName}`}
+            className="mt-0.5"
+          />
         </div>
         <button
           type="button"
-          onClick={onOpen}
-          className="flex-shrink-0 pt-0.5 text-[12px] text-text-subtle sm:text-[12.5px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          aria-expanded={selected}
+          aria-controls={`contact-fiche-${contact.id}`}
+          aria-label={selected ? `Fermer la fiche de ${contact.fullName}` : `Ouvrir la fiche de ${contact.fullName}`}
+          className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          {relativeDate(contact.lastInteractionAt)}
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            aria-hidden
+            className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${
+              selected ? 'rotate-180' : ''
+            }`}
+          />
         </button>
+      </div>
+
+      <div
+        id={`contact-fiche-${contact.id}`}
+        className="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+        style={{ gridTemplateRows: selected ? '1fr' : '0fr' }}
+      >
+        <div className={`min-h-0 ${selected ? 'overflow-visible' : 'overflow-hidden'}`}>
+          {mounted ? (
+            <ContactDetailPanel
+              contact={contact}
+              biens={biens}
+              members={members}
+              currentUserId={currentUserId}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onAssigned={onAssigned}
+            />
+          ) : null}
+        </div>
       </div>
     </li>
   );
@@ -127,38 +267,59 @@ function ContactRow({
 export default function ContactsClient({
   initialContacts,
   biens,
+  latestInteractions,
+  leadAddresses,
   initialSelectedContactId,
   members,
   currentUserId,
   isDirector,
   listFilter = null,
+  listFilterIds = [],
 }: {
   initialContacts: Contact[];
   biens: Bien[];
+  latestInteractions: Record<string, LatestInteraction>;
+  leadAddresses: Record<string, string>;
   initialSelectedContactId: string | null;
   members: readonly AssigneeOption[];
   currentUserId: string;
   isDirector: boolean;
-  listFilter?: 'sans-position' | 'vendeurs-inactifs' | null;
+  listFilter?: 'sans-position' | 'vendeurs-inactifs' | 'rdv-sans-suite' | null;
+  listFilterIds?: readonly string[];
 }) {
   const [contacts, setContacts] = useState(initialContacts);
+  const [latest, setLatest] = useState(latestInteractions);
   const [query, setQuery] = useState('');
+  const todayKey = civilToday();
 
-  // Une dictée validée crée le contact depuis la modale globale, qui vit hors de
-  // cet écran et ne peut donc pas nous prévenir : elle rafraîchit le serveur.
-  // Sans cette resynchronisation, la liste resterait figée sur son état initial.
   useEffect(() => {
     setContacts(initialContacts);
   }, [initialContacts]);
 
+  useEffect(() => {
+    setLatest(latestInteractions);
+  }, [latestInteractions]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSelectedId(null);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   const [typeFilter, setTypeFilter] = useState<ContactType | 'tous'>('tous');
   const [secteurFilter, setSecteurFilter] = useState('tous');
   const [memberFilter, setMemberFilter] = useState('tous');
+  const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedContactId);
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = useState<Contact | null>(null);
+  const [mergePair, setMergePair] = useState<{ keep: Contact; absorb: Contact } | null>(null);
+
+  const partenaires = useMemo(() => duplicatePartnerMap(contacts), [contacts]);
 
   const secteurs = useMemo(() => {
     const set = new Set<string>();
@@ -168,7 +329,7 @@ export default function ContactsClient({
 
   const visible = useMemo(() => {
     const q = normalize(query.trim());
-    return contacts.filter((c) => {
+    const filtered = contacts.filter((c) => {
       if (typeFilter !== 'tous' && c.type !== typeFilter) return false;
       if (secteurFilter !== 'tous' && c.secteur !== secteurFilter) return false;
       if (isDirector && memberFilter !== 'tous' && c.assignedTo !== memberFilter) return false;
@@ -179,11 +340,36 @@ export default function ContactsClient({
         const t = Date.parse(c.lastInteractionAt ?? c.createdAt);
         if (Number.isFinite(t) && Date.now() - t <= 45 * 86_400_000) return false;
       }
+      if (listFilter === 'rdv-sans-suite' && !listFilterIds.includes(c.id)) return false;
+      if (etatFilter === 'relance' && !isRelanceDue(c.recontacterLe, todayKey)) return false;
+      if (etatFilter === 'incompletes' && !isIncompleteContact(c)) return false;
+      if (etatFilter === 'doublons' && !partenaires.has(c.id)) return false;
       return true;
     });
-  }, [contacts, query, typeFilter, secteurFilter, memberFilter, isDirector, listFilter]);
 
-  const selected = contacts.find((c) => c.id === selectedId) ?? null;
+    return filtered.sort((a, b) => {
+      const aDue = isRelanceDue(a.recontacterLe, todayKey);
+      const bDue = isRelanceDue(b.recontacterLe, todayKey);
+      if (aDue !== bDue) return aDue ? -1 : 1;
+      const aT = latest[a.id]?.occurredAt ?? '';
+      const bT = latest[b.id]?.occurredAt ?? '';
+      if (aT !== bT) return aT > bT ? -1 : 1;
+      return a.fullName.localeCompare(b.fullName, 'fr');
+    });
+  }, [
+    contacts,
+    query,
+    typeFilter,
+    secteurFilter,
+    memberFilter,
+    isDirector,
+    listFilter,
+    listFilterIds,
+    etatFilter,
+    todayKey,
+    partenaires,
+    latest,
+  ]);
 
   function upsert(contact: Contact) {
     setContacts((list) => {
@@ -193,6 +379,28 @@ export default function ContactsClient({
       next[idx] = contact;
       return next;
     });
+  }
+
+  async function patchRelance(contact: Contact, date: string | null) {
+    const previous = contact.recontacterLe;
+    upsert({ ...contact, recontacterLe: date });
+    try {
+      const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recontacterLe: date }),
+      });
+      const data = (await res.json()) as { contact?: Contact; error?: string };
+      if (!res.ok || !data.contact) {
+        upsert({ ...contact, recontacterLe: previous });
+        notifyError(data.error ?? "La date de relance n'a pas pu être enregistrée");
+        return;
+      }
+      upsert(data.contact);
+    } catch {
+      upsert({ ...contact, recontacterLe: previous });
+      notifyError("La date de relance n'a pas pu être enregistrée");
+    }
   }
 
   async function confirmDelete() {
@@ -211,6 +419,20 @@ export default function ContactsClient({
     }
   }
 
+  function openMerge(contact: Contact) {
+    const otherId = partenaires.get(contact.id);
+    const other = otherId ? contacts.find((c) => c.id === otherId) : null;
+    if (!other) return;
+    setMergePair({ keep: contact, absorb: other });
+  }
+
+  function onMerged(kept: Contact, absorbedId: string, _transferred: MergeLinkCounts) {
+    setContacts((list) => [kept, ...list.filter((c) => c.id !== kept.id && c.id !== absorbedId)]);
+    setSelectedId(kept.id);
+    setMergePair(null);
+    void _transferred;
+  }
+
   return (
     <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 md:pt-2 lg:pt-6">
       <PageHeader
@@ -221,7 +443,15 @@ export default function ContactsClient({
             : `${contacts.length} ${contacts.length > 1 ? 'personnes suivies' : 'personne suivie'}`
         }
         primaryAction={
-          <NoteCreateChooser variant="toolbar" />
+          <WorkspaceButton
+            type="button"
+            onClick={() => {
+              setEditing(undefined);
+              setFormOpen(true);
+            }}
+          >
+            Ajouter un contact
+          </WorkspaceButton>
         }
         secondaryAction={
           <>
@@ -236,16 +466,6 @@ export default function ContactsClient({
             >
               <Download size={16} strokeWidth={2} aria-hidden />
               Exporter
-            </WorkspaceButton>
-            <WorkspaceButton
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setEditing(undefined);
-                setFormOpen(true);
-              }}
-            >
-              Ajouter à la main
             </WorkspaceButton>
           </>
         }
@@ -270,6 +490,24 @@ export default function ContactsClient({
             placeholder="Rechercher un nom, un téléphone, un email"
             className="w-full rounded-xl border border-black/[0.10] bg-surface py-2.5 pl-9 pr-3 text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
             style={{ fontSize: 14 }}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1 sm:w-[180px] sm:flex-none">
+          <label htmlFor="contacts-etat" className="mb-1.5 block text-[12.5px] font-medium text-text-muted">
+            État
+          </label>
+          <Select
+            id="contacts-etat"
+            value={etatFilter}
+            onChange={(v) => setEtatFilter(v as EtatFilter)}
+            options={[
+              { value: 'tous', label: 'Tous' },
+              { value: 'relance', label: 'À relancer' },
+              { value: 'incompletes', label: 'Fiches incomplètes' },
+              { value: 'doublons', label: 'Doublons possibles' },
+            ]}
+            aria-label="Filtrer par état"
           />
         </div>
 
@@ -342,42 +580,48 @@ export default function ContactsClient({
         <WorkspaceCard className="py-12 text-center">
           <p className="text-pretty text-[14px] text-text-muted sm:text-[15px]">
             {contacts.length === 0
-              ? "Aucun contact pour l'instant. Dictez une note après votre prochain rendez-vous."
+              ? 'Aucun contact pour l’instant. Ajoutez la première personne rencontrée.'
               : 'Aucun contact ne correspond à cette recherche.'}
           </p>
         </WorkspaceCard>
       ) : (
-        <ul className="overflow-hidden rounded-clay border border-[#1E3148]/12 shadow-clay-sm">
+        <ul className="rounded-clay border border-[#1E3148]/12 bg-white shadow-clay-sm">
           {visible.map((contact) => (
             <ContactRow
               key={contact.id}
               contact={contact}
+              selected={contact.id === selectedId}
               assigneeName={
                 isDirector && contact.assignedTo
                   ? (members.find((m) => m.id === contact.assignedTo)?.fullName ?? null)
                   : null
               }
-              onOpen={() => setSelectedId(contact.id)}
+              last={latest[contact.id] ?? null}
+              bien={bienForContact(contact, biens)}
+              leadAddress={contact.leadId ? leadAddresses[contact.leadId] ?? null : null}
+              incomplete={isIncompleteContact(contact)}
+              duplicateOf={partenaires.get(contact.id) ?? null}
+              todayKey={todayKey}
+              biens={biens}
+              members={members}
+              currentUserId={currentUserId}
+              onOpen={() => setSelectedId((id) => (id === contact.id ? null : contact.id))}
+              onComplete={() => {
+                setEditing(contact);
+                setFormOpen(true);
+              }}
+              onMerge={() => openMerge(contact)}
+              onRelance={(date) => void patchRelance(contact, date)}
+              onEdit={() => {
+                setEditing(contact);
+                setFormOpen(true);
+              }}
+              onDelete={() => setPendingDelete(contact)}
+              onAssigned={upsert}
             />
           ))}
         </ul>
       )}
-
-      {selected ? (
-        <ContactDetailPanel
-          contact={selected}
-          biens={biens}
-          members={members}
-          currentUserId={currentUserId}
-          onClose={() => setSelectedId(null)}
-          onEdit={() => {
-            setEditing(selected);
-            setFormOpen(true);
-          }}
-          onDelete={() => setPendingDelete(selected)}
-          onAssigned={upsert}
-        />
-      ) : null}
 
       {formOpen ? (
         <ContactFormDialog
@@ -391,6 +635,21 @@ export default function ContactsClient({
             upsert(c);
             setSelectedId(c.id);
           }}
+          onOpenExisting={(c) => {
+            upsert(c);
+            setSelectedId(c.id);
+            setFormOpen(false);
+          }}
+        />
+      ) : null}
+
+      {mergePair ? (
+        <MergeContactsDialog
+          keep={mergePair.keep}
+          absorb={mergePair.absorb}
+          members={members}
+          onClose={() => setMergePair(null)}
+          onMerged={onMerged}
         />
       ) : null}
 

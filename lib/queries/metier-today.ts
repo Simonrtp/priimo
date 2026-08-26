@@ -42,6 +42,20 @@ export async function fetchTodayMetierSafe(
   }
 }
 
+export async function fetchVisitCountByBienIdSafe(
+  supabase: Client,
+): Promise<Record<string, number>> {
+  try {
+    const biens = await fetchBiensMetier(supabase);
+    const out: Record<string, number> = {};
+    for (const b of biens) out[b.id] = b.visitCount;
+    return out;
+  } catch (err) {
+    console.error('[metier-today] visites par bien', err);
+    return {};
+  }
+}
+
 async function fetchBiensMetier(supabase: Client): Promise<TodayBienMetier[]> {
   const { data, error } = await supabase
     .from('biens')

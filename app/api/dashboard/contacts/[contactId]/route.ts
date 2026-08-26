@@ -39,6 +39,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
 
   const raw = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
   const hasCoreFields = 'firstName' in raw || 'lastName' in raw || 'type' in raw;
+  const relanceProvided = Object.prototype.hasOwnProperty.call(raw, 'recontacterLe');
   const parsed = hasCoreFields ? parseContactInput(body) : null;
   if (parsed && !parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
@@ -51,7 +52,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     );
   }
 
-  if (!parsed && !(assigned.provided && !('invalid' in assigned))) {
+  if (!parsed && !(assigned.provided && !('invalid' in assigned)) && !relanceProvided) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
@@ -77,8 +78,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
       surface_max: f.surfaceMax,
       rooms_min: f.roomsMin,
       summary: f.summary,
+      recontacter_le: f.recontacterLe,
       ...(geo ?? {}),
     });
+  }
+  if (relanceProvided && !parsed) {
+    if (raw.recontacterLe === null || raw.recontacterLe === '') {
+      update.recontacter_le = null;
+    } else if (
+      typeof raw.recontacterLe === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(raw.recontacterLe.trim())
+    ) {
+      update.recontacter_le = raw.recontacterLe.trim();
+    } else {
+      return NextResponse.json({ error: "La date de relance n'est pas valide" }, { status: 400 });
+    }
   }
   if (assigned.provided && !('invalid' in assigned)) {
     Object.assign(update, assignmentMeta(assigned.id, profile.id));

@@ -3,7 +3,12 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { viewerFromProfile } from '@/lib/agency/visibility';
-import { visibleContactsFor, visibleLeadsFor } from '@/lib/agency/scope-records';
+import {
+  visibleBiensFor,
+  visibleContactsFor,
+  visibleLeadsFor,
+  visibleVoiceNotesFor,
+} from '@/lib/agency/scope-records';
 import { fetchMembersOfMyAgency, memberNamesById } from '@/lib/queries/agency-members';
 import { fetchLeads } from '@/lib/queries/leads';
 import { fetchContactsSafe, fetchVoiceNotesSafe } from '@/lib/queries/contacts';
@@ -11,25 +16,29 @@ import { fetchBiensSafe } from '@/lib/queries/biens';
 import { fetchTodayDismissals } from '@/lib/queries/today';
 import { fetchAssignmentsToMe } from '@/lib/queries/assignments';
 import { fetchAgencyAlerts } from '@/lib/queries/alerts';
-import { fetchAgencyOverview } from '@/lib/queries/agency-overview';
-import { buildTodayCards } from '@/lib/today/cards';
+import { fetchTodayMetierSafe, fetchVisitCountByBienIdSafe } from '@/lib/queries/metier-today';
+import { fetchLeadStages } from '@/lib/queries/lead-stages';
+import {
+  countSansSuite,
+  fetchPastRendezVousSafe,
+} from '@/lib/queries/rendez-vous-sans-suite';
 import { fetchFieldWeek } from '@/lib/queries/field-week';
-import { fetchTodayMetierSafe } from '@/lib/queries/metier-today';
+import { buildTodayCards } from '@/lib/today/cards';
+import { buildPortfolioStats } from '@/lib/today/portfolio';
+import { buildDirectorExceptions } from '@/lib/today/director-exceptions';
+import { recentNotesForHome } from '@/lib/notes/inbox';
 import { centroidFromCoords } from '@/lib/today/quadrant';
+import { toGeoCoord } from '@/lib/carte/coords';
 import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
 import { bienIsActive } from '@/types/bien';
 import { markServerTimingReady, timed } from '@/lib/perf/timing';
 import TodayClient from '@/components/dashboard/today/TodayClient';
-import AgencyOverviewBlock from '@/components/dashboard/today/AgencyOverviewBlock';
-import {
-  TodayDesktopSkeleton,
-  TodayOverviewSkeleton,
-} from '@/components/dashboard/today/TodaySkeletons';
+import { TodayDesktopSkeleton } from '@/components/dashboard/today/TodaySkeletons';
 import AujourdhuiMobile from '@/app/dashboard/_mobile/AujourdhuiMobile';
 import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
-import type { VoiceNote } from '@/types/contact';
+import { fetchAgencyOverview } from '@/lib/queries/agency-overview';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,35 +66,72 @@ async function TodayContent({
   const viewer = viewerFromProfile(profile);
   const isDirector = profile.role === 'directeur';
 
-  const [leads, contacts, biens, dismissals, members, metier, notes, device] = await Promise.all([
-    timed('fetchLeads', () => fetchLeads(supabase)),
-    timed('fetchContactsSafe', () => fetchContactsSafe(supabase)),
-    timed('fetchBiensSafe', () => fetchBiensSafe(supabase)),
-    timed('fetchTodayDismissals', () => fetchTodayDismissals(supabase, profile.id)),
-    timed('fetchMembersOfMyAgency', () => fetchMembersOfMyAgency(agency.id, memberships)),
-    timed('fetchTodayMetierSafe', () => fetchTodayMetierSafe(supabase, profile.id)),
-    isDirector
-      ? timed('fetchVoiceNotesSafe', () => fetchVoiceNotesSafe(supabase))
-      : Promise.resolve([] as VoiceNote[]),
-    timed('getDevice(page)', () => getDevice()),
-  ]);
+  const [leads, contacts, biens, dismissals, members, metier, notes, device, stages, pastRdv, visitCounts] =
+    await Promise.all([
+      timed('fetchLeads', () => fetchLeads(supabase)),
+      timed('fetchContactsSafe', () => fetchContactsSafe(supabase)),
+      timed('fetchBiensSafe', () => fetchBiensSafe(supabase)),
+      timed('fetchTodayDismissals', () => fetchTodayDismissals(supabase, profile.id)),
+      timed('fetchMembersOfMyAgency', () => fetchMembersOfMyAgency(agency.id, memberships)),
+      timed('fetchTodayMetierSafe', () => fetchTodayMetierSafe(supabase, profile.id)),
+      timed('fetchVoiceNotesSafe', () => fetchVoiceNotesSafe(supabase)),
+      timed('getDevice(page)', () => getDevice()),
+      timed('fetchLeadStages', () => fetchLeadStages(supabase)),
+      timed('fetchPastRendezVousSafe', () => fetchPastRendezVousSafe(supabase)),
+      timed('fetchVisitCountByBienIdSafe', () => fetchVisitCountByBienIdSafe(supabase)),
+    ]);
 
   const names = memberNamesById(members);
   const visibleContacts = visibleContactsFor(viewer, contacts);
   const visibleLeads = visibleLeadsFor(viewer, leads);
+  const visibleBiens = visibleBiensFor(viewer, biens);
+  const visibleNotes = visibleVoiceNotesFor(viewer, notes);
+
+  const lastInteractionByContactId: Record<string, string | null> = {};
+  for (const c of visibleContacts) {
+    lastInteractionByContactId[c.id] = c.lastInteractionAt;
+  }
+  const rendezVousSansSuite = countSansSuite(pastRdv, lastInteractionByContactId);
+  const estimationStageId = stages.find((s) => s.cle === 'estimation')?.id ?? null;
+
+  const visitCountByBienId: Record<string, number> = { ...visitCounts };
+  for (const b of metier.biens) visitCountByBienId[b.id] = b.visitCount;
+
+  const portfolio = buildPortfolioStats({
+    biens: visibleBiens.map((b) => ({
+      id: b.id,
+      mandatStatut: b.mandatStatut,
+      mandatDate: b.mandatDate,
+      createdAt: b.createdAt,
+    })),
+    visitCountByBienId,
+    leads: visibleLeads.map((l) => ({ stageId: l.stageId })),
+    estimationStageId,
+    rendezVousSansSuite,
+  });
+
+  const recentNotes = recentNotesForHome(visibleNotes, {
+    viewerId: profile.id,
+    isDirector,
+    limit: 5,
+  });
+
+  const agencyOrigin = toGeoCoord(agency.latitude, agency.longitude);
 
   const rapprochements = await timed('rapprocherTousLesBiens', async () =>
     rapprocherTousLesBiens(
-      biens.filter((b) => bienIsActive(b.mandatStatut)).map((b) => ({
-        id: b.id,
-        address: b.address,
-        postalCode: b.postalCode,
-        price: b.price,
-        surfaceM2: b.surfaceM2,
-        rooms: b.rooms,
-        latitude: b.latitude,
-        longitude: b.longitude,
-      })),
+      visibleBiens
+        .filter((b) => bienIsActive(b.mandatStatut))
+        .map((b) => ({
+          id: b.id,
+          address: b.address,
+          postalCode: b.postalCode,
+          price: b.price,
+          surfaceM2: b.surfaceM2,
+          rooms: b.rooms,
+          latitude: b.latitude,
+          longitude: b.longitude,
+        })),
       visibleContacts,
     ),
   );
@@ -115,23 +161,60 @@ async function TodayContent({
     ...metier,
   });
 
+  let directorExceptions: ReturnType<typeof buildDirectorExceptions> = [];
+  if (isDirector) {
+    const overview = await timed('fetchAgencyOverview(interactions only)', () =>
+      fetchAgencyOverview({
+        supabase,
+        agencyId: agency.id,
+        memberships,
+        role: 'directeur',
+        agencyPostalCodes: agency.codes_postaux ?? [],
+        prefetched: {
+          members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+          leads,
+          contacts,
+          biens,
+          notes: visibleNotes,
+        },
+      }),
+    );
+    const volumeById: Record<string, number> = {};
+    for (const row of overview.activity) volumeById[row.memberId] = row.volume;
+    directorExceptions = buildDirectorExceptions({
+      members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+      leads: visibleLeads.map((l) => ({ assignedTo: l.assignedTo, stageId: l.stageId })),
+      notes: visibleNotes.map((n) => ({ createdBy: n.createdBy, statut: n.statut })),
+      biens: visibleBiens.map((b) => ({
+        id: b.id,
+        createdBy: b.createdBy,
+        mandatStatut: b.mandatStatut,
+        mandatDate: b.mandatDate,
+        createdAt: b.createdAt,
+      })),
+      visitCountByBienId,
+      activityVolumeByMemberId: volumeById,
+    });
+  }
+
   markServerTimingReady();
 
-  const overviewPrefetched = {
-    members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
-    leads,
-    contacts,
-    biens,
-    notes,
+  const homeProps = {
+    initialCards: cards,
+    initialLeads: visibleLeads,
+    profileId: profile.id,
+    firstName: profile.first_name,
+    portfolio,
+    recentNotes,
+    agencyOrigin,
+    isDirector,
+    directorExceptions,
   };
 
   if (device === 'mobile') {
     return (
       <AujourdhuiMobile
-        initialCards={cards}
-        initialLeads={visibleLeads}
-        profileId={profile.id}
-        firstName={profile.first_name}
+        {...homeProps}
         week={week}
         sectorRef={centroidFromCoords(visibleLeads)}
       />
@@ -140,53 +223,9 @@ async function TodayContent({
 
   return (
     <TodayClient
-      initialCards={cards}
-      initialLeads={visibleLeads}
-      profileId={profile.id}
-      firstName={profile.first_name}
-      sectorCenter={centroidFromCoords(visibleLeads)}
+      {...homeProps}
       relancesProgrammees={week.relancesProgrammees}
       rapprochements={week.rapprochements}
-    >
-      {isDirector ? (
-        <Suspense fallback={<TodayOverviewSkeleton />}>
-          <DirectorOverview
-            agencyId={agency.id}
-            memberships={memberships}
-            postalCodes={agency.codes_postaux ?? []}
-            prefetched={overviewPrefetched}
-          />
-        </Suspense>
-      ) : null}
-    </TodayClient>
-  );
-}
-
-async function DirectorOverview({
-  agencyId,
-  memberships,
-  postalCodes,
-  prefetched,
-}: {
-  agencyId: string;
-  memberships: ProfileAgencyMembership[];
-  postalCodes: string[];
-  prefetched: NonNullable<Parameters<typeof fetchAgencyOverview>[0]['prefetched']>;
-}) {
-  const supabase = await createSupabaseServerClient();
-  const overview = await timed('fetchAgencyOverview(interactions only)', () =>
-    fetchAgencyOverview({
-      supabase,
-      agencyId,
-      memberships,
-      role: 'directeur',
-      agencyPostalCodes: postalCodes,
-      prefetched,
-    }),
-  );
-  return (
-    <div className="mt-8">
-      <AgencyOverviewBlock overview={overview} defaultCollapsed />
-    </div>
+    />
   );
 }

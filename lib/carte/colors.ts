@@ -17,6 +17,8 @@ export const CONTACT_TYPE_COLORS: Record<ContactType, string> = {
   vendeur: '#C25E2C',
   acquereur: '#3D5A80',
   locataire: '#0F766E',
+  gardien: '#4C5D73',
+  commercant: '#5A6F7A',
   autre: '#64748B',
 };
 

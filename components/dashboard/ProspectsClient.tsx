@@ -47,7 +47,7 @@ interface ProspectsClientProps {
   initialShowPipelineBanner: boolean;
   initialNewBatchCount: number;
   initialSelectedLeadId?: string | null;
-  listFilter?: 'sans-position' | 'non-assignes-14j' | null;
+  listFilter?: 'sans-position' | 'non-assignes-14j' | 'non-pris' | 'estimations' | null;
   initialVue?: ProspectionVue;
 }
 
@@ -135,9 +135,14 @@ export default function ProspectsClient({
         const t = Date.parse(l.deliveredAt ?? l.createdAt);
         if (!Number.isFinite(t) || Date.now() - t <= 14 * DAY_MS) return false;
       }
+      if (listFilter === 'non-pris' && l.stageId != null) return false;
+      if (listFilter === 'estimations') {
+        const estimation = stages.find((s) => s.cle === 'estimation');
+        if (!estimation || l.stageId !== estimation.id) return false;
+      }
       return true;
     });
-  }, [segmentLeads, filters, listFilter]);
+  }, [segmentLeads, filters, listFilter, stages]);
 
   const partitioned = useMemo(
     () => partitionLeadsForDisplay(filtered, leads, filters.sortBy),

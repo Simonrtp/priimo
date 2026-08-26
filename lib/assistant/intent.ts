@@ -33,6 +33,8 @@ const CONTACT_TYPES: readonly ContactTypeDb[] = [
   'vendeur',
   'acquereur',
   'locataire',
+  'gardien',
+  'commercant',
   'autre',
 ];
 

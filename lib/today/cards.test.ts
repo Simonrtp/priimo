@@ -37,6 +37,8 @@ function contact(name: string, overrides: Partial<Contact> = {}): Contact {
     },
     summary: null,
     lastInteractionAt: joursAvant(1),
+    recontacterLe: null,
+    doublonDe: null,
     source: 'manuel',
     address: null,
     banId: null,
@@ -213,6 +215,42 @@ describe('summarizeTodayCards', () => {
     assert.equal(relances?.label, 'À rappeler');
     assert.equal(relances?.headline, '2 personnes');
     assert.equal(relances?.context, '1 attend depuis plus de trois semaines');
+  });
+
+  it('une relance datée dans le futur ne nague pas sur l’inactivité', () => {
+    const cards = buildTodayCards({
+      leads: [],
+      contacts: [
+        contact('PasAvant2028', {
+          lastInteractionAt: joursAvant(60),
+          recontacterLe: '2028-03-01',
+        }),
+      ],
+      rapprochements: [],
+      dismissals: AUCUN_ECART,
+      now: MAINTENANT,
+      plafonner: false,
+    });
+    assert.equal(cards.length, 0);
+  });
+
+  it('une date de relance arrivée produit une carte', () => {
+    const cards = buildTodayCards({
+      leads: [],
+      contacts: [
+        contact('ARelancer', {
+          lastInteractionAt: joursAvant(1),
+          recontacterLe: '2026-08-20',
+        }),
+      ],
+      rapprochements: [],
+      dismissals: AUCUN_ECART,
+      now: MAINTENANT,
+      plafonner: false,
+    });
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0]?.type, 'relance');
+    assert.match(cards[0]?.context ?? '', /relancer|relance/i);
   });
 
   it('rend une liste vide quand il n’y a rien à faire', () => {

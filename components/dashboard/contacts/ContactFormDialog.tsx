@@ -8,6 +8,7 @@ import { EMPTY_CONTACT_INPUT } from '@/lib/contact-input';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
+import DatePickerField from '@/components/ui/DatePickerField';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
@@ -29,6 +30,7 @@ function fromContact(contact: Contact): ContactInputFields {
     surfaceMax: contact.criteria.surfaceMax,
     roomsMin: contact.criteria.roomsMin,
     summary: contact.summary,
+    recontacterLe: contact.recontacterLe,
   };
 }
 
@@ -39,6 +41,10 @@ export default function ContactFormDialog({
   onSaved,
   members,
   currentUserId,
+  initialType,
+  skipSuccessToast = false,
+  createTitle,
+  onOpenExisting,
 }: {
   open: boolean;
   onClose: () => void;
@@ -47,14 +53,24 @@ export default function ContactFormDialog({
   onSaved: (contact: Contact) => void;
   members: readonly AssigneeOption[];
   currentUserId: string;
+  initialType?: ContactType;
+  skipSuccessToast?: boolean;
+  createTitle?: string;
+  onOpenExisting?: (contact: Contact) => void;
 }) {
   const [fields, setFields] = useState<ContactInputFields>(
-    contact ? fromContact(contact) : EMPTY_CONTACT_INPUT,
+    contact
+      ? fromContact(contact)
+      : { ...EMPTY_CONTACT_INPUT, type: initialType ?? EMPTY_CONTACT_INPUT.type },
   );
   const [assignedTo, setAssignedTo] = useState<string | null>(
     contact?.assignedTo ?? currentUserId,
   );
   const [saving, setSaving] = useState(false);
+  const [matches, setMatches] = useState<
+    { contact: Contact; reason: string }[]
+  >([]);
+  const [forceCreate, setForceCreate] = useState(false);
 
   function set<K extends keyof ContactInputFields>(key: K, value: ContactInputFields[K]) {
     setFields((f) => ({ ...f, [key]: value }));
@@ -65,26 +81,43 @@ export default function ContactFormDialog({
     setFields((f) => ({ ...f, [key]: digits ? Number(digits) : null }));
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(e?: React.FormEvent, force = false) {
+    e?.preventDefault();
     if (saving) return;
 
     setSaving(true);
+    const useForce = force || forceCreate;
     try {
       const url = contact ? `/api/dashboard/contacts/${contact.id}` : '/api/dashboard/contacts';
       const res = await fetch(url, {
         method: contact ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...fields, postalCodes: fields.postalCodes, assignedTo }),
+        body: JSON.stringify({
+          ...fields,
+          postalCodes: fields.postalCodes,
+          assignedTo,
+          forceCreate: !contact && useForce ? true : undefined,
+        }),
       });
-      const data = (await res.json()) as { contact?: Contact; error?: string };
+      const data = (await res.json()) as {
+        contact?: Contact;
+        error?: string;
+        matches?: { contact: Contact; reason: string }[];
+      };
+
+      if (res.status === 409 && data.matches && data.matches.length > 0) {
+        setMatches(data.matches);
+        return;
+      }
 
       if (!res.ok || !data.contact) {
         notifyError(data.error ?? "Le contact n'a pas pu être enregistré");
         return;
       }
 
-      notifySuccess(contact ? 'Contact mis à jour' : 'Contact créé');
+      if (!skipSuccessToast) {
+        notifySuccess(contact ? 'Contact mis à jour' : 'Contact créé');
+      }
       onSaved(data.contact);
       onClose();
     } catch {
@@ -95,15 +128,64 @@ export default function ContactFormDialog({
   }
 
   const showCriteria = typeUsesCriteria(fields.type);
+  const immeubleType = fields.type === 'gardien' || fields.type === 'commercant';
+
+  const REASON: Record<string, string> = {
+    telephone: 'Même téléphone',
+    email: 'Même email',
+    nom: 'Même nom',
+    prenom: 'Prénom identique',
+  };
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={contact ? 'Modifier le contact' : 'Nouveau contact'}
+      title={
+        contact
+          ? 'Modifier le contact'
+          : createTitle ?? (initialType === 'acquereur' ? 'Nouvelle recherche acquéreur' : 'Nouveau contact')
+      }
       maxWidth="xl"
     >
       <form onSubmit={submit} className="flex flex-col gap-6">
+        {matches.length > 0 ? (
+          <div className="rounded-xl border border-black/[0.08] bg-[#FFF7F0] px-4 py-3">
+            <p className="text-[14px] font-medium text-text-strong">Cette personne existe déjà</p>
+            <ul className="mt-2 flex flex-col gap-2">
+              {matches.map((m) => (
+                <li key={m.contact.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[13.5px] text-text">
+                    {m.contact.fullName}
+                    <span className="ml-2 text-text-muted">{REASON[m.reason] ?? m.reason}</span>
+                  </p>
+                  <WorkspaceButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (onOpenExisting) onOpenExisting(m.contact);
+                      else onSaved(m.contact);
+                      onClose();
+                    }}
+                  >
+                    Ouvrir la fiche
+                  </WorkspaceButton>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="mt-3 text-[13px] font-medium text-[#3D5A80] underline-offset-2 hover:underline"
+              onClick={() => {
+                setForceCreate(true);
+                setMatches([]);
+                void submit(undefined, true);
+              }}
+            >
+              Créer quand même
+            </button>
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Prénom" htmlFor="contact-first">
             <TextInput
@@ -143,7 +225,15 @@ export default function ContactFormDialog({
           </Field>
         </div>
 
-        <Field label="Adresse" htmlFor="contact-address" hint="Choisissez une proposition pour la placer sur la carte">
+        <Field
+          label={immeubleType ? 'Immeuble' : 'Adresse'}
+          htmlFor="contact-address"
+          hint={
+            immeubleType
+              ? 'L’immeuble de rattachement, pas une adresse personnelle'
+              : 'Choisissez une proposition pour la placer sur la carte'
+          }
+        >
           <AddressAutocomplete
             id="contact-address"
             value={fields.address ?? ''}
@@ -257,6 +347,19 @@ export default function ContactFormDialog({
             </div>
           </fieldset>
         ) : null}
+
+        <Field
+          label="Relancer le"
+          htmlFor="contact-relance"
+          hint="Le jour où il faudra reprendre contact. Une date arrivée remonte sur l’Accueil."
+        >
+          <DatePickerField
+            id="contact-relance"
+            value={fields.recontacterLe}
+            onChange={(v) => set('recontacterLe', v)}
+            aria-label="Date de relance"
+          />
+        </Field>
 
         <Field label="Résumé" htmlFor="contact-summary" hint="Ce qu'il faut se rappeler de cette personne">
           <TextArea

@@ -705,7 +705,12 @@ function collectAcquereurs(
     firstName: c.firstName,
     lastName: c.lastName,
     fullName: c.fullName,
-    type: (c.type === 'acquereur' || c.type === 'vendeur' || c.type === 'locataire' || c.type === 'autre'
+    type: (c.type === 'acquereur' ||
+    c.type === 'vendeur' ||
+    c.type === 'locataire' ||
+    c.type === 'gardien' ||
+    c.type === 'commercant' ||
+    c.type === 'autre'
       ? c.type
       : 'autre'),
     phone: c.phone,
@@ -714,6 +719,8 @@ function collectAcquereurs(
     criteria: c.criteria,
     summary: null,
     lastInteractionAt: null,
+    recontacterLe: null,
+    doublonDe: null,
     source: (c.source === 'manuel' || c.source === 'vocal' || c.source === 'prospection'
       ? c.source
       : 'manuel'),

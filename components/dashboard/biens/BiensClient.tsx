@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
+import { isSignedMandat, PORTFOLIO_STALE_MANDAT_DAYS, PORTFOLIO_STALE_VISIT_MAX } from '@/lib/today/portfolio';
 import type { Contact } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportBiensCsv } from '@/lib/import/export-biens';
@@ -23,11 +24,13 @@ export default function BiensClient({
   contacts,
   initialSelectedBienId = null,
   listFilter = null,
+  visitCountByBienId = {},
 }: {
   initialBiens: Bien[];
   contacts: Contact[];
   initialSelectedBienId?: string | null;
-  listFilter?: 'sans-position' | 'mandats-endormis' | null;
+  listFilter?: 'sans-position' | 'mandats-endormis' | 'mandats-actifs' | 'mandats-60j' | null;
+  visitCountByBienId?: Record<string, number>;
 }) {
   const [biens, setBiens] = useState(initialBiens);
   const initialBien = initialSelectedBienId
@@ -56,9 +59,17 @@ export default function BiensClient({
         const t = Date.parse(b.updatedAt);
         if (!Number.isFinite(t) || Date.now() - t <= 30 * DAY_MS) return false;
       }
+      if (listFilter === 'mandats-actifs' && !isSignedMandat(b.mandatStatut)) return false;
+      if (listFilter === 'mandats-60j') {
+        if (!isSignedMandat(b.mandatStatut)) return false;
+        const t = Date.parse(b.mandatDate ?? b.createdAt);
+        if (!Number.isFinite(t) || Date.now() - t <= PORTFOLIO_STALE_MANDAT_DAYS * DAY_MS) return false;
+        const visits = visitCountByBienId[b.id] ?? 0;
+        if (visits >= PORTFOLIO_STALE_VISIT_MAX) return false;
+      }
       return true;
     });
-  }, [biens, listFilter]);
+  }, [biens, listFilter, visitCountByBienId]);
 
   const vendeurs = useMemo(() => contacts.filter((c) => c.type === 'vendeur'), [contacts]);
 
@@ -125,7 +136,7 @@ export default function BiensClient({
         <WorkspaceCard className="py-12 text-center">
           <p className="text-pretty text-[14px] text-text-muted sm:text-[15px]">
             {biens.length === 0
-              ? "Aucun bien enregistré. Dès qu'un bien entre ici, les acquéreurs qui correspondent vous sont proposés dans Aujourd'hui."
+              ? "Aucun bien enregistré. Dès qu'un bien entre ici, les acquéreurs qui correspondent vous sont proposés dans Accueil."
               : 'Aucun bien ne correspond à ce filtre.'}
           </p>
         </WorkspaceCard>
