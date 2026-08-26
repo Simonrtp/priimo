@@ -1156,7 +1156,7 @@ body {
 
 /* Barre d'onglets flottante translucide (tab bar iOS-like) */
 .app-tabbar {
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.96);
   -webkit-backdrop-filter: blur(22px) saturate(1.5);
   backdrop-filter: blur(22px) saturate(1.5);
   box-shadow:
@@ -1183,12 +1183,10 @@ body {
 /* Retour tactile pressé — feedback natif (scale + no tap highlight) */
 .app-press {
   -webkit-tap-highlight-color: transparent;
-  transition:
-    transform 160ms var(--ease-clay),
-    background-color 160ms var(--ease-soft);
+  transition: background-color 160ms var(--ease-soft), filter 100ms ease-out;
 }
 .app-press:active {
-  transform: scale(0.975);
+  filter: brightness(0.94);
 }
 
 /* Rangée à défilement magnétique (carrousel KPI) */
@@ -1424,7 +1422,7 @@ html:has(.feature-page) {
 
 /* Terrain mobile — distinct du desktop, jamais un desktop rétréci. */
 .dashboard-mobile {
-  --field-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+  --field-nav-height: calc(96px + env(safe-area-inset-bottom, 0px));
   --field-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -1436,10 +1434,10 @@ html:has(.feature-page) {
   padding-bottom: 0;
 }
 .dashboard-mobile .app-press {
-  transition: transform 100ms ease-out;
+  transition: filter 80ms ease-out, background-color 80ms ease-out;
 }
 .dashboard-mobile .app-press:active {
-  transform: scale(0.97);
+  filter: brightness(0.94);
 }
 
 .field-page-enter {

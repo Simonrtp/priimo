@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 
 export interface SelectOption {
   value: string;
@@ -42,6 +43,7 @@ export default function Select({
     setOpen(false);
     setHighlighted(-1);
   }, []);
+  useOutsideDismiss(open, close, rootRef);
 
   const selectOption = useCallback(
     (next: string) => {
@@ -50,15 +52,6 @@ export default function Select({
     },
     [onChange, close],
   );
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open, close]);
 
   useEffect(() => {
     if (!open) return;

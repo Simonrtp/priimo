@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MapPin, Phone } from 'lucide-react';
 import type { Lead } from '@/types/lead';
 import { formatLeadAddressQuery, googleMapsSearchUrl } from '@/lib/utils';
 import { collectLeadCallTargets } from '@/lib/lead-person-display';
+import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 
 type LeadActionBarProps = {
   lead: Lead;
@@ -23,6 +24,8 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useOutsideDismiss(menuOpen, closeMenu, wrapRef);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -30,18 +33,11 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
 
   useEffect(() => {
     if (!menuOpen) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMenuOpen(false);
     };
-    document.addEventListener('pointerdown', onPointer);
     window.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [menuOpen]);
 
   const btnH = dense ? 'min-h-[50px]' : 'min-h-[44px]';

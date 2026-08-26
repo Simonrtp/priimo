@@ -66,27 +66,22 @@ function ContactRow({
   ].filter(Boolean);
 
   return (
-    <li className="relative border-l-[3px] bg-[#F7F4EE] even:bg-[#EFEBE3]" style={{ borderLeftColor: SLATE }}>
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Ouvrir la fiche de ${contact.fullName}`}
-        className="absolute inset-0 z-0 rounded-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
-      />
-      <div className="relative z-[1] flex items-start justify-between gap-3 px-4 py-3 pointer-events-none sm:px-5 sm:py-3.5">
+    <li className="border-l-[3px] bg-[#F7F4EE] even:bg-[#EFEBE3]" style={{ borderLeftColor: SLATE }}>
+      <div className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h2
-              className="min-w-0 truncate text-[16px] font-semibold text-text-strong sm:text-[17px]"
+            <button
+              type="button"
+              onClick={onOpen}
+              className="min-w-0 max-w-full truncate text-left text-[16px] font-semibold text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:text-[17px]"
               style={{ letterSpacing: '-0.015em' }}
             >
               {contact.fullName}
-            </h2>
+            </button>
             {contact.phone ? (
               <a
                 href={telHref(contact.phone)}
-                onClick={(e) => e.stopPropagation()}
-                className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 font-medium tabular-nums hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:py-0.5"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1.5 font-medium tabular-nums hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:py-0.5"
                 style={{ fontSize: 14, color: INK }}
                 aria-label={`Appeler ${contact.fullName}`}
               >
@@ -97,8 +92,7 @@ function ContactRow({
             {contact.email ? (
               <a
                 href={`mailto:${contact.email}`}
-                onClick={(e) => e.stopPropagation()}
-                className="pointer-events-auto inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-lg px-1.5 font-medium hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:max-w-[220px] sm:py-0.5"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-lg px-1.5 font-medium hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:min-h-0 sm:max-w-[220px] sm:py-0.5"
                 style={{ fontSize: 14, color: INK }}
                 aria-label={`Écrire à ${contact.fullName}`}
               >
@@ -107,13 +101,24 @@ function ContactRow({
               </a>
             ) : null}
           </div>
-          {meta.length > 0 ? (
-            <p className="mt-1 truncate text-[12.5px] text-text-muted sm:text-[13px]">{meta.join(' · ')}</p>
-          ) : null}
+          <button
+            type="button"
+            onClick={onOpen}
+            className="mt-1 w-full text-left"
+            aria-label={`Ouvrir la fiche de ${contact.fullName}`}
+          >
+            {meta.length > 0 ? (
+              <p className="truncate text-[12.5px] text-text-muted sm:text-[13px]">{meta.join(' · ')}</p>
+            ) : null}
+          </button>
         </div>
-        <span className="flex-shrink-0 pt-0.5 text-[12px] text-text-subtle sm:text-[12.5px]">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex-shrink-0 pt-0.5 text-[12px] text-text-subtle sm:text-[12.5px]"
+        >
           {relativeDate(contact.lastInteractionAt)}
-        </span>
+        </button>
       </div>
     </li>
   );
@@ -207,7 +212,7 @@ export default function ContactsClient({
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 max-md:pb-24 md:pt-2 lg:pt-6">
+    <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 md:pt-2 lg:pt-6">
       <PageHeader
         title="Contacts"
         subtitle={

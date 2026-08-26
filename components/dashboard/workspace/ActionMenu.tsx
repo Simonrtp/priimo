@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
+import { armPointerShield } from '@/lib/ui/pointer-guard';
 
 export interface ActionMenuItem {
   label: string;
@@ -24,23 +26,16 @@ export default function ActionMenu({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const close = useCallback(() => setOpen(false), []);
+  useOutsideDismiss(open, close, rootRef);
 
   useEffect(() => {
     if (!open) return;
-
-    function onPointerDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-    }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
     }
-
-    document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
   if (items.length === 0) return null;
@@ -55,7 +50,7 @@ export default function ActionMenu({
         aria-controls={open ? menuId : undefined}
         aria-label={label}
         title={label}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex size-11 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <MoreHorizontal size={18} strokeWidth={2} aria-hidden />
       </button>
@@ -73,6 +68,7 @@ export default function ActionMenu({
               role="menuitem"
               onClick={() => {
                 setOpen(false);
+                armPointerShield();
                 item.onSelect();
               }}
               className={`block w-full px-4 py-2.5 text-left text-[13.5px] transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline-none ${

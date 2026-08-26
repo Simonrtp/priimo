@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { armPointerShield } from '@/lib/ui/pointer-guard';
 
 const SNAPS = [0.25, 0.55, 0.9] as const;
 
@@ -47,7 +48,11 @@ export default function MobileSheet({
         type="button"
         className="absolute inset-0 bg-[rgba(21,32,47,0.28)]"
         aria-label="Fermer"
-        onClick={onClose}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          armPointerShield();
+          onClose();
+        }}
       />
       <div
         className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-2xl bg-surface shadow-clay-lg"
@@ -68,6 +73,7 @@ export default function MobileSheet({
           onPointerUp={(e) => {
             const dy = e.clientY - startY.current;
             if (dy > 64 && snap === 0) {
+              armPointerShield();
               onClose();
               return;
             }

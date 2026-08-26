@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { armPointerShield } from '@/lib/ui/pointer-guard';
 
 interface ModalProps {
   open: boolean;
@@ -34,6 +35,11 @@ export default function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  function requestClose() {
+    armPointerShield();
+    onClose();
+  }
+
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement as HTMLElement | null;
@@ -42,6 +48,7 @@ export default function Modal({
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        armPointerShield();
         onClose();
       }
     };
@@ -69,10 +76,14 @@ export default function Modal({
       className="fixed inset-0 z-[130] flex items-end justify-center p-4 sm:items-center"
       role="presentation"
     >
-      <div
+      <button
+        type="button"
         className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
-        onClick={onClose}
-        aria-hidden
+        aria-label="Fermer"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          requestClose();
+        }}
       />
       <div
         ref={dialogRef}
@@ -80,7 +91,7 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`relative flex max-h-[calc(100dvh-2rem)] w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto flex-col rounded-2xl bg-white shadow-xl`}
+        className={`relative z-[1] flex max-h-[calc(100dvh-2rem)] w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto flex-col rounded-2xl bg-white shadow-xl`}
       >
         <div className="flex flex-shrink-0 items-start justify-between gap-4 px-5 pt-5">
           <div className="min-w-0">
@@ -99,8 +110,8 @@ export default function Modal({
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+            onClick={requestClose}
+            className="flex size-11 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
             aria-label="Fermer"
           >
             <X size={18} strokeWidth={2} aria-hidden />

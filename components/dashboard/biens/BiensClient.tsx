@@ -3,23 +3,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
-import { MANDAT_STATUT_LABELS, bienIsActive } from '@/types/bien';
+import { bienIsActive } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportBiensCsv } from '@/lib/import/export-biens';
 import { useUser } from '@/lib/hooks/useUser';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImportWizard from '@/components/dashboard/import/ImportWizard';
-import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import BienFormDialog from './BienFormDialog';
+import BienListCard from './BienListCard';
+import BienPhotoLightbox from './BienPhotoLightbox';
 import ExportAnnonceDialog from './ExportAnnonceDialog';
-
-function euros(v: number | null): string | null {
-  return v === null ? null : `${new Intl.NumberFormat('fr-FR').format(v)} €`;
-}
 
 export default function BiensClient({
   initialBiens,
@@ -41,6 +38,9 @@ export default function BiensClient({
   const [editing, setEditing] = useState<Bien | undefined>(initialBien);
   const [pendingDelete, setPendingDelete] = useState<Bien | null>(null);
   const [exporting, setExporting] = useState<Bien | null>(null);
+  const [viewer, setViewer] = useState<{ photos: string[]; index: number; title: string } | null>(
+    null,
+  );
   const { agency } = useUser();
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function BiensClient({
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 max-md:pb-24 md:pt-2 lg:pt-6">
+    <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 md:pt-2 lg:pt-6">
       <PageHeader
         title="Biens"
         subtitle={
@@ -131,70 +131,22 @@ export default function BiensClient({
         </WorkspaceCard>
       ) : (
         <ul className="flex flex-col gap-3">
-          {visibleBiens.map((bien) => {
-            const details = [
-              bien.propertyType,
-              bien.surfaceM2 ? `${bien.surfaceM2} m²` : null,
-              bien.rooms ? `${bien.rooms} pièces` : null,
-              euros(bien.price),
-            ].filter(Boolean);
-
-            return (
-              <li key={bien.id}>
-                <WorkspaceCard>
-                  <div className="flex items-start justify-between gap-3 sm:gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-3 sm:gap-4">
-                        <h2
-                          className="min-w-0 truncate text-[16px] font-semibold text-text-strong sm:text-[18px]"
-                          style={{ letterSpacing: '-0.015em' }}
-                        >
-                          {bien.address}
-                        </h2>
-                        <span className="flex-shrink-0 text-[12px] text-text-subtle sm:text-[12.5px]">
-                          {MANDAT_STATUT_LABELS[bien.mandatStatut]}
-                        </span>
-                      </div>
-
-                      <p className="mt-1.5 truncate text-[13px] text-text-muted sm:text-[13.5px]">
-                        {[bien.postalCode, bien.city].filter(Boolean).join(' ') ||
-                          'Localisation à compléter'}
-                        {details.length > 0 ? ` · ${details.join(' · ')}` : ''}
-                      </p>
-
-                      <p className="mt-1 text-[12.5px] text-text-subtle sm:text-[13px]">
-                        {bien.proprietaireName
-                          ? `Propriétaire : ${bien.proprietaireName}`
-                          : 'Aucun propriétaire rattaché'}
-                      </p>
-                    </div>
-
-                    <ActionMenu
-                      label={`Actions pour ${bien.address}`}
-                      items={[
-                        {
-                          label: 'Modifier ce bien',
-                          onSelect: () => {
-                            setEditing(bien);
-                            setFormOpen(true);
-                          },
-                        },
-                        {
-                          label: "Exporter l'annonce",
-                          onSelect: () => setExporting(bien),
-                        },
-                        {
-                          label: 'Supprimer ce bien',
-                          onSelect: () => setPendingDelete(bien),
-                          destructive: true,
-                        },
-                      ]}
-                    />
-                  </div>
-                </WorkspaceCard>
-              </li>
-            );
-          })}
+          {visibleBiens.map((bien) => (
+            <BienListCard
+              key={bien.id}
+              bien={bien}
+              onEdit={() => {
+                setEditing(bien);
+                setFormOpen(true);
+              }}
+              onExport={() => setExporting(bien)}
+              onDelete={() => setPendingDelete(bien)}
+              onUpdated={upsert}
+              onViewPhotos={(index) =>
+                setViewer({ photos: bien.photos, index, title: bien.address })
+              }
+            />
+          ))}
         </ul>
       )}
 
@@ -226,6 +178,16 @@ export default function BiensClient({
           });
         }}
       />
+
+      {viewer ? (
+        <BienPhotoLightbox
+          photos={viewer.photos}
+          index={viewer.index}
+          title={viewer.title}
+          onClose={() => setViewer(null)}
+          onIndex={(index) => setViewer((v) => (v ? { ...v, index } : v))}
+        />
+      ) : null}
 
       {exporting ? (
         <ExportAnnonceDialog

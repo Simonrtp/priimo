@@ -131,7 +131,7 @@ export default function EquipeClient({
       className={
         embedded
           ? 'min-w-0'
-          : 'mx-auto w-full min-w-0 max-w-[980px] pt-4 max-md:pb-24 md:pt-2 lg:pt-6'
+          : 'mx-auto w-full min-w-0 max-w-[980px] pt-4 md:pt-2 lg:pt-6'
       }
     >
       {embedded ? (

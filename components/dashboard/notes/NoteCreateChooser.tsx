@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Mic, NotebookPen, Plus, X } from 'lucide-react';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
+import { armPointerShield } from '@/lib/ui/pointer-guard';
 
 type Variant = 'sidebar' | 'fab' | 'toolbar';
 
@@ -21,30 +24,27 @@ export default function NoteCreateChooser({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const close = useCallback(() => setOpen(false), []);
+  useOutsideDismiss(open && variant !== 'fab', close, rootRef);
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false);
     }
-    function onPointer(e: PointerEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
     document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onPointer);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onPointer);
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
   function pickWrite() {
     setOpen(false);
+    armPointerShield();
     openCompose({ adresse });
   }
 
   function pickVoice() {
     setOpen(false);
+    armPointerShield();
     openCapture({ adresse });
   }
 
@@ -70,18 +70,39 @@ export default function NoteCreateChooser({
   );
 
   if (variant === 'fab') {
+    const menu =
+      open && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[120]" role="presentation">
+              <button
+                type="button"
+                className="absolute inset-0 bg-[#1E3148]/35"
+                aria-label="Fermer le menu de note"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(false);
+                  armPointerShield();
+                }}
+              />
+              <div
+                id={menuId}
+                role="menu"
+                aria-label="Créer une note"
+                className="absolute left-1/2 z-[1] flex w-max -translate-x-1/2 flex-col items-center gap-2.5"
+                style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px) + 12px)' }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {opts}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null;
+
     return (
       <div ref={rootRef} className={`relative ${className}`}>
-        {open ? (
-          <div
-            id={menuId}
-            role="menu"
-            aria-label="Créer une note"
-            className="absolute bottom-[4.75rem] left-1/2 z-[61] flex -translate-x-1/2 flex-col items-center gap-2.5"
-          >
-            {opts}
-          </div>
-        ) : null}
+        {menu}
         <button
           type="button"
           onClick={() => {
@@ -93,7 +114,7 @@ export default function NoteCreateChooser({
           aria-controls={open ? menuId : undefined}
           aria-haspopup="menu"
           data-tour="voice-capture"
-          className="app-press flex size-16 items-center justify-center rounded-full text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="flex size-16 items-center justify-center rounded-full text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           style={{
             backgroundColor: '#E8743C',
             boxShadow: '0 8px 20px rgba(232, 116, 60, 0.38)',
@@ -202,7 +223,7 @@ function ChoiceButton({
         role="menuitem"
         onClick={onClick}
         aria-label={label}
-        className="app-press flex min-h-11 items-center gap-2.5 rounded-full bg-surface px-3.5 py-2 text-[13.5px] font-semibold text-text shadow-md"
+        className="flex min-h-11 items-center gap-2.5 rounded-full bg-surface px-3.5 py-2 text-[13.5px] font-semibold text-text shadow-md"
       >
         <span className="flex size-9 items-center justify-center rounded-full bg-accent text-white" aria-hidden>
           <Icon size={16} strokeWidth={2.2} />

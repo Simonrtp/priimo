@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
+import { ImagePlus, X } from 'lucide-react';
 import type { Bien, HonorairesACharge, MandatStatut } from '@/types/bien';
 import {
   DPE_LETTRE_ORDER,
@@ -13,12 +14,14 @@ import {
 import type { Contact } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { normalizePhotoUrls } from '@/lib/bien-input';
+import { BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import BienPhotoLightbox from './BienPhotoLightbox';
 
 interface FormState {
   address: string;
@@ -126,6 +129,9 @@ export default function BienFormDialog({
   const [form, setForm] = useState<FormState>(bien ? fromBien(bien) : EMPTY);
   const [saving, setSaving] = useState(false);
   const [photoDraft, setPhotoDraft] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoView, setPhotoView] = useState<number | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -139,6 +145,34 @@ export default function BienFormDialog({
     }
     set('photos', next);
     setPhotoDraft('');
+  }
+
+  async function addPhotoFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = BIEN_PHOTO_MAX_COUNT - form.photos.length;
+    if (room <= 0) {
+      notifyError('20 photos maximum par bien');
+      return;
+    }
+    setPhotoBusy(true);
+    const urls: string[] = [];
+    try {
+      for (const file of Array.from(files).slice(0, room)) {
+        const result = await uploadBienPhotoFile(file);
+        if (result.error || !result.url) {
+          notifyError(result.error ?? "La photo n'a pas pu être enregistrée");
+          break;
+        }
+        urls.push(result.url);
+      }
+      if (urls.length > 0) {
+        set('photos', normalizePhotoUrls([...form.photos, ...urls]));
+        notifySuccess(urls.length > 1 ? `${urls.length} photos ajoutées` : 'Photo ajoutée');
+      }
+    } finally {
+      setPhotoBusy(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -180,6 +214,7 @@ export default function BienFormDialog({
       : PROPERTY_TYPE_OPTIONS;
 
   return (
+    <Fragment>
     <Modal
       open={open}
       onClose={onClose}
@@ -294,31 +329,60 @@ export default function BienFormDialog({
             </Field>
             <Field
               label="Photos"
-              htmlFor="bien-photo-url"
-              hint="Adresses https des visuels. L’hébergement des fichiers viendra plus tard."
+              htmlFor="bien-photo-files"
+              hint="JPEG, PNG ou WebP, 8 Mo maximum. 20 photos par bien."
             >
               {form.photos.length > 0 ? (
-                <ul className="mb-3 flex flex-col gap-2">
-                  {form.photos.map((url) => (
-                    <li key={url} className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-text">{url}</span>
+                <ul className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {form.photos.map((url, i) => (
+                    <li key={url} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-[#EFEBE3]">
+                      <button
+                        type="button"
+                        onClick={() => setPhotoView(i)}
+                        className="size-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        aria-label={`Voir la photo ${i + 1}`}
+                      >
+                        <img src={url} alt="" className="size-full object-cover" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => set('photos', form.photos.filter((p) => p !== url))}
-                        className="flex-shrink-0 text-[13px] font-medium text-danger hover:underline"
+                        className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1E3148]/80 text-white hover:bg-[#1E3148] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-10"
+                        aria-label="Retirer cette photo"
                       >
-                        Retirer
+                        <X size={14} strokeWidth={2.2} aria-hidden />
                       </button>
                     </li>
                   ))}
                 </ul>
               ) : null}
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                ref={photoInputRef}
+                id="bien-photo-files"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                tabIndex={-1}
+                className="sr-only"
+                onChange={(e) => void addPhotoFiles(e.target.files)}
+              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <WorkspaceButton
+                  type="button"
+                  variant="secondary"
+                  disabled={photoBusy || form.photos.length >= BIEN_PHOTO_MAX_COUNT}
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  <ImagePlus size={16} strokeWidth={2} aria-hidden />
+                  {photoBusy ? 'Envoi…' : 'Ajouter des photos'}
+                </WorkspaceButton>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <TextInput
                   id="bien-photo-url"
                   value={photoDraft}
                   onChange={(e) => setPhotoDraft(e.target.value)}
-                  placeholder="https://"
+                  placeholder="Ou coller une URL https"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -327,7 +391,7 @@ export default function BienFormDialog({
                   }}
                 />
                 <WorkspaceButton type="button" variant="secondary" onClick={addPhoto}>
-                  Ajouter
+                  Ajouter l’URL
                 </WorkspaceButton>
               </div>
             </Field>
@@ -501,5 +565,15 @@ export default function BienFormDialog({
         </div>
       </form>
     </Modal>
+    {photoView !== null && form.photos[photoView] ? (
+      <BienPhotoLightbox
+        photos={form.photos}
+        index={photoView}
+        title={form.address || 'Photos du bien'}
+        onClose={() => setPhotoView(null)}
+        onIndex={(i) => setPhotoView(i)}
+      />
+    ) : null}
+    </Fragment>
   );
 }

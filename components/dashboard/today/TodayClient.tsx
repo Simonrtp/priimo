@@ -173,7 +173,7 @@ export default function TodayClient({
   }
 
   return (
-    <div className="w-full min-w-0 pt-2 max-md:pb-24">
+    <div className="w-full min-w-0 pt-2">
       <TodayStatusBand
         prenom={firstName}
         remaining={remaining}
