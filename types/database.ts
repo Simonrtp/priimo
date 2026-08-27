@@ -399,6 +399,82 @@ export type EstimationRequestInsert = {
   edit_token?: string;
 };
 
+export type AgencyEstimationRow = {
+  id: string;
+  agency_id: string;
+  created_by: string | null;
+  address: string;
+  postal_code: string | null;
+  city: string | null;
+  ban_id: string | null;
+  parcelle_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  property_type: string;
+  surface_m2: number;
+  rooms: number;
+  floor: string | null;
+  condition_rating: number | null;
+  dpe_class: string | null;
+  available: boolean;
+  price_low: number | null;
+  price_high: number | null;
+  price_per_m2: number | null;
+  reliability: number;
+  reliability_label: string | null;
+  steps: unknown;
+  comparables: unknown;
+  context: unknown;
+  lead_id: string | null;
+  contact_id: string | null;
+  bien_id: string | null;
+  share_token: string | null;
+  share_expires_at: string | null;
+  share_revoked_at: string | null;
+  view_count: number;
+  last_viewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgencyEstimationInsert = {
+  id?: string;
+  agency_id: string;
+  created_by?: string | null;
+  address: string;
+  postal_code?: string | null;
+  city?: string | null;
+  ban_id?: string | null;
+  parcelle_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  property_type: string;
+  surface_m2: number;
+  rooms: number;
+  floor?: string | null;
+  condition_rating?: number | null;
+  dpe_class?: string | null;
+  available?: boolean;
+  price_low?: number | null;
+  price_high?: number | null;
+  price_per_m2?: number | null;
+  reliability?: number;
+  reliability_label?: string | null;
+  steps?: unknown;
+  comparables?: unknown;
+  context?: unknown;
+  lead_id?: string | null;
+  contact_id?: string | null;
+  bien_id?: string | null;
+  share_token?: string | null;
+  share_expires_at?: string | null;
+  share_revoked_at?: string | null;
+  view_count?: number;
+  last_viewed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 /* -------------------------------------------------------------------------- */
 /* Espace de travail agent : contacts, biens, dictées, échanges                */
 /* -------------------------------------------------------------------------- */
@@ -1012,6 +1088,229 @@ export type RendezVousInsert = {
   updated_at?: string;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Diffusion portails + captation Gmail (20260837)                            */
+/* -------------------------------------------------------------------------- */
+
+export type DiffusionPortailIdDb =
+  | 'seloger'
+  | 'bienici'
+  | 'logicimmo'
+  | 'leboncoin'
+  | 'ouestfrance'
+  | 'autre';
+
+export type DiffusionPortailEtatDb =
+  | 'non_configure'
+  | 'en_attente'
+  | 'connecte'
+  | 'erreur'
+  | 'suspendu';
+
+export type DiffusionAnnonceStatutDb =
+  | 'brouillon'
+  | 'en_attente'
+  | 'publiee'
+  | 'refusee'
+  | 'retiree';
+
+export type DiffusionEvenementSensDb = 'sortie' | 'entree' | 'systeme';
+
+export type PortailEmailDomainePortailDb =
+  | 'seloger'
+  | 'bienici'
+  | 'logicimmo'
+  | 'leboncoin'
+  | 'ouestfrance'
+  | 'site_agence'
+  | 'autre';
+
+export type GmailConnexionEtatDb = 'actif' | 'revoke' | 'erreur' | 'en_attente_verif_oauth';
+
+export type LeadPortailStatutDb =
+  | 'importe'
+  | 'a_traiter_main'
+  | 'doublon'
+  | 'ignore'
+  | 'erreur_parse';
+
+export type DiffusionPortailRow = {
+  id: string;
+  agency_id: string;
+  portail: DiffusionPortailIdDb;
+  actif: boolean;
+  compte_externe_id: string | null;
+  etat: DiffusionPortailEtatDb;
+  dernier_erreur: string | null;
+  meta: unknown;
+  connected_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DiffusionPortailInsert = {
+  id?: string;
+  agency_id: string;
+  portail: DiffusionPortailIdDb;
+  actif?: boolean;
+  compte_externe_id?: string | null;
+  etat?: DiffusionPortailEtatDb;
+  dernier_erreur?: string | null;
+  meta?: unknown;
+  connected_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type DiffusionAnnonceRow = {
+  id: string;
+  agency_id: string;
+  bien_id: string;
+  portail: DiffusionPortailIdDb;
+  statut: DiffusionAnnonceStatutDb;
+  reference_portail: string | null;
+  cle_idempotence: string;
+  publiee_at: string | null;
+  retiree_at: string | null;
+  dernier_erreur: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DiffusionAnnonceInsert = {
+  id?: string;
+  agency_id: string;
+  bien_id: string;
+  portail: DiffusionPortailIdDb;
+  statut?: DiffusionAnnonceStatutDb;
+  reference_portail?: string | null;
+  cle_idempotence: string;
+  publiee_at?: string | null;
+  retiree_at?: string | null;
+  dernier_erreur?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type DiffusionEvenementRow = {
+  id: string;
+  agency_id: string;
+  annonce_id: string | null;
+  bien_id: string | null;
+  portail: string | null;
+  sens: DiffusionEvenementSensDb;
+  kind: string;
+  message: string;
+  payload: unknown;
+  created_at: string;
+};
+
+export type DiffusionEvenementInsert = {
+  id?: string;
+  agency_id: string;
+  annonce_id?: string | null;
+  bien_id?: string | null;
+  portail?: string | null;
+  sens?: DiffusionEvenementSensDb;
+  kind: string;
+  message: string;
+  payload?: unknown;
+  created_at?: string;
+};
+
+export type PortailEmailDomaineRow = {
+  id: string;
+  domaine: string;
+  portail: PortailEmailDomainePortailDb;
+  actif: boolean;
+  agency_id: string | null;
+  created_at: string;
+};
+
+export type PortailEmailDomaineInsert = {
+  id?: string;
+  domaine: string;
+  portail: PortailEmailDomainePortailDb;
+  actif?: boolean;
+  agency_id?: string | null;
+  created_at?: string;
+};
+
+/** bytea sérialisé côté PostgREST (souvent `\x…` hex ou base64). */
+export type GmailConnexionRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  gmail_address: string;
+  token_ciphertext: string;
+  token_nonce: string;
+  scopes: string[];
+  watch_history_id: string | null;
+  watch_expiration: string | null;
+  pubsub_topic: string | null;
+  etat: GmailConnexionEtatDb;
+  dernier_erreur: string | null;
+  connected_at: string;
+  updated_at: string;
+};
+
+export type GmailConnexionInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  gmail_address: string;
+  token_ciphertext: string;
+  token_nonce: string;
+  scopes?: string[];
+  watch_history_id?: string | null;
+  watch_expiration?: string | null;
+  pubsub_topic?: string | null;
+  etat?: string;
+  dernier_erreur?: string | null;
+  connected_at?: string;
+  updated_at?: string;
+};
+
+export type LeadPortailRow = {
+  id: string;
+  agency_id: string;
+  portail: string;
+  gmail_message_id: string;
+  contact_id: string | null;
+  bien_id: string | null;
+  annonce_id: string | null;
+  statut: LeadPortailStatutDb;
+  nom: string | null;
+  telephone: string | null;
+  email: string | null;
+  reference_annonce: string | null;
+  type_demande: string | null;
+  message_extrait: string | null;
+  demande_at: string | null;
+  parse_erreur: string | null;
+  created_at: string;
+};
+
+export type LeadPortailInsert = {
+  id?: string;
+  agency_id: string;
+  portail: string;
+  gmail_message_id: string;
+  contact_id?: string | null;
+  bien_id?: string | null;
+  annonce_id?: string | null;
+  statut?: LeadPortailStatutDb;
+  nom?: string | null;
+  telephone?: string | null;
+  email?: string | null;
+  reference_annonce?: string | null;
+  type_demande?: string | null;
+  message_extrait?: string | null;
+  demande_at?: string | null;
+  parse_erreur?: string | null;
+  created_at?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -1061,6 +1360,12 @@ export type Database = {
         Row: EstimationRequestRow;
         Insert: EstimationRequestInsert;
         Update: Partial<EstimationRequestRow>;
+        Relationships: [];
+      };
+      agency_estimations: {
+        Row: AgencyEstimationRow;
+        Insert: AgencyEstimationInsert;
+        Update: Partial<AgencyEstimationRow>;
         Relationships: [];
       };
       contacts: {
@@ -1267,6 +1572,42 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      diffusion_portails: {
+        Row: DiffusionPortailRow;
+        Insert: DiffusionPortailInsert;
+        Update: Partial<DiffusionPortailRow>;
+        Relationships: [];
+      };
+      diffusion_annonces: {
+        Row: DiffusionAnnonceRow;
+        Insert: DiffusionAnnonceInsert;
+        Update: Partial<DiffusionAnnonceRow>;
+        Relationships: [];
+      };
+      diffusion_evenements: {
+        Row: DiffusionEvenementRow;
+        Insert: DiffusionEvenementInsert;
+        Update: Partial<DiffusionEvenementRow>;
+        Relationships: [];
+      };
+      portail_email_domaines: {
+        Row: PortailEmailDomaineRow;
+        Insert: PortailEmailDomaineInsert;
+        Update: Partial<PortailEmailDomaineRow>;
+        Relationships: [];
+      };
+      gmail_connexions: {
+        Row: GmailConnexionRow;
+        Insert: GmailConnexionInsert;
+        Update: Partial<GmailConnexionRow>;
+        Relationships: [];
+      };
+      leads_portail: {
+        Row: LeadPortailRow;
+        Insert: LeadPortailInsert;
+        Update: Partial<LeadPortailRow>;
+        Relationships: [];
       };
     };
     Views: { [_ in never]: never };

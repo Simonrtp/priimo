@@ -25,6 +25,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.3",
     "gray-matter": "^4.0.3",
+    "jose": "^6.2.10",
     "lucide-react": "^1.14.0",
     "mapbox-gl": "^3.25.0",
     "next": "^16.2.6",

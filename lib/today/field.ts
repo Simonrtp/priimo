@@ -70,6 +70,8 @@ export function dotColorFor(type: TodayCardType): string {
       return FIELD.ardoise;
     case 'demande_portail':
       return FIELD.orange;
+    case 'estimation_vuee':
+      return FIELD.vert;
   }
 }
 
@@ -97,6 +99,8 @@ export function pastelFor(type: TodayCardType): string {
       return FIELD.ardoisePastel;
     case 'demande_portail':
       return FIELD.orangePastel;
+    case 'estimation_vuee':
+      return FIELD.vertPastel;
   }
 }
 

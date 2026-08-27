@@ -1,15 +1,14 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Mic, X } from 'lucide-react';
+import { Mic, NotebookPen, Plus, X } from 'lucide-react';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
-import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import { TextArea } from '@/components/dashboard/workspace/Field';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { useUser } from '@/lib/hooks/useUser';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { markerBadgeColor } from '@/lib/carte/colors';
+import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
 import type { ParcelleAgencyItem, ParcelleFiche } from '@/lib/carte/parcelle';
 
 const KIND_LABEL: Record<ParcelleAgencyItem['kind'], string> = {
@@ -35,6 +34,23 @@ function groupAgency(items: readonly ParcelleAgencyItem[]) {
     .filter((g) => g.items.length > 0);
 }
 
+function DpeLetterBadge({ letter }: { letter: string }) {
+  const parsed = parseDpeLetter(letter);
+  if (!parsed) {
+    return <span className="font-semibold text-text">{letter}</span>;
+  }
+  const bg = dpeFillColor(parsed);
+  return (
+    <span
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold leading-none"
+      style={{ backgroundColor: bg, color: markerBadgeColor(bg) }}
+      aria-label={`Classe ${parsed}`}
+    >
+      {parsed}
+    </span>
+  );
+}
+
 export default function ParcellePanel({
   fiche,
   onClose,
@@ -44,12 +60,10 @@ export default function ParcellePanel({
   onClose: () => void;
   onNotesChanged?: () => void;
 }) {
-  const { openCapture, captureSessionOpen } = useVoiceCapture();
+  const { openCapture, openCompose, captureSessionOpen } = useVoiceCapture();
   const { profile } = useUser();
-  const textId = useId();
-  const [draft, setDraft] = useState('');
-  const [saving, setSaving] = useState(false);
   const [noteTick, setNoteTick] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
   const captureWasOpen = useRef(false);
 
   useEffect(() => {
@@ -63,44 +77,15 @@ export default function ParcellePanel({
     onNotesChanged?.();
   }, [captureSessionOpen, onNotesChanged]);
 
-  const title = fiche.adresse ?? fiche.reference;
+  useEffect(() => {
+    setAddOpen(false);
+  }, [fiche.parcelleId]);
 
-  async function saveTyped() {
-    const body = draft.trim();
-    if (body.length < 8) {
-      notifyError('Écrivez un peu plus pour enregistrer la note.');
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch('/api/dashboard/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: body,
-          adresse: fiche.adresse ?? undefined,
-          parcelleId: fiche.parcelleId,
-        }),
-      });
-      const data = (await res.json()) as { error?: string; voiceNoteId?: string };
-      if (!res.ok) throw new Error(data.error ?? 'save');
-      if (data.voiceNoteId) {
-        await fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ terminer: true }),
-        });
-      }
-      setDraft('');
-      notifySuccess('Note enregistrée');
-      setNoteTick((n) => n + 1);
-      onNotesChanged?.();
-    } catch (err) {
-      notifyError(err instanceof Error ? err.message : "La note n'a pas pu être enregistrée");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const title = fiche.adresse ?? fiche.reference;
+  const noteContext = {
+    adresse: fiche.adresse ?? fiche.reference,
+    parcelleId: fiche.parcelleId,
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -170,16 +155,23 @@ export default function ParcellePanel({
                   Diagnostics
                   <span className="ml-1.5 tabular-nums">{fiche.diagnostics.length}</span>
                 </h3>
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-2.5">
                   {fiche.diagnostics.map((d, i) => (
-                    <li key={`${d.date}-${d.etiquette}-${i}`} className="text-[13.5px] text-text">
-                      {d.etiquette ? <span className="font-semibold">{d.etiquette}</span> : null}
-                      {d.type && d.type.toUpperCase() !== 'DPE' ? (
-                        <span className="text-text-muted"> {d.type}</span>
-                      ) : null}
-                      {d.date ? (
-                        <span className="ml-2 tabular-nums text-text-subtle">{formatDay(d.date)}</span>
-                      ) : null}
+                    <li
+                      key={`${d.date}-${d.etiquette}-${i}`}
+                      className="flex items-center gap-2.5 text-[13.5px] text-text"
+                    >
+                      {d.etiquette ? <DpeLetterBadge letter={d.etiquette} /> : null}
+                      <span className="min-w-0">
+                        {d.type && d.type.toUpperCase() !== 'DPE' ? (
+                          <span className="text-text-muted">{d.type} </span>
+                        ) : null}
+                        {d.date ? (
+                          <span className="tabular-nums text-text-subtle">{formatDay(d.date)}</span>
+                        ) : (
+                          <span className="text-text-subtle">Date inconnue</span>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -206,9 +198,7 @@ export default function ParcellePanel({
                       {copro.periodeConstruction ? (
                         <p>Période de construction : {copro.periodeConstruction}</p>
                       ) : null}
-                      {copro.procedureEnCours ? (
-                        <p>Procédure en cours</p>
-                      ) : null}
+                      {copro.procedureEnCours ? <p>Procédure en cours</p> : null}
                     </li>
                   ))}
                 </ul>
@@ -255,32 +245,60 @@ export default function ParcellePanel({
             entiteId={fiche.parcelleId}
             currentUserId={profile?.id}
           />
-          <div className="mt-4 flex flex-col gap-2.5">
-            <WorkspaceButton
-              type="button"
-              onClick={() =>
-                openCapture({
-                  adresse: fiche.adresse ?? fiche.reference,
-                  parcelleId: fiche.parcelleId,
-                })
-              }
-            >
-              <Mic size={16} strokeWidth={2} aria-hidden />
-              Dicter
-            </WorkspaceButton>
-            <label htmlFor={textId} className="sr-only">
-              Note écrite rapide
-            </label>
-            <TextArea
-              id={textId}
-              rows={3}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Note écrite rapide…"
-            />
-            <WorkspaceButton type="button" variant="secondary" onClick={() => void saveTyped()} disabled={saving}>
-              {saving ? 'Enregistrement…' : 'Enregistrer la note'}
-            </WorkspaceButton>
+          <div className="mt-4">
+            {!addOpen ? (
+              <button
+                type="button"
+                onClick={() => setAddOpen(true)}
+                className="inline-flex min-h-[44px] w-full items-center gap-2.5 rounded-xl border border-black/[0.08] bg-white px-3.5 py-2.5 text-left text-[14px] font-medium text-text-strong transition-colors hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <span
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"
+                  aria-hidden
+                >
+                  <Plus size={18} strokeWidth={2.4} />
+                </span>
+                Ajouter une note à cette adresse
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2 rounded-xl border border-black/[0.08] bg-surface p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddOpen(false);
+                    openCompose(noteContext);
+                  }}
+                  className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  <NotebookPen size={18} className="shrink-0 text-text-muted" aria-hidden />
+                  <span>
+                    <span className="block text-[14px] font-medium text-text-strong">Écrire</span>
+                    <span className="block text-[12.5px] text-text-muted">Au clavier</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddOpen(false);
+                    openCapture(noteContext);
+                  }}
+                  className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  <Mic size={18} className="shrink-0 text-text-muted" aria-hidden />
+                  <span>
+                    <span className="block text-[14px] font-medium text-text-strong">Dicter</span>
+                    <span className="block text-[12.5px] text-text-muted">À la voix</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddOpen(false)}
+                  className="rounded-lg px-3 py-2 text-[13px] font-medium text-text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  Annuler
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </div>

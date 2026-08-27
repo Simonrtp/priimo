@@ -169,7 +169,7 @@ async function TodayContent({
     ),
   );
 
-  const [assignments, alerts, week, demandesPortail] = await Promise.all([
+  const [assignments, alerts, week, demandesPortail, estimationsVuees] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
       ? timed('fetchAgencyAlerts', () => fetchAgencyAlerts(supabase, names))
@@ -212,6 +212,32 @@ async function TodayContent({
         return [];
       }
     }),
+    timed('fetchEstimationsVuees', async () => {
+      try {
+        const since = new Date();
+        since.setDate(since.getDate() - 14);
+        const { data } = await supabase
+          .from('agency_estimations')
+          .select('id, address, view_count, last_viewed_at, price_low, price_high')
+          .eq('agency_id', agency.id)
+          .gt('view_count', 0)
+          .not('last_viewed_at', 'is', null)
+          .gte('last_viewed_at', since.toISOString())
+          .is('share_revoked_at', null)
+          .order('last_viewed_at', { ascending: false })
+          .limit(15);
+        return (data ?? []).map((row) => ({
+          id: row.id as string,
+          address: (row.address as string) ?? '',
+          viewCount: (row.view_count as number) ?? 0,
+          lastViewedAt: (row.last_viewed_at as string) ?? '',
+          priceLow: (row.price_low as number | null) ?? null,
+          priceHigh: (row.price_high as number | null) ?? null,
+        }));
+      } catch {
+        return [];
+      }
+    }),
   ]);
 
   const cards = buildTodayCards({
@@ -222,6 +248,7 @@ async function TodayContent({
     assignments,
     alerts,
     demandesPortail,
+    estimationsVuees,
     ...metier,
   });
 

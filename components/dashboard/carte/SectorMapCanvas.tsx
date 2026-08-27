@@ -20,8 +20,6 @@ import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
-  CADASTRE_DPE_LABEL_LAYER_ID,
-  CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
@@ -181,10 +179,8 @@ export default function SectorMapCanvas({
           parcellesEnabled
             ? [
                 PARCELLES_FILL_LAYER_ID,
-                CADASTRE_DPE_LAYER_ID,
-                CADASTRE_DPE_LABEL_LAYER_ID,
-                CADASTRE_VENTES_LAYER_ID,
-                CADASTRE_COPRO_LAYER_ID,
+                ...(cadastreLayers.cadastreVentes ? [CADASTRE_VENTES_LAYER_ID] : []),
+                ...(cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
               ]
             : []
         }

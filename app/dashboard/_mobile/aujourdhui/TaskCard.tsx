@@ -5,8 +5,10 @@ import {
   AlertTriangle,
   Bell,
   Building2,
+  Calculator,
   Calendar,
   Handshake,
+  Inbox,
   MapPin,
   MessageSquare,
   Phone,
@@ -32,6 +34,8 @@ const TYPE_ICONS: Record<TodayCardType, LucideIcon> = {
   rendez_vous: Calendar,
   transmis: Send,
   alerte: Bell,
+  demande_portail: Inbox,
+  estimation_vuee: Calculator,
 };
 
 export default function TaskCard({

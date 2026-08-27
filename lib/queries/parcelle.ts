@@ -140,7 +140,8 @@ function excerpt(text: string | null): string | null {
 }
 
 async function selectByBanIds<T>(
-  db: Db,
+  /** Client admin uniquement — tables open data / agrégats listés ci-dessous. */
+  openDataDb: Db,
   table: 'building_dpe' | 'building_copro' | 'building_activity' | 'buildings',
   columns: string,
   banIds: readonly string[],
@@ -149,7 +150,8 @@ async function selectByBanIds<T>(
   const rows: T[] = [];
   for (let i = 0; i < banIds.length; i += IN_CHUNK) {
     const chunk = banIds.slice(i, i + IN_CHUNK);
-    const { data, error } = await db.from(table).select(columns).in('ban_id', chunk);
+    // Admin légitime : lecture batch open data / agrégat (pas de table agence).
+    const { data, error } = await openDataDb.from(table).select(columns).in('ban_id', chunk);
     if (error) {
       console.error(`[parcelle] ${table}`, error.message);
       continue;
@@ -229,27 +231,52 @@ function toCopro(row: CoproRow): ParcelleCopro {
 }
 
 /**
- * Fiche parcelle. publicDb = donnée publique (admin). agencyDb = RLS + helpers de visibilité.
+ * Fiche parcelle.
+ *
+ * Deux clients, jamais mélangés :
+ * - openDataDb (service_role) : UNIQUEMENT buildings, building_transactions,
+ *   building_dpe, building_copro, building_activity, parcelle_adresses.
+ * - sessionDb (utilisateur) : leads, contacts, biens, notes — RLS + helpers
+ *   lib/agency/visibility.ts (et canSeeVoiceNote).
  */
 export async function fetchParcelleFiche(args: {
+  /** Admin — open data / agrégats Priimo uniquement. */
   publicDb: Db;
+  /** Session — données agence, filtrées par visibility. */
   agencyDb: Db;
   parcelleId: string;
   agencyId: string;
   postalCodes: readonly string[];
   viewer: RecordViewer;
 }): Promise<ParcelleFiche> {
-  const { publicDb, agencyDb, parcelleId, agencyId, viewer } = args;
+  const openDataDb = args.publicDb;
+  const sessionDb = args.agencyDb;
+  const { parcelleId, agencyId, viewer } = args;
 
   const [adressesRes, buildingsRes, txRes, liensRes] = await Promise.all([
-    publicDb.from('parcelle_adresses').select(cols(PARCELLE_READ_QUERIES.adresses.columns)).eq('parcelle_id', parcelleId),
-    publicDb.from('buildings').select(cols(PARCELLE_READ_QUERIES.buildings.columns)).eq('parcelle_id', parcelleId),
-    publicDb
+    // Admin : parcelle_adresses = index BAN↔parcelle (open data), pas de PII agence.
+    openDataDb
+      .from('parcelle_adresses')
+      .select(cols(PARCELLE_READ_QUERIES.adresses.columns))
+      .eq('parcelle_id', parcelleId),
+    // Admin : buildings = référentiel BAN public.
+    openDataDb
+      .from('buildings')
+      .select(cols(PARCELLE_READ_QUERIES.buildings.columns))
+      .eq('parcelle_id', parcelleId),
+    // Admin : building_transactions = DVF open data.
+    openDataDb
       .from('building_transactions')
       .select(cols(PARCELLE_READ_QUERIES.transactions.columns))
       .eq('parcelle_id', parcelleId)
       .order('date_mutation', { ascending: false }),
-    agencyDb.from('note_liens').select('note_id').eq('agency_id', agencyId).eq('entite_type', 'parcelle').eq('entite_id', parcelleId),
+    // Session : liens notes↔parcelle — isolés par agency_id + RLS.
+    sessionDb
+      .from('note_liens')
+      .select('note_id')
+      .eq('agency_id', agencyId)
+      .eq('entite_type', 'parcelle')
+      .eq('entite_id', parcelleId),
   ]);
 
   if (adressesRes.error) console.error('[parcelle] parcelle_adresses', adressesRes.error.message);
@@ -264,8 +291,9 @@ export async function fetchParcelleFiche(args: {
   const banFromAdresses = adresses.map((a) => a.ban_id).filter((id): id is string => Boolean(id));
   const missingBan = banFromAdresses.filter((id) => !buildings.some((b) => b.ban_id === id));
   if (missingBan.length > 0) {
+    // Admin : complément buildings par ban_id (toujours open data).
     const extra = await selectByBanIds<BuildingRow>(
-      publicDb,
+      openDataDb,
       'buildings',
       cols(PARCELLE_READ_QUERIES.buildings.columns),
       missingBan,
@@ -281,8 +309,10 @@ export async function fetchParcelleFiche(args: {
 
   const [dpeRows, coproRows] = inSector
     ? await Promise.all([
-        selectByBanIds<DpeRow>(publicDb, 'building_dpe', cols(PARCELLE_READ_QUERIES.dpe.columns), banIds),
-        selectByBanIds<CoproRow>(publicDb, 'building_copro', cols(PARCELLE_READ_QUERIES.copro.columns), banIds),
+        // Admin : building_dpe = diagnostics ADEME open data.
+        selectByBanIds<DpeRow>(openDataDb, 'building_dpe', cols(PARCELLE_READ_QUERIES.dpe.columns), banIds),
+        // Admin : building_copro = RNC open data.
+        selectByBanIds<CoproRow>(openDataDb, 'building_copro', cols(PARCELLE_READ_QUERIES.copro.columns), banIds),
       ])
     : [[], []];
 
@@ -326,24 +356,25 @@ export async function fetchParcelleFiche(args: {
     surCetteParcelle.push(item);
   }
 
+  // --- Données agence : sessionDb uniquement + helpers visibility ---
   if (banIds.length > 0) {
     const [leadsRes, contactsRes, biensRes, notesBanRes] = await Promise.all([
-      agencyDb
+      sessionDb
         .from('leads')
         .select('id, address, city, postal_code, score, assigned_to, ban_id')
         .eq('agency_id', agencyId)
         .in('ban_id', banIds.slice(0, IN_CHUNK)),
-      agencyDb
+      sessionDb
         .from('contacts')
         .select('id, first_name, last_name, contact_type, assigned_to, created_by, ban_id')
         .eq('agency_id', agencyId)
         .in('ban_id', banIds.slice(0, IN_CHUNK)),
-      agencyDb
+      sessionDb
         .from('biens')
         .select('id, address, mandat_statut, created_by, ban_id')
         .eq('agency_id', agencyId)
         .in('ban_id', banIds.slice(0, IN_CHUNK)),
-      agencyDb
+      sessionDb
         .from('voice_notes')
         .select('id, transcript, visibilite, created_by, assigned_to, ban_id')
         .eq('agency_id', agencyId)
@@ -396,7 +427,7 @@ export async function fetchParcelleFiche(args: {
   }
 
   if (noteIdsFromLiens.length > 0) {
-    const { data: linkedNotes } = await agencyDb
+    const { data: linkedNotes } = await sessionDb
       .from('voice_notes')
       .select('id, transcript, visibilite, created_by')
       .eq('agency_id', agencyId)
@@ -438,16 +469,20 @@ export type OverlayViewport = {
 };
 
 /**
- * Couche carte : buildings + building_activity uniquement. Jamais les tables de détail.
+ * Couche carte : buildings + building_activity uniquement (open data / agrégat).
+ * Les notes parcelle passent par sessionDb + canSeeVoiceNote.
  */
 export async function fetchParcelleOverlays(args: {
+  /** Admin — buildings + building_activity uniquement. */
   publicDb: Db;
+  /** Session — marqueurs notes agence. */
   agencyDb: Db;
   agencyId: string;
   postalCodes: readonly string[];
   viewer: RecordViewer;
   viewport: OverlayViewport | null;
 }): Promise<ParcelleOverlay> {
+  const openDataDb = args.publicDb;
   const codes = args.postalCodes.filter((c) => /^\d{5}$/.test(c));
   const notes = await fetchParcelleNoteMarkers(args.agencyDb, args.agencyId, args.viewer);
 
@@ -456,7 +491,8 @@ export async function fetchParcelleOverlays(args: {
   }
 
   const { west, south, east, north } = args.viewport;
-  const { data, error } = await args.publicDb
+  // Admin : buildings filtré au secteur agence (open data géolocalisé).
+  const { data, error } = await openDataDb
     .from('buildings')
     .select(cols(PARCELLE_READ_QUERIES.buildings.columns))
     .in('code_postal', codes)
@@ -475,8 +511,9 @@ export async function fetchParcelleOverlays(args: {
 
   const buildings = (data ?? []) as unknown as BuildingRow[];
   const banIds = buildings.map((b) => b.ban_id);
+  // Admin : building_activity = agrégat Priimo (pas de table leads/contacts).
   const activity = await selectByBanIds<ActivityRow>(
-    args.publicDb,
+    openDataDb,
     'building_activity',
     cols(PARCELLE_READ_QUERIES.activity.columns),
     banIds,
@@ -511,12 +548,13 @@ export async function fetchParcelleOverlays(args: {
   return { immeubles, notes };
 }
 
+/** Notes liées à une parcelle — sessionDb + canSeeVoiceNote uniquement. */
 async function fetchParcelleNoteMarkers(
-  agencyDb: Db,
+  sessionDb: Db,
   agencyId: string,
   viewer: RecordViewer,
 ): Promise<ParcelleNoteMarker[]> {
-  const { data: liens } = await agencyDb
+  const { data: liens } = await sessionDb
     .from('note_liens')
     .select('note_id, entite_id')
     .eq('agency_id', agencyId)
@@ -529,7 +567,7 @@ async function fetchParcelleNoteMarkers(
 
   if (noteIds.length === 0) return notes;
 
-  const { data: rows } = await agencyDb
+  const { data: rows } = await sessionDb
     .from('voice_notes')
     .select('id, latitude, longitude, visibilite, created_by')
     .eq('agency_id', agencyId)

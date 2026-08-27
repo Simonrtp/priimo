@@ -15,6 +15,7 @@ import {
   Send,
   Users,
   Inbox,
+  Calculator,
   type LucideIcon,
 } from 'lucide-react';
 import type { TodayCard, TodayCardType } from '@/lib/today/cards';
@@ -36,6 +37,7 @@ const TYPE_ICONS: Record<TodayCardType, LucideIcon> = {
   transmis: Send,
   alerte: Bell,
   demande_portail: Inbox,
+  estimation_vuee: Calculator,
 };
 
 export default function TodayCardView({
@@ -75,6 +77,9 @@ export default function TodayCardView({
         break;
       case 'ouvrir_liste':
         router.push(`/dashboard?filtre=${action.cardType}`);
+        break;
+      case 'ouvrir_estimation':
+        router.push(`/dashboard/estimation?historique=1&id=${action.estimationId}`);
         break;
       default:
         break;

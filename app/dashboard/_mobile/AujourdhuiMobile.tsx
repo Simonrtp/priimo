@@ -224,6 +224,10 @@ export default function AujourdhuiMobile({
     }
     if (action.kind === 'ouvrir_liste') {
       router.push(`/dashboard?filtre=${action.cardType}`);
+      return;
+    }
+    if (action.kind === 'ouvrir_estimation') {
+      router.push(`/dashboard/estimation?historique=1&id=${action.estimationId}`);
     }
   }
 

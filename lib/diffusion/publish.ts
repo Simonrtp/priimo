@@ -43,8 +43,10 @@ export async function publierAnnonce(args: {
     .eq('cle_idempotence', cle)
     .maybeSingle();
 
-  let annonceId = existing?.id as string | undefined;
-  if (!annonceId) {
+  let annonceId: string;
+  if (existing?.id) {
+    annonceId = existing.id;
+  } else {
     const { data: inserted, error } = await admin
       .from('diffusion_annonces')
       .insert({
@@ -56,7 +58,7 @@ export async function publierAnnonce(args: {
       })
       .select('id')
       .single();
-    if (error || !inserted) {
+    if (error || !inserted?.id) {
       return {
         ok: false,
         reason: 'error',
@@ -64,7 +66,9 @@ export async function publierAnnonce(args: {
       };
     }
     annonceId = inserted.id;
-  } else if (existing?.statut === 'publiee' && existing.reference_portail) {
+  }
+
+  if (existing?.statut === 'publiee' && existing.reference_portail) {
     // Idempotence : déjà publiée → mise à jour, pas de 2e annonce.
     try {
       const transport = getDiffusionTransport(args.gateway);

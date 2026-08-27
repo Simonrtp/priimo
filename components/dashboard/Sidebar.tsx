@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import {
   Building2,
+  Calculator,
   CalendarCheck,
   LogOut,
   Map,
@@ -46,6 +47,12 @@ const NAV_GROUPS: NavItem[][] = [
       label: 'Prospection',
       Icon: Target,
       match: (p) => p.startsWith('/dashboard/prospection'),
+    },
+    {
+      href: '/dashboard/estimation',
+      label: 'Estimation',
+      Icon: Calculator,
+      match: (p) => p.startsWith('/dashboard/estimation'),
     },
     {
       href: '/dashboard/carte',

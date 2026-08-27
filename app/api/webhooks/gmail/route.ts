@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { ingestPortailEmail } from '@/lib/inbound/ingest';
+import { verifyGooglePubSubOidc } from '@/lib/inbound/pubsub-oidc';
 import { loadAllowedDomains, assertWhitelistedOrDrop } from '@/lib/inbound/whitelist';
 import type { IncomingEmail } from '@/lib/inbound/parsers';
 
@@ -8,15 +9,13 @@ export const runtime = 'nodejs';
 
 /**
  * Webhook Pub/Sub Gmail.
- * Ne lit le message QUE si l'expéditeur est dans la liste blanche des domaines portail.
- * Aucun corps hors whitelist n'est stocké.
- *
- * Auth : header X-Priimo-Gmail-Secret === GMAIL_PUBSUB_SHARED_SECRET
- * (en plus de la vérif Pub/Sub côté GCP).
+ * Auth : OIDC Google (Authorization Bearer) — audience GMAIL_PUBSUB_OIDC_AUDIENCE.
+ * Sans jeton valide → 401, corps jamais lu ni journalisé.
+ * Ne traite le mail QUE si l'expéditeur est en liste blanche domaines portail.
  */
 export async function POST(req: Request) {
-  const expected = process.env.GMAIL_PUBSUB_SHARED_SECRET?.trim();
-  if (!expected || req.headers.get('x-priimo-gmail-secret') !== expected) {
+  const oidcOk = await verifyGooglePubSubOidc(req.headers.get('authorization'));
+  if (!oidcOk) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -3,6 +3,7 @@ import type { TodayCardType } from '@/lib/today/cards';
 /** Enjeu métier de base par type de carte (0–100). */
 export const ENJEU_PAR_TYPE: Record<TodayCardType, number> = {
   demande_portail: 92,
+  estimation_vuee: 88,
   echeance_contractuelle: 90,
   alerte: 80,
   post_visite: 70,

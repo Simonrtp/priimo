@@ -86,7 +86,8 @@ export type TodayCardType =
   | 'rendez_vous'
   | 'transmis'
   | 'alerte'
-  | 'demande_portail';
+  | 'demande_portail'
+  | 'estimation_vuee';
 
 export const TODAY_CARD_LABELS: Record<TodayCardType, string> = {
   echeance_contractuelle: 'Échéance',
@@ -100,6 +101,7 @@ export const TODAY_CARD_LABELS: Record<TodayCardType, string> = {
   rapprochement: 'Rapprochement',
   nouvelle_adresse: 'Nouvelle adresse',
   demande_portail: 'Demande portail',
+  estimation_vuee: 'Avis consulté',
 };
 
 export type TodayCardAction =
@@ -110,6 +112,7 @@ export type TodayCardAction =
   | { kind: 'ouvrir_bien'; label: string; bienId: string }
   | { kind: 'ouvrir_promesse'; label: string; promesseId: string }
   | { kind: 'ouvrir_rdv'; label: string; rdvId: string }
+  | { kind: 'ouvrir_estimation'; label: string; estimationId: string }
   | { kind: 'ouvrir_liste'; label: string; cardType: TodayCardType };
 
 export interface TodayMatchSummary {
@@ -466,6 +469,53 @@ function cartesDemandePortail(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Avis de valeur consultés                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type TodayEstimationVuee = {
+  id: string;
+  address: string;
+  viewCount: number;
+  lastViewedAt: string;
+  priceLow: number | null;
+  priceHigh: number | null;
+};
+
+function cartesEstimationVuee(
+  items: readonly TodayEstimationVuee[],
+  now: Date,
+): TodayCard[] {
+  return items.slice(0, 8).map((e, index) => {
+    const ageH = (now.getTime() - Date.parse(e.lastViewedAt)) / 3_600_000;
+    const imminence = Number.isFinite(ageH) ? Math.max(25, 100 - Math.round(ageH * 2)) : 70;
+    const vues = e.viewCount;
+    const range =
+      e.priceLow != null && e.priceHigh != null
+        ? `${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(e.priceLow)} – ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(e.priceHigh)}`
+        : null;
+
+    return mkCard(
+      {
+        key: `estimation_vuee:${e.id}`,
+        type: 'estimation_vuee',
+        headline: e.address,
+        context:
+          `${vues} ouverture${vues > 1 ? 's' : ''} de l’avis` +
+          (range ? ` · ${range}` : ''),
+        action: {
+          kind: 'ouvrir_estimation',
+          label: 'Voir l’estimation',
+          estimationId: e.id,
+        },
+        urgent: vues >= 3 && ageH < 48,
+        priority: 45 - index,
+      },
+      imminence,
+    );
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Assemblage                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -484,6 +534,8 @@ export interface BuildTodayInput {
   rendezVous?: readonly TodayRendezVous[];
   /** Demandes entrantes portail (24–72 h). */
   demandesPortail?: readonly TodayDemandePortail[];
+  /** Avis de valeur ouverts par le destinataire. */
+  estimationsVuees?: readonly TodayEstimationVuee[];
   now?: Date;
   config?: TodayConfig;
   /** Applique le plafond à 7 cartes avec regroupement. */
@@ -503,6 +555,7 @@ export function buildTodayCards({
   promesses = [],
   rendezVous = [],
   demandesPortail = [],
+  estimationsVuees = [],
   now = new Date(),
   config = TODAY_CONFIG,
   plafonner = true,
@@ -516,6 +569,7 @@ export function buildTodayCards({
     ...cartesRendezVousMetier(rendezVous, now),
     ...cartesTransmis(assignments),
     ...cartesDemandePortail(demandesPortail ?? [], now),
+    ...cartesEstimationVuee(estimationsVuees ?? [], now),
     ...cartesRelance(contacts, now, config),
     ...cartesRapprochement(rapprochements, config),
   ];
@@ -558,6 +612,7 @@ export interface TodaySummaryGroup {
 /** Ordre d'affichage : le même que celui de la pile. */
 const ORDRE_RESUME: readonly TodayCardType[] = [
   'demande_portail',
+  'estimation_vuee',
   'echeance_contractuelle',
   'alerte',
   'post_visite',
@@ -608,6 +663,28 @@ export function summarizeTodayCards(cards: readonly TodayCard[]): TodaySummaryGr
         label: 'Reçus',
         headline: pluriel(count, 'dossier transmis', 'dossiers transmis'),
         context: 'par un collègue',
+      });
+      continue;
+    }
+
+    if (type === 'estimation_vuee') {
+      groups.push({
+        type,
+        count,
+        label: 'Consultés',
+        headline: pluriel(count, 'avis ouvert', 'avis ouverts'),
+        context: 'par le propriétaire',
+      });
+      continue;
+    }
+
+    if (type === 'demande_portail') {
+      groups.push({
+        type,
+        count,
+        label: 'Entrants',
+        headline: pluriel(count, 'demande portail', 'demandes portail'),
+        context: 'à rappeler',
       });
       continue;
     }

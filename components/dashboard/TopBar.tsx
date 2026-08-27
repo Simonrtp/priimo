@@ -20,6 +20,7 @@ function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') return 'Accueil';
   if (pathname.startsWith('/dashboard/carte')) return 'Carte';
   if (pathname.startsWith('/dashboard/prospection')) return 'Prospection';
+  if (pathname.startsWith('/dashboard/estimation')) return 'Estimation';
   if (pathname.startsWith('/dashboard/contacts')) return 'Contacts';
   if (pathname.startsWith('/dashboard/biens')) return 'Biens';
   if (pathname.startsWith('/dashboard/parametres')) return 'Équipe';
