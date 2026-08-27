@@ -36,7 +36,7 @@ export default async function OriginesStatsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 md:px-6">
+    <div className="mx-auto w-full max-w-3xl py-8 md:px-6">
       <header className="mb-6">
         <h1 className="font-semibold tracking-tight text-ink" style={{ fontSize: 22 }}>
           Origine des contacts

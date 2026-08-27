@@ -28,11 +28,16 @@ const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: Luci
 export default function CreateMenu({
   className = '',
   compact = false,
+  variant = compact ? 'compact' : 'default',
 }: {
   className?: string;
-  /** Icône seule + feuille (terrain mobile). */
+  /** @deprecated utiliser variant="compact" */
   compact?: boolean;
+  /** default = bouton barre ; compact = feuille ; fab = bouton orange central terrain. */
+  variant?: 'default' | 'compact' | 'fab';
 }) {
+  const isFab = variant === 'fab';
+  const isCompact = variant === 'compact' || isFab;
   const router = useRouter();
   const { profile } = useUser();
   const { openCapture, openCompose } = useVoiceCapture();
@@ -50,7 +55,7 @@ export default function CreateMenu({
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
-    if (!open || compact) return;
+    if (!open || isCompact) return;
     function onPointer(e: PointerEvent) {
       const target = e.target;
       if (!(target instanceof Node)) return;
@@ -64,7 +69,7 @@ export default function CreateMenu({
     }
     document.addEventListener('pointerdown', onPointer, true);
     return () => document.removeEventListener('pointerdown', onPointer, true);
-  }, [open, compact, close]);
+  }, [open, isCompact, close]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +81,7 @@ export default function CreateMenu({
   }, [open, close]);
 
   useLayoutEffect(() => {
-    if (!open || compact) {
+    if (!open || isCompact) {
       setMenuPos(null);
       return;
     }
@@ -96,7 +101,7 @@ export default function CreateMenu({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, compact]);
+  }, [open, isCompact]);
 
   useEffect(() => {
     if (!open && !kind) return;
@@ -143,16 +148,19 @@ export default function CreateMenu({
       role="menuitem"
       onClick={() => pick(value)}
       className={
-        compact
+        isCompact
           ? 'app-press flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 text-left'
           : 'flex min-h-10 w-full items-center gap-2.5 whitespace-nowrap px-3.5 text-left text-[13.5px] font-medium text-text hover:bg-black/[0.04]'
       }
     >
-      {compact ? (
+      {isCompact ? (
         <>
           <span
             className="flex size-10 flex-shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: FIELD.ardoisePastel, color: FIELD.ardoise }}
+            style={{
+              backgroundColor: isFab ? FIELD.orangePastel : FIELD.ardoisePastel,
+              color: isFab ? FIELD.orange : FIELD.ardoise,
+            }}
             aria-hidden
           >
             <Icon size={18} strokeWidth={2.1} />
@@ -172,7 +180,7 @@ export default function CreateMenu({
   ));
 
   const sheet =
-    open && compact && typeof document !== 'undefined'
+    open && isCompact && typeof document !== 'undefined'
       ? createPortal(
           <div className="fixed inset-0 z-[120]" role="presentation">
             <button
@@ -218,7 +226,7 @@ export default function CreateMenu({
       : null;
 
   const desktopMenu =
-    open && !compact && menuPos && typeof document !== 'undefined'
+    open && !isCompact && menuPos && typeof document !== 'undefined'
       ? createPortal(
           <div
             ref={menuPanelRef}
@@ -244,15 +252,34 @@ export default function CreateMenu({
           aria-expanded={open}
           aria-haspopup="menu"
           aria-controls={open ? menuId : undefined}
-          aria-label="Nouveau"
+          aria-label={isFab ? (open ? 'Fermer' : 'Créer') : 'Nouveau'}
+          data-tour={isFab ? 'voice-capture' : undefined}
           className={
-            compact
-              ? 'flex size-11 items-center justify-center rounded-full bg-accent text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-              : 'inline-flex min-h-11 items-center gap-1.5 rounded-clay bg-accent px-3.5 text-[13.5px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:min-h-9 md:px-3 md:text-[13px]'
+            isFab
+              ? 'flex size-16 items-center justify-center rounded-full text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
+              : variant === 'compact'
+                ? 'flex size-11 items-center justify-center rounded-full bg-accent text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+                : 'inline-flex min-h-11 items-center gap-1.5 rounded-clay bg-accent px-3.5 text-[13.5px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:min-h-9 md:px-3 md:text-[13px]'
+          }
+          style={
+            isFab
+              ? {
+                  backgroundColor: '#E8743C',
+                  boxShadow: '0 8px 20px rgba(232, 116, 60, 0.38)',
+                }
+              : undefined
           }
         >
-          <Plus size={compact ? 22 : 16} strokeWidth={2.2} aria-hidden />
-          {compact ? null : 'Nouveau'}
+          {isFab ? (
+            open ? (
+              <X size={26} strokeWidth={2.2} aria-hidden />
+            ) : (
+              <Plus size={28} strokeWidth={2.2} aria-hidden />
+            )
+          ) : (
+            <Plus size={variant === 'compact' ? 22 : 16} strokeWidth={2.2} aria-hidden />
+          )}
+          {isFab || variant === 'compact' ? null : 'Nouveau'}
         </button>
         {sheet}
         {desktopMenu}

@@ -20,7 +20,7 @@ export function MaSemaine({
   const reached = notes >= weekNoteGoal;
 
   return (
-    <section className="mx-4 mb-2 rounded-[14px] px-3 py-2.5" style={{ backgroundColor: FIELD.creme }}>
+    <section className="mb-2 rounded-[14px] px-3 py-2.5" style={{ backgroundColor: FIELD.creme }}>
       <p className="text-pretty" style={{ color: FIELD.ardoise, fontSize: 12.5, lineHeight: 1.4 }}>
         Cette semaine · {notes === 1 ? '1 note' : `${notes} notes`} ·{' '}
         {contacts === 1 ? '1 contact' : `${contacts} contacts`} ·{' '}
@@ -49,7 +49,7 @@ export function TermineBlock({
   onToggle: () => void;
 }) {
   return (
-    <section className="mx-4 overflow-hidden rounded-[16px]" style={{ backgroundColor: FIELD.vertPastel }}>
+    <section className="overflow-hidden rounded-[16px]" style={{ backgroundColor: FIELD.vertPastel }}>
       <button
         type="button"
         className="flex min-h-[44px] w-full items-center justify-between px-4 py-2 text-left"
@@ -143,7 +143,7 @@ export function ProspectionSection({
 }) {
   if (cards.length === 0) return null;
   return (
-    <section className="px-4">
+    <section>
       <h2 className="mb-2 font-semibold text-text-muted" style={{ fontSize: 13 }}>
         Prospection · {cards.length} adresse{cards.length > 1 ? 's' : ''}
       </h2>

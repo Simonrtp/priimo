@@ -12,7 +12,7 @@ export default async function DashboardEstimationPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-xl px-4 py-8 text-[14px] text-mute">Chargement…</div>
+        <div className="mx-auto max-w-xl py-8 text-[14px] text-mute">Chargement…</div>
       }
     >
       <EstimationDashboardClient

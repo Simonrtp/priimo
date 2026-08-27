@@ -444,7 +444,7 @@ export default function ContactsClient({
   }
 
   return (
-    <div className="w-full min-w-0 px-5 pb-6 pt-2 md:px-0 md:pb-0 md:pt-1 lg:pt-3">
+    <div className="w-full min-w-0 pb-4 pt-2 md:pb-0 md:pt-1 lg:pt-3">
       <PageHeader
         title="Contacts"
         subtitle={

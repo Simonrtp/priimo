@@ -1459,10 +1459,22 @@ html:has(.feature-page) {
 /* Terrain mobile — distinct du desktop, jamais un desktop rétréci. */
 .dashboard-mobile {
   --field-nav-height: calc(96px + env(safe-area-inset-bottom, 0px));
+  --field-page-px: 1.25rem;
   --field-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+}
+
+.dashboard-mobile > main {
+  padding-left: var(--field-page-px);
+  padding-right: var(--field-page-px);
+}
+
+.dashboard-mobile:has(.field-map) > main,
+.dashboard-mobile:has(.field-bleed) > main {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .dashboard-mobile:has(.field-map) > main {

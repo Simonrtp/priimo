@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarCheck, Map, Plus, Settings, Target, Building2, Users } from 'lucide-react';
+import { CalendarCheck, Ellipsis, Map, Settings, Target, Building2, Users } from 'lucide-react';
+import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
-import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import FieldPlusSheet from '@/components/dashboard/field/FieldPlusSheet';
-import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 import { useOfflineQueue } from '@/components/dashboard/field/OfflineQueueProvider';
 import { FIELD } from '@/lib/today/field';
 
@@ -115,7 +114,6 @@ function FieldTab({
 
 function FieldBottomNav() {
   const pathname = usePathname();
-  const { adresse } = useTourneeDictation();
   const { pending } = useOfflineQueue();
   const [plusOpen, setPlusOpen] = useState(false);
 
@@ -150,7 +148,7 @@ function FieldBottomNav() {
                   className="absolute left-1/2 z-10 -translate-x-1/2"
                   style={{ top: -12 }}
                 >
-                  <NoteCreateChooser variant="fab" adresse={adresse ?? undefined} />
+                  <CreateMenu variant="fab" />
                 </div>
               </div>
               <div className="flex-1" aria-hidden />
@@ -163,18 +161,18 @@ function FieldBottomNav() {
                   className="absolute left-1/2 z-10 -translate-x-1/2"
                   style={{ top: -12 }}
                 >
-                  <NoteCreateChooser variant="fab" adresse={adresse ?? undefined} />
+                  <CreateMenu variant="fab" />
                 </div>
               </div>
               <FieldTab href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
               <button
                 type="button"
                 onClick={() => setPlusOpen(true)}
-                aria-label="Créer"
+                aria-label="Plus"
                 aria-expanded={plusOpen}
                 className="app-press relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1"
               >
-                <Plus
+                <Ellipsis
                   size={22}
                   strokeWidth={activePlus ? 2.4 : 2}
                   color={activePlus ? ACCENT : INACTIVE}
@@ -184,7 +182,7 @@ function FieldBottomNav() {
                   className="text-center font-semibold"
                   style={{ fontSize: 11.5, color: activePlus ? ACCENT : INACTIVE }}
                 >
-                  Créer
+                  Plus
                 </span>
                 {pending > 0 ? (
                   <span

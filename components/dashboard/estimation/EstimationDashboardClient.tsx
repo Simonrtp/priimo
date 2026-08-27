@@ -314,7 +314,7 @@ export default function EstimationDashboardClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6 md:px-6">
+    <div className="mx-auto w-full max-w-xl py-6 md:px-6">
       <header className="mb-5 flex items-start justify-between gap-3">
         <div>
           <h1 className="font-semibold tracking-tight text-ink" style={{ fontSize: 22 }}>

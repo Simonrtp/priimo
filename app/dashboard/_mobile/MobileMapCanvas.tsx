@@ -20,6 +20,7 @@ import ParcellesLayer, {
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
+import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
 import type { MapLayerState } from '@/lib/carte/layers';
@@ -392,6 +393,16 @@ export default function MobileMapCanvas({
             </Marker>
           );
         })}
+        {fallback ? (
+          <Marker
+            longitude={fallback.longitude}
+            latitude={fallback.latitude}
+            anchor="center"
+            style={{ zIndex: 25 }}
+          >
+            <AgencyLocationMarker />
+          </Marker>
+        ) : null}
         {agentPosition ? (
           <Marker
             longitude={agentPosition.longitude}

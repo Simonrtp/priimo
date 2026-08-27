@@ -141,6 +141,15 @@ export function estimateWalkDurationS(distanceM: number): number {
   return Math.max(60, Math.round((distanceM / 1000) * 12 * 60));
 }
 
+/** Estimation marche urbaine (~55 kcal/km, profil agent moyen). */
+export function estimateWalkCalories(distanceM: number, durationS?: number | null): number {
+  const fromDistance = (distanceM / 1000) * 55;
+  if (durationS != null && durationS > 0) {
+    return Math.round((fromDistance + (durationS / 60) * 4.5) / 2);
+  }
+  return Math.round(fromDistance);
+}
+
 export function todaySortieDay(): string {
   return dateKeyParis(new Date());
 }

@@ -231,9 +231,9 @@ export default function AujourdhuiMobile({
   }
 
   return (
-    <div className="field-page-enter relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base px-0 pb-4 pt-6">
+    <div className="field-page-enter relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base pb-4 pt-6">
         {previewingAgent ? (
-          <p className="mx-4 rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
+          <p className="rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
             Vue agent — ce que voit un collaborateur.{' '}
             <a href="/dashboard/settings?tab=profile" className="font-medium text-text underline underline-offset-2">
               Désactiver dans Paramètres
@@ -243,7 +243,7 @@ export default function AujourdhuiMobile({
         ) : null}
 
         {directorLayout ? null : (
-          <div className="px-4">
+          <div>
             {tournee ? (
               <TourneeCard
                 tournee={tournee}
@@ -261,22 +261,18 @@ export default function AujourdhuiMobile({
           </div>
         )}
 
-        <div className="px-4">
-          <PortfolioBand stats={portfolio} />
-        </div>
+        <PortfolioBand stats={portfolio} />
 
         {directorLayout ? (
-          <div className="px-4">
-            <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
-          </div>
+          <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
         ) : emptyKind !== 'rien' ? (
           <>
             {layout.level1ContextLine ? (
-              <p className="px-4 text-[13px] font-medium text-text-muted">{layout.level1ContextLine}</p>
+              <p className="text-[13px] font-medium text-text-muted">{layout.level1ContextLine}</p>
             ) : null}
 
             {layout.level1.length > 0 ? (
-              <ul className="flex flex-col gap-4 px-4">
+              <ul className="flex flex-col gap-4">
                 {layout.level1.map((card) => (
                   <li key={card.key}>{renderTaskCard(card)}</li>
                 ))}
@@ -284,7 +280,7 @@ export default function AujourdhuiMobile({
             ) : null}
 
             {layout.level2.length > 0 ? (
-              <ul className="flex flex-col gap-4 px-4">
+              <ul className="flex flex-col gap-4">
                 {layout.level2.map((card) => (
                   <li key={card.key}>{renderTaskCard(card)}</li>
                 ))}
@@ -292,7 +288,7 @@ export default function AujourdhuiMobile({
             ) : null}
 
             {layout.level3Other.length > 0 ? (
-              <ul className="flex flex-col gap-3 px-4">
+              <ul className="flex flex-col gap-3">
                 {layout.level3Other.map((card) => (
                   <li key={card.key}>{renderTaskCard(card)}</li>
                 ))}
@@ -307,9 +303,7 @@ export default function AujourdhuiMobile({
           </>
         ) : null}
 
-        <div className="flex flex-col gap-4 px-4">
-          <RecentNotesCard notes={recentNotes} />
-        </div>
+        <RecentNotesCard notes={recentNotes} />
 
         {directorLayout ? null : (
           <div className="mt-auto pt-2">

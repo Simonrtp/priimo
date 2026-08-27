@@ -26,6 +26,7 @@ import ParcellesLayer, {
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
 import type { MapLayerState } from '@/lib/carte/layers';
+import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
@@ -231,6 +232,16 @@ export default function SectorMapCanvas({
               if (building) onSelect(building);
             }}
           />
+        ) : null}
+        {fallback ? (
+          <Marker
+            longitude={fallback.longitude}
+            latitude={fallback.latitude}
+            anchor="center"
+            style={{ zIndex: 25 }}
+          >
+            <AgencyLocationMarker />
+          </Marker>
         ) : null}
         {buildings.map((building) => {
           const emphasized = building.banId === selectedBanId;

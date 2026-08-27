@@ -53,8 +53,12 @@ export default function MobileChrome() {
     <>
       <div className={`${SHELL_BG_CLASS} flex-shrink-0`}>
         <header
-          className="relative z-[10] flex items-center gap-2 px-4 pb-3 pt-3"
-          style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}
+          className="relative z-[10] flex items-center gap-2 pb-3 pt-3"
+          style={{
+            paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+            paddingLeft: 'var(--field-page-px)',
+            paddingRight: 'var(--field-page-px)',
+          }}
         >
           {mobileSearchOpen ? (
             <>

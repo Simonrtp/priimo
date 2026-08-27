@@ -38,6 +38,7 @@ import { postJsonOrQueue, newOfflineId } from '@/lib/offline/queue';
 import { useOfflineQueue } from '@/components/dashboard/field/OfflineQueueProvider';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
+import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import OfflineIndicator from '@/components/dashboard/field/OfflineIndicator';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
@@ -473,6 +474,16 @@ export default function TourneeMobile({
                   </Marker>
                 );
               })}
+              {agencyOrigin ? (
+                <Marker
+                  longitude={agencyOrigin.longitude}
+                  latitude={agencyOrigin.latitude}
+                  anchor="center"
+                  style={{ zIndex: 25 }}
+                >
+                  <AgencyLocationMarker />
+                </Marker>
+              ) : null}
               {agentPos ? (
                 <Marker
                   longitude={agentPos.longitude}
@@ -621,7 +632,7 @@ export default function TourneeMobile({
         <span className="w-16" aria-hidden />
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-5">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-28 pt-5">
         <OfflineIndicator className="mb-3" />
 
         {!plan || stops.length === 0 ? (
@@ -799,7 +810,7 @@ function BilanView({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col bg-bg-base px-5"
+      className="flex min-h-0 flex-1 flex-col bg-bg-base"
       style={{ paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))' }}
     >
       <div

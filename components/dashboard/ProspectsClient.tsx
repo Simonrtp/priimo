@@ -395,7 +395,7 @@ export default function ProspectsClient({
     device === 'mobile' ? null : <ProspectsViewSwitch value={vue} onChange={setVue} />;
 
   return (
-    <div className="w-full min-w-0">
+    <div className="w-full min-w-0 pb-4 pt-2 md:pt-0">
       {showPipelineBanner && initialNewBatchCount > 0 && vue === 'liste' && (
         <PipelineUpdateBanner
           newCount={initialNewBatchCount}
