@@ -6,7 +6,7 @@ import '@/components/dashboard/carte/carte.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
-import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
+import { MAP_3D_BEARING, MAP_3D_PITCH, NAV_MAP_PITCH } from '@/lib/map/camera';
 import { computeLngLatBounds } from '@/lib/carte/bounds';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
@@ -28,6 +28,10 @@ import type { DevicePosition } from '@/lib/voice/gps';
 export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }) => void;
   fitGroup: (buildings: readonly BuildingMarker[]) => void;
+  followAgent: (
+    pos: DevicePosition,
+    opts?: { bearing?: number | null; zoom?: number },
+  ) => void;
 };
 
 function boundsToViewport(map: MapRef): MapViewport | null {
@@ -66,6 +70,12 @@ export default function MobileMapCanvas({
   cadastreLayers = { cadastreDpe: false, cadastreVentes: false, cadastreCopro: false },
   onSelectParcelle,
   agentPosition = null,
+  highlightBanIds = null,
+  navigationMode = false,
+  followAgent = false,
+  followBearing = null,
+  suppressAutoFit = false,
+  onUserInteract,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -85,6 +95,13 @@ export default function MobileMapCanvas({
   cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
   onSelectParcelle?: (parcelleId: string) => void;
   agentPosition?: DevicePosition | null;
+  highlightBanIds?: ReadonlySet<string> | null;
+  /** Vue guidage (pitch élevé, suit la position). */
+  navigationMode?: boolean;
+  followAgent?: boolean;
+  followBearing?: number | null;
+  suppressAutoFit?: boolean;
+  onUserInteract?: () => void;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -158,9 +175,36 @@ export default function MobileMapCanvas({
   );
 
   useEffect(() => {
+    if (suppressAutoFit) return;
     fitToPoints(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsSignature, itineraryBounds]);
+  }, [idsSignature, itineraryBounds, suppressAutoFit]);
+
+  useEffect(() => {
+    if (!followAgent || !agentPosition) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const bearing =
+      followBearing ??
+      (agentPosition.headingDeg != null && Number.isFinite(agentPosition.headingDeg)
+        ? agentPosition.headingDeg
+        : MAP_3D_BEARING);
+    map.easeTo({
+      center: [agentPosition.longitude, agentPosition.latitude],
+      zoom: navigationMode ? 17.5 : 16,
+      pitch: navigationMode ? NAV_MAP_PITCH : MAP_3D_PITCH,
+      bearing,
+      duration: navigationMode ? 280 : 400,
+      essential: true,
+    });
+  }, [
+    agentPosition?.latitude,
+    agentPosition?.longitude,
+    agentPosition?.headingDeg,
+    followAgent,
+    followBearing,
+    navigationMode,
+  ]);
 
   useEffect(() => {
     if (!mapRefOut) return;
@@ -175,6 +219,16 @@ export default function MobileMapCanvas({
         });
       },
       fitGroup: (group) => fitToPoints(true, group),
+      followAgent: (pos, opts) => {
+        mapRef.current?.easeTo({
+          center: [pos.longitude, pos.latitude],
+          zoom: opts?.zoom ?? 17.5,
+          pitch: NAV_MAP_PITCH,
+          bearing: opts?.bearing ?? MAP_3D_BEARING,
+          duration: 280,
+          essential: true,
+        });
+      },
     };
     return () => {
       mapRefOut.current = null;
@@ -215,6 +269,7 @@ export default function MobileMapCanvas({
               ]
             : []
         }
+        onMoveStart={() => onUserInteract?.()}
         onLoad={() => {
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
@@ -292,6 +347,7 @@ export default function MobileMapCanvas({
 
           const building = item.building;
           const emphasized = building.banId === selectedBanId;
+          const tourSelected = highlightBanIds?.has(building.banId) ?? false;
           const isLead = building.appearance.kind === 'lead';
           const color = fieldColor(building);
           const score = building.appearance.score;
@@ -316,7 +372,14 @@ export default function MobileMapCanvas({
                   type="button"
                   aria-label={label}
                   className={withScore ? 'priimo-pin-field priimo-pin-field--score' : 'priimo-pin-field'}
-                  style={{ background: color, boxShadow: emphasized ? '0 0 0 3px rgba(232, 116, 60, 0.35)' : undefined }}
+                  style={{
+                    background: color,
+                    boxShadow:
+                      emphasized || tourSelected
+                        ? '0 0 0 3px rgba(232, 116, 60, 0.45)'
+                        : undefined,
+                    outline: tourSelected ? '2px solid #fff' : undefined,
+                  }}
                 >
                   {withScore ? Math.round(score) : null}
                 </button>

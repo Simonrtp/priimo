@@ -16,8 +16,7 @@ export default function AgentLocationMarker({
       ? position.headingDeg
       : null;
   const accuracy = position.accuracyM != null && position.accuracyM > 0 ? position.accuracyM : null;
-  // Approximation visuelle : ~1.2 px/m at typical street zoom — cercle discret
-  const accuracyPx = accuracy ? Math.min(80, Math.max(18, accuracy * 0.35)) : null;
+  const accuracyPx = accuracy ? Math.min(120, Math.max(24, accuracy * 0.55)) : null;
 
   return (
     <div className="pointer-events-none relative flex items-center justify-center" aria-hidden>

@@ -70,3 +70,19 @@ export function routeBearing(
 function normalizeBearing(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
+
+/** Cap entre deux points (degrés, 0 = nord). */
+export function bearingBetween(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+): number {
+  const φ1 = (from.latitude * Math.PI) / 180;
+  const φ2 = (to.latitude * Math.PI) / 180;
+  const Δλ = ((to.longitude - from.longitude) * Math.PI) / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return normalizeBearing((Math.atan2(y, x) * 180) / Math.PI);
+}
+
+/** Pitch navigation terrain (style guidage). */
+export const NAV_MAP_PITCH = 62;

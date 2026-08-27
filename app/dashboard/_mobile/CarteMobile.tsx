@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Layers, Locate, Navigation, Phone, Search, X } from 'lucide-react';
+import { Layers, Locate, MapPin, Navigation, Phone, Search, X } from 'lucide-react';
 import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
   entitiesByKind,
   filterMapEntities,
   groupEntitiesByBanId,
+  type BuildingMarker,
   type MapPeriod,
   type MapViewport,
 } from '@/lib/carte/buildings';
@@ -51,8 +52,46 @@ import MobileSheet from './MobileSheet';
 import MobileAccountMenu, { AvatarButton } from './MobileAccountMenu';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
-import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
+import {
+  buildPlanFromSelection,
+  buildingToManualStop,
+  categorizeLeads,
+  defaultSelectedKeys,
+  mergeCandidates,
+  suggestedSortiePlan,
+} from '@/lib/carte/carte-tournee';
+import type { GeoCoord } from '@/lib/carte/coords';
+import { bearingBetween } from '@/lib/map/camera';
+import type { Lead } from '@/types/lead';
+import CarteTourneePickSheet from './CarteTourneePickSheet';
+import CarteTourneeNavBar from './CarteTourneeNavBar';
+import {
+  resolveSortieOrigin,
+  sortieStorageKey,
+  type SortiePlan,
+  type SortieStop,
+} from '@/lib/today/sortie';
+import {
+  currentStop,
+  completedCount,
+  emptySortieSession,
+  todaySortieDay,
+  writeSortieSession,
+  type SortieSession,
+} from '@/lib/today/sortie-session';
+import {
+  fetchWalkingRoute,
+  readItineraireStops,
+  routeWaypoints,
+  toItineraireStops,
+  writeItineraireStops,
+  type ItineraireStop,
+} from '@/lib/today/directions';
+import { MAPBOX_TOKEN } from '@/lib/map/style';
 import { FIELD } from '@/lib/today/field';
+import { vibrateBrief } from './aujourdhui/tap';
+
+type CarteTourPhase = 'off' | 'pick' | 'nav';
 
 const GEO_TABLE: Record<MapPointKind, 'leads' | 'contacts' | 'biens' | 'voice_notes'> = {
   lead: 'leads',
@@ -81,6 +120,9 @@ export default function CarteMobile({
   withoutPosition,
   unplaced,
   center,
+  initialLeads = [],
+  profileId = '',
+  agencyOrigin = null,
   initialBanId = null,
   fillParent = false,
   hideAccount = false,
@@ -94,6 +136,9 @@ export default function CarteMobile({
   center: { latitude: number | null; longitude: number | null };
   members: readonly AssigneeOption[];
   isDirector: boolean;
+  initialLeads?: Lead[];
+  profileId?: string;
+  agencyOrigin?: GeoCoord | null;
   initialBanId?: string | null;
   fillParent?: boolean;
   hideAccount?: boolean;
@@ -115,18 +160,94 @@ export default function CarteMobile({
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
   const [agentPosition, setAgentPosition] = useState<DevicePosition | null>(null);
   const [tracking, setTracking] = useState(false);
+  const [tourPhase, setTourPhase] = useState<CarteTourPhase>('off');
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [manualStops, setManualStops] = useState<SortieStop[]>([]);
+  const [tourPlan, setTourPlan] = useState<SortiePlan | null>(null);
+  const [tourOrigin, setTourOrigin] = useState<GeoCoord | null>(agencyOrigin);
+  const [tourSession, setTourSession] = useState<SortieSession>(() => emptySortieSession());
+  const [navRouteGeometry, setNavRouteGeometry] = useState<GeoJSON.LineString | null>(null);
+  const [navRouteMeta, setNavRouteMeta] = useState<{
+    distanceM: number;
+    durationS: number | null;
+  } | null>(null);
+  const [followMap, setFollowMap] = useState(true);
+
+  const day = todaySortieDay();
+  const sortieKey = profileId ? sortieStorageKey(profileId, day) : '';
+
+  const { mine, pool } = useMemo(
+    () => categorizeLeads(initialLeads, profileId),
+    [initialLeads, profileId],
+  );
+  const suggestedPlan = useMemo(
+    () => suggestedSortiePlan(initialLeads, profileId, tourOrigin ?? agencyOrigin),
+    [initialLeads, profileId, tourOrigin, agencyOrigin],
+  );
+  const candidateMap = useMemo(
+    () => mergeCandidates(mine, pool, manualStops),
+    [mine, pool, manualStops],
+  );
+  const pickPlan = useMemo(
+    () => buildPlanFromSelection(candidateMap, selectedKeys, tourOrigin ?? agencyOrigin),
+    [candidateMap, selectedKeys, tourOrigin, agencyOrigin],
+  );
+  const highlightBanIds = useMemo(() => {
+    if (tourPhase !== 'pick') return null;
+    const ids = new Set<string>();
+    for (const key of selectedKeys) {
+      const stop = candidateMap.get(key);
+      if (stop?.banId) ids.add(stop.banId);
+    }
+    return ids;
+  }, [tourPhase, selectedKeys, candidateMap]);
+
+  const navStops = tourPlan?.ordered ?? [];
+  const navActive = tourPhase === 'nav' ? currentStop(navStops, tourSession) : null;
+  const navDone = completedCount(tourSession);
+  const navItineraryStops = useMemo(
+    () => (tourPhase === 'nav' && navStops.length > 0 ? toItineraireStops(navStops) : null),
+    [tourPhase, navStops],
+  );
+  const followBearing = useMemo(() => {
+    if (!agentPosition || !navActive) return null;
+    const speed = agentPosition.speedMs ?? 0;
+    if (
+      agentPosition.headingDeg != null &&
+      Number.isFinite(agentPosition.headingDeg) &&
+      speed > 0.4
+    ) {
+      return agentPosition.headingDeg;
+    }
+    return bearingBetween(agentPosition, navActive);
+  }, [agentPosition, navActive]);
 
   useEffect(() => {
     setStoredStops(readItineraireStops());
   }, []);
 
   useEffect(() => {
-    if (!tracking) return;
-    return watchDevicePosition(setAgentPosition, { pauseWhenHidden: true });
-  }, [tracking]);
+    const activeTracking = tracking || tourPhase === 'pick' || tourPhase === 'nav';
+    if (!activeTracking) return;
+    return watchDevicePosition(setAgentPosition, {
+      pauseWhenHidden: true,
+      highAccuracy: true,
+      minUpdateM: tourPhase === 'nav' ? 2 : 4,
+      maximumAge: tourPhase === 'nav' ? 800 : 1_500,
+    });
+  }, [tracking, tourPhase]);
 
-  const itineraryStops = showItineraire ? (storedStops ?? itineraryStopsProp) : null;
-  const { route, waypoints } = useWalkingRoute(itineraryStops);
+  const itineraryStops =
+    tourPhase === 'nav' && navItineraryStops
+      ? navItineraryStops
+      : showItineraire
+        ? storedStops ?? itineraryStopsProp
+        : null;
+  const { route, waypoints } = useWalkingRoute(
+    tourPhase === 'nav' ? null : itineraryStops,
+  );
+  const itineraryGeometry =
+    tourPhase === 'nav' ? navRouteGeometry : route?.geometry ?? null;
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
   const cadastreOn = anyCadastreLayer(layers);
@@ -200,9 +321,167 @@ export default function CarteMobile({
     };
   }, [unplaced, router]);
 
+  useEffect(() => {
+    if (tourPhase !== 'nav' || !tourPlan || navStops.length === 0 || !MAPBOX_TOKEN) {
+      setNavRouteGeometry(null);
+      setNavRouteMeta(null);
+      return;
+    }
+    let cancelled = false;
+    const itin = toItineraireStops(navStops);
+    const waypoints = routeWaypoints(itin, tourOrigin);
+    void fetchWalkingRoute(waypoints, MAPBOX_TOKEN).then((r) => {
+      if (cancelled) return;
+      if (r) {
+        setNavRouteGeometry(r.geometry);
+        setNavRouteMeta({ distanceM: r.distanceM, durationS: r.durationS });
+      } else {
+        setNavRouteGeometry(null);
+        setNavRouteMeta({ distanceM: tourPlan.distanceM, durationS: null });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tourPhase, tourPlan?.signature, tourOrigin?.latitude, tourOrigin?.longitude, navStops.length]);
+
+  useEffect(() => {
+    if (tourPhase !== 'nav' || navStops.length === 0) return;
+    if (!navActive && navDone >= navStops.length) {
+      setTourPhase('off');
+      setTourPlan(null);
+      setFollowMap(false);
+    }
+  }, [tourPhase, navActive, navDone, navStops.length]);
+
+  const openTourPick = useCallback(() => {
+    void requestDevicePosition().then((pos) => {
+      if (pos) {
+        setAgentPosition(pos);
+        setTracking(true);
+        const resolved = resolveSortieOrigin(agencyOrigin, pos);
+        setTourOrigin(resolved.origin ?? agencyOrigin);
+      } else {
+        setTourOrigin(agencyOrigin);
+      }
+    });
+    setSelectedKeys(defaultSelectedKeys(suggestedPlan, mine));
+    setManualStops([]);
+    setTourPhase('pick');
+    setLayersOpen(false);
+    setMissingOpen(false);
+    setSelectedBanId(null);
+  }, [agencyOrigin, suggestedPlan, mine]);
+
+  const toggleTourKey = useCallback((key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const handleMapSelect = useCallback(
+    (building: BuildingMarker) => {
+      if (tourPhase === 'pick') {
+        const stop = buildingToManualStop(building);
+        if (!stop) return;
+        setManualStops((prev) => {
+          if (prev.some((s) => s.key === stop.key)) return prev;
+          return [...prev, stop];
+        });
+        setSelectedKeys((prev) => {
+          const next = new Set(prev);
+          next.add(stop.key);
+          return next;
+        });
+        vibrateBrief();
+        return;
+      }
+      parcelle.closeParcelle();
+      setSelectedBanId(building.banId);
+      setLayersOpen(false);
+      setMissingOpen(false);
+    },
+    [tourPhase, parcelle],
+  );
+
+  const launchTour = useCallback(async () => {
+    if (!pickPlan || pickPlan.ordered.length === 0) return;
+    vibrateBrief();
+    let pos = agentPosition;
+    if (!pos) pos = await requestDevicePosition();
+    let origin = tourOrigin ?? agencyOrigin;
+    let originSource: 'agency' | 'field' = 'agency';
+    if (pos) {
+      setAgentPosition(pos);
+      const resolved = resolveSortieOrigin(agencyOrigin, pos);
+      origin = resolved.origin ?? pos;
+      originSource = resolved.source === 'field' ? 'field' : 'agency';
+      setTourOrigin(origin);
+    }
+    setTourPlan(pickPlan);
+    const session: SortieSession = {
+      ...emptySortieSession(pickPlan.signature),
+      phase: 'active',
+      startedAt: new Date().toISOString(),
+      origin,
+      originSource,
+      plannedDistanceM: pickPlan.distanceM,
+    };
+    setTourSession(session);
+    if (sortieKey) writeSortieSession(sortieKey, session);
+    writeItineraireStops(toItineraireStops(pickPlan.ordered));
+    setFollowMap(true);
+    setTracking(true);
+    setTourPhase('nav');
+  }, [pickPlan, agentPosition, agencyOrigin, tourOrigin, sortieKey]);
+
+  const stopTour = useCallback(() => {
+    setTourPhase('off');
+    setTourPlan(null);
+    setFollowMap(false);
+    setTourSession(emptySortieSession());
+  }, []);
+
+  const advanceTour = useCallback(
+    (kind: 'rencontre' | 'absent' | 'passer') => {
+      if (!navActive) return;
+      setTourSession((s) => {
+        const next = { ...s };
+        if (kind === 'rencontre') {
+          if (!next.rencontres.includes(navActive.key)) next.rencontres = [...next.rencontres, navActive.key];
+          if (!next.done.includes(navActive.key)) next.done = [...next.done, navActive.key];
+        } else if (kind === 'absent') {
+          if (!next.absents.includes(navActive.key)) next.absents = [...next.absents, navActive.key];
+          if (!next.done.includes(navActive.key)) next.done = [...next.done, navActive.key];
+        } else if (!next.skipped.includes(navActive.key)) {
+          next.skipped = [...next.skipped, navActive.key];
+        }
+        if (sortieKey) writeSortieSession(sortieKey, next);
+        return next;
+      });
+    },
+    [navActive, sortieKey],
+  );
+
+  const recenterNav = useCallback(() => {
+    void requestDevicePosition().then((pos) => {
+      if (!pos) return;
+      setAgentPosition(pos);
+      setFollowMap(true);
+      setTracking(true);
+      mapApi.current?.followAgent(pos, { bearing: followBearing ?? undefined });
+    });
+  }, [followBearing]);
+
   const phone = selected ? firstPhone(selected.entities) : null;
   /** Au-dessus du bandeau flottant (carte plein écran derrière les onglets). */
-  const floatBottom = 'calc(12px + var(--field-nav-height))';
+  const floatBottom =
+    tourPhase === 'pick'
+      ? 'calc(320px + var(--field-nav-height))'
+      : 'calc(12px + var(--field-nav-height))';
 
   return (
     <div
@@ -217,21 +496,17 @@ export default function CarteMobile({
         center={center}
         selectedBanId={selectedBanId}
         mapRef={mapApi}
-        onSelect={(building) => {
-          parcelle.closeParcelle();
-          setSelectedBanId(building.banId);
-          setLayersOpen(false);
-          setMissingOpen(false);
-        }}
+        onSelect={handleMapSelect}
         onDeselect={() => {
+          if (tourPhase === 'pick') return;
           setSelectedBanId(null);
           parcelle.closeParcelle();
         }}
         onViewport={setViewport}
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
-        itineraryGeometry={route?.geometry ?? null}
-        parcellesEnabled={cadastreOn}
+        itineraryGeometry={itineraryGeometry}
+        parcellesEnabled={cadastreOn && tourPhase !== 'nav'}
         activeParcelleIds={parcelle.immeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
         parcelleNoteMarkers={parcelle.noteMarkers}
         selectedParcelleId={parcelle.selectedParcelleId}
@@ -242,89 +517,156 @@ export default function CarteMobile({
           cadastreCopro: layers.cadastreCopro,
         }}
         onSelectParcelle={(parcelleId) => {
+          if (tourPhase === 'nav') return;
           setSelectedBanId(null);
           setLayersOpen(false);
           setMissingOpen(false);
           parcelle.openParcelle(parcelleId);
         }}
         agentPosition={agentPosition}
+        highlightBanIds={highlightBanIds}
+        navigationMode={tourPhase === 'nav'}
+        followAgent={tourPhase === 'nav' && followMap}
+        followBearing={followBearing}
+        suppressAutoFit={tourPhase !== 'off'}
+        onUserInteract={() => {
+          if (tourPhase === 'nav') setFollowMap(false);
+        }}
       />
 
-      <div
-        className="pointer-events-none absolute inset-x-0 z-20 px-4"
-        style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
-      >
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-md">
-          {mobileSearchOpen ? (
-            <>
-              <div className="min-w-0 flex-1">
-                <AssistantMobileSearchBar tone="map" />
-              </div>
-              <button
-                type="button"
-                onClick={closeMobileSearch}
-                aria-label="Fermer la recherche"
-                className="app-press flex size-11 flex-shrink-0 items-center justify-center rounded-full text-text"
-              >
-                <X size={20} strokeWidth={2} aria-hidden />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={openMobileSearch}
-                className="app-press flex min-h-[44px] min-w-0 flex-1 items-center gap-2 px-1 text-left"
-                aria-label="Rechercher une adresse, un contact"
-              >
-                <Search size={18} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
-                <span className="truncate text-[14px] text-text-muted">
-                  Rechercher une adresse, un contact
-                </span>
-              </button>
-              {!hideAccount ? <AvatarButton onClick={() => setAccountOpen(true)} /> : null}
-            </>
-          )}
-        </div>
-        {itineraryStops && itineraryStops.length >= 2 ? (
-          <div className="pointer-events-auto mt-2">
-            <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
+      {tourPhase === 'off' ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 z-20 px-4"
+          style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-md">
+            {mobileSearchOpen ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <AssistantMobileSearchBar tone="map" />
+                </div>
+                <button
+                  type="button"
+                  onClick={closeMobileSearch}
+                  aria-label="Fermer la recherche"
+                  className="app-press flex size-11 flex-shrink-0 items-center justify-center rounded-full text-text"
+                >
+                  <X size={20} strokeWidth={2} aria-hidden />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={openMobileSearch}
+                  className="app-press flex min-h-[44px] min-w-0 flex-1 items-center gap-2 px-1 text-left"
+                  aria-label="Rechercher une adresse, un contact"
+                >
+                  <Search size={18} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
+                  <span className="truncate text-[14px] text-text-muted">
+                    Rechercher une adresse, un contact
+                  </span>
+                </button>
+                {!hideAccount ? <AvatarButton onClick={() => setAccountOpen(true)} /> : null}
+              </>
+            )}
           </div>
-        ) : null}
-      </div>
+          {itineraryStops && itineraryStops.length >= 2 && tourPhase === 'off' ? (
+            <div className="pointer-events-auto mt-2">
+              <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
+            </div>
+          ) : null}
+        </div>
+      ) : tourPhase === 'pick' ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 z-20 px-4"
+          style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="pointer-events-auto rounded-full bg-[#15202F]/88 px-4 py-2.5 text-center shadow-md backdrop-blur-sm">
+            <p className="text-[13.5px] font-medium text-white">
+              Touchez la carte pour ajouter une adresse
+            </p>
+          </div>
+        </div>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={() => {
-          setLayersOpen(true);
-          setSelectedBanId(null);
-        }}
-        aria-label="Couches"
-        className="app-press absolute left-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
-        style={{ bottom: floatBottom }}
-      >
-        <Layers size={20} strokeWidth={2} aria-hidden />
-      </button>
+      {tourPhase === 'off' ? (
+        <>
+          <button
+            type="button"
+            onClick={openTourPick}
+            aria-label="Préparer une tournée"
+            className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2.5 font-semibold text-white shadow-lg"
+            style={{ bottom: floatBottom, backgroundColor: FIELD.orange, fontSize: 14 }}
+          >
+            <MapPin size={18} strokeWidth={2.2} aria-hidden />
+            Tournée
+          </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          void requestDevicePosition().then((pos) => {
-            if (!pos) return;
-            setAgentPosition(pos);
-            setTracking(true);
-            mapApi.current?.recenter(pos);
-          });
-        }}
-        aria-label="Recentrer sur ma position"
-        className="app-press absolute right-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
-        style={{
-          bottom: floatBottom,
-          boxShadow: tracking ? `0 0 0 2px ${FIELD.ardoise}` : undefined,
-        }}
-      >
-        <Locate size={20} strokeWidth={2} aria-hidden />
-      </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLayersOpen(true);
+              setSelectedBanId(null);
+            }}
+            aria-label="Couches"
+            className="app-press absolute left-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
+            style={{ bottom: floatBottom }}
+          >
+            <Layers size={20} strokeWidth={2} aria-hidden />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              void requestDevicePosition().then((pos) => {
+                if (!pos) return;
+                setAgentPosition(pos);
+                setTracking(true);
+                mapApi.current?.recenter(pos);
+              });
+            }}
+            aria-label="Recentrer sur ma position"
+            className="app-press absolute right-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
+            style={{
+              bottom: floatBottom,
+              boxShadow: tracking ? `0 0 0 2px ${FIELD.ardoise}` : undefined,
+            }}
+          >
+            <Locate size={20} strokeWidth={2} aria-hidden />
+          </button>
+        </>
+      ) : null}
+
+      {tourPhase === 'pick' ? (
+        <CarteTourneePickSheet
+          mine={mine}
+          pool={pool}
+          manual={manualStops}
+          selectedKeys={selectedKeys}
+          onToggle={toggleTourKey}
+          distanceM={pickPlan?.distanceM ?? 0}
+          onLaunch={() => void launchTour()}
+          onClose={() => {
+            setTourPhase('off');
+            setFollowMap(false);
+          }}
+        />
+      ) : null}
+
+      {tourPhase === 'nav' && navActive && tourPlan ? (
+        <CarteTourneeNavBar
+          active={navActive}
+          doneN={navDone}
+          totalN={navStops.length}
+          distanceM={navRouteMeta?.distanceM ?? tourPlan.distanceM}
+          durationS={navRouteMeta?.durationS ?? null}
+          accuracyM={agentPosition?.accuracyM ?? null}
+          onStop={stopTour}
+          onRecenter={recenterNav}
+          onAction={advanceTour}
+        />
+      ) : null}
 
       <MobileSheet
         open={layersOpen}
@@ -394,7 +736,7 @@ export default function CarteMobile({
       </MobileSheet>
 
       <MobileSheet
-        open={Boolean(selected)}
+        open={Boolean(selected) && tourPhase === 'off'}
         onClose={() => setSelectedBanId(null)}
         title={selected?.title ?? 'Immeuble'}
         initialSnap={1}

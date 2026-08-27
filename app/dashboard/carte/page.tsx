@@ -72,6 +72,13 @@ export default async function CartePage({
         center={{ latitude: agency.latitude, longitude: agency.longitude }}
         members={membersUi}
         isDirector={profile.role === 'directeur'}
+        initialLeads={visibleLeads}
+        profileId={profile.id}
+        agencyOrigin={
+          agency.latitude != null && agency.longitude != null
+            ? { latitude: agency.latitude, longitude: agency.longitude }
+            : null
+        }
         initialBanId={immeuble ?? null}
         itineraryStops={itineraryStops}
         showItineraire={itineraire === '1'}

@@ -9,7 +9,25 @@ export type DevicePosition = {
 export type WatchPositionOptions = {
   /** Coupe le watch quand l'onglet n'est plus visible (batterie). Défaut true. */
   pauseWhenHidden?: boolean;
+  /** Haute précision GPS (tournée / navigation). Défaut true en watch. */
+  highAccuracy?: boolean;
+  /** Ignorer les mises à jour si déplacement < N mètres. Défaut 0. */
+  minUpdateM?: number;
+  maximumAge?: number;
 };
+
+function distanceM(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+): number {
+  const R = 6_371_000;
+  const φ1 = (a.latitude * Math.PI) / 180;
+  const φ2 = (b.latitude * Math.PI) / 180;
+  const Δφ = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const Δλ = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const s = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
 
 function fromCoords(coords: GeolocationCoordinates): DevicePosition {
   const heading =
@@ -38,15 +56,36 @@ export function watchDevicePosition(
   if (typeof navigator === 'undefined' || !navigator.geolocation) return () => undefined;
 
   const pauseWhenHidden = opts?.pauseWhenHidden !== false;
+  const highAccuracy = opts?.highAccuracy !== false;
+  const minUpdateM = opts?.minUpdateM ?? 0;
+  const maximumAge = opts?.maximumAge ?? (highAccuracy ? 1_500 : 4_000);
   let watchId: number | null = null;
   let stopped = false;
+  let lastPos: DevicePosition | null = null;
+
+  function emit(pos: DevicePosition) {
+    if (minUpdateM > 0 && lastPos) {
+      const moved = distanceM(lastPos, pos);
+      const accuracyBetter =
+        pos.accuracyM != null &&
+        lastPos.accuracyM != null &&
+        pos.accuracyM < lastPos.accuracyM - 5;
+      if (moved < minUpdateM && !accuracyBetter) return;
+    }
+    lastPos = pos;
+    onPos(pos);
+  }
 
   function start() {
     if (stopped || watchId != null) return;
     watchId = navigator.geolocation.watchPosition(
-      (pos) => onPos(fromCoords(pos.coords)),
+      (pos) => emit(fromCoords(pos.coords)),
       () => undefined,
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 2_000 },
+      {
+        enableHighAccuracy: highAccuracy,
+        timeout: highAccuracy ? 15_000 : 12_000,
+        maximumAge,
+      },
     );
   }
 
