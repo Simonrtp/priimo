@@ -42,7 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                       <div className="dashboard-mobile flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <MobileChrome />
                         <main
-                          className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none"
+                          className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"
                           style={{ paddingBottom: 'var(--field-nav-height)' }}
                         >
                           {children}

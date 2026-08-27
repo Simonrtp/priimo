@@ -21,7 +21,7 @@ function SearchField({
 }: {
   className?: string;
   autoFocus?: boolean;
-  tone?: 'light' | 'shell';
+  tone?: 'light' | 'shell' | 'map';
 }) {
   const inputId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -189,15 +189,18 @@ function SearchField({
       : 'Recherche vocale';
 
   const shell = tone === 'shell';
+  const map = tone === 'map';
 
   return (
     <div ref={rootRef} className={`relative min-w-0 ${className}`}>
       <form
         onSubmit={onSubmit}
-        className={`flex min-w-0 items-center gap-2 px-3.5 transition-colors duration-150 ${
+        className={`flex min-w-0 items-center gap-2 transition-colors duration-150 ${
           shell
-            ? 'h-9 rounded-full bg-white shadow-sm focus-within:ring-2 focus-within:ring-white/35'
-            : 'rounded-xl py-2 assistant-search-field'
+            ? 'min-h-11 rounded-full bg-white px-3.5 shadow-sm focus-within:ring-2 focus-within:ring-white/35 md:h-9 md:min-h-0'
+            : map
+              ? 'min-h-[44px] px-1'
+              : 'rounded-xl px-3.5 py-2 assistant-search-field'
         }`}
       >
         <button
@@ -245,7 +248,7 @@ function SearchField({
 
       {showPanel ? (
         <div
-          className="absolute left-0 right-0 top-[calc(100%+6px)] z-[120] overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg"
+          className="absolute left-0 right-0 top-[calc(100%+6px)] z-[120] max-h-[min(50vh,360px)] overflow-y-auto overflow-x-hidden rounded-xl border border-black/[0.08] bg-white/95 shadow-lg backdrop-blur-sm"
           role="region"
           aria-live="polite"
           aria-label="Résultats de recherche"
@@ -322,10 +325,10 @@ export function AssistantSearchBar({ tone = 'light' }: { tone?: 'light' | 'shell
   return <SearchField className="w-full" tone={tone} />;
 }
 
-export function AssistantMobileSearchBar() {
+export function AssistantMobileSearchBar({ tone = 'light' }: { tone?: 'light' | 'shell' | 'map' }) {
   const { mobileSearchOpen } = useAssistant();
   if (!mobileSearchOpen) return null;
-  return <SearchField className="w-full" autoFocus />;
+  return <SearchField className="w-full" autoFocus tone={tone} />;
 }
 
 export function AssistantSearchIconButton({ className = '' }: { className?: string }) {

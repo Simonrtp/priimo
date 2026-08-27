@@ -202,16 +202,16 @@ export default function CarteMobile({
   }, [unplaced, router]);
 
   const phone = selected ? firstPhone(selected.entities) : null;
-  const floatBottom = 12;
+  /** Au-dessus du bandeau flottant (carte plein écran derrière les onglets). */
+  const floatBottom = 'calc(12px + var(--field-nav-height))';
 
   return (
     <div
       className={
         fillParent
           ? 'relative h-full overflow-hidden overscroll-none bg-soft-cool'
-          : 'field-map fixed inset-x-0 top-0 overflow-hidden overscroll-none bg-soft-cool'
+          : 'field-map fixed inset-0 overflow-hidden overscroll-none bg-soft-cool'
       }
-      style={fillParent ? undefined : { height: 'calc(100dvh - var(--field-nav-height))' }}
     >
       <MobileMapCanvas
         buildings={buildings}
@@ -255,24 +255,42 @@ export default function CarteMobile({
         className="pointer-events-none absolute inset-x-0 z-20 px-4"
         style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
       >
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-md">
-          <button
-            type="button"
-            onClick={openMobileSearch}
-            className="app-press flex min-h-[44px] min-w-0 flex-1 items-center gap-2 px-1 text-left"
-            aria-label="Rechercher une adresse, un contact"
-          >
-            <Search size={18} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
-            <span className="truncate text-[14px] text-text-muted">
-              Rechercher une adresse, un contact
-            </span>
-          </button>
-          {!hideAccount ? (
+        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-md">
+          {mobileSearchOpen ? (
             <>
-              <CreateMenu compact />
-              <AvatarButton onClick={() => setAccountOpen(true)} />
+              <div className="min-w-0 flex-1">
+                <AssistantMobileSearchBar tone="map" />
+              </div>
+              <button
+                type="button"
+                onClick={closeMobileSearch}
+                aria-label="Fermer la recherche"
+                className="app-press flex size-11 flex-shrink-0 items-center justify-center rounded-full text-text"
+              >
+                <X size={20} strokeWidth={2} aria-hidden />
+              </button>
             </>
-          ) : null}
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={openMobileSearch}
+                className="app-press flex min-h-[44px] min-w-0 flex-1 items-center gap-2 px-1 text-left"
+                aria-label="Rechercher une adresse, un contact"
+              >
+                <Search size={18} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
+                <span className="truncate text-[14px] text-text-muted">
+                  Rechercher une adresse, un contact
+                </span>
+              </button>
+              {!hideAccount ? (
+                <>
+                  <CreateMenu compact />
+                  <AvatarButton onClick={() => setAccountOpen(true)} />
+                </>
+              ) : null}
+            </>
+          )}
         </div>
         {itineraryStops && itineraryStops.length >= 2 ? (
           <div className="pointer-events-auto mt-2">
@@ -499,27 +517,6 @@ export default function CarteMobile({
           </ul>
         ) : null}
       </MobileSheet>
-
-      {mobileSearchOpen ? (
-        <div
-          className="fixed inset-0 z-[80] flex flex-col bg-surface"
-          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-        >
-          <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <AssistantMobileSearchBar />
-            </div>
-            <button
-              type="button"
-              onClick={closeMobileSearch}
-              aria-label="Fermer la recherche"
-              className="app-press flex size-11 items-center justify-center rounded-full text-text"
-            >
-              <X size={20} strokeWidth={2} aria-hidden />
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
       <ParcelleDrawer

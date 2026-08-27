@@ -115,7 +115,7 @@ export default function BiensClient({
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[980px] pt-4 md:pt-2 lg:pt-6">
+    <div className="mx-auto w-full min-w-0 max-w-[980px] px-5 pb-6 pt-4 md:px-0 md:pb-0 md:pt-2 lg:pt-6">
       <PageHeader
         title="Biens"
         subtitle={

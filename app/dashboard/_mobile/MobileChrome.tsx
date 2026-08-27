@@ -2,76 +2,102 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronLeft, Search } from 'lucide-react';
-import MobileAccountMenu, { AvatarButton } from './MobileAccountMenu';
+import { Search, X } from 'lucide-react';
+import MobileAccountMenu from './MobileAccountMenu';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
+import { useUser } from '@/lib/hooks/useUser';
+import { SHELL_BG_CLASS } from '@/lib/today/field';
 
-function titleForPath(pathname: string): string {
-  if (pathname.startsWith('/dashboard/prospection')) return 'Prospection';
-  if (pathname.startsWith('/dashboard/contacts')) return 'Contacts';
-  if (pathname.startsWith('/dashboard/biens')) return 'Biens';
-  if (pathname.startsWith('/dashboard/parametres')) return 'Équipe';
-  if (pathname.startsWith('/dashboard/equipe')) return 'Équipe';
-  if (pathname.startsWith('/dashboard/settings')) return 'Paramètres';
-  if (pathname.startsWith('/dashboard/notes')) return 'Notes';
-  if (pathname.startsWith('/dashboard/estimation')) return 'Estimation';
-  return '';
-}
-
-function isFieldPath(pathname: string): boolean {
+/** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
+function hideShellHeader(pathname: string): boolean {
   return (
-    pathname === '/dashboard' ||
-    pathname === '/dashboard/' ||
-    pathname.startsWith('/dashboard/carte') ||
-    pathname.startsWith('/dashboard/tournee')
+    pathname.startsWith('/dashboard/carte') || pathname.startsWith('/dashboard/tournee')
   );
 }
 
+function AccountButton({ onClick }: { onClick: () => void }) {
+  const { profile } = useUser();
+  const initials =
+    `${profile.first_name.trim().charAt(0)}${profile.last_name.trim().charAt(0)}`.toUpperCase() ||
+    '?';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Compte et réglages"
+      className="app-press mt-0.5 flex size-11 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+      style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+    >
+      {initials}
+    </button>
+  );
+}
+
+/**
+ * Bandeau terrain partagé : Bonjour + prénom, recherche, +, compte.
+ * Présent partout sauf Carte et Tournée.
+ * Au tap recherche, la barre remplace le salut.
+ */
 export default function MobileChrome() {
   const pathname = usePathname();
-  const router = useRouter();
+  const { profile } = useUser();
   const [accountOpen, setAccountOpen] = useState(false);
-  const { openMobileSearch, mobileSearchOpen } = useAssistant();
+  const { openMobileSearch, closeMobileSearch, mobileSearchOpen } = useAssistant();
 
-  if (isFieldPath(pathname)) return null;
+  if (hideShellHeader(pathname)) return null;
 
-  const title = titleForPath(pathname);
+  const prenom = profile.first_name.trim();
+  const greeting = prenom ? `Bonjour ${prenom}.` : 'Bonjour.';
 
   return (
     <>
-      <header
-        className="flex flex-shrink-0 items-center gap-1 border-b border-black/[0.06] bg-surface px-2"
-        style={{
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          minHeight: 'calc(52px + env(safe-area-inset-top, 0px))',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Retour"
-          className="app-press flex size-11 items-center justify-center rounded-full text-text"
+      <div className={`${SHELL_BG_CLASS} flex-shrink-0`}>
+        <header
+          className="relative z-[10] flex items-center gap-2 px-4 pb-3 pt-3"
+          style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}
         >
-          <ChevronLeft size={22} strokeWidth={2} aria-hidden />
-        </button>
-        <h1 className="min-w-0 flex-1 truncate font-semibold text-text-strong" style={{ fontSize: 17 }}>
-          {title}
-        </h1>
-        <button
-          type="button"
-          onClick={openMobileSearch}
-          aria-label="Rechercher"
-          className="app-press flex size-11 items-center justify-center rounded-full text-text"
-        >
-          <Search size={20} strokeWidth={2} aria-hidden />
-        </button>
-        <CreateMenu compact />
-        <AvatarButton onClick={() => setAccountOpen(true)} />
-      </header>
+          {mobileSearchOpen ? (
+            <>
+              <div className="min-w-0 flex-1">
+                <AssistantMobileSearchBar tone="shell" />
+              </div>
+              <button
+                type="button"
+                onClick={closeMobileSearch}
+                aria-label="Fermer la recherche"
+                className="app-press flex size-11 flex-shrink-0 items-center justify-center rounded-full text-white"
+                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+              >
+                <X size={20} strokeWidth={2} aria-hidden />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="truncate font-brand font-normal tracking-[-0.015em] text-white"
+                  style={{ fontSize: 24, lineHeight: 1.18 }}
+                >
+                  {greeting}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openMobileSearch}
+                aria-label="Rechercher"
+                className="app-press mt-0.5 flex size-11 flex-shrink-0 items-center justify-center rounded-full text-white"
+              >
+                <Search size={20} strokeWidth={2} aria-hidden />
+              </button>
+              <CreateMenu compact className="mt-0.5" />
+              <AccountButton onClick={() => setAccountOpen(true)} />
+            </>
+          )}
+        </header>
+      </div>
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
-      {mobileSearchOpen ? <AssistantMobileSearchBar /> : null}
     </>
   );
 }
@@ -80,7 +106,7 @@ export function MobileBackSwipe() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (isFieldPath(pathname)) return null;
+  if (hideShellHeader(pathname)) return null;
 
   return (
     <div

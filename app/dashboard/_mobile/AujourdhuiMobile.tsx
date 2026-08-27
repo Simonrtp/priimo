@@ -9,9 +9,8 @@ import type { Lead } from '@/types/lead';
 import type { HomeNote } from '@/lib/notes/inbox';
 import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
-import { phraseEquipe } from '@/lib/today/accueil-vue';
 import { dateKeyParis } from '@/lib/today/calendar';
-import { snoozeUntil, SHELL_BG_CLASS } from '@/lib/today/field';
+import { snoozeUntil } from '@/lib/today/field';
 import {
   buildSortie,
   buildTourneeFromSortie,
@@ -19,11 +18,9 @@ import {
   type SortiePlan,
   type SortieProgress,
 } from '@/lib/today/sortie';
-import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
+import { organizeTodayLayout } from '@/lib/today/visual-level';
 import { notifyError } from '@/lib/notify';
 import { vibrateBrief } from './aujourdhui/tap';
-import MobileAccountMenu from './MobileAccountMenu';
-import { StatusBand } from './aujourdhui/StatusBand';
 import {
   ConfirmDoneSheet,
   MaSemaine,
@@ -34,6 +31,7 @@ import TaskCard from './aujourdhui/TaskCard';
 import PortfolioBand from '@/components/dashboard/today/PortfolioBand';
 import RecentNotesCard from '@/components/dashboard/today/RecentNotesCard';
 import ZoneDuJourCard from '@/components/dashboard/today/ZoneDuJourCard';
+import { TourneeCard } from './aujourdhui/Tournee';
 import DirectorExceptions from '@/components/dashboard/today/DirectorExceptions';
 import DirectorMemberPanel from '@/components/dashboard/today/DirectorMemberPanel';
 
@@ -57,9 +55,9 @@ export default function AujourdhuiMobile({
   initialCards,
   initialLeads,
   profileId,
-  firstName,
+  firstName: _firstName,
   week,
-  sectorRef: _sectorRef,
+  sectorRef,
   portfolio,
   recentNotes,
   agencyOrigin,
@@ -92,7 +90,6 @@ export default function AujourdhuiMobile({
     dictees: [],
   });
   const [origin, setOrigin] = useState<GeoCoord | null>(agencyOrigin);
-  const [accountOpen, setAccountOpen] = useState(false);
   const [snoozeCard, setSnoozeCard] = useState<TodayCard | null>(null);
   const [confirmDone, setConfirmDone] = useState<TodayCard | null>(null);
   const [termineOpen, setTermineOpen] = useState(false);
@@ -100,10 +97,6 @@ export default function AujourdhuiMobile({
   const directorLayout = isDirector && !previewingAgent;
 
   const initialTotal = initialCards.length;
-  const hadLevel1Initially = useMemo(
-    () => initialCards.some((c) => visualLevel(c) === 1),
-    [initialCards],
-  );
 
   useEffect(() => {
     setCards(initialCards);
@@ -157,8 +150,6 @@ export default function AujourdhuiMobile({
   const emptyKind =
     total === 0 && initialTotal === 0 ? 'rien' : remaining === 0 && total > 0 ? 'bouclee' : null;
   const termineExpanded = termineOpen || emptyKind === 'bouclee';
-  const noUrgent =
-    hadLevel1Initially && layout.level1.length === 0 && (remaining > 0 || doneToday.length > 0);
 
   async function dismiss(card: TodayCard, snoozedUntil: string | null, asDone: boolean) {
     const previous = cards;
@@ -240,22 +231,7 @@ export default function AujourdhuiMobile({
   }
 
   return (
-    <div className="field-page-enter flex min-h-0 flex-1 flex-col bg-[#15202F]">
-      <div className={`${SHELL_BG_CLASS} flex-shrink-0 overflow-hidden`}>
-        <StatusBand
-          prenom={firstName}
-          remaining={remaining}
-          emptyKind={directorLayout ? null : emptyKind}
-          relancesProgrammees={week.relancesProgrammees}
-          rapprochements={week.rapprochements}
-          noUrgent={noUrgent}
-          onAccount={() => setAccountOpen(true)}
-          tone="shell"
-          directorTitle={directorLayout ? phraseEquipe(directorExceptions.length) : null}
-        />
-      </div>
-
-      <div className="relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base px-0 pb-4 pt-6">
+    <div className="field-page-enter relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base px-0 pb-4 pt-6">
         {previewingAgent ? (
           <p className="mx-4 rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
             Vue agent — ce que voit un collaborateur.{' '}
@@ -313,7 +289,20 @@ export default function AujourdhuiMobile({
 
         <div className="flex flex-col gap-4 px-4">
           <RecentNotesCard notes={recentNotes} />
-          {directorLayout ? null : <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />}
+          {directorLayout ? null : tournee ? (
+            <TourneeCard
+              tournee={tournee}
+              doneCount={
+                sortieProgress.signature === tournee.signature
+                  ? sortieProgress.done.length
+                  : 0
+              }
+              sectorRef={sectorRef}
+              onStart={() => startZone(tournee)}
+            />
+          ) : (
+            <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />
+          )}
         </div>
 
         {directorLayout ? null : (
@@ -326,7 +315,6 @@ export default function AujourdhuiMobile({
             />
           </div>
         )}
-      </div>
 
       <SnoozeSheet
         open={snoozeCard !== null}
@@ -351,8 +339,6 @@ export default function AujourdhuiMobile({
           }
         }}
       />
-
-      <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
 
       {openMemberId ? (
         <DirectorMemberPanel memberId={openMemberId} onClose={() => setOpenMemberId(null)} />

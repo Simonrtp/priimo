@@ -18,7 +18,6 @@ import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
 import InstallAppButton from '@/components/pwa/InstallAppButton';
 import SidebarCollapseTab from '@/components/dashboard/SidebarCollapseTab';
-import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import { useUser } from '@/lib/hooks/useUser';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
 
@@ -198,7 +197,6 @@ export default function Sidebar() {
         <div className={`mb-0.5 flex ${collapsed ? 'justify-center' : 'justify-end'}`}>
           <SidebarCollapseTab collapsed={collapsed} onToggle={toggleCollapsed} />
         </div>
-        <NoteCreateChooser variant="sidebar" collapsed={collapsed} />
       </div>
 
       <div className="sidebar-footer-extra">

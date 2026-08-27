@@ -120,16 +120,15 @@ function FieldBottomNav() {
   const [plusOpen, setPlusOpen] = useState(false);
 
   const activeToday = pathname === '/dashboard' || pathname === '/dashboard/';
-  const activeProspects = pathname.startsWith('/dashboard/prospection');
   const activeCarte = pathname.startsWith('/dashboard/carte');
   const activeTournee = pathname.startsWith('/dashboard/tournee');
   const activePlus =
     plusOpen ||
+    pathname.startsWith('/dashboard/prospection') ||
     pathname.startsWith('/dashboard/contacts') ||
     pathname.startsWith('/dashboard/biens') ||
     pathname.startsWith('/dashboard/settings');
 
-  // Pendant la tournée active, la barre reste pour le FAB dictée
   const hideSideTabs = activeTournee;
 
   return (
@@ -146,19 +145,27 @@ function FieldBottomNav() {
           {hideSideTabs ? (
             <>
               <div className="flex-1" aria-hidden />
-              <div className="w-16 flex-shrink-0" aria-hidden />
+              <div className="relative w-16 flex-shrink-0">
+                <div
+                  className="absolute left-1/2 z-10 -translate-x-1/2"
+                  style={{ top: -12 }}
+                >
+                  <NoteCreateChooser variant="fab" adresse={adresse ?? undefined} />
+                </div>
+              </div>
               <div className="flex-1" aria-hidden />
             </>
           ) : (
             <>
               <FieldTab href="/dashboard" label="Accueil" Icon={CalendarCheck} active={activeToday} />
-              <FieldTab
-                href="/dashboard/prospection"
-                label="Prospection"
-                Icon={Target}
-                active={activeProspects}
-              />
-              <div className="w-16 flex-shrink-0" aria-hidden />
+              <div className="relative w-16 flex-shrink-0">
+                <div
+                  className="absolute left-1/2 z-10 -translate-x-1/2"
+                  style={{ top: -12 }}
+                >
+                  <NoteCreateChooser variant="fab" adresse={adresse ?? undefined} />
+                </div>
+              </div>
               <FieldTab href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
               <button
                 type="button"
@@ -189,13 +196,6 @@ function FieldBottomNav() {
               </button>
             </>
           )}
-
-          <div
-            className="absolute left-1/2 z-10 -translate-x-1/2"
-            style={{ top: -12 }}
-          >
-            <NoteCreateChooser variant="fab" adresse={adresse ?? undefined} />
-          </div>
         </div>
       </nav>
       <FieldPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} />
