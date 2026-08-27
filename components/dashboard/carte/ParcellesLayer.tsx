@@ -34,26 +34,22 @@ export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 
 const FILL = 'rgba(61, 90, 128, 0.14)';
 const LINE = 'rgba(61, 90, 128, 0.4)';
-const DPE_DOT_IMAGE_ID = 'priimo-dpe-dot';
 const DPE_LETTER_FILTER: ExpressionSpecification = [
   'in',
   ['get', 'etiquette'],
   ['literal', ['A', 'B', 'C', 'D', 'E', 'F', 'G']],
 ];
-
-function makeSdfCircle(size = 64): ImageData {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new ImageData(size, size);
-  ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
-  ctx.fill();
-  return ctx.getImageData(0, 0, size, size);
-}
+const DPE_DOT_RADIUS: ExpressionSpecification = [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  14,
+  4,
+  16,
+  5.5,
+  18,
+  7,
+];
 
 type Pin = { parcelleId: string; longitude: number; latitude: number };
 type OverlayHover = { lng: number; lat: number; preview: HoverPreview };
@@ -117,7 +113,6 @@ export default function ParcellesLayer({
   selectedParcelleRef.current = selectedParcelleId;
   const [pins, setPins] = useState<Pin[]>([]);
   const [overlayHover, setOverlayHover] = useState<OverlayHover | null>(null);
-  const [dpeIconReady, setDpeIconReady] = useState(false);
 
   const noteByParcelle = useMemo(() => {
     const map = new Map<string, ParcelleNoteMarker>();
@@ -130,7 +125,7 @@ export default function ParcellesLayer({
   const overlayGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
     const features: GeoJSON.Feature[] = [];
     for (const row of immeubles) {
-      const letter = (row.etiquetteDpe ?? '').trim();
+      const letter = (row.etiquetteDpe ?? '').trim().toUpperCase();
       const hasDpe = /^[A-G]$/.test(letter);
       const hasVente = row.nbTransactions > 0;
       const hasCopro = row.nbLots != null || row.procedureCopro;
@@ -157,23 +152,10 @@ export default function ParcellesLayer({
     if (!map || !enabled) {
       setPins([]);
       setOverlayHover(null);
-      setDpeIconReady(false);
       return;
     }
 
     let cancelled = false;
-
-    const ensureDpeDot = () => {
-      if (cancelled) return;
-      try {
-        if (!map.hasImage(DPE_DOT_IMAGE_ID)) {
-          map.addImage(DPE_DOT_IMAGE_ID, makeSdfCircle(), { sdf: true });
-        }
-        setDpeIconReady(map.hasImage(DPE_DOT_IMAGE_ID));
-      } catch {
-        setDpeIconReady(false);
-      }
-    };
 
     const paintStates = () => {
       if (cancelled) return;
@@ -300,8 +282,6 @@ export default function ParcellesLayer({
     };
 
     map.on('idle', paintStates);
-    map.on('idle', ensureDpeDot);
-    map.on('style.load', ensureDpeDot);
     map.on('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
     map.on('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
     map.on('click', PARCELLES_FILL_LAYER_ID, onClick);
@@ -318,13 +298,10 @@ export default function ParcellesLayer({
     map.on('click', CADASTRE_VENTES_LAYER_ID, onOverlayClick);
     map.on('click', CADASTRE_COPRO_LAYER_ID, onOverlayClick);
     paintStates();
-    ensureDpeDot();
 
     return () => {
       cancelled = true;
       map.off('idle', paintStates);
-      map.off('idle', ensureDpeDot);
-      map.off('style.load', ensureDpeDot);
       map.off('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
       map.off('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
       map.off('click', PARCELLES_FILL_LAYER_ID, onClick);
@@ -405,35 +382,19 @@ export default function ParcellesLayer({
         />
       </Source>
       <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson}>
-        {layers.cadastreDpe && dpeIconReady ? (
+        {layers.cadastreDpe ? (
           <>
             <Layer
               id={CADASTRE_DPE_LAYER_ID}
-              type="symbol"
+              type="circle"
+              minzoom={14}
               filter={DPE_LETTER_FILTER}
-              layout={{
-                'icon-image': DPE_DOT_IMAGE_ID,
-                'icon-size': [
-                  'interpolate',
-                  ['linear'],
-                  ['zoom'],
-                  14,
-                  0.18,
-                  16,
-                  0.24,
-                  18,
-                  0.3,
-                ],
-                'icon-allow-overlap': true,
-                'icon-ignore-placement': true,
-                'icon-pitch-alignment': 'viewport',
-                'icon-rotation-alignment': 'viewport',
-                'symbol-z-elevate': true,
-              }}
               paint={{
-                'icon-color': dpeMatch,
-                'icon-halo-color': '#F4EFE8',
-                'icon-halo-width': 0.9,
+                'circle-radius': DPE_DOT_RADIUS,
+                'circle-color': dpeMatch,
+                'circle-stroke-width': 1.25,
+                'circle-stroke-color': '#F4EFE8',
+                'circle-opacity': 0.95,
               }}
             />
             <Layer
@@ -449,9 +410,12 @@ export default function ParcellesLayer({
                 'text-ignore-placement': true,
                 'text-pitch-alignment': 'viewport',
                 'text-rotation-alignment': 'viewport',
-                'symbol-z-elevate': true,
               }}
-              paint={{ 'text-color': '#FFFFFF' }}
+              paint={{
+                'text-color': '#FFFFFF',
+                'text-halo-color': 'rgba(0,0,0,0.25)',
+                'text-halo-width': 0.6,
+              }}
             />
           </>
         ) : null}
