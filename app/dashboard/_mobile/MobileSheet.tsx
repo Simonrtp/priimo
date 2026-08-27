@@ -39,8 +39,11 @@ export default function MobileSheet({
 
   if (!open) return null;
 
-  const heightPct = 90;
-  const hiddenPct = (0.9 - SNAPS[snap]) * 100;
+  /**
+   * La feuille mesure exactement sa hauteur d'accroche : sinon le contenu
+   * défilant déborde sous l'écran et les dernières lignes sont inatteignables.
+   */
+  const heightPct = SNAPS[snap] * 100;
 
   return (
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title}>
@@ -55,12 +58,12 @@ export default function MobileSheet({
         }}
       />
       <div
-        className="absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-2xl bg-surface shadow-clay-lg"
+        className="animate-app-sheet absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-2xl bg-surface shadow-clay-lg"
         style={{
           height: `${heightPct}dvh`,
-          transform: `translateY(${hiddenPct}dvh)`,
+          maxHeight: '92dvh',
           paddingBottom: 'var(--field-nav-height)',
-          transition: 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+          transition: 'height 200ms cubic-bezier(0.32, 0.72, 0, 1)',
         }}
       >
         <div

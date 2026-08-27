@@ -1506,6 +1506,25 @@ html:has(.feature-page) {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* Brief de tournée : la carte monte, puis chaque ligne arrive à son tour. */
+.tour-brief {
+  animation: tour-brief-card 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.tour-brief__block {
+  animation: tour-brief-line 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tour-brief-card {
+  from { transform: translateY(28px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes tour-brief-line {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @keyframes pipeline-mandat-celebrate {
   0%, 100% {
     transform: scale(1);
@@ -1530,6 +1549,11 @@ html:has(.feature-page) {
   .field-fiche-enter {
     animation-duration: 80ms;
     animation-timing-function: ease-out;
+  }
+
+  .tour-brief,
+  .tour-brief__block {
+    animation: field-fade-in 100ms ease-out both;
   }
 
   .pipeline-column-celebrate {

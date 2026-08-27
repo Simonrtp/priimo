@@ -9,17 +9,13 @@ import {
   buildSortie,
   isLeadForSortie,
   leadToSortieStop,
-  MAX_SORTIE_STOPS,
   type SortiePlan,
   type SortieStop,
 } from '@/lib/today/sortie';
-import { rebuildPlanFromStops } from '@/lib/today/sortie-session';
 
 export type CarteStopSource = 'mine' | 'pool' | 'manual' | 'batch';
 
 export type CarteStopCandidate = SortieStop & { source: CarteStopSource };
-
-export type BatchScope = 'all' | 'mine';
 
 export type LatestBatchCandidates = {
   deliveredAt: string | null;
@@ -60,31 +56,6 @@ export function latestBatchCandidates(
   };
 }
 
-/** Sélectionne les arrêts du lot (max 10, meilleurs scores). */
-export function batchKeysForScope(
-  batch: LatestBatchCandidates,
-  scope: BatchScope,
-): string[] {
-  const source = scope === 'mine' ? batch.mine : batch.all;
-  return source.slice(0, MAX_SORTIE_STOPS).map((s) => s.key);
-}
-
-export function applyBatchSelection(
-  batch: LatestBatchCandidates,
-  scope: BatchScope,
-  manualKeys: readonly string[],
-  previousSelected: ReadonlySet<string>,
-): Set<string> {
-  const batchKeySet = new Set([...batch.all, ...batch.mine].map((s) => s.key));
-  const next = new Set<string>();
-  for (const key of previousSelected) {
-    if (!batchKeySet.has(key)) next.add(key);
-  }
-  for (const key of manualKeys) next.add(key);
-  for (const key of batchKeysForScope(batch, scope)) next.add(key);
-  return next;
-}
-
 export function searchResultToManualStop(input: {
   label: string;
   latitude: number;
@@ -92,7 +63,9 @@ export function searchResultToManualStop(input: {
   banId?: string | null;
   postalCode?: string | null;
 }): SortieStop {
-  const key = input.banId ? `ban:${input.banId}` : `search:${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}`;
+  const key = input.banId
+    ? `ban:${input.banId}`
+    : `search:${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}`;
   return {
     key,
     leadId: key,
@@ -109,48 +82,12 @@ export function searchResultToManualStop(input: {
   };
 }
 
-export function categorizeLeads(
-  leads: readonly Lead[],
-  profileId: string,
-): { mine: CarteStopCandidate[]; pool: CarteStopCandidate[] } {
-  const mine: CarteStopCandidate[] = [];
-  const pool: CarteStopCandidate[] = [];
-  for (const lead of leads) {
-    if (!isLeadForSortie(lead, profileId)) continue;
-    const stop = leadToSortieStop(lead);
-    if (!stop) continue;
-    if (lead.assignedTo === profileId) {
-      mine.push({ ...stop, source: 'mine' });
-    } else {
-      pool.push({ ...stop, source: 'pool' });
-    }
-  }
-  mine.sort((a, b) => b.score - a.score);
-  pool.sort((a, b) => b.score - a.score);
-  return { mine, pool };
-}
-
 export function suggestedSortiePlan(
   leads: readonly Lead[],
   profileId: string,
   origin: GeoCoord | null,
 ): SortiePlan | null {
   return buildSortie(leads, profileId, origin);
-}
-
-export function defaultSelectedKeys(
-  plan: SortiePlan | null,
-  batch: LatestBatchCandidates,
-  scope: BatchScope = 'mine',
-  manualKeys: readonly string[] = [],
-): Set<string> {
-  if (plan && plan.ordered.length > 0) {
-    return new Set(plan.ordered.map((s) => s.key));
-  }
-  if (batch.all.length > 0) {
-    return applyBatchSelection(batch, scope, manualKeys, new Set());
-  }
-  return new Set(manualKeys);
 }
 
 export function buildingToManualStop(building: BuildingMarker): SortieStop | null {
@@ -185,24 +122,4 @@ export function buildingToManualStop(building: BuildingMarker): SortieStop | nul
     banId: building.banId,
     postalCode: building.postalCode,
   };
-}
-
-export function buildPlanFromSelection(
-  candidates: Map<string, SortieStop>,
-  selectedKeys: ReadonlySet<string>,
-  origin: GeoCoord | null,
-): SortiePlan | null {
-  const stops = [...selectedKeys]
-    .map((key) => candidates.get(key))
-    .filter((s): s is SortieStop => Boolean(s));
-  return rebuildPlanFromStops(stops, origin);
-}
-
-export function mergeCandidates(
-  batch: LatestBatchCandidates,
-  manual: readonly SortieStop[],
-): Map<string, SortieStop> {
-  const map = new Map<string, SortieStop>();
-  for (const s of [...batch.all, ...manual]) map.set(s.key, s);
-  return map;
 }

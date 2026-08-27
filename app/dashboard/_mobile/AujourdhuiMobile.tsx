@@ -18,6 +18,7 @@ import {
   type SortiePlan,
   type SortieProgress,
 } from '@/lib/today/sortie';
+import { CARTE_TOURNEE_HREF } from '@/lib/today/directions';
 import { organizeTodayLayout } from '@/lib/today/visual-level';
 import { notifyError } from '@/lib/notify';
 import { vibrateBrief } from './aujourdhui/tap';
@@ -226,8 +227,9 @@ export default function AujourdhuiMobile({
     );
   }
 
+  /** Même destination que le bouton « Tournée » de la carte : la séquence y démarre seule. */
   function startZone(_plan: SortiePlan) {
-    router.push('/dashboard/tournee');
+    router.push(CARTE_TOURNEE_HREF);
   }
 
   return (

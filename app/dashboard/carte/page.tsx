@@ -28,7 +28,7 @@ export const metadata = {
 export default async function CartePage({
   searchParams,
 }: {
-  searchParams: Promise<{ immeuble?: string; itineraire?: string }>;
+  searchParams: Promise<{ immeuble?: string; itineraire?: string; tournee?: string }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
@@ -57,7 +57,7 @@ export default async function CartePage({
     notes: visibleVoiceNotesFor(viewer, notes),
   });
 
-  const { immeuble, itineraire } = params;
+  const { immeuble, itineraire, tournee } = params;
   const membersUi = members.map((m) => ({ id: m.id, fullName: m.fullName }));
   const plan = itineraire === '1' ? buildSortie(visibleLeads, profile.id, null) : null;
   const itineraryStops = plan ? toItineraireStops(plan.ordered) : null;
@@ -82,6 +82,7 @@ export default async function CartePage({
         initialBanId={immeuble ?? null}
         itineraryStops={itineraryStops}
         showItineraire={itineraire === '1'}
+        autoTournee={tournee === '1' && profile.role !== 'directeur'}
       />
     );
   }

@@ -1,13 +1,12 @@
 import type { GeoCoord } from '@/lib/carte/coords';
 import {
   haversineM,
-  orderNearestNeighbor,
-  pathDistanceM,
   sortieSignature,
   type SortiePlan,
   type SortieProgress,
   type SortieStop,
 } from '@/lib/today/sortie';
+import { loopDistanceM, optimizeLoopOrder } from '@/lib/today/route-optimize';
 import { dateKeyParis } from '@/lib/today/calendar';
 
 export type SortiePhase = 'prep' | 'active' | 'bilan';
@@ -91,19 +90,17 @@ export function activeStops(plan: SortiePlan, session: SortieSession): SortieSto
   return plan.ordered.filter((s) => !removed.has(s.key));
 }
 
+/** Boucle optimisée : départ → arrêts → départ. */
 export function rebuildPlanFromStops(
   stops: readonly SortieStop[],
   origin: GeoCoord | null,
 ): SortiePlan | null {
   if (stops.length === 0) return null;
-  const orderedLocated = orderNearestNeighbor(stops, origin);
-  const ordered = orderedLocated
-    .map((t) => stops.find((s) => s.key === t.key)!)
-    .filter(Boolean);
+  const ordered = optimizeLoopOrder(stops, origin);
   if (ordered.length === 0) return null;
   return {
     ordered,
-    distanceM: pathDistanceM(ordered, origin),
+    distanceM: loopDistanceM(ordered, origin),
     signature: sortieSignature(ordered),
   };
 }

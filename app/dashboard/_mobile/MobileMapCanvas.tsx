@@ -6,7 +6,7 @@ import '@/components/dashboard/carte/carte.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
-import { MAP_3D_BEARING, MAP_3D_PITCH, NAV_MAP_PITCH } from '@/lib/map/camera';
+import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
 import { computeLngLatBounds } from '@/lib/carte/bounds';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
@@ -14,6 +14,7 @@ import { toGeoCoord } from '@/lib/carte/coords';
 import { clusterBuildings } from '@/lib/carte/cluster';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
+import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
@@ -27,12 +28,9 @@ import type { MapLayerState } from '@/lib/carte/layers';
 import type { DevicePosition } from '@/lib/voice/gps';
 
 export type MobileMapHandle = {
-  recenter: (coord: { latitude: number; longitude: number }) => void;
+  recenter: (coord: { latitude: number; longitude: number }, zoom?: number) => void;
   fitGroup: (buildings: readonly BuildingMarker[]) => void;
-  followAgent: (
-    pos: DevicePosition,
-    opts?: { bearing?: number | null; zoom?: number },
-  ) => void;
+  fitStops: (stops: readonly { latitude: number; longitude: number }[]) => void;
 };
 
 function boundsToViewport(map: MapRef): MapViewport | null {
@@ -72,9 +70,7 @@ export default function MobileMapCanvas({
   onSelectParcelle,
   agentPosition = null,
   highlightBanIds = null,
-  navigationMode = false,
-  followAgent = false,
-  followBearing = null,
+  dimension = '2d',
   suppressAutoFit = false,
   onUserInteract,
 }: {
@@ -97,16 +93,16 @@ export default function MobileMapCanvas({
   onSelectParcelle?: (parcelleId: string) => void;
   agentPosition?: DevicePosition | null;
   highlightBanIds?: ReadonlySet<string> | null;
-  /** Vue guidage (pitch élevé, suit la position). */
-  navigationMode?: boolean;
-  followAgent?: boolean;
-  followBearing?: number | null;
+  /** Plan à plat ou relief des immeubles. */
+  dimension?: MapDimension;
   suppressAutoFit?: boolean;
   onUserInteract?: () => void;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [zoom, setZoom] = useState(13);
+  const [styleReady, setStyleReady] = useState(false);
+  const camera = cameraFor(dimension);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -127,21 +123,18 @@ export default function MobileMapCanvas({
     return null;
   }, [itineraryGeometry, itineraryStops]);
 
-  const fitToPoints = useCallback(
-    (animate: boolean, group?: readonly BuildingMarker[]) => {
+  const fitBoundsTo = useCallback(
+    (bounds: ReturnType<typeof computeLngLatBounds>, animate: boolean) => {
       const map = mapRef.current;
       if (!map) return;
-      const source = group && group.length > 0 ? group : buildings;
-      const bounds =
-        !group && itineraryBounds ? itineraryBounds : computeLngLatBounds(source);
       const duration = animate ? 400 : 0;
       if (!bounds) {
         if (fallback) {
           map.easeTo({
             center: [fallback.longitude, fallback.latitude],
             zoom: 16,
-            pitch: MAP_3D_PITCH,
-            bearing: MAP_3D_BEARING,
+            pitch: camera.pitch,
+            bearing: camera.bearing,
             duration,
           });
         } else {
@@ -158,21 +151,29 @@ export default function MobileMapCanvas({
         map.easeTo({
           center: [west, south],
           zoom: 16,
-          pitch: MAP_3D_PITCH,
-          bearing: MAP_3D_BEARING,
+          pitch: camera.pitch,
+          bearing: camera.bearing,
           duration,
         });
         return;
       }
       map.fitBounds(bounds, {
-        padding: { top: 80, bottom: 120, left: 40, right: 40 },
+        padding: { top: 80, bottom: 160, left: 40, right: 40 },
         maxZoom: 17,
         duration,
-        pitch: MAP_3D_PITCH,
-        bearing: MAP_3D_BEARING,
+        pitch: camera.pitch,
+        bearing: camera.bearing,
       });
     },
-    [fallback, buildings, itineraryBounds],
+    [fallback, camera.pitch, camera.bearing],
+  );
+
+  const fitToPoints = useCallback(
+    (animate: boolean, group?: readonly BuildingMarker[]) => {
+      const source = group && group.length > 0 ? group : buildings;
+      fitBoundsTo(!group && itineraryBounds ? itineraryBounds : computeLngLatBounds(source), animate);
+    },
+    [buildings, itineraryBounds, fitBoundsTo],
   );
 
   useEffect(() => {
@@ -181,60 +182,32 @@ export default function MobileMapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsSignature, itineraryBounds, suppressAutoFit]);
 
+  /** Bascule 2D ↔ 3D : seule la caméra bouge, le cadrage reste. */
   useEffect(() => {
-    if (!followAgent || !agentPosition) return;
     const map = mapRef.current;
     if (!map) return;
-    const bearing =
-      followBearing ??
-      (agentPosition.headingDeg != null && Number.isFinite(agentPosition.headingDeg)
-        ? agentPosition.headingDeg
-        : MAP_3D_BEARING);
-    map.easeTo({
-      center: [agentPosition.longitude, agentPosition.latitude],
-      zoom: navigationMode ? 17.5 : 16,
-      pitch: navigationMode ? NAV_MAP_PITCH : MAP_3D_PITCH,
-      bearing,
-      duration: navigationMode ? 280 : 400,
-      essential: true,
-    });
-  }, [
-    agentPosition?.latitude,
-    agentPosition?.longitude,
-    agentPosition?.headingDeg,
-    followAgent,
-    followBearing,
-    navigationMode,
-  ]);
+    map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
+  }, [camera.pitch, camera.bearing]);
 
   useEffect(() => {
     if (!mapRefOut) return;
     mapRefOut.current = {
-      recenter: (coord) => {
+      recenter: (coord, zoomLevel) => {
         mapRef.current?.easeTo({
           center: [coord.longitude, coord.latitude],
-          zoom: 16,
-          pitch: MAP_3D_PITCH,
-          bearing: MAP_3D_BEARING,
+          zoom: zoomLevel ?? 16,
+          pitch: camera.pitch,
+          bearing: camera.bearing,
           duration: 400,
         });
       },
       fitGroup: (group) => fitToPoints(true, group),
-      followAgent: (pos, opts) => {
-        mapRef.current?.easeTo({
-          center: [pos.longitude, pos.latitude],
-          zoom: opts?.zoom ?? 17.5,
-          pitch: NAV_MAP_PITCH,
-          bearing: opts?.bearing ?? MAP_3D_BEARING,
-          duration: 280,
-          essential: true,
-        });
-      },
+      fitStops: (stops) => fitBoundsTo(computeLngLatBounds(stops), true),
     };
     return () => {
       mapRefOut.current = null;
     };
-  }, [mapRefOut, fitToPoints]);
+  }, [mapRefOut, fitToPoints, fitBoundsTo, camera.pitch, camera.bearing]);
 
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;
@@ -276,6 +249,7 @@ export default function MobileMapCanvas({
           const next = map ? boundsToViewport(map) : null;
           if (next) onViewport(next);
           if (map) setZoom(map.getZoom());
+          setStyleReady(true);
           fitToPoints(false);
         }}
         onMoveEnd={(event) => {
@@ -302,6 +276,7 @@ export default function MobileMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
+        <Buildings3DLayer mapRef={mapRef} enabled={dimension === '3d'} ready={styleReady} />
         <ParcellesLayer
           mapRef={mapRef}
           enabled={parcellesEnabled}

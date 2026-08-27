@@ -4,6 +4,8 @@ export const MAX_DIRECTIONS_WAYPOINTS = 25;
 /** Au-delà, le GPS n’est plus un départ de tournée (agence trop loin, cache périmé). */
 export const ORIGIN_MAX_M = 5_000;
 export const CARTE_ITINERAIRE_HREF = '/dashboard/carte?itineraire=1';
+/** Ouvre la carte et lance la séquence de tournée. */
+export const CARTE_TOURNEE_HREF = '/dashboard/carte?tournee=1';
 
 export type RoutePoint = {
   latitude: number;

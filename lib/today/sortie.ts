@@ -1,6 +1,10 @@
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { Lead } from '@/types/lead';
+import { haversineM } from '@/lib/geo/distance';
+import { loopDistanceM, optimizeLoopOrder } from './route-optimize';
 import { TOURNEE_RADIUS_M } from './field';
+
+export { haversineM };
 
 export const MAX_SORTIE_STOPS = 10;
 
@@ -35,8 +39,6 @@ export type SortieProgress = {
   dictees: string[];
 };
 
-const EARTH_M = 6_371_000;
-
 const CLOSED_STATUSES = new Set(['mandat_signe', 'pas_interesse', 'vendeur_ailleurs']);
 
 export function sortieStorageKey(profileId: string, day: string): string {
@@ -50,15 +52,6 @@ export function tourneeStorageKey(profileId: string, day: string): string {
 
 export function sortieSignature(stops: readonly Pick<LocatedTask, 'key'>[]): string {
   return [...stops.map((s) => s.key)].sort().join('|');
-}
-
-export function haversineM(a: GeoCoord, b: GeoCoord): number {
-  const φ1 = (a.latitude * Math.PI) / 180;
-  const φ2 = (b.latitude * Math.PI) / 180;
-  const Δφ = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const Δλ = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const s = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return 2 * EARTH_M * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
 /** Au-delà, l'agent est considéré déjà sur le terrain. */
@@ -226,8 +219,9 @@ function selectPool(
 }
 
 /**
- * Sélectionne jusqu'à 10 adresses non travaillées, regroupées par proximité,
- * ordonnées au plus proche voisin.
+ * Sélectionne jusqu'à 10 adresses non travaillées, regroupées par proximité.
+ * Le plus proche voisin choisit *lesquelles* ; l'optimiseur choisit l'ordre
+ * de la boucle (départ → arrêts → départ) et la distance annoncée.
  */
 export function buildSortie(
   leads: readonly Lead[],
@@ -244,17 +238,18 @@ export function buildSortie(
 
   const pool = selectPool(stops, origin, radiusM);
   const anchor = origin ?? (pool[0] ? asCoord(pool[0]) : null);
-  const orderedLocated = orderNearestNeighbor(pool, anchor);
-  const ordered = orderedLocated
+  const retained = orderNearestNeighbor(pool, anchor)
     .slice(0, MAX_SORTIE_STOPS)
     .map((t) => pool.find((s) => s.key === t.key)!)
     .filter(Boolean);
 
-  if (ordered.length === 0) return null;
+  if (retained.length === 0) return null;
+
+  const ordered = optimizeLoopOrder(retained, anchor);
 
   return {
     ordered,
-    distanceM: pathDistanceM(ordered, anchor),
+    distanceM: loopDistanceM(ordered, anchor),
     signature: sortieSignature(ordered),
   };
 }
