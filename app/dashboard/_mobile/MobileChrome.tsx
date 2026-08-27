@@ -4,7 +4,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import MobileAccountMenu from './MobileAccountMenu';
-import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import { useUser } from '@/lib/hooks/useUser';
@@ -36,9 +35,8 @@ function AccountButton({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * Bandeau terrain partagé : Bonjour + prénom, recherche, +, compte.
- * Présent partout sauf Carte et Tournée.
- * Au tap recherche, la barre remplace le salut.
+ * Bandeau terrain : Bonjour + prénom, recherche, compte.
+ * Création (contact / bien / note) → onglet Plus en bas.
  */
 export default function MobileChrome() {
   const pathname = usePathname();
@@ -91,7 +89,6 @@ export default function MobileChrome() {
               >
                 <Search size={20} strokeWidth={2} aria-hidden />
               </button>
-              <CreateMenu compact className="mt-0.5" />
               <AccountButton onClick={() => setAccountOpen(true)} />
             </>
           )}

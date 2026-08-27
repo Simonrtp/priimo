@@ -114,7 +114,7 @@ export default function FieldPlusSheet({
           >
             <div className="flex items-center justify-between px-5 pb-2 pt-4">
               <p className="font-semibold text-text-strong" style={{ fontSize: 17 }}>
-                Plus
+                Créer
               </p>
               <button
                 type="button"
@@ -126,9 +126,6 @@ export default function FieldPlusSheet({
               </button>
             </div>
 
-            <p className="px-5 pb-1 text-[12.5px] font-semibold uppercase tracking-wide text-text-muted">
-              Créer
-            </p>
             <ul className="px-3 pb-3">
               {creates.map(({ label, hint, Icon, onClick }) => (
                 <li key={label}>

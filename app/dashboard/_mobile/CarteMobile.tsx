@@ -49,7 +49,6 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import MobileMapCanvas, { type MobileMapHandle } from './MobileMapCanvas';
 import MobileSheet from './MobileSheet';
 import MobileAccountMenu, { AvatarButton } from './MobileAccountMenu';
-import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
@@ -283,12 +282,7 @@ export default function CarteMobile({
                   Rechercher une adresse, un contact
                 </span>
               </button>
-              {!hideAccount ? (
-                <>
-                  <CreateMenu compact />
-                  <AvatarButton onClick={() => setAccountOpen(true)} />
-                </>
-              ) : null}
+              {!hideAccount ? <AvatarButton onClick={() => setAccountOpen(true)} /> : null}
             </>
           )}
         </div>

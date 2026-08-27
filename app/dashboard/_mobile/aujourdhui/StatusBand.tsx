@@ -3,7 +3,6 @@
 import { dateDuJour } from '@/lib/today/cards';
 import { FIELD, phraseEtat, phraseNotesReturn } from '@/lib/today/field';
 import { useUser } from '@/lib/hooks/useUser';
-import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import { Search } from 'lucide-react';
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
@@ -117,7 +116,6 @@ export function StatusBand({
         >
           <Search size={20} strokeWidth={2} aria-hidden />
         </button>
-        <CreateMenu compact />
         <AccountButton onClick={onAccount} tone={tone} className={shell ? 'mt-1' : undefined} />
       </header>
       {mobileSearchOpen ? <AssistantMobileSearchBar /> : null}

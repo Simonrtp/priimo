@@ -16,6 +16,7 @@ import WorkspacePanel from '@/components/dashboard/workspace/WorkspacePanel';
 import OfflineQueueProvider from '@/components/dashboard/field/OfflineQueueProvider';
 import TourneeDictationProvider from '@/components/dashboard/field/TourneeDictationProvider';
 import MobileChrome, { MobileBackSwipe } from './_mobile/MobileChrome';
+import TouchScrollGuard from './_mobile/TouchScrollGuard';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <AssistantProvider>
                     {isMobile ? (
                       <div className="dashboard-mobile flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
+                        <TouchScrollGuard />
                         <MobileChrome />
                         <main
                           className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"

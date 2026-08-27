@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarCheck, Map, MoreHorizontal, Settings, Target, Building2, Users } from 'lucide-react';
+import { CalendarCheck, Map, Plus, Settings, Target, Building2, Users } from 'lucide-react';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import FieldPlusSheet from '@/components/dashboard/field/FieldPlusSheet';
@@ -170,11 +170,11 @@ function FieldBottomNav() {
               <button
                 type="button"
                 onClick={() => setPlusOpen(true)}
-                aria-label="Plus"
+                aria-label="Créer"
                 aria-expanded={plusOpen}
                 className="app-press relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1"
               >
-                <MoreHorizontal
+                <Plus
                   size={22}
                   strokeWidth={activePlus ? 2.4 : 2}
                   color={activePlus ? ACCENT : INACTIVE}
@@ -184,7 +184,7 @@ function FieldBottomNav() {
                   className="text-center font-semibold"
                   style={{ fontSize: 11.5, color: activePlus ? ACCENT : INACTIVE }}
                 >
-                  Plus
+                  Créer
                 </span>
                 {pending > 0 ? (
                   <span

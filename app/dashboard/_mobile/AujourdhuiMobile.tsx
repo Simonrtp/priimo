@@ -241,6 +241,26 @@ export default function AujourdhuiMobile({
             .
           </p>
         ) : null}
+
+        {directorLayout ? null : (
+          <div className="px-4">
+            {tournee ? (
+              <TourneeCard
+                tournee={tournee}
+                doneCount={
+                  sortieProgress.signature === tournee.signature
+                    ? sortieProgress.done.length
+                    : 0
+                }
+                sectorRef={sectorRef}
+                onStart={() => startZone(tournee)}
+              />
+            ) : (
+              <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />
+            )}
+          </div>
+        )}
+
         <div className="px-4">
           <PortfolioBand stats={portfolio} />
         </div>
@@ -289,20 +309,6 @@ export default function AujourdhuiMobile({
 
         <div className="flex flex-col gap-4 px-4">
           <RecentNotesCard notes={recentNotes} />
-          {directorLayout ? null : tournee ? (
-            <TourneeCard
-              tournee={tournee}
-              doneCount={
-                sortieProgress.signature === tournee.signature
-                  ? sortieProgress.done.length
-                  : 0
-              }
-              sectorRef={sectorRef}
-              onStart={() => startZone(tournee)}
-            />
-          ) : (
-            <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />
-          )}
         </div>
 
         {directorLayout ? null : (
