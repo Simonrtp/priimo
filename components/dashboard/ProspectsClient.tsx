@@ -21,6 +21,7 @@ import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
 import { useUser } from '@/lib/hooks/useUser';
+import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { pickTourLeadId } from '@/lib/tour-lead';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
@@ -84,10 +85,13 @@ export default function ProspectsClient({
 }: ProspectsClientProps) {
   const { profile } = useUser();
   const router = useRouter();
+  const device = useDevice();
   const wide = useWideViewport(false);
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
   const vueFromUrl = vueState;
-  const vue: ProspectionVue = vueFromUrl === 'pipeline' && !wide ? 'liste' : vueFromUrl;
+  // Terrain : liste seule — le kanban n'a aucun sens au pouce.
+  const vue: ProspectionVue =
+    device === 'mobile' ? 'liste' : vueFromUrl === 'pipeline' && !wide ? 'liste' : vueFromUrl;
 
   useEffect(() => {
     setVueState(initialVue);
@@ -387,7 +391,8 @@ export default function ProspectsClient({
     void dismissPipelineBanner();
   }, [dismissPipelineBanner]);
 
-  const switcher = <ProspectsViewSwitch value={vue} onChange={setVue} />;
+  const switcher =
+    device === 'mobile' ? null : <ProspectsViewSwitch value={vue} onChange={setVue} />;
 
   return (
     <div className="w-full min-w-0">
@@ -401,7 +406,7 @@ export default function ProspectsClient({
 
       {vue === 'pipeline' ? (
         <>
-          <div className="mb-4 flex items-center justify-end">{switcher}</div>
+          {switcher ? <div className="mb-4 flex items-center justify-end">{switcher}</div> : null}
           <PipelineFilters
             scope={pipelineScope}
             onScope={setPipelineScope}
@@ -425,7 +430,7 @@ export default function ProspectsClient({
         <>
           <div className="flex flex-col">
             <div className="order-3 mb-3 md:mb-3">
-              <div className="mb-3 flex justify-end">{switcher}</div>
+              {switcher ? <div className="mb-3 flex justify-end">{switcher}</div> : null}
               <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
               <ProspectsListToolbar

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { sourcesFromContext } from '@/lib/estimation/sources';
 
 export const runtime = 'nodejs';
 
@@ -85,6 +86,7 @@ export async function GET(
     reliabilityLabel: row.reliability_label,
     comparables,
     context: row.context,
+    sources: sourcesFromContext(row.context),
     createdAt: row.created_at,
     agencyName: agency?.name ?? 'Agence',
     agencyPhone: agency?.phone ?? null,

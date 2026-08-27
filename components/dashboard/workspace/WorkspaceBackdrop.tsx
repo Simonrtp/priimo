@@ -18,6 +18,7 @@ type Variant = 'today' | 'prospection' | 'contacts' | 'biens' | 'settings';
 
 function variantForPath(pathname: string): Variant {
   if (pathname.startsWith('/dashboard/prospection')) return 'prospection';
+  if (pathname.startsWith('/dashboard/estimation')) return 'prospection';
   if (pathname.startsWith('/dashboard/contacts')) return 'contacts';
   if (pathname.startsWith('/dashboard/biens')) return 'biens';
   if (pathname.startsWith('/dashboard/settings')) return 'settings';

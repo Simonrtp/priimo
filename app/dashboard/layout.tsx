@@ -13,6 +13,8 @@ import DashboardTourProvider from '@/components/dashboard/tour/TourProvider';
 import VoiceCaptureProvider from '@/components/dashboard/voice/VoiceCaptureProvider';
 import AssistantProvider from '@/components/dashboard/assistant/AssistantProvider';
 import WorkspacePanel from '@/components/dashboard/workspace/WorkspacePanel';
+import OfflineQueueProvider from '@/components/dashboard/field/OfflineQueueProvider';
+import TourneeDictationProvider from '@/components/dashboard/field/TourneeDictationProvider';
 import MobileChrome, { MobileBackSwipe } from './_mobile/MobileChrome';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
 
@@ -32,34 +34,38 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DeviceProvider device={device}>
         <DeviceSync serverDevice={device} />
         <DashboardTourProvider>
-          <VoiceCaptureProvider>
-            <AssistantProvider>
-                {isMobile ? (
-                  <div className="dashboard-mobile flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
-                    <MobileChrome />
-                    <main
-                      className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none"
-                      style={{ paddingBottom: 'var(--field-nav-height)' }}
-                    >
-                      {children}
-                    </main>
-                    <MobileBottomNav />
-                    <MobileBackSwipe />
-                  </div>
-                ) : (
-                  <div className="flex h-dvh min-h-0 overflow-hidden">
-                    <Sidebar />
-                    <div className={`${SHELL_BG_CLASS} relative flex min-w-0 flex-1 flex-col`}>
-                      <TopBar />
-                      <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
-                        <WorkspacePanel>{children}</WorkspacePanel>
-                      </main>
-                    </div>
-                    <MobileBottomNav />
-                  </div>
-                )}
-            </AssistantProvider>
-          </VoiceCaptureProvider>
+          <OfflineQueueProvider>
+            <TourneeDictationProvider>
+              <VoiceCaptureProvider>
+                <AssistantProvider>
+                    {isMobile ? (
+                      <div className="dashboard-mobile flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
+                        <MobileChrome />
+                        <main
+                          className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none"
+                          style={{ paddingBottom: 'var(--field-nav-height)' }}
+                        >
+                          {children}
+                        </main>
+                        <MobileBottomNav />
+                        <MobileBackSwipe />
+                      </div>
+                    ) : (
+                      <div className="flex h-dvh min-h-0 overflow-hidden">
+                        <Sidebar />
+                        <div className={`${SHELL_BG_CLASS} relative flex min-w-0 flex-1 flex-col`}>
+                          <TopBar />
+                          <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
+                            <WorkspacePanel>{children}</WorkspacePanel>
+                          </main>
+                        </div>
+                        <MobileBottomNav />
+                      </div>
+                    )}
+                </AssistantProvider>
+              </VoiceCaptureProvider>
+            </TourneeDictationProvider>
+          </OfflineQueueProvider>
         </DashboardTourProvider>
       </DeviceProvider>
     </UserProvider>

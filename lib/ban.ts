@@ -46,8 +46,12 @@ function asBanFeature(feature: BanSearchFeature): BanFeature | null {
   };
 }
 
-export async function searchBanAddresses(query: string, limit = 5): Promise<BanFeature[]> {
-  const features = await searchBan(query, { limit });
+export async function searchBanAddresses(
+  query: string,
+  limit = 5,
+  postcode?: string,
+): Promise<BanFeature[]> {
+  const features = await searchBan(query, { limit, postcode });
   return features.flatMap((feature) => {
     const mapped = asBanFeature(feature);
     return mapped ? [mapped] : [];

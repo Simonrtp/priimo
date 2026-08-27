@@ -34,7 +34,11 @@ import {
   type WithoutPositionCount,
 } from '@/lib/carte/points';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { readDevicePosition } from '@/lib/voice/gps';
+import {
+  requestDevicePosition,
+  watchDevicePosition,
+  type DevicePosition,
+} from '@/lib/voice/gps';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
@@ -49,6 +53,7 @@ import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
+import { FIELD } from '@/lib/today/field';
 
 const GEO_TABLE: Record<MapPointKind, 'leads' | 'contacts' | 'biens' | 'voice_notes'> = {
   lead: 'leads',
@@ -109,10 +114,17 @@ export default function CarteMobile({
   const [accountOpen, setAccountOpen] = useState(false);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
+  const [agentPosition, setAgentPosition] = useState<DevicePosition | null>(null);
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     setStoredStops(readItineraireStops());
   }, []);
+
+  useEffect(() => {
+    if (!tracking) return;
+    return watchDevicePosition(setAgentPosition, { pauseWhenHidden: true });
+  }, [tracking]);
 
   const itineraryStops = showItineraire ? (storedStops ?? itineraryStopsProp) : null;
   const { route, waypoints } = useWalkingRoute(itineraryStops);
@@ -236,6 +248,7 @@ export default function CarteMobile({
           setMissingOpen(false);
           parcelle.openParcelle(parcelleId);
         }}
+        agentPosition={agentPosition}
       />
 
       <div
@@ -284,13 +297,19 @@ export default function CarteMobile({
       <button
         type="button"
         onClick={() => {
-          void readDevicePosition().then((pos) => {
-            if (pos) mapApi.current?.recenter(pos);
+          void requestDevicePosition().then((pos) => {
+            if (!pos) return;
+            setAgentPosition(pos);
+            setTracking(true);
+            mapApi.current?.recenter(pos);
           });
         }}
         aria-label="Recentrer sur ma position"
         className="app-press absolute right-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
-        style={{ bottom: floatBottom }}
+        style={{
+          bottom: floatBottom,
+          boxShadow: tracking ? `0 0 0 2px ${FIELD.ardoise}` : undefined,
+        }}
       >
         <Locate size={20} strokeWidth={2} aria-hidden />
       </button>

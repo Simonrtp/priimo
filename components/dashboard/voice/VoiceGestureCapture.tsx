@@ -10,15 +10,17 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
-import { notifyError } from '@/lib/notify';
+import { notifyError, notifySuccess } from '@/lib/notify';
 import { playRecordStopSound } from '@/lib/voice/feedback-sound';
 import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
 import { readDevicePosition } from '@/lib/voice/gps';
 import { reverseGeocode } from '@/lib/geo/ban';
 import { shouldLockVoice, VOICE_LOCK_SWIPE_PX } from '@/lib/voice/gesture-lock';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
+import { postFormOrQueue } from '@/lib/offline/queue';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceLockHint from './VoiceLockHint';
+import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 
 export type VoiceGestureCaptureHandle = {
   pointerMove: (deltaY: number, deltaX?: number) => void;
@@ -43,6 +45,7 @@ export default forwardRef<
   }
 >(function VoiceGestureCapture({ adresse = null, parcelleId = null, streamPromise, onLockedChange, onClose }, ref) {
   const router = useRouter();
+  const { noteDictee, adresse: tourAdresse } = useTourneeDictation();
 
   const [phase, setPhase] = useState<Phase>('recording');
   const [locked, setLocked] = useState(false);
@@ -125,7 +128,24 @@ export default forwardRef<
     if (parcelleId) form.append('parcelleId', parcelleId);
 
     try {
-      const res = await fetch('/api/dashboard/voice-notes', { method: 'POST', body: form });
+      const { queued, res } = await postFormOrQueue('/api/dashboard/voice-notes', form);
+
+      if (cancelledRef.current) return;
+
+      if (queued) {
+        if (tourAdresse) noteDictee();
+        notifySuccess('Dictée enregistrée — envoi dès le retour du réseau');
+        setPhase('saved');
+        window.setTimeout(() => onClose(), 900);
+        return;
+      }
+
+      if (!res) {
+        notifyError("La dictée n'a pas pu être traitée");
+        onClose();
+        return;
+      }
+
       const data = (await res.json()) as NoteReviewPayload & { error?: string };
 
       if (cancelledRef.current) {
@@ -142,6 +162,7 @@ export default forwardRef<
       }
 
       setVoiceNoteId(data.voiceNoteId);
+      if (tourAdresse) noteDictee();
       if (data.voiceNoteId && data.transcript) {
         void fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}/rafraichir`, {
           method: 'POST',

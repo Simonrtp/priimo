@@ -22,6 +22,9 @@ import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { joinVoiceTranscripts } from '@/lib/voice/extract';
 import { hydrateNoteReview, LIVE_FLUSH_MS, transcribeLive } from '@/lib/voice/live';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import { postFormOrQueue } from '@/lib/offline/queue';
+import { notifySuccess } from '@/lib/notify';
+import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 
 type Phase = 'recording' | 'processing' | 'review';
 
@@ -40,6 +43,7 @@ export default function VoiceCaptureDialog({
 }) {
   const router = useRouter();
   const { profile } = useUser();
+  const { noteDictee, adresse: tourAdresse } = useTourneeDictation();
 
   const [phase, setPhase] = useState<Phase>('recording');
   const [micReady, setMicReady] = useState(false);
@@ -169,7 +173,28 @@ export default function VoiceCaptureDialog({
     const abortToReview = Boolean(continueId) || previous.length > 0;
 
     try {
-      const res = await fetch('/api/dashboard/voice-notes', { method: 'POST', body: form });
+      const { queued, res } = await postFormOrQueue('/api/dashboard/voice-notes', form);
+      if (cancelledRef.current) return;
+
+      if (queued) {
+        if (tourAdresse) noteDictee();
+        notifySuccess('Dictée enregistrée — envoi dès le retour du réseau');
+        onClose();
+        return;
+      }
+
+      if (!res) {
+        const message = "La dictée n'a pas pu être traitée";
+        notifyError(message);
+        setError(message);
+        if (abortToReview) {
+          restoreReview();
+          return;
+        }
+        setPhase('recording');
+        return;
+      }
+
       const data = (await res.json()) as NoteReviewPayload & {
         suggestedAssignee?: { id: string; fullName: string } | null;
         extractionPending?: boolean;
@@ -201,6 +226,7 @@ export default function VoiceCaptureDialog({
       setReview(data);
       setSuggestedAssigneeId(data.suggestedAssignee?.id ?? null);
       setPhase('review');
+      if (tourAdresse) noteDictee();
 
       if (!data.transcript) {
         notifyError("La dictée n'a pas pu être transcrite. Vous pouvez saisir le texte à la main.");

@@ -9,6 +9,7 @@ import type { Database } from '@/types/database';
 import { CONFIG_ESTIMATION, type EstimationPropertyType } from '@/lib/estimation';
 import { parseDpeLetter } from '@/lib/carte/dpe-public';
 import { formatPeriodeConstruction } from '@/lib/queries/parcelle';
+import type { EstimationSourceId } from '@/lib/estimation/sources';
 
 type Db = SupabaseClient<Database>;
 
@@ -16,6 +17,14 @@ const RADIUS_M = 200;
 /** ~1° lat ≈ 111 km ; approx longitude à 48°N. */
 const LAT_DELTA = RADIUS_M / 111_320;
 const LNG_DELTA_AT_48 = RADIUS_M / (111_320 * Math.cos((48.85 * Math.PI) / 180));
+
+export type DvfEngineOptions = {
+  /**
+   * Mode `--sans-bienici` : n'interroge pas le marché Bien'ici.
+   * Défaut true — Bien'ici n'est pas branché ; le badge n'apparaît que si interrogé.
+   */
+  sansBienici?: boolean;
+};
 
 export type DvfEngineInput = {
   address: string;
@@ -51,6 +60,19 @@ export type ComparableSale = {
   sameBuilding: boolean;
 };
 
+export type DvfEngineContext = {
+  immeubleVentes: number;
+  quartierVentes: number;
+  outliersExcluded: number;
+  coproLots: number | null;
+  coproPeriode: string | null;
+  dpeKnown: string | null;
+  biensEnVenteSecteur: number;
+  negociacionMedianePct: number | null;
+  /** Sources réellement mobilisées — persistées avec le résultat. */
+  sources: EstimationSourceId[];
+};
+
 export type DvfEngineResult = {
   available: boolean;
   low: number | null;
@@ -60,16 +82,9 @@ export type DvfEngineResult = {
   reliabilityLabel: string;
   steps: EstimationStep[];
   comparables: ComparableSale[];
-  context: {
-    immeubleVentes: number;
-    quartierVentes: number;
-    outliersExcluded: number;
-    coproLots: number | null;
-    coproPeriode: string | null;
-    dpeKnown: string | null;
-    biensEnVenteSecteur: number;
-    negociacionMedianePct: number | null;
-  };
+  context: DvfEngineContext;
+  /** Même liste que `context.sources` — pratique côté front / JSON. */
+  sources: EstimationSourceId[];
   parcelleId: string | null;
 };
 
@@ -218,23 +233,26 @@ export async function runDvfEstimation(
   input: DvfEngineInput,
   agencyId: string | null,
   onStep: StepEmitter,
+  options: DvfEngineOptions = {},
 ): Promise<DvfEngineResult> {
+  const sansBienici = options.sansBienici !== false;
   const steps: EstimationStep[] = [];
   async function emit(step: EstimationStep) {
     steps.push(step);
     await onStep(step);
   }
 
-  const emptyContext = {
+  const emptyContext = (sources: EstimationSourceId[]): DvfEngineContext => ({
     immeubleVentes: 0,
     quartierVentes: 0,
     outliersExcluded: 0,
-    coproLots: null as number | null,
-    coproPeriode: null as string | null,
-    dpeKnown: null as string | null,
+    coproLots: null,
+    coproPeriode: null,
+    dpeKnown: null,
     biensEnVenteSecteur: 0,
-    negociacionMedianePct: null as number | null,
-  };
+    negociacionMedianePct: null,
+    sources,
+  });
 
   // Résoudre l'immeuble
   let building: BuildingRow | null = null;
@@ -442,6 +460,7 @@ export async function runDvfEstimation(
 
   // DPE connu
   let dpeKnown: string | null = parseDpeLetter(input.dpeClass) ?? null;
+  let dpeFromAdeme = false;
   if (!dpeKnown && banId) {
     const { data: act } = await admin
       .from('building_activity')
@@ -449,9 +468,12 @@ export async function runDvfEstimation(
       .eq('ban_id', banId)
       .maybeSingle();
     dpeKnown = parseDpeLetter(act?.etiquette_dpe ?? null);
+    if (dpeKnown) dpeFromAdeme = true;
   }
+  const dpeUsed =
+    Boolean(parseDpeLetter(input.dpeClass)) || dpeFromAdeme || Boolean(dpeKnown);
 
-  // Biens en vente dans le secteur (agence)
+  // Biens en vente dans le secteur (agence) — distinct de Bien'ici
   let biensEnVente = 0;
   if (agencyId && input.postalCode) {
     const { data: biens, count } = await admin
@@ -470,9 +492,25 @@ export async function runDvfEstimation(
     }
   }
 
+  // Marché Bien'ici — uniquement si explicitement demandé (pas --sans-bienici).
+  // Non branché aujourd'hui : on n'ajoute jamais la source sans requête réelle.
+  let bieniciUsed = false;
+  if (!sansBienici) {
+    // Branchement futur : interroger Bien'ici ici, puis `bieniciUsed = hits > 0`.
+    bieniciUsed = false;
+  }
+
   const work = finalRows.length > 0 ? finalRows : adjusted;
   const immeubleCount = work.filter((p) => p.sameBuilding).length;
   const quartierCount = work.length;
+
+  const sources: EstimationSourceId[] = [];
+  if (priced.length > 0) sources.push('dvf');
+  if (priced.length > 0 && recentMedian != null) sources.push('notaires_insee');
+  if (parcelleId) sources.push('cadastre');
+  if (dpeUsed) sources.push('dpe');
+  if (coproLots != null || coproPeriode != null) sources.push('copro');
+  if (bieniciUsed) sources.push('bienici');
 
   const { score, label } = reliabilityScore({
     immeuble: immeubleCount,
@@ -490,8 +528,9 @@ export async function runDvfEstimation(
       reliabilityLabel: label,
       steps,
       comparables: [],
+      sources,
       context: {
-        ...emptyContext,
+        ...emptyContext(sources),
         immeubleVentes: immeubleTx.length,
         outliersExcluded: excluded,
         coproLots,
@@ -540,6 +579,7 @@ export async function runDvfEstimation(
     reliabilityLabel: label,
     steps,
     comparables,
+    sources,
     context: {
       immeubleVentes: immeubleCount,
       quartierVentes: quartierCount,
@@ -549,6 +589,7 @@ export async function runDvfEstimation(
       dpeKnown,
       biensEnVenteSecteur: biensEnVente,
       negociacionMedianePct: null,
+      sources,
     },
     parcelleId,
   };

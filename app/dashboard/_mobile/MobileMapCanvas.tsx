@@ -19,9 +19,11 @@ import ParcellesLayer, {
   CADASTRE_VENTES_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
+import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
 import type { MapLayerState } from '@/lib/carte/layers';
+import type { DevicePosition } from '@/lib/voice/gps';
 
 export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }) => void;
@@ -63,6 +65,7 @@ export default function MobileMapCanvas({
   cadastreImmeubles = [],
   cadastreLayers = { cadastreDpe: false, cadastreVentes: false, cadastreCopro: false },
   onSelectParcelle,
+  agentPosition = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -81,6 +84,7 @@ export default function MobileMapCanvas({
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
   cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
   onSelectParcelle?: (parcelleId: string) => void;
+  agentPosition?: DevicePosition | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -325,6 +329,16 @@ export default function MobileMapCanvas({
             </Marker>
           );
         })}
+        {agentPosition ? (
+          <Marker
+            longitude={agentPosition.longitude}
+            latitude={agentPosition.latitude}
+            anchor="center"
+            style={{ zIndex: 40 }}
+          >
+            <AgentLocationMarker position={agentPosition} />
+          </Marker>
+        ) : null}
       </Map>
     </div>
   );

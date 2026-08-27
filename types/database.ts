@@ -861,6 +861,44 @@ export type BuildingActivityRow = {
   dernier_prix?: number | null;
 };
 
+export type SortieEventKindDb =
+  | 'start'
+  | 'pause'
+  | 'resume'
+  | 'finish'
+  | 'rencontre'
+  | 'absent'
+  | 'passer'
+  | 'remove_stop'
+  | 'recalc_origin'
+  | 'dictee';
+
+export type SortieEventRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  day: string;
+  kind: SortieEventKindDb;
+  lead_id: string | null;
+  stop_key: string | null;
+  payload: Record<string, unknown>;
+  client_id: string | null;
+  created_at: string;
+};
+
+export type SortieEventInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  day: string;
+  kind: SortieEventKindDb;
+  lead_id?: string | null;
+  stop_key?: string | null;
+  payload?: Record<string, unknown>;
+  client_id?: string | null;
+  created_at?: string;
+};
+
 export type ContactInteractionRow = {
   id: string;
   agency_id: string;
@@ -1434,6 +1472,12 @@ export type Database = {
         Row: BuildingActivityRow;
         Insert: BuildingActivityRow;
         Update: Partial<BuildingActivityRow>;
+        Relationships: [];
+      };
+      sortie_events: {
+        Row: SortieEventRow;
+        Insert: SortieEventInsert;
+        Update: Partial<SortieEventInsert>;
         Relationships: [];
       };
       contact_interactions: {

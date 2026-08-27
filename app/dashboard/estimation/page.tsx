@@ -15,7 +15,10 @@ export default async function DashboardEstimationPage() {
         <div className="mx-auto max-w-xl px-4 py-8 text-[14px] text-mute">Chargement…</div>
       }
     >
-      <EstimationDashboardClient agencyName={agency.name} />
+      <EstimationDashboardClient
+        agencyName={agency.name}
+        sectorPostcodes={agency.codes_postaux ?? []}
+      />
     </Suspense>
   );
 }

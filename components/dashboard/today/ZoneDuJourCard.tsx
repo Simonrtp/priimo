@@ -23,7 +23,7 @@ export default function ZoneDuJourCard({
 
   return (
     <WorkspaceCard>
-      <CardEyebrow>Zone du jour</CardEyebrow>
+      <CardEyebrow>Sortie du jour</CardEyebrow>
       {plan ? (
         <>
           <p className="mt-2 text-balance text-[16px] font-semibold text-text-strong">
@@ -34,7 +34,7 @@ export default function ZoneDuJourCard({
           </p>
           <WorkspaceButton type="button" className="mt-4 w-full" onClick={() => onStart(plan)}>
             <Navigation size={16} strokeWidth={2.2} aria-hidden />
-            Démarrer
+            Ouvrir la tournée
           </WorkspaceButton>
         </>
       ) : (

@@ -14,6 +14,9 @@ import {
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { EstimationStep, ComparableSale } from '@/lib/estimation/dvf-engine';
+import type { EstimationSourceId } from '@/lib/estimation/sources';
+import { normalizeEstimationSources, sourcesFromContext } from '@/lib/estimation/sources';
+import SourceBadges from '@/components/estimation/SourceBadges';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { toast } from 'sonner';
 
@@ -51,6 +54,7 @@ type ResultState = {
   reliabilityLabel: string;
   comparables: ComparableSale[];
   context: Record<string, unknown>;
+  sources: EstimationSourceId[];
 };
 
 type HistoryRow = {
@@ -85,8 +89,10 @@ function formatDate(iso: string): string {
 
 export default function EstimationDashboardClient({
   agencyName,
+  sectorPostcodes = [],
 }: {
   agencyName: string;
+  sectorPostcodes?: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -114,6 +120,11 @@ export default function EstimationDashboardClient({
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [showHistory, setShowHistory] = useState(
     () => searchParams.get('historique') === '1' || Boolean(searchParams.get('id')),
+  );
+
+  const sectorPostcodeFilter = useMemo(
+    () => (sectorPostcodes.length === 1 ? sectorPostcodes[0] : undefined),
+    [sectorPostcodes],
   );
 
   const setParams = useCallback(
@@ -226,16 +237,23 @@ export default function EstimationDashboardClient({
               reliabilityLabel: string;
               comparables: ComparableSale[];
               context: Record<string, unknown>;
+              sources?: EstimationSourceId[];
             };
             error?: string;
           };
           if (msg.type === 'step' && msg.step) {
             setLiveSteps((prev) => [...prev, msg.step!]);
           } else if (msg.type === 'result' && msg.result && msg.id) {
+            const sources = normalizeEstimationSources(
+              msg.result.sources?.length
+                ? msg.result.sources
+                : sourcesFromContext(msg.result.context),
+            );
             setResult({
               id: msg.id,
               shareToken: msg.shareToken ?? null,
               ...msg.result,
+              sources,
             });
             setParams({}, 'resultat');
           } else if (msg.type === 'error') {
@@ -413,6 +431,7 @@ export default function EstimationDashboardClient({
           <AddressAutocomplete
             id="est-address"
             value={address}
+            postcodeFilter={sectorPostcodeFilter}
             onChange={(sel: SelectedAddress | null) => {
               if (!sel) return;
               setParams(
@@ -427,7 +446,11 @@ export default function EstimationDashboardClient({
                 undefined,
               );
             }}
-            placeholder="12 rue des Maraîchers, Paris"
+            placeholder={
+              sectorPostcodes.length === 1
+                ? `Ex. 12 rue des Maraîchers, ${sectorPostcodes[0]}`
+                : 'Ex. 12 rue des Maraîchers, Paris'
+            }
           />
           {hints ? (
             <p className="text-[12.5px] text-text-muted">
@@ -654,6 +677,8 @@ export default function EstimationDashboardClient({
           </div>
 
           <p className="text-pretty text-[14px] text-ink">{result.reliabilityLabel}</p>
+
+          <SourceBadges sources={result.sources} />
 
           <div>
             <button

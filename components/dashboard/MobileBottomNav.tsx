@@ -1,14 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, CalendarCheck, Map, Settings, Target, Users } from 'lucide-react';
+import { CalendarCheck, Map, MoreHorizontal, Settings, Target, Building2, Users } from 'lucide-react';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
+import FieldPlusSheet from '@/components/dashboard/field/FieldPlusSheet';
+import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
+import { useOfflineQueue } from '@/components/dashboard/field/OfflineQueueProvider';
+import { FIELD } from '@/lib/today/field';
 
-const ACTIVE = '#4F46E5';
 const INACTIVE = '#64748B';
-const ACCENT = '#E8743C';
+const ACCENT = FIELD.orange;
 
 function TabItem({
   href,
@@ -32,11 +36,11 @@ function TabItem({
           active ? 'bg-primary-100' : 'bg-transparent'
         }`}
       >
-        <Icon size={21} strokeWidth={active ? 2.4 : 2} color={active ? ACTIVE : INACTIVE} aria-hidden />
+        <Icon size={21} strokeWidth={active ? 2.4 : 2} color={active ? '#4F46E5' : INACTIVE} aria-hidden />
       </span>
       <span
         className="max-w-full truncate text-center font-semibold"
-        style={{ fontSize: 10.5, color: active ? ACTIVE : INACTIVE }}
+        style={{ fontSize: 10.5, color: active ? '#4F46E5' : INACTIVE }}
       >
         {label}
       </span>
@@ -101,7 +105,7 @@ function FieldTab({
       />
       <span
         className="text-center font-semibold"
-        style={{ fontSize: 12, color: active ? ACCENT : INACTIVE }}
+        style={{ fontSize: 11.5, color: active ? ACCENT : INACTIVE }}
       >
         {label}
       </span>
@@ -111,31 +115,91 @@ function FieldTab({
 
 function FieldBottomNav() {
   const pathname = usePathname();
+  const { adresse } = useTourneeDictation();
+  const { pending } = useOfflineQueue();
+  const [plusOpen, setPlusOpen] = useState(false);
+
   const activeToday = pathname === '/dashboard' || pathname === '/dashboard/';
+  const activeProspects = pathname.startsWith('/dashboard/prospection');
   const activeCarte = pathname.startsWith('/dashboard/carte');
+  const activeTournee = pathname.startsWith('/dashboard/tournee');
+  const activePlus =
+    plusOpen ||
+    pathname.startsWith('/dashboard/contacts') ||
+    pathname.startsWith('/dashboard/biens') ||
+    pathname.startsWith('/dashboard/settings');
+
+  // Pendant la tournée active, la barre reste pour le FAB dictée
+  const hideSideTabs = activeTournee;
 
   return (
-    <nav
-      className="app-tabbar fixed inset-x-2 bottom-0 z-50 rounded-[24px]"
-      style={{
-        marginBottom: 'max(8px, env(safe-area-inset-bottom))',
-        paddingBottom: 6,
-      }}
-      aria-label="Navigation terrain"
-    >
-      <div className="relative flex h-14 items-stretch">
-        <FieldTab href="/dashboard" label="Accueil" Icon={CalendarCheck} active={activeToday} />
-        <div className="w-16 flex-shrink-0" aria-hidden />
-        <FieldTab href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
+    <>
+      <nav
+        className="app-tabbar fixed inset-x-2 bottom-0 z-50 rounded-[24px]"
+        style={{
+          marginBottom: 'max(8px, env(safe-area-inset-bottom))',
+          paddingBottom: 6,
+        }}
+        aria-label="Navigation terrain"
+      >
+        <div className="relative flex h-14 items-stretch">
+          {hideSideTabs ? (
+            <>
+              <div className="flex-1" aria-hidden />
+              <div className="w-16 flex-shrink-0" aria-hidden />
+              <div className="flex-1" aria-hidden />
+            </>
+          ) : (
+            <>
+              <FieldTab href="/dashboard" label="Accueil" Icon={CalendarCheck} active={activeToday} />
+              <FieldTab
+                href="/dashboard/prospection"
+                label="Prospection"
+                Icon={Target}
+                active={activeProspects}
+              />
+              <div className="w-16 flex-shrink-0" aria-hidden />
+              <FieldTab href="/dashboard/carte" label="Carte" Icon={Map} active={activeCarte} />
+              <button
+                type="button"
+                onClick={() => setPlusOpen(true)}
+                aria-label="Plus"
+                aria-expanded={plusOpen}
+                className="app-press relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1"
+              >
+                <MoreHorizontal
+                  size={22}
+                  strokeWidth={activePlus ? 2.4 : 2}
+                  color={activePlus ? ACCENT : INACTIVE}
+                  aria-hidden
+                />
+                <span
+                  className="text-center font-semibold"
+                  style={{ fontSize: 11.5, color: activePlus ? ACCENT : INACTIVE }}
+                >
+                  Plus
+                </span>
+                {pending > 0 ? (
+                  <span
+                    className="absolute right-2 top-1 size-2 rounded-full"
+                    style={{ backgroundColor: FIELD.orange }}
+                    aria-label={`${pending} action${pending > 1 ? 's' : ''} en attente`}
+                  />
+                ) : null}
+              </button>
+            </>
+          )}
 
-        <div
-          className="absolute left-1/2 z-10 -translate-x-1/2"
-          style={{ top: -12 }}
-        >
-          <NoteCreateChooser variant="fab" />
+          <div
+            className="absolute left-1/2 z-10 -translate-x-1/2"
+            style={{ top: -12 }}
+          >
+            <NoteCreateChooser variant="fab" adresse={adresse ?? undefined} />
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      <FieldPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} />
+    </>
   );
 }
 

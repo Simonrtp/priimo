@@ -15,20 +15,13 @@ import { snoozeUntil, SHELL_BG_CLASS } from '@/lib/today/field';
 import {
   buildSortie,
   buildTourneeFromSortie,
-  resolveSortieOrigin,
   sortieStorageKey,
   type SortiePlan,
   type SortieProgress,
 } from '@/lib/today/sortie';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
 import { notifyError } from '@/lib/notify';
-import { readDevicePosition } from '@/lib/voice/gps';
 import { vibrateBrief } from './aujourdhui/tap';
-import {
-  CARTE_ITINERAIRE_HREF,
-  toItineraireStops,
-  writeItineraireStops,
-} from '@/lib/today/directions';
 import MobileAccountMenu from './MobileAccountMenu';
 import { StatusBand } from './aujourdhui/StatusBand';
 import {
@@ -121,9 +114,8 @@ export default function AujourdhuiMobile({
   }, [day]);
 
   useEffect(() => {
-    void readDevicePosition().then((gps) => {
-      setOrigin(resolveSortieOrigin(agencyOrigin, gps).origin);
-    });
+    // Plan de sortie : toujours depuis l'agence. Le recalcul GPS se propose dans /tournee.
+    setOrigin(agencyOrigin);
   }, [agencyOrigin]);
 
   useEffect(() => {
@@ -243,9 +235,8 @@ export default function AujourdhuiMobile({
     );
   }
 
-  function startZone(plan: SortiePlan) {
-    writeItineraireStops(toItineraireStops(plan.ordered));
-    router.push(CARTE_ITINERAIRE_HREF);
+  function startZone(_plan: SortiePlan) {
+    router.push('/dashboard/tournee');
   }
 
   return (

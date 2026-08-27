@@ -87,9 +87,15 @@ export async function POST(req: Request) {
       }
 
       try {
-        const result = await runDvfEstimation(admin, input, agency.id, async (step: EstimationStep) => {
-          send({ type: 'step', step });
-        });
+        const result = await runDvfEstimation(
+          admin,
+          input,
+          agency.id,
+          async (step: EstimationStep) => {
+            send({ type: 'step', step });
+          },
+          { sansBienici: true },
+        );
 
         const shareToken = randomBytes(24).toString('base64url');
         const expires = new Date();

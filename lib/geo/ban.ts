@@ -45,7 +45,17 @@ type BanSearchResponse = {
 
 const FETCH_MS = 5000;
 
-export async function searchBan(
+function fetchAbortSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
+/** Appel direct api-adresse (serveur uniquement). */
+export async function searchBanDirect(
   query: string,
   options: { limit?: number; postcode?: string; autocomplete?: boolean } = {},
 ): Promise<BanSearchFeature[]> {
@@ -61,11 +71,42 @@ export async function searchBan(
   if (postcode && /^\d{5}$/.test(postcode)) params.set('postcode', postcode);
 
   const res = await fetch(`${BAN_SEARCH_URL}?${params.toString()}`, {
-    signal: AbortSignal.timeout(FETCH_MS),
+    signal: fetchAbortSignal(FETCH_MS),
   });
   if (!res.ok) return [];
   const data = (await res.json()) as BanSearchResponse;
   return data.features ?? [];
+}
+
+export async function searchBan(
+  query: string,
+  options: { limit?: number; postcode?: string; autocomplete?: boolean } = {},
+): Promise<BanSearchFeature[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams({
+      q,
+      limit: String(options.limit ?? 5),
+      autocomplete: options.autocomplete === false ? '0' : '1',
+    });
+    const postcode = options.postcode?.trim();
+    if (postcode && /^\d{5}$/.test(postcode)) params.set('postcode', postcode);
+
+    try {
+      const res = await fetch(`/api/ban/search?${params.toString()}`, {
+        signal: fetchAbortSignal(FETCH_MS),
+      });
+      if (!res.ok) return [];
+      const data = (await res.json()) as BanSearchResponse;
+      return data.features ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  return searchBanDirect(q, options);
 }
 
 async function geocodeUncached(
@@ -145,7 +186,7 @@ export async function reverseGeocode(
       lon: String(longitude),
     });
     const res = await fetch(`${BAN_REVERSE_URL}?${params.toString()}`, {
-      signal: AbortSignal.timeout(FETCH_MS),
+      signal: fetchAbortSignal(FETCH_MS),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as BanSearchResponse;

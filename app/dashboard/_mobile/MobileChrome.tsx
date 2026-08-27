@@ -2,9 +2,11 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import MobileAccountMenu, { AvatarButton } from './MobileAccountMenu';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
+import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
+import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 
 function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard/prospection')) return 'Prospection';
@@ -14,6 +16,7 @@ function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard/equipe')) return 'Équipe';
   if (pathname.startsWith('/dashboard/settings')) return 'Paramètres';
   if (pathname.startsWith('/dashboard/notes')) return 'Notes';
+  if (pathname.startsWith('/dashboard/estimation')) return 'Estimation';
   return '';
 }
 
@@ -21,7 +24,8 @@ function isFieldPath(pathname: string): boolean {
   return (
     pathname === '/dashboard' ||
     pathname === '/dashboard/' ||
-    pathname.startsWith('/dashboard/carte')
+    pathname.startsWith('/dashboard/carte') ||
+    pathname.startsWith('/dashboard/tournee')
   );
 }
 
@@ -29,6 +33,7 @@ export default function MobileChrome() {
   const pathname = usePathname();
   const router = useRouter();
   const [accountOpen, setAccountOpen] = useState(false);
+  const { openMobileSearch, mobileSearchOpen } = useAssistant();
 
   if (isFieldPath(pathname)) return null;
 
@@ -37,7 +42,7 @@ export default function MobileChrome() {
   return (
     <>
       <header
-        className="flex flex-shrink-0 items-center gap-2 border-b border-black/[0.06] bg-surface px-3"
+        className="flex flex-shrink-0 items-center gap-1 border-b border-black/[0.06] bg-surface px-2"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           minHeight: 'calc(52px + env(safe-area-inset-top, 0px))',
@@ -54,10 +59,19 @@ export default function MobileChrome() {
         <h1 className="min-w-0 flex-1 truncate font-semibold text-text-strong" style={{ fontSize: 17 }}>
           {title}
         </h1>
+        <button
+          type="button"
+          onClick={openMobileSearch}
+          aria-label="Rechercher"
+          className="app-press flex size-11 items-center justify-center rounded-full text-text"
+        >
+          <Search size={20} strokeWidth={2} aria-hidden />
+        </button>
         <CreateMenu compact />
         <AvatarButton onClick={() => setAccountOpen(true)} />
       </header>
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
+      {mobileSearchOpen ? <AssistantMobileSearchBar /> : null}
     </>
   );
 }

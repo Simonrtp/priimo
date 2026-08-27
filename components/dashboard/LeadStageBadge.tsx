@@ -73,8 +73,8 @@ export default function LeadStageBadge({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex min-h-[32px] items-center gap-1.5 rounded-full bg-black/[0.06] font-medium text-ink transition-opacity duration-150 hover:opacity-80"
-        style={{ fontSize: 11, padding: '4px 10px 4px 8px' }}
+        className="flex min-h-[44px] items-center gap-1.5 rounded-full bg-black/[0.06] px-3 font-medium text-ink transition-opacity duration-150 hover:opacity-80"
+        style={{ fontSize: 12.5 }}
       >
         {label}
         <ChevronDown size={10} strokeWidth={2.5} aria-hidden />

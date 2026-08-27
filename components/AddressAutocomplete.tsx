@@ -12,6 +12,8 @@ interface AddressAutocompleteProps {
   onChange: (data: SelectedAddress | null) => void;
   /** Saisie libre (même sans suggestion choisie). */
   onQueryChange?: (query: string) => void;
+  /** Filtre BAN sur un code postal (ex. secteur agence). */
+  postcodeFilter?: string;
   placeholder?: string;
   required?: boolean;
   id?: string;
@@ -26,6 +28,7 @@ export default function AddressAutocomplete({
   value = '',
   onChange,
   onQueryChange,
+  postcodeFilter,
   placeholder = 'Ex : 12 rue de la Paix, Paris',
   required = false,
   id,
@@ -75,7 +78,7 @@ export default function AddressAutocomplete({
     debounceRef.current = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const features = await searchBanAddresses(query.trim(), 5);
+        const features = await searchBanAddresses(query.trim(), 5, postcodeFilter);
         setSuggestions(features);
         setShowDropdown(features.length > 0);
         setActiveIndex(-1);
@@ -90,7 +93,7 @@ export default function AddressAutocomplete({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, postcodeFilter]);
 
   useLayoutEffect(() => {
     if (!showDropdown) {
@@ -168,7 +171,7 @@ export default function AddressAutocomplete({
             id={listId}
             role="listbox"
             style={{ top: menuBox.top, left: menuBox.left, width: menuBox.width }}
-            className="fixed z-[140] max-h-60 overflow-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft"
+            className="fixed z-[200] max-h-60 overflow-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft"
           >
             {suggestions.map((feature, index) => {
               const isActive = index === activeIndex;

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import SourceBadges from '@/components/estimation/SourceBadges';
+import type { EstimationSourceId } from '@/lib/estimation/sources';
+import { normalizeEstimationSources, sourcesFromContext } from '@/lib/estimation/sources';
 
 type AvisPayload = {
   address: string;
@@ -21,6 +24,7 @@ type AvisPayload = {
     sameBuilding: boolean;
   }>;
   context: Record<string, unknown>;
+  sources?: EstimationSourceId[];
   agencyName: string;
   agencyPhone: string | null;
   agencyEmail: string | null;
@@ -78,6 +82,10 @@ export default function AvisPublicPage() {
     );
   }
 
+  const sources = normalizeEstimationSources(
+    data.sources?.length ? data.sources : sourcesFromContext(data.context),
+  );
+
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-5 py-10">
       <header className="mb-8 border-b border-black/[0.06] pb-6">
@@ -115,6 +123,8 @@ export default function AvisPublicPage() {
       {data.reliabilityLabel ? (
         <p className="mt-4 text-pretty text-[14px] text-ink">{data.reliabilityLabel}</p>
       ) : null}
+
+      <SourceBadges sources={sources} className="mt-6" />
 
       <section className="mt-8">
         <h2 className="text-[14px] font-semibold text-ink">Ventes comparables (anonymisées)</h2>
