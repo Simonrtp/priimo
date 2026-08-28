@@ -9,7 +9,6 @@ const VALID_TABS: ReadonlySet<SettingsTabId> = new Set([
   'billing',
   'profile',
   'team',
-  'widget',
   'integrations',
 ]);
 
@@ -27,6 +26,10 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   if (!user || !profile || !agency) redirect('/login');
 
   const sp = await searchParams;
+  const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
+  if (rawTab === 'widget') {
+    redirect('/dashboard/estimation?vue=widget');
+  }
   const tab = parseTab(sp.tab);
   if (tab && DIRECTOR_ONLY.has(tab) && profile.role !== 'directeur') {
     notFound();

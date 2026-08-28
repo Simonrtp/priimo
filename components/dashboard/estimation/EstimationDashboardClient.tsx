@@ -25,6 +25,11 @@ import ValeurCentrale from '@/components/estimation/parts/ValeurCentrale';
 import { formatEuro as formatEuroFr } from '@/lib/estimation/resultat';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { toast } from 'sonner';
+import SectionWidget from '@/components/dashboard/settings/SectionWidget';
+import EstimationViewSwitch, {
+  type EstimationVue,
+  estimationHref,
+} from '@/components/dashboard/estimation/EstimationViewSwitch';
 
 type StepId =
   | 'adresse'
@@ -133,13 +138,30 @@ function formatDate(iso: string): string {
 export default function EstimationDashboardClient({
   agencyName,
   sectorPostcodes = [],
+  initialVue = 'outil',
 }: {
   agencyName: string;
   sectorPostcodes?: string[];
+  initialVue?: EstimationVue;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const [vue, setVueState] = useState<EstimationVue>(initialVue);
+
+  useEffect(() => {
+    setVueState(initialVue);
+  }, [initialVue]);
+
+  const setVue = useCallback(
+    (next: EstimationVue) => {
+      setVueState(next);
+      const params = new URLSearchParams(window.location.search);
+      router.replace(estimationHref(params, next), { scroll: false });
+    },
+    [router],
+  );
 
   const step = (searchParams.get('step') as StepId) || 'adresse';
   const address = searchParams.get('address') ?? '';
@@ -381,24 +403,37 @@ export default function EstimationDashboardClient({
       className="mx-auto w-full max-w-5xl py-6 md:px-6"
       style={{ '--est-accent': '#E8743C' } as React.CSSProperties}
     >
-      <header className="mb-5 flex items-start justify-between gap-3">
-        <div>
+      <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="font-semibold tracking-tight text-ink" style={{ fontSize: 22 }}>
             Estimation
           </h1>
           <p className="mt-1 text-pretty text-mute" style={{ fontSize: 14 }}>
-            Avis de valeur à partir des ventes DVF — le vendeur voit d’où vient le chiffre.
+            {vue === 'widget'
+              ? 'Intégrez l’estimation sur le site de votre agence et recevez les demandes dans Priimo.'
+              : 'Avis de valeur à partir des ventes DVF — le vendeur voit d’où vient le chiffre.'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowHistory((v) => !v)}
-          className="shrink-0 rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-black/[0.03]"
-        >
-          Historique
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          <EstimationViewSwitch value={vue} onChange={setVue} />
+          {vue === 'outil' ? (
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-black/[0.03]"
+            >
+              Historique
+            </button>
+          ) : null}
+        </div>
       </header>
 
+      {vue === 'widget' ? (
+        <SectionWidget embedded />
+      ) : null}
+
+      {vue === 'outil' ? (
+        <>
       {showHistory ? (
         <section className="mb-6 rounded-clay border border-black/[0.06] bg-surface p-4 shadow-clay-sm">
           <h2 className="mb-3 text-[14px] font-semibold text-text-strong">Estimations récentes</h2>
@@ -899,6 +934,8 @@ export default function EstimationDashboardClient({
           </div>
         ) : null}
       </div>
+        </>
+      ) : null}
     </div>
   );
 }

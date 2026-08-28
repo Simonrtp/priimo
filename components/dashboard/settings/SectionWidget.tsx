@@ -33,7 +33,7 @@ function integrationSnippet(s: WidgetSettings): string {
   return `<div id="priimo-estimation"></div>\n<script src="${s.scriptUrl}"\n        data-agency="${s.publicId}"></script>`;
 }
 
-export default function SectionWidget() {
+export default function SectionWidget({ embedded = false }: { embedded?: boolean }) {
   const { isDirector } = useUser();
   const [settings, setSettings] = useState<WidgetSettings | null>(null);
   const [busy, setBusy] = useState(false);
@@ -107,9 +107,11 @@ export default function SectionWidget() {
 
   return (
     <section>
-      <h2 className="mb-2 hidden font-semibold text-ink md:block" style={{ fontSize: 18 }}>
-        Widget d’estimation
-      </h2>
+      {embedded ? null : (
+        <h2 className="mb-2 hidden font-semibold text-ink md:block" style={{ fontSize: 18 }}>
+          Widget d’estimation
+        </h2>
+      )}
       <p className="mb-5 max-w-2xl text-pretty text-mute" style={{ fontSize: 14 }}>
         Deux lignes à coller sur votre site : le visiteur estime son bien, donne son accord
         explicite pour être rappelé, et la demande arrive dans Priimo avec sa preuve de
