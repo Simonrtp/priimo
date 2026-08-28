@@ -28,11 +28,18 @@ import type {
 } from '@/types/database';
 import type { AssistantIntent, IntentType } from './intent';
 import { labelCherche } from './intent';
-import { adresseCorrespond, escapeIlike, nomCorrespond, searchPatterns } from './normalize';
+import { adresseCorrespond, escapeIlike, searchPatterns } from './normalize';
+import { scoreNom, scoreProche } from './nom-match';
 
 type Client = SupabaseClient<Database>;
 
 export const COLLECTE_LIMITE = 200;
+
+/**
+ * Recherche par nom : le filtrage est local (accents, fautes de frappe),
+ * donc on ratisse plus large en base avant de trier.
+ */
+export const COLLECTE_NOM_LIMITE = 800;
 
 export type SourceKind = 'lead' | 'contact' | 'bien' | 'note' | 'interaction';
 
@@ -63,6 +70,13 @@ export type CollecteAgregats = {
   leads_detectes: number;
 };
 
+/** Suggestion « vouliez-vous dire… ? » après une recherche par nom infructueuse. */
+export type ProcheContact = {
+  id: string;
+  nom: string;
+  href: string;
+};
+
 export type CollecteResult = {
   type: IntentType;
   cherche: string;
@@ -71,6 +85,8 @@ export type CollecteResult = {
   lignes: CollecteLigne[];
   sources: AssistantSource[];
   agregats: CollecteAgregats | null;
+  /** Rempli seulement quand une recherche par nom n'a rien donné. */
+  proches?: ProcheContact[];
 };
 
 export type CollecteLead = {
@@ -573,15 +589,28 @@ function collectPersonne(
   const nom = intent.nom?.trim() ?? '';
   if (nom.length < 2) return emptyResult(intent);
 
-  const contacts = cap(
-    byDateDesc(
-      visContacts(
-        ctx.viewer,
-        snap.contacts.filter((c) => nomCorrespond(nom, c.fullName, c.firstName, c.lastName)),
-      ),
-      (c) => c.createdAt,
-    ),
-  );
+  // Plusieurs personnes peuvent correspondre : on les garde toutes, du plus
+  // sûr au plus approximatif. C'est aussi ce qui rend les doublons visibles.
+  const apparies = visContacts(ctx.viewer, snap.contacts)
+    .map((c) => ({ contact: c, match: scoreNom(nom, c.fullName, c.firstName, c.lastName) }))
+    .filter((row) => row.match.score > 0)
+    .sort((a, b) => b.match.score - a.match.score || a.contact.fullName.localeCompare(b.contact.fullName));
+  const contacts = cap(apparies.map((row) => row.contact));
+
+  // Rien trouvé : on prépare « vouliez-vous dire… ? » plutôt qu'un cul-de-sac.
+  const proches: ProcheContact[] =
+    contacts.length > 0
+      ? []
+      : visContacts(ctx.viewer, snap.contacts)
+          .map((c) => ({ c, score: scoreProche(nom, c.fullName, c.firstName, c.lastName) }))
+          .filter((row) => row.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+          .map((row) => ({
+            id: row.c.id,
+            nom: row.c.fullName,
+            href: `/dashboard/contacts?fiche=${encodeURIComponent(row.c.id)}`,
+          }));
   const ids = new Set(contacts.map((c) => c.id));
   const leadIds = new Set(contacts.map((c) => c.leadId).filter((id): id is string => Boolean(id)));
 
@@ -642,6 +671,7 @@ function collectPersonne(
     lignes: acc.lignes,
     sources: acc.sources,
     agregats: null,
+    proches,
   };
 }
 
@@ -978,7 +1008,12 @@ async function loadSnapshot(
   },
 ): Promise<AgencySnapshot> {
   const addressPatterns = opts.adresseTexte ? searchPatterns(opts.adresseTexte) : [];
-  const nomLike = opts.nom ? `%${escapeIlike(opts.nom)}%` : null;
+  /**
+   * Pas de filtre `ilike` sur le nom : « cecile » ne trouve pas « Cécile » et
+   * « Ropioty » ne trouve pas « Ropiot ». On charge les contacts de l'agence
+   * et la correspondance se fait en mémoire, tolérante aux fautes.
+   */
+  const chercheNom = Boolean(opts.nom && opts.nom.trim().length >= 2);
 
   function addressOr(fields: readonly string[]): string | null {
     const parts: string[] = [];
@@ -1006,7 +1041,7 @@ async function loadSnapshot(
     )
     .eq('agency_id', agencyId)
     .order('created_at', { ascending: false })
-    .limit(COLLECTE_LIMITE);
+    .limit(chercheNom ? COLLECTE_NOM_LIMITE : COLLECTE_LIMITE);
 
   const bienQ = supabase
     .from('biens')
@@ -1026,7 +1061,7 @@ async function loadSnapshot(
     .order('created_at', { ascending: false })
     .limit(COLLECTE_LIMITE);
 
-  if (!opts.loadAllVisible) {
+  if (!opts.loadAllVisible && !chercheNom) {
     const leadOr = addressOr(['address', 'adresse_normalisee']);
     const contactOr = addressOr(['address']);
     const bienOr = addressOr(['address']);
@@ -1037,9 +1072,6 @@ async function loadSnapshot(
     if (noteOr) noteQ.or(noteOr);
   }
 
-  if (nomLike) {
-    contactQ.or(`first_name.ilike."${nomLike}",last_name.ilike."${nomLike}"`);
-  }
 
   if (opts.since) {
     contactQ.gte('created_at', opts.since);

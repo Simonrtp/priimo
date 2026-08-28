@@ -102,3 +102,44 @@ describe('routeQuestion — abstention', () => {
     assert.equal(routeQuestion("Qui s'occupe de ça ?"), null);
   });
 });
+
+describe('routeQuestion — couverture élargie', () => {
+  it('reconnaît les tournures de rapprochement acquéreur', () => {
+    for (const q of [
+      'Qui pourrait être intéressé par le 15 rue des Pyrénées ?',
+      'Des rapprochements pour le 15 rue des Pyrénées ?',
+      'À qui proposer le 15 rue des Pyrénées ?',
+    ]) {
+      assert.equal(routeQuestion(q)?.intent.type, 'recherche_acquereur', q);
+    }
+  });
+
+  it('reconnaît une personne désignée sans « dossier »', () => {
+    for (const q of [
+      'Le téléphone de Sophie Dubois',
+      'Les coordonnées de Sophie Dubois',
+      'Des nouvelles de Sophie Dubois ?',
+      'La fiche de Sophie Dubois',
+    ]) {
+      const r = routeQuestion(q);
+      assert.equal(r?.intent.type, 'personne', q);
+      assert.ok(r?.intent.nom?.includes('Sophie'), q);
+    }
+  });
+
+  it('reconnaît les bilans dits autrement', () => {
+    for (const q of ['Quoi de neuf cette semaine ?', 'Ma semaine', 'Mes chiffres du mois']) {
+      assert.equal(routeQuestion(q)?.intent.type, 'activite', q);
+    }
+  });
+
+  it('reconnaît « qui a rencontré » sur une adresse', () => {
+    const r = routeQuestion("Qui a rencontré le 12 rue de la Monnaie ?");
+    assert.equal(r?.intent.type, 'immeuble');
+  });
+
+  it('reste muet sur ce qu’il ne sait pas lire', () => {
+    assert.equal(routeQuestion('Le téléphone de qui ?'), null);
+    assert.equal(routeQuestion('Quel est le prix du marché à Lyon ?'), null);
+  });
+});

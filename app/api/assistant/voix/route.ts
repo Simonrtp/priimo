@@ -24,7 +24,7 @@ function extensionFor(mime: string): string {
 }
 
 /**
- * Transcription seule pour la barre de recherche. Aucune note n’est créée.
+ * Transcription pour la recherche et l'assistant. Aucune note n'est créée.
  */
 export async function POST(req: Request) {
   const ip = clientIpFromRequest(req);

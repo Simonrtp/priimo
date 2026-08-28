@@ -16,6 +16,7 @@ import {
   searchPatterns,
   significantSearchTokens,
 } from './normalize';
+import { namePrefixPatterns, scoreNom } from './nom-match';
 
 export type SearchHitKind = 'lead' | 'contact' | 'bien' | 'note' | 'interaction';
 
@@ -49,6 +50,11 @@ const INTERACTION_KIND: Record<string, string> = {
 export const SEARCH_MIN_LEN = 2;
 export const SEARCH_ROW_LIMIT = 35;
 export const SEARCH_MAX_HITS = 20;
+/**
+ * Les fautes de frappe et les accents se rattrapent en mémoire, pas en SQL :
+ * on ramène davantage de contacts sur les préfixes de nom, puis on trie.
+ */
+export const CONTACT_FUZZY_LIMIT = 120;
 
 type Client = SupabaseClient<Database>;
 
@@ -189,11 +195,15 @@ export async function fetchSearchRows(
 ): Promise<SearchRows> {
   const patterns = searchPatterns(query);
   const phoneLike = phoneIlikePattern(query);
+  // « Ropioty » ne trouve pas « Ropiot » en ilike : on ratisse sur le début
+  // du nom, la tolérance aux fautes se joue ensuite dans buildSearchHits.
+  const prefixes = namePrefixPatterns(query);
   const contactOr = [
     orIlike(
       ['first_name', 'last_name', 'address', 'phone', 'email', 'summary'],
       patterns,
     ),
+    orIlike(['first_name', 'last_name'], prefixes),
     phoneLike ? `phone.ilike."${phoneLike}"` : '',
   ]
     .filter(Boolean)
@@ -222,7 +232,7 @@ export async function fetchSearchRows(
       .eq('agency_id', agencyId)
       .or(contactOr)
       .order('created_at', { ascending: false })
-      .limit(SEARCH_ROW_LIMIT),
+      .limit(prefixes.length > 0 ? CONTACT_FUZZY_LIMIT : SEARCH_ROW_LIMIT),
     supabase
       .from('biens')
       .select(
@@ -321,7 +331,14 @@ export function buildSearchHits(
     if (!canSeeOwnedRecord(viewer, { assignedTo: row.assigned_to ?? null, createdBy: row.created_by }))
       continue;
     const name = buildFullName(row.first_name ?? '', row.last_name ?? '') || 'Contact sans nom';
-    const s = Math.max(scoreMatch(q, name, row.address, row.phone, row.email, row.summary), scorePhoneMatch(q, row.phone));
+    const nom = scoreNom(q, name, row.first_name, row.last_name);
+    const s = Math.max(
+      scoreMatch(q, name, row.address, row.phone, row.email, row.summary),
+      scorePhoneMatch(q, row.phone),
+      // Un nom retrouvé malgré une faute vaut mieux qu'une correspondance
+      // sur un fragment d'adresse : il passe devant.
+      nom.complet ? 5 : nom.score > 0 ? 3 : 0,
+    );
     if (s === 0) continue;
     push({
       id: row.id,

@@ -15,7 +15,14 @@ import { peutRepondreDirect, reponseDirecte } from '@/lib/assistant/direct-answe
 import { interpretQuestion } from '@/lib/assistant/interpret';
 import type { AssistantIntent } from '@/lib/assistant/intent';
 import { journaliserRequete } from '@/lib/assistant/journal';
-import { MESSAGE_AIDE, messageAucuneLigne } from '@/lib/assistant/messages';
+import { MESSAGE_AIDE, messageAucuneLigne, messageProduitInconnu } from '@/lib/assistant/messages';
+import {
+  chercherProduit,
+  contexteProduit,
+  PRODUIT_SYSTEM_PROMPT,
+  reponseProduitDirecte,
+} from '@/lib/assistant/produit';
+import { listeVersEcran, type VoirTout } from '@/lib/assistant/liste-ecran';
 import { chatStream } from '@/lib/assistant/mistral';
 import { stableSystemMessage, tierForAnswer } from '@/lib/assistant/models';
 import { REFORMULER_SYSTEM_PROMPT } from '@/lib/assistant/repondre';
@@ -148,11 +155,36 @@ export async function POST(req: Request) {
   let repli = '';
   let donnees = '';
   let tierSynthese: 'tri' | 'synthese' = 'tri';
+  let systemPrompt = REFORMULER_SYSTEM_PROMPT;
   let lignesCount = 0;
   let depuisCache = false;
+  let voirTout: VoirTout | null = null;
 
   if (intent.type === 'inconnu') {
     texteDirect = MESSAGE_AIDE;
+  } else if (intent.type === 'produit') {
+    // Aucune collecte SQL : la réponse vient de la base de connaissance.
+    const produit = chercherProduit(question);
+    const direct = reponseProduitDirecte(produit);
+    sources = produit.ecrans.map((e) => ({
+      kind: 'bien' as const,
+      id: e.href,
+      typeLabel: 'Ecran',
+      titre: e.titre,
+      date: null,
+      auteur: null,
+      href: e.href,
+    }));
+    if (produit.sujets.length === 0) {
+      texteDirect = messageProduitInconnu();
+      sources = [];
+    } else if (direct) {
+      texteDirect = direct;
+    } else {
+      donnees = contexteProduit(produit);
+      repli = produit.sujets.map((sujet) => sujet.corps).join('\n\n');
+      systemPrompt = PRODUIT_SYSTEM_PROMPT;
+    }
   } else {
     // d) Cache par agence — mêmes données, même quart d'heure.
     const cache = readCachedAnswer(agency.id, question);
@@ -169,8 +201,10 @@ export async function POST(req: Request) {
       sources = collecte.sources;
       lignesCount = collecte.lignes.length;
 
+      voirTout = listeVersEcran(intent, collecte);
+
       if (lignesCount === 0) {
-        texteDirect = messageAucuneLigne(intent);
+        texteDirect = messageAucuneLigne(intent, collecte.proches ?? []);
       } else if (peutRepondreDirect(collecte)) {
         // c) Cinq lignes ou moins et intention factuelle : aucun second appel.
         texteDirect = reponseDirecte(collecte);
@@ -199,7 +233,13 @@ export async function POST(req: Request) {
       const push = (event: string, data: unknown) =>
         controller.enqueue(encoder.encode(sse(event, data)));
 
-      push('meta', { conversationId, nouveau: !existant });
+      push('meta', {
+        conversationId,
+        nouveau: !existant,
+        question,
+        voirTout,
+        lignesTotal: lignesCount,
+      });
       push('sources', sources);
 
       let texte = texteDirect ?? '';
@@ -213,15 +253,8 @@ export async function POST(req: Request) {
             tier: tierSynthese,
             apiKey,
             maxTokens: MAX_OUTPUT_TOKENS,
-            messages: messagesPourModele(
-              REFORMULER_SYSTEM_PROMPT,
-              contexte,
-              question,
-              donnees,
-            ).map((m) =>
-              m.role === 'system' && m.content === REFORMULER_SYSTEM_PROMPT
-                ? stableSystemMessage(m.content)
-                : m,
+            messages: messagesPourModele(systemPrompt, contexte, question, donnees).map((m) =>
+              m.role === 'system' && m.content === systemPrompt ? stableSystemMessage(m.content) : m,
             ),
             onDelta: (fragment) => push('delta', { t: fragment }),
           });

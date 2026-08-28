@@ -94,3 +94,56 @@ describe('buildSearchHits', () => {
     assert.equal(hits[0]?.kind, 'contact');
   });
 });
+
+describe('recherche de personnes tolérante aux fautes', () => {
+  const viewer = { id: 'u1', role: 'directeur' as const };
+
+  function contact(id: string, first: string, last: string) {
+    return {
+      id,
+      first_name: first,
+      last_name: last,
+      address: null,
+      phone: null,
+      email: null,
+      summary: null,
+      contact_type: 'vendeur',
+      assigned_to: null,
+      created_by: 'u1',
+    };
+  }
+
+  const rows = {
+    leads: [],
+    contacts: [
+      contact('c1', 'Cécile', 'Ropiot'),
+      contact('c2', 'Cécile', 'Ropiot'),
+      contact('c3', 'Jean', 'Martin'),
+    ],
+    biens: [],
+    notes: [],
+    interactions: [],
+  };
+
+  it('retrouve un nom mal orthographié', () => {
+    const ids = buildSearchHits('Cécile ROPIOTY', rows, viewer).map((h) => h.id);
+    assert.deepEqual(ids.sort(), ['c1', 'c2']);
+  });
+
+  it('remonte les deux fiches sur le seul nom de famille', () => {
+    assert.equal(buildSearchHits('Ropiot', rows, viewer).length, 2);
+  });
+
+  it('ignore l’ordre des mots', () => {
+    assert.equal(buildSearchHits('Ropiot Cécile', rows, viewer).length, 2);
+  });
+
+  it('ignore les accents manquants', () => {
+    assert.equal(buildSearchHits('cecile ropiot', rows, viewer).length, 2);
+  });
+
+  it('laisse de côté un nom sans rapport', () => {
+    const ids = buildSearchHits('Ropiot', rows, viewer).map((h) => h.id);
+    assert.equal(ids.includes('c3'), false);
+  });
+});

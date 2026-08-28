@@ -10,6 +10,7 @@ export const INTENT_TYPES = [
   'personne',
   'recherche_acquereur',
   'activite',
+  'produit',
   'inconnu',
 ] as const;
 
@@ -145,6 +146,7 @@ export function labelCherche(intent: AssistantIntent): string {
     const n = intent.periode_jours ?? 7;
     return n === 1 ? "l'activité du jour" : `l'activité des ${n} derniers jours`;
   }
+  if (intent.type === 'produit') return 'le fonctionnement de Priimo';
   return 'cette recherche';
 }
 
@@ -254,6 +256,28 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
     intent: {
       type: 'immeuble',
       adresse: 'rue Vitruve',
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: null, statut_mandat: null },
+    },
+  },
+  {
+    question: 'À quoi sert le bouton Nouveau ?',
+    intent: {
+      type: 'produit',
+      adresse: null,
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: null, statut_mandat: null },
+    },
+  },
+  {
+    question: 'Ça veut dire quoi le score d’un prospect ?',
+    intent: {
+      type: 'produit',
+      adresse: null,
       code_postal: null,
       nom: null,
       periode_jours: null,

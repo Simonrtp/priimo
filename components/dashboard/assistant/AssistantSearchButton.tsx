@@ -3,11 +3,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Mic, Search } from 'lucide-react';
 import type { SearchHit } from '@/lib/assistant/search';
-import { notifyError } from '@/lib/notify';
-import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
 import AssistantSearchHits from './AssistantSearchHits';
 import { useAssistant } from './AssistantProvider';
 import { useAssistantPanel } from './AssistantPanelProvider';
+import { useAssistantVoiceInput } from './useAssistantVoiceInput';
 
 /**
  * Barre de recherche. Recherche pure : ce qui est tapé va à `fetchSearchRows`,
@@ -29,14 +28,8 @@ function SearchField({
 }) {
   const inputId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const listenTimerRef = useRef<number>(0);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const {
     query,
     setQuery,
@@ -46,6 +39,16 @@ function SearchField({
     closeResults,
   } = useAssistant();
   const { openPanel } = useAssistantPanel();
+  const { listening, transcribing, toggle: toggleVoiceSearch, voiceLabel } = useAssistantVoiceInput(
+    (text) => {
+      setQuery(text);
+      setPanelOpen(true);
+    },
+    {
+      idle: 'Recherche vocale',
+      transcribing: 'Mise en texte de la recherche',
+    },
+  );
 
   useEffect(() => {
     const onPointerDown = (e: MouseEvent) => {
@@ -91,87 +94,6 @@ function SearchField({
 
   const trimmed = query.trim();
   const showPanel = panelOpen && trimmed.length >= 2;
-
-  useEffect(() => {
-    return () => {
-      window.clearTimeout(listenTimerRef.current);
-      recorderRef.current?.stop();
-      stopMicStream(streamRef.current);
-    };
-  }, []);
-
-  async function transcribeAndSearch(blob: Blob) {
-    if (blob.size === 0) {
-      notifyError('Aucun son reçu.');
-      return;
-    }
-    setTranscribing(true);
-    try {
-      const form = new FormData();
-      form.append('audio', blob, 'recherche.webm');
-      const res = await fetch('/api/assistant/voix', { method: 'POST', body: form });
-      const data = (await res.json()) as { text?: string; error?: string };
-      if (!res.ok || !data.text?.trim()) {
-        notifyError(data.error ?? "La recherche vocale n'a pas pu être comprise");
-        return;
-      }
-      setQuery(data.text.trim());
-      setPanelOpen(true);
-    } catch {
-      notifyError("La recherche vocale n'a pas pu être comprise");
-    } finally {
-      setTranscribing(false);
-    }
-  }
-
-  async function startVoiceSearch() {
-    try {
-      const stream = await requestMicStream();
-      streamRef.current = stream;
-      const mime = pickAudioMimeType();
-      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        stopMicStream(stream);
-        streamRef.current = null;
-        recorderRef.current = null;
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mime || 'audio/webm' });
-        void transcribeAndSearch(blob);
-      };
-      recorder.start(250);
-      recorderRef.current = recorder;
-      setListening(true);
-      window.clearTimeout(listenTimerRef.current);
-      listenTimerRef.current = window.setTimeout(() => {
-        if (recorderRef.current === recorder && recorder.state === 'recording') {
-          recorder.stop();
-          setListening(false);
-        }
-      }, 20_000);
-    } catch (error) {
-      notifyError(micErrorMessage(error));
-    }
-  }
-
-  function toggleVoiceSearch() {
-    if (transcribing) return;
-    if (listening) {
-      window.clearTimeout(listenTimerRef.current);
-      if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-      setListening(false);
-      return;
-    }
-    void startVoiceSearch();
-  }
-
-  const voiceLabel = transcribing
-    ? 'Mise en texte de la recherche'
-    : listening
-      ? "Arrêter l'écoute"
-      : 'Recherche vocale';
 
   const shell = tone === 'shell';
   const map = tone === 'map';

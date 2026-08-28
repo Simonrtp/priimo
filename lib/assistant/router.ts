@@ -14,6 +14,7 @@
 import type { AssistantIntent } from './intent';
 import { EMPTY_INTENT } from './intent';
 import { normalizeTexte, significantSearchTokens } from './normalize';
+import { estQuestionProduit, type SujetProduit } from './produit';
 
 export type RouteResult = {
   intent: AssistantIntent;
@@ -50,7 +51,7 @@ const NB_JOURS = /\b(\d{1,3})\s+derniers?\s+jours\b/i;
 
 /** Ouvertures d'une question de comptage ou de bilan d'activité. */
 const ACTIVITE = motif(
-  String.raw`combien|bilan|activit[ée]|r[ée]capitulatif|recap|qu'?est[- ]ce qu'?on a fait|qu'?avons[- ]nous fait|que dois[- ]je faire|[àa] faire`,
+  String.raw`combien|bilan|activit[ée]|r[ée]capitulatif|recap|quoi de neuf|qu'?est[- ]ce qu'?on a fait|qu'?avons[- ]nous fait|qu'?est[- ]ce que j'?ai fait|que dois[- ]je faire|[àa] faire|o[ùu] (?:on )?en (?:est|sommes)[- ]?(?:on|nous)?\s*\??$|mes chiffres|ma semaine|ma journ[ée]e`,
 );
 
 /** « qu'est-ce qu'on sait sur / de », « dis-moi sur », « infos sur ». */
@@ -60,12 +61,20 @@ const SAVOIR_SUR = motif(
 
 /** « qui s'occupe de », « qui gère », « qui suit », « qui a pris ». */
 const QUI_SOCCUPE = motif(
-  String.raw`qui\s+(?:s'?occupe|g[èe]re|suit|a pris|est en charge|traite)`,
+  String.raw`qui\s+(?:s'?occupe|g[èe]re|suit|a pris|est en charge|traite|a rencontr[ée]|a appel[ée])`,
+);
+
+/**
+ * Marqueurs qui désignent une personne sans la nommer : le nom vient après.
+ * « Le téléphone de Martin », « des nouvelles de Sophie Dubois ».
+ */
+const PERSONNE_SUR = motif(
+  String.raw`coordonn[ée]es de|t[ée]l[ée]phone de|num[ée]ro de|des nouvelles de|o[ùu] en (?:est|sommes|sont)[ -]?(?:on|nous)?\s+avec|la fiche de`,
 );
 
 /** « qui cherche », « quels acquéreurs », « acquéreurs pour ». */
 const ACQUEREUR = motif(
-  String.raw`qui cherche|qui recherche|quels?\s+acqu[ée]reurs?|acqu[ée]reurs?\s+(?:pour|sur|dans)`,
+  String.raw`qui cherche|qui recherche|quels?\s+acqu[ée]reurs?|acqu[ée]reurs?\s+(?:pour|sur|dans)|int[ée]ress[ée]s?\s+par|rapprochements?\s+(?:pour|sur)|[àa] qui (?:proposer|montrer)`,
 );
 
 function periodeJours(q: string): number | null {
@@ -126,7 +135,10 @@ function intent(patch: Partial<AssistantIntent>): AssistantIntent {
  * Rend une intention sûre, ou null quand seule une lecture par modèle
  * peut trancher.
  */
-export function routeQuestion(question: string): RouteResult | null {
+export function routeQuestion(
+  question: string,
+  sujetsProduitInjectes?: readonly SujetProduit[],
+): RouteResult | null {
   const q = question.trim();
   if (q.length < 3) return null;
   const plat = normalizeTexte(q);
@@ -135,6 +147,12 @@ export function routeQuestion(question: string): RouteResult | null {
   const cp = codePostal(q);
   const voie = adresse(q);
   const jours = periodeJours(q);
+
+  // « À quoi sert le bouton Nouveau » porte sur l'outil, pas sur la base.
+  // Une adresse dans la phrase tranche en faveur des données.
+  if (!voie && estQuestionProduit(q, sujetsProduitInjectes)) {
+    return { forme: 'produit', intent: intent({ type: 'produit' }) };
+  }
 
   // « Qui cherche un appartement dans le 75020 », « acquéreurs pour le 15 rue X »
   if (ACQUEREUR.test(q) && (cp || voie)) {
@@ -185,6 +203,12 @@ export function routeQuestion(question: string): RouteResult | null {
   if (SAVOIR_SUR.test(q)) {
     const nom = nomApres(q, SAVOIR_SUR);
     if (nom) return { forme: 'savoir_personne', intent: intent({ type: 'personne', nom }) };
+  }
+
+  // « Le téléphone de Martin », « des nouvelles de Sophie Dubois ».
+  if (PERSONNE_SUR.test(q)) {
+    const nom = nomApres(q, PERSONNE_SUR);
+    if (nom) return { forme: 'personne', intent: intent({ type: 'personne', nom }) };
   }
 
   // Un code postal seul, sans autre signal : activité du secteur non couverte.

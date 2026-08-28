@@ -1,20 +1,74 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUp, PenLine, Search, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowUp, Mic, PenLine, Search, Sparkles, Trash2, X } from 'lucide-react';
+import { PriimoLogo } from '@/components/brand/PriimoLogo';
 import type { AssistantSource, SourceKind } from '@/lib/assistant/collecte';
+import { useUser } from '@/lib/hooks/useUser';
 import { useAssistantPanel, type ChatMessage } from './AssistantPanelProvider';
+import { useAssistantVoiceInput } from './useAssistantVoiceInput';
 
 const PANEL_W = 420;
 const PANEL_H = 560;
 
-/** Amorces qui tombent dans le routage déterministe : elles répondent sans appel. */
-const AMORCES: readonly { label: string; question: string; complet: boolean }[] = [
-  { label: 'Combien de leads ce mois', question: 'Combien de leads ce mois ?', complet: true },
-  { label: "L'activité de la semaine", question: "Qu'est-ce qu'on a fait cette semaine ?", complet: true },
-  { label: "Qu'est-ce qu'on sait sur…", question: "Qu'est-ce qu'on sait sur ", complet: false },
-];
+type Amorce = {
+  label: string;
+  /** Texte envoyé, ou début de phrase à compléter si `envoi` est faux. */
+  question: string;
+  envoi: boolean;
+};
+
+type FamilleAmorces = { titre: string; amorces: Amorce[] };
+
+/**
+ * Ce que l'assistant sait lire, famille par famille. Les quatre familles
+ * correspondent exactement aux quatre collectes disponibles — aucune
+ * suggestion ne promet une réponse que la base ne peut pas donner.
+ *
+ * Les formulations retenues tombent dans le routage déterministe : la
+ * découverte guide vers les questions qui ne coûtent aucun appel.
+ */
+function famillesAmorces(codePostal: string | null): FamilleAmorces[] {
+  const cp = codePostal ?? '';
+  return [
+    {
+      titre: 'Une adresse',
+      amorces: [
+        { label: "Qu'est-ce qu'on sait sur…", question: "Qu'est-ce qu'on sait sur ", envoi: false },
+        { label: "Qui s'occupe du…", question: "Qui s'occupe du ", envoi: false },
+      ],
+    },
+    {
+      titre: 'Une personne',
+      amorces: [
+        { label: 'Le dossier…', question: 'Le dossier ', envoi: false },
+        { label: 'Des nouvelles de…', question: 'Des nouvelles de ', envoi: false },
+      ],
+    },
+    {
+      titre: 'Des acquéreurs',
+      amorces: [
+        cp
+          ? { label: `Qui cherche dans le ${cp}`, question: `Qui cherche dans le ${cp} ?`, envoi: true }
+          : { label: 'Qui cherche dans le…', question: 'Qui cherche dans le ', envoi: false },
+        { label: 'Quels acquéreurs pour…', question: 'Quels acquéreurs pour ', envoi: false },
+      ],
+    },
+    {
+      titre: 'Votre activité',
+      amorces: [
+        { label: 'Combien de leads ce mois', question: 'Combien de leads ce mois ?', envoi: true },
+        {
+          label: "Qu'est-ce qu'on a fait cette semaine",
+          question: "Qu'est-ce qu'on a fait cette semaine ?",
+          envoi: true,
+        },
+        { label: 'Que dois-je faire aujourd’hui', question: "Que dois-je faire aujourd'hui ?", envoi: true },
+      ],
+    },
+  ];
+}
 
 /** Pastille discrète par type de ligne — pas de chip, juste un repère. */
 const TEINTE_KIND: Record<SourceKind, string> = {
@@ -134,29 +188,59 @@ function Bulle({ message, onNavigate }: { message: ChatMessage; onNavigate: () =
   );
 }
 
-function Amorces({ onPick }: { onPick: (q: string, complet: boolean) => void }) {
+function Amorces({
+  familles,
+  onPick,
+}: {
+  familles: readonly FamilleAmorces[];
+  onPick: (question: string, envoi: boolean) => void;
+}) {
   return (
-    <ul className="mt-5 flex w-full flex-col gap-1.5">
-      {AMORCES.map((a) => (
-        <li key={a.label}>
-          <button
-            type="button"
-            onClick={() => onPick(a.question, a.complet)}
-            className="w-full rounded-clay border border-primary-100 bg-surface px-3 py-2.5 text-left text-[12.5px] font-medium text-text transition-all duration-150 hover:-translate-y-px hover:border-primary-200 hover:shadow-clay-sm"
-          >
-            {a.label}
-          </button>
-        </li>
+    <div className="mt-5 flex w-full flex-col gap-3.5 text-left">
+      {familles.map((famille) => (
+        <section key={famille.titre}>
+          <p className="px-0.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+            {famille.titre}
+          </p>
+          <ul className="mt-1.5 flex flex-wrap gap-1.5">
+            {famille.amorces.map((a) => (
+              <li key={a.label}>
+                <button
+                  type="button"
+                  onClick={() => onPick(a.question, a.envoi)}
+                  className="rounded-clay border border-primary-100 bg-surface px-2.5 py-1.5 text-[12px] font-medium text-text transition-all duration-150 hover:-translate-y-px hover:border-primary-200 hover:text-text-strong hover:shadow-clay-sm"
+                >
+                  {a.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
 
 function Conversation() {
   const { messages, streaming, draft, setDraft, envoyer, closePanel } = useAssistantPanel();
+  const { agency } = useUser();
   const saisieId = useId();
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const familles = useMemo(
+    () => famillesAmorces(agency.codes_postaux?.[0] ?? null),
+    [agency.codes_postaux],
+  );
+  const { listening, transcribing, toggle: toggleVoice, voiceLabel } = useAssistantVoiceInput((text) => {
+    void envoyer(text);
+  });
+
+  const inputDisabled = streaming || transcribing;
+  const placeholder = listening
+    ? 'Parlez…'
+    : transcribing
+      ? 'Mise en texte…'
+      : 'Votre question';
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -166,8 +250,8 @@ function Conversation() {
     inputRef.current?.focus();
   }, []);
 
-  const pick = (question: string, complet: boolean) => {
-    if (complet) {
+  const pick = (question: string, envoi: boolean) => {
+    if (envoi) {
       void envoyer(question);
       return;
     }
@@ -179,21 +263,20 @@ function Conversation() {
     <>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center px-2 text-center">
+          <div className="flex flex-col items-center px-1 pt-1 text-center">
             <span
-              className="flex size-14 items-center justify-center rounded-clay-lg bg-primary-50 text-primary-600 shadow-clay-sm"
+              className="flex size-14 items-center justify-center rounded-clay-lg bg-surface shadow-clay"
               aria-hidden
             >
-              <Sparkles size={24} strokeWidth={1.9} />
+              <PriimoLogo variant="mark" className="size-8" />
             </span>
-            <p className="mt-4 font-display text-[15px] font-semibold text-text-strong">
+            <p className="mt-3.5 font-display text-[15px] font-semibold text-text-strong">
               Posez une question sur votre base
             </p>
             <p className="mt-1.5 max-w-[17rem] text-pretty text-[12.5px] leading-relaxed text-text-muted">
-              Une adresse, une personne, des acquéreurs, l&apos;activité récente. Chaque réponse ne
-              cite que vos données.
+              Chaque réponse ne cite que vos données. Voici ce que je sais lire.
             </p>
-            <Amorces onPick={pick} />
+            <Amorces familles={familles} onPick={pick} />
           </div>
         ) : (
           <div className="flex flex-col gap-5">
@@ -213,6 +296,21 @@ function Conversation() {
         className="flex-shrink-0 px-3 pb-3 pt-1"
       >
         <div className="flex items-end gap-2 rounded-clay bg-bg-subtle px-3 py-2 shadow-clay-inset transition-shadow focus-within:ring-2 focus-within:ring-primary-200">
+          <button
+            type="button"
+            onClick={toggleVoice}
+            disabled={inputDisabled}
+            aria-label={voiceLabel}
+            title={voiceLabel}
+            aria-pressed={listening}
+            className={`mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-[11px] transition-colors disabled:opacity-40 ${
+              listening
+                ? 'bg-primary-600 text-white shadow-clay-primary'
+                : 'text-text-muted hover:bg-primary-50 hover:text-primary-600'
+            }`}
+          >
+            <Mic size={16} strokeWidth={2.2} aria-hidden />
+          </button>
           <label htmlFor={saisieId} className="sr-only">
             Votre question
           </label>
@@ -228,12 +326,13 @@ function Conversation() {
                 void envoyer(draft);
               }
             }}
-            placeholder="Votre question"
-            className="max-h-24 min-h-[26px] w-full flex-1 resize-none self-center bg-transparent py-0.5 text-[13.5px] text-text-strong outline-none placeholder:text-text-subtle"
+            placeholder={placeholder}
+            disabled={inputDisabled}
+            className="max-h-24 min-h-[26px] w-full flex-1 resize-none self-center bg-transparent py-0.5 text-[13.5px] text-text-strong outline-none placeholder:text-text-subtle disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={streaming || draft.trim().length === 0}
+            disabled={inputDisabled || draft.trim().length === 0}
             aria-label="Envoyer"
             className="flex size-8 shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white shadow-clay-primary transition-all duration-150 enabled:hover:-translate-y-px disabled:bg-primary-200 disabled:shadow-none"
           >
@@ -389,10 +488,10 @@ function PanelBody({ poignee = false }: { poignee?: boolean }) {
 
       <div className="flex flex-shrink-0 items-center gap-2 px-3 pb-2.5 pt-3">
         <span
-          className="flex size-7 items-center justify-center rounded-[10px] bg-primary-600 text-white shadow-clay-primary"
+          className="flex size-7 items-center justify-center rounded-[10px] bg-surface shadow-clay-sm ring-1 ring-primary-100"
           aria-hidden
         >
-          <Sparkles size={15} strokeWidth={2.1} />
+          <PriimoLogo variant="mark" className="size-4" />
         </span>
         <p className="font-display text-[14px] font-semibold tracking-[-0.01em] text-text-strong">
           Assistant
