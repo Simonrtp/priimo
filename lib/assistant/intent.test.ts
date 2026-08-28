@@ -53,7 +53,9 @@ describe('interprétation — questions types', () => {
       );
     }) as typeof fetch;
 
-    assert.equal(INTERPRET_EXAMPLES.length, 11);
+    // Le contrat porte sur l'aller-retour de chaque exemple, pas sur leur
+    // nombre : en ajouter un ne doit pas casser ce test.
+    assert.ok(INTERPRET_EXAMPLES.length >= 11, `${INTERPRET_EXAMPLES.length} exemples`);
 
     for (const ex of INTERPRET_EXAMPLES) {
       const intent = await interpretQuestion(ex.question, 'test-key', fetchImpl);

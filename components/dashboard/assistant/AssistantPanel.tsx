@@ -2,11 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUp, Mic, PenLine, Search, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Mic, PenLine, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
 import type { AssistantSource, SourceKind } from '@/lib/assistant/collecte';
 import { useUser } from '@/lib/hooks/useUser';
-import { useAssistantPanel, type ChatMessage } from './AssistantPanelProvider';
+import { LIGNES_AVANT_RENVOI } from '@/lib/assistant/liste-ecran';
+import { useAssistantPanel, type ChatMessage, type VoirTout } from './AssistantPanelProvider';
 import { useAssistantVoiceInput } from './useAssistantVoiceInput';
 
 const PANEL_W = 420;
@@ -92,22 +93,32 @@ function formatDateHeure(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' }).format(d);
 }
 
-/** Les lignes de base qui ont produit la réponse, cliquables vers la fiche. */
+/**
+ * Les lignes de base qui ont produit la réponse, cliquables vers la fiche.
+ * Le panneau n'est pas une vue de liste : au-delà de cinq lignes il renvoie
+ * vers l'écran qui sait les afficher, déjà filtré.
+ */
 function Sources({
   sources,
+  question,
+  voirTout,
   onNavigate,
 }: {
   sources: readonly AssistantSource[];
+  question?: string;
+  voirTout?: VoirTout | null;
   onNavigate: () => void;
 }) {
   if (sources.length === 0) return null;
+  const visibles = sources.slice(0, LIGNES_AVANT_RENVOI);
+  const restantes = (voirTout?.total ?? sources.length) - visibles.length;
   return (
     <div className="mt-3">
       <p className="px-0.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
-        Sources · {sources.length}
+        {question ? `Pour « ${question} »` : `Sources · ${sources.length}`}
       </p>
       <ul className="mt-1.5 flex flex-col gap-1.5">
-        {sources.map((s) => {
+        {visibles.map((s) => {
           const meta = [s.typeLabel, formatDate(s.date), s.auteur].filter(Boolean).join(' · ');
           const inner = (
             <>
@@ -143,6 +154,22 @@ function Sources({
           );
         })}
       </ul>
+      {restantes > 0 ? (
+        voirTout ? (
+          <Link
+            href={voirTout.href}
+            onClick={onNavigate}
+            className="mt-1.5 flex items-center gap-1.5 rounded-clay px-2.5 py-2 text-[12px] font-semibold text-primary-600 transition-colors hover:bg-primary-50"
+          >
+            Voir les {restantes} autres
+            <ArrowRight size={13} strokeWidth={2.4} aria-hidden />
+          </Link>
+        ) : (
+          <p className="mt-1.5 px-2.5 text-[11.5px] text-text-subtle">
+            et {restantes} autre{restantes > 1 ? 's' : ''}
+          </p>
+        )
+      ) : null}
     </div>
   );
 }
@@ -183,7 +210,12 @@ function Bulle({ message, onNavigate }: { message: ChatMessage; onNavigate: () =
       ) : (
         <PointsDeFrappe />
       )}
-      <Sources sources={message.sources} onNavigate={onNavigate} />
+      <Sources
+        sources={message.sources}
+        question={message.question}
+        voirTout={message.voirTout}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
@@ -225,7 +257,7 @@ function Conversation() {
   const { messages, streaming, draft, setDraft, envoyer, closePanel } = useAssistantPanel();
   const { agency } = useUser();
   const saisieId = useId();
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const filRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const familles = useMemo(
     () => famillesAmorces(agency.codes_postaux?.[0] ?? null),
@@ -242,9 +274,19 @@ function Conversation() {
       ? 'Mise en texte…'
       : 'Votre question';
 
+  // Une nouvelle question descend en douceur ; les fragments qui arrivent
+  // ensuite suivent sans à-coup, et seulement si on est resté en bas.
+  const dernier = messages[messages.length - 1];
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }, [messages]);
+    filRef.current?.scrollTo({ top: filRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages.length]);
+
+  useEffect(() => {
+    const fil = filRef.current;
+    if (!fil) return;
+    const enBas = fil.scrollHeight - fil.scrollTop - fil.clientHeight < 90;
+    if (enBas) fil.scrollTop = fil.scrollHeight;
+  }, [dernier?.contenu, dernier?.sources.length]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -261,7 +303,7 @@ function Conversation() {
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div ref={filRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center px-1 pt-1 text-center">
             <span
@@ -283,7 +325,6 @@ function Conversation() {
             {messages.map((m) => (
               <Bulle key={m.id} message={m} onNavigate={closePanel} />
             ))}
-            <div ref={bottomRef} />
           </div>
         )}
       </div>

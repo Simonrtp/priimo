@@ -14,11 +14,17 @@ import type { AssistantSource } from '@/lib/assistant/collecte';
 
 export type PanelTab = 'conversation' | 'historique';
 
+export type VoirTout = { href: string; total: number };
+
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   contenu: string;
   sources: AssistantSource[];
+  /** Question à laquelle cette réponse répond — rappelée au-dessus des lignes. */
+  question?: string;
+  /** Renvoi vers l'écran qui sait afficher toute la liste. */
+  voirTout?: VoirTout | null;
 };
 
 export type ConversationResume = {
@@ -183,8 +189,17 @@ export default function AssistantPanelProvider({ children }: { children: React.R
             }
 
             if (event === 'meta') {
-              const id = (data as { conversationId?: string }).conversationId;
-              if (id) setConversationId(id);
+              const meta = data as {
+                conversationId?: string;
+                question?: string;
+                voirTout?: VoirTout | null;
+              };
+              if (meta.conversationId) setConversationId(meta.conversationId);
+              patch((m) => ({
+                ...m,
+                question: meta.question ?? q,
+                voirTout: meta.voirTout ?? null,
+              }));
             } else if (event === 'sources') {
               patch((m) => ({ ...m, sources: (data as AssistantSource[]) ?? [] }));
             } else if (event === 'delta') {
