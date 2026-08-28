@@ -10,6 +10,8 @@ import {
   type EstimationViewType,
 } from '@/lib/estimation';
 import { sendEstimationNotificationToAdmin } from '@/lib/email/sendEstimationEmail';
+import { runDvfEstimation, type EstimationStep } from '@/lib/estimation/dvf-engine';
+import type { EstimationSourceId } from '@/lib/estimation/sources';
 import { clientIpFromRequest, pruneRateLimitBuckets, rateLimit } from '@/lib/rate-limit';
 import type { EstimationRequestInsert } from '@/types/database';
 
@@ -24,6 +26,8 @@ type PartialBody = {
   longitude: number;
   postalCode: string;
   inseeCode: string;
+  banId?: string | null;
+  city?: string | null;
   propertyType: EstimationPropertyType;
   surfaceM2: number;
   rooms: number;
@@ -41,6 +45,8 @@ type CompleteBody = {
   longitude: number;
   postalCode: string;
   inseeCode: string;
+  banId?: string | null;
+  city?: string | null;
   propertyType: EstimationPropertyType;
   surfaceM2: number;
   rooms: number;
@@ -196,7 +202,62 @@ export async function POST(req: Request) {
     conditionRating: body.conditionRating,
   };
 
-  const result = computeEstimation(input);
+  // Le moteur DVF d'abord : ce sont de vraies ventes, avec leurs sources et la
+  // trace du calcul. Le référentiel par code postal reste le filet de secours
+  // quand aucune transaction comparable n'est exploitable à l'adresse.
+  const reference = computeEstimation(input);
+  const noop = (_step: EstimationStep) => undefined;
+
+  let engine: Awaited<ReturnType<typeof runDvfEstimation>> | null = null;
+  if (Number.isFinite(body.latitude) && Number.isFinite(body.longitude)) {
+    try {
+      engine = await runDvfEstimation(
+        admin,
+        {
+          address: body.address.trim(),
+          postalCode: body.postalCode.trim(),
+          city: body.city?.trim() || null,
+          banId: body.banId?.trim() || null,
+          latitude: body.latitude,
+          longitude: body.longitude,
+          propertyType: body.propertyType,
+          surfaceM2: body.surfaceM2,
+          rooms: body.rooms,
+          floor: body.floor,
+          conditionRating:
+            body.conditionRating === 1 ||
+            body.conditionRating === 2 ||
+            body.conditionRating === 3 ||
+            body.conditionRating === 4
+              ? body.conditionRating
+              : null,
+          dpeClass: body.dpeClass,
+        },
+        null,
+        noop,
+        { sansBienici: true },
+      );
+    } catch (e) {
+      console.error('[estimation] moteur DVF', e);
+    }
+  }
+
+  const useEngine = engine?.available === true;
+  const result = useEngine
+    ? {
+        available: true,
+        low: engine!.low,
+        value: engine!.value,
+        high: engine!.high,
+        pricePerM2: engine!.pricePerM2,
+        confidence: reference.confidence,
+      }
+    : { ...reference, value: reference.value };
+
+  const sources: EstimationSourceId[] = useEngine ? engine!.sources : [];
+  const steps = useEngine ? engine!.steps.map((s) => ({ id: s.id, label: s.label })) : [];
+  const context = useEngine ? engine!.context : null;
+
   const now = new Date().toISOString();
 
   const row: EstimationRequestInsert = {
@@ -233,7 +294,10 @@ export async function POST(req: Request) {
     estimation_low: result.low,
     estimation_value: result.value,
     estimation_high: result.high,
+    estimation_price_per_m2: result.pricePerM2,
     estimation_confidence: result.confidence,
+    estimation_context: context ?? {},
+    estimation_sources: sources,
     status: 'nouveau',
   };
 
@@ -307,5 +371,13 @@ export async function POST(req: Request) {
     high: result.high,
     pricePerM2: result.pricePerM2,
     confidence: result.confidence,
+    reliability: useEngine ? engine!.reliability : result.confidence * 20,
+    dispersionElevee: context?.dispersionElevee ?? false,
+    comparables: context?.quartierVentes ?? 0,
+    immeubleVentes: context?.immeubleVentes ?? 0,
+    radiusM: context?.radiusM ?? 200,
+    trimestre: context?.trimestreLabel ?? null,
+    sources,
+    steps,
   });
 }

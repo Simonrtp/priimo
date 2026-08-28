@@ -355,6 +355,15 @@ export type EstimationRequestRow = {
   assigned_agency_id: string | null;
   /** Secret opaque — jamais exposé hors API estimation + client funnel. */
   edit_token: string;
+  agency_id: string | null;
+  source: string;
+  origin_url: string | null;
+  widget_public_id: string | null;
+  contact_id: string | null;
+  assigned_to: string | null;
+  estimation_price_per_m2: number | null;
+  estimation_context: unknown;
+  estimation_sources: unknown;
 };
 
 export type EstimationRequestInsert = {
@@ -397,6 +406,70 @@ export type EstimationRequestInsert = {
   status?: string;
   assigned_agency_id?: string | null;
   edit_token?: string;
+  agency_id?: string | null;
+  source?: string;
+  origin_url?: string | null;
+  widget_public_id?: string | null;
+  contact_id?: string | null;
+  assigned_to?: string | null;
+  estimation_price_per_m2?: number | null;
+  estimation_context?: unknown;
+  estimation_sources?: unknown;
+};
+
+/** Configuration du widget embarquable — une ligne par agence. */
+export type AgencyWidgetRow = {
+  agency_id: string;
+  public_id: string;
+  enabled: boolean;
+  display_name: string | null;
+  accent_color: string;
+  logo_url: string | null;
+  allowed_domains: string[];
+  daily_cap: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgencyWidgetInsert = {
+  agency_id: string;
+  public_id: string;
+  enabled?: boolean;
+  display_name?: string | null;
+  accent_color?: string;
+  logo_url?: string | null;
+  allowed_domains?: string[];
+  daily_cap?: number;
+};
+
+export type EstimationConsentVersionRow = {
+  version: string;
+  body: string;
+  created_at: string;
+};
+
+/** Preuve de consentement — insérée une fois, jamais modifiée. */
+export type EstimationConsentRow = {
+  id: string;
+  estimation_request_id: string;
+  agency_id: string | null;
+  consent_text: string;
+  consent_version: string;
+  consent_text_sha256: string;
+  agency_name_displayed: string | null;
+  channel: string;
+  consent_at: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  origin_url: string | null;
+  widget_public_id: string | null;
+  created_at: string;
+};
+
+export type EstimationConsentInsert = Omit<EstimationConsentRow, 'id' | 'created_at' | 'consent_at'> & {
+  id?: string;
+  created_at?: string;
+  consent_at?: string;
 };
 
 export type AgencyEstimationRow = {
@@ -417,6 +490,7 @@ export type AgencyEstimationRow = {
   condition_rating: number | null;
   dpe_class: string | null;
   available: boolean;
+  price_value: number | null;
   price_low: number | null;
   price_high: number | null;
   price_per_m2: number | null;
@@ -455,6 +529,7 @@ export type AgencyEstimationInsert = {
   condition_rating?: number | null;
   dpe_class?: string | null;
   available?: boolean;
+  price_value?: number | null;
   price_low?: number | null;
   price_high?: number | null;
   price_per_m2?: number | null;
@@ -588,6 +663,9 @@ export type ContactInsert = {
   assigned_to?: string | null;
   assigned_by?: string | null;
   assigned_at?: string | null;
+  collecte_provenance?: string | null;
+  collecte_at?: string | null;
+  collecte_base_legale?: string | null;
   is_demo?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -1448,6 +1526,24 @@ export type Database = {
         Update: Partial<AgencyEstimationRow>;
         Relationships: [];
       };
+      agency_widgets: {
+        Row: AgencyWidgetRow;
+        Insert: AgencyWidgetInsert;
+        Update: Partial<AgencyWidgetRow>;
+        Relationships: [];
+      };
+      estimation_consents: {
+        Row: EstimationConsentRow;
+        Insert: EstimationConsentInsert;
+        Update: never;
+        Relationships: [];
+      };
+      estimation_consent_versions: {
+        Row: EstimationConsentVersionRow;
+        Insert: EstimationConsentVersionRow;
+        Update: Partial<EstimationConsentVersionRow>;
+        Relationships: [];
+      };
       contacts: {
         Row: ContactRow;
         Insert: ContactInsert;
@@ -1722,6 +1818,7 @@ export type Database = {
         Args: { p_agency_id: string; p_debut: string };
         Returns: number;
       };
+      agency_estimations_today: { Args: { p_agency_id: string }; Returns: number };
       current_user_agency_ids: { Args: Record<string, never>; Returns: string[] };
       current_user_agency_id: { Args: Record<string, never>; Returns: string };
       current_user_role: { Args: Record<string, never>; Returns: string };

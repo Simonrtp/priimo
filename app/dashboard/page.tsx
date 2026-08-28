@@ -169,7 +169,8 @@ async function TodayContent({
     ),
   );
 
-  const [assignments, alerts, week, demandesPortail, estimationsVuees] = await Promise.all([
+  const [assignments, alerts, week, demandesPortail, demandesEstimation, estimationsVuees] =
+    await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
       ? timed('fetchAgencyAlerts', () => fetchAgencyAlerts(supabase, names))
@@ -212,6 +213,49 @@ async function TodayContent({
         return [];
       }
     }),
+    timed('fetchDemandesEstimation', async () => {
+      // Demandes abouties sur le site de l'agence (widget). Sept jours : au-delà,
+      // le rappel n'est plus une urgence du jour mais une relance ordinaire.
+      try {
+        const since = new Date();
+        since.setDate(since.getDate() - 7);
+        const { data } = await supabase
+          .from('estimation_requests')
+          .select(
+            'id, first_name, last_name, phone, contact_id, address, estimation_value, estimation_low, estimation_high, created_at, assigned_to',
+          )
+          .eq('agency_id', agency.id)
+          .eq('consent_given', true)
+          .eq('status', 'nouveau')
+          .gte('created_at', since.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        return (data ?? [])
+          .filter((row) => {
+            // Un collaborateur ne voit que ce qui lui revient ; le directeur voit tout.
+            const assignedTo = row.assigned_to as string | null;
+            return isDirector || !assignedTo || assignedTo === profile.id;
+          })
+          .map((row) => ({
+            id: row.id as string,
+            nom:
+              [row.first_name as string | null, row.last_name as string | null]
+                .filter(Boolean)
+                .join(' ')
+                .trim() || 'Demande d’estimation',
+            telephone: (row.phone as string | null) ?? null,
+            contactId: (row.contact_id as string | null) ?? null,
+            address: (row.address as string | null) ?? '',
+            valeur: (row.estimation_value as number | null) ?? null,
+            low: (row.estimation_low as number | null) ?? null,
+            high: (row.estimation_high as number | null) ?? null,
+            createdAt: row.created_at as string,
+          }));
+      } catch {
+        return [];
+      }
+    }),
     timed('fetchEstimationsVuees', async () => {
       try {
         const since = new Date();
@@ -248,6 +292,7 @@ async function TodayContent({
     assignments,
     alerts,
     demandesPortail,
+    demandesEstimation,
     estimationsVuees,
     ...metier,
   });

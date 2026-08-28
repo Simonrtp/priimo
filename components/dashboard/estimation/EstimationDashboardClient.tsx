@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  Calculator,
   ChevronDown,
   ChevronLeft,
   Copy,
   ExternalLink,
   Link2Off,
-  Loader2,
 } from 'lucide-react';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
@@ -17,6 +15,14 @@ import type { EstimationStep, ComparableSale } from '@/lib/estimation/dvf-engine
 import type { EstimationSourceId } from '@/lib/estimation/sources';
 import { normalizeEstimationSources, sourcesFromContext } from '@/lib/estimation/sources';
 import SourceBadges from '@/components/estimation/SourceBadges';
+import Progression from '@/components/estimation/parts/Progression';
+import PanneauContexte, {
+  type ContextePanneau,
+} from '@/components/estimation/parts/PanneauContexte';
+import EtapesCalcul from '@/components/estimation/parts/EtapesCalcul';
+import Methode from '@/components/estimation/parts/Methode';
+import ValeurCentrale from '@/components/estimation/parts/ValeurCentrale';
+import { formatEuro as formatEuroFr } from '@/lib/estimation/resultat';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { toast } from 'sonner';
 
@@ -33,6 +39,21 @@ type StepId =
 
 const STEPS: StepId[] = ['adresse', 'type', 'surface', 'pieces', 'etage', 'etat', 'dpe', 'calcul', 'resultat'];
 
+/** Les étapes que l'agent doit remplir : « 3 sur 7 » se compte là-dessus. */
+const QUESTION_STEPS: StepId[] = ['adresse', 'type', 'surface', 'pieces', 'etage', 'etat', 'dpe'];
+
+const STEP_NAMES: Record<StepId, string> = {
+  adresse: 'Adresse',
+  type: 'Type de bien',
+  surface: 'Surface',
+  pieces: 'Pièces',
+  etage: 'Étage',
+  etat: 'État général',
+  dpe: 'Étiquette DPE',
+  calcul: 'Calcul',
+  resultat: 'Résultat',
+};
+
 const CONDITION_OPTIONS: { value: 1 | 2 | 3 | 4; label: string }[] = [
   { value: 1, label: 'À rénover' },
   { value: 2, label: 'Correct' },
@@ -47,6 +68,7 @@ type ResultState = {
   id: string;
   shareToken: string | null;
   available: boolean;
+  value: number | null;
   low: number | null;
   high: number | null;
   pricePerM2: number | null;
@@ -55,7 +77,28 @@ type ResultState = {
   comparables: ComparableSale[];
   context: Record<string, unknown>;
   sources: EstimationSourceId[];
+  steps: EstimationStep[];
 };
+
+/** Un mandat de l'agence, tel que le moteur le renvoie dans le contexte. */
+type BienEnVente = {
+  id: string;
+  address: string;
+  price: number | null;
+  surfaceM2: number | null;
+  rooms: number | null;
+};
+
+function readNumber(context: Record<string, unknown>, key: string): number | null {
+  const value = context[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readBiensEnVente(context: Record<string, unknown>): BienEnVente[] {
+  const raw = context.biensEnVenteDetail;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((b): b is BienEnVente => Boolean(b) && typeof b === 'object' && 'id' in b);
+}
 
 type HistoryRow = {
   id: string;
@@ -112,11 +155,12 @@ export default function EstimationDashboardClient({
   const condition = searchParams.get('etat') ?? '';
   const dpe = searchParams.get('dpe') ?? '';
 
-  const [hints, setHints] = useState<{ ventes: number; coproLots: number | null; dpe: string | null } | null>(null);
+  const [contexte, setContexte] = useState<ContextePanneau | null>(null);
   const [liveSteps, setLiveSteps] = useState<EstimationStep[]>([]);
   const [computing, setComputing] = useState(false);
   const [result, setResult] = useState<ResultState | null>(null);
   const [comparablesOpen, setComparablesOpen] = useState(false);
+  const [mandatsOpen, setMandatsOpen] = useState(false);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [showHistory, setShowHistory] = useState(
     () => searchParams.get('historique') === '1' || Boolean(searchParams.get('id')),
@@ -141,30 +185,37 @@ export default function EstimationDashboardClient({
   );
 
   const stepIndex = Math.max(0, STEPS.indexOf(step));
-  const progress = step === 'resultat' ? 100 : Math.round((stepIndex / (STEPS.length - 2)) * 100);
+  const questionRang = Math.max(1, QUESTION_STEPS.indexOf(step) + 1);
 
+  // Le panneau de contexte ne dit rien tant que l'adresse n'est pas rattachée.
   useEffect(() => {
-    if (!banId) {
-      setHints(null);
+    if (!lat || !lng || !postalCode) {
+      setContexte(null);
       return;
     }
     const t = window.setTimeout(() => {
-      void fetch(`/api/dashboard/estimation/hints?banId=${encodeURIComponent(banId)}`)
-        .then((r) => r.json())
-        .then((data: { ventes?: number; coproLots?: number | null; dpe?: string | null }) => {
-          setHints({
-            ventes: data.ventes ?? 0,
-            coproLots: data.coproLots ?? null,
-            dpe: data.dpe ?? null,
-          });
-          if (data.dpe && !searchParams.get('dpe')) {
-            setParams({ dpe: data.dpe });
-          }
+      void fetch('/api/dashboard/estimation/hints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          banId: banId || null,
+          latitude: Number(lat),
+          longitude: Number(lng),
+          postalCode,
+          city: city || null,
+          propertyType: propertyType || null,
+        }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: ContextePanneau | null) => {
+          if (!data) return;
+          setContexte(data);
+          if (data.dpeKnown && !searchParams.get('dpe')) setParams({ dpe: data.dpeKnown });
         })
-        .catch(() => setHints(null));
+        .catch(() => setContexte(null));
     }, 120);
     return () => window.clearTimeout(t);
-  }, [banId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [banId, lat, lng, postalCode, propertyType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     void fetch('/api/dashboard/estimation')
@@ -230,6 +281,7 @@ export default function EstimationDashboardClient({
             shareToken?: string;
             result?: {
               available: boolean;
+              value: number | null;
               low: number | null;
               high: number | null;
               pricePerM2: number | null;
@@ -238,6 +290,7 @@ export default function EstimationDashboardClient({
               comparables: ComparableSale[];
               context: Record<string, unknown>;
               sources?: EstimationSourceId[];
+              steps?: EstimationStep[];
             };
             error?: string;
           };
@@ -254,6 +307,7 @@ export default function EstimationDashboardClient({
               shareToken: msg.shareToken ?? null,
               ...msg.result,
               sources,
+              steps: msg.result.steps ?? [],
             });
             setParams({}, 'resultat');
           } else if (msg.type === 'error') {
@@ -267,6 +321,11 @@ export default function EstimationDashboardClient({
       setComputing(false);
     }
   }
+
+  const mandats = useMemo(
+    () => (result ? readBiensEnVente(result.context) : []),
+    [result],
+  );
 
   const shareUrl = useMemo(() => {
     if (!result?.shareToken) return null;
@@ -313,8 +372,15 @@ export default function EstimationDashboardClient({
     window.print();
   }
 
+  const panneauEtape = step === 'adresse' ? 'adresse' : step === 'dpe' ? 'dpe' : 'bien';
+  const facadeUrl =
+    lat && lng ? `/api/facade/geo?lat=${lat}&lng=${lng}&format=liste` : null;
+
   return (
-    <div className="mx-auto w-full max-w-xl py-6 md:px-6">
+    <div
+      className="mx-auto w-full max-w-5xl py-6 md:px-6"
+      style={{ '--est-accent': '#E8743C' } as React.CSSProperties}
+    >
       <header className="mb-5 flex items-start justify-between gap-3">
         <div>
           <h1 className="font-semibold tracking-tight text-ink" style={{ fontSize: 22 }}>
@@ -404,12 +470,11 @@ export default function EstimationDashboardClient({
 
       {step !== 'resultat' && step !== 'calcul' ? (
         <div className="mb-6">
-          <div className="h-1 overflow-hidden rounded-full bg-black/[0.06]">
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-fluid-subtle ease-in-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          <Progression
+            index={questionRang}
+            total={QUESTION_STEPS.length}
+            nom={STEP_NAMES[step]}
+          />
           <div className="mt-3 flex items-center gap-2">
             {stepIndex > 0 ? (
               <button
@@ -424,6 +489,9 @@ export default function EstimationDashboardClient({
           </div>
         </div>
       ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0">
 
       {step === 'adresse' ? (
         <section className="flex flex-col gap-4">
@@ -452,15 +520,6 @@ export default function EstimationDashboardClient({
                 : 'Ex. 12 rue des Maraîchers, Paris'
             }
           />
-          {hints ? (
-            <p className="text-[12.5px] text-text-muted">
-              {hints.ventes > 0
-                ? `${hints.ventes} vente${hints.ventes > 1 ? 's' : ''} connue${hints.ventes > 1 ? 's' : ''} sur cet immeuble`
-                : 'Aucune vente connue sur cet immeuble'}
-              {hints.coproLots != null ? ` · Copropriété ${hints.coproLots} lots` : ''}
-              {hints.dpe ? ` · DPE ${hints.dpe}` : ''}
-            </p>
-          ) : null}
           <WorkspaceButton
             type="button"
             disabled={!address || !postalCode || !lat || !lng}
@@ -581,8 +640,10 @@ export default function EstimationDashboardClient({
       {step === 'dpe' ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-[17px] font-semibold text-ink text-balance">Étiquette DPE</h2>
-          {hints?.dpe ? (
-            <p className="text-[12.5px] text-text-muted">Pré-rempli depuis l’adresse ({hints.dpe}).</p>
+          {contexte?.dpeKnown ? (
+            <p className="text-[12.5px] text-text-muted">
+              Pré-rempli depuis les diagnostics de l’immeuble ({contexte.dpeKnown}).
+            </p>
           ) : null}
           <div className="grid grid-cols-4 gap-2">
             {DPE_OPTIONS.map((letter) => (
@@ -606,24 +667,7 @@ export default function EstimationDashboardClient({
         </section>
       ) : null}
 
-      {step === 'calcul' ? (
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 text-ink">
-            {computing ? <Loader2 className="size-5 animate-spin text-accent" aria-hidden /> : <Calculator className="size-5 text-accent" aria-hidden />}
-            <h2 className="text-[17px] font-semibold text-balance">Calcul en cours</h2>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {liveSteps.map((s) => (
-              <li
-                key={`${s.id}:${s.label}`}
-                className="rounded-clay border border-black/[0.06] bg-surface px-3.5 py-2.5 text-[13.5px] text-ink shadow-clay-sm"
-              >
-                {s.label}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {step === 'calcul' ? <EtapesCalcul steps={liveSteps} encours={computing} /> : null}
 
       {step === 'resultat' && result ? (
         <section className="flex flex-col gap-5 print:gap-4">
@@ -656,29 +700,29 @@ export default function EstimationDashboardClient({
             Nouvelle estimation
           </button>
 
-          <div>
-            <p className="text-[13px] text-text-muted">{address}</p>
-            {result.available && result.low != null && result.high != null ? (
-              <>
-                <p className="mt-2 font-semibold tracking-tight text-ink tabular-nums" style={{ fontSize: 28 }}>
-                  {formatEuro(result.low)} – {formatEuro(result.high)}
-                </p>
-                {result.pricePerM2 != null ? (
-                  <p className="mt-1 text-[15px] tabular-nums text-text-muted">
-                    {result.pricePerM2.toLocaleString('fr-FR')} €/m² retenu
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="mt-2 text-[16px] font-medium text-ink">
-                Pas assez de ventes comparables pour une fourchette.
-              </p>
-            )}
-          </div>
+          <p className="text-[13px] text-text-muted">{address}</p>
 
-          <p className="text-pretty text-[14px] text-ink">{result.reliabilityLabel}</p>
+          <ValeurCentrale
+            value={result.value}
+            low={result.low}
+            high={result.high}
+            pricePerM2={result.pricePerM2}
+            dispersionElevee={result.context.dispersionElevee === true}
+            reliability={result.reliability}
+            summary={{
+              comparables: readNumber(result.context, 'quartierVentes') ?? result.comparables.length,
+              radiusM: readNumber(result.context, 'radiusM') ?? 200,
+              trimestre:
+                typeof result.context.trimestreLabel === 'string'
+                  ? result.context.trimestreLabel
+                  : null,
+              immeubleVentes: readNumber(result.context, 'immeubleVentes') ?? 0,
+            }}
+          />
 
           <SourceBadges sources={result.sources} />
+
+          <Methode steps={result.steps} />
 
           <div>
             <button
@@ -733,23 +777,66 @@ export default function EstimationDashboardClient({
             ) : null}
           </div>
 
-          <div className="rounded-clay border border-black/[0.06] bg-surface px-4 py-3 text-[13px] text-text-muted shadow-clay-sm">
-            {typeof result.context.coproLots === 'number' ? (
-              <p>
-                Copropriété : {result.context.coproLots} lots
-                {typeof result.context.coproPeriode === 'string' && result.context.coproPeriode
-                  ? ` · ${result.context.coproPeriode}`
-                  : ''}
-              </p>
-            ) : null}
-            {typeof result.context.dpeKnown === 'string' && result.context.dpeKnown ? (
-              <p>DPE connu : {result.context.dpeKnown}</p>
-            ) : null}
-            {typeof result.context.biensEnVenteSecteur === 'number' &&
-            result.context.biensEnVenteSecteur > 0 ? (
-              <p>{result.context.biensEnVenteSecteur} biens en vente dans le secteur (agence)</p>
-            ) : null}
-          </div>
+          {typeof result.context.coproLots === 'number' ||
+          (typeof result.context.dpeKnown === 'string' && result.context.dpeKnown) ? (
+            <div className="rounded-clay border border-black/[0.06] bg-surface px-4 py-3 text-[13px] text-text-muted shadow-clay-sm">
+              {typeof result.context.coproLots === 'number' ? (
+                <p>
+                  Copropriété : {result.context.coproLots} lots
+                  {typeof result.context.coproPeriode === 'string' && result.context.coproPeriode
+                    ? ` · ${result.context.coproPeriode}`
+                    : ''}
+                </p>
+              ) : null}
+              {typeof result.context.dpeKnown === 'string' && result.context.dpeKnown ? (
+                <p>DPE retenu : {result.context.dpeKnown}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Vos mandats en cours dans le même code postal — le suffixe
+              « (agence) » ne disait rien : le bloc s'ouvre maintenant sur le
+              détail, et disparaît quand il n'y a rien à montrer. */}
+          {mandats.length > 0 ? (
+            <div className="print:hidden">
+              <button
+                type="button"
+                onClick={() => setMandatsOpen((v) => !v)}
+                aria-expanded={mandatsOpen}
+                className="flex w-full items-center justify-between rounded-clay border border-black/[0.06] bg-surface px-4 py-3 text-left shadow-clay-sm"
+              >
+                <span className="text-[14px] font-semibold text-ink">
+                  Vos mandats en cours dans le {postalCode} ({mandats.length})
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={`text-text-muted transition-transform ${mandatsOpen ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
+              </button>
+              {mandatsOpen ? (
+                <ul className="mt-2 rounded-clay border border-black/[0.06]">
+                  {mandats.map((bien) => (
+                    <li
+                      key={bien.id}
+                      className="flex flex-wrap items-baseline justify-between gap-2 border-b border-black/[0.04] px-4 py-2.5 text-[13px] last:border-0"
+                    >
+                      <span className="min-w-0 truncate text-ink">{bien.address}</span>
+                      <span className="tabular-nums text-text-muted">
+                        {[
+                          bien.price != null ? formatEuroFr(bien.price) : null,
+                          bien.surfaceM2 != null ? `${bien.surfaceM2} m²` : null,
+                          bien.rooms != null ? `${bien.rooms} p.` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || '—'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <p className="text-pretty text-[12px] text-text-subtle">
             Avis de valeur à titre indicatif — ne constitue pas une expertise immobilière au sens de
@@ -796,6 +883,22 @@ export default function EstimationDashboardClient({
           </div>
         </section>
       ) : null}
+        </div>
+
+        {/* Ce que la base sait déjà : se remplit à mesure des réponses.
+            Masqué sur l'écran de résultat, où l'information est reprise en
+            détail dans la valeur et la méthode. */}
+        {step !== 'resultat' ? (
+          <div className="lg:sticky lg:top-4 lg:self-start">
+            <PanneauContexte
+              contexte={contexte}
+              etape={panneauEtape}
+              adresse={address || null}
+              facadeUrl={facadeUrl}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Calculator,
   Calendar,
   Handshake,
+  HousePlus,
   Inbox,
   MapPin,
   MessageSquare,
@@ -35,6 +36,7 @@ const TYPE_ICONS: Record<TodayCardType, LucideIcon> = {
   transmis: Send,
   alerte: Bell,
   demande_portail: Inbox,
+  demande_estimation: HousePlus,
   estimation_vuee: Calculator,
 };
 

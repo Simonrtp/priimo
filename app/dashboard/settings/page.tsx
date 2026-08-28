@@ -9,6 +9,7 @@ const VALID_TABS: ReadonlySet<SettingsTabId> = new Set([
   'billing',
   'profile',
   'team',
+  'widget',
   'integrations',
 ]);
 

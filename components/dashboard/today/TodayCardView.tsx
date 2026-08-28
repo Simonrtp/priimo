@@ -9,6 +9,7 @@ import {
   Calendar,
   ChevronDown,
   Handshake,
+  HousePlus,
   MapPin,
   MessageSquare,
   Phone,
@@ -37,6 +38,7 @@ const TYPE_ICONS: Record<TodayCardType, LucideIcon> = {
   transmis: Send,
   alerte: Bell,
   demande_portail: Inbox,
+  demande_estimation: HousePlus,
   estimation_vuee: Calculator,
 };
 

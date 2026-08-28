@@ -87,6 +87,7 @@ export type TodayCardType =
   | 'transmis'
   | 'alerte'
   | 'demande_portail'
+  | 'demande_estimation'
   | 'estimation_vuee';
 
 export const TODAY_CARD_LABELS: Record<TodayCardType, string> = {
@@ -101,6 +102,7 @@ export const TODAY_CARD_LABELS: Record<TodayCardType, string> = {
   rapprochement: 'Rapprochement',
   nouvelle_adresse: 'Nouvelle adresse',
   demande_portail: 'Demande portail',
+  demande_estimation: 'Demande d’estimation',
   estimation_vuee: 'Avis consulté',
 };
 
@@ -469,6 +471,78 @@ function cartesDemandePortail(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Demandes d'estimation venues du site de l'agence                           */
+/* -------------------------------------------------------------------------- */
+
+export type TodayDemandeEstimation = {
+  id: string;
+  nom: string;
+  telephone: string | null;
+  contactId: string | null;
+  address: string;
+  valeur: number | null;
+  low: number | null;
+  high: number | null;
+  createdAt: string;
+};
+
+/**
+ * Le délai de rappel est le premier facteur de conversion : la carte propose
+ * l'appel directement, et son imminence chute vite avec les heures écoulées.
+ */
+function cartesDemandeEstimation(
+  demandes: readonly TodayDemandeEstimation[],
+  now: Date,
+): TodayCard[] {
+  const euro = (n: number) =>
+    new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0,
+    }).format(n);
+
+  return demandes.slice(0, 8).map((d, index) => {
+    const ageH = (now.getTime() - Date.parse(d.createdAt)) / 3_600_000;
+    const imminence = Number.isFinite(ageH) ? Math.max(25, 100 - Math.round(ageH * 6)) : 90;
+
+    const chiffre =
+      d.valeur != null
+        ? euro(d.valeur)
+        : d.low != null && d.high != null
+          ? `${euro(d.low)} – ${euro(d.high)}`
+          : null;
+
+    const contexte = [d.address, chiffre ? `estimé ${chiffre}` : null]
+      .filter(Boolean)
+      .join(' · ');
+
+    const action: TodayCardAction = d.telephone
+      ? {
+          kind: 'appeler',
+          label: `Appeler ${d.nom}`,
+          phone: d.telephone,
+          contactId: d.contactId ?? undefined,
+        }
+      : d.contactId
+        ? { kind: 'ouvrir_contact', label: 'Ouvrir la fiche', contactId: d.contactId }
+        : { kind: 'ouvrir_liste', label: 'Voir les demandes', cardType: 'demande_estimation' };
+
+    return mkCard(
+      {
+        key: `demande_estimation:${d.id}`,
+        type: 'demande_estimation',
+        headline: d.nom,
+        context: contexte || 'Estimation demandée depuis votre site',
+        action,
+        urgent: ageH < 4,
+        priority: 60 - index,
+      },
+      imminence,
+    );
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Avis de valeur consultés                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -534,6 +608,8 @@ export interface BuildTodayInput {
   rendezVous?: readonly TodayRendezVous[];
   /** Demandes entrantes portail (24–72 h). */
   demandesPortail?: readonly TodayDemandePortail[];
+  /** Estimations abouties sur le site de l'agence (widget). */
+  demandesEstimation?: readonly TodayDemandeEstimation[];
   /** Avis de valeur ouverts par le destinataire. */
   estimationsVuees?: readonly TodayEstimationVuee[];
   now?: Date;
@@ -555,6 +631,7 @@ export function buildTodayCards({
   promesses = [],
   rendezVous = [],
   demandesPortail = [],
+  demandesEstimation = [],
   estimationsVuees = [],
   now = new Date(),
   config = TODAY_CONFIG,
@@ -569,6 +646,7 @@ export function buildTodayCards({
     ...cartesRendezVousMetier(rendezVous, now),
     ...cartesTransmis(assignments),
     ...cartesDemandePortail(demandesPortail ?? [], now),
+    ...cartesDemandeEstimation(demandesEstimation ?? [], now),
     ...cartesEstimationVuee(estimationsVuees ?? [], now),
     ...cartesRelance(contacts, now, config),
     ...cartesRapprochement(rapprochements, config),
@@ -611,6 +689,7 @@ export interface TodaySummaryGroup {
 
 /** Ordre d'affichage : le même que celui de la pile. */
 const ORDRE_RESUME: readonly TodayCardType[] = [
+  'demande_estimation',
   'demande_portail',
   'estimation_vuee',
   'echeance_contractuelle',
@@ -674,6 +753,17 @@ export function summarizeTodayCards(cards: readonly TodayCard[]): TodaySummaryGr
         label: 'Consultés',
         headline: pluriel(count, 'avis ouvert', 'avis ouverts'),
         context: 'par le propriétaire',
+      });
+      continue;
+    }
+
+    if (type === 'demande_estimation') {
+      groups.push({
+        type,
+        count,
+        label: 'À rappeler vite',
+        headline: pluriel(count, 'demande d’estimation', 'demandes d’estimation'),
+        context: 'depuis votre site',
       });
       continue;
     }

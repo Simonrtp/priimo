@@ -43,8 +43,13 @@ const nextConfig = {
     ];
 
     return [
+      // Le widget embarquable (/e) et son script (/embed) sont volontairement
+      // exclus : `X-Frame-Options: DENY` empêcherait tout site d'agence de les
+      // cadrer. Leurs en-têtes sont posés par le middleware, avec un
+      // `frame-ancestors` calculé depuis la liste blanche de l'agence.
+      { source: "/", headers: securityHeaders },
       {
-        source: "/:path*",
+        source: "/:path((?!e/|embed/).*)",
         headers: securityHeaders,
       },
       {

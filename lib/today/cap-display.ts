@@ -5,6 +5,7 @@ export const MAX_CARTES_AFFICHEES = 7;
 export const MAX_CARTES_PAR_TYPE = 3;
 
 const GROUP_LABELS: Partial<Record<TodayCardType, (n: number) => string>> = {
+  demande_estimation: (n) => `${n} demandes d’estimation`,
   demande_portail: (n) => `${n} demandes portail`,
   estimation_vuee: (n) => `${n} avis consultés`,
   relance: (n) => `${n} relances en attente`,

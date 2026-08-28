@@ -120,6 +120,7 @@ export async function POST(req: Request) {
             condition_rating: input.conditionRating,
             dpe_class: input.dpeClass,
             available: result.available,
+            price_value: result.value,
             price_low: result.low,
             price_high: result.high,
             price_per_m2: result.pricePerM2,

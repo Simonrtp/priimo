@@ -1,7 +1,11 @@
 /**
- * Moteur d'estimation DVF pour le dashboard.
+ * Moteur d'estimation DVF.
  * Chaque étape renvoyée correspond à un vrai comptage / vrai traitement.
  * Coefficients partagés avec lib/estimation.ts (funnel public).
+ *
+ * Le moteur sert deux appelants : le dashboard (agence connectée) et le widget
+ * public embarqué sur le site d'une agence. Quand `agencyId` est null, aucune
+ * donnée interne d'agence n'est lue ni renvoyée.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -13,10 +17,15 @@ import type { EstimationSourceId } from '@/lib/estimation/sources';
 
 type Db = SupabaseClient<Database>;
 
-const RADIUS_M = 200;
+export const RADIUS_M = 200;
 /** ~1° lat ≈ 111 km ; approx longitude à 48°N. */
 const LAT_DELTA = RADIUS_M / 111_320;
 const LNG_DELTA_AT_48 = RADIUS_M / (111_320 * Math.cos((48.85 * Math.PI) / 180));
+
+/** Au-delà de ce rapport (écart interquartile / médiane), la fourchette ment. */
+const DISPERSION_THRESHOLD = 0.35;
+/** En dessous de ce nombre de comparables, la dispersion n'est pas mesurable. */
+const DISPERSION_MIN_SAMPLE = 6;
 
 export type DvfEngineOptions = {
   /**
@@ -60,6 +69,17 @@ export type ComparableSale = {
   sameBuilding: boolean;
 };
 
+/** Un mandat de l'agence, pour le repli dépliable du dashboard. */
+export type BienEnVente = {
+  id: string;
+  address: string;
+  price: number | null;
+  surfaceM2: number | null;
+  rooms: number | null;
+};
+
+export type DpeRepartitionEntry = { letter: string; count: number };
+
 export type DvfEngineContext = {
   immeubleVentes: number;
   quartierVentes: number;
@@ -67,14 +87,29 @@ export type DvfEngineContext = {
   coproLots: number | null;
   coproPeriode: string | null;
   dpeKnown: string | null;
+  /** D'où vient l'étiquette retenue : déclarée par la personne, ou base ADEME. */
+  dpeSource: 'declare' | 'ademe' | null;
+  /** Étiquettes relevées dans l'immeuble (base ADEME). */
+  dpeRepartition: DpeRepartitionEntry[];
   biensEnVenteSecteur: number;
+  /** Détail des mandats — jamais renseigné quand agencyId est null. */
+  biensEnVenteDetail: BienEnVente[];
   negociacionMedianePct: number | null;
+  /** Rayon réellement retenu autour de l'adresse. */
+  radiusM: number;
+  /** « 2e trimestre 2026 » — période de la vente comparable la plus récente. */
+  trimestreLabel: string | null;
+  /** Les comparables sont trop hétérogènes pour resserrer une fourchette. */
+  dispersionElevee: boolean;
+  dispersionRatio: number | null;
   /** Sources réellement mobilisées — persistées avec le résultat. */
   sources: EstimationSourceId[];
 };
 
 export type DvfEngineResult = {
   available: boolean;
+  /** Valeur centrale retenue — l'information principale de l'écran de résultat. */
+  value: number | null;
   low: number | null;
   high: number | null;
   pricePerM2: number | null;
@@ -194,6 +229,36 @@ function excludeOutliers(rows: { prixM2: number }[]): {
   return { kept, excluded: rows.length - kept.length };
 }
 
+/**
+ * Écart interquartile rapporté à la médiane. Au-delà du seuil, les biens du
+ * secteur ne se ressemblent pas assez : une fourchette resserrée serait un
+ * chiffre inventé.
+ */
+export function dispersionRatio(values: readonly number[]): number | null {
+  if (values.length < DISPERSION_MIN_SAMPLE) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)]!;
+  const q3 = sorted[Math.floor(sorted.length * 0.75)]!;
+  const median = sorted[Math.floor(sorted.length / 2)]!;
+  if (median <= 0) return null;
+  return (q3 - q1) / median;
+}
+
+export function isDispersionElevee(ratio: number | null): boolean {
+  return ratio != null && ratio > DISPERSION_THRESHOLD;
+}
+
+/** « 2e trimestre 2026 » à partir d'une date de mutation. */
+export function trimestreLabel(dateIso: string | null): string | null {
+  if (!dateIso) return null;
+  const t = Date.parse(dateIso);
+  if (!Number.isFinite(t)) return null;
+  const d = new Date(t);
+  const q = Math.floor(d.getUTCMonth() / 3) + 1;
+  const ordinal = q === 1 ? '1er' : `${q}e`;
+  return `${ordinal} trimestre ${d.getUTCFullYear()}`;
+}
+
 function reliabilityScore(args: {
   immeuble: number;
   quartier: number;
@@ -205,28 +270,136 @@ function reliabilityScore(args: {
   if (args.surfaceOk) score += 8;
   score = Math.max(0, Math.min(100, score));
 
-  if (score >= 70) {
-    return {
-      score,
-      label: `Estimation fiable — ${args.quartier} ventes comparables dont ${args.immeuble} dans l'immeuble`,
-    };
-  }
-  if (score >= 40) {
-    return {
-      score,
-      label: `Estimation moyenne — ${args.quartier} ventes comparables dont ${args.immeuble} dans l'immeuble`,
-    };
-  }
-  return {
-    score,
-    label: `Estimation peu fiable — seulement ${args.quartier} vente${args.quartier > 1 ? 's' : ''} comparable${args.quartier > 1 ? 's' : ''}. Fourchette élargie.`,
-  };
+  // Le libellé dit ce dont on dispose, jamais ce qui manque : le niveau de
+  // fiabilité s'affiche à part, en pastille.
+  if (score >= 70) return { score, label: 'Fiabilité élevée' };
+  if (score >= 40) return { score, label: 'Fiabilité correcte' };
+  return { score, label: 'Fiabilité limitée' };
+}
+
+/** Phrase de synthèse : ce que l'on a réuni, avec sa période de référence. */
+export function comparablesSentence(args: {
+  quartier: number;
+  radiusM: number;
+  trimestre: string | null;
+}): string {
+  if (args.quartier === 0) return 'Aucune vente comparable exploitable à proximité.';
+  const ventes = `${args.quartier} vente${args.quartier > 1 ? 's' : ''} comparable${args.quartier > 1 ? 's' : ''}`;
+  const rayon = `dans un rayon de ${args.radiusM} m`;
+  return args.trimestre
+    ? `${ventes} ${rayon}, réactualisées au ${args.trimestre}`
+    : `${ventes} ${rayon}`;
 }
 
 export type StepEmitter = (step: EstimationStep) => void | Promise<void>;
 
+/* -------------------------------------------------------------------------- */
+/* Résolution de l'immeuble et de la parcelle                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Rattache l'adresse à un immeuble puis à une parcelle.
+ *
+ * Trois chemins, du plus sûr au plus tolérant : l'identifiant BAN, la table de
+ * pivot parcelle_adresses (qui connaît des rattachements que `buildings` n'a
+ * pas toujours), puis la proximité géographique. Sans ce repli, le cadastre et
+ * le RNC ne remontaient jamais pour les adresses dont la ligne `buildings`
+ * était incomplète.
+ */
+export async function resolveBuilding(
+  admin: Db,
+  input: { banId: string | null; latitude: number; longitude: number; postalCode: string },
+): Promise<{ banId: string | null; parcelleId: string | null; building: BuildingRow | null }> {
+  let building: BuildingRow | null = null;
+
+  if (input.banId) {
+    const { data } = await admin
+      .from('buildings')
+      .select('ban_id, parcelle_id, adresse, lat, lng')
+      .eq('ban_id', input.banId)
+      .limit(1)
+      .maybeSingle();
+    building = (data as BuildingRow | null) ?? null;
+  }
+
+  // Repli géographique : l'adresse saisie n'a pas d'identifiant BAN connu de
+  // notre base, mais l'immeuble y est peut-être sous un autre identifiant.
+  if (!building && Number.isFinite(input.latitude) && Number.isFinite(input.longitude)) {
+    const { data } = await admin
+      .from('buildings')
+      .select('ban_id, parcelle_id, adresse, lat, lng')
+      .eq('code_postal', input.postalCode)
+      .gte('lat', input.latitude - 30 / 111_320)
+      .lte('lat', input.latitude + 30 / 111_320)
+      .gte('lng', input.longitude - 30 / (111_320 * Math.cos((48.85 * Math.PI) / 180)))
+      .lte('lng', input.longitude + 30 / (111_320 * Math.cos((48.85 * Math.PI) / 180)))
+      .limit(5);
+    const rows = ((data ?? []) as unknown as BuildingRow[]).filter(
+      (b) => b.lat != null && b.lng != null,
+    );
+    rows.sort(
+      (a, b) =>
+        haversineM(input.latitude, input.longitude, a.lat!, a.lng!) -
+        haversineM(input.latitude, input.longitude, b.lat!, b.lng!),
+    );
+    building = rows[0] ?? null;
+  }
+
+  const banId = building?.ban_id ?? input.banId;
+  let parcelleId = building?.parcelle_id ?? null;
+
+  // La table de pivot connaît des rattachements que `buildings` n'a pas.
+  if (!parcelleId && banId) {
+    const { data } = await admin
+      .from('parcelle_adresses')
+      .select('parcelle_id')
+      .eq('ban_id', banId)
+      .limit(1)
+      .maybeSingle();
+    parcelleId = data?.parcelle_id ?? null;
+  }
+
+  return { banId, parcelleId, building };
+}
+
+/** Étiquettes DPE relevées dans l'immeuble (ADEME), de la plus fréquente à la plus rare. */
+export async function fetchDpeImmeuble(
+  admin: Db,
+  banId: string | null,
+): Promise<{ repartition: DpeRepartitionEntry[]; derniere: string | null }> {
+  if (!banId) return { repartition: [], derniere: null };
+
+  const { data } = await admin
+    .from('building_dpe')
+    .select('etiquette_dpe, date_dpe')
+    .eq('ban_id', banId)
+    .order('date_dpe', { ascending: false })
+    .limit(200);
+
+  const rows = data ?? [];
+  const counts = new Map<string, number>();
+  let derniere: string | null = null;
+  for (const row of rows) {
+    const letter = parseDpeLetter(row.etiquette_dpe);
+    if (!letter) continue;
+    if (!derniere) derniere = letter;
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+
+  const repartition = [...counts.entries()]
+    .map(([letter, count]) => ({ letter, count }))
+    .sort((a, b) => (b.count - a.count) || a.letter.localeCompare(b.letter));
+
+  return { repartition, derniere };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Calcul                                                                     */
+/* -------------------------------------------------------------------------- */
+
 /**
  * Calcule l'avis à partir du DVF / buildings. Émet des étapes au fur et à mesure.
+ * `agencyId` null = contexte public : aucune donnée d'agence n'est lue.
  */
 export async function runDvfEstimation(
   admin: Db,
@@ -242,36 +415,16 @@ export async function runDvfEstimation(
     await onStep(step);
   }
 
-  const emptyContext = (sources: EstimationSourceId[]): DvfEngineContext => ({
-    immeubleVentes: 0,
-    quartierVentes: 0,
-    outliersExcluded: 0,
-    coproLots: null,
-    coproPeriode: null,
-    dpeKnown: null,
-    biensEnVenteSecteur: 0,
-    negociacionMedianePct: null,
-    sources,
+  const { banId, parcelleId, building } = await resolveBuilding(admin, {
+    banId: input.banId,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    postalCode: input.postalCode,
   });
-
-  // Résoudre l'immeuble
-  let building: BuildingRow | null = null;
-  if (input.banId) {
-    const { data } = await admin
-      .from('buildings')
-      .select('ban_id, parcelle_id, adresse, lat, lng')
-      .eq('ban_id', input.banId)
-      .limit(1)
-      .maybeSingle();
-    building = (data as BuildingRow | null) ?? null;
-  }
-
-  const parcelleId = building?.parcelle_id ?? null;
-  const banId = building?.ban_id ?? input.banId;
 
   await emit({
     id: 'search_immeuble',
-    label: `Recherche des ventes dans le ${input.address}…`,
+    label: `Recherche des ventes enregistrées au ${input.address}`,
   });
 
   // Ventes même immeuble / parcelle
@@ -294,14 +447,14 @@ export async function runDvfEstimation(
     id: 'immeuble_count',
     label:
       immeubleTx.length === 0
-        ? 'Aucune vente trouvée dans l’immeuble'
+        ? 'Élargissement au quartier : aucune vente enregistrée dans cet immeuble'
         : `${immeubleTx.length} vente${immeubleTx.length > 1 ? 's' : ''} trouvée${immeubleTx.length > 1 ? 's' : ''} dans l’immeuble`,
     detail: immeubleTx.length > 0 ? `${immeubleTx.length} mutations` : undefined,
   });
 
   await emit({
     id: 'expand_quartier',
-    label: 'Élargissement au quartier…',
+    label: `Relevé des ventes dans un rayon de ${RADIUS_M} m`,
   });
 
   const lat = input.latitude;
@@ -409,7 +562,7 @@ export async function runDvfEstimation(
         : 'échantillon local';
     await emit({
       id: 'actualisation',
-      label: `Actualisation des prix selon l’évolution constatée dans le secteur (${trimestre})…`,
+      label: `Actualisation des prix selon l’évolution constatée dans le secteur (${trimestre})`,
     });
   }
 
@@ -437,7 +590,7 @@ export async function runDvfEstimation(
     });
   }
 
-  // Copropriété
+  // Copropriété — registre national (RNC)
   let coproLots: number | null = null;
   let coproPeriode: string | null = null;
   if (banId) {
@@ -451,43 +604,77 @@ export async function runDvfEstimation(
     if (copro) {
       coproLots = copro.nombre_lots ?? null;
       coproPeriode = formatPeriodeConstruction(copro.periode_construction);
-      await emit({
-        id: 'copro',
-        label: `Analyse de la copropriété : ${coproLots ?? '?'} lots${coproPeriode ? `, construite ${coproPeriode.toLowerCase()}` : ''}`,
-      });
+      if (coproLots != null || coproPeriode) {
+        await emit({
+          id: 'copro',
+          label: `Copropriété identifiée au registre national : ${coproLots ?? 'lots inconnus'}${coproLots != null ? ' lots' : ''}${coproPeriode ? `, construite ${coproPeriode.toLowerCase()}` : ''}`,
+        });
+      }
     }
   }
 
-  // DPE connu
-  let dpeKnown: string | null = parseDpeLetter(input.dpeClass) ?? null;
-  let dpeFromAdeme = false;
-  if (!dpeKnown && banId) {
+  if (parcelleId) {
+    await emit({
+      id: 'cadastre',
+      label: 'Parcelle cadastrale rattachée : les ventes de la parcelle sont retenues en priorité',
+    });
+  }
+
+  // DPE — la source ADEME n'est revendiquée que si un diagnostic a réellement
+  // été lu. Une étiquette saisie par le visiteur n'est pas une donnée ADEME.
+  const declaredDpe = parseDpeLetter(input.dpeClass);
+  const { repartition: dpeRepartition, derniere: dpeAdeme } = await fetchDpeImmeuble(admin, banId);
+
+  let dpeFromAdeme = dpeAdeme != null;
+  if (!dpeFromAdeme && banId) {
     const { data: act } = await admin
       .from('building_activity')
       .select('etiquette_dpe')
       .eq('ban_id', banId)
       .maybeSingle();
-    dpeKnown = parseDpeLetter(act?.etiquette_dpe ?? null);
-    if (dpeKnown) dpeFromAdeme = true;
+    if (parseDpeLetter(act?.etiquette_dpe ?? null)) dpeFromAdeme = true;
   }
-  const dpeUsed =
-    Boolean(parseDpeLetter(input.dpeClass)) || dpeFromAdeme || Boolean(dpeKnown);
 
-  // Biens en vente dans le secteur (agence) — distinct de Bien'ici
+  const dpeKnown = declaredDpe ?? dpeAdeme ?? null;
+  const dpeSource: 'declare' | 'ademe' | null = declaredDpe
+    ? 'declare'
+    : dpeAdeme
+      ? 'ademe'
+      : null;
+
+  if (dpeRepartition.length > 0) {
+    const total = dpeRepartition.reduce((sum, e) => sum + e.count, 0);
+    await emit({
+      id: 'dpe',
+      label: `${total} diagnostic${total > 1 ? 's' : ''} énergétique${total > 1 ? 's' : ''} relevé${total > 1 ? 's' : ''} dans l’immeuble (base ADEME)`,
+    });
+  }
+
+  // Biens en vente dans le secteur — donnée interne d'agence.
+  // Jamais interrogée en contexte public (agencyId null).
   let biensEnVente = 0;
+  let biensEnVenteDetail: BienEnVente[] = [];
   if (agencyId && input.postalCode) {
-    const { data: biens, count } = await admin
+    const { data: biens } = await admin
       .from('biens')
-      .select('id', { count: 'exact', head: true })
+      .select('id, address, price, surface_m2, rooms')
       .eq('agency_id', agencyId)
       .eq('postal_code', input.postalCode)
-      .in('mandat_statut', ['mandat_simple', 'mandat_exclusif']);
-    biensEnVente = count ?? 0;
-    void biens;
+      .in('mandat_statut', ['mandat_simple', 'mandat_exclusif'])
+      .order('created_at', { ascending: false })
+      .limit(50);
+    biensEnVenteDetail = (biens ?? []).map((b) => ({
+      id: b.id as string,
+      address: (b.address as string) ?? '',
+      price: (b.price as number | null) ?? null,
+      surfaceM2: (b.surface_m2 as number | null) ?? null,
+      rooms: (b.rooms as number | null) ?? null,
+    }));
+    biensEnVente = biensEnVenteDetail.length;
     if (biensEnVente > 0) {
       await emit({
         id: 'biens_vente',
-        label: `Comparaison avec ${biensEnVente} bien${biensEnVente > 1 ? 's' : ''} actuellement en vente dans le secteur`,
+        label: `Comparaison avec ${biensEnVente} mandat${biensEnVente > 1 ? 's' : ''} de l’agence en cours dans le secteur`,
       });
     }
   }
@@ -508,7 +695,7 @@ export async function runDvfEstimation(
   if (priced.length > 0) sources.push('dvf');
   if (priced.length > 0 && recentMedian != null) sources.push('notaires_insee');
   if (parcelleId) sources.push('cadastre');
-  if (dpeUsed) sources.push('dpe');
+  if (dpeFromAdeme) sources.push('dpe');
   if (coproLots != null || coproPeriode != null) sources.push('copro');
   if (bieniciUsed) sources.push('bienici');
 
@@ -518,9 +705,35 @@ export async function runDvfEstimation(
     surfaceOk: input.surfaceM2 >= 20 && input.surfaceM2 <= 300,
   });
 
+  const derniereVente = work
+    .map((p) => p.row.date_mutation)
+    .sort()
+    .at(-1) ?? null;
+  const trimestre = trimestreLabel(derniereVente);
+
+  const baseContext: DvfEngineContext = {
+    immeubleVentes: immeubleCount,
+    quartierVentes: quartierCount,
+    outliersExcluded: excluded,
+    coproLots,
+    coproPeriode,
+    dpeKnown,
+    dpeSource,
+    dpeRepartition,
+    biensEnVenteSecteur: biensEnVente,
+    biensEnVenteDetail,
+    negociacionMedianePct: null,
+    radiusM: RADIUS_M,
+    trimestreLabel: trimestre,
+    dispersionElevee: false,
+    dispersionRatio: null,
+    sources,
+  };
+
   if (quartierCount === 0) {
     return {
       available: false,
+      value: null,
       low: null,
       high: null,
       pricePerM2: null,
@@ -529,15 +742,7 @@ export async function runDvfEstimation(
       steps,
       comparables: [],
       sources,
-      context: {
-        ...emptyContext(sources),
-        immeubleVentes: immeubleTx.length,
-        outliersExcluded: excluded,
-        coproLots,
-        coproPeriode,
-        dpeKnown,
-        biensEnVenteSecteur: biensEnVente,
-      },
+      context: { ...baseContext, immeubleVentes: immeubleTx.length, quartierVentes: 0 },
       parcelleId,
     };
   }
@@ -545,20 +750,36 @@ export async function runDvfEstimation(
   const pm2List = work.map((p) => p.prixM2Adj).sort((a, b) => a - b);
   const medianPm2 = pm2List[Math.floor(pm2List.length / 2)]!;
 
+  const ratio = dispersionRatio(pm2List);
+  const dispersionElevee = isDispersionElevee(ratio);
+  if (dispersionElevee) {
+    await emit({
+      id: 'dispersion',
+      label: 'Prix au m² très dispersés dans ce secteur : la fourchette n’est pas resserrable',
+    });
+  }
+
   const coeff =
     1 +
     floorCoeff(input.propertyType, input.floor) +
     dpeCoeff(input.dpeClass ?? dpeKnown) +
     mapConditionToCoeff(input.conditionRating);
 
-  let value = roundToThousand(medianPm2 * input.surfaceM2 * coeff);
+  const value = roundToThousand(medianPm2 * input.surfaceM2 * coeff);
   let rangePct: number = CONFIG_ESTIMATION.RANGE_PCT;
   if (score < 40) rangePct = 0.14;
   else if (score < 70) rangePct = 0.1;
 
-  const low = roundToThousand(value * (1 - rangePct));
-  const high = roundToThousand(value * (1 + rangePct));
+  // Dispersion élevée : pas de fourchette. Mieux vaut dire qu'une visite est
+  // nécessaire qu'afficher un intervalle qui ne veut rien dire.
+  const low = dispersionElevee ? null : roundToThousand(value * (1 - rangePct));
+  const high = dispersionElevee ? null : roundToThousand(value * (1 + rangePct));
   const pricePerM2 = Math.round(value / input.surfaceM2);
+
+  await emit({
+    id: 'valeur',
+    label: `Valeur retenue : ${pricePerM2.toLocaleString('fr-FR')} €/m² appliqués à ${input.surfaceM2} m²`,
+  });
 
   const comparables: ComparableSale[] = work.slice(0, 20).map((p) => ({
     date: p.row.date_mutation,
@@ -572,6 +793,7 @@ export async function runDvfEstimation(
 
   return {
     available: true,
+    value,
     low,
     high,
     pricePerM2,
@@ -581,63 +803,148 @@ export async function runDvfEstimation(
     comparables,
     sources,
     context: {
-      immeubleVentes: immeubleCount,
-      quartierVentes: quartierCount,
-      outliersExcluded: excluded,
-      coproLots,
-      coproPeriode,
-      dpeKnown,
-      biensEnVenteSecteur: biensEnVente,
-      negociacionMedianePct: null,
-      sources,
+      ...baseContext,
+      dispersionElevee,
+      dispersionRatio: ratio,
     },
     parcelleId,
   };
 }
 
-/** Aperçu immeuble dès la résolution BAN (avant le calcul). */
-export async function peekBuildingHints(
-  admin: Db,
-  banId: string,
-): Promise<{ ventes: number; coproLots: number | null; dpe: string | null }> {
-  const { data: building } = await admin
-    .from('buildings')
-    .select('ban_id, parcelle_id')
-    .eq('ban_id', banId)
-    .limit(1)
-    .maybeSingle();
+/* -------------------------------------------------------------------------- */
+/* Panneau de contexte — ce que la base sait déjà, avant le calcul            */
+/* -------------------------------------------------------------------------- */
 
-  let ventes = 0;
-  if (building?.parcelle_id) {
-    const { count } = await admin
-      .from('building_transactions')
-      .select('id', { count: 'exact', head: true })
-      .eq('parcelle_id', building.parcelle_id);
-    ventes = count ?? 0;
-  } else {
-    const { count } = await admin
-      .from('building_transactions')
-      .select('id', { count: 'exact', head: true })
-      .eq('ban_id', banId);
-    ventes = count ?? 0;
+export type AddressContext = {
+  /** Vrai seulement une fois l'adresse rattachée : rien ne s'affiche avant. */
+  resolved: boolean;
+  city: string | null;
+  postalCode: string | null;
+  immeubleVentes: number;
+  derniereVente: string | null;
+  coproLots: number | null;
+  coproPeriode: string | null;
+  dpeKnown: string | null;
+  dpeRepartition: DpeRepartitionEntry[];
+  parcelleKnown: boolean;
+};
+
+/**
+ * Ce que Priimo sait de l'adresse avant même la première question.
+ * Alimente le panneau de contexte des deux parcours.
+ */
+export async function fetchAddressContext(
+  admin: Db,
+  input: { banId: string | null; latitude: number; longitude: number; postalCode: string },
+): Promise<AddressContext> {
+  const { banId, parcelleId } = await resolveBuilding(admin, input);
+
+  if (!banId && !parcelleId) {
+    return {
+      resolved: false,
+      city: null,
+      postalCode: input.postalCode || null,
+      immeubleVentes: 0,
+      derniereVente: null,
+      coproLots: null,
+      coproPeriode: null,
+      dpeKnown: null,
+      dpeRepartition: [],
+      parcelleKnown: false,
+    };
   }
 
-  const { data: copro } = await admin
-    .from('building_copro')
-    .select('nombre_lots')
-    .eq('ban_id', banId)
-    .limit(1)
-    .maybeSingle();
+  let txQuery = admin
+    .from('building_transactions')
+    .select('date_mutation')
+    .order('date_mutation', { ascending: false })
+    .limit(100);
+  txQuery = parcelleId ? txQuery.eq('parcelle_id', parcelleId) : txQuery.eq('ban_id', banId!);
+  const { data: tx } = await txQuery;
 
-  const { data: act } = await admin
-    .from('building_activity')
-    .select('etiquette_dpe')
-    .eq('ban_id', banId)
-    .maybeSingle();
+  const [{ data: copro }, dpe] = await Promise.all([
+    banId
+      ? admin
+          .from('building_copro')
+          .select('nombre_lots, periode_construction')
+          .eq('ban_id', banId)
+          .order('date_maj', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    fetchDpeImmeuble(admin, banId),
+  ]);
 
   return {
-    ventes,
+    resolved: true,
+    city: null,
+    postalCode: input.postalCode || null,
+    immeubleVentes: tx?.length ?? 0,
+    derniereVente: tx?.[0]?.date_mutation ?? null,
     coproLots: copro?.nombre_lots ?? null,
-    dpe: parseDpeLetter(act?.etiquette_dpe ?? null),
+    coproPeriode: formatPeriodeConstruction(copro?.periode_construction),
+    dpeKnown: dpe.derniere,
+    dpeRepartition: dpe.repartition,
+    parcelleKnown: parcelleId != null,
   };
+}
+
+/**
+ * Combien de ventes comparables sont déjà identifiables pour ce type de bien.
+ * Le même rayon et le même filtre que le calcul : le chiffre annoncé pendant
+ * le parcours est celui qui sera utilisé.
+ */
+export async function countComparables(
+  admin: Db,
+  input: {
+    latitude: number;
+    longitude: number;
+    postalCode: string;
+    propertyType: EstimationPropertyType;
+  },
+): Promise<number> {
+  if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) return 0;
+
+  const { data: nearBuildings } = await admin
+    .from('buildings')
+    .select('ban_id, parcelle_id, lat, lng')
+    .eq('code_postal', input.postalCode)
+    .gte('lat', input.latitude - LAT_DELTA)
+    .lte('lat', input.latitude + LAT_DELTA)
+    .gte('lng', input.longitude - LNG_DELTA_AT_48)
+    .lte('lng', input.longitude + LNG_DELTA_AT_48)
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .limit(400);
+
+  const near = ((nearBuildings ?? []) as unknown as BuildingRow[]).filter(
+    (b) =>
+      b.lat != null &&
+      b.lng != null &&
+      haversineM(input.latitude, input.longitude, b.lat, b.lng) <= RADIUS_M,
+  );
+  if (near.length === 0) return 0;
+
+  const parcelleIds = [...new Set(near.map((b) => b.parcelle_id).filter(Boolean))] as string[];
+  const banIds = [...new Set(near.map((b) => b.ban_id))];
+
+  let q = admin
+    .from('building_transactions')
+    .select('type_local, valeur_fonciere, surface_reelle_bati, prix_m2')
+    .limit(400);
+  q = parcelleIds.length > 0 ? q.in('parcelle_id', parcelleIds.slice(0, 200)) : q.in('ban_id', banIds.slice(0, 200));
+  const { data } = await q;
+
+  const typeFilter =
+    input.propertyType === 'maison'
+      ? (t: string | null) => /maison/i.test(t ?? '')
+      : (t: string | null) => !t || /appart/i.test(t) || /local/i.test(t) === false;
+
+  return (data ?? []).filter((row) => {
+    if (!typeFilter((row.type_local as string | null) ?? null)) return false;
+    const surface = num(row.surface_reelle_bati);
+    const prix = num(row.valeur_fonciere);
+    const pm2 = num(row.prix_m2) ?? (surface && prix ? prix / surface : null);
+    return pm2 != null && pm2 >= 500 && pm2 <= 50_000;
+  }).length;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import SourceBadges from '@/components/estimation/SourceBadges';
+import ValeurCentrale from '@/components/estimation/parts/ValeurCentrale';
 import type { EstimationSourceId } from '@/lib/estimation/sources';
 import { normalizeEstimationSources, sourcesFromContext } from '@/lib/estimation/sources';
 
@@ -11,6 +12,8 @@ type AvisPayload = {
   postalCode: string | null;
   city: string | null;
   available: boolean;
+  value: number | null;
+  reliability: number;
   low: number | null;
   high: number | null;
   pricePerM2: number | null;
@@ -38,6 +41,11 @@ function formatEuro(n: number): string {
     currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(n);
+}
+
+function readNumber(context: Record<string, unknown>, key: string): number | null {
+  const value = context[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function formatDate(iso: string): string {
@@ -85,6 +93,7 @@ export default function AvisPublicPage() {
   const sources = normalizeEstimationSources(
     data.sources?.length ? data.sources : sourcesFromContext(data.context),
   );
+  const context = (data.context ?? {}) as Record<string, unknown>;
 
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-5 py-10">
@@ -107,22 +116,23 @@ export default function AvisPublicPage() {
         {data.city ? `${data.city}${data.postalCode ? ` (${data.postalCode})` : ''}` : data.address}
       </h1>
 
-      {data.available && data.low != null && data.high != null ? (
-        <p className="mt-5 font-semibold tabular-nums tracking-tight text-ink" style={{ fontSize: 28 }}>
-          {formatEuro(data.low)} – {formatEuro(data.high)}
-        </p>
-      ) : (
-        <p className="mt-5 text-[15px] text-ink">Fourchette non disponible.</p>
-      )}
-      {data.pricePerM2 != null ? (
-        <p className="mt-1 text-[14px] tabular-nums text-text-muted">
-          {data.pricePerM2.toLocaleString('fr-FR')} €/m²
-        </p>
-      ) : null}
-
-      {data.reliabilityLabel ? (
-        <p className="mt-4 text-pretty text-[14px] text-ink">{data.reliabilityLabel}</p>
-      ) : null}
+      <div className="mt-5" style={{ '--est-accent': '#E8743C' } as React.CSSProperties}>
+        <ValeurCentrale
+          value={data.available ? data.value : null}
+          low={data.low}
+          high={data.high}
+          pricePerM2={data.pricePerM2}
+          dispersionElevee={context.dispersionElevee === true}
+          reliability={data.reliability}
+          summary={{
+            comparables: readNumber(context, 'quartierVentes') ?? data.comparables.length,
+            radiusM: readNumber(context, 'radiusM') ?? 200,
+            trimestre:
+              typeof context.trimestreLabel === 'string' ? context.trimestreLabel : null,
+            immeubleVentes: readNumber(context, 'immeubleVentes') ?? 0,
+          }}
+        />
+      </div>
 
       <SourceBadges sources={sources} className="mt-6" />
 

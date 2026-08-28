@@ -22,7 +22,7 @@ export async function GET(
     .from('agency_estimations')
     .select(
       `id, address, postal_code, city, property_type, surface_m2, rooms,
-       available, price_low, price_high, price_per_m2, reliability, reliability_label,
+       available, price_value, price_low, price_high, price_per_m2, reliability, reliability_label,
        comparables, context, share_expires_at, share_revoked_at, view_count,
        agency_id, created_by, created_at`,
     )
@@ -79,10 +79,11 @@ export async function GET(
     surfaceM2: row.surface_m2,
     rooms: row.rooms,
     available: row.available,
+    value: row.price_value,
     low: row.price_low,
     high: row.price_high,
     pricePerM2: row.price_per_m2,
-    reliability: row.reliability,
+    reliability: row.reliability ?? 0,
     reliabilityLabel: row.reliability_label,
     comparables,
     context: row.context,

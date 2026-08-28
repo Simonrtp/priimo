@@ -4,6 +4,7 @@ import { agencyNeedsOnboarding } from '@/lib/auth/agency-onboarding';
 import { resolveActiveAgencyId, resolveActiveRole } from '@/lib/auth/active-agency';
 import { deviceFromHints } from '@/lib/device';
 import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env';
+import { frameAncestorsFor, widgetPublicIdFromPath } from '@/lib/widget/frame-policy';
 
 /** Routes marketing / légales : pas de getUser (latence). */
 const SKIP_AUTH_PREFIXES = [
@@ -16,7 +17,34 @@ const SKIP_AUTH_PREFIXES = [
   '/mentions-legales',
   '/estimation',
   '/avis',
+  '/e',
+  '/embed',
 ];
+
+/**
+ * Le widget est la seule page du site destinée à être cadrée par un tiers.
+ * Elle porte donc ses propres en-têtes : `frame-ancestors` calculé à partir de
+ * la liste blanche de l'agence, et pas le X-Frame-Options: DENY du reste du
+ * site (next.config.js exclut /e et /embed de la règle globale).
+ */
+const WIDGET_SECURITY_HEADERS: Array<[string, string]> = [
+  ['Referrer-Policy', 'strict-origin-when-cross-origin'],
+  ['X-Content-Type-Options', 'nosniff'],
+  ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()'],
+  ['Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload'],
+  ['X-XSS-Protection', '0'],
+];
+
+async function widgetResponse(request: NextRequest, publicId: string) {
+  const frameAncestors = await frameAncestorsFor(publicId);
+  const response = NextResponse.next();
+  for (const [key, value] of WIDGET_SECURITY_HEADERS) response.headers.set(key, value);
+  response.headers.set('Content-Security-Policy', `frame-ancestors ${frameAncestors}`);
+  // Deux agences n'ont pas la même liste : le cache ne doit pas les confondre.
+  response.headers.set('Cache-Control', 'private, no-store');
+  void request;
+  return response;
+}
 
 const PUBLIC_EXACT = new Set(['/', '/login', '/invite', '/cgu', '/signup']);
 
@@ -58,6 +86,9 @@ async function getDirectorOnboardingState(
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const widgetPublicId = widgetPublicIdFromPath(pathname);
+  if (widgetPublicId) return widgetResponse(request, widgetPublicId);
 
   const skipAuth =
     pathname === '/' ||

@@ -15,23 +15,32 @@ import EquipeClient from '@/components/dashboard/equipe/EquipeClient';
 import Modal from '@/components/ui/Modal';
 import SectionRequestSector from './SectionRequestSector';
 import SectionIntegrations from './SectionIntegrations';
+import SectionWidget from './SectionWidget';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
 const labelClass = 'mb-1.5 block font-medium text-gray-700';
 
-export type SettingsTabId = 'agency' | 'team' | 'billing' | 'integrations' | 'profile';
+export type SettingsTabId =
+  | 'agency'
+  | 'team'
+  | 'widget'
+  | 'billing'
+  | 'integrations'
+  | 'profile';
 
 const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'agency', label: 'Mon agence' },
   { id: 'team', label: 'Mon équipe' },
+  { id: 'widget', label: 'Widget d’estimation' },
   { id: 'integrations', label: 'Connexions' },
   { id: 'billing', label: 'Abonnement' },
   { id: 'profile', label: 'Mon profil' },
 ];
 
 const COLLABORATOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
+  { id: 'widget', label: 'Widget d’estimation' },
   { id: 'integrations', label: 'Connexions' },
   { id: 'profile', label: 'Mon profil' },
 ];
@@ -84,6 +93,8 @@ export default function SettingsDashboard({
         ) : null;
       case 'billing':
         return isDirector ? <SectionBilling /> : null;
+      case 'widget':
+        return <SectionWidget />;
       case 'integrations':
         return <SectionIntegrations />;
       case 'profile':
