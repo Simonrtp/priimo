@@ -418,6 +418,37 @@ export type EstimationRequestInsert = {
 };
 
 /** Configuration du widget embarquable — une ligne par agence. */
+/** Prise en main du négociateur — progression et mesure. */
+export type AgentOnboardingRow = {
+  profile_id: string;
+  agency_id: string;
+  started_at: string;
+  last_seen_at: string;
+  current_step: string | null;
+  steps_reached: string[];
+  steps_skipped: string[];
+  duration_seconds: number;
+  completed_at: string | null;
+  skipped_at: string | null;
+  relance_dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentOnboardingInsert = {
+  profile_id: string;
+  agency_id: string;
+  started_at?: string;
+  last_seen_at?: string;
+  current_step?: string | null;
+  steps_reached?: string[];
+  steps_skipped?: string[];
+  duration_seconds?: number;
+  completed_at?: string | null;
+  skipped_at?: string | null;
+  relance_dismissed_at?: string | null;
+};
+
 export type AgencyWidgetRow = {
   agency_id: string;
   public_id: string;
@@ -427,6 +458,12 @@ export type AgencyWidgetRow = {
   logo_url: string | null;
   allowed_domains: string[];
   daily_cap: number;
+  /** Premier chargement constaté depuis un domaine autorisé. */
+  first_installed_at: string | null;
+  last_seen_at: string | null;
+  last_seen_host: string | null;
+  install_email_to: string | null;
+  install_email_sent_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -1526,6 +1563,12 @@ export type Database = {
         Update: Partial<AgencyEstimationRow>;
         Relationships: [];
       };
+      agent_onboarding: {
+        Row: AgentOnboardingRow;
+        Insert: AgentOnboardingInsert;
+        Update: Partial<AgentOnboardingRow>;
+        Relationships: [];
+      };
       agency_widgets: {
         Row: AgencyWidgetRow;
         Insert: AgencyWidgetInsert;
@@ -1819,6 +1862,7 @@ export type Database = {
         Returns: number;
       };
       agency_estimations_today: { Args: { p_agency_id: string }; Returns: number };
+      record_widget_seen: { Args: { p_public_id: string; p_host: string | null }; Returns: void };
       current_user_agency_ids: { Args: Record<string, never>; Returns: string[] };
       current_user_agency_id: { Args: Record<string, never>; Returns: string };
       current_user_role: { Args: Record<string, never>; Returns: string };

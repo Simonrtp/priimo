@@ -25,6 +25,7 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import { postFormOrQueue } from '@/lib/offline/queue';
 import { notifySuccess } from '@/lib/notify';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
+import { emitNoteCreated } from '@/lib/notes/note-created-event';
 
 type Phase = 'recording' | 'processing' | 'review';
 
@@ -177,6 +178,8 @@ export default function VoiceCaptureDialog({
       if (cancelledRef.current) return;
 
       if (queued) {
+        // Enregistrée hors ligne : la note existe pour l'agent, l'envoi suivra.
+        emitNoteCreated({ noteId: null, source: 'vocal' });
         if (tourAdresse) noteDictee();
         notifySuccess('Dictée enregistrée — envoi dès le retour du réseau');
         onClose();
@@ -221,6 +224,7 @@ export default function VoiceCaptureDialog({
       }
 
       const nextTranscript = data.transcript ?? previous;
+      emitNoteCreated({ noteId: data.voiceNoteId ?? null, source: 'vocal' });
       setVoiceNoteId(data.voiceNoteId);
       setTranscript(nextTranscript);
       setReview(data);

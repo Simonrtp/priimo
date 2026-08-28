@@ -12,6 +12,7 @@ import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import InviteCollaboratorDialog from './InviteCollaboratorDialog';
+import { ETAT_LABEL, type EtatOnboarding } from '@/lib/onboarding/parcours';
 
 function roleLabel(role: ProfileRole): string {
   return role === 'directeur' ? 'Directeur' : 'Collaborateur';
@@ -29,14 +30,39 @@ function countLabel(n: number, one: string, many: string): string {
   return `${n} ${n > 1 ? many : one}`;
 }
 
+const ONBOARDING_STYLE: Record<EtatOnboarding, { fond: string; couleur: string }> = {
+  termine: { fond: '#E7F4EE', couleur: '#0F7A4F' },
+  en_cours: { fond: '#FBF2DE', couleur: '#8A6100' },
+  passe: { fond: '#F5F5F4', couleur: '#57534E' },
+  jamais_ouvert: { fond: '#F5F5F4', couleur: '#57534E' },
+};
+
+/** « Prise en main : terminée / en cours / jamais ouverte ». */
+function PastilleOnboarding({ etat }: { etat: EtatOnboarding }) {
+  const { fond, couleur } = ONBOARDING_STYLE[etat];
+  const libelle =
+    etat === 'jamais_ouvert' ? 'Prise en main jamais ouverte' : `Prise en main ${ETAT_LABEL[etat].toLowerCase()}`;
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium"
+      style={{ backgroundColor: fond, color: couleur }}
+    >
+      {libelle}
+    </span>
+  );
+}
+
 export default function EquipeClient({
   embedded = false,
   currentUserId,
   initialMembers,
   initialInvitations,
+  onboardingByMemberId = {},
 }: {
   embedded?: boolean;
   currentUserId: string;
+  /** Prise en main par membre : premier signal d'adoption de l'équipe. */
+  onboardingByMemberId?: Record<string, EtatOnboarding>;
   initialMembers: AgencyMember[];
   initialInvitations: {
     id: string;
@@ -196,6 +222,13 @@ export default function EquipeClient({
                         {' · '}
                         {countLabel(member.leadCount, 'lead assigné', 'leads assignés')}
                       </p>
+                      {member.role === 'collaborateur' ? (
+                        <p className="mt-2">
+                          <PastilleOnboarding
+                            etat={onboardingByMemberId[member.id] ?? 'jamais_ouvert'}
+                          />
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">

@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { fetchWidgetConfig, toPublicConfig } from '@/lib/widget/config';
 import { hostFromOrigin, isDomainAllowed } from '@/lib/widget/domains';
@@ -60,6 +61,22 @@ export default async function WidgetPage({
     const autorise = host === selfHost || isDomainAllowed(host, config.allowedDomains);
     if (!autorise) {
       return <Indisponible message="Ce formulaire d’estimation n’est pas disponible." />;
+    }
+
+    // Le widget vient de se charger depuis un domaine autorisé : c'est la seule
+    // preuve qu'il est réellement posé sur le site. Écrit après la réponse,
+    // et au plus une fois par tranche de dix minutes (garde-fou en base).
+    if (host && host !== selfHost) {
+      after(async () => {
+        try {
+          await admin.rpc('record_widget_seen', {
+            p_public_id: config.publicId,
+            p_host: host,
+          });
+        } catch {
+          /* la page reste servie même si le relevé échoue */
+        }
+      });
     }
   }
 

@@ -36,6 +36,12 @@ export type WidgetConfig = {
   dailyCap: number;
   agencyName: string;
   agencyPhone: string | null;
+  /** Preuve d'installation : le widget a-t-il déjà été vu se charger ? */
+  firstInstalledAt: string | null;
+  lastSeenAt: string | null;
+  lastSeenHost: string | null;
+  installEmailTo: string | null;
+  installEmailSentAt: string | null;
 };
 
 /** Ce que la page publique reçoit. Sous-ensemble volontairement pauvre. */
@@ -59,6 +65,10 @@ export function toPublicConfig(config: WidgetConfig): WidgetPublicConfig {
 
 const DEFAULT_ACCENT = '#1F2937';
 
+/** Une seule chaîne littérale : Supabase en déduit le type des lignes. */
+const WIDGET_SELECT =
+  'agency_id, public_id, enabled, display_name, accent_color, logo_url, allowed_domains, daily_cap, first_installed_at, last_seen_at, last_seen_host, install_email_to, install_email_sent_at';
+
 /** Lecture service_role : la page publique n'a pas de session. */
 export async function fetchWidgetConfig(
   admin: Db,
@@ -69,7 +79,7 @@ export async function fetchWidgetConfig(
   const { data, error } = await admin
     .from('agency_widgets')
     .select(
-      'agency_id, public_id, enabled, display_name, accent_color, logo_url, allowed_domains, daily_cap',
+      WIDGET_SELECT,
     )
     .eq('public_id', publicId)
     .maybeSingle();
@@ -95,6 +105,11 @@ export async function fetchWidgetConfig(
     dailyCap: data.daily_cap,
     agencyName,
     agencyPhone: agency?.phone ?? null,
+    firstInstalledAt: data.first_installed_at,
+    lastSeenAt: data.last_seen_at,
+    lastSeenHost: data.last_seen_host,
+    installEmailTo: data.install_email_to,
+    installEmailSentAt: data.install_email_sent_at,
   };
 }
 
@@ -110,7 +125,7 @@ export async function ensureWidgetForAgency(
   const { data: existing } = await db
     .from('agency_widgets')
     .select(
-      'agency_id, public_id, enabled, display_name, accent_color, logo_url, allowed_domains, daily_cap',
+      WIDGET_SELECT,
     )
     .eq('agency_id', agencyId)
     .maybeSingle();
@@ -134,6 +149,11 @@ export async function ensureWidgetForAgency(
       dailyCap: existing.daily_cap,
       agencyName,
       agencyPhone: agency?.phone ?? null,
+      firstInstalledAt: existing.first_installed_at,
+      lastSeenAt: existing.last_seen_at,
+      lastSeenHost: existing.last_seen_host,
+      installEmailTo: existing.install_email_to,
+      installEmailSentAt: existing.install_email_sent_at,
     };
   }
 
@@ -148,7 +168,7 @@ export async function ensureWidgetForAgency(
       allowed_domains: [],
     })
     .select(
-      'agency_id, public_id, enabled, display_name, accent_color, logo_url, allowed_domains, daily_cap',
+      WIDGET_SELECT,
     )
     .single();
 
@@ -165,5 +185,10 @@ export async function ensureWidgetForAgency(
     dailyCap: created.daily_cap,
     agencyName,
     agencyPhone: agency?.phone ?? null,
+    firstInstalledAt: created.first_installed_at,
+    lastSeenAt: created.last_seen_at,
+    lastSeenHost: created.last_seen_host,
+    installEmailTo: created.install_email_to,
+    installEmailSentAt: created.install_email_sent_at,
   };
 }

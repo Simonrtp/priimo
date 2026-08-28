@@ -11,6 +11,7 @@ import { readDevicePosition } from '@/lib/voice/gps';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import { emitNoteCreated } from '@/lib/notes/note-created-event';
 
 export default function TypedNoteDialog({
   onClose,
@@ -89,6 +90,7 @@ export default function TypedNoteDialog({
         suggestedAssignee?: { id: string } | null;
       };
       if (!res.ok) throw new Error(data.error ?? 'save');
+      emitNoteCreated({ noteId: data.voiceNoteId ?? null, source: 'clavier' });
       setTranscript(data.transcript ?? payload.transcript);
       setSuggestedAssigneeId(data.suggestedAssignee?.id ?? null);
       setReview(data);

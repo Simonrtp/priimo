@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { ensureWidgetForAgency } from '@/lib/widget/config';
+import { ensureWidgetForAgency, type WidgetConfig } from '@/lib/widget/config';
 import { normalizeDomainList } from '@/lib/widget/domains';
 import { SITE_URL } from '@/lib/site-url';
+import { widgetSnippet } from '@/lib/widget/snippet';
 import type { AgencyWidgetRow } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -11,15 +12,7 @@ export const runtime = 'nodejs';
 const MAX_DOMAINS = 20;
 
 /** Ce que le dashboard affiche : configuration + code prêt à copier. */
-function payload(config: {
-  publicId: string;
-  enabled: boolean;
-  displayName: string;
-  accentColor: string;
-  logoUrl: string | null;
-  allowedDomains: string[];
-  dailyCap: number;
-}) {
+function payload(config: WidgetConfig) {
   return {
     publicId: config.publicId,
     enabled: config.enabled,
@@ -30,6 +23,12 @@ function payload(config: {
     dailyCap: config.dailyCap,
     scriptUrl: `${SITE_URL}/embed/v1.js`,
     pageUrl: `${SITE_URL}/e/${config.publicId}`,
+    snippet: widgetSnippet(SITE_URL, config.publicId),
+    firstInstalledAt: config.firstInstalledAt,
+    lastSeenAt: config.lastSeenAt,
+    lastSeenHost: config.lastSeenHost,
+    installEmailTo: config.installEmailTo,
+    installEmailSentAt: config.installEmailSentAt,
   };
 }
 

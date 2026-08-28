@@ -44,16 +44,44 @@ import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 import { fetchAgencyOverview } from '@/lib/queries/agency-overview';
+import { buildSectorMapPoints } from '@/lib/carte/points';
+import { buildSortie } from '@/lib/today/sortie';
+import { groupEntitiesByBanId } from '@/lib/carte/buildings';
+import { entreeStage } from '@/lib/queries/lead-stages';
+import {
+  fetchAgentOnboarding,
+  fetchOnboardingSecteur,
+  secteurADesParcelles,
+  troisLeadsAPrendre,
+} from '@/lib/queries/agent-onboarding';
+import {
+  buildParcours,
+  decideAffichage,
+  minutesRestantes,
+} from '@/lib/onboarding/parcours';
+import AgentOnboarding from '@/components/dashboard/onboarding/AgentOnboarding';
+import OnboardingRelanceBand from '@/components/dashboard/onboarding/OnboardingRelanceBand';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TodayPage() {
+export default async function TodayPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ 'prise-en-main'?: string }>;
+}) {
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
 
+  const sp = await searchParams;
+
   return (
     <Suspense fallback={<TodayDesktopSkeleton />}>
-      <TodayContent profile={profile} agency={agency} memberships={memberships} />
+      <TodayContent
+        profile={profile}
+        agency={agency}
+        memberships={memberships}
+        repriseDemandee={sp['prise-en-main'] === '1'}
+      />
     </Suspense>
   );
 }
@@ -62,10 +90,12 @@ async function TodayContent({
   profile,
   agency,
   memberships,
+  repriseDemandee,
 }: {
   profile: ContextualProfile;
   agency: AgencyRow;
   memberships: ProfileAgencyMembership[];
+  repriseDemandee: boolean;
 }) {
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
@@ -335,6 +365,70 @@ async function TodayContent({
 
   markServerTimingReady();
 
+  /* ---------------------------- prise en main ---------------------------- */
+  // Réservée au négociateur : le directeur a eu la visio et créé le compte.
+  const priseEnMain = profile.role === 'collaborateur'
+    ? await timed('fetchAgentOnboarding', () => fetchAgentOnboarding(supabase, profile.id))
+    : null;
+  const affichage =
+    profile.role === 'collaborateur'
+      ? decideAffichage(priseEnMain, { demandeExplicite: repriseDemandee })
+      : 'rien';
+
+  if (affichage === 'onboarding') {
+    const [secteur, aDesParcelles] = await Promise.all([
+      fetchOnboardingSecteur(supabase, agency.id, agency.codes_postaux ?? []),
+      secteurADesParcelles(supabase, agency.codes_postaux ?? []),
+    ]);
+
+    // Les mêmes immeubles que l'écran Carte, filtrés par la même visibilité.
+    const { points } = buildSectorMapPoints({
+      agencyId: agency.id,
+      leads: visibleLeads,
+      contacts: visibleContacts,
+      biens: visibleBiens,
+      notes: visibleNotes,
+    });
+
+    const sortiePlan = buildSortie(visibleLeads, profile.id, agencyOrigin);
+
+    return (
+      <div className="flex w-full min-w-0 flex-col pt-2 max-md:min-h-[calc(100dvh-7rem)]">
+        <AgentOnboarding
+          profileId={profile.id}
+          secteur={secteur}
+          leads={troisLeadsAPrendre(visibleLeads)}
+          stageEntreeId={entreeStage(stages)?.id ?? null}
+          buildings={groupEntitiesByBanId(points)}
+          center={{ latitude: agency.latitude, longitude: agency.longitude }}
+          sortiePlan={sortiePlan}
+          aDesParcelles={aDesParcelles}
+          mobile={device === 'mobile'}
+          reprise={
+            priseEnMain
+              ? { currentStep: priseEnMain.currentStep, stepsReached: priseEnMain.stepsReached }
+              : null
+          }
+        />
+      </div>
+    );
+  }
+
+  const bandeReprise =
+    affichage === 'bande' && priseEnMain ? (
+      <OnboardingRelanceBand
+        minutes={minutesRestantes(
+          buildParcours({
+            aDesLeads: true,
+            aDesParcelles: true,
+            aUneSortie: true,
+            mobile: device === 'mobile',
+          }),
+          priseEnMain.stepsReached,
+        )}
+      />
+    ) : null;
+
   const homeProps = {
     initialCards: cards,
     initialLeads: visibleLeads,
@@ -350,19 +444,25 @@ async function TodayContent({
 
   if (device === 'mobile') {
     return (
-      <AujourdhuiMobile
-        {...homeProps}
-        week={week}
-        sectorRef={centroidFromCoords(visibleLeads)}
-      />
+      <>
+        {bandeReprise}
+        <AujourdhuiMobile
+          {...homeProps}
+          week={week}
+          sectorRef={centroidFromCoords(visibleLeads)}
+        />
+      </>
     );
   }
 
   return (
-    <TodayClient
-      {...homeProps}
-      relancesProgrammees={week.relancesProgrammees}
-      rapprochements={week.rapprochements}
-    />
+    <>
+      {bandeReprise}
+      <TodayClient
+        {...homeProps}
+        relancesProgrammees={week.relancesProgrammees}
+        rapprochements={week.rapprochements}
+      />
+    </>
   );
 }

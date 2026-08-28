@@ -85,6 +85,7 @@ export default function SettingsDashboard({
             currentUserId={team.currentUserId}
             initialMembers={team.members}
             initialInvitations={team.invitations}
+            onboardingByMemberId={team.onboardingByMemberId}
           />
         ) : null;
       case 'billing':

@@ -41,3 +41,24 @@ export function requestMicStream(): Promise<MediaStream> {
 export function stopMicStream(stream: MediaStream | null | undefined): void {
   stream?.getTracks().forEach((track) => track.stop());
 }
+
+/**
+ * État de l'autorisation micro, sans la demander.
+ *
+ * Permissions API absente (Safari ancien, WebView) : on répond 'prompt' —
+ * l'inconnu se traite comme un « peut-être », jamais comme un refus, sinon on
+ * priverait de la dictée des navigateurs qui l'acceptent très bien.
+ */
+export async function micPermissionState(): Promise<'granted' | 'denied' | 'prompt'> {
+  if (typeof navigator === 'undefined') return 'prompt';
+  if (!navigator.mediaDevices?.getUserMedia) return 'denied';
+  if (!navigator.permissions?.query) return 'prompt';
+  try {
+    const status = await navigator.permissions.query({
+      name: 'microphone' as PermissionName,
+    });
+    return status.state;
+  } catch {
+    return 'prompt';
+  }
+}
