@@ -40,7 +40,7 @@ export default function LeadDeleteSection({
         <button
           type="button"
           onClick={() => setConfirmOpen(true)}
-          className="text-left text-mute/70 transition-colors hover:text-mute focus:outline-none focus-visible:underline"
+          className="text-left text-mute/70 transition-colors duration-fluid-subtle ease-in-out hover:text-mute focus:outline-none focus-visible:underline"
           style={{ fontSize: 11 }}
         >
           Supprimer ce lead

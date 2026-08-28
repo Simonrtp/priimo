@@ -311,7 +311,7 @@ function ClayTooltip({
             title=""
             aria-label="Passer le guide"
             type="button"
-            className="rounded-lg px-1 py-1 font-medium text-text-muted underline-offset-2 transition-colors hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+            className="rounded-lg px-1 py-1 font-medium text-text-muted underline-offset-2 transition-colors duration-fluid-subtle ease-in-out hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
             style={{ fontSize: 12.5 }}
           >
             Passer
@@ -327,7 +327,7 @@ function ClayTooltip({
               title=""
               aria-label="Étape précédente"
               type="button"
-              className="rounded-clay px-3 py-2 font-semibold text-primary-600 transition-colors hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+              className="rounded-clay px-3 py-2 font-semibold text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
               style={{ fontSize: 13 }}
             >
               Retour

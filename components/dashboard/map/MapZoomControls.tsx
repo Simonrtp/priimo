@@ -40,7 +40,7 @@ function MapButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-xl border border-primary-100 bg-white/95 text-text-strong shadow-clay-sm backdrop-blur transition-colors hover:bg-white"
+      className="flex size-9 items-center justify-center rounded-xl border border-primary-100 bg-white/95 text-text-strong shadow-clay-sm backdrop-blur transition-colors duration-fluid-subtle ease-in-out hover:bg-white"
     >
       {children}
     </button>

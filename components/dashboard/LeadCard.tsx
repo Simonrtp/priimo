@@ -153,7 +153,7 @@ function LeadCard({
       data-lead-id={lead.id}
       data-tour={index === 0 ? 'lead-card' : undefined}
       onClick={onClick}
-      className={`relative isolate h-full cursor-pointer transition-[box-shadow,border-color,transform] duration-150 animate-lead-reveal max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-white max-lg:px-4 max-lg:py-5 max-lg:shadow-clay-sm max-lg:hover:border-black/[0.09] max-lg:hover:shadow-clay max-md:active:scale-[0.985] lg:flex lg:min-h-[112px] lg:items-center lg:gap-5 lg:rounded-none lg:border-0 lg:bg-white lg:px-6 lg:py-4 lg:shadow-none lg:hover:shadow-[inset_0_0_0_9999px_rgba(10,13,17,0.018)] ${
+      className={`relative isolate h-full cursor-pointer transition-[box-shadow,border-color,transform] duration-fluid-subtle ease-in-out animate-lead-reveal max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-white max-lg:px-4 max-lg:py-5 max-lg:shadow-clay-sm max-lg:hover:border-black/[0.09] max-lg:hover:shadow-clay max-md:active:scale-[0.985] lg:flex lg:min-h-[112px] lg:items-center lg:gap-5 lg:rounded-none lg:border-0 lg:bg-white lg:px-6 lg:py-4 lg:shadow-none lg:hover:shadow-[inset_0_0_0_9999px_rgba(10,13,17,0.018)] ${
         !isLast ? 'lg:border-b lg:border-black/[0.05]' : ''
       }`}
       style={{

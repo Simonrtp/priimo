@@ -124,7 +124,7 @@ export default function ProspectsFiltersSheet({
                 <button
                   type="button"
                   onClick={() => setDraft(resetLeadFilters())}
-                  className="app-press rounded-lg px-2 py-2 text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+                  className="app-press rounded-lg px-2 py-2 text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-ink"
                   style={{ fontSize: 12, fontWeight: 500 }}
                 >
                   Réinitialiser
@@ -132,7 +132,7 @@ export default function ProspectsFiltersSheet({
               )}
               <button
                 type="button"
-                className="app-press flex size-11 items-center justify-center rounded-full text-mute transition-colors hover:bg-black/[0.05] hover:text-ink"
+                className="app-press flex size-11 items-center justify-center rounded-full text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-ink"
                 onClick={onClose}
                 aria-label="Fermer"
               >

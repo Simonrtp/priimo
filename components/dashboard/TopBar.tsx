@@ -174,7 +174,7 @@ function HeaderProfile({
     <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-0.5 pl-0.5 pr-2.5">
       <Link
         href="/dashboard/settings?tab=profile"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold text-white ring-1 ring-white/20 transition-colors hover:bg-white/22 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/22 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
         aria-label="Mon profil"
         title={`${firstName} ${lastName}`}
       >
@@ -223,7 +223,7 @@ export default function TopBar() {
             target="_blank"
             rel="noopener noreferrer"
             data-tour="whatsapp-mobile"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.04] md:hidden md:h-9 md:w-9"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] md:hidden md:h-9 md:w-9"
             aria-label="Écrire au fondateur sur WhatsApp"
             title="Écrire au fondateur"
           >
@@ -233,7 +233,7 @@ export default function TopBar() {
           <button
             type="button"
             onClick={startTour}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink md:h-9 md:w-9 md:text-[#B8CDE3] md:hover:bg-white/10 md:hover:text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-ink md:h-9 md:w-9 md:text-[#B8CDE3] md:hover:bg-white/10 md:hover:text-white"
             aria-label="Revoir le guide de prise en main"
             title="Revoir le guide"
           >
@@ -249,7 +249,7 @@ export default function TopBar() {
             </div>
             <Link
               href="/dashboard/settings?tab=profile"
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 font-semibold tabular text-primary-700 transition-colors hover:bg-primary-200 md:hidden"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 font-semibold tabular text-primary-700 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-200 md:hidden"
               style={{ fontSize: 11 }}
               aria-label="Mon profil"
               title="Mon profil"

@@ -59,7 +59,7 @@ function Pill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full font-medium transition-colors duration-150 ${
+      className={`rounded-full font-medium transition-colors duration-fluid-subtle ease-in-out ${
         active ? PILL_ACTIVE_CLASS : 'bg-black/[0.05] text-mute hover:bg-black/[0.09] hover:text-ink'
       }`}
       style={{ fontSize: 11.5, padding: '5px 12px', letterSpacing: '0.01em' }}
@@ -120,7 +120,7 @@ export default function ProspectsFiltersPanel({
             aria-expanded={expanded}
             aria-controls={`${panelId}-body`}
             onClick={() => setExpanded((v) => !v)}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors hover:text-ink"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors duration-fluid-subtle ease-in-out hover:text-ink"
           >
             <span
               className="inline-flex items-center font-semibold leading-none text-ink"
@@ -137,7 +137,7 @@ export default function ProspectsFiltersPanel({
               </span>
             )}
             <ChevronDown
-              className={`ml-auto h-4 w-4 shrink-0 text-mute transition-transform duration-200 ease-out ${
+              className={`ml-auto h-4 w-4 shrink-0 text-mute transition-transform duration-fluid-subtle ease-in-out ${
                 expanded ? 'rotate-180' : ''
               }`}
               aria-hidden
@@ -152,7 +152,7 @@ export default function ProspectsFiltersPanel({
           <button
             type="button"
             onClick={() => onFiltersChange(resetLeadFilters())}
-            className="shrink-0 text-mute transition-colors hover:text-ink"
+            className="shrink-0 text-mute transition-colors duration-fluid-subtle ease-in-out hover:text-ink"
             style={{ fontSize: 12, fontWeight: 500 }}
           >
             Réinitialiser

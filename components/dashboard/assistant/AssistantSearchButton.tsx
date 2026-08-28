@@ -102,7 +102,7 @@ function SearchField({
     <div ref={rootRef} className={`relative min-w-0 ${className}`}>
       <form
         onSubmit={(e) => e.preventDefault()}
-        className={`flex min-w-0 items-center gap-2 transition-colors duration-150 ${
+        className={`flex min-w-0 items-center gap-2 transition-colors duration-fluid-subtle ease-in-out ${
           shell
             ? 'min-h-11 rounded-full bg-white px-3.5 shadow-sm focus-within:ring-2 focus-within:ring-white/35 md:h-9 md:min-h-0'
             : map
@@ -117,7 +117,7 @@ function SearchField({
           aria-label={voiceLabel}
           title={voiceLabel}
           aria-pressed={listening}
-          className={`flex size-8 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50 ${
+          className={`flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50 ${
             listening ? 'bg-accent text-white' : 'text-mute hover:text-ink'
           }`}
         >
@@ -194,7 +194,7 @@ export function AssistantSearchIconButton({ className = '' }: { className?: stri
     <button
       type="button"
       onClick={openMobileSearch}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink md:h-9 md:w-9 ${className}`}
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-ink md:h-9 md:w-9 ${className}`}
       aria-label="Rechercher dans la base"
       title="Rechercher dans la base"
     >

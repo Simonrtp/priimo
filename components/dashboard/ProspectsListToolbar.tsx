@@ -30,7 +30,7 @@ export default function ProspectsListToolbar({
             <button
               type="button"
               onClick={onOpenFilters}
-              className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-clay px-3 text-[13px] font-semibold transition-[box-shadow,color] duration-200 ease-clay ${
+              className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-clay px-3 text-[13px] font-semibold transition-[box-shadow,color] duration-fluid-subtle ease-in-out ${
                 hasActiveFilters
                   ? 'bg-primary-50 text-primary-600 shadow-clay-inset'
                   : 'bg-surface text-text shadow-clay-sm'

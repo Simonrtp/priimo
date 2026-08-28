@@ -21,7 +21,7 @@ interface SelectProps {
 }
 
 const defaultTriggerClass =
-  'flex w-full min-w-[140px] items-center justify-between gap-2 rounded-2xl border border-black/8 bg-white px-3 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
+  'flex w-full min-w-[140px] items-center justify-between gap-2 rounded-2xl border border-black/8 bg-white px-3 py-2.5 text-left text-[13px] text-ink transition-[color,background-color,border-color,box-shadow] duration-fluid-subtle ease-in-out hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
 
 export default function Select({
   value,
@@ -113,7 +113,7 @@ export default function Select({
           size={16}
           strokeWidth={2}
           aria-hidden
-          className={`flex-shrink-0 text-mute transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+          className={`flex-shrink-0 text-mute transition-transform duration-fluid-subtle ease-in-out ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -135,7 +135,7 @@ export default function Select({
                   aria-selected={isSelected}
                   onMouseEnter={() => setHighlighted(index)}
                   onClick={() => selectOption(option.value)}
-                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-100 ${
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-fluid-subtle ease-in-out ${
                     isHighlighted || isSelected
                       ? 'bg-black/[0.04] text-ink'
                       : 'text-mute hover:bg-black/[0.04] hover:text-ink'

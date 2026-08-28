@@ -21,7 +21,7 @@ export default function StatusSelect({ currentStatus, onChange, className = '' }
             key={value}
             type="button"
             onClick={() => onChange(value)}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-100 ${
+            className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-fluid-subtle ease-in-out ${
               value === currentStatus
                 ? 'bg-black/[0.04] font-medium text-ink'
                 : 'text-mute hover:bg-black/[0.04] hover:text-ink'

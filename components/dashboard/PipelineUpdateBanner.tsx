@@ -33,7 +33,7 @@ export default function PipelineUpdateBanner({
         <button
           type="button"
           onClick={onViewNew}
-          className="mt-2 font-medium text-accent-dark underline-offset-2 transition-colors hover:text-accent hover:underline"
+          className="mt-2 font-medium text-accent-dark underline-offset-2 transition-colors duration-fluid-subtle ease-in-out hover:text-accent hover:underline"
           style={{ fontSize: 12 }}
         >
           Voir les nouveaux
@@ -42,7 +42,7 @@ export default function PipelineUpdateBanner({
       <button
         type="button"
         onClick={onDismiss}
-        className="flex size-8 shrink-0 items-center justify-center self-end rounded-lg text-mute transition-colors hover:bg-black/[0.06] hover:text-ink sm:self-start"
+        className="flex size-8 shrink-0 items-center justify-center self-end rounded-lg text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.06] hover:text-ink sm:self-start"
         aria-label="Fermer le bandeau"
       >
         <X size={18} strokeWidth={2} aria-hidden />

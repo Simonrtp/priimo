@@ -39,7 +39,7 @@ export default function ProspectsViewSwitch({
             aria-selected={active}
             aria-label={label}
             onClick={() => onChange(id)}
-            className={`${desktopOnly ? 'hidden md:inline-flex' : 'inline-flex'} min-h-[36px] items-center gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-semibold transition-colors duration-150 md:px-3 ${
+            className={`${desktopOnly ? 'hidden md:inline-flex' : 'inline-flex'} min-h-[36px] items-center gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-semibold transition-colors duration-fluid-subtle ease-in-out md:px-3 ${
               active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
             }`}
           >

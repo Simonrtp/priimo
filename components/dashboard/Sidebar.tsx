@@ -165,7 +165,7 @@ export default function Sidebar() {
                   title={label}
                   aria-current={active ? 'page' : undefined}
                   aria-label={collapsed ? label : undefined}
-                  className={`flex items-center border-l-[3px] py-2.5 font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
+                  className={`flex items-center border-l-[3px] py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
                     collapsed
                       ? 'justify-center rounded-xl border-transparent px-0'
                       : 'gap-3 md:justify-start md:pl-[9px] md:pr-3'
@@ -211,7 +211,7 @@ export default function Sidebar() {
             rel="noopener noreferrer"
             aria-label="Écrire au fondateur sur WhatsApp"
             data-tour="whatsapp"
-            className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors hover:text-white"
+            className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors duration-fluid-subtle ease-in-out hover:text-white"
           >
             <WhatsAppIcon size={18} className="shrink-0 text-[#25D366] group-hover:text-[#25D366]" />
             Écrire au fondateur
@@ -222,7 +222,7 @@ export default function Sidebar() {
       <div className="mb-4 flex flex-col items-center gap-1.5 px-1.5 md:hidden">
         <Link
           href="/dashboard/settings"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white transition-colors hover:bg-white/20"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-white/20"
           title="Mon compte et les paramètres"
           aria-label="Mon compte et les paramètres"
         >
@@ -231,7 +231,7 @@ export default function Sidebar() {
         <form action="/api/auth/signout" method="post">
           <button
             type="submit"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/10 hover:text-white"
             aria-label="Se déconnecter"
             title="Se déconnecter"
           >

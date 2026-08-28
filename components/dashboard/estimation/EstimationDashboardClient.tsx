@@ -406,7 +406,7 @@ export default function EstimationDashboardClient({
         <div className="mb-6">
           <div className="h-1 overflow-hidden rounded-full bg-black/[0.06]">
             <div
-              className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+              className="h-full rounded-full bg-accent transition-[width] duration-fluid-subtle ease-in-out"
               style={{ width: `${progress}%` }}
             />
           </div>

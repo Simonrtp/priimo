@@ -63,7 +63,7 @@ export default function AgencySwitcher({ zoneLabel }: Props) {
           value={agency.id}
           disabled={saving}
           onChange={(e) => void switchAgency(e.target.value)}
-          className="w-full appearance-none truncate rounded-lg border border-white/10 bg-white/10 py-2 pl-2.5 pr-8 text-[13px] font-medium text-white outline-none transition-colors hover:bg-white/15 focus:border-white/25 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
+          className="w-full appearance-none truncate rounded-lg border border-white/10 bg-white/10 py-2 pl-2.5 pr-8 text-[13px] font-medium text-white outline-none transition-colors duration-fluid-subtle ease-in-out hover:bg-white/15 focus:border-white/25 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
           aria-label="Choisir l'agence active"
         >
           {memberships.map((m) => (

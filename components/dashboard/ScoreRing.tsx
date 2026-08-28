@@ -39,7 +39,7 @@ export default function ScoreRing({
 
   return (
     <div
-      className={`relative flex flex-shrink-0 items-center justify-center rounded-full bg-white transition-transform duration-200 ease-out ${className}`}
+      className={`relative flex flex-shrink-0 items-center justify-center rounded-full bg-white transition-transform duration-fluid-subtle ease-in-out ${className}`}
       style={{
         width: size,
         height: size,

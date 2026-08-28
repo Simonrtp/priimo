@@ -50,7 +50,7 @@ export default function ActionMenu({
         aria-controls={open ? menuId : undefined}
         aria-label={label}
         title={label}
-        className="flex size-11 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex size-11 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <MoreHorizontal size={18} strokeWidth={2} aria-hidden />
       </button>
@@ -71,7 +71,7 @@ export default function ActionMenu({
                 armPointerShield();
                 item.onSelect();
               }}
-              className={`block w-full px-4 py-2.5 text-left text-[13.5px] transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline-none ${
+              className={`block w-full px-4 py-2.5 text-left text-[13.5px] transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline-none ${
                 item.destructive ? 'text-danger' : 'text-text'
               }`}
             >

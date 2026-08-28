@@ -42,7 +42,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <AssistantProvider>
                   <AssistantPanelProvider>
                     {isMobile ? (
-                      <div className="dashboard-mobile flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
+                      <div className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <TouchScrollGuard />
                         <MobileChrome />
                         <main
@@ -55,7 +55,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         <MobileBackSwipe />
                       </div>
                     ) : (
-                      <div className="flex h-dvh min-h-0 overflow-hidden">
+                      <div className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
                         <Sidebar />
                         <div className={`${SHELL_BG_CLASS} relative flex min-w-0 flex-1 flex-col`}>
                           <TopBar />

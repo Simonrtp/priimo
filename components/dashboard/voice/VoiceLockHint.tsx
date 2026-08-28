@@ -36,7 +36,7 @@ export default function VoiceLockHint({
       aria-hidden
     >
       <div
-        className="flex flex-col items-center transition-transform duration-150"
+        className="flex flex-col items-center transition-transform duration-fluid-subtle ease-in-out"
         style={{
           transform: `translateY(${-p * 24}px)`,
           opacity: 0.4 + p * 0.6,
@@ -46,7 +46,7 @@ export default function VoiceLockHint({
         <ChevronUp size={18} strokeWidth={2.5} className="-mt-3 opacity-60" style={{ color: '#F5A882' }} />
       </div>
       <div
-        className="flex size-10 items-center justify-center rounded-full border border-black/[0.08] bg-surface shadow-soft transition-transform duration-150"
+        className="flex size-10 items-center justify-center rounded-full border border-black/[0.08] bg-surface shadow-soft transition-transform duration-fluid-subtle ease-in-out"
         style={{
           transform: `scale(${1 + p * 0.1})`,
           boxShadow: p > 0.85 ? `0 0 0 3px ${FIELD.orangePastel}` : undefined,

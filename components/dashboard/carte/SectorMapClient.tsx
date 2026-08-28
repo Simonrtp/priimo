@@ -122,10 +122,10 @@ function LayersPanel({
             aria-label="Replier les couches"
             aria-expanded
             title="Replier les couches"
-            className="-mr-1 -mt-0.5 inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[12px] font-medium text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="-mr-1 -mt-0.5 inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[12px] font-medium text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Replier
-            <ChevronUp size={14} strokeWidth={2} aria-hidden />
+            <ChevronUp size={14} strokeWidth={2} aria-hidden className="transition-transform duration-fluid-subtle ease-in-out" />
           </button>
         ) : null}
       </div>
@@ -135,7 +135,7 @@ function LayersPanel({
           return (
             <li key={kind}>
               <label
-                className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors ${
+                className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors duration-fluid-subtle ease-in-out ${
                   active ? 'bg-accent/10' : 'hover:bg-black/[0.03]'
                 }`}
               >
@@ -452,7 +452,7 @@ export default function SectorMapClient({
         <div className="pointer-events-none absolute right-3 top-3 z-20 hidden md:block">
           <div className="pointer-events-auto">
             {layersPanelOpen ? (
-              <div className="max-h-[calc(100dvh-6.5rem)] w-[min(100vw-1.5rem,320px)] overflow-y-auto">
+              <div className="fluid-reveal max-h-[calc(100dvh-6.5rem)] w-[min(100vw-1.5rem,320px)] overflow-y-auto">
                 <LayersPanel
                   layers={layers}
                   onToggle={toggleLayer}
@@ -479,7 +479,7 @@ export default function SectorMapClient({
                 aria-label="Afficher les couches"
                 aria-expanded={false}
                 title="Couches"
-                className="flex size-10 items-center justify-center rounded-clay border border-black/[0.08] bg-surface/95 text-text shadow-clay-sm backdrop-blur-sm transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="flex size-10 items-center justify-center rounded-clay border border-black/[0.08] bg-surface/95 text-text shadow-clay-sm backdrop-blur-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <Layers size={18} strokeWidth={2} aria-hidden />
               </button>
@@ -554,7 +554,7 @@ export default function SectorMapClient({
                 type="button"
                 onClick={() => setSelectedBanId(null)}
                 aria-label="Fermer la fiche"
-                className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <X size={18} strokeWidth={2} aria-hidden />
               </button>

@@ -10,7 +10,7 @@ export default function WorkspaceButton({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' }) {
   const base =
-    'inline-flex min-h-[40px] items-center justify-center gap-2 whitespace-nowrap rounded-clay px-4 py-2.5 text-[13.5px] font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-[14px]';
+    'inline-flex min-h-[40px] items-center justify-center gap-2 whitespace-nowrap rounded-clay px-4 py-2.5 text-[13.5px] font-semibold transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-[14px]';
 
   const skin =
     variant === 'primary'

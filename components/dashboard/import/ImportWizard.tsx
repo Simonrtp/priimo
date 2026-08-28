@@ -216,7 +216,7 @@ export default function ImportWizard({
               setDragOver(false);
               void handleFile(e.dataTransfer.files[0]);
             }}
-            className={`flex w-full flex-col items-center justify-center rounded-clay border border-dashed px-6 py-12 text-center transition-colors ${
+            className={`flex w-full flex-col items-center justify-center rounded-clay border border-dashed px-6 py-12 text-center transition-colors duration-fluid-subtle ease-in-out ${
               dragOver ? 'border-accent bg-soft-warm' : 'border-black/[0.16] bg-black/[0.02]'
             }`}
           >

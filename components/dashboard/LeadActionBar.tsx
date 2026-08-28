@@ -41,7 +41,7 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
   }, [menuOpen]);
 
   const btnH = dense ? 'min-h-[50px]' : 'min-h-[44px]';
-  const btnBase = `inline-flex ${btnH} flex-1 items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30`;
+  const btnBase = `inline-flex ${btnH} flex-1 items-center justify-center gap-2 rounded-xl font-semibold transition-colors duration-fluid-subtle ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30`;
   const btnSize = dense ? 15 : 14;
 
   const mapsBtn = (
@@ -112,7 +112,7 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
                     <a
                       role="menuitem"
                       href={`tel:${t.phone}`}
-                      className="flex min-h-12 flex-col justify-center px-3.5 py-2.5 text-left transition-colors hover:bg-black/[0.03] focus:outline-none focus-visible:bg-black/[0.04]"
+                      className="flex min-h-12 flex-col justify-center px-3.5 py-2.5 text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] focus:outline-none focus-visible:bg-black/[0.04]"
                       onClick={(e) => {
                         e.stopPropagation();
                         setMenuOpen(false);

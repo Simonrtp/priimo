@@ -143,7 +143,7 @@ function Sources({
                 <Link
                   href={s.href}
                   onClick={onNavigate}
-                  className={`${base} transition-all duration-150 hover:-translate-y-px hover:shadow-clay-sm`}
+                  className={`${base} transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px hover:shadow-clay-sm`}
                 >
                   {inner}
                 </Link>
@@ -159,7 +159,7 @@ function Sources({
           <Link
             href={voirTout.href}
             onClick={onNavigate}
-            className="mt-1.5 flex items-center gap-1.5 rounded-clay px-2.5 py-2 text-[12px] font-semibold text-primary-600 transition-colors hover:bg-primary-50"
+            className="mt-1.5 flex items-center gap-1.5 rounded-clay px-2.5 py-2 text-[12px] font-semibold text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
           >
             Voir les {restantes} autres
             <ArrowRight size={13} strokeWidth={2.4} aria-hidden />
@@ -240,7 +240,7 @@ function Amorces({
                 <button
                   type="button"
                   onClick={() => onPick(a.question, a.envoi)}
-                  className="rounded-clay border border-primary-100 bg-surface px-2.5 py-1.5 text-[12px] font-medium text-text transition-all duration-150 hover:-translate-y-px hover:border-primary-200 hover:text-text-strong hover:shadow-clay-sm"
+                  className="rounded-clay border border-primary-100 bg-surface px-2.5 py-1.5 text-[12px] font-medium text-text transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px hover:border-primary-200 hover:text-text-strong hover:shadow-clay-sm"
                 >
                   {a.label}
                 </button>
@@ -344,7 +344,7 @@ function Conversation() {
             aria-label={voiceLabel}
             title={voiceLabel}
             aria-pressed={listening}
-            className={`mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-[11px] transition-colors disabled:opacity-40 ${
+            className={`mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-[11px] transition-colors duration-fluid-subtle ease-in-out disabled:opacity-40 ${
               listening
                 ? 'bg-primary-600 text-white shadow-clay-primary'
                 : 'text-text-muted hover:bg-primary-50 hover:text-primary-600'
@@ -375,7 +375,7 @@ function Conversation() {
             type="submit"
             disabled={inputDisabled || draft.trim().length === 0}
             aria-label="Envoyer"
-            className="flex size-8 shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white shadow-clay-primary transition-all duration-150 enabled:hover:-translate-y-px disabled:bg-primary-200 disabled:shadow-none"
+            className="flex size-8 shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white shadow-clay-primary transition-all duration-fluid-subtle ease-in-out enabled:hover:-translate-y-px disabled:bg-primary-200 disabled:shadow-none"
           >
             <ArrowUp size={16} strokeWidth={2.4} aria-hidden />
           </button>
@@ -431,7 +431,7 @@ function Historique() {
                 <button
                   type="button"
                   onClick={() => void reprendre(c.id)}
-                  className="min-w-0 flex-1 rounded-clay px-2.5 py-2 text-left transition-colors hover:bg-primary-50"
+                  className="min-w-0 flex-1 rounded-clay px-2.5 py-2 text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
                 >
                   <span className="block truncate text-[13px] font-medium text-text-strong">
                     {c.titre}
@@ -444,7 +444,7 @@ function Historique() {
                   type="button"
                   onClick={() => void supprimer(c.id)}
                   aria-label={`Supprimer « ${c.titre} »`}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-[10px] text-text-subtle transition-colors hover:bg-[var(--danger-bg)] hover:text-[var(--danger)] md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-[10px] text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-[var(--danger-bg)] hover:text-[var(--danger)] md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
                 >
                   <Trash2 size={15} strokeWidth={2} aria-hidden />
                 </button>
@@ -479,7 +479,7 @@ function Onglets() {
             role="tab"
             aria-selected={actif}
             onClick={() => setTab(item.id)}
-            className={`min-h-[32px] flex-1 rounded-[12px] px-3 text-[12.5px] font-semibold transition-all duration-150 ${
+            className={`min-h-[32px] flex-1 rounded-[12px] px-3 text-[12.5px] font-semibold transition-all duration-fluid-subtle ease-in-out ${
               actif
                 ? 'bg-surface text-text-strong shadow-clay-sm'
                 : 'text-text-muted hover:text-text-strong'
@@ -508,7 +508,7 @@ function ActionIcone({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex size-8 items-center justify-center rounded-[10px] text-text-subtle transition-colors hover:bg-primary-50 hover:text-primary-600"
+      className="flex size-8 items-center justify-center rounded-[10px] text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50 hover:text-primary-600"
     >
       {children}
     </button>
@@ -608,15 +608,45 @@ export default function AssistantPanel({
         type="button"
         onClick={() => (open ? closePanel() : openPanel())}
         aria-expanded={open}
-        aria-label="Assistant"
-        title="Assistant"
-        className={`relative flex size-11 items-center justify-center rounded-[14px] transition-all duration-150 md:size-9 md:rounded-[13px] ${
-          open
-            ? 'bg-primary-600 text-white shadow-clay-primary'
-            : 'bg-surface text-primary-600 shadow-clay-sm hover:-translate-y-px hover:shadow-clay active:translate-y-0 active:shadow-clay-pressed'
-        }`}
+        aria-label="Assistant Prim'AI"
+        title="Assistant Prim'AI"
+        className={
+          variant === 'desktop'
+            ? `group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] transition-[max-width,box-shadow,transform,background-color] duration-fluid ease-in-out motion-reduce:transition-none ${
+                open
+                  ? 'max-w-[11.5rem] bg-primary-600 text-white shadow-clay-primary'
+                  : 'max-w-9 bg-surface text-primary-600 shadow-clay-sm hover:max-w-[11.5rem] hover:-translate-y-px hover:shadow-clay focus-visible:max-w-[11.5rem] active:translate-y-0 active:shadow-clay-pressed'
+              }`
+            : `relative flex size-11 items-center justify-center rounded-[14px] transition-all duration-fluid-subtle ease-in-out md:size-9 md:rounded-[13px] ${
+                open
+                  ? 'bg-primary-600 text-white shadow-clay-primary'
+                  : 'bg-surface text-primary-600 shadow-clay-sm hover:-translate-y-px hover:shadow-clay active:translate-y-0 active:shadow-clay-pressed'
+              }`
+        }
       >
-        <Sparkles size={18} strokeWidth={2} aria-hidden />
+        <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
+          <Sparkles size={18} strokeWidth={2} />
+        </span>
+        {variant === 'desktop' ? (
+          <span
+            className={`grid min-w-0 transition-[grid-template-columns] duration-fluid ease-in-out motion-reduce:transition-none ${
+              open
+                ? 'grid-cols-[1fr]'
+                : 'grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr]'
+            }`}
+          >
+            <span
+              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
+                open
+                  ? 'opacity-100'
+                  : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
+              }`}
+            >
+              Assistant{' '}
+              <span className={open ? 'text-white/90' : 'text-primary-500'}>Prim&apos;AI</span>
+            </span>
+          </span>
+        ) : null}
       </button>
 
       {open && !mobile && porteLaSurface ? (

@@ -105,7 +105,7 @@ export default function ParcellePanel({
           type="button"
           onClick={onClose}
           aria-label="Fermer"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <X size={18} strokeWidth={2} aria-hidden />
         </button>
@@ -250,7 +250,7 @@ export default function ParcellePanel({
               <button
                 type="button"
                 onClick={() => setAddOpen(true)}
-                className="inline-flex min-h-[44px] w-full items-center gap-2.5 rounded-xl border border-black/[0.08] bg-white px-3.5 py-2.5 text-left text-[14px] font-medium text-text-strong transition-colors hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-[44px] w-full items-center gap-2.5 rounded-xl border border-black/[0.08] bg-white px-3.5 py-2.5 text-left text-[14px] font-medium text-text-strong transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <span
                   className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-white"
@@ -357,7 +357,7 @@ export function ParcelleDrawer({
     <>
       <div
         role="presentation"
-        className={`fixed inset-x-0 bottom-0 z-40 hidden transition-opacity duration-200 ease-out md:block ${
+        className={`fixed inset-x-0 bottom-0 z-40 hidden transition-opacity duration-fluid-subtle ease-in-out md:block ${
           entered ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         style={{ top: 'var(--dashboard-topbar-height)', backgroundColor: 'rgba(0,0,0,0.15)' }}
@@ -368,7 +368,7 @@ export function ParcelleDrawer({
         className={`fixed inset-0 z-50 flex h-dvh max-h-dvh w-full flex-col bg-white md:inset-x-auto md:right-0 md:max-w-[480px] ${
           settled
             ? ''
-            : `transition-transform duration-[200ms] ease-out ${entered ? 'translate-x-0' : 'translate-x-full'}`
+            : `transition-transform duration-fluid ease-in-out ${entered ? 'translate-x-0' : 'translate-x-full'}`
         }`}
         style={{
           boxShadow: '-8px 0 24px rgba(0,0,0,0.08)',
@@ -391,7 +391,7 @@ export function ParcelleDrawer({
                 type="button"
                 onClick={onClose}
                 aria-label="Fermer"
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <X size={18} strokeWidth={2} aria-hidden />
               </button>

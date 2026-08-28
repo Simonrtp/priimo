@@ -175,7 +175,7 @@ export default function TodayKpis({
         const inner = (
           <ClayCard
             padding="md"
-            className={`h-full transition-[box-shadow,background-color] duration-150 ${
+            className={`h-full transition-[box-shadow,background-color] duration-fluid-subtle ease-in-out ${
               selected
                 ? 'bg-soft-warm/50 shadow-clay-lg'
                 : clickable

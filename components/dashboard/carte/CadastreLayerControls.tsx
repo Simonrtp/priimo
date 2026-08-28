@@ -49,7 +49,7 @@ export default function CadastreLayerControls({
   return (
     <li>
       <div
-        className={`flex ${row} items-center gap-3 rounded-xl ${pad} ${
+        className={`flex ${row} items-center gap-3 rounded-xl ${pad} transition-colors duration-fluid-subtle ease-in-out ${
           layers.cadastre ? 'bg-black/[0.04]' : ''
         } ${tooFarPolygons ? 'opacity-55' : ''}`}
       >
@@ -79,17 +79,20 @@ export default function CadastreLayerControls({
           aria-expanded={open}
           aria-label={open ? 'Replier Cadastre' : 'Déplier Cadastre'}
           onClick={toggleMenu}
-          className="flex size-8 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="flex size-8 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <ChevronDown
             size={16}
             strokeWidth={2}
             aria-hidden
-            className={open ? 'rotate-180' : ''}
+            className={`transition-transform duration-fluid-subtle ease-in-out ${open ? 'rotate-180' : ''}`}
           />
         </button>
       </div>
-      {open ? (
+      <div
+        className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+        aria-hidden={!open}
+      >
         <ul className="mt-1 flex flex-col gap-0.5 pl-7">
           {CADASTRE_LAYER_IDS.map((id) => {
             const key =
@@ -98,7 +101,7 @@ export default function CadastreLayerControls({
             return (
               <li key={id}>
                 <label
-                  className={`flex ${row} cursor-pointer items-center gap-3 rounded-xl ${pad} ${
+                  className={`flex ${row} cursor-pointer items-center gap-3 rounded-xl ${pad} transition-colors duration-fluid-subtle ease-in-out ${
                     tooFarPoints ? 'opacity-55' : ''
                   }`}
                 >
@@ -126,7 +129,7 @@ export default function CadastreLayerControls({
             );
           })}
         </ul>
-      ) : null}
+      </div>
     </li>
   );
 }

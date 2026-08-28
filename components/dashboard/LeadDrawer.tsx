@@ -71,7 +71,7 @@ export default function LeadDrawer({
     <>
       <div
         role="presentation"
-        className={`fixed inset-x-0 bottom-0 z-40 hidden transition-opacity duration-200 ease-out md:block ${
+        className={`fixed inset-x-0 bottom-0 z-40 hidden transition-opacity duration-fluid-subtle ease-in-out md:block ${
           drawerEntered ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         style={{ top: 'var(--dashboard-topbar-height)', backgroundColor: 'rgba(0,0,0,0.15)' }}
@@ -80,10 +80,10 @@ export default function LeadDrawer({
       />
 
       <aside
-        className={`fixed top-0 right-0 bottom-0 z-50 hidden h-[100dvh] max-h-[100dvh] w-full max-w-[480px] flex-col bg-white ease-out md:flex ${
+        className={`fixed top-0 right-0 bottom-0 z-50 hidden h-[100dvh] max-h-[100dvh] w-full max-w-[480px] flex-col bg-white md:flex ${
           drawerSettled
             ? ''
-            : `transition-transform duration-[225ms] ${drawerEntered ? 'translate-x-0' : 'translate-x-full'}`
+            : `transition-transform duration-fluid ease-in-out ${drawerEntered ? 'translate-x-0' : 'translate-x-full'}`
         }`}
         style={{ boxShadow: '-8px 0 24px rgba(0,0,0,0.08)' }}
         role="dialog"
@@ -96,7 +96,7 @@ export default function LeadDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.05] hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
               aria-label="Fermer"
             >
               <ICONS.x size={20} color={ICON_COLORS.neutral} strokeWidth={2} />

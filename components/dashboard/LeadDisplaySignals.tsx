@@ -95,7 +95,7 @@ function SignalFamilyDisclosure({
         onClick={toggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex min-h-10 w-full cursor-pointer items-start gap-2 rounded-md py-0.5 text-left transition-colors duration-150 hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
+        className="flex min-h-10 w-full cursor-pointer items-start gap-2 rounded-md py-0.5 text-left transition-colors duration-fluid-subtle ease-in-out hover:text-accent-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-1"
       >
         <span
           className="min-w-0 flex-1 break-words text-pretty font-semibold leading-snug text-ink"
@@ -110,7 +110,7 @@ function SignalFamilyDisclosure({
           <ChevronDown
             size={16}
             strokeWidth={2.25}
-            className={`transition-transform duration-150 ease-out ${open ? 'rotate-180' : ''}`}
+            className={`transition-transform duration-fluid-subtle ease-in-out ${open ? 'rotate-180' : ''}`}
           />
         </span>
       </button>

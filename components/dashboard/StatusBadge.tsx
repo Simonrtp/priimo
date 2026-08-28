@@ -85,7 +85,7 @@ export default function StatusBadge({ status, onChange }: StatusBadgeProps) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex min-h-[32px] items-center gap-1.5 rounded-full bg-black/[0.06] font-medium text-ink transition-opacity duration-150 hover:opacity-80"
+        className="flex min-h-[32px] items-center gap-1.5 rounded-full bg-black/[0.06] font-medium text-ink transition-opacity duration-fluid-subtle ease-in-out hover:opacity-80"
         style={{ fontSize: 11, padding: '4px 10px 4px 8px', letterSpacing: '0.01em' }}
       >
         <span

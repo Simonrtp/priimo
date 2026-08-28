@@ -210,7 +210,7 @@ export default function EquipeClient({
                             { value: 'collaborateur', label: 'Collaborateur' },
                             { value: 'directeur', label: 'Directeur' },
                           ]}
-                          triggerClassName="flex min-w-[160px] items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-3 py-2 text-left text-[13px] text-ink transition-colors hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10"
+                          triggerClassName="flex min-w-[160px] items-center justify-between gap-2 rounded-xl border border-black/8 bg-white px-3 py-2 text-left text-[13px] text-ink transition-colors duration-fluid-subtle ease-in-out hover:border-black/12 focus:outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/10"
                         />
                       ) : (
                         <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-medium text-text">

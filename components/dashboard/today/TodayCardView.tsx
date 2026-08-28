@@ -168,7 +168,7 @@ export default function TodayCardView({
               size={16}
               strokeWidth={2}
               aria-hidden
-              className="transition-transform duration-200 motion-reduce:transition-none"
+              className="transition-transform duration-fluid-subtle ease-in-out motion-reduce:transition-none"
               style={{ transform: expanded ? 'rotate(180deg)' : undefined }}
             />
           ) : null}
@@ -190,7 +190,7 @@ export default function TodayCardView({
               {m.phone ? (
                 <a
                   href={`tel:${m.phone.replace(/\s+/g, '')}`}
-                  className="flex flex-shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 font-medium text-text transition-colors hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   style={{ fontSize: 13.5 }}
                 >
                   <Phone size={14} strokeWidth={2} aria-hidden />

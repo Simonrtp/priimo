@@ -55,7 +55,7 @@ export default function TabsNav({ value, onTabChange, counts }: TabsNavProps) {
               aria-selected={active}
               aria-label={`${label} (${count})`}
               onClick={() => onTabChange(id)}
-              className={`app-press flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-[13px] px-1.5 text-[13px] transition-colors duration-200 ${
+              className={`app-press flex min-h-[40px] flex-1 items-center justify-center gap-1 rounded-[13px] px-1.5 text-[13px] transition-colors duration-fluid-subtle ease-in-out ${
                 active ? 'bg-surface font-semibold text-primary-600 shadow-clay-sm' : 'font-medium text-text-muted'
               }`}
               style={{ letterSpacing: '-0.01em' }}
@@ -85,7 +85,7 @@ export default function TabsNav({ value, onTabChange, counts }: TabsNavProps) {
                 aria-selected={active}
                 aria-label={`${label} (${count})`}
                 onClick={() => onTabChange(id)}
-                className={`group relative -mb-px flex min-h-0 flex-row items-center gap-2 px-0 pb-3 transition-colors duration-150 ${
+                className={`group relative -mb-px flex min-h-0 flex-row items-center gap-2 px-0 pb-3 transition-colors duration-fluid-subtle ease-in-out ${
                   active ? 'font-semibold' : 'font-medium text-[#6B7280] hover:text-ink/80'
                 }`}
                 style={{
@@ -99,8 +99,8 @@ export default function TabsNav({ value, onTabChange, counts }: TabsNavProps) {
                   ({count})
                 </span>
                 <span
-                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
-                  style={{ backgroundColor: active ? PRIMARY_500 : 'transparent' }}
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-[2px] rounded-full transition-[background-color,opacity] duration-fluid-subtle ease-in-out"
+                  style={{ backgroundColor: active ? PRIMARY_500 : 'transparent', opacity: active ? 1 : 0 }}
                 />
               </button>
             );

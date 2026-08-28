@@ -20,7 +20,7 @@ import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 
 const SUIVI_SELECT =
-  'flex w-full items-center justify-between gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-left text-[12.5px] text-ink/85 transition-colors hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10';
+  'flex w-full items-center justify-between gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-left text-[12.5px] text-ink/85 transition-colors duration-fluid-subtle ease-in-out hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10';
 
 /** En-tête d’une note : date + auteur + heure. */
 function formatNoteMeta(author: string, at: Date = new Date()): string {
@@ -164,7 +164,7 @@ export default function LeadDetailBody({
   const canAdd = noteDirty && !savingNote;
   const padX = isMobile ? 'px-4 min-[400px]:px-5' : 'px-7';
   const suiviSelect = isMobile
-    ? 'flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-black/[0.08] bg-white px-3.5 py-2.5 text-left text-[14px] text-ink/90 transition-colors hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10'
+    ? 'flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-black/[0.08] bg-white px-3.5 py-2.5 text-left text-[14px] text-ink/90 transition-colors duration-fluid-subtle ease-in-out hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10'
     : SUIVI_SELECT;
 
   return (
@@ -274,7 +274,7 @@ export default function LeadDetailBody({
                         void saveNote();
                       }}
                       disabled={!canAdd}
-                      className={`rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ${
+                      className={`rounded-lg font-semibold transition-colors duration-fluid-subtle ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ${
                         isMobile ? 'min-h-11 w-full px-4 py-2.5' : 'shrink-0 px-3.5 py-2'
                       } ${
                         canAdd

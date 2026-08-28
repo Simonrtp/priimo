@@ -38,7 +38,7 @@ export default function EmptyState({ variant = 'no-leads', onResetFilters }: Emp
         <button
           type="button"
           onClick={onResetFilters}
-          className="mt-4 rounded-lg border border-black/10 px-4 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-black/[0.04]"
+          className="mt-4 rounded-lg border border-black/10 px-4 py-2 text-[13px] font-medium text-ink transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04]"
         >
           Réinitialiser les filtres
         </button>

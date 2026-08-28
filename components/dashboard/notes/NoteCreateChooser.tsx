@@ -146,7 +146,7 @@ export default function NoteCreateChooser({
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
           aria-haspopup="menu"
-          className="inline-flex min-h-[40px] items-center justify-center gap-2 whitespace-nowrap rounded-clay bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-5 sm:text-[14px]"
+          className="inline-flex min-h-[40px] items-center justify-center gap-2 whitespace-nowrap rounded-clay bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-5 sm:text-[14px]"
         >
           <Plus size={16} strokeWidth={2.2} aria-hidden />
           Note
@@ -178,7 +178,7 @@ export default function NoteCreateChooser({
         aria-controls={open ? menuId : undefined}
         aria-haspopup="menu"
         title={open ? 'Fermer' : 'Nouvelle note'}
-        className={`flex w-full items-center rounded-[12px] border border-[#E8743C]/25 bg-[#E8743C]/12 text-left transition-colors duration-150 hover:bg-[#E8743C]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+        className={`flex w-full items-center rounded-[12px] border border-[#E8743C]/25 bg-[#E8743C]/12 text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#E8743C]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
           collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2.5'
         }`}
       >
@@ -239,7 +239,7 @@ function ChoiceButton({
         type="button"
         role="menuitem"
         onClick={onClick}
-        className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-[13.5px] font-medium text-text transition-colors hover:bg-black/[0.04]"
+        className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-[13.5px] font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04]"
       >
         <Icon size={16} strokeWidth={2} className="text-accent" aria-hidden />
         {label}
@@ -254,7 +254,7 @@ function ChoiceButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex w-full items-center rounded-[12px] text-left text-[#E8EEF6] transition-colors duration-150 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+      className={`flex w-full items-center rounded-[12px] text-left text-[#E8EEF6] transition-colors duration-fluid-subtle ease-in-out hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
         collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2'
       }`}
     >

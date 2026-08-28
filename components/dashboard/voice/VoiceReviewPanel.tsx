@@ -351,7 +351,7 @@ export default function VoiceReviewPanel({
                 type="button"
                 onClick={onContinue}
                 disabled={locked}
-                className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Compléter la dictée
               </button>
@@ -656,7 +656,7 @@ export default function VoiceReviewPanel({
           type="button"
           onClick={() => setConfirmDelete(true)}
           disabled={locked}
-          className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           Annuler
         </button>

@@ -290,7 +290,7 @@ function ChoicePills({
             <label
               key={opt.value}
               htmlFor={id}
-              className={`inline-flex min-h-[40px] cursor-pointer items-center rounded-full border px-3.5 py-2 text-[13.5px] font-medium transition-colors duration-150 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+              className={`inline-flex min-h-[40px] cursor-pointer items-center rounded-full border px-3.5 py-2 text-[13.5px] font-medium transition-colors duration-fluid-subtle ease-in-out has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
                 selected
                   ? 'border-accent bg-accent/10 text-text-strong'
                   : 'border-black/[0.10] bg-surface text-text hover:border-black/[0.16]'

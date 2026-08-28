@@ -107,6 +107,13 @@ const config: Config = {
         clay: "cubic-bezier(0.34, 1.56, 0.64, 1)",
         soft: "cubic-bezier(0.4, 0, 0.2, 1)",
       },
+      transitionDuration: {
+        fluid: "var(--dur-fluid)",
+        "fluid-subtle": "var(--dur-fluid-subtle)",
+        fast: "var(--dur-fast)",
+        base: "var(--dur)",
+        slow: "var(--dur-slow)",
+      },
       keyframes: {
         fadeIn: {
           "0%": { opacity: "0", transform: "translateY(6px)" },

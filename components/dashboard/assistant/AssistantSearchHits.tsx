@@ -28,7 +28,7 @@ export default function AssistantSearchHits({
           <button
             type="button"
             onClick={onAskAssistant}
-            className="mt-2 inline-flex min-h-[36px] items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-primary-600 transition-colors hover:bg-primary-50"
+            className="mt-2 inline-flex min-h-[36px] items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
           >
             <Sparkles size={15} strokeWidth={2} aria-hidden />
             Demander à l&apos;assistant
@@ -47,7 +47,7 @@ export default function AssistantSearchHits({
             <Link
               href={hit.href}
               onClick={onClose}
-              className="flex w-full min-w-0 items-start justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-black/[0.04]"
+              className="flex w-full min-w-0 items-start justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04]"
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium text-ink">{hit.label}</span>

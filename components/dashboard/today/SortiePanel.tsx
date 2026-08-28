@@ -124,7 +124,7 @@ export default function SortiePanel({
                 <li key={stop.key}>
                   <button
                     type="button"
-                    className="flex w-full min-h-[36px] items-baseline gap-2 truncate rounded-lg px-1 py-1.5 text-left text-[13px] transition-colors"
+                    className="flex w-full min-h-[36px] items-baseline gap-2 truncate rounded-lg px-1 py-1.5 text-left text-[13px] transition-colors duration-fluid-subtle ease-in-out"
                     style={{
                       backgroundColor: hoveredIndex === i ? FIELD.creme : undefined,
                     }}
@@ -139,7 +139,7 @@ export default function SortiePanel({
             </ol>
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/[0.06]" aria-hidden>
               <div
-                className="h-full rounded-full transition-[width] duration-200 motion-reduce:transition-none"
+                className="h-full rounded-full transition-[width] duration-fluid-subtle ease-in-out motion-reduce:transition-none"
                 style={{
                   width: `${n === 0 ? 0 : Math.round((doneCount / n) * 100)}%`,
                   backgroundColor: FIELD.orange,

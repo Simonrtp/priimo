@@ -31,7 +31,7 @@ function TabItem({
       className="app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5"
     >
       <span
-        className={`flex h-8 w-full max-w-[52px] items-center justify-center rounded-full transition-colors duration-200 ${
+        className={`flex h-8 w-full max-w-[52px] items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out ${
           active ? 'bg-primary-100' : 'bg-transparent'
         }`}
       >

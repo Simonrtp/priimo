@@ -58,14 +58,14 @@ function PreviousLeadsSection({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-[48px] w-full items-center gap-2 text-left transition-[box-shadow,border-color] duration-150 md:col-span-2 max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-white max-lg:px-4 max-lg:py-3.5 max-lg:shadow-clay-sm max-lg:hover:border-black/[0.09] max-lg:hover:shadow-clay lg:bg-white lg:px-6 lg:py-4 lg:hover:shadow-[inset_0_0_0_9999px_rgba(10,13,17,0.018)]"
+        className="flex min-h-[48px] w-full items-center gap-2 text-left transition-[box-shadow,border-color] duration-fluid-subtle ease-in-out md:col-span-2 max-lg:rounded-2xl max-lg:border max-lg:border-black/[0.06] max-lg:bg-white max-lg:px-4 max-lg:py-3.5 max-lg:shadow-clay-sm max-lg:hover:border-black/[0.09] max-lg:hover:shadow-clay lg:bg-white lg:px-6 lg:py-4 lg:hover:shadow-[inset_0_0_0_9999px_rgba(10,13,17,0.018)]"
       >
         <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-mute">
           Leads précédents ({total})
         </span>
         <ChevronDown
           size={16}
-          className={`flex-shrink-0 text-mute transition-transform duration-200 ease-out ${
+          className={`flex-shrink-0 text-mute transition-transform duration-fluid-subtle ease-in-out ${
             open ? 'rotate-180' : ''
           }`}
           aria-hidden

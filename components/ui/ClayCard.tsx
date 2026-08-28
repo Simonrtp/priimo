@@ -31,7 +31,7 @@ const ClayCard = forwardRef<HTMLDivElement, ClayCardProps>(function ClayCard(
   return (
     <div
       ref={ref}
-      className={`rounded-clay-lg bg-surface shadow-clay transition-[transform,box-shadow] duration-200 ease-clay ${PADDING[padding]} ${interactive} ${className}`}
+      className={`rounded-clay-lg bg-surface shadow-clay transition-[transform,box-shadow] duration-fluid-subtle ease-in-out ${PADDING[padding]} ${interactive} ${className}`}
       {...rest}
     >
       {children}

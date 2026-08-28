@@ -206,7 +206,7 @@ export default function LeadDetailHeader({
 
       {/* Barre compacte : sticky, hauteur fixe — n’altère pas l’en-tête complet. */}
       <div
-        className={`sticky top-0 z-20 overflow-hidden bg-white transition-[opacity,box-shadow] duration-200 ease-out motion-reduce:transition-none ${padClassName} ${
+        className={`sticky top-0 z-20 overflow-hidden bg-white transition-[opacity,box-shadow] duration-fluid-subtle ease-in-out motion-reduce:transition-none ${padClassName} ${
           showCompactBar
             ? 'border-b border-black/[0.08] py-2.5 opacity-100 shadow-[0_4px_12px_rgba(10,13,17,0.06)]'
             : 'pointer-events-none h-0 border-transparent py-0 opacity-0'

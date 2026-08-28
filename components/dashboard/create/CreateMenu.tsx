@@ -25,6 +25,9 @@ const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: Luci
   { value: 'note-voice', label: 'Dicter une note', hint: 'À la voix', Icon: Mic },
 ];
 
+const PLUS_HOVER_SPIN =
+  'transition-transform duration-fluid-subtle ease-in-out group-hover:rotate-90 motion-reduce:transition-none motion-reduce:group-hover:rotate-0';
+
 export default function CreateMenu({
   className = '',
   compact = false,
@@ -256,10 +259,10 @@ export default function CreateMenu({
           data-tour={isFab ? 'voice-capture' : undefined}
           className={
             isFab
-              ? 'flex size-16 items-center justify-center rounded-full text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
+              ? 'group flex size-16 items-center justify-center rounded-full text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
               : variant === 'compact'
-                ? 'flex size-11 items-center justify-center rounded-full bg-accent text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-                : 'inline-flex min-h-11 items-center gap-1.5 rounded-clay bg-accent px-3.5 text-[13.5px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:min-h-9 md:px-3 md:text-[13px]'
+                ? 'group flex size-11 items-center justify-center rounded-full bg-accent text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+                : 'group inline-flex min-h-11 items-center gap-1.5 rounded-clay bg-accent px-3.5 text-[13.5px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:min-h-9 md:px-3 md:text-[13px]'
           }
           style={
             isFab
@@ -274,10 +277,15 @@ export default function CreateMenu({
             open ? (
               <X size={26} strokeWidth={2.2} aria-hidden />
             ) : (
-              <Plus size={28} strokeWidth={2.2} aria-hidden />
+              <Plus size={28} strokeWidth={2.2} aria-hidden className={PLUS_HOVER_SPIN} />
             )
           ) : (
-            <Plus size={variant === 'compact' ? 22 : 16} strokeWidth={2.2} aria-hidden />
+            <Plus
+              size={variant === 'compact' ? 22 : 16}
+              strokeWidth={2.2}
+              aria-hidden
+              className={variant === 'default' || variant === 'compact' ? PLUS_HOVER_SPIN : undefined}
+            />
           )}
           {isFab || variant === 'compact' ? null : 'Nouveau'}
         </button>

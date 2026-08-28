@@ -147,7 +147,7 @@ export default function SettingsDashboard({
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`w-full rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition-colors ${
+                className={`w-full rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition-colors duration-fluid-subtle ease-in-out ${
                   active
                     ? 'bg-white text-ink shadow-sm ring-1 ring-black/6'
                     : 'text-mute hover:bg-white/60 hover:text-ink'
@@ -487,7 +487,7 @@ function SectionProfile() {
           <button
             type="button"
             onClick={() => setPwdModalOpen(true)}
-            className="w-full rounded-lg border border-black/10 bg-white px-4 py-2 font-medium text-ink transition-colors hover:bg-black/[0.04] sm:w-auto"
+            className="w-full rounded-lg border border-black/10 bg-white px-4 py-2 font-medium text-ink transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] sm:w-auto"
             style={{ fontSize: 13 }}
           >
             Changer mon mot de passe
@@ -528,7 +528,7 @@ function SectionProfile() {
           <form action="/api/auth/signout" method="post">
             <button
               type="submit"
-              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[13.5px] font-medium text-ink transition-colors hover:bg-black/[0.04] sm:w-auto"
+              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[13.5px] font-medium text-ink transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] sm:w-auto"
             >
               <LogOut size={16} strokeWidth={2} aria-hidden />
               Se déconnecter

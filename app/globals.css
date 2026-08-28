@@ -35,7 +35,7 @@
   --sidebar-width-collapsed: 68px;
   --sidebar-width: var(--sidebar-width-expanded);
   --sidebar-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar-dur: 180ms;
+  --sidebar-dur: var(--dur-fluid);
   --dashboard-topbar-height: 56px;
 
   /* §1.3 Couleurs sémantiques */
@@ -111,9 +111,11 @@
   /* §7.1 Courbes & durées */
   --ease-clay: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-fast: 150ms;
-  --dur: 220ms;
-  --dur-slow: 350ms;
+  --dur-fluid: 420ms;
+  --dur-fluid-subtle: 380ms;
+  --dur-fast: var(--dur-fluid-subtle);
+  --dur: var(--dur-fluid);
+  --dur-slow: var(--dur-fluid);
 
   /* §2.1 Corps de texte par défaut (Inter, self-hosted via next/font) */
   --font-body: var(--font-sans);
@@ -1219,7 +1221,10 @@ body {
 /* Retour tactile pressé — feedback natif (scale + no tap highlight) */
 .app-press {
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 160ms var(--ease-soft), filter 100ms ease-out;
+  transition:
+    background-color var(--dur-fluid-subtle) var(--ease-soft),
+    color var(--dur-fluid-subtle) var(--ease-soft),
+    filter var(--dur-fluid-subtle) var(--ease-soft);
 }
 .app-press:active {
   filter: brightness(0.94);
@@ -1245,7 +1250,7 @@ body {
   to   { transform: translateY(0); }
 }
 .animate-app-sheet {
-  animation: appSheetUp 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: appSheetUp var(--dur-fluid) var(--ease-soft);
 }
 
 /* Plein écran (détail) — push natif depuis la droite */
@@ -1254,7 +1259,7 @@ body {
   to   { transform: translateX(0); }
 }
 .animate-app-push {
-  animation: appPushIn 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: appPushIn var(--dur-fluid) var(--ease-soft);
 }
 
 /* Voile (scrim) — apparition douce */
@@ -1263,7 +1268,7 @@ body {
   to   { opacity: 1; }
 }
 .animate-app-scrim {
-  animation: appScrimIn 260ms ease-out;
+  animation: appScrimIn var(--dur-fluid-subtle) var(--ease-soft);
 }
 
 /* Barre d'action collante en bas d'une feuille/détail */
@@ -1442,6 +1447,11 @@ html:has(.feature-page) {
 .assistant-search-field {
   border: 1px solid rgba(0, 0, 0, 0.1);
   background-color: #fff;
+  transition:
+    border-color var(--dur-fluid-subtle) var(--ease-soft),
+    background-color var(--dur-fluid-subtle) var(--ease-soft),
+    background-image var(--dur-fluid-subtle) var(--ease-soft),
+    box-shadow var(--dur-fluid-subtle) var(--ease-soft);
 }
 .assistant-search-field:hover {
   border-color: rgba(0, 0, 0, 0.16);
@@ -1482,18 +1492,60 @@ html:has(.feature-page) {
   padding-bottom: 0;
 }
 .dashboard-mobile .app-press {
-  transition: filter 80ms ease-out, background-color 80ms ease-out;
+  transition:
+    background-color var(--dur-fluid-subtle) var(--ease-soft),
+    color var(--dur-fluid-subtle) var(--ease-soft),
+    filter var(--dur-fluid-subtle) var(--ease-soft);
 }
 .dashboard-mobile .app-press:active {
   filter: brightness(0.94);
 }
 
 .field-page-enter {
-  animation: field-fade-in 150ms ease-out both;
+  animation: field-fade-in var(--dur-fluid-subtle) var(--ease-soft) both;
 }
 
 .field-fiche-enter {
-  animation: field-slide-in 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation: field-slide-in var(--dur-fluid) var(--ease-soft) both;
+}
+
+/* Fluid motion — surfaces dashboard (desktop + mobile terrain) */
+.dashboard-fluid :where(
+  button:not(.no-fluid),
+  a[href]:not(.no-fluid),
+  [role='tab']:not(.no-fluid),
+  [role='menuitem']:not(.no-fluid),
+  [role='option']:not(.no-fluid),
+  label:not(.no-fluid)
+) {
+  transition-timing-function: var(--ease-soft);
+  transition-duration: var(--dur-fluid-subtle);
+}
+
+.fluid-reveal {
+  animation: fluid-reveal var(--dur-fluid) var(--ease-soft) both;
+}
+
+@keyframes fluid-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.fluid-collapse {
+  display: grid;
+  min-width: 0;
+  transition: grid-template-rows var(--dur-fluid) var(--ease-soft);
+}
+
+.fluid-collapse > * {
+  min-height: 0;
+  overflow: hidden;
 }
 
 @keyframes field-fade-in {
@@ -1510,7 +1562,7 @@ html:has(.feature-page) {
 
 /* Le panneau sort du bouton, pas du bord de l'écran. */
 .assistant-pop {
-  animation: assistant-pop 190ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: assistant-pop var(--dur-fluid) var(--ease-soft) both;
   transform-origin: top right;
 }
 
@@ -1540,7 +1592,7 @@ html:has(.feature-page) {
 }
 
 .assistant-ligne {
-  animation: assistant-ligne 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: assistant-ligne var(--dur-fluid-subtle) var(--ease-soft) both;
 }
 
 @keyframes assistant-ligne {
@@ -1549,6 +1601,21 @@ html:has(.feature-page) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .fluid-reveal,
+  .fluid-collapse {
+    animation: none !important;
+    transition-duration: 0ms !important;
+  }
+  .dashboard-fluid :where(
+    button:not(.no-fluid),
+    a[href]:not(.no-fluid),
+    [role='tab']:not(.no-fluid),
+    [role='menuitem']:not(.no-fluid),
+    [role='option']:not(.no-fluid),
+    label:not(.no-fluid)
+  ) {
+    transition-duration: 0ms !important;
+  }
   .assistant-pop,
   .assistant-ligne {
     animation: field-fade-in 100ms ease-out both;
