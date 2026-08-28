@@ -114,15 +114,17 @@ export default function PanneauContexte({
       </p>
 
       {facadeUrl && !facadeEnErreur ? (
-        // Proxy interne, taille variable : next/image n'apporte rien ici.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={facadeUrl}
-          alt=""
-          className="mt-3 aspect-[3/2] w-full rounded-xl object-cover"
-          loading="lazy"
-          onError={() => setFacadeEnErreur(true)}
-        />
+        <div className="relative mt-3 aspect-[3/2] w-full overflow-hidden rounded-xl bg-neutral-100">
+          {/* Recadrage bas : masque le filigrane Google intégré à l’API Street View. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={facadeUrl}
+            alt=""
+            className="absolute inset-x-0 top-0 h-[calc(100%+32px)] w-full object-cover"
+            loading="lazy"
+            onError={() => setFacadeEnErreur(true)}
+          />
+        </div>
       ) : null}
 
       <div className="mt-3">
