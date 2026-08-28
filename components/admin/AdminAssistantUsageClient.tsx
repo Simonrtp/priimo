@@ -45,7 +45,7 @@ export default function AdminAssistantUsageClient() {
     return [...groupes.entries()];
   }, [data]);
 
-  if (erreur) return <p className="text-sm text-rouge">{erreur}</p>;
+  if (erreur) return <p className="text-sm text-[var(--danger)]">{erreur}</p>;
   if (!data) return <p className="text-sm text-mute">Chargement…</p>;
 
   return (
@@ -92,7 +92,7 @@ export default function AdminAssistantUsageClient() {
                           </td>
                           <td
                             className={`px-3 py-2 text-right tabular-nums ${
-                              part >= 100 ? 'font-semibold text-rouge' : 'text-mute'
+                              part >= 100 ? 'font-semibold text-[var(--danger)]' : 'text-mute'
                             }`}
                           >
                             {part}&nbsp;%

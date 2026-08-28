@@ -1506,6 +1506,59 @@ html:has(.feature-page) {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* ─── Assistant ─────────────────────────────────────────────────────────── */
+
+/* Le panneau sort du bouton, pas du bord de l'écran. */
+.assistant-pop {
+  animation: assistant-pop 190ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: top right;
+}
+
+@keyframes assistant-pop {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Réponse en cours : trois points qui respirent. */
+.assistant-dot {
+  animation: assistant-dot 1.15s ease-in-out infinite;
+}
+
+@keyframes assistant-dot {
+  0%, 65%, 100% { opacity: 0.22; transform: translateY(0); }
+  32% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* Le bouton signale une réponse qui arrive alors que le panneau est fermé. */
+.assistant-halo {
+  animation: assistant-halo 1.9s ease-in-out infinite;
+}
+
+@keyframes assistant-halo {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.18); }
+}
+
+.assistant-ligne {
+  animation: assistant-ligne 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes assistant-ligne {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-pop,
+  .assistant-ligne {
+    animation: field-fade-in 100ms ease-out both;
+  }
+  .assistant-dot,
+  .assistant-halo {
+    animation: none;
+  }
+}
+
 /* Brief de tournée : la carte monte, puis chaque ligne arrive à son tour. */
 .tour-brief {
   animation: tour-brief-card 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
