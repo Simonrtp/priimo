@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Flame, Loader2, MapPin, Plus, Route, X } from 'lucide-react';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import type { SortieStop } from '@/lib/today/sortie';
@@ -19,9 +19,11 @@ export default function CarteTourneeStopsSheet({
   distanceM,
   durationS,
   optimizing,
+  picking,
   postcodeFilter,
   onRemove,
   onAddAddress,
+  onPickOnMap,
   onStop,
   onFocusStop,
 }: {
@@ -29,13 +31,20 @@ export default function CarteTourneeStopsSheet({
   distanceM: number;
   durationS: number | null;
   optimizing: boolean;
+  /** Mode « choisir un point » actif : le panneau s'efface pour dégager la carte. */
+  picking: boolean;
   postcodeFilter?: string;
   onRemove: (key: string) => void;
   onAddAddress: (address: SelectedAddress) => void;
+  onPickOnMap: () => void;
   onStop: () => void;
   onFocusStop: (stop: SortieStop) => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (picking) setOpen(false);
+  }, [picking]);
 
   const duration = durationS ?? estimateWalkDurationS(distanceM);
   const calories = estimateWalkCalories(distanceM, duration);
@@ -172,10 +181,15 @@ export default function CarteTourneeStopsSheet({
                         aria-label="Rechercher une adresse à ajouter à la tournée"
                       />
                     </div>
-                    <p className="mt-2 flex items-center gap-1.5 px-1.5 text-[12.5px] text-text-muted">
-                      <MapPin size={13} strokeWidth={2.2} aria-hidden />
-                      Ou touchez un immeuble sur la carte.
-                    </p>
+                    <button
+                      type="button"
+                      onClick={onPickOnMap}
+                      className="app-press mt-2 flex min-h-[48px] w-full items-center gap-2 rounded-xl px-1.5 text-left text-[14px] font-semibold"
+                      style={{ color: FIELD.orange }}
+                    >
+                      <MapPin size={16} strokeWidth={2.4} aria-hidden />
+                      Ou choisir un point sur la carte
+                    </button>
                   </>
                 )}
               </div>

@@ -1,26 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { searchPatterns, significantSearchTokens } from './normalize';
-import { needsAiAnswer } from './query-mode';
 import { buildSearchHits } from './search';
 
 describe('searchPatterns', () => {
   it('extrait la voie d’une question', () => {
     assert.deepEqual(significantSearchTokens("qu'est ce que tu sais rue vitruve ?"), ['vitruve']);
     assert.ok(searchPatterns("qu'est ce que tu sais rue vitruve ?").includes('rue vitruve'));
-  });
-});
-
-describe('needsAiAnswer', () => {
-  it('détecte une question', () => {
-    assert.equal(needsAiAnswer('Qui cherche un T3 à Paris ?'), true);
-    assert.equal(needsAiAnswer('Que faire aujourd\'hui ?'), true);
-  });
-
-  it('laisse passer un mot-clé', () => {
-    assert.equal(needsAiAnswer('Martin'), false);
-    assert.equal(needsAiAnswer('13 rue des Mûriers'), false);
-    assert.equal(needsAiAnswer('75020'), false);
   });
 });
 

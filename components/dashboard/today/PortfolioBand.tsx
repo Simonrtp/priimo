@@ -9,10 +9,10 @@ function Counter({ item }: { item: PortfolioCounter }) {
   const figureColor = toneColor(item.tone, item.value);
   const hasSubtitle = Boolean(item.subtitle);
   return (
-    <div className="flex min-w-[10.5rem] flex-shrink-0 flex-col justify-center overflow-hidden rounded-clay border border-black/[0.06] bg-surface shadow-clay-sm sm:min-w-0">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface shadow-clay-sm">
       <Link
         href={item.href}
-        className={`cursor-pointer px-4 pt-3 outline-offset-2 hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+        className={`cursor-pointer px-3.5 pt-3 outline-offset-2 hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-4 ${
           hasSubtitle ? 'pb-1.5' : 'pb-3'
         }`}
       >
@@ -33,12 +33,14 @@ function Counter({ item }: { item: PortfolioCounter }) {
         item.subtitleHref ? (
           <Link
             href={item.subtitleHref}
-            className="cursor-pointer px-4 pb-3 pt-0.5 text-[12px] text-text-muted underline-offset-2 hover:bg-black/[0.03] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="mt-auto cursor-pointer px-3.5 pb-3 pt-0.5 text-[12px] text-text-muted underline-offset-2 hover:bg-black/[0.03] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-4"
           >
             {item.subtitle}
           </Link>
         ) : (
-          <span className="px-4 pb-3 pt-0.5 text-[12px] text-text-muted">{item.subtitle}</span>
+          <span className="mt-auto px-3.5 pb-3 pt-0.5 text-[12px] text-text-muted sm:px-4">
+            {item.subtitle}
+          </span>
         )
       ) : null}
     </div>
@@ -48,7 +50,8 @@ function Counter({ item }: { item: PortfolioCounter }) {
 export default function PortfolioBand({ stats }: { stats: PortfolioStats }) {
   return (
     <section aria-label="État du portefeuille" className="mb-6 md:mb-8">
-      <div className="app-snap -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:gap-3 md:overflow-visible md:px-0">
+      {/* Mobile : 2 × 2, jamais une bande à faire défiler. */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         {stats.counters.map((item) => (
           <Counter key={item.kind} item={item} />
         ))}

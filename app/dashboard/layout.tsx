@@ -12,6 +12,7 @@ import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
 import DashboardTourProvider from '@/components/dashboard/tour/TourProvider';
 import VoiceCaptureProvider from '@/components/dashboard/voice/VoiceCaptureProvider';
 import AssistantProvider from '@/components/dashboard/assistant/AssistantProvider';
+import AssistantPanelProvider from '@/components/dashboard/assistant/AssistantPanelProvider';
 import WorkspacePanel from '@/components/dashboard/workspace/WorkspacePanel';
 import OfflineQueueProvider from '@/components/dashboard/field/OfflineQueueProvider';
 import TourneeDictationProvider from '@/components/dashboard/field/TourneeDictationProvider';
@@ -39,6 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <TourneeDictationProvider>
               <VoiceCaptureProvider>
                 <AssistantProvider>
+                  <AssistantPanelProvider>
                     {isMobile ? (
                       <div className="dashboard-mobile flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <TouchScrollGuard />
@@ -64,6 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         <MobileBottomNav />
                       </div>
                     )}
+                  </AssistantPanelProvider>
                 </AssistantProvider>
               </VoiceCaptureProvider>
             </TourneeDictationProvider>

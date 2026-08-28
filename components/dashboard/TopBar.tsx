@@ -12,6 +12,7 @@ import {
   AssistantMobileSearchBar,
   AssistantSearchIconButton,
 } from '@/components/dashboard/assistant/AssistantSearchButton';
+import AssistantPanel from '@/components/dashboard/assistant/AssistantPanel';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
@@ -210,11 +211,13 @@ export default function TopBar() {
           <div className="min-w-0 w-full max-w-md flex-1">
             <AssistantSearchBar tone="shell" />
           </div>
+          <AssistantPanel />
           <CreateMenu className="shrink-0" />
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2 md:gap-2">
           <AssistantSearchIconButton className="text-mute md:hidden" />
+          <AssistantPanel variant="mobile" className="md:hidden" />
           <a
             href={FOUNDER_WHATSAPP_HREF}
             target="_blank"

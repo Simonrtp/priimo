@@ -1,18 +1,22 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import Link from 'next/link';
 import { Mic, Search } from 'lucide-react';
 import type { SearchHit } from '@/lib/assistant/search';
-import { CardEyebrow } from '@/components/dashboard/workspace/WorkspaceCard';
 import { notifyError } from '@/lib/notify';
 import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
-import AssistantResults from './AssistantResults';
 import AssistantSearchHits from './AssistantSearchHits';
 import { useAssistant } from './AssistantProvider';
+import { useAssistantPanel } from './AssistantPanelProvider';
 
-const PLACEHOLDER = 'Rechercher une adresse, un contact, ou poser une question';
+/**
+ * Barre de recherche. Recherche pure : ce qui est tapé va à `fetchSearchRows`,
+ * rien d'autre. Aucune phrase, aucun point d'interrogation ne déclenche
+ * l'assistant — il a son propre bouton.
+ */
+const PLACEHOLDER = 'Rechercher une adresse, un contact';
 const PREVIEW_MAX = 8;
+const DEBOUNCE_MS = 180;
 
 function SearchField({
   className = '',
@@ -29,44 +33,39 @@ function SearchField({
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const listenTimerRef = useRef<number>(0);
-  const [previewHits, setPreviewHits] = useState<SearchHit[]>([]);
-  const [searched, setSearched] = useState(false);
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const {
     query,
     setQuery,
-    loading,
-    loadingAi,
-    searchHits,
-    result,
-    history,
     panelOpen,
     setPanelOpen,
-    runSearch,
-    runAiSearch,
     registerInput,
     closeResults,
   } = useAssistant();
+  const { openPanel } = useAssistantPanel();
 
   useEffect(() => {
     const onPointerDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        closeResults();
-      }
+      if (!rootRef.current?.contains(e.target as Node)) closeResults();
     };
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [closeResults]);
 
+  // Recherche instantanée : une frappe, une requête, aucun modèle.
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2 || searched) {
-      setPreviewHits([]);
+    if (q.length < 2) {
+      setHits([]);
+      setSearching(false);
       return;
     }
 
     const ctrl = new AbortController();
+    setSearching(true);
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
@@ -75,35 +74,23 @@ function SearchField({
           });
           if (!res.ok) return;
           const body = (await res.json()) as { hits?: SearchHit[] };
-          setPreviewHits((body.hits ?? []).slice(0, PREVIEW_MAX));
+          setHits((body.hits ?? []).slice(0, PREVIEW_MAX));
         } catch {
-          /* abort ou réseau */
+          /* abandon ou réseau */
+        } finally {
+          if (!ctrl.signal.aborted) setSearching(false);
         }
       })();
-    }, 180);
+    }, DEBOUNCE_MS);
 
     return () => {
       window.clearTimeout(timer);
       ctrl.abort();
     };
-  }, [query, searched]);
+  }, [query]);
 
-  const showPreview =
-    !searched && previewHits.length > 0 && query.trim().length >= 2 && !loading && !loadingAi && !result;
-  const showSubmittedHits = searched && !loading;
-  const showPanel =
-    panelOpen &&
-    (loading || loadingAi || result !== null || showPreview || showSubmittedHits || history.length > 0);
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearched(true);
-    void runSearch();
-  };
-
-  const onFocus = () => {
-    setPanelOpen(true);
-  };
+  const trimmed = query.trim();
+  const showPanel = panelOpen && trimmed.length >= 2;
 
   useEffect(() => {
     return () => {
@@ -118,7 +105,6 @@ function SearchField({
       notifyError('Aucun son reçu.');
       return;
     }
-    setSearched(true);
     setTranscribing(true);
     try {
       const form = new FormData();
@@ -129,9 +115,8 @@ function SearchField({
         notifyError(data.error ?? "La recherche vocale n'a pas pu être comprise");
         return;
       }
-      const text = data.text.trim();
-      setQuery(text);
-      await runSearch(text);
+      setQuery(data.text.trim());
+      setPanelOpen(true);
     } catch {
       notifyError("La recherche vocale n'a pas pu être comprise");
     } finally {
@@ -194,7 +179,7 @@ function SearchField({
   return (
     <div ref={rootRef} className={`relative min-w-0 ${className}`}>
       <form
-        onSubmit={onSubmit}
+        onSubmit={(e) => e.preventDefault()}
         className={`flex min-w-0 items-center gap-2 transition-colors duration-150 ${
           shell
             ? 'min-h-11 rounded-full bg-white px-3.5 shadow-sm focus-within:ring-2 focus-within:ring-white/35 md:h-9 md:min-h-0'
@@ -226,24 +211,18 @@ function SearchField({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setSearched(false);
             if (e.target.value.trim().length >= 2) setPanelOpen(true);
           }}
-          onFocus={onFocus}
+          onFocus={() => setPanelOpen(true)}
           placeholder={listening ? 'Parlez…' : transcribing ? 'Mise en texte…' : PLACEHOLDER}
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="search"
           className="min-w-0 flex-1 truncate bg-transparent text-[13px] text-ink outline-none placeholder:text-mute md:text-[14px]"
         />
-        <button
-          type="submit"
-          className="flex shrink-0 items-center justify-center text-mute transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-          aria-label="Lancer la recherche"
-          title="Lancer la recherche"
-        >
-          <Search size={16} strokeWidth={2} aria-hidden />
-        </button>
+        <span className="flex shrink-0 items-center justify-center text-mute" aria-hidden>
+          <Search size={16} strokeWidth={2} />
+        </span>
       </form>
 
       {showPanel ? (
@@ -253,68 +232,24 @@ function SearchField({
           aria-live="polite"
           aria-label="Résultats de recherche"
         >
-          {loading ? (
+          {searching && hits.length === 0 ? (
             <div className="flex justify-center px-4 py-4" role="status" aria-label="Recherche en cours">
               <span
                 className="size-5 rounded-full border-2 border-black/10 border-t-[#E8743C] motion-safe:animate-spin"
                 aria-hidden
               />
             </div>
-          ) : null}
-
-          {showPreview ? (
-            <div className="border-b border-black/[0.06] px-4 py-3">
-              <CardEyebrow>Aperçu</CardEyebrow>
-              <ul className="mt-2 flex flex-col gap-0.5">
-                {previewHits.map((hit) => (
-                  <li key={`${hit.kind}-${hit.id}`}>
-                    <Link
-                      href={hit.href}
-                      onClick={closeResults}
-                      className="flex w-full min-w-0 items-baseline justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-black/[0.04]"
-                    >
-                      <span className="min-w-0 truncate text-[13px] font-medium text-ink">{hit.label}</span>
-                      <span className="shrink-0 text-[11px] font-medium uppercase text-mute">{hit.subtitle}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {showSubmittedHits ? (
+          ) : (
             <AssistantSearchHits
-              hits={searchHits}
-              query={query.trim()}
-              onAskAi={() => void runAiSearch()}
+              hits={hits}
+              query={trimmed}
               onClose={closeResults}
-              loadingAi={loadingAi}
+              onAskAssistant={() => {
+                closeResults();
+                openPanel(trimmed);
+              }}
             />
-          ) : null}
-
-          {!loading && !result && !searched && history.length > 0 ? (
-            <div className="border-b border-black/[0.06] px-4 py-3">
-              <CardEyebrow>Dernières questions</CardEyebrow>
-              <ul className="mt-2 flex flex-col gap-0.5">
-                {history.map((q) => (
-                  <li key={q}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearched(true);
-                        void runSearch(q);
-                      }}
-                      className="w-full truncate rounded-lg px-2 py-1.5 text-left text-[13px] text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
-                    >
-                      {q}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <AssistantResults loading={loadingAi} result={result} onClose={closeResults} />
+          )}
         </div>
       ) : null}
     </div>

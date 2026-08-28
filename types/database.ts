@@ -998,6 +998,48 @@ export type AssistantQueryInsert = {
   created_at?: string;
 };
 
+export type AssistantConversationRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  titre: string;
+  resume: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AssistantConversationInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  titre?: string;
+  resume?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AssistantMessageRole = 'user' | 'assistant';
+
+export type AssistantMessageRow = {
+  id: string;
+  conversation_id: string;
+  role: AssistantMessageRole;
+  contenu: string;
+  lignes_sources: unknown;
+  tokens: number;
+  created_at: string;
+};
+
+export type AssistantMessageInsert = {
+  id?: string;
+  conversation_id: string;
+  role: AssistantMessageRole;
+  contenu: string;
+  lignes_sources?: unknown;
+  tokens?: number;
+  created_at?: string;
+};
+
 export type VisiteRow = {
   id: string;
   agency_id: string;
@@ -1512,6 +1554,26 @@ export type Database = {
         Update: Partial<AssistantQueryRow>;
         Relationships: [];
       };
+      assistant_conversations: {
+        Row: AssistantConversationRow;
+        Insert: AssistantConversationInsert;
+        Update: Partial<AssistantConversationRow>;
+        Relationships: [];
+      };
+      assistant_messages: {
+        Row: AssistantMessageRow;
+        Insert: AssistantMessageInsert;
+        Update: Partial<AssistantMessageRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'assistant_messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'assistant_conversations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       visites: {
         Row: VisiteRow;
         Insert: VisiteInsert;
@@ -1656,6 +1718,10 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      assistant_tokens_du_mois: {
+        Args: { p_agency_id: string; p_debut: string };
+        Returns: number;
+      };
       current_user_agency_ids: { Args: Record<string, never>; Returns: string[] };
       current_user_agency_id: { Args: Record<string, never>; Returns: string };
       current_user_role: { Args: Record<string, never>; Returns: string };

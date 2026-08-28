@@ -1,8 +1,14 @@
 /**
  * Temps 1 : question → intention JSON. Température 0. Jamais de SQL.
+ *
+ * Filet de sécurité derrière `router.ts` : n'est appelé que lorsque le
+ * routage par règles n'a rien reconnu. C'est une tâche de tri, donc le
+ * palier `tri` (plus petit modèle).
  */
 
 import { requireMistralKey } from '@/lib/voice/transcribe';
+import { chatOnce } from './mistral';
+import { stableSystemMessage } from './models';
 import {
   EMPTY_INTENT,
   INTERPRET_EXAMPLES,
@@ -10,8 +16,6 @@ import {
   type AssistantIntent,
 } from './intent';
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-small-latest';
 const MAX_QUESTION = 500;
 const MAX_OUTPUT_TOKENS = 280;
 
@@ -50,40 +54,19 @@ export async function interpretQuestion(
   const trimmed = question.trim().slice(0, MAX_QUESTION);
   if (!trimmed) return { ...EMPTY_INTENT };
 
-  let res: Response;
-  try {
-    res = await fetchImpl(MISTRAL_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MISTRAL_MODEL,
-        temperature: 0,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: INTERPRET_SYSTEM_PROMPT },
-          { role: 'user', content: trimmed },
-        ],
-      }),
-    });
-  } catch {
-    return { ...EMPTY_INTENT };
-  }
+  const out = await chatOnce({
+    tier: 'tri',
+    apiKey,
+    maxTokens: MAX_OUTPUT_TOKENS,
+    jsonObject: true,
+    fetchImpl,
+    messages: [
+      stableSystemMessage(INTERPRET_SYSTEM_PROMPT),
+      { role: 'user', content: trimmed },
+    ],
+  });
 
-  if (!res.ok) return { ...EMPTY_INTENT };
-
-  let content: string | undefined;
-  try {
-    const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    content = body.choices?.[0]?.message?.content;
-  } catch {
-    return { ...EMPTY_INTENT };
-  }
-
-  return parseIntent(content);
+  return out ? parseIntent(out.texte) : { ...EMPTY_INTENT };
 }
 
 export function interpretWithConfiguredKey(question: string): Promise<AssistantIntent> {

@@ -72,6 +72,7 @@ export default function MobileMapCanvas({
   highlightBanIds = null,
   dimension = '2d',
   suppressAutoFit = false,
+  onMapPoint,
   onUserInteract,
 }: {
   buildings: readonly BuildingMarker[];
@@ -96,6 +97,8 @@ export default function MobileMapCanvas({
   /** Plan à plat ou relief des immeubles. */
   dimension?: MapDimension;
   suppressAutoFit?: boolean;
+  /** Mode « choisir un point » : tout appui sur la carte renvoie ses coordonnées. */
+  onMapPoint?: (coord: { latitude: number; longitude: number }) => void;
   onUserInteract?: () => void;
 }) {
   const mapRef = useRef<MapRef | null>(null);
@@ -266,6 +269,10 @@ export default function MobileMapCanvas({
           setZoom(event.target.getZoom());
         }}
         onClick={(event) => {
+          if (onMapPoint) {
+            onMapPoint({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
+            return;
+          }
           if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
             const hits = event.target.queryRenderedFeatures(event.point, {
               layers: [PARCELLES_FILL_LAYER_ID],
