@@ -22,31 +22,41 @@ export function requireMistralKey(): string {
   return apiKey;
 }
 
-/** Rend le texte dicté, ou null si le service n'a rien pu produire. */
+export type TranscribeOutcome =
+  | { ok: true; text: string }
+  | { ok: false; kind: 'empty' | 'http' | 'timeout' | 'network'; status?: number };
+
+/** Rend le texte dicté, ou la cause d'échec. */
 export async function transcribeAudio(
   audio: Blob,
   fileName: string,
   apiKey: string,
-): Promise<string | null> {
+): Promise<TranscribeOutcome> {
   const form = new FormData();
   form.append('model', TRANSCRIPTION_MODEL);
   form.append('file', audio, fileName);
-  // L'agent dicte en français : le préciser améliore nettement les noms propres.
   form.append('language', 'fr');
 
-  const res = await fetch(MISTRAL_TRANSCRIPTION_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-    signal: AbortSignal.timeout(12_000),
-  });
+  let res: Response;
+  try {
+    res = await fetch(MISTRAL_TRANSCRIPTION_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === 'TimeoutError';
+    console.error('[voice] transcription réseau', error);
+    return { ok: false, kind: timedOut ? 'timeout' : 'network' };
+  }
 
   if (!res.ok) {
     console.error('[voice] transcription HTTP', res.status, await res.text().catch(() => ''));
-    return null;
+    return { ok: false, kind: 'http', status: res.status };
   }
 
   const body = (await res.json()) as { text?: string };
   const text = body.text?.trim();
-  return text ? text : null;
+  return text ? { ok: true, text } : { ok: false, kind: 'empty' };
 }

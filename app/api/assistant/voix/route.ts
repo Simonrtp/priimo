@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import {
+  fileNameForAudioBlob,
+  isVoiceBlobTooSmall,
+  normalizeAudioMime,
+} from '@/lib/voice/audio-blob';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { MistralKeyMissingError, requireMistralKey, transcribeAudio } from '@/lib/voice/transcribe';
 
@@ -7,20 +12,24 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const MAX_BYTES = 4 * 1024 * 1024;
-const ALLOWED_MIME = new Set([
-  'audio/webm',
-  'audio/ogg',
-  'audio/mpeg',
-  'audio/mp4',
-  'audio/wav',
-]);
 
-function extensionFor(mime: string): string {
-  if (mime.startsWith('audio/ogg')) return 'ogg';
-  if (mime.startsWith('audio/mpeg')) return 'mp3';
-  if (mime.startsWith('audio/mp4')) return 'm4a';
-  if (mime.startsWith('audio/wav')) return 'wav';
-  return 'webm';
+function erreurTranscription(outcome: Extract<Awaited<ReturnType<typeof transcribeAudio>>, { ok: false }>) {
+  if (outcome.kind === 'http') {
+    return NextResponse.json(
+      { error: 'Le service de transcription est indisponible. Réessayez dans un instant.' },
+      { status: 502 },
+    );
+  }
+  if (outcome.kind === 'timeout' || outcome.kind === 'network') {
+    return NextResponse.json(
+      { error: 'La transcription a pris trop de temps. Réessayez.' },
+      { status: 504 },
+    );
+  }
+  return NextResponse.json(
+    { error: 'Parlez un peu plus longtemps, puis réessayez.' },
+    { status: 422 },
+  );
 }
 
 /**
@@ -31,7 +40,7 @@ export async function POST(req: Request) {
   const limit = rateLimit(`assistant-voix:${ip}`, { limit: 40, windowMs: 60 * 60 * 1000 });
   if (!limit.ok) {
     return NextResponse.json(
-      { error: 'Trop de recherches vocales. Réessayez dans un instant.' },
+      { error: 'Trop de questions vocales. Réessayez dans un instant.' },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } },
     );
   }
@@ -55,9 +64,16 @@ export async function POST(req: Request) {
   if (audio.size > MAX_BYTES) {
     return NextResponse.json({ error: 'Enregistrement trop long' }, { status: 413 });
   }
+  if (isVoiceBlobTooSmall(audio.size)) {
+    return NextResponse.json(
+      { error: 'Enregistrement trop court. Parlez au moins une seconde.' },
+      { status: 422 },
+    );
+  }
 
-  const mime = (audio.type || 'audio/webm').split(';')[0];
-  if (!ALLOWED_MIME.has(mime)) {
+  const mime = normalizeAudioMime(audio.type);
+  const allowed = new Set(['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav']);
+  if (!allowed.has(mime)) {
     return NextResponse.json({ error: 'Format audio non pris en charge' }, { status: 415 });
   }
 
@@ -66,15 +82,16 @@ export async function POST(req: Request) {
     apiKey = requireMistralKey();
   } catch (err) {
     if (err instanceof MistralKeyMissingError) {
-      return NextResponse.json({ error: 'La recherche vocale est indisponible' }, { status: 503 });
+      return NextResponse.json({ error: 'La dictée vocale est indisponible' }, { status: 503 });
     }
     throw err;
   }
 
-  const text = await transcribeAudio(audio, `recherche.${extensionFor(mime)}`, apiKey);
-  if (!text) {
-    return NextResponse.json({ error: "La recherche n'a pas pu être comprise" }, { status: 422 });
+  const fileName = fileNameForAudioBlob(audio, 'question');
+  const outcome = await transcribeAudio(audio, fileName, apiKey);
+  if (!outcome.ok) {
+    return erreurTranscription(outcome);
   }
 
-  return NextResponse.json({ text: text.slice(0, 500) });
+  return NextResponse.json({ text: outcome.text.slice(0, 500) });
 }

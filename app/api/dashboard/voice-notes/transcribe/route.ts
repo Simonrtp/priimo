@@ -61,8 +61,8 @@ export async function POST(req: Request) {
 
   try {
     const apiKey = requireMistralKey();
-    const text = await transcribeAudio(audio, `live.${extensionFor(mime)}`, apiKey);
-    return NextResponse.json({ text: text ?? '' });
+    const outcome = await transcribeAudio(audio, `live.${extensionFor(mime)}`, apiKey);
+    return NextResponse.json({ text: outcome.ok ? outcome.text : '' });
   } catch (err) {
     if (err instanceof MistralKeyMissingError) {
       return NextResponse.json({ text: '' });

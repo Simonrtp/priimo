@@ -104,10 +104,12 @@ export async function POST(req: Request) {
   }
 
   const transcribePromise = apiKey
-    ? transcribeAudio(audio, `dictee.${extensionFor(mime)}`, apiKey).catch((err) => {
-        console.error('[voice] transcription', err);
-        return null;
-      })
+    ? transcribeAudio(audio, `dictee.${extensionFor(mime)}`, apiKey)
+        .then((outcome) => (outcome.ok ? outcome.text : null))
+        .catch((err) => {
+          console.error('[voice] transcription', err);
+          return null;
+        })
     : Promise.resolve(null);
 
   if (!continueNoteId) {

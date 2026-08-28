@@ -1,10 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  fileNameForAudioBlob,
+  isVoiceBlobTooSmall,
+  MIN_VOICE_RECORD_MS,
+} from '@/lib/voice/audio-blob';
 import { notifyError } from '@/lib/notify';
 import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
 
 const MAX_LISTEN_MS = 20_000;
+
+function stopMediaRecorder(recorder: MediaRecorder): void {
+  if (recorder.state !== 'recording') return;
+  try {
+    recorder.requestData();
+  } catch {
+    /* optionnel selon navigateur */
+  }
+  recorder.stop();
+}
 
 /**
  * Enregistrement + transcription via `/api/assistant/voix`.
@@ -25,12 +40,16 @@ export function useAssistantVoiceInput(
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const listenTimerRef = useRef<number>(0);
+  const minDurationTimerRef = useRef<number>(0);
+  const startedAtRef = useRef(0);
+  const mimeRef = useRef<string | undefined>(undefined);
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
 
   useEffect(() => {
     return () => {
       window.clearTimeout(listenTimerRef.current);
+      window.clearTimeout(minDurationTimerRef.current);
       recorderRef.current?.stop();
       stopMicStream(streamRef.current);
     };
@@ -41,10 +60,14 @@ export function useAssistantVoiceInput(
       notifyError('Aucun son reçu.');
       return;
     }
+    if (isVoiceBlobTooSmall(blob.size)) {
+      notifyError('Enregistrement trop court. Parlez au moins une seconde.');
+      return;
+    }
     setTranscribing(true);
     try {
       const form = new FormData();
-      form.append('audio', blob, 'question.webm');
+      form.append('audio', blob, fileNameForAudioBlob(blob, 'question'));
       const res = await fetch('/api/assistant/voix', { method: 'POST', body: form });
       const data = (await res.json()) as { text?: string; error?: string };
       if (!res.ok || !data.text?.trim()) {
@@ -59,11 +82,23 @@ export function useAssistantVoiceInput(
     }
   }, []);
 
+  const finishRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (!recorder || recorder.state !== 'recording') {
+      setListening(false);
+      return;
+    }
+    setListening(false);
+    setTranscribing(true);
+    stopMediaRecorder(recorder);
+  }, []);
+
   const start = useCallback(async () => {
     try {
       const stream = await requestMicStream();
       streamRef.current = stream;
       const mime = pickAudioMimeType();
+      mimeRef.current = mime;
       const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -73,34 +108,42 @@ export function useAssistantVoiceInput(
         stopMicStream(stream);
         streamRef.current = null;
         recorderRef.current = null;
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mime || 'audio/webm' });
+        const blob = new Blob(chunksRef.current, {
+          type: recorder.mimeType || mime || 'audio/webm',
+        });
         void transcribe(blob);
       };
-      recorder.start(250);
+      recorder.start(200);
       recorderRef.current = recorder;
+      startedAtRef.current = Date.now();
       setListening(true);
       window.clearTimeout(listenTimerRef.current);
-      listenTimerRef.current = window.setTimeout(() => {
-        if (recorderRef.current === recorder && recorder.state === 'recording') {
-          recorder.stop();
-          setListening(false);
-        }
-      }, MAX_LISTEN_MS);
+      listenTimerRef.current = window.setTimeout(finishRecording, MAX_LISTEN_MS);
     } catch (error) {
       notifyError(micErrorMessage(error));
     }
-  }, [transcribe]);
+  }, [finishRecording, transcribe]);
 
   const toggle = useCallback(() => {
     if (transcribing) return;
     if (listening) {
       window.clearTimeout(listenTimerRef.current);
-      if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-      setListening(false);
+      window.clearTimeout(minDurationTimerRef.current);
+      const elapsed = Date.now() - startedAtRef.current;
+      if (elapsed < MIN_VOICE_RECORD_MS) {
+        setListening(false);
+        setTranscribing(true);
+        minDurationTimerRef.current = window.setTimeout(
+          finishRecording,
+          MIN_VOICE_RECORD_MS - elapsed,
+        );
+        return;
+      }
+      finishRecording();
       return;
     }
     void start();
-  }, [listening, transcribing, start]);
+  }, [listening, transcribing, start, finishRecording]);
 
   const voiceLabel = transcribing
     ? (labels?.transcribing ?? 'Mise en texte de la question')
