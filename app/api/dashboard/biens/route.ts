@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { bienFieldsToRow, parseBienInput } from '@/lib/bien-input';
-import { geocodeToColumns } from '@/lib/geo/fields';
+import { resolveGeoColumns } from '@/lib/geo/fields';
 import { BIENS_SELECT, biensSelectWithOwner, mapDbBienToBien } from '@/lib/queries/biens';
 import type { BienRow } from '@/types/database';
 import { reconcileOrphanNotes } from '@/lib/notes/run-reconcile';
@@ -26,7 +26,8 @@ export async function POST(req: Request) {
   const parsed = parseBienInput(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const f = parsed.fields;
-  const geo = await geocodeToColumns(f.address, f.postalCode);
+  const raw = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const geo = await resolveGeoColumns(raw, f.address, f.postalCode);
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -47,16 +48,19 @@ export async function POST(req: Request) {
 
   const bien = mapDbBienToBien(data as unknown as BienRow);
 
-  try {
-    const admin = createSupabaseAdminClient();
-    await reconcileOrphanNotes(admin, agency.id, {
-      entiteType: 'bien',
-      entiteId: bien.id,
-      needles: [bien.address, bien.postalCode, bien.city],
-    });
-  } catch (err) {
-    console.error('[biens] réconciliation', err);
-  }
+  const agencyId = agency.id;
+  after(() => {
+    try {
+      const admin = createSupabaseAdminClient();
+      void reconcileOrphanNotes(admin, agencyId, {
+        entiteType: 'bien',
+        entiteId: bien.id,
+        needles: [bien.address, bien.postalCode, bien.city],
+      }).catch((err) => console.error('[biens] réconciliation', err));
+    } catch (err) {
+      console.error('[biens] réconciliation', err);
+    }
+  });
 
   return NextResponse.json({ bien }, { status: 201 });
 }

@@ -76,7 +76,7 @@ export function hrefBien(id: string): string {
 
 function hrefNote(contactId: string | null): string {
   if (contactId) return hrefContact(contactId);
-  return '/dashboard/carte';
+  return '/dashboard/prospection?vue=carte';
 }
 
 function scorePhoneMatch(query: string, phone: string | null | undefined): number {

@@ -1,60 +1,77 @@
 /**
- * Le parcours de prise en main du négociateur.
+ * Parcours de prise en main du négociateur (v2).
  *
- * Cinq étapes, dont aucune ne montre un écran sans faire agir. Deux d'entre
- * elles dépendent des données réellement présentes sur le secteur : si le
- * cadastre n'est pas encore chargé ou si aucune sortie n'est calculable, on
- * saute l'étape plutôt que d'afficher un écran vide — un écran vide au
- * premier contact coûte plus cher qu'une étape en moins.
+ * Ouverture (salut → lettre → anniversaire → avatar), puis 5 gestes réels,
+ * puis écran final. Mobile-first : la dictée ouvre les cinq gestes.
  */
 
-export type EtapeId = 'secteur' | 'lead' | 'note' | 'immeuble' | 'sortie';
+export type EtapeId =
+  | 'salut'
+  | 'lettre'
+  | 'anniversaire'
+  | 'avatar'
+  | 'secteur'
+  | 'lead'
+  | 'note'
+  | 'immeuble'
+  | 'sortie'
+  | 'final';
 
+/** Toutes les étapes possibles (mesure / validation API). */
 export const TOUTES_LES_ETAPES: readonly EtapeId[] = [
+  'salut',
+  'lettre',
+  'anniversaire',
+  'avatar',
   'secteur',
   'lead',
   'note',
   'immeuble',
   'sortie',
+  'final',
 ];
 
+/** À partir de cette étape, « Passer » est proposé. */
+export const ETAPE_PASSER_DES_DE: EtapeId = 'anniversaire';
+
 export type ContexteParcours = {
-  /** Des leads non assignés existent : sans eux, la prise n'a rien à prendre. */
   aDesLeads: boolean;
-  /** Le secteur a des parcelles avec de l'historique public. */
   aDesParcelles: boolean;
-  /** Une sortie est calculable depuis l'adresse de l'agence. */
   aUneSortie: boolean;
-  /** Sur téléphone, la dictée passe en deuxième : c'est le geste naturel. */
+  /** Sur téléphone, la dictée ouvre les cinq gestes. */
   mobile: boolean;
 };
 
-export function buildParcours(ctx: ContexteParcours): EtapeId[] {
-  const etapes: EtapeId[] = ['secteur'];
+const OUVERTURE: readonly EtapeId[] = ['salut', 'lettre', 'anniversaire', 'avatar'];
+
+function gestes(ctx: ContexteParcours): EtapeId[] {
+  const etapes: EtapeId[] = [];
 
   if (ctx.mobile) {
-    // La dictée d'abord : sur un téléphone, appuyer et parler est le geste
-    // qui demande le moins d'explication.
     etapes.push('note');
+    etapes.push('secteur');
     if (ctx.aDesLeads) etapes.push('lead');
   } else {
+    etapes.push('secteur');
     if (ctx.aDesLeads) etapes.push('lead');
     etapes.push('note');
   }
 
   if (ctx.aDesParcelles) etapes.push('immeuble');
   if (ctx.aUneSortie) etapes.push('sortie');
-
   return etapes;
 }
 
-/** Rang de l'étape courante dans le parcours réel, à partir de 1. */
+export function buildParcours(ctx: ContexteParcours): EtapeId[] {
+  return [...OUVERTURE, ...gestes(ctx), 'final'];
+}
+
+/** Rang 1-based dans le parcours réel. */
 export function rangEtape(parcours: readonly EtapeId[], etape: EtapeId): number {
   const index = parcours.indexOf(etape);
   return index < 0 ? 1 : index + 1;
 }
 
-/** L'étape suivante, ou null si celle-ci est la dernière. */
 export function etapeSuivante(
   parcours: readonly EtapeId[],
   etape: EtapeId,
@@ -64,11 +81,6 @@ export function etapeSuivante(
   return parcours[index + 1]!;
 }
 
-/**
- * Où reprendre. Une étape enregistrée qui n'existe plus dans le parcours
- * (le secteur a changé, les données ont été chargées depuis) ne doit pas
- * bloquer la reprise : on repart de la première étape non atteinte.
- */
 export function etapeDeReprise(
   parcours: readonly EtapeId[],
   currentStep: string | null,
@@ -78,7 +90,15 @@ export function etapeDeReprise(
     return currentStep as EtapeId;
   }
   const premiereNonAtteinte = parcours.find((e) => !stepsReached.includes(e));
-  return premiereNonAtteinte ?? parcours[parcours.length - 1] ?? 'secteur';
+  return premiereNonAtteinte ?? parcours[parcours.length - 1] ?? 'salut';
+}
+
+/** « Passer » visible à partir de l’anniversaire (3ᵉ écran). */
+export function peutPasser(etape: EtapeId, parcours: readonly EtapeId[]): boolean {
+  const i = parcours.indexOf(etape);
+  const from = parcours.indexOf(ETAPE_PASSER_DES_DE);
+  if (i < 0 || from < 0) return false;
+  return i >= from;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -107,12 +127,6 @@ export const ETAT_LABEL: Record<EtatOnboarding, string> = {
   passe: 'Passée',
 };
 
-/**
- * Faut-il proposer de reprendre ?
- *
- * Une seule relance : commencée mais pas finie, et la bande jamais refermée.
- * Un agent qui a cliqué « Passer » a répondu ; on ne lui repose pas la question.
- */
 export function doitProposerReprise(
   ligne: {
     startedAt: string | null;
@@ -126,28 +140,21 @@ export function doitProposerReprise(
   return !ligne.relanceDismissedAt;
 }
 
-/** Minutes restantes annoncées dans la bande de reprise — jamais optimistes. */
 export function minutesRestantes(
   parcours: readonly EtapeId[],
   stepsReached: readonly string[],
 ): number {
   const restantes = parcours.filter((e) => !stepsReached.includes(e)).length;
-  return Math.max(1, Math.round(restantes * 0.8));
+  return Math.max(1, Math.round(restantes * 0.55));
 }
 
-/* -------------------------------------------------------------------------- */
-/* Ce que l'Accueil affiche                                                    */
-/* -------------------------------------------------------------------------- */
+export type AffichagePriseEnMain = 'onboarding' | 'rien';
 
-export type AffichagePriseEnMain = 'onboarding' | 'bande' | 'rien';
-
-/** Au-delà, l'agent est revenu plus tard : on ne lui réimpose pas le parcours. */
 export const REPRISE_FENETRE_MINUTES = 30;
 
 /**
- * Le parcours s'impose à la première ouverture et tant que la session dure.
- * Un agent qui revient le lendemain retrouve son Accueil normal, avec une
- * bande discrète — jamais le parcours en travers de sa journée.
+ * Le parcours s'impose à la première connexion et dans la même session.
+ * Plus tard : Accueil + éventuelle bande de reprise (doitProposerReprise).
  */
 export function decideAffichage(
   ligne: {
@@ -159,7 +166,6 @@ export function decideAffichage(
   } | null,
   options: { demandeExplicite: boolean; now?: Date },
 ): AffichagePriseEnMain {
-  // « Reprendre » l'emporte sur tout, sauf sur un parcours déjà terminé.
   if (ligne?.completedAt) return 'rien';
   if (options.demandeExplicite) return 'onboarding';
   if (ligne?.skippedAt) return 'rien';
@@ -170,6 +176,11 @@ export function decideAffichage(
   const memeSession =
     Number.isFinite(vu) && now - vu < REPRISE_FENETRE_MINUTES * 60_000;
 
-  if (memeSession) return 'onboarding';
-  return ligne.relanceDismissedAt ? 'rien' : 'bande';
+  return memeSession ? 'onboarding' : 'rien';
 }
+
+/** Avatars illustrés — Simon dépose avatar-01.png … avatar-12.png (SVG placeholder en attendant). */
+export const AVATAR_PRESETS: readonly string[] = Array.from(
+  { length: 12 },
+  (_, i) => `/avatars/avatar-${String(i + 1).padStart(2, '0')}.svg`,
+);

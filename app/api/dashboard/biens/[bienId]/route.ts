@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { bienFieldsToRow, parseBienInput } from '@/lib/bien-input';
-import { geocodeToColumns } from '@/lib/geo/fields';
+import { resolveGeoColumns } from '@/lib/geo/fields';
 import { BIENS_SELECT, biensSelectWithOwner, mapDbBienToBien } from '@/lib/queries/biens';
 import type { BienRow } from '@/types/database';
 
@@ -27,7 +27,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ bienId: strin
   const parsed = parseBienInput(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const f = parsed.fields;
-  const geo = await geocodeToColumns(f.address, f.postalCode);
+  const raw = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const geo = await resolveGeoColumns(raw, f.address, f.postalCode);
 
   const supabase = await createSupabaseServerClient();
   // Le filtre sur `agency_id` double la politique RLS : une erreur de configuration

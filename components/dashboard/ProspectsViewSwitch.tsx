@@ -1,10 +1,10 @@
 'use client';
 
-import { LayoutList, Columns3 } from 'lucide-react';
+import { LayoutList, Columns3, Map } from 'lucide-react';
 import type { ProspectionVue } from '@/lib/prospection/vue';
 
 export type { ProspectionVue } from '@/lib/prospection/vue';
-export { parseProspectionVue, prospectionHref } from '@/lib/prospection/vue';
+export { parseProspectionVue, prospectionHref, carteVersProspectionHref } from '@/lib/prospection/vue';
 
 const ITEMS: {
   id: ProspectionVue;
@@ -14,6 +14,7 @@ const ITEMS: {
 }[] = [
   { id: 'liste', label: 'Liste', Icon: LayoutList },
   { id: 'pipeline', label: 'Pipeline', Icon: Columns3, desktopOnly: true },
+  { id: 'carte', label: 'Carte', Icon: Map },
 ];
 
 export default function ProspectsViewSwitch({

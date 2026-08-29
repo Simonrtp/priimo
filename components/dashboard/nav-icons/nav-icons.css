@@ -1,0 +1,169 @@
+.nav-ico {
+  stroke: #7b9ac0;
+  transition: stroke 200ms;
+}
+.nav-ico * {
+  transition:
+    transform 460ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    opacity 300ms;
+}
+
+/* Le parent .nav-link est la ligne de navigation (a ou button). */
+.nav-link:hover .nav-ico,
+.nav-ico.is-active {
+  stroke: #ffffff;
+}
+
+/* Tab bar claire (mobile) : pas de stroke blanc. */
+.app-tabbar .nav-ico {
+  stroke: #64748b;
+}
+.app-tabbar .nav-link:hover .nav-ico,
+.app-tabbar .nav-ico.is-active {
+  stroke: #4f46e5;
+}
+.app-tabbar.field-tabbar .nav-link:hover .nav-ico,
+.app-tabbar.field-tabbar .nav-ico.is-active {
+  stroke: #e8743c;
+}
+
+/* Accueil — la coche se trace */
+.nav-link:hover .ico-accueil .tick,
+.ico-accueil.is-active .tick {
+  animation: priimo-trace 480ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes priimo-trace {
+  from {
+    stroke-dashoffset: 14;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Prospection — la cible se verrouille */
+.nav-link:hover .ico-prosp .ring,
+.ico-prosp.is-active .ring {
+  transform: scale(0.72);
+  transform-origin: 12px 12px;
+}
+.nav-link:hover .ico-prosp .dot,
+.ico-prosp.is-active .dot {
+  opacity: 1;
+  transform: scale(1.25);
+  transform-origin: 12px 12px;
+  transition-delay: 140ms;
+}
+
+/* Estimation — les touches s'enfoncent, le résultat tombe */
+.nav-link:hover .ico-estim .k,
+.ico-estim.is-active .k {
+  opacity: 0.3;
+}
+.nav-link:hover .ico-estim .ka,
+.ico-estim.is-active .ka {
+  transition-delay: 0ms;
+}
+.nav-link:hover .ico-estim .kb,
+.ico-estim.is-active .kb {
+  transition-delay: 50ms;
+}
+.nav-link:hover .ico-estim .kc,
+.ico-estim.is-active .kc {
+  transition-delay: 100ms;
+}
+.nav-link:hover .ico-estim .kd,
+.ico-estim.is-active .kd {
+  transition-delay: 150ms;
+}
+.nav-link:hover .ico-estim .ke,
+.ico-estim.is-active .ke {
+  transition-delay: 200ms;
+}
+.nav-link:hover .ico-estim .eq,
+.ico-estim.is-active .eq {
+  opacity: 1;
+  transition-delay: 250ms;
+}
+.nav-link:hover .ico-estim .scr,
+.ico-estim.is-active .scr {
+  opacity: 1;
+  transition-delay: 320ms;
+}
+
+/* Carte — les volets se déplient, le repère se pose */
+.nav-link:hover .ico-carte .v1,
+.ico-carte.is-active .v1 {
+  transform: translateX(-2.4px) rotate(-6deg);
+  transform-origin: 6px 12px;
+}
+.nav-link:hover .ico-carte .v3,
+.ico-carte.is-active .v3 {
+  transform: translateX(2.4px) rotate(6deg);
+  transform-origin: 18px 12px;
+}
+.nav-link:hover .ico-carte .pin,
+.ico-carte.is-active .pin {
+  opacity: 1;
+  transform: translateY(-1px);
+  transition-delay: 200ms;
+}
+
+/* Contacts — la deuxième personne rejoint */
+.ico-contacts .pB {
+  transform: translateX(4px);
+  opacity: 0;
+}
+.nav-link:hover .ico-contacts .pB,
+.ico-contacts.is-active .pB {
+  transform: translateX(0);
+  opacity: 1;
+  transition-delay: 80ms;
+}
+.nav-link:hover .ico-contacts .pA,
+.ico-contacts.is-active .pA {
+  transform: translateX(-0.8px);
+}
+
+/* Biens — la maison s'éclaire pièce par pièce */
+.nav-link:hover .ico-biens .l1,
+.ico-biens.is-active .l1 {
+  opacity: 1;
+}
+.nav-link:hover .ico-biens .l2,
+.ico-biens.is-active .l2 {
+  opacity: 1;
+  transition-delay: 90ms;
+}
+.nav-link:hover .ico-biens .l3,
+.ico-biens.is-active .l3 {
+  opacity: 1;
+  transition-delay: 180ms;
+}
+.nav-link:hover .ico-biens .l4,
+.ico-biens.is-active .l4 {
+  opacity: 1;
+  transition-delay: 270ms;
+}
+
+/* Paramètres — l'engrenage tourne, le moyeu s'active */
+.ico-param .cog {
+  transform-origin: 12px 12px;
+  transition-duration: 620ms;
+}
+.nav-link:hover .ico-param .cog,
+.ico-param.is-active .cog {
+  transform: rotate(45deg);
+}
+.nav-link:hover .ico-param .hub,
+.ico-param.is-active .hub {
+  opacity: 1;
+  transition-delay: 180ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-ico * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

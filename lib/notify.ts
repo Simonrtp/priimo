@@ -1,9 +1,8 @@
 /**
  * Notifications standard Priimo.
  *
- * Design = pastille Sonner d’origine (`richColors`, top-right) — ne pas
- * restyler. Pour toute action agent à confirmer : `notifySuccess('…')`.
- * Anti-spam : passer un `id` stable pour dédupliquer les clics répétés.
+ * Pastille Sonner (`richColors`, top-right). Le bouton d’action est stylé
+ * dans `app/layout.tsx` (pas le noir Sonner par défaut).
  */
 import { toast } from 'sonner';
 

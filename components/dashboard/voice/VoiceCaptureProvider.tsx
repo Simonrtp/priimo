@@ -12,6 +12,8 @@ import TypedNoteDialog from '@/components/dashboard/notes/TypedNoteDialog';
 export type VoiceCaptureOptions = {
   adresse?: string;
   parcelleId?: string;
+  /** Ne pas quitter la page après validation (ex. prise en main). */
+  resterSurPage?: boolean;
 };
 
 interface VoiceCaptureContextValue {
@@ -40,6 +42,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [composeOpen, setComposeOpen] = useState(false);
   const [adresse, setAdresse] = useState<string | null>(null);
   const [parcelleId, setParcelleId] = useState<string | null>(null);
+  const [resterSurPage, setResterSurPage] = useState(false);
   const [gestureSession, setGestureSession] = useState<{ adresse: string | null } | null>(null);
   const [gestureLocked, setGestureLocked] = useState(false);
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
@@ -57,6 +60,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     playRecordStartSound();
     setAdresse(opts?.adresse?.trim() || null);
     setParcelleId(opts?.parcelleId?.trim() || null);
+    setResterSurPage(opts?.resterSurPage === true);
     setOpen(true);
   }, [composeOpen, device, gestureSession]);
 
@@ -64,6 +68,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     if (gestureSession || open) return;
     setAdresse(opts?.adresse?.trim() || null);
     setParcelleId(opts?.parcelleId?.trim() || null);
+    setResterSurPage(opts?.resterSurPage === true);
     setComposeOpen(true);
   }, [gestureSession, open]);
 
@@ -90,6 +95,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const handleComposeClose = useCallback(() => {
     setAdresse(null);
     setParcelleId(null);
+    setResterSurPage(false);
     setComposeOpen(false);
   }, []);
 
@@ -98,6 +104,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     streamPromiseRef.current = null;
     setAdresse(null);
     setParcelleId(null);
+    setResterSurPage(false);
     setOpen(false);
     if (pending) {
       void pending.then(stopMicStream).catch(() => undefined);
@@ -151,6 +158,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             streamPromise={streamPromiseRef.current}
             adresse={adresse}
             parcelleId={parcelleId}
+            resterSurPage={resterSurPage}
           />
         ) : (
           <VoiceCaptureDialog
@@ -158,11 +166,17 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             streamPromise={streamPromiseRef.current}
             adresse={adresse}
             parcelleId={parcelleId}
+            resterSurPage={resterSurPage}
           />
         )
       ) : null}
       {composeOpen ? (
-        <TypedNoteDialog onClose={handleComposeClose} adresse={adresse} parcelleId={parcelleId} />
+        <TypedNoteDialog
+          onClose={handleComposeClose}
+          adresse={adresse}
+          parcelleId={parcelleId}
+          resterSurPage={resterSurPage}
+        />
       ) : null}
     </VoiceCaptureContext.Provider>
   );

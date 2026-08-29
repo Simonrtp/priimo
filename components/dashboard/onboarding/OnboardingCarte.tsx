@@ -23,13 +23,14 @@ const SectorMapCanvas = dynamic(
 export default function OnboardingCarte({
   buildings,
   center,
-  hauteur = 340,
+  hauteur,
   parcelles = false,
   onSelectParcelle,
   selectedParcelleId = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
+  /** Hauteur fixe ; sans valeur, la carte remplit le parent (plein écran mobile). */
   hauteur?: number;
   /** Couche cadastre : active seulement à l'étape immeuble. */
   parcelles?: boolean;
@@ -41,8 +42,10 @@ export default function OnboardingCarte({
 
   return (
     <div
-      className="overflow-hidden rounded-clay border border-black/[0.06] bg-white shadow-clay-sm"
-      style={{ height: hauteur }}
+      className={`min-h-0 overflow-hidden rounded-clay border border-black/[0.06] bg-white shadow-clay-sm ${
+        hauteur == null ? 'h-full' : ''
+      }`}
+      style={hauteur != null ? { height: hauteur } : undefined}
     >
       <SectorMapCanvas
         buildings={buildings}

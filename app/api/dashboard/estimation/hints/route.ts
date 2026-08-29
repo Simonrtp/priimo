@@ -2,14 +2,13 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { countComparables, fetchAddressContext } from '@/lib/estimation/dvf-engine';
-import type { EstimationPropertyType } from '@/lib/estimation';
 
 export const runtime = 'nodejs';
 
 /**
- * Ce que la base sait déjà de l'adresse : ventes de l'immeuble, copropriété,
- * diagnostics, comparables identifiables. Alimente le panneau de contexte du
- * parcours d'estimation, qui se remplit à mesure des réponses.
+ * Une seule requête au moment où l’adresse est résolue.
+ * Rapporte tout : ventes, copro, DPE, comparables potentiels (les deux types).
+ * Les étapes suivantes lisent ce cache côté client — plus d’appel à chaque frappe.
  */
 export async function POST(req: Request) {
   const { user, profile, agency } = await getServerUser();
@@ -36,14 +35,20 @@ export async function POST(req: Request) {
   const admin = createSupabaseAdminClient();
   const context = await fetchAddressContext(admin, { banId, latitude, longitude, postalCode });
 
-  const propertyType: EstimationPropertyType | null =
-    body.propertyType === 'maison' || body.propertyType === 'appartement'
-      ? body.propertyType
-      : null;
-
-  const comparables = propertyType
-    ? await countComparables(admin, { latitude, longitude, postalCode, propertyType })
-    : null;
+  const [comparablesAppartement, comparablesMaison] = await Promise.all([
+    countComparables(admin, {
+      latitude,
+      longitude,
+      postalCode,
+      propertyType: 'appartement',
+    }),
+    countComparables(admin, {
+      latitude,
+      longitude,
+      postalCode,
+      propertyType: 'maison',
+    }),
+  ]);
 
   return NextResponse.json({
     resolved: context.resolved,
@@ -56,6 +61,9 @@ export async function POST(req: Request) {
     dpeKnown: context.dpeKnown,
     dpeRepartition: context.dpeRepartition,
     parcelleKnown: context.parcelleKnown,
-    comparables,
+    comparablesAppartement,
+    comparablesMaison,
+    /** Rétrocompat : le panneau choisit selon le type déjà sélectionné. */
+    comparables: null as number | null,
   });
 }

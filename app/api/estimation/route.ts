@@ -224,6 +224,7 @@ export async function POST(req: Request) {
           surfaceM2: body.surfaceM2,
           rooms: body.rooms,
           floor: body.floor,
+          hasElevator: body.hasElevator ?? null,
           conditionRating:
             body.conditionRating === 1 ||
             body.conditionRating === 2 ||
@@ -232,6 +233,7 @@ export async function POST(req: Request) {
               ? body.conditionRating
               : null,
           dpeClass: body.dpeClass,
+          features: body.features ?? [],
         },
         null,
         noop,

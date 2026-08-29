@@ -3,7 +3,7 @@ import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
-import { contactGeocodeQuery, EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
+import { contactGeocodeQuery, EMPTY_BAN_GEO, parseClientGeo, resolveGeoColumns } from '@/lib/geo/fields';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import { CONTACTS_SELECT, fetchContactById, mapDbContactToContact } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -43,8 +43,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   const parsed = hasCoreFields ? parseContactInput(body) : null;
   if (parsed && !parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const members = await fetchMembersOfMyAgency(agency.id, memberships);
-  const assigned = parseAssigneeId(raw.assignedTo, memberIdSet(members));
+  const membersNeeded =
+    typeof raw.assignedTo === 'string' &&
+    raw.assignedTo.length > 0 &&
+    raw.assignedTo !== profile.id;
+  const members = membersNeeded
+    ? await fetchMembersOfMyAgency(agency.id, memberships)
+    : [];
+  const assigned = parseAssigneeId(
+    raw.assignedTo,
+    membersNeeded ? memberIdSet(members) : new Set([profile.id]),
+  );
   if (assigned.provided && 'invalid' in assigned) {
     return NextResponse.json(
       { error: "Cette personne n'appartient pas à l'agence" },
@@ -60,9 +69,23 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   if (parsed?.ok) {
     const f = parsed.fields;
     const query = contactGeocodeQuery(f.address, f.secteur, f.postalCodes);
-    const geo = query
-      ? await geocodeToColumns(query.adresse, query.codePostal)
-      : { ...EMPTY_BAN_GEO };
+    const addressUnchanged =
+      (f.address ?? null) === (existing.address ?? null) &&
+      existing.banId != null &&
+      existing.latitude != null &&
+      existing.longitude != null;
+    const geo = !query
+      ? { ...EMPTY_BAN_GEO }
+      : addressUnchanged && !parseClientGeo(raw)
+        ? {
+            ban_id: existing.banId,
+            latitude: existing.latitude,
+            longitude: existing.longitude,
+            adresse_normalisee: existing.address,
+            geocode_score: null,
+            geocode_le: null,
+          }
+        : await resolveGeoColumns(raw, query.adresse, query.codePostal);
     Object.assign(update, {
       first_name: f.firstName || null,
       last_name: f.lastName || null,

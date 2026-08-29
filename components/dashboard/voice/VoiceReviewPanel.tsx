@@ -163,6 +163,7 @@ export default function VoiceReviewPanel({
 
   async function createContact(p: PersonneProposal, fiche: NoteReviewPayload, summary: string): Promise<string> {
     const address = fiche.immeuble?.adresseNormalisee ?? fiche.immeuble?.address ?? null;
+    const banId = fiche.immeuble?.banId ?? null;
     const res = await fetch('/api/dashboard/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,6 +174,7 @@ export default function VoiceReviewPanel({
         phone: p.personne.phone,
         email: p.personne.email,
         address,
+        banId,
         secteur: fiche.secteur,
         budgetMax: fiche.prix,
         roomsMin: fiche.rooms,
@@ -182,9 +184,61 @@ export default function VoiceReviewPanel({
         voiceNoteId: fiche.voiceNoteId,
       }),
     });
-    const data = (await res.json()) as { error?: string; contact?: { id: string } };
-    if (!res.ok || !data.contact?.id) throw new Error(data.error ?? 'contact');
+    const data = (await res.json()) as {
+      error?: string;
+      contact?: { id: string };
+      matches?: { contact: { id: string } }[];
+    };
+
+    // Doublon détecté côté API : rattacher plutôt qu’afficher une erreur.
+    if (res.status === 409) {
+      const existingId = data.matches?.[0]?.contact?.id;
+      if (existingId) {
+        try {
+          await addLien('contact', existingId, 'probable');
+        } catch {
+          // Le contact existe ; le lien pourra être repris à la réconciliation.
+        }
+        return existingId;
+      }
+    }
+
+    if (!res.ok || !data.contact?.id) {
+      throw new Error(data.error ?? 'contact');
+    }
     return data.contact.id;
+  }
+
+  async function resolveContactId(
+    p: PersonneProposal,
+    fiche: NoteReviewPayload,
+    summary: string,
+  ): Promise<string | null> {
+    const match = pickMatch(p.matches);
+    if (match) {
+      try {
+        await addLien('contact', match.contactId, match.confiance);
+      } catch {
+        // Le rattachement se fera à la réconciliation.
+      }
+      return match.contactId;
+    }
+
+    // Plusieurs candidats sans certitude : rattacher au premier, ne pas forcer une création.
+    if (p.matches.length > 0) {
+      const fallback = p.matches[0]!;
+      try {
+        await addLien('contact', fallback.contactId, fallback.confiance);
+      } catch {
+        /* ignore */
+      }
+      return fallback.contactId;
+    }
+
+    if (p.personne.firstName || p.personne.lastName) {
+      return createContact(p, fiche, summary);
+    }
+    return null;
   }
 
   async function rafraichir() {
@@ -217,21 +271,23 @@ export default function VoiceReviewPanel({
     const promesseTo = promesseAssignee;
     onDismiss();
     void (async () => {
+      let contactId: string | null = null;
       try {
-        let contactId: string | null = null;
         for (const p of personEditors(snap)) {
-          const match = pickMatch(p.matches);
-          if (match) {
-            try {
-              await addLien('contact', match.contactId, match.confiance);
-            } catch {
-              // Le rattachement se fera à la réconciliation.
-            }
-            contactId = contactId ?? match.contactId;
-          } else if (p.personne.firstName || p.personne.lastName) {
-            contactId = contactId ?? (await createContact(p, snap, text));
-          }
+          const resolved = await resolveContactId(p, snap, text);
+          contactId = contactId ?? resolved;
         }
+      } catch (err) {
+        console.error('[voice] contact', err);
+        notifyError(
+          err instanceof Error && err.message && err.message !== 'contact'
+            ? err.message
+            : "Le contact n'a pas pu être créé",
+        );
+        return;
+      }
+
+      try {
         if (snap.immeuble?.banId && snap.immeuble.confiance) {
           try {
             await addLien('immeuble', snap.immeuble.banId, snap.immeuble.confiance);
@@ -275,17 +331,22 @@ export default function VoiceReviewPanel({
             notifyError('Engagement ou rendez-vous non enregistré');
           }
         }
-        await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}`, {
+        const closeRes = await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ terminer: true }),
         });
+        if (!closeRes.ok) {
+          notifyError("La note n'a pas pu être clôturée");
+          return;
+        }
         notifySuccess('Votre note a bien été enregistrée', {
           id: `voice-saved-${snap.voiceNoteId}`,
         });
         onDone(contactId);
-      } catch {
-        notifyError("Le contact n'a pas pu être créé");
+      } catch (err) {
+        console.error('[voice] terminer', err);
+        notifyError("La note n'a pas pu être enregistrée");
       }
     })();
   }

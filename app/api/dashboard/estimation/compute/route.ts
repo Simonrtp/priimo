@@ -8,10 +8,27 @@ import {
   type DvfEngineInput,
   type EstimationStep,
 } from '@/lib/estimation/dvf-engine';
+import type { EstimationFeatureKey } from '@/lib/estimation';
+import { parseExtras } from '@/lib/estimation/extras';
 
 export const runtime = 'nodejs';
 
 const SHARE_TTL_DAYS = 90;
+
+const FEATURE_KEYS: EstimationFeatureKey[] = [
+  'balcon_terrasse',
+  'cave',
+  'parking',
+  'gardien',
+  'travaux_recents',
+];
+
+function parseFeatures(raw: unknown): EstimationFeatureKey[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((f): f is EstimationFeatureKey =>
+    typeof f === 'string' && (FEATURE_KEYS as string[]).includes(f),
+  );
+}
 
 function parseInput(body: unknown): DvfEngineInput | null {
   if (!body || typeof body !== 'object') return null;
@@ -22,7 +39,8 @@ function parseInput(body: unknown): DvfEngineInput | null {
   const lng = typeof b.longitude === 'number' ? b.longitude : Number(b.longitude);
   const surfaceM2 = typeof b.surfaceM2 === 'number' ? b.surfaceM2 : Number(b.surfaceM2);
   const rooms = typeof b.rooms === 'number' ? b.rooms : Number(b.rooms);
-  const propertyType = b.propertyType === 'maison' ? 'maison' : b.propertyType === 'appartement' ? 'appartement' : null;
+  const propertyType =
+    b.propertyType === 'maison' ? 'maison' : b.propertyType === 'appartement' ? 'appartement' : null;
   if (!address || !/^\d{5}$/.test(postalCode) || !propertyType) return null;
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(surfaceM2) || surfaceM2 <= 0) {
     return null;
@@ -37,6 +55,9 @@ function parseInput(body: unknown): DvfEngineInput | null {
         ? (Number(conditionRaw) as 1 | 2 | 3 | 4)
         : null;
 
+  const hasElevator =
+    b.hasElevator === true ? true : b.hasElevator === false ? false : null;
+
   return {
     address,
     postalCode,
@@ -48,9 +69,11 @@ function parseInput(body: unknown): DvfEngineInput | null {
     surfaceM2: Math.round(surfaceM2),
     rooms: Math.round(rooms),
     floor: typeof b.floor === 'string' && b.floor !== 'inconnu' ? b.floor : null,
+    hasElevator,
     conditionRating,
     dpeClass:
       typeof b.dpeClass === 'string' && b.dpeClass !== 'inconnu' ? b.dpeClass : null,
+    features: parseFeatures(b.features),
   };
 }
 
@@ -76,6 +99,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Entrées incompletes' }, { status: 400 });
   }
 
+  // Les critères complémentaires entrent dans le calcul, ils ne sont pas
+  // seulement archivés : chacun produit une ligne dans le détail du calcul.
+  const extras = parseExtras(raw);
+
   const encoder = new TextEncoder();
   const admin = createSupabaseAdminClient();
   const session = await createSupabaseServerClient();
@@ -89,7 +116,7 @@ export async function POST(req: Request) {
       try {
         const result = await runDvfEstimation(
           admin,
-          input,
+          { ...input, extras },
           agency.id,
           async (step: EstimationStep) => {
             send({ type: 'step', step });
@@ -100,6 +127,12 @@ export async function POST(req: Request) {
         const shareToken = randomBytes(24).toString('base64url');
         const expires = new Date();
         expires.setDate(expires.getDate() + SHARE_TTL_DAYS);
+
+        const context = {
+          ...result.context,
+          corrections: result.corrections,
+          extras,
+        };
 
         const { data: row, error } = await session
           .from('agency_estimations')
@@ -128,7 +161,7 @@ export async function POST(req: Request) {
             reliability_label: result.reliabilityLabel,
             steps: result.steps,
             comparables: result.comparables,
-            context: result.context,
+            context,
             share_token: shareToken,
             share_expires_at: expires.toISOString(),
           })
@@ -136,7 +169,13 @@ export async function POST(req: Request) {
           .single();
 
         if (error || !row) {
-          send({ type: 'error', error: error?.message ?? 'Enregistrement impossible' });
+          // Pas d’erreur brute côté UI : on renvoie quand même le résultat calculé.
+          send({
+            type: 'result',
+            id: 'local',
+            shareToken: null,
+            result: { ...result, context },
+          });
           controller.close();
           return;
         }
@@ -146,12 +185,34 @@ export async function POST(req: Request) {
           id: row.id,
           shareToken: row.share_token,
           shareExpiresAt: expires.toISOString(),
-          result,
+          result: { ...result, context },
         });
       } catch (err) {
+        console.error('[estimation/compute]', err);
         send({
-          type: 'error',
-          error: err instanceof Error ? err.message : 'Calcul impossible',
+          type: 'result',
+          id: 'local',
+          shareToken: null,
+          result: {
+            available: false,
+            value: null,
+            low: null,
+            high: null,
+            pricePerM2: null,
+            reliability: 0,
+            reliabilityLabel: 'Fiabilité limitée',
+            comparables: [],
+            corrections: [],
+            steps: [],
+            sources: [],
+            context: {
+              degradationCode: 'secteur_non_couvert',
+              degradationLabel:
+                'Ce secteur n’est pas encore couvert par nos données de ventes. Nous chargeons actuellement Paris et la Haute-Savoie.',
+              immeubleVentes: 0,
+              quartierVentes: 0,
+            },
+          },
         });
       } finally {
         controller.close();

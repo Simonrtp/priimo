@@ -86,6 +86,89 @@ export interface ParsedContactInput {
 export interface ContactInputError {
   ok: false;
   error: string;
+  /** Champ concerné, pour surligner le formulaire. */
+  field?: keyof ContactInputFields;
+}
+
+/** Erreurs par champ pour la saisie (client et toast ciblé). */
+export type ContactFieldErrors = Partial<Record<keyof ContactInputFields, string>>;
+
+export function validateContactFields(fields: ContactInputFields): {
+  ok: boolean;
+  errors: ContactFieldErrors;
+  /** Phrase courte pour le bandeau / toast. */
+  summary: string | null;
+} {
+  const errors: ContactFieldErrors = {};
+
+  if (!fields.firstName.trim() && !fields.lastName.trim()) {
+    errors.firstName = 'Indiquez au moins un prénom ou un nom';
+    errors.lastName = 'Indiquez au moins un prénom ou un nom';
+  }
+
+  if (fields.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email.trim())) {
+    errors.email = "L'adresse email n'est pas valide";
+  }
+
+  if (
+    fields.budgetMin !== null &&
+    fields.budgetMax !== null &&
+    fields.budgetMin > fields.budgetMax
+  ) {
+    errors.budgetMin = 'Le minimum dépasse le maximum';
+    errors.budgetMax = 'Le maximum est inférieur au minimum';
+  }
+
+  if (
+    fields.surfaceMin !== null &&
+    fields.surfaceMax !== null &&
+    fields.surfaceMin > fields.surfaceMax
+  ) {
+    errors.surfaceMin = 'Le minimum dépasse le maximum';
+    errors.surfaceMax = 'Le maximum est inférieur au minimum';
+  }
+
+  if (
+    fields.recontacterLe &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(fields.recontacterLe.trim())
+  ) {
+    errors.recontacterLe = "La date de relance n'est pas valide";
+  }
+
+  const keys = Object.keys(errors) as (keyof ContactInputFields)[];
+  if (keys.length === 0) return { ok: true, errors: {}, summary: null };
+
+  const labels: Partial<Record<keyof ContactInputFields, string>> = {
+    firstName: 'prénom',
+    lastName: 'nom',
+    email: 'email',
+    budgetMin: 'budget min.',
+    budgetMax: 'budget max.',
+    surfaceMin: 'surface min.',
+    surfaceMax: 'surface max.',
+    recontacterLe: 'date de relance',
+  };
+
+  if (errors.firstName || errors.lastName) {
+    return {
+      ok: false,
+      errors,
+      summary: 'Indiquez au moins un prénom ou un nom',
+    };
+  }
+
+  const named = keys
+    .map((k) => labels[k])
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i);
+  return {
+    ok: false,
+    errors,
+    summary:
+      named.length === 1
+        ? `Vérifiez le champ ${named[0]}`
+        : `Vérifiez ces champs : ${named.join(', ')}`,
+  };
 }
 
 export function parseContactInput(raw: unknown): ParsedContactInput | ContactInputError {
@@ -97,7 +180,7 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
   const firstName = str(b.firstName, 80) ?? '';
   const lastName = str(b.lastName, 80) ?? '';
   if (!firstName && !lastName) {
-    return { ok: false, error: 'Le nom est obligatoire' };
+    return { ok: false, error: 'Indiquez au moins un prénom ou un nom', field: 'lastName' };
   }
 
   const typeRaw = typeof b.type === 'string' ? b.type : 'autre';
@@ -107,25 +190,25 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
 
   const email = str(b.email, 160);
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return { ok: false, error: "L'adresse email n'est pas valide" };
+    return { ok: false, error: "L'adresse email n'est pas valide", field: 'email' };
   }
 
   const budgetMin = num(b.budgetMin, 100_000_000);
   const budgetMax = num(b.budgetMax, 100_000_000);
   if (budgetMin !== null && budgetMax !== null && budgetMin > budgetMax) {
-    return { ok: false, error: 'Le budget minimum dépasse le maximum' };
+    return { ok: false, error: 'Le budget minimum dépasse le maximum', field: 'budgetMin' };
   }
 
   const surfaceMin = num(b.surfaceMin, 100_000);
   const surfaceMax = num(b.surfaceMax, 100_000);
   if (surfaceMin !== null && surfaceMax !== null && surfaceMin > surfaceMax) {
-    return { ok: false, error: 'La surface minimum dépasse le maximum' };
+    return { ok: false, error: 'La surface minimum dépasse le maximum', field: 'surfaceMin' };
   }
 
   let recontacterLe: string | null = null;
   if (b.recontacterLe !== undefined && b.recontacterLe !== null && b.recontacterLe !== '') {
     if (typeof b.recontacterLe !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.recontacterLe.trim())) {
-      return { ok: false, error: "La date de relance n'est pas valide" };
+      return { ok: false, error: "La date de relance n'est pas valide", field: 'recontacterLe' };
     }
     recontacterLe = b.recontacterLe.trim().slice(0, 10);
   }

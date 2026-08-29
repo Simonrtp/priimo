@@ -89,9 +89,9 @@ export default function ProspectsClient({
   const wide = useWideViewport(false);
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
   const vueFromUrl = vueState;
-  // Terrain : liste seule — le kanban n'a aucun sens au pouce.
+  // Pipeline hors mobile / viewport étroit ; carte et liste restent disponibles.
   const vue: ProspectionVue =
-    device === 'mobile' ? 'liste' : vueFromUrl === 'pipeline' && !wide ? 'liste' : vueFromUrl;
+    vueFromUrl === 'pipeline' && (device === 'mobile' || !wide) ? 'liste' : vueFromUrl;
 
   useEffect(() => {
     setVueState(initialVue);
@@ -391,8 +391,7 @@ export default function ProspectsClient({
     void dismissPipelineBanner();
   }, [dismissPipelineBanner]);
 
-  const switcher =
-    device === 'mobile' ? null : <ProspectsViewSwitch value={vue} onChange={setVue} />;
+  const switcher = <ProspectsViewSwitch value={vue} onChange={setVue} />;
 
   return (
     <div className="w-full min-w-0 pb-4 pt-2 md:pt-0">

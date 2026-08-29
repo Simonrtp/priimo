@@ -29,6 +29,34 @@ export const CONFIG_ESTIMATION = {
   FEATURES: {
     balcon_terrasse: 0.03,
     parking: 0.04,
+    /** Cave / cellier — ajustement forfaitaire léger. */
+    cave: 0.015,
+  },
+  /**
+   * Critères complémentaires du parcours agent.
+   *
+   * Ajustements forfaitaires, comme DPE et état : ils ne sont pas calibrés sur
+   * un échantillon de ventes, et l'écran de résultat le dit explicitement
+   * (« ajustement forfaitaire » au survol). À revoir avec les agences.
+   */
+  EXTRAS: {
+    /** Appartement en duplex : recherché, prime modérée. */
+    DUPLEX_PCT: 0.02,
+    /** Terrasse généreuse au-delà du simple balcon (surface en m²). */
+    GRANDE_TERRASSE_M2: 15,
+    GRANDE_TERRASSE_PCT: 0.02,
+    /** Maison : terrain, par tranche de 100 m², plafonné. */
+    TERRAIN_PCT_PAR_100M2: 0.01,
+    TERRAIN_CAP_PCT: 0.1,
+    /** Sous-sol, selon qu'il est aménagé ou non. */
+    SOUS_SOL_AMENAGE_PCT: 0.03,
+    SOUS_SOL_BRUT_PCT: 0.015,
+    /** Garage : la première place compte plus que les suivantes. */
+    GARAGE_PREMIERE_PCT: 0.03,
+    GARAGE_PLACE_SUP_PCT: 0.015,
+    GARAGE_CAP_PCT: 0.06,
+    /** Dépendances (atelier, grange, abri). */
+    DEPENDANCES_PCT: 0.02,
   },
   VIEW: {
     vis_a_vis: 0,
@@ -120,6 +148,7 @@ function featuresCoefficient(features: EstimationFeatureKey[]): number {
   let coeff = 0;
   if (features.includes('balcon_terrasse')) coeff += CONFIG_ESTIMATION.FEATURES.balcon_terrasse;
   if (features.includes('parking')) coeff += CONFIG_ESTIMATION.FEATURES.parking;
+  if (features.includes('cave')) coeff += CONFIG_ESTIMATION.FEATURES.cave;
   return coeff;
 }
 
@@ -150,7 +179,8 @@ function roundToThousand(n: number): number {
   return Math.round(n / 1000) * 1000;
 }
 
-function getReferencePricePerM2(postalCode: string): number | null {
+/** Prix au m² de référence pour un code postal — null si hors couverture. */
+export function getReferencePricePerM2(postalCode: string): number | null {
   const key = postalCode.trim();
   const table = prixM2Reference as Record<string, number | string>;
   const raw = table[key];

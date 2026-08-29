@@ -7,11 +7,13 @@ export default function DicterMobile({
   streamPromise,
   adresse,
   parcelleId,
+  resterSurPage,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
   adresse?: string | null;
   parcelleId?: string | null;
+  resterSurPage?: boolean;
 }) {
   return (
     <VoiceCaptureDialog
@@ -20,6 +22,7 @@ export default function DicterMobile({
       variant="mobile"
       adresse={adresse}
       parcelleId={parcelleId}
+      resterSurPage={resterSurPage}
     />
   );
 }

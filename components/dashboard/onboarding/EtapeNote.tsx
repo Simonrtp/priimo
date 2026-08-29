@@ -19,12 +19,10 @@ export default function EtapeNote({
   rang,
   total,
   onSuivant,
-  onPasser,
 }: {
   rang: number;
   total: number;
   onSuivant: () => void;
-  onPasser: () => void;
 }) {
   const { openCapture, openCompose } = useVoiceCapture();
   const [enregistree, setEnregistree] = useState(false);
@@ -38,14 +36,16 @@ export default function EtapeNote({
     });
   }, []);
 
+  const opts = { resterSurPage: true as const };
+
   async function dicter() {
     const etat = await micPermissionState();
     if (etat === 'denied') {
       setMicRefuse(true);
-      openCompose();
+      openCompose(opts);
       return;
     }
-    openCapture();
+    openCapture(opts);
   }
 
   return (
@@ -60,13 +60,12 @@ export default function EtapeNote({
             ? 'Le micro est refusé par votre navigateur. Écrivez plutôt — le traitement est le même.'
             : 'Appuyez et dites quelque chose. N’importe quoi.'
       }
-      onPasser={onPasser}
       action={
         enregistree ? (
           <button
             type="button"
             onClick={onSuivant}
-            className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-accent-dark"
+            className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
           >
             Continuer
           </button>
@@ -79,7 +78,7 @@ export default function EtapeNote({
             <button
               type="button"
               onClick={() => void dicter()}
-              className="inline-flex items-center gap-2.5 rounded-clay bg-accent px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-accent-dark"
+              className="inline-flex items-center gap-2.5 rounded-clay bg-[#6366F1] px-5 py-3 text-[15px] font-semibold text-white transition hover:brightness-[0.97]"
             >
               <Mic size={18} strokeWidth={2} aria-hidden />
               Dicter
@@ -87,7 +86,7 @@ export default function EtapeNote({
           ) : null}
           <button
             type="button"
-            onClick={() => openCompose()}
+            onClick={() => openCompose(opts)}
             className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[13.5px] font-medium text-ink transition hover:bg-black/[0.03]"
           >
             <NotebookPen size={15} aria-hidden />

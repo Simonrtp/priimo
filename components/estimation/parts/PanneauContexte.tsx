@@ -22,6 +22,10 @@ export type ContextePanneau = {
   dpeKnown: string | null;
   dpeRepartition: { letter: string; count: number }[];
   parcelleKnown: boolean;
+  /** Compteurs préchargés une fois l’adresse résolue — pas de refetch au type. */
+  comparablesAppartement?: number | null;
+  comparablesMaison?: number | null;
+  /** Rétrocompat / dérivé côté client. */
   comparables: number | null;
 };
 
@@ -79,6 +83,7 @@ export default function PanneauContexte({
   etape,
   adresse,
   facadeUrl,
+  propertyType = '',
 }: {
   contexte: ContextePanneau | null;
   /** Jusqu'où le parcours est allé : conditionne ce qui est déjà connu. */
@@ -86,12 +91,20 @@ export default function PanneauContexte({
   adresse: string | null;
   /** Vignette de façade, si une source d'image est disponible. */
   facadeUrl?: string | null;
+  propertyType?: 'appartement' | 'maison' | '';
 }) {
   // Pas de vignette de remplacement : une image absente ne laisse pas de trou.
   const [facadeEnErreur, setFacadeEnErreur] = useState(false);
 
   // Rien tant que l'adresse n'est pas résolue.
   if (!contexte?.resolved) return null;
+
+  const comparables =
+    propertyType === 'maison'
+      ? (contexte.comparablesMaison ?? contexte.comparables)
+      : propertyType === 'appartement'
+        ? (contexte.comparablesAppartement ?? contexte.comparables)
+        : contexte.comparables;
 
   const commune = [contexte.city, contexte.postalCode].filter(Boolean).join(' · ');
   const derniere = moisAnnee(contexte.derniereVente);
@@ -166,14 +179,14 @@ export default function PanneauContexte({
           />
         ) : null}
 
-        {etape !== 'adresse' && contexte.comparables != null ? (
+        {etape !== 'adresse' && comparables != null ? (
           <Ligne
             libelle="Comparables identifiés"
             delai={prochainDelai()}
             valeur={
-              contexte.comparables > 0 ? (
+              comparables > 0 ? (
                 <>
-                  {contexte.comparables} vente{contexte.comparables > 1 ? 's' : ''} du même type
+                  {comparables} vente{comparables > 1 ? 's' : ''} du même type
                   <span className="text-neutral-500"> dans un rayon de 200 m</span>
                 </>
               ) : (

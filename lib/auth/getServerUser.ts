@@ -32,7 +32,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
       supabase
         .from('profiles')
         .select(
-          'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at',
+          'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, birthday_month, birthday_day, birthday_visible_team, avatar_url, created_at, updated_at',
         )
         .eq('id', user.id)
         .single(),

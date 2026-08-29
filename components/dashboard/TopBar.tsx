@@ -16,11 +16,12 @@ import AssistantPanel from '@/components/dashboard/assistant/AssistantPanel';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') return 'Accueil';
-  if (pathname.startsWith('/dashboard/carte')) return 'Carte';
   if (pathname.startsWith('/dashboard/prospection')) return 'Prospection';
+  if (pathname.startsWith('/dashboard/carte')) return 'Prospection';
   if (pathname.startsWith('/dashboard/estimation')) return 'Estimation';
   if (pathname.startsWith('/dashboard/contacts')) return 'Contacts';
   if (pathname.startsWith('/dashboard/biens')) return 'Biens';
@@ -166,19 +167,27 @@ function ShellAgencySwitcher() {
 function HeaderProfile({
   firstName,
   lastName,
+  avatarUrl,
 }: {
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-0.5 pl-0.5 pr-2.5">
       <Link
         href="/dashboard/settings?tab=profile"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/22 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
+        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 text-[11px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/22 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
         aria-label="Mon profil"
         title={`${firstName} ${lastName}`}
       >
-        {initials(firstName, lastName)}
+        <ProfileAvatar
+          firstName={firstName}
+          lastName={lastName}
+          avatarUrl={avatarUrl}
+          size={32}
+          className="bg-white/15 text-white"
+        />
       </Link>
       <ShellAgencySwitcher />
     </div>
@@ -245,16 +254,26 @@ export default function TopBar() {
               <MobileAgencySwitcher />
             </div>
             <div className="hidden md:block">
-              <HeaderProfile firstName={profile.first_name} lastName={profile.last_name} />
+              <HeaderProfile
+                firstName={profile.first_name}
+                lastName={profile.last_name}
+                avatarUrl={profile.avatar_url}
+              />
             </div>
             <Link
               href="/dashboard/settings?tab=profile"
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 font-semibold tabular text-primary-700 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-200 md:hidden"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-100 font-semibold tabular text-primary-700 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-200 md:hidden"
               style={{ fontSize: 11 }}
               aria-label="Mon profil"
               title="Mon profil"
             >
-              {initials(profile.first_name, profile.last_name)}
+              <ProfileAvatar
+                firstName={profile.first_name}
+                lastName={profile.last_name}
+                avatarUrl={profile.avatar_url}
+                size={36}
+                className="bg-primary-100 text-primary-700"
+              />
             </Link>
           </div>
         </div>

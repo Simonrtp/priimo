@@ -32,14 +32,12 @@ export default function EtapeImmeuble({
   buildings,
   center,
   onSuivant,
-  onPasser,
 }: {
   rang: number;
   total: number;
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
   onSuivant: () => void;
-  onPasser: () => void;
 }) {
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const parcelle = useParcelleMap(true, viewport);
@@ -61,23 +59,19 @@ export default function EtapeImmeuble({
           ? 'Vous pouvez dire ça à voix haute devant une porte. C’est public, c’est sur le site des impôts.'
           : 'Cliquez sur une parcelle de votre secteur.'
       }
-      onPasser={onPasser}
       action={
         ouverte ? (
           <button
             type="button"
             onClick={onSuivant}
-            className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-accent-dark"
+            className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
           >
             Continuer
           </button>
         ) : null
       }
     >
-      <div
-        className="overflow-hidden rounded-clay border border-black/[0.06] bg-white shadow-clay-sm"
-        style={{ height: 360 }}
-      >
+      <div className="h-full min-h-0 overflow-hidden rounded-clay border border-black/[0.06] bg-white shadow-clay-sm">
         <SectorMapCanvas
           buildings={buildings}
           center={center}

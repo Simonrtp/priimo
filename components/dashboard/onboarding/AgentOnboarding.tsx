@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { BuildingMarker } from '@/lib/carte/buildings';
 import type { SortiePlan } from '@/lib/today/sortie';
@@ -9,28 +9,36 @@ import {
   buildParcours,
   etapeDeReprise,
   etapeSuivante,
+  peutPasser,
   rangEtape,
   type EtapeId,
 } from '@/lib/onboarding/parcours';
+import { ONB_CREAM } from './OnboardingShell';
+import EtapeSalut from './EtapeSalut';
+import EtapeLettre from './EtapeLettre';
+import EtapeAnniversaire from './EtapeAnniversaire';
+import EtapeAvatar from './EtapeAvatar';
 import EtapeSecteur from './EtapeSecteur';
 import EtapeLead from './EtapeLead';
 import EtapeNote from './EtapeNote';
 import EtapeImmeuble from './EtapeImmeuble';
 import EtapeSortie from './EtapeSortie';
+import EtapeFinal from './EtapeFinal';
+
+function initialsOf(first: string, last: string): string {
+  const a = first.trim().charAt(0).toUpperCase();
+  const b = last.trim().charAt(0).toUpperCase();
+  return `${a}${b}` || '?';
+}
 
 /**
- * Prise en main du négociateur.
- *
- * Elle occupe la zone de contenu de l'Accueil : la sidebar reste visible et
- * cliquable, l'agent n'est jamais séquestré. Chaque étape le fait agir sur ses
- * vraies données, et ce qu'il produit reste après — l'adresse prise, la note
- * dictée, la sortie préparée sont là quand l'onboarding se referme.
- *
- * La progression est envoyée au serveur à chaque étape, avec le temps passé :
- * sans cette mesure, on ne saurait jamais où les agents décrochent.
+ * Prise en main v2 — mobile d’abord, indigo only, état en base.
  */
 export default function AgentOnboarding({
   profileId,
+  firstName,
+  lastName,
+  avatarUrl,
   secteur,
   leads,
   stageEntreeId,
@@ -42,6 +50,9 @@ export default function AgentOnboarding({
   reprise,
 }: {
   profileId: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
   secteur: OnboardingSecteur;
   leads: readonly OnboardingLeadPropose[];
   stageEntreeId: string | null;
@@ -53,6 +64,7 @@ export default function AgentOnboarding({
   reprise: { currentStep: string | null; stepsReached: string[] } | null;
 }) {
   const router = useRouter();
+  const prenom = firstName.trim() || 'toi';
 
   const parcours = useMemo(
     () =>
@@ -69,36 +81,31 @@ export default function AgentOnboarding({
     etapeDeReprise(parcours, reprise?.currentStep ?? null, reprise?.stepsReached ?? []),
   );
   const [fermeture, setFermeture] = useState(false);
-
-  // Temps passé : on ne compte que depuis le dernier envoi, pour ne pas
-  // gonfler la durée d'un onglet laissé ouvert toute la journée.
+  const [slideKey, setSlideKey] = useState(0);
   const depuis = useRef(Date.now());
 
-  const envoyer = useCallback(
-    async (action: string, valeurEtape?: EtapeId) => {
-      const secondes = Math.round((Date.now() - depuis.current) / 1000);
-      depuis.current = Date.now();
-      try {
-        await fetch('/api/dashboard/onboarding/agent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, etape: valeurEtape, secondes }),
-        });
-      } catch {
-        // La progression est un confort de reprise, pas une condition : une
-        // panne réseau ne doit pas interrompre la prise en main.
-      }
-    },
-    [],
-  );
+  const envoyer = useCallback(async (action: string, valeurEtape?: EtapeId) => {
+    const secondes = Math.round((Date.now() - depuis.current) / 1000);
+    depuis.current = Date.now();
+    try {
+      await fetch('/api/dashboard/onboarding/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, etape: valeurEtape, secondes }),
+      });
+    } catch {
+      /* reprise confort */
+    }
+  }, []);
 
-  // Enregistre l'étape atteinte, y compris la première à l'ouverture.
   useEffect(() => {
     void envoyer('etape', etape);
   }, [etape, envoyer]);
 
-  const total = parcours.length;
-  const rang = rangEtape(parcours, etape);
+  const allerA = useCallback((prochaine: EtapeId) => {
+    setEtape(prochaine);
+    setSlideKey((k) => k + 1);
+  }, []);
 
   const terminer = useCallback(async () => {
     setFermeture(true);
@@ -109,24 +116,87 @@ export default function AgentOnboarding({
   const suivant = useCallback(() => {
     const prochaine = etapeSuivante(parcours, etape);
     if (prochaine) {
-      setEtape(prochaine);
+      allerA(prochaine);
       return;
     }
     void terminer();
-  }, [parcours, etape, terminer]);
+  }, [parcours, etape, allerA, terminer]);
 
-  const passer = useCallback(async () => {
+  const passerTout = useCallback(async () => {
     setFermeture(true);
-    // On note l'étape quittée avant de sortir : c'est elle qui dit où ça a lâché.
-    await envoyer('passer_etape', etape);
     await envoyer('passer_tout');
     router.refresh();
-  }, [envoyer, etape, router]);
+  }, [envoyer, router]);
 
-  const commun = { rang, total, onPasser: () => void passer() };
+  const saveBirthday = useCallback(
+    async (data: { month: number; day: number; visibleTeam: boolean }) => {
+      try {
+        await fetch('/api/dashboard/profile/birthday', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            month: data.month,
+            day: data.day,
+            visibleTeam: data.visibleTeam,
+          }),
+        });
+      } catch {
+        /* non bloquant */
+      }
+      suivant();
+    },
+    [suivant],
+  );
 
-  if (etape === 'secteur') {
-    return (
+  const saveAvatar = useCallback(
+    async (url: string | null) => {
+      if (url !== avatarUrl) {
+        try {
+          await fetch('/api/dashboard/profile/avatar', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatarUrl: url }),
+          });
+        } catch {
+          /* non bloquant */
+        }
+      }
+      suivant();
+    },
+    [avatarUrl, suivant],
+  );
+
+  const total = parcours.length;
+  const rang = rangEtape(parcours, etape);
+  const showPasser = peutPasser(etape, parcours) && !fermeture;
+
+  const commun = { rang, total };
+
+  let contenu: ReactNode = null;
+
+  if (etape === 'salut') {
+    contenu = <EtapeSalut prenom={prenom} onSuivant={suivant} />;
+  } else if (etape === 'lettre') {
+    contenu = <EtapeLettre prenom={prenom} onSuivant={suivant} />;
+  } else if (etape === 'anniversaire') {
+    contenu = (
+      <EtapeAnniversaire
+        {...commun}
+        onSuivant={(d) => void saveBirthday(d)}
+        onSkip={suivant}
+      />
+    );
+  } else if (etape === 'avatar') {
+    contenu = (
+      <EtapeAvatar
+        {...commun}
+        initials={initialsOf(firstName, lastName)}
+        initialUrl={avatarUrl}
+        onSuivant={(url) => void saveAvatar(url)}
+      />
+    );
+  } else if (etape === 'secteur') {
+    contenu = (
       <EtapeSecteur
         {...commun}
         secteur={secteur}
@@ -135,10 +205,8 @@ export default function AgentOnboarding({
         onSuivant={suivant}
       />
     );
-  }
-
-  if (etape === 'lead') {
-    return (
+  } else if (etape === 'lead') {
+    contenu = (
       <EtapeLead
         {...commun}
         leads={leads}
@@ -147,40 +215,49 @@ export default function AgentOnboarding({
         onSuivant={suivant}
       />
     );
-  }
-
-  if (etape === 'note') {
-    return <EtapeNote {...commun} onSuivant={suivant} />;
-  }
-
-  if (etape === 'immeuble') {
-    return (
+  } else if (etape === 'note') {
+    contenu = <EtapeNote {...commun} onSuivant={suivant} />;
+  } else if (etape === 'immeuble') {
+    contenu = (
       <EtapeImmeuble {...commun} buildings={buildings} center={center} onSuivant={suivant} />
     );
-  }
-
-  if (etape === 'sortie' && sortiePlan) {
-    return (
+  } else if (etape === 'sortie' && sortiePlan) {
+    contenu = (
       <EtapeSortie
         {...commun}
         plan={sortiePlan}
         enCours={fermeture}
-        onTerminer={() => void terminer()}
+        onTerminer={suivant}
       />
+    );
+  } else if (etape === 'final') {
+    contenu = (
+      <EtapeFinal prenom={prenom} enCours={fermeture} onOuvrir={() => void terminer()} />
+    );
+  } else {
+    contenu = (
+      <EtapeFinal prenom={prenom} enCours={fermeture} onOuvrir={() => void terminer()} />
     );
   }
 
-  // Parcours épuisé (données disparues entre deux sessions) : on referme
-  // proprement plutôt que d'afficher un écran sans contenu.
   return (
-    <div className="py-8">
-      <button
-        type="button"
-        onClick={() => void terminer()}
-        className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-semibold text-white"
-      >
-        Ouvrir l’Accueil
-      </button>
+    <div
+      className="onb-root relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
+      style={{ background: ONB_CREAM }}
+    >
+      {showPasser ? (
+        <button
+          type="button"
+          onClick={() => void passerTout()}
+          className="absolute right-4 top-[max(14px,calc(env(safe-area-inset-top)+10px))] z-10 text-[13px] text-[#9A9A9A] transition hover:text-[#1A1A1A] md:right-8"
+        >
+          Passer
+        </button>
+      ) : null}
+
+      <div key={`${etape}-${slideKey}`} className="onb-slide-enter flex min-h-0 flex-1 flex-col">
+        {contenu}
+      </div>
     </div>
   );
 }

@@ -257,7 +257,7 @@ function hrefBien(id: string): string {
 }
 function hrefNote(note: CollecteNote): string | null {
   if (note.contactId) return hrefContact(note.contactId);
-  return '/dashboard/carte';
+  return '/dashboard/prospection?vue=carte';
 }
 
 function visibleInteractions(

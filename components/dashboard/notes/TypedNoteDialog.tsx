@@ -17,10 +17,12 @@ export default function TypedNoteDialog({
   onClose,
   adresse = null,
   parcelleId = null,
+  resterSurPage = false,
 }: {
   onClose: () => void;
   adresse?: string | null;
   parcelleId?: string | null;
+  resterSurPage?: boolean;
 }) {
   const router = useRouter();
   const device = useDevice();
@@ -106,6 +108,10 @@ export default function TypedNoteDialog({
   }
 
   function onReviewDone(contactId?: string | null) {
+    if (resterSurPage) {
+      onClose();
+      return;
+    }
     router.refresh();
     if (contactId) router.push(`/dashboard/contacts?fiche=${contactId}`);
   }
@@ -140,7 +146,7 @@ export default function TypedNoteDialog({
         onDismiss={onClose}
         onDone={onReviewDone}
         onDiscard={() => {
-          router.refresh();
+          if (!resterSurPage) router.refresh();
           onClose();
         }}
       />

@@ -133,6 +133,7 @@ export interface TeamMember {
   lastName: string;
   fullName: string;
   initials: string;
+  avatarUrl?: string | null;
 }
 
 export type LeadStageType = 'entree' | 'intermediaire' | 'gagne' | 'perdu';

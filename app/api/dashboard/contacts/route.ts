@@ -1,17 +1,17 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { visibleContactsFor } from '@/lib/agency/scope-records';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
 import { findDuplicates } from '@/lib/contacts/duplicates';
-import { contactGeocodeQuery, geocodeToColumns } from '@/lib/geo/fields';
+import { contactGeocodeQuery, resolveGeoColumns } from '@/lib/geo/fields';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import {
   buildFullName,
-  CONTACTS_SELECT,
   fetchContactById,
-  fetchContactsSafe,
+  fetchContactsDuplicateLite,
+  insertContactRow,
   mapDbContactToContact,
 } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -50,7 +50,10 @@ export async function POST(req: Request) {
 
   const parsed = parseContactInput(body);
   if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error, field: parsed.field ?? null },
+      { status: 400 },
+    );
   }
   const f = parsed.fields;
 
@@ -61,27 +64,47 @@ export async function POST(req: Request) {
     : 'manuel';
   const voiceNoteId = typeof raw.voiceNoteId === 'string' ? raw.voiceNoteId : null;
 
-  const members = await fetchMembersOfMyAgency(agency.id, memberships);
-  const assigned = parseAssigneeId(raw.assignedTo, memberIdSet(members));
-  if (assigned.provided && 'invalid' in assigned) {
-    return NextResponse.json(
-      { error: "Cette personne n'appartient pas à l'agence" },
-      { status: 400 },
-    );
-  }
-
-  const assigneeId =
-    assigned.provided && !('invalid' in assigned) ? assigned.id : profile.id;
-  const meta = assignmentMeta(assigneeId, profile.id);
+  // Pas de fetch membres si l’assignation est soi-même ou absente.
+  const assignedRaw = raw.assignedTo;
+  const needsMemberLookup =
+    typeof assignedRaw === 'string' &&
+    assignedRaw.length > 0 &&
+    assignedRaw !== profile.id;
 
   const query = contactGeocodeQuery(f.address, f.secteur, f.postalCodes);
-  const geo = query
-    ? await geocodeToColumns(query.adresse, query.codePostal)
-    : null;
-
   const supabase = await createSupabaseServerClient();
+
+  const [members, geo, existing] = await Promise.all([
+    needsMemberLookup
+      ? fetchMembersOfMyAgency(agency.id, memberships)
+      : Promise.resolve([]),
+    query
+      ? resolveGeoColumns(raw, query.adresse, query.codePostal)
+      : Promise.resolve(null),
+    fetchContactsDuplicateLite(supabase),
+  ]);
+
+  let assigneeId: string | null = profile.id;
+  if (assignedRaw === null || assignedRaw === '') {
+    assigneeId = null;
+  } else if (typeof assignedRaw === 'string' && assignedRaw === profile.id) {
+    assigneeId = profile.id;
+  } else if (needsMemberLookup) {
+    const assigned = parseAssigneeId(assignedRaw, memberIdSet(members));
+    if (assigned.provided && 'invalid' in assigned) {
+      return NextResponse.json(
+        { error: "Cette personne n'appartient pas à l'agence" },
+        { status: 400 },
+      );
+    }
+    assigneeId =
+      assigned.provided && !('invalid' in assigned) ? assigned.id : profile.id;
+  }
+
+  const meta = assignmentMeta(assigneeId, profile.id);
+
   const forceCreate = raw.forceCreate === true;
-  const existing = visibleContactsFor(viewerFromProfile(profile), await fetchContactsSafe(supabase));
+  const visible = visibleContactsFor(viewerFromProfile(profile), existing);
   const hits = findDuplicates(
     {
       id: '__new__',
@@ -91,10 +114,41 @@ export async function POST(req: Request) {
       phone: f.phone,
       email: f.email,
     },
-    existing,
+    visible,
   );
   const strong = hits.filter((h) => h.strength === 'strong');
   if (strong.length > 0 && !forceCreate) {
+    // Depuis une dictée : rattacher au contact existant plutôt que bloquer l’agent.
+    if (voiceNoteId) {
+      const existingContact = strong[0]!.other;
+      try {
+        await supabase
+          .from('voice_notes')
+          .update({
+            contact_id: existingContact.id,
+            status: 'valide',
+            ...meta,
+          })
+          .eq('id', voiceNoteId)
+          .eq('agency_id', agency.id);
+        const admin = createSupabaseAdminClient();
+        await admin.from('note_liens').upsert(
+          {
+            note_id: voiceNoteId,
+            agency_id: agency.id,
+            entite_type: 'contact',
+            entite_id: existingContact.id,
+            confiance: 'certain',
+            cree_par: 'agent',
+          },
+          { onConflict: 'note_id,entite_type,entite_id' },
+        );
+      } catch (err) {
+        console.error('[contacts] rattachement dictée (doublon)', err);
+      }
+      return NextResponse.json({ contact: existingContact, reused: true }, { status: 200 });
+    }
+
     return NextResponse.json(
       {
         error: 'Un contact similaire existe déjà',
@@ -108,39 +162,35 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data, error } = await supabase
-    .from('contacts')
-    .insert({
-      agency_id: agency.id,
-      created_by: profile.id,
-      first_name: f.firstName || null,
-      last_name: f.lastName || null,
-      contact_type: f.type,
-      phone: f.phone,
-      email: f.email,
-      secteur: f.secteur,
-      address: f.address,
-      postal_codes: f.postalCodes,
-      budget_min: f.budgetMin,
-      budget_max: f.budgetMax,
-      surface_min: f.surfaceMin,
-      surface_max: f.surfaceMax,
-      rooms_min: f.roomsMin,
-      summary: f.summary,
-      recontacter_le: f.recontacterLe,
-      source,
-      ...meta,
-      ...(geo ?? {}),
-    })
-    .select(CONTACTS_SELECT)
-    .single();
+  const { data: inserted, error } = await insertContactRow(supabase, {
+    agency_id: agency.id,
+    created_by: profile.id,
+    first_name: f.firstName || null,
+    last_name: f.lastName || null,
+    contact_type: f.type,
+    phone: f.phone,
+    email: f.email,
+    secteur: f.secteur,
+    address: f.address,
+    postal_codes: f.postalCodes,
+    budget_min: f.budgetMin,
+    budget_max: f.budgetMax,
+    surface_min: f.surfaceMin,
+    surface_max: f.surfaceMax,
+    rooms_min: f.roomsMin,
+    summary: f.summary,
+    recontacter_le: f.recontacterLe,
+    source,
+    ...meta,
+    ...(geo ?? {}),
+  });
 
-  if (error || !data) {
+  if (error || !inserted) {
     console.error('[contacts] création', error);
     return NextResponse.json({ error: "Le contact n'a pas pu être créé" }, { status: 500 });
   }
 
-  let contact = mapDbContactToContact(data as unknown as ContactRow);
+  let contact = mapDbContactToContact(inserted as unknown as ContactRow);
 
   const toMark = forceCreate ? hits : hits.filter((h) => h.strength === 'weak');
   if (toMark.length > 0) {
@@ -165,54 +215,77 @@ export async function POST(req: Request) {
   }
 
   if (voiceNoteId) {
-    const { error: linkError } = await supabase
-      .from('voice_notes')
-      .update({
-        contact_id: contact.id,
-        status: 'valide',
-        ...meta,
-      })
-      .eq('id', voiceNoteId)
-      .eq('agency_id', agency.id);
-
-    if (linkError) {
-      console.error('[contacts] rattachement de la dictée', linkError);
-    } else {
-      const admin = createSupabaseAdminClient();
-      await admin.from('note_liens').upsert(
-        {
-          note_id: voiceNoteId,
-          agency_id: agency.id,
-          entite_type: 'contact',
-          entite_id: contact.id,
-          confiance: 'certain',
-          cree_par: 'agent',
-        },
-        { onConflict: 'note_id,entite_type,entite_id' },
-      );
-      if (f.summary) {
-        await supabase.from('contact_interactions').insert({
-          agency_id: agency.id,
+    try {
+      const { error: linkError } = await supabase
+        .from('voice_notes')
+        .update({
           contact_id: contact.id,
-          author_id: profile.id,
-          kind: 'vocal',
-          body: f.summary,
-          voice_note_id: voiceNoteId,
+          status: 'valide',
           ...meta,
-        });
+        })
+        .eq('id', voiceNoteId)
+        .eq('agency_id', agency.id);
+
+      if (linkError) {
+        console.error('[contacts] rattachement de la dictée', linkError);
+      } else {
+        const admin = createSupabaseAdminClient();
+        const { error: lienErr } = await admin.from('note_liens').upsert(
+          {
+            note_id: voiceNoteId,
+            agency_id: agency.id,
+            entite_type: 'contact',
+            entite_id: contact.id,
+            confiance: 'certain',
+            cree_par: 'agent',
+          },
+          { onConflict: 'note_id,entite_type,entite_id' },
+        );
+        if (lienErr) console.error('[contacts] note_liens', lienErr);
+        if (f.summary) {
+          const { error: interErr } = await supabase.from('contact_interactions').insert({
+            agency_id: agency.id,
+            contact_id: contact.id,
+            author_id: profile.id,
+            kind: 'vocal',
+            body: f.summary,
+            voice_note_id: voiceNoteId,
+            ...meta,
+          });
+          if (interErr) console.error('[contacts] interaction vocale', interErr);
+        }
       }
+    } catch (err) {
+      // La fiche contact est créée : un échec de lien ne doit pas faire échouer la réponse.
+      console.error('[contacts] rattachement dictée', err);
     }
   }
 
+  // Hors chemin critique : ne bloque plus la réponse.
+  const reconcileNeedles = [
+    contact.fullName,
+    contact.firstName,
+    contact.lastName,
+    contact.phone,
+    contact.address,
+  ];
+  const contactId = contact.id;
+  const agencyId = agency.id;
   try {
-    const admin = createSupabaseAdminClient();
-    await reconcileOrphanNotes(admin, agency.id, {
-      entiteType: 'contact',
-      entiteId: contact.id,
-      needles: [contact.fullName, contact.firstName, contact.lastName, contact.phone, contact.address],
+    after(() => {
+      try {
+        const admin = createSupabaseAdminClient();
+        void reconcileOrphanNotes(admin, agencyId, {
+          entiteType: 'contact',
+          entiteId: contactId,
+          needles: reconcileNeedles,
+        }).catch((err) => console.error('[contacts] réconciliation', err));
+      } catch (err) {
+        console.error('[contacts] réconciliation', err);
+      }
     });
   } catch (err) {
-    console.error('[contacts] réconciliation', err);
+    console.error('[contacts] after()', err);
   }
 
   return NextResponse.json({ contact }, { status: 201 });

@@ -1,3 +1,5 @@
+@import '../components/dashboard/nav-icons/nav-icons.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -124,6 +126,24 @@
   --scrollbar-size: 10px;
   --scrollbar-thumb: rgba(30, 49, 72, 0.22);
   --scrollbar-thumb-hover: rgba(30, 49, 72, 0.42);
+}
+
+/* Bouton d’action des toasts Sonner — plus le noir par défaut. */
+[data-sonner-toast] [data-button].priimo-toast-action,
+[data-sonner-toast] button[data-button] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #047857 !important;
+  border: 1px solid rgba(4, 120, 87, 0.25) !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 6px 12px !important;
+  box-shadow: none !important;
+}
+
+[data-sonner-toast][data-type='error'] [data-button] {
+  color: #b42318 !important;
+  border-color: rgba(180, 35, 24, 0.28) !important;
 }
 
 /* Bleu shell Priimo — dégradé + grain à peine perceptible */
@@ -1491,6 +1511,91 @@ html:has(.feature-page) {
   overflow: hidden;
   padding-bottom: 0;
 }
+
+/* Prise en main agent : plein écran, sans chrome ni tab bar. */
+.dashboard-mobile:has([data-agent-onboarding]) > .mobile-shell-header,
+.dashboard-mobile:has([data-agent-onboarding]) .app-tabbar,
+.dashboard-mobile:has([data-agent-onboarding]) .mobile-back-swipe {
+  display: none !important;
+}
+
+.dashboard-mobile:has([data-agent-onboarding]) > main {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Desktop : navigation sidebar atténuée pendant la prise en main. */
+.dashboard-fluid:has([data-agent-onboarding]) [data-onboarding-nav] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Onboarding v2 — typo + motion */
+.onb-root {
+  --onb-accent: #6366f1;
+  --onb-cream: #faf9f7;
+  background: var(--onb-cream);
+  color: #1a1a1a;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.onb-serif {
+  font-family: var(--font-brand), "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.onb-letter {
+  font-family: var(--font-brand), "Libre Baskerville", Georgia, serif;
+  font-style: normal;
+  font-weight: 400;
+  max-width: 36rem;
+  font-size: 17px;
+  line-height: 1.7;
+  color: #2a2a2a;
+}
+
+@media (min-width: 768px) {
+  .onb-letter {
+    font-size: 18px;
+  }
+}
+
+.onb-fade {
+  animation: onbFadeIn 320ms ease-out both;
+}
+
+.onb-slide-enter {
+  animation: onbSlideIn 320ms ease-out both;
+}
+
+@keyframes onbFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes onbSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-fade,
+  .onb-slide-enter {
+    animation: none !important;
+  }
+}
+
 .dashboard-mobile .app-press {
   transition:
     background-color var(--dur-fluid-subtle) var(--ease-soft),

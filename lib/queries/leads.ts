@@ -235,6 +235,7 @@ export function mapProfileToTeamMember(p: ProfileRow): TeamMember {
     lastName: p.last_name,
     fullName: `${p.first_name} ${p.last_name}`.trim(),
     initials: buildInitials(p.first_name, p.last_name),
+    avatarUrl: p.avatar_url ?? null,
   };
 }
 
@@ -252,7 +253,7 @@ export async function fetchTeamMembers(supabase: Client, agencyId: string): Prom
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, avatar_url')
     .in('id', profileIds)
     .order('first_name', { ascending: true });
   if (error) {
@@ -265,6 +266,7 @@ export async function fetchTeamMembers(supabase: Client, agencyId: string): Prom
       last_name: p.last_name,
       phone: null,
       preferences: {},
+      avatar_url: p.avatar_url,
       created_at: '',
       updated_at: '',
     }),

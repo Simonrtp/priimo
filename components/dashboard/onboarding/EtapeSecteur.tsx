@@ -19,7 +19,6 @@ export default function EtapeSecteur({
   buildings,
   center,
   onSuivant,
-  onPasser,
 }: {
   rang: number;
   total: number;
@@ -27,7 +26,6 @@ export default function EtapeSecteur({
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
   onSuivant: () => void;
-  onPasser: () => void;
 }) {
   const nombre = (n: number) => n.toLocaleString('fr-FR');
   const adresses = `${nombre(secteur.adresses)} adresse${secteur.adresses > 1 ? 's' : ''} détectée${secteur.adresses > 1 ? 's' : ''}`;
@@ -43,18 +41,17 @@ export default function EtapeSecteur({
           ? `${adresses}, ${immeubles}. Tout est déjà là.`
           : `${adresses}. Tout est déjà là.`
       }
-      onPasser={onPasser}
       action={
         <button
           type="button"
           onClick={onSuivant}
-          className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-accent-dark"
+          className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
         >
           Continuer
         </button>
       }
     >
-      <OnboardingCarte buildings={buildings} center={center} hauteur={360} />
+      <OnboardingCarte buildings={buildings} center={center} />
     </OnboardingShell>
   );
 }

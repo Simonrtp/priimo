@@ -12,6 +12,8 @@ interface ModalProps {
   description?: string;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  /** Pour empiler un modal au-dessus d’un autre (ex. créer un proprio depuis un bien). */
+  elevated?: boolean;
 }
 
 const MAX_WIDTH_CLASS: Record<NonNullable<ModalProps['maxWidth']>, string> = {
@@ -29,6 +31,7 @@ export default function Modal({
   description,
   children,
   maxWidth = 'md',
+  elevated = false,
 }: ModalProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -44,13 +47,15 @@ export default function Modal({
     if (!open) return;
     previousFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        armPointerShield();
-        onClose();
-      }
+      if (e.key !== 'Escape') return;
+      // Un Select / DatePicker ouvert gère Escape en premier (capture, z-index).
+      const expanded = dialogRef.current?.querySelector('[aria-expanded="true"]');
+      if (expanded) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      armPointerShield();
+      onClose();
     };
     document.addEventListener('keydown', onKey, true);
 
@@ -73,7 +78,7 @@ export default function Modal({
 
   const node = (
     <div
-      className="fixed inset-0 z-[130] flex items-end justify-center p-4 sm:items-center"
+      className={`fixed inset-0 flex items-end justify-center p-4 sm:items-center ${elevated ? 'z-[140]' : 'z-[130]'}`}
       role="presentation"
     >
       <button

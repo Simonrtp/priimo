@@ -14,17 +14,23 @@ const ITEMS: { id: EstimationVue; label: string; Icon: typeof Calculator }[] = [
 export default function EstimationViewSwitch({
   value,
   onChange,
+  showWidget = false,
 }: {
   value: EstimationVue;
   onChange: (vue: EstimationVue) => void;
+  /** Widget réservé au directeur — masqué pour les collaborateurs. */
+  showWidget?: boolean;
 }) {
+  const items = showWidget ? ITEMS : ITEMS.filter((i) => i.id === 'outil');
+  if (items.length <= 1) return null;
+
   return (
     <div
       className="flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset"
       role="tablist"
       aria-label="Vue estimation"
     >
-      {ITEMS.map(({ id, label, Icon }) => {
+      {items.map(({ id, label, Icon }) => {
         const active = value === id;
         return (
           <button

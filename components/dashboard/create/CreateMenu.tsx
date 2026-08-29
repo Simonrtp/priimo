@@ -301,6 +301,11 @@ export default function CreateMenu({
           currentUserId={profile.id}
           skipSuccessToast
           onSaved={(contact) => {
+            if (contact.type === 'vendeur') {
+              setVendeurs((prev) =>
+                prev.some((c) => c.id === contact.id) ? prev : [contact, ...prev],
+              );
+            }
             notifySuccess('Contact créé', {
               duration: 6000,
               action: {

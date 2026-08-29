@@ -24,6 +24,13 @@ interface AddressAutocompleteProps {
 const defaultInputClass =
   'w-full rounded-xl border border-black/10 bg-white py-3 pl-10 pr-10 text-base text-ink placeholder-gray-500/70 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15';
 
+function measureMenuBox(el: HTMLElement | null) {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0) return null;
+  return { top: r.bottom + 6, left: r.left, width: r.width };
+}
+
 export default function AddressAutocomplete({
   value = '',
   onChange,
@@ -40,6 +47,7 @@ export default function AddressAutocomplete({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** true seulement après saisie utilisateur — évite de rouvrir la BAN sur une adresse déjà enregistrée. */
   const userEditedRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<BanFeature[]>([]);
@@ -75,36 +83,46 @@ export default function AddressAutocomplete({
       return;
     }
 
+    const ac = new AbortController();
+    const requestId = ++requestIdRef.current;
+    const safetyTimer = setTimeout(() => ac.abort(), 25_000);
+
     debounceRef.current = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const features = await searchBanAddresses(query.trim(), 5, postcodeFilter);
+        let features = await searchBanAddresses(query.trim(), 5, postcodeFilter, ac.signal);
+        if (features.length === 0 && postcodeFilter && !ac.signal.aborted) {
+          features = await searchBanAddresses(query.trim(), 5, undefined, ac.signal);
+        }
+        if (ac.signal.aborted || requestId !== requestIdRef.current) return;
+        const box = measureMenuBox(containerRef.current);
+        if (box) setMenuBox(box);
         setSuggestions(features);
         setShowDropdown(features.length > 0);
         setActiveIndex(-1);
       } catch {
+        if (requestId !== requestIdRef.current) return;
+        // Nouvelle saisie : ne pas vider les suggestions encore valides.
+        if (ac.signal.aborted) return;
         setSuggestions([]);
         setShowDropdown(false);
       } finally {
-        setIsLoading(false);
+        if (requestId === requestIdRef.current) setIsLoading(false);
       }
     }, 250);
 
     return () => {
+      clearTimeout(safetyTimer);
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      ac.abort();
     };
   }, [query, postcodeFilter]);
 
   useLayoutEffect(() => {
-    if (!showDropdown) {
-      setMenuBox(null);
-      return;
-    }
+    if (!showDropdown) return;
     function place() {
-      const el = containerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      setMenuBox({ top: r.bottom + 6, left: r.left, width: r.width });
+      const box = measureMenuBox(containerRef.current);
+      if (box) setMenuBox(box);
     }
     place();
     window.addEventListener('resize', place);
@@ -171,7 +189,7 @@ export default function AddressAutocomplete({
             id={listId}
             role="listbox"
             style={{ top: menuBox.top, left: menuBox.left, width: menuBox.width }}
-            className="fixed z-[200] max-h-60 overflow-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft"
+            className="fixed z-[400] max-h-60 overflow-auto rounded-xl border border-black/8 bg-white p-1 shadow-soft"
           >
             {suggestions.map((feature, index) => {
               const isActive = index === activeIndex;
@@ -214,7 +232,11 @@ export default function AddressAutocomplete({
           value={query}
           onChange={handleInputChange}
           onFocus={() => {
-            if (userEditedRef.current && suggestions.length > 0) setShowDropdown(true);
+            if (userEditedRef.current && suggestions.length > 0) {
+              const box = measureMenuBox(containerRef.current);
+              if (box) setMenuBox(box);
+              setShowDropdown(true);
+            }
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}

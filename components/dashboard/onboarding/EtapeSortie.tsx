@@ -16,14 +16,12 @@ export default function EtapeSortie({
   total,
   plan,
   onTerminer,
-  onPasser,
   enCours,
 }: {
   rang: number;
   total: number;
   plan: SortiePlan;
   onTerminer: () => void;
-  onPasser: () => void;
   enCours: boolean;
 }) {
   const stops = plan.ordered;
@@ -35,45 +33,46 @@ export default function EtapeSortie({
       total={total}
       titre="Votre parcours du jour"
       phrase="Vos adresses sont dans l’ordre, l’itinéraire est prêt."
-      onPasser={onPasser}
       action={
         <button
           type="button"
           onClick={onTerminer}
           disabled={enCours}
-          className="rounded-lg bg-accent px-6 py-2.5 text-[14px] font-semibold text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="rounded-lg bg-[#6366F1] px-6 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97] disabled:opacity-60"
         >
           {enCours ? 'Un instant…' : 'Commencer'}
         </button>
       }
     >
-      <div className="rounded-clay border border-black/[0.06] bg-surface p-4 shadow-clay-sm">
-        <p className="text-[12.5px] text-text-muted">
-          {stops.length} arrêt{stops.length > 1 ? 's' : ''} · {km} à parcourir
-        </p>
-        <ol className="mt-3 flex flex-col">
-          {stops.map((stop, i) => (
-            <li
-              key={stop.key}
-              className="flex items-start gap-3 border-b border-black/[0.05] py-2.5 last:border-0"
-            >
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-[12px] font-semibold tabular-nums text-ink">
-                {i + 1}
-              </span>
-              <span className="min-w-0">
-                <span className="flex items-start gap-1.5 text-[14px] text-ink">
-                  <MapPin size={14} className="mt-0.5 shrink-0 text-text-subtle" aria-hidden />
-                  <span className="min-w-0 break-words">{stop.address}</span>
+      <div className="h-full min-h-0 overflow-y-auto overscroll-contain md:overflow-visible">
+        <div className="rounded-clay border border-black/[0.06] bg-surface p-4 shadow-clay-sm">
+          <p className="text-[12.5px] text-text-muted">
+            {stops.length} arrêt{stops.length > 1 ? 's' : ''} · {km} à parcourir
+          </p>
+          <ol className="mt-3 flex flex-col">
+            {stops.map((stop, i) => (
+              <li
+                key={stop.key}
+                className="flex items-start gap-3 border-b border-black/[0.05] py-2.5 last:border-0"
+              >
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-[12px] font-semibold tabular-nums text-ink">
+                  {i + 1}
                 </span>
-                {stop.mainSignalLabel ? (
-                  <span className="mt-0.5 block text-[12.5px] text-text-muted">
-                    {stop.mainSignalLabel}
+                <span className="min-w-0">
+                  <span className="flex items-start gap-1.5 text-[14px] text-ink">
+                    <MapPin size={14} className="mt-0.5 shrink-0 text-text-subtle" aria-hidden />
+                    <span className="min-w-0 break-words">{stop.address}</span>
                   </span>
-                ) : null}
-              </span>
-            </li>
-          ))}
-        </ol>
+                  {stop.mainSignalLabel ? (
+                    <span className="mt-0.5 block text-[12.5px] text-text-muted">
+                      {stop.mainSignalLabel}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </OnboardingShell>
   );

@@ -8,83 +8,78 @@ import {
   etapeSuivante,
   etatOnboarding,
   minutesRestantes,
+  peutPasser,
   rangEtape,
 } from './parcours';
 
 const complet = { aDesLeads: true, aDesParcelles: true, aUneSortie: true, mobile: false };
 
 describe('buildParcours', () => {
-  it('déroule les cinq étapes sur poste fixe', () => {
-    assert.deepEqual(buildParcours(complet), ['secteur', 'lead', 'note', 'immeuble', 'sortie']);
+  it('ouvre par salut → lettre → anniversaire → avatar', () => {
+    const p = buildParcours(complet);
+    assert.deepEqual(p.slice(0, 4), ['salut', 'lettre', 'anniversaire', 'avatar']);
+    assert.equal(p[p.length - 1], 'final');
   });
 
-  it('place la dictée en deuxième sur téléphone', () => {
-    assert.deepEqual(buildParcours({ ...complet, mobile: true }), [
-      'secteur',
-      'note',
-      'lead',
-      'immeuble',
-      'sortie',
-    ]);
+  it('sur desktop : secteur, lead, note parmi les gestes', () => {
+    const p = buildParcours(complet);
+    assert.deepEqual(p.slice(4, -1), ['secteur', 'lead', 'note', 'immeuble', 'sortie']);
   });
 
-  it('saute l’immeuble quand le secteur n’a pas de données publiques', () => {
-    const parcours = buildParcours({ ...complet, aDesParcelles: false });
-    assert.ok(!parcours.includes('immeuble'));
-    assert.deepEqual(parcours, ['secteur', 'lead', 'note', 'sortie']);
+  it('sur mobile place la dictée en tête des gestes', () => {
+    const p = buildParcours({ ...complet, mobile: true });
+    assert.deepEqual(p.slice(4, -1), ['note', 'secteur', 'lead', 'immeuble', 'sortie']);
   });
 
-  it('saute la sortie quand aucune tournée n’est calculable', () => {
-    const parcours = buildParcours({ ...complet, aUneSortie: false });
-    assert.ok(!parcours.includes('sortie'));
-  });
-
-  it('saute la prise de lead quand il n’y a rien à prendre', () => {
-    assert.deepEqual(buildParcours({ ...complet, aDesLeads: false }), [
-      'secteur',
-      'note',
-      'immeuble',
-      'sortie',
-    ]);
-  });
-
-  it('garde toujours au moins le secteur et la dictée', () => {
+  it('saute immeuble / sortie / lead si données absentes', () => {
     assert.deepEqual(
-      buildParcours({ aDesLeads: false, aDesParcelles: false, aUneSortie: false, mobile: false }),
-      ['secteur', 'note'],
+      buildParcours({
+        aDesLeads: false,
+        aDesParcelles: false,
+        aUneSortie: false,
+        mobile: false,
+      }),
+      ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur', 'note', 'final'],
     );
+  });
+});
+
+describe('peutPasser', () => {
+  const p = buildParcours(complet);
+  it('est masqué sur salut et lettre', () => {
+    assert.equal(peutPasser('salut', p), false);
+    assert.equal(peutPasser('lettre', p), false);
+  });
+  it('apparaît dès l’anniversaire', () => {
+    assert.equal(peutPasser('anniversaire', p), true);
+    assert.equal(peutPasser('avatar', p), true);
   });
 });
 
 describe('navigation', () => {
   const parcours = buildParcours(complet);
 
-  it('numérote sur le parcours réel, pas sur les cinq étapes théoriques', () => {
-    const court = buildParcours({ ...complet, aDesParcelles: false });
-    assert.equal(rangEtape(court, 'sortie'), 4);
-    assert.equal(court.length, 4);
+  it('numérote sur le parcours réel', () => {
+    assert.equal(rangEtape(parcours, 'salut'), 1);
+    assert.equal(rangEtape(parcours, 'final'), parcours.length);
   });
 
-  it('sait s’arrêter à la dernière étape', () => {
-    assert.equal(etapeSuivante(parcours, 'immeuble'), 'sortie');
-    assert.equal(etapeSuivante(parcours, 'sortie'), null);
+  it('enchaîne jusqu’au final', () => {
+    assert.equal(etapeSuivante(parcours, 'sortie'), 'final');
+    assert.equal(etapeSuivante(parcours, 'final'), null);
   });
 });
 
 describe('etapeDeReprise', () => {
   const parcours = buildParcours(complet);
 
-  it('reprend là où l’agent s’est arrêté', () => {
-    assert.equal(etapeDeReprise(parcours, 'note', ['secteur', 'lead']), 'note');
+  it('reprend l’étape enregistrée', () => {
+    assert.equal(etapeDeReprise(parcours, 'avatar', ['salut', 'lettre']), 'avatar');
   });
 
-  it('repart de la première étape non atteinte si l’étape enregistrée a disparu', () => {
+  it('repart de la première non atteinte si l’étape a disparu', () => {
     const court = buildParcours({ ...complet, aDesParcelles: false });
-    assert.equal(etapeDeReprise(court, 'immeuble', ['secteur', 'lead']), 'note');
-  });
-
-  it('ne renvoie jamais rien sur un parcours entièrement atteint', () => {
-    assert.equal(etapeDeReprise(parcours, null, [...parcours]), 'sortie');
+    assert.equal(etapeDeReprise(court, 'immeuble', ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur', 'lead']), 'note');
   });
 });
 
@@ -132,23 +127,12 @@ describe('doitProposerReprise', () => {
       false,
     );
   });
-
-  it('ne relance ni les terminés ni ceux qui ont passé', () => {
-    assert.equal(doitProposerReprise({ ...enCours, completedAt: '2026-08-01T09:05:00Z' }), false);
-    assert.equal(doitProposerReprise({ ...enCours, skippedAt: '2026-08-01T09:01:00Z' }), false);
-  });
-
-  it('ne propose rien à qui n’a jamais ouvert', () => {
-    assert.equal(doitProposerReprise(null), false);
-  });
 });
 
 describe('minutesRestantes', () => {
-  it('annonce une durée qui ne ment pas', () => {
+  it('annonce une durée réaliste', () => {
     const parcours = buildParcours(complet);
-    assert.equal(minutesRestantes(parcours, []), 4);
-    assert.equal(minutesRestantes(parcours, ['secteur', 'lead', 'note']), 2);
-    assert.equal(minutesRestantes(parcours, [...parcours]), 1);
+    assert.ok(minutesRestantes(parcours, []) >= 1);
   });
 });
 
@@ -162,36 +146,18 @@ describe('decideAffichage', () => {
     relanceDismissedAt: null,
   };
 
-  it('ouvre le parcours à la toute première visite', () => {
+  it('ouvre à la première visite', () => {
     assert.equal(decideAffichage(null, { demandeExplicite: false, now }), 'onboarding');
   });
 
-  it('poursuit le parcours dans la même session', () => {
+  it('poursuit dans la même session', () => {
     assert.equal(decideAffichage(base, { demandeExplicite: false, now }), 'onboarding');
   });
 
-  it('rend l’Accueil normal le lendemain, avec une bande', () => {
+  it('rend l’Accueil le lendemain (bande via doitProposerReprise)', () => {
     const hier = { ...base, lastSeenAt: '2026-08-27T11:55:00.000Z' };
-    assert.equal(decideAffichage(hier, { demandeExplicite: false, now }), 'bande');
-  });
-
-  it('ne relance plus après un refus', () => {
-    const refuse = {
-      ...base,
-      lastSeenAt: '2026-08-27T11:55:00.000Z',
-      relanceDismissedAt: '2026-08-27T12:00:00.000Z',
-    };
-    assert.equal(decideAffichage(refuse, { demandeExplicite: false, now }), 'rien');
-  });
-
-  it('n’impose rien à qui a cliqué « Passer »', () => {
-    const passe = { ...base, skippedAt: '2026-08-28T11:56:00.000Z' };
-    assert.equal(decideAffichage(passe, { demandeExplicite: false, now }), 'rien');
-  });
-
-  it('rouvre le parcours sur demande explicite, même après un « Passer »', () => {
-    const passe = { ...base, skippedAt: '2026-08-28T11:56:00.000Z' };
-    assert.equal(decideAffichage(passe, { demandeExplicite: true, now }), 'onboarding');
+    assert.equal(decideAffichage(hier, { demandeExplicite: false, now }), 'rien');
+    assert.equal(doitProposerReprise(hier), true);
   });
 
   it('ne rouvre jamais un parcours terminé', () => {

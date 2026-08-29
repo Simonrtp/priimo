@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import MobileAccountMenu from './MobileAccountMenu';
@@ -10,9 +10,11 @@ import { useUser } from '@/lib/hooks/useUser';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
 
 /** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
-function hideShellHeader(pathname: string): boolean {
+function hideShellHeader(pathname: string, vue: string | null): boolean {
   return (
-    pathname.startsWith('/dashboard/carte') || pathname.startsWith('/dashboard/tournee')
+    pathname.startsWith('/dashboard/tournee') ||
+    pathname.startsWith('/dashboard/carte') ||
+    (pathname.startsWith('/dashboard/prospection') && vue === 'carte')
   );
 }
 
@@ -40,18 +42,19 @@ function AccountButton({ onClick }: { onClick: () => void }) {
  */
 export default function MobileChrome() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { profile } = useUser();
   const [accountOpen, setAccountOpen] = useState(false);
   const { openMobileSearch, closeMobileSearch, mobileSearchOpen } = useAssistant();
 
-  if (hideShellHeader(pathname)) return null;
+  if (hideShellHeader(pathname, searchParams.get('vue'))) return null;
 
   const prenom = profile.first_name.trim();
   const greeting = prenom ? `Bonjour ${prenom}.` : 'Bonjour.';
 
   return (
     <>
-      <div className={`${SHELL_BG_CLASS} flex-shrink-0`}>
+      <div className={`${SHELL_BG_CLASS} mobile-shell-header flex-shrink-0`}>
         <header
           className="relative z-[10] flex items-center gap-2 pb-3 pt-3"
           style={{
@@ -105,13 +108,14 @@ export default function MobileChrome() {
 
 export function MobileBackSwipe() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
-  if (hideShellHeader(pathname)) return null;
+  if (hideShellHeader(pathname, searchParams.get('vue'))) return null;
 
   return (
     <div
-      className="fixed inset-y-0 left-0 z-[40] w-5"
+      className="mobile-back-swipe fixed inset-y-0 left-0 z-[40] w-5"
       onTouchStart={(e) => {
         const startX = e.changedTouches[0]?.clientX ?? 0;
         const startY = e.changedTouches[0]?.clientY ?? 0;

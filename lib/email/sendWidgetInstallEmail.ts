@@ -100,10 +100,12 @@ export function renderWidgetInstallEmailHtml(params: WidgetInstallEmailParams): 
 
           <h2 style="margin:0 0 8px;font-size:16px;color:${INK};">2. Où le coller</h2>
           <ul style="margin:0 0 24px;padding-left:20px;font-size:14px;line-height:1.7;color:${INK};">
-            <li><strong>WordPress</strong> — bloc « HTML personnalisé » dans la page, ou un widget HTML.</li>
-            <li><strong>Webflow</strong> — élément « Embed » posé dans la section voulue.</li>
             <li><strong>Wix</strong> — Ajouter &rsaquo; Intégrations &rsaquo; Code HTML, en mode « Code ».</li>
-            <li><strong>Netty, Hektor, La Boîte Immo</strong> — zone « contenu libre » ou « HTML » d'une page.</li>
+            <li><strong>Webflow</strong> — élément « Embed » dans la section voulue, puis publier.</li>
+            <li><strong>WordPress</strong> — bloc « HTML personnalisé », ou widget HTML (Elementor / Divi : module Code).</li>
+            <li><strong>Netty</strong> — zone « contenu libre » / HTML de la page, puis mise en ligne.</li>
+            <li><strong>Apimo</strong> — module HTML ou code personnalisé sur la page / le modèle.</li>
+            <li><strong>La Boîte Immo</strong> — zone HTML / contenu libre dans le gestionnaire de pages.</li>
             <li><strong>Site fait main</strong> — n'importe où dans le <code>&lt;body&gt;</code>.</li>
           </ul>
 

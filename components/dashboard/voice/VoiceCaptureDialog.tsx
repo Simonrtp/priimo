@@ -35,12 +35,14 @@ export default function VoiceCaptureDialog({
   variant = 'desktop',
   adresse = null,
   parcelleId = null,
+  resterSurPage = false,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
   variant?: 'desktop' | 'mobile';
   adresse?: string | null;
   parcelleId?: string | null;
+  resterSurPage?: boolean;
 }) {
   const router = useRouter();
   const { profile } = useUser();
@@ -407,6 +409,10 @@ export default function VoiceCaptureDialog({
   }
 
   function onReviewDone(contactId?: string | null) {
+    if (resterSurPage) {
+      onClose();
+      return;
+    }
     router.refresh();
     if (contactId) router.push(`/dashboard/contacts?fiche=${contactId}`);
   }
@@ -617,7 +623,7 @@ export default function VoiceCaptureDialog({
             onDismiss={onClose}
             onDone={onReviewDone}
             onDiscard={() => {
-              router.refresh();
+              if (!resterSurPage) router.refresh();
               onClose();
             }}
           />

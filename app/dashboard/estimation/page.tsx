@@ -15,7 +15,8 @@ export default async function DashboardEstimationPage({
   if (!user || !profile || !agency) redirect('/login');
 
   const params = await searchParams;
-  const initialVue = parseEstimationVue(params.vue);
+  const isDirector = profile.role === 'directeur';
+  const initialVue = isDirector ? parseEstimationVue(params.vue) : 'outil';
 
   return (
     <Suspense

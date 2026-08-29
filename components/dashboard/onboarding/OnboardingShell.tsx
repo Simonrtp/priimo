@@ -1,75 +1,122 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+
+export const ONB_ACCENT = '#6366F1';
+export const ONB_CREAM = '#FAF9F7';
 
 /**
- * Le cadre commun aux cinq étapes.
- *
- * Il occupe la zone de contenu de l'Accueil : pas de modale, pas d'overlay,
- * pas de page à part. La sidebar reste visible et cliquable — on ne séquestre
- * pas l'utilisateur, et le bouton « Passer » est là à chaque étape pour qui
- * veut arriver à l'application en un clic.
+ * Cadre commun de la prise en main v2.
+ * Progress 3 px indigo, titres serif, actions #6366F1 — jamais d’orange.
  */
 export default function OnboardingShell({
   rang,
   total,
   titre,
   phrase,
-  onPasser,
   children,
   action,
+  compact,
 }: {
   rang: number;
   total: number;
   titre: string;
-  /** Une ou deux phrases. Jamais plus. */
-  phrase: ReactNode;
-  onPasser: () => void;
-  children: ReactNode;
-  /** Ce que l'agent doit faire pour avancer. */
+  phrase?: ReactNode;
+  children?: ReactNode;
   action?: ReactNode;
+  /** Moins d’espace sous le titre (écrans denses : avatar, carte). */
+  compact?: boolean;
 }) {
+  const progress = Math.min(1, Math.max(0, rang / total));
+
   return (
     <section
-      className="flex w-full min-w-0 flex-col"
+      className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       aria-label={`Prise en main — étape ${rang} sur ${total}`}
+      style={{ '--onb-accent': ONB_ACCENT } as CSSProperties}
     >
-      <header className="flex items-start justify-between gap-4 pb-4">
-        <div className="min-w-0">
-          <p className="text-[12.5px] font-medium tabular-nums text-text-subtle">
-            {rang} sur {total}
-          </p>
-          <h1
-            className="mt-1 text-balance font-semibold tracking-tight text-ink"
-            style={{ fontSize: 22, letterSpacing: '-0.02em' }}
-          >
-            {titre}
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={onPasser}
-          className="shrink-0 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-ink"
+      <div className="shrink-0 px-5 pt-[max(8px,env(safe-area-inset-top))] md:px-8 md:pt-2">
+        <div
+          className="h-[3px] w-full overflow-hidden rounded-full bg-black/[0.06]"
+          role="progressbar"
+          aria-valuenow={rang}
+          aria-valuemin={1}
+          aria-valuemax={total}
         >
-          Passer
-        </button>
-      </header>
-
-      <p className="max-w-2xl text-pretty text-[15px] leading-relaxed text-text">{phrase}</p>
-
-      <div className="mt-5 min-w-0">{children}</div>
-
-      {action ? <div className="mt-5">{action}</div> : null}
-
-      <div className="mt-6 flex gap-1.5" aria-hidden>
-        {Array.from({ length: total }, (_, i) => (
-          <span
-            key={i}
-            className="h-1 flex-1 rounded-full transition-colors"
-            style={{ backgroundColor: i < rang ? 'var(--primary-500)' : 'rgba(0,0,0,0.08)' }}
+          <div
+            className="h-full rounded-full transition-[width] duration-[320ms] ease-out motion-reduce:transition-none"
+            style={{ width: `${progress * 100}%`, backgroundColor: ONB_ACCENT }}
           />
-        ))}
+        </div>
+      </div>
+
+      <div
+        className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 pb-[max(16px,env(safe-area-inset-bottom))] md:px-8 ${
+          compact ? 'pt-6' : 'pt-10'
+        }`}
+      >
+        <h1 className="onb-serif text-balance text-[28px] leading-[1.25] text-[#1A1A1A] md:text-[34px]">
+          {titre}
+        </h1>
+
+        {phrase ? (
+          <div className="onb-fade mt-3 max-w-[36rem] text-pretty text-[15px] leading-relaxed text-[#6B6B6B] [animation-delay:80ms]">
+            {phrase}
+          </div>
+        ) : null}
+
+        {children ? (
+          <div className={`onb-fade min-h-0 flex-1 [animation-delay:160ms] ${compact ? 'mt-5' : 'mt-8'}`}>
+            {children}
+          </div>
+        ) : null}
+
+        {action ? (
+          <div className="onb-fade mt-8 shrink-0 [animation-delay:240ms]">{action}</div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+export function OnboardingPrimaryButton({
+  children,
+  onClick,
+  disabled,
+  type = 'button',
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: 'button' | 'submit';
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className="mx-auto flex w-full max-w-[280px] items-center justify-center rounded-2xl px-6 py-3.5 text-[15px] font-semibold text-white transition enabled:hover:brightness-[0.97] disabled:opacity-40"
+      style={{ backgroundColor: ONB_ACCENT }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function OnboardingGhostLink({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mx-auto mt-4 block text-center text-[13.5px] text-[#8A8A8A] transition hover:text-[#1A1A1A]"
+    >
+      {children}
+    </button>
   );
 }

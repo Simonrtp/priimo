@@ -1,7 +1,7 @@
 'use client';
 
-import { Fragment, useRef, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { ImagePlus, Mail, Phone, Plus, X } from 'lucide-react';
 import type { Bien, HonorairesACharge, MandatStatut } from '@/types/bien';
 import {
   DPE_LETTRE_ORDER,
@@ -11,16 +11,21 @@ import {
   MANDAT_STATUT_ORDER,
   PROPERTY_TYPE_OPTIONS,
 } from '@/types/bien';
-import type { Contact } from '@/types/contact';
+import { CONTACT_TYPE_LABELS, type Contact } from '@/types/contact';
+import type { ContactInputFields } from '@/lib/contact-input';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { normalizePhotoUrls } from '@/lib/bien-input';
 import { BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
+import { useUser } from '@/lib/hooks/useUser';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog';
+import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import BienPhotoLightbox from './BienPhotoLightbox';
 
 interface FormState {
@@ -52,6 +57,9 @@ interface FormState {
   chargesAnnuelles: string;
   /** '' = non renseigné, 'true' / 'false' */
   procedureEnCours: string;
+  banId: string;
+  latitude: string;
+  longitude: string;
 }
 
 const EMPTY: FormState = {
@@ -82,6 +90,9 @@ const EMPTY: FormState = {
   nombreLots: '',
   chargesAnnuelles: '',
   procedureEnCours: '',
+  banId: '',
+  latitude: '',
+  longitude: '',
 };
 
 function fromBien(bien: Bien): FormState {
@@ -114,6 +125,40 @@ function fromBien(bien: Bien): FormState {
     chargesAnnuelles: bien.chargesAnnuelles === null ? '' : String(bien.chargesAnnuelles),
     procedureEnCours:
       bien.procedureEnCours === true ? 'true' : bien.procedureEnCours === false ? 'false' : '',
+    banId: bien.banId ?? '',
+    latitude: bien.latitude == null ? '' : String(bien.latitude),
+    longitude: bien.longitude == null ? '' : String(bien.longitude),
+  };
+}
+
+function draftProprioDepuisBien(form: FormState): Partial<ContactInputFields> {
+  const address = form.address.trim() || null;
+  const city = form.city.trim() || null;
+  const postal = form.postalCode.trim();
+  const postalCodes = /^\d{5}$/.test(postal) ? [postal] : [];
+
+  const bits: string[] = [];
+  if (form.propertyType) bits.push(form.propertyType);
+  if (form.surfaceM2) bits.push(`${form.surfaceM2} m²`);
+  if (form.rooms) bits.push(`${form.rooms} pièce${form.rooms === '1' ? '' : 's'}`);
+  if (form.price) {
+    bits.push(
+      `${Number(form.price).toLocaleString('fr-FR')} €`,
+    );
+  }
+  const resumeBien =
+    bits.length > 0
+      ? `Propriétaire du bien${address ? ` — ${address}` : ''}${bits.length ? ` (${bits.join(', ')})` : ''}.`
+      : address
+        ? `Propriétaire du bien — ${address}.`
+        : null;
+
+  return {
+    type: 'vendeur',
+    address,
+    secteur: city,
+    postalCodes,
+    summary: resumeBien,
   };
 }
 
@@ -124,6 +169,65 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <p className="mb-4 text-[14px] font-medium text-text-strong">{title}</p>
       {children}
     </fieldset>
+  );
+}
+
+/** Aperçu du contact rattaché — mêmes infos utiles que sur la fiche lead. */
+function ProprietairePreview({ contact }: { contact: Contact }) {
+  const lieu = [contact.address, contact.secteur].filter(Boolean).join(' · ') || null;
+  const hasContact =
+    Boolean(contact.phone?.trim()) || Boolean(contact.email?.trim()) || Boolean(lieu);
+
+  return (
+    <div
+      className="rounded-clay border border-black/[0.06] bg-surface px-3.5 py-3 shadow-clay-sm"
+      aria-live="polite"
+    >
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <p className="min-w-0 break-words font-semibold text-ink" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
+          {contact.fullName}
+        </p>
+        <span className="shrink-0 rounded-full bg-[#EAEFF5] px-2 py-0.5 text-[11px] font-medium text-[#3D5A80]">
+          {CONTACT_TYPE_LABELS[contact.type]}
+        </span>
+      </div>
+
+      {hasContact ? (
+        <div className="mt-2 flex flex-col gap-1.5">
+          {contact.phone?.trim() ? (
+            <a
+              href={telHref(contact.phone)}
+              className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline"
+            >
+              <Phone size={13} strokeWidth={2.2} aria-hidden />
+              {formatPhoneDisplay(contact.phone)}
+            </a>
+          ) : null}
+          {contact.email?.trim() ? (
+            <a
+              href={`mailto:${contact.email.trim()}`}
+              className="inline-flex w-fit max-w-full items-center gap-1.5 truncate text-[13px] font-medium text-[#3D5A80] underline-offset-2 hover:underline"
+            >
+              <Mail size={13} strokeWidth={2.2} aria-hidden />
+              <span className="truncate">{contact.email.trim()}</span>
+            </a>
+          ) : null}
+          {lieu ? (
+            <p className="text-pretty text-[12.5px] text-text-muted" style={{ lineHeight: 1.45 }}>
+              {lieu}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-1.5 text-[12.5px] text-text-muted">Aucune coordonnée renseignée.</p>
+      )}
+
+      {contact.summary?.trim() ? (
+        <p className="mt-2 text-pretty text-[12.5px] text-text-muted" style={{ lineHeight: 1.45 }}>
+          {contact.summary.trim()}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -147,7 +251,46 @@ export default function BienFormDialog({
   const [photoDraft, setPhotoDraft] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoView, setPhotoView] = useState<number | null>(null);
+  const [createOwnerOpen, setCreateOwnerOpen] = useState(false);
+  const [ownerList, setOwnerList] = useState<Contact[]>(vendeurs);
+  const [members, setMembers] = useState<AssigneeOption[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const { profile } = useUser();
+
+  const selectedOwner =
+    form.proprietaireContactId
+      ? ownerList.find((c) => c.id === form.proprietaireContactId) ?? null
+      : null;
+
+  useEffect(() => {
+    setOwnerList(vendeurs);
+  }, [vendeurs]);
+
+  useEffect(() => {
+    if (!open && !createOwnerOpen) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/dashboard/create-context');
+        if (!res.ok) return;
+        const data = (await res.json()) as { members?: AssigneeOption[]; vendeurs?: Contact[] };
+        if (cancelled) return;
+        if (data.members && data.members.length > 0) setMembers(data.members);
+        if (data.vendeurs) {
+          setOwnerList((prev) => {
+            const byId = new Map(prev.map((c) => [c.id, c]));
+            for (const c of data.vendeurs!) byId.set(c.id, c);
+            return [...byId.values()];
+          });
+        }
+      } catch {
+        /* contexte optionnel */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, createOwnerOpen]);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -210,6 +353,9 @@ export default function BienFormDialog({
               : form.procedureEnCours === 'false'
                 ? false
                 : null,
+          banId: form.banId || null,
+          latitude: form.latitude ? Number(form.latitude) : null,
+          longitude: form.longitude ? Number(form.longitude) : null,
         }),
       });
       const data = (await res.json()) as { bien?: Bien; error?: string };
@@ -258,9 +404,20 @@ export default function BienFormDialog({
                 address: data.label,
                 postalCode: data.postcode.replace(/[^\d]/g, '').slice(0, 5) || f.postalCode,
                 city: data.city || f.city,
+                banId: data.id ?? '',
+                latitude: String(data.latitude),
+                longitude: String(data.longitude),
               }));
             }}
-            onQueryChange={(q) => set('address', q)}
+            onQueryChange={(q) =>
+              setForm((f) => ({
+                ...f,
+                address: q,
+                banId: '',
+                latitude: '',
+                longitude: '',
+              }))
+            }
             placeholder="12 rue de la Monnaie, Lille"
             inputClassName={ADDRESS_FIELD_INPUT_CLASS}
           />
@@ -312,22 +469,37 @@ export default function BienFormDialog({
           </Field>
         </div>
 
-        <Field
-          label="Propriétaire"
-          htmlFor="bien-owner"
-          hint={vendeurs.length === 0 ? 'Créez d’abord un contact de type vendeur' : undefined}
-        >
-          <Select
-            id="bien-owner"
-            value={form.proprietaireContactId}
-            onChange={(v) => set('proprietaireContactId', v)}
-            disabled={vendeurs.length === 0}
-            options={[
-              { value: '', label: 'Aucun propriétaire rattaché' },
-              ...vendeurs.map((c) => ({ value: c.id, label: c.fullName })),
-            ]}
-            aria-label="Propriétaire rattaché"
-          />
+        <Field label="Propriétaire" htmlFor="bien-owner">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            <div className="min-w-0 flex-1">
+              <Select
+                id="bien-owner"
+                value={form.proprietaireContactId}
+                onChange={(v) => set('proprietaireContactId', v)}
+                searchable
+                searchPlaceholder="Rechercher un propriétaire…"
+                options={[
+                  { value: '', label: 'Aucun propriétaire rattaché' },
+                  ...ownerList.map((c) => ({ value: c.id, label: c.fullName })),
+                ]}
+                aria-label="Propriétaire rattaché"
+              />
+            </div>
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              onClick={() => setCreateOwnerOpen(true)}
+              className="sm:self-stretch"
+            >
+              <Plus size={16} strokeWidth={2} aria-hidden />
+              Créer
+            </WorkspaceButton>
+          </div>
+          {selectedOwner ? (
+            <div className="mt-2.5">
+              <ProprietairePreview contact={selectedOwner} />
+            </div>
+          ) : null}
         </Field>
 
         <Section title="Annonce">
@@ -641,6 +813,39 @@ export default function BienFormDialog({
         title={form.address || 'Photos du bien'}
         onClose={() => setPhotoView(null)}
         onIndex={(i) => setPhotoView(i)}
+      />
+    ) : null}
+    {createOwnerOpen ? (
+      <ContactFormDialog
+        key={`proprio-${form.address}-${form.postalCode}-${form.city}`}
+        open
+        elevated
+        onClose={() => setCreateOwnerOpen(false)}
+        initialType="vendeur"
+        initialDraft={draftProprioDepuisBien(form)}
+        createTitle="Nouveau propriétaire"
+        members={
+          members.length > 0
+            ? members
+            : [{ id: profile.id, fullName: `${profile.first_name} ${profile.last_name}`.trim() || 'Moi' }]
+        }
+        currentUserId={profile.id}
+        skipSuccessToast
+        onSaved={(contact) => {
+          setOwnerList((prev) =>
+            prev.some((c) => c.id === contact.id) ? prev : [contact, ...prev],
+          );
+          set('proprietaireContactId', contact.id);
+          setCreateOwnerOpen(false);
+          notifySuccess('Propriétaire créé et rattaché');
+        }}
+        onOpenExisting={(contact) => {
+          setOwnerList((prev) =>
+            prev.some((c) => c.id === contact.id) ? prev : [contact, ...prev],
+          );
+          set('proprietaireContactId', contact.id);
+          setCreateOwnerOpen(false);
+        }}
       />
     ) : null}
     </Fragment>

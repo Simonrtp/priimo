@@ -2,17 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useState } from 'react';
-import {
-  Building2,
-  Calculator,
-  CalendarCheck,
-  LogOut,
-  Map,
-  Settings,
-  Target,
-  Users,
-} from 'lucide-react';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
+import { LogOut } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
@@ -20,14 +11,24 @@ import InstallAppButton from '@/components/pwa/InstallAppButton';
 import SidebarCollapseTab from '@/components/dashboard/SidebarCollapseTab';
 import { useUser } from '@/lib/hooks/useUser';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import {
+  IconAccueil,
+  IconBiens,
+  IconContacts,
+  IconEstimation,
+  IconParametres,
+  IconProspection,
+} from '@/components/dashboard/nav-icons/NavIcon';
 
-const NAV_ICON = '#7B9AC0';
 const STORAGE_KEY = 'priimo-sidebar-collapsed';
+
+type NavIconProps = { active?: boolean; className?: string };
 
 type NavItem = {
   href: string;
   label: string;
-  Icon: typeof Target;
+  Icon: ComponentType<NavIconProps>;
   match: (pathname: string) => boolean;
 };
 
@@ -36,7 +37,7 @@ const NAV_GROUPS: NavItem[][] = [
     {
       href: '/dashboard',
       label: 'Accueil',
-      Icon: CalendarCheck,
+      Icon: IconAccueil,
       match: (p) => p === '/dashboard' || p === '/dashboard/',
     },
   ],
@@ -44,31 +45,25 @@ const NAV_GROUPS: NavItem[][] = [
     {
       href: '/dashboard/prospection',
       label: 'Prospection',
-      Icon: Target,
-      match: (p) => p.startsWith('/dashboard/prospection'),
+      Icon: IconProspection,
+      match: (p) => p.startsWith('/dashboard/prospection') || p.startsWith('/dashboard/carte'),
     },
     {
       href: '/dashboard/estimation',
       label: 'Estimation',
-      Icon: Calculator,
+      Icon: IconEstimation,
       match: (p) => p.startsWith('/dashboard/estimation'),
-    },
-    {
-      href: '/dashboard/carte',
-      label: 'Carte',
-      Icon: Map,
-      match: (p) => p.startsWith('/dashboard/carte'),
     },
     {
       href: '/dashboard/contacts',
       label: 'Contacts',
-      Icon: Users,
+      Icon: IconContacts,
       match: (p) => p.startsWith('/dashboard/contacts'),
     },
     {
       href: '/dashboard/biens',
       label: 'Biens',
-      Icon: Building2,
+      Icon: IconBiens,
       match: (p) => p.startsWith('/dashboard/biens'),
     },
   ],
@@ -76,7 +71,7 @@ const NAV_GROUPS: NavItem[][] = [
     {
       href: '/dashboard/settings',
       label: 'Paramètres',
-      Icon: Settings,
+      Icon: IconParametres,
       match: (p) => p.startsWith('/dashboard/settings') || p.startsWith('/dashboard/parametres'),
     },
   ],
@@ -103,17 +98,23 @@ function readCollapsed(): boolean {
   }
 }
 
-function userInitials(firstName: string, lastName: string): string {
-  const a = firstName.trim().charAt(0).toUpperCase();
-  const b = lastName.trim().charAt(0).toUpperCase();
-  return `${a}${b}` || '?';
+function useOnboardingNavLock(): boolean {
+  const [locked, setLocked] = useState(false);
+  useEffect(() => {
+    const check = () => setLocked(Boolean(document.querySelector('[data-agent-onboarding]')));
+    check();
+    const mo = new MutationObserver(check);
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, []);
+  return locked;
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { profile } = useUser();
-  const initials = userInitials(profile.first_name, profile.last_name);
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const navLocked = useOnboardingNavLock();
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -162,10 +163,15 @@ export default function Sidebar() {
                 <Link
                   key={href}
                   href={href}
-                  title={label}
+                  title={navLocked ? 'Disponible après la prise en main' : label}
+                  data-onboarding-nav={navLocked ? '' : undefined}
+                  aria-disabled={navLocked || undefined}
                   aria-current={active ? 'page' : undefined}
                   aria-label={collapsed ? label : undefined}
-                  className={`flex items-center border-l-[3px] py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
+                  onClick={(e) => {
+                    if (navLocked) e.preventDefault();
+                  }}
+                  className={`nav-link flex items-center border-l-[3px] py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
                     collapsed
                       ? 'justify-center rounded-xl border-transparent px-0'
                       : 'gap-3 md:justify-start md:pl-[9px] md:pr-3'
@@ -178,13 +184,7 @@ export default function Sidebar() {
                   }`}
                   style={{ fontSize: 13.5 }}
                 >
-                  <Icon
-                    size={18}
-                    strokeWidth={2}
-                    style={{ color: active ? '#FFFFFF' : NAV_ICON }}
-                    className="shrink-0"
-                    aria-hidden
-                  />
+                  <Icon active={active} className="shrink-0" />
                   <span className="sidebar-nav-label hidden overflow-hidden whitespace-nowrap md:inline">{label}</span>
                 </Link>
               );
@@ -222,11 +222,17 @@ export default function Sidebar() {
       <div className="mb-4 flex flex-col items-center gap-1.5 px-1.5 md:hidden">
         <Link
           href="/dashboard/settings"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-white/20"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[11px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-white/20"
           title="Mon compte et les paramètres"
           aria-label="Mon compte et les paramètres"
         >
-          {initials}
+          <ProfileAvatar
+            firstName={profile.first_name}
+            lastName={profile.last_name}
+            avatarUrl={profile.avatar_url}
+            size={36}
+            className="bg-white/10 text-white"
+          />
         </Link>
         <form action="/api/auth/signout" method="post">
           <button

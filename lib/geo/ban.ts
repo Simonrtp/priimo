@@ -33,6 +33,8 @@ export type BanSearchFeature = {
     postcode?: string;
     citycode?: string;
     context?: string;
+    /** Arrondissement / quartier BAN (Paris, Lyon, Marseille…). */
+    district?: string;
   };
   geometry?: {
     coordinates?: [number, number];
@@ -43,9 +45,12 @@ type BanSearchResponse = {
   features?: BanSearchFeature[];
 };
 
+/** Géocode / reverse : court. Autocomplete client : plus long (cold compile / BAN lente). */
 const FETCH_MS = 5000;
+const SEARCH_FETCH_MS = 20_000;
 
-function fetchAbortSignal(ms: number): AbortSignal {
+function fetchAbortSignal(ms: number, external?: AbortSignal): AbortSignal {
+  if (external) return external;
   if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
     return AbortSignal.timeout(ms);
   }
@@ -54,10 +59,18 @@ function fetchAbortSignal(ms: number): AbortSignal {
   return controller.signal;
 }
 
+export type BanSearchOptions = {
+  limit?: number;
+  postcode?: string;
+  autocomplete?: boolean;
+  /** Annule la requête (ex. nouvelle saisie). Sinon timeout interne. */
+  signal?: AbortSignal;
+};
+
 /** Appel direct api-adresse (serveur uniquement). */
 export async function searchBanDirect(
   query: string,
-  options: { limit?: number; postcode?: string; autocomplete?: boolean } = {},
+  options: BanSearchOptions = {},
 ): Promise<BanSearchFeature[]> {
   const q = query.trim();
   if (q.length < 3) return [];
@@ -71,7 +84,7 @@ export async function searchBanDirect(
   if (postcode && /^\d{5}$/.test(postcode)) params.set('postcode', postcode);
 
   const res = await fetch(`${BAN_SEARCH_URL}?${params.toString()}`, {
-    signal: fetchAbortSignal(FETCH_MS),
+    signal: fetchAbortSignal(SEARCH_FETCH_MS, options.signal),
   });
   if (!res.ok) return [];
   const data = (await res.json()) as BanSearchResponse;
@@ -80,7 +93,7 @@ export async function searchBanDirect(
 
 export async function searchBan(
   query: string,
-  options: { limit?: number; postcode?: string; autocomplete?: boolean } = {},
+  options: BanSearchOptions = {},
 ): Promise<BanSearchFeature[]> {
   const q = query.trim();
   if (q.length < 3) return [];
@@ -96,12 +109,13 @@ export async function searchBan(
 
     try {
       const res = await fetch(`/api/ban/search?${params.toString()}`, {
-        signal: fetchAbortSignal(FETCH_MS),
+        signal: fetchAbortSignal(SEARCH_FETCH_MS, options.signal),
       });
       if (!res.ok) return [];
       const data = (await res.json()) as BanSearchResponse;
       return data.features ?? [];
-    } catch {
+    } catch (err) {
+      if (options.signal?.aborted) throw err;
       return [];
     }
   }

@@ -7,6 +7,7 @@ import type { Lead, LeadStage, TeamMember } from '@/types/lead';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import FacadeLead from '@/components/dashboard/FacadeLead';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { formatPrice } from '@/lib/utils';
 import { daysSinceTaken, isStaleEntree } from '@/lib/pipeline/stale';
 
@@ -85,12 +86,13 @@ export default function PipelineLeadCard({
             <span />
           )}
           {assignee ? (
-            <span
-              className="flex size-[22px] items-center justify-center rounded-full bg-black/[0.06] text-[9px] font-semibold text-text-strong"
-              title={assignee.fullName}
-              aria-label={assignee.fullName}
-            >
-              {assignee.initials}
+            <span title={assignee.fullName} aria-label={assignee.fullName}>
+              <ProfileAvatar
+                firstName={assignee.firstName}
+                lastName={assignee.lastName}
+                avatarUrl={assignee.avatarUrl}
+                size={22}
+              />
             </span>
           ) : null}
         </div>

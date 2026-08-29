@@ -55,12 +55,15 @@ import {
   troisLeadsAPrendre,
 } from '@/lib/queries/agent-onboarding';
 import {
-  buildParcours,
   decideAffichage,
+  doitProposerReprise,
+  buildParcours,
   minutesRestantes,
 } from '@/lib/onboarding/parcours';
 import AgentOnboarding from '@/components/dashboard/onboarding/AgentOnboarding';
 import OnboardingRelanceBand from '@/components/dashboard/onboarding/OnboardingRelanceBand';
+import BirthdayCard from '@/components/dashboard/onboarding/BirthdayCard';
+import { fetchAnniversairesDuJour } from '@/lib/queries/birthdays';
 
 export const dynamic = 'force-dynamic';
 
@@ -393,9 +396,15 @@ async function TodayContent({
     const sortiePlan = buildSortie(visibleLeads, profile.id, agencyOrigin);
 
     return (
-      <div className="flex w-full min-w-0 flex-col pt-2 max-md:min-h-[calc(100dvh-7rem)]">
+      <div
+        data-agent-onboarding
+        className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden max-md:fixed max-md:inset-0 max-md:z-[200] max-md:bg-bg-base md:pt-2"
+      >
         <AgentOnboarding
           profileId={profile.id}
+          firstName={profile.first_name}
+          lastName={profile.last_name}
+          avatarUrl={profile.avatar_url ?? null}
           secteur={secteur}
           leads={troisLeadsAPrendre(visibleLeads)}
           stageEntreeId={entreeStage(stages)?.id ?? null}
@@ -414,20 +423,24 @@ async function TodayContent({
     );
   }
 
-  const bandeReprise =
-    affichage === 'bande' && priseEnMain ? (
-      <OnboardingRelanceBand
-        minutes={minutesRestantes(
-          buildParcours({
-            aDesLeads: true,
-            aDesParcelles: true,
-            aUneSortie: true,
-            mobile: device === 'mobile',
-          }),
-          priseEnMain.stepsReached,
-        )}
-      />
-    ) : null;
+  const anniversaires = await timed('fetchAnniversairesDuJour', () =>
+    fetchAnniversairesDuJour(supabase, agency.id),
+  );
+
+  const relance =
+    profile.role === 'collaborateur' && doitProposerReprise(priseEnMain)
+      ? {
+          minutes: minutesRestantes(
+            buildParcours({
+              aDesLeads: true,
+              aDesParcelles: true,
+              aUneSortie: true,
+              mobile: device === 'mobile',
+            }),
+            priseEnMain?.stepsReached ?? [],
+          ),
+        }
+      : null;
 
   const homeProps = {
     initialCards: cards,
@@ -442,10 +455,19 @@ async function TodayContent({
     directorExceptions,
   };
 
+  const banners = (
+    <>
+      {anniversaires.length > 0 ? (
+        <BirthdayCard prenoms={anniversaires.map((a) => a.firstName)} />
+      ) : null}
+      {relance ? <OnboardingRelanceBand minutes={relance.minutes} /> : null}
+    </>
+  );
+
   if (device === 'mobile') {
     return (
       <>
-        {bandeReprise}
+        {banners}
         <AujourdhuiMobile
           {...homeProps}
           week={week}
@@ -457,7 +479,7 @@ async function TodayContent({
 
   return (
     <>
-      {bandeReprise}
+      {banners}
       <TodayClient
         {...homeProps}
         relancesProgrammees={week.relancesProgrammees}

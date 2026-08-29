@@ -8,6 +8,8 @@ export type SelectedAddress = {
   postcode: string;
   /** Code INSEE commune (BAN `citycode`). */
   citycode?: string;
+  /** Arrondissement / quartier BAN, quand disponible. */
+  district?: string;
   /** Identifiant BAN, pour rattacher un immeuble. */
   id?: string;
 };
@@ -20,6 +22,7 @@ export type BanFeature = {
     postcode: string;
     citycode?: string;
     context: string;
+    district?: string;
     id?: string;
   };
   geometry: {
@@ -40,6 +43,7 @@ function asBanFeature(feature: BanSearchFeature): BanFeature | null {
       postcode: props.postcode ?? '',
       citycode: props.citycode,
       context: props.context ?? '',
+      district: typeof props.district === 'string' ? props.district : undefined,
       id: props.id,
     },
     geometry: { coordinates: coords },
@@ -50,8 +54,9 @@ export async function searchBanAddresses(
   query: string,
   limit = 5,
   postcode?: string,
+  signal?: AbortSignal,
 ): Promise<BanFeature[]> {
-  const features = await searchBan(query, { limit, postcode });
+  const features = await searchBan(query, { limit, postcode, signal });
   return features.flatMap((feature) => {
     const mapped = asBanFeature(feature);
     return mapped ? [mapped] : [];
@@ -76,6 +81,16 @@ export function banFeatureToSelectedAddress(feature: BanFeature): SelectedAddres
     city: feature.properties.city,
     postcode: feature.properties.postcode,
     citycode: feature.properties.citycode ?? '',
+    district: feature.properties.district,
     id: feature.properties.id,
   };
+}
+
+/** Secteur lisible à partir d’une adresse BAN (quartier / commune). */
+export function secteurFromSelectedAddress(data: SelectedAddress): string | null {
+  const district = data.district?.trim() || '';
+  const city = data.city?.trim() || '';
+  if (district) return district;
+  if (city) return city;
+  return null;
 }

@@ -53,6 +53,14 @@ export type ProfileRow = {
   leads_last_seen_at?: string | null;
   /** Visite guidée du dashboard terminée (ou passée) — null = à afficher au prochain login. */
   onboarding_completed_at?: string | null;
+  /** Mois d'anniversaire 1–12 (sans année). */
+  birthday_month?: number | null;
+  /** Jour d'anniversaire 1–31. */
+  birthday_day?: number | null;
+  /** Consentement d'affichage à l'équipe le jour J. */
+  birthday_visible_team?: boolean;
+  /** Avatar (illustration /avatars/… ou photo). */
+  avatar_url?: string | null;
   /** Donnée fictive de démo — supprimable via purge-demo-agency. */
   is_demo?: boolean;
   created_at: string;
@@ -312,6 +320,26 @@ export type AgencyRequestInsert = {
   id?: string;
   created_at?: string;
   handled_at?: string | null;
+};
+
+export type EstimationCoverageDemandRow = {
+  id: string;
+  agency_id: string;
+  created_by: string | null;
+  postal_code: string;
+  city: string | null;
+  address: string | null;
+  created_at: string;
+};
+
+export type EstimationCoverageDemandInsert = {
+  id?: string;
+  agency_id: string;
+  created_by?: string | null;
+  postal_code: string;
+  city?: string | null;
+  address?: string | null;
+  created_at?: string;
 };
 
 export type EstimationRequestRow = {
@@ -1549,6 +1577,12 @@ export type Database = {
         Row: AgencyRequestRow;
         Insert: AgencyRequestInsert;
         Update: Partial<AgencyRequestRow>;
+        Relationships: [];
+      };
+      estimation_coverage_demands: {
+        Row: EstimationCoverageDemandRow;
+        Insert: EstimationCoverageDemandInsert;
+        Update: Partial<EstimationCoverageDemandRow>;
         Relationships: [];
       };
       estimation_requests: {

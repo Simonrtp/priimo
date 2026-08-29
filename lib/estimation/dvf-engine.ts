@@ -10,10 +10,25 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import { CONFIG_ESTIMATION, type EstimationPropertyType } from '@/lib/estimation';
+import {
+  CONFIG_ESTIMATION,
+  computeEstimation,
+  getReferencePricePerM2,
+  type EstimationFeatureKey,
+  type EstimationPropertyType,
+} from '@/lib/estimation';
 import { parseDpeLetter } from '@/lib/carte/dpe-public';
 import { formatPeriodeConstruction } from '@/lib/queries/parcelle';
 import type { EstimationSourceId } from '@/lib/estimation/sources';
+import {
+  extrasCoefficients,
+  extrasTotalPct,
+  type EstimationExtras,
+} from '@/lib/estimation/extras';
+import {
+  buildCorrectionLines,
+  type CorrectionLine,
+} from '@/lib/estimation/corrections';
 
 type Db = SupabaseClient<Database>;
 
@@ -47,9 +62,17 @@ export type DvfEngineInput = {
   rooms: number;
   /** null = « je ne sais pas » — non pénalisant. */
   floor: string | null;
+  /** Ascenseur — pertinent pour un appartement. null = non renseigné. */
+  hasElevator: boolean | null;
   /** 1 mauvais … 4 excellent. */
   conditionRating: 1 | 2 | 3 | 4 | null;
   dpeClass: string | null;
+  features: EstimationFeatureKey[];
+  /**
+   * Critères complémentaires du parcours agent. Facultatifs : le widget public
+   * et le funnel priimo.fr ne les collectent pas.
+   */
+  extras?: EstimationExtras | null;
 };
 
 export type EstimationStep = {
@@ -104,6 +127,17 @@ export type DvfEngineContext = {
   dispersionRatio: number | null;
   /** Sources réellement mobilisées — persistées avec le résultat. */
   sources: EstimationSourceId[];
+  /**
+   * Niveau de dégradation du calcul :
+   * - null : DVF local exploitable
+   * - referentiel_cp : repli sur le prix médian du code postal
+   * - dispersion : ventes trop hétérogènes, fourchette élargie ou absente
+   */
+  degradation: 'referentiel_cp' | 'dispersion' | null;
+  /** Message court, sans dramatiser, expliquant le socle du chiffre. */
+  degradationLabel: string | null;
+  /** Code métier pour l’UI — jamais d’erreur technique brute. */
+  degradationCode: 'secteur_non_couvert' | null;
 };
 
 export type DvfEngineResult = {
@@ -121,6 +155,8 @@ export type DvfEngineResult = {
   /** Même liste que `context.sources` — pratique côté front / JSON. */
   sources: EstimationSourceId[];
   parcelleId: string | null;
+  /** Détail ligne à ligne du calcul (base + coefficients en euros). */
+  corrections: CorrectionLine[];
 };
 
 type TxRow = {
@@ -185,17 +221,39 @@ function dpeCoeff(dpe: string | null): number {
   return CONFIG_ESTIMATION.DPE[dpe.toUpperCase()] ?? 0;
 }
 
-function floorCoeff(propertyType: EstimationPropertyType, floor: string | null): number {
+function floorCoeff(
+  propertyType: EstimationPropertyType,
+  floor: string | null,
+  hasElevator: boolean | null,
+): number {
   if (propertyType !== 'appartement' || floor == null) return 0;
   const raw = floor.trim();
-  if (/^rdc$/i.test(raw) || raw === '0') return CONFIG_ESTIMATION.FLOOR.RDC_PCT;
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n)) return 0;
-  if (n > 2) {
-    const bonus = (n - 2) * CONFIG_ESTIMATION.FLOOR.ABOVE_2_PER_FLOOR_PCT;
-    return Math.min(bonus, CONFIG_ESTIMATION.FLOOR.ABOVE_2_CAP_PCT);
+  let level: number | null = null;
+  if (/^rdc$/i.test(raw) || raw === '0') level = 0;
+  else {
+    const n = Number.parseInt(raw, 10);
+    if (Number.isFinite(n)) level = n;
   }
-  return 0;
+  if (level == null) return 0;
+
+  let coeff = 0;
+  if (level === 0) coeff += CONFIG_ESTIMATION.FLOOR.RDC_PCT;
+  else if (level > 2) {
+    const bonus = (level - 2) * CONFIG_ESTIMATION.FLOOR.ABOVE_2_PER_FLOOR_PCT;
+    coeff += Math.min(bonus, CONFIG_ESTIMATION.FLOOR.ABOVE_2_CAP_PCT);
+  }
+  if (level > 3 && hasElevator === false) {
+    coeff += CONFIG_ESTIMATION.FLOOR.NO_ELEVATOR_ABOVE_3_PCT;
+  }
+  return coeff;
+}
+
+function featuresCoeff(features: EstimationFeatureKey[]): number {
+  let coeff = 0;
+  if (features.includes('balcon_terrasse')) coeff += CONFIG_ESTIMATION.FEATURES.balcon_terrasse;
+  if (features.includes('parking')) coeff += CONFIG_ESTIMATION.FEATURES.parking;
+  if (features.includes('cave')) coeff += CONFIG_ESTIMATION.FEATURES.cave;
+  return coeff;
 }
 
 /** Actualisation simple : ventes > 24 mois ramenées vers le médian des 24 derniers mois du lot. */
@@ -728,21 +786,107 @@ export async function runDvfEstimation(
     dispersionElevee: false,
     dispersionRatio: null,
     sources,
+    degradation: null,
+    degradationLabel: null,
+    degradationCode: null,
   };
 
+  const features = input.features ?? [];
+  const floorC = floorCoeff(input.propertyType, input.floor, input.hasElevator ?? null);
+  const dpeC = dpeCoeff(input.dpeClass ?? dpeKnown);
+  const conditionC = mapConditionToCoeff(input.conditionRating);
+  const featC = featuresCoeff(features);
+  const extraCoeffs = extrasCoefficients(input.propertyType, input.extras);
+  const extraC = extrasTotalPct(extraCoeffs);
+
   if (quartierCount === 0) {
+    // Repli sur le référentiel code postal — toujours une réponse quand on peut.
+    const reference = computeEstimation({
+      postalCode: input.postalCode,
+      propertyType: input.propertyType,
+      surfaceM2: input.surfaceM2,
+      rooms: input.rooms,
+      floor: input.floor,
+      hasElevator: input.hasElevator ?? null,
+      bathrooms: null,
+      features,
+      viewType: null,
+      constructionYear: null,
+      dpeClass: input.dpeClass ?? dpeKnown,
+      conditionRating: input.conditionRating,
+    });
+
+    if (!reference.available || reference.value == null || reference.pricePerM2 == null) {
+      await emit({
+        id: 'secteur_non_couvert',
+        label: 'Ce secteur n’est pas encore couvert par nos données de ventes',
+      });
+      return {
+        available: false,
+        value: null,
+        low: null,
+        high: null,
+        pricePerM2: null,
+        reliability: score,
+        reliabilityLabel: label,
+        steps,
+        comparables: [],
+        sources,
+        corrections: [],
+        context: {
+          ...baseContext,
+          immeubleVentes: immeubleTx.length,
+          quartierVentes: 0,
+          degradationCode: 'secteur_non_couvert',
+          degradationLabel:
+            'Ce secteur n’est pas encore couvert par nos données de ventes. Nous chargeons actuellement Paris et la Haute-Savoie.',
+        },
+        parcelleId,
+      };
+    }
+
+    await emit({
+      id: 'referentiel_cp',
+      label: `Repli sur le prix de référence du code postal ${input.postalCode}`,
+    });
+
+    const medianPm2 = getReferencePricePerM2(input.postalCode) ?? reference.pricePerM2;
+    const corrections = buildCorrectionLines(
+      {
+        surfaceM2: input.surfaceM2,
+        medianPm2,
+        propertyType: input.propertyType,
+        floor: input.floor,
+        hasElevator: input.hasElevator ?? null,
+        dpeClass: input.dpeClass ?? dpeKnown,
+        conditionRating: input.conditionRating,
+        hasParking: features.includes('parking'),
+        hasCave: features.includes('cave'),
+        hasBalconTerrasse: features.includes('balcon_terrasse'),
+        quartierVentes: 0,
+      },
+      { floor: floorC, dpe: dpeC, condition: conditionC, features: featC, extras: extraCoeffs },
+    );
+
     return {
-      available: false,
-      value: null,
-      low: null,
-      high: null,
-      pricePerM2: null,
-      reliability: score,
-      reliabilityLabel: label,
+      available: true,
+      value: reference.value,
+      low: reference.low,
+      high: reference.high,
+      pricePerM2: reference.pricePerM2,
+      reliability: Math.min(score, 35),
+      reliabilityLabel: 'Fiabilité limitée',
       steps,
       comparables: [],
       sources,
-      context: { ...baseContext, immeubleVentes: immeubleTx.length, quartierVentes: 0 },
+      corrections,
+      context: {
+        ...baseContext,
+        immeubleVentes: immeubleTx.length,
+        quartierVentes: 0,
+        degradation: 'referentiel_cp',
+        degradationLabel: `Estimation fondée sur le prix de référence du code postal ${input.postalCode}, faute de ventes comparables à proximité.`,
+      },
       parcelleId,
     };
   }
@@ -759,11 +903,7 @@ export async function runDvfEstimation(
     });
   }
 
-  const coeff =
-    1 +
-    floorCoeff(input.propertyType, input.floor) +
-    dpeCoeff(input.dpeClass ?? dpeKnown) +
-    mapConditionToCoeff(input.conditionRating);
+  const coeff = 1 + floorC + dpeC + conditionC + featC + extraC;
 
   const value = roundToThousand(medianPm2 * input.surfaceM2 * coeff);
   let rangePct: number = CONFIG_ESTIMATION.RANGE_PCT;
@@ -791,6 +931,23 @@ export async function runDvfEstimation(
     sameBuilding: p.sameBuilding,
   }));
 
+  const corrections = buildCorrectionLines(
+    {
+      surfaceM2: input.surfaceM2,
+      medianPm2,
+      propertyType: input.propertyType,
+      floor: input.floor,
+      hasElevator: input.hasElevator ?? null,
+      dpeClass: input.dpeClass ?? dpeKnown,
+      conditionRating: input.conditionRating,
+      hasParking: features.includes('parking'),
+      hasCave: features.includes('cave'),
+      hasBalconTerrasse: features.includes('balcon_terrasse'),
+      quartierVentes: quartierCount,
+    },
+    { floor: floorC, dpe: dpeC, condition: conditionC, features: featC, extras: extraCoeffs },
+  );
+
   return {
     available: true,
     value,
@@ -802,10 +959,15 @@ export async function runDvfEstimation(
     steps,
     comparables,
     sources,
+    corrections,
     context: {
       ...baseContext,
       dispersionElevee,
       dispersionRatio: ratio,
+      degradation: dispersionElevee ? 'dispersion' : null,
+      degradationLabel: dispersionElevee
+        ? 'Les ventes du secteur sont hétérogènes : la valeur centrale reste affichée, sans fourchette resserrée.'
+        : null,
     },
     parcelleId,
   };

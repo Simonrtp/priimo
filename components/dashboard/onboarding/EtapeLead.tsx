@@ -23,7 +23,6 @@ export default function EtapeLead({
   stageEntreeId,
   profileId,
   onSuivant,
-  onPasser,
 }: {
   rang: number;
   total: number;
@@ -32,7 +31,6 @@ export default function EtapeLead({
   stageEntreeId: string | null;
   profileId: string;
   onSuivant: () => void;
-  onPasser: () => void;
 }) {
   const router = useRouter();
   const [prisId, setPrisId] = useState<string | null>(null);
@@ -79,20 +77,20 @@ export default function EtapeLead({
           ? 'Les adresses que personne ne prend restent dans la liste. C’est votre directeur qui verra la différence.'
           : 'Prenez-en une. C’est comme ça qu’une adresse entre dans votre pipeline.'
       }
-      onPasser={onPasser}
       action={
         pris ? (
           <button
             type="button"
             onClick={onSuivant}
-            className="rounded-lg bg-accent px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-accent-dark"
+            className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
           >
             Continuer
           </button>
         ) : null
       }
     >
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,240px)]">
+      <div className="h-full min-h-0 overflow-y-auto overscroll-contain md:overflow-visible">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,240px)]">
         <ul className="flex min-w-0 flex-col gap-2">
           {restants.map((lead) => (
             <li key={lead.id}>
@@ -100,7 +98,7 @@ export default function EtapeLead({
                 type="button"
                 disabled={Boolean(prisId) || enCours != null}
                 onClick={() => void prendre(lead)}
-                className="flex w-full items-center justify-between gap-3 rounded-clay border border-black/10 bg-white px-4 py-3 text-left transition hover:border-accent hover:bg-accent/[0.03] disabled:opacity-50"
+                className="flex w-full items-center justify-between gap-3 rounded-clay border border-black/10 bg-white px-4 py-3 text-left transition hover:border-[#6366F1] hover:bg-[#6366F1]/[0.06] disabled:opacity-50"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[14.5px] font-medium text-ink">
@@ -143,18 +141,19 @@ export default function EtapeLead({
                 Pris
               </p>
               <div
-                className="mt-2 rounded-clay border border-accent/40 bg-accent/[0.05] px-3.5 py-3"
+                className="mt-2 rounded-clay border border-[#6366F1]/40 bg-[#6366F1]/[0.06] px-3.5 py-3"
                 style={{ animation: 'fadeIn 0.35s ease-out' }}
               >
                 <p className="flex items-start gap-2 text-[14px] font-medium text-ink">
-                  <MapPin size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+                  <MapPin size={15} className="mt-0.5 shrink-0 text-[#6366F1]" aria-hidden />
                   <span className="min-w-0 break-words">{pris.address}</span>
                 </p>
                 <p className="mt-1 text-[12.5px] text-text-muted">Assignée à vous</p>
               </div>
             </div>
           </>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </OnboardingShell>
   );

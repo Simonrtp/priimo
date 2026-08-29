@@ -32,6 +32,7 @@ const jakarta = Plus_Jakarta_Sans({
 const libreBaskerville = Libre_Baskerville({
   subsets: ["latin"],
   weight: ["400", "700"],
+  style: ["normal", "italic"],
   variable: "--font-brand",
   display: "swap",
 });
@@ -140,7 +141,15 @@ export default function RootLayout({
       <body className="font-sans bg-white text-gray-700 antialiased overflow-x-clip min-w-0">
         <CausioRouteGuard />
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster
+          richColors
+          position="top-right"
+          toastOptions={{
+            classNames: {
+              actionButton: 'priimo-toast-action',
+            },
+          }}
+        />
         <ServiceWorkerRegistrar />
         <Analytics />
       </body>

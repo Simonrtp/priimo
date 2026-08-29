@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  ContactInsert,
   ContactInteractionRow,
   ContactRow,
   Database,
@@ -135,6 +136,82 @@ export async function fetchContactsSafe(supabase: Client): Promise<Contact[]> {
     console.error('[contacts] lecture impossible, écran dégradé', err);
     return [];
   }
+}
+
+const DUP_SELECT =
+  'id, agency_id, created_by, first_name, last_name, phone, email, doublon_de, assigned_to, contact_type';
+const DUP_SELECT_LEGACY =
+  'id, agency_id, created_by, first_name, last_name, phone, email, assigned_to, contact_type';
+
+/**
+ * Champs minimaux pour la détection de doublons à la création.
+ * Beaucoup plus léger que fetchContactsSafe (pas de critères, pas de géocode).
+ */
+export async function fetchContactsDuplicateLite(supabase: Client): Promise<Contact[]> {
+  try {
+    const first = await supabase
+      .from('contacts')
+      .select(DUP_SELECT)
+      .order('updated_at', { ascending: false })
+      .limit(2500);
+    const result = first.error
+      ? await supabase
+          .from('contacts')
+          .select(DUP_SELECT_LEGACY)
+          .order('created_at', { ascending: false })
+          .limit(2500)
+      : first;
+    if (result.error) throw new Error(result.error.message);
+    return ((result.data ?? []) as unknown as ContactRow[]).map(mapDbContactToContact);
+  } catch (err) {
+    console.error('[contacts] lecture doublons', err);
+    return [];
+  }
+}
+
+/**
+ * Insertion compatible avec une base qui n’a pas encore
+ * `20260835_contacts_relance_types.sql` (pas de recontacter_le / doublon_de).
+ */
+export async function insertContactRow(
+  supabase: Client,
+  row: ContactInsert,
+): Promise<{ data: ContactRow | null; error: { message: string; code?: string } | null }> {
+  const full = await supabase.from('contacts').insert(row).select(CONTACTS_SELECT).single();
+  if (!full.error && full.data) {
+    return { data: full.data as unknown as ContactRow, error: null };
+  }
+
+  const missingRelance =
+    full.error?.code === 'PGRST204' &&
+    typeof full.error.message === 'string' &&
+    (full.error.message.includes('recontacter_le') || full.error.message.includes('doublon_de'));
+
+  if (!missingRelance) {
+    return { data: null, error: full.error };
+  }
+
+  const { recontacter_le: _r, doublon_de: _d, ...withoutRelance } = row;
+  void _r;
+  void _d;
+  const mid = await supabase
+    .from('contacts')
+    .insert(withoutRelance as ContactInsert)
+    .select(CONTACTS_SELECT_MID)
+    .single();
+
+  if (mid.error || !mid.data) {
+    return { data: null, error: mid.error ?? full.error };
+  }
+
+  return {
+    data: {
+      ...(mid.data as unknown as ContactRow),
+      recontacter_le: (row.recontacter_le as string | null | undefined) ?? null,
+      doublon_de: null,
+    },
+    error: null,
+  };
 }
 
 export function mapDbInteraction(row: ContactInteractionRow): ContactInteraction {

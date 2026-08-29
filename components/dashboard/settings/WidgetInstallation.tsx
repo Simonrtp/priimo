@@ -1,9 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, ChevronDown, Code2, Copy, ExternalLink, Mail, Send } from 'lucide-react';
+import { Check, Code2, Copy, ExternalLink, Mail, Send } from 'lucide-react';
 import { toast } from 'sonner';
-import { PLATEFORMES } from '@/lib/widget/snippet';
+import {
+  PLATEFORME_GROUPES,
+  PLATEFORMES,
+  type PlateformeInstall,
+} from '@/lib/widget/snippet';
 import { phraseDepuis } from '@/lib/widget/install-state';
 
 /**
@@ -57,6 +61,132 @@ function Onglet({
   );
 }
 
+function LogoPlateforme({ plateforme }: { plateforme: PlateformeInstall }) {
+  if (plateforme.logoSrc) {
+    const scale = plateforme.logoScale ?? 'md';
+    return (
+      <span
+        className={`relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg ${plateforme.logoClass}`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- logos locaux, pas d’optimisation nécessaire */}
+        <img
+          src={plateforme.logoSrc}
+          alt=""
+          width={40}
+          height={40}
+          className={
+            scale === 'sm' ? 'size-[22px] object-contain' : 'size-[30px] object-contain'
+          }
+          decoding="async"
+        />
+      </span>
+    );
+  }
+
+  if (plateforme.mark) {
+    return (
+      <span
+        className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold tracking-tight text-white ${plateforme.logoClass}`}
+        aria-hidden
+      >
+        {plateforme.mark}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${plateforme.logoClass}`}
+      aria-hidden
+    >
+      <Code2 className="size-5 text-white" strokeWidth={2} />
+    </span>
+  );
+}
+
+function BoutonPlateforme({
+  plateforme,
+  actif,
+  onSelect,
+}: {
+  plateforme: PlateformeInstall;
+  actif: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={actif}
+      onClick={onSelect}
+      className={`flex min-h-[52px] items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition ${
+        actif
+          ? 'border-accent bg-accent/[0.06] shadow-clay-sm'
+          : 'border-black/10 bg-white hover:bg-black/[0.02]'
+      }`}
+    >
+      <LogoPlateforme plateforme={plateforme} />
+      <span className="min-w-0">
+        <span className="block text-[13px] font-semibold leading-tight text-ink">
+          {plateforme.nom}
+        </span>
+        <span className="mt-0.5 block text-[11.5px] leading-snug text-text-muted">
+          {plateforme.ouColler}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function GuidePlateforme({ plateforme }: { plateforme: PlateformeInstall }) {
+  return (
+    <div className="rounded-xl border border-black/[0.08] bg-white p-4">
+      <div className="flex items-start gap-3">
+        <LogoPlateforme plateforme={plateforme} />
+        <div className="min-w-0">
+          <h4 className="text-balance text-[15px] font-semibold text-ink">
+            Installer sur {plateforme.nom}
+          </h4>
+          <p className="mt-0.5 text-[12.5px] font-medium text-accent-dark">
+            {plateforme.ouColler}
+          </p>
+          <p className="mt-1.5 text-pretty text-[13px] leading-relaxed text-text-muted">
+            {plateforme.intro}
+          </p>
+        </div>
+      </div>
+
+      <ol className="mt-4 flex flex-col gap-2.5 border-t border-black/[0.06] pt-4">
+        {plateforme.etapes.map((etape, i) => (
+          <li key={etape} className="flex gap-3 text-[13.5px] leading-snug text-ink">
+            <span
+              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[12px] font-semibold tabular-nums text-accent-dark"
+              aria-hidden
+            >
+              {i + 1}
+            </span>
+            <span className="pt-0.5 text-pretty">{etape}</span>
+          </li>
+        ))}
+      </ol>
+
+      {plateforme.notes && plateforme.notes.length > 0 ? (
+        <ul className="mt-4 flex flex-col gap-2 rounded-lg bg-black/[0.03] px-3 py-2.5">
+          {plateforme.notes.map((note) => (
+            <li
+              key={note}
+              className="flex gap-2 text-[12.5px] leading-relaxed text-text-muted"
+            >
+              <Check size={14} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+              <span className="text-pretty">{note}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export default function WidgetInstallation({
   snippet,
   pageUrl,
@@ -80,7 +210,9 @@ export default function WidgetInstallation({
   const [destinataire, setDestinataire] = useState(installEmailTo ?? '');
   const [message, setMessage] = useState('');
   const [envoi, setEnvoi] = useState(false);
-  const [plateformeOuverte, setPlateformeOuverte] = useState<string | null>(PLATEFORMES[0]!.id);
+  const [plateformeId, setPlateformeId] = useState<string | null>(null);
+
+  const plateformeActive = PLATEFORMES.find((p) => p.id === plateformeId) ?? null;
 
   const envoyer = async () => {
     if (!destinataire.trim()) return;
@@ -130,11 +262,10 @@ export default function WidgetInstallation({
           onClick={() => setVoie('moi')}
           Icone={Code2}
           titre="Je m’en occupe"
-          sous="Le code, et où le coller"
+          sous="Choisissez votre plateforme"
         />
       </div>
 
-      {/* --------------------------- voie prestataire --------------------------- */}
       {voie === 'prestataire' ? (
         <div className="mt-4">
           <p className="text-[13px] leading-relaxed text-ink">
@@ -200,13 +331,10 @@ export default function WidgetInstallation({
         </div>
       ) : null}
 
-      {/* ------------------------------- voie moi ------------------------------- */}
       {voie === 'moi' ? (
         <div className="mt-4">
           <p className="text-[13px] leading-relaxed text-ink">
-            Collez ces deux lignes à l’endroit exact où le formulaire doit apparaître. Aucune
-            bibliothèque à charger, aucune dépendance à gérer : le script crée un cadre qui
-            s’adapte tout seul à la largeur de la page et à sa hauteur.
+            Copiez le code, puis choisissez la plateforme de votre site pour le guide pas à pas.
           </p>
 
           <pre className="mt-3 overflow-x-auto rounded-lg bg-black/[0.04] p-3 text-[12.5px] leading-relaxed text-ink">
@@ -235,44 +363,57 @@ export default function WidgetInstallation({
             </a>
           </div>
 
-          <p className="mt-4 text-[13px] font-medium text-gray-700">Où le coller</p>
-          <ul className="mt-2 overflow-hidden rounded-lg border border-black/[0.08]">
-            {PLATEFORMES.map((plateforme) => {
-              const ouverte = plateformeOuverte === plateforme.id;
+          <p className="mt-5 text-[13px] font-medium text-gray-700">
+            Sur quelle plateforme est votre site ?
+          </p>
+
+          <div className="mt-3 flex flex-col gap-4">
+            {PLATEFORME_GROUPES.map((groupe) => {
+              const items = PLATEFORMES.filter((p) => p.groupe === groupe.id);
               return (
-                <li key={plateforme.id} className="border-b border-black/[0.06] last:border-0">
-                  <button
-                    type="button"
-                    onClick={() => setPlateformeOuverte(ouverte ? null : plateforme.id)}
-                    aria-expanded={ouverte}
-                    className="flex w-full items-center justify-between gap-3 bg-white px-3.5 py-2.5 text-left hover:bg-black/[0.02]"
+                <div key={groupe.id}>
+                  <div className="mb-2">
+                    <p className="text-[12.5px] font-semibold text-text-muted">
+                      {groupe.titre}
+                    </p>
+                    <p className="mt-0.5 text-[12px] text-text-subtle">{groupe.sous}</p>
+                  </div>
+                  <div
+                    className={
+                      items.length === 1
+                        ? 'grid grid-cols-1 gap-2 sm:max-w-sm'
+                        : 'grid grid-cols-1 gap-2 sm:grid-cols-3'
+                    }
+                    role="listbox"
+                    aria-label={groupe.titre}
                   >
-                    <span className="text-[13.5px] font-medium text-ink">{plateforme.nom}</span>
-                    <ChevronDown
-                      size={16}
-                      className={`shrink-0 text-text-muted transition-transform ${ouverte ? 'rotate-180' : ''}`}
-                      aria-hidden
-                    />
-                  </button>
-                  {ouverte ? (
-                    <ol className="bg-black/[0.015] px-3.5 pb-3 pt-1">
-                      {plateforme.etapes.map((etape, i) => (
-                        <li
-                          key={etape}
-                          className="flex gap-2.5 py-1 text-[13px] leading-snug text-text-muted"
-                        >
-                          <span className="w-4 shrink-0 tabular-nums text-text-subtle">
-                            {i + 1}.
-                          </span>
-                          <span>{etape}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : null}
-                </li>
+                    {items.map((plateforme) => (
+                      <BoutonPlateforme
+                        key={plateforme.id}
+                        plateforme={plateforme}
+                        actif={plateformeId === plateforme.id}
+                        onSelect={() =>
+                          setPlateformeId((prev) =>
+                            prev === plateforme.id ? null : plateforme.id,
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
               );
             })}
-          </ul>
+          </div>
+
+          {plateformeActive ? (
+            <div className="mt-3">
+              <GuidePlateforme plateforme={plateformeActive} />
+            </div>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-text-muted">
+              Sélectionnez une plateforme pour afficher le guide d’installation détaillé.
+            </p>
+          )}
 
           <p className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-text-muted">
             <Check size={14} className="mt-0.5 shrink-0 text-accent" aria-hidden />
