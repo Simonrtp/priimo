@@ -5,7 +5,7 @@ slug: "donnees-agences-immo"
 date: "2026-08-09"
 readingTime: "6 min"
 tags: ["Bases de données"]
-author: "Simon Ropiot"
+author: "L'équipe Priimo"
 authorImage: "/Tintin_image_2.jpg"
 draft: true
 ---

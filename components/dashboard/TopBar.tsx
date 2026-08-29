@@ -3,10 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronDown, HelpCircle } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
-import { useDashboardTour } from '@/components/dashboard/tour/TourProvider';
 import {
   AssistantSearchBar,
   AssistantMobileSearchBar,
@@ -198,7 +197,6 @@ export default function TopBar() {
   const pathname = usePathname();
   const title = titleForPath(pathname);
   const { profile } = useUser();
-  const { startTour } = useDashboardTour();
 
   return (
     <header
@@ -233,21 +231,11 @@ export default function TopBar() {
             rel="noopener noreferrer"
             data-tour="whatsapp-mobile"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] md:hidden md:h-9 md:w-9"
-            aria-label="Écrire au fondateur sur WhatsApp"
-            title="Écrire au fondateur"
+            aria-label="Nous écrire sur WhatsApp"
+            title="Nous écrire"
           >
             <WhatsAppIcon size={20} className="text-[#25D366]" />
           </a>
-
-          <button
-            type="button"
-            onClick={startTour}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-ink md:h-9 md:w-9 md:text-[#B8CDE3] md:hover:bg-white/10 md:hover:text-white"
-            aria-label="Revoir le guide de prise en main"
-            title="Revoir le guide"
-          >
-            <HelpCircle size={20} strokeWidth={2} aria-hidden />
-          </button>
 
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="md:hidden">

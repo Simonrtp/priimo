@@ -9,7 +9,6 @@ import DeviceSync from '@/components/dashboard/device/DeviceSync';
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
 import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
-import DashboardTourProvider from '@/components/dashboard/tour/TourProvider';
 import VoiceCaptureProvider from '@/components/dashboard/voice/VoiceCaptureProvider';
 import AssistantProvider from '@/components/dashboard/assistant/AssistantProvider';
 import AssistantPanelProvider from '@/components/dashboard/assistant/AssistantPanelProvider';
@@ -37,12 +36,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
       <DeviceProvider device={device}>
         <DeviceSync serverDevice={device} />
-        <DashboardTourProvider>
-          <OfflineQueueProvider>
-            <TourneeDictationProvider>
-              <VoiceCaptureProvider>
-                <AssistantProvider>
-                  <AssistantPanelProvider>
+        <OfflineQueueProvider>
+          <TourneeDictationProvider>
+            <VoiceCaptureProvider>
+              <AssistantProvider>
+                <AssistantPanelProvider>
                     {isMobile ? (
                       <div className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <TouchScrollGuard />
@@ -73,7 +71,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </VoiceCaptureProvider>
             </TourneeDictationProvider>
           </OfflineQueueProvider>
-        </DashboardTourProvider>
       </DeviceProvider>
     </UserProvider>
   );

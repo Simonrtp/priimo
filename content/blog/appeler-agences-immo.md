@@ -5,7 +5,7 @@ slug: "appeler-agences-immo"
 date: "2026-08-16"
 readingTime: "6 min"
 tags: ["Fondateur"]
-author: "Simon Ropiot"
+author: "L'équipe Priimo"
 authorImage: "/Tintin_image_2.jpg"
 draft: true
 ---

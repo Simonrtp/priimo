@@ -9,7 +9,7 @@ import { labelCherche, type AssistantIntent } from './intent';
 /** Exemples réellement traitables, un par famille de collecte. */
 export const EXEMPLES_QUESTIONS: readonly string[] = [
   "Qu'est-ce qu'on sait sur le 12 rue Vitruve ?",
-  'Des nouvelles de Cécile Ropiot ?',
+  'Des nouvelles de Cécile Martin ?',
   "Qu'est-ce qu'on a fait cette semaine ?",
 ];
 

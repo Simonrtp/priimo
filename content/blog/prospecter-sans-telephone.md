@@ -5,7 +5,7 @@ slug: "prospecter-sans-telephone"
 date: "2026-07-25"
 readingTime: "12 min"
 tags: ["Réglementation", "Prospection"]
-author: "Simon Ropiot"
+author: "L'équipe Priimo"
 authorImage: "/Tintin_image_2.jpg"
 ---
 

@@ -5,7 +5,7 @@ slug: "dpe-signal-prospection"
 date: "2026-07-30"
 readingTime: "10 min"
 tags: ["Détection", "Prospection"]
-author: "Simon Ropiot"
+author: "L'équipe Priimo"
 authorImage: "/Tintin_image_2.jpg"
 ---
 

@@ -88,7 +88,7 @@ export default function FieldPlusSheet({
               >
                 <MessageCircle size={18} strokeWidth={2.1} />
               </span>
-              Écrire au fondateur
+              Écrire à l&apos;équipe
             </a>
           </li>
         </ul>

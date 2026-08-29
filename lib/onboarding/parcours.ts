@@ -179,7 +179,7 @@ export function decideAffichage(
   return memeSession ? 'onboarding' : 'rien';
 }
 
-/** Avatars illustrés — Simon dépose avatar-01.png … avatar-12.png (SVG placeholder en attendant). */
+/** Avatars illustrés — déposer avatar-01.png … avatar-12.png (SVG placeholder en attendant). */
 export const AVATAR_PRESETS: readonly string[] = Array.from(
   { length: 12 },
   (_, i) => `/avatars/avatar-${String(i + 1).padStart(2, '0')}.svg`,

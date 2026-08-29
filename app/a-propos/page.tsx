@@ -11,7 +11,7 @@ import { CALENDLY_URL } from '@/lib/calendly';
 export const metadata: Metadata = {
   title: 'À propos',
   description:
-    'Simon Ropiot, fondateur de Priimo : pourquoi un étudiant en école d\'ingénieurs a construit un outil de prospection immobilière basé sur le croisement de bases de données.',
+    'Priimo, outil de prospection immobilière fait par des agents pour des agents : croiser les données publiques pour frapper aux bonnes portes.',
   alternates: { canonical: '/a-propos' },
   openGraph: {
     title: 'À propos — Priimo',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'fr_FR',
     siteName: 'Priimo',
-    images: [{ url: '/Tintin_image_2.jpg', alt: 'Simon Ropiot, fondateur de Priimo' }],
+    images: [{ url: '/Tintin_image_2.jpg', alt: 'Priimo' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -50,7 +50,7 @@ export default function AboutPage() {
                 À propos
               </h1>
               <p className="small-text mt-4 !normal-case !tracking-normal text-gray-500">
-                Moi, Simon étudiant
+                Fait par des agents, pour des agents
               </p>
             </header>
 

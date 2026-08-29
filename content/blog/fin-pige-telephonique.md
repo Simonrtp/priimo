@@ -5,7 +5,7 @@ slug: "fin-pige-telephonique"
 date: "2026-07-12"
 readingTime: "7 min"
 tags: ["Réglementation", "Prospection"]
-author: "Simon Ropiot"
+author: "L'équipe Priimo"
 authorImage: "/Tintin_image_2.jpg"
 ---
 

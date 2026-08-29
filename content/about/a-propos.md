@@ -1,14 +1,12 @@
-## L'idée n'est pas venue d'une étude de marché. Elle est venue d'un appel.
+## L'idée n'est pas venue d'une étude de marché. Elle est venue du terrain.
 
-Je m'appelle Simon. J'ai 20 ans, je suis étudiant en école d'ingénieurs, et j'ai construit Priimo.
+Priimo a été créé par des agents immobiliers, pour des agents immobiliers.
 
-Avant Priimo, je vendais un autre outil aux agences immobilières : un [chatbot](https://causio.fr). Pour le vendre, j'ai fait ce que font tous les fondateurs qui n'ont pas de budget : j'ai appelé des agences, une par une, et j'ai posé des questions.
+Avant Priimo, on passait du temps avec des agences — à écouter, à vendre un autre outil, à poser des questions. Ce n'est pas le produit du moment qui les intéressait vraiment.
 
-Ce n'est pas le chatbot qui les intéressait.
+À chaque conversation, on dérivait vers la même chose. Un directeur l'a dit sans détour : *« Ce qu'il nous faut vraiment, c'est un outil pour trouver des vendeurs. »* Puis un deuxième. Puis un troisième. Puis tous.
 
-À chaque appel, la conversation dérivait vers la même chose. Un directeur me l'a dit sans détour : *« Ce qu'il nous faut vraiment, c'est un outil pour trouver des vendeurs. »* Puis un deuxième. Puis un troisième. Puis tous.
-
-C'est la seule étude de marché que j'ai faite : écouter des gens me dire, sans que je le demande, ce qui leur manquait vraiment.
+C'est la seule étude de marché qu'on a faite : écouter des gens dire, sans qu'on le demande, ce qui leur manquait vraiment.
 
 ## Le problème que personne n'avait résolu
 
@@ -22,27 +20,26 @@ Ces informations sont dans les bases de données de l'État. Elles sont accessib
 
 C'est ce que fait Priimo.
 
-## Ce que je refuse de faire
+## Ce que l'on refuse de faire
 
-J'ai vu ce que les agences reprochent aux outils qu'elles ont essayés. J'en ai fait mes règles.
+On a vu ce que les agences reprochent aux outils qu'elles ont essayés. On en a fait nos règles.
 
-**Je ne promets pas du volume.** Un outil qui promet trente prospects et en livre cinq de qualité, ça s'appelle une déception. Priimo livre une liste courte. Ce sont les meilleures adresses, pas toutes les adresses.
+**On ne promet pas du volume.** Un outil qui promet trente prospects et en livre cinq de qualité, ça s'appelle une déception. Priimo livre une liste courte. Ce sont les meilleures adresses, pas toutes les adresses.
 
-**J'explique toujours pourquoi.** Un score sans explication, c'est une boîte noire — et une boîte noire ne se défend pas devant un agent. Chaque lead Priimo arrive avec ses signaux : ce qui a été détecté, et ce que ça veut dire.
+**On explique toujours pourquoi.** Un score sans explication, c'est une boîte noire — et une boîte noire ne se défend pas devant un agent. Chaque lead Priimo arrive avec ses signaux : ce qui a été détecté, et ce que ça veut dire.
 
-**Je ne vends pas de données personnelles.** Priimo croise des bases de données publiques et privées. Pour les particuliers, vous recevez une adresse et un contexte — jamais un nom acheté à un courtier.
+**On ne vend pas de données personnelles.** Priimo croise des bases de données publiques et privées. Pour les particuliers, vous recevez une adresse et un contexte — jamais un nom acheté à un courtier.
 
-**Je ne vends pas le même secteur à deux agences.** Un avantage que tout le monde a n'est plus un avantage.
+**On ne vend pas le même secteur à deux agences.** Un avantage que tout le monde a n'est plus un avantage.
 
 ## Ce que Priimo est aujourd'hui
 
-Priimo est jeune. Les premières agences l'utilisent, me disent ce qui marche et ce qui ne marche pas, et le produit change chaque semaine grâce à elles.
+Priimo est jeune. Les premières agences l'utilisent, disent ce qui marche et ce qui ne marche pas, et le produit change chaque semaine grâce à elles.
 
-Je ne vais pas vous raconter que nous sommes le leader du marché. Nous ne le sommes pas. Voilà ce que nous sommes :
+On ne va pas vous raconter que nous sommes le leader du marché. Nous ne le sommes pas. Voilà ce que nous sommes :
 
-Un outil qui fait une seule chose, et qui la fait sérieusement. Un fondateur qui répond lui-même au téléphone, et qui code lui-même les corrections. Et une conviction simple : dans quelques années, chercher un vendeur au hasard paraîtra aussi absurde que de chercher un numéro sans annuaire.
+Un outil fait par des agents, pour des agents. Une seule chose, faite sérieusement. Et une conviction simple : dans quelques années, chercher un vendeur au hasard paraîtra aussi absurde que de chercher un numéro sans annuaire.
 
 Si vous dirigez une agence et que vous en avez assez de frapper aux mauvaises portes, on devrait se parler.
 
-**Simon**  
-Fondateur de Priimo
+**L'équipe Priimo**

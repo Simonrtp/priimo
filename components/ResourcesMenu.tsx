@@ -245,7 +245,7 @@ export default function ResourcesMenu({
                       À propos
                     </span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-gray-500 text-pretty">
-                      Moi, Simon étudiant
+                      Fait par des agents, pour des agents
                     </span>
                   </span>
                 </Link>

@@ -5,7 +5,7 @@ slug: "sci-dissolution-gisement"
 date: "2026-08-02"
 readingTime: "6 min"
 tags: ["Entreprises"]
-author: "Simon Ropiot"
+author: "L'équipe Priimo"
 authorImage: "/Tintin_image_2.jpg"
 draft: true
 ---
