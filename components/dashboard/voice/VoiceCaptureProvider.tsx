@@ -50,7 +50,9 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const device = useDevice();
 
   const openCapture = useCallback((opts?: VoiceCaptureOptions) => {
-    if (gestureSession || composeOpen) return;
+    if (gestureSession) return;
+    // Si le compose était ouvert (ou bloqué derrière l’onboarding), on bascule.
+    setComposeOpen(false);
     if (!streamPromiseRef.current) {
       streamPromiseRef.current = requestMicStream();
     }
@@ -62,15 +64,20 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setParcelleId(opts?.parcelleId?.trim() || null);
     setResterSurPage(opts?.resterSurPage === true);
     setOpen(true);
-  }, [composeOpen, device, gestureSession]);
+  }, [device, gestureSession]);
 
   const openCompose = useCallback((opts?: VoiceCaptureOptions) => {
-    if (gestureSession || open) return;
+    if (gestureSession) return;
+    // Ferme une dictée éventuellement ouverte mais invisible (z-index / micro).
+    const pending = streamPromiseRef.current;
+    streamPromiseRef.current = null;
+    if (pending) void pending.then(stopMicStream).catch(() => undefined);
+    setOpen(false);
     setAdresse(opts?.adresse?.trim() || null);
     setParcelleId(opts?.parcelleId?.trim() || null);
     setResterSurPage(opts?.resterSurPage === true);
     setComposeOpen(true);
-  }, [gestureSession, open]);
+  }, [gestureSession]);
 
   const beginGestureCapture = useCallback((opts?: VoiceCaptureOptions) => {
     if (gestureSession || open || composeOpen) return;

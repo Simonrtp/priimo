@@ -13,7 +13,6 @@ import {
   rangEtape,
   type EtapeId,
 } from '@/lib/onboarding/parcours';
-import { ONB_CREAM } from './OnboardingShell';
 import EtapeSalut from './EtapeSalut';
 import EtapeLettre from './EtapeLettre';
 import EtapeAnniversaire from './EtapeAnniversaire';
@@ -241,10 +240,7 @@ export default function AgentOnboarding({
   }
 
   return (
-    <div
-      className="onb-root relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
-      style={{ background: ONB_CREAM }}
-    >
+    <div className="onb-root relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
       {showPasser ? (
         <button
           type="button"

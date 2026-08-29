@@ -1,6 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
+import OnboardingRevealText from './OnboardingRevealText';
 
 export const ONB_ACCENT = '#6366F1';
 export const ONB_CREAM = '#FAF9F7';
@@ -13,6 +14,7 @@ export default function OnboardingShell({
   rang,
   total,
   titre,
+  titreSuffix,
   phrase,
   children,
   action,
@@ -21,6 +23,8 @@ export default function OnboardingShell({
   rang: number;
   total: number;
   titre: string;
+  /** Emoji / ornement animé après le titre (ex. 🎂). */
+  titreSuffix?: ReactNode;
   phrase?: ReactNode;
   children?: ReactNode;
   action?: ReactNode;
@@ -44,7 +48,7 @@ export default function OnboardingShell({
           aria-valuemax={total}
         >
           <div
-            className="h-full rounded-full transition-[width] duration-[320ms] ease-out motion-reduce:transition-none"
+            className="h-full rounded-full transition-[width] duration-[480ms] ease-out motion-reduce:transition-none"
             style={{ width: `${progress * 100}%`, backgroundColor: ONB_ACCENT }}
           />
         </div>
@@ -56,23 +60,30 @@ export default function OnboardingShell({
         }`}
       >
         <h1 className="onb-serif text-balance text-[28px] leading-[1.25] text-[#1A1A1A] md:text-[34px]">
-          {titre}
+          <OnboardingRevealText text={titre} staggerMs={52} />
+          {titreSuffix ? (
+            <span className="onb-emoji-bob ml-1.5 inline-block align-middle text-[1.05em]" aria-hidden>
+              {titreSuffix}
+            </span>
+          ) : null}
         </h1>
 
         {phrase ? (
-          <div className="onb-fade mt-3 max-w-[36rem] text-pretty text-[15px] leading-relaxed text-[#6B6B6B] [animation-delay:80ms]">
+          <div className="onb-fade-up mt-3 max-w-[36rem] text-pretty text-[15px] leading-relaxed text-[#6B6B6B] [animation-delay:280ms]">
             {phrase}
           </div>
         ) : null}
 
         {children ? (
-          <div className={`onb-fade min-h-0 flex-1 [animation-delay:160ms] ${compact ? 'mt-5' : 'mt-8'}`}>
+          <div
+            className={`onb-fade-up min-h-0 flex-1 [animation-delay:420ms] ${compact ? 'mt-5' : 'mt-8'}`}
+          >
             {children}
           </div>
         ) : null}
 
         {action ? (
-          <div className="onb-fade mt-8 shrink-0 [animation-delay:240ms]">{action}</div>
+          <div className="onb-fade-up mt-8 shrink-0 [animation-delay:560ms]">{action}</div>
         ) : null}
       </div>
     </section>

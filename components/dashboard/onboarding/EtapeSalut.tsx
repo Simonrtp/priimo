@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import OnboardingRevealText from './OnboardingRevealText';
 
 /**
  * Écran 1 — salut puis phrase d’accueil.
- * Auto-avance 2,2 s × 2. Clic = suite immédiate. Aucune icône.
+ * Auto-avance 2,6 s × 2. Clic = suite immédiate.
  */
 export default function EtapeSalut({
   prenom,
@@ -23,8 +24,8 @@ export default function EtapeSalut({
   };
 
   useEffect(() => {
-    const t1 = window.setTimeout(() => setPhase(1), 2200);
-    const t2 = window.setTimeout(() => go(), 4400);
+    const t1 = window.setTimeout(() => setPhase(1), 2600);
+    const t2 = window.setTimeout(() => go(), 5200);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
@@ -44,12 +45,13 @@ export default function EtapeSalut({
       className="flex h-full min-h-0 w-full flex-1 cursor-default flex-col items-center justify-center px-6 text-center"
       aria-label="Continuer"
     >
-      <p
+      <OnboardingRevealText
         key={phase}
-        className="onb-serif onb-fade max-w-[18ch] text-[36px] leading-[1.3] text-[#1A1A1A] md:text-[48px]"
-      >
-        {text}
-      </p>
+        as="p"
+        text={text}
+        staggerMs={56}
+        className="onb-serif max-w-[18ch] text-[36px] leading-[1.3] text-[#1A1A1A] md:text-[48px]"
+      />
     </button>
   );
 }

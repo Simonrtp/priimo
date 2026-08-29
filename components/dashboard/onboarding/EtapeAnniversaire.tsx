@@ -73,7 +73,8 @@ export default function EtapeAnniversaire({
     <OnboardingShell
       rang={rang}
       total={total}
-      titre="On aime souhaiter les anniversaires."
+      titre="On aime souhaiter les anniversaires !"
+      titreSuffix="🎂"
       phrase="Le jour venu, votre équipe le verra sur son accueil. Rien d’autre n’en sera fait."
       action={
         <>

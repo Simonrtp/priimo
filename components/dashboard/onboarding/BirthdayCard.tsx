@@ -6,14 +6,22 @@ export default function BirthdayCard({ prenoms }: { prenoms: string[] }) {
 
   const phrase =
     prenoms.length === 1
-      ? `Aujourd’hui, c’est l’anniversaire de ${prenoms[0]}.`
+      ? `Aujourd’hui, c’est l’anniversaire de ${prenoms[0]} !`
       : prenoms.length === 2
-        ? `Aujourd’hui, c’est l’anniversaire de ${prenoms[0]} et ${prenoms[1]}.`
-        : `Aujourd’hui, c’est l’anniversaire de ${prenoms.slice(0, -1).join(', ')} et ${prenoms[prenoms.length - 1]}.`;
+        ? `Aujourd’hui, c’est l’anniversaire de ${prenoms[0]} et ${prenoms[1]} !`
+        : `Aujourd’hui, c’est l’anniversaire de ${prenoms.slice(0, -1).join(', ')} et ${prenoms[prenoms.length - 1]} !`;
 
   return (
-    <div className="mb-4 rounded-clay border border-black/[0.05] bg-white px-4 py-3 shadow-clay-sm">
-      <p className="text-pretty text-[14px] leading-relaxed text-ink">{phrase}</p>
+    <div className="mb-4 flex items-start gap-3 rounded-clay border border-black/[0.05] bg-white px-4 py-3 shadow-clay-sm">
+      <span className="onb-emoji-bob shrink-0 text-[22px] leading-none" aria-hidden>
+        🎂
+      </span>
+      <p className="text-pretty text-[14px] leading-relaxed text-ink">
+        {phrase}{' '}
+        <span className="onb-emoji-wave inline-block" aria-hidden>
+          🎉
+        </span>
+      </p>
     </div>
   );
 }

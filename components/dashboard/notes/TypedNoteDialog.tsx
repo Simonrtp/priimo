@@ -155,7 +155,7 @@ export default function TypedNoteDialog({
   if (field) {
     return (
       <div
-        className="fixed inset-0 z-[120] flex flex-col bg-bg-base"
+        className="fixed inset-0 z-[220] flex flex-col bg-bg-base"
         role="dialog"
         aria-modal="true"
         aria-label={review ? 'Vérifiez la note' : 'Écrire une note'}
@@ -185,7 +185,7 @@ export default function TypedNoteDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-[rgba(21,32,47,0.45)] p-4"
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(21,32,47,0.45)] p-4"
       role="dialog"
       aria-modal="true"
       aria-label={review ? 'Vérifiez la note' : 'Écrire une note'}

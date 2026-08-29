@@ -8,12 +8,8 @@ import { micPermissionState } from '@/lib/voice/mic';
 import OnboardingShell from './OnboardingShell';
 
 /**
- * Étape 2 — il dicte sa première note.
- *
- * La note est enregistrée pour de bon, avec sa transcription et ses
- * rattachements. Le micro peut être refusé ou absent : dans ce cas la saisie
- * clavier prend le relais. L'onboarding ne se bloque jamais sur une
- * permission navigateur.
+ * Étape note — dicter ou écrire. Utile en prospection physique.
+ * La note est enregistrée pour de bon. Micro refusé → clavier.
  */
 export default function EtapeNote({
   rang,
@@ -52,13 +48,13 @@ export default function EtapeNote({
     <OnboardingShell
       rang={rang}
       total={total}
-      titre={enregistree ? 'Votre note est enregistrée' : 'Dictez votre première note'}
+      titre={enregistree ? 'Votre note est enregistrée' : 'Dictez ou écrivez une note'}
       phrase={
         enregistree
           ? 'Vous venez de faire ce que la plupart des agents font le soir à 18h30, en huit secondes.'
           : micRefuse
             ? 'Le micro est refusé par votre navigateur. Écrivez plutôt — le traitement est le même.'
-            : 'Appuyez et dites quelque chose. N’importe quoi.'
+            : 'Hyper utile en prospection physique : plus besoin d’un bout de papier. Vous dictez devant la porte, Priimo range.'
       }
       action={
         enregistree ? (
@@ -95,8 +91,8 @@ export default function EtapeNote({
         </div>
 
         <p className="mt-4 text-[13px] leading-relaxed text-text-muted">
-          Ce que vous dites est transcrit, puis rattaché tout seul à l’adresse, au contact ou au
-          bien concerné. Vous relisez, vous validez.
+          Ce que vous dites (ou écrivez) est transcrit, puis rattaché tout seul à l’adresse, au
+          contact ou au bien. Vous relisez, vous validez — sans ressaisir le soir.
         </p>
       </div>
     </OnboardingShell>
