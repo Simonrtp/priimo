@@ -4,7 +4,7 @@
 
 ## 1. Responsable du traitement
 
-**Simon ROPIOT**, auto-entrepreneur, exploitant le service Priimo — 27 rue A. Peunaud, Paris — contact@priimo.fr.
+**Priimo**, auto-entreprise exploitant le service — 27 rue A. Peunaud, Paris — contact@priimo.fr.
 
 ## 2. Périmètre
 

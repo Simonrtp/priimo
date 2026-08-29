@@ -1,6 +1,6 @@
 /**
  * Couleur associée au score d'un lead — échelle « heat » continue, ORANGE,
- * basée sur l'orange de marque Priimo #E8743C (choix de Simon).
+ * basée sur l'orange de marque Priimo #E8743C.
  *
  * Principe : la profondeur porte le signal.
  *   - Leads TRÈS CHAUDS (note haute) → orange TRÈS FONCÉ (#7c2d12, brûlé).

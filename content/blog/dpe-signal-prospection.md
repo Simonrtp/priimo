@@ -154,7 +154,7 @@ vente que peu d'agences ont anticipée.
 (souvent un DPE refait) **et** a été vérifiée absente des portails de vente.
 Vous ne recevez pas la liste brute qui mène aux exclusivités des confrères —
 seulement celles où le terrain est encore ouvert.
-[Découvrir Priimo](/) · [En savoir plus avec un expert](https://calendly.com/simon-ropiot44/nouvelle-reunion)
+[Découvrir Priimo](/) · [En savoir plus avec un expert](/rendez-vous)
 :::
 
 ---

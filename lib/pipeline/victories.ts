@@ -18,7 +18,7 @@ export function celebratePipelineVictory(kind: PipelineVictoryKind): void {
   if (kind === 'premiere_prise') {
     // Prise en main : même animation, ton sobre. On s'adresse à un
     // professionnel, pas à un utilisateur d'application grand public.
-    notifySuccess('Adresse prise. Elle est à vous.', {
+    notifySuccess('Ajoutée à votre suivi.', {
       id: 'pipeline-victory-premiere-prise',
       duration: 3200,
     });

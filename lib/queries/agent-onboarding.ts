@@ -10,6 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import type { Lead } from '@/types/lead';
+import { buildLeadRecap, recapHeadline } from '@/lib/lead-recap';
 
 type Client = SupabaseClient<Database>;
 
@@ -30,10 +31,19 @@ export type OnboardingSecteur = {
   adresses: number;
   /** Immeubles connus avec leur historique, sur les codes postaux de l'agence. */
   immeubles: number;
+  /** Diagnostics ADEME rattachés au secteur. */
+  dpe: number;
+  /** Copropriétés RNC rattachées au secteur. */
+  copros: number;
+  /** Ventes DVF connues sur le secteur. */
+  ventes: number;
   codesPostaux: string[];
 };
 
-/** Un lead proposé à la prise, réduit à ce que l'étape affiche. */
+/**
+ * Une adresse proposée à la prise en main — assez riche pour montrer
+ * *pourquoi* frapper ici, pas seulement pour l’ajouter au pipeline.
+ */
 export type OnboardingLeadPropose = {
   id: string;
   address: string;
@@ -43,6 +53,12 @@ export type OnboardingLeadPropose = {
   mainSignalLabel: string | null;
   propertyType: string | null;
   surfaceM2: number | null;
+  /** Accroche type « X a un T3 de 72 m² ». */
+  accroche: string | null;
+  /** Faits déjà connus (DPE, ventes immeuble, SCI, etc.). */
+  faits: string[];
+  /** Absent des portails de vente. */
+  horsMarche: boolean;
 };
 
 export async function fetchAgentOnboarding(
@@ -85,7 +101,7 @@ export async function fetchOnboardingSecteur(
 ): Promise<OnboardingSecteur> {
   const codes = [...codesPostaux].filter(Boolean);
 
-  const [leadsRes, immeublesRes] = await Promise.all([
+  const [leadsRes, immeublesRes, dpeRes, coprosRes, ventesRes] = await Promise.all([
     supabase
       .from('leads')
       .select('id', { count: 'exact', head: true })
@@ -96,11 +112,32 @@ export async function fetchOnboardingSecteur(
           .select('id', { count: 'exact', head: true })
           .in('code_postal', codes)
       : Promise.resolve({ count: 0 }),
+    codes.length > 0
+      ? supabase
+          .from('building_dpe')
+          .select('id', { count: 'exact', head: true })
+          .in('code_postal', codes)
+      : Promise.resolve({ count: 0 }),
+    codes.length > 0
+      ? supabase
+          .from('building_copro')
+          .select('id', { count: 'exact', head: true })
+          .in('code_postal', codes)
+      : Promise.resolve({ count: 0 }),
+    codes.length > 0
+      ? supabase
+          .from('building_transactions')
+          .select('id', { count: 'exact', head: true })
+          .in('code_postal', codes)
+      : Promise.resolve({ count: 0 }),
   ]);
 
   return {
     adresses: leadsRes.count ?? 0,
-    immeubles: ('count' in immeublesRes ? immeublesRes.count : 0) ?? 0,
+    immeubles: immeublesRes.count ?? 0,
+    dpe: dpeRes.count ?? 0,
+    copros: coprosRes.count ?? 0,
+    ventes: ventesRes.count ?? 0,
     codesPostaux: codes,
   };
 }
@@ -108,24 +145,36 @@ export async function fetchOnboardingSecteur(
 /**
  * Les trois adresses les mieux notées que personne n'a prises.
  *
- * Non assignées et hors pipeline : prendre un lead déjà pris par un collègue
- * n'apprendrait rien et créerait un conflit dès la première minute.
+ * Priorité aux dossiers avec des faits (signaux) : c'est ce que l'agent
+ * doit *sentir* avant d'ajouter au suivi.
  */
 export function troisLeadsAPrendre(leads: readonly Lead[]): OnboardingLeadPropose[] {
   return leads
     .filter((lead) => lead.assignedTo == null && lead.stageId == null)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map((lead) => ({
-      id: lead.id,
-      address: lead.address,
-      city: lead.city,
-      postalCode: lead.postalCode,
-      score: lead.score,
-      mainSignalLabel: lead.mainSignalLabel,
-      propertyType: lead.propertyType,
-      surfaceM2: lead.surfaceM2,
-    }));
+    .map((lead) => {
+      const recap = buildLeadRecap(lead);
+      return {
+        id: lead.id,
+        address: lead.address,
+        city: lead.city,
+        postalCode: lead.postalCode,
+        score: lead.score,
+        mainSignalLabel: lead.mainSignalLabel,
+        propertyType: lead.propertyType,
+        surfaceM2: lead.surfaceM2,
+        accroche: recapHeadline(recap),
+        faits: recap.faits,
+        horsMarche:
+          lead.marcheStatut === 'hors_marche' && Boolean(lead.marcheVerifieLe?.trim()),
+      };
+    })
+    .sort((a, b) => {
+      const fa = a.faits.length > 0 || a.horsMarche ? 1 : 0;
+      const fb = b.faits.length > 0 || b.horsMarche ? 1 : 0;
+      if (fb !== fa) return fb - fa;
+      return b.score - a.score;
+    })
+    .slice(0, 3);
 }
 
 /**

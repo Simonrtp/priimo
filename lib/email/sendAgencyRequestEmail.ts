@@ -27,7 +27,7 @@ export type AgencyRequestEmailParams = {
   message?: string | null;
 };
 
-/** Notifie Simon d'une nouvelle demande de secteur. */
+/** Notifie l’équipe d'une nouvelle demande de secteur. */
 export async function sendAgencyRequestNotificationToAdmin(
   params: AgencyRequestEmailParams,
 ): Promise<void> {

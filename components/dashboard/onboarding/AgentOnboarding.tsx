@@ -31,7 +31,7 @@ function initialsOf(first: string, last: string): string {
 }
 
 /**
- * Prise en main v2 — mobile d’abord, indigo only, état en base.
+ * Prise en main v2 — mobile d’abord, orange marque, état en base.
  */
 export default function AgentOnboarding({
   profileId,

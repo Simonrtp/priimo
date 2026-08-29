@@ -107,7 +107,7 @@ Le téléphone était le canal le plus facile. Il n'a jamais été le meilleur. 
 
 :::priimo
 **Priimo** aide les agences à passer du volume aveugle au ciblage utile : chaque lundi, des adresses où un projet de vente se prépare, vérifiées absentes des portails.
-[Découvrir Priimo](/) · [En savoir plus avec un expert](https://calendly.com/simon-ropiot44/nouvelle-reunion)
+[Découvrir Priimo](/) · [En savoir plus avec un expert](/rendez-vous)
 :::
 
 ---

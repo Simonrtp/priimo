@@ -146,7 +146,7 @@ export default function EtapeAnniversaire({
                 setStoreOk(e.target.checked);
                 if (!e.target.checked) setVisibleTeam(false);
               }}
-              className="mt-0.5 size-4 rounded border-black/20 accent-[#6366F1]"
+              className="mt-0.5 size-4 rounded border-black/20 accent-[#E8743C]"
             />
             <span>Enregistrer ma date d’anniversaire</span>
           </label>
@@ -160,7 +160,7 @@ export default function EtapeAnniversaire({
               checked={visibleTeam}
               disabled={!storeOk}
               onChange={(e) => setVisibleTeam(e.target.checked)}
-              className="mt-0.5 size-4 rounded border-black/20 accent-[#6366F1] disabled:opacity-40"
+              className="mt-0.5 size-4 rounded border-black/20 accent-[#E8743C] disabled:opacity-40"
             />
             <span>Afficher mon anniversaire à mon équipe le jour J</span>
           </label>

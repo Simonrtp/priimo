@@ -207,7 +207,7 @@ avantage réel sur celles qui découvriront le problème le 12 août.
 d'adresses sur leur secteur, où un projet de vente se prépare — chacune
 vérifiée absente des portails d'annonces. Adresse, contexte, et contacts
 professionnels lorsqu'ils existent.
-[Découvrir Priimo](/) · [En savoir plus avec un expert](https://calendly.com/simon-ropiot44/nouvelle-reunion)
+[Découvrir Priimo](/) · [En savoir plus avec un expert](/rendez-vous)
 :::
 
 ---

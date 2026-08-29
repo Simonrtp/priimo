@@ -91,7 +91,7 @@ export default function EtapeAvatar({
           aria-selected={false}
           disabled={uploading}
           onClick={() => inputRef.current?.click()}
-          className="flex size-[72px] shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 bg-white text-[28px] font-light text-[#8A8A8A] transition hover:border-[color:var(--onb-accent)] hover:text-[#6366F1]"
+          className="flex size-[72px] shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 bg-white text-[28px] font-light text-[#8A8A8A] transition hover:border-[color:var(--onb-accent)] hover:text-[#E8743C]"
           style={{ '--onb-accent': ONB_ACCENT } as CSSProperties}
           aria-label="Ajouter une photo"
         >

@@ -6,7 +6,7 @@
 
 Les termes suivants, lorsqu'ils sont employés avec une majuscule dans les présentes Conditions Générales d'Utilisation (« CGU »), ont la signification suivante :
 
-- **« Priimo »** ou **« Nous »** : désigne l'auto-entreprise exploitant le service Priimo, immatriculée, représentée par Simon ROPIOT, dont le siège social est situé au 27 rue A. Peunaud, Paris.
+- **« Priimo »** ou **« Nous »** : désigne l'auto-entreprise exploitant le service Priimo, dont le siège social est situé au 27 rue A. Peunaud, Paris.
 - **« Service »** : désigne la plateforme SaaS Priimo accessible à l'adresse priimo.fr, permettant aux agences immobilières d'identifier des propriétaires susceptibles de vendre leur bien immobilier grâce à l'analyse de bases de données immobilières et à un algorithme de scoring prédictif.
 - **« Client »** ou **« Vous »** : désigne toute agence immobilière ou mandataire indépendant ayant souscrit un abonnement au Service.
 - **« Directeur »** : désigne l'utilisateur principal du Client, ayant accès à toutes les fonctionnalités du Service, y compris la gestion de l'équipe et de l'abonnement.

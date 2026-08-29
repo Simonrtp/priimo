@@ -7,27 +7,14 @@ type BlogAuthorCardProps = {
   compact?: boolean;
 };
 
-function authorInitial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || 'P';
-}
+const TEAM = "L'équipe Priimo";
 
-function displayAuthor(name: string): string {
-  const n = name.trim();
-  if (n === 'Simon Ropiot' || n === 'Simon') return "L'équipe Priimo";
-  return n || "L'équipe Priimo";
-}
-
-function authorSubtitle(name: string): string {
-  const n = name.trim();
-  if (n === 'Simon Ropiot' || n === 'Simon' || n === "L'équipe Priimo") {
-    return 'Par des agents, pour des agents';
-  }
-  return 'Priimo';
+function displayAuthor(_name: string): string {
+  return TEAM;
 }
 
 export default function BlogAuthorCard({ post, compact = false }: BlogAuthorCardProps) {
   const author = displayAuthor(post.author);
-  const initial = authorInitial(author);
 
   if (compact) {
     return (
@@ -45,12 +32,12 @@ export default function BlogAuthorCard({ post, compact = false }: BlogAuthorCard
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF7F0] text-sm font-semibold text-accent"
             aria-hidden
           >
-            {initial}
+            P
           </span>
         )}
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-gray-900">{author}</p>
-          <p className="truncate text-xs text-gray-500">{authorSubtitle(post.author)}</p>
+          <p className="truncate text-xs text-gray-500">Par des agents, pour des agents</p>
         </div>
       </div>
     );
@@ -72,12 +59,12 @@ export default function BlogAuthorCard({ post, compact = false }: BlogAuthorCard
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FFF7F0] text-base font-semibold text-accent"
             aria-hidden
           >
-            {initial}
+            P
           </span>
         )}
         <div className="min-w-0">
           <p className="font-semibold text-gray-900">{author}</p>
-          <p className="mt-0.5 text-sm text-gray-600">{authorSubtitle(post.author)}</p>
+          <p className="mt-0.5 text-sm text-gray-600">Par des agents, pour des agents</p>
           <p className="mt-2 text-xs text-gray-400">Publié le {formatBlogDate(post.date)}</p>
         </div>
       </div>

@@ -1,20 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { MapPin } from 'lucide-react';
-import { notifyError } from '@/lib/notify';
-import { celebratePipelineVictory } from '@/lib/pipeline/victories';
+import { Check, ChevronRight, Shield } from 'lucide-react';
+import { notifyError, notifySuccess } from '@/lib/notify';
 import type { OnboardingLeadPropose } from '@/lib/queries/agent-onboarding';
-import OnboardingShell from './OnboardingShell';
+import ScoreRing from '@/components/dashboard/ScoreRing';
+import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 
 /**
- * Étape 1 — il prend son premier lead.
+ * Étape « pourquoi frapper ici ».
  *
- * Rien n'est simulé : le clic assigne réellement l'adresse à l'agent et
- * l'entre dans son pipeline (le déclencheur en base pose taken_at et écrit
- * l'événement de transition). Elle sera toujours là quand l'onboarding se
- * refermera.
+ * La valeur perçue n'est pas le clic pipeline : c'est de voir, sur une vraie
+ * adresse du secteur, ce que Priimo sait déjà (signaux, hors portails).
+ * L'ajout au suivi n'est que la conclusion naturelle.
  */
 export default function EtapeLead({
   rang,
@@ -27,134 +25,181 @@ export default function EtapeLead({
   rang: number;
   total: number;
   leads: readonly OnboardingLeadPropose[];
-  /** Étape d'entrée du pipeline de l'agence. Sans elle, on ne peut rien prendre. */
   stageEntreeId: string | null;
   profileId: string;
   onSuivant: () => void;
 }) {
-  const router = useRouter();
-  const [prisId, setPrisId] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+  const [ajoute, setAjoute] = useState<OnboardingLeadPropose | null>(null);
+  const [enCours, setEnCours] = useState(false);
 
-  async function prendre(lead: OnboardingLeadPropose) {
-    if (prisId || enCours) return;
+  const courant = leads[Math.min(index, Math.max(0, leads.length - 1))] ?? null;
+
+  async function ajouterAuSuivi() {
+    if (!courant || ajoute || enCours) return;
     if (!stageEntreeId) {
       notifyError("Le pipeline de l'agence n'est pas encore configuré");
       return;
     }
-    setEnCours(lead.id);
+    setEnCours(true);
     try {
-      const res = await fetch(`/api/dashboard/leads/${lead.id}`, {
+      const res = await fetch(`/api/dashboard/leads/${courant.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assignedTo: profileId, stageId: stageEntreeId }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        notifyError(data.error ?? "L'adresse n'a pas pu être prise");
+        notifyError(data.error ?? "L'adresse n'a pas pu être ajoutée");
         return;
       }
-      setPrisId(lead.id);
-      celebratePipelineVictory('premiere_prise');
-      router.refresh();
+      setAjoute(courant);
+      notifySuccess('Dans votre suivi. Vous pourrez y revenir depuis Prospection.', {
+        id: 'onboarding-suivi',
+        duration: 3600,
+      });
     } catch {
-      notifyError("L'adresse n'a pas pu être prise");
+      notifyError("L'adresse n'a pas pu être ajoutée");
     } finally {
-      setEnCours(null);
+      setEnCours(false);
     }
   }
 
-  const pris = leads.find((l) => l.id === prisId) ?? null;
-  const restants = leads.filter((l) => l.id !== prisId);
+  function autreAdresse() {
+    if (leads.length < 2) return;
+    setIndex((i) => (i + 1) % leads.length);
+  }
+
+  if (ajoute) {
+    return (
+      <OnboardingShell
+        rang={rang}
+        total={total}
+        compact
+        titre="Vous savez déjà pourquoi"
+        phrase="C’est ça Priimo : devant la porte, les faits sont là. L’adresse est dans votre suivi Prospection."
+        action={
+          <OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>
+        }
+      >
+        <div
+          className="rounded-clay border border-[#E8743C]/35 bg-[#E8743C]/[0.07] px-4 py-4"
+          style={{ animation: 'fadeIn 0.35s ease-out' }}
+        >
+          <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-[#E8743C]">
+            <Check size={14} strokeWidth={2.5} aria-hidden />
+            Dans votre suivi
+          </p>
+          <p className="mt-2 text-[15px] font-medium text-ink">{ajoute.address}</p>
+          {ajoute.accroche ? (
+            <p className="mt-1 text-[13px] text-text-muted">{ajoute.accroche}</p>
+          ) : null}
+        </div>
+      </OnboardingShell>
+    );
+  }
+
+  if (!courant) {
+    return (
+      <OnboardingShell
+        rang={rang}
+        total={total}
+        compact
+        titre="Pas d’adresse libre pour l’instant"
+        phrase="Dès qu’une opportunité sort sur votre secteur, elle apparaîtra ici avec ses signaux."
+        action={
+          <OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>
+        }
+      />
+    );
+  }
+
+  const faits =
+    courant.faits.length > 0
+      ? courant.faits
+      : courant.mainSignalLabel
+        ? [courant.mainSignalLabel]
+        : [];
 
   return (
     <OnboardingShell
       rang={rang}
       total={total}
-      titre="Prenez votre première adresse"
-      phrase={
-        pris
-          ? 'Les adresses que personne ne prend restent dans la liste. C’est votre directeur qui verra la différence.'
-          : 'Prenez-en une. C’est comme ça qu’une adresse entre dans votre pipeline.'
-      }
+      compact
+      titre="Pourquoi frapper ici"
+      phrase="Une vraie adresse de votre secteur. Voici ce qu’on sait déjà — avant même d’appeler."
       action={
-        pris ? (
-          <button
-            type="button"
-            onClick={onSuivant}
-            className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
-          >
-            Continuer
-          </button>
-        ) : null
-      }
-    >
-      <div className="h-full min-h-0 overflow-y-auto overscroll-contain md:overflow-visible">
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,240px)]">
-        <ul className="flex min-w-0 flex-col gap-2">
-          {restants.map((lead) => (
-            <li key={lead.id}>
-              <button
-                type="button"
-                disabled={Boolean(prisId) || enCours != null}
-                onClick={() => void prendre(lead)}
-                className="flex w-full items-center justify-between gap-3 rounded-clay border border-black/10 bg-white px-4 py-3 text-left transition hover:border-[#6366F1] hover:bg-[#6366F1]/[0.06] disabled:opacity-50"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[14.5px] font-medium text-ink">
-                    {lead.address}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[12.5px] text-text-muted">
-                    {[
-                      lead.mainSignalLabel,
-                      lead.propertyType,
-                      lead.surfaceM2 ? `${lead.surfaceM2} m²` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || 'Adresse à travailler'}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-3">
-                  <span className="tabular-nums text-[13px] font-semibold text-text-muted">
-                    {lead.score}
-                  </span>
-                  <span className="rounded-lg border border-black/10 px-2.5 py-1 text-[12.5px] font-medium text-ink">
-                    {enCours === lead.id ? 'Prise…' : 'Prendre'}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-          {restants.length === 0 && !pris ? (
-            <li className="text-[13.5px] text-text-muted">
-              Aucune adresse libre en ce moment sur votre secteur.
-            </li>
-          ) : null}
-        </ul>
-
-        {/* La colonne « Pris » n'existe qu'à partir du moment où il a pris. */}
-        {pris ? (
-          <>
-            <div className="hidden w-px bg-black/[0.08] md:block" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-[12px] font-semibold uppercase tracking-wide text-text-subtle">
-                Pris
-              </p>
-              <div
-                className="mt-2 rounded-clay border border-[#6366F1]/40 bg-[#6366F1]/[0.06] px-3.5 py-3"
-                style={{ animation: 'fadeIn 0.35s ease-out' }}
-              >
-                <p className="flex items-start gap-2 text-[14px] font-medium text-ink">
-                  <MapPin size={15} className="mt-0.5 shrink-0 text-[#6366F1]" aria-hidden />
-                  <span className="min-w-0 break-words">{pris.address}</span>
-                </p>
-                <p className="mt-1 text-[12.5px] text-text-muted">Assignée à vous</p>
-              </div>
-            </div>
-          </>
+        <div className="flex w-full flex-col items-center gap-3">
+          <OnboardingPrimaryButton onClick={() => void ajouterAuSuivi()} disabled={enCours}>
+            {enCours ? 'Ajout…' : 'Ajouter à mon suivi'}
+          </OnboardingPrimaryButton>
+          {leads.length > 1 ? (
+            <button
+              type="button"
+              onClick={autreAdresse}
+              disabled={enCours}
+              className="inline-flex items-center gap-1 text-[13.5px] text-[#8A8A8A] transition hover:text-[#1A1A1A] disabled:opacity-40"
+            >
+              Voir une autre adresse
+              <ChevronRight size={14} aria-hidden />
+            </button>
           ) : null}
         </div>
-      </div>
+      }
+    >
+      <article
+        className="rounded-clay border border-black/[0.08] bg-white px-4 py-4 shadow-clay-sm md:px-5 md:py-5"
+        key={courant.id}
+        style={{ animation: 'fadeIn 0.28s ease-out' }}
+      >
+        <div className="flex items-start gap-3">
+          <ScoreRing score={courant.score} size={44} />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-pretty text-[16px] font-semibold leading-snug text-ink md:text-[17px]">
+              {courant.address}
+            </h2>
+            {courant.accroche ? (
+              <p className="mt-1 text-[13.5px] leading-snug text-text-muted">{courant.accroche}</p>
+            ) : (
+              <p className="mt-1 text-[13.5px] text-text-muted">
+                {[courant.propertyType, courant.surfaceM2 ? `${courant.surfaceM2} m²` : null]
+                  .filter(Boolean)
+                  .join(' · ') || 'Bien à qualifier'}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {courant.horsMarche ? (
+          <p className="mt-3 flex items-center gap-2 rounded-lg bg-[#EEF2F7] px-3 py-2 text-[12.5px] font-medium text-[#3D5A80]">
+            <Shield size={14} className="shrink-0" aria-hidden />
+            Absent des portails de vente
+          </p>
+        ) : null}
+
+        {faits.length > 0 ? (
+          <div className="mt-4 border-t border-black/[0.06] pt-3.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8A8A8A]">
+              Ce qu’on sait déjà
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {faits.map((fait) => (
+                <li
+                  key={fait}
+                  className="flex items-start gap-2 text-[13.5px] leading-snug text-ink"
+                >
+                  <span className="mt-[6px] size-1.5 shrink-0 rounded-full bg-[#E8743C]" aria-hidden />
+                  <span className="min-w-0">{fait}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="mt-4 text-[13px] leading-relaxed text-text-muted">
+            Score {courant.score} — une opportunité détectée sur votre secteur.
+          </p>
+        )}
+      </article>
     </OnboardingShell>
   );
 }

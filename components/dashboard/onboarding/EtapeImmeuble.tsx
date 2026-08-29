@@ -64,7 +64,7 @@ export default function EtapeImmeuble({
           <button
             type="button"
             onClick={onSuivant}
-            className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
+            className="rounded-lg bg-[#E8743C] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
           >
             Continuer
           </button>

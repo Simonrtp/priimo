@@ -733,6 +733,14 @@ body {
   filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
 
+/* Pas de mention Mapbox (logo / attribution) sur les cartes Priimo. */
+.priimo-map .mapboxgl-ctrl-logo,
+.priimo-map .mapboxgl-ctrl-attrib,
+.priimo-map .mapboxgl-ctrl-bottom-left,
+.priimo-map .mapboxgl-ctrl-bottom-right {
+  display: none !important;
+}
+
 /* Popup en surface clay (arrondi généreux + ombre clay) */
 .priimo-map .mapboxgl-popup-content {
   border-radius: 18px;
@@ -1532,7 +1540,7 @@ html:has(.feature-page) {
 
 /* Onboarding v2 — typo + motion */
 .onb-root {
-  --onb-accent: #6366f1;
+  --onb-accent: #e8743c;
   --onb-cream: #faf9f7;
   /* Blanc + pastels hyper fluides : pêche, bleu, léger violet */
   background-color: #ffffff;

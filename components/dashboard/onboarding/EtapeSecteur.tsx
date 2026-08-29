@@ -8,9 +8,8 @@ import type { OnboardingSecteur } from '@/lib/queries/agent-onboarding';
 /**
  * Étape 0 — le secteur est déjà là.
  *
- * Pas une question, une démonstration : la carte de son agence, ses adresses,
- * ses immeubles. C'est le moment qui décide de tout, aucun autre logiciel ne
- * démarre plein. Une phrase, des chiffres réels, et rien d'autre.
+ * Carte Mapbox du secteur + stats open data déjà disponibles (DPE, copros,
+ * ventes, immeubles, adresses). Pas de mention Mapbox, pas de démo.
  */
 export default function EtapeSecteur({
   rang,
@@ -28,30 +27,57 @@ export default function EtapeSecteur({
   onSuivant: () => void;
 }) {
   const nombre = (n: number) => n.toLocaleString('fr-FR');
-  const adresses = `${nombre(secteur.adresses)} adresse${secteur.adresses > 1 ? 's' : ''} détectée${secteur.adresses > 1 ? 's' : ''}`;
-  const immeubles = `${nombre(secteur.immeubles)} immeuble${secteur.immeubles > 1 ? 's' : ''} avec leur historique de ventes`;
+
+  const stats: { label: string; value: number }[] = [
+    { label: 'Adresses', value: secteur.adresses },
+    { label: 'Immeubles', value: secteur.immeubles },
+    { label: 'DPE', value: secteur.dpe },
+    { label: 'Copropriétés', value: secteur.copros },
+    { label: 'Ventes', value: secteur.ventes },
+  ].filter((s) => s.value > 0);
 
   return (
     <OnboardingShell
       rang={rang}
       total={total}
+      compact
       titre="Voici votre secteur"
-      phrase={
-        secteur.immeubles > 0
-          ? `${adresses}, ${immeubles}. Tout est déjà là.`
-          : `${adresses}. Tout est déjà là.`
-      }
+      phrase="Les données de votre zone sont déjà là — DPE, copropriétés, ventes."
       action={
         <button
           type="button"
           onClick={onSuivant}
-          className="rounded-lg bg-[#6366F1] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
+          className="rounded-lg bg-[#E8743C] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
         >
           Continuer
         </button>
       }
     >
-      <OnboardingCarte buildings={buildings} center={center} />
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        {stats.length > 0 ? (
+          <ul
+            className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5"
+            aria-label="Chiffres du secteur"
+          >
+            {stats.map((s) => (
+              <li
+                key={s.label}
+                className="rounded-xl border border-black/[0.06] bg-white/80 px-3 py-2.5 shadow-clay-sm"
+              >
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[#8A8A8A]">
+                  {s.label}
+                </p>
+                <p className="mt-0.5 tabular text-[20px] font-semibold leading-none text-[#1A1A1A]">
+                  {nombre(s.value)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="min-h-[220px] flex-1">
+          <OnboardingCarte buildings={buildings} center={center} />
+        </div>
+      </div>
     </OnboardingShell>
   );
 }

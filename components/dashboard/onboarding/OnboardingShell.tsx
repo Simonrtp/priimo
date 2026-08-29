@@ -3,12 +3,12 @@
 import type { CSSProperties, ReactNode } from 'react';
 import OnboardingRevealText from './OnboardingRevealText';
 
-export const ONB_ACCENT = '#6366F1';
+export const ONB_ACCENT = '#E8743C';
 export const ONB_CREAM = '#FAF9F7';
 
 /**
  * Cadre commun de la prise en main v2.
- * Progress 3 px indigo, titres serif, actions #6366F1 — jamais d’orange.
+ * Progress 3 px orange marque, titres serif, actions #E8743C.
  */
 export default function OnboardingShell({
   rang,

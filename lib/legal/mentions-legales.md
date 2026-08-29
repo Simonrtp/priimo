@@ -1,19 +1,19 @@
 # Mentions légales — Priimo
 
-**Dernière mise à jour : 16 mai 2026**
+**Dernière mise à jour : 29 août 2026**
 
 ## 1. Éditeur du site
 
 Le site **priimo.fr** est édité par :
 
-- **Simon ROPIOT**, auto-entrepreneur, exploitant le service **Priimo**
+- **Priimo**, service exploité en auto-entreprise
 - Siège social : 27 rue A. Peunaud, Paris
 - Email : contact@priimo.fr
 - Téléphone : 07 66 85 71 65
 
 ## 2. Directeur de la publication
 
-Simon ROPIOT.
+L’éditeur du service Priimo.
 
 ## 3. Hébergement
 
