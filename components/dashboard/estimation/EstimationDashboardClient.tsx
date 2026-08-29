@@ -1472,33 +1472,6 @@ export default function EstimationDashboardClient({
           </div>
         </>
       ) : null}
-
-      {/* Footer Haussmann — sticky bas de carte, -mt = hauteur → n’allonge pas. */}
-      <div
-        aria-hidden
-        className="pointer-events-none sticky bottom-0 z-0 -mt-[128px] h-[128px] overflow-hidden md:-mt-[148px] md:h-[148px]"
-        style={{
-          maskImage:
-            'linear-gradient(to top, black 0%, rgba(0,0,0,0.88) 30%, rgba(0,0,0,0.4) 65%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to top, black 0%, rgba(0,0,0,0.88) 30%, rgba(0,0,0,0.4) 65%, transparent 100%)',
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- décor local */}
-        <img
-          src="/immeuble-haussmann.png"
-          alt=""
-          className="h-full w-full object-cover object-[78%_30%] opacity-[0.65]"
-          decoding="async"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to top, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.5) 40%, rgba(255,255,255,0.9) 78%, #ffffff 100%)',
-          }}
-        />
-      </div>
     </div>
   );
 }

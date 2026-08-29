@@ -612,20 +612,17 @@ export default function AssistantPanel({
         title="Assistant Prim'IA"
         className={
           variant === 'desktop'
-            ? `group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] transition-[max-width,box-shadow,transform,background-color] duration-fluid ease-in-out motion-reduce:transition-none ${
-                open
-                  ? 'max-w-[11.5rem] bg-primary-600 text-white shadow-clay-primary'
-                  : 'max-w-9 bg-surface text-primary-600 shadow-clay-sm hover:max-w-[11.5rem] hover:-translate-y-px hover:shadow-clay focus-visible:max-w-[11.5rem] active:translate-y-0 active:shadow-clay-pressed'
+            ? `group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white shadow-clay-sm transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px hover:shadow-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 active:translate-y-0 ${
+                open ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
               }`
-            : `relative flex size-11 items-center justify-center rounded-[14px] transition-all duration-fluid-subtle ease-in-out md:size-9 md:rounded-[13px] ${
-                open
-                  ? 'bg-primary-600 text-white shadow-clay-primary'
-                  : 'bg-surface text-primary-600 shadow-clay-sm hover:-translate-y-px hover:shadow-clay active:translate-y-0 active:shadow-clay-pressed'
-              }`
+            : 'relative flex size-11 items-center justify-center rounded-[14px] text-white shadow-clay-sm transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px hover:shadow-clay active:translate-y-0 md:size-9 md:rounded-[13px]'
         }
+        style={{
+          background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 42%, #7DD3FC 100%)',
+        }}
       >
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
-          <PrimIaIcon size={20} className={open ? 'brightness-0 invert' : ''} />
+          <PrimIaIcon size={20} className="brightness-0 invert" />
         </span>
         {variant === 'desktop' ? (
           <span
@@ -636,13 +633,13 @@ export default function AssistantPanel({
             }`}
           >
             <span
-              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
+              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-white transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
                 open
                   ? 'opacity-100'
                   : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
               }`}
             >
-              <span className={open ? 'text-white/90' : 'text-primary-500'}>Prim&apos;IA</span>
+              Prim&apos;IA
             </span>
           </span>
         ) : null}

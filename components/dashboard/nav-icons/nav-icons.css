@@ -1,6 +1,7 @@
 .nav-ico {
-  stroke: #7b9ac0;
-  transition: stroke 200ms;
+  stroke: #94a3b8;
+  color: #94a3b8;
+  transition: stroke 200ms, color 200ms;
 }
 .nav-ico * {
   transition:
@@ -12,19 +13,23 @@
 .nav-link:hover .nav-ico,
 .nav-ico.is-active {
   stroke: #ffffff;
+  color: #ffffff;
 }
 
-/* Tab bar claire (mobile) : pas de stroke blanc. */
+/* Tab bar claire (mobile) : gris uniquement, un cran plus soutenu au focus. */
 .app-tabbar .nav-ico {
-  stroke: #64748b;
+  stroke: #94a3b8;
+  color: #94a3b8;
 }
 .app-tabbar .nav-link:hover .nav-ico,
 .app-tabbar .nav-ico.is-active {
-  stroke: #4f46e5;
+  stroke: #64748b;
+  color: #64748b;
 }
 .app-tabbar.field-tabbar .nav-link:hover .nav-ico,
 .app-tabbar.field-tabbar .nav-ico.is-active {
-  stroke: #e8743c;
+  stroke: #64748b;
+  color: #64748b;
 }
 
 /* Accueil — la coche se trace */
