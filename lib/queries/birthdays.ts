@@ -26,13 +26,16 @@ export async function fetchAnniversairesDuJour(
   const ids = (memberships ?? []).map((m) => m.profile_id).filter(Boolean);
   if (ids.length === 0) return [];
 
-  const { data: profiles } = await supabase
+  const { data: profiles, error } = await supabase
     .from('profiles')
     .select('id, first_name, birthday_month, birthday_day, birthday_visible_team')
     .in('id', ids)
     .eq('birthday_month', month)
     .eq('birthday_day', day)
     .eq('birthday_visible_team', true);
+
+  // Colonnes absentes (migration non appliquée) : pas d’anniversaires, pas d’erreur fatale.
+  if (error) return [];
 
   return (profiles ?? []).map((p) => ({
     profileId: p.id,

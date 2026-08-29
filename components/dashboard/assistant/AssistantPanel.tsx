@@ -2,13 +2,13 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ArrowUp, Mic, PenLine, Search, Sparkles, Trash2, X } from 'lucide-react';
-import { PriimoLogo } from '@/components/brand/PriimoLogo';
+import { ArrowRight, ArrowUp, Mic, PenLine, Search, Trash2, X } from 'lucide-react';
 import type { AssistantSource, SourceKind } from '@/lib/assistant/collecte';
 import { useUser } from '@/lib/hooks/useUser';
 import { LIGNES_AVANT_RENVOI } from '@/lib/assistant/liste-ecran';
 import { useAssistantPanel, type ChatMessage, type VoirTout } from './AssistantPanelProvider';
 import { useAssistantVoiceInput } from './useAssistantVoiceInput';
+import PrimIaIcon from './PrimIaIcon';
 
 const PANEL_W = 420;
 const PANEL_H = 560;
@@ -310,7 +310,7 @@ function Conversation() {
               className="flex size-14 items-center justify-center rounded-clay-lg bg-surface shadow-clay"
               aria-hidden
             >
-              <PriimoLogo variant="mark" className="size-8" />
+              <PrimIaIcon size={36} />
             </span>
             <p className="mt-3.5 font-display text-[15px] font-semibold text-text-strong">
               Posez une question sur votre base
@@ -532,10 +532,10 @@ function PanelBody({ poignee = false }: { poignee?: boolean }) {
           className="flex size-7 items-center justify-center rounded-[10px] bg-surface shadow-clay-sm ring-1 ring-primary-100"
           aria-hidden
         >
-          <PriimoLogo variant="mark" className="size-4" />
+          <PrimIaIcon size={18} />
         </span>
         <p className="font-display text-[14px] font-semibold tracking-[-0.01em] text-text-strong">
-          Assistant
+          Prim&apos;IA
         </p>
         <div className="ml-auto flex items-center gap-0.5">
           <ActionIcone label="Nouvelle conversation" onClick={nouvelleConversation}>
@@ -608,8 +608,8 @@ export default function AssistantPanel({
         type="button"
         onClick={() => (open ? closePanel() : openPanel())}
         aria-expanded={open}
-        aria-label="Assistant Prim'AI"
-        title="Assistant Prim'AI"
+        aria-label="Assistant Prim'IA"
+        title="Assistant Prim'IA"
         className={
           variant === 'desktop'
             ? `group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] transition-[max-width,box-shadow,transform,background-color] duration-fluid ease-in-out motion-reduce:transition-none ${
@@ -625,7 +625,7 @@ export default function AssistantPanel({
         }
       >
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
-          <Sparkles size={18} strokeWidth={2} />
+          <PrimIaIcon size={20} className={open ? 'brightness-0 invert' : ''} />
         </span>
         {variant === 'desktop' ? (
           <span
@@ -642,8 +642,7 @@ export default function AssistantPanel({
                   : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
               }`}
             >
-              Assistant{' '}
-              <span className={open ? 'text-white/90' : 'text-primary-500'}>Prim&apos;AI</span>
+              <span className={open ? 'text-white/90' : 'text-primary-500'}>Prim&apos;IA</span>
             </span>
           </span>
         ) : null}

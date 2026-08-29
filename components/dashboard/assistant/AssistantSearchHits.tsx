@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
 import { CardEyebrow } from '@/components/dashboard/workspace/WorkspaceCard';
 import type { SearchHit } from '@/lib/assistant/search';
+import PrimIaIcon from './PrimIaIcon';
 
 /**
  * Résultats de recherche. Le lien « Demander à l'assistant » n'apparaît que
@@ -30,8 +30,8 @@ export default function AssistantSearchHits({
             onClick={onAskAssistant}
             className="mt-2 inline-flex min-h-[36px] items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
           >
-            <Sparkles size={15} strokeWidth={2} aria-hidden />
-            Demander à l&apos;assistant
+            <PrimIaIcon size={15} />
+            Demander à Prim&apos;IA
           </button>
         ) : null}
       </div>

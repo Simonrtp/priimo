@@ -257,7 +257,26 @@ export async function fetchTeamMembers(supabase: Client, agencyId: string): Prom
     .in('id', profileIds)
     .order('first_name', { ascending: true });
   if (error) {
-    throw new Error(`Impossible de charger l'équipe : ${error.message}`);
+    // avatar_url peut manquer avant migration 20260847
+    const fallback = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', profileIds)
+      .order('first_name', { ascending: true });
+    if (fallback.error) {
+      throw new Error(`Impossible de charger l'équipe : ${fallback.error.message}`);
+    }
+    return (fallback.data ?? []).map((p) =>
+      mapProfileToTeamMember({
+        id: p.id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        phone: null,
+        preferences: {},
+        created_at: '',
+        updated_at: '',
+      }),
+    );
   }
   return (data ?? []).map((p) =>
     mapProfileToTeamMember({

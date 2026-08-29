@@ -25,7 +25,9 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   beginDashboardTiming();
   const { user, profile, agency, memberships } = await getServerUser();
-  if (!user || !profile || !agency) redirect('/login');
+  // Pas de profil chargeable : sortir de la session plutôt que /login (boucle middleware).
+  if (!user) redirect('/login');
+  if (!profile || !agency) redirect('/api/auth/signout');
   if (profile.role === 'directeur' && agencyNeedsOnboarding(agency)) redirect('/onboarding');
 
   const device = await timed('getDevice(layout)', () => getDevice());

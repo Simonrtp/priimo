@@ -19,6 +19,13 @@ export interface ServerUser {
 const AGENCIES_SELECT =
   'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, created_at, updated_at';
 
+const PROFILE_SELECT_BASE =
+  'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at';
+
+/** Colonnes 20260847 — chargées en best-effort (le login ne doit pas dépendre d’elles). */
+const PROFILE_SELECT_EXTRAS =
+  'birthday_month, birthday_day, birthday_visible_team, avatar_url';
+
 async function getServerUserUncached(): Promise<ServerUser> {
   return timed('getServerUser', async () => {
   const supabase = await timed('createSupabaseServerClient', () => createSupabaseServerClient());
@@ -28,15 +35,22 @@ async function getServerUserUncached(): Promise<ServerUser> {
   if (!user) return { user: null, profile: null, agency: null, memberships: [] };
 
   const [profileRes, membershipRes] = await Promise.all([
-    timed('profiles.select', async () =>
-      supabase
+    timed('profiles.select', async () => {
+      const withExtras = await supabase
         .from('profiles')
-        .select(
-          'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, birthday_month, birthday_day, birthday_visible_team, avatar_url, created_at, updated_at',
-        )
+        .select(`${PROFILE_SELECT_BASE}, ${PROFILE_SELECT_EXTRAS}`)
         .eq('id', user.id)
-        .single(),
-    ),
+        .maybeSingle();
+      // Migration 20260847 absente : la select complète échoue → profil de base seul.
+      if (withExtras.error) {
+        return supabase
+          .from('profiles')
+          .select(PROFILE_SELECT_BASE)
+          .eq('id', user.id)
+          .maybeSingle();
+      }
+      return withExtras;
+    }),
     timed('profile_agencies.select', async () =>
       supabase.from('profile_agencies').select('agency_id, role').eq('profile_id', user.id),
     ),
