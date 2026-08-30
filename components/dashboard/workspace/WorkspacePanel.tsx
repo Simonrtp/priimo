@@ -4,9 +4,10 @@ import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
 /**
- * Carte englobante de l'espace de travail (effet HubSpot) : fond pastel,
+ * Carte englobante de l'espace de travail (effet HubSpot) : fond blanc,
  * coins arrondis et ombre clay. Toutes les cartes internes s'empilent dedans.
  *
+ * Pendant la prise en main uniquement : fond pastel (via :has).
  * Sur Estimation : décor Haussmann collé en bas de la card, derrière le scroll.
  */
 export default function WorkspacePanel({ children }: { children: ReactNode }) {
@@ -14,7 +15,7 @@ export default function WorkspacePanel({ children }: { children: ReactNode }) {
   const showHaussmann = pathname.startsWith('/dashboard/estimation');
 
   return (
-    <div className="priimo-pastel-wash relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/[0.06] shadow-clay">
+    <div className="priimo-workspace-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/[0.06] bg-surface shadow-clay">
       {showHaussmann ? (
         <div
           aria-hidden
@@ -44,7 +45,9 @@ export default function WorkspacePanel({ children }: { children: ReactNode }) {
       ) : null}
 
       <div className="relative z-[1] min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-[32px]">
-        <div className="relative min-h-full rounded-[32px] p-6 lg:p-8">{children}</div>
+        <div className="relative min-h-full rounded-[32px] p-6 has-[[data-agent-onboarding]]:p-0 lg:p-8 lg:has-[[data-agent-onboarding]]:p-0">
+          {children}
+        </div>
       </div>
     </div>
   );

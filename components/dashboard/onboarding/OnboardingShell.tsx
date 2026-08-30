@@ -39,7 +39,7 @@ export default function OnboardingShell({
       aria-label={`Prise en main — étape ${rang} sur ${total}`}
       style={{ '--onb-accent': ONB_ACCENT } as CSSProperties}
     >
-      <div className="shrink-0 px-5 pt-[max(8px,env(safe-area-inset-top))] md:px-8 md:pt-2">
+      <div className="shrink-0 px-5 pt-[max(8px,env(safe-area-inset-top))] md:px-10 md:pt-3 lg:px-14">
         <div
           className="h-[3px] w-full overflow-hidden rounded-full bg-black/[0.06]"
           role="progressbar"
@@ -55,11 +55,11 @@ export default function OnboardingShell({
       </div>
 
       <div
-        className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 pb-[max(16px,env(safe-area-inset-bottom))] md:px-8 ${
-          compact ? 'pt-6' : 'pt-10'
+        className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 pb-[max(16px,env(safe-area-inset-bottom))] md:px-10 lg:px-14 ${
+          compact ? 'pt-6 md:pt-8' : 'pt-10 md:pt-12'
         }`}
       >
-        <h1 className="onb-serif text-balance text-[28px] leading-[1.25] text-[#1A1A1A] md:text-[34px]">
+        <h1 className="onb-serif max-w-[28ch] text-balance text-[28px] leading-[1.25] text-[#1A1A1A] md:max-w-[22ch] md:text-[40px] lg:text-[44px]">
           <OnboardingRevealText text={titre} staggerMs={52} />
           {titreSuffix ? (
             <span className="ml-1.5 inline-block align-middle text-[1.05em]" aria-hidden>
@@ -69,21 +69,21 @@ export default function OnboardingShell({
         </h1>
 
         {phrase ? (
-          <div className="onb-fade-up mt-3 max-w-[36rem] text-pretty text-[15px] leading-relaxed text-[#6B6B6B] [animation-delay:280ms]">
+          <div className="onb-fade-up mt-3 max-w-[36rem] text-pretty text-[15px] leading-relaxed text-[#6B6B6B] md:mt-4 md:max-w-2xl md:text-[17px] [animation-delay:280ms]">
             {phrase}
           </div>
         ) : null}
 
         {children ? (
           <div
-            className={`onb-fade-up min-h-0 flex-1 [animation-delay:420ms] ${compact ? 'mt-5' : 'mt-8'}`}
+            className={`onb-fade-up min-h-0 w-full flex-1 [animation-delay:420ms] ${compact ? 'mt-5 md:mt-7' : 'mt-8 md:mt-10'}`}
           >
             {children}
           </div>
         ) : null}
 
         {action ? (
-          <div className="onb-fade-up mt-8 shrink-0 [animation-delay:560ms]">{action}</div>
+          <div className="onb-fade-up mt-8 shrink-0 md:mt-10 [animation-delay:560ms]">{action}</div>
         ) : null}
       </div>
     </section>
@@ -106,7 +106,7 @@ export function OnboardingPrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="mx-auto flex w-full max-w-[280px] items-center justify-center rounded-2xl px-6 py-3.5 text-[15px] font-semibold text-white transition enabled:hover:brightness-[0.97] disabled:opacity-40"
+      className="mx-auto flex w-full max-w-[280px] items-center justify-center rounded-2xl px-6 py-3.5 text-[15px] font-semibold text-white transition enabled:hover:brightness-[0.97] disabled:opacity-40 md:max-w-[340px] md:py-4 md:text-[16px]"
       style={{ backgroundColor: ONB_ACCENT }}
     >
       {children}

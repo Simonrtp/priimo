@@ -28,7 +28,7 @@ function joursDansMois(mois: number): number {
 }
 
 const selectClass =
-  'w-full appearance-none rounded-xl border border-black/10 bg-white px-3.5 py-3 text-[15px] text-[#1A1A1A] outline-none focus:border-[var(--onb-accent)] focus:ring-2 focus:ring-[color:var(--onb-accent)]/20';
+  'w-full appearance-none rounded-xl border border-black/10 bg-white px-3.5 py-3 text-[15px] text-[#1A1A1A] outline-none focus:border-[var(--onb-accent)] focus:ring-2 focus:ring-[color:var(--onb-accent)]/20 md:rounded-2xl md:px-4 md:py-3.5 md:text-[16px]';
 
 /**
  * Écran 3 — anniversaire (jour + mois), deux consentements distincts.
@@ -87,8 +87,8 @@ export default function EtapeAnniversaire({
         </>
       }
     >
-      <div className="mx-auto w-full max-w-sm">
-        <div className="grid grid-cols-2 gap-3">
+      <div className="w-full max-w-md md:max-w-2xl">
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
           <label className="block">
             <span className="mb-1.5 block text-[12.5px] font-medium text-[#6B6B6B]">Jour</span>
             <select

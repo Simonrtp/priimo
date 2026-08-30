@@ -398,7 +398,7 @@ async function TodayContent({
     return (
       <div
         data-agent-onboarding
-        className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden max-md:fixed max-md:inset-0 max-md:z-[200] max-md:bg-bg-base md:pt-2"
+        className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden max-md:fixed max-md:inset-0 max-md:z-[200] max-md:bg-bg-base"
       >
         <AgentOnboarding
           profileId={profile.id}

@@ -15,8 +15,8 @@ export default function EtapeLettre({
   const name = prenom.trim() || 'toi';
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-10 md:px-8">
-      <article className="onb-letter onb-fade mx-auto w-full">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-10 md:px-10 md:pt-12 lg:px-14">
+      <article className="onb-letter onb-fade w-full">
         <p className="mb-5">{name},</p>
         <p className="mb-5">
           Un agent immobilier passe deux heures par jour à faire ce pour quoi
