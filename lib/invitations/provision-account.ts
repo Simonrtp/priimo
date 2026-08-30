@@ -1,3 +1,4 @@
+import type { User } from '@supabase/supabase-js';
 import {
   getValidInvitationByToken,
   normalizeInviteEmail,
@@ -5,6 +6,8 @@ import {
 import { normalizeFrenchPhone, validateInviteFields } from '@/lib/invite-account';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import type { InvitationRole } from '@/types/database';
+
+type Admin = ReturnType<typeof createSupabaseAdminClient>;
 
 type ProvisionInput = {
   token: string;
@@ -22,9 +25,39 @@ export type ProvisionResult =
   | { ok: true; userId: string; role: InvitationRole }
   | { ok: false; status: number; error: string };
 
+function isEmailAlreadyRegistered(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes('already') ||
+    m.includes('registered') ||
+    m.includes('exists') ||
+    m.includes('duplicate') ||
+    m.includes('user_repeated')
+  );
+}
+
+/** Recherche Auth par email (pagination — listUsers n’a pas de filtre email fiable partout). */
+async function findAuthUserByEmail(admin: Admin, email: string): Promise<User | null> {
+  const target = email.trim().toLowerCase();
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) {
+      console.error('[provision] listUsers', error);
+      return null;
+    }
+    const hit = data.users.find((u) => (u.email ?? '').toLowerCase() === target);
+    if (hit) return hit;
+    if (data.users.length < 200) break;
+  }
+  return null;
+}
+
 /**
  * Provisionne un compte via invitation (directeur ou collaborateur).
- * Partagé par /api/create-director et /api/create-collaborator.
+ *
+ * Cas fréquent après « suppression » d’un collab : le profil / membership part,
+ * mais auth.users reste → createUser échoue. On répare : maj mot de passe +
+ * recréation profil + rattachement agence (token d’invitation = preuve).
  */
 export async function provisionInviteAccount(input: ProvisionInput): Promise<ProvisionResult> {
   const requireAgencyName = input.expectedRole === 'directeur';
@@ -75,22 +108,82 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
     return { ok: false, status: 400, error: "Le nom de l'agence est obligatoire." };
   }
 
+  let userId: string;
+  let isNewAuthUser = false;
+
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: normalizedEmail,
     password: input.password,
     email_confirm: true,
   });
 
-  if (authError || !authData.user) {
+  if (!authError && authData.user) {
+    userId = authData.user.id;
+    isNewAuthUser = true;
+  } else {
+    const msg = authError?.message ?? '';
     console.error('[provision] createUser', authError);
-    return { ok: false, status: 500, error: 'Impossible de créer le compte.' };
+
+    const existing =
+      (isEmailAlreadyRegistered(msg) ? await findAuthUserByEmail(supabaseAdmin, normalizedEmail) : null) ??
+      (await findAuthUserByEmail(supabaseAdmin, normalizedEmail));
+
+    if (!existing) {
+      if (/password/i.test(msg)) {
+        return {
+          ok: false,
+          status: 400,
+          error: 'Mot de passe refusé. Choisissez-en un d’au moins 8 caractères.',
+        };
+      }
+      return {
+        ok: false,
+        status: 500,
+        error: msg
+          ? `Impossible de créer le compte (${msg}).`
+          : 'Impossible de créer le compte.',
+      };
+    }
+
+    // Compte Auth orphelin ou réinvitation : on réutilise l’id existant.
+    if (input.expectedRole === 'directeur') {
+      const { data: anyMembership } = await supabaseAdmin
+        .from('profile_agencies')
+        .select('agency_id')
+        .eq('profile_id', existing.id)
+        .limit(1);
+      if (anyMembership && anyMembership.length > 0) {
+        return {
+          ok: false,
+          status: 409,
+          error:
+            'Un compte existe déjà avec cet email. Connectez-vous, ou utilisez une autre adresse.',
+        };
+      }
+    }
+
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+      password: input.password,
+      email_confirm: true,
+    });
+    if (updateErr) {
+      console.error('[provision] updateUserById', updateErr);
+      return {
+        ok: false,
+        status: 500,
+        error: 'Impossible de réactiver le compte existant. Réessayez ou contactez le support.',
+      };
+    }
+
+    userId = existing.id;
+    isNewAuthUser = false;
   }
 
-  const userId = authData.user.id;
   let agencyId = invitation.agency_id;
   let createdAgency = false;
 
-  const rollback = async () => {
+  const rollbackNewUser = async () => {
+    if (!isNewAuthUser) return;
     await supabaseAdmin.auth.admin.deleteUser(userId);
     if (createdAgency && agencyId) {
       await supabaseAdmin.from('agencies').delete().eq('id', agencyId);
@@ -105,7 +198,7 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
         .eq('id', invitation.agency_id)
         .maybeSingle();
       if (loadAgencyErr || !existingAgency) {
-        await rollback();
+        await rollbackNewUser();
         return { ok: false, status: 400, error: "Agence liée à l'invitation introuvable." };
       }
       agencyId = existingAgency.id;
@@ -121,7 +214,7 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
         .select('id')
         .single();
       if (agencyError || !newAgency) {
-        await rollback();
+        await rollbackNewUser();
         console.error('[provision] agency', agencyError);
         return { ok: false, status: 500, error: "Impossible de créer l'agence." };
       }
@@ -131,20 +224,56 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
   }
 
   if (!agencyId) {
-    await rollback();
+    await rollbackNewUser();
     return { ok: false, status: 400, error: 'Invitation invalide ou expirée' };
   }
 
-  const { error: profileError } = await supabaseAdmin.from('profiles').insert({
-    id: userId,
-    first_name: input.firstName.trim(),
-    last_name: input.lastName.trim(),
-    phone: normalizedPhone,
-  });
-  if (profileError) {
-    await rollback();
-    console.error('[provision] profile', profileError);
-    return { ok: false, status: 500, error: 'Impossible de créer le profil.' };
+  const { data: existingMembership } = await supabaseAdmin
+    .from('profile_agencies')
+    .select('agency_id')
+    .eq('profile_id', userId)
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+  if (existingMembership) {
+    await rollbackNewUser();
+    return {
+      ok: false,
+      status: 409,
+      error: 'Vous faites déjà partie de cette agence. Connectez-vous.',
+    };
+  }
+
+  const { data: existingProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+      id: userId,
+      first_name: input.firstName.trim(),
+      last_name: input.lastName.trim(),
+      phone: normalizedPhone,
+    });
+    if (profileError) {
+      await rollbackNewUser();
+      console.error('[provision] profile', profileError);
+      return {
+        ok: false,
+        status: 500,
+        error: `Impossible de créer le profil (${profileError.message}).`,
+      };
+    }
+  } else {
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        first_name: input.firstName.trim(),
+        last_name: input.lastName.trim(),
+        phone: normalizedPhone,
+      })
+      .eq('id', userId);
   }
 
   const { error: membershipError } = await supabaseAdmin.from('profile_agencies').insert({
@@ -153,9 +282,13 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
     role: input.expectedRole,
   });
   if (membershipError) {
-    await rollback();
+    await rollbackNewUser();
     console.error('[provision] membership', membershipError);
-    return { ok: false, status: 500, error: "Impossible de rattacher l'agence." };
+    return {
+      ok: false,
+      status: 500,
+      error: `Impossible de rattacher l'agence (${membershipError.message}).`,
+    };
   }
 
   const { error: activeAgencyError } = await supabaseAdmin
@@ -163,7 +296,7 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
     .update({ active_agency_id: agencyId })
     .eq('id', userId);
   if (activeAgencyError) {
-    await rollback();
+    await rollbackNewUser();
     console.error('[provision] active agency', activeAgencyError);
     return { ok: false, status: 500, error: "Impossible d'activer l'agence." };
   }

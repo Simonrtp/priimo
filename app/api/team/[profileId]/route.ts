@@ -155,17 +155,23 @@ export async function DELETE(
   }
 
   if (!remaining || remaining.length === 0) {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('active_agency_id')
-      .eq('id', profileId)
-      .maybeSingle();
-    if (profile?.active_agency_id === guard.agency.id) {
-      await admin.from('profiles').update({ active_agency_id: null }).eq('id', profileId);
+    // Supprimer le profil d'abord (données métier), puis Auth.
+    // Si on ne fait que deleteUser et que ça échoue, le collab ne peut
+    // plus être réinvité (email encore pris dans auth.users).
+    const { error: delProfileErr } = await admin.from('profiles').delete().eq('id', profileId);
+    if (delProfileErr) {
+      console.error('[team/delete] profile', delProfileErr);
     }
     const { error: delUserErr } = await admin.auth.admin.deleteUser(profileId);
     if (delUserErr) {
-      console.error('[team/delete] orphan auth user', delUserErr);
+      console.error('[team/delete] auth user', delUserErr);
+      return NextResponse.json(
+        {
+          error:
+            "Retiré de l'agence, mais le compte Auth n'a pas pu être effacé. Réessayez ou supprimez-le dans Supabase Auth.",
+        },
+        { status: 500 },
+      );
     }
   } else {
     const { data: profile } = await admin
