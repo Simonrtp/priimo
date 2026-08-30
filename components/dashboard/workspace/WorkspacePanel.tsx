@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
 /**
- * Carte englobante de l'espace de travail (effet HubSpot) : fond blanc,
+ * Carte englobante de l'espace de travail (effet HubSpot) : fond pastel,
  * coins arrondis et ombre clay. Toutes les cartes internes s'empilent dedans.
  *
  * Sur Estimation : décor Haussmann collé en bas de la card, derrière le scroll.
@@ -14,7 +14,7 @@ export default function WorkspacePanel({ children }: { children: ReactNode }) {
   const showHaussmann = pathname.startsWith('/dashboard/estimation');
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/[0.06] bg-surface shadow-clay">
+    <div className="priimo-pastel-wash relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/[0.06] shadow-clay">
       {showHaussmann ? (
         <div
           aria-hidden

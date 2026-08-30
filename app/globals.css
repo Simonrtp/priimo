@@ -1538,11 +1538,8 @@ html:has(.feature-page) {
   cursor: not-allowed;
 }
 
-/* Onboarding v2 — typo + motion */
-.onb-root {
-  --onb-accent: #e8743c;
-  --onb-cream: #faf9f7;
-  /* Blanc + pastels hyper fluides : pêche, bleu, léger violet */
+/* Fond pastel partagé : onboarding + carte workspace desktop */
+.priimo-pastel-wash {
   background-color: #ffffff;
   background-image:
     radial-gradient(ellipse 90% 70% at 8% 12%, rgba(255, 186, 150, 0.28), transparent 58%),
@@ -1559,6 +1556,12 @@ html:has(.feature-page) {
       #fff6f1 100%
     );
   background-attachment: local;
+}
+
+/* Onboarding v2 — typo + motion */
+.onb-root {
+  --onb-accent: #e8743c;
+  --onb-cream: #faf9f7;
   color: #1a1a1a;
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }

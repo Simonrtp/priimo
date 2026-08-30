@@ -240,7 +240,7 @@ export default function AgentOnboarding({
   }
 
   return (
-    <div className="onb-root relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+    <div className="onb-root priimo-pastel-wash relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
       {showPasser ? (
         <button
           type="button"
