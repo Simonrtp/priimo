@@ -19,20 +19,25 @@ export default function EtapeLettre({
       <article className="onb-letter onb-fade mx-auto w-full">
         <p className="mb-5">{name},</p>
         <p className="mb-5">
-          On a créé Priimo après avoir vu trop d’agents passer leurs soirées à
-          ressaisir dans un logiciel ce qu’ils avaient vécu dans la journée.
+          Un agent immobilier passe deux heures par jour à faire ce pour quoi
+          il n’a pas signé : ressaisir, chercher, remplir, recommencer. Deux
+          heures qui ne rapportent rien à personne.
         </p>
         <p className="mb-5">
-          Le métier se fait dehors, dans la rue, devant les portes. Pas devant un
-          écran à 19h.
+          Priimo est né de là. On a repris la journée entière — trouver les
+          vendeurs, sortir sur le terrain, noter, relancer, estimer, signer —
+          et on l’a refaite dans un seul outil, en enlevant tout ce qui était
+          pénible.
         </p>
         <p className="mb-5">
-          Priimo a été fait par des agents immobiliers, pour des agents
-          immobiliers. On a fait l’inverse des autres : un outil qui travaille
-          pendant que vous marchez. Vous dictez, il range. Vous arrivez devant un
-          immeuble, il sait déjà ce qui s’y est passé.
+          Vous dictez en marchant, c’est rangé. Vous arrivez devant un
+          immeuble, vous savez déjà ce qui s’y est vendu. Vous rentrez le soir,
+          il n’y a rien à saisir : c’est déjà fait.
         </p>
-        <p className="mb-8">On espère qu’il vous rendra service.</p>
+        <p className="mb-8">
+          Ce que vous y gagnez, c’est du temps. Et dans ce métier, le temps se
+          transforme en mandats.
+        </p>
         <p className="onb-serif text-[18px] text-[#1A1A1A]">— L’équipe Priimo</p>
       </article>
 

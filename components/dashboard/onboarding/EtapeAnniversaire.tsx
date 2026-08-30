@@ -74,7 +74,6 @@ export default function EtapeAnniversaire({
       rang={rang}
       total={total}
       titre="On aime souhaiter les anniversaires !"
-      titreSuffix="🎂"
       phrase="Le jour venu, votre équipe le verra sur son accueil. Rien d’autre n’en sera fait."
       action={
         <>

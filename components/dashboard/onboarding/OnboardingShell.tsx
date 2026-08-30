@@ -23,7 +23,7 @@ export default function OnboardingShell({
   rang: number;
   total: number;
   titre: string;
-  /** Emoji / ornement animé après le titre (ex. 🎂). */
+  /** Ornement optionnel après le titre. */
   titreSuffix?: ReactNode;
   phrase?: ReactNode;
   children?: ReactNode;
@@ -62,7 +62,7 @@ export default function OnboardingShell({
         <h1 className="onb-serif text-balance text-[28px] leading-[1.25] text-[#1A1A1A] md:text-[34px]">
           <OnboardingRevealText text={titre} staggerMs={52} />
           {titreSuffix ? (
-            <span className="onb-emoji-bob ml-1.5 inline-block align-middle text-[1.05em]" aria-hidden>
+            <span className="ml-1.5 inline-block align-middle text-[1.05em]" aria-hidden>
               {titreSuffix}
             </span>
           ) : null}

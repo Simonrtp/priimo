@@ -13,7 +13,7 @@ export default function BirthdayCard({ prenoms }: { prenoms: string[] }) {
 
   return (
     <div className="mb-4 flex items-start gap-3 rounded-clay border border-black/[0.05] bg-white px-4 py-3 shadow-clay-sm">
-      <span className="onb-emoji-bob shrink-0 text-[22px] leading-none" aria-hidden>
+      <span className="shrink-0 text-[22px] leading-none" aria-hidden>
         🎂
       </span>
       <p className="text-pretty text-[14px] leading-relaxed text-ink">
