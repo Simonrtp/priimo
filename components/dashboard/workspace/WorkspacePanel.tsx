@@ -7,7 +7,8 @@ import { usePathname } from 'next/navigation';
  * Carte englobante de l'espace de travail (effet HubSpot) : fond blanc,
  * coins arrondis et ombre clay. Toutes les cartes internes s'empilent dedans.
  *
- * Pendant la prise en main uniquement : fond pastel (via :has).
+ * Pendant la prise en main uniquement : fond pastel (via :has), contenu
+ * étiré sur toute la hauteur de la carte.
  * Sur Estimation : décor Haussmann collé en bas de la card, derrière le scroll.
  */
 export default function WorkspacePanel({ children }: { children: ReactNode }) {
@@ -44,8 +45,8 @@ export default function WorkspacePanel({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <div className="relative z-[1] min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-[32px]">
-        <div className="relative min-h-full rounded-[32px] p-6 has-[[data-agent-onboarding]]:p-0 lg:p-8 lg:has-[[data-agent-onboarding]]:p-0">
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-[32px]">
+        <div className="relative flex min-h-full flex-1 flex-col rounded-[32px] p-6 has-[[data-agent-onboarding]]:min-h-full has-[[data-agent-onboarding]]:p-0 lg:p-8 lg:has-[[data-agent-onboarding]]:p-0">
           {children}
         </div>
       </div>

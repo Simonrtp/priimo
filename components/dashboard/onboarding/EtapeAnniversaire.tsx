@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
+import Select from '@/components/ui/Select';
 import OnboardingShell, {
-  ONB_ACCENT,
   OnboardingGhostLink,
   OnboardingPrimaryButton,
 } from './OnboardingShell';
@@ -27,8 +27,8 @@ function joursDansMois(mois: number): number {
   return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mois - 1] ?? 31;
 }
 
-const selectClass =
-  'w-full appearance-none rounded-xl border border-black/10 bg-white px-3.5 py-3 text-[15px] text-[#1A1A1A] outline-none focus:border-[var(--onb-accent)] focus:ring-2 focus:ring-[color:var(--onb-accent)]/20 md:rounded-2xl md:px-4 md:py-3.5 md:text-[16px]';
+const triggerClass =
+  'flex w-full items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-3.5 py-3 text-left text-[15px] text-[#1A1A1A] outline-none transition hover:border-black/15 focus-visible:border-[#E8743C]/50 focus-visible:ring-2 focus-visible:ring-[#E8743C]/20 disabled:cursor-not-allowed disabled:opacity-50 md:rounded-2xl md:px-4 md:py-3.5 md:text-[16px]';
 
 /**
  * Écran 3 — anniversaire (jour + mois), deux consentements distincts.
@@ -55,6 +55,25 @@ export default function EtapeAnniversaire({
   const [saving, setSaving] = useState(false);
 
   const maxDay = useMemo(() => (month === '' ? 31 : joursDansMois(month)), [month]);
+
+  const dayOptions = useMemo(
+    () => [
+      { value: '', label: '—' },
+      ...Array.from({ length: maxDay }, (_, i) => ({
+        value: String(i + 1),
+        label: String(i + 1),
+      })),
+    ],
+    [maxDay],
+  );
+
+  const monthOptions = useMemo(
+    () => [
+      { value: '', label: '—' },
+      ...MOIS.map((label, i) => ({ value: String(i + 1), label })),
+    ],
+    [],
+  );
 
   const canSubmit =
     storeOk && typeof month === 'number' && typeof day === 'number' && day >= 1 && day <= maxDay;
@@ -91,43 +110,29 @@ export default function EtapeAnniversaire({
         <div className="grid grid-cols-2 gap-3 md:gap-4">
           <label className="block">
             <span className="mb-1.5 block text-[12.5px] font-medium text-[#6B6B6B]">Jour</span>
-            <select
-              className={selectClass}
-              style={{ '--onb-accent': ONB_ACCENT } as CSSProperties}
+            <Select
               value={day === '' ? '' : String(day)}
-              onChange={(e) => setDay(e.target.value ? Number(e.target.value) : '')}
+              onChange={(v) => setDay(v ? Number(v) : '')}
+              options={dayOptions}
               aria-label="Jour d’anniversaire"
-            >
-              <option value="">—</option>
-              {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+              triggerClassName={triggerClass}
+            />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-[12.5px] font-medium text-[#6B6B6B]">Mois</span>
-            <select
-              className={selectClass}
-              style={{ '--onb-accent': ONB_ACCENT } as CSSProperties}
+            <Select
               value={month === '' ? '' : String(month)}
-              onChange={(e) => {
-                const m = e.target.value ? Number(e.target.value) : '';
+              onChange={(v) => {
+                const m = v ? Number(v) : '';
                 setMonth(m);
                 if (typeof day === 'number' && typeof m === 'number' && day > joursDansMois(m)) {
                   setDay('');
                 }
               }}
+              options={monthOptions}
               aria-label="Mois d’anniversaire"
-            >
-              <option value="">—</option>
-              {MOIS.map((label, i) => (
-                <option key={label} value={i + 1}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              triggerClassName={triggerClass}
+            />
           </label>
         </div>
 

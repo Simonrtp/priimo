@@ -1,6 +1,6 @@
 'use client';
 
-import OnboardingShell from './OnboardingShell';
+import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 import OnboardingCarte from './OnboardingCarte';
 import type { BuildingMarker } from '@/lib/carte/buildings';
 import type { OnboardingSecteur } from '@/lib/queries/agent-onboarding';
@@ -41,17 +41,10 @@ export default function EtapeSecteur({
       rang={rang}
       total={total}
       compact
+      fill
       titre="Voici votre secteur"
       phrase="Les données de votre zone sont déjà là — DPE, copropriétés, ventes."
-      action={
-        <button
-          type="button"
-          onClick={onSuivant}
-          className="rounded-lg bg-[#E8743C] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
-        >
-          Continuer
-        </button>
-      }
+      action={<OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>}
     >
       <div className="flex h-full min-h-0 flex-col gap-3">
         {stats.length > 0 ? (
@@ -74,8 +67,10 @@ export default function EtapeSecteur({
             ))}
           </ul>
         ) : null}
-        <div className="min-h-[220px] flex-1">
-          <OnboardingCarte buildings={buildings} center={center} />
+        <div className="relative min-h-[240px] flex-1 md:min-h-[380px]">
+          <div className="absolute inset-0">
+            <OnboardingCarte buildings={buildings} center={center} />
+          </div>
         </div>
       </div>
     </OnboardingShell>

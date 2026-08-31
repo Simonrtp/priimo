@@ -2,7 +2,7 @@
 
 import { MapPin } from 'lucide-react';
 import type { SortiePlan } from '@/lib/today/sortie';
-import OnboardingShell from './OnboardingShell';
+import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 
 /**
  * Étape 4 — sa sortie est prête.
@@ -34,14 +34,9 @@ export default function EtapeSortie({
       titre="Votre parcours du jour"
       phrase="Vos adresses sont dans l’ordre, l’itinéraire est prêt."
       action={
-        <button
-          type="button"
-          onClick={onTerminer}
-          disabled={enCours}
-          className="rounded-lg bg-[#E8743C] px-6 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97] disabled:opacity-60"
-        >
+        <OnboardingPrimaryButton onClick={onTerminer} disabled={enCours}>
           {enCours ? 'Un instant…' : 'Commencer'}
-        </button>
+        </OnboardingPrimaryButton>
       }
     >
       <div className="h-full min-h-0 overflow-y-auto overscroll-contain md:overflow-visible">

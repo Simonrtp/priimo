@@ -6,7 +6,7 @@ import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { MAPBOX_TOKEN } from '@/lib/map/style';
-import OnboardingShell from './OnboardingShell';
+import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 
 const SectorMapCanvas = dynamic(
   () => import('@/components/dashboard/carte/SectorMapCanvas'),
@@ -53,6 +53,8 @@ export default function EtapeImmeuble({
     <OnboardingShell
       rang={rang}
       total={total}
+      compact
+      fill
       titre={ouverte ? 'Tout est public' : 'Ouvrez un immeuble'}
       phrase={
         ouverte
@@ -61,30 +63,26 @@ export default function EtapeImmeuble({
       }
       action={
         ouverte ? (
-          <button
-            type="button"
-            onClick={onSuivant}
-            className="rounded-lg bg-[#E8743C] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
-          >
-            Continuer
-          </button>
+          <OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>
         ) : null
       }
     >
-      <div className="h-full min-h-0 overflow-hidden rounded-clay border border-black/[0.06] bg-white shadow-clay-sm">
-        <SectorMapCanvas
-          buildings={buildings}
-          center={center}
-          selectedBanId={null}
-          onSelect={() => undefined}
-          onDeselect={() => undefined}
-          onViewport={setViewport}
-          parcellesEnabled
-          cadastreImmeubles={parcelle.immeubles}
-          cadastreLayers={{ cadastreDpe: true, cadastreVentes: true, cadastreCopro: true }}
-          selectedParcelleId={parcelle.selectedParcelleId}
-          onSelectParcelle={parcelle.openParcelle}
-        />
+      <div className="relative min-h-[240px] flex-1 md:min-h-[380px]">
+        <div className="absolute inset-0 overflow-hidden rounded-clay border border-black/[0.06] bg-white shadow-clay-sm">
+          <SectorMapCanvas
+            buildings={buildings}
+            center={center}
+            selectedBanId={null}
+            onSelect={() => undefined}
+            onDeselect={() => undefined}
+            onViewport={setViewport}
+            parcellesEnabled
+            cadastreImmeubles={parcelle.immeubles}
+            cadastreLayers={{ cadastreDpe: true, cadastreVentes: true, cadastreCopro: true }}
+            selectedParcelleId={parcelle.selectedParcelleId}
+            onSelectParcelle={parcelle.openParcelle}
+          />
+        </div>
       </div>
 
       <ParcelleDrawer

@@ -52,8 +52,8 @@ import {
   fetchAgentOnboarding,
   fetchOnboardingSecteur,
   secteurADesParcelles,
-  troisLeadsAPrendre,
 } from '@/lib/queries/agent-onboarding';
+import { leadShowcasePourOnboarding } from '@/lib/onboarding/lead-showcase';
 import {
   decideAffichage,
   doitProposerReprise,
@@ -398,7 +398,7 @@ async function TodayContent({
     return (
       <div
         data-agent-onboarding
-        className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden max-md:fixed max-md:inset-0 max-md:z-[200] max-md:bg-bg-base"
+        className="flex h-full min-h-full w-full min-w-0 flex-1 flex-col overflow-hidden max-md:fixed max-md:inset-0 max-md:z-[200] max-md:bg-bg-base"
       >
         <AgentOnboarding
           profileId={profile.id}
@@ -406,7 +406,7 @@ async function TodayContent({
           lastName={profile.last_name}
           avatarUrl={profile.avatar_url ?? null}
           secteur={secteur}
-          leads={troisLeadsAPrendre(visibleLeads)}
+          leads={leadShowcasePourOnboarding(agency.codes_postaux ?? [], visibleLeads)}
           stageEntreeId={entreeStage(stages)?.id ?? null}
           buildings={groupEntitiesByBanId(points)}
           center={{ latitude: agency.latitude, longitude: agency.longitude }}

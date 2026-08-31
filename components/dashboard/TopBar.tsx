@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
+import { useOnboardingNavLock } from '@/lib/hooks/useOnboardingNavLock';
 import {
   AssistantSearchBar,
   AssistantMobileSearchBar,
@@ -193,10 +194,16 @@ function HeaderProfile({
   );
 }
 
+const ONBOARDING_CHROME_HINT = 'Disponible après la prise en main';
+
 export default function TopBar() {
   const pathname = usePathname();
   const title = titleForPath(pathname);
   const { profile } = useUser();
+  const navLocked = useOnboardingNavLock();
+  const chromeLockProps = navLocked
+    ? ({ 'data-onboarding-nav': '', title: ONBOARDING_CHROME_HINT } as const)
+    : {};
 
   return (
     <header
@@ -214,7 +221,7 @@ export default function TopBar() {
           </span>
         </div>
 
-        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex" {...chromeLockProps}>
           <div className="min-w-0 w-full max-w-md flex-1">
             <AssistantSearchBar tone="shell" />
           </div>
@@ -223,25 +230,27 @@ export default function TopBar() {
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2 md:gap-2">
-          <AssistantSearchIconButton className="text-mute md:hidden" />
-          <AssistantPanel variant="mobile" className="md:hidden" />
-          <a
-            href={FOUNDER_WHATSAPP_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-tour="whatsapp-mobile"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] md:hidden md:h-9 md:w-9"
-            aria-label="Nous écrire sur WhatsApp"
-            title="Nous écrire"
-          >
-            <WhatsAppIcon size={20} className="text-[#25D366]" />
-          </a>
+          <div className="flex items-center gap-1 sm:gap-2 md:hidden" {...chromeLockProps}>
+            <AssistantSearchIconButton className="text-mute" />
+            <AssistantPanel variant="mobile" />
+            <a
+              href={FOUNDER_WHATSAPP_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tour="whatsapp-mobile"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] md:h-9 md:w-9"
+              aria-label="Nous écrire sur WhatsApp"
+              title="Nous écrire"
+            >
+              <WhatsAppIcon size={20} className="text-[#25D366]" />
+            </a>
+          </div>
 
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="md:hidden">
+            <div className="md:hidden" {...chromeLockProps}>
               <MobileAgencySwitcher />
             </div>
-            <div className="hidden md:block">
+            <div className="hidden md:block" {...chromeLockProps}>
               <HeaderProfile
                 firstName={profile.first_name}
                 lastName={profile.last_name}
@@ -253,7 +262,12 @@ export default function TopBar() {
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-100 font-semibold tabular text-primary-700 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-200 md:hidden"
               style={{ fontSize: 11 }}
               aria-label="Mon profil"
-              title="Mon profil"
+              title={navLocked ? ONBOARDING_CHROME_HINT : 'Mon profil'}
+              aria-disabled={navLocked || undefined}
+              data-onboarding-nav={navLocked ? '' : undefined}
+              onClick={(e) => {
+                if (navLocked) e.preventDefault();
+              }}
             >
               <ProfileAvatar
                 firstName={profile.first_name}
@@ -267,7 +281,7 @@ export default function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 px-4 pb-2 md:hidden">
+      <div className="flex items-center gap-2 px-4 pb-2 md:hidden" {...chromeLockProps}>
         <div className="min-w-0 flex-1">
           <AssistantMobileSearchBar />
         </div>

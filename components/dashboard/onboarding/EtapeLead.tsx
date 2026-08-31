@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, ChevronRight, Shield } from 'lucide-react';
+import { Check, Shield } from 'lucide-react';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { OnboardingLeadPropose } from '@/lib/queries/agent-onboarding';
+import { isOnboardingShowcaseLead } from '@/lib/onboarding/lead-showcase';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 
@@ -29,14 +30,23 @@ export default function EtapeLead({
   profileId: string;
   onSuivant: () => void;
 }) {
-  const [index, setIndex] = useState(0);
   const [ajoute, setAjoute] = useState<OnboardingLeadPropose | null>(null);
   const [enCours, setEnCours] = useState(false);
 
-  const courant = leads[Math.min(index, Math.max(0, leads.length - 1))] ?? null;
+  const courant = leads[0] ?? null;
 
   async function ajouterAuSuivi() {
     if (!courant || ajoute || enCours) return;
+
+    if (isOnboardingShowcaseLead(courant.id)) {
+      setAjoute(courant);
+      notifySuccess('Dans votre suivi. Vous pourrez y revenir depuis Prospection.', {
+        id: 'onboarding-suivi',
+        duration: 3600,
+      });
+      return;
+    }
+
     if (!stageEntreeId) {
       notifyError("Le pipeline de l'agence n'est pas encore configuré");
       return;
@@ -63,11 +73,6 @@ export default function EtapeLead({
     } finally {
       setEnCours(false);
     }
-  }
-
-  function autreAdresse() {
-    if (leads.length < 2) return;
-    setIndex((i) => (i + 1) % leads.length);
   }
 
   if (ajoute) {
@@ -126,25 +131,12 @@ export default function EtapeLead({
       rang={rang}
       total={total}
       compact
-      titre="Pourquoi frapper ici"
+      titre="Pourquoi frapper ici ?"
       phrase="Une vraie adresse de votre secteur. Voici ce qu’on sait déjà — avant même d’appeler."
       action={
-        <div className="flex w-full flex-col items-center gap-3">
-          <OnboardingPrimaryButton onClick={() => void ajouterAuSuivi()} disabled={enCours}>
-            {enCours ? 'Ajout…' : 'Ajouter à mon suivi'}
-          </OnboardingPrimaryButton>
-          {leads.length > 1 ? (
-            <button
-              type="button"
-              onClick={autreAdresse}
-              disabled={enCours}
-              className="inline-flex items-center gap-1 text-[13.5px] text-[#8A8A8A] transition hover:text-[#1A1A1A] disabled:opacity-40"
-            >
-              Voir une autre adresse
-              <ChevronRight size={14} aria-hidden />
-            </button>
-          ) : null}
-        </div>
+        <OnboardingPrimaryButton onClick={() => void ajouterAuSuivi()} disabled={enCours}>
+          {enCours ? 'Ajout…' : 'Ajouter à mon suivi'}
+        </OnboardingPrimaryButton>
       }
     >
       <article

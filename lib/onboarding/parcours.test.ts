@@ -5,6 +5,7 @@ import {
   decideAffichage,
   doitProposerReprise,
   etapeDeReprise,
+  etapePrecedente,
   etapeSuivante,
   etatOnboarding,
   minutesRestantes,
@@ -67,6 +68,12 @@ describe('navigation', () => {
   it('enchaîne jusqu’au final', () => {
     assert.equal(etapeSuivante(parcours, 'sortie'), 'final');
     assert.equal(etapeSuivante(parcours, 'final'), null);
+  });
+
+  it('remonte d’une étape', () => {
+    assert.equal(etapePrecedente(parcours, 'salut'), null);
+    assert.equal(etapePrecedente(parcours, 'lettre'), 'salut');
+    assert.equal(etapePrecedente(parcours, 'final'), 'sortie');
   });
 });
 

@@ -69,7 +69,7 @@ export default function EtapeAvatar({
     <OnboardingShell
       rang={rang}
       total={total}
-      titre="Choisissez votre tête."
+      titre="Choisissez votre avatar."
       compact
       action={
         <OnboardingPrimaryButton

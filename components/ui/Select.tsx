@@ -252,7 +252,7 @@ export default function Select({
               width: menuPos.width,
               maxHeight: menuPos.maxHeight,
             }}
-            className="fixed z-[200] flex flex-col overflow-hidden rounded-xl border border-black/[0.10] bg-surface shadow-clay-lg"
+            className="fixed z-[230] flex flex-col overflow-hidden rounded-xl border border-black/[0.10] bg-surface shadow-clay-lg"
           >
             {searchable ? (
               <div className="flex shrink-0 items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">

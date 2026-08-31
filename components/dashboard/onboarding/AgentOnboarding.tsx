@@ -8,11 +8,12 @@ import type { OnboardingLeadPropose, OnboardingSecteur } from '@/lib/queries/age
 import {
   buildParcours,
   etapeDeReprise,
+  etapePrecedente,
   etapeSuivante,
-  peutPasser,
   rangEtape,
   type EtapeId,
 } from '@/lib/onboarding/parcours';
+import { ArrowLeft } from 'lucide-react';
 import EtapeSalut from './EtapeSalut';
 import EtapeLettre from './EtapeLettre';
 import EtapeAnniversaire from './EtapeAnniversaire';
@@ -68,7 +69,7 @@ export default function AgentOnboarding({
   const parcours = useMemo(
     () =>
       buildParcours({
-        aDesLeads: leads.length > 0 && stageEntreeId != null,
+        aDesLeads: leads.length > 0,
         aDesParcelles,
         aUneSortie: sortiePlan != null && sortiePlan.ordered.length > 0,
         mobile,
@@ -121,11 +122,10 @@ export default function AgentOnboarding({
     void terminer();
   }, [parcours, etape, allerA, terminer]);
 
-  const passerTout = useCallback(async () => {
-    setFermeture(true);
-    await envoyer('passer_tout');
-    router.refresh();
-  }, [envoyer, router]);
+  const precedent = useCallback(() => {
+    const precedente = etapePrecedente(parcours, etape);
+    if (precedente) allerA(precedente);
+  }, [parcours, etape, allerA]);
 
   const saveBirthday = useCallback(
     async (data: { month: number; day: number; visibleTeam: boolean }) => {
@@ -167,7 +167,7 @@ export default function AgentOnboarding({
 
   const total = parcours.length;
   const rang = rangEtape(parcours, etape);
-  const showPasser = peutPasser(etape, parcours) && !fermeture;
+  const showRetour = etapePrecedente(parcours, etape) != null && !fermeture;
 
   const commun = { rang, total };
 
@@ -240,14 +240,15 @@ export default function AgentOnboarding({
   }
 
   return (
-    <div className="onb-root priimo-pastel-wash relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
-      {showPasser ? (
+    <div className="onb-root priimo-pastel-wash relative flex h-full min-h-full w-full flex-1 flex-col overflow-hidden">
+      {showRetour ? (
         <button
           type="button"
-          onClick={() => void passerTout()}
-          className="absolute right-4 top-[max(14px,calc(env(safe-area-inset-top)+10px))] z-10 text-[13px] text-[#9A9A9A] transition hover:text-[#1A1A1A] md:right-8"
+          onClick={precedent}
+          className="absolute left-4 top-[max(14px,calc(env(safe-area-inset-top)+10px))] z-10 inline-flex items-center gap-1.5 text-[13px] text-[#9A9A9A] transition hover:text-[#1A1A1A] md:left-8"
         >
-          Passer
+          <ArrowLeft size={15} strokeWidth={2.2} aria-hidden />
+          Retour
         </button>
       ) : null}
 

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useState, type ComponentType } from 'react';
+import { useCallback, useState, type ComponentType } from 'react';
+import { useOnboardingNavLock } from '@/lib/hooks/useOnboardingNavLock';
 import { LogOut } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
@@ -96,18 +97,6 @@ function readCollapsed(): boolean {
   } catch {
     return false;
   }
-}
-
-function useOnboardingNavLock(): boolean {
-  const [locked, setLocked] = useState(false);
-  useEffect(() => {
-    const check = () => setLocked(Boolean(document.querySelector('[data-agent-onboarding]')));
-    check();
-    const mo = new MutationObserver(check);
-    mo.observe(document.body, { childList: true, subtree: true });
-    return () => mo.disconnect();
-  }, []);
-  return locked;
 }
 
 export default function Sidebar() {

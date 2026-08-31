@@ -81,6 +81,15 @@ export function etapeSuivante(
   return parcours[index + 1]!;
 }
 
+export function etapePrecedente(
+  parcours: readonly EtapeId[],
+  etape: EtapeId,
+): EtapeId | null {
+  const index = parcours.indexOf(etape);
+  if (index <= 0) return null;
+  return parcours[index - 1]!;
+}
+
 export function etapeDeReprise(
   parcours: readonly EtapeId[],
   currentStep: string | null,

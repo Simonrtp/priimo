@@ -5,7 +5,7 @@ import { Mic, NotebookPen } from 'lucide-react';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { onNoteCreated } from '@/lib/notes/note-created-event';
 import { micPermissionState } from '@/lib/voice/mic';
-import OnboardingShell from './OnboardingShell';
+import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 
 /**
  * Étape note — dicter ou écrire. Utile en prospection physique.
@@ -58,13 +58,7 @@ export default function EtapeNote({
       }
       action={
         enregistree ? (
-          <button
-            type="button"
-            onClick={onSuivant}
-            className="rounded-lg bg-[#E8743C] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:brightness-[0.97]"
-          >
-            Continuer
-          </button>
+          <OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>
         ) : null
       }
     >
