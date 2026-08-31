@@ -14,6 +14,8 @@ export {
 } from '@/lib/carte/dpe-public';
 
 export const PARCELLE_MIN_ZOOM = 16;
+/** Zoom initial quand on veut voir et cliquer les parcelles (prise en main, cadastre). */
+export const PARCELLE_FOCUS_ZOOM = 17;
 export const CADASTRE_OVERLAY_MIN_ZOOM = 14;
 export const PARCELLE_SLATE = '#3D5A80';
 export const COPRO_PROCEDURE_FILL = '#1E3148';

@@ -9,6 +9,7 @@ import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
+import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds } from '@/lib/carte/bounds';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
@@ -56,6 +57,8 @@ export default function SectorMapCanvas({
   cadastreImmeubles = [],
   cadastreLayers = { cadastreDpe: false, cadastreVentes: false, cadastreCopro: false },
   onSelectParcelle,
+  zoomPreset = 'sector',
+  showBuildingMarkers = true,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -72,6 +75,9 @@ export default function SectorMapCanvas({
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
   cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
   onSelectParcelle?: (parcelleId: string) => void;
+  /** sector = vue d’ensemble ; parcelles = zoom serré sur l’agence pour cliquer le cadastre. */
+  zoomPreset?: 'sector' | 'parcelles';
+  showBuildingMarkers?: boolean;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -108,8 +114,20 @@ export default function SectorMapCanvas({
     (animate: boolean) => {
       const map = mapRef.current;
       if (!map) return;
-      const bounds = itineraryBounds ?? computeLngLatBounds(buildings);
       const duration = animate ? 700 : 0;
+
+      if (zoomPreset === 'parcelles' && fallback) {
+        map.easeTo({
+          center: [fallback.longitude, fallback.latitude],
+          zoom: PARCELLE_FOCUS_ZOOM,
+          pitch: MAP_3D_PITCH,
+          bearing: MAP_3D_BEARING,
+          duration,
+        });
+        return;
+      }
+
+      const bounds = itineraryBounds ?? computeLngLatBounds(buildings);
       if (!bounds) {
         if (fallback) {
           map.easeTo({
@@ -147,7 +165,7 @@ export default function SectorMapCanvas({
         bearing: MAP_3D_BEARING,
       });
     },
-    [fallback, buildings, itineraryBounds],
+    [fallback, buildings, itineraryBounds, zoomPreset],
   );
 
   useEffect(() => {
@@ -166,14 +184,22 @@ export default function SectorMapCanvas({
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
         initialViewState={
-          initialBounds
+          zoomPreset === 'parcelles' && fallback
             ? {
-                bounds: initialBounds,
-                fitBoundsOptions: { padding: 80, maxZoom: 15 },
+                longitude: fallback.longitude,
+                latitude: fallback.latitude,
+                zoom: PARCELLE_FOCUS_ZOOM,
+                pitch: MAP_3D_PITCH,
+                bearing: MAP_3D_BEARING,
               }
-            : fallback
-              ? { longitude: fallback.longitude, latitude: fallback.latitude, zoom: 13 }
-              : FRANCE_MAP_VIEW
+            : initialBounds
+              ? {
+                  bounds: initialBounds,
+                  fitBoundsOptions: { padding: 80, maxZoom: 15 },
+                }
+              : fallback
+                ? { longitude: fallback.longitude, latitude: fallback.latitude, zoom: 13 }
+                : FRANCE_MAP_VIEW
         }
         attributionControl={false}
         interactiveLayerIds={
@@ -243,7 +269,8 @@ export default function SectorMapCanvas({
             <AgencyLocationMarker />
           </Marker>
         ) : null}
-        {buildings.map((building) => {
+        {showBuildingMarkers
+          ? buildings.map((building) => {
           const emphasized = building.banId === selectedBanId;
           const hovered = building.banId === hoveredBanId;
           const appearance = building.appearance;
@@ -310,7 +337,8 @@ export default function SectorMapCanvas({
               </span>
             </Marker>
           );
-        })}
+        })
+          : null}
       </Map>
 
       <MapZoomControls

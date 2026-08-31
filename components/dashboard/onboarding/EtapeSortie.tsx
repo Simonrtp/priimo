@@ -32,7 +32,29 @@ export default function EtapeSortie({
       rang={rang}
       total={total}
       titre="Votre parcours du jour"
-      phrase="Vos adresses sont dans l’ordre, l’itinéraire est prêt."
+      phrase={
+        <>
+          Priimo ordonne vos adresses pour limiter les détours. En sortie, vous pouvez&nbsp;:
+          <ul className="mt-2.5 list-none space-y-1.5 pl-0">
+            <li className="flex items-start gap-2">
+              <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#E8743C]" aria-hidden />
+              <span>suivre l’itinéraire sur la carte</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#E8743C]" aria-hidden />
+              <span>voir les signaux avant de sonner</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#E8743C]" aria-hidden />
+              <span>dicter une note devant chaque porte</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#E8743C]" aria-hidden />
+              <span>cocher les arrêts au fur et à mesure</span>
+            </li>
+          </ul>
+        </>
+      }
       action={
         <OnboardingPrimaryButton onClick={onTerminer} disabled={enCours}>
           {enCours ? 'Un instant…' : 'Commencer'}

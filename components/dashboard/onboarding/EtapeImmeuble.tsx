@@ -55,11 +55,11 @@ export default function EtapeImmeuble({
       total={total}
       compact
       fill
-      titre={ouverte ? 'Tout est public' : 'Ouvrez un immeuble'}
+      titre={ouverte ? 'Tout est public' : 'Ouvrez un immeuble ?'}
       phrase={
         ouverte
-          ? 'Vous pouvez dire ça à voix haute devant une porte. C’est public, c’est sur le site des impôts.'
-          : 'Cliquez sur une parcelle de votre secteur.'
+          ? 'Ventes passées, copropriété, diagnostics : ce sont des données publiques. Priimo les rassemble ici — vous savez de quoi parler avant même de sonner.'
+          : 'Les parcelles cadastrales sont visibles sur la carte — touchez-en une pour ouvrir la fiche.'
       }
       action={
         ouverte ? (
@@ -81,6 +81,8 @@ export default function EtapeImmeuble({
             cadastreLayers={{ cadastreDpe: true, cadastreVentes: true, cadastreCopro: true }}
             selectedParcelleId={parcelle.selectedParcelleId}
             onSelectParcelle={parcelle.openParcelle}
+            zoomPreset="parcelles"
+            showBuildingMarkers={false}
           />
         </div>
       </div>

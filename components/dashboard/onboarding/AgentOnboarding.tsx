@@ -241,20 +241,22 @@ export default function AgentOnboarding({
 
   return (
     <div className="onb-root priimo-pastel-wash relative flex h-full min-h-full w-full flex-1 flex-col overflow-hidden">
-      {showRetour ? (
-        <button
-          type="button"
-          onClick={precedent}
-          className="absolute left-4 top-[max(14px,calc(env(safe-area-inset-top)+10px))] z-10 inline-flex items-center gap-1.5 text-[13px] text-[#9A9A9A] transition hover:text-[#1A1A1A] md:left-8"
-        >
-          <ArrowLeft size={15} strokeWidth={2.2} aria-hidden />
-          Retour
-        </button>
-      ) : null}
-
       <div key={`${etape}-${slideKey}`} className="onb-slide-enter flex min-h-0 flex-1 flex-col">
         {contenu}
       </div>
+
+      {showRetour ? (
+        <div className="shrink-0 px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-2 md:px-10 lg:px-14">
+          <button
+            type="button"
+            onClick={precedent}
+            className="inline-flex items-center gap-1.5 text-[13px] text-[#9A9A9A] transition hover:text-[#1A1A1A]"
+          >
+            <ArrowLeft size={15} strokeWidth={2.2} aria-hidden />
+            Retour
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
