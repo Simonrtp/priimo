@@ -84,12 +84,13 @@ export default function VoiceReviewPanel({
   const [relanceAssignee, setRelanceAssignee] = useState<string | null>(suggestedAssigneeId);
   const [promesseAssignee, setPromesseAssignee] = useState<string | null>(suggestedAssigneeId);
   const [refreshing, setRefreshing] = useState(false);
+  const [terminating, setTerminating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const lastExtracted = (review.transcript ?? '').trim();
   const dirty = transcript.trim() !== lastExtracted;
   const canRefresh = transcript.trim().length > 0 && (dirty || review.extractFailed);
-  const locked = refreshing || deleting;
+  const locked = refreshing || deleting || terminating;
 
   function patchPersonnes(next: PersonneProposal[]) {
     onReviewChange({ ...review, personnes: next });
@@ -161,7 +162,12 @@ export default function VoiceReviewPanel({
     }
   }
 
-  async function createContact(p: PersonneProposal, fiche: NoteReviewPayload, summary: string): Promise<string> {
+  async function createContact(
+    p: PersonneProposal,
+    fiche: NoteReviewPayload,
+    summary: string,
+    forceCreate = false,
+  ): Promise<string> {
     const address = fiche.immeuble?.adresseNormalisee ?? fiche.immeuble?.address ?? null;
     const banId = fiche.immeuble?.banId ?? null;
     const res = await fetch('/api/dashboard/contacts', {
@@ -182,6 +188,7 @@ export default function VoiceReviewPanel({
         summary: summary.trim() || null,
         source: typed ? 'manuel' : 'vocal',
         voiceNoteId: fiche.voiceNoteId,
+        forceCreate,
       }),
     });
     const data = (await res.json()) as {
@@ -214,7 +221,9 @@ export default function VoiceReviewPanel({
     fiche: NoteReviewPayload,
     summary: string,
   ): Promise<string | null> {
+    const hasName = Boolean(p.personne.firstName.trim() || p.personne.lastName.trim());
     const match = pickMatch(p.matches);
+
     if (match) {
       try {
         await addLien('contact', match.contactId, match.confiance);
@@ -224,20 +233,13 @@ export default function VoiceReviewPanel({
       return match.contactId;
     }
 
-    // Plusieurs candidats sans certitude : rattacher au premier, ne pas forcer une création.
-    if (p.matches.length > 0) {
-      const fallback = p.matches[0]!;
-      try {
-        await addLien('contact', fallback.contactId, fallback.confiance);
-      } catch {
-        /* ignore */
-      }
-      return fallback.contactId;
+    // Plusieurs candidats sans certitude : créer la fiche saisie (cf. message UI).
+    if (p.matches.length > 1) {
+      if (hasName) return createContact(p, fiche, summary, true);
+      return null;
     }
 
-    if (p.personne.firstName || p.personne.lastName) {
-      return createContact(p, fiche, summary);
-    }
+    if (hasName) return createContact(p, fiche, summary);
     return null;
   }
 
@@ -266,10 +268,11 @@ export default function VoiceReviewPanel({
   function terminer() {
     if (locked) return;
     const snap = review;
-    const text = transcript;
+    const text = transcript.trim();
     const relanceTo = relanceAssignee;
     const promesseTo = promesseAssignee;
-    onDismiss();
+
+    setTerminating(true);
     void (async () => {
       let contactId: string | null = null;
       try {
@@ -284,10 +287,18 @@ export default function VoiceReviewPanel({
             ? err.message
             : "Le contact n'a pas pu être créé",
         );
+        setTerminating(false);
         return;
       }
 
       try {
+        if (text && text !== (snap.transcript ?? '').trim()) {
+          try {
+            await patchNote({ transcript: text });
+          } catch {
+            // Non bloquant.
+          }
+        }
         if (snap.immeuble?.banId && snap.immeuble.confiance) {
           try {
             await addLien('immeuble', snap.immeuble.banId, snap.immeuble.confiance);
@@ -337,16 +348,27 @@ export default function VoiceReviewPanel({
           body: JSON.stringify({ terminer: true }),
         });
         if (!closeRes.ok) {
+          if (contactId) {
+            notifySuccess('Contact enregistré. La note reste à finaliser depuis Notes.', {
+              id: `voice-contact-${snap.voiceNoteId}`,
+            });
+            onDismiss();
+            onDone(contactId);
+            return;
+          }
           notifyError("La note n'a pas pu être clôturée");
+          setTerminating(false);
           return;
         }
         notifySuccess('Votre note a bien été enregistrée', {
           id: `voice-saved-${snap.voiceNoteId}`,
         });
+        onDismiss();
         onDone(contactId);
       } catch (err) {
         console.error('[voice] terminer', err);
         notifyError("La note n'a pas pu être enregistrée");
+        setTerminating(false);
       }
     })();
   }
@@ -722,7 +744,7 @@ export default function VoiceReviewPanel({
           Annuler
         </button>
         <WorkspaceButton type="button" onClick={terminer} disabled={locked}>
-          Terminer
+          {terminating ? 'Enregistrement…' : 'Terminer'}
         </WorkspaceButton>
       </footer>
 
