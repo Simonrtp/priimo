@@ -20,6 +20,7 @@ import {
   IconEstimation,
   IconParametres,
   IconProspection,
+  IconActions,
 } from '@/components/dashboard/nav-icons/NavIcon';
 
 const STORAGE_KEY = 'priimo-sidebar-collapsed';
@@ -40,6 +41,12 @@ const NAV_GROUPS: NavItem[][] = [
       label: 'Accueil',
       Icon: IconAccueil,
       match: (p) => p === '/dashboard' || p === '/dashboard/',
+    },
+    {
+      href: '/dashboard/actions',
+      label: 'À valider',
+      Icon: IconActions,
+      match: (p) => p.startsWith('/dashboard/actions'),
     },
   ],
   [

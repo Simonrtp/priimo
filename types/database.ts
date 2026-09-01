@@ -942,6 +942,62 @@ export type BuildingRow = {
   updated_at: string;
 };
 
+/* -------------------------------------------------------------------------- */
+/* Automatisations — propositions et curseurs                                 */
+/* -------------------------------------------------------------------------- */
+
+export type AgencyActionKindDb =
+  | 'rapprochement_inverse'
+  | 'veille_dpe'
+  | 'veille_mutation'
+  | 'compte_rendu_mandat'
+  | 'engagement_note'
+  | 'estimation_dormante';
+
+export type AgencyActionStatutDb = 'proposee' | 'validee' | 'ignoree' | 'expiree';
+
+export type AgencyActionRow = {
+  id: string;
+  agency_id: string;
+  assigned_to: string | null;
+  kind: AgencyActionKindDb;
+  dedup_key: string;
+  titre: string;
+  detail: string | null;
+  payload: Record<string, unknown>;
+  score: number;
+  statut: AgencyActionStatutDb;
+  expires_at: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
+export type AgencyActionInsert = Omit<AgencyActionRow, 'id' | 'created_at'> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type PushSubscriptionRow = {
+  id: string;
+  profile_id: string;
+  agency_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  created_at: string;
+  last_success_at: string | null;
+};
+
+export type AgencyAutomationRunRow = {
+  agency_id: string;
+  automation: string;
+  last_run_at: string;
+  cursor: Record<string, unknown>;
+  last_error: string | null;
+};
+
 export type BuildingTransactionRow = {
   id: string;
   parcelle_id: string | null;
@@ -1693,6 +1749,27 @@ export type Database = {
         Row: SortieEventRow;
         Insert: SortieEventInsert;
         Update: Partial<SortieEventInsert>;
+        Relationships: [];
+      };
+      agency_actions: {
+        Row: AgencyActionRow;
+        Insert: AgencyActionInsert;
+        Update: Partial<AgencyActionRow>;
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: PushSubscriptionRow;
+        Insert: Omit<PushSubscriptionRow, 'id' | 'created_at'> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<PushSubscriptionRow>;
+        Relationships: [];
+      };
+      agency_automation_runs: {
+        Row: AgencyAutomationRunRow;
+        Insert: AgencyAutomationRunRow;
+        Update: Partial<AgencyAutomationRunRow>;
         Relationships: [];
       };
       contact_interactions: {

@@ -138,3 +138,53 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data === 'priimo:skip-waiting') void self.skipWaiting();
 });
+
+/* -------------------------------------------------------------------------- */
+/* Notifications                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Brief du matin. Le `tag` garantit qu'un seul brief reste affiche : si celui
+ * d'hier n'a pas ete ouvert, il est remplace plutot qu'empile.
+ */
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+
+  const titre = data.titre || 'Priimo';
+  const options = {
+    body: data.corps || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag || 'priimo',
+    renotify: true,
+    data: { url: data.url || '/dashboard' },
+  };
+
+  event.waitUntil(self.registration.showNotification(titre, options));
+});
+
+/**
+ * Un clic ramene sur l'onglet deja ouvert quand il y en a un : ouvrir une
+ * seconde fenetre du tableau de bord desoriente plus qu'autre chose.
+ */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const cible = (event.notification.data && event.notification.data.url) || '/dashboard';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((fenetres) => {
+      for (const fenetre of fenetres) {
+        if (fenetre.url.includes('/dashboard') && 'focus' in fenetre) {
+          fenetre.navigate(cible);
+          return fenetre.focus();
+        }
+      }
+      return self.clients.openWindow(cible);
+    }),
+  );
+});

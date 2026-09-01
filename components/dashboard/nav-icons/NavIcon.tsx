@@ -108,3 +108,12 @@ export function IconParametres({ active, className }: Props) {
     </svg>
   );
 }
+
+export function IconActions({ active, className }: Props) {
+  return (
+    <svg {...base} className={`nav-ico ico-actions ${active ? 'is-active' : ''} ${className ?? ''}`}>
+      <path d="M4 13h4l2 4 4-10 2 6h4" />
+      <path className="tray" d="M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2" opacity="0.55" />
+    </svg>
+  );
+}

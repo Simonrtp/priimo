@@ -1,11 +1,21 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["cdg1"],
+  "regions": [
+    "cdg1"
+  ],
   "crons": [
     {
       "path": "/api/cron/weekly-portfolio",
       "schedule": "0 5 * * 1"
+    },
+    {
+      "path": "/api/cron/automations",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/brief-matin",
+      "schedule": "0 5 * * 1-6"
     }
   ]
 }

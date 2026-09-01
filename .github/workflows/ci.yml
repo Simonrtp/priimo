@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # `next lint` avait disparu avec Next 16 : le lint ne tournait plus du
+      # tout. Sa remise en route découvre un passif (react-hooks v7 est bien
+      # plus strict). On le signale sans bloquer, le temps de le résorber ;
+      # à retirer dès que le compte est à zéro.
+      - name: Lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        # Valeurs factices : le build ne doit jamais dépendre de secrets réels.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          NEXT_PUBLIC_SITE_URL: https://priimo.fr
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
