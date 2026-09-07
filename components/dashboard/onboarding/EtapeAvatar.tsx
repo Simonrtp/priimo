@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type CSSProperties } from 'react';
-import { AVATAR_PRESETS } from '@/lib/onboarding/parcours';
+import { AVATAR_PERSONNAGES, AVATAR_PRESETS } from '@/lib/onboarding/parcours';
 import OnboardingShell, { ONB_ACCENT, OnboardingPrimaryButton } from './OnboardingShell';
 
 async function compressSquare(file: File, size = 384): Promise<Blob> {
@@ -26,7 +26,7 @@ async function compressSquare(file: File, size = 384): Promise<Blob> {
 }
 
 /**
- * Écran 4 — avatar. Photo (crop carré) ou illustrations /avatars/avatar-01…12.
+ * Écran 4 — avatar. Photo (crop carré) ou personnages illustrés (/avatars/*.webp).
  */
 export default function EtapeAvatar({
   rang,
@@ -120,15 +120,17 @@ export default function EtapeAvatar({
           </button>
         ) : null}
 
-        {AVATAR_PRESETS.map((src) => {
+        {AVATAR_PERSONNAGES.map(({ id, nom, src }) => {
           const actif = selected === src;
           const dead = broken[src];
           return (
             <button
-              key={src}
+              key={id}
               type="button"
               role="option"
               aria-selected={actif}
+              aria-label={nom}
+              title={nom}
               onClick={() => setSelected(src)}
               className="relative size-[72px] shrink-0 overflow-hidden rounded-full bg-[#EDEBE8]"
               style={actif ? { boxShadow: `0 0 0 2px ${ONB_ACCENT}` } : undefined}
@@ -141,7 +143,9 @@ export default function EtapeAvatar({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={src}
-                  alt=""
+                  alt={nom}
+                  loading="lazy"
+                  decoding="async"
                   className="size-full object-cover"
                   onError={() => setBroken((b) => ({ ...b, [src]: true }))}
                 />

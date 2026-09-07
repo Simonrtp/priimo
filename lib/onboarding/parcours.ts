@@ -188,8 +188,19 @@ export function decideAffichage(
   return memeSession ? 'onboarding' : 'rien';
 }
 
-/** Avatars illustrés — déposer avatar-01.png … avatar-12.png (SVG placeholder en attendant). */
-export const AVATAR_PRESETS: readonly string[] = Array.from(
-  { length: 12 },
-  (_, i) => `/avatars/avatar-${String(i + 1).padStart(2, '0')}.svg`,
-);
+/** Personnages illustrés proposés à l'étape « avatar » (sources : /public/avatars/*.webp). */
+export const AVATAR_PERSONNAGES: readonly { id: string; nom: string; src: string }[] = [
+  { id: 'renard', nom: 'Renard', src: '/avatars/renard.webp' },
+  { id: 'chat', nom: 'Chat', src: '/avatars/chat.webp' },
+  { id: 'hibou', nom: 'Hibou', src: '/avatars/hibou.webp' },
+  { id: 'ours', nom: 'Ours', src: '/avatars/ours.webp' },
+  { id: 'lapin', nom: 'Lapin', src: '/avatars/lapin.webp' },
+  { id: 'singe', nom: 'Singe', src: '/avatars/singe.webp' },
+  { id: 'tortue', nom: 'Tortue', src: '/avatars/tortue.webp' },
+  { id: 'poulpe', nom: 'Poulpe', src: '/avatars/poulpe.webp' },
+  { id: 'robot', nom: 'Robot', src: '/avatars/robot.webp' },
+  { id: 'random', nom: 'Surprise', src: '/avatars/random.webp' },
+];
+
+/** Chemins autorisés côté API (validation de l'avatar choisi). */
+export const AVATAR_PRESETS: readonly string[] = AVATAR_PERSONNAGES.map((p) => p.src);

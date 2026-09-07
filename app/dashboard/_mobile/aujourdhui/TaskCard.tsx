@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { TodayCard, TodayCardType } from '@/lib/today/cards';
-import { FIELD, ctaCourt, ctaLink, dotColorFor, pastelFor } from '@/lib/today/field';
+import { FIELD, ctaCourt, ctaLink, dotColorFor } from '@/lib/today/field';
 import { isOverdue, temporalMention, visualLevel } from '@/lib/today/visual-level';
 import { prefersReducedMotion, tapProps, vibrateBrief } from './tap';
 
@@ -131,10 +131,7 @@ export default function TaskCard({
 
   if (level === 3) {
     return (
-      <article
-        className="flex min-h-[80px] items-center gap-2.5 rounded-[16px] px-3.5 py-2.5"
-        style={{ backgroundColor: FIELD.creme }}
-      >
+      <article className="flex min-h-[80px] items-center gap-2.5 rounded-[16px] border border-black/[0.06] bg-bg-subtle px-3.5 py-2.5">
         <span
           className="size-2 flex-shrink-0 rounded-full"
           style={{ backgroundColor: dotColor }}
@@ -164,7 +161,7 @@ export default function TaskCard({
   }
 
   const isBurn = level === 1;
-  const bg = isBurn ? '#FFFFFF' : pastelFor(card.type);
+  const bg = '#FFFFFF';
   const borderLeft = isBurn
     ? `4px solid ${overdue ? FIELD.rouge : FIELD.orange}`
     : undefined;
@@ -188,7 +185,7 @@ export default function TaskCard({
         </div>
       ) : null}
       <article
-        className={`relative flex min-h-[120px] flex-col justify-between px-4 pb-3 pt-3 ${isBurn ? 'border-l-[4px]' : ''}`}
+        className={`relative flex min-h-[120px] flex-col justify-between border border-black/[0.06] px-4 pb-3 pt-3 shadow-clay-sm ${isBurn ? 'border-l-[4px]' : ''}`}
         style={{
           backgroundColor: bg,
           borderLeftColor: isBurn ? (overdue ? FIELD.rouge : FIELD.orange) : undefined,

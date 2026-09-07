@@ -1809,6 +1809,20 @@ html:has(.feature-page) {
   32% { opacity: 1; transform: translateY(-2px); }
 }
 
+/* Bouton Prim'IA — indigo (intelligence), distinct du bouton orange « Nouveau ». */
+.assistant-trigger-btn {
+  background: linear-gradient(145deg, #818cf8 0%, #6366f1 46%, #4f46e5 100%);
+  box-shadow:
+    0 4px 14px -6px rgba(99, 102, 241, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.assistant-trigger-btn:hover {
+  box-shadow:
+    0 6px 20px -4px rgba(99, 102, 241, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
 /* Le bouton signale une réponse qui arrive alors que le panneau est fermé. */
 .assistant-halo {
   animation: assistant-halo 1.9s ease-in-out infinite;

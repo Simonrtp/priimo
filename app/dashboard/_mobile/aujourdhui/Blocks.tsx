@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { FIELD } from '@/lib/today/field';
+import { ACCUEIL, FIELD } from '@/lib/today/field';
 import type { TodayCard } from '@/lib/today/cards';
 import { tapProps } from './tap';
 
@@ -49,7 +49,7 @@ export function TermineBlock({
   onToggle: () => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-[16px]" style={{ backgroundColor: FIELD.vertPastel }}>
+    <section className="overflow-hidden rounded-[16px] text-ink" style={{ backgroundColor: ACCUEIL.vert }}>
       <button
         type="button"
         className="flex min-h-[44px] w-full items-center justify-between px-4 py-2 text-left"

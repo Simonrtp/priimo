@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { TodayCard, TodayCardType } from '@/lib/today/cards';
-import { FIELD, ctaCourt, ctaLink, dotColorFor, pastelFor } from '@/lib/today/field';
+import { FIELD, ctaCourt, ctaLink, dotColorFor } from '@/lib/today/field';
 import { isOverdue, temporalMention, visualLevel } from '@/lib/today/visual-level';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
@@ -92,10 +92,7 @@ export default function TodayCardView({
 
   if (level === 3) {
     return (
-      <article
-        className="flex min-h-[80px] items-start gap-3 rounded-[16px] px-4 py-3"
-        style={{ backgroundColor: FIELD.creme }}
-      >
+      <article className="flex min-h-[80px] items-start gap-3 rounded-[16px] border border-black/[0.06] bg-bg-subtle px-4 py-3">
         <span className="mt-1.5 size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: dotColor }} aria-hidden />
         <Icon size={17} strokeWidth={2.2} className="mt-1 flex-shrink-0 text-text-muted" aria-hidden />
         <div className="min-w-0 flex-1">
@@ -128,7 +125,12 @@ export default function TodayCardView({
   const isBurn = level === 1;
 
   return (
-    <WorkspaceCard className={isBurn ? '!border-0 !bg-white shadow-clay-sm' : undefined} style={isBurn ? { borderLeft: `4px solid ${overdue ? FIELD.rouge : FIELD.orange}` } : undefined}>
+    <WorkspaceCard
+      className={isBurn ? 'shadow-clay-sm' : undefined}
+      style={
+        isBurn ? { borderLeft: `4px solid ${overdue ? FIELD.rouge : FIELD.orange}` } : undefined
+      }
+    >
       <div className="flex items-start justify-between gap-3 sm:gap-4">
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
           <span className="mt-2 size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: dotColor }} aria-hidden />

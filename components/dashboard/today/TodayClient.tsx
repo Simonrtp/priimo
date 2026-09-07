@@ -5,6 +5,7 @@ import { Check } from 'lucide-react';
 import type { TodayCard } from '@/lib/today/cards';
 import type { Lead } from '@/types/lead';
 import type { HomeNote } from '@/lib/notes/inbox';
+import type { AgencyAction } from '@/lib/automations/types';
 import { phraseEquipe } from '@/lib/today/accueil-vue';
 import DirectorMemberPanel from './DirectorMemberPanel';
 import type { GeoCoord } from '@/lib/carte/coords';
@@ -28,6 +29,7 @@ import TodayStatusBand from './TodayStatusBand';
 import SortieMode from './SortieMode';
 import TodayTermineBlock from './TodayTermineBlock';
 import PortfolioBand from './PortfolioBand';
+import AValiderSection from './AValiderSection';
 import RecentNotesCard from './RecentNotesCard';
 import ZoneDuJourCard from './ZoneDuJourCard';
 import DirectorExceptions from './DirectorExceptions';
@@ -78,6 +80,7 @@ export default function TodayClient({
   isDirector = false,
   previewingAgent = false,
   directorExceptions = [],
+  actionsAValider = [],
   children,
 }: {
   initialCards: TodayCard[];
@@ -92,6 +95,7 @@ export default function TodayClient({
   isDirector?: boolean;
   previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
+  actionsAValider?: readonly AgencyAction[];
   children?: ReactNode;
 }) {
   const day = dateKeyParis(new Date());
@@ -238,6 +242,8 @@ export default function TodayClient({
       />
 
       <PortfolioBand stats={portfolio} />
+
+      <AValiderSection actions={actionsAValider} className="mb-6 md:mb-8" />
 
       <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
         <div className="min-w-0 lg:col-span-3">

@@ -15,6 +15,7 @@ import { fetchLeads } from '@/lib/queries/leads';
 import { fetchContactsSafe, fetchVoiceNotesSafe } from '@/lib/queries/contacts';
 import { fetchBiensSafe } from '@/lib/queries/biens';
 import { fetchTodayDismissals } from '@/lib/queries/today';
+import { listerActionsOuvertes } from '@/lib/queries/actions';
 import { fetchAssignmentsToMe } from '@/lib/queries/assignments';
 import { fetchAgencyAlerts } from '@/lib/queries/alerts';
 import { fetchTodayMetierSafe, fetchVisitCountByBienIdSafe } from '@/lib/queries/metier-today';
@@ -202,8 +203,15 @@ async function TodayContent({
     ),
   );
 
-  const [assignments, alerts, week, demandesPortail, demandesEstimation, estimationsVuees] =
-    await Promise.all([
+  const [
+    assignments,
+    alerts,
+    week,
+    demandesPortail,
+    demandesEstimation,
+    estimationsVuees,
+    actionsAValider,
+  ] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
       ? timed('fetchAgencyAlerts', () => fetchAgencyAlerts(supabase, names))
@@ -315,6 +323,12 @@ async function TodayContent({
         return [];
       }
     }),
+    timed('listerActionsOuvertes', () =>
+      listerActionsOuvertes(supabase, agency.id, {
+        profileId: profile.id,
+        estDirecteur: layoutDirector,
+      }),
+    ),
   ]);
 
   const cards = buildTodayCards({
@@ -453,6 +467,7 @@ async function TodayContent({
     isDirector,
     previewingAgent,
     directorExceptions,
+    actionsAValider,
   };
 
   const banners = (

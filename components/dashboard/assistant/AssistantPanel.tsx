@@ -599,7 +599,7 @@ export default function AssistantPanel({
       {/* Halo : une réponse arrive alors que le panneau est fermé. */}
       {streaming && !open ? (
         <span
-          className="assistant-halo pointer-events-none absolute -inset-1 rounded-[18px] bg-primary-200"
+          className="assistant-halo pointer-events-none absolute -inset-1 rounded-[18px] bg-primary-200/80"
           aria-hidden
         />
       ) : null}
@@ -612,14 +612,11 @@ export default function AssistantPanel({
         title="Assistant Prim'IA"
         className={
           variant === 'desktop'
-            ? `group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white shadow-clay-sm transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px hover:shadow-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 active:translate-y-0 ${
+            ? `assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-200 active:translate-y-0 ${
                 open ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
               }`
-            : 'relative flex size-11 items-center justify-center rounded-[14px] text-white shadow-clay-sm transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px hover:shadow-clay active:translate-y-0 md:size-9 md:rounded-[13px]'
+            : 'assistant-trigger-btn relative flex size-11 items-center justify-center rounded-[14px] text-white transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
         }
-        style={{
-          background: 'linear-gradient(135deg, #7C3AED 0%, #8B5CF6 42%, #7DD3FC 100%)',
-        }}
       >
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
           <PrimIaIcon size={20} className="brightness-0 invert" />
@@ -662,7 +659,7 @@ export default function AssistantPanel({
             type="button"
             aria-label="Fermer l'assistant"
             onClick={closePanel}
-            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(30,27,75,0.32)] backdrop-blur-[2px]"
+            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(21,32,47,0.38)] backdrop-blur-[2px]"
           />
           <div
             className="animate-app-sheet fixed inset-x-0 bottom-0 z-[130] flex flex-col overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg"

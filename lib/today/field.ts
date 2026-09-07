@@ -8,11 +8,34 @@ export const FIELD = {
   vert: '#2E7D5B',
   rouge: '#C4483C',
   creme: '#FFF7F0',
-  orangePastel: '#FDEDE5',
-  ardoisePastel: '#EAEFF5',
-  vertPastel: '#E6F2EC',
-  rougePastel: '#FBEAE8',
+  /** Pastels terrain (mobile, swipe…) — plus affirmés qu’avant. */
+  orangePastel: '#F5D4C4',
+  ardoisePastel: '#D4DFF0',
+  vertPastel: '#C9EEDA',
+  rougePastel: '#F0C4BE',
 } as const;
+
+/**
+ * Accueil — pastels KPI (1 couleur fixe par métrique). Texte noir dessus.
+ */
+export const ACCUEIL = {
+  vert: '#C9EEDA',
+  jaune: '#FFFAC2',
+  creme: '#FFF9EB',
+  bleu: '#D4E8F5',
+  orange: '#FFE0C4',
+} as const;
+
+export type AccueilAccent = keyof typeof ACCUEIL;
+
+/** Boutons KPI — même teinte que le fond, plus foncée. */
+export const ACCUEIL_DARK: Record<AccueilAccent, string> = {
+  vert: '#8CCFA8',
+  jaune: '#EDE07A',
+  creme: '#E5D9BC',
+  bleu: '#A8CCE6',
+  orange: '#E8BE98',
+};
 
 /** Fond shell dashboard (sidebar / header desktop). */
 export const SHELL_GRADIENT = 'linear-gradient(180deg, #1E3148 0%, #15202F 100%)';
@@ -82,29 +105,22 @@ export function pastelFor(type: TodayCardType): string {
     case 'echeance_contractuelle':
       return FIELD.rougePastel;
     case 'post_visite':
+    case 'mandat_sans_visite':
+    case 'nouvelle_adresse':
+    case 'rendez_vous':
       return FIELD.ardoisePastel;
     case 'promesse':
-      return FIELD.orangePastel;
-    case 'mandat_sans_visite':
-      return FIELD.ardoisePastel;
     case 'relance':
+    case 'demande_portail':
       return FIELD.orangePastel;
-    case 'nouvelle_adresse':
-      return FIELD.ardoisePastel;
     case 'rapprochement':
+    case 'demande_estimation':
+    case 'estimation_vuee':
       return FIELD.vertPastel;
     case 'transmis':
       return FIELD.creme;
     case 'alerte':
       return FIELD.rougePastel;
-    case 'rendez_vous':
-      return FIELD.ardoisePastel;
-    case 'demande_estimation':
-      return FIELD.vertPastel;
-    case 'demande_portail':
-      return FIELD.orangePastel;
-    case 'estimation_vuee':
-      return FIELD.vertPastel;
   }
 }
 

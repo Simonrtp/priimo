@@ -7,6 +7,7 @@ import type { FieldWeekSnapshot } from '@/lib/today/semaine';
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { Lead } from '@/types/lead';
 import type { HomeNote } from '@/lib/notes/inbox';
+import type { AgencyAction } from '@/lib/automations/types';
 import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
 import { dateKeyParis } from '@/lib/today/calendar';
@@ -30,6 +31,7 @@ import {
 } from './aujourdhui/Blocks';
 import TaskCard from './aujourdhui/TaskCard';
 import PortfolioBand from '@/components/dashboard/today/PortfolioBand';
+import AValiderSection from '@/components/dashboard/today/AValiderSection';
 import RecentNotesCard from '@/components/dashboard/today/RecentNotesCard';
 import ZoneDuJourCard from '@/components/dashboard/today/ZoneDuJourCard';
 import { TourneeCard } from './aujourdhui/Tournee';
@@ -65,6 +67,7 @@ export default function AujourdhuiMobile({
   isDirector = false,
   previewingAgent = false,
   directorExceptions = [],
+  actionsAValider = [],
 }: {
   initialCards: TodayCard[];
   initialLeads: Lead[];
@@ -78,6 +81,7 @@ export default function AujourdhuiMobile({
   isDirector?: boolean;
   previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
+  actionsAValider?: readonly AgencyAction[];
 }) {
   const router = useRouter();
   const day = dateKeyParis(new Date());
@@ -264,6 +268,8 @@ export default function AujourdhuiMobile({
         )}
 
         <PortfolioBand stats={portfolio} />
+
+        <AValiderSection actions={actionsAValider} />
 
         {directorLayout ? (
           <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
