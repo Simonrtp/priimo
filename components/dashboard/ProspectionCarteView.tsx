@@ -56,16 +56,20 @@ export default function ProspectionCarteView({
     [router],
   );
 
-  const switcher = (
-    <div className="mb-3 flex shrink-0 justify-end px-1 md:px-0">
-      <ProspectsViewSwitch value="carte" onChange={setVue} />
-    </div>
-  );
+  const switcher = <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} />;
 
   if (device === 'mobile') {
     return (
-      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-        {switcher}
+      <div
+        data-prospection-carte
+        className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col"
+      >
+        <div
+          className="pointer-events-none absolute right-3 z-[25]"
+          style={{ top: 'calc(58px + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="pointer-events-auto">{switcher}</div>
+        </div>
         <div className="min-h-0 flex-1">
           <CarteMobile
             points={points}
@@ -82,6 +86,7 @@ export default function ProspectionCarteView({
             itineraryStops={itineraryStops}
             showItineraire={showItineraire}
             autoTournee={autoTournee}
+            fillParent
           />
         </div>
       </div>
@@ -89,23 +94,21 @@ export default function ProspectionCarteView({
   }
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-      {switcher}
-      <div className="min-h-0 flex-1">
-        <SectorMapClient
-          points={points}
-          withoutPosition={withoutPosition}
-          unplaced={unplaced}
-          agencyPostalCodes={agencyPostalCodes}
-          center={center}
-          members={members}
-          isDirector={isDirector}
-          initialBanId={initialBanId}
-          itineraryStops={itineraryStops}
-          showItineraire={showItineraire}
-          embedded
-        />
-      </div>
+    <div data-prospection-carte className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+      <SectorMapClient
+        points={points}
+        withoutPosition={withoutPosition}
+        unplaced={unplaced}
+        agencyPostalCodes={agencyPostalCodes}
+        center={center}
+        members={members}
+        isDirector={isDirector}
+        initialBanId={initialBanId}
+        itineraryStops={itineraryStops}
+        showItineraire={showItineraire}
+        embedded
+        viewSwitcher={switcher}
+      />
     </div>
   );
 }

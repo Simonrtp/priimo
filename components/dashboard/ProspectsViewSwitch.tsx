@@ -20,16 +20,20 @@ const ITEMS: {
 export default function ProspectsViewSwitch({
   value,
   onChange,
+  variant = 'default',
 }: {
   value: ProspectionVue;
   onChange: (vue: ProspectionVue) => void;
+  /** Sur la carte : style glass comme le bouton Couches. */
+  variant?: 'default' | 'floating';
 }) {
+  const shellClass =
+    variant === 'floating'
+      ? 'flex rounded-clay border border-black/[0.08] bg-surface/95 p-0.5 shadow-clay-sm backdrop-blur-sm'
+      : 'flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset';
+
   return (
-    <div
-      className="flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset"
-      role="tablist"
-      aria-label="Vue prospection"
-    >
+    <div className={shellClass} role="tablist" aria-label="Vue prospection">
       {ITEMS.map(({ id, label, Icon, desktopOnly }) => {
         const active = value === id;
         return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -219,6 +219,7 @@ export default function SectorMapClient({
   isDirector,
   initialBanId = null,
   embedded = false,
+  viewSwitcher = null,
   itineraryStops: itineraryStopsProp = null,
   showItineraire = false,
 }: {
@@ -230,8 +231,10 @@ export default function SectorMapClient({
   members: readonly AssigneeOption[];
   isDirector: boolean;
   initialBanId?: string | null;
-  /** Dans Prospection : laisse de la place au sélecteur de vue. */
+  /** Dans Prospection : carte plein cadre, sans bandeau au-dessus. */
   embedded?: boolean;
+  /** Liste / Pipeline / Carte — overlay haut-droite sur la carte. */
+  viewSwitcher?: ReactNode;
   itineraryStops?: readonly ItineraireStop[] | null;
   showItineraire?: boolean;
 }) {
@@ -405,7 +408,7 @@ export default function SectorMapClient({
     <div
       className={
         embedded
-          ? 'relative flex h-[calc(100dvh-11rem)] min-h-[420px] flex-col md:-mx-6 md:h-[calc(100dvh-9.5rem)] lg:-mx-8'
+          ? 'relative flex min-h-0 flex-1 flex-col'
           : 'relative -mx-4 flex h-[calc(100dvh-5rem-env(safe-area-inset-top,0px)-7.5rem-env(safe-area-inset-bottom,0px))] flex-col md:-m-6 md:h-[calc(100dvh-5rem)] lg:-m-8'
       }
     >
@@ -449,7 +452,8 @@ export default function SectorMapClient({
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute right-3 top-3 z-20 hidden md:block">
+        <div className="pointer-events-none absolute right-3 top-3 z-20 hidden md:flex md:flex-col md:items-end md:gap-2">
+          {viewSwitcher ? <div className="pointer-events-auto">{viewSwitcher}</div> : null}
           <div className="pointer-events-auto">
             {layersPanelOpen ? (
               <div className="fluid-reveal max-h-[calc(100dvh-6.5rem)] w-[min(100vw-1.5rem,320px)] overflow-y-auto">
