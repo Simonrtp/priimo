@@ -1,9 +1,6 @@
-import { isSignedMandat, PORTFOLIO_STALE_MANDAT_DAYS, PORTFOLIO_STALE_VISIT_MAX } from './portfolio';
 import type { CounterTone } from './counter-severity';
 
-const DAY_MS = 86_400_000;
-
-export type DirectorExceptionKind = 'leads-non-pris' | 'notes-brutes' | 'mandats-60j' | 'inactivite';
+export type DirectorExceptionKind = 'leads-non-pris' | 'notes-brutes' | 'inactivite';
 
 export type DirectorExceptionItem = {
   kind: DirectorExceptionKind;
@@ -19,13 +16,6 @@ export type DirectorMemberExceptions = {
   items: DirectorExceptionItem[];
 };
 
-function ageDays(iso: string | null | undefined, now: number): number | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return null;
-  return (now - t) / DAY_MS;
-}
-
 function memberQuery(href: string, memberId: string): string {
   const join = href.includes('?') ? '&' : '?';
   return `${href}${join}membre=${encodeURIComponent(memberId)}`;
@@ -39,18 +29,8 @@ export function buildDirectorExceptions(input: {
   members: readonly { id: string; fullName: string }[];
   leads: readonly { assignedTo: string | null; stageId: string | null }[];
   notes: readonly { createdBy: string | null; statut: string }[];
-  biens: readonly {
-    id: string;
-    createdBy: string | null;
-    mandatStatut: string;
-    mandatDate: string | null;
-    createdAt: string;
-  }[];
-  visitCountByBienId: Readonly<Record<string, number>>;
   activityVolumeByMemberId: Readonly<Record<string, number>>;
-  now?: number;
 }): DirectorMemberExceptions[] {
-  const now = input.now ?? Date.now();
   const rows: DirectorMemberExceptions[] = [];
 
   for (const member of input.members) {
@@ -78,23 +58,6 @@ export function buildDirectorExceptions(input: {
         count: brutes,
         href: memberQuery('/dashboard/notes?statut=brute&scope=agence', member.id),
         tone: 'surveiller',
-      });
-    }
-
-    const stale = input.biens.filter((b) => {
-      if (b.createdBy !== member.id || !isSignedMandat(b.mandatStatut)) return false;
-      const age = ageDays(b.mandatDate ?? b.createdAt, now);
-      if (age === null || age <= PORTFOLIO_STALE_MANDAT_DAYS) return false;
-      const visits = input.visitCountByBienId[b.id] ?? 0;
-      return visits < PORTFOLIO_STALE_VISIT_MAX;
-    }).length;
-    if (stale > 0) {
-      items.push({
-        kind: 'mandats-60j',
-        label: stale > 1 ? 'mandats qui pourrissent' : 'mandat qui pourrit',
-        count: stale,
-        href: memberQuery('/dashboard/biens?filtre=mandats-60j', member.id),
-        tone: 'probleme',
       });
     }
 

@@ -197,6 +197,7 @@ export type LeadStageRow = {
   cle: string;
   libelle: string;
   ordre: number;
+  accent_color: string;
   type: LeadStageTypeDb;
   created_at: string;
 };

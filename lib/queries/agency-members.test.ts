@@ -18,6 +18,7 @@ function member(partial: Partial<AgencyMember> & Pick<AgencyMember, 'id' | 'full
     firstName: '',
     lastName: '',
     email: '',
+    avatarUrl: null,
     contactCount: 0,
     leadCount: 0,
     ...partial,

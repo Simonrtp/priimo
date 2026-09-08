@@ -16,7 +16,7 @@ export default function WorkspacePanel({ children }: { children: ReactNode }) {
   const showHaussmann = pathname.startsWith('/dashboard/estimation');
 
   return (
-    <div className="priimo-workspace-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/[0.06] bg-surface shadow-clay has-[[data-prospection-carte]]:-m-3 has-[[data-prospection-carte]]:rounded-none has-[[data-prospection-carte]]:border-0 has-[[data-prospection-carte]]:shadow-none lg:has-[[data-prospection-carte]]:-m-4 lg:has-[[data-prospection-carte]]:-mb-5">
+    <div className="priimo-workspace-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-black/[0.06] bg-surface shadow-clay">
       {showHaussmann ? (
         <div
           aria-hidden
@@ -45,8 +45,8 @@ export default function WorkspacePanel({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-[32px] has-[[data-prospection-carte]]:overflow-hidden has-[[data-prospection-carte]]:rounded-none">
-        <div className="relative flex min-h-full flex-1 flex-col rounded-[32px] p-6 has-[[data-agent-onboarding]]:min-h-full has-[[data-agent-onboarding]]:p-0 has-[[data-prospection-carte]]:min-h-0 has-[[data-prospection-carte]]:rounded-none has-[[data-prospection-carte]]:p-0 lg:p-8 lg:has-[[data-agent-onboarding]]:p-0 lg:has-[[data-prospection-carte]]:p-0">
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-[32px]">
+        <div className="relative flex min-h-full flex-1 flex-col rounded-[32px] p-6 has-[[data-agent-onboarding]]:min-h-full has-[[data-agent-onboarding]]:p-0 has-[[data-prospection-carte]]:min-h-0 has-[[data-prospection-carte]]:p-0 lg:p-8 lg:has-[[data-agent-onboarding]]:p-0 lg:has-[[data-prospection-carte]]:p-0">
           {children}
         </div>
       </div>

@@ -5,6 +5,9 @@ import Select from '@/components/ui/Select';
 export type AssigneeOption = {
   id: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string | null;
 };
 
 export default function AssigneeSelect({

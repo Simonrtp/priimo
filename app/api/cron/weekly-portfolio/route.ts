@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
   for (const agency of agencies ?? []) {
     const agencyId = agency.id as string;
-    const [biensRes, leadsRes, rdvRes, contactsRes, visitsRes] = await Promise.all([
+    const [biensRes, leadsRes, rdvRes, contactsRes] = await Promise.all([
       admin
         .from('biens')
         .select('id, mandat_statut, mandat_date, created_at')
@@ -37,14 +37,7 @@ export async function GET(req: Request) {
       admin.from('leads').select('stage_id').eq('agency_id', agencyId),
       admin.from('rendez_vous').select('contact_id, fin').eq('agency_id', agencyId),
       admin.from('contacts').select('id, last_interaction_at').eq('agency_id', agencyId),
-      admin.from('visites').select('bien_id').eq('agency_id', agencyId),
     ]);
-
-    const visitCountByBienId: Record<string, number> = {};
-    for (const row of visitsRes.data ?? []) {
-      const id = (row as { bien_id?: string }).bien_id;
-      if (id) visitCountByBienId[id] = (visitCountByBienId[id] ?? 0) + 1;
-    }
 
     const lastInteraction: Record<string, string | null> = {};
     for (const c of contactsRes.data ?? []) {
@@ -63,7 +56,6 @@ export async function GET(req: Request) {
         mandatDate: (b as { mandat_date: string | null }).mandat_date,
         createdAt: (b as { created_at: string }).created_at,
       })),
-      visitCountByBienId,
       leads: (leadsRes.data ?? []).map((l) => ({
         stageId: (l as { stage_id: string | null }).stage_id,
       })),

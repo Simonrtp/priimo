@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -19,9 +20,11 @@ import type { Lead, LeadStage, TeamMember } from '@/types/lead';
 import { fractionalPosition, positionNeighbors } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
+import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import PipelineColumn from './PipelineColumn';
 import PipelineLeadCard from './PipelineLeadCard';
 import LostReasonDialog from './LostReasonDialog';
+import StageEditorDialog from './StageEditorDialog';
 
 type Columns = Record<string, string[]>;
 
@@ -47,12 +50,16 @@ export default function PipelineBoard({
   teamMembers,
   onLeadsChange,
   onOpen,
+  canManageStages = false,
+  onStagesChange,
 }: {
   stages: readonly LeadStage[];
   leads: Lead[];
   teamMembers: readonly TeamMember[];
   onLeadsChange: (next: Lead[] | ((prev: Lead[]) => Lead[])) => void;
   onOpen: (id: string) => void;
+  canManageStages?: boolean;
+  onStagesChange?: (next: LeadStage[] | ((prev: LeadStage[]) => LeadStage[])) => void;
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const [columns, setColumns] = useState<Columns>(() => buildColumns(stages, leads));
@@ -65,10 +72,44 @@ export default function PipelineBoard({
   } | null>(null);
   const [lostReason, setLostReason] = useState('');
   const [mandatCelebrateTick, setMandatCelebrateTick] = useState(0);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [stageLabel, setStageLabel] = useState('');
+  const [stageColor, setStageColor] = useState('#4A90E2');
+  const [stageError, setStageError] = useState<string | null>(null);
+  const [stageSaving, setStageSaving] = useState(false);
 
   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
   const membersById = useMemo(() => new Map(teamMembers.map((m) => [m.id, m])), [teamMembers]);
+
+  const closeEditor = useCallback(() => {
+    if (stageSaving) return;
+    setEditorOpen(false);
+    setEditingStageId(null);
+    setStageLabel('');
+    setStageColor('#4A90E2');
+    setStageError(null);
+  }, [stageSaving]);
+
+  const openCreateEditor = useCallback(() => {
+    setEditorMode('create');
+    setEditingStageId(null);
+    setStageLabel('');
+    setStageColor('#4A90E2');
+    setStageError(null);
+    setEditorOpen(true);
+  }, []);
+
+  const openEditEditor = useCallback((stage: LeadStage) => {
+    setEditorMode('edit');
+    setEditingStageId(stage.id);
+    setStageLabel(stage.libelle);
+    setStageColor(stage.accentColor);
+    setStageError(null);
+    setEditorOpen(true);
+  }, []);
 
   useEffect(() => {
     if (activeId || pendingLost) return;
@@ -223,6 +264,55 @@ export default function PipelineBoard({
     setLostReason('');
   }
 
+  const submitStageEditor = useCallback(async () => {
+    const libelle = stageLabel.trim().replace(/\s+/g, ' ');
+    if (libelle.length < 2) {
+      setStageError('Le nom doit contenir au moins 2 caractères.');
+      return;
+    }
+    if (!/^#[0-9a-f]{6}$/i.test(stageColor)) {
+      setStageError('Choisissez une couleur valide.');
+      return;
+    }
+
+    setStageSaving(true);
+    setStageError(null);
+    try {
+      const endpoint =
+        editorMode === 'create'
+          ? '/api/dashboard/lead-stages'
+          : `/api/dashboard/lead-stages/${editingStageId}`;
+      const method = editorMode === 'create' ? 'POST' : 'PATCH';
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ libelle, accentColor: stageColor }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        stage?: LeadStage;
+      };
+      if (!res.ok || !body.stage) {
+        throw new Error(body.error ?? 'Enregistrement impossible');
+      }
+
+      onStagesChange?.((prev) => {
+        const list = Array.isArray(prev) ? prev : stages;
+        const next =
+          editorMode === 'create'
+            ? [...list, body.stage!]
+            : list.map((stage) => (stage.id === body.stage!.id ? body.stage! : stage));
+        return [...next].sort((a, b) => a.ordre - b.ordre);
+      });
+      toast.success(editorMode === 'create' ? 'Colonne créée' : 'Colonne mise à jour');
+      closeEditor();
+    } catch (e) {
+      setStageError(e instanceof Error ? e.message : 'Enregistrement impossible');
+    } finally {
+      setStageSaving(false);
+    }
+  }, [closeEditor, editorMode, editingStageId, onStagesChange, stageColor, stageLabel, stages]);
+
   const activeLead = activeId ? leadsById.get(activeId) : null;
   const activeStage = activeLead?.stageId ? stagesById.get(activeLead.stageId) : undefined;
 
@@ -247,7 +337,7 @@ export default function PipelineBoard({
           setColumns(buildColumns(stages, leads));
         }}
       >
-        <div className="flex h-[calc(100dvh-16rem)] min-h-[420px] gap-3 overflow-x-auto pb-2">
+        <div className="flex min-h-[420px] items-start gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1">
           {stages.map((stage) => (
             <PipelineColumn
               key={stage.id}
@@ -258,8 +348,32 @@ export default function PipelineBoard({
               membersById={membersById}
               onOpen={onOpen}
               celebrateTick={stage.cle === 'mandat' ? mandatCelebrateTick : 0}
+              onEditStage={canManageStages ? openEditEditor : undefined}
             />
           ))}
+          {canManageStages ? (
+            <section className="flex min-h-[420px] w-[300px] shrink-0 self-start flex-col rounded-xl border border-dashed border-black/[0.12] bg-white/70 p-4">
+              <div className="flex h-full flex-col items-start justify-center gap-3 rounded-xl bg-black/[0.02] px-4 text-left">
+                <div className="flex size-11 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                  <Plus size={20} strokeWidth={2.2} aria-hidden />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-semibold text-text-strong">Nouvelle colonne</h3>
+                  <p className="mt-1 text-pretty text-[13px] text-text-muted">
+                    Choisis une couleur, puis un nom pour ajouter une étape intermédiaire.
+                  </p>
+                </div>
+                <WorkspaceButton
+                  type="button"
+                  variant="secondary"
+                  onClick={openCreateEditor}
+                  className="w-full"
+                >
+                  Ajouter une colonne
+                </WorkspaceButton>
+              </div>
+            </section>
+          ) : null}
         </div>
         <DragOverlay dropAnimation={null}>
           {activeLead ? (
@@ -287,6 +401,19 @@ export default function PipelineBoard({
           setPendingLost(null);
           void persistMove(leadId, toStageId, destIds, lostReason);
         }}
+      />
+
+      <StageEditorDialog
+        open={editorOpen}
+        mode={editorMode}
+        libelle={stageLabel}
+        accentColor={stageColor}
+        saving={stageSaving}
+        error={stageError}
+        onLibelleChange={setStageLabel}
+        onAccentColorChange={setStageColor}
+        onCancel={closeEditor}
+        onConfirm={() => void submitStageEditor()}
       />
     </>
   );

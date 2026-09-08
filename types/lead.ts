@@ -144,6 +144,7 @@ export type LeadStage = {
   cle: string;
   libelle: string;
   ordre: number;
+  accentColor: string;
   type: LeadStageType;
 };
 

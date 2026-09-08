@@ -6,7 +6,6 @@
 import {
   formatWeekDelta,
   leadsNonPrisTone,
-  mandats60jTone,
   mandatsActifsTone,
   rdvSansSuiteTone,
   type CounterTone,
@@ -22,8 +21,7 @@ export type PortfolioCounterKind =
   | 'mandats-actifs'
   | 'leads-non-pris'
   | 'rdv-sans-suite'
-  | 'estimations'
-  | 'mandats-60j';
+  | 'estimations';
 
 export type PortfolioCounter = {
   kind: PortfolioCounterKind;
@@ -48,13 +46,6 @@ export type PortfolioPreviousWeek = {
   mandats60j: number;
 };
 
-function ageDays(iso: string | null | undefined, now: number): number | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return null;
-  return (now - t) / DAY_MS;
-}
-
 export function isSignedMandat(statut: string): boolean {
   return statut === 'mandat_simple' || statut === 'mandat_exclusif';
 }
@@ -73,14 +64,11 @@ export function buildPortfolioStats(input: {
     mandatDate: string | null;
     createdAt: string;
   }[];
-  visitCountByBienId: Readonly<Record<string, number>>;
   leads: readonly { stageId: string | null }[];
   estimationStageId: string | null;
   rendezVousSansSuite: number;
   previousWeek?: PortfolioPreviousWeek | null;
-  now?: number;
 }): PortfolioStats {
-  const now = input.now ?? Date.now();
   const prev = input.previousWeek ?? null;
   const signed = input.biens.filter((b) => isSignedMandat(b.mandatStatut));
   const exclusifs = signed.filter((b) => b.mandatStatut === 'mandat_exclusif').length;
@@ -116,13 +104,6 @@ export function buildPortfolioStats(input: {
     };
   }
 
-  const stale = signed.filter((b) => {
-    const age = ageDays(b.mandatDate ?? b.createdAt, now);
-    if (age === null || age <= PORTFOLIO_STALE_MANDAT_DAYS) return false;
-    const visits = input.visitCountByBienId[b.id] ?? 0;
-    return visits < PORTFOLIO_STALE_VISIT_MAX;
-  }).length;
-
   return {
     counters: [
       {
@@ -154,16 +135,6 @@ export function buildPortfolioStats(input: {
         subtitleHref: null,
         tone: third.tone,
         ...withDelta(third.value, prev?.rdvSansSuite ?? null),
-      },
-      {
-        kind: 'mandats-60j',
-        value: stale,
-        label: 'Mandats qui pourrissent',
-        subtitle: 'Plus de 60 j, moins de 3 visites',
-        href: '/dashboard/biens?filtre=mandats-60j',
-        subtitleHref: null,
-        tone: mandats60jTone(stale),
-        ...withDelta(stale, prev?.mandats60j ?? null),
       },
     ],
   };

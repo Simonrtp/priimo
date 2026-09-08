@@ -115,7 +115,8 @@ export type TodayCardAction =
   | { kind: 'ouvrir_promesse'; label: string; promesseId: string }
   | { kind: 'ouvrir_rdv'; label: string; rdvId: string }
   | { kind: 'ouvrir_estimation'; label: string; estimationId: string }
-  | { kind: 'ouvrir_liste'; label: string; cardType: TodayCardType };
+  | { kind: 'ouvrir_liste'; label: string; cardType: TodayCardType }
+  | { kind: 'ouvrir_note'; label: string; noteId: string };
 
 export interface TodayMatchSummary {
   contactId: string;
@@ -367,6 +368,8 @@ function cartesTransmis(assignments: readonly TodayAssignmentItem[]): TodayCard[
   return assignments.map((item, index) => {
     const action: TodayCardAction = item.leadId
       ? { kind: 'ouvrir_lead', label: "Ouvrir l'adresse", leadId: item.leadId }
+      : item.noteId && !item.contactId
+        ? { kind: 'ouvrir_note', label: 'Ouvrir la note', noteId: item.noteId }
       : {
           kind: 'ouvrir_contact',
           label: 'Ouvrir la fiche',

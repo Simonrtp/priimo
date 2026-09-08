@@ -70,6 +70,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
   }
   if (body.terminer === true) patch.statut = 'revue';
 
+  if (body.assignedTo !== undefined && !body.relance) {
+    const members = await fetchMembersOfMyAgency(agency.id, memberships);
+    const assigned = parseAssigneeId(body.assignedTo, memberIdSet(members));
+    if (assigned.provided && 'invalid' in assigned) {
+      return NextResponse.json(
+        { error: "Cette personne n'appartient pas à l'agence" },
+        { status: 400 },
+      );
+    }
+    const assigneeId =
+      assigned.provided && !('invalid' in assigned) ? assigned.id : null;
+    Object.assign(patch, assignmentMeta(assigneeId, profile.id));
+  }
+
   if (body.relance && typeof body.relance === 'object') {
     const relance = body.relance as Record<string, unknown>;
     const at = typeof relance.at === 'string' ? relance.at : null;

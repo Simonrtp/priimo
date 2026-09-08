@@ -5,6 +5,7 @@ export type NameMatchMember = {
   firstName: string;
   lastName: string;
   fullName: string;
+  avatarUrl?: string | null;
 };
 
 function containsPhrase(haystack: string, phrase: string): boolean {

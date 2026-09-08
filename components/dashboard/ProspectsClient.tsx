@@ -88,6 +88,7 @@ export default function ProspectsClient({
   const device = useDevice();
   const wide = useWideViewport(false);
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
+  const [stageList, setStageList] = useState<LeadStage[]>(stages);
   const vueFromUrl = vueState;
   // Pipeline hors mobile / viewport étroit ; carte et liste restent disponibles.
   const vue: ProspectionVue =
@@ -96,6 +97,9 @@ export default function ProspectsClient({
   useEffect(() => {
     setVueState(initialVue);
   }, [initialVue]);
+  useEffect(() => {
+    setStageList(stages);
+  }, [stages]);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [showPipelineBanner, setShowPipelineBanner] = useState(initialShowPipelineBanner);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(initialSelectedLeadId);
@@ -144,12 +148,12 @@ export default function ProspectsClient({
       }
       if (listFilter === 'non-pris' && l.stageId != null) return false;
       if (listFilter === 'estimations') {
-        const estimation = stages.find((s) => s.cle === 'estimation');
+        const estimation = stageList.find((s) => s.cle === 'estimation');
         if (!estimation || l.stageId !== estimation.id) return false;
       }
       return true;
     });
-  }, [segmentLeads, filters, listFilter, memberId, stages]);
+  }, [segmentLeads, filters, listFilter, memberId, stageList]);
 
   const partitioned = useMemo(
     () =>
@@ -234,7 +238,7 @@ export default function ProspectsClient({
   const onTake = useCallback(
     async (id: string) => {
       const lead = leads.find((l) => l.id === id);
-      const gate = entreeStage(stages);
+      const gate = entreeStage(stageList);
       const userId = profile?.id;
       if (!lead || !gate || !userId) {
         toast.error('Impossible d’ajouter ce lead au pipeline pour le moment.');
@@ -268,13 +272,13 @@ export default function ProspectsClient({
         toast.error(e instanceof Error ? e.message : 'Le lead n’a pas pu être ajouté au pipeline.');
       }
     },
-    [applyLeadPatch, leads, profile?.id, stages],
+    [applyLeadPatch, leads, profile?.id, stageList],
   );
 
   const persistStage = useCallback(
     async (id: string, stageId: string, lostReasonValue?: string) => {
       const lead = leads.find((l) => l.id === id);
-      const stage = stages.find((s) => s.id === stageId);
+      const stage = stageList.find((s) => s.id === stageId);
       if (!lead || !stage || lead.stageId === stageId) return;
       const now = new Date().toISOString();
       const stagePosition = nextStagePosition(
@@ -295,7 +299,7 @@ export default function ProspectsClient({
           stageChangedAt: now,
           lostReason: stage.type === 'perdu' ? lostReasonValue ?? null : null,
         });
-        const fromStage = lead.stageId ? stages.find((s) => s.id === lead.stageId) : null;
+        const fromStage = lead.stageId ? stageList.find((s) => s.id === lead.stageId) : null;
         const victory = pipelineVictoryKind(fromStage, stage);
         if (victory) celebratePipelineVictory(victory);
       } catch (e) {
@@ -308,13 +312,13 @@ export default function ProspectsClient({
         toast.error(e instanceof Error ? e.message : 'L’étape n’a pas pu être enregistrée.');
       }
     },
-    [applyLeadPatch, leads, stages],
+    [applyLeadPatch, leads, stageList],
   );
 
   const onStageChange = useCallback(
     (id: string, stageId: string) => {
       const lead = leads.find((l) => l.id === id);
-      const stage = stages.find((s) => s.id === stageId);
+      const stage = stageList.find((s) => s.id === stageId);
       if (!lead || !stage || lead.stageId === stageId) return;
       if (stage.type === 'perdu') {
         setPendingLost({ leadId: id, stageId });
@@ -323,7 +327,7 @@ export default function ProspectsClient({
       }
       void persistStage(id, stageId);
     },
-    [leads, persistStage, stages],
+    [leads, persistStage, stageList],
   );
 
   const deleteLeadHandler = useCallback(
@@ -403,9 +407,12 @@ export default function ProspectsClient({
         />
       )}
 
+      <div className="sticky top-0 z-20 -mx-2 mb-4 flex justify-end bg-bg-base/95 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-bg-base/85">
+        {switcher}
+      </div>
+
       {vue === 'pipeline' ? (
         <>
-          {switcher ? <div className="mb-4 flex items-center justify-end">{switcher}</div> : null}
           <PipelineFilters
             scope={pipelineScope}
             onScope={setPipelineScope}
@@ -416,11 +423,13 @@ export default function ProspectsClient({
             kpiLine={kpiLine}
           />
           <PipelineBoard
-            stages={stages}
+            stages={stageList}
             leads={pipelineLeads}
             teamMembers={teamMembers}
             onLeadsChange={setLeads}
             onOpen={setSelectedLeadId}
+            canManageStages={isDirector}
+            onStagesChange={setStageList}
           />
         </>
       ) : null}
@@ -429,7 +438,6 @@ export default function ProspectsClient({
         <>
           <div className="flex flex-col">
             <div className="order-3 mb-3 md:mb-3">
-              {switcher ? <div className="mb-3 flex justify-end">{switcher}</div> : null}
               <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
               <ProspectsListToolbar
@@ -468,7 +476,7 @@ export default function ProspectsClient({
             hasAnyLead={leads.length > 0}
             onLeadClick={setSelectedLeadId}
             onStatusChange={onStatusInline}
-            stages={stages}
+            stages={stageList}
             onTake={onTake}
             onStageChange={onStageChange}
             onResetFilters={resetFilters}

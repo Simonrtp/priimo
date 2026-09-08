@@ -420,6 +420,9 @@ export default function VoiceCaptureDialog({
   const memberOptions: AssigneeOption[] = members.map((m) => ({
     id: m.id,
     fullName: m.fullName,
+    firstName: m.firstName,
+    lastName: m.lastName,
+    avatarUrl: m.avatarUrl ?? null,
   }));
 
   const title =

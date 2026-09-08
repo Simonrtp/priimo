@@ -114,12 +114,14 @@ export function recentNotesForHome<T extends VoiceNote>(
   const limit = input.limit ?? 5;
   const now = input.now ?? Date.now();
   const weekStart = input.weekStartKey ? Date.parse(`${input.weekStartKey}T00:00:00`) : now - 7 * DAY_MS;
-  const mine = (input.isDirector ? notes : notes.filter((n) => n.createdBy === input.viewerId)).filter(
-    (n) => {
-      if (!isHomeNoteWorthy(n.transcript)) return false;
-      const t = Date.parse(n.createdAt);
-      return Number.isFinite(t) && t >= weekStart;
-    },
-  );
+  const mine = (
+    input.isDirector
+      ? notes
+      : notes.filter((n) => n.createdBy === input.viewerId || n.assignedTo === input.viewerId)
+  ).filter((n) => {
+    if (!isHomeNoteWorthy(n.transcript)) return false;
+    const t = Date.parse(n.createdAt);
+    return Number.isFinite(t) && t >= weekStart;
+  });
   return mine.slice(0, limit);
 }

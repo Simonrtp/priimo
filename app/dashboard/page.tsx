@@ -18,7 +18,7 @@ import { fetchTodayDismissals } from '@/lib/queries/today';
 import { listerActionsOuvertes } from '@/lib/queries/actions';
 import { fetchAssignmentsToMe } from '@/lib/queries/assignments';
 import { fetchAgencyAlerts } from '@/lib/queries/alerts';
-import { fetchTodayMetierSafe, fetchVisitCountByBienIdSafe } from '@/lib/queries/metier-today';
+import { fetchTodayMetierSafe } from '@/lib/queries/metier-today';
 import { fetchLeadStages } from '@/lib/queries/lead-stages';
 import {
   countSansSuite,
@@ -112,7 +112,7 @@ async function TodayContent({
   );
   const isDirector = profile.role === 'directeur';
 
-  const [leads, contacts, biens, dismissals, members, metier, notes, device, stages, pastRdv, visitCounts] =
+  const [leads, contacts, biens, dismissals, members, metier, notes, device, stages, pastRdv] =
     await Promise.all([
       timed('fetchLeads', () => fetchLeads(supabase)),
       timed('fetchContactsSafe', () => fetchContactsSafe(supabase)),
@@ -124,7 +124,6 @@ async function TodayContent({
       timed('getDevice(page)', () => getDevice()),
       timed('fetchLeadStages', () => fetchLeadStages(supabase)),
       timed('fetchPastRendezVousSafe', () => fetchPastRendezVousSafe(supabase)),
-      timed('fetchVisitCountByBienIdSafe', () => fetchVisitCountByBienIdSafe(supabase)),
     ]);
 
   const names = memberNamesById(members);
@@ -140,9 +139,6 @@ async function TodayContent({
   const rendezVousSansSuite = countSansSuite(pastRdv, lastInteractionByContactId);
   const estimationStageId = stages.find((s) => s.cle === 'estimation')?.id ?? null;
 
-  const visitCountByBienId: Record<string, number> = { ...visitCounts };
-  for (const b of metier.biens) visitCountByBienId[b.id] = b.visitCount;
-
   const prevSnap = await fetchWeeklySnapshot(supabase, agency.id, previousMonday());
   const portfolio = buildPortfolioStats({
     biens: visibleBiens.map((b) => ({
@@ -151,7 +147,6 @@ async function TodayContent({
       mandatDate: b.mandatDate,
       createdAt: b.createdAt,
     })),
-    visitCountByBienId,
     leads: visibleLeads.map((l) => ({ stageId: l.stageId })),
     estimationStageId,
     rendezVousSansSuite,
@@ -368,14 +363,6 @@ async function TodayContent({
       members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
       leads: visibleLeads.map((l) => ({ assignedTo: l.assignedTo, stageId: l.stageId })),
       notes: visibleNotes.map((n) => ({ createdBy: n.createdBy, statut: n.statut })),
-      biens: visibleBiens.map((b) => ({
-        id: b.id,
-        createdBy: b.createdBy,
-        mandatStatut: b.mandatStatut,
-        mandatDate: b.mandatDate,
-        createdAt: b.createdAt,
-      })),
-      visitCountByBienId,
       activityVolumeByMemberId: volumeById,
     });
   }

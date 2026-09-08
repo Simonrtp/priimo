@@ -101,9 +101,9 @@ Mots-clés: biens, mandat, mandat exclusif, mandat simple, compromis, vendu
 
 Les biens sont les mandats de l'agence et leur avancement : estimation,
 mandat simple, mandat exclusif, compromis, vendu, archivé. Un bien porte son
-propriétaire, ses caractéristiques, ses visites et ses photos. Le compteur
-« mandats qui pourrissent » de l'accueil signale ceux qui dépassent soixante
-jours avec moins de trois visites.
+propriétaire, ses caractéristiques, ses visites et ses photos. Le filtre
+« mandats-60j » de la liste des biens isole ceux qui dépassent soixante jours
+avec moins de trois visites.
 
 ## La carte
 Écran: /dashboard/carte

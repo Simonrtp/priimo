@@ -330,7 +330,14 @@ Phase 3 (mois 5–6+)
 - Liste scorée avec pour chaque lead : adresse + score (/100) + signal principal + contexte bien + statut
 - Filtres : score min, type signal, statut
 - Actions : exporter CSV, générer lien Google Maps
+- Le bouton global **`Nouveau`** doit proposer au minimum : **Nouvelle estimation** (redirige vers `/dashboard/estimation`), **Nouveau contact**, **Nouveau bien**, **Écrire une note**, **Dicter une note**.
 - Clic sur lead → drawer avec détail complet + notes + historique
+- Si une **vue carte** est affichée dans Prospection, elle doit rester **contenue dans la carte d’espace de travail** (jamais en plein écran desktop hors mobile) avec coins/masque hérités du conteneur.
+- Le switch local **Liste / Pipeline / Carte** doit rester **sticky/fixe** pendant le scroll dans Prospection pour éviter de perdre la navigation de vue.
+- En vue **Pipeline**, le **directeur** peut **renommer une colonne existante** et **créer une nouvelle colonne intermédiaire**. Le flux UI attendu : clic sur “Ajouter une colonne” → choix de **couleur** via bulles → saisie du **nom** → création.
+- Les colonnes pipeline ont une **couleur d’accent persistée par agence** (`lead_stages.accent_color`) ; les nouvelles colonnes créées par l’UI sont de type `intermediaire` et s’ajoutent en fin de board.
+- En desktop, le **scroll vertical** du pipeline doit être porté par la **zone principale de droite** ; les colonnes ne doivent pas avoir leur propre scroll vertical. Le board conserve seulement un **scroll horizontal** si le nombre de colonnes dépasse la largeur disponible.
+- Une **note dictée ou tapée** doit pouvoir **créer** un contact / une adresse **et** **rattacher** la note à une fiche existante. Si un nom déjà en fichier apparaît dans le texte (« contacter Simon Ropiot »), le rattachement est **proposé automatiquement**, avec le même chip compact que les rattachements manuels. Un homonyme (même prénom, autre nom) n’est pas proposé. Un **conseiller** nommé dans la dictée (« par Thomas Perrin ») reçoit la note : elle apparaît sur **son accueil** et dans **ce qu’il a à faire aujourd’hui**. Pas de message d’échec de mise en forme.
 
 **Écran secondaire : PARAMÈTRES**
 - Zone de prospection (carte + rayon)

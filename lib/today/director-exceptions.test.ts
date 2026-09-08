@@ -2,12 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildDirectorExceptions } from './director-exceptions';
 
-const NOW = Date.parse('2026-08-26T12:00:00Z');
-
 describe('buildDirectorExceptions', () => {
   it('liste les exceptions par personne, pas une pile de tâches', () => {
     const rows = buildDirectorExceptions({
-      now: NOW,
       members: [
         { id: 'a', fullName: 'Alice' },
         { id: 'b', fullName: 'Bruno' },
@@ -18,8 +15,6 @@ describe('buildDirectorExceptions', () => {
         { assignedTo: 'b', stageId: 'pris' },
       ],
       notes: [{ createdBy: 'b', statut: 'brute' }],
-      biens: [],
-      visitCountByBienId: {},
       activityVolumeByMemberId: { a: 4, b: 0 },
     });
     assert.equal(rows.length, 2);

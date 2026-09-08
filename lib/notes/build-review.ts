@@ -1,6 +1,13 @@
 import type { Contact } from '@/types/contact';
 import type { NoteSourceInfo } from '@/types/contact';
+import { normalizeName } from '@/lib/import/normalize';
 import { confianceImmeuble, matchContacts, type ContactMatch } from '@/lib/notes/match';
+import {
+  guessPersonnesFromTranscript,
+  matchContactsInTranscript,
+  personneCitedInTranscript,
+  personneFromMatch,
+} from '@/lib/notes/from-transcript';
 import type { ExtractedPersonne, ExtractedRelance, ExtractedPromesse, ExtractedRendezVous, ExtractedVisite, NoteExtraction } from '@/lib/notes/propositions';
 import { lignesFicheNote, relanceAtFromJours } from '@/lib/notes/propositions';
 
@@ -90,11 +97,45 @@ export function buildReviewPayload(args: {
   };
 }): NoteReviewPayload {
   const extraction = args.extraction;
-  const personnes: PersonneProposal[] = (extraction?.personnes ?? []).map((personne, i) => ({
+  const cited = args.transcript?.trim() ?? '';
+  const extractedPersonnes = (extraction?.personnes ?? []).filter((personne) => {
+    if (!cited) return true;
+    return personneCitedInTranscript(personne, cited);
+  });
+  const personnes: PersonneProposal[] = extractedPersonnes.map((personne, i) => ({
     id: `p${i}`,
     personne,
     matches: matchContacts(personne, args.contacts, args.agencyId),
   }));
+
+  if (cited) {
+    const coveredKeys = new Set(
+      personnes.map(
+        (p) => `${normalizeName(p.personne.firstName)}|${normalizeName(p.personne.lastName)}`,
+      ),
+    );
+    for (const guessed of guessPersonnesFromTranscript(cited)) {
+      const key = `${normalizeName(guessed.firstName)}|${normalizeName(guessed.lastName)}`;
+      if (coveredKeys.has(key)) continue;
+      coveredKeys.add(key);
+      personnes.push({
+        id: `p-guess-${personnes.length}`,
+        personne: guessed,
+        matches: matchContacts(guessed, args.contacts, args.agencyId),
+      });
+    }
+
+    const coveredIds = new Set(personnes.flatMap((p) => p.matches.map((m) => m.contactId)));
+    for (const match of matchContactsInTranscript(cited, args.contacts, args.agencyId)) {
+      if (coveredIds.has(match.contactId)) continue;
+      coveredIds.add(match.contactId);
+      personnes.push({
+        id: `t-${match.contactId}`,
+        personne: personneFromMatch(match, args.contacts),
+        matches: [match],
+      });
+    }
+  }
 
   let immeuble: ImmeubleProposal | null = null;
   const address = extraction?.address ?? args.geo.adresse_normalisee;

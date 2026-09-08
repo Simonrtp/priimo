@@ -29,6 +29,7 @@ export type AgencyMember = {
   fullName: string;
   role: ProfileRole;
   email: string;
+  avatarUrl: string | null;
   contactCount: number;
   leadCount: number;
 };
@@ -108,11 +109,15 @@ export async function fetchMembersOfMyAgency(
 
   const roleById = new Map(rows.map((l) => [l.profile_id, l.role as ProfileRole]));
 
-  const { data: profiles, error: profilesErr } = await admin
+  const withAvatar = await admin
     .from('profiles')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, avatar_url')
     .in('id', profileIds);
-  if (profilesErr) throw new Error(profilesErr.message);
+  const profilesRes = withAvatar.error
+    ? await admin.from('profiles').select('id, first_name, last_name').in('id', profileIds)
+    : withAvatar;
+  if (profilesRes.error) throw new Error(profilesRes.error.message);
+  const profiles = profilesRes.data ?? [];
 
   const emailById = options.includeEmail ? await emailsForProfiles(profileIds) : new Map<string, string>();
 
@@ -142,9 +147,13 @@ export async function fetchMembersOfMyAgency(
     }
   }
 
-  const members: AgencyMember[] = (profiles ?? []).map((p) => {
+  const members: AgencyMember[] = profiles.map((p) => {
     const firstName = (p.first_name ?? '').trim();
     const lastName = (p.last_name ?? '').trim();
+    const avatarUrl =
+      'avatar_url' in p && typeof p.avatar_url === 'string' && p.avatar_url.trim()
+        ? p.avatar_url
+        : null;
     return {
       id: p.id,
       firstName,
@@ -152,6 +161,7 @@ export async function fetchMembersOfMyAgency(
       fullName: buildFullName(firstName, lastName),
       role: roleById.get(p.id) ?? 'collaborateur',
       email: emailById.get(p.id) ?? '',
+      avatarUrl,
       contactCount: contactCounts.get(p.id) ?? 0,
       leadCount: leadCounts.get(p.id) ?? 0,
     };

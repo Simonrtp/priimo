@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, RefreshCw, UserPlus, X } from 'lucide-react';
 import type { ContactType, NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
+import { normalizeName } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
+import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
 import type { ExtractedPersonne } from '@/lib/notes/propositions';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Select from '@/components/ui/Select';
@@ -14,6 +16,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
@@ -33,9 +36,49 @@ const BLANK_PERSONNE: ExtractedPersonne = {
   type: 'autre',
 };
 
-function personEditors(review: NoteReviewPayload): PersonneProposal[] {
-  if (review.personnes.length > 0) return review.personnes;
-  return [{ id: 'p-new', personne: BLANK_PERSONNE, matches: [] }];
+type ManualLink = NoteLinkPick & { key: string };
+
+function LinkChip({
+  label,
+  subtitle,
+  onRemove,
+  disabled = false,
+  avatar,
+}: {
+  label: string;
+  subtitle: string;
+  onRemove: () => void;
+  disabled?: boolean;
+  avatar?: { firstName: string; lastName: string; avatarUrl?: string | null };
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-xl border border-black/[0.08] px-3 py-2.5">
+      <span className="flex min-w-0 items-center gap-3">
+        {avatar ? (
+          <ProfileAvatar
+            firstName={avatar.firstName}
+            lastName={avatar.lastName}
+            avatarUrl={avatar.avatarUrl}
+            size={32}
+            className="shrink-0"
+          />
+        ) : null}
+        <span className="min-w-0">
+          <span className="block truncate text-[13.5px] font-medium text-text-strong">{label}</span>
+          <span className="block text-[12px] text-text-muted">{subtitle}</span>
+        </span>
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        aria-label={`Retirer ${label}`}
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+      >
+        <X size={16} strokeWidth={2} aria-hidden />
+      </button>
+    </li>
+  );
 }
 
 function parsePositiveInt(raw: string, max: number): number | null {
@@ -47,8 +90,7 @@ function parsePositiveInt(raw: string, max: number): number | null {
 function pickMatch(matches: readonly ContactMatch[]): ContactMatch | null {
   const certain = matches.find((m) => m.confiance === 'certain');
   if (certain) return certain;
-  if (matches.length === 1) return matches[0];
-  return null;
+  return matches[0] ?? null;
 }
 
 export default function VoiceReviewPanel({
@@ -87,19 +129,75 @@ export default function VoiceReviewPanel({
   const [terminating, setTerminating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [extraPersonnes, setExtraPersonnes] = useState<PersonneProposal[]>([]);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [deselectedIds, setDeselectedIds] = useState<string[]>([]);
+  const [chosenMatch, setChosenMatch] = useState<Record<string, string>>({});
+  const [manualLinks, setManualLinks] = useState<ManualLink[]>([]);
+  const [hiddenConseillers, setHiddenConseillers] = useState<string[]>([]);
   const lastExtracted = (review.transcript ?? '').trim();
   const dirty = transcript.trim() !== lastExtracted;
   const canRefresh = transcript.trim().length > 0 && (dirty || review.extractFailed);
   const locked = refreshing || deleting || terminating;
+
+  useEffect(() => {
+    setExtraPersonnes([]);
+    setHiddenIds([]);
+    setDeselectedIds([]);
+    setChosenMatch({});
+    setManualLinks([]);
+    setHiddenConseillers([]);
+  }, [review.voiceNoteId]);
+
+  const conseillers = useMemo(
+    () => matchMembersInTranscript(transcript, members).filter((m) => !hiddenConseillers.includes(m.memberId)),
+    [transcript, members, hiddenConseillers],
+  );
+  const conseillerNameKeys = useMemo(
+    () => new Set(conseillers.map((m) => normalizeName(m.label))),
+    [conseillers],
+  );
+
+  function isConseillerPersonne(p: PersonneProposal): boolean {
+    return conseillerNameKeys.has(
+      normalizeName(`${p.personne.firstName} ${p.personne.lastName}`.trim()),
+    );
+  }
+
+  function pickedAssignee(): string | null {
+    return (
+      conseillers.find((c) => c.memberId !== currentUserId)?.memberId ??
+      conseillers[0]?.memberId ??
+      null
+    );
+  }
+
+  function visiblePersonnes(): PersonneProposal[] {
+    return [...review.personnes, ...extraPersonnes].filter(
+      (p) => !hiddenIds.includes(p.id) && !isConseillerPersonne(p),
+    );
+  }
+
+  function selectedMatchFor(p: PersonneProposal): ContactMatch | null {
+    if (deselectedIds.includes(p.id)) return null;
+    const chosen = chosenMatch[p.id];
+    if (chosen) return p.matches.find((m) => m.contactId === chosen) ?? null;
+    return pickMatch(p.matches);
+  }
 
   function patchPersonnes(next: PersonneProposal[]) {
     onReviewChange({ ...review, personnes: next });
   }
 
   function patchPersonne(id: string, patch: Partial<ExtractedPersonne>) {
-    const current = personEditors(review);
-    patchPersonnes(
-      current.map((p) => (p.id === id ? { ...p, personne: { ...p.personne, ...patch } } : p)),
+    if (review.personnes.some((p) => p.id === id)) {
+      patchPersonnes(
+        review.personnes.map((p) => (p.id === id ? { ...p, personne: { ...p.personne, ...patch } } : p)),
+      );
+      return;
+    }
+    setExtraPersonnes((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, personne: { ...p.personne, ...patch } } : p)),
     );
   }
 
@@ -130,6 +228,30 @@ export default function VoiceReviewPanel({
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error('patch');
+  }
+
+  function addManualLink(pick: NoteLinkPick) {
+    const key = `${pick.entiteType}:${pick.entiteId}`;
+    setManualLinks((prev) => (prev.some((l) => l.key === key) ? prev : [...prev, { ...pick, key }]));
+  }
+
+  function removeManualLink(key: string) {
+    setManualLinks((prev) => prev.filter((l) => l.key !== key));
+  }
+
+  function addBlankContact() {
+    setExtraPersonnes((prev) => [
+      ...prev,
+      { id: `new-${Date.now()}`, personne: { ...BLANK_PERSONNE }, matches: [] },
+    ]);
+  }
+
+  function dismissPersonne(id: string) {
+    if (extraPersonnes.some((p) => p.id === id)) {
+      setExtraPersonnes((prev) => prev.filter((p) => p.id !== id));
+      return;
+    }
+    setHiddenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   }
 
   async function addLien(entiteType: string, entiteId: string, confiance: string) {
@@ -189,6 +311,7 @@ export default function VoiceReviewPanel({
         source: typed ? 'manuel' : 'vocal',
         voiceNoteId: fiche.voiceNoteId,
         forceCreate,
+        assignedTo: pickedAssignee(),
       }),
     });
     const data = (await res.json()) as {
@@ -222,7 +345,7 @@ export default function VoiceReviewPanel({
     summary: string,
   ): Promise<string | null> {
     const hasName = Boolean(p.personne.firstName.trim() || p.personne.lastName.trim());
-    const match = pickMatch(p.matches);
+    const match = selectedMatchFor(p);
 
     if (match) {
       try {
@@ -233,11 +356,7 @@ export default function VoiceReviewPanel({
       return match.contactId;
     }
 
-    // Plusieurs candidats sans certitude : créer la fiche saisie (cf. message UI).
-    if (p.matches.length > 1) {
-      if (hasName) return createContact(p, fiche, summary, true);
-      return null;
-    }
+    if (p.matches.length > 0) return null;
 
     if (hasName) return createContact(p, fiche, summary);
     return null;
@@ -271,14 +390,28 @@ export default function VoiceReviewPanel({
     const text = transcript.trim();
     const relanceTo = relanceAssignee;
     const promesseTo = promesseAssignee;
+    const assigneeId = pickedAssignee();
 
     setTerminating(true);
     void (async () => {
       let contactId: string | null = null;
+      let createdContact = false;
       try {
-        for (const p of personEditors(snap)) {
+        for (const p of visiblePersonnes()) {
+          const before = contactId;
           const resolved = await resolveContactId(p, snap, text);
           contactId = contactId ?? resolved;
+          if (resolved && resolved !== before && !selectedMatchFor(p) && p.matches.length === 0) {
+            createdContact = true;
+          }
+        }
+        for (const link of manualLinks) {
+          try {
+            await addLien(link.entiteType, link.entiteId, 'certain');
+            if (link.entiteType === 'contact' && !contactId) contactId = link.entiteId;
+          } catch {
+            // Le rattachement pourra être repris depuis la fiche note.
+          }
         }
       } catch (err) {
         console.error('[voice] contact', err);
@@ -304,6 +437,28 @@ export default function VoiceReviewPanel({
             await addLien('immeuble', snap.immeuble.banId, snap.immeuble.confiance);
           } catch {
             // La note reste, l’immeuble pourra être rattaché plus tard.
+          }
+        }
+        if (assigneeId) {
+          try {
+            await patchNote({ assignedTo: assigneeId });
+          } catch {
+            // L’accueil du conseiller pourra être repris à la main.
+          }
+          if (contactId && !createdContact && text) {
+            try {
+              await fetch(`/api/dashboard/contacts/${contactId}/interactions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  body: text,
+                  kind: typed ? 'note' : 'vocal',
+                  assignedTo: assigneeId,
+                }),
+              });
+            } catch {
+              // La note reste assignée même si l’échange n’est pas recopié.
+            }
           }
         }
         if (snap.relance) {
@@ -414,11 +569,6 @@ export default function VoiceReviewPanel({
             }
             className="flex-1 lg:min-h-[280px]"
           />
-          <p className="mt-3 text-pretty text-text-muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-            {typed
-              ? 'Corrigez si besoin, puis mettez à jour les propositions.'
-              : 'Corrigez votre phrase si besoin, puis mettez à jour.'}
-          </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <WorkspaceButton
               type="button"
@@ -440,11 +590,6 @@ export default function VoiceReviewPanel({
               </button>
             ) : null}
           </div>
-          {review.extractFailed ? (
-            <p className="mt-3 text-pretty text-text-muted" style={{ fontSize: 13 }}>
-              La mise en forme n’a rien donné. Corrigez le texte, puis réessayez.
-            </p>
-          ) : null}
         </section>
 
         <section className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6 lg:px-8 lg:py-6">
@@ -477,28 +622,98 @@ export default function VoiceReviewPanel({
               />
             </Field>
 
-            <p
-              id="voice-review-hint"
-              className="text-pretty text-text-muted"
-              style={{ fontSize: 13, lineHeight: 1.45 }}
-            >
-              Pré-rempli d’après la dictée. Corrigez si l’oral a été mal compris.
-            </p>
+            {manualLinks.length > 0 ||
+            conseillers.length > 0 ||
+            visiblePersonnes().some((p) => p.matches.length > 0 || p.personne.firstName || p.personne.lastName) ? (
+              <ul className="flex flex-col gap-2">
+                {manualLinks.map((link) => (
+                  <LinkChip
+                    key={link.key}
+                    label={link.label}
+                    subtitle={link.subtitle ?? 'Contact'}
+                    onRemove={() => removeManualLink(link.key)}
+                    disabled={locked}
+                  />
+                ))}
+                {conseillers.map((c) => {
+                  const member = members.find((m) => m.id === c.memberId);
+                  const names = member?.fullName.trim().split(/\s+/) ?? [];
+                  const firstName = member?.firstName?.trim() || names[0] || '';
+                  const lastName = member?.lastName?.trim() || names.slice(1).join(' ') || '';
+                  return (
+                    <LinkChip
+                      key={`conseiller:${c.memberId}`}
+                      label={c.label}
+                      subtitle="Conseiller"
+                      avatar={{
+                        firstName,
+                        lastName,
+                        avatarUrl: member?.avatarUrl,
+                      }}
+                      onRemove={() =>
+                        setHiddenConseillers((prev) =>
+                          prev.includes(c.memberId) ? prev : [...prev, c.memberId],
+                        )
+                      }
+                      disabled={locked}
+                    />
+                  );
+                })}
+                {visiblePersonnes()
+                  .filter((p) => p.matches.length > 0 || p.personne.firstName.trim() || p.personne.lastName.trim())
+                  .filter((p) => extraPersonnes.every((e) => e.id !== p.id) || p.matches.length > 0)
+                  .map((p) => {
+                    const match = selectedMatchFor(p);
+                    const label =
+                      match?.label ||
+                      [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ');
+                    return (
+                      <LinkChip
+                        key={p.id}
+                        label={label}
+                        subtitle={match ? 'Contact' : 'Nouveau contact'}
+                        onRemove={() => dismissPersonne(p.id)}
+                        disabled={locked}
+                      />
+                    );
+                  })}
+              </ul>
+            ) : null}
 
-            {personEditors(review).map((p) => {
-              const match = pickMatch(p.matches);
-              const displayName =
-                [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
-                'Nouveau contact';
-              return (
+            <NoteEntitySearch
+              onPick={addManualLink}
+              disabled={locked}
+              excludeIds={
+                new Set([
+                  ...manualLinks.map((l) => l.key),
+                  ...visiblePersonnes().flatMap((p) =>
+                    p.matches.map((m) => `contact:${m.contactId}`),
+                  ),
+                ])
+              }
+            />
+
+            {extraPersonnes
+              .filter((p) => !hiddenIds.includes(p.id))
+              .map((p) => (
                 <article
                   key={p.id}
                   className="flex flex-col gap-3 rounded-xl border border-black/[0.08] px-4 py-3.5"
-                  aria-describedby="voice-review-hint"
                 >
-                  <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                    {displayName} · {CONTACT_TYPE_LABELS[p.personne.type]}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
+                      Nouveau contact
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => dismissPersonne(p.id)}
+                      disabled={locked}
+                      aria-label="Retirer le nouveau contact"
+                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+                    >
+                      <X size={16} strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
                   <Field label="Type" htmlFor={`voice-type-${p.id}`}>
                     <Select
                       id={`voice-type-${p.id}`}
@@ -545,16 +760,26 @@ export default function VoiceReviewPanel({
                       />
                     </Field>
                   </div>
-                  {match ? (
-                    <p className="text-[13px] text-text-muted">Déjà en fichier : {match.label}</p>
-                  ) : p.matches.length > 1 ? (
-                    <p className="text-[13px] text-text-muted">
-                      Plusieurs fiches possibles. Terminer créera une nouvelle fiche.
-                    </p>
-                  ) : null}
                 </article>
-              );
-            })}
+              ))}
+
+            <div className="flex flex-wrap gap-2">
+              <WorkspaceButton type="button" variant="secondary" onClick={addBlankContact} disabled={locked}>
+                <UserPlus size={15} strokeWidth={2} aria-hidden />
+                Nouveau contact
+              </WorkspaceButton>
+              <WorkspaceButton
+                type="button"
+                variant="secondary"
+                disabled={locked}
+                onClick={() => {
+                  document.getElementById('voice-address')?.focus();
+                }}
+              >
+                <Plus size={15} strokeWidth={2} aria-hidden />
+                Nouvelle adresse
+              </WorkspaceButton>
+            </div>
 
             <article className="flex flex-col gap-3 rounded-xl border border-black/[0.08] px-4 py-3.5">
               <Field label="Adresse" htmlFor="voice-address">
@@ -565,7 +790,7 @@ export default function VoiceReviewPanel({
                     if (data) patchAdresse(data.label, data);
                   }}
                   onQueryChange={(q) => patchAdresse(q)}
-                  placeholder="Rattacher à un immeuble…"
+                  placeholder="Créer ou rattacher un immeuble…"
                   inputClassName={ADDRESS_FIELD_INPUT_CLASS}
                 />
               </Field>

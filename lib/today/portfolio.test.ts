@@ -5,12 +5,10 @@ import { buildPortfolioStats, countRendezVousSansSuite } from './portfolio';
 const NOW = Date.parse('2026-08-26T12:00:00Z');
 
 describe('portfolio', () => {
-  it('compte mandats signés, exclusifs, leads non pris et mandats froids', () => {
+  it('compte mandats signés, exclusifs et leads non pris', () => {
     const stats = buildPortfolioStats({
-      now: NOW,
       estimationStageId: null,
       rendezVousSansSuite: 2,
-      visitCountByBienId: { a: 0, b: 5, c: 1 },
       leads: [{ stageId: null }, { stageId: 'pris' }, { stageId: null }],
       biens: [
         {
@@ -41,8 +39,8 @@ describe('portfolio', () => {
     assert.equal(byKind['leads-non-pris']?.tone, 'probleme');
     assert.equal(byKind['rdv-sans-suite']?.value, 2);
     assert.equal(byKind['rdv-sans-suite']?.label, 'Rendez-vous sans suite');
-    assert.equal(byKind['mandats-60j']?.value, 1);
-    assert.equal(byKind['mandats-60j']?.tone, 'probleme');
+    assert.equal(byKind['mandats-60j'], undefined);
+    assert.equal(stats.counters.length, 3);
     assert.equal(byKind['mandats-actifs']?.deltaLabel, null);
   });
 

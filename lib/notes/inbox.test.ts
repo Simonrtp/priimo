@@ -96,6 +96,22 @@ describe('recentNotesForHome', () => {
     );
   });
 
+  it('montre aussi une note qu’on m’a transmise', () => {
+    const notes = [
+      note({ id: 'a', createdBy: 'other', assignedTo: 'me' }),
+      note({ id: 'b', createdBy: 'other', assignedTo: 'someone' }),
+    ];
+    assert.deepEqual(
+      recentNotesForHome(notes, {
+        viewerId: 'me',
+        isDirector: false,
+        now: Date.parse('2026-08-26T10:00:00Z'),
+        weekStartKey: '2026-08-24',
+      }).map((n) => n.id),
+      ['a'],
+    );
+  });
+
   it('pour un directeur, prend les notes visibles de l’agence', () => {
     const notes = [
       note({ id: 'a', createdBy: 'other' }),

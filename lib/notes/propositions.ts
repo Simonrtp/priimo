@@ -74,7 +74,7 @@ const EMPTY: NoteExtraction = {
 };
 
 const SYSTEM_PROMPT =
-  'Extrais des propositions depuis une note dictée (agent immo FR). JSON strict. Null si non dit. Ne devine jamais. N’invente aucun fait.';
+  'Extrais des propositions depuis une note dictée (agent immo FR). JSON strict. Null si non dit. Ne devine jamais. N’invente aucun fait. Un nom cité (« contacter Simon Ropiot ») va dans personnes, même sans téléphone ni adresse.';
 
 function buildPrompt(transcript: string, noteDate = new Date()): string {
   const ref = noteDate.toISOString().slice(0, 10);

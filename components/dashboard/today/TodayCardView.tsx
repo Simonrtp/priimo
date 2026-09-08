@@ -83,6 +83,9 @@ export default function TodayCardView({
       case 'ouvrir_estimation':
         router.push(`/dashboard/estimation?historique=1&id=${action.estimationId}`);
         break;
+      case 'ouvrir_note':
+        router.push(`/dashboard/notes?id=${encodeURIComponent(action.noteId)}`);
+        break;
       default:
         break;
     }

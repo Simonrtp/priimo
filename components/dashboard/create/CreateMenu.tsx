@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Building2, Mic, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
+import { Building2, Calculator, Mic, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { notifySuccess } from '@/lib/notify';
@@ -16,9 +16,10 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { FIELD } from '@/lib/today/field';
 
 type CreateKind = 'contact' | 'bien';
-type MenuAction = CreateKind | 'note-write' | 'note-voice';
+type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice';
 
 const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: LucideIcon }[] = [
+  { value: 'estimation', label: 'Nouvelle estimation', hint: 'Ouvrir l’outil', Icon: Calculator },
   { value: 'contact', label: 'Nouveau contact', hint: 'Fiche client', Icon: Users },
   { value: 'bien', label: 'Nouveau bien', hint: 'Mandat / annonce', Icon: Building2 },
   { value: 'note-write', label: 'Écrire une note', hint: 'Au clavier', Icon: NotebookPen },
@@ -131,6 +132,11 @@ export default function CreateMenu({
 
   function pick(action: MenuAction) {
     setOpen(false);
+    if (action === 'estimation') {
+      armPointerShield();
+      router.push('/dashboard/estimation');
+      return;
+    }
     if (action === 'note-write') {
       armPointerShield();
       openCompose();

@@ -12,6 +12,7 @@ export type TodayAssignmentItem = {
   context: string;
   contactId?: string;
   leadId?: string;
+  noteId?: string;
   assignedAt: string | null;
 };
 
@@ -110,6 +111,40 @@ export async function fetchAssignmentsToMe(
         contactId: row.contact_id,
         assignedAt: row.assigned_at,
       });
+    }
+
+    try {
+      const voiceRes = await supabase
+        .from('voice_notes')
+        .select('id, transcript, contact_id, assigned_to, assigned_by, assigned_at, created_by')
+        .eq('assigned_to', profileId)
+        .order('created_at', { ascending: false })
+        .limit(12);
+      for (const row of (voiceRes.data ?? []) as Array<{
+        id: string;
+        transcript: string | null;
+        contact_id: string | null;
+        assigned_to: string | null;
+        assigned_by: string | null;
+        assigned_at: string | null;
+        created_by: string | null;
+      }>) {
+        const by = row.assigned_by || row.created_by;
+        if (!isTransmis(row.assigned_to, by, profileId)) continue;
+        const excerpt = (row.transcript ?? '').trim().replace(/\s+/g, ' ');
+        items.push({
+          kind: 'note',
+          id: row.id,
+          assignedByName: namesById.get(by ?? '') ?? 'un collègue',
+          headline: 'Note transmise',
+          context: excerpt.slice(0, 140) || 'Dictée à reprendre',
+          contactId: row.contact_id ?? undefined,
+          noteId: row.id,
+          assignedAt: row.assigned_at,
+        });
+      }
+    } catch (err) {
+      console.error('[assignments] notes vocales', err);
     }
 
     return items;
