@@ -32,6 +32,8 @@ const RATIOS: Ratios = {
   physiquesParQualifie: 8,
   qualifiesParEstimation: 3,
   estimationsParMandat: 2,
+  physiquesParMandat: 48,
+  positionMoyenne: 'dans',
 };
 
 function compteurs(partiel: Partial<Record<Activite, number>>): Record<Activite, number> {

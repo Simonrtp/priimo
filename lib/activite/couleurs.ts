@@ -2,32 +2,9 @@ import { FIELD } from '@/lib/today/field';
 import type { FamilleActivite } from './types';
 
 /**
- * Une couleur par famille d'activité : teinte pleine pour l'icône, pastille
- * très claire pour le fond.
- *
- * ÉCART ASSUMÉ vs la proposition de départ. Elle donnait terracotta #B4552F
- * aux estimations et rouge brique #A03A32 aux informations terrain : 13° de
- * teinte d'écart, indiscernables dans une pastille de 32 px. Pire, le
- * terracotta venait se poser juste à côté de l'orange lead #E8743C (20°), ce
- * qui aurait vidé de son sens la réservation de l'orange aux leads — on aurait
- * eu trois oranges chauds à l'écran dont deux non-leads.
- *
- * Correction : les estimations passent en bleu canard. C'est aussi la couleur
- * de l'étape « estimation » du pipeline (lib/queries/lead-stages.ts) : la
- * colonne kanban et le compteur d'accueil parlent de la même chose avec la même
- * teinte. Le rouge brique reste, et devient le seul rouge chaud.
- *
- * Deux valeurs de la proposition ont aussi été corrigées par la mesure, pas à
- * l'œil :
- *   - l'ocre #C08A2E ne donnait que 2,48:1 sur sa propre pastille crème, sous
- *     le seuil WCAG de 3:1 pour un élément graphique. Assombri en #A07124.
- *   - le premier bleu canard #2F7D95 tombait à 19,9° du bleu ardoise, sous le
- *     seuil de séparation de 20°. Décalé en #1F8294, à 24,8°.
- *
- * Reste à vérifier à l'œil en pastille de 32 px, dans cet ordre : bleu canard
- * contre bleu ardoise (24,8°, le couple le plus serré), puis rouge brique et
- * ocre contre l'orange lead — ils en sont à 15° et 18° de teinte et ne s'en
- * séparent que par la clarté.
+ * Une couleur par famille d'activité : teinte saturée pour l'icône et la
+ * barre, pastille claire pour le fond. Pas de violet (réservé à l'entonnoir).
+ * L'orange lead #E8743C reste hors de cette palette.
  */
 
 export type CouleurFamille = {
@@ -35,14 +12,16 @@ export type CouleurFamille = {
   teinte: string;
   /** Teinte très claire — pastille de fond derrière l'icône. */
   pastille: string;
+  /** Lavis de la carte — assez saturé pour qu’on voie la famille tout de suite. */
+  fond: string;
 };
 
 export const COULEUR_FAMILLE: Record<FamilleActivite, CouleurFamille> = {
-  contacts_physiques: { teinte: '#3D5A80', pastille: '#DCE4F0' },
-  immeubles_prospectes: { teinte: '#A07124', pastille: '#F5E7C9' },
-  contacts_qualifies: { teinte: '#2F7A5A', pastille: '#D5EADF' },
-  estimations: { teinte: '#1F8294', pastille: '#D6E9EF' },
-  informations_terrain: { teinte: '#A03A32', pastille: '#F2DAD7' },
+  contacts_physiques: { teinte: '#1F6FE0', pastille: '#DCEBFF', fond: '#BFD6FF' },
+  immeubles_prospectes: { teinte: '#B07700', pastille: '#FFE9A3', fond: '#FFE08C' },
+  contacts_qualifies: { teinte: '#0F8F4A', pastille: '#C6F6D6', fond: '#9EF0B8' },
+  estimations: { teinte: '#08849C', pastille: '#C8F4FA', fond: '#9BE7F2' },
+  informations_terrain: { teinte: '#D61F3A', pastille: '#FFD0D6', fond: '#FFB6C0' },
 };
 
 /** L'orange produit reste aux leads. Aucune famille ne doit s'en approcher. */

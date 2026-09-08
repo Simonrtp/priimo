@@ -3,15 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NotebookPen, X } from 'lucide-react';
-import VoiceReviewPanel from '@/components/dashboard/voice/VoiceReviewPanel';
 import TypedNoteGuide, { type TypedNoteSubmitPayload } from '@/components/dashboard/notes/TypedNoteGuide';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
-import { useUser } from '@/lib/hooks/useUser';
 import { readDevicePosition } from '@/lib/voice/gps';
-import type { NameMatchMember } from '@/lib/agency/match-member';
-import type { NoteReviewPayload } from '@/lib/notes/build-review';
-import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { emitNoteCreated } from '@/lib/notes/note-created-event';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 export default function TypedNoteDialog({
   onClose,
@@ -26,7 +22,6 @@ export default function TypedNoteDialog({
 }) {
   const router = useRouter();
   const device = useDevice();
-  const { profile } = useUser();
   const field = device === 'mobile';
 
   const [deviceCoords, setDeviceCoords] = useState<{ latitude: number; longitude: number } | null>(
@@ -34,10 +29,6 @@ export default function TypedNoteDialog({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [review, setReview] = useState<NoteReviewPayload | null>(null);
-  const [transcript, setTranscript] = useState('');
-  const [members, setMembers] = useState<NameMatchMember[]>([]);
-  const [suggestedAssigneeId, setSuggestedAssigneeId] = useState<string | null>(null);
 
   useEffect(() => {
     void readDevicePosition().then((pos) => {
@@ -46,29 +37,12 @@ export default function TypedNoteDialog({
   }, []);
 
   useEffect(() => {
-    if (!review) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch('/api/team');
-        const data = (await res.json()) as { members?: NameMatchMember[] };
-        if (!cancelled) setMembers(data.members ?? []);
-      } catch {
-        if (!cancelled) setMembers([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [review]);
-
-  useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !saving && !review) onClose();
+      if (e.key === 'Escape' && !saving) onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, saving, review]);
+  }, [onClose, saving]);
 
   async function submit(payload: TypedNoteSubmitPayload) {
     setSaving(true);
@@ -85,44 +59,31 @@ export default function TypedNoteDialog({
           latitude: coords?.latitude,
           longitude: coords?.longitude,
           parcelleId: parcelleId || undefined,
+          liens: payload.liens.map((l) => ({
+            entiteType: l.entiteType,
+            entiteId: l.entiteId,
+          })),
         }),
       });
-      const data = (await res.json()) as NoteReviewPayload & {
-        error?: string;
-        suggestedAssignee?: { id: string } | null;
-      };
+      const data = (await res.json()) as { error?: string; voiceNoteId?: string };
       if (!res.ok) throw new Error(data.error ?? 'save');
       emitNoteCreated({ noteId: data.voiceNoteId ?? null, source: 'clavier' });
-      setTranscript(data.transcript ?? payload.transcript);
-      setSuggestedAssigneeId(data.suggestedAssignee?.id ?? null);
-      setReview(data);
+      notifySuccess('Votre note a bien été enregistrée', {
+        id: data.voiceNoteId ? `note-saved-${data.voiceNoteId}` : undefined,
+      });
+      if (!resterSurPage) router.refresh();
+      onClose();
     } catch (err) {
-      setError(
+      const message =
         err instanceof Error && err.message !== 'save'
           ? err.message
-          : "La note n'a pas pu être enregistrée",
-      );
+          : "La note n'a pas pu être enregistrée";
+      setError(message);
+      notifyError(message);
     } finally {
       setSaving(false);
     }
   }
-
-  function onReviewDone(contactId?: string | null) {
-    if (resterSurPage) {
-      onClose();
-      return;
-    }
-    router.refresh();
-    if (contactId) router.push(`/dashboard/contacts?fiche=${contactId}`);
-  }
-
-  const memberOptions: AssigneeOption[] = members.map((m) => ({
-    id: m.id,
-    fullName: m.fullName,
-    firstName: m.firstName,
-    lastName: m.lastName,
-    avatarUrl: m.avatarUrl ?? null,
-  }));
 
   const form = (
     <TypedNoteGuide
@@ -135,33 +96,13 @@ export default function TypedNoteDialog({
     />
   );
 
-  const reviewPanel =
-    review ? (
-      <VoiceReviewPanel
-        review={review}
-        transcript={transcript}
-        onTranscript={setTranscript}
-        onReviewChange={setReview}
-        members={memberOptions}
-        currentUserId={profile?.id}
-        suggestedAssigneeId={suggestedAssigneeId}
-        typed
-        onDismiss={onClose}
-        onDone={onReviewDone}
-        onDiscard={() => {
-          if (!resterSurPage) router.refresh();
-          onClose();
-        }}
-      />
-    ) : null;
-
   if (field) {
     return (
       <div
         className="fixed inset-0 z-[220] flex flex-col bg-bg-base"
         role="dialog"
         aria-modal="true"
-        aria-label={review ? 'Vérifiez la note' : 'Écrire une note'}
+        aria-label="Écrire une note"
         style={{ height: '100dvh' }}
       >
         <header
@@ -177,11 +118,11 @@ export default function TypedNoteDialog({
             <X size={20} strokeWidth={2} aria-hidden />
           </button>
           <p className="font-semibold text-text-strong" style={{ fontSize: 16 }}>
-            {review ? 'Vérifiez la note' : 'Écrire une note'}
+            Écrire une note
           </p>
           <span className="w-11" aria-hidden />
         </header>
-        {review ? reviewPanel : form}
+        {form}
       </div>
     );
   }
@@ -191,13 +132,9 @@ export default function TypedNoteDialog({
       className="fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(21,32,47,0.45)] p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={review ? 'Vérifiez la note' : 'Écrire une note'}
+      aria-label="Écrire une note"
     >
-      <div
-        className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-clay-lg bg-surface shadow-clay-lg ${
-          review ? 'max-w-[1040px]' : 'max-w-[500px]'
-        }`}
-      >
+      <div className="flex max-h-[90vh] w-full max-w-[500px] flex-col overflow-hidden rounded-clay-lg bg-surface shadow-clay-lg">
         <header className="flex flex-shrink-0 items-center gap-3 border-b border-black/[0.06] px-5 py-4 sm:px-6">
           <button
             type="button"
@@ -208,15 +145,13 @@ export default function TypedNoteDialog({
             <X size={18} strokeWidth={2} aria-hidden />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {!review ? (
-              <NotebookPen size={18} strokeWidth={2} className="shrink-0 text-accent" aria-hidden />
-            ) : null}
+            <NotebookPen size={18} strokeWidth={2} className="shrink-0 text-accent" aria-hidden />
             <h2 className="min-w-0 flex-1 text-balance font-semibold text-text-strong" style={{ fontSize: 16 }}>
-              {review ? 'Vérifiez la note' : 'Écrire une note'}
+              Écrire une note
             </h2>
           </div>
         </header>
-        {review ? reviewPanel : form}
+        {form}
       </div>
     </div>
   );

@@ -625,10 +625,6 @@ export default function VoiceCaptureDialog({
             onContinue={() => void continueRecording()}
             onDismiss={onClose}
             onDone={onReviewDone}
-            onDiscard={() => {
-              if (!resterSurPage) router.refresh();
-              onClose();
-            }}
           />
         ) : phase === 'review' ? (
           <p className="px-6 py-8 text-pretty text-text-muted" style={{ fontSize: 14 }}>

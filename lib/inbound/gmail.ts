@@ -49,6 +49,21 @@ export function encryptTokenPayload(payload: object): { ciphertext: Buffer; nonc
   return { ciphertext: Buffer.concat([enc, tag]), nonce };
 }
 
+/** bytea PostgREST (`\\x…`) ou Buffer — même format que gmail_connexions. */
+export function asEncryptedBuffer(value: unknown): Buffer {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) return Buffer.from(value);
+  if (typeof value === 'string') {
+    const hex = value.startsWith('\\x') ? value.slice(2) : value;
+    if (hex.length === 0) return Buffer.alloc(0);
+    if (/^[0-9a-fA-F]+$/.test(hex) && hex.length % 2 === 0) {
+      return Buffer.from(hex, 'hex');
+    }
+    return Buffer.from(value, 'base64');
+  }
+  return Buffer.alloc(0);
+}
+
 export function decryptTokenPayload<T = { access_token: string; refresh_token?: string }>(
   ciphertext: Buffer,
   nonce: Buffer,

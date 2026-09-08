@@ -12,7 +12,6 @@ import type { ExtractedPersonne } from '@/lib/notes/propositions';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Select from '@/components/ui/Select';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import ConfirmModal from '@/components/ui/ConfirmModal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
@@ -40,6 +39,10 @@ const BLANK_PERSONNE: ExtractedPersonne = {
 };
 
 type ManualLink = NoteLinkPick & { key: string };
+
+function toManualLinks(picks: readonly NoteLinkPick[]): ManualLink[] {
+  return picks.map((p) => ({ ...p, key: `${p.entiteType}:${p.entiteId}` }));
+}
 
 function LinkChip({
   label,
@@ -107,8 +110,8 @@ export default function VoiceReviewPanel({
   onContinue,
   onDone,
   onDismiss,
-  onDiscard,
   typed = false,
+  initialManualLinks = [],
 }: {
   review: NoteReviewPayload;
   transcript: string;
@@ -120,9 +123,10 @@ export default function VoiceReviewPanel({
   onContinue?: () => void;
   onDone: (contactId?: string | null) => void;
   onDismiss: () => void;
-  onDiscard: () => void;
   /** Note tapée : pas de « compléter la dictée ». */
   typed?: boolean;
+  /** Rattachements déjà choisis à l’écriture de la note. */
+  initialManualLinks?: readonly NoteLinkPick[];
 }) {
   const [visibilite, setVisibilite] = useState<VoiceNoteVisibilite>(review.visibilite);
   const [sourceInfo, setSourceInfo] = useState<NoteSourceInfo | ''>(review.sourceInfo ?? '');
@@ -130,27 +134,25 @@ export default function VoiceReviewPanel({
   const [promesseAssignee, setPromesseAssignee] = useState<string | null>(suggestedAssigneeId);
   const [refreshing, setRefreshing] = useState(false);
   const [terminating, setTerminating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [extraPersonnes, setExtraPersonnes] = useState<PersonneProposal[]>([]);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [deselectedIds, setDeselectedIds] = useState<string[]>([]);
   const [chosenMatch, setChosenMatch] = useState<Record<string, string>>({});
-  const [manualLinks, setManualLinks] = useState<ManualLink[]>([]);
+  const [manualLinks, setManualLinks] = useState<ManualLink[]>(() => toManualLinks(initialManualLinks));
   const [hiddenConseillers, setHiddenConseillers] = useState<string[]>([]);
   const lastExtracted = (review.transcript ?? '').trim();
   const dirty = transcript.trim() !== lastExtracted;
   const canRefresh = transcript.trim().length > 0 && (dirty || review.extractFailed);
-  const locked = refreshing || deleting || terminating;
+  const locked = refreshing || terminating;
 
   useEffect(() => {
     setExtraPersonnes([]);
     setHiddenIds([]);
     setDeselectedIds([]);
     setChosenMatch({});
-    setManualLinks([]);
+    setManualLinks(toManualLinks(initialManualLinks));
     setHiddenConseillers([]);
-  }, [review.voiceNoteId]);
+  }, [review.voiceNoteId, initialManualLinks]);
 
   const conseillers = useMemo(
     () => matchMembersInTranscript(transcript, members).filter((m) => !hiddenConseillers.includes(m.memberId)),
@@ -235,7 +237,20 @@ export default function VoiceReviewPanel({
 
   function addManualLink(pick: NoteLinkPick) {
     const key = `${pick.entiteType}:${pick.entiteId}`;
-    setManualLinks((prev) => (prev.some((l) => l.key === key) ? prev : [...prev, { ...pick, key }]));
+    setManualLinks((prev) => {
+      const base = pick.entiteType === 'immeuble' ? prev.filter((l) => l.entiteType !== 'immeuble') : prev;
+      return base.some((l) => l.key === key) ? base : [...base, { ...pick, key }];
+    });
+    if (pick.entiteType === 'immeuble') {
+      patchAdresse(pick.label, {
+        label: pick.label,
+        latitude: pick.latitude ?? 0,
+        longitude: pick.longitude ?? 0,
+        city: '',
+        postcode: '',
+        id: pick.entiteId,
+      });
+    }
   }
 
   function removeManualLink(key: string) {
@@ -529,22 +544,6 @@ export default function VoiceReviewPanel({
         setTerminating(false);
       }
     })();
-  }
-
-  async function supprimer() {
-    if (locked) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/dashboard/voice-notes/${review.voiceNoteId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error('delete');
-      notifySuccess('Note supprimée');
-      onDiscard();
-    } catch {
-      notifyError("La note n'a pas pu être supprimée");
-      setDeleting(false);
-    }
   }
 
   return (
@@ -962,35 +961,11 @@ export default function VoiceReviewPanel({
         </section>
       </div>
 
-      <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-black/[0.06] px-5 py-4 sm:px-6 lg:px-8 lg:py-5">
-        <button
-          type="button"
-          onClick={() => setConfirmDelete(true)}
-          disabled={locked}
-          className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Annuler
-        </button>
+      <footer className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-black/[0.06] px-5 py-4 sm:px-6 lg:px-8 lg:py-5">
         <WorkspaceButton type="button" onClick={terminer} disabled={locked}>
           {terminating ? 'Enregistrement…' : 'Terminer'}
         </WorkspaceButton>
       </footer>
-
-      <ConfirmModal
-        open={confirmDelete}
-        onClose={() => !deleting && setConfirmDelete(false)}
-        onConfirm={() => void supprimer()}
-        title="Annuler cette note"
-        message={
-          typed
-            ? 'La note sera effacée. Cette action est définitive.'
-            : 'La dictée et l’audio seront effacés. Cette action est définitive.'
-        }
-        primaryLabel="Annuler"
-        secondaryLabel="Retour"
-        variant="danger"
-        isLoading={deleting}
-      />
     </>
   );
 }

@@ -60,17 +60,17 @@ export const LIBELLE_ACTIVITE: Record<Activite, string> = {
  */
 export const PROVENANCE_ACTIVITE: Record<Activite, string> = {
   contacts_physiques:
-    'Compté à partir des personnes que vous avez marquées « rencontrée » pendant vos sorties. C’est le seul chiffre que vous déclarez vous-même.',
+    'Compté à partir des personnes que j’ai marquées « rencontrée » pendant mes sorties. C’est le seul chiffre que je déclare moi-même.',
   immeubles_prospectes:
-    'Compté à partir des immeubles où vous avez laissé une note, pris un lead ou rencontré quelqu’un cette semaine. Un immeuble visité deux fois ne compte qu’une fois.',
+    'Compté à partir des immeubles où j’ai laissé une note, pris un lead ou rencontré quelqu’un cette semaine. Un immeuble visité deux fois ne compte qu’une fois.',
   contacts_qualifies:
-    'Compté à partir des leads que vous avez passés à l’étape « Contacté » dans votre pipeline cette semaine.',
+    'Compté à partir des leads que j’ai passés à l’étape « Contacté » dans mon pipeline cette semaine.',
   estimations:
-    'Compté à partir des leads que vous avez passés à l’étape « Estimation » dans votre pipeline cette semaine.',
+    'Compté à partir des leads que j’ai passés à l’étape « Estimation » dans mon pipeline cette semaine.',
   informations_terrain:
-    'Compté à partir de vos notes vocales rattachées à un immeuble ou à une parcelle.',
+    'Compté à partir de mes notes vocales rattachées à un immeuble ou à une parcelle.',
   mandats:
-    'Compté à partir des leads que vous avez passés à l’étape « Mandat signé » dans votre pipeline cette semaine.',
+    'Compté à partir des leads que j’ai passés à l’étape « Mandat signé » dans mon pipeline cette semaine.',
 };
 
 /**
@@ -87,6 +87,17 @@ export const PHRASE_ETAT_SOURCE: Record<Exclude<EtatSource, 'ok'>, string> = {
   muette: 'En attente des premières sorties',
   indisponible: 'Chiffre indisponible pour le moment',
 };
+
+/** Phrase quand la source n’a encore rien produit — une consigne, pas un vide. */
+export const PHRASE_SOURCE_MUETTE: Partial<Record<Activite, string>> = {
+  informations_terrain:
+    'Une note vocale ou écrite sur le terrain, et ce compteur démarre.',
+};
+
+export function phraseEtatSource(activite: Activite, etat: Exclude<EtatSource, 'ok'>): string {
+  if (etat === 'muette') return PHRASE_SOURCE_MUETTE[activite] ?? PHRASE_ETAT_SOURCE.muette;
+  return PHRASE_ETAT_SOURCE.indisponible;
+}
 
 export type Compteur = {
   activite: Activite;

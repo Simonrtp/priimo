@@ -11,14 +11,15 @@ function inlineFormat(text: string): React.ReactNode {
 }
 
 function enrichContactLinks(text: string): React.ReactNode {
-  if (text.includes('contact@priimo.fr')) {
+  if (text.includes(LEGAL_CONTACT.email)) {
+    const [before, after] = text.split(LEGAL_CONTACT.email);
     return (
       <>
-        {text.split('contact@priimo.fr')[0]}
+        {before}
         <a href={`mailto:${LEGAL_CONTACT.email}`} className="text-accent-dark hover:underline">
           {LEGAL_CONTACT.email}
         </a>
-        {text.split('contact@priimo.fr')[1]}
+        {after}
       </>
     );
   }

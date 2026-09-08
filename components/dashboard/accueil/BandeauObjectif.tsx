@@ -9,7 +9,7 @@ const VERT = '#2F7A5A';
  * parce qu'il se pilote au mois, pas à la semaine.
  */
 export default function BandeauObjectif({ bilan }: { bilan: BilanSemaine }) {
-  const { progressionHebdo, mandatsDuMois, objectifsParDefaut } = bilan;
+  const { progressionHebdo, mandatsDuMois } = bilan;
   const pctMandats =
     mandatsDuMois.objectif > 0
       ? Math.min(100, Math.round((mandatsDuMois.valeur / mandatsDuMois.objectif) * 100))
@@ -37,11 +37,6 @@ export default function BandeauObjectif({ bilan }: { bilan: BilanSemaine }) {
             style={{ width: `${progressionHebdo}%` }}
           />
         </div>
-        {objectifsParDefaut ? (
-          <p className="mt-1.5 text-[11px] text-text-subtle">
-            Objectifs proposés par défaut — votre directeur peut les ajuster.
-          </p>
-        ) : null}
       </div>
 
       <div className="flex items-center gap-3 sm:border-l sm:border-black/[0.06] sm:pl-8">

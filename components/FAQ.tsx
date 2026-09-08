@@ -29,7 +29,7 @@ const FAQS: Item[] = [
   },
   {
     q: "Est-ce conforme au RGPD ?",
-    a: "Priimo croise des bases de données françaises, publiques et privées. Pour les particuliers, nous fournissons des adresses et des signaux — jamais de nom ni de téléphone : votre prospection se fait sur le terrain ou par courrier, en conformité avec l'interdiction de la pige téléphonique (11 août 2026). Pour les sociétés, les informations de dirigeants proviennent de registres légaux officiels.",
+    a: "Pour un particulier, Priimo montre une adresse et un contexte — pas un téléphone personnel. Depuis le 11 août 2026, le démarchage téléphonique des consommateurs est interdit sans consentement : l’agence reste responsable de la façon dont elle contacte une adresse. Pour une société, des informations de dirigeants peuvent venir des registres officiels. Le détail est dans la politique de confidentialité et les CGU.",
   },
   {
     q: "Combien de temps pour être opérationnel ?",

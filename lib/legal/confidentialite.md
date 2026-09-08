@@ -1,84 +1,106 @@
 # Politique de confidentialité — Priimo
 
-**Dernière mise à jour : 16 mai 2026**
+## 1. Qui traite vos données
 
-## 1. Responsable du traitement
+Le responsable de traitement, pour le site et pour les comptes Priimo, est :
 
-**Priimo**, auto-entreprise exploitant le service — 27 rue A. Peunaud, Paris — contact@priimo.fr.
+**Simon**, entrepreneur individuel, enseigne **Priimo** — 27 rue A. Peunaud, Paris, France — hello@priimo.fr.
 
-## 2. Périmètre
+Lorsqu’une agence saisit dans Priimo le fichier de **ses** clients (contacts, notes, biens, messages), **l’agence est responsable de ce traitement**. Priimo agit alors comme **sous-traitant** : nous hébergeons et faisons fonctionner l’outil, nous ne réutilisons pas ce fichier pour notre propre prospection.
 
-Cette politique s'applique :
+## 2. Ce que couvre cette politique
 
-- au site **priimo.fr** (landing, prise de rendez-vous) ;
-- à l'application SaaS Priimo (tableau de bord, comptes agences) ;
-- aux échanges commerciaux et support liés au service.
+- le site priimo.fr (présentation, prise de rendez-vous) ;
+- l’application Priimo (tableau de bord, comptes, intégrations) ;
+- le support et les échanges commerciaux.
 
-## 3. Données traitées
+## 3. Données que nous traitons
 
-Selon votre usage, nous pouvons traiter :
+Selon ce que vous faites, nous pouvons traiter :
 
-- **Données d'identification professionnelle** : nom, prénom, email professionnel, téléphone, nom d'agence, rôle (directeur / collaborateur).
-- **Données de compte** : identifiants de connexion (mot de passe hashé), préférences, paramètres de zone de prospection.
-- **Données d'usage du service** : statuts et notes sur les prospects, assignations, retours qualitatifs (résultats de prospection).
-- **Données de prise de contact** : informations transmises via Calendly, email ou WhatsApp.
-- **Données techniques** : logs, adresse IP, type de navigateur, à des fins de sécurité et de bon fonctionnement.
+- **Compte professionnel** : prénom, nom, email, téléphone, rôle (directeur / collaborateur), nom et adresse de l’agence, secteur de travail.
+- **Connexion** : identifiants (mot de passe hashé), sessions.
+- **Usage de l’outil** : actions dans l’application, compteurs d’activité, paramètres.
+- **Fichier de l’agence** (sous-traitance) : contacts, biens, prospects, notes (y compris dictées et transcrites), photos, assignations, historique de pipeline.
+- **Intégrations, si vous les branchez** :
+  - Google Agenda : lecture des événements de la semaine (jetons chiffrés, pas de modification de l’agenda) ;
+  - Gmail : lecture limitée aux messages des domaines portail autorisés, pour ranger les demandes entrantes (jetons chiffrés) ;
+  - passerelle de diffusion : métadonnées d’annonces publiées, pas le contenu de toute votre messagerie.
+- **Prise de contact** : ce que vous envoyez par email, WhatsApp ou Calendly.
+- **Technique** : logs, adresse IP, type de navigateur — pour la sécurité et le bon fonctionnement.
+- **Audience du site** : mesures agrégées via Vercel Analytics.
 
-**Prospects affichés dans le service** : Priimo croise des **bases de données** françaises (DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, cadastre, données privées pour les événements de vie). Pour les **particuliers**, nous affichons des adresses et signaux — **pas de nom ni de téléphone personnel**. Pour les **sociétés (SCI/SARL)**, des informations de dirigeants issues de registres légaux officiels peuvent être présentées.
+**Adresses proposées à la prospection.** Priimo croise des bases françaises (publiques et, le cas échéant, privées) : DVF, DPE ADEME, BODACC, cadastre, copropriétés, permis, et d’autres signaux de marché. Pour un **particulier**, l’outil montre une **adresse** et un **contexte** — pas un nom acheté à un courtier, pas un téléphone personnel. Pour une **société**, des informations de dirigeants issues de registres officiels peuvent apparaître.
 
-## 4. Finalités et bases légales
+Nous ne revendons pas vos données.
 
-- **Fourniture du service souscrit** — exécution du contrat (CGU).
-- **Création et gestion des comptes** — exécution du contrat.
-- **Prise de rendez-vous démo** — intérêt légitime / mesures précontractuelles.
-- **Support client** — exécution du contrat / intérêt légitime.
-- **Sécurité, prévention des abus** — intérêt légitime.
-- **Amélioration du scoring (retours agences)** — intérêt légitime / exécution du contrat.
-- **Obligations légales** — obligation légale.
+## 4. Pourquoi, et sur quelle base
 
-## 5. Destinataires et sous-traitants
+- Fournir le service souscrit — **contrat**.
+- Créer et gérer les comptes, facturer — **contrat**.
+- Répondre à une demande de démo — **mesures précontractuelles** / **intérêt légitime**.
+- Support — **contrat** / **intérêt légitime**.
+- Sécurité, prévention des abus — **intérêt légitime**.
+- Améliorer le produit (retours d’usage, qualité des adresses) — **intérêt légitime**.
+- Obligations comptables et légales — **obligation légale**.
+- Intégrations Google ou portail — **contrat**, à votre demande.
 
-Les données sont accessibles aux équipes Priimo habilitées et à nos **sous-traitants** :
+## 5. Destinataires
 
-- **Supabase** — base de données et authentification ;
-- **Vercel** — hébergement de l'application ;
-- **Calendly** — prise de rendez-vous (si vous réservez une démo) ;
-- **Resend** ou prestataire email — envoi d'invitations et notifications (si applicable).
+Les données sont vues par les personnes habilitées chez Priimo, par les membres de **votre** agence selon les règles de visibilité du logiciel, et par nos prestataires :
 
-Ces prestataires sont choisis pour leur conformité au RGPD et encadrés contractuellement.
+- **Supabase** — base de données, authentification ;
+- **Vercel** — hébergement, analytics ;
+- **Stripe** — paiement (nous ne stockons pas le numéro de carte) ;
+- **Resend** — emails transactionnels ;
+- **Calendly** — si vous réservez une démo ;
+- **Mapbox** — carte ;
+- **Google** — uniquement si vous connectez Agenda ou Gmail ;
+- **Passerelle de diffusion** (Ubiflow, Diffuze ou équivalent) — uniquement si l’agence active la publication d’annonces.
 
-**Nous ne revendons pas vos données à des tiers.**
+Ces prestataires sont choisis pour pouvoir travailler en conformité avec le RGPD et sont encadrés contractuellement.
 
-## 6. Durées de conservation
+## 6. Combien de temps
 
-- **Compte actif** : conservation pendant toute la durée de l'abonnement, puis archivage limité en cas de résiliation (facturation, litiges).
-- **Logs techniques** : durée limitée (généralement 12 mois maximum, sauf obligation légale).
-- **Données de démo / prospection commerciale** : jusqu'à 3 ans à compter du dernier contact, sauf opposition.
+- **Compte** : pendant l’abonnement, puis le temps nécessaire pour clôturer (export, factures, litige).
+- **Fichier agence** : tant que le compte existe ; après résiliation, conservation limitée puis suppression, sauf obligation légale.
+- **Facturation** : 10 ans.
+- **Logs techniques** : en principe 12 mois au plus.
+- **Demandes de démo** : jusqu’à 3 ans après le dernier échange, sauf opposition.
+- **Jetons Google** : jusqu’à déconnexion ou résiliation.
 
-## 7. Vos droits (RGPD)
+## 7. Vos droits
 
-Vous disposez des droits d'**accès**, de **rectification**, d'**effacement**, de **limitation**, d'**opposition** et de **portabilité** ( lorsque applicable ), ainsi que du droit de définir des directives post-mortem.
+Vous pouvez demander l’**accès**, la **rectification**, l’**effacement**, la **limitation**, l’**opposition**, la **portabilité** (quand elle s’applique), et fixer des directives après décès.
 
-Pour exercer vos droits : contact@priimo.fr. Une réponse vous sera adressée sous un mois.
+Écrivez à hello@priimo.fr. Réponse sous un mois.
 
-Vous pouvez introduire une réclamation auprès de la **CNIL** (cnil.fr).
+Vous pouvez aussi saisir la **CNIL** (cnil.fr).
+
+Si vous êtes collaborateur d’une agence et que la demande porte sur le fichier clients de l’agence, nous transmettons à l’agence, qui reste responsable de ce fichier.
 
 ## 8. Sécurité
 
-Nous mettons en œuvre des mesures techniques et organisationnelles appropriées : chiffrement des communications (HTTPS), mots de passe hashés, accès restreints, hébergement sécurisé.
+Communications chiffrées (HTTPS), mots de passe hashés, accès restreints, jetons d’intégration chiffrés, sauvegardes. Aucun système n’est infaillible : en cas d’incident ayant un risque élevé pour vos droits, nous vous en informons comme le prévoit le RGPD.
 
 ## 9. Transferts hors Union européenne
 
-Certains sous-traitants (Vercel, Supabase) peuvent traiter des données hors UE. Le cas échéant, des garanties appropriées sont mises en place (clauses contractuelles types, certifications).
+Certains prestataires (Vercel, Stripe, Google, Calendly, Resend, Mapbox) peuvent traiter des données hors UE. Dans ce cas, des garanties adaptées sont prévues (clauses contractuelles types ou mécanisme équivalent).
 
-## 10. Prospection par le Client
+## 10. Prospection menée par l’agence
 
-Le Client (agence) reste **responsable de traitement** des opérations de prospection qu'il mène à partir des adresses fournies. Il doit respecter le RGPD, l'interdiction de la pige téléphonique (11 août 2026) et les règles applicables au porte-à-porte et au courrier. Voir les CGU pour le détail des obligations.
+L’agence décide **comment** elle contacte une adresse. Depuis le **11 août 2026**, le démarchage téléphonique des consommateurs est interdit par principe (loi n° 2025-594 du 30 juin 2025), sauf consentement préalable valable ou cas prévus par le Code de la consommation.
 
-## 11. Modifications
+Priimo ne fournit pas de téléphone personnel de particulier pour appeler à froid. Le porte-à-porte, le courrier et les autres canaux restent de la responsabilité de l’agence, dans le respect du RGPD et des règles professionnelles.
 
-Cette politique peut être mise à jour. La date de dernière mise à jour figure en tête de document. En cas de changement substantiel, les utilisateurs en seront informés par email ou notification dans l'application.
+## 11. Cookies
 
-## 12. Contact
+Voir aussi les mentions légales. Sur le site : cookies nécessaires, Vercel Analytics, Calendly si vous ouvrez une démo. Dans l’application : cookies de session indispensables.
 
-Questions relatives à cette politique : contact@priimo.fr — **WhatsApp** : 07 66 85 71 65.
+## 12. Modifications
+
+La date en tête de page fait foi. Un changement important vous sera signalé par email ou dans l’application.
+
+## 13. Contact
+
+hello@priimo.fr — 07 66 85 71 65 — **WhatsApp** : 07 66 85 71 65.

@@ -5,7 +5,9 @@ import { CguContent } from '@/components/legal/CguContent';
 
 export const metadata: Metadata = {
   title: 'Conditions Générales d\'Utilisation',
-  description: 'CGU du service Priimo — prospection immobilière prédictive pour agences.',
+  description:
+    'Conditions d’utilisation de Priimo, logiciel métier pour agences immobilières (accès sur invitation).',
+  alternates: { canonical: '/cgu' },
   robots: { index: true, follow: true },
 };
 

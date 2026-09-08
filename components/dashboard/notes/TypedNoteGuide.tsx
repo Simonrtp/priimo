@@ -1,8 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import {
   composeTypedNote,
@@ -16,6 +15,7 @@ import {
   type TypedNoteDraft,
   type TypedNoteKind,
 } from '@/lib/notes/typed-compose';
+import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import type { NoteExtraction } from '@/lib/notes/propositions';
 import type { NoteSourceInfo } from '@/types/contact';
 
@@ -25,6 +25,7 @@ export type TypedNoteSubmitPayload = {
   extraction: NoteExtraction;
   adresse: string;
   banCoords: { latitude: number; longitude: number } | null;
+  liens: NoteLinkPick[];
 };
 
 export default function TypedNoteGuide({
@@ -45,10 +46,8 @@ export default function TypedNoteGuide({
   const kindGroupId = useId();
   const sourceGroupId = useId();
   const textId = useId();
-  const addrId = useId();
   const [draft, setDraft] = useState<TypedNoteDraft>(EMPTY_TYPED_NOTE_DRAFT);
-  const [adresseLabel, setAdresseLabel] = useState(initialAdresse);
-  const [banCoords, setBanCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [liens, setLiens] = useState<NoteLinkPick[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   function patch<K extends keyof TypedNoteDraft>(key: K, value: TypedNoteDraft[K]) {
@@ -56,21 +55,18 @@ export default function TypedNoteGuide({
     if (localError) setLocalError(null);
   }
 
-  function onAddress(data: SelectedAddress | null) {
-    if (!data) {
-      setBanCoords(null);
-      return;
-    }
-    setAdresseLabel(data.label);
-    setBanCoords({ latitude: data.latitude, longitude: data.longitude });
-  }
-
   function submit() {
     if (!draft.kind) {
       setLocalError('Choisissez d’abord le type de note.');
       return;
     }
-    const composed = composeTypedNote(draft, adresseLabel);
+    const immeuble = liens.find((l) => l.entiteType === 'immeuble');
+    const adresse = (immeuble?.label ?? initialAdresse).trim();
+    const banCoords =
+      immeuble?.latitude != null && immeuble.longitude != null
+        ? { latitude: immeuble.latitude, longitude: immeuble.longitude }
+        : null;
+    const composed = composeTypedNote(draft, adresse);
     if (composed.transcript.length < 8) {
       setLocalError('Ajoutez une note ou quelques infos (m², nom…).');
       return;
@@ -79,8 +75,9 @@ export default function TypedNoteGuide({
       transcript: composed.transcript,
       draft,
       extraction: composed.extraction,
-      adresse: adresseLabel.trim(),
+      adresse,
       banCoords,
+      liens,
     });
   }
 
@@ -219,25 +216,62 @@ export default function TypedNoteGuide({
             />
           </Field>
 
-          <Field
-            label="Immeuble"
-            htmlFor={addrId}
-            hint="Optionnel — pour rattacher la note à un immeuble, une fois le fond écrit."
-          >
-            <AddressAutocomplete
-              id={addrId}
-              value={adresseLabel}
-              onChange={onAddress}
-              onQueryChange={(q) => setAdresseLabel(q)}
-              placeholder="Rattacher à un immeuble…"
-              inputClassName={ADDRESS_FIELD_INPUT_CLASS}
+          <div>
+            {liens.length > 0 ? (
+              <ul className="mb-2 flex flex-col gap-1.5">
+                {liens.map((lien) => (
+                  <li
+                    key={`${lien.entiteType}:${lien.entiteId}`}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.08] px-3 py-2"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13.5px] font-medium text-text-strong">
+                        {lien.label}
+                      </span>
+                      <span className="block text-[12px] text-text-muted">
+                        {lien.subtitle ?? lien.entiteType}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLiens((prev) =>
+                          prev.filter(
+                            (l) =>
+                              !(l.entiteType === lien.entiteType && l.entiteId === lien.entiteId),
+                          ),
+                        )
+                      }
+                      className="shrink-0 text-[12px] font-semibold text-text-muted hover:text-text-strong"
+                    >
+                      Retirer
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <NoteEntitySearch
+              onPick={(pick) =>
+                setLiens((prev) => {
+                  const base =
+                    pick.entiteType === 'immeuble'
+                      ? prev.filter((l) => l.entiteType !== 'immeuble')
+                      : prev;
+                  return base.some(
+                    (l) => l.entiteType === pick.entiteType && l.entiteId === pick.entiteId,
+                  )
+                    ? base
+                    : [...base, pick];
+                })
+              }
+              excludeIds={new Set(liens.map((l) => `${l.entiteType}:${l.entiteId}`))}
             />
-          </Field>
+          </div>
         </>
       ) : (
         <p className="text-pretty text-text-muted" style={{ fontSize: 13.5, lineHeight: 1.45 }}>
-          Choisissez un type : les champs utiles s’affichent ensuite. L’adresse vient en dernier,
-          pour poser la note sur un immeuble.
+          Choisissez un type : les champs utiles s’affichent ensuite. Vous pourrez rattacher la
+          note à une fiche de l’agence, ou à un immeuble qui n’y est pas encore.
         </p>
       )}
 

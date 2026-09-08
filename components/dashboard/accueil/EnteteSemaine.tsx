@@ -9,8 +9,16 @@ import {
   type Intervalle,
   type Periode,
 } from '@/lib/activite/semaines';
+import CitationCard from './CitationCard';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois', 'annee'];
+
+const TITRE_PERIODE: Record<Periode, string> = {
+  jour: 'Ma journée',
+  semaine: 'Ma semaine',
+  mois: 'Mon mois',
+  annee: 'Mon année',
+};
 
 function jourLisible(cle: string): string {
   const [y, m, d] = cle.split('-').map(Number);
@@ -47,12 +55,12 @@ export default function EnteteSemaine({
   periode,
   intervalle,
   estPeriodeCourante,
-  titre,
+  citation,
 }: {
   periode: Periode;
   intervalle: Intervalle;
   estPeriodeCourante: boolean;
-  titre: string;
+  citation: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -75,69 +83,71 @@ export default function EnteteSemaine({
     naviguer({ ancre: intervalleDecale(periode, intervalle, delta).debut });
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+      <div className="shrink-0">
         <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
-          {titre}
+          {TITRE_PERIODE[periode]}
         </h1>
-        <p className="mt-1 text-[13px] text-text-muted">
+        <p className="mt-0.5 text-[13px] text-text-muted">
           {intervalleLisible(intervalle, periode)}
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2" aria-busy={enCours}>
-        <div
-          role="group"
-          aria-label="Granularité"
-          className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-        >
-          {PERIODES.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={p === periode}
-              onClick={() => naviguer({ periode: p, ancre: null })}
-              className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                p === periode
-                  ? 'bg-surface text-text-strong shadow-clay-sm'
-                  : 'text-text-muted hover:text-text-strong'
-              }`}
-            >
-              {LIBELLE_PERIODE[p]}
-            </button>
-          ))}
-        </div>
+      <CitationCard texte={citation} className="min-w-0 sm:flex-1" />
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => decaler(-1)}
-            aria-label={`${LIBELLE_PERIODE[periode]} précédent`}
-            className="flex h-9 w-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed"
+      <div className="flex shrink-0 items-center gap-2" aria-busy={enCours}>
+          <div
+            role="group"
+            aria-label="Granularité"
+            className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
           >
-            <ChevronLeft size={17} strokeWidth={2.2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => decaler(1)}
-            disabled={estPeriodeCourante}
-            aria-label={`${LIBELLE_PERIODE[periode]} suivant`}
-            className="flex h-9 w-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none"
-          >
-            <ChevronRight size={17} strokeWidth={2.2} aria-hidden />
-          </button>
-          {!estPeriodeCourante ? (
+            {PERIODES.map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={p === periode}
+                onClick={() => naviguer({ periode: p, ancre: null })}
+                className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
+                  p === periode
+                    ? 'bg-surface text-text-strong shadow-clay-sm'
+                    : 'text-text-muted hover:text-text-strong'
+                }`}
+              >
+                {LIBELLE_PERIODE[p]}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => naviguer({ ancre: null })}
-              className="flex h-9 items-center gap-1.5 rounded-clay bg-surface px-3 text-[12px] font-semibold text-text-muted shadow-clay-sm transition hover:text-text-strong"
+              onClick={() => decaler(-1)}
+              aria-label={`${LIBELLE_PERIODE[periode]} précédent`}
+              className="flex h-9 w-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed"
             >
-              <RotateCcw size={13} strokeWidth={2.2} aria-hidden />
-              Aujourd’hui
+              <ChevronLeft size={17} strokeWidth={2.2} aria-hidden />
             </button>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => decaler(1)}
+              disabled={estPeriodeCourante}
+              aria-label={`${LIBELLE_PERIODE[periode]} suivant`}
+              className="flex h-9 w-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none"
+            >
+              <ChevronRight size={17} strokeWidth={2.2} aria-hidden />
+            </button>
+            {!estPeriodeCourante ? (
+              <button
+                type="button"
+                onClick={() => naviguer({ ancre: null })}
+                className="flex h-9 items-center gap-1.5 rounded-clay bg-surface px-3 text-[12px] font-semibold text-text-muted shadow-clay-sm transition hover:text-text-strong"
+              >
+                <RotateCcw size={13} strokeWidth={2.2} aria-hidden />
+                Aujourd’hui
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
     </header>
   );
 }

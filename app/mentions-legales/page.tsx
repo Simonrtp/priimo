@@ -6,7 +6,9 @@ import { MENTIONS_LAST_UPDATED } from '@/lib/legal/contact';
 
 export const metadata: Metadata = {
   title: 'Mentions légales',
-  description: 'Mentions légales du site et du service Priimo.',
+  description:
+    'Mentions légales de priimo.fr — éditeur, hébergeur, cookies et contact.',
+  alternates: { canonical: '/mentions-legales' },
   robots: { index: true, follow: true },
 };
 

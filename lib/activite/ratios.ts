@@ -19,9 +19,9 @@ export const FENETRE_SEMAINES = 12;
 export type NiveauRatio = 'personnel' | 'agence' | 'reference';
 
 export const LIBELLE_NIVEAU: Record<NiveauRatio, string> = {
-  personnel: 'Votre ratio',
+  personnel: 'Mon ratio',
   agence: 'Moyenne de l’agence',
-  reference: 'Référence métier, en attendant vos chiffres',
+  reference: 'Référence métier, en attendant mes chiffres',
 };
 
 /** Les compteurs qui entrent dans la conversion. */
@@ -36,6 +36,8 @@ export type ReferenceMetier = {
   estimationsParMandat: number | null;
 };
 
+export type PositionMoyenne = 'dans' | 'mieux' | 'moins' | null;
+
 export type Ratios = {
   niveau: NiveauRatio;
   /**
@@ -49,6 +51,10 @@ export type Ratios = {
   physiquesParQualifie: number | null;
   qualifiesParEstimation: number | null;
   estimationsParMandat: number | null;
+  /** Contacts physiques pour 1 mandat — le chiffre qui remet les pendules. */
+  physiquesParMandat: number | null;
+  /** Par rapport à l’agence / la référence, si le niveau est personnel. */
+  positionMoyenne: PositionMoyenne;
 };
 
 /** Arrondi à la décimale : un ratio s'affiche « 8,4 pour 1 », pas 8,42857. */
@@ -62,6 +68,62 @@ function ratiosDe(etapes: EtapesConversion): ReferenceMetier {
     physiquesParQualifie: ratio(etapes.contacts_physiques, etapes.contacts_qualifies),
     qualifiesParEstimation: ratio(etapes.contacts_qualifies, etapes.estimations),
     estimationsParMandat: ratio(etapes.estimations, etapes.mandats),
+  };
+}
+
+/** Produit des trois paliers — « 1 mandat pour N contacts ». */
+export function physiquesParMandatDepuis(paliers: ReferenceMetier): number | null {
+  const a = paliers.physiquesParQualifie;
+  const b = paliers.qualifiesParEstimation;
+  const c = paliers.estimationsParMandat;
+  if (a == null || b == null || c == null || a <= 0 || b <= 0 || c <= 0) return null;
+  return Math.round(a * b * c * 10) / 10;
+}
+
+export function physiquesParMandatDe(
+  etapes: EtapesConversion | null,
+  paliers: ReferenceMetier,
+): number | null {
+  if (etapes && etapes.mandats > 0 && etapes.contacts_physiques > 0) {
+    return ratio(etapes.contacts_physiques, etapes.mandats);
+  }
+  return physiquesParMandatDepuis(paliers);
+}
+
+/** Moins de contacts pour un mandat = mieux. */
+export function positionVsMoyenne(
+  personnel: number | null,
+  moyenne: number | null,
+): PositionMoyenne {
+  if (personnel == null || moyenne == null || moyenne <= 0) return null;
+  const r = personnel / moyenne;
+  if (r <= 0.85) return 'mieux';
+  if (r <= 1.2) return 'dans';
+  return 'moins';
+}
+
+export function formateRatio(n: number | null): string {
+  if (n == null) return '—';
+  const v = n >= 10 ? Math.round(n) : n;
+  return v.toLocaleString('fr-FR', { maximumFractionDigits: n >= 10 ? 0 : 1 });
+}
+
+function completer(
+  base: Omit<Ratios, 'physiquesParMandat' | 'positionMoyenne'>,
+  etapes: EtapesConversion | null,
+  moyenne: number | null,
+): Ratios {
+  const paliers: ReferenceMetier = {
+    physiquesParQualifie: base.physiquesParQualifie,
+    qualifiesParEstimation: base.qualifiesParEstimation,
+    estimationsParMandat: base.estimationsParMandat,
+  };
+  const physiquesParMandat = physiquesParMandatDe(etapes, paliers);
+  return {
+    ...base,
+    physiquesParMandat,
+    positionMoyenne:
+      base.niveau === 'personnel' ? positionVsMoyenne(physiquesParMandat, moyenne) : null,
   };
 }
 
@@ -79,30 +141,47 @@ export function cascadeRatios(params: {
 }): Ratios {
   const { personnel, agence, reference, referenceFournie } = params;
 
+  const moyenneAgence =
+    agence.mandats >= MANDATS_MINIMUM
+      ? physiquesParMandatDe(agence, ratiosDe(agence))
+      : physiquesParMandatDepuis(reference);
+
   if (personnel.mandats >= MANDATS_MINIMUM) {
-    return {
-      niveau: 'personnel',
-      provisoire: false,
-      mandatsRetenus: personnel.mandats,
-      ...ratiosDe(personnel),
-    };
+    return completer(
+      {
+        niveau: 'personnel',
+        provisoire: false,
+        mandatsRetenus: personnel.mandats,
+        ...ratiosDe(personnel),
+      },
+      personnel,
+      moyenneAgence,
+    );
   }
 
   if (agence.mandats >= MANDATS_MINIMUM) {
-    return {
-      niveau: 'agence',
-      provisoire: false,
-      mandatsRetenus: agence.mandats,
-      ...ratiosDe(agence),
-    };
+    return completer(
+      {
+        niveau: 'agence',
+        provisoire: false,
+        mandatsRetenus: agence.mandats,
+        ...ratiosDe(agence),
+      },
+      agence,
+      null,
+    );
   }
 
-  return {
-    niveau: 'reference',
-    provisoire: !referenceFournie,
-    mandatsRetenus: personnel.mandats,
-    physiquesParQualifie: reference.physiquesParQualifie,
-    qualifiesParEstimation: reference.qualifiesParEstimation,
-    estimationsParMandat: reference.estimationsParMandat,
-  };
+  return completer(
+    {
+      niveau: 'reference',
+      provisoire: !referenceFournie,
+      mandatsRetenus: personnel.mandats,
+      physiquesParQualifie: reference.physiquesParQualifie,
+      qualifiesParEstimation: reference.qualifiesParEstimation,
+      estimationsParMandat: reference.estimationsParMandat,
+    },
+    null,
+    null,
+  );
 }

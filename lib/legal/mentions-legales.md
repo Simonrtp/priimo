@@ -1,52 +1,64 @@
 # Mentions légales — Priimo
 
-**Dernière mise à jour : 29 août 2026**
+## 1. Éditeur
 
-## 1. Éditeur du site
+Le site **priimo.fr** et l’application Priimo sont édités par :
 
-Le site **priimo.fr** est édité par :
-
-- **Priimo**, service exploité en auto-entreprise
-- Siège social : 27 rue A. Peunaud, Paris
-- Email : contact@priimo.fr
+- **Simon**, entrepreneur individuel, exerçant sous l’enseigne **Priimo**
+- Adresse : 27 rue A. Peunaud, Paris, France
+- Email : hello@priimo.fr
 - Téléphone : 07 66 85 71 65
+
+Le numéro SIRET est communiqué sur simple demande à hello@priimo.fr.
 
 ## 2. Directeur de la publication
 
-L’éditeur du service Priimo.
+**Simon.**
 
 ## 3. Hébergement
 
-Le site et l'application sont hébergés par :
-
-- **Vercel Inc.**, 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis — vercel.com
-
-Les données applicatives (comptes agences, notes, statuts) sont stockées via **Supabase** (infrastructure certifiée, régions Union européenne / États-Unis selon configuration).
+- **Vercel Inc.**, 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis — vercel.com  
+  Héberge le site et l’application.
+- **Supabase** — stockage des données applicatives (comptes, fiches, notes). Infrastructure choisie avec une région dans l’Union européenne lorsque c’est possible.
 
 ## 4. Objet du site
 
-Priimo est un service SaaS B2B de prospection immobilière prédictive à destination des professionnels de l'immobilier en France. Le site présente le service et permet de réserver une démonstration.
+Priimo est un logiciel métier destiné aux **professionnels de l’immobilier** en France. Le site présente le service et permet de prendre contact (démonstration, invitation). L’accès à l’application se fait sur invitation, ce n’est pas un service ouvert au grand public.
+
+Le service aide une agence à :
+
+- recevoir et travailler des **adresses** susceptibles de se vendre (score, signaux, pipeline) ;
+- tenir son **fichier** (contacts, biens, notes, carte, activité) ;
+- brancher, si elle le souhaite, des **intégrations** (Google Agenda, Gmail pour les demandes portail, diffusion d’annonces via une passerelle).
+
+Priimo n’est pas un portail d’annonces. Les abonnements SeLoger, Bien’ici ou équivalents restent à la charge de l’agence, hors de l’abonnement Priimo.
 
 ## 5. Propriété intellectuelle
 
-L'ensemble des éléments du site (textes, graphismes, logo, structure, logiciels) est protégé par le droit de la propriété intellectuelle. Toute reproduction ou représentation non autorisée est interdite.
+Textes, graphismes, logo, interface, logiciels et bases de données du site et du service sont protégés. Toute reproduction ou extraction non autorisée est interdite.
 
 ## 6. Données personnelles
 
-Le traitement des données personnelles est décrit dans la **Politique de confidentialité** accessible à l'adresse `/politique-de-confidentialite`.
+Le traitement des données est décrit dans la **Politique de confidentialité** (`/politique-de-confidentialite`).
 
-## 7. Cookies et traceurs
+## 7. Cookies
 
-Le site peut utiliser des cookies strictement nécessaires au fonctionnement (session, sécurité) et, le cas échéant, des outils de mesure d'audience ou de prise de rendez-vous (Calendly). Pour toute question : contact@priimo.fr.
+Le site utilise des cookies ou traceurs :
 
-## 8. Limitation de responsabilité
+- **nécessaires** : session, sécurité, connexion à l’application ;
+- **mesure d’audience** : Vercel Analytics (statistiques de fréquentation, sans publicité) ;
+- **prise de rendez-vous** : Calendly, uniquement si vous ouvrez le calendrier de démonstration.
 
-Priimo s'efforce d'assurer l'exactitude des informations publiées sur le site. Toutefois, Priimo ne garantit pas l'absence d'erreurs ou d'omissions. L'utilisation du site se fait sous la responsabilité de l'utilisateur.
+Aucun cookie publicitaire n’est déposé pour vendre vos données.
+
+## 8. Responsabilité
+
+Les informations du site sont données de bonne foi. Elles peuvent évoluer. L’usage du site se fait sous votre responsabilité. Les conditions d’utilisation du logiciel sont dans les **CGU** (`/cgu`).
 
 ## 9. Droit applicable
 
-Les présentes mentions légales sont soumises au droit français. En cas de litige, et à défaut de résolution amiable, les tribunaux français seront seuls compétents.
+Droit français. À défaut d’accord amiable, les tribunaux de Paris sont compétents.
 
 ## 10. Contact
 
-Pour toute question relative au site ou au service : contact@priimo.fr ou **WhatsApp** : 07 66 85 71 65.
+hello@priimo.fr — 07 66 85 71 65 — **WhatsApp** : 07 66 85 71 65.

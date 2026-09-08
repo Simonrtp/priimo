@@ -28,7 +28,7 @@ export const OBJECTIF_MANDATS_MENSUEL_PAR_DEFAUT = 3;
 /**
  * Référence métier de dernier recours, quand `agency_activity_settings` est
  * vide. Sert de garde-fou pour que l'écran ne montre jamais un tiret, mais il
- * doit toujours s'accompagner du libellé « en attendant vos chiffres ».
+ * doit toujours s'accompagner du libellé « en attendant mes chiffres ».
  */
 export const REFERENCE_METIER_PROVISOIRE: ReferenceMetier = {
   physiquesParQualifie: 8,
@@ -100,7 +100,7 @@ function nombre(valeur: number | string | null): number | null {
 /**
  * Référence métier de l'agence. `fournie` est faux tant qu'aucun des trois
  * ratios n'est renseigné — c'est ce booléen qui déclenche le libellé
- * « en attendant vos chiffres ».
+ * « en attendant mes chiffres ».
  */
 export function referenceMetier(row: ReferenceRow | null): {
   reference: ReferenceMetier;

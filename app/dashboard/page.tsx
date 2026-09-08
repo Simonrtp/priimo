@@ -66,6 +66,7 @@ import OnboardingRelanceBand from '@/components/dashboard/onboarding/OnboardingR
 import BirthdayCard from '@/components/dashboard/onboarding/BirthdayCard';
 import { fetchAnniversairesDuJour } from '@/lib/queries/birthdays';
 import { bilanPeriode, valeursDe } from '@/lib/activite/bilan';
+import { citationDuJour } from '@/lib/activite/citations';
 import { phrasePilotage } from '@/lib/activite/phrase';
 import { FENETRE_SEMAINES } from '@/lib/activite/ratios';
 import {
@@ -572,6 +573,14 @@ async function TodayContent({
   const estPeriodeCourante =
     intervalleAffiche.debut === intervalleDe(periode, new Date()).debut;
 
+  const citation = citationDuJour({
+    jour: dateKeyMaintenant(),
+    prenoms: [
+      profile.first_name,
+      ...members.map((m) => m.firstName),
+    ],
+  });
+
   const homeProps = {
     initialCards: cards,
     initialLeads: visibleLeads,
@@ -600,10 +609,10 @@ async function TodayContent({
     phrase,
     adresses: adressesLivrees,
     totalAdresses: leadsNonPris.length,
-    prenom: profile.first_name,
     membres: membresActivite,
     membreSelectionne: membreActivite,
     estPeriodeCourante,
+    citation,
   };
 
   if (device === 'mobile') {

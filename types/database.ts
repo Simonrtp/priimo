@@ -1490,6 +1490,8 @@ export type PortailEmailDomainePortailDb =
 
 export type GmailConnexionEtatDb = 'actif' | 'revoke' | 'erreur' | 'en_attente_verif_oauth';
 
+export type CalendarConnexionEtatDb = 'actif' | 'revoke' | 'erreur';
+
 export type LeadPortailStatutDb =
   | 'importe'
   | 'a_traiter_main'
@@ -1628,6 +1630,34 @@ export type GmailConnexionInsert = {
   watch_history_id?: string | null;
   watch_expiration?: string | null;
   pubsub_topic?: string | null;
+  etat?: string;
+  dernier_erreur?: string | null;
+  connected_at?: string;
+  updated_at?: string;
+};
+
+export type CalendarConnexionRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  calendar_email: string;
+  token_ciphertext: string;
+  token_nonce: string;
+  scopes: string[];
+  etat: CalendarConnexionEtatDb;
+  dernier_erreur: string | null;
+  connected_at: string;
+  updated_at: string;
+};
+
+export type CalendarConnexionInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  calendar_email: string;
+  token_ciphertext: string;
+  token_nonce: string;
+  scopes?: string[];
   etat?: string;
   dernier_erreur?: string | null;
   connected_at?: string;
@@ -2060,6 +2090,12 @@ export type Database = {
         Row: GmailConnexionRow;
         Insert: GmailConnexionInsert;
         Update: Partial<GmailConnexionRow>;
+        Relationships: [];
+      };
+      calendar_connexions: {
+        Row: CalendarConnexionRow;
+        Insert: CalendarConnexionInsert;
+        Update: Partial<CalendarConnexionRow>;
         Relationships: [];
       };
       leads_portail: {

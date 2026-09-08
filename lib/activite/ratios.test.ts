@@ -7,7 +7,14 @@ import {
   OBJECTIF_MANDATS_MENSUEL_PAR_DEFAUT,
   REFERENCE_METIER_PROVISOIRE,
 } from './objectifs';
-import { cascadeRatios, MANDATS_MINIMUM, type EtapesConversion } from './ratios';
+import {
+  cascadeRatios,
+  formateRatio,
+  MANDATS_MINIMUM,
+  physiquesParMandatDepuis,
+  positionVsMoyenne,
+  type EtapesConversion,
+} from './ratios';
 
 function etapes(partiel: Partial<EtapesConversion>): EtapesConversion {
   return {
@@ -40,6 +47,7 @@ describe('cascadeRatios — choix du niveau', () => {
     assert.equal(r.physiquesParQualifie, 5);
     assert.equal(r.qualifiesParEstimation, 2.7);
     assert.equal(r.estimationsParMandat, 3);
+    assert.equal(r.physiquesParMandat, 40);
   });
 
   it('retombe sur l’agence sous trois mandats personnels', () => {
@@ -113,6 +121,36 @@ describe('cascadeRatios — choix du niveau', () => {
     assert.equal(r.mandatsRetenus, 0);
     assert.equal(r.provisoire, true);
     assert.notEqual(r.physiquesParQualifie, null);
+  });
+});
+
+describe('physiquesParMandatDepuis', () => {
+  it('multiplie les trois paliers : 5 × 3 × 3,6 = 54', () => {
+    assert.equal(
+      physiquesParMandatDepuis({
+        physiquesParQualifie: 5,
+        qualifiesParEstimation: 3,
+        estimationsParMandat: 3.6,
+      }),
+      54,
+    );
+  });
+});
+
+describe('positionVsMoyenne', () => {
+  it('dit « dans » autour de la moyenne', () => {
+    assert.equal(positionVsMoyenne(54, 50), 'dans');
+  });
+
+  it('dit « mieux » quand il faut nettement moins de portes', () => {
+    assert.equal(positionVsMoyenne(40, 54), 'mieux');
+  });
+});
+
+describe('formateRatio', () => {
+  it('arrondit le gros chiffre, garde une décimale en dessous de 10', () => {
+    assert.equal(formateRatio(54.2), '54');
+    assert.equal(formateRatio(2.7), '2,7');
   });
 });
 

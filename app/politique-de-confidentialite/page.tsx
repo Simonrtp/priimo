@@ -6,7 +6,9 @@ import { CONFIDENTIALITE_LAST_UPDATED } from '@/lib/legal/contact';
 
 export const metadata: Metadata = {
   title: 'Politique de confidentialité',
-  description: 'Politique de confidentialité et protection des données — Priimo.',
+  description:
+    'Politique de confidentialité Priimo : données traitées, droits RGPD, sous-traitants.',
+  alternates: { canonical: '/politique-de-confidentialite' },
   robots: { index: true, follow: true },
 };
 

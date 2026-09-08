@@ -25,9 +25,9 @@ export default function NouvellesAdresses({
 }) {
   if (total === 0) {
     return (
-      <section className="rounded-clay-lg bg-surface p-5 shadow-clay-sm">
+      <section className="flex h-full flex-col rounded-clay-lg bg-surface p-5 shadow-clay-sm">
         <h2 className="font-display text-[15px] font-bold text-text-strong">
-          Vos nouvelles adresses
+          Mes nouvelles adresses
         </h2>
         <p className="mt-1.5 text-[13px] text-text-muted">
           Tout est pris. Les prochaines adresses arriveront au prochain lot.
@@ -37,10 +37,10 @@ export default function NouvellesAdresses({
   }
 
   return (
-    <section className="rounded-clay-lg bg-surface p-5 shadow-clay">
+    <section className="flex h-full flex-col rounded-clay-lg bg-surface p-5 shadow-clay">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-display text-[15px] font-bold text-text-strong">
-          Vos nouvelles adresses
+          Mes nouvelles adresses
           <span
             className="ml-2 rounded-full px-2 py-0.5 align-middle text-[12px] font-bold"
             style={{ backgroundColor: '#FFE0C4', color: FIELD.orange }}

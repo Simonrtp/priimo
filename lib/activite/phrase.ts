@@ -12,7 +12,7 @@ import type { Activite, EtatSource } from './types';
  *
  * Trois principes qui décident de tout le reste du fichier :
  *
- * 1. On remonte l'entonnoir. Dire « il te manque deux mandats » n'aide
+ * 1. On remonte l'entonnoir. Dire « il manque deux mandats » n'aide
  *    personne : un mandat ne se décide pas. On cherche donc le premier étage
  *    EN PARTANT DU HAUT où l'agent décroche, parce que c'est le seul sur lequel
  *    il peut agir aujourd'hui.
@@ -139,10 +139,10 @@ function accorde(n: number, etage: EtageConversion): string {
 }
 
 function rythmeMandats(objectif: number): string {
-  if (objectif <= 0) return 'ton objectif';
+  if (objectif <= 0) return 'mon objectif';
   return objectif === 1
-    ? 'ton rythme d’un mandat par mois'
-    : `ton rythme de ${objectif} mandats par mois`;
+    ? 'mon rythme d’un mandat par mois'
+    : `mon rythme de ${objectif} mandats par mois`;
 }
 
 export type EntreePhrase = {
@@ -164,7 +164,7 @@ export type EntreePhrase = {
 };
 
 const PHRASE_DEMARRAGE =
-  'Première semaine : sors une fois sur le terrain, le reste de cet écran se remplira tout seul.';
+  'Première semaine : une sortie sur le terrain, le reste de cet écran se remplit tout seul.';
 
 export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const {
@@ -192,7 +192,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   if (!hebdo) {
     return {
       texte:
-        'Il manque les repères de conversion de ton réseau pour calculer ton rythme. Tes compteurs restent justes.',
+        'Il manque les repères de conversion de mon réseau pour calculer mon rythme. Mes compteurs restent justes.',
       ton: 'incalculable',
       levier: null,
       manque: 0,
@@ -211,7 +211,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
     const manque = Math.ceil(attendu - compteurs[etage]);
     if (manque > 0) {
       return {
-        texte: `Il te manque ${accorde(manque, etage)} ${quand} pour tenir ${rythmeMandats(objectifMandatsMois)}.`,
+        texte: `Il me manque ${accorde(manque, etage)} ${quand} pour tenir ${rythmeMandats(objectifMandatsMois)}.`,
         ton: 'retard',
         levier: etage,
         manque,
@@ -226,7 +226,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const avance = Math.floor(compteurs[tete] - hebdo[tete] * semainesDeLaPeriode * fraction);
   if (avance > 0) {
     return {
-      texte: `Tu es en avance de ${accorde(avance, tete)} sur ${rythmeMandats(objectifMandatsMois)}.`,
+      texte: `C’est en avance de ${accorde(avance, tete)} sur ${rythmeMandats(objectifMandatsMois)}.`,
       ton: 'avance',
       levier: tete,
       manque: 0,
@@ -234,7 +234,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   }
 
   return {
-    texte: `Tu es pile sur ${rythmeMandats(objectifMandatsMois)}. Rien à rattraper ${quand}.`,
+    texte: `Pile sur ${rythmeMandats(objectifMandatsMois)}. Rien à rattraper ${quand}.`,
     ton: 'avance',
     levier: null,
     manque: 0,

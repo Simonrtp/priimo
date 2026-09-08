@@ -1,335 +1,163 @@
 # Conditions Générales d'Utilisation — Priimo
 
-**Dernière mise à jour : 16 mai 2026**
+## 1. Qui nous sommes
 
-## 1. Définitions
+Les présentes Conditions Générales d’Utilisation (« **CGU** ») s’appliquent à l’usage du logiciel **Priimo**, accessible depuis priimo.fr.
 
-Les termes suivants, lorsqu'ils sont employés avec une majuscule dans les présentes Conditions Générales d'Utilisation (« CGU »), ont la signification suivante :
-
-- **« Priimo »** ou **« Nous »** : désigne l'auto-entreprise exploitant le service Priimo, dont le siège social est situé au 27 rue A. Peunaud, Paris.
-- **« Service »** : désigne la plateforme SaaS Priimo accessible à l'adresse priimo.fr, permettant aux agences immobilières d'identifier des propriétaires susceptibles de vendre leur bien immobilier grâce à l'analyse de bases de données immobilières et à un algorithme de scoring prédictif.
-- **« Client »** ou **« Vous »** : désigne toute agence immobilière ou mandataire indépendant ayant souscrit un abonnement au Service.
-- **« Directeur »** : désigne l'utilisateur principal du Client, ayant accès à toutes les fonctionnalités du Service, y compris la gestion de l'équipe et de l'abonnement.
-- **« Collaborateur »** : désigne un utilisateur rattaché au compte d'un Directeur, ayant accès aux fonctionnalités de prospection mais sans droits d'administration.
-- **« Données Publiques »** : désigne les données issues de sources publiques françaises (DVF, DPE ADEME, BODACC, Cadastre, INSEE) parmi les bases utilisées par Priimo pour générer les Prospects.
-- **« Prospects »** : désigne les biens immobiliers et informations associées fournis par le Service, identifiés comme ayant une probabilité élevée de mise en vente.
-- **« Zone Exclusive »** : désigne le territoire géographique défini lors de la souscription, sur lequel le Client bénéficie d'un accès exclusif aux Prospects générés par le Service.
+- **« Priimo »** ou **« Nous »** : Simon, entrepreneur individuel, enseigne Priimo, 27 rue A. Peunaud, Paris, France.
+- **« Client »** ou **« Vous »** : l’agence, le réseau ou le mandataire professionnel qui souscrit, ou au nom de qui un compte est ouvert.
+- **« Directeur »** : l’utilisateur qui administre le compte de l’agence (équipe, réglages, abonnement).
+- **« Collaborateur »** : tout autre utilisateur rattaché à ce compte.
+- **« Service »** : l’application Priimo et les fonctions décrites à l’article 4.
+- **« Utilisateur »** : toute personne qui se connecte avec un identifiant Priimo.
 
 ## 2. Objet
 
-Les présentes CGU ont pour objet de définir les conditions dans lesquelles Priimo met à disposition du Client le Service, ainsi que les droits et obligations des parties dans ce cadre.
+Ces CGU fixent les règles d’accès et d’usage du Service, ainsi que les obligations de chaque partie.
 
-**Toute utilisation du Service implique l'acceptation sans réserve des présentes CGU.**
+**Utiliser le Service vaut acceptation des CGU.** L’accès est professionnel : Priimo n’est pas destiné aux particuliers.
 
-## 3. Accès au Service
+## 3. Accès
 
-### 3.1 Création de compte
+### 3.1 Invitation
 
-L'accès au Service est strictement réservé aux professionnels de l'immobilier (agences immobilières, mandataires indépendants) exerçant en France métropolitaine.
+Le Service n’est pas en libre-service. Un compte Directeur s’ouvre sur **invitation** de Priimo, après un échange. Un Collaborateur est invité par un Directeur de son agence.
 
-La création d'un compte requiert :
+Vous devez donner des informations exactes (agence, coordonnées, secteur). Un seul compte agence : multiplier les comptes pour contourner un plafond ou un secteur est interdit et peut entraîner la clôture, sans remboursement.
 
-- Une invitation personnalisée envoyée par Priimo (pour les Directeurs) ou par un Directeur existant (pour les Collaborateurs).
-- La fourniture d'informations exactes et à jour (nom de l'agence, coordonnées, zone de prospection).
-- L'acceptation des présentes CGU.
+### 3.2 Identifiants
 
-Le Client s'engage à ne créer qu'un seul compte par agence. Toute création de comptes multiples pour contourner les limitations du Service est strictement interdite et entraînera la résiliation immédiate sans remboursement.
+Vous êtes responsable de vos identifiants. Mot de passe solide, pas de partage hors des personnes autorisées, information immédiate à hello@priimo.fr en cas de doute. Priimo n’est pas responsable d’un usage frauduleux de vos identifiants.
 
-### 3.2 Identifiants et sécurité
+### 3.3 Disponibilité
 
-Le Client est seul responsable de la confidentialité de ses identifiants de connexion. Il s'engage à :
+Nous visons un Service disponible en continu, hors maintenance et hors force majeure. La maintenance est annoncée quand c’est raisonnablement possible. Aucune disponibilité à 100 % n’est garantie.
 
-- Choisir un mot de passe robuste.
-- Ne pas partager ses identifiants avec des tiers non autorisés.
-- Informer immédiatement Priimo de toute utilisation non autorisée de son compte.
+## 4. Ce que fait le Service
 
-Priimo ne pourra être tenu responsable des conséquences d'une utilisation frauduleuse des identifiants du Client.
+Priimo est un **logiciel métier** pour agences immobilières. Selon l’abonnement et les options activées, il permet notamment de :
 
-### 3.3 Disponibilité du Service
+- consulter des **adresses** identifiées comme susceptibles de se vendre, avec un score et des signaux, et les faire avancer dans un pipeline ;
+- tenir le **fichier** de l’agence : contacts, biens, notes (écrites ou dictées), carte, activité de terrain ;
+- préparer une **sortie**, une **estimation** indicative, un rapprochement acquéreur ;
+- connecter, si vous le choisissez, **Google Agenda** (lecture de la semaine) ou **Gmail** (demandes des portails, lecture limitée) ;
+- publier des annonces via une **passerelle** technique, lorsque l’agence a son propre contrat chez l’éditeur du portail.
 
-Priimo s'engage à fournir un Service accessible 24h/24 et 7j/7, sous réserve des opérations de maintenance planifiées ou d'urgence, qui seront notifiées au Client dans la mesure du possible.
+Le contenu exact dépend de ce qui est ouvert sur votre compte. Les fonctions évoluent : une nouveauté n’est pas un droit acquis à perpétuité.
 
-Un taux de disponibilité de 99 % sur une base mensuelle est visé, hors cas de force majeure.
+### 4.1 Ce que Priimo ne promet pas
 
-## 4. Description du Service
+Priimo **n’est pas** un portail, **n’est pas** un CRM de transaction au sens d’un logiciel notarial, et **ne garantit pas** un nombre de mandats.
 
-### 4.1 Fonctionnalités principales
+Les adresses proposées reposent sur des bases et des modèles statistiques. Un score élevé veut dire « cette adresse mérite du temps », pas « le mandat est signé ». Le résultat dépend de vous, du propriétaire, du marché et de la concurrence.
 
-Le Service permet au Client de :
+Nous ne garantissons pas un volume fixe d’adresses chaque mois. Le volume dépend du secteur, des données disponibles et du plan souscrit, communiqué à la souscription.
 
-- Consulter une liste hebdomadaire de Prospects (biens immobiliers) scorés selon leur probabilité de mise en vente.
-- Visualiser les caractéristiques de chaque Prospect (adresse, score, signaux détectés, contexte du bien).
-- Modifier le statut des Prospects (nouveau, contacté, intéressé, pas intéressé).
-- Ajouter des notes personnalisées sur chaque Prospect.
-- Exporter les Prospects au format CSV.
-- Accéder aux coordonnées professionnelles des dirigeants de SCI/SARL (abonnés Premium uniquement).
+### 4.2 Secteur
 
-### 4.2 Méthodologie
+Lors de l’ouverture du compte, un secteur de travail est défini. Priimo s’efforce de ne pas vendre le **même** secteur à deux clients en parallèle. Ce n’est pas une exclusivité territoriale au sens d’un contrat de franchise, et cela n’empêche pas un confrère d’utiliser un autre outil ou de prospecter autrement.
 
-Priimo génère les Prospects en croisant des bases de données françaises (publiques et privées, dont notamment les Données Publiques) avec un algorithme propriétaire de scoring prédictif. Les sources de données incluent, sans s'y limiter :
+## 5. Usage des adresses et du fichier
 
-- **DVF** (Demandes de Valeurs Foncières) : transactions immobilières.
-- **DPE ADEME** : diagnostics de performance énergétique.
-- **BODACC** : événements juridiques des sociétés (dissolutions, liquidations, cessions).
-- **Cadastre** : identification des propriétaires de biens immobiliers.
-- **INSEE / IRIS** : données démographiques et économiques.
-- **Données privées** : événements de vie (décès, successions, mutations, etc.) utilisés pour qualifier les prospects.
+### 5.1 Cadre légal
 
-Le scoring est ajusté en continu sur la base des retours des Clients (mandats signés, prospects non convertis).
+Depuis le **11 août 2026**, le démarchage téléphonique des consommateurs est **interdit par principe** (article L. 223-1 du Code de la consommation, issu de la loi n° 2025-594 du 30 juin 2025), sauf consentement préalable valable ou exceptions prévues par la loi.
 
-### 4.3 Promesse de livraison
+Vous vous engagez à n’utiliser le Service que dans un cadre **légal** : pas d’appel à froid à un particulier sans consentement, pas de constitution d’un fichier de téléphones personnels à partir de Priimo, pas d’usage contraire au RGPD, à la loi Hoguet ou à l’ordre public.
 
-Priimo s'engage à fournir **au minimum 15 Prospects ultra-qualifiés par mois** sur la Zone Exclusive du Client. Ce nombre peut être supérieur selon la densité immobilière de la zone et la qualité des données disponibles.
+Pour un particulier, Priimo fournit une **adresse** et un **contexte**, pas un téléphone personnel. Pour une personne morale, des informations de dirigeants issues de registres officiels peuvent être affichées : vous restez seul juge de la licéité de votre prise de contact.
 
-**Priimo ne garantit pas que chaque Prospect contacté aboutira à un mandat exclusif.** Le Service fournit des probabilités statistiques basées sur des données historiques et des signaux prédictifs, mais le résultat final dépend de nombreux facteurs indépendants de notre contrôle (contexte personnel du propriétaire, actions de la concurrence, évolution du marché).
+### 5.2 Usages autorisés
 
-## 5. Conditions d'utilisation des Données
+Les adresses et signaux sont destinés à la prospection immobilière de **votre** agence : terrain, courrier, suivi dans Priimo, enrichissement de votre connaissance du secteur.
 
-### 5.1 Respect du RGPD et de la vie privée
+### 5.3 Usages interdits
 
-Le Client reconnaît que certaines Données Publiques utilisées par Priimo peuvent relever du Règlement Général sur la Protection des Données (RGPD). **Le Client s'engage formellement à respecter la législation française et européenne en matière de protection des données personnelles.**
+- Revendre, louer ou céder les adresses ou extraits du Service à un tiers.
+- Construire une base commercialisée à partir du Service.
+- Spammer, harceler, usurpation, discrimination.
+- Extraire le Service par robot ou scraping, hors export prévu dans l’interface.
+- Contourner un secteur, un plafond ou une invitation.
 
-En particulier, le Client s'interdit de :
+Une violation grave peut entraîner la clôture immédiate, sans remboursement, et le cas échéant des poursuites.
 
-- Contacter des personnes physiques par téléphone à des fins de prospection commerciale sans consentement préalable (interdiction de la pige téléphonique à compter du 11 août 2026).
-- Constituer ou enrichir des fichiers de personnes physiques avec des données personnelles non autorisées (nom, téléphone personnel, raisons personnelles de vente).
-- Utiliser les Prospects à des fins autres que la prospection immobilière légale (porte-à-porte, courrier postal ciblé, contact professionnel pour les SCI/SARL).
+### 5.4 Votre responsabilité
 
-**Pour les Prospects identifiés comme détenus par des personnes morales (SCI, SARL) :** le Client peut utiliser les coordonnées professionnelles fournies (nom du dirigeant, téléphone professionnel, email professionnel) conformément à la législation applicable, ces données étant de nature commerciale et issues de registres officiels.
+Vous êtes seul responsable de la façon dont vous contactez une personne et de ce que vous saisissez dans Priimo (notes, contacts, pièces). Priimo n’est pas responsable d’une réclamation, d’une amende CNIL ou d’un litige né de votre usage. Vous nous garantissez contre les conséquences d’un usage illicite.
 
-### 5.2 Utilisation autorisée
+## 6. Intégrations et portails
 
-Les Prospects fournis par le Service peuvent être utilisés uniquement pour :
+### 6.1 Google
 
-- La prospection commerciale légale dans le cadre de l'activité immobilière du Client.
-- Le contact direct avec les propriétaires par des moyens légaux (porte-à-porte, courrier postal, contact professionnel pour les SCI/SARL).
-- L'enrichissement de la connaissance du marché local du Client.
+Si vous connectez Google Agenda ou Gmail, vous autorisez Priimo à utiliser les jetons nécessaires, **chiffrés**, dans les limites des permissions affichées (lecture). Vous pouvez révoquer l’accès à tout moment dans Priimo et chez Google. Priimo ne s’autorise pas à modifier votre agenda ni à lire toute votre boîte.
 
-### 5.3 Utilisations interdites
+### 6.2 Portails
 
-Il est strictement interdit de :
+La diffusion vers SeLoger, Bien’ici ou un autre portail passe par une passerelle. **L’abonnement portail n’est pas inclus** dans l’abonnement Priimo. Vous restez client de l’éditeur du portail.
 
-- Revendre, louer, céder ou transférer les Prospects à des tiers, y compris des confrères ou concurrents.
-- Utiliser les Prospects pour constituer une base de données commercialisée.
-- Automatiser massivement le contact (spamming, phishing, harcèlement téléphonique).
-- Croiser les Prospects avec d'autres bases de données personnelles non autorisées.
-- Utiliser les Prospects à des fins frauduleuses, discriminatoires ou contraires à l'ordre public.
+## 7. Tarif et paiement
 
-Toute violation de ces interdictions entraînera la résiliation immédiate du compte sans remboursement, et Priimo se réserve le droit d'engager des poursuites judiciaires.
+Les prix applicables sont ceux **communiqués à la souscription** (et, le cas échéant, affichés sur priimo.fr). Ils s’entendent hors taxes ; la TVA est ajoutée si elle est due.
 
-### 5.4 Responsabilité du Client
+Le paiement se fait par carte via **Stripe**. Sauf accord écrit différent, l’abonnement est **mensuel**, renouvelé tacitement, prélevé à date anniversaire.
 
-Le Client est seul responsable de l'utilisation qu'il fait des Prospects. Priimo ne pourra être tenu responsable des conséquences d'une utilisation non conforme des données par le Client, y compris en cas de réclamation de tiers, d'action de la CNIL ou de toute autre autorité compétente.
+Une période d’essai peut être proposée, aux conditions précisées lors de l’invitation. Elle n’est pas un droit automatique pour tout visiteur du site.
 
-Le Client s'engage à indemniser Priimo de tout préjudice, réclamation, amende ou condamnation résultant d'une utilisation illégale ou abusive des Prospects.
+Un retard de paiement peut suspendre l’accès. Après mise en demeure restée sans effet, le compte peut être clôturé. Des pénalités de retard et l’indemnité forfaitaire de 40 € (article D. 441-5 du Code de commerce) peuvent s’appliquer entre professionnels.
 
-## 6. Tarifs et Paiement
+Un changement de tarif est annoncé par email au moins **30 jours** avant. Si vous refusez, vous résiliez avant l’entrée en vigueur.
 
-### 6.1 Plans d'abonnement
+## 8. Durée et fin
 
-Les tarifs en vigueur sont consultables sur le site priimo.fr et confirmés lors de la souscription. Priimo propose les plans suivants :
+L’abonnement est à durée indéterminée, reconduit chaque mois, sauf résiliation.
 
-- **Plan Fondateur** : 100 €/mois HT (réservé aux 10 premiers clients, tarif à vie).
-- **Plan Standard** : 199 €/mois HT (accès aux Prospects sans module SCI/SARL).
-- **Plan Premium** : 349 €/mois HT (accès complet incluant les coordonnées des dirigeants de SCI/SARL).
-- **Plan Réseau** : sur devis (multi-agences, franchises).
+Vous pouvez résilier à tout moment, pour la fin de la période déjà payée, depuis les réglages ou par email à hello@priimo.fr. Pas de remboursement au prorata d’une période commencée, sauf obligation légale.
 
-Les tarifs s'entendent hors taxes. La TVA applicable sera ajoutée au montant facturé.
+Priimo peut clôturer immédiatement en cas de non-paiement, de violation des CGU, de fraude ou d’atteinte à l’image du Service.
 
-### 6.2 Modalités de paiement
+À la fin : l’accès cesse. Vous pouvez exporter ce que l’interface permet d’exporter. Les données sont ensuite supprimées après un délai raisonnable (en principe 30 jours), hors pièces à garder pour la comptabilité ou un litige.
 
-Le paiement s'effectue par carte bancaire via la plateforme sécurisée Stripe. L'abonnement est mensuel et renouvelable automatiquement à date anniversaire, sauf résiliation par le Client.
+## 9. Propriété intellectuelle
 
-Le premier paiement est effectué lors de la souscription. Les paiements suivants sont prélevés automatiquement chaque mois à la même date.
+Le logiciel, l’interface, les modèles, le scoring, la documentation et les bases Priimo restent notre propriété. Vous avez un **droit d’usage** personnel, non exclusif, non cessible, le temps de l’abonnement.
 
-En cas de paiement annuel, une remise de 20 % est appliquée (soit 2 mois offerts).
+Vous conservez les droits sur **votre** fichier (contacts, notes, photos que vous déposez). Vous nous donnez la licence nécessaire pour l’héberger et l’afficher dans le Service.
 
-### 6.3 Période d'essai
+Interdit : copier, décompiler, extraire le code, créer un produit concurrent à partir du Service, utiliser nos marques sans accord.
 
-Priimo propose une période d'essai gratuite de **1 mois sans engagement et sans carte bancaire** pour les nouveaux Clients. À l'issue de cette période, si le Client ne souscrit pas à un abonnement payant, l'accès au Service est désactivé.
+## 10. Données personnelles
 
-Aucun remboursement ne sera effectué pour une période d'essai déjà entamée.
+Le détail est dans la **Politique de confidentialité**. En résumé : Priimo est responsable des comptes et du site ; l’agence est responsable du fichier clients qu’elle saisit ; Priimo est alors sous-traitant.
 
-### 6.4 Retard de paiement
+## 11. Responsabilité
 
-En cas de défaut de paiement à l'échéance, l'accès au Service sera suspendu immédiatement. Le Client dispose de 7 jours pour régulariser sa situation. Passé ce délai, le compte sera résilié et les données supprimées.
+Le Service est fourni **en l’état**. Nous ne garantissons pas l’absence d’erreur, ni l’exactitude des bases publiques ou privées que nous croisons, ni qu’une adresse deviendra un mandat.
 
-Des pénalités de retard de 3 fois le taux d'intérêt légal pourront être appliquées, ainsi qu'une indemnité forfaitaire de recouvrement de 40 € conformément à l'article D. 441-5 du Code de commerce.
+Sauf faute lourde ou atteinte aux personnes, la responsabilité de Priimo est limitée aux **sommes que vous avez versées sur les trois derniers mois**. Sont exclus les préjudices indirects : perte de chiffre, de chance, de données, d’image.
 
-### 6.5 Évolution des tarifs
+Force majeure : les cas retenus par le droit français.
 
-Priimo se réserve le droit de modifier ses tarifs à tout moment, sous réserve d'en informer le Client par email au moins 30 jours avant l'entrée en vigueur du nouveau tarif.
+## 12. Confidentialité
 
-Les Clients bénéficiant du **Plan Fondateur** conservent leur tarif préférentiel à vie, sans augmentation, tant qu'ils maintiennent leur abonnement actif.
+Vous traitez comme confidentiel ce qui n’est pas public sur le fonctionnement interne du Service. Cette obligation dure pendant l’abonnement et **trois ans** après.
 
-## 7. Durée et Résiliation
+Nous ne commentons pas le fichier d’une agence auprès d’une autre.
 
-### 7.1 Durée de l'abonnement
+## 13. Changement des CGU
 
-L'abonnement est souscrit pour une durée indéterminée, avec tacite reconduction mensuelle.
+Nous pouvons modifier les CGU. Un changement important est annoncé par email au moins **30 jours** avant. Continuer d’utiliser le Service après cette date vaut acceptation. Sinon, vous résiliez (article 8).
 
-### 7.2 Résiliation par le Client
+## 14. Droit applicable
 
-Le Client peut résilier son abonnement à tout moment, avec effet à la fin de la période de facturation en cours. La résiliation s'effectue depuis l'interface du Service (section Paramètres > Abonnement) ou par email à contact@priimo.fr.
+Droit français. Recherche d’une solution amiable pendant 30 jours. Ensuite, tribunaux de Paris, y compris en cas de pluralité de défendeurs.
 
-Aucun remboursement ne sera effectué pour la période déjà payée.
+## 15. Contact
 
-### 7.3 Résiliation par Priimo
-
-Priimo se réserve le droit de résilier l'abonnement du Client, avec effet immédiat et sans préavis, dans les cas suivants :
-
-- Non-paiement à l'échéance.
-- Violation des présentes CGU, notamment en cas d'utilisation abusive ou illégale des Prospects.
-- Comportement frauduleux, création de comptes multiples, ou tentative de contournement des limitations du Service.
-- Comportement portant atteinte à l'image ou à la réputation de Priimo.
-
-Dans ce cas, aucun remboursement ne sera effectué, et Priimo se réserve le droit de réclamer des dommages et intérêts.
-
-### 7.4 Effets de la résiliation
-
-À la résiliation de l'abonnement, pour quelque cause que ce soit :
-
-- L'accès au Service est immédiatement désactivé.
-- Les données du Client (Prospects consultés, notes, statuts) sont conservées pendant une période de 30 jours, puis définitivement supprimées.
-- Le Client conserve la possibilité d'exporter ses données au format CSV avant la suppression définitive.
-
-## 8. Propriété Intellectuelle
-
-### 8.1 Propriété de Priimo
-
-Le Service, son code source, son algorithme de scoring, son interface utilisateur, sa base de données, sa documentation, et tous les éléments qui le composent sont la propriété exclusive de Priimo et protégés par le droit d'auteur, le droit des brevets, et le droit des bases de données.
-
-Le Client ne dispose que d'un droit d'usage personnel, non exclusif et non cessible du Service, dans les limites définies par les présentes CGU.
-
-### 8.2 Interdictions
-
-Il est strictement interdit au Client de :
-
-- Copier, reproduire, décompiler, désassembler ou tenter d'extraire le code source du Service.
-- Créer des œuvres dérivées basées sur le Service.
-- Utiliser le Service pour développer un produit concurrent.
-- Accéder au Service par des moyens automatisés (scraping, bots) non autorisés.
-
-### 8.3 Marques
-
-Les marques « Priimo », le logo Priimo, et tous les autres signes distinctifs utilisés sur le Service sont la propriété exclusive de Priimo. Toute reproduction ou utilisation non autorisée est interdite.
-
-## 9. Protection des Données Personnelles
-
-### 9.1 Données collectées par Priimo
-
-Dans le cadre de la fourniture du Service, Priimo collecte et traite les données personnelles suivantes concernant le Client :
-
-- Identité du Directeur et des Collaborateurs (nom, prénom, email, téléphone).
-- Informations de l'agence (nom, adresse, zone de prospection).
-- Données de paiement (via Stripe, Priimo ne stocke pas les coordonnées bancaires).
-- Données d'utilisation du Service (connexions, actions effectuées, retours sur les Prospects).
-
-### 9.2 Finalités du traitement
-
-Ces données sont utilisées pour :
-
-- Fournir et améliorer le Service.
-- Gérer les abonnements et la facturation.
-- Assurer le support client.
-- Améliorer l'algorithme de scoring grâce aux retours des Clients.
-- Respecter nos obligations légales et comptables.
-
-### 9.3 Base légale
-
-Le traitement des données du Client repose sur l'exécution du contrat (CGU) et sur l'intérêt légitime de Priimo à améliorer son Service.
-
-### 9.4 Conservation des données
-
-Les données du Client sont conservées pendant toute la durée de l'abonnement, puis pendant une période de 30 jours après résiliation (permettant au Client d'exporter ses données), puis définitivement supprimées.
-
-Les données de facturation sont conservées pendant 10 ans conformément aux obligations légales.
-
-### 9.5 Droits du Client
-
-Conformément au RGPD, le Client dispose des droits suivants :
-
-- **Droit d'accès** : obtenir la confirmation que des données le concernant sont traitées, et en obtenir une copie.
-- **Droit de rectification** : faire corriger des données inexactes.
-- **Droit à l'effacement** : demander la suppression de ses données après résiliation de l'abonnement.
-- **Droit d'opposition** : s'opposer au traitement de ses données pour des motifs légitimes.
-- **Droit à la portabilité** : récupérer ses données dans un format structuré.
-
-Pour exercer ces droits, le Client peut contacter Priimo à l'adresse : contact@priimo.fr.
-
-### 9.6 Sécurité
-
-Priimo met en œuvre des mesures techniques et organisationnelles appropriées pour protéger les données du Client contre tout accès non autorisé, perte, altération ou divulgation. Ces mesures incluent notamment :
-
-- Chiffrement des données en transit (HTTPS/TLS).
-- Hébergement sécurisé (Supabase, infrastructure certifiée).
-- Contrôle d'accès strict aux données (RLS PostgreSQL).
-- Sauvegardes régulières.
-
-### 9.7 Sous-traitants
-
-Priimo fait appel à des sous-traitants pour la fourniture du Service :
-
-- **Supabase** (hébergement base de données, États-Unis / Europe).
-- **Vercel** (hébergement application, États-Unis / Europe).
-- **Stripe** (gestion des paiements, États-Unis / Europe).
-- **Resend** (envoi d'emails transactionnels, États-Unis / Europe).
-
-Ces sous-traitants sont sélectionnés pour leur conformité au RGPD et s'engagent contractuellement à protéger les données.
-
-## 10. Limitation de Responsabilité
-
-### 10.1 Garanties exclues
-
-Le Service est fourni « en l'état » et « selon disponibilité ». Priimo ne garantit pas :
-
-- Que le Service sera exempt d'erreurs, de bugs ou d'interruptions.
-- Que les Prospects fournis aboutiront systématiquement à des mandats exclusifs.
-- L'exactitude, l'exhaustivité ou l'actualité des Données Publiques utilisées (ces données proviennent de sources tierces sur lesquelles Priimo n'a aucun contrôle).
-
-### 10.2 Responsabilité limitée
-
-La responsabilité de Priimo, pour quelque cause que ce soit, est strictement limitée au montant total des sommes versées par le Client au cours des 3 derniers mois précédant le fait générateur de responsabilité.
-
-Priimo ne pourra en aucun cas être tenu responsable des dommages indirects, tels que :
-
-- Perte de chiffre d'affaires, de clientèle, de chance, de données.
-- Préjudice commercial, d'image ou de réputation.
-- Manque à gagner.
-
-### 10.3 Force majeure
-
-Priimo ne pourra être tenu responsable en cas d'inexécution ou de retard dans l'exécution de ses obligations résultant d'un cas de force majeure, tel que défini par la jurisprudence française.
-
-## 11. Confidentialité
-
-Le Client s'engage à traiter comme strictement confidentielles toutes les informations relatives au fonctionnement interne du Service, à l'algorithme de scoring, et à toute information non publique communiquée par Priimo.
-
-Cette obligation de confidentialité subsiste pendant toute la durée de l'abonnement et pendant 5 ans après sa résiliation.
-
-## 12. Modifications des CGU
-
-Priimo se réserve le droit de modifier les présentes CGU à tout moment. Le Client sera informé de toute modification substantielle par email au moins 30 jours avant l'entrée en vigueur des nouvelles CGU.
-
-La poursuite de l'utilisation du Service après l'entrée en vigueur des nouvelles CGU vaut acceptation de celles-ci. Si le Client refuse les nouvelles CGU, il peut résilier son abonnement conformément à l'article 7.2.
-
-## 13. Loi Applicable et Juridiction
-
-Les présentes CGU sont régies par le droit français.
-
-En cas de litige relatif à l'interprétation, l'exécution ou la résiliation des présentes CGU, les parties s'engagent à rechercher une solution amiable.
-
-À défaut d'accord amiable dans un délai de 30 jours, le litige sera porté devant les tribunaux compétents de Paris, nonobstant pluralité de défendeurs ou appel en garantie.
-
-## 14. Contact
-
-Pour toute question relative aux présentes CGU ou au Service, le Client peut contacter Priimo :
-
-- **Email** : contact@priimo.fr
-- **Téléphone** : 07 66 85 71 65
-- **Adresse** : 27 rue A. Peunaud, Paris
+- Email : hello@priimo.fr
+- Téléphone : 07 66 85 71 65
+- Adresse : 27 rue A. Peunaud, Paris, France
 - **WhatsApp** : 07 66 85 71 65
 
 ---
 
-**En cochant la case « J'accepte les Conditions Générales d'Utilisation », le Client reconnaît avoir lu, compris et accepté l'intégralité des présentes CGU.**
+**En acceptant les CGU (case à cocher ou poursuite d’utilisation après invitation), vous confirmez les avoir lues et acceptées.**

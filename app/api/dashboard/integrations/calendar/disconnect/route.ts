@@ -5,9 +5,6 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
-/**
- * Déconnecte Gmail : révoque le jeton chez Google, puis supprime la ligne chez nous.
- */
 export async function POST() {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
@@ -16,7 +13,7 @@ export async function POST() {
 
   const admin = createSupabaseAdminClient();
   const { data: row } = await admin
-    .from('gmail_connexions')
+    .from('calendar_connexions')
     .select('id, token_ciphertext, token_nonce')
     .eq('agency_id', agency.id)
     .eq('profile_id', profile.id)
@@ -38,18 +35,9 @@ export async function POST() {
       if (toRevoke) await revokeGoogleToken(toRevoke);
     }
   } catch {
-    // On continue la purge locale même si Google est injoignable.
+    /* purge locale même si Google est injoignable */
   }
 
-  await admin.from('gmail_connexions').delete().eq('id', row.id);
-
-  await admin.from('diffusion_evenements').insert({
-    agency_id: agency.id,
-    sens: 'systeme',
-    kind: 'gmail_oauth_revoke',
-    message: 'Gmail déconnecté (révocation Google)',
-    payload: { profile_id: profile.id },
-  });
-
+  await admin.from('calendar_connexions').delete().eq('id', row.id);
   return NextResponse.json({ ok: true });
 }

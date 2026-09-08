@@ -4,13 +4,21 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
-import { extractAndBuildReview } from '@/lib/notes/extract-review';
 import { composeTypedNote, parseTypedNoteDraft } from '@/lib/notes/typed-compose';
-import { mapDbVoiceNote } from '@/lib/queries/contacts';
+import {
+  buildFullName,
+  fetchContactsDuplicateLite,
+  insertContactRow,
+  mapDbVoiceNote,
+} from '@/lib/queries/contacts';
 import { mapDbNoteLien, NOTE_LIENS_SELECT } from '@/lib/notes/liens';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
-import { suggestMemberFromText } from '@/lib/agency/match-member';
-import { EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
+import { visibleContactsFor } from '@/lib/agency/scope-records';
+import { findDuplicates } from '@/lib/contacts/duplicates';
+import { EMPTY_BAN_GEO, geocodeToColumns, type BanGeoColumns } from '@/lib/geo/fields';
+import type { ExtractedPersonne, NoteExtraction } from '@/lib/notes/propositions';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
@@ -118,6 +126,27 @@ export async function GET(req: Request) {
 const MAX_TYPED_CHARS = 8000;
 const MIN_TYPED_CHARS = 8;
 
+function parseLiensManuels(raw: unknown): { entiteType: NoteLienEntite; entiteId: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { entiteType: NoteLienEntite; entiteId: string }[] = [];
+  const vus = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as { entiteType?: unknown; entiteId?: unknown };
+    const entiteType =
+      typeof row.entiteType === 'string' && (TYPES as readonly string[]).includes(row.entiteType)
+        ? (row.entiteType as NoteLienEntite)
+        : null;
+    const entiteId = typeof row.entiteId === 'string' ? row.entiteId.trim() : '';
+    if (!entiteType || !entiteId || entiteType === 'parcelle') continue;
+    const key = `${entiteType}:${entiteId}`;
+    if (vus.has(key)) continue;
+    vus.add(key);
+    out.push({ entiteType, entiteId });
+  }
+  return out.slice(0, 12);
+}
+
 function readCoord(body: Record<string, unknown>, key: string): number | null {
   const raw = body[key];
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
@@ -135,7 +164,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { user, profile, agency, memberships } = await getServerUser();
+  const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
@@ -158,11 +187,13 @@ export async function POST(req: Request) {
   const gpsLat = readCoord(body, 'latitude');
   const gpsLng = readCoord(body, 'longitude');
   const parcelleId = normalizeParcelleId(typeof body.parcelleId === 'string' ? body.parcelleId : null);
+  const liensManuels = parseLiensManuels(body.liens);
 
   const admin = createSupabaseAdminClient();
   const voiceNoteId = crypto.randomUUID();
   const storagePath = `${agency.id}/${voiceNoteId}.typed`;
 
+  const immeubleLien = liensManuels.find((l) => l.entiteType === 'immeuble');
   const geoFromAdresse = adresseRaw.length >= 3 ? await geocodeToColumns(adresseRaw) : { ...EMPTY_BAN_GEO };
   const hasClientCoords = gpsLat !== null && gpsLng !== null;
   const geo = {
@@ -170,9 +201,10 @@ export async function POST(req: Request) {
     latitude: hasClientCoords ? gpsLat : geoFromAdresse.latitude,
     longitude: hasClientCoords ? gpsLng : geoFromAdresse.longitude,
     adresse_normalisee: geoFromAdresse.adresse_normalisee ?? (adresseRaw || null),
+    ban_id: geoFromAdresse.ban_id ?? immeubleLien?.entiteId ?? null,
   };
-  const keepAdresse = Boolean(geo.adresse_normalisee);
-  const keepGps = hasClientCoords || geo.latitude !== null;
+  const extraction = composed?.extraction ?? null;
+  let contactId = liensManuels.find((l) => l.entiteType === 'contact')?.entiteId ?? null;
 
   try {
     const { error } = await admin.from('voice_notes').insert({
@@ -183,10 +215,12 @@ export async function POST(req: Request) {
       duration_seconds: null,
       mime_type: 'text/plain',
       transcript,
-      structured: null,
+      structured: extraction,
+      source_info: extraction?.sourceInfo ?? null,
       status: 'transcrit',
-      statut: 'brute',
+      statut: 'revue',
       visibilite: 'agence',
+      contact_id: contactId,
       adresse_normalisee: geo.adresse_normalisee,
       ban_id: geo.ban_id,
       latitude: geo.latitude,
@@ -198,34 +232,126 @@ export async function POST(req: Request) {
     if (parcelleId) {
       await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: voiceNoteId, parcelleId });
     }
+    if (liensManuels.length > 0) {
+      const { error: lienErr } = await admin.from('note_liens').upsert(
+        liensManuels.map((l) => ({
+          note_id: voiceNoteId,
+          agency_id: agency.id,
+          entite_type: l.entiteType,
+          entite_id: l.entiteId,
+          confiance: 'certain' as const,
+          cree_par: 'agent' as const,
+        })),
+        { onConflict: 'note_id,entite_type,entite_id' },
+      );
+      if (lienErr) console.error('[notes] liens manuels', lienErr);
+    }
+    if (!contactId && extraction) {
+      const supabase = await createSupabaseServerClient();
+      contactId = await ensureTypedContact({
+        admin,
+        supabase,
+        agencyId: agency.id,
+        profileId: profile.id,
+        viewer: viewerFromProfile(profile),
+        noteId: voiceNoteId,
+        extraction,
+        address: geo.adresse_normalisee ?? adresseRaw,
+        geo,
+      });
+    }
   } catch (err) {
     console.error('[notes] écriture', err);
     return NextResponse.json({ error: "La note n'a pas pu être enregistrée" }, { status: 500 });
   }
 
-  let suggestedAssignee: { id: string; fullName: string } | null = null;
-  try {
-    const members = await fetchMembersOfMyAgency(agency.id, memberships);
-    const hit = suggestMemberFromText(transcript, members, profile.id);
-    if (hit) suggestedAssignee = { id: hit.id, fullName: hit.fullName };
-  } catch (err) {
-    console.error('[notes] suggestion d’assignation', err);
+  return NextResponse.json({
+    voiceNoteId,
+    contactId,
+  });
+}
+
+async function ensureTypedContact(args: {
+  admin: SupabaseClient<Database>;
+  supabase: SupabaseClient<Database>;
+  agencyId: string;
+  profileId: string;
+  viewer: ReturnType<typeof viewerFromProfile>;
+  noteId: string;
+  extraction: NoteExtraction;
+  address: string;
+  geo: BanGeoColumns;
+}): Promise<string | null> {
+  const personne: ExtractedPersonne | undefined = args.extraction.personnes[0];
+  const firstName = personne?.firstName.trim() ?? '';
+  const lastName = personne?.lastName.trim() ?? '';
+  if (!firstName && !lastName) return null;
+
+  const existing = await fetchContactsDuplicateLite(args.supabase);
+  const visible = visibleContactsFor(args.viewer, existing);
+  const strong = findDuplicates(
+    {
+      id: '__new__',
+      firstName,
+      lastName,
+      fullName: buildFullName(firstName, lastName),
+      phone: personne?.phone ?? null,
+      email: personne?.email ?? null,
+    },
+    visible,
+  ).filter((h) => h.strength === 'strong');
+  const reusedId = strong[0]?.other.id ?? null;
+
+  let contactId = reusedId;
+  if (!contactId) {
+    const { data, error } = await insertContactRow(args.admin, {
+      agency_id: args.agencyId,
+      created_by: args.profileId,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      contact_type: personne?.type ?? 'autre',
+      phone: personne?.phone ?? null,
+      email: personne?.email ?? null,
+      secteur: args.extraction.secteur,
+      address: args.address || null,
+      postal_codes: [],
+      budget_max: args.extraction.prix,
+      surface_min: args.extraction.surface,
+      rooms_min: args.extraction.rooms,
+      summary: null,
+      source: 'manuel',
+      assigned_to: args.profileId,
+      assigned_by: null,
+      assigned_at: null,
+      ban_id: args.geo.ban_id,
+      latitude: args.geo.latitude,
+      longitude: args.geo.longitude,
+      adresse_normalisee: args.geo.adresse_normalisee,
+      geocode_score: args.geo.geocode_score,
+      geocode_le: args.geo.geocode_le,
+    });
+    if (error || !data) {
+      console.error('[notes] contact tapé', error);
+      return null;
+    }
+    contactId = data.id;
   }
 
-  const review = await extractAndBuildReview({
-    admin,
-    agencyId: agency.id,
-    voiceNoteId,
-    transcript,
-    visibilite: 'agence',
-    keepGps,
-    keepAdresse,
-    initialGeo: geo,
-    providedExtraction: composed?.extraction ?? null,
-  });
-
-  return NextResponse.json({
-    ...review,
-    suggestedAssignee,
-  });
+  await args.admin.from('note_liens').upsert(
+    {
+      note_id: args.noteId,
+      agency_id: args.agencyId,
+      entite_type: 'contact',
+      entite_id: contactId,
+      confiance: 'certain',
+      cree_par: 'agent',
+    },
+    { onConflict: 'note_id,entite_type,entite_id' },
+  );
+  await args.admin
+    .from('voice_notes')
+    .update({ contact_id: contactId })
+    .eq('id', args.noteId)
+    .eq('agency_id', args.agencyId);
+  return contactId;
 }
