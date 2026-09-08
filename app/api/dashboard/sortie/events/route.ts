@@ -39,6 +39,7 @@ export async function POST(req: Request) {
     kind?: string;
     leadId?: string | null;
     stopKey?: string | null;
+    banId?: string | null;
     payload?: Record<string, unknown>;
     clientId?: string | null;
     day?: string | null;
@@ -63,6 +64,8 @@ export async function POST(req: Request) {
     kind,
     lead_id: typeof row.leadId === 'string' ? row.leadId : null,
     stop_key: typeof row.stopKey === 'string' ? row.stopKey : null,
+    // Contact physique déclaré : l'immeuble alimente aussi « immeubles prospectés ».
+    ban_id: typeof row.banId === 'string' && row.banId.length > 0 ? row.banId : null,
     payload: row.payload && typeof row.payload === 'object' ? row.payload : {},
     client_id: typeof row.clientId === 'string' ? row.clientId : null,
   };

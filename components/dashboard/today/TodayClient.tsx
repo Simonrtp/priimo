@@ -81,6 +81,7 @@ export default function TodayClient({
   previewingAgent = false,
   directorExceptions = [],
   actionsAValider = [],
+  variant = 'complet',
   children,
 }: {
   initialCards: TodayCard[];
@@ -96,6 +97,13 @@ export default function TodayClient({
   previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
   actionsAValider?: readonly AgencyAction[];
+  /**
+   * `pilotage` : l'écran Accueil affiche déjà la phrase et les compteurs
+   * d'activité au-dessus. On retire donc le bandeau d'état et la bande
+   * portefeuille, qui diraient la même chose deux fois, et on ne garde que les
+   * cartes du jour et leurs interactions.
+   */
+  variant?: 'complet' | 'pilotage';
   children?: ReactNode;
 }) {
   const day = dateKeyParis(new Date());
@@ -218,8 +226,10 @@ export default function TodayClient({
     );
   }
 
+  const pilotage = variant === 'pilotage';
+
   return (
-    <div className="w-full min-w-0 pt-2">
+    <div className={pilotage ? 'w-full min-w-0' : 'w-full min-w-0 pt-2'}>
       {previewingAgent ? (
         <p className="mb-4 rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
           Vue agent — ce que voit un collaborateur.{' '}
@@ -229,19 +239,22 @@ export default function TodayClient({
           .
         </p>
       ) : null}
-      <TodayStatusBand
-        prenom={firstName}
-        remaining={remaining}
-        total={total}
-        initialTotal={initialTotal}
-        emptyKind={emptyKind}
-        relancesProgrammees={relancesProgrammees}
-        rapprochements={rapprochements}
-        noUrgent={noUrgent}
-        directorTitle={directorLayout ? phraseEquipe(directorExceptions.length) : null}
-      />
-
-      <PortfolioBand stats={portfolio} />
+      {pilotage ? null : (
+        <>
+          <TodayStatusBand
+            prenom={firstName}
+            remaining={remaining}
+            total={total}
+            initialTotal={initialTotal}
+            emptyKind={emptyKind}
+            relancesProgrammees={relancesProgrammees}
+            rapprochements={rapprochements}
+            noUrgent={noUrgent}
+            directorTitle={directorLayout ? phraseEquipe(directorExceptions.length) : null}
+          />
+          <PortfolioBand stats={portfolio} />
+        </>
+      )}
 
       <AValiderSection actions={actionsAValider} className="mb-6 md:mb-8" />
 

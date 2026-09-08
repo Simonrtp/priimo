@@ -14,6 +14,9 @@ function defaultAccentColor(cle: string, type: LeadStageType): string {
   if (cle === 'pris') return '#64748B';
   if (cle === 'contacte') return '#E8743C';
   if (cle === 'rendez_vous') return '#2E8B57';
+  // Teal : distinct du vert du rendez-vous et de l'orange du contact, sans
+  // toucher au violet que la palette terrain interdit.
+  if (cle === 'estimation') return '#1F8294';
   if (cle === 'mandat') return '#2E8B57';
   if (cle === 'perdu') return '#D16B5B';
   if (type === 'gagne') return '#2E8B57';

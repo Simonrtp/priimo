@@ -1081,6 +1081,10 @@ export type SortieEventRow = {
   kind: SortieEventKindDb;
   lead_id: string | null;
   stop_key: string | null;
+  /** Immeuble touché (BAN) — renseigné pour kind = rencontre. */
+  ban_id: string | null;
+  /** Sortie fictive du seed de démonstration. */
+  is_demo: boolean;
   payload: Record<string, unknown>;
   client_id: string | null;
   created_at: string;
@@ -1094,9 +1098,88 @@ export type SortieEventInsert = {
   kind: SortieEventKindDb;
   lead_id?: string | null;
   stop_key?: string | null;
+  ban_id?: string | null;
+  is_demo?: boolean;
   payload?: Record<string, unknown>;
   client_id?: string | null;
   created_at?: string;
+};
+
+export type LeadStageEventSourceDb = 'kanban' | 'liste' | 'mobile' | 'systeme';
+
+/**
+ * Journal append-only des transitions de stage. Écriture réservée au trigger
+ * SECURITY DEFINER : pas de type Insert, le client n'y écrit jamais.
+ */
+export type LeadStageEventRow = {
+  id: string;
+  lead_id: string;
+  agency_id: string;
+  from_stage_id: string | null;
+  to_stage_id: string | null;
+  profile_id: string | null;
+  source: LeadStageEventSourceDb;
+  /** Transition fictive du seed de démonstration. */
+  is_demo: boolean;
+  created_at: string;
+};
+
+/** Voir lib/activite/types.ts — la liste fait foi côté applicatif. */
+export type ActivityGoalActiviteDb =
+  | 'contacts_physiques'
+  | 'immeubles_prospectes'
+  | 'contacts_qualifies'
+  | 'estimations'
+  | 'informations_terrain'
+  | 'mandats';
+
+export type ActivityGoalPeriodeDb = 'hebdo' | 'mensuel';
+
+export type ActivityGoalRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  activite: ActivityGoalActiviteDb;
+  periode: ActivityGoalPeriodeDb;
+  cible: number;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ActivityGoalInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  activite: ActivityGoalActiviteDb;
+  periode: ActivityGoalPeriodeDb;
+  cible: number;
+  updated_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/**
+ * Ratios de référence métier. `null` = le réseau n'a pas encore fourni le
+ * chiffre ; l'interface affiche alors une valeur provisoire ET le dit.
+ * numeric en base : le client Supabase peut le rendre en chaîne.
+ */
+export type AgencyActivitySettingsRow = {
+  agency_id: string;
+  physiques_par_qualifie: number | string | null;
+  qualifies_par_estimation: number | string | null;
+  estimations_par_mandat: number | string | null;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type AgencyActivitySettingsInsert = {
+  agency_id: string;
+  physiques_par_qualifie?: number | null;
+  qualifies_par_estimation?: number | null;
+  estimations_par_mandat?: number | null;
+  updated_by?: string | null;
+  updated_at?: string;
 };
 
 export type ContactInteractionRow = {
@@ -1624,6 +1707,13 @@ export type Database = {
         Update: Partial<LeadStageRow>;
         Relationships: [];
       };
+      lead_stage_events: {
+        Row: LeadStageEventRow;
+        // Écriture trigger-only : REVOKE INSERT/UPDATE/DELETE côté base.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       profile_agencies: {
         Row: ProfileAgencyRow;
         Insert: ProfileAgencyInsert;
@@ -1750,6 +1840,18 @@ export type Database = {
         Row: SortieEventRow;
         Insert: SortieEventInsert;
         Update: Partial<SortieEventInsert>;
+        Relationships: [];
+      };
+      activity_goals: {
+        Row: ActivityGoalRow;
+        Insert: ActivityGoalInsert;
+        Update: Partial<ActivityGoalInsert>;
+        Relationships: [];
+      };
+      agency_activity_settings: {
+        Row: AgencyActivitySettingsRow;
+        Insert: AgencyActivitySettingsInsert;
+        Update: Partial<AgencyActivitySettingsInsert>;
         Relationships: [];
       };
       agency_actions: {

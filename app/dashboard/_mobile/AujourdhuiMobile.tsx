@@ -68,6 +68,7 @@ export default function AujourdhuiMobile({
   previewingAgent = false,
   directorExceptions = [],
   actionsAValider = [],
+  variant = 'complet',
 }: {
   initialCards: TodayCard[];
   initialLeads: Lead[];
@@ -82,6 +83,8 @@ export default function AujourdhuiMobile({
   previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
   actionsAValider?: readonly AgencyAction[];
+  /** `pilotage` : l'écran Accueil affiche déjà la semaine et le portefeuille. */
+  variant?: 'complet' | 'pilotage';
 }) {
   const router = useRouter();
   const day = dateKeyParis(new Date());
@@ -267,7 +270,7 @@ export default function AujourdhuiMobile({
           </div>
         )}
 
-        <PortfolioBand stats={portfolio} />
+        {variant === 'pilotage' ? null : <PortfolioBand stats={portfolio} />}
 
         <AValiderSection actions={actionsAValider} />
 
@@ -313,7 +316,7 @@ export default function AujourdhuiMobile({
 
         <RecentNotesCard notes={recentNotes} />
 
-        {directorLayout ? null : (
+        {directorLayout || variant === 'pilotage' ? null : (
           <div className="mt-auto pt-2">
             <MaSemaine
               notes={week.notes}

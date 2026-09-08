@@ -25,6 +25,24 @@ import {
   resolveActiveRole,
 } from '../lib/auth/active-agency';
 import type { ProfileRow } from '../types/database';
+import { fetchLeadStages } from '../lib/queries/lead-stages';
+import {
+  fetchJournalActivite,
+  fetchObjectifs,
+  fetchReferenceMetier,
+} from '../lib/queries/activite';
+import { bilanPeriode, valeursDe } from '../lib/activite/bilan';
+import { phrasePilotage } from '../lib/activite/phrase';
+import { FENETRE_SEMAINES } from '../lib/activite/ratios';
+import {
+  dateDebut,
+  fenetreSemaines,
+  intervalleDe,
+  intervalleDecale,
+  moisDe,
+  semaineDe,
+} from '../lib/activite/semaines';
+import { dateKeyParis } from '../lib/today/calendar';
 
 for (const line of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
   if (!line || line.startsWith('#')) continue;
@@ -200,6 +218,69 @@ async function main() {
     ...metier,
   });
   console.info(`${String(Math.round(performance.now() - cardsT0)).padStart(5)}ms  buildTodayCards (CPU)`);
+
+  /* ---------------------- écran Accueil (chantier 3) ---------------------- */
+  console.info(`
+=== Activité terrain (nouvel écran) ===`);
+  const stages = await timed('fetchLeadStages', () => fetchLeadStages(supabase));
+
+  const intervalle = intervalleDe('semaine', new Date());
+  const fenetreRatios = fenetreSemaines(semaineDe(dateDebut(intervalle)), FENETRE_SEMAINES);
+  const moisCourant = moisDe(dateDebut(intervalle));
+  const precedent = intervalleDecale('semaine', intervalle, -1);
+  const couverture = {
+    debut: [fenetreRatios.debut, intervalle.debut, moisCourant.debut, precedent.debut].sort()[0]!,
+    fin: [fenetreRatios.fin, intervalle.fin, moisCourant.fin].sort().at(-1)!,
+  };
+
+  const [journal, objectifsActivite, ref] = await Promise.all([
+    timed('fetchJournalActivite', () =>
+      fetchJournalActivite({ supabase, intervalle: couverture, stages, agencyId }),
+    ),
+    timed('fetchObjectifsActivite', () => fetchObjectifs({ supabase, profileId })),
+    timed('fetchReferenceMetier', () => fetchReferenceMetier({ supabase, agencyId })),
+  ]);
+  console.info(
+    `       journal : ${journal.transitions.length} transitions · ${journal.notes.length} notes · ${journal.contactsPhysiques.length} contacts`,
+  );
+
+  // Le point de vigilance du prompt : le coût CPU de la dérivation. Mesuré pour
+  // toute l'agence, puis ramené à un membre — c'est ce que paie l'écran.
+  const bilanT0 = performance.now();
+  let dernier: ReturnType<typeof bilanPeriode> | null = null;
+  for (const m of members) {
+    dernier = bilanPeriode({
+      journal,
+      profileId: m.id,
+      profileIdsAgence: members.map((x) => x.id),
+      periode: 'semaine',
+      intervalle,
+      objectifs: objectifsActivite,
+      reference: ref.reference,
+      referenceFournie: ref.fournie,
+    });
+  }
+  const bilanMs = performance.now() - bilanT0;
+  console.info(`${bilanMs.toFixed(1).padStart(5)}ms  bilanPeriode × ${members.length} membre(s) (CPU)`);
+  console.info(
+    `${(bilanMs / Math.max(1, members.length)).toFixed(1).padStart(5)}ms  dont un seul membre — le coût réel de l'écran`,
+  );
+
+  if (dernier) {
+    const phraseT0 = performance.now();
+    const phrase = phrasePilotage({
+      compteurs: valeursDe(dernier),
+      objectifMandatsMois: dernier.mandatsDuMois.objectif,
+      ratios: dernier.ratios,
+      periode: 'semaine',
+      intervalle,
+      semaine1: dernier.semaine1,
+      etatsSource: dernier.etatsSource,
+      jourCourant: dateKeyParis(new Date()),
+    });
+    console.info(`${(performance.now() - phraseT0).toFixed(1).padStart(5)}ms  phrasePilotage (CPU)`);
+    console.info(`       « ${phrase.texte} »`);
+  }
 
   console.info(
     `\n${String(Math.round(performance.now() - tAll)).padStart(5)}ms  TOTAL chemin page (service_role, sans middleware/RSC)`,

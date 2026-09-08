@@ -67,6 +67,7 @@ async function logEvent(args: {
   kind: string;
   leadId?: string | null;
   stopKey?: string | null;
+  banId?: string | null;
   payload?: Record<string, unknown>;
 }) {
   const clientId = newOfflineId();
@@ -74,6 +75,7 @@ async function logEvent(args: {
     kind: args.kind,
     leadId: args.leadId ?? null,
     stopKey: args.stopKey ?? null,
+    banId: args.banId ?? null,
     payload: args.payload ?? {},
     clientId,
     day: todaySortieDay(),
@@ -362,7 +364,7 @@ export default function TourneeMobile({
       return next;
     });
     setScriptOpen(false);
-    void logEvent({ kind, leadId: stop.leadId, stopKey: stop.key });
+    void logEvent({ kind, leadId: stop.leadId, stopKey: stop.key, banId: stop.banId });
     void refreshQueue();
   }
 

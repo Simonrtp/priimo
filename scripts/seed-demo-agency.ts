@@ -34,6 +34,11 @@ import {
   isoDateFromBase,
 } from '../lib/demo/dates';
 import { createSupabaseAdminClient } from '../lib/supabase/admin';
+import {
+  CIBLES_SCENARIO,
+  LEADS_REQUIS,
+  construireActiviteFictive,
+} from '../lib/demo/activite-scenario';
 
 const BATCH = 200;
 const SOURCES = ['proprietaire', 'gardien', 'voisin', 'tiers', 'agent'] as const;
@@ -125,6 +130,9 @@ async function insertBatches(
 
 async function purgeDemo(admin: SupabaseClient) {
   console.log('Purge des données démo existantes…');
+  // Restaurer un lead déclenche le trigger de journal : ces transitions-là
+  // sont datées de maintenant et n'appartiennent à personne. On les efface.
+  const debutPurge = new Date().toISOString();
 
   const { data: snaps } = await admin
     .from('demo_lead_snapshots')
@@ -139,9 +147,19 @@ async function purgeDemo(admin: SupabaseClient) {
     if (!error) restored += 1;
   }
   await admin.from('demo_lead_snapshots').delete().eq('agency_id', DEMO_AGENCY_ID);
-  console.log(`  leads restaurés : ${restored}`);
+  const { data: parasites } = await admin
+    .from('lead_stage_events')
+    .delete()
+    .eq('agency_id', DEMO_AGENCY_ID)
+    .gte('created_at', debutPurge)
+    .select('id');
+  console.log(
+    `  leads restaurés : ${restored} (${parasites?.length ?? 0} transitions de restauration effacées)`,
+  );
 
   const order = [
+    'lead_stage_events',
+    'sortie_events',
     'note_liens',
     'agency_alerts',
     'contact_interactions',
@@ -338,6 +356,187 @@ function closestLeadPair(pool: LeadRow[]): LeadRow[] {
     }
   }
   return [pool[bestI]!, pool[bestJ]!];
+}
+
+/**
+ * Douze semaines d'activité terrain pour une négociatrice.
+ *
+ * Trois précautions qui expliquent la forme du code :
+ *
+ * 1. Les transitions sont INSÉRÉES à la main, pas produites par le trigger.
+ *    Le trigger horodate à `now()` : passer par lui écraserait douze semaines
+ *    d'histoire sur la semaine en cours. On pose donc l'étape finale du lead,
+ *    on supprime l'événement que le trigger vient de créer, et on écrit la
+ *    chronologie réelle à la place.
+ *
+ * 2. Tout porte `is_demo = true`. L'agence de démonstration est aussi l'agence
+ *    de test : sans ce drapeau, le scénario contaminerait les chiffres que
+ *    l'on vérifie à la main.
+ *
+ * 3. Les objectifs de la négociatrice sont posés explicitement. Avec les
+ *    défauts, l'écran affiche 7/50 pendant que la phrase réclame 9 contacts —
+ *    deux messages contradictoires sur la même ligne de flottaison.
+ */
+async function seedActiviteTerrain(
+  admin: SupabaseClient,
+  team: NegotiatorIds,
+  leads: LeadRow[],
+  now: Date,
+  counts: Record<string, number>,
+) {
+  const profileId = team.camille;
+  console.log('\nActivité terrain (12 semaines) pour Camille Fournier…');
+
+  const { data: stagesRows, error: stagesErr } = await admin
+    .from('lead_stages')
+    .select('id, cle')
+    .eq('agency_id', DEMO_AGENCY_ID);
+  if (stagesErr) throw stagesErr;
+  const stageParCle = new Map(
+    ((stagesRows ?? []) as { id: string; cle: string }[]).map((r) => [r.cle, r.id]),
+  );
+  if (!stageParCle.has('estimation')) {
+    console.warn(
+      '  ATTENTION : étape « estimation » absente — appliquer 20260909_activite_terrain.sql.',
+    );
+    return;
+  }
+
+  // Des leads que le scénario Aujourd'hui n'a pas déjà réquisitionnés.
+  const { data: dejaPris } = await admin
+    .from('demo_lead_snapshots')
+    .select('lead_id')
+    .eq('agency_id', DEMO_AGENCY_ID);
+  const reserves = new Set(((dejaPris ?? []) as { lead_id: string }[]).map((r) => r.lead_id));
+  const disponibles = leads.filter((l) => !reserves.has(l.id) && l.ban_id);
+  if (disponibles.length < LEADS_REQUIS) {
+    console.warn(
+      `  ATTENTION : ${disponibles.length} leads libres pour ${LEADS_REQUIS} attendus — scénario tronqué.`,
+    );
+  }
+  const support = disponibles.slice(0, LEADS_REQUIS);
+  const immeubles = [...new Set(leads.map((l) => l.ban_id).filter(Boolean))] as string[];
+
+  const scenario = construireActiviteFictive({
+    maintenant: now,
+    leadIds: support.map((l) => l.id),
+    banIds: immeubles,
+  });
+
+  // Repartir propre : le scénario doit pouvoir se rejouer à l'identique.
+  await admin
+    .from('lead_stage_events')
+    .delete()
+    .eq('agency_id', DEMO_AGENCY_ID)
+    .eq('is_demo', true);
+  await admin.from('sortie_events').delete().eq('agency_id', DEMO_AGENCY_ID).eq('is_demo', true);
+
+  const debutRun = new Date().toISOString();
+  const parLead = new Map(support.map((l) => [l.id, l]));
+
+  for (const [leadId, etapeFinale] of Object.entries(scenario.etapeFinaleParLead)) {
+    const lead = parLead.get(leadId);
+    if (!lead) continue;
+    const stageId = stageParCle.get(etapeFinale);
+    if (!stageId) continue;
+    await snapshotLead(admin, lead, {
+      assigned_to: profileId,
+      stage_id: stageId,
+      stage_position: 1000,
+      taken_at: scenario.transitions.find((t) => t.leadId === leadId)?.quand ?? null,
+    });
+  }
+
+  // Les événements que le trigger vient de fabriquer sont datés d'aujourd'hui :
+  // ils raconteraient que tout s'est passé ce matin.
+  const { error: menageErr } = await admin
+    .from('lead_stage_events')
+    .delete()
+    .eq('agency_id', DEMO_AGENCY_ID)
+    .gte('created_at', debutRun);
+  if (menageErr) console.warn('  ménage transitions :', menageErr.message);
+
+  const transitions = scenario.transitions
+    .filter((t) => parLead.has(t.leadId))
+    .map((t) => ({
+      lead_id: t.leadId,
+      agency_id: DEMO_AGENCY_ID,
+      from_stage_id: t.depuisCle ? (stageParCle.get(t.depuisCle) ?? null) : null,
+      to_stage_id: stageParCle.get(t.versCle) ?? null,
+      profile_id: profileId,
+      source: 'systeme',
+      is_demo: true,
+      created_at: t.quand,
+    }));
+  counts.lead_stage_events = await insertBatches(admin, 'lead_stage_events', transitions);
+
+  const sorties = scenario.sorties.map((s) => ({
+    agency_id: DEMO_AGENCY_ID,
+    profile_id: profileId,
+    day: s.jour,
+    kind: 'rencontre',
+    ban_id: s.banId,
+    lead_id: null,
+    payload: {},
+    client_id: `demo-${s.jour}-${s.banId}-${randomUUID().slice(0, 8)}`,
+    is_demo: true,
+  }));
+  counts.sortie_events = await insertBatches(admin, 'sortie_events', sorties);
+
+  // Notes vocales rattachées à un immeuble : la source « informations terrain ».
+  const notes = scenario.notes.map((n, i) => ({
+    id: randomUUID(),
+    agency_id: DEMO_AGENCY_ID,
+    created_by: profileId,
+    storage_path: `${DEMO_AGENCY_ID}/demo-activite-${i}.webm`,
+    duration_seconds: 20 + (i % 25),
+    mime_type: 'audio/webm',
+    transcript: NOTE_TRANSCRIPTS[i % NOTE_TRANSCRIPTS.length],
+    status: 'valide',
+    statut: 'revue',
+    visibilite: 'agence',
+    source_info: SOURCES[i % SOURCES.length],
+    ban_id: n.banId,
+    is_demo: true,
+    created_at: n.quand,
+    updated_at: n.quand,
+  }));
+  counts.voice_notes_activite = await insertBatches(admin, 'voice_notes', notes);
+
+  const liens = notes.map((n) => ({
+    note_id: n.id,
+    agency_id: DEMO_AGENCY_ID,
+    entite_type: 'immeuble',
+    entite_id: n.ban_id,
+    confiance: 'certain',
+    cree_par: 'agent',
+    is_demo: true,
+    cree_le: n.created_at,
+  }));
+  counts.note_liens_activite = await insertBatches(admin, 'note_liens', liens);
+
+  // Objectifs alignés sur les ratios réels de la négociatrice : avec les
+  // défauts, l'écran afficherait 7/50 pendant que la phrase réclame 9 contacts.
+  const objectifs = [
+    { activite: 'contacts_physiques', periode: 'hebdo', cible: 32 },
+    { activite: 'immeubles_prospectes', periode: 'hebdo', cible: 20 },
+    { activite: 'contacts_qualifies', periode: 'hebdo', cible: 3 },
+    { activite: 'estimations', periode: 'hebdo', cible: 2 },
+    { activite: 'informations_terrain', periode: 'hebdo', cible: 3 },
+    { activite: 'mandats', periode: 'hebdo', cible: 1 },
+    { activite: 'mandats', periode: 'mensuel', cible: 3 },
+  ].map((o) => ({ ...o, agency_id: DEMO_AGENCY_ID, profile_id: profileId }));
+  const { error: objErr } = await admin
+    .from('activity_goals')
+    .upsert(objectifs, { onConflict: 'agency_id,profile_id,activite,periode' });
+  if (objErr) console.warn('  objectifs :', objErr.message);
+  else console.log(`  activity_goals : ${objectifs.length} posés`);
+
+  console.log(
+    `  cibles du scénario : ${CIBLES_SCENARIO.leadsPris} leads pris · ` +
+      `${CIBLES_SCENARIO.contactes} contactés · ${CIBLES_SCENARIO.estimations} estimations · ` +
+      `${CIBLES_SCENARIO.mandats} mandats · ${CIBLES_SCENARIO.contactsPhysiques} contacts physiques`,
+  );
 }
 
 async function main() {
@@ -1003,6 +1202,10 @@ async function main() {
 
   // Secteur 75019 endormi : aucune note récente avec ce CP (activité limitée au 75020)
   console.log('Scénario Aujourd\'hui branché sur', DEMO_DIRECTOR_PROFILE_ID);
+
+  // Douze semaines de terrain pour une négociatrice : la démonstration de
+  // l'écran d'accueil a besoin d'une trajectoire, pas d'un instantané.
+  await seedActiviteTerrain(admin, team, leads, now, counts);
 
   // --- Récap ---
   console.log('\n=== Seed démo terminé ===');

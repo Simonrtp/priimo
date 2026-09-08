@@ -44,6 +44,20 @@ export function canSeeOwnedRecord(viewer: RecordViewer, record: OwnedRecord): bo
 }
 
 /**
+ * Chiffres d'activité d'un collaborateur.
+ *
+ * Volontairement plus strict que `canSeeOwnedRecord` : `AGENCY_RECORD_VISIBILITY`
+ * ne s'applique pas ici. Voir la fiche d'un collègue et voir sa performance ne
+ * sont pas la même autorisation — ouvrir la seconde parce que la première est
+ * ouverte transformerait l'Accueil en tableau de comparaison entre collègues.
+ * Un collaborateur voit les siens, un directeur voit ceux de son agence.
+ */
+export function canSeeActivityOf(viewer: RecordViewer, profileId: string): boolean {
+  if (viewer.role === 'directeur') return true;
+  return viewer.id === profileId;
+}
+
+/**
  * Leads : la file non assignée reste visible (travail commun). Un lead
  * déjà attribué n'apparaît qu'à l'assigné — et au directeur.
  */

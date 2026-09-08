@@ -41,6 +41,11 @@ const BY_CLE: Record<string, StageColumnTheme> = {
     bgOver: '#D4EBE0',
     accent: FIELD.vert,
   },
+  estimation: {
+    bg: '#D6E9EF',
+    bgOver: '#C2DEE7',
+    accent: '#1F8294',
+  },
   mandat: {
     bg: '#DFF0E8',
     bgOver: '#C8E6D4',

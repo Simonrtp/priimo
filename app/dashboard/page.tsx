@@ -32,7 +32,7 @@ import { parseAccueilVue, ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
 import { homeNoteAttachment, recentNotesForHome } from '@/lib/notes/inbox';
 import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
 import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
-import { ymdKey, startOfWeekYmd } from '@/lib/today/calendar';
+import { ymdKey, startOfWeekYmd, parisYmd } from '@/lib/today/calendar';
 import { centroidFromCoords } from '@/lib/today/quadrant';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
@@ -65,13 +65,40 @@ import AgentOnboarding from '@/components/dashboard/onboarding/AgentOnboarding';
 import OnboardingRelanceBand from '@/components/dashboard/onboarding/OnboardingRelanceBand';
 import BirthdayCard from '@/components/dashboard/onboarding/BirthdayCard';
 import { fetchAnniversairesDuJour } from '@/lib/queries/birthdays';
+import { bilanPeriode, valeursDe } from '@/lib/activite/bilan';
+import { phrasePilotage } from '@/lib/activite/phrase';
+import { FENETRE_SEMAINES } from '@/lib/activite/ratios';
+import {
+  dateDebut,
+  estPeriode,
+  fenetreSemaines,
+  intervalleDe,
+  intervalleDecale,
+  moisDe,
+  semaineDe,
+  type Intervalle,
+} from '@/lib/activite/semaines';
+import {
+  fetchJournalActivite,
+  fetchObjectifs,
+  fetchReferenceMetier,
+} from '@/lib/queries/activite';
+import { canSeeActivityOf } from '@/lib/agency/visibility';
+import { DEMO_AGENCY_ID } from '@/lib/demo/constants';
+import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
+import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TodayPage({
   searchParams,
 }: {
-  searchParams: Promise<{ 'prise-en-main'?: string }>;
+  searchParams: Promise<{
+    'prise-en-main'?: string;
+    periode?: string;
+    le?: string;
+    membre?: string;
+  }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
@@ -85,6 +112,9 @@ export default async function TodayPage({
         agency={agency}
         memberships={memberships}
         repriseDemandee={sp['prise-en-main'] === '1'}
+        periodeDemandee={sp.periode ?? null}
+        ancreDemandee={sp.le ?? null}
+        membreDemande={sp.membre ?? null}
       />
     </Suspense>
   );
@@ -95,11 +125,17 @@ async function TodayContent({
   agency,
   memberships,
   repriseDemandee,
+  periodeDemandee,
+  ancreDemandee,
+  membreDemande,
 }: {
   profile: ContextualProfile;
   agency: AgencyRow;
   memberships: ProfileAgencyMembership[];
   repriseDemandee: boolean;
+  periodeDemandee: string | null;
+  ancreDemandee: string | null;
+  membreDemande: string | null;
 }) {
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
@@ -198,6 +234,36 @@ async function TodayContent({
     ),
   );
 
+  /* --------------------------- activité terrain --------------------------- */
+  // Période affichée : la semaine en cours par défaut, sinon ce que dit l'URL.
+  // Passer par l'URL garde l'écran rendu côté serveur et rend une semaine
+  // consultée partageable par simple copier-coller.
+  const periode = estPeriode(periodeDemandee) ? periodeDemandee : 'semaine';
+  const ancreValide = ancreDemandee && /^\d{4}-\d{2}-\d{2}$/.test(ancreDemandee);
+  const intervalleAffiche = intervalleDe(
+    periode,
+    ancreValide ? new Date(`${ancreDemandee}T12:00:00Z`) : new Date(),
+  );
+
+  // Le sélecteur du directeur ne décide rien : l'autorisation se rejoue ici.
+  const membreActivite =
+    membreDemande && canSeeActivityOf(viewer, membreDemande) ? membreDemande : profile.id;
+
+  // Le journal doit couvrir la période affichée, la période précédente (pour
+  // l'écart), le mois civil (objectif de mandats) et la fenêtre des ratios.
+  const fenetreRatios = fenetreSemaines(semaineDe(dateDebut(intervalleAffiche)), FENETRE_SEMAINES);
+  const moisAffiche = moisDe(dateDebut(intervalleAffiche));
+  const periodePrecedente = intervalleDecale(periode, intervalleAffiche, -1);
+  const couverture: Intervalle = {
+    debut: [
+      fenetreRatios.debut,
+      intervalleAffiche.debut,
+      moisAffiche.debut,
+      periodePrecedente.debut,
+    ].sort()[0]!,
+    fin: [fenetreRatios.fin, intervalleAffiche.fin, moisAffiche.fin].sort().at(-1)!,
+  };
+
   const [
     assignments,
     alerts,
@@ -206,6 +272,9 @@ async function TodayContent({
     demandesEstimation,
     estimationsVuees,
     actionsAValider,
+    journalActivite,
+    objectifsActivite,
+    referenceActivite,
   ] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
@@ -323,6 +392,22 @@ async function TodayContent({
         profileId: profile.id,
         estDirecteur: layoutDirector,
       }),
+    ),
+    timed('fetchJournalActivite', () =>
+      fetchJournalActivite({
+        supabase,
+        intervalle: couverture,
+        stages,
+        // L'agence de démonstration montre son scénario ; partout ailleurs les
+        // lignes fictives sont écartées du bilan.
+        inclureDemo: agency.id === DEMO_AGENCY_ID,
+      }),
+    ),
+    timed('fetchObjectifsActivite', () =>
+      fetchObjectifs({ supabase, profileId: membreActivite }),
+    ),
+    timed('fetchReferenceMetier', () =>
+      fetchReferenceMetier({ supabase, agencyId: agency.id }),
     ),
   ]);
 
@@ -443,6 +528,50 @@ async function TodayContent({
         }
       : null;
 
+  /* ------------------------- bilan et phrase ------------------------- */
+  const bilan = bilanPeriode({
+    journal: journalActivite,
+    profileId: membreActivite,
+    profileIdsAgence: members.map((m) => m.id),
+    periode,
+    intervalle: intervalleAffiche,
+    objectifs: objectifsActivite,
+    reference: referenceActivite.reference,
+    referenceFournie: referenceActivite.fournie,
+  });
+
+  const phrase = phrasePilotage({
+    compteurs: valeursDe(bilan),
+    objectifMandatsMois: bilan.mandatsDuMois.objectif,
+    ratios: bilan.ratios,
+    periode,
+    intervalle: intervalleAffiche,
+    semaine1: bilan.semaine1,
+    etatsSource: bilan.etatsSource,
+    // Une période révolue se juge entière ; la période en cours se proratise.
+    jourCourant: dateKeyMaintenant(),
+  });
+
+  // Le produit vendu : les leads livrés que personne n'a pris.
+  const leadsNonPris = visibleLeads
+    .filter((l) => l.stageId === null)
+    .sort((a, b) => b.score - a.score);
+  const adressesLivrees: AdresseLivree[] = leadsNonPris.slice(0, 4).map((l) => ({
+    id: l.id,
+    address: l.address,
+    city: l.city,
+    score: l.score,
+    mainSignalLabel: l.mainSignalLabel,
+  }));
+
+  const membresActivite =
+    isDirector && !previewingAgent
+      ? members.map((m) => ({ id: m.id, nom: m.fullName }))
+      : [];
+
+  const estPeriodeCourante =
+    intervalleAffiche.debut === intervalleDe(periode, new Date()).debut;
+
   const homeProps = {
     initialCards: cards,
     initialLeads: visibleLeads,
@@ -466,14 +595,31 @@ async function TodayContent({
     </>
   );
 
+  const pilotageCommun = {
+    bilan,
+    phrase,
+    adresses: adressesLivrees,
+    totalAdresses: leadsNonPris.length,
+    prenom: profile.first_name,
+    membres: membresActivite,
+    membreSelectionne: membreActivite,
+    estPeriodeCourante,
+  };
+
   if (device === 'mobile') {
     return (
       <>
         {banners}
-        <AujourdhuiMobile
-          {...homeProps}
-          week={week}
-          sectorRef={centroidFromCoords(visibleLeads)}
+        <AccueilPilotage
+          {...pilotageCommun}
+          aujourdhui={
+            <AujourdhuiMobile
+              {...homeProps}
+              variant="pilotage"
+              week={week}
+              sectorRef={centroidFromCoords(visibleLeads)}
+            />
+          }
         />
       </>
     );
@@ -482,11 +628,22 @@ async function TodayContent({
   return (
     <>
       {banners}
-      <TodayClient
-        {...homeProps}
-        relancesProgrammees={week.relancesProgrammees}
-        rapprochements={week.rapprochements}
+      <AccueilPilotage
+        {...pilotageCommun}
+        aujourdhui={
+          <TodayClient
+            {...homeProps}
+            variant="pilotage"
+            relancesProgrammees={week.relancesProgrammees}
+            rapprochements={week.rapprochements}
+          />
+        }
       />
     </>
   );
+}
+
+/** Jour civil parisien courant. */
+function dateKeyMaintenant(): string {
+  return ymdKey(parisYmd(new Date()));
 }

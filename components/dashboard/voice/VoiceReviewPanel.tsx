@@ -17,6 +17,9 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import NoteEntitySearch, {
+  type NoteLinkPick,
+} from '@/components/dashboard/notes/NoteEntitySearch';
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
