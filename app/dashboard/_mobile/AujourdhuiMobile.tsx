@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TodayCard } from '@/lib/today/cards';
 import type { FieldWeekSnapshot } from '@/lib/today/semaine';
@@ -69,6 +69,7 @@ export default function AujourdhuiMobile({
   directorExceptions = [],
   actionsAValider = [],
   variant = 'complet',
+  secteur,
 }: {
   initialCards: TodayCard[];
   initialLeads: Lead[];
@@ -85,6 +86,7 @@ export default function AujourdhuiMobile({
   actionsAValider?: readonly AgencyAction[];
   /** `pilotage` : l'écran Accueil affiche déjà la semaine et le portefeuille. */
   variant?: 'complet' | 'pilotage';
+  secteur?: ReactNode;
 }) {
   const router = useRouter();
   const day = dateKeyParis(new Date());
@@ -276,6 +278,8 @@ export default function AujourdhuiMobile({
 
         {directorLayout ? (
           <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
+        ) : emptyKind === 'rien' && secteur ? (
+          secteur
         ) : emptyKind !== 'rien' ? (
           <>
             {layout.level1ContextLine ? (

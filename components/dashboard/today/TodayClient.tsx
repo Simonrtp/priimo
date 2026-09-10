@@ -46,7 +46,8 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function EmptyState() {
+function EmptyState({ secteur }: { secteur?: ReactNode }) {
+  if (secteur) return <div className="min-w-0">{secteur}</div>;
   return (
     <div className="flex flex-col items-center py-12 text-center">
       <div
@@ -82,6 +83,7 @@ export default function TodayClient({
   directorExceptions = [],
   actionsAValider = [],
   variant = 'complet',
+  secteur,
   children,
 }: {
   initialCards: TodayCard[];
@@ -104,6 +106,8 @@ export default function TodayClient({
    * cartes du jour et leurs interactions.
    */
   variant?: 'complet' | 'pilotage';
+  /** À la place du « vous êtes à jour », quand il n'y a rien à faire aujourd'hui. */
+  secteur?: ReactNode;
   children?: ReactNode;
 }) {
   const day = dateKeyParis(new Date());
@@ -263,7 +267,7 @@ export default function TodayClient({
           {directorLayout ? (
             <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
           ) : workCards.length === 0 && emptyKind === 'rien' ? (
-            <EmptyState />
+            <EmptyState secteur={secteur} />
           ) : workCards.length === 0 ? null : (
             <div className="flex flex-col gap-4">
               {layout.level1ContextLine ? (

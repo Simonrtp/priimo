@@ -596,6 +596,17 @@ async function TodayContent({
     apercu.aRevoir > 10 &&
     !estEcartee(CLE_TOURNEE_FRAICHEUR, dismissals, maintenant);
 
+  const secteurNode =
+    apercu.zones.length > 0 ? (
+      <MonSecteur
+        apercu={apercu}
+        centre={{ latitude: agency.latitude, longitude: agency.longitude }}
+        estDirecteur={isDirector}
+      />
+    ) : !isDirector ? (
+      <DessinerMonSecteur />
+    ) : null;
+
   const pilotageCommun = {
     pilotage,
     adresses: adressesLivrees,
@@ -613,16 +624,7 @@ async function TodayContent({
     ),
     tache: tacheDuMoment(cards),
     alerteTournee: proposerTournee ? <CarteTourneeFraicheur aRevoir={apercu.aRevoir} /> : null,
-    secteur:
-      apercu.zones.length > 0 ? (
-        <MonSecteur
-          apercu={apercu}
-          centre={{ latitude: agency.latitude, longitude: agency.longitude }}
-          estDirecteur={isDirector}
-        />
-      ) : !isDirector ? (
-        <DessinerMonSecteur />
-      ) : null,
+    secteur: cards.length > 0 ? secteurNode : null,
   };
 
   if (device === 'mobile') {
@@ -637,6 +639,7 @@ async function TodayContent({
               variant="pilotage"
               week={week}
               sectorRef={centroidFromCoords(visibleLeads)}
+              secteur={secteurNode}
             />
           }
         />
@@ -655,6 +658,7 @@ async function TodayContent({
             variant="pilotage"
             relancesProgrammees={week.relancesProgrammees}
             rapprochements={week.rapprochements}
+            secteur={secteurNode}
           />
         }
       />
