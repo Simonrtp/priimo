@@ -61,16 +61,6 @@ export function minuitParisIso(ymd: string): string {
   return new Date(`${ymd}T00:00:00+01:00`).toISOString();
 }
 
-/** [lundi 00:00, lundi suivant 00:00) en Europe/Paris. */
-export function bornesIsoSemaine(date: Date): { timeMin: string; timeMax: string } {
-  const lundi = startOfWeekYmd(date);
-  const lundiSuivant = decale(lundi, 7);
-  return {
-    timeMin: minuitParisIso(ymdKey(lundi)),
-    timeMax: minuitParisIso(ymdKey(lundiSuivant)),
-  };
-}
-
 export function grouperParJour(
   evenements: readonly AgendaEvenement[],
 ): Record<string, AgendaEvenement[]> {

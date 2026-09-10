@@ -5,8 +5,8 @@ import { confianceImmeuble, matchContacts, type ContactMatch } from '@/lib/notes
 import {
   guessPersonnesFromTranscript,
   matchContactsInTranscript,
-  personneCitedInTranscript,
   personneFromMatch,
+  recadrerPersonne,
 } from '@/lib/notes/from-transcript';
 import type { ExtractedPersonne, ExtractedRelance, ExtractedPromesse, ExtractedRendezVous, ExtractedVisite, NoteExtraction } from '@/lib/notes/propositions';
 import { lignesFicheNote, relanceAtFromJours } from '@/lib/notes/propositions';
@@ -98,10 +98,9 @@ export function buildReviewPayload(args: {
 }): NoteReviewPayload {
   const extraction = args.extraction;
   const cited = args.transcript?.trim() ?? '';
-  const extractedPersonnes = (extraction?.personnes ?? []).filter((personne) => {
-    if (!cited) return true;
-    return personneCitedInTranscript(personne, cited);
-  });
+  const extractedPersonnes = (extraction?.personnes ?? [])
+    .map((personne) => (cited ? recadrerPersonne(personne, cited) : personne))
+    .filter((personne): personne is ExtractedPersonne => personne !== null);
   const personnes: PersonneProposal[] = extractedPersonnes.map((personne, i) => ({
     id: `p${i}`,
     personne,

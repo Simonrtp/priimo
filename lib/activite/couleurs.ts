@@ -2,26 +2,57 @@ import { FIELD } from '@/lib/today/field';
 import type { FamilleActivite } from './types';
 
 /**
- * Une couleur par famille d'activité : teinte saturée pour l'icône et la
- * barre, pastille claire pour le fond. Pas de violet (réservé à l'entonnoir).
- * L'orange lead #E8743C reste hors de cette palette.
+ * Une couleur par famille d'activité, en quatre paliers de plus en plus
+ * clairs : teinte pleine pour le chiffre et la barre, pastel appuyé pour les
+ * aplats qui doivent se détacher (carré de l'icône, bouton d'action), pastille
+ * claire pour la piste de la barre, voile presque blanc pour la carte entière.
+ * L'ordre des luminances n'est pas décoratif : si la piste rejoint le voile,
+ * la progression devient invisible sur la carte.
+ * Pas de violet (réservé à l'entonnoir). L'orange lead #E8743C reste dehors.
  */
 
 export type CouleurFamille = {
-  /** Teinte pleine — icône, barre de progression, accent. */
+  /** Teinte pleine — chiffre, barre de progression, accent. */
   teinte: string;
-  /** Teinte très claire — pastille de fond derrière l'icône. */
+  /** Pastel appuyé — carré derrière l'icône, fond du bouton d'action. */
+  pastelFort: string;
+  /** Teinte très claire — piste de la barre de progression. */
   pastille: string;
-  /** Lavis de la carte — assez saturé pour qu’on voie la famille tout de suite. */
-  fond: string;
+  /** Voile de la carte — la famille se devine, elle ne se crie pas. */
+  voile: string;
 };
 
 export const COULEUR_FAMILLE: Record<FamilleActivite, CouleurFamille> = {
-  contacts_physiques: { teinte: '#1F6FE0', pastille: '#DCEBFF', fond: '#BFD6FF' },
-  immeubles_prospectes: { teinte: '#B07700', pastille: '#FFE9A3', fond: '#FFE08C' },
-  contacts_qualifies: { teinte: '#0F8F4A', pastille: '#C6F6D6', fond: '#9EF0B8' },
-  estimations: { teinte: '#08849C', pastille: '#C8F4FA', fond: '#9BE7F2' },
-  informations_terrain: { teinte: '#D61F3A', pastille: '#FFD0D6', fond: '#FFB6C0' },
+  contacts_physiques: {
+    teinte: '#1F6FE0',
+    pastelFort: '#BFD6FF',
+    pastille: '#DCEBFF',
+    voile: '#EDF4FD',
+  },
+  immeubles_prospectes: {
+    teinte: '#B07700',
+    pastelFort: '#FFE08C',
+    pastille: '#FFE9A3',
+    voile: '#F9F4EB',
+  },
+  contacts_qualifies: {
+    teinte: '#0F8F4A',
+    pastelFort: '#9EF0B8',
+    pastille: '#C6F6D6',
+    voile: '#ECF6F1',
+  },
+  estimations: {
+    teinte: '#08849C',
+    pastelFort: '#9BE7F2',
+    pastille: '#C8F4FA',
+    voile: '#EBF5F7',
+  },
+  informations_terrain: {
+    teinte: '#D61F3A',
+    pastelFort: '#FFB6C0',
+    pastille: '#FFD0D6',
+    voile: '#FCEDEF',
+  },
 };
 
 /** L'orange produit reste aux leads. Aucune famille ne doit s'en approcher. */

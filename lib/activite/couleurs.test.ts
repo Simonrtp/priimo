@@ -6,6 +6,7 @@ import {
   contraste,
   ecartTeinte,
   estViolet,
+  luminanceRelative,
   teinteDegres,
 } from './couleurs';
 import { FAMILLES_ACTIVITE } from './types';
@@ -64,10 +65,27 @@ describe('couleurs de famille — lisibilité à 32 px', () => {
     }
   });
 
-  it('garde la teinte lisible sur la carte blanche', () => {
+  it('garde la teinte lisible sur le voile de la carte', () => {
     for (const f of FAMILLES) {
-      const ratio = contraste(COULEUR_FAMILLE[f].teinte, '#FFFFFF');
-      assert.ok(ratio >= 3, `${f} : contraste teinte/blanc ${ratio.toFixed(2)}`);
+      const { teinte, voile } = COULEUR_FAMILLE[f];
+      const ratio = contraste(teinte, voile);
+      assert.ok(ratio >= 3, `${f} : contraste teinte/voile ${ratio.toFixed(2)}`);
+    }
+  });
+
+  it('empile les quatre paliers du plus foncé au plus clair', () => {
+    // Sinon la piste de la barre se dissout dans la carte, ou le carré de
+    // l'icône dans la piste, et plus rien ne se détache.
+    for (const f of FAMILLES) {
+      const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[f];
+      const paliers = [teinte, pastelFort, pastille, voile];
+      const luminances = paliers.map(luminanceRelative);
+      for (let i = 1; i < luminances.length; i += 1) {
+        assert.ok(
+          luminances[i]! > luminances[i - 1]!,
+          `${f} : ${paliers[i]} pas plus clair que ${paliers[i - 1]}`,
+        );
+      }
     }
   });
 
@@ -78,10 +96,17 @@ describe('couleurs de famille — lisibilité à 32 px', () => {
     }
   });
 
-  it('garde le texte lisible sur le lavis de carte', () => {
+  it('garde le texte lisible sur le voile de carte', () => {
     for (const f of FAMILLES) {
-      const ratio = contraste('#1E1B4B', COULEUR_FAMILLE[f].fond);
-      assert.ok(ratio >= 4.5, `${f} : contraste texte/fond ${ratio.toFixed(2)}`);
+      const ratio = contraste('#1E1B4B', COULEUR_FAMILLE[f].voile);
+      assert.ok(ratio >= 4.5, `${f} : contraste texte/voile ${ratio.toFixed(2)}`);
+    }
+  });
+
+  it('garde le libellé du bouton lisible sur le pastel appuyé', () => {
+    for (const f of FAMILLES) {
+      const ratio = contraste('#1E1B4B', COULEUR_FAMILLE[f].pastelFort);
+      assert.ok(ratio >= 4.5, `${f} : contraste texte/pastel ${ratio.toFixed(2)}`);
     }
   });
 });

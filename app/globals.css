@@ -70,34 +70,35 @@
   --radius-xl: 32px;
   --radius-pill: 9999px;
 
-  /* §4.2 Ombres claymorphiques */
+  /* §4.2 Ombres claymorphiques
+     Décalage vertical nul : l'ombre rayonne également sur les quatre bords.
+     Deux couches par niveau — un liseré serré qui détache la carte du fond,
+     un halo large qui donne la profondeur. */
   --clay-sm:
-    0 2px 4px rgba(79, 70, 229, 0.06),
-    0 6px 16px rgba(79, 70, 229, 0.08),
-    inset 0 2px 3px rgba(255, 255, 255, 0.9),
-    inset 0 -3px 6px rgba(79, 70, 229, 0.05);
+    0 0 3px rgba(79, 70, 229, 0.05),
+    0 0 12px rgba(79, 70, 229, 0.07),
+    inset 0 0 1px rgba(255, 255, 255, 0.9),
+    inset 0 0 6px rgba(79, 70, 229, 0.035);
   --clay:
-    0 4px 8px rgba(79, 70, 229, 0.07),
-    0 12px 28px rgba(79, 70, 229, 0.1),
-    inset 0 3px 5px rgba(255, 255, 255, 0.9),
-    inset 0 -5px 10px rgba(79, 70, 229, 0.06);
+    0 0 5px rgba(79, 70, 229, 0.06),
+    0 0 22px rgba(79, 70, 229, 0.1),
+    inset 0 0 1px rgba(255, 255, 255, 0.9),
+    inset 0 0 10px rgba(79, 70, 229, 0.045);
   --clay-lg:
-    0 8px 16px rgba(79, 70, 229, 0.08),
-    0 24px 48px rgba(79, 70, 229, 0.12),
-    inset 0 4px 6px rgba(255, 255, 255, 0.95),
-    inset 0 -8px 14px rgba(79, 70, 229, 0.07);
+    0 0 8px rgba(79, 70, 229, 0.07),
+    0 0 38px rgba(79, 70, 229, 0.13),
+    inset 0 0 2px rgba(255, 255, 255, 0.95),
+    inset 0 0 16px rgba(79, 70, 229, 0.055);
   --clay-pressed:
-    0 1px 2px rgba(79, 70, 229, 0.05),
-    inset 0 2px 6px rgba(79, 70, 229, 0.12),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.6);
-  --clay-inset:
-    inset 0 2px 5px rgba(79, 70, 229, 0.1),
-    inset 0 -2px 3px rgba(255, 255, 255, 0.8);
+    0 0 2px rgba(79, 70, 229, 0.05),
+    inset 0 0 10px rgba(79, 70, 229, 0.14);
+  --clay-inset: inset 0 0 8px rgba(79, 70, 229, 0.1);
   /* §4.4 Ombre sur surface colorée (bouton primaire) */
   --clay-primary:
-    0 6px 16px rgba(99, 102, 241, 0.35),
-    inset 0 2px 4px rgba(255, 255, 255, 0.45),
-    inset 0 -4px 8px rgba(49, 46, 129, 0.35);
+    0 0 6px rgba(99, 102, 241, 0.26),
+    0 0 20px rgba(99, 102, 241, 0.3),
+    inset 0 0 2px rgba(255, 255, 255, 0.4),
+    inset 0 0 10px rgba(49, 46, 129, 0.22);
 
   /* §5 Espacement */
   --space-1: 4px;

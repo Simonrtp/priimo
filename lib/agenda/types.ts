@@ -6,3 +6,11 @@ export type AgendaEvenement = {
   fin: string | null;
   journee: boolean;
 };
+
+export type AgendaReponse = {
+  connected: boolean;
+  calendarEmail?: string | null;
+  /** Plage couverte : « semaine:2026-09-07 » ou « mois:2026-09 ». */
+  cle?: string;
+  events: AgendaEvenement[];
+};

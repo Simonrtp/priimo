@@ -20,4 +20,12 @@ describe('citationDuJour', () => {
     const texte = citationDuJour({ jour: '2026-09-09', prenoms: ['Simon'] });
     assert.match(texte, /Simon|régularité|immeuble|terrain|journée/i);
   });
+
+  it('ne cite jamais un collègue : seulement le premier prénom', () => {
+    const texte = citationDuJour({
+      jour: '2026-09-08',
+      prenoms: ['Simon', 'Camille', 'Thomas'],
+    });
+    assert.doesNotMatch(texte, /Camille|Thomas/);
+  });
 });

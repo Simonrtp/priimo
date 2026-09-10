@@ -150,6 +150,19 @@ describe('buildTodayCards', () => {
     assert.equal(cards.length, 0);
   });
 
+  it('ne propose pas un type exclu', () => {
+    const commun = {
+      leads: [],
+      contacts: [contact('Oublié', { lastInteractionAt: joursAvant(10) })],
+      rapprochements: [],
+      dismissals: AUCUN_ECART,
+      now: MAINTENANT,
+      plafonner: false,
+    };
+    assert.equal(buildTodayCards(commun).length, 1);
+    assert.equal(buildTodayCards({ ...commun, exclure: ['relance'] }).length, 0);
+  });
+
   it('fait réapparaître une carte reportée une fois la date passée', () => {
     const contacts = [contact('Oublié', { lastInteractionAt: joursAvant(10) })];
 

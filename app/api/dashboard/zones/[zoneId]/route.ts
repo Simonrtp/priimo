@@ -1,0 +1,142 @@
+import { NextResponse } from 'next/server';
+import { getServerUser } from '@/lib/auth/getServerUser';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
+import type { ZoneInsert } from '@/types/database';
+import {
+  estInvalide,
+  validerCouleurZone,
+  validerJourSemaine,
+  validerNomZone,
+} from '@/lib/zones/valider';
+
+export const runtime = 'nodejs';
+
+/**
+ * Renommer, recolorer, réattribuer, désactiver : directeur seulement. Un
+ * secteur qui change de main est une décision de direction, pas un réglage.
+ *
+ * On ne supprime pas une zone dont on veut garder l'historique : `actif` à
+ * false suffit, et l'appartenance des leads déjà pris ne bouge pas — elle
+ * n'était de toute façon jamais stockée.
+ */
+export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: string }> }) {
+  const { user, profile, agency, memberships } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+  if (profile.role !== 'directeur') {
+    return NextResponse.json(
+      { error: 'Seul le directeur peut modifier un secteur' },
+      { status: 403 },
+    );
+  }
+
+  const { zoneId } = await ctx.params;
+  if (!zoneId) return NextResponse.json({ error: 'Secteur inconnu' }, { status: 400 });
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
+  }
+  const raw = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+
+  const update: Partial<ZoneInsert> = {};
+
+  if (raw.nom !== undefined) {
+    const verdict = validerNomZone(raw.nom);
+    if (estInvalide(verdict)) return NextResponse.json({ error: verdict.erreur }, { status: 400 });
+    update.nom = verdict.valeur;
+  }
+  if (raw.couleur !== undefined) {
+    const verdict = validerCouleurZone(raw.couleur);
+    if (estInvalide(verdict)) return NextResponse.json({ error: verdict.erreur }, { status: 400 });
+    update.couleur = verdict.valeur;
+  }
+  if (raw.jourSemaine !== undefined) {
+    const verdict = validerJourSemaine(raw.jourSemaine);
+    if (estInvalide(verdict)) return NextResponse.json({ error: verdict.erreur }, { status: 400 });
+    update.jour_semaine = verdict.valeur;
+  }
+  if (raw.actif !== undefined) {
+    if (typeof raw.actif !== 'boolean') {
+      return NextResponse.json({ error: 'État de secteur invalide' }, { status: 400 });
+    }
+    update.actif = raw.actif;
+  }
+  if (raw.assignedTo !== undefined) {
+    if (raw.assignedTo === null || raw.assignedTo === '') {
+      update.assigned_to = null;
+    } else if (typeof raw.assignedTo !== 'string') {
+      return NextResponse.json({ error: 'Titulaire invalide' }, { status: 400 });
+    } else {
+      const members = await fetchMembersOfMyAgency(agency.id, memberships);
+      if (!memberIdSet(members).has(raw.assignedTo)) {
+        return NextResponse.json(
+          { error: "Cette personne n'appartient pas à l'agence" },
+          { status: 400 },
+        );
+      }
+      update.assigned_to = raw.assignedTo;
+    }
+  }
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: 'Rien à modifier' }, { status: 400 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from('zones')
+    .update(update)
+    .eq('id', zoneId)
+    .eq('agency_id', agency.id);
+
+  if (error) {
+    console.error('[zones] modification impossible', error);
+    // Le seul index unique en jeu : un titulaire, un jour, une zone.
+    const conflit = error.code === '23505';
+    return NextResponse.json(
+      {
+        error: conflit
+          ? 'Ce négociateur a déjà un secteur ce jour-là'
+          : 'Le secteur n’a pas pu être modifié',
+      },
+      { status: 400 },
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(_req: Request, ctx: { params: Promise<{ zoneId: string }> }) {
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+  if (profile.role !== 'directeur') {
+    return NextResponse.json(
+      { error: 'Seul le directeur peut supprimer un secteur' },
+      { status: 403 },
+    );
+  }
+
+  const { zoneId } = await ctx.params;
+  if (!zoneId) return NextResponse.json({ error: 'Secteur inconnu' }, { status: 400 });
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from('zones')
+    .delete()
+    .eq('id', zoneId)
+    .eq('agency_id', agency.id);
+
+  if (error) {
+    console.error('[zones] suppression impossible', error);
+    return NextResponse.json({ error: 'Le secteur n’a pas pu être supprimé' }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

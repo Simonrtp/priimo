@@ -85,7 +85,8 @@ const config: Config = {
         brand: ["var(--font-brand)", "Georgia", "Times New Roman", "serif"],
       },
       boxShadow: {
-        soft: "0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.05)",
+        // Décalage nul : l'ombre entoure la surface au lieu de tomber sous elle.
+        soft: "0 0 2px rgba(17, 24, 39, 0.04), 0 0 14px rgba(17, 24, 39, 0.06)",
         cta: "0 6px 20px rgba(232, 116, 60, 0.25)",
         ctaHover: "0 10px 28px rgba(232, 116, 60, 0.35)",
         // === Ombres clay (PRIIMO_DESIGN_SYSTEM.md §4.3) ===
@@ -135,6 +136,12 @@ const config: Config = {
           "0%, 100%": { transform: "translate(0, 0)" },
           "50%": { transform: "translate(20px, 15px)" },
         },
+        // §7.1 — retour au clic : un rebond court, sur transform uniquement.
+        pop: {
+          "0%": { transform: "scale(0.95)" },
+          "55%": { transform: "scale(1.03)" },
+          "100%": { transform: "scale(1)" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.4s ease-out",
@@ -142,6 +149,7 @@ const config: Config = {
         floatA: "floatA 14s ease-in-out infinite",
         floatB: "floatB 18s ease-in-out infinite",
         floatC: "floatC 22s ease-in-out infinite",
+        pop: "pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
     },
   },

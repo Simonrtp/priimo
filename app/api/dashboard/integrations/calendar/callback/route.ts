@@ -13,18 +13,19 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
-function redirectAfter(next: string, query: string) {
-  const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || '';
+function redirectAfter(req: Request, next: string, query: string) {
+  // Rester sur l’hôte du callback (localhost en dev), pas NEXT_PUBLIC_SITE_URL.
+  const origin = new URL(req.url).origin;
   if (next === 'settings') {
-    return NextResponse.redirect(`${base}/dashboard/settings?tab=integrations&${query}`);
+    return NextResponse.redirect(`${origin}/dashboard/settings?tab=integrations&${query}`);
   }
-  return NextResponse.redirect(`${base}/dashboard?${query}`);
+  return NextResponse.redirect(`${origin}/dashboard?${query}`);
 }
 
 export async function GET(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
-    return redirectAfter('dashboard', 'agenda=auth_required');
+    return redirectAfter(req, 'dashboard', 'agenda=auth_required');
   }
 
   const url = new URL(req.url);
@@ -48,9 +49,9 @@ export async function GET(req: Request) {
     /* state lu plus bas */
   }
 
-  if (oauthError) return redirectAfter(next, 'agenda=denied');
+  if (oauthError) return redirectAfter(req, next, 'agenda=denied');
   if (!code || !stateParam || !expectedState || stateParam !== expectedState) {
-    return redirectAfter(next, 'agenda=invalid_state');
+    return redirectAfter(req, next, 'agenda=invalid_state');
   }
 
   let state: { agencyId: string; profileId: string };
@@ -60,18 +61,18 @@ export async function GET(req: Request) {
       profileId: string;
     };
   } catch {
-    return redirectAfter(next, 'agenda=invalid_state');
+    return redirectAfter(req, next, 'agenda=invalid_state');
   }
 
   if (state.agencyId !== agency.id || state.profileId !== profile.id) {
-    return redirectAfter(next, 'agenda=agency_mismatch');
+    return redirectAfter(req, next, 'agenda=agency_mismatch');
   }
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
   const redirectUri = calendarOAuthRedirectUri();
   if (!clientId || !clientSecret || !redirectUri) {
-    return redirectAfter(next, 'agenda=not_configured');
+    return redirectAfter(req, next, 'agenda=not_configured');
   }
 
   const admin = createSupabaseAdminClient();
@@ -107,8 +108,22 @@ export async function GET(req: Request) {
 
     if (error) throw new Error(error.message);
 
-    return redirectAfter(next, 'agenda=connected');
-  } catch {
-    return redirectAfter(next, 'agenda=error');
+    return redirectAfter(req, next, 'agenda=connected');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'oauth_failed';
+    console.error('[calendar oauth]', message);
+    let flag = 'agenda=error';
+    if (/invalid_client|client secret is invalid/i.test(message)) {
+      flag = 'agenda=bad_secret';
+    } else if (/redirect_uri_mismatch/i.test(message)) {
+      flag = 'agenda=token';
+    } else if (/Calendar primary failed|accessNotConfigured|has not been used|Google Calendar API/i.test(message)) {
+      flag = 'agenda=no_api';
+    } else if (/GMAIL_TOKEN_ENCRYPTION_KEY/i.test(message)) {
+      flag = 'agenda=crypto';
+    } else if (/calendar_connexions/i.test(message)) {
+      flag = 'agenda=missing_table';
+    }
+    return redirectAfter(req, next, flag);
   }
 }

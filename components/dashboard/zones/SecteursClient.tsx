@@ -1,0 +1,920 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { AlertTriangle, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
+import ClayButton from '@/components/ui/ClayButton';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
+import { COULEURS_ZONE } from '@/lib/zones/palette';
+import { chevauchements } from '@/lib/zones/geometrie';
+import { statistiquesParZone } from '@/lib/zones/leads';
+import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
+import { decouperAdresse } from '@/lib/zones/adresse';
+import type { PariteVoie, RegleZone, Zone } from '@/lib/zones/types';
+import type { LeadPoint } from './ZonesCarte';
+
+const ZonesCarte = dynamic(() => import('./ZonesCarte'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[520px] animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
+  ),
+});
+
+/**
+ * Écran des secteurs.
+ *
+ * Le directeur découpe pour toute l'agence ; le négociateur voit le découpage
+ * et le sien en évidence, sans pouvoir y toucher. Les zones des collègues
+ * restent affichées dans tous les cas : c'est ce qui rend les trous et les
+ * chevauchements visibles.
+ */
+
+export type SecteurLead = LeadPoint & {
+  address: string;
+  postalCode: string | null;
+  assignedTo: string | null;
+  stageId: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+};
+
+type Membre = { id: string; fullName: string };
+
+const JOURS = [
+  { valeur: 1, label: 'Lundi' },
+  { valeur: 2, label: 'Mardi' },
+  { valeur: 3, label: 'Mercredi' },
+  { valeur: 4, label: 'Jeudi' },
+  { valeur: 5, label: 'Vendredi' },
+] as const;
+
+const PARITES: { valeur: PariteVoie; label: string }[] = [
+  { valeur: 'toutes', label: 'Tous les numéros' },
+  { valeur: 'paires', label: 'Numéros pairs' },
+  { valeur: 'impaires', label: 'Numéros impairs' },
+];
+
+const champClass =
+  'w-full rounded-lg border border-black/10 px-3 py-2 text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
+
+const labelClass = 'mb-1 block text-[12px] font-medium text-mute';
+
+/** Résumé d'une règle en une ligne, pour le panneau latéral. */
+function resumerRegle(regle: RegleZone): string {
+  const prefixe = regle.inclusion ? '' : 'Sauf ';
+  switch (regle.type) {
+    case 'polygone': {
+      const n = (regle.valeur.coordinates[0]?.length ?? 1) - 1;
+      return `${prefixe}Contour dessiné · ${n} sommets`;
+    }
+    case 'voie': {
+      const { nom_voie, parite, numero_min, numero_max } = regle.valeur;
+      const cote =
+        parite === 'paires' ? ' · pairs' : parite === 'impaires' ? ' · impairs' : '';
+      const plage =
+        numero_min !== null || numero_max !== null
+          ? ` · ${numero_min ?? 1} à ${numero_max ?? '…'}`
+          : '';
+      return `${prefixe}${nom_voie}${cote}${plage}`;
+    }
+    case 'code_postal':
+      return `${prefixe}Code postal ${regle.valeur.code_postal}`;
+    case 'parcelles':
+      return `${prefixe}${regle.valeur.parcelle_ids.length} parcelles`;
+  }
+}
+
+export default function SecteursClient({
+  zones,
+  membres,
+  leads,
+  centre,
+  estDirecteur,
+  profileId,
+}: {
+  zones: Zone[];
+  membres: Membre[];
+  leads: SecteurLead[];
+  centre: { latitude: number | null; longitude: number | null };
+  estDirecteur: boolean;
+  profileId: string;
+}) {
+  const router = useRouter();
+  const [zoneActiveId, setZoneActiveId] = useState<string | null>(
+    zones.find((z) => z.assignedTo === profileId)?.id ?? zones[0]?.id ?? null,
+  );
+  const [enCours, setEnCours] = useState(false);
+  const [modeDessin, setModeDessin] = useState<'inactif' | 'polygone'>('inactif');
+  const [apercu, setApercu] = useState<GeoJSON.Polygon | null>(null);
+  const [survol, setSurvol] = useState<string | null>(null);
+  const [nbZonesProposees, setNbZonesProposees] = useState(4);
+  /** Repère posé sur la voie choisie dans la BAN, pour vérifier avant d'ajouter. */
+  const [voieSurlignee, setVoieSurlignee] = useState<{ latitude: number; longitude: number } | null>(
+    null,
+  );
+
+  const zoneActive = useMemo(
+    () => zones.find((z) => z.id === zoneActiveId) ?? null,
+    [zones, zoneActiveId],
+  );
+  const peutEditer = estDirecteur;
+
+  const conflits = useMemo(() => chevauchements(zones), [zones]);
+  const { horsZone } = useMemo(() => statistiquesParZone(leads, zones), [leads, zones]);
+  const pointsLeads = useMemo(
+    () => leads.map((l) => ({ id: l.id, latitude: l.latitude, longitude: l.longitude, pris: l.pris })),
+    [leads],
+  );
+
+  const rafraichir = useCallback(() => router.refresh(), [router]);
+
+  const appeler = useCallback(
+    async (url: string, methode: string, corps?: unknown) => {
+      setEnCours(true);
+      try {
+        const res = await fetch(url, {
+          method: methode,
+          headers: corps ? { 'Content-Type': 'application/json' } : undefined,
+          body: corps ? JSON.stringify(corps) : undefined,
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(data.error ?? 'Enregistrement impossible');
+        }
+        return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      } finally {
+        setEnCours(false);
+      }
+    },
+    [],
+  );
+
+  const creerZone = useCallback(
+    async (nom: string, couleur?: string, polygone?: GeoJSON.Polygon) => {
+      try {
+        const { id } = (await appeler('/api/dashboard/zones', 'POST', { nom, couleur })) as {
+          id?: string;
+        };
+        if (id && polygone) {
+          await appeler(`/api/dashboard/zones/${id}/regles`, 'POST', {
+            type: 'polygone',
+            valeur: polygone,
+            inclusion: true,
+          });
+        }
+        if (id) setZoneActiveId(id);
+        rafraichir();
+        return id ?? null;
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Le secteur n’a pas pu être créé');
+        return null;
+      }
+    },
+    [appeler, rafraichir],
+  );
+
+  const modifierZone = useCallback(
+    async (zoneId: string, patch: Record<string, unknown>) => {
+      try {
+        await appeler(`/api/dashboard/zones/${zoneId}`, 'PATCH', patch);
+        rafraichir();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Modification impossible');
+      }
+    },
+    [appeler, rafraichir],
+  );
+
+  const supprimerZone = useCallback(
+    async (zoneId: string) => {
+      try {
+        await appeler(`/api/dashboard/zones/${zoneId}`, 'DELETE');
+        setZoneActiveId((id) => (id === zoneId ? null : id));
+        rafraichir();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Suppression impossible');
+      }
+    },
+    [appeler, rafraichir],
+  );
+
+  const ajouterRegle = useCallback(
+    async (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => {
+      if (!zoneActive) return;
+      try {
+        await appeler(`/api/dashboard/zones/${zoneActive.id}/regles`, 'POST', {
+          type,
+          valeur,
+          inclusion,
+        });
+        setApercu(null);
+        rafraichir();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Règle non enregistrée');
+      }
+    },
+    [appeler, rafraichir, zoneActive],
+  );
+
+  const supprimerRegle = useCallback(
+    async (regleId: string) => {
+      if (!zoneActive) return;
+      try {
+        await appeler(`/api/dashboard/zones/${zoneActive.id}/regles/${regleId}`, 'DELETE');
+        rafraichir();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Suppression impossible');
+      }
+    },
+    [appeler, rafraichir, zoneActive],
+  );
+
+  /** Déplacement d'un sommet après validation : la règle est mise à jour en place. */
+  const deplacerContour = useCallback(
+    async (regleId: string, polygone: GeoJSON.Polygon) => {
+      if (!zoneActive) return;
+      try {
+        await appeler(`/api/dashboard/zones/${zoneActive.id}/regles/${regleId}`, 'PATCH', {
+          type: 'polygone',
+          valeur: polygone,
+        });
+        rafraichir();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Contour non enregistré');
+      }
+    },
+    [appeler, rafraichir, zoneActive],
+  );
+
+  const proposer = useCallback(async () => {
+    const recents = depuisTroisMois(leads);
+    const propositions = proposerDecoupage(
+      recents,
+      nbZonesProposees,
+      zones.map((z) => z.nom),
+    );
+    if (propositions.length === 0) {
+      toast.error('Pas assez de leads géolocalisés pour proposer un découpage');
+      return;
+    }
+    for (const proposition of propositions) {
+      await creerZone(proposition.nom, proposition.couleur, {
+        type: 'Polygon',
+        coordinates: proposition.polygone.coordinates as unknown as number[][][],
+      });
+    }
+    toast.success(
+      `${propositions.length} secteurs proposés, équilibrés sur ${recents.length} leads. À retoucher librement.`,
+    );
+  }, [creerZone, leads, nbZonesProposees, zones]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="font-semibold text-ink" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
+          Secteurs
+        </h2>
+        <p className="mt-1 text-[13px] text-mute">
+          Le découpage interne de l’agence entre négociateurs. Sans effet sur la livraison des
+          leads ni sur l’exclusivité : le territoire de l’agence, lui, reste ses codes postaux.
+        </p>
+      </div>
+
+      {conflits.length > 0 || horsZone.length > 0 ? (
+        <div className="flex flex-col gap-1.5 rounded-clay border border-amber-300/60 bg-amber-50 px-4 py-3">
+          {conflits.map((c) => (
+            <p key={`${c.zoneA.id}-${c.zoneB.id}`} className="flex items-center gap-2 text-[13px] text-amber-900">
+              <AlertTriangle size={14} aria-hidden />
+              {c.zoneA.nom} et {c.zoneB.nom} se recouvrent.
+            </p>
+          ))}
+          {horsZone.length > 0 ? (
+            <p className="flex items-center gap-2 text-[13px] text-amber-900">
+              <AlertTriangle size={14} aria-hidden />
+              {horsZone.length} adresses livrées ne sont dans aucun secteur.
+            </p>
+          ) : null}
+          <p className="mt-0.5 text-[11px] text-amber-800/80">
+            Rien n’est bloqué : un chevauchement peut être voulu sur un axe partagé.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="min-w-0">
+          <ZonesCarte
+            zones={zones}
+            zoneActive={peutEditer ? zoneActive : null}
+            leads={pointsLeads}
+            centre={centre}
+            hauteur={520}
+            apercu={apercu}
+            voieSurlignee={voieSurlignee}
+            modeDessin={modeDessin}
+            onSurvolZone={setSurvol}
+            onPolygoneDessine={
+              peutEditer
+                ? (polygone) => {
+                    setModeDessin('inactif');
+                    setApercu(polygone);
+                  }
+                : undefined
+            }
+            onPolygoneModifie={peutEditer ? deplacerContour : undefined}
+          />
+
+          {survol ? (
+            <p className="mt-2 text-[12px] text-mute">
+              {zones.find((z) => z.id === survol)?.nom} ·{' '}
+              {membres.find((m) => m.id === zones.find((z) => z.id === survol)?.assignedTo)?.fullName ??
+                'sans titulaire'}
+            </p>
+          ) : null}
+
+          {apercu && peutEditer ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-clay bg-bg-subtle px-4 py-3">
+              <span className="flex-1 text-[13px] text-ink">
+                Contour dessiné. À ajouter à {zoneActive ? `« ${zoneActive.nom} »` : 'un secteur'}.
+              </span>
+              <ClayButton
+                variant="secondary"
+                className="px-3 py-1.5 text-[13px]"
+                onClick={() => setApercu(null)}
+              >
+                Annuler
+              </ClayButton>
+              <ClayButton
+                className="px-3 py-1.5 text-[13px]"
+                disabled={!zoneActive || enCours}
+                onClick={() => void ajouterRegle('polygone', apercu, true)}
+              >
+                Ajouter au secteur
+              </ClayButton>
+              <ClayButton
+                variant="secondary"
+                className="px-3 py-1.5 text-[13px]"
+                disabled={!zoneActive || enCours}
+                onClick={() => void ajouterRegle('polygone', apercu, false)}
+              >
+                Retirer du secteur
+              </ClayButton>
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="flex min-w-0 flex-col gap-3">
+          <ListeZones
+            zones={zones}
+            membres={membres}
+            zoneActiveId={zoneActiveId}
+            onChoisir={setZoneActiveId}
+            profileId={profileId}
+          />
+
+          {peutEditer ? (
+            <CreerZone
+              enCours={enCours}
+              onCreer={(nom) => void creerZone(nom)}
+              nbZones={nbZonesProposees}
+              onNbZones={setNbZonesProposees}
+              onProposer={() => void proposer()}
+            />
+          ) : null}
+
+          {zoneActive ? (
+            <PanneauZone
+              zone={zoneActive}
+              membres={membres}
+              peutEditer={peutEditer}
+              enCours={enCours}
+              modeDessin={modeDessin}
+              onModeDessin={setModeDessin}
+              onModifier={(patch) => void modifierZone(zoneActive.id, patch)}
+              onSupprimer={() => void supprimerZone(zoneActive.id)}
+              onAjouterRegle={(type, valeur, inclusion) => void ajouterRegle(type, valeur, inclusion)}
+              onSupprimerRegle={(regleId) => void supprimerRegle(regleId)}
+              onSurlignerVoie={setVoieSurlignee}
+            />
+          ) : null}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function ListeZones({
+  zones,
+  membres,
+  zoneActiveId,
+  onChoisir,
+  profileId,
+}: {
+  zones: readonly Zone[];
+  membres: readonly Membre[];
+  zoneActiveId: string | null;
+  onChoisir: (id: string) => void;
+  profileId: string;
+}) {
+  if (zones.length === 0) {
+    return (
+      <p className="rounded-clay bg-bg-subtle px-4 py-3 text-[13px] text-mute">
+        Aucun secteur pour l’instant. Tous les leads arrivent dans la file de l’agence.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {zones.map((zone) => {
+        const titulaire = membres.find((m) => m.id === zone.assignedTo);
+        const actif = zone.id === zoneActiveId;
+        const jour = JOURS.find((j) => j.valeur === zone.jourSemaine);
+        return (
+          <li key={zone.id}>
+            <button
+              type="button"
+              onClick={() => onChoisir(zone.id)}
+              aria-current={actif}
+              className={`flex w-full items-center gap-2.5 rounded-clay px-3 py-2.5 text-left transition-[box-shadow,background-color] duration-fluid-subtle ease-in-out ${
+                actif ? 'bg-white shadow-clay-sm ring-1 ring-black/[0.06]' : 'hover:bg-white/70'
+              }`}
+            >
+              <span
+                aria-hidden
+                className="size-3.5 shrink-0 rounded-[4px]"
+                style={{ backgroundColor: zone.couleur, opacity: zone.actif ? 1 : 0.35 }}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13.5px] font-medium text-ink">{zone.nom}</span>
+                <span className="block truncate text-[11.5px] text-mute">
+                  {titulaire
+                    ? zone.assignedTo === profileId
+                      ? 'Mon secteur'
+                      : titulaire.fullName
+                    : 'Sans titulaire'}
+                  {jour ? ` · ${jour.label}` : ''}
+                  {zone.actif ? '' : ' · désactivé'}
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function CreerZone({
+  enCours,
+  onCreer,
+  nbZones,
+  onNbZones,
+  onProposer,
+}: {
+  enCours: boolean;
+  onCreer: (nom: string) => void;
+  nbZones: number;
+  onNbZones: (n: number) => void;
+  onProposer: () => void;
+}) {
+  const [nom, setNom] = useState('');
+
+  return (
+    <div className="flex flex-col gap-3 rounded-clay bg-bg-subtle px-4 py-3.5">
+      <form
+        className="flex items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (nom.trim() === '') return;
+          onCreer(nom.trim());
+          setNom('');
+        }}
+      >
+        <span className="min-w-0 flex-1">
+          <label className={labelClass} htmlFor="zone-nouveau-nom">
+            Nouveau secteur
+          </label>
+          <input
+            id="zone-nouveau-nom"
+            className={champClass}
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder="Ex : Charonne"
+            maxLength={60}
+          />
+        </span>
+        <ClayButton type="submit" className="px-3 py-2 text-[13px]" disabled={enCours || nom.trim() === ''}>
+          <Plus size={14} aria-hidden />
+          Créer
+        </ClayButton>
+      </form>
+
+      <div className="border-t border-black/[0.06] pt-3">
+        <label className={labelClass} htmlFor="zone-nb-propose">
+          Proposer un découpage équilibré
+        </label>
+        <div className="flex items-end gap-2">
+          <input
+            id="zone-nb-propose"
+            type="number"
+            min={2}
+            max={8}
+            className={`${champClass} w-20`}
+            value={nbZones}
+            onChange={(e) => onNbZones(Number.parseInt(e.target.value, 10) || 2)}
+          />
+          <ClayButton
+            variant="secondary"
+            className="flex-1 px-3 py-2 text-[13px]"
+            disabled={enCours}
+            onClick={onProposer}
+          >
+            {enCours ? <Loader2 size={14} className="animate-spin" aria-hidden /> : null}
+            Proposer
+          </ClayButton>
+        </div>
+        <p className="mt-1.5 text-[11px] text-mute">
+          Équilibré sur les leads des trois derniers mois. Les contours restent modifiables.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PanneauZone({
+  zone,
+  membres,
+  peutEditer,
+  enCours,
+  modeDessin,
+  onModeDessin,
+  onModifier,
+  onSupprimer,
+  onAjouterRegle,
+  onSupprimerRegle,
+  onSurlignerVoie,
+}: {
+  zone: Zone;
+  membres: readonly Membre[];
+  peutEditer: boolean;
+  enCours: boolean;
+  modeDessin: 'inactif' | 'polygone';
+  onModeDessin: (m: 'inactif' | 'polygone') => void;
+  onModifier: (patch: Record<string, unknown>) => void;
+  onSupprimer: () => void;
+  onAjouterRegle: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
+  onSupprimerRegle: (regleId: string) => void;
+  onSurlignerVoie: (coord: { latitude: number; longitude: number } | null) => void;
+}) {
+  const [renommage, setRenommage] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col gap-3 rounded-clay bg-white px-4 py-3.5 shadow-clay-sm">
+      <div className="flex items-start gap-2">
+        {renommage === null ? (
+          <>
+            <h3 className="min-w-0 flex-1 truncate font-semibold text-ink" style={{ fontSize: 15 }}>
+              {zone.nom}
+            </h3>
+            {peutEditer ? (
+              <button
+                type="button"
+                aria-label="Renommer le secteur"
+                onClick={() => setRenommage(zone.nom)}
+                className="rounded-lg p-1.5 text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+              >
+                <Pencil size={14} aria-hidden />
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <form
+            className="flex flex-1 items-center gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const nom = renommage.trim();
+              if (nom !== '' && nom !== zone.nom) onModifier({ nom });
+              setRenommage(null);
+            }}
+          >
+            <input
+              autoFocus
+              className={champClass}
+              value={renommage}
+              onChange={(e) => setRenommage(e.target.value)}
+              maxLength={60}
+              aria-label="Nom du secteur"
+            />
+            <ClayButton type="submit" className="px-2.5 py-1.5 text-[12px]">
+              OK
+            </ClayButton>
+            <button
+              type="button"
+              aria-label="Annuler"
+              onClick={() => setRenommage(null)}
+              className="rounded-lg p-1.5 text-mute hover:bg-black/[0.04]"
+            >
+              <X size={14} aria-hidden />
+            </button>
+          </form>
+        )}
+      </div>
+
+      {peutEditer ? (
+        <>
+          <div>
+            <label className={labelClass} htmlFor={`zone-titulaire-${zone.id}`}>
+              Titulaire
+            </label>
+            <select
+              id={`zone-titulaire-${zone.id}`}
+              className={champClass}
+              value={zone.assignedTo ?? ''}
+              onChange={(e) => onModifier({ assignedTo: e.target.value || null })}
+            >
+              <option value="">Sans titulaire</option>
+              {membres.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor={`zone-jour-${zone.id}`}>
+              Jour de tournée
+            </label>
+            <select
+              id={`zone-jour-${zone.id}`}
+              className={champClass}
+              value={zone.jourSemaine ?? ''}
+              onChange={(e) =>
+                onModifier({ jourSemaine: e.target.value ? Number.parseInt(e.target.value, 10) : null })
+              }
+            >
+              <option value="">Aucun</option>
+              {JOURS.map((j) => (
+                <option key={j.valeur} value={j.valeur}>
+                  {j.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-mute">
+              Facultatif. Le vendredi sans secteur bascule la tournée en relances.
+            </p>
+          </div>
+
+          <div>
+            <span className={labelClass}>Couleur</span>
+            <div className="flex flex-wrap gap-1.5">
+              {COULEURS_ZONE.map((couleur) => (
+                <button
+                  key={couleur}
+                  type="button"
+                  aria-label={`Couleur ${couleur}`}
+                  aria-pressed={zone.couleur.toUpperCase() === couleur.toUpperCase()}
+                  onClick={() => onModifier({ couleur })}
+                  className={`size-6 rounded-[7px] transition-transform duration-fluid-subtle ease-in-out hover:scale-110 ${
+                    zone.couleur.toUpperCase() === couleur.toUpperCase()
+                      ? 'ring-2 ring-offset-2 ring-black/25'
+                      : ''
+                  }`}
+                  style={{ backgroundColor: couleur }}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className="text-[12.5px] text-mute">
+          Consultation seule. Seul le directeur découpe les secteurs.
+        </p>
+      )}
+
+      <div className="border-t border-black/[0.06] pt-3">
+        <span className={labelClass}>Règles du secteur</span>
+        {zone.regles.length === 0 ? (
+          <p className="text-[12.5px] text-mute">
+            Aucune règle : ce secteur ne capte encore aucune adresse.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {zone.regles.map((regle) => (
+              <li
+                key={regle.id}
+                className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] ${
+                  regle.inclusion ? 'bg-black/[0.02] text-ink' : 'bg-rose-50 text-rose-900'
+                }`}
+              >
+                <span className="min-w-0 flex-1 truncate">{resumerRegle(regle)}</span>
+                {peutEditer ? (
+                  <button
+                    type="button"
+                    aria-label="Supprimer la règle"
+                    disabled={enCours}
+                    onClick={() => onSupprimerRegle(regle.id)}
+                    className="rounded p-1 text-mute transition-colors hover:bg-black/[0.05] hover:text-rose-700"
+                  >
+                    <Trash2 size={13} aria-hidden />
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {peutEditer ? (
+        <>
+          <ClayButton
+            variant={modeDessin === 'polygone' ? 'primary' : 'secondary'}
+            className="px-3 py-2 text-[13px]"
+            onClick={() => onModeDessin(modeDessin === 'polygone' ? 'inactif' : 'polygone')}
+          >
+            {modeDessin === 'polygone' ? 'Terminer le tracé' : 'Dessiner un contour'}
+          </ClayButton>
+
+          <RegleVoie onAjouter={onAjouterRegle} enCours={enCours} onSurligner={onSurlignerVoie} />
+          <RegleCodePostal onAjouter={onAjouterRegle} enCours={enCours} />
+
+          <div className="flex items-center gap-2 border-t border-black/[0.06] pt-3">
+            <button
+              type="button"
+              onClick={() => onModifier({ actif: !zone.actif })}
+              className="flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+            >
+              {zone.actif ? 'Désactiver' : 'Réactiver'}
+            </button>
+            <button
+              type="button"
+              onClick={onSupprimer}
+              className="rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-rose-700 transition-colors hover:bg-rose-50"
+            >
+              Supprimer
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Règle de voie : le seul moyen de séparer deux côtés d'une rue distants de
+ * trois mètres. L'autocomplétion BAN évite les fautes de frappe, qui rendraient
+ * la règle muette sans jamais prévenir.
+ */
+function RegleVoie({
+  onAjouter,
+  enCours,
+  onSurligner,
+}: {
+  onAjouter: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
+  enCours: boolean;
+  onSurligner: (coord: { latitude: number; longitude: number } | null) => void;
+}) {
+  const [choix, setChoix] = useState<SelectedAddress | null>(null);
+  const [parite, setParite] = useState<PariteVoie>('toutes');
+  const [min, setMin] = useState('');
+  const [max, setMax] = useState('');
+  const [inclusion, setInclusion] = useState(true);
+
+  const voie = choix ? decouperAdresse(choix.label).nomVoie : null;
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-black/[0.06] pt-3">
+      <span className={labelClass}>Ajouter une voie</span>
+      <AddressAutocomplete
+        value={choix?.label ?? ''}
+        onChange={(adresse) => {
+          setChoix(adresse);
+          // Le repère apparaît sur la carte avant l'ajout : on vérifie d'abord
+          // qu'on parle bien de la même rue.
+          onSurligner(
+            adresse ? { latitude: adresse.latitude, longitude: adresse.longitude } : null,
+          );
+        }}
+        placeholder="Ex : rue des Maraîchers"
+        inputClassName={`${champClass} pl-9`}
+        aria-label="Rechercher une voie"
+      />
+      {choix ? (
+        <>
+          <p className="text-[11.5px] text-mute">
+            {voie ?? choix.label} · {choix.postcode}
+          </p>
+          <select
+            className={champClass}
+            value={parite}
+            onChange={(e) => setParite(e.target.value as PariteVoie)}
+            aria-label="Parité des numéros"
+          >
+            {PARITES.map((p) => (
+              <option key={p.valeur} value={p.valeur}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-2">
+            <input
+              className={champClass}
+              inputMode="numeric"
+              placeholder="Du n°"
+              value={min}
+              onChange={(e) => setMin(e.target.value)}
+              aria-label="Numéro minimum"
+            />
+            <input
+              className={champClass}
+              inputMode="numeric"
+              placeholder="Au n°"
+              value={max}
+              onChange={(e) => setMax(e.target.value)}
+              aria-label="Numéro maximum"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-[12.5px] text-ink">
+            <input
+              type="checkbox"
+              checked={!inclusion}
+              onChange={(e) => setInclusion(!e.target.checked)}
+              className="size-3.5 rounded border-black/20"
+            />
+            Retirer cette voie du secteur
+          </label>
+          <ClayButton
+            className="px-3 py-2 text-[13px]"
+            disabled={enCours || !choix.postcode}
+            onClick={() => {
+              if (!choix.postcode) return;
+              onAjouter(
+                'voie',
+                {
+                  nom_voie: voie ?? choix.label,
+                  code_postal: choix.postcode,
+                  parite,
+                  numero_min: min === '' ? null : Number.parseInt(min, 10),
+                  numero_max: max === '' ? null : Number.parseInt(max, 10),
+                },
+                inclusion,
+              );
+              setChoix(null);
+              onSurligner(null);
+              setMin('');
+              setMax('');
+              setParite('toutes');
+              setInclusion(true);
+            }}
+          >
+            {inclusion ? 'Ajouter la voie' : 'Retirer la voie'}
+          </ClayButton>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** Pour les secteurs larges, en province, où le contour n'apporte rien. */
+function RegleCodePostal({
+  onAjouter,
+  enCours,
+}: {
+  onAjouter: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
+  enCours: boolean;
+}) {
+  const [code, setCode] = useState('');
+  const valide = /^\d{5}$/.test(code.trim());
+
+  return (
+    <form
+      className="flex items-end gap-2 border-t border-black/[0.06] pt-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!valide) return;
+        onAjouter('code_postal', { code_postal: code.trim() }, true);
+        setCode('');
+      }}
+    >
+      <span className="min-w-0 flex-1">
+        <label className={labelClass} htmlFor="zone-code-postal">
+          Ajouter un code postal
+        </label>
+        <input
+          id="zone-code-postal"
+          className={champClass}
+          inputMode="numeric"
+          maxLength={5}
+          placeholder="75020"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+      </span>
+      <ClayButton type="submit" variant="secondary" className="px-3 py-2 text-[13px]" disabled={enCours || !valide}>
+        Ajouter
+      </ClayButton>
+    </form>
+  );
+}

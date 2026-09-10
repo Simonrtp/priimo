@@ -88,6 +88,11 @@ import { canSeeActivityOf } from '@/lib/agency/visibility';
 import { DEMO_AGENCY_ID } from '@/lib/demo/constants';
 import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
+import { lireAgendaSemaine } from '@/lib/agenda/lire';
+import { tacheDuMoment } from '@/lib/today/maintenant';
+import { fetchZonesSafe } from '@/lib/queries/zones';
+import { apercuSecteur } from '@/lib/zones/accueil';
+import MonSecteur from '@/components/dashboard/accueil/MonSecteur';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,6 +143,7 @@ async function TodayContent({
   ancreDemandee: string | null;
   membreDemande: string | null;
 }) {
+  const agendaPromise = lireAgendaSemaine();
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
   const previewingAgent =
@@ -423,6 +429,10 @@ async function TodayContent({
     demandesEstimation,
     estimationsVuees,
     ...metier,
+    // Les échéances de mandat et d'offre ne sont pas une tâche du jour : elles
+    // encombraient la pile avec des offres expirées sur lesquelles il n'y a
+    // plus rien à faire.
+    exclure: ['echeance_contractuelle'],
   });
 
   let directorExceptions: ReturnType<typeof buildDirectorExceptions> = [];
@@ -557,7 +567,9 @@ async function TodayContent({
   const leadsNonPris = visibleLeads
     .filter((l) => l.stageId === null)
     .sort((a, b) => b.score - a.score);
-  const adressesLivrees: AdresseLivree[] = leadsNonPris.slice(0, 4).map((l) => ({
+  // Six : de quoi remplir la carte jusqu'au bord de l'emploi du temps posé à
+  // côté. Au-delà, la liste défilerait et « Voir tout » existe pour ça.
+  const adressesLivrees: AdresseLivree[] = leadsNonPris.slice(0, 6).map((l) => ({
     id: l.id,
     address: l.address,
     city: l.city,
@@ -573,12 +585,11 @@ async function TodayContent({
   const estPeriodeCourante =
     intervalleAffiche.debut === intervalleDe(periode, new Date()).debut;
 
+  const prenomCite =
+    members.find((m) => m.id === membreActivite)?.firstName || profile.first_name;
   const citation = citationDuJour({
     jour: dateKeyMaintenant(),
-    prenoms: [
-      profile.first_name,
-      ...members.map((m) => m.firstName),
-    ],
+    prenoms: prenomCite ? [prenomCite] : [],
   });
 
   const homeProps = {
@@ -604,6 +615,16 @@ async function TodayContent({
     </>
   );
 
+  // Le découpage de l'agence. Sans zones, la carte ne s'affiche pas du tout :
+  // un repère vide n'est pas un repère.
+  const zones = await fetchZonesSafe(supabase);
+  const apercu = apercuSecteur({
+    leads: visibleLeads,
+    zones,
+    profileId: profile.id,
+    estDirecteur: isDirector,
+  });
+
   const pilotageCommun = {
     bilan,
     phrase,
@@ -613,6 +634,20 @@ async function TodayContent({
     membreSelectionne: membreActivite,
     estPeriodeCourante,
     citation,
+    agenda: agendaPromise,
+    tache: tacheDuMoment(cards),
+    secteur:
+      apercu.zones.length > 0 ? (
+        <MonSecteur
+          zones={apercu.zones}
+          leads={apercu.points}
+          centre={{ latitude: agency.latitude, longitude: agency.longitude }}
+          titulaires={Object.fromEntries(names)}
+          estDirecteur={isDirector}
+          aTravailler={apercu.aTravailler}
+          dejaPrises={apercu.dejaPrises}
+        />
+      ) : null,
   };
 
   if (device === 'mobile') {

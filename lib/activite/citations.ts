@@ -40,7 +40,7 @@ export const MODELES_CITATION: readonly ModeleCitation[] = [
   },
   {
     noms: 1,
-    texte: (a) => `${a}, le prochain mandat commence par la porte que je pousse ce matin.`,
+    texte: (a) => `${a}, le prochain mandat commence par la porte que tu pousses ce matin.`,
   },
   {
     noms: 1,
@@ -75,40 +75,28 @@ function indiceStable(cle: string, modulo: number): number {
   return n % modulo;
 }
 
-function prenomsUtiles(prenoms: readonly string[]): string[] {
-  const vus = new Set<string>();
-  const out: string[] = [];
+function premierPrenom(prenoms: readonly string[]): string | undefined {
   for (const brut of prenoms) {
     const p = brut.trim();
     if (!p || p === 'Sans nom') continue;
-    const cle = p.toLocaleLowerCase('fr');
-    if (vus.has(cle)) continue;
-    vus.add(cle);
-    out.push(p);
+    return p;
   }
-  return out.sort((a, b) => a.localeCompare(b, 'fr'));
+  return undefined;
 }
 
 /**
- * Une citation pour le jour donné. Les prénoms tournent avec la date
- * pour que ce ne soit pas toujours le même qui soit cité.
+ * Une citation pour le jour donné.
+ * S’il y a un prénom, c’est celui de l’écran — jamais un collègue tiré au sort.
  */
 export function citationDuJour(params: {
   jour: string;
   prenoms: readonly string[];
 }): string {
-  const liste = prenomsUtiles(params.prenoms);
-  const capacite = liste.length >= 2 ? 2 : liste.length >= 1 ? 1 : 0;
+  const moi = premierPrenom(params.prenoms);
+  const capacite = moi ? 1 : 0;
   const candidats = MODELES_CITATION.filter((m) => m.noms <= capacite);
   const modele = candidats[indiceStable(params.jour, candidats.length)] ?? MODELES_CITATION[0]!;
 
-  if (modele.noms === 0 || liste.length === 0) return modele.texte();
-
-  const i = indiceStable(`${params.jour}:a`, liste.length);
-  const a = liste[i]!;
-  if (modele.noms === 1) return modele.texte(a);
-
-  const j = (i + 1 + indiceStable(`${params.jour}:b`, Math.max(1, liste.length - 1))) % liste.length;
-  const b = liste[j] === a ? (liste[(j + 1) % liste.length] ?? a) : liste[j]!;
-  return modele.texte(a, b);
+  if (modele.noms === 0 || !moi) return modele.texte();
+  return modele.texte(moi);
 }

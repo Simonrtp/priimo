@@ -36,4 +36,41 @@ describe('buildReviewPayload — fallback dictée', () => {
     assert.equal(review.personnes[0]?.personne.lastName, 'Ropiot');
     assert.equal(review.personnes[0]?.matches[0]?.contactId, 'c-simon');
   });
+
+  it('garde le nom à particule proposé par l’extraction et remplit la fiche', () => {
+    const review = buildReviewPayload({
+      voiceNoteId: 'n2',
+      transcript:
+        "J'ai rencontré Catherine de Villeneuve. Elle habite au 161 avenue Ledru-Rolin, dans le 11e.",
+      visibilite: 'agence',
+      extraction: {
+        personnes: [
+          {
+            firstName: 'Catherine',
+            lastName: 'de Villeneuve',
+            phone: null,
+            email: null,
+            type: 'acquereur',
+          },
+        ],
+        address: '161 avenue Ledru-Rolin',
+        secteur: '11e',
+        prix: null,
+        rooms: null,
+        surface: null,
+        sourceInfo: null,
+        relance: null,
+        promesse: null,
+        rendezVous: null,
+        visite: null,
+      },
+      extractFailed: false,
+      contacts: [],
+      agencyId: 'a1',
+      geo: { ban_id: null, adresse_normalisee: null, geocode_score: null },
+    });
+    assert.equal(review.personnes[0]?.personne.lastName, 'de Villeneuve');
+    assert.equal(review.immeuble?.address, '161 avenue Ledru-Rolin');
+    assert.equal(review.secteur, '11e');
+  });
 });

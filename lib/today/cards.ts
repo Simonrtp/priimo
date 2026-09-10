@@ -619,6 +619,8 @@ export interface BuildTodayInput {
   config?: TodayConfig;
   /** Applique le plafond à 7 cartes avec regroupement. */
   plafonner?: boolean;
+  /** Types à ne pas proposer. Retirés avant le plafond, pour ne pas gâcher une place. */
+  exclure?: readonly TodayCardType[];
 }
 
 export function buildTodayCards({
@@ -639,6 +641,7 @@ export function buildTodayCards({
   now = new Date(),
   config = TODAY_CONFIG,
   plafonner = true,
+  exclure = [],
 }: BuildTodayInput): TodayCard[] {
   const cartes = [
     ...cartesEcheanceContractuelle(biensMetier, offres, now),
@@ -655,7 +658,9 @@ export function buildTodayCards({
     ...cartesRapprochement(rapprochements, config),
   ];
 
+  const exclus = new Set(exclure);
   const filtrees = cartes
+    .filter((c) => !exclus.has(c.type))
     .filter((c) => !estEcartee(c.key, dismissals, now))
     .sort((a, b) => b.score - a.score);
 

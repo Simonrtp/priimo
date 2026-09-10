@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { normaliserEvenements } from './google-calendar';
-import { bornesIsoSemaine, grouperParJour, joursDeLaSemaine, minuitParisIso } from './semaine';
+import { grouperParJour, joursDeLaSemaine, minuitParisIso } from './semaine';
 
 describe('joursDeLaSemaine', () => {
   it('commence le lundi et libelle à la française', () => {
@@ -24,14 +24,6 @@ describe('minuitParisIso', () => {
   it('tombe bien à minuit Paris en hiver', () => {
     const iso = minuitParisIso('2026-01-12');
     assert.equal(dateKeyParis(new Date(iso)), '2026-01-12');
-  });
-});
-
-describe('bornesIsoSemaine', () => {
-  it('couvre lundi → lundi suivant', () => {
-    const { timeMin, timeMax } = bornesIsoSemaine(new Date('2026-09-09T10:00:00Z'));
-    assert.equal(dateKeyParis(new Date(timeMin)), '2026-09-07');
-    assert.equal(dateKeyParis(new Date(timeMax)), '2026-09-14');
   });
 });
 

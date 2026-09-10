@@ -1,46 +1,227 @@
 'use client';
 
-import {
-  Building2,
-  DoorOpen,
-  FileSearch,
-  MessageSquareQuote,
-  PhoneCall,
-  type LucideIcon,
-} from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, ChevronDown, Mic, NotebookPen } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import type { Compteur, FamilleActivite } from '@/lib/activite/types';
+import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
+import { armPointerShield } from '@/lib/ui/pointer-guard';
 
-const ICONE: Record<FamilleActivite, LucideIcon> = {
-  contacts_physiques: DoorOpen,
-  immeubles_prospectes: Building2,
-  contacts_qualifies: PhoneCall,
-  estimations: FileSearch,
-  informations_terrain: MessageSquareQuote,
+/**
+ * Le geste qui fait monter le chiffre, et rien d'autre. Chaque libellé nomme
+ * l'action, pas la page : un compteur qu'on ne sait pas alimenter reste à zéro.
+ * Les destinations suivent la provenance déclarée dans `PROVENANCE_ACTIVITE`.
+ *
+ * Une note de terrain ne renvoie sur aucune page : elle se prend sur place,
+ * écrite ou dictée, sinon le compteur coûte une navigation pour trois mots.
+ */
+type ActionCompteur = { libelle: string } & ({ href: string } | { note: true });
+
+const ACTION: Record<FamilleActivite, ActionCompteur> = {
+  contacts_physiques: {
+    libelle: 'Lancer ma sortie',
+    href: '/dashboard/prospection?vue=carte&itineraire=1',
+  },
+  immeubles_prospectes: {
+    libelle: 'Ouvrir la carte',
+    href: '/dashboard/prospection?vue=carte',
+  },
+  contacts_qualifies: {
+    libelle: 'Qualifier un lead',
+    href: '/dashboard/prospection?vue=pipeline',
+  },
+  estimations: {
+    libelle: 'Créer une estimation',
+    href: '/dashboard/estimation',
+  },
+  informations_terrain: {
+    libelle: 'Ajouter une note',
+    note: true,
+  },
 };
+
+/**
+ * La pastille d'action, commune au lien et au menu : elle se déplie en bas de
+ * carte au survol ou au focus, et reste inerte tant qu'elle est invisible.
+ */
+function pilule(visible: boolean): string {
+  return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold text-text-strong shadow-clay-sm transition-[opacity,transform] duration-fluid ease-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 group-hover/compteur:pointer-events-auto group-hover/compteur:translate-y-0 group-hover/compteur:opacity-100 group-focus-within/compteur:pointer-events-auto group-focus-within/compteur:translate-y-0 group-focus-within/compteur:opacity-100 motion-reduce:transition-none ${
+    visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
+  }`;
+}
+
+/**
+ * Deux états par famille : le dessin plat au repos, le même dessin cerné d'un
+ * contour marqué au survol. Même sujet, même cadrage — seul le trait change,
+ * donc le fondu croisé ne donne pas l'impression de changer d'icône.
+ */
+const ILLUSTRATION: Record<FamilleActivite, { repos: string; survol: string }> = {
+  contacts_physiques: { repos: '/porte-ouverte.png', survol: '/porte-ouverte-contour.png' },
+  immeubles_prospectes: { repos: '/bureau.png', survol: '/bureau-contour.png' },
+  contacts_qualifies: { repos: '/contact.png', survol: '/contact-contour.png' },
+  estimations: { repos: '/calculatrice.png', survol: '/calculatrice-contour.png' },
+  informations_terrain: { repos: '/info.png', survol: '/info-contour.png' },
+};
+
+/**
+ * Deux façons de noter, offertes sur place : au clavier ou à la voix. On ouvre
+ * les mêmes fenêtres que le bouton « Nouvelle note » du menu latéral, donc une
+ * note prise ici est une note ordinaire, pas un cas particulier.
+ */
+function BoutonNote({
+  libelle,
+  fond,
+  visible,
+  onEtatMenu,
+}: {
+  libelle: string;
+  fond: string;
+  visible: boolean;
+  onEtatMenu: (ouvert: boolean) => void;
+}) {
+  const { openCapture, openCompose } = useVoiceCapture();
+  const [ouvert, setOuvert] = useState(false);
+  const racine = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  const basculer = useCallback(
+    (etat: boolean) => {
+      setOuvert(etat);
+      onEtatMenu(etat);
+    },
+    [onEtatMenu],
+  );
+  const fermer = useCallback(() => basculer(false), [basculer]);
+
+  useOutsideDismiss(ouvert, fermer, racine);
+
+  useEffect(() => {
+    if (!ouvert) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') fermer();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [ouvert, fermer]);
+
+  function choisir(ouvrir: () => void) {
+    fermer();
+    armPointerShield();
+    ouvrir();
+  }
+
+  return (
+    <div ref={racine} className="relative">
+      {ouvert ? (
+        <div
+          id={menuId}
+          role="menu"
+          aria-label="Ajouter une information terrain"
+          className="absolute bottom-[calc(100%+6px)] left-0 z-20 flex min-w-[8.5rem] flex-col overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay"
+        >
+          <ChoixNote icone={NotebookPen} libelle="Écrire" onClick={() => choisir(openCompose)} />
+          <ChoixNote icone={Mic} libelle="Dicter" onClick={() => choisir(openCapture)} />
+        </div>
+      ) : null}
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={ouvert}
+        aria-controls={ouvert ? menuId : undefined}
+        onClick={() => basculer(!ouvert)}
+        className={pilule(visible || ouvert)}
+        style={{ backgroundColor: fond }}
+      >
+        {libelle}
+        <ChevronDown
+          size={12}
+          strokeWidth={2.6}
+          aria-hidden
+          className={ouvert ? 'rotate-180 transition-transform' : 'transition-transform'}
+        />
+      </button>
+    </div>
+  );
+}
+
+function ChoixNote({
+  icone: Icone,
+  libelle,
+  onClick,
+}: {
+  icone: typeof Mic;
+  libelle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className="flex min-h-10 w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04]"
+    >
+      <Icone size={15} strokeWidth={2} className="text-accent" aria-hidden />
+      {libelle}
+    </button>
+  );
+}
 
 function ecartLisible(ecart: number): string {
   if (ecart === 0) return 'stable';
   return `${ecart > 0 ? '+' : '−'}${Math.abs(ecart)}`;
 }
 
-function CarteCompteur({ compteur }: { compteur: Compteur }) {
+function CarteCompteur({
+  compteur,
+  choisie,
+  onChoisir,
+}: {
+  compteur: Compteur;
+  choisie: boolean;
+  onChoisir: () => void;
+}) {
   const famille = compteur.activite as FamilleActivite;
-  const { teinte, pastille } = COULEUR_FAMILLE[famille];
-  const Icone = ICONE[famille];
+  const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[famille];
+  const illustration = ILLUSTRATION[famille];
+  const action = ACTION[famille];
+  const [anime, setAnime] = useState(false);
+  const [menuNote, setMenuNote] = useState(false);
   const pct =
     compteur.objectif > 0
       ? Math.min(100, Math.round((compteur.valeur / compteur.objectif) * 100))
       : 0;
 
   return (
-    <li className="flex min-w-0 flex-col rounded-clay-lg bg-surface p-4 shadow-clay-sm">
+    <li
+      onAnimationEnd={() => setAnime(false)}
+      className={`group/compteur relative flex min-w-0 flex-col rounded-clay-lg p-4 shadow-clay-sm transition-colors duration-fluid-subtle ease-out ${
+        anime ? 'animate-pop motion-reduce:animate-none' : ''
+      }`}
+      style={{ backgroundColor: voile }}
+    >
       <span
         aria-hidden
-        className="flex size-10 shrink-0 items-center justify-center rounded-[12px]"
-        style={{ backgroundColor: teinte, color: '#FFFFFF' }}
+        // Fond clair sous les illustrations : la couleur du dessin reste lisible.
+        className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px] transition-transform duration-fluid ease-soft group-hover/compteur:scale-105 motion-reduce:transition-none"
+        style={{ backgroundColor: pastelFort }}
       >
-        <Icone size={18} strokeWidth={2.4} />
+        {/* Les deux dessins superposés : fondu croisé, sans saut de mise en page. */}
+        <img
+          src={illustration.repos}
+          alt=""
+          width={36}
+          height={36}
+          className="absolute inset-0 m-auto size-9 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-0 motion-reduce:transition-none"
+        />
+        <img
+          src={illustration.survol}
+          alt=""
+          width={36}
+          height={36}
+          className="absolute inset-0 m-auto size-9 opacity-0 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-100 motion-reduce:transition-none"
+        />
       </span>
 
       <p className="mt-3 text-[12px] font-semibold leading-tight text-text-strong">
@@ -74,25 +255,74 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
         />
       </div>
 
-      <p className="mt-2 text-[11px] font-medium text-text-strong/50">
-        {compteur.ecartSemainePrecedente === null
-          ? 'première période'
-          : `${ecartLisible(compteur.ecartSemainePrecedente)} vs période précédente`}
-      </p>
+      {compteur.ecartSemainePrecedente !== null ? (
+        <p className="mt-2 text-[11px] font-medium text-text-strong/50">
+          {ecartLisible(compteur.ecartSemainePrecedente)} vs période précédente
+        </p>
+      ) : null}
+
+      {/* Place réservée en bas de carte : seul le bouton se déplie, la carte ne
+          bouge pas d'un pixel et n'entraîne pas ses voisines. Il apparaît au
+          survol, au focus clavier ou sur sélection — les doigts n'ont pas de
+          survol — et reste inerte tant qu'il est invisible. */}
+      <div className="relative z-10 mt-auto pt-2.5">
+        {'note' in action ? (
+          <BoutonNote
+            libelle={action.libelle}
+            fond={pastelFort}
+            visible={choisie}
+            onEtatMenu={setMenuNote}
+          />
+        ) : (
+          <Link
+            href={action.href}
+            className={pilule(choisie)}
+            style={{ backgroundColor: pastelFort }}
+          >
+            {action.libelle}
+            <ArrowRight size={12} strokeWidth={2.6} />
+          </Link>
+        )}
+      </div>
+
+      {/* Couche cliquable en dernier : elle couvre la carte sans emboîter de
+          blocs dans un bouton, et garde un anneau de focus au clavier. */}
+      <button
+        type="button"
+        aria-pressed={choisie}
+        // Menu ouvert : la couche cliquable s'efface, sinon le clic qui referme
+        // le menu sélectionnerait la carte au passage.
+        tabIndex={menuNote ? -1 : undefined}
+        onClick={() => {
+          if (menuNote) return;
+          setAnime(true);
+          onChoisir();
+        }}
+        className={`absolute inset-0 rounded-clay-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 ${
+          menuNote ? 'pointer-events-none' : ''
+        }`}
+      >
+        <span className="sr-only">
+          {choisie ? `Retirer la sélection : ${compteur.libelle}` : `Mettre en avant : ${compteur.libelle}`}
+        </span>
+      </button>
     </li>
   );
 }
 
-/** Les cinq familles en cartes égales. */
-export default function CompteursActivite({
-  familles,
-}: {
-  familles: readonly Compteur[];
-}) {
+/** Les cinq familles en cartes égales. Une carte cliquée passe en pastel. */
+export default function CompteursActivite({ familles }: { familles: readonly Compteur[] }) {
+  const [choisie, setChoisie] = useState<string | null>(null);
+
   return (
     <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       {familles.map((c) => (
-        <CarteCompteur key={c.activite} compteur={c} />
+        <CarteCompteur
+          key={c.activite}
+          compteur={c}
+          choisie={choisie === c.activite}
+          onChoisir={() => setChoisie((prev) => (prev === c.activite ? null : c.activite))}
+        />
       ))}
     </ul>
   );

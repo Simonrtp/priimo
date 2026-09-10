@@ -133,11 +133,16 @@ export async function fetchCalendarEvents(args: {
     timeMax: args.timeMax,
     singleEvents: 'true',
     orderBy: 'startTime',
-    maxResults: '100',
+    maxResults: '80',
+    fields: 'items(id,summary,start,end)',
   });
   const res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-    { headers: { Authorization: `Bearer ${args.accessToken}` } },
+    {
+      headers: { Authorization: `Bearer ${args.accessToken}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(4_000),
+    },
   );
   if (!res.ok) {
     const text = await res.text();

@@ -264,9 +264,7 @@ export default function TodayClient({
             <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
           ) : workCards.length === 0 && emptyKind === 'rien' ? (
             <EmptyState />
-          ) : workCards.length === 0 ? (
-            <p className="py-6 text-[14px] text-text-muted">Aucune tâche en attente dans la pile.</p>
-          ) : (
+          ) : workCards.length === 0 ? null : (
             <div className="flex flex-col gap-4">
               {layout.level1ContextLine ? (
                 <p className="text-[13.5px] font-medium text-text-muted">{layout.level1ContextLine}</p>

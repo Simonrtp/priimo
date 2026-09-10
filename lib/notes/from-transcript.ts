@@ -18,6 +18,14 @@ const CAPITALIZED_PAIR = new RegExp(
 );
 
 const GUESS_STOPWORDS = new Set([
+  // Une civilité n'est pas un prénom : « Monsieur Bertrand » ne doit pas créer
+  // un contact « Monsieur » en plus de celui que l'extraction propose déjà.
+  'monsieur',
+  'madame',
+  'mademoiselle',
+  'mr',
+  'mme',
+  'mlle',
   'il',
   'elle',
   'le',
@@ -153,21 +161,49 @@ export function guessPersonneFromTranscript(transcript: string): ExtractedPerson
   return guessPersonnesFromTranscript(transcript)[0] ?? null;
 }
 
+/** Mot présent tel quel dans la dictée, sans attraper un fragment d'un autre mot. */
+function motDansTexte(normalise: string, mot: string): boolean {
+  if (!mot) return false;
+  return new RegExp(`(?:^| )${mot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$| )`).test(normalise);
+}
+
+/**
+ * Garde-fou contre l'invention : un nom ne passe que s'il est réellement
+ * prononcé. On compare le texte, pas le résultat d'une seconde devinette —
+ * le lecteur de noms ne sait pas voir « Catherine de Villeneuve » (particule)
+ * ni un prénom seul (« Monsieur Bertrand »), alors qu'ils sont bien dits.
+ */
 export function personneCitedInTranscript(
   personne: Pick<ExtractedPersonne, 'firstName' | 'lastName' | 'phone'>,
   transcript: string,
 ): boolean {
   if (phoneInTranscript(transcript, personne.phone)) return true;
+  const texte = ` ${normalizeName(transcript)} `;
   const last = normalizeName(personne.lastName);
   const first = normalizeName(personne.firstName);
   if (!last && !first) return false;
-  return guessPersonnesFromTranscript(transcript).some((g) => {
-    const gLast = normalizeName(g.lastName);
-    const gFirst = normalizeName(g.firstName);
-    if (last && gLast !== last) return false;
-    if (first && gFirst && gFirst !== first) return false;
-    return Boolean(last || first);
-  });
+  // Chaque morceau annoncé doit être dans la dictée : un prénom exact avec un
+  // patronyme inventé (ou l'inverse) est rejeté.
+  if (last && !motDansTexte(texte, last)) return false;
+  if (first && !motDansTexte(texte, first)) return false;
+  return true;
+}
+
+/**
+ * Retire d'une personne extraite les morceaux de nom absents de la dictée.
+ * « les Lemoine » cité et un prénom ajouté d'office donnent « Lemoine » seul :
+ * on garde ce qui a été dit sans rien perdre de ce qui est vrai.
+ */
+export function recadrerPersonne(
+  personne: ExtractedPersonne,
+  transcript: string,
+): ExtractedPersonne | null {
+  if (phoneInTranscript(transcript, personne.phone)) return personne;
+  const texte = ` ${normalizeName(transcript)} `;
+  const first = motDansTexte(texte, normalizeName(personne.firstName)) ? personne.firstName : '';
+  const last = motDansTexte(texte, normalizeName(personne.lastName)) ? personne.lastName : '';
+  if (!first && !last) return null;
+  return { ...personne, firstName: first, lastName: last };
 }
 
 function phoneInTranscript(transcript: string, phone: string | null): boolean {

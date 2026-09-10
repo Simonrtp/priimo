@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { guessPersonneFromTranscript, guessPersonnesFromTranscript, matchContactsInTranscript, matchMembersInTranscript } from './from-transcript';
+import {
+  guessPersonneFromTranscript,
+  guessPersonnesFromTranscript,
+  matchContactsInTranscript,
+  matchMembersInTranscript,
+  personneCitedInTranscript,
+  recadrerPersonne,
+} from './from-transcript';
 import type { MatchableContact } from './match';
 
 const simon: MatchableContact = {
@@ -111,6 +118,88 @@ describe('matchContactsInTranscript', () => {
       hits.map((h) => h.contactId),
       ['c-jacquet'],
     );
+  });
+});
+
+const DICTEE_CATHERINE =
+  "J'ai rencontré Catherine de Villeneuve. Elle est hyper intéressée pour avoir des informations concernant nos estimations. Et elle habite au 161 avenue Ledru-Rolin, dans le 11e.";
+
+describe('personneCitedInTranscript', () => {
+  it('accepte un nom à particule que le lecteur de paires ne voit pas', () => {
+    assert.equal(
+      personneCitedInTranscript(
+        { firstName: 'Catherine', lastName: 'de Villeneuve', phone: null },
+        DICTEE_CATHERINE,
+      ),
+      true,
+    );
+  });
+
+  it('accepte un prénom seul réellement prononcé', () => {
+    assert.equal(
+      personneCitedInTranscript(
+        { firstName: 'Bertrand', lastName: '', phone: null },
+        'Monsieur Bertrand vend son deux pièces rue Oberkampf.',
+      ),
+      true,
+    );
+  });
+
+  it('refuse un nom absent de la dictée', () => {
+    assert.equal(
+      personneCitedInTranscript(
+        { firstName: 'Emmanuel', lastName: 'Lemoine', phone: null },
+        'Visite hier avec les Lemoine, ils vont faire une offre.',
+      ),
+      false,
+    );
+  });
+
+  it('ne prend pas un nom caché dans un autre mot', () => {
+    assert.equal(
+      personneCitedInTranscript(
+        { firstName: '', lastName: 'Martin', phone: null },
+        'Vu au quartier Saint-Martinien ce matin',
+      ),
+      false,
+    );
+  });
+});
+
+describe('recadrerPersonne', () => {
+  const base = { phone: null, email: null, type: 'autre' as const };
+
+  it('ne garde que le patronyme quand le prénom est inventé', () => {
+    const recadree = recadrerPersonne(
+      { ...base, firstName: 'Emmanuel', lastName: 'Lemoine' },
+      'Visite hier avec les Lemoine, ils vont faire une offre.',
+    );
+    assert.equal(recadree?.firstName, '');
+    assert.equal(recadree?.lastName, 'Lemoine');
+  });
+
+  it('laisse intacte une personne entièrement citée', () => {
+    const recadree = recadrerPersonne(
+      { ...base, firstName: 'Catherine', lastName: 'de Villeneuve' },
+      DICTEE_CATHERINE,
+    );
+    assert.equal(recadree?.firstName, 'Catherine');
+    assert.equal(recadree?.lastName, 'de Villeneuve');
+  });
+
+  it('écarte une personne entièrement inventée', () => {
+    assert.equal(
+      recadrerPersonne({ ...base, firstName: 'Paul', lastName: 'Durand' }, 'Personne n’a ouvert.'),
+      null,
+    );
+  });
+
+  it('garde une personne reconnue par son téléphone', () => {
+    const recadree = recadrerPersonne(
+      { ...base, firstName: 'Bertrand', lastName: '', phone: '0612345678' },
+      'Le monsieur du 06 12 34 56 78 vend son appartement.',
+    );
+    assert.equal(recadree?.firstName, 'Bertrand');
   });
 });
 

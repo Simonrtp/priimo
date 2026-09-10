@@ -1159,6 +1159,58 @@ export type ActivityGoalInsert = {
   updated_at?: string;
 };
 
+/** Voir lib/zones/types.ts — la liste fait foi côté applicatif. */
+export type ZoneRegleTypeDb = 'polygone' | 'voie' | 'code_postal' | 'parcelles';
+
+/**
+ * Découpage interne du territoire agence. Sans effet sur la livraison ni la
+ * facturation : l'appartenance se calcule à la lecture, elle ne se stocke
+ * jamais sur un lead.
+ */
+export type ZoneRow = {
+  id: string;
+  agency_id: string;
+  nom: string;
+  couleur: string;
+  assigned_to: string | null;
+  /** 1 = lundi. Null = pas de calendrier de tournée. */
+  jour_semaine: number | null;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ZoneInsert = {
+  id?: string;
+  agency_id: string;
+  nom: string;
+  couleur: string;
+  assigned_to?: string | null;
+  jour_semaine?: number | null;
+  actif?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** Règle cumulative d'une zone. `inclusion` à false retire du périmètre. */
+export type ZoneRegleRow = {
+  id: string;
+  zone_id: string;
+  type: ZoneRegleTypeDb;
+  valeur: unknown;
+  inclusion: boolean;
+  created_at: string;
+};
+
+export type ZoneRegleInsert = {
+  id?: string;
+  zone_id: string;
+  type: ZoneRegleTypeDb;
+  valeur: unknown;
+  inclusion?: boolean;
+  created_at?: string;
+};
+
 /**
  * Ratios de référence métier. `null` = le réseau n'a pas encore fourni le
  * chiffre ; l'interface affiche alors une valeur provisoire ET le dit.
@@ -1876,6 +1928,18 @@ export type Database = {
         Row: ActivityGoalRow;
         Insert: ActivityGoalInsert;
         Update: Partial<ActivityGoalInsert>;
+        Relationships: [];
+      };
+      zones: {
+        Row: ZoneRow;
+        Insert: ZoneInsert;
+        Update: Partial<ZoneInsert>;
+        Relationships: [];
+      };
+      zone_regles: {
+        Row: ZoneRegleRow;
+        Insert: ZoneRegleInsert;
+        Update: Partial<ZoneRegleInsert>;
         Relationships: [];
       };
       agency_activity_settings: {

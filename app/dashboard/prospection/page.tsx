@@ -19,6 +19,7 @@ import { parseProspectionVue } from '@/lib/prospection/vue';
 import { fetchContactsSafe, fetchVoiceNotesSafe } from '@/lib/queries/contacts';
 import { fetchBiensSafe } from '@/lib/queries/biens';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
+import { fetchZonesSafe } from '@/lib/queries/zones';
 import { buildSectorMapPoints } from '@/lib/carte/points';
 import { buildSortie } from '@/lib/today/sortie';
 import { toItineraireStops } from '@/lib/today/directions';
@@ -109,10 +110,11 @@ export default async function ProspectionPage({
     );
   }
 
-  const [leads, teamMembers, stages] = await Promise.all([
+  const [leads, teamMembers, stages, zones] = await Promise.all([
     fetchLeads(supabase),
     fetchTeamMembers(supabase, agency.id),
     fetchLeadStages(supabase),
+    fetchZonesSafe(supabase),
   ]);
   const viewer = viewerFromProfile(profile);
   const visibleLeads = visibleLeadsFor(viewer, leads);
@@ -142,6 +144,7 @@ export default async function ProspectionPage({
       listFilter={listFilter}
       memberId={params.membre ?? null}
       initialVue={vue}
+      zones={zones}
     />
   );
 }

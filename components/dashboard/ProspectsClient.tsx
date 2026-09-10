@@ -13,6 +13,8 @@ import {
   sanitizeSortByForLeads,
 } from '@/lib/lead-filters';
 import { partitionLeadsForDisplay } from '@/lib/lead-delivery';
+import { grouperParSecteur, statistiquesParZone } from '@/lib/zones/leads';
+import type { Zone } from '@/lib/zones/types';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb } from '@/lib/queries/leads';
 import { entreeStage } from '@/lib/queries/lead-stages';
@@ -32,6 +34,7 @@ import ProspectsViewSwitch, {
   type ProspectionVue,
 } from './ProspectsViewSwitch';
 import LeadsList from './LeadsList';
+import LeadsSecteur, { LeadsParZone } from './prospection/LeadsSecteur';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
 import PipelineFilters from './pipeline/PipelineFilters';
@@ -51,6 +54,8 @@ interface ProspectsClientProps {
   listFilter?: 'sans-position' | 'non-assignes-14j' | 'non-pris' | 'estimations' | null;
   memberId?: string | null;
   initialVue?: ProspectionVue;
+  /** Découpage interne de l'agence. Vide = l'écran se comporte comme avant. */
+  zones?: Zone[];
 }
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -82,6 +87,7 @@ export default function ProspectsClient({
   listFilter = null,
   memberId = null,
   initialVue = 'liste',
+  zones = [],
 }: ProspectsClientProps) {
   const { profile } = useUser();
   const router = useRouter();
@@ -164,6 +170,45 @@ export default function ProspectsClient({
       ),
     [filtered, leads, filters.sortBy, listFilter],
   );
+
+  /**
+   * Le découpage par secteur remplace la partition par lot de livraison sur
+   * l'écran par défaut. Quand un lien pointe vers un filtre précis — « non
+   * pris », « estimations » —, on garde la liste à plat : l'agent est venu
+   * chercher une réponse, pas relire son secteur.
+   */
+  const parSecteur = zones.length > 0 && listFilter === null && memberId === null;
+
+  const prenoms = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    for (const m of teamMembers) map[m.id] = m.firstName || null;
+    return map;
+  }, [teamMembers]);
+
+  const secteur = useMemo(() => {
+    if (!parSecteur || isDirector || !profile?.id) return null;
+    return grouperParSecteur({ leads: filtered, zones, profileId: profile.id, prenoms });
+  }, [parSecteur, isDirector, profile?.id, filtered, zones, prenoms]);
+
+  const vueParZone = useMemo(() => {
+    if (!parSecteur || !isDirector) return null;
+    return statistiquesParZone(filtered, zones);
+  }, [parSecteur, isDirector, filtered, zones]);
+
+  /** Les leads du dernier lot gardent leur badge, y compris dans un secteur. */
+  const nouveauxIds = useMemo(
+    () => new Set(partitioned.newBatch.map((l) => l.id)),
+    [partitioned.newBatch],
+  );
+
+  /**
+   * Compteur du bandeau : un lead laissé au collègue pendant sept jours n'est
+   * pas affiché, l'annoncer serait un mensonge de plus dans une file que
+   * personne ne lit.
+   */
+  const compteurAffiche = secteur
+    ? secteur.monSecteur.length + secteur.mesHorsSecteur.length + secteur.agence.length
+    : filtered.length;
 
   const pipelineLeads = useMemo(() => {
     const userId = profile?.id;
@@ -441,7 +486,7 @@ export default function ProspectsClient({
               <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
 
               <ProspectsListToolbar
-                count={filtered.length}
+                count={compteurAffiche}
                 filterActiveCount={filterCount}
                 onOpenFilters={() => setFiltersSheetOpen(true)}
               />
@@ -468,19 +513,54 @@ export default function ProspectsClient({
             showAssignedFilter={isDirector}
           />
 
-          <LeadsList
-            newBatch={partitioned.newBatch}
-            previousGroups={partitioned.previousGroups}
-            filters={filters}
-            segmentTab={segmentTab}
-            hasAnyLead={leads.length > 0}
-            onLeadClick={setSelectedLeadId}
-            onStatusChange={onStatusInline}
-            stages={stageList}
-            onTake={onTake}
-            onStageChange={onStageChange}
-            onResetFilters={resetFilters}
-          />
+          {secteur ? (
+            <LeadsSecteur
+              secteur={secteur}
+              actions={{
+                filters,
+                segmentTab,
+                nouveauxIds,
+                onLeadClick: setSelectedLeadId,
+                onStatusChange: onStatusInline,
+                stages: stageList,
+                onTake,
+                onStageChange,
+              }}
+              hasAnyLead={leads.length > 0}
+              onResetFilters={resetFilters}
+            />
+          ) : vueParZone ? (
+            <LeadsParZone
+              parZone={vueParZone.parZone}
+              horsZone={vueParZone.horsZone}
+              actions={{
+                filters,
+                segmentTab,
+                nouveauxIds,
+                onLeadClick: setSelectedLeadId,
+                onStatusChange: onStatusInline,
+                stages: stageList,
+                onTake,
+                onStageChange,
+              }}
+              hasAnyLead={leads.length > 0}
+              onResetFilters={resetFilters}
+            />
+          ) : (
+            <LeadsList
+              newBatch={partitioned.newBatch}
+              previousGroups={partitioned.previousGroups}
+              filters={filters}
+              segmentTab={segmentTab}
+              hasAnyLead={leads.length > 0}
+              onLeadClick={setSelectedLeadId}
+              onStatusChange={onStatusInline}
+              stages={stageList}
+              onTake={onTake}
+              onStageChange={onStageChange}
+              onResetFilters={resetFilters}
+            />
+          )}
         </>
       ) : null}
 

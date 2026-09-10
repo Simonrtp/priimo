@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, RefreshCw, UserPlus, X } from 'lucide-react';
 import type { ContactType, NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, NOTE_SOURCE_LABELS } from '@/types/contact';
@@ -112,6 +112,7 @@ export default function VoiceReviewPanel({
   onDismiss,
   typed = false,
   initialManualLinks = [],
+  extracting = false,
 }: {
   review: NoteReviewPayload;
   transcript: string;
@@ -127,6 +128,8 @@ export default function VoiceReviewPanel({
   typed?: boolean;
   /** Rattachements déjà choisis à l’écriture de la note. */
   initialManualLinks?: readonly NoteLinkPick[];
+  /** La note est encore en cours de lecture : les champs vont se remplir. */
+  extracting?: boolean;
 }) {
   const [visibilite, setVisibilite] = useState<VoiceNoteVisibilite>(review.visibilite);
   const [sourceInfo, setSourceInfo] = useState<NoteSourceInfo | ''>(review.sourceInfo ?? '');
@@ -140,6 +143,7 @@ export default function VoiceReviewPanel({
   const [chosenMatch, setChosenMatch] = useState<Record<string, string>>({});
   const [manualLinks, setManualLinks] = useState<ManualLink[]>(() => toManualLinks(initialManualLinks));
   const [hiddenConseillers, setHiddenConseillers] = useState<string[]>([]);
+  const sourceChoisie = useRef(false);
   const lastExtracted = (review.transcript ?? '').trim();
   const dirty = transcript.trim() !== lastExtracted;
   const canRefresh = transcript.trim().length > 0 && (dirty || review.extractFailed);
@@ -153,6 +157,13 @@ export default function VoiceReviewPanel({
     setManualLinks(toManualLinks(initialManualLinks));
     setHiddenConseillers([]);
   }, [review.voiceNoteId, initialManualLinks]);
+
+  // La lecture de la note se termine après l'ouverture du panneau : on adopte
+  // la source qu'elle propose, sauf si l'agent a déjà choisi la sienne.
+  useEffect(() => {
+    if (sourceChoisie.current) return;
+    setSourceInfo(review.sourceInfo ?? '');
+  }, [review.sourceInfo]);
 
   const conseillers = useMemo(
     () => matchMembersInTranscript(transcript, members).filter((m) => !hiddenConseillers.includes(m.memberId)),
@@ -294,6 +305,7 @@ export default function VoiceReviewPanel({
 
   async function onSource(v: string) {
     const value = (v || '') as NoteSourceInfo | '';
+    sourceChoisie.current = true;
     setSourceInfo(value);
     try {
       await patchNote({ sourceInfo: value || null });
@@ -595,12 +607,25 @@ export default function VoiceReviewPanel({
         </section>
 
         <section className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6 lg:px-8 lg:py-6">
-          <h3
-            className="mb-5 font-semibold uppercase text-text-subtle"
-            style={{ fontSize: 11, letterSpacing: '0.08em' }}
-          >
-            Ce qui sera enregistré
-          </h3>
+          <div className="mb-5 flex items-baseline justify-between gap-3">
+            <h3
+              className="font-semibold uppercase text-text-subtle"
+              style={{ fontSize: 11, letterSpacing: '0.08em' }}
+            >
+              Ce qui sera enregistré
+            </h3>
+            {/* Sans ce repère, l'agent croit le formulaire vide et ressaisit à
+                la main ce que la lecture est en train de remplir. */}
+            {extracting ? (
+              <p
+                aria-live="polite"
+                className="flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-text-subtle"
+              >
+                <RefreshCw size={13} strokeWidth={2} aria-hidden className="animate-spin" />
+                Lecture de la note…
+              </p>
+            ) : null}
+          </div>
 
           <div className="flex flex-col gap-5">
             <label className="flex min-h-[40px] cursor-pointer items-center gap-3">

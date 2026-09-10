@@ -56,7 +56,7 @@ export default function NouvellesAdresses({
         </Link>
       </div>
 
-      <ul className="mt-3 flex flex-col gap-2">
+      <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         {adresses.map((a) => (
           <li key={a.id}>
             <Link

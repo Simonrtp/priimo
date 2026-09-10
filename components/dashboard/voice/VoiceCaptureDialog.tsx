@@ -54,6 +54,7 @@ export default function VoiceCaptureDialog({
   const [transcript, setTranscript] = useState('');
   const [voiceNoteId, setVoiceNoteId] = useState<string | null>(null);
   const [review, setReview] = useState<NoteReviewPayload | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const [members, setMembers] = useState<NameMatchMember[]>([]);
   const [suggestedAssigneeId, setSuggestedAssigneeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -239,10 +240,15 @@ export default function VoiceCaptureDialog({
       }
 
       if (data.extractionPending && data.voiceNoteId && nextTranscript.trim()) {
-        void hydrateNoteReview(data.voiceNoteId, nextTranscript).then((hydrated) => {
-          if (cancelledRef.current || !hydrated) return;
-          setReview(hydrated);
-        });
+        setExtracting(true);
+        void hydrateNoteReview(data.voiceNoteId, nextTranscript)
+          .then((hydrated) => {
+            if (cancelledRef.current || !hydrated) return;
+            setReview(hydrated);
+          })
+          .finally(() => {
+            if (!cancelledRef.current) setExtracting(false);
+          });
       }
     } catch {
       if (cancelledRef.current) return;
@@ -625,6 +631,7 @@ export default function VoiceCaptureDialog({
             onContinue={() => void continueRecording()}
             onDismiss={onClose}
             onDone={onReviewDone}
+            extracting={extracting}
           />
         ) : phase === 'review' ? (
           <p className="px-6 py-8 text-pretty text-text-muted" style={{ fontSize: 14 }}>

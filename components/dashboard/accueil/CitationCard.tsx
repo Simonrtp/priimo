@@ -2,7 +2,7 @@ import { ACCUEIL, FIELD } from '@/lib/today/field';
 
 /**
  * Carte citation — un souffle, pas un compteur.
- * Le texte change chaque jour civil ; les prénoms viennent de l’agence.
+ * Le texte change chaque jour civil. Un prénom, c’est celui de l’écran.
  */
 export default function CitationCard({
   texte,

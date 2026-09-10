@@ -1,0 +1,172 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, ZoneRegleRow, ZoneRow } from '@/types/database';
+import {
+  TYPES_REGLE_ZONE,
+  type RegleZone,
+  type ValeurPolygone,
+  type Zone,
+} from '@/lib/zones/types';
+
+type Client = SupabaseClient<Database>;
+
+const ZONES_SELECT =
+  'id, agency_id, nom, couleur, assigned_to, jour_semaine, actif, created_at, updated_at';
+const REGLES_SELECT = 'id, zone_id, type, valeur, inclusion, created_at';
+
+function estObjet(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function estAnneau(v: unknown): boolean {
+  return (
+    Array.isArray(v) &&
+    v.length >= 3 &&
+    v.every(
+      (p) =>
+        Array.isArray(p) &&
+        p.length >= 2 &&
+        typeof p[0] === 'number' &&
+        typeof p[1] === 'number',
+    )
+  );
+}
+
+/**
+ * Une règle mal formée est ignorée, jamais devinée. Le jsonb vient de la base :
+ * une valeur cassée doit rétrécir le périmètre d'une zone, pas faire tomber
+ * l'écran ni attribuer un lead au hasard.
+ */
+function versRegle(row: ZoneRegleRow): RegleZone | null {
+  if (!(TYPES_REGLE_ZONE as readonly string[]).includes(row.type)) return null;
+  const valeur = row.valeur;
+  if (!estObjet(valeur)) return null;
+  const base = { id: row.id, zoneId: row.zone_id, inclusion: row.inclusion };
+
+  switch (row.type) {
+    case 'polygone': {
+      const anneaux = valeur.coordinates;
+      if (!Array.isArray(anneaux) || anneaux.length === 0) return null;
+      if (!anneaux.every(estAnneau)) return null;
+      return {
+        ...base,
+        type: 'polygone',
+        valeur: {
+          type: 'Polygon',
+          coordinates: anneaux as ValeurPolygone['coordinates'],
+        },
+      };
+    }
+    case 'voie': {
+      const nom = valeur.nom_voie;
+      const cp = valeur.code_postal;
+      const parite = valeur.parite;
+      if (typeof nom !== 'string' || nom.trim() === '') return null;
+      if (typeof cp !== 'string') return null;
+      if (parite !== 'toutes' && parite !== 'paires' && parite !== 'impaires') return null;
+      const borne = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+      return {
+        ...base,
+        type: 'voie',
+        valeur: {
+          nom_voie: nom,
+          code_postal: cp,
+          parite,
+          numero_min: borne(valeur.numero_min),
+          numero_max: borne(valeur.numero_max),
+        },
+      };
+    }
+    case 'code_postal': {
+      const cp = valeur.code_postal;
+      if (typeof cp !== 'string' || !/^\d{5}$/.test(cp.trim())) return null;
+      return { ...base, type: 'code_postal', valeur: { code_postal: cp.trim() } };
+    }
+    case 'parcelles': {
+      const ids = valeur.parcelle_ids;
+      if (!Array.isArray(ids)) return null;
+      const propres = ids.filter((id): id is string => typeof id === 'string' && id !== '');
+      if (propres.length === 0) return null;
+      return { ...base, type: 'parcelles', valeur: { parcelle_ids: propres } };
+    }
+    default:
+      return null;
+  }
+}
+
+function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
+  return {
+    id: row.id,
+    agencyId: row.agency_id,
+    nom: row.nom,
+    couleur: row.couleur,
+    assignedTo: row.assigned_to,
+    jourSemaine: row.jour_semaine,
+    actif: row.actif,
+    regles,
+  };
+}
+
+/**
+ * Toutes les zones de l'agence active, règles incluses, triées par nom.
+ *
+ * L'ordre est stable et fait foi : à spécificité égale, `zoneDeLAdresse`
+ * retient la première zone de la liste. Un tri qui change d'un rendu à
+ * l'autre ferait sauter un lead d'un secteur à un autre sans raison.
+ */
+export async function fetchZones(supabase: Client): Promise<Zone[]> {
+  const zonesRes = await supabase.from('zones').select(ZONES_SELECT).order('nom');
+  if (zonesRes.error) throw new Error(zonesRes.error.message);
+
+  const rows = (zonesRes.data ?? []) as unknown as ZoneRow[];
+  if (rows.length === 0) return [];
+
+  const reglesRes = await supabase
+    .from('zone_regles')
+    .select(REGLES_SELECT)
+    .in(
+      'zone_id',
+      rows.map((r) => r.id),
+    )
+    .order('created_at');
+  if (reglesRes.error) throw new Error(reglesRes.error.message);
+
+  const parZone = new Map<string, RegleZone[]>();
+  for (const brute of (reglesRes.data ?? []) as unknown as ZoneRegleRow[]) {
+    const regle = versRegle(brute);
+    if (!regle) {
+      console.error('[zones] règle ignorée, valeur illisible', brute.id, brute.type);
+      continue;
+    }
+    const liste = parZone.get(regle.zoneId);
+    if (liste) liste.push(regle);
+    else parZone.set(regle.zoneId, [regle]);
+  }
+
+  return rows.map((row) => versZone(row, parZone.get(row.id) ?? []));
+}
+
+/**
+ * Version tolérante pour les écrans qui doivent s'afficher même sans zones :
+ * tant que la migration n'est pas passée, l'accueil et la prospection
+ * fonctionnent exactement comme avant.
+ */
+export async function fetchZonesSafe(supabase: Client): Promise<Zone[]> {
+  try {
+    return await fetchZones(supabase);
+  } catch (err) {
+    console.error('[zones] lecture impossible, écran sans secteurs', err);
+    return [];
+  }
+}
+
+/** La zone du titulaire pour un jour donné (1 = lundi), s'il en a une. */
+export function zoneDuJour(zones: readonly Zone[], profileId: string, jour: number): Zone | null {
+  return (
+    zones.find((z) => z.actif && z.assignedTo === profileId && z.jourSemaine === jour) ?? null
+  );
+}
+
+/** Les zones d'un titulaire, tous jours confondus. */
+export function zonesDuTitulaire(zones: readonly Zone[], profileId: string): Zone[] {
+  return zones.filter((z) => z.actif && z.assignedTo === profileId);
+}
