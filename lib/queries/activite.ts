@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import type { ActivityGoalRow, Database } from '@/types/database';
 import type { LeadStage } from '@/types/lead';
 import type {
   ContactPhysiqueRow,
@@ -275,6 +275,39 @@ export async function fetchObjectifs(params: {
     return [];
   }
   return (data ?? []) as ObjectifRow[];
+}
+
+/**
+ * Pose les objectifs d'un collaborateur. Un upsert sur la contrainte d'unicité :
+ * six lignes qui existent déjà sont mises à jour, pas dupliquées.
+ *
+ * Aucun contrôle de droit ici : c'est la RLS qui décide, et elle n'autorise que
+ * ses propres objectifs — ou toute l'agence si l'appelant est directeur.
+ */
+export async function enregistrerObjectifs(params: {
+  supabase: Client;
+  agencyId: string;
+  profileId: string;
+  updatedBy: string;
+  lignes: readonly { activite: string; periode: string; cible: number }[];
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await params.supabase.from('activity_goals').upsert(
+    params.lignes.map((ligne) => ({
+      agency_id: params.agencyId,
+      profile_id: params.profileId,
+      activite: ligne.activite as ActivityGoalRow['activite'],
+      periode: ligne.periode as ActivityGoalRow['periode'],
+      cible: ligne.cible,
+      updated_by: params.updatedBy,
+    })),
+    { onConflict: 'agency_id,profile_id,activite,periode' },
+  );
+
+  if (error) {
+    console.error('[activite] upsert activity_goals', error.message);
+    return { ok: false, message: error.message };
+  }
+  return { ok: true };
 }
 
 /**

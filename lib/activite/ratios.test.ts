@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  lignesObjectifs,
+  objectifACadence,
+  objectifDepuisCadence,
   objectifsEffectifs,
+  parseObjectifsSaisis,
   referenceMetier,
+  saisieDepuisObjectifs,
+  OBJECTIF_MAX,
   OBJECTIFS_HEBDO_PAR_DEFAUT,
   OBJECTIF_MANDATS_MENSUEL_PAR_DEFAUT,
   REFERENCE_METIER_PROVISOIRE,
@@ -190,6 +196,90 @@ describe('objectifsEffectifs', () => {
     ]);
     assert.equal(o.hebdo.informations_terrain, 0);
     assert.equal(o.parDefaut, false);
+  });
+});
+
+describe('objectifs saisis à l’écran', () => {
+  const saisie = {
+    hebdo: {
+      contacts_physiques: 40,
+      immeubles_prospectes: 25,
+      contacts_qualifies: 8,
+      estimations: 2,
+      informations_terrain: 6,
+    },
+    mandatsMensuel: 4,
+  };
+
+  it('propose les objectifs en cours, familles et mandats séparés', () => {
+    const depart = saisieDepuisObjectifs(objectifsEffectifs([]));
+    assert.equal(depart.hebdo.estimations, OBJECTIFS_HEBDO_PAR_DEFAUT.estimations);
+    assert.equal(depart.mandatsMensuel, OBJECTIF_MANDATS_MENSUEL_PAR_DEFAUT);
+    // L'objectif hebdomadaire de mandats ne se saisit pas : il sert aux ratios.
+    assert.equal('mandats' in depart.hebdo, false);
+  });
+
+  it('accepte une saisie complète, zéro compris', () => {
+    const lu = parseObjectifsSaisis({ ...saisie, hebdo: { ...saisie.hebdo, estimations: 0 } });
+    assert.equal(lu?.hebdo.estimations, 0);
+    assert.equal(lu?.mandatsMensuel, 4);
+  });
+
+  it('refuse tout le lot dès qu’une cible sort des bornes', () => {
+    assert.equal(parseObjectifsSaisis({ ...saisie, mandatsMensuel: -1 }), null);
+    assert.equal(
+      parseObjectifsSaisis({ ...saisie, hebdo: { ...saisie.hebdo, estimations: OBJECTIF_MAX + 1 } }),
+      null,
+    );
+    assert.equal(
+      parseObjectifsSaisis({ ...saisie, hebdo: { ...saisie.hebdo, estimations: 2.5 } }),
+      null,
+    );
+    assert.equal(parseObjectifsSaisis({ ...saisie, hebdo: { contacts_physiques: 40 } }), null);
+    assert.equal(parseObjectifsSaisis(null), null);
+  });
+
+  it('écrit six lignes, et jamais l’objectif hebdomadaire de mandats', () => {
+    const lignes = lignesObjectifs(saisie);
+    assert.equal(lignes.length, 6);
+    assert.equal(
+      lignes.some((l) => l.activite === 'mandats' && l.periode === 'hebdo'),
+      false,
+    );
+    assert.deepEqual(
+      lignes.find((l) => l.activite === 'mandats'),
+      { activite: 'mandats', periode: 'mensuel', cible: 4 },
+    );
+  });
+
+  it('lit le même objectif hebdomadaire à quatre cadences', () => {
+    assert.equal(objectifACadence(50, 'semaine'), 50);
+    assert.equal(objectifACadence(50, 'jour'), 7);
+    assert.equal(objectifACadence(50, 'mois'), 217);
+    assert.equal(objectifACadence(50, 'annee'), 2607);
+  });
+
+  it('revient à la semaine sans dériver quand on saisit ailleurs', () => {
+    // Ce qu'on voit à une cadence doit se ressaisir à l'identique : sinon un
+    // aller-retour par la vue « Jour » raboterait l'objectif à chaque passage.
+    for (const cadence of ['jour', 'semaine', 'mois', 'annee'] as const) {
+      const vu = objectifACadence(50, cadence);
+      const relu = objectifACadence(objectifDepuisCadence(vu, cadence), cadence);
+      assert.equal(relu, vu, `dérive à la cadence ${cadence}`);
+    }
+  });
+
+  it('ne laisse pas une saisie absurde franchir la conversion', () => {
+    assert.equal(objectifDepuisCadence(9999, 'jour'), OBJECTIF_MAX);
+    assert.equal(objectifDepuisCadence(0, 'mois'), 0);
+  });
+
+  it('rend à l’écran ce qui vient d’être écrit', () => {
+    const relu = objectifsEffectifs(lignesObjectifs(saisie));
+    assert.deepEqual(saisieDepuisObjectifs(relu), saisie);
+    assert.equal(relu.parDefaut, false);
+    // Non réécrit, donc toujours au défaut : c'est voulu.
+    assert.equal(relu.hebdo.mandats, OBJECTIFS_HEBDO_PAR_DEFAUT.mandats);
   });
 });
 

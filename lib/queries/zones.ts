@@ -10,6 +10,8 @@ import {
 type Client = SupabaseClient<Database>;
 
 const ZONES_SELECT =
+  'id, agency_id, nom, couleur, assigned_to, jour_semaine, actif, verrouillee, created_at, updated_at';
+const ZONES_SELECT_SANS_VERROU =
   'id, agency_id, nom, couleur, assigned_to, jour_semaine, actif, created_at, updated_at';
 const REGLES_SELECT = 'id, zone_id, type, valeur, inclusion, created_at';
 
@@ -102,6 +104,7 @@ function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
     assignedTo: row.assigned_to,
     jourSemaine: row.jour_semaine,
     actif: row.actif,
+    verrouillee: row.verrouillee === true,
     regles,
   };
 }
@@ -114,7 +117,11 @@ function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
  * l'autre ferait sauter un lead d'un secteur à un autre sans raison.
  */
 export async function fetchZones(supabase: Client): Promise<Zone[]> {
-  const zonesRes = await supabase.from('zones').select(ZONES_SELECT).order('nom');
+  const premier = await supabase.from('zones').select(ZONES_SELECT).order('nom');
+  const zonesRes =
+    premier.error && /verrouillee/.test(premier.error.message)
+      ? await supabase.from('zones').select(ZONES_SELECT_SANS_VERROU).order('nom')
+      : premier;
   if (zonesRes.error) throw new Error(zonesRes.error.message);
 
   const rows = (zonesRes.data ?? []) as unknown as ZoneRow[];

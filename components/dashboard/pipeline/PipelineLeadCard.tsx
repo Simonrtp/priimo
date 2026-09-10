@@ -8,17 +8,9 @@ import ScoreRing from '@/components/dashboard/ScoreRing';
 import FacadeLead from '@/components/dashboard/FacadeLead';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
-import { formatPrice } from '@/lib/utils';
+import { nomProprietaireAffiche, noteEssentielle, signauxEssentiels } from '@/lib/lead-apercu';
+import { FIELD } from '@/lib/today/field';
 import { daysSinceTaken, isStaleEntree } from '@/lib/pipeline/stale';
-
-function metaLine(lead: Lead): string {
-  const parts = [
-    lead.propertyType,
-    lead.surfaceM2 != null ? `${lead.surfaceM2} m²` : null,
-    lead.estimatedValue != null ? `${formatPrice(lead.estimatedValue)} €` : null,
-  ].filter((p): p is string => Boolean(p));
-  return parts.join(' · ');
-}
 
 export default function PipelineLeadCard({
   lead,
@@ -36,6 +28,9 @@ export default function PipelineLeadCard({
   const sortable = useSortable({ id: lead.id, disabled: overlay });
   const stale = isStaleEntree(stage?.type, lead.takenAt);
   const days = daysSinceTaken(lead.takenAt);
+  const signaux = signauxEssentiels(lead);
+  const proprio = nomProprietaireAffiche(lead);
+  const note = noteEssentielle(lead.notes);
   const style: CSSProperties = overlay
     ? { transform: 'rotate(2deg)' }
     : {
@@ -54,23 +49,49 @@ export default function PipelineLeadCard({
       onClick={() => {
         if (!overlay && !suppressClick) onOpen(lead.id);
       }}
-      className={`cursor-grab overflow-hidden rounded-xl border border-black/[0.08] bg-white text-left ${
-        overlay ? 'cursor-grabbing shadow-[0_12px_28px_-8px_rgba(21,32,47,0.28)]' : ''
+      className={`w-full min-w-0 cursor-grab overflow-hidden rounded-clay bg-white text-left shadow-clay-sm ${
+        overlay ? 'cursor-grabbing shadow-clay' : ''
       }`}
     >
-      <div className="relative h-[90px] overflow-hidden bg-[#F1EFE8]">
-        <FacadeLead leadId={lead.id} format="liste" lazy className="pointer-events-none h-[90px] w-full rounded-none" />
+      <div className="relative h-[88px] overflow-hidden bg-[#F1EFE8]">
+        <FacadeLead
+          leadId={lead.id}
+          format="liste"
+          lazy
+          className="pointer-events-none !absolute inset-x-0 top-0 h-[142%] w-full rounded-none object-cover object-top"
+        />
         <div className="absolute right-2 top-2">
           <ScoreRing score={lead.score} size={28} />
         </div>
       </div>
       <div className="px-2.5 pb-2.5 pt-2">
-        <p className="truncate font-medium text-text-strong" style={{ fontSize: 14 }}>
-          {lead.address}
-        </p>
-        <p className="mt-0.5 truncate text-text-muted" style={{ fontSize: 12 }}>
-          {metaLine(lead) || '—'}
-        </p>
+        <p className="truncate text-[13.5px] font-semibold text-text-strong">{lead.address}</p>
+        {lead.city ? (
+          <p className="mt-0.5 truncate text-[11.5px] text-text-muted">{lead.city}</p>
+        ) : null}
+
+        {signaux.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {signaux.map((signal) => (
+              <span
+                key={signal}
+                className="inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold text-text-strong"
+                style={{ backgroundColor: '#FFE0C4' }}
+              >
+                {signal}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {proprio ? (
+          <p className="mt-1.5 truncate text-[12px] font-medium text-text-strong">{proprio}</p>
+        ) : null}
+
+        {note ? (
+          <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-text-muted">{note}</p>
+        ) : null}
+
         <div className="mt-2 flex items-center justify-between gap-2">
           {stale && days != null ? (
             <InfoTooltip
@@ -78,7 +99,8 @@ export default function PipelineLeadCard({
               placement="top-start"
             >
               <span
-                className="size-2 rounded-full bg-accent"
+                className="size-2 rounded-full"
+                style={{ backgroundColor: FIELD.orange }}
                 aria-label={`Pris il y a ${days} jours, jamais contacté`}
               />
             </InfoTooltip>

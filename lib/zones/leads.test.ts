@@ -46,6 +46,7 @@ function zone(id: string, assignedTo: string | null, valeur: ValeurPolygone): Zo
     assignedTo,
     jourSemaine: null,
     actif: true,
+    verrouillee: false,
     regles: [regle],
   };
 }

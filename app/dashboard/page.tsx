@@ -73,11 +73,24 @@ import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
 import { EmploiDuTempsSquelette } from '@/components/dashboard/accueil/EmploiDuTemps';
 import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsServeur';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
+import { nomProprietaireAffiche, signauxEssentiels } from '@/lib/lead-apercu';
 import { lireAgendaSemaine } from '@/lib/agenda/lire';
 import { tacheDuMoment } from '@/lib/today/maintenant';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { apercuSecteur } from '@/lib/zones/accueil';
 import MonSecteur from '@/components/dashboard/accueil/MonSecteur';
+import CarteTourneeFraicheur, {
+  CLE_TOURNEE_FRAICHEUR,
+  DessinerMonSecteur,
+} from '@/components/dashboard/accueil/CarteTourneeFraicheur';
+import { estEcartee } from '@/lib/today/cards';
+import { fetchPassagesObserves } from '@/lib/queries/passages';
+import {
+  CYCLE_DEFAUT_JOURS,
+  annoterAdresse,
+  cycleObserveJours,
+  dernierPassageParAdresse,
+} from '@/lib/zones/fraicheur';
 
 export const dynamic = 'force-dynamic';
 
@@ -246,6 +259,7 @@ async function TodayContent({
     estimationsVuees,
     actionsAValider,
     pilotage,
+    passages,
   ] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
@@ -375,6 +389,7 @@ async function TodayContent({
         ancre: ancreDemandee,
       }),
     ),
+    timed('fetchPassagesObserves', () => fetchPassagesObserves({ supabase, stages })),
   ]);
 
   const cards = buildTodayCards({
@@ -510,6 +525,8 @@ async function TodayContent({
     city: l.city,
     score: l.score,
     mainSignalLabel: l.mainSignalLabel,
+    ownerName: nomProprietaireAffiche(l),
+    signaux: signauxEssentiels(l),
   }));
 
   const membresActivite =
@@ -524,9 +541,24 @@ async function TodayContent({
     prenoms: prenomCite ? [prenomCite] : [],
   });
 
+  const maintenant = new Date();
+  const repliCycleJours = agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS;
+  const cycle = cycleObserveJours(passages, profile.id, repliCycleJours);
+  const derniers = dernierPassageParAdresse(passages, profile.id);
+  const leadsAnnotes = visibleLeads.map((l) => ({
+    ...l,
+    ...annoterAdresse({
+      banId: l.banId,
+      id: l.id,
+      derniers,
+      maintenant,
+      cycleJours: cycle.jours,
+    }),
+  }));
+
   const homeProps = {
     initialCards: cards,
-    initialLeads: visibleLeads,
+    initialLeads: leadsAnnotes,
     profileId: profile.id,
     firstName: profile.first_name,
     portfolio,
@@ -555,7 +587,14 @@ async function TodayContent({
     zones,
     profileId: profile.id,
     estDirecteur: isDirector,
+    passages,
+    repliCycleJours,
+    titulaires: Object.fromEntries(names),
   });
+  const proposerTournee =
+    !isDirector &&
+    apercu.aRevoir > 10 &&
+    !estEcartee(CLE_TOURNEE_FRAICHEUR, dismissals, maintenant);
 
   const pilotageCommun = {
     pilotage,
@@ -563,6 +602,7 @@ async function TodayContent({
     totalAdresses: leadsNonPris.length,
     membres: membresActivite,
     membreSelectionne: membreActivite,
+    moi: profile.id,
     citation,
     // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
     // sous son propre Suspense, sans retenir le reste de l'écran.
@@ -572,17 +612,16 @@ async function TodayContent({
       </Suspense>
     ),
     tache: tacheDuMoment(cards),
+    alerteTournee: proposerTournee ? <CarteTourneeFraicheur aRevoir={apercu.aRevoir} /> : null,
     secteur:
       apercu.zones.length > 0 ? (
         <MonSecteur
-          zones={apercu.zones}
-          leads={apercu.points}
+          apercu={apercu}
           centre={{ latitude: agency.latitude, longitude: agency.longitude }}
-          titulaires={Object.fromEntries(names)}
           estDirecteur={isDirector}
-          aTravailler={apercu.aTravailler}
-          dejaPrises={apercu.dejaPrises}
         />
+      ) : !isDirector ? (
+        <DessinerMonSecteur />
       ) : null,
   };
 

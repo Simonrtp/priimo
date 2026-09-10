@@ -9,7 +9,8 @@ import type MapboxDraw from '@mapbox/mapbox-gl-draw';
 import { FRANCE_MAP_VIEW, MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import { OPACITE_REMPLISSAGE_ZONE } from '@/lib/zones/palette';
-import { bbox, fusionnerBbox, polygonesDeZone } from '@/lib/zones/geometrie';
+import { bbox, chevauchements, fusionnerBbox, polygonesDeZone } from '@/lib/zones/geometrie';
+import { COULEUR_FRAICHEUR, type NiveauFraicheur } from '@/lib/zones/fraicheur';
 import type { Zone } from '@/lib/zones/types';
 import DrawControl, { type DrawEvent } from './DrawControl';
 
@@ -22,9 +23,35 @@ import DrawControl, { type DrawEvent } from './DrawControl';
  * pour qu'on sache toujours sur quoi on dessine.
  */
 
-export type LeadPoint = { id: string; latitude: number; longitude: number; pris: boolean };
+export type LeadPoint = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  pris?: boolean;
+  niveau?: NiveauFraicheur;
+};
 
 const ORANGE_LEAD = '#E8743C';
+
+function canvasHachure(): HTMLCanvasElement {
+  const size = 16;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  ctx.strokeStyle = 'rgba(40, 36, 32, 0.5)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-2, size / 2);
+  ctx.lineTo(size / 2, -2);
+  ctx.moveTo(0, size + 2);
+  ctx.lineTo(size + 2, 0);
+  ctx.moveTo(size / 2, size + 2);
+  ctx.lineTo(size + 2, size / 2);
+  ctx.stroke();
+  return canvas;
+}
 
 type Props = {
   zones: readonly Zone[];
@@ -70,8 +97,17 @@ export default function ZonesCarte({
   const mapRef = useRef<MapRef | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
   const [pret, setPret] = useState(false);
+  const [hachurePret, setHachurePret] = useState(false);
 
   const actives = useMemo(() => zones.filter((z) => z.actif), [zones]);
+  const idsHachures = useMemo(() => {
+    const ids = new Set<string>();
+    for (const c of chevauchements(actives)) {
+      ids.add(c.zoneA.id);
+      ids.add(c.zoneB.id);
+    }
+    return ids;
+  }, [actives]);
 
   /**
    * Cadre de départ : l'emprise de tous les secteurs. Sans secteur, l'adresse
@@ -161,7 +197,16 @@ export default function ZonesCarte({
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
         initialViewState={depart}
-        onLoad={() => setPret(true)}
+        onLoad={(e) => {
+          const map = e.target;
+          if (!map.hasImage('hachure-chevauchement')) {
+            const canvas = canvasHachure();
+            const pixels = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
+            if (pixels) map.addImage('hachure-chevauchement', pixels, { pixelRatio: 2 });
+          }
+          setHachurePret(true);
+          setPret(true);
+        }}
         interactiveLayerIds={actives.map((z) => `zone-fill-${z.id}`)}
         onMouseMove={(e) => {
           const zoneId = e.features?.[0]?.properties?.zoneId;
@@ -206,6 +251,16 @@ export default function ZonesCarte({
                   'line-opacity': courante ? 1 : 0.7,
                 }}
               />
+              {hachurePret && idsHachures.has(zone.id) ? (
+                <Layer
+                  id={`zone-hatch-${zone.id}`}
+                  type="fill"
+                  paint={{
+                    'fill-pattern': 'hachure-chevauchement',
+                    'fill-opacity': 0.55,
+                  }}
+                />
+              ) : null}
             </Source>
           );
         })}
@@ -237,8 +292,8 @@ export default function ZonesCarte({
               style={{
                 width: 9,
                 height: 9,
-                backgroundColor: ORANGE_LEAD,
-                opacity: lead.pris ? 0.35 : 1,
+                backgroundColor: lead.niveau ? COULEUR_FRAICHEUR[lead.niveau] : ORANGE_LEAD,
+                opacity: lead.pris && !lead.niveau ? 0.35 : 1,
               }}
             />
           </Marker>

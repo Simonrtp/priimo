@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { canEditZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { signalerChevauchementsSiBesoin } from '@/lib/queries/zone-conflits';
 import { estInvalide, validerTypeRegle, validerValeurRegle } from '@/lib/zones/valider';
 
 export const runtime = 'nodejs';
@@ -13,7 +15,7 @@ async function autoriser(zoneId: string) {
   const supabase = await createSupabaseServerClient();
   const { data: zone } = await supabase
     .from('zones')
-    .select('id, assigned_to')
+    .select('id, assigned_to, verrouillee')
     .eq('id', zoneId)
     .eq('agency_id', agency.id)
     .maybeSingle();
@@ -21,15 +23,23 @@ async function autoriser(zoneId: string) {
   if (!zone) {
     return { erreur: NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 }) };
   }
-  if (profile.role !== 'directeur' && zone.assigned_to !== profile.id) {
+  const zoneDroit = {
+    assignedTo: zone.assigned_to,
+    verrouillee: zone.verrouillee === true,
+  };
+  if (!canEditZone(viewerFromProfile(profile), zoneDroit)) {
     return {
       erreur: NextResponse.json(
-        { error: 'Vous ne pouvez modifier que votre secteur' },
+        {
+          error: zoneDroit.verrouillee
+            ? 'Secteur défini par la direction'
+            : 'Vous ne pouvez modifier que votre secteur',
+        },
         { status: 403 },
       ),
     };
   }
-  return { supabase };
+  return { supabase, profile, agency };
 }
 
 /**
@@ -68,6 +78,16 @@ export async function PATCH(
     console.error('[zones] règle non mise à jour', error);
     return NextResponse.json({ error: 'La règle n’a pas pu être modifiée' }, { status: 400 });
   }
+
+  if (type.valeur === 'polygone') {
+    await signalerChevauchementsSiBesoin({
+      supabase: acces.supabase,
+      agencyId: acces.agency.id,
+      createdBy: acces.profile.id,
+      zoneId,
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }
 

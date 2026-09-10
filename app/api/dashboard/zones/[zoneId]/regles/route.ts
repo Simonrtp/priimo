@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { canEditZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { signalerChevauchementsSiBesoin } from '@/lib/queries/zone-conflits';
 import { estInvalide, validerTypeRegle, validerValeurRegle } from '@/lib/zones/valider';
 
 export const runtime = 'nodejs';
 
 /**
  * Ajout d'une règle à un secteur. Le directeur dessine partout, le titulaire
- * corrige le sien : un secteur se retouche par celui qui le parcourt.
+ * corrige le sien tant que la direction n'a pas verrouillé.
  *
  * Une règle s'ajoute, elle ne remplace pas. Un secteur se construit par
  * ajouts et retraits successifs, et chaque règle reste supprimable seule.
@@ -40,15 +42,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ zoneId: string
   const supabase = await createSupabaseServerClient();
   const { data: zone } = await supabase
     .from('zones')
-    .select('id, assigned_to')
+    .select('id, assigned_to, verrouillee')
     .eq('id', zoneId)
     .eq('agency_id', agency.id)
     .maybeSingle();
 
   if (!zone) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
-  if (profile.role !== 'directeur' && zone.assigned_to !== profile.id) {
+
+  const zoneDroit = {
+    assignedTo: zone.assigned_to,
+    verrouillee: zone.verrouillee === true,
+  };
+  if (!canEditZone(viewerFromProfile(profile), zoneDroit)) {
     return NextResponse.json(
-      { error: 'Vous ne pouvez modifier que votre secteur' },
+      {
+        error: zoneDroit.verrouillee
+          ? 'Secteur défini par la direction'
+          : 'Vous ne pouvez modifier que votre secteur',
+      },
       { status: 403 },
     );
   }
@@ -62,6 +73,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ zoneId: string
   if (error || !data) {
     console.error('[zones] règle non enregistrée', error);
     return NextResponse.json({ error: 'La règle n’a pas pu être enregistrée' }, { status: 400 });
+  }
+
+  if (type.valeur === 'polygone') {
+    await signalerChevauchementsSiBesoin({
+      supabase,
+      agencyId: agency.id,
+      createdBy: profile.id,
+      zoneId,
+    });
   }
 
   return NextResponse.json({ id: data.id }, { status: 201 });

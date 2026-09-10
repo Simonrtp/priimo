@@ -20,6 +20,7 @@ import {
   writeItineraireStops,
 } from '@/lib/today/directions';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import { mentionDernierPassage } from '@/lib/zones/fraicheur';
 
 const SortieMap = dynamic(() => import('./SortieMap'), { ssr: false });
 
@@ -132,7 +133,14 @@ export default function SortiePanel({
                     onMouseLeave={() => setHoveredIndex(null)}
                   >
                     <span className="tabular-nums font-semibold text-text-muted">{i + 1}.</span>
-                    <span className="truncate text-text">{stop.address}</span>
+                    <span className="min-w-0 flex-1 truncate text-text">
+                      {stop.address}
+                      {mentionDernierPassage(stop.dernierPassageJour) ? (
+                        <span className="mt-0.5 block truncate text-[11.5px] font-normal text-text-muted">
+                          {mentionDernierPassage(stop.dernierPassageJour)}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 </li>
               ))}

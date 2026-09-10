@@ -18,6 +18,7 @@ import {
 import { watchDevicePosition } from '@/lib/voice/gps';
 import { tapProps } from './tap';
 import ScoreRing from '@/components/dashboard/ScoreRing';
+import { mentionDernierPassage } from '@/lib/zones/fraicheur';
 
 export function TourneeCard({
   tournee,
@@ -184,6 +185,7 @@ export function TourneeMode({
 
   const n = plan.ordered.length;
   const doneCount = progress.done.length;
+  const mention = mentionDernierPassage(active?.dernierPassageJour);
   const dist = here && active ? haversineM(here, { latitude: active.latitude, longitude: active.longitude }) : null;
   const dir =
     here && active
@@ -255,6 +257,7 @@ export function TourneeMode({
             <h2 className="mt-2 text-balance font-semibold text-text-strong" style={{ fontSize: 26, lineHeight: 1.2 }}>
               {active!.address}
             </h2>
+            {mention ? <p className="mt-1.5 text-[13px] text-text-muted">{mention}</p> : null}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <ScoreRing score={active!.score} size={44} />

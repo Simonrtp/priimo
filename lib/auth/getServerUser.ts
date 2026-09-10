@@ -17,7 +17,7 @@ export interface ServerUser {
 }
 
 const AGENCIES_SELECT =
-  'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, created_at, updated_at';
+  'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, frequence_passage_jours, created_at, updated_at';
 
 const PROFILE_SELECT_BASE =
   'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at';
@@ -72,9 +72,18 @@ async function getServerUserUncached(): Promise<ServerUser> {
   }
 
   const agencyIds = rows.map((r) => r.agency_id);
-  const { data: agencies } = await timed('agencies.select', async () =>
-    supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds),
-  );
+  const { data: agencies } = await timed('agencies.select', async () => {
+    const withFrequence = await supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds);
+    if (withFrequence.error && /frequence_passage/.test(withFrequence.error.message)) {
+      return supabase
+        .from('agencies')
+        .select(
+          'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, created_at, updated_at',
+        )
+        .in('id', agencyIds);
+    }
+    return withFrequence;
+  });
   const agencyList = agencies ?? [];
 
   const memberships = buildAgencyMemberships(rows, agencyList);

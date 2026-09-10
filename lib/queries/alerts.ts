@@ -49,7 +49,10 @@ export async function fetchAgencyAlerts(
         kind: row.kind,
         createdByName: by,
         headline: AGENCY_ALERT_LABELS[row.kind],
-        context: `Signalé par ${by}`,
+        context:
+          row.kind === 'chevauchement_zones' && row.body
+            ? row.body
+            : `Signalé par ${by}`,
         contactId: row.contact_id,
         leadId: row.lead_id,
       });

@@ -43,10 +43,12 @@ export default function AccueilPilotage({
   totalAdresses,
   membres,
   membreSelectionne,
+  moi,
   aujourdhui,
   citation,
   emploiDuTemps,
   tache,
+  alerteTournee,
   secteur,
 }: {
   /** Le bilan calculé par le serveur au premier rendu. */
@@ -55,6 +57,8 @@ export default function AccueilPilotage({
   totalAdresses: number;
   membres: readonly MembreOption[];
   membreSelectionne: string;
+  /** Qui regarde : distingue « mes objectifs » de ceux d'un collaborateur. */
+  moi: string;
   /** Les cartes du jour, réutilisées telles quelles depuis lib/today. */
   aujourdhui: ReactNode;
   citation: string;
@@ -62,6 +66,8 @@ export default function AccueilPilotage({
   emploiDuTemps?: ReactNode;
   /** Ce qu'il y a à faire à cette heure-ci. */
   tache?: TodayCard | null;
+  /** Tournée proposée quand trop d'adresses dépassent le cycle. */
+  alerteTournee?: ReactNode;
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
   secteur?: ReactNode;
 }) {
@@ -84,6 +90,30 @@ export default function AccueilPilotage({
     setAffiche(pilotage);
   }
 
+  /** Le bilan d'une période, demandé au serveur. */
+  const charger = useCallback(
+    async (cible: VuePeriode, ancre: string | null) => {
+      const q = new URLSearchParams({ periode: cible.periode });
+      if (ancre) q.set('le', ancre);
+      if (membres.length > 1) q.set('membre', membreSelectionne);
+
+      try {
+        const res = await fetch(`/api/dashboard/activite?${q.toString()}`);
+        if (!res.ok) throw new Error('activite');
+        const recu = (await res.json()) as Pilotage;
+        cache.current.set(vueDuBilan(recu).cle, recu);
+        // Un clic plus récent a déjà pris la main : cette réponse ne vaut plus
+        // que pour le cache.
+        if (demande.current !== cible.cle) return;
+        setAffiche(recu);
+      } catch {
+        // On laisse les chiffres précédents : un bilan faux serait pire qu'un
+        // bilan qui n'a pas bougé, et l'en-tête dit quelle période a échoué.
+      }
+    },
+    [membreSelectionne, membres.length],
+  );
+
   const changer = useCallback(
     async (periode: Periode, ancre: string | null) => {
       const suivante = vuePeriode(periode, ancre);
@@ -104,22 +134,19 @@ export default function AccueilPilotage({
         return;
       }
 
-      try {
-        const res = await fetch(`/api/dashboard/activite?${q.toString()}`);
-        if (!res.ok) throw new Error('activite');
-        const recu = (await res.json()) as Pilotage;
-        cache.current.set(vueDuBilan(recu).cle, recu);
-        // Un clic plus récent a déjà pris la main : cette réponse ne vaut plus
-        // que pour le cache.
-        if (demande.current !== suivante.cle) return;
-        setAffiche(recu);
-      } catch {
-        // On laisse les chiffres précédents : un bilan faux serait pire qu'un
-        // bilan qui n'a pas bougé, et l'en-tête dit quelle période a échoué.
-      }
+      await charger(suivante, ancre);
     },
-    [membreSelectionne, membres.length],
+    [charger, membreSelectionne, membres.length],
   );
+
+  // Un objectif qui change périme tous les bilans déjà lus, pas seulement
+  // celui à l'écran : les cartes des autres périodes se comparent aux mêmes
+  // cibles. On vide le cache et on redemande la période affichée.
+  const rafraichir = useCallback(() => {
+    cache.current.clear();
+    demande.current = vue.cle;
+    void charger(vue, vue.intervalle.debut);
+  }, [charger, vue]);
 
   const { bilan, phrase } = affiche;
   // Les chiffres à l'écran sont-ils ceux de la période demandée ?
@@ -149,10 +176,20 @@ export default function AccueilPilotage({
       </div>
 
       <TacheDuMoment card={tache ?? null} />
+      {alerteTournee}
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
         <PhrasePilotageBloc phrase={phrase} />
-        <BandeauObjectif bilan={bilan} />
+        <BandeauObjectif
+          bilan={bilan}
+          membre={membreSelectionne}
+          membreNom={
+            membreSelectionne === moi
+              ? null
+              : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
+          }
+          onObjectifsChanges={rafraichir}
+        />
         <CompteursActivite familles={bilan.familles} />
       </div>
 

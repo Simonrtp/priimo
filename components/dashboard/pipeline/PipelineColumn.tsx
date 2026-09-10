@@ -36,7 +36,9 @@ export default function PipelineColumn({
 
   return (
     <section
-      className={`flex min-h-[420px] w-[300px] shrink-0 self-start rounded-xl ${pulse ? 'pipeline-column-celebrate' : ''}`}
+      className={`flex w-[300px] shrink-0 flex-col self-stretch overflow-hidden rounded-clay-lg ${
+        pulse ? 'pipeline-column-celebrate' : ''
+      }`}
       style={{ backgroundColor: isOver ? theme.bgOver : theme.bg }}
       aria-label={`${stage.libelle}, ${leads.length} carte${leads.length > 1 ? 's' : ''}`}
     >
@@ -62,13 +64,13 @@ export default function PipelineColumn({
             ) : null}
           </div>
         </div>
-        <span className="tabular-nums pt-0.5 text-[12px] text-text-muted">{leads.length}</span>
+        <span className="pt-0.5 text-[12px] tabular-nums text-text-muted">{leads.length}</span>
       </header>
-      <div ref={setNodeRef} className="flex-1 px-2 pb-3">
+      <div ref={setNodeRef} className="flex min-h-[360px] flex-1 flex-col px-2.5 pb-3">
         <SortableContext items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
           <ul className="flex flex-col gap-2">
             {leads.map((lead) => (
-              <li key={lead.id}>
+              <li key={lead.id} className="min-w-0">
                 <PipelineLeadCard
                   lead={lead}
                   stage={stage}

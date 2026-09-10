@@ -34,6 +34,7 @@ export type LeadSituable = {
   stageId: string | null;
   deliveredAt?: string | null;
   createdAt: string;
+  banId?: string | null;
 };
 
 export type MentionAgence =

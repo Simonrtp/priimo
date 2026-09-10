@@ -25,6 +25,7 @@ import PipelineColumn from './PipelineColumn';
 import PipelineLeadCard from './PipelineLeadCard';
 import LostReasonDialog from './LostReasonDialog';
 import StageEditorDialog from './StageEditorDialog';
+import { COULEUR_COLONNE_DEFAUT } from '@/lib/pipeline/stage-theme';
 
 type Columns = Record<string, string[]>;
 
@@ -76,7 +77,7 @@ export default function PipelineBoard({
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [stageLabel, setStageLabel] = useState('');
-  const [stageColor, setStageColor] = useState('#4A90E2');
+  const [stageColor, setStageColor] = useState(COULEUR_COLONNE_DEFAUT);
   const [stageError, setStageError] = useState<string | null>(null);
   const [stageSaving, setStageSaving] = useState(false);
 
@@ -89,7 +90,7 @@ export default function PipelineBoard({
     setEditorOpen(false);
     setEditingStageId(null);
     setStageLabel('');
-    setStageColor('#4A90E2');
+    setStageColor(COULEUR_COLONNE_DEFAUT);
     setStageError(null);
   }, [stageSaving]);
 
@@ -97,7 +98,7 @@ export default function PipelineBoard({
     setEditorMode('create');
     setEditingStageId(null);
     setStageLabel('');
-    setStageColor('#4A90E2');
+    setStageColor(COULEUR_COLONNE_DEFAUT);
     setStageError(null);
     setEditorOpen(true);
   }, []);
@@ -337,7 +338,7 @@ export default function PipelineBoard({
           setColumns(buildColumns(stages, leads));
         }}
       >
-        <div className="flex min-h-[420px] items-start gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1">
+        <div className="flex min-h-[420px] items-stretch gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1">
           {stages.map((stage) => (
             <PipelineColumn
               key={stage.id}
@@ -352,7 +353,7 @@ export default function PipelineBoard({
             />
           ))}
           {canManageStages ? (
-            <section className="flex min-h-[420px] w-[300px] shrink-0 self-start flex-col rounded-xl border border-dashed border-black/[0.12] bg-white/70 p-4">
+            <section className="flex min-h-[420px] w-[300px] shrink-0 flex-col self-stretch rounded-clay-lg border border-dashed border-black/[0.12] bg-white/70 p-4">
               <div className="flex h-full flex-col items-start justify-center gap-3 rounded-xl bg-black/[0.02] px-4 text-left">
                 <div className="flex size-11 items-center justify-center rounded-full bg-primary-50 text-primary-600">
                   <Plus size={20} strokeWidth={2.2} aria-hidden />

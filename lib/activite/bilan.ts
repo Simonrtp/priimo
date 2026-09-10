@@ -6,7 +6,12 @@ import {
   type LecturesJournal,
 } from './derive';
 import { entonnoirCohorte, type EtapeEntonnoir } from './entonnoir';
-import { objectifsEffectifs, type ObjectifRow } from './objectifs';
+import {
+  objectifsEffectifs,
+  saisieDepuisObjectifs,
+  type ObjectifRow,
+  type ObjectifsSaisis,
+} from './objectifs';
 import {
   cascadeRatios,
   FENETRE_SEMAINES,
@@ -88,6 +93,12 @@ export type BilanSemaine = {
   jours: JourActivite[];
   /** Aucune activité avant cette semaine : l'écran « semaine 1 » s'impose. */
   semaine1: boolean;
+  /**
+   * Les objectifs à leur cadence de référence — cinq familles à la semaine, les
+   * mandats au mois. Distincts de `compteurs[].objectif`, qui est proratisé sur
+   * la période affichée : c'est ce chiffre-ci qu'on règle, pas celui-là.
+   */
+  objectifsPoses: ObjectifsSaisis;
   /** Les objectifs affichés sont les défauts, pas ceux du directeur. */
   objectifsParDefaut: boolean;
 };
@@ -286,6 +297,7 @@ export function bilanPeriode(
     fenetrePersonnelle: versEtapes(personnel),
     jours,
     semaine1,
+    objectifsPoses: saisieDepuisObjectifs(objectifs),
     objectifsParDefaut: objectifs.parDefaut,
   };
 }

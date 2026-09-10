@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import type { SortiePlan, SortieProgress, SortieStop } from '@/lib/today/sortie';
 import { FIELD } from '@/lib/today/field';
+import { mentionDernierPassage } from '@/lib/zones/fraicheur';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 
@@ -28,6 +29,7 @@ export default function SortieMode({
   const finished = active === null;
   const n = plan.ordered.length;
   const doneCount = progress.done.length;
+  const mention = mentionDernierPassage(active?.dernierPassageJour);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -76,6 +78,7 @@ export default function SortieMode({
             <h2 className="mt-2 text-balance text-[24px] font-semibold leading-snug text-text-strong">
               {active!.address}
             </h2>
+            {mention ? <p className="mt-1.5 text-[13px] text-text-muted">{mention}</p> : null}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <ScoreRing score={active!.score} size={44} />

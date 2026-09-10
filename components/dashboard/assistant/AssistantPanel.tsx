@@ -8,7 +8,7 @@ import { useUser } from '@/lib/hooks/useUser';
 import { LIGNES_AVANT_RENVOI } from '@/lib/assistant/liste-ecran';
 import { useAssistantPanel, type ChatMessage, type VoirTout } from './AssistantPanelProvider';
 import { useAssistantVoiceInput } from './useAssistantVoiceInput';
-import PrimIaIcon from './PrimIaIcon';
+import AssistantIcon from './AssistantIcon';
 
 const PANEL_W = 420;
 const PANEL_H = 560;
@@ -310,7 +310,7 @@ function Conversation() {
               className="flex size-14 items-center justify-center rounded-clay-lg bg-surface shadow-clay"
               aria-hidden
             >
-              <PrimIaIcon size={36} />
+              <AssistantIcon size={36} />
             </span>
             <p className="mt-3.5 font-display text-[15px] font-semibold text-text-strong">
               Posez une question sur votre base
@@ -532,10 +532,10 @@ function PanelBody({ poignee = false }: { poignee?: boolean }) {
           className="flex size-7 items-center justify-center rounded-[10px] bg-surface shadow-clay-sm ring-1 ring-primary-100"
           aria-hidden
         >
-          <PrimIaIcon size={18} />
+          <AssistantIcon size={18} />
         </span>
         <p className="font-display text-[14px] font-semibold tracking-[-0.01em] text-text-strong">
-          Prim&apos;IA
+          Mon assistant
         </p>
         <div className="ml-auto flex items-center gap-0.5">
           <ActionIcone label="Nouvelle conversation" onClick={nouvelleConversation}>
@@ -608,18 +608,18 @@ export default function AssistantPanel({
         type="button"
         onClick={() => (open ? closePanel() : openPanel())}
         aria-expanded={open}
-        aria-label="Assistant Prim'IA"
-        title="Assistant Prim'IA"
+        aria-label="Mon assistant"
+        title="Mon assistant"
         className={
           variant === 'desktop'
-            ? `assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-200 active:translate-y-0 ${
+            ? `assistant-trigger-btn group group/assistant relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-text-strong transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 active:translate-y-0 ${
                 open ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
               }`
-            : 'assistant-trigger-btn relative flex size-11 items-center justify-center rounded-[14px] text-white transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
+            : 'assistant-trigger-btn group/assistant relative flex size-11 items-center justify-center rounded-[14px] text-text-strong transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
         }
       >
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
-          <PrimIaIcon size={20} className="brightness-0 invert" />
+          <AssistantIcon size={20} />
         </span>
         {variant === 'desktop' ? (
           <span
@@ -630,13 +630,13 @@ export default function AssistantPanel({
             }`}
           >
             <span
-              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-white transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
+              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-text-strong transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
                 open
                   ? 'opacity-100'
                   : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
               }`}
             >
-              Prim&apos;IA
+              Mon assistant
             </span>
           </span>
         ) : null}
@@ -647,7 +647,7 @@ export default function AssistantPanel({
           className="assistant-pop absolute right-0 top-[calc(100%+10px)] z-[130] flex flex-col overflow-hidden rounded-clay-lg border border-primary-100 bg-surface shadow-clay-lg"
           style={{ width: PANEL_W, height: PANEL_H, maxHeight: 'calc(100dvh - 96px)' }}
           role="dialog"
-          aria-label="Assistant"
+          aria-label="Mon assistant"
         >
           <PanelBody />
         </div>
@@ -666,7 +666,7 @@ export default function AssistantPanel({
             style={{ height: '80dvh' }}
             role="dialog"
             aria-modal="true"
-            aria-label="Assistant"
+            aria-label="Mon assistant"
           >
             <PanelBody poignee />
           </div>

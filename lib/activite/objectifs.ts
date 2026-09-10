@@ -1,5 +1,10 @@
 import type { ReferenceMetier } from './ratios';
-import { ACTIVITES, type Activite } from './types';
+import {
+  ACTIVITES,
+  FAMILLES_ACTIVITE,
+  type Activite,
+  type FamilleActivite,
+} from './types';
 
 /**
  * Objectifs et référence métier.
@@ -82,6 +87,108 @@ export function objectifsEffectifs(rows: readonly ObjectifRow[]): Objectifs {
   }
 
   return { hebdo, mandatsMensuel, parDefaut: posePar === 0 };
+}
+
+/** Borne haute de saisie, alignée sur `activity_goals_cible_check`. */
+export const OBJECTIF_MAX = 10_000;
+
+/**
+ * Les objectifs tels qu'on les saisit à l'écran : les cinq familles à la
+ * semaine, les mandats au mois. C'est exactement ce que la carte affiche.
+ *
+ * L'objectif hebdomadaire de mandats n'y est pas et ne doit pas y entrer : il
+ * sert aux ratios, pas au pilotage de la semaine, et le proposer à côté de
+ * l'objectif mensuel ferait deux chiffres pour la même chose.
+ */
+export type ObjectifsSaisis = {
+  hebdo: Record<FamilleActivite, number>;
+  mandatsMensuel: number;
+};
+
+/**
+ * Les quatre cadences sous lesquelles un objectif hebdomadaire se lit. Mêmes
+ * valeurs que la granularité du sélecteur de l'Accueil, pour que « 50 par
+ * semaine » et la carte de la semaine parlent du même chiffre.
+ */
+export type Cadence = 'jour' | 'semaine' | 'mois' | 'annee';
+
+/**
+ * Jours civils que vaut une cadence. Le mois et l'année sont des moyennes :
+ * l'écran, lui, proratise sur le nombre de jours réel de la période affichée,
+ * donc un mois court peut afficher un objectif d'un ou deux points en dessous.
+ */
+const JOURS_PAR_CADENCE: Record<Cadence, number> = {
+  jour: 1,
+  semaine: 7,
+  mois: 365 / 12,
+  annee: 365,
+};
+
+/** Un objectif hebdomadaire, lu à une autre cadence. */
+export function objectifACadence(hebdo: number, cadence: Cadence): number {
+  return Math.max(0, Math.round((hebdo * JOURS_PAR_CADENCE[cadence]) / 7));
+}
+
+/** L'inverse : ce que vaut à la semaine un chiffre saisi à une autre cadence. */
+export function objectifDepuisCadence(valeur: number, cadence: Cadence): number {
+  return Math.max(
+    0,
+    Math.min(OBJECTIF_MAX, Math.round((valeur * 7) / JOURS_PAR_CADENCE[cadence])),
+  );
+}
+
+/** Ce que le formulaire affiche à l'ouverture. */
+export function saisieDepuisObjectifs(objectifs: Objectifs): ObjectifsSaisis {
+  const hebdo = {} as Record<FamilleActivite, number>;
+  for (const famille of FAMILLES_ACTIVITE) hebdo[famille] = objectifs.hebdo[famille];
+  return { hebdo, mandatsMensuel: objectifs.mandatsMensuel };
+}
+
+function cibleValide(valeur: unknown): number | null {
+  const n = typeof valeur === 'number' ? valeur : Number.NaN;
+  if (!Number.isInteger(n) || n < 0 || n > OBJECTIF_MAX) return null;
+  return n;
+}
+
+/**
+ * Lecture d'un corps de requête. Tout ou rien : une seule cible hors bornes et
+ * l'enregistrement est refusé en entier, sinon un objectif rejeté passerait
+ * inaperçu au milieu de cinq acceptés.
+ */
+export function parseObjectifsSaisis(entree: unknown): ObjectifsSaisis | null {
+  if (typeof entree !== 'object' || entree === null) return null;
+  const brut = entree as { hebdo?: unknown; mandatsMensuel?: unknown };
+  if (typeof brut.hebdo !== 'object' || brut.hebdo === null) return null;
+
+  const source = brut.hebdo as Record<string, unknown>;
+  const hebdo = {} as Record<FamilleActivite, number>;
+  for (const famille of FAMILLES_ACTIVITE) {
+    const cible = cibleValide(source[famille]);
+    if (cible === null) return null;
+    hebdo[famille] = cible;
+  }
+
+  const mandatsMensuel = cibleValide(brut.mandatsMensuel);
+  if (mandatsMensuel === null) return null;
+
+  return { hebdo, mandatsMensuel };
+}
+
+/**
+ * Les lignes à écrire dans `activity_goals`. L'objectif hebdomadaire de mandats
+ * n'est pas de la partie : il n'est pas saisi, donc il n'est pas réécrit.
+ */
+export function lignesObjectifs(
+  saisie: ObjectifsSaisis,
+): { activite: Activite; periode: Periode; cible: number }[] {
+  return [
+    ...FAMILLES_ACTIVITE.map((famille) => ({
+      activite: famille as Activite,
+      periode: 'hebdo' as Periode,
+      cible: saisie.hebdo[famille],
+    })),
+    { activite: 'mandats' as Activite, periode: 'mensuel' as Periode, cible: saisie.mandatsMensuel },
+  ];
 }
 
 /** Une ligne de `agency_activity_settings`, aplatie. */

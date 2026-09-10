@@ -125,6 +125,10 @@ export interface Lead {
   deliveredAt: string;
   createdAt: string;
   updatedAt: string;
+  /** Dernier passage observé par Priimo (jour civil Paris). Jamais saisi à la main. */
+  dernierPassageJour?: string | null;
+  /** Niveau de fraîcheur, calculé à la lecture. Absent hors écran secteur / tournée. */
+  fraicheur?: 'semaine' | 'cycle' | 'revoir' | 'jamais';
 }
 
 export interface TeamMember {

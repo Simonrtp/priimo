@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronDown, Mic, NotebookPen } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
@@ -43,13 +43,38 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
 };
 
 /**
- * La pastille d'action, commune au lien et au menu : elle se déplie en bas de
- * carte au survol ou au focus, et reste inerte tant qu'elle est invisible.
+ * La pastille d'action : le seul endroit cliquable de la carte. Elle n'apparaît
+ * qu'une fois la carte dépliée — au survol, au focus, ou tout de suite s'il n'y
+ * a pas de survol (doigt, stylet).
  */
-function pilule(visible: boolean): string {
-  return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold text-text-strong shadow-clay-sm transition-[opacity,transform] duration-fluid ease-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 group-hover/compteur:pointer-events-auto group-hover/compteur:translate-y-0 group-hover/compteur:opacity-100 group-focus-within/compteur:pointer-events-auto group-focus-within/compteur:translate-y-0 group-focus-within/compteur:opacity-100 motion-reduce:transition-none ${
-    visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
-  }`;
+const PILULE =
+  'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold text-text-strong shadow-clay-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
+
+/**
+ * Le volet du bouton. Au repos il est fermé : la carte reste courte. Au survol
+ * il s'ouvre — `grid-template-rows` de 0fr à 1fr, le même geste que les cartes
+ * KPI de l'accueil. `force` le tient ouvert (menu de note déployé).
+ */
+function Volet({
+  force = false,
+  children,
+}: {
+  force?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`fluid-collapse motion-reduce:transition-none ${
+        force
+          ? 'grid-rows-[1fr]'
+          : 'grid-rows-[0fr] group-hover/compteur:grid-rows-[1fr] group-focus-within/compteur:grid-rows-[1fr] [@media(hover:none)]:grid-rows-[1fr]'
+      }`}
+    >
+      <div>
+        <div className="pt-2.5">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -73,27 +98,16 @@ const ILLUSTRATION: Record<FamilleActivite, { repos: string; survol: string }> =
 function BoutonNote({
   libelle,
   fond,
-  visible,
-  onEtatMenu,
 }: {
   libelle: string;
   fond: string;
-  visible: boolean;
-  onEtatMenu: (ouvert: boolean) => void;
 }) {
   const { openCapture, openCompose } = useVoiceCapture();
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
-  const basculer = useCallback(
-    (etat: boolean) => {
-      setOuvert(etat);
-      onEtatMenu(etat);
-    },
-    [onEtatMenu],
-  );
-  const fermer = useCallback(() => basculer(false), [basculer]);
+  const fermer = useCallback(() => setOuvert(false), []);
 
   useOutsideDismiss(ouvert, fermer, racine);
 
@@ -114,34 +128,38 @@ function BoutonNote({
 
   return (
     <div ref={racine} className="relative">
+      {/* Le menu flotte au-dessus du volet : un overflow:hidden sur le dépli
+          couperait « Écrire » / « Dicter ». */}
       {ouvert ? (
         <div
           id={menuId}
           role="menu"
           aria-label="Ajouter une information terrain"
-          className="absolute bottom-[calc(100%+6px)] left-0 z-20 flex min-w-[8.5rem] flex-col overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay"
+          className="absolute bottom-full left-0 z-20 mb-1.5 flex min-w-[8.5rem] flex-col overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay"
         >
           <ChoixNote icone={NotebookPen} libelle="Écrire" onClick={() => choisir(openCompose)} />
           <ChoixNote icone={Mic} libelle="Dicter" onClick={() => choisir(openCapture)} />
         </div>
       ) : null}
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={ouvert}
-        aria-controls={ouvert ? menuId : undefined}
-        onClick={() => basculer(!ouvert)}
-        className={pilule(visible || ouvert)}
-        style={{ backgroundColor: fond }}
-      >
-        {libelle}
-        <ChevronDown
-          size={12}
-          strokeWidth={2.6}
-          aria-hidden
-          className={ouvert ? 'rotate-180 transition-transform' : 'transition-transform'}
-        />
-      </button>
+      <Volet force={ouvert}>
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={ouvert}
+          aria-controls={ouvert ? menuId : undefined}
+          onClick={() => setOuvert((prev) => !prev)}
+          className={PILULE}
+          style={{ backgroundColor: fond }}
+        >
+          {libelle}
+          <ChevronDown
+            size={12}
+            strokeWidth={2.6}
+            aria-hidden
+            className={ouvert ? 'rotate-180 transition-transform' : 'transition-transform'}
+          />
+        </button>
+      </Volet>
     </div>
   );
 }
@@ -173,156 +191,118 @@ function ecartLisible(ecart: number): string {
   return `${ecart > 0 ? '+' : '−'}${Math.abs(ecart)}`;
 }
 
-function CarteCompteur({
-  compteur,
-  choisie,
-  onChoisir,
-}: {
-  compteur: Compteur;
-  choisie: boolean;
-  onChoisir: () => void;
-}) {
+function CarteCompteur({ compteur }: { compteur: Compteur }) {
   const famille = compteur.activite as FamilleActivite;
   const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[famille];
   const illustration = ILLUSTRATION[famille];
   const action = ACTION[famille];
-  const [anime, setAnime] = useState(false);
-  const [menuNote, setMenuNote] = useState(false);
   const pct =
     compteur.objectif > 0
       ? Math.min(100, Math.round((compteur.valeur / compteur.objectif) * 100))
       : 0;
 
   return (
-    <li
-      onAnimationEnd={() => setAnime(false)}
-      className={`group/compteur relative flex min-w-0 flex-col rounded-clay-lg p-4 shadow-clay-sm transition-colors duration-fluid-subtle ease-out ${
-        anime ? 'animate-pop motion-reduce:animate-none' : ''
-      }`}
-      style={{ backgroundColor: voile }}
-    >
-      <span
-        aria-hidden
-        // Fond clair sous les illustrations : la couleur du dessin reste lisible.
-        className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px] transition-transform duration-fluid ease-soft group-hover/compteur:scale-105 motion-reduce:transition-none"
-        style={{ backgroundColor: pastelFort }}
-      >
-        {/* Les deux dessins superposés : fondu croisé, sans saut de mise en page. */}
-        <img
-          src={illustration.repos}
-          alt=""
-          width={36}
-          height={36}
-          className="absolute inset-0 m-auto size-9 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-0 motion-reduce:transition-none"
-        />
-        <img
-          src={illustration.survol}
-          alt=""
-          width={36}
-          height={36}
-          className="absolute inset-0 m-auto size-9 opacity-0 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-100 motion-reduce:transition-none"
-        />
-      </span>
-
-      <p className="mt-3 text-[12px] font-semibold leading-tight text-text-strong">
-        {compteur.libelle}
-      </p>
-
-      <p className="mt-1 flex items-baseline gap-1.5">
-        <span
-          className="font-display text-[28px] font-bold leading-none tabular-nums"
-          style={{ color: teinte }}
-        >
-          {compteur.valeur.toLocaleString('fr-FR')}
-        </span>
-        <span className="text-[13px] font-semibold tabular-nums text-text-strong/55">
-          / {compteur.objectif.toLocaleString('fr-FR')}
-        </span>
-      </p>
-
-      <div
-        className="mt-3 h-2.5 w-full overflow-hidden rounded-full"
-        style={{ backgroundColor: pastille }}
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${compteur.libelle} : ${pct} % de l’objectif`}
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${pct}%`, backgroundColor: teinte }}
-        />
+    <li className="relative min-w-0">
+      {/* Calibre la case au repos, sans les images : la carte vraie se pose
+          par-dessus et s'allonge au survol sans pousser la grille. */}
+      <div className="invisible flex flex-col p-4 [@media(hover:none)]:hidden" aria-hidden>
+        <span className="size-12 shrink-0" />
+        <p className="mt-3 text-[12px] font-semibold leading-tight">{compteur.libelle}</p>
+        <p className="mt-1 font-display text-[28px] font-bold leading-none">0</p>
+        <div className="mt-3 h-2.5" />
+        {compteur.ecartSemainePrecedente !== null ? (
+          <p className="mt-2 text-[11px] font-medium">.</p>
+        ) : null}
       </div>
-
-      {compteur.ecartSemainePrecedente !== null ? (
-        <p className="mt-2 text-[11px] font-medium text-text-strong/50">
-          {ecartLisible(compteur.ecartSemainePrecedente)} vs période précédente
-        </p>
-      ) : null}
-
-      {/* Place réservée en bas de carte : seul le bouton se déplie, la carte ne
-          bouge pas d'un pixel et n'entraîne pas ses voisines. Il apparaît au
-          survol, au focus clavier ou sur sélection — les doigts n'ont pas de
-          survol — et reste inerte tant qu'il est invisible. */}
-      <div className="relative z-10 mt-auto pt-2.5">
-        {'note' in action ? (
-          <BoutonNote
-            libelle={action.libelle}
-            fond={pastelFort}
-            visible={choisie}
-            onEtatMenu={setMenuNote}
+      <div
+        className="group/compteur flex h-full flex-col rounded-clay-lg p-4 shadow-clay-sm [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-x-0 [@media(hover:hover)]:top-0 [@media(hover:hover)]:h-auto [@media(hover:hover)]:min-h-full hover:z-30 focus-within:z-30"
+        style={{ backgroundColor: voile }}
+      >
+        <span
+          aria-hidden
+          // Fond clair sous les illustrations : la couleur du dessin reste lisible.
+          className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px] transition-transform duration-fluid ease-soft group-hover/compteur:scale-105 motion-reduce:transition-none"
+          style={{ backgroundColor: pastelFort }}
+        >
+          {/* Les deux dessins superposés : fondu croisé, sans saut de mise en page. */}
+          <img
+            src={illustration.repos}
+            alt=""
+            width={36}
+            height={36}
+            className="absolute inset-0 m-auto size-9 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-0 motion-reduce:transition-none"
           />
-        ) : (
-          <Link
-            href={action.href}
-            className={pilule(choisie)}
-            style={{ backgroundColor: pastelFort }}
+          <img
+            src={illustration.survol}
+            alt=""
+            width={36}
+            height={36}
+            className="absolute inset-0 m-auto size-9 opacity-0 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-100 motion-reduce:transition-none"
+          />
+        </span>
+
+        <p className="mt-3 text-[12px] font-semibold leading-tight text-text-strong">
+          {compteur.libelle}
+        </p>
+
+        <p className="mt-1 flex items-baseline gap-1.5">
+          <span
+            className="font-display text-[28px] font-bold leading-none tabular-nums"
+            style={{ color: teinte }}
           >
-            {action.libelle}
-            <ArrowRight size={12} strokeWidth={2.6} />
-          </Link>
+            {compteur.valeur.toLocaleString('fr-FR')}
+          </span>
+          <span className="text-[13px] font-semibold tabular-nums text-text-strong/55">
+            / {compteur.objectif.toLocaleString('fr-FR')}
+          </span>
+        </p>
+
+        <div
+          className="mt-3 h-2.5 w-full overflow-hidden rounded-full"
+          style={{ backgroundColor: pastille }}
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${compteur.libelle} : ${pct} % de l’objectif`}
+        >
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${pct}%`, backgroundColor: teinte }}
+          />
+        </div>
+
+        {compteur.ecartSemainePrecedente !== null ? (
+          <p className="mt-2 text-[11px] font-medium text-text-strong/50">
+            {ecartLisible(compteur.ecartSemainePrecedente)} vs période précédente
+          </p>
+        ) : null}
+
+        {'note' in action ? (
+          <BoutonNote libelle={action.libelle} fond={pastelFort} />
+        ) : (
+          <Volet>
+            <Link
+              href={action.href}
+              className={PILULE}
+              style={{ backgroundColor: pastelFort }}
+            >
+              {action.libelle}
+              <ArrowRight size={12} strokeWidth={2.6} />
+            </Link>
+          </Volet>
         )}
       </div>
-
-      {/* Couche cliquable en dernier : elle couvre la carte sans emboîter de
-          blocs dans un bouton, et garde un anneau de focus au clavier. */}
-      <button
-        type="button"
-        aria-pressed={choisie}
-        // Menu ouvert : la couche cliquable s'efface, sinon le clic qui referme
-        // le menu sélectionnerait la carte au passage.
-        tabIndex={menuNote ? -1 : undefined}
-        onClick={() => {
-          if (menuNote) return;
-          setAnime(true);
-          onChoisir();
-        }}
-        className={`absolute inset-0 rounded-clay-lg outline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 ${
-          menuNote ? 'pointer-events-none' : ''
-        }`}
-      >
-        <span className="sr-only">
-          {choisie ? `Retirer la sélection : ${compteur.libelle}` : `Mettre en avant : ${compteur.libelle}`}
-        </span>
-      </button>
     </li>
   );
 }
 
-/** Les cinq familles en cartes égales. Une carte cliquée passe en pastel. */
+/** Les cinq familles. Au survol la carte s'allonge par-dessus la grille. */
 export default function CompteursActivite({ familles }: { familles: readonly Compteur[] }) {
-  const [choisie, setChoisie] = useState<string | null>(null);
-
   return (
     <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       {familles.map((c) => (
-        <CarteCompteur
-          key={c.activite}
-          compteur={c}
-          choisie={choisie === c.activite}
-          onChoisir={() => setChoisie((prev) => (prev === c.activite ? null : c.activite))}
-        />
+        <CarteCompteur key={c.activite} compteur={c} />
       ))}
     </ul>
   );

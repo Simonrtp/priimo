@@ -119,6 +119,21 @@ describe('buildSortie', () => {
     const plan = buildSortie([lead('a', 48.86, 2.34), lead('b', 48.862, 2.341)], 'p1', origin);
     assert.equal(plan!.signature, sortieSignature(plan!.ordered));
   });
+
+  it('mélange une adresse à revoir au pool du jour', () => {
+    const frais = lead('frais', 48.86, 2.34);
+    const stale = lead('stale', 48.8605, 2.3404, {
+      fraicheur: 'revoir',
+      dernierPassageJour: '2026-01-01',
+    });
+    const loin = lead('loin', 48.9, 2.4, { fraicheur: 'revoir', dernierPassageJour: '2026-01-01' });
+    const plan = buildSortie([frais, stale, loin], 'p1', origin, 80);
+    assert.ok(plan);
+    const keys = plan!.ordered.map((s) => s.key);
+    assert.ok(keys.includes('frais'));
+    assert.ok(keys.includes('stale'));
+    assert.equal(keys.includes('loin'), false);
+  });
 });
 
 describe('sortieStorageKey', () => {

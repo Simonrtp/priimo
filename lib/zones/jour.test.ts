@@ -14,6 +14,7 @@ function zone(id: string, jourSemaine: number | null, assignedTo: string | null 
     assignedTo,
     jourSemaine,
     actif: true,
+    verrouillee: false,
     regles: [],
   };
 }

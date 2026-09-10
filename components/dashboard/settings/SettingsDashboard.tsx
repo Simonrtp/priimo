@@ -39,8 +39,8 @@ const DIRECTOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'profile', label: 'Mon profil' },
 ];
 
-// Le négociateur voit le découpage — le sien et celui des collègues — mais ne
-// le modifie pas : réattribuer un secteur est une décision de direction.
+// Le négociateur dessine et retouche SA zone. Réattribuer ou verrouiller
+// reste une décision de direction.
 const COLLABORATOR_TAB_LIST: { id: SettingsTabId; label: string }[] = [
   { id: 'secteurs', label: 'Secteurs' },
   { id: 'integrations', label: 'Connexions' },
@@ -200,6 +200,9 @@ function SectionAgency() {
   );
   const [phone, setPhone] = useState(agency.phone ?? '');
   const [email, setEmail] = useState(agency.email ?? '');
+  const [frequenceSemaines, setFrequenceSemaines] = useState(
+    Math.max(2, Math.round((agency.frequence_passage_jours ?? 84) / 7)),
+  );
   const [addressError, setAddressError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -247,18 +250,21 @@ function SectionAgency() {
 
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
-      .from('agencies')
-      .update({
-        name: name.trim(),
-        address: addressLabel,
-        phone: phone.trim() || null,
-        email: email.trim() || null,
-        codes_postaux: codesPostaux,
-        latitude,
-        longitude,
-      })
-      .eq('id', agency.id);
+    const payload = {
+      name: name.trim(),
+      address: addressLabel,
+      phone: phone.trim() || null,
+      email: email.trim() || null,
+      codes_postaux: codesPostaux,
+      latitude,
+      longitude,
+      frequence_passage_jours: Math.min(365, Math.max(14, frequenceSemaines * 7)),
+    };
+    let { error } = await supabase.from('agencies').update(payload).eq('id', agency.id);
+    if (error && /frequence_passage/.test(error.message)) {
+      const { frequence_passage_jours: _ignore, ...sansFrequence } = payload;
+      ({ error } = await supabase.from('agencies').update(sansFrequence).eq('id', agency.id));
+    }
     setSaving(false);
     if (error) {
       toast.error('Erreur lors de la sauvegarde');
@@ -329,6 +335,22 @@ function SectionAgency() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
+
+        <p className="flex items-center gap-2 text-[13px] text-mute">
+          <label htmlFor="agency-frequence">Fréquence cible de passage</label>
+          <input
+            id="agency-frequence"
+            type="number"
+            min={2}
+            max={52}
+            className={`${inputClass} w-16 py-1.5`}
+            value={frequenceSemaines}
+            onChange={(e) =>
+              setFrequenceSemaines(Number.parseInt(e.target.value, 10) || 12)
+            }
+          />
+          <span>semaines</span>
+        </p>
 
         {coveredPostalCodes.length > 0 ? (
           <div className="border-t border-black/[0.06] pt-5">

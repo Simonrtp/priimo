@@ -1810,18 +1810,20 @@ html:has(.feature-page) {
   32% { opacity: 1; transform: translateY(-2px); }
 }
 
-/* Bouton Prim'IA — indigo (intelligence), distinct du bouton orange « Nouveau ». */
+/* Bouton « Mon assistant » — bleu pâle uni, distinct du bouton orange « Nouveau ».
+   Un aplat, pas un dégradé : le robot posé dessus porte déjà ses propres
+   nuances, et un fond qui varie sous un dessin qui varie ne tient pas. */
 .assistant-trigger-btn {
-  background: linear-gradient(145deg, #818cf8 0%, #6366f1 46%, #4f46e5 100%);
+  background: #dcebff;
   box-shadow:
-    0 4px 14px -6px rgba(99, 102, 241, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    0 4px 14px -6px rgba(99, 102, 241, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .assistant-trigger-btn:hover {
   box-shadow:
-    0 6px 20px -4px rgba(99, 102, 241, 0.58),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    0 6px 20px -4px rgba(99, 102, 241, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 /* Le bouton signale une réponse qui arrive alors que le panneau est fermé. */

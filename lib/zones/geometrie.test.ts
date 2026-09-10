@@ -34,6 +34,7 @@ function zone(id: string, polygones: ValeurPolygone[], actif = true): Zone {
     assignedTo: null,
     jourSemaine: null,
     actif,
+    verrouillee: false,
     regles,
   };
 }

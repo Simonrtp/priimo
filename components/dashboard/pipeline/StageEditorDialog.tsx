@@ -1,17 +1,15 @@
 'use client';
 
+import { useMemo } from 'react';
 import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import { COULEURS_COLONNE } from '@/lib/pipeline/stage-theme';
 
-export const STAGE_COLOR_OPTIONS = [
-  '#64748B',
-  '#4A90E2',
-  '#1D5FCC',
-  '#E8743C',
-  '#B45309',
-  '#2E8B57',
-  '#D16B5B',
-] as const;
+export const STAGE_COLOR_OPTIONS = COULEURS_COLONNE;
+
+function memeCouleur(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
 
 export default function StageEditorDialog({
   open,
@@ -36,6 +34,11 @@ export default function StageEditorDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const couleurs = useMemo(() => {
+    const connue = COULEURS_COLONNE.some((c) => memeCouleur(c, accentColor));
+    return connue ? [...COULEURS_COLONNE] : [accentColor, ...COULEURS_COLONNE];
+  }, [accentColor]);
+
   return (
     <Modal
       open={open}
@@ -46,12 +49,10 @@ export default function StageEditorDialog({
     >
       <div className="space-y-5">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
-            Couleur
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {STAGE_COLOR_OPTIONS.map((color) => {
-              const active = accentColor === color;
+          <p className="text-[12px] font-semibold uppercase text-text-subtle">Couleur</p>
+          <div className="mt-3 grid grid-cols-8 gap-2">
+            {couleurs.map((color) => {
+              const active = memeCouleur(accentColor, color);
               return (
                 <button
                   key={color}
@@ -59,25 +60,18 @@ export default function StageEditorDialog({
                   aria-label={`Choisir la couleur ${color}`}
                   aria-pressed={active}
                   onClick={() => onAccentColorChange(color)}
-                  className={`flex size-10 items-center justify-center rounded-full border transition-transform duration-150 ease-out ${
-                    active ? 'scale-110 border-black/20' : 'border-black/10'
+                  className={`size-8 rounded-[10px] transition-transform duration-150 ease-out ${
+                    active ? 'scale-105 ring-2 ring-black/30 ring-offset-2' : 'ring-1 ring-black/10'
                   }`}
                   style={{ backgroundColor: color }}
-                >
-                  <span
-                    className={`size-3 rounded-full bg-white/90 transition-opacity ${
-                      active ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    aria-hidden
-                  />
-                </button>
+                />
               );
             })}
           </div>
         </div>
 
         <label className="block">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+          <span className="text-[12px] font-semibold uppercase text-text-subtle">
             Nom de la colonne
           </span>
           <input

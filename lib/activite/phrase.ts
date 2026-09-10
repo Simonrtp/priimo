@@ -1,7 +1,7 @@
 import { TODAY_WORKDAYS } from '@/lib/today/field';
 import type { Ratios } from './ratios';
 import { nombreDeJours, type Intervalle, type Periode } from './semaines';
-import type { Activite, EtatSource } from './types';
+import { ACTIVITES, type Activite, type EtatSource } from './types';
 
 /**
  * La phrase du haut.
@@ -30,6 +30,17 @@ import type { Activite, EtatSource } from './types';
  *    reviendrait à désigner systématiquement la source cassée comme la chose à
  *    faire. Et si TOUTES les sources sont muettes, il n'y a pas de retard à
  *    annoncer — il y a un démarrage.
+ *
+ * 5. La phrase ne doit jamais contredire les cartes posées juste en dessous.
+ *    Deux règles en découlent :
+ *
+ *    - Une période où RIEN n'a été compté ne se chiffre pas. Annoncer « il me
+ *      manque 1 contact qualifié » au-dessus de cinq compteurs à zéro fait
+ *      passer une journée vide pour un détail à rattraper. On dit alors ce
+ *      qu'on voit — rien — et par quoi ça recommence.
+ *
+ *    - Un seul étage nommé quand trois décrochent est un demi-mensonge. On
+ *      annonce l'ampleur, puis le geste par lequel commencer.
  */
 
 export type TonPhrase = 'demarrage' | 'retard' | 'avance' | 'incalculable';
@@ -166,6 +177,9 @@ export type EntreePhrase = {
 const PHRASE_DEMARRAGE =
   'Première semaine : une sortie sur le terrain, le reste de cet écran se remplit tout seul.';
 
+/** Par quoi une période vide recommence. Toujours le haut de l'entonnoir. */
+const PREMIER_GESTE = 'Tout part d’une sortie sur le terrain.';
+
 export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const {
     compteurs,
@@ -204,19 +218,45 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const fraction = fractionEcoulee(intervalle, jourCourant);
   const quand = QUAND[periode];
 
+  /** Le volume attendu à cette heure-ci, arrondi comme l'objectif des cartes. */
+  const attendu = (etage: EtageConversion) =>
+    Math.round(hebdo[etage] * semainesDeLaPeriode * fraction);
+
+  // Pas un chiffre sur la période. Il n'y a rien à rattraper étage par étage :
+  // il y a une journée à ouvrir. Le levier reste le haut de l'entonnoir même
+  // si sa source est muette — on ne lui reproche aucun retard, on nomme le
+  // geste qui remet la chaîne en route.
+  //
+  // Ton de démarrage, jamais de retard : « rien de compté » se suffit, et une
+  // flèche qui pointe vers le bas au-dessus d'une journée pas encore commencée
+  // ne fait que sermonner.
+  if (ACTIVITES.every((activite) => compteurs[activite] === 0)) {
+    return {
+      texte: `Rien de compté ${quand}. ${PREMIER_GESTE}`,
+      ton: 'demarrage',
+      levier: 'contacts_physiques',
+      manque: attendu('contacts_physiques'),
+    };
+  }
+
   // Du plus haut au plus bas : le premier étage en retard est le seul levier
   // sur lequel l'agent peut encore agir. Les étages muets sont déjà écartés.
-  for (const etage of etagesMesures) {
-    const attendu = hebdo[etage] * semainesDeLaPeriode * fraction;
-    const manque = Math.ceil(attendu - compteurs[etage]);
-    if (manque > 0) {
-      return {
-        texte: `Il me manque ${accorde(manque, etage)} ${quand} pour tenir ${rythmeMandats(objectifMandatsMois)}.`,
-        ton: 'retard',
-        levier: etage,
-        manque,
-      };
-    }
+  const retards = etagesMesures
+    .map((etage) => ({ etage, manque: attendu(etage) - compteurs[etage] }))
+    .filter((r) => r.manque > 0);
+
+  const premier = retards[0];
+  if (premier) {
+    const geste = `${accorde(premier.manque, premier.etage)} ${quand}`;
+    return {
+      texte:
+        retards.length > 1
+          ? `${retards.length} étages en retard sur ${rythmeMandats(objectifMandatsMois)}. Je commence par ${geste}.`
+          : `Il me manque ${geste} pour tenir ${rythmeMandats(objectifMandatsMois)}.`,
+      ton: 'retard',
+      levier: premier.etage,
+      manque: premier.manque,
+    };
   }
 
   // Tous les étages mesurés tiennent : on chiffre l'avance sur le plus haut

@@ -3,7 +3,8 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Loader2, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { canCreateZone, canEditZone, canManageZone } from '@/lib/agency/visibility';
 import { toast } from 'sonner';
 import ClayButton from '@/components/ui/ClayButton';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
@@ -25,10 +26,10 @@ const ZonesCarte = dynamic(() => import('./ZonesCarte'), {
 /**
  * Écran des secteurs.
  *
- * Le directeur découpe pour toute l'agence ; le négociateur voit le découpage
- * et le sien en évidence, sans pouvoir y toucher. Les zones des collègues
- * restent affichées dans tous les cas : c'est ce qui rend les trous et les
- * chevauchements visibles.
+ * Le négociateur dessine SA zone. Le directeur voit tout, peut réattribuer
+ * ou verrouiller. Les zones des collègues restent affichées : c'est ce qui
+ * rend les trous et les chevauchements visibles. Un recouvrement n'est pas
+ * bloqué — il se hachure, le directeur arbitre.
  */
 
 export type SecteurLead = LeadPoint & {
@@ -119,7 +120,13 @@ export default function SecteursClient({
     () => zones.find((z) => z.id === zoneActiveId) ?? null,
     [zones, zoneActiveId],
   );
-  const peutEditer = estDirecteur;
+  const viewer = useMemo(
+    () => ({ id: profileId, role: estDirecteur ? ('directeur' as const) : ('collaborateur' as const) }),
+    [estDirecteur, profileId],
+  );
+  const peutEditer = zoneActive ? canEditZone(viewer, zoneActive) : false;
+  const peutGerer = canManageZone(viewer);
+  const peutCreer = canCreateZone(viewer, profileId);
 
   const conflits = useMemo(() => chevauchements(zones), [zones]);
   const { horsZone } = useMemo(() => statistiquesParZone(leads, zones), [leads, zones]);
@@ -373,13 +380,14 @@ export default function SecteursClient({
             profileId={profileId}
           />
 
-          {peutEditer ? (
+          {peutCreer ? (
             <CreerZone
               enCours={enCours}
               onCreer={(nom) => void creerZone(nom)}
               nbZones={nbZonesProposees}
               onNbZones={setNbZonesProposees}
               onProposer={() => void proposer()}
+              peutProposer={peutGerer}
             />
           ) : null}
 
@@ -388,6 +396,7 @@ export default function SecteursClient({
               zone={zoneActive}
               membres={membres}
               peutEditer={peutEditer}
+              peutGerer={peutGerer}
               enCours={enCours}
               modeDessin={modeDessin}
               onModeDessin={setModeDessin}
@@ -419,8 +428,8 @@ function ListeZones({
 }) {
   if (zones.length === 0) {
     return (
-      <p className="rounded-clay bg-bg-subtle px-4 py-3 text-[13px] text-mute">
-        Aucun secteur pour l’instant. Tous les leads arrivent dans la file de l’agence.
+      <p className="rounded-clay bg-bg-subtle px-4 py-3 text-pretty text-[13px] text-mute">
+        Aucun secteur pour l’instant. Dessinez le vôtre pour commencer.
       </p>
     );
   }
@@ -455,9 +464,13 @@ function ListeZones({
                       : titulaire.fullName
                     : 'Sans titulaire'}
                   {jour ? ` · ${jour.label}` : ''}
+                  {zone.verrouillee ? ' · direction' : ''}
                   {zone.actif ? '' : ' · désactivé'}
                 </span>
               </span>
+              {zone.verrouillee ? (
+                <Lock size={12} className="shrink-0 text-mute" aria-label="Verrouillé" />
+              ) : null}
             </button>
           </li>
         );
@@ -472,12 +485,14 @@ function CreerZone({
   nbZones,
   onNbZones,
   onProposer,
+  peutProposer,
 }: {
   enCours: boolean;
   onCreer: (nom: string) => void;
   nbZones: number;
   onNbZones: (n: number) => void;
   onProposer: () => void;
+  peutProposer: boolean;
 }) {
   const [nom, setNom] = useState('');
 
@@ -511,6 +526,7 @@ function CreerZone({
         </ClayButton>
       </form>
 
+      {peutProposer ? (
       <div className="border-t border-black/[0.06] pt-3">
         <label className={labelClass} htmlFor="zone-nb-propose">
           Proposer un découpage équilibré
@@ -539,6 +555,7 @@ function CreerZone({
           Équilibré sur les leads des trois derniers mois. Les contours restent modifiables.
         </p>
       </div>
+      ) : null}
     </div>
   );
 }
@@ -547,6 +564,7 @@ function PanneauZone({
   zone,
   membres,
   peutEditer,
+  peutGerer,
   enCours,
   modeDessin,
   onModeDessin,
@@ -559,6 +577,7 @@ function PanneauZone({
   zone: Zone;
   membres: readonly Membre[];
   peutEditer: boolean;
+  peutGerer: boolean;
   enCours: boolean;
   modeDessin: 'inactif' | 'polygone';
   onModeDessin: (m: 'inactif' | 'polygone') => void;
@@ -622,27 +641,33 @@ function PanneauZone({
         )}
       </div>
 
+      {zone.verrouillee ? (
+        <p className="text-pretty text-[12.5px] text-mute">Secteur défini par la direction</p>
+      ) : null}
+
+      {peutGerer ? (
+        <div>
+          <label className={labelClass} htmlFor={`zone-titulaire-${zone.id}`}>
+            Titulaire
+          </label>
+          <select
+            id={`zone-titulaire-${zone.id}`}
+            className={champClass}
+            value={zone.assignedTo ?? ''}
+            onChange={(e) => onModifier({ assignedTo: e.target.value || null })}
+          >
+            <option value="">Sans titulaire</option>
+            {membres.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.fullName}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
       {peutEditer ? (
         <>
-          <div>
-            <label className={labelClass} htmlFor={`zone-titulaire-${zone.id}`}>
-              Titulaire
-            </label>
-            <select
-              id={`zone-titulaire-${zone.id}`}
-              className={champClass}
-              value={zone.assignedTo ?? ''}
-              onChange={(e) => onModifier({ assignedTo: e.target.value || null })}
-            >
-              <option value="">Sans titulaire</option>
-              {membres.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.fullName}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div>
             <label className={labelClass} htmlFor={`zone-jour-${zone.id}`}>
               Jour de tournée
@@ -688,11 +713,19 @@ function PanneauZone({
             </div>
           </div>
         </>
-      ) : (
-        <p className="text-[12.5px] text-mute">
-          Consultation seule. Seul le directeur découpe les secteurs.
-        </p>
-      )}
+      ) : !zone.verrouillee ? (
+        <p className="text-pretty text-[12.5px] text-mute">Consultation seule.</p>
+      ) : null}
+
+      {peutGerer ? (
+        <button
+          type="button"
+          onClick={() => onModifier({ verrouillee: !zone.verrouillee })}
+          className="rounded-lg px-2 py-1.5 text-left text-[12.5px] font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+        >
+          {zone.verrouillee ? 'Déverrouiller le secteur' : 'Verrouiller le secteur'}
+        </button>
+      ) : null}
 
       <div className="border-t border-black/[0.06] pt-3">
         <span className={labelClass}>Règles du secteur</span>
@@ -739,7 +772,10 @@ function PanneauZone({
 
           <RegleVoie onAjouter={onAjouterRegle} enCours={enCours} onSurligner={onSurlignerVoie} />
           <RegleCodePostal onAjouter={onAjouterRegle} enCours={enCours} />
+        </>
+      ) : null}
 
+      {peutGerer ? (
           <div className="flex items-center gap-2 border-t border-black/[0.06] pt-3">
             <button
               type="button"
@@ -756,7 +792,6 @@ function PanneauZone({
               Supprimer
             </button>
           </div>
-        </>
       ) : null}
     </div>
   );

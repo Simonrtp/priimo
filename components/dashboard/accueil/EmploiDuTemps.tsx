@@ -545,6 +545,14 @@ const GOOGLE = {
   blue: '#1a73e8',
 } as const;
 
+/**
+ * La carte tant que l'agenda n'est pas branché.
+ *
+ * Elle est étirée à la hauteur de sa voisine, donc un simple en-tête laissait
+ * un grand aplat blanc au milieu. La semaine vide s'y dessine en filigrane :
+ * montrer la place que l'agenda viendra prendre vaut mieux qu'un vide, et ça
+ * ne coûte aucun dessin décoratif — c'est la vraie grille, celle d'après.
+ */
 function CarteConnexionGoogle({
   busy,
   onConnecter,
@@ -552,26 +560,53 @@ function CarteConnexionGoogle({
   busy: boolean;
   onConnecter: () => void;
 }) {
+  const aujourdhui = dateKeyParis(new Date());
+
   return (
     <section
-      className="flex h-full min-w-0 flex-col justify-between gap-6 rounded-clay-lg bg-white p-6"
+      className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-clay-lg bg-white p-6"
       style={{
         border: `1px solid ${GOOGLE.line}`,
         boxShadow: '0 1px 2px 0 rgba(60,64,67,.15), 0 1px 3px 1px rgba(60,64,67,.08)',
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <img src="/google.png" alt="" width={40} height={40} className="size-10 shrink-0" />
+      <div className="flex min-w-0 items-center gap-3">
+        <img src="/google.png" alt="" width={40} height={40} className="size-10 shrink-0" />
+        <div className="min-w-0">
           <h2 className="text-[15px] font-medium" style={{ color: GOOGLE.ink }}>
             Google Agenda
           </h2>
+          <p className="mt-0.5 text-[12.5px] text-text-muted">Pas encore branché</p>
         </div>
+      </div>
+
+      {/* Décoratif : la grille s'efface vers le bas pour ne pas concurrencer le
+          texte qui porte la décision. Invisible sur mobile, où la carte n'est
+          pas étirée et n'a donc aucun vide à combler. */}
+      <div
+        aria-hidden
+        className="pointer-events-none mt-6 hidden min-h-0 flex-1 select-none sm:block"
+        style={{
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 85%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 85%)',
+        }}
+      >
+        <VueSemaine ancre={aujourdhui} aujourdhui={aujourdhui} evenements={[]} attente />
+      </div>
+
+      <div className="mt-6 flex flex-col items-start gap-2.5">
+        <p className="text-balance text-[15px] font-semibold" style={{ color: GOOGLE.ink }}>
+          Mes rendez-vous de la semaine, à côté de mes adresses livrées
+        </p>
+        <p className="max-w-[30rem] text-pretty text-[13px] leading-relaxed text-text-muted">
+          Lecture seule : Priimo affiche l’agenda, il n’y écrit jamais. L’accès se coupe quand
+          vous voulez, ici ou chez Google.
+        </p>
         <button
           type="button"
           disabled={busy}
           onClick={onConnecter}
-          className="inline-flex h-11 shrink-0 items-center justify-center gap-2.5 rounded-clay bg-white px-4 text-[14px] font-medium outline-offset-2 focus-visible:outline focus-visible:outline-2 disabled:opacity-60"
+          className="mt-1 inline-flex h-11 shrink-0 items-center justify-center gap-2.5 rounded-clay bg-white px-4 text-[14px] font-medium outline-offset-2 focus-visible:outline focus-visible:outline-2 disabled:opacity-60"
           style={{ color: GOOGLE.ink, border: `1px solid #747775`, outlineColor: GOOGLE.blue }}
         >
           <img src="/google.png" alt="" width={18} height={18} className="size-[18px]" />

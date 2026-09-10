@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { canEditZone, canManageZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import type { ZoneInsert } from '@/types/database';
@@ -13,8 +14,8 @@ import {
 export const runtime = 'nodejs';
 
 /**
- * Renommer, recolorer, réattribuer, désactiver : directeur seulement. Un
- * secteur qui change de main est une décision de direction, pas un réglage.
+ * Le titulaire retouche le nom, la couleur, le jour — tant que ce n'est pas
+ * verrouillé. Réattribuer, verrouiller, éteindre : direction seulement.
  *
  * On ne supprime pas une zone dont on veut garder l'historique : `actif` à
  * false suffit, et l'appartenance des leads déjà pris ne bouge pas — elle
@@ -25,15 +26,35 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
-  if (profile.role !== 'directeur') {
-    return NextResponse.json(
-      { error: 'Seul le directeur peut modifier un secteur' },
-      { status: 403 },
-    );
-  }
 
   const { zoneId } = await ctx.params;
   if (!zoneId) return NextResponse.json({ error: 'Secteur inconnu' }, { status: 400 });
+
+  const supabase = await createSupabaseServerClient();
+  const { data: existante } = await supabase
+    .from('zones')
+    .select('id, assigned_to, verrouillee')
+    .eq('id', zoneId)
+    .eq('agency_id', agency.id)
+    .maybeSingle();
+
+  if (!existante) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
+
+  const viewer = viewerFromProfile(profile);
+  const zoneDroit = {
+    assignedTo: existante.assigned_to,
+    verrouillee: existante.verrouillee === true,
+  };
+  if (!canEditZone(viewer, zoneDroit)) {
+    return NextResponse.json(
+      {
+        error: zoneDroit.verrouillee
+          ? 'Secteur défini par la direction'
+          : 'Vous ne pouvez modifier que votre secteur',
+      },
+      { status: 403 },
+    );
+  }
 
   let body: unknown;
   try {
@@ -59,6 +80,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
     const verdict = validerJourSemaine(raw.jourSemaine);
     if (estInvalide(verdict)) return NextResponse.json({ error: verdict.erreur }, { status: 400 });
     update.jour_semaine = verdict.valeur;
+  }
+  if (raw.actif !== undefined || raw.assignedTo !== undefined || raw.verrouillee !== undefined) {
+    if (!canManageZone(viewer)) {
+      return NextResponse.json(
+        { error: 'Seul le directeur peut réattribuer ou verrouiller un secteur' },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (raw.verrouillee !== undefined) {
+    if (typeof raw.verrouillee !== 'boolean') {
+      return NextResponse.json({ error: 'Verrouillage invalide' }, { status: 400 });
+    }
+    update.verrouillee = raw.verrouillee;
   }
   if (raw.actif !== undefined) {
     if (typeof raw.actif !== 'boolean') {
@@ -87,7 +123,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
     return NextResponse.json({ error: 'Rien à modifier' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from('zones')
     .update(update)
@@ -116,7 +151,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ zoneId: str
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
-  if (profile.role !== 'directeur') {
+  if (!canManageZone(viewerFromProfile(profile))) {
     return NextResponse.json(
       { error: 'Seul le directeur peut supprimer un secteur' },
       { status: 403 },

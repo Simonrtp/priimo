@@ -48,6 +48,7 @@ function zone(partiel: Partial<Zone> & { regles: RegleZone[] }): Zone {
     assignedTo: null,
     jourSemaine: null,
     actif: true,
+    verrouillee: false,
     ...partiel,
   };
 }

@@ -25,6 +25,15 @@ import { buildSortie } from '@/lib/today/sortie';
 import { toItineraireStops } from '@/lib/today/directions';
 import ProspectsClient from '@/components/dashboard/ProspectsClient';
 import ProspectionCarteView from '@/components/dashboard/ProspectionCarteView';
+import { fetchPassagesObserves } from '@/lib/queries/passages';
+import {
+  CYCLE_DEFAUT_JOURS,
+  annoterAdresse,
+  correspondFraicheur,
+  cycleObserveJours,
+  dernierPassageParAdresse,
+  parseNiveauFraicheur,
+} from '@/lib/zones/fraicheur';
 
 export const metadata = {
   title: 'Prospection',
@@ -41,6 +50,7 @@ export default async function ProspectionPage({
     immeuble?: string;
     itineraire?: string;
     tournee?: string;
+    fraicheur?: string;
   }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
@@ -48,6 +58,7 @@ export default async function ProspectionPage({
 
   const params = await searchParams;
   const vueRaw = params.vue;
+  const fraicheurFiltre = parseNiveauFraicheur(params.fraicheur);
   const listFilter =
     params.filtre === 'sans-position' ||
     params.filtre === 'non-assignes-14j' ||
@@ -58,20 +69,47 @@ export default async function ProspectionPage({
   const vue =
     listFilter === 'non-pris' || listFilter === 'estimations'
       ? 'liste'
-      : parseProspectionVue(vueRaw);
+      : fraicheurFiltre && !vueRaw
+        ? 'liste'
+        : parseProspectionVue(vueRaw);
 
   const supabase = await createSupabaseServerClient();
 
   if (vue === 'carte') {
     const viewer = viewerFromProfile(profile);
-    const [leads, contacts, biens, notes, members] = await Promise.all([
+    const [leads, contacts, biens, notes, members, stages] = await Promise.all([
       fetchLeads(supabase),
       fetchContactsSafe(supabase),
       fetchBiensSafe(supabase),
       fetchVoiceNotesSafe(supabase),
       fetchMembersOfMyAgency(agency.id, memberships),
+      fetchLeadStages(supabase),
     ]);
     const visibleLeads = visibleLeadsFor(viewer, leads);
+    const passages =
+      params.itineraire === '1' || fraicheurFiltre
+        ? await fetchPassagesObserves({ supabase, stages })
+        : [];
+    const cycle = cycleObserveJours(
+      passages,
+      profile.id,
+      agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS,
+    );
+    const derniers = dernierPassageParAdresse(passages, profile.id);
+    const maintenant = new Date();
+    const leadsAnnotes = visibleLeads.map((l) => ({
+      ...l,
+      ...annoterAdresse({
+        banId: l.banId,
+        id: l.id,
+        derniers,
+        maintenant,
+        cycleJours: cycle.jours,
+      }),
+    }));
+    const leadsTournee = fraicheurFiltre
+      ? leadsAnnotes.filter((l) => correspondFraicheur(l.fraicheur, fraicheurFiltre))
+      : leadsAnnotes;
     const { points, withoutPosition, unplaced } = buildSectorMapPoints({
       agencyId: agency.id,
       leads: visibleLeads,
@@ -83,7 +121,7 @@ export default async function ProspectionPage({
       notes: visibleVoiceNotesFor(viewer, notes),
     });
     const membersUi = members.map((m) => ({ id: m.id, fullName: m.fullName }));
-    const plan = params.itineraire === '1' ? buildSortie(visibleLeads, profile.id, null) : null;
+    const plan = params.itineraire === '1' ? buildSortie(leadsTournee, profile.id, null) : null;
     const itineraryStops = plan ? toItineraireStops(plan.ordered) : null;
 
     return (
@@ -95,7 +133,7 @@ export default async function ProspectionPage({
         center={{ latitude: agency.latitude, longitude: agency.longitude }}
         members={membersUi}
         isDirector={profile.role === 'directeur'}
-        initialLeads={visibleLeads}
+        initialLeads={leadsTournee}
         profileId={profile.id}
         agencyOrigin={
           agency.latitude != null && agency.longitude != null
@@ -118,6 +156,26 @@ export default async function ProspectionPage({
   ]);
   const viewer = viewerFromProfile(profile);
   const visibleLeads = visibleLeadsFor(viewer, leads);
+  const passages = fraicheurFiltre
+    ? await fetchPassagesObserves({ supabase, stages })
+    : [];
+  const cycle = cycleObserveJours(
+    passages,
+    profile.id,
+    agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS,
+  );
+  const derniers = dernierPassageParAdresse(passages, profile.id);
+  const maintenant = new Date();
+  const leadsAnnotes = visibleLeads.map((l) => ({
+    ...l,
+    ...annoterAdresse({
+      banId: l.banId,
+      id: l.id,
+      derniers,
+      maintenant,
+      cycleJours: cycle.jours,
+    }),
+  }));
 
   const storedLastSeen = profile.leads_last_seen_at ?? null;
   let showPipelineBanner = false;
@@ -134,7 +192,7 @@ export default async function ProspectionPage({
 
   return (
     <ProspectsClient
-      initialLeads={visibleLeads}
+      initialLeads={leadsAnnotes}
       teamMembers={teamMembers}
       stages={stages}
       isDirector={profile.role === 'directeur'}
@@ -145,6 +203,7 @@ export default async function ProspectionPage({
       memberId={params.membre ?? null}
       initialVue={vue}
       zones={zones}
+      fraicheurFilter={fraicheurFiltre}
     />
   );
 }

@@ -37,6 +37,8 @@ export type AgencyRow = {
   latitude: number | null;
   longitude: number | null;
   stripe_customer_id: string | null;
+  /** Fréquence cible de passage, en jours. Null = repli 12 semaines. */
+  frequence_passage_jours?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -1176,6 +1178,7 @@ export type ZoneRow = {
   /** 1 = lundi. Null = pas de calendrier de tournée. */
   jour_semaine: number | null;
   actif: boolean;
+  verrouillee?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -1188,6 +1191,7 @@ export type ZoneInsert = {
   assigned_to?: string | null;
   jour_semaine?: number | null;
   actif?: boolean;
+  verrouillee?: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -1285,7 +1289,7 @@ export type ContactInteractionInsert = {
   is_demo?: boolean;
 };
 
-export type AgencyAlertKindDb = 'baisse_prix' | 'mandat_a_recuperer';
+export type AgencyAlertKindDb = 'baisse_prix' | 'mandat_a_recuperer' | 'chevauchement_zones';
 
 export type AgencyAlertRow = {
   id: string;

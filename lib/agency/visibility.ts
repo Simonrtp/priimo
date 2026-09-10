@@ -69,3 +69,30 @@ export function canSeeLeadRecord(
   if (lead.assignedTo === null) return true;
   return lead.assignedTo === viewer.id;
 }
+
+/** Ce qu'il faut pour décider qui touche à une zone. */
+export type ZonePourDroit = {
+  assignedTo: string | null;
+  verrouillee: boolean;
+};
+
+/** Le négociateur crée SA zone. Le directeur en crée pour n'importe qui. */
+export function canCreateZone(viewer: RecordViewer, assignedTo: string | null): boolean {
+  if (viewer.role === 'directeur') return true;
+  return assignedTo === viewer.id;
+}
+
+/**
+ * Modifier le contour ou le nom. Le directeur toujours. Le titulaire, tant
+ * que la direction n'a pas verrouillé.
+ */
+export function canEditZone(viewer: RecordViewer, zone: ZonePourDroit): boolean {
+  if (viewer.role === 'directeur') return true;
+  if (zone.verrouillee) return false;
+  return zone.assignedTo === viewer.id;
+}
+
+/** Verrouiller, réattribuer, désactiver, supprimer : direction seulement. */
+export function canManageZone(viewer: RecordViewer): boolean {
+  return viewer.role === 'directeur';
+}

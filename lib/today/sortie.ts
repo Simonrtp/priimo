@@ -1,6 +1,7 @@
 import type { GeoCoord } from '@/lib/carte/coords';
 import type { Lead } from '@/types/lead';
 import { haversineM } from '@/lib/geo/distance';
+import { classerFraicheur, CYCLE_DEFAUT_JOURS } from '@/lib/zones/fraicheur';
 import { loopDistanceM, optimizeLoopOrder } from './route-optimize';
 import { TOURNEE_RADIUS_M } from './field';
 
@@ -24,6 +25,8 @@ export type SortieStop = LocatedTask & {
   notes: string | null;
   banId: string | null;
   postalCode: string | null;
+  dernierPassageJour?: string | null;
+  fraicheur?: Lead['fraicheur'];
 };
 
 export type SortiePlan = {
@@ -180,6 +183,8 @@ export function leadToSortieStop(lead: Lead): SortieStop | null {
     notes: lead.notes,
     banId: lead.banId,
     postalCode: lead.postalCode,
+    dernierPassageJour: lead.dernierPassageJour ?? null,
+    fraicheur: lead.fraicheur,
   };
 }
 
@@ -241,9 +246,29 @@ export function buildSortie(
   const retained = orderNearestNeighbor(pool, anchor)
     .slice(0, MAX_SORTIE_STOPS)
     .map((t) => pool.find((s) => s.key === t.key)!)
-    .filter(Boolean);
+    .filter(Boolean) as SortieStop[];
 
   if (retained.length === 0) return null;
+
+  const maintenant = new Date();
+  const retenus = new Set(retained.map((s) => s.key));
+  const aRevoir = stops.filter((s) => {
+    const niveau =
+      s.fraicheur ??
+      classerFraicheur(s.dernierPassageJour ?? null, maintenant, CYCLE_DEFAUT_JOURS);
+    return (niveau === 'revoir' || niveau === 'jamais') && !retenus.has(s.key);
+  });
+  if (aRevoir.length > 0 && retained.length < MAX_SORTIE_STOPS) {
+    const centre = anchor ?? asCoord(retained[0]!);
+    aRevoir.sort((a, b) => haversineM(centre, asCoord(a)) - haversineM(centre, asCoord(b)));
+    for (const extra of aRevoir) {
+      if (retained.length >= MAX_SORTIE_STOPS) break;
+      const proche =
+        retained.some((s) => haversineM(asCoord(s), asCoord(extra)) <= radiusM) ||
+        haversineM(centre, asCoord(extra)) <= radiusM;
+      if (proche) retained.push(extra);
+    }
+  }
 
   const ordered = optimizeLoopOrder(retained, anchor);
 

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, MapPin } from 'lucide-react';
+import FacadeLead from '@/components/dashboard/FacadeLead';
 import { FIELD } from '@/lib/today/field';
 
 export type AdresseLivree = {
@@ -8,6 +9,8 @@ export type AdresseLivree = {
   city: string | null;
   score: number;
   mainSignalLabel: string | null;
+  ownerName: string | null;
+  signaux: readonly string[];
 };
 
 /**
@@ -15,6 +18,10 @@ export type AdresseLivree = {
  *
  * C'est le produit vendu : il est au-dessus de la ligne de flottaison et il
  * garde l'orange, seule couleur réservée aux leads sur toute l'application.
+ *
+ * Au repos : l'adresse. Au survol : la flèche pivote, la ligne s'ouvre sur
+ * un carré de façade (recadré, sans marque Google) et, à droite, les
+ * signaux plus le propriétaire s'il tient.
  */
 export default function NouvellesAdresses({
   adresses,
@@ -58,32 +65,64 @@ export default function NouvellesAdresses({
 
       <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         {adresses.map((a) => (
-          <li key={a.id}>
+          <li key={a.id} className="relative z-0 hover:z-20 focus-within:z-20">
             <Link
               href={`/dashboard/prospection?lead=${a.id}`}
-              className="group flex items-center gap-3 rounded-clay bg-surface-2 px-3 py-2.5 transition-shadow duration-fluid-subtle hover:shadow-clay-sm"
+              className="group/adresse flex flex-col rounded-clay bg-surface-2 px-3 py-2.5 transition-shadow duration-fluid-subtle hover:shadow-clay-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
             >
+              <span className="flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]"
+                  style={{ backgroundColor: '#FFE0C4', color: FIELD.orange }}
+                >
+                  <MapPin size={16} strokeWidth={2.2} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold text-text-strong">
+                    {a.address}
+                  </span>
+                  <span className="block truncate text-[11px] text-text-muted">
+                    {a.city || 'Adresse livrée'}
+                  </span>
+                </span>
+                <ArrowRight
+                  size={15}
+                  strokeWidth={2.2}
+                  aria-hidden
+                  className="shrink-0 text-text-subtle transition-transform duration-fluid ease-soft group-hover/adresse:rotate-90 group-focus-within/adresse:rotate-90 motion-reduce:transition-none"
+                />
+              </span>
+
               <span
-                aria-hidden
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]"
-                style={{ backgroundColor: '#FFE0C4', color: FIELD.orange }}
+                className="fluid-collapse grid-rows-[0fr] group-hover/adresse:grid-rows-[1fr] group-focus-within/adresse:grid-rows-[1fr]"
               >
-                <MapPin size={16} strokeWidth={2.2} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-text-strong">
-                  {a.address}
+                <span className="block">
+                  <span className="mt-2.5 flex items-start gap-3">
+                    <FacadeEsthetique leadId={a.id} />
+                    <span className="flex min-h-[80px] min-w-0 flex-1 flex-col justify-center gap-1.5">
+                      {a.signaux.length > 0 ? (
+                        <span className="flex flex-wrap gap-1">
+                          {a.signaux.map((signal) => (
+                            <span
+                              key={signal}
+                              className="inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold text-text-strong"
+                              style={{ backgroundColor: '#FFE0C4' }}
+                            >
+                              {signal}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                      {a.ownerName ? (
+                        <span className="truncate text-[12px] font-medium text-text-strong">
+                          {a.ownerName}
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
                 </span>
-                <span className="block truncate text-[11px] text-text-muted">
-                  {[a.city, a.mainSignalLabel].filter(Boolean).join(' · ') || 'Adresse livrée'}
-                </span>
               </span>
-              <ArrowRight
-                size={15}
-                strokeWidth={2.2}
-                aria-hidden
-                className="shrink-0 text-text-subtle transition-transform duration-fluid-subtle group-hover:translate-x-0.5"
-              />
             </Link>
           </li>
         ))}
@@ -95,5 +134,22 @@ export default function NouvellesAdresses({
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Carré bien arrondi. Street View pose son logo en bas : on garde le haut
+ * de la photo, net, sans voile.
+ */
+function FacadeEsthetique({ leadId }: { leadId: string }) {
+  return (
+    <span className="relative block size-20 shrink-0 overflow-hidden rounded-[22px] bg-[#F1EFE8]">
+      <FacadeLead
+        leadId={leadId}
+        format="liste"
+        lazy
+        className="pointer-events-none !absolute inset-x-0 top-0 h-[142%] w-full rounded-none object-cover object-top"
+      />
+    </span>
   );
 }

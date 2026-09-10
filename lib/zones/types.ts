@@ -76,6 +76,8 @@ export type Zone = {
   /** 1 = lundi. Null = pas de calendrier de tournée. */
   jourSemaine: number | null;
   actif: boolean;
+  /** Verrouillé par la direction : le titulaire lit, il ne retouche plus. */
+  verrouillee: boolean;
   regles: readonly RegleZone[];
 };
 

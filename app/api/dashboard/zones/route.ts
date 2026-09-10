@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { canCreateZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchZones } from '@/lib/queries/zones';
 import { couleurZoneLibre } from '@/lib/zones/palette';
@@ -13,9 +14,10 @@ import {
 export const runtime = 'nodejs';
 
 /**
- * Les zones de l'agence. La RLS fait la loi : la lecture est ouverte à toute
- * l'agence, la création réservée au directeur. Les vérifications ici ne
- * remplacent pas les policies, elles rendent l'erreur lisible.
+ * Les zones de l'agence. La RLS fait la loi : lecture ouverte à toute
+ * l'agence, création par le titulaire (la sienne) ou le directeur.
+ * Les vérifications ici rendent l'erreur lisible, elles ne remplacent pas
+ * les policies.
  */
 export async function GET() {
   const { user, profile, agency } = await getServerUser();
@@ -37,13 +39,6 @@ export async function POST(req: Request) {
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
-  if (profile.role !== 'directeur') {
-    return NextResponse.json(
-      { error: 'Seul le directeur peut créer un secteur' },
-      { status: 403 },
-    );
-  }
-
   let body: unknown;
   try {
     body = await req.json();
@@ -70,8 +65,20 @@ export async function POST(req: Request) {
     couleur = verdict.valeur;
   }
 
+  const viewer = viewerFromProfile(profile);
   const assignedTo =
-    typeof raw.assignedTo === 'string' && raw.assignedTo !== '' ? raw.assignedTo : null;
+    viewer.role === 'directeur'
+      ? typeof raw.assignedTo === 'string' && raw.assignedTo !== ''
+        ? raw.assignedTo
+        : null
+      : profile.id;
+
+  if (!canCreateZone(viewer, assignedTo)) {
+    return NextResponse.json(
+      { error: 'Vous ne pouvez créer que votre secteur' },
+      { status: 403 },
+    );
+  }
 
   const { data, error } = await supabase
     .from('zones')

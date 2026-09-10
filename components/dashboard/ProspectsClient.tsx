@@ -15,6 +15,11 @@ import {
 import { partitionLeadsForDisplay } from '@/lib/lead-delivery';
 import { grouperParSecteur, statistiquesParZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
+import {
+  correspondFraicheur,
+  LIBELLE_FRAICHEUR,
+  type FiltreFraicheur,
+} from '@/lib/zones/fraicheur';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { deleteLead as deleteLeadDb } from '@/lib/queries/leads';
 import { entreeStage } from '@/lib/queries/lead-stages';
@@ -56,6 +61,7 @@ interface ProspectsClientProps {
   initialVue?: ProspectionVue;
   /** Découpage interne de l'agence. Vide = l'écran se comporte comme avant. */
   zones?: Zone[];
+  fraicheurFilter?: FiltreFraicheur | null;
 }
 
 function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
@@ -88,6 +94,7 @@ export default function ProspectsClient({
   memberId = null,
   initialVue = 'liste',
   zones = [],
+  fraicheurFilter = null,
 }: ProspectsClientProps) {
   const { profile } = useUser();
   const router = useRouter();
@@ -157,9 +164,12 @@ export default function ProspectsClient({
         const estimation = stageList.find((s) => s.cle === 'estimation');
         if (!estimation || l.stageId !== estimation.id) return false;
       }
+      if (fraicheurFilter) {
+        if (!l.fraicheur || !correspondFraicheur(l.fraicheur, fraicheurFilter)) return false;
+      }
       return true;
     });
-  }, [segmentLeads, filters, listFilter, memberId, stageList]);
+  }, [segmentLeads, filters, listFilter, memberId, stageList, fraicheurFilter]);
 
   const partitioned = useMemo(
     () =>
@@ -490,6 +500,13 @@ export default function ProspectsClient({
                 filterActiveCount={filterCount}
                 onOpenFilters={() => setFiltersSheetOpen(true)}
               />
+              {fraicheurFilter ? (
+                <p className="mt-1 text-[12.5px] text-mute">
+                  {fraicheurFilter === 'a-revoir'
+                    ? 'Adresses à revoir'
+                    : LIBELLE_FRAICHEUR[fraicheurFilter]}
+                </p>
+              ) : null}
             </div>
           </div>
 
