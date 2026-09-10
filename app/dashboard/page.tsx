@@ -65,28 +65,13 @@ import AgentOnboarding from '@/components/dashboard/onboarding/AgentOnboarding';
 import OnboardingRelanceBand from '@/components/dashboard/onboarding/OnboardingRelanceBand';
 import BirthdayCard from '@/components/dashboard/onboarding/BirthdayCard';
 import { fetchAnniversairesDuJour } from '@/lib/queries/birthdays';
-import { bilanPeriode, valeursDe } from '@/lib/activite/bilan';
 import { citationDuJour } from '@/lib/activite/citations';
-import { phrasePilotage } from '@/lib/activite/phrase';
-import { FENETRE_SEMAINES } from '@/lib/activite/ratios';
-import {
-  dateDebut,
-  estPeriode,
-  fenetreSemaines,
-  intervalleDe,
-  intervalleDecale,
-  moisDe,
-  semaineDe,
-  type Intervalle,
-} from '@/lib/activite/semaines';
-import {
-  fetchJournalActivite,
-  fetchObjectifs,
-  fetchReferenceMetier,
-} from '@/lib/queries/activite';
+import { calculerPilotage } from '@/lib/activite/pilotage';
+import { estPeriode } from '@/lib/activite/semaines';
 import { canSeeActivityOf } from '@/lib/agency/visibility';
-import { DEMO_AGENCY_ID } from '@/lib/demo/constants';
 import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
+import { EmploiDuTempsSquelette } from '@/components/dashboard/accueil/EmploiDuTemps';
+import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsServeur';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 import { lireAgendaSemaine } from '@/lib/agenda/lire';
 import { tacheDuMoment } from '@/lib/today/maintenant';
@@ -244,32 +229,13 @@ async function TodayContent({
   /* --------------------------- activité terrain --------------------------- */
   // Période affichée : la semaine en cours par défaut, sinon ce que dit l'URL.
   // Passer par l'URL garde l'écran rendu côté serveur et rend une semaine
-  // consultée partageable par simple copier-coller.
+  // consultée partageable par simple copier-coller. Le changement de période,
+  // lui, ne repasse plus par ici : il appelle /api/dashboard/activite.
   const periode = estPeriode(periodeDemandee) ? periodeDemandee : 'semaine';
-  const ancreValide = ancreDemandee && /^\d{4}-\d{2}-\d{2}$/.test(ancreDemandee);
-  const intervalleAffiche = intervalleDe(
-    periode,
-    ancreValide ? new Date(`${ancreDemandee}T12:00:00Z`) : new Date(),
-  );
 
   // Le sélecteur du directeur ne décide rien : l'autorisation se rejoue ici.
   const membreActivite =
     membreDemande && canSeeActivityOf(viewer, membreDemande) ? membreDemande : profile.id;
-
-  // Le journal doit couvrir la période affichée, la période précédente (pour
-  // l'écart), le mois civil (objectif de mandats) et la fenêtre des ratios.
-  const fenetreRatios = fenetreSemaines(semaineDe(dateDebut(intervalleAffiche)), FENETRE_SEMAINES);
-  const moisAffiche = moisDe(dateDebut(intervalleAffiche));
-  const periodePrecedente = intervalleDecale(periode, intervalleAffiche, -1);
-  const couverture: Intervalle = {
-    debut: [
-      fenetreRatios.debut,
-      intervalleAffiche.debut,
-      moisAffiche.debut,
-      periodePrecedente.debut,
-    ].sort()[0]!,
-    fin: [fenetreRatios.fin, intervalleAffiche.fin, moisAffiche.fin].sort().at(-1)!,
-  };
 
   const [
     assignments,
@@ -279,9 +245,7 @@ async function TodayContent({
     demandesEstimation,
     estimationsVuees,
     actionsAValider,
-    journalActivite,
-    objectifsActivite,
-    referenceActivite,
+    pilotage,
   ] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
@@ -400,21 +364,16 @@ async function TodayContent({
         estDirecteur: layoutDirector,
       }),
     ),
-    timed('fetchJournalActivite', () =>
-      fetchJournalActivite({
+    timed('calculerPilotage', () =>
+      calculerPilotage({
         supabase,
-        intervalle: couverture,
+        agencyId: agency.id,
+        membreActivite,
+        profileIdsAgence: members.map((m) => m.id),
         stages,
-        // L'agence de démonstration montre son scénario ; partout ailleurs les
-        // lignes fictives sont écartées du bilan.
-        inclureDemo: agency.id === DEMO_AGENCY_ID,
+        periode,
+        ancre: ancreDemandee,
       }),
-    ),
-    timed('fetchObjectifsActivite', () =>
-      fetchObjectifs({ supabase, profileId: membreActivite }),
-    ),
-    timed('fetchReferenceMetier', () =>
-      fetchReferenceMetier({ supabase, agencyId: agency.id }),
     ),
   ]);
 
@@ -539,30 +498,6 @@ async function TodayContent({
         }
       : null;
 
-  /* ------------------------- bilan et phrase ------------------------- */
-  const bilan = bilanPeriode({
-    journal: journalActivite,
-    profileId: membreActivite,
-    profileIdsAgence: members.map((m) => m.id),
-    periode,
-    intervalle: intervalleAffiche,
-    objectifs: objectifsActivite,
-    reference: referenceActivite.reference,
-    referenceFournie: referenceActivite.fournie,
-  });
-
-  const phrase = phrasePilotage({
-    compteurs: valeursDe(bilan),
-    objectifMandatsMois: bilan.mandatsDuMois.objectif,
-    ratios: bilan.ratios,
-    periode,
-    intervalle: intervalleAffiche,
-    semaine1: bilan.semaine1,
-    etatsSource: bilan.etatsSource,
-    // Une période révolue se juge entière ; la période en cours se proratise.
-    jourCourant: dateKeyMaintenant(),
-  });
-
   // Le produit vendu : les leads livrés que personne n'a pris.
   const leadsNonPris = visibleLeads
     .filter((l) => l.stageId === null)
@@ -581,9 +516,6 @@ async function TodayContent({
     isDirector && !previewingAgent
       ? members.map((m) => ({ id: m.id, nom: m.fullName }))
       : [];
-
-  const estPeriodeCourante =
-    intervalleAffiche.debut === intervalleDe(periode, new Date()).debut;
 
   const prenomCite =
     members.find((m) => m.id === membreActivite)?.firstName || profile.first_name;
@@ -626,15 +558,19 @@ async function TodayContent({
   });
 
   const pilotageCommun = {
-    bilan,
-    phrase,
+    pilotage,
     adresses: adressesLivrees,
     totalAdresses: leadsNonPris.length,
     membres: membresActivite,
     membreSelectionne: membreActivite,
-    estPeriodeCourante,
     citation,
-    agenda: agendaPromise,
+    // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
+    // sous son propre Suspense, sans retenir le reste de l'écran.
+    emploiDuTemps: (
+      <Suspense fallback={<EmploiDuTempsSquelette />}>
+        <EmploiDuTempsServeur agenda={agendaPromise} />
+      </Suspense>
+    ),
     tache: tacheDuMoment(cards),
     secteur:
       apercu.zones.length > 0 ? (

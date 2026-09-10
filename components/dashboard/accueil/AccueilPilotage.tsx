@@ -1,19 +1,31 @@
-import { Suspense, type ReactNode } from 'react';
-import type { BilanSemaine } from '@/lib/activite/bilan';
-import type { PhrasePilotage as Phrase } from '@/lib/activite/phrase';
-import type { AgendaReponse } from '@/lib/agenda/types';
+'use client';
+
+import { useCallback, useRef, useState, type ReactNode } from 'react';
+import type { Pilotage } from '@/lib/activite/pilotage';
+import {
+  vuePeriode,
+  vueSurIntervalle,
+  type Periode,
+  type VuePeriode,
+} from '@/lib/activite/semaines';
 import BandeauObjectif from './BandeauObjectif';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
 import Entonnoir3D from './Entonnoir3D';
 import JourParJour from './JourParJour';
-import { EmploiDuTempsSquelette } from './EmploiDuTemps';
-import EmploiDuTempsServeur from './EmploiDuTempsServeur';
 import NouvellesAdresses, { type AdresseLivree } from './NouvellesAdresses';
 import PhrasePilotageBloc from './PhrasePilotage';
 import SelecteurCollaborateur, { type MembreOption } from './SelecteurCollaborateur';
 import TacheDuMoment from './TacheDuMoment';
 import type { TodayCard } from '@/lib/today/cards';
+
+/** Une période déjà consultée est réaffichée telle quelle, sans nouvel appel. */
+type Cache = Map<string, Pilotage>;
+
+/** La vue du bilan tel qu'il est arrivé du serveur. */
+function vueDuBilan(pilotage: Pilotage): VuePeriode {
+  return vueSurIntervalle(pilotage.bilan.periode, pilotage.bilan.intervalle);
+}
 
 /**
  * L'écran de pilotage.
@@ -21,47 +33,113 @@ import type { TodayCard } from '@/lib/today/cards';
  * L'ordre n'est pas décoratif : la phrase d'abord, les cinq cartes ensuite,
  * les adresses livrées à gauche de l'emploi du temps, puis l'entonnoir.
  *
- * Composant serveur : tout est déjà calculé en amont. Seuls les blocs
- * réellement interactifs (en-tête, sélecteur, tableau replié) sont clients.
+ * Composant client, mais seulement pour le sélecteur de période : tout ce qui
+ * ne dépend pas de la granularité (les cartes du jour, l'emploi du temps, le
+ * secteur) arrive déjà rendu par le serveur et n'est jamais recalculé ici.
  */
 export default function AccueilPilotage({
-  bilan,
-  phrase,
+  pilotage,
   adresses,
   totalAdresses,
   membres,
   membreSelectionne,
-  estPeriodeCourante,
   aujourdhui,
   citation,
-  agenda,
+  emploiDuTemps,
   tache,
   secteur,
 }: {
-  bilan: BilanSemaine;
-  phrase: Phrase;
+  /** Le bilan calculé par le serveur au premier rendu. */
+  pilotage: Pilotage;
   adresses: readonly AdresseLivree[];
   totalAdresses: number;
   membres: readonly MembreOption[];
   membreSelectionne: string;
-  estPeriodeCourante: boolean;
   /** Les cartes du jour, réutilisées telles quelles depuis lib/today. */
   aujourdhui: ReactNode;
   citation: string;
-  agenda?: Promise<AgendaReponse>;
+  /** L'emploi du temps, rendu par le serveur sous son propre Suspense. */
+  emploiDuTemps?: ReactNode;
   /** Ce qu'il y a à faire à cette heure-ci. */
   tache?: TodayCard | null;
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
   secteur?: ReactNode;
 }) {
+  const cleServeur = vueDuBilan(pilotage).cle;
+  const cache = useRef<Cache>(new Map([[cleServeur, pilotage]]));
+  // Ce que l'agent a demandé : posé au clic, sans attendre le réseau.
+  const [vue, setVue] = useState<VuePeriode>(() => vueDuBilan(pilotage));
+  const [affiche, setAffiche] = useState<Pilotage>(pilotage);
+  const dernierServeur = useRef(cleServeur);
+  /** La dernière période demandée : une réponse doublée est jetée. */
+  const demande = useRef(cleServeur);
+
+  // Le serveur a renvoyé une autre période (changement de collaborateur,
+  // rechargement) : c'est lui qui a raison, on repart de sa réponse.
+  if (dernierServeur.current !== cleServeur) {
+    dernierServeur.current = cleServeur;
+    demande.current = cleServeur;
+    cache.current.set(cleServeur, pilotage);
+    setVue(vueDuBilan(pilotage));
+    setAffiche(pilotage);
+  }
+
+  const changer = useCallback(
+    async (periode: Periode, ancre: string | null) => {
+      const suivante = vuePeriode(periode, ancre);
+      demande.current = suivante.cle;
+      setVue(suivante);
+
+      const q = new URLSearchParams({ periode });
+      if (ancre) q.set('le', ancre);
+      if (membres.length > 1) q.set('membre', membreSelectionne);
+
+      // L'URL suit sans rendu serveur : la période reste partageable, et un
+      // rechargement retrouve la même granularité.
+      window.history.replaceState(null, '', `/dashboard?${q.toString()}`);
+
+      const connu = cache.current.get(suivante.cle);
+      if (connu) {
+        setAffiche(connu);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/dashboard/activite?${q.toString()}`);
+        if (!res.ok) throw new Error('activite');
+        const recu = (await res.json()) as Pilotage;
+        cache.current.set(vueDuBilan(recu).cle, recu);
+        // Un clic plus récent a déjà pris la main : cette réponse ne vaut plus
+        // que pour le cache.
+        if (demande.current !== suivante.cle) return;
+        setAffiche(recu);
+      } catch {
+        // On laisse les chiffres précédents : un bilan faux serait pire qu'un
+        // bilan qui n'a pas bougé, et l'en-tête dit quelle période a échoué.
+      }
+    },
+    [membreSelectionne, membres.length],
+  );
+
+  const { bilan, phrase } = affiche;
+  // Les chiffres à l'écran sont-ils ceux de la période demandée ?
+  const enCours = vueDuBilan(affiche).cle !== vue.cle;
+  // Mieux vaut un écran qui se dit en retard qu'un écran qui annonce une
+  // période et montre les compteurs d'une autre.
+  const estompe = `transition-opacity duration-fluid-subtle ${
+    enCours ? 'opacity-50' : 'opacity-100'
+  }`;
+
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 pb-10">
       <div className="flex flex-col gap-3">
         <EnteteSemaine
-          periode={bilan.periode}
-          intervalle={bilan.intervalle}
-          estPeriodeCourante={estPeriodeCourante}
+          periode={vue.periode}
+          intervalle={vue.intervalle}
+          estPeriodeCourante={vue.estPeriodeCourante}
           citation={citation}
+          enCours={enCours}
+          onChanger={changer}
         />
         {membres.length > 1 ? (
           <div className="flex justify-end">
@@ -71,25 +149,28 @@ export default function AccueilPilotage({
       </div>
 
       <TacheDuMoment card={tache ?? null} />
-      <PhrasePilotageBloc phrase={phrase} />
-      <BandeauObjectif bilan={bilan} />
-      <CompteursActivite familles={bilan.familles} />
+
+      <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
+        <PhrasePilotageBloc phrase={phrase} />
+        <BandeauObjectif bilan={bilan} />
+        <CompteursActivite familles={bilan.familles} />
+      </div>
 
       {/* Les deux cartes s'alignent par étirement : la plus haute donne le
           bord bas, l'autre s'y étire. Aucune hauteur n'est imposée ici — une
           rangée figée déborderait dès que l'agenda demande plus de place. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
         <NouvellesAdresses adresses={adresses} total={totalAdresses} />
-        <Suspense fallback={<EmploiDuTempsSquelette />}>
-          <EmploiDuTempsServeur agenda={agenda} />
-        </Suspense>
+        {emploiDuTemps}
       </div>
-      <div className="max-md:hidden">
+      <div aria-busy={enCours} className={`max-md:hidden ${estompe}`}>
         <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} />
       </div>
 
       {aujourdhui}
-      <JourParJour jours={bilan.jours} />
+      <div aria-busy={enCours} className={estompe}>
+        <JourParJour jours={bilan.jours} />
+      </div>
       {secteur}
     </div>
   );

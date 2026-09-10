@@ -1,8 +1,6 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useTransition } from 'react';
 import {
   LIBELLE_PERIODE,
   intervalleDecale,
@@ -56,31 +54,20 @@ export default function EnteteSemaine({
   intervalle,
   estPeriodeCourante,
   citation,
+  enCours,
+  onChanger,
 }: {
   periode: Periode;
   intervalle: Intervalle;
   estPeriodeCourante: boolean;
   citation: string;
+  /** Le bilan de la période demandée est en route. */
+  enCours: boolean;
+  /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
+  onChanger: (periode: Periode, ancre: string | null) => void;
 }) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const [enCours, startTransition] = useTransition();
-
-  // La navigation passe par l'URL : l'écran reste rendu côté serveur, et une
-  // semaine consultée se partage par simple copier-coller du lien.
-  const naviguer = useCallback(
-    (next: { periode?: Periode; ancre?: string | null }) => {
-      const q = new URLSearchParams(params?.toString() ?? '');
-      if (next.periode) q.set('periode', next.periode);
-      if (next.ancre === null) q.delete('le');
-      else if (next.ancre) q.set('le', next.ancre);
-      startTransition(() => router.push(`/dashboard?${q.toString()}`, { scroll: false }));
-    },
-    [params, router],
-  );
-
   const decaler = (delta: number) =>
-    naviguer({ ancre: intervalleDecale(periode, intervalle, delta).debut });
+    onChanger(periode, intervalleDecale(periode, intervalle, delta).debut);
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -106,7 +93,7 @@ export default function EnteteSemaine({
                 key={p}
                 type="button"
                 aria-pressed={p === periode}
-                onClick={() => naviguer({ periode: p, ancre: null })}
+                onClick={() => onChanger(p, null)}
                 className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
                   p === periode
                     ? 'bg-surface text-text-strong shadow-clay-sm'
@@ -139,7 +126,7 @@ export default function EnteteSemaine({
             {!estPeriodeCourante ? (
               <button
                 type="button"
-                onClick={() => naviguer({ ancre: null })}
+                onClick={() => onChanger(periode, null)}
                 className="flex h-9 items-center gap-1.5 rounded-clay bg-surface px-3 text-[12px] font-semibold text-text-muted shadow-clay-sm transition hover:text-text-strong"
               >
                 <RotateCcw size={13} strokeWidth={2.2} aria-hidden />

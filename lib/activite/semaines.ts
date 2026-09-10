@@ -99,6 +99,45 @@ export function intervalleDecale(
   return intervalleDe('annee', new Date(Date.UTC(an + delta, 6, 1, 12)));
 }
 
+/**
+ * Ce que le sélecteur de granularité affiche.
+ *
+ * Le découpage des périodes est un calcul pur : le client sait quel intervalle
+ * il vient de demander avant que la réponse du serveur arrive, donc l'en-tête
+ * et le bouton « suivant » n'ont jamais à attendre le réseau.
+ */
+export type VuePeriode = {
+  periode: Periode;
+  intervalle: Intervalle;
+  /** Décide du bouton « suivant » : on ne consulte pas l'avenir. */
+  estPeriodeCourante: boolean;
+  /** Identifie la période à une granularité près — sert de clé de cache. */
+  cle: string;
+};
+
+export function vueSurIntervalle(
+  periode: Periode,
+  intervalle: Intervalle,
+  maintenant: Date = new Date(),
+): VuePeriode {
+  return {
+    periode,
+    intervalle,
+    estPeriodeCourante: intervalle.debut === intervalleDe(periode, maintenant).debut,
+    cle: `${periode}|${intervalle.debut}`,
+  };
+}
+
+/** La vue d'une période ancrée sur un jour civil — `null` pour celle en cours. */
+export function vuePeriode(
+  periode: Periode,
+  ancre: string | null,
+  maintenant: Date = new Date(),
+): VuePeriode {
+  const date = ancre ? new Date(`${ancre}T12:00:00Z`) : maintenant;
+  return vueSurIntervalle(periode, intervalleDe(periode, date), maintenant);
+}
+
 /** Nombre de jours civils d'un intervalle, bornes incluses. */
 export function nombreDeJours(intervalle: Intervalle): number {
   const [y1, m1, d1] = intervalle.debut.split('-').map(Number);
