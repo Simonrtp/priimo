@@ -59,6 +59,24 @@ CREATE POLICY zones_update_agence
     )
   );
 
+-- Supprimer : le directeur partout ; le titulaire son propre secteur, tant
+-- qu'il n'est pas verrouillé. C'est lui qui l'a dessiné ; un tracé raté ne
+-- doit pas obliger à déranger la direction. Rien ne se perd : l'appartenance
+-- d'un lead à un secteur n'est jamais stockée, elle se recalcule à la lecture.
+DROP POLICY IF EXISTS zones_delete_directeur ON public.zones;
+DROP POLICY IF EXISTS zones_delete_agence ON public.zones;
+CREATE POLICY zones_delete_agence
+  ON public.zones
+  FOR DELETE
+  TO authenticated
+  USING (
+    agency_id = (SELECT public.current_user_agency_id())
+    AND (
+      (SELECT public.current_user_role()) = 'directeur'
+      OR (assigned_to = (SELECT auth.uid()) AND verrouillee = false)
+    )
+  );
+
 -- Un titulaire ne peut ni se réattribuer, ni verrouiller, ni éteindre.
 CREATE OR REPLACE FUNCTION public.zones_proteger_direction()
 RETURNS trigger

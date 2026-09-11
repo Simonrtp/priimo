@@ -92,7 +92,20 @@ export function canEditZone(viewer: RecordViewer, zone: ZonePourDroit): boolean 
   return zone.assignedTo === viewer.id;
 }
 
-/** Verrouiller, réattribuer, désactiver, supprimer : direction seulement. */
+/**
+ * Supprimer un secteur. Le directeur toujours. Le titulaire peut défaire le
+ * sien tant qu'il n'est pas verrouillé : c'est lui qui l'a dessiné, lui
+ * refuser de l'effacer l'obligerait à demander à sa direction de réparer un
+ * tracé raté. Rien ne se perd — l'appartenance d'un lead à un secteur n'est
+ * jamais stockée, elle se recalcule à la lecture.
+ */
+export function canDeleteZone(viewer: RecordViewer, zone: ZonePourDroit): boolean {
+  if (viewer.role === 'directeur') return true;
+  if (zone.verrouillee) return false;
+  return zone.assignedTo === viewer.id;
+}
+
+/** Verrouiller, réattribuer, désactiver : direction seulement. */
 export function canManageZone(viewer: RecordViewer): boolean {
   return viewer.role === 'directeur';
 }

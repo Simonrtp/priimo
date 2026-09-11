@@ -4,7 +4,12 @@ import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { canCreateZone, canEditZone, canManageZone } from '@/lib/agency/visibility';
+import {
+  canCreateZone,
+  canDeleteZone,
+  canEditZone,
+  canManageZone,
+} from '@/lib/agency/visibility';
 import { toast } from 'sonner';
 import ClayButton from '@/components/ui/ClayButton';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
@@ -126,6 +131,7 @@ export default function SecteursClient({
     [estDirecteur, profileId],
   );
   const peutEditer = zoneActive ? canEditZone(viewer, zoneActive) : false;
+  const peutSupprimer = zoneActive ? canDeleteZone(viewer, zoneActive) : false;
   const peutGerer = canManageZone(viewer);
   const peutCreer = canCreateZone(viewer, profileId);
 
@@ -368,6 +374,7 @@ export default function SecteursClient({
               membres={membres}
               peutEditer={peutEditer}
               peutGerer={peutGerer}
+              peutSupprimer={peutSupprimer}
               enCours={enCours}
               modeDessin={modeDessin}
               onModeDessin={setModeDessin}
@@ -536,6 +543,7 @@ function PanneauZone({
   membres,
   peutEditer,
   peutGerer,
+  peutSupprimer,
   enCours,
   modeDessin,
   onModeDessin,
@@ -549,6 +557,7 @@ function PanneauZone({
   membres: readonly Membre[];
   peutEditer: boolean;
   peutGerer: boolean;
+  peutSupprimer: boolean;
   enCours: boolean;
   modeDessin: 'inactif' | 'polygone';
   onModeDessin: (m: 'inactif' | 'polygone') => void;
@@ -559,6 +568,8 @@ function PanneauZone({
   onSurlignerVoie: (coord: { latitude: number; longitude: number } | null) => void;
 }) {
   const [renommage, setRenommage] = useState<string | null>(null);
+  // Supprimer se demande deux fois : un secteur, c'est une demi-heure de tracé.
+  const [confirmeSuppression, setConfirmeSuppression] = useState(false);
 
   return (
     <div className="flex flex-col gap-3 rounded-clay bg-white px-4 py-3.5 shadow-clay-sm">
@@ -733,36 +744,74 @@ function PanneauZone({
 
       {peutEditer ? (
         <>
-          <ClayButton
-            variant={modeDessin === 'polygone' ? 'primary' : 'secondary'}
-            className="px-3 py-2 text-[13px]"
-            onClick={() => onModeDessin(modeDessin === 'polygone' ? 'inactif' : 'polygone')}
-          >
-            {modeDessin === 'polygone' ? 'Terminer le tracé' : 'Dessiner un contour'}
-          </ClayButton>
+          <div className="flex flex-col gap-1.5">
+            <ClayButton
+              variant={modeDessin === 'polygone' ? 'primary' : 'secondary'}
+              className="px-3 py-2 text-[13px]"
+              onClick={() => onModeDessin(modeDessin === 'polygone' ? 'inactif' : 'polygone')}
+            >
+              {modeDessin === 'polygone' ? 'Annuler le tracé' : 'Dessiner un contour'}
+            </ClayButton>
+            {modeDessin === 'polygone' ? (
+              <p className="text-pretty text-[11.5px] text-mute">
+                Maintenez le clic et suivez vos rues. Le contour se ferme quand vous relâchez.
+              </p>
+            ) : null}
+          </div>
 
           <RegleVoie onAjouter={onAjouterRegle} enCours={enCours} onSurligner={onSurlignerVoie} />
           <RegleCodePostal onAjouter={onAjouterRegle} enCours={enCours} />
         </>
       ) : null}
 
-      {peutGerer ? (
-          <div className="flex items-center gap-2 border-t border-black/[0.06] pt-3">
-            <button
-              type="button"
-              onClick={() => onModifier({ actif: !zone.actif })}
-              className="flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
-            >
-              {zone.actif ? 'Désactiver' : 'Réactiver'}
-            </button>
-            <button
-              type="button"
-              onClick={onSupprimer}
-              className="rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-rose-700 transition-colors hover:bg-rose-50"
-            >
-              Supprimer
-            </button>
+      {peutGerer || peutSupprimer ? (
+        <div className="flex flex-col gap-2 border-t border-black/[0.06] pt-3">
+          <div className="flex items-center gap-2">
+            {peutGerer ? (
+              <button
+                type="button"
+                onClick={() => onModifier({ actif: !zone.actif })}
+                className="flex-1 rounded-lg px-2 py-1.5 text-left text-[12.5px] font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+              >
+                {zone.actif ? 'Désactiver' : 'Réactiver'}
+              </button>
+            ) : (
+              <span className="flex-1" />
+            )}
+            {peutSupprimer ? (
+              <button
+                type="button"
+                disabled={enCours}
+                onClick={() => setConfirmeSuppression((v) => !v)}
+                aria-expanded={confirmeSuppression}
+                className="rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-rose-700 transition-colors hover:bg-rose-50"
+              >
+                {confirmeSuppression ? 'Annuler' : 'Supprimer le secteur'}
+              </button>
+            ) : null}
           </div>
+
+          {peutSupprimer && confirmeSuppression ? (
+            <div className="flex flex-col gap-2 rounded-clay bg-rose-50 px-3 py-2.5">
+              <p className="text-pretty text-[12.5px] text-rose-900">
+                Supprimer « {zone.nom} » et toutes ses règles. Les adresses ne bougent pas,
+                elles ne seront plus rattachées à un secteur.
+              </p>
+              <ClayButton
+                variant="secondary"
+                className="self-start px-3 py-1.5 text-[12.5px] text-rose-700"
+                disabled={enCours}
+                onClick={() => {
+                  setConfirmeSuppression(false);
+                  onSupprimer();
+                }}
+              >
+                <Trash2 size={13} aria-hidden />
+                Oui, supprimer
+              </ClayButton>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

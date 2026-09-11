@@ -11,6 +11,7 @@ import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import { OPACITE_REMPLISSAGE_ZONE } from '@/lib/zones/palette';
 import { bbox, chevauchements, fusionnerBbox, polygonesDeZone } from '@/lib/zones/geometrie';
 import { COULEUR_FRAICHEUR, type NiveauFraicheur } from '@/lib/zones/fraicheur';
+import { polygoneDepuisTrace, type PointTrace } from '@/lib/zones/trace';
 import type { Zone } from '@/lib/zones/types';
 import DrawControl, { type DrawEvent } from './DrawControl';
 
@@ -32,6 +33,28 @@ export type LeadPoint = {
 };
 
 const ORANGE_LEAD = '#E8743C';
+
+/** Un geste de la souris ou du doigt sur la carte, quelle que soit sa source. */
+type GesteCarte = {
+  point: { x: number; y: number };
+  lngLat: { lng: number; lat: number };
+};
+
+/** En dessous, c'est du tremblement de main, pas une inflexion du contour. */
+const PAS_MINIMUM_PX = 3;
+
+/**
+ * Tolérance de simplification, exprimée en degrés à l'échelle affichée : le
+ * même geste doit donner le même contour qu'on soit zoomé sur un pâté de
+ * maisons ou sur une ville entière.
+ */
+function toleranceDegres(ref: MapRef | null): number {
+  const map = ref?.getMap();
+  const bornes = map?.getBounds();
+  const largeur = map?.getCanvas().clientWidth ?? 0;
+  if (!bornes || largeur <= 0) return 0.00003;
+  return (Math.abs(bornes.getEast() - bornes.getWest()) / largeur) * PAS_MINIMUM_PX;
+}
 
 function canvasHachure(): HTMLCanvasElement {
   const size = 16;
@@ -99,6 +122,51 @@ export default function ZonesCarte({
   const [pret, setPret] = useState(false);
   const [hachurePret, setHachurePret] = useState(false);
 
+  /**
+   * Tracé à main levée. mapbox-gl-draw ne sait poser des sommets qu'au clic,
+   * un par un : quand on essaie de suivre une rue d'un geste, la carte se
+   * contente de coulisser. On récolte donc le geste nous-mêmes, et on ne
+   * laisse à l'éditeur que ce qu'il fait bien — reprendre un sommet.
+   */
+  const dessinActif = modeDessin === 'polygone' && Boolean(onPolygoneDessine);
+  const traceRef = useRef<PointTrace[]>([]);
+  const dernierPixelRef = useRef<{ x: number; y: number } | null>(null);
+  const enTraceRef = useRef(false);
+  const [trace, setTrace] = useState<PointTrace[]>([]);
+
+  const debuterTrace = useCallback(
+    (e: GesteCarte) => {
+      if (!dessinActif) return;
+      enTraceRef.current = true;
+      traceRef.current = [[e.lngLat.lng, e.lngLat.lat]];
+      dernierPixelRef.current = { x: e.point.x, y: e.point.y };
+      setTrace(traceRef.current.slice());
+    },
+    [dessinActif],
+  );
+
+  const prolongerTrace = useCallback((e: GesteCarte) => {
+    if (!enTraceRef.current) return;
+    const dernier = dernierPixelRef.current;
+    if (dernier && Math.hypot(e.point.x - dernier.x, e.point.y - dernier.y) < PAS_MINIMUM_PX) {
+      return;
+    }
+    dernierPixelRef.current = { x: e.point.x, y: e.point.y };
+    traceRef.current = [...traceRef.current, [e.lngLat.lng, e.lngLat.lat]];
+    setTrace(traceRef.current);
+  }, []);
+
+  const terminerTrace = useCallback(() => {
+    if (!enTraceRef.current) return;
+    enTraceRef.current = false;
+    const points = traceRef.current;
+    traceRef.current = [];
+    dernierPixelRef.current = null;
+    setTrace([]);
+    const polygone = polygoneDepuisTrace(points, toleranceDegres(mapRef.current));
+    if (polygone) onPolygoneDessine?.(polygone);
+  }, [onPolygoneDessine]);
+
   const actives = useMemo(() => zones.filter((z) => z.actif), [zones]);
   const idsHachures = useMemo(() => {
     const ids = new Set<string>();
@@ -119,18 +187,6 @@ export default function ZonesCarte({
     return fusionnerBbox(boites);
   }, [actives]);
 
-  const onDessine = useCallback(
-    (e: DrawEvent) => {
-      const feature = e.features[0];
-      if (!feature || feature.geometry.type !== 'Polygon') return;
-      onPolygoneDessine?.(feature.geometry);
-      // Le contour part vers le panneau : on rend la carte propre, la couche
-      // du secteur prendra le relais dès l'enregistrement.
-      drawRef.current?.deleteAll();
-    },
-    [onPolygoneDessine],
-  );
-
   const onModifie = useCallback(
     (e: DrawEvent) => {
       const feature = e.features[0];
@@ -150,7 +206,10 @@ export default function ZonesCarte({
     const draw = drawRef.current;
     if (!draw || !pret) return;
     draw.deleteAll();
-    if (!zoneActive) return;
+    // Pendant le tracé, l'éditeur est vidé : sinon le premier appui attrape un
+    // sommet existant au lieu de commencer un contour. Le secteur reste visible,
+    // rendu par sa propre couche.
+    if (!zoneActive || dessinActif) return;
     for (const regle of zoneActive.regles) {
       if (regle.type !== 'polygone' || !regle.inclusion) continue;
       draw.add({
@@ -163,13 +222,7 @@ export default function ZonesCarte({
         },
       });
     }
-  }, [zoneActive, pret]);
-
-  useEffect(() => {
-    const draw = drawRef.current as unknown as { changeMode: (mode: string) => void } | null;
-    if (!draw || !pret) return;
-    draw.changeMode(modeDessin === 'polygone' ? 'draw_polygon' : 'simple_select');
-  }, [modeDessin, pret]);
+  }, [zoneActive, pret, dessinActif]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -192,8 +245,13 @@ export default function ZonesCarte({
 
   return (
     <div
-      className="priimo-map relative overflow-hidden rounded-clay-lg"
+      className={`priimo-map relative overflow-hidden rounded-clay-lg ${
+        dessinActif ? 'touch-none' : ''
+      }`}
       style={{ height: hauteur }}
+      // Relâcher au-dessus d'un point de lead ne passe pas par la carte :
+      // sans ça, le geste resterait ouvert et le contour serait perdu.
+      onPointerUp={terminerTrace}
     >
       <Map
         ref={mapRef}
@@ -201,6 +259,15 @@ export default function ZonesCarte({
         mapStyle={PRIIMO_MAP_STYLE}
         initialViewState={depart}
         attributionControl={false}
+        // Le geste appartient au tracé : la carte ne coulisse plus sous la main.
+        dragPan={!dessinActif}
+        doubleClickZoom={!dessinActif}
+        cursor={dessinActif ? 'crosshair' : undefined}
+        onMouseDown={debuterTrace}
+        onMouseUp={terminerTrace}
+        onTouchStart={debuterTrace}
+        onTouchMove={prolongerTrace}
+        onTouchEnd={terminerTrace}
         onLoad={(e) => {
           const map = e.target;
           if (!map.hasImage('hachure-chevauchement')) {
@@ -213,16 +280,19 @@ export default function ZonesCarte({
         }}
         interactiveLayerIds={actives.map((z) => `zone-fill-${z.id}`)}
         onMouseMove={(e) => {
+          if (enTraceRef.current) {
+            prolongerTrace(e);
+            return;
+          }
           const zoneId = e.features?.[0]?.properties?.zoneId;
           onSurvolZone?.(typeof zoneId === 'string' ? zoneId : null);
         }}
         onMouseOut={() => onSurvolZone?.(null)}
         style={{ width: '100%', height: '100%' }}
       >
-        {onPolygoneDessine || onPolygoneModifie ? (
+        {onPolygoneModifie ? (
           <DrawControl
             couleur={zoneActive?.couleur ?? '#4C7A9E'}
-            onCreate={onDessine}
             onUpdate={onModifie}
             onReady={(draw) => {
               drawRef.current = draw;
@@ -234,7 +304,7 @@ export default function ZonesCarte({
           const courante = zone.id === zoneActive?.id;
           // Le secteur en cours est déjà dans l'éditeur : le redessiner ici
           // superposerait deux contours et fausserait la lecture des teintes.
-          if (courante && (onPolygoneDessine || onPolygoneModifie)) return null;
+          if (courante && Boolean(onPolygoneModifie) && !dessinActif) return null;
           return (
             <Source key={zone.id} id={`zone-${zone.id}`} type="geojson" data={collectionDeZone(zone)}>
               <Layer
@@ -268,6 +338,25 @@ export default function ZonesCarte({
             </Source>
           );
         })}
+
+        {trace.length >= 2 ? (
+          <Source
+            id="zone-trace"
+            type="geojson"
+            data={{
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'LineString', coordinates: trace.map((p) => [p[0], p[1]]) },
+            }}
+          >
+            <Layer
+              id="zone-trace-line"
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': zoneActive?.couleur ?? '#4C7A9E', 'line-width': 3 }}
+            />
+          </Source>
+        ) : null}
 
         {apercu ? (
           <Source id="zone-apercu" type="geojson" data={{ type: 'Feature', properties: {}, geometry: apercu }}>

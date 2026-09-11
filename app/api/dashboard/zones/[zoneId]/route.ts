@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import { canEditZone, canManageZone, viewerFromProfile } from '@/lib/agency/visibility';
+import {
+  canDeleteZone,
+  canEditZone,
+  canManageZone,
+  viewerFromProfile,
+} from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import { fetchZonePourDroit } from '@/lib/queries/zones';
@@ -143,17 +148,25 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ zoneId: str
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
-  if (!canManageZone(viewerFromProfile(profile))) {
-    return NextResponse.json(
-      { error: 'Seul le directeur peut supprimer un secteur' },
-      { status: 403 },
-    );
-  }
 
   const { zoneId } = await ctx.params;
   if (!zoneId) return NextResponse.json({ error: 'Secteur inconnu' }, { status: 400 });
 
   const supabase = await createSupabaseServerClient();
+  const zone = await fetchZonePourDroit(supabase, { zoneId, agencyId: agency.id });
+  if (!zone) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
+
+  if (!canDeleteZone(viewerFromProfile(profile), zone)) {
+    return NextResponse.json(
+      {
+        error: zone.verrouillee
+          ? 'Secteur défini par la direction'
+          : 'Vous ne pouvez supprimer que votre secteur',
+      },
+      { status: 403 },
+    );
+  }
+
   const { error } = await supabase
     .from('zones')
     .delete()
