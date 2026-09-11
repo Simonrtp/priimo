@@ -3,6 +3,7 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { canEditZone, canManageZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
+import { fetchZonePourDroit } from '@/lib/queries/zones';
 import type { ZoneInsert } from '@/types/database';
 import {
   estInvalide,
@@ -31,20 +32,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
   if (!zoneId) return NextResponse.json({ error: 'Secteur inconnu' }, { status: 400 });
 
   const supabase = await createSupabaseServerClient();
-  const { data: existante } = await supabase
-    .from('zones')
-    .select('id, assigned_to, verrouillee')
-    .eq('id', zoneId)
-    .eq('agency_id', agency.id)
-    .maybeSingle();
+  const zoneDroit = await fetchZonePourDroit(supabase, { zoneId, agencyId: agency.id });
 
-  if (!existante) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
+  if (!zoneDroit) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
 
   const viewer = viewerFromProfile(profile);
-  const zoneDroit = {
-    assignedTo: existante.assigned_to,
-    verrouillee: existante.verrouillee === true,
-  };
   if (!canEditZone(viewer, zoneDroit)) {
     return NextResponse.json(
       {

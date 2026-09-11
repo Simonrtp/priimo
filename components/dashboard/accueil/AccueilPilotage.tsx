@@ -206,7 +206,7 @@ export default function AccueilPilotage({
 
       {aujourdhui}
       <div aria-busy={enCours} className={estompe}>
-        <JourParJour jours={bilan.jours} />
+        <JourParJour jours={bilan.jours} periode={vue.periode} />
       </div>
       {secteur}
     </div>

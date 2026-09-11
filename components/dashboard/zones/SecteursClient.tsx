@@ -3,14 +3,12 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Loader2, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Loader2, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { canCreateZone, canEditZone, canManageZone } from '@/lib/agency/visibility';
 import { toast } from 'sonner';
 import ClayButton from '@/components/ui/ClayButton';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { COULEURS_ZONE } from '@/lib/zones/palette';
-import { chevauchements } from '@/lib/zones/geometrie';
-import { statistiquesParZone } from '@/lib/zones/leads';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
 import { decouperAdresse } from '@/lib/zones/adresse';
 import type { PariteVoie, RegleZone, Zone } from '@/lib/zones/types';
@@ -103,8 +101,11 @@ export default function SecteursClient({
   profileId: string;
 }) {
   const router = useRouter();
+  // Un négociateur ouvre sur SA zone. À défaut, sur rien : lui poser d'office
+  // le secteur d'un collègue, qu'il ne peut que lire, ferait croire à un bug.
   const [zoneActiveId, setZoneActiveId] = useState<string | null>(
-    zones.find((z) => z.assignedTo === profileId)?.id ?? zones[0]?.id ?? null,
+    zones.find((z) => z.assignedTo === profileId)?.id ??
+      (estDirecteur ? (zones[0]?.id ?? null) : null),
   );
   const [enCours, setEnCours] = useState(false);
   const [modeDessin, setModeDessin] = useState<'inactif' | 'polygone'>('inactif');
@@ -128,8 +129,6 @@ export default function SecteursClient({
   const peutGerer = canManageZone(viewer);
   const peutCreer = canCreateZone(viewer, profileId);
 
-  const conflits = useMemo(() => chevauchements(zones), [zones]);
-  const { horsZone } = useMemo(() => statistiquesParZone(leads, zones), [leads, zones]);
   const pointsLeads = useMemo(
     () => leads.map((l) => ({ id: l.id, latitude: l.latitude, longitude: l.longitude, pris: l.pris })),
     [leads],
@@ -279,38 +278,10 @@ export default function SecteursClient({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="font-semibold text-ink" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
-          Secteurs
-        </h2>
-        <p className="mt-1 text-[13px] text-mute">
-          Le découpage interne de l’agence entre négociateurs. Sans effet sur la livraison des
-          leads ni sur l’exclusivité : le territoire de l’agence, lui, reste ses codes postaux.
-        </p>
-      </div>
-
-      {conflits.length > 0 || horsZone.length > 0 ? (
-        <div className="flex flex-col gap-1.5 rounded-clay border border-amber-300/60 bg-amber-50 px-4 py-3">
-          {conflits.map((c) => (
-            <p key={`${c.zoneA.id}-${c.zoneB.id}`} className="flex items-center gap-2 text-[13px] text-amber-900">
-              <AlertTriangle size={14} aria-hidden />
-              {c.zoneA.nom} et {c.zoneB.nom} se recouvrent.
-            </p>
-          ))}
-          {horsZone.length > 0 ? (
-            <p className="flex items-center gap-2 text-[13px] text-amber-900">
-              <AlertTriangle size={14} aria-hidden />
-              {horsZone.length} adresses livrées ne sont dans aucun secteur.
-            </p>
-          ) : null}
-          <p className="mt-0.5 text-[11px] text-amber-800/80">
-            Rien n’est bloqué : un chevauchement peut être voulu sur un axe partagé.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="min-w-0">
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_320px]">
+        {/* La carte reste sous les yeux pendant qu'on fait défiler les règles
+            du panneau : on dessine en regardant, pas de mémoire. */}
+        <div className="min-w-0 lg:sticky lg:top-0 lg:self-start">
           <ZonesCarte
             zones={zones}
             zoneActive={peutEditer ? zoneActive : null}

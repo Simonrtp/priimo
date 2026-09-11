@@ -397,7 +397,9 @@ function cartesAlerte(alerts: readonly TodayAlertItem[]): TodayCard[] {
       ? { kind: 'ouvrir_lead', label: 'Voir le prospect', leadId: alert.leadId }
       : alert.contactId
         ? { kind: 'ouvrir_contact', label: 'Voir le contact', contactId: alert.contactId }
-        : { kind: 'ouvrir_contact', label: 'Voir la fiche', contactId: alert.id };
+        : // Un chevauchement de secteurs ne vise ni contact ni lead : l'ouvrir
+          // sur l'id de l'alerte mènerait à une fiche qui n'existe pas.
+          { kind: 'ouvrir_liste', label: 'Voir', cardType: 'alerte' };
 
     return mkCard(
       {

@@ -5,6 +5,15 @@ import { useState } from 'react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import type { JourActivite } from '@/lib/activite/bilan';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
+import type { Periode } from '@/lib/activite/semaines';
+
+/** Le titre suit le sélecteur : le tableau montre la période affichée. */
+const TITRE_PERIODE: Record<Periode, string> = {
+  jour: 'Mon activité du jour',
+  semaine: 'Mon activité de la semaine',
+  mois: 'Mon activité du mois',
+  annee: 'Mon activité de l’année',
+};
 
 const COURT: Record<(typeof FAMILLES_ACTIVITE)[number], string> = {
   contacts_physiques: 'Contacts',
@@ -26,7 +35,13 @@ function jourCourt(cle: string): string {
  * C'est de la consultation, pas du pilotage : il n'a aucune raison d'occuper
  * de la hauteur tant qu'on ne l'a pas demandé. Masqué en mobile.
  */
-export default function JourParJour({ jours }: { jours: readonly JourActivite[] }) {
+export default function JourParJour({
+  jours,
+  periode = 'semaine',
+}: {
+  jours: readonly JourActivite[];
+  periode?: Periode;
+}) {
   const [ouvert, setOuvert] = useState(false);
   if (jours.length === 0) return null;
 
@@ -44,7 +59,7 @@ export default function JourParJour({ jours }: { jours: readonly JourActivite[] 
         className="flex w-full items-center justify-between gap-3 rounded-clay-lg bg-surface px-5 py-3.5 text-left shadow-clay-sm transition-shadow duration-fluid-subtle hover:shadow-clay"
       >
         <span className="font-display text-[15px] font-bold text-text-strong">
-          Mon activité jour par jour
+          {TITRE_PERIODE[periode]}
         </span>
         <ChevronDown
           size={17}

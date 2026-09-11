@@ -191,12 +191,16 @@ export default function ZonesCarte({
       : FRANCE_MAP_VIEW;
 
   return (
-    <div className="relative overflow-hidden rounded-clay-lg" style={{ height: hauteur }}>
+    <div
+      className="priimo-map relative overflow-hidden rounded-clay-lg"
+      style={{ height: hauteur }}
+    >
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
         initialViewState={depart}
+        attributionControl={false}
         onLoad={(e) => {
           const map = e.target;
           if (!map.hasImage('hachure-chevauchement')) {

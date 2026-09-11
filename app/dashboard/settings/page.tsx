@@ -1,8 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { fetchTeamSettingsData } from '@/lib/queries/team-settings';
-import { fetchSecteursSettings } from '@/lib/queries/secteurs-settings';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
 import SettingsDashboard, { type SettingsTabId } from '@/components/dashboard/settings/SettingsDashboard';
 
 const DIRECTOR_ONLY: ReadonlySet<SettingsTabId> = new Set(['agency', 'billing', 'team']);
@@ -11,7 +9,6 @@ const VALID_TABS: ReadonlySet<SettingsTabId> = new Set([
   'billing',
   'profile',
   'team',
-  'secteurs',
   'integrations',
 ]);
 
@@ -33,23 +30,19 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   if (rawTab === 'widget') {
     redirect('/dashboard/estimation?vue=widget');
   }
+  // Les secteurs se dessinent depuis l'Accueil : les anciens liens y renvoient.
+  if (rawTab === 'secteurs') {
+    redirect('/dashboard');
+  }
   const tab = parseTab(sp.tab);
   if (tab && DIRECTOR_ONLY.has(tab) && profile.role !== 'directeur') {
     notFound();
   }
 
-  const supabase = await createSupabaseServerClient();
-  const [team, secteurs] = await Promise.all([
+  const team =
     profile.role === 'directeur'
-      ? fetchTeamSettingsData(agency.id, memberships, user.id)
-      : null,
-    fetchSecteursSettings(supabase, {
-      agencyId: agency.id,
-      profileId: profile.id,
-      memberships,
-      centre: { latitude: agency.latitude, longitude: agency.longitude },
-    }),
-  ]);
+      ? await fetchTeamSettingsData(agency.id, memberships, user.id)
+      : null;
 
-  return <SettingsDashboard initialTab={tab} team={team} secteurs={secteurs} />;
+  return <SettingsDashboard initialTab={tab} team={team} />;
 }

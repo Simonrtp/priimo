@@ -11,7 +11,7 @@ interface ModalProps {
   title: string;
   description?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   /** Pour empiler un modal au-dessus d’un autre (ex. créer un proprio depuis un bien). */
   elevated?: boolean;
 }
@@ -22,6 +22,8 @@ const MAX_WIDTH_CLASS: Record<NonNullable<ModalProps['maxWidth']>, string> = {
   lg: 'max-w-lg',
   xl: 'max-w-2xl',
   '2xl': 'max-w-4xl',
+  // Atelier de découpage : la carte a besoin de place, sinon on dessine à l'aveugle.
+  '3xl': 'max-w-6xl',
 };
 
 export default function Modal({

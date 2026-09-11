@@ -78,11 +78,11 @@ import { lireAgendaSemaine } from '@/lib/agenda/lire';
 import { tacheDuMoment } from '@/lib/today/maintenant';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { apercuSecteur } from '@/lib/zones/accueil';
-import MonSecteur from '@/components/dashboard/accueil/MonSecteur';
+import SecteurAccueil from '@/components/dashboard/accueil/SecteurAccueil';
 import CarteTourneeFraicheur, {
   CLE_TOURNEE_FRAICHEUR,
-  DessinerMonSecteur,
 } from '@/components/dashboard/accueil/CarteTourneeFraicheur';
+import type { SecteursData } from '@/components/dashboard/accueil/SecteurAtelier';
 import { estEcartee } from '@/lib/today/cards';
 import { fetchPassagesObserves } from '@/lib/queries/passages';
 import {
@@ -596,16 +596,40 @@ async function TodayContent({
     apercu.aRevoir > 10 &&
     !estEcartee(CLE_TOURNEE_FRAICHEUR, dismissals, maintenant);
 
-  const secteurNode =
-    apercu.zones.length > 0 ? (
-      <MonSecteur
-        apercu={apercu}
-        centre={{ latitude: agency.latitude, longitude: agency.longitude }}
-        estDirecteur={isDirector}
-      />
-    ) : !isDirector ? (
-      <DessinerMonSecteur />
-    ) : null;
+  // L'atelier de découpage vit sur l'Accueil. Il se sert des leads et des
+  // membres déjà lus plus haut : aucune requête de plus pour ouvrir la carte.
+  const secteursData: SecteursData = {
+    zones,
+    membres: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+    leads: visibleLeads
+      .filter(
+        (l): l is typeof l & { latitude: number; longitude: number } =>
+          l.latitude !== null && l.longitude !== null,
+      )
+      .map((l) => ({
+        id: l.id,
+        address: l.address,
+        postalCode: l.postalCode,
+        latitude: l.latitude,
+        longitude: l.longitude,
+        assignedTo: l.assignedTo,
+        stageId: l.stageId,
+        pris: l.stageId != null,
+        deliveredAt: l.deliveredAt,
+        createdAt: l.createdAt,
+      })),
+    centre: { latitude: agency.latitude, longitude: agency.longitude },
+    profileId: profile.id,
+  };
+
+  const secteurNode = (
+    <SecteurAccueil
+      apercu={apercu}
+      centre={{ latitude: agency.latitude, longitude: agency.longitude }}
+      estDirecteur={isDirector}
+      secteurs={secteursData}
+    />
+  );
 
   const pilotageCommun = {
     pilotage,

@@ -166,6 +166,42 @@ export async function fetchZonesSafe(supabase: Client): Promise<Zone[]> {
   }
 }
 
+/**
+ * Le strict nécessaire pour décider d'un droit d'écriture sur une zone.
+ *
+ * Tant que `verrouillee` n'existe pas en base, on relit sans la colonne :
+ * sinon la requête échoue et l'API répond « secteur introuvable » à un
+ * négociateur dont le secteur existe très bien.
+ */
+export async function fetchZonePourDroit(
+  supabase: Client,
+  params: { zoneId: string; agencyId: string },
+): Promise<{ assignedTo: string | null; verrouillee: boolean } | null> {
+  const lire = (colonnes: string) =>
+    supabase
+      .from('zones')
+      .select(colonnes)
+      .eq('id', params.zoneId)
+      .eq('agency_id', params.agencyId)
+      .maybeSingle();
+
+  const premier = await lire('id, assigned_to, verrouillee');
+  const res =
+    premier.error && /verrouillee/.test(premier.error.message)
+      ? await lire('id, assigned_to')
+      : premier;
+
+  if (res.error) {
+    console.error('[zones] lecture du secteur impossible', res.error.message);
+    return null;
+  }
+  const row = res.data as unknown as
+    | { assigned_to: string | null; verrouillee?: boolean }
+    | null;
+  if (!row) return null;
+  return { assignedTo: row.assigned_to, verrouillee: row.verrouillee === true };
+}
+
 /** La zone du titulaire pour un jour donné (1 = lundi), s'il en a une. */
 export function zoneDuJour(zones: readonly Zone[], profileId: string, jour: number): Zone | null {
   return (

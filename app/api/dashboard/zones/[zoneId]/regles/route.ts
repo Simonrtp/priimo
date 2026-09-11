@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { canEditZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { fetchZonePourDroit } from '@/lib/queries/zones';
 import { signalerChevauchementsSiBesoin } from '@/lib/queries/zone-conflits';
 import { estInvalide, validerTypeRegle, validerValeurRegle } from '@/lib/zones/valider';
 
@@ -40,19 +41,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ zoneId: string
   const inclusion = raw.inclusion === undefined ? true : raw.inclusion === true;
 
   const supabase = await createSupabaseServerClient();
-  const { data: zone } = await supabase
-    .from('zones')
-    .select('id, assigned_to, verrouillee')
-    .eq('id', zoneId)
-    .eq('agency_id', agency.id)
-    .maybeSingle();
+  const zoneDroit = await fetchZonePourDroit(supabase, { zoneId, agencyId: agency.id });
 
-  if (!zone) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
+  if (!zoneDroit) return NextResponse.json({ error: 'Secteur introuvable' }, { status: 404 });
 
-  const zoneDroit = {
-    assignedTo: zone.assigned_to,
-    verrouillee: zone.verrouillee === true,
-  };
   if (!canEditZone(viewerFromProfile(profile), zoneDroit)) {
     return NextResponse.json(
       {
