@@ -307,14 +307,62 @@ export async function fetchParcelleFiche(args: {
     args.postalCodes,
   );
 
-  const [dpeRows, coproRows] = inSector
-    ? await Promise.all([
+  // Trois familles de lectures restent : l'open data rattaché aux BAN, les
+  // enregistrements de l'agence posés sur ces mêmes BAN, et les notes liées à
+  // la parcelle. Aucune ne lit le résultat d'une autre — les enchaîner coûtait
+  // deux allers-retours de plus à chaque ouverture du panneau.
+  const bansAgence = banIds.slice(0, IN_CHUNK);
+
+  const openDataParBan = inSector
+    ? Promise.all([
         // Admin : building_dpe = diagnostics ADEME open data.
         selectByBanIds<DpeRow>(openDataDb, 'building_dpe', cols(PARCELLE_READ_QUERIES.dpe.columns), banIds),
         // Admin : building_copro = RNC open data.
         selectByBanIds<CoproRow>(openDataDb, 'building_copro', cols(PARCELLE_READ_QUERIES.copro.columns), banIds),
       ])
-    : [[], []];
+    : Promise.resolve([[], []] as [DpeRow[], CoproRow[]]);
+
+  // --- Données agence : sessionDb uniquement + helpers visibility ---
+  const agenceParBan =
+    bansAgence.length > 0
+      ? Promise.all([
+          sessionDb
+            .from('leads')
+            .select('id, address, city, postal_code, score, assigned_to, ban_id')
+            .eq('agency_id', agencyId)
+            .in('ban_id', bansAgence),
+          sessionDb
+            .from('contacts')
+            .select('id, first_name, last_name, contact_type, assigned_to, created_by, ban_id')
+            .eq('agency_id', agencyId)
+            .in('ban_id', bansAgence),
+          sessionDb
+            .from('biens')
+            .select('id, address, mandat_statut, created_by, ban_id')
+            .eq('agency_id', agencyId)
+            .in('ban_id', bansAgence),
+          sessionDb
+            .from('voice_notes')
+            .select('id, transcript, visibilite, created_by, assigned_to, ban_id')
+            .eq('agency_id', agencyId)
+            .in('ban_id', bansAgence),
+        ])
+      : null;
+
+  const notesLiees =
+    noteIdsFromLiens.length > 0
+      ? sessionDb
+          .from('voice_notes')
+          .select('id, transcript, visibilite, created_by')
+          .eq('agency_id', agencyId)
+          .in('id', noteIdsFromLiens)
+      : null;
+
+  const [[dpeRows, coproRows], parBan, liees] = await Promise.all([
+    openDataParBan,
+    agenceParBan,
+    notesLiees,
+  ]);
 
   const diagnostics = inSector
     ? filterPublicDiagnostics(
@@ -356,30 +404,8 @@ export async function fetchParcelleFiche(args: {
     surCetteParcelle.push(item);
   }
 
-  // --- Données agence : sessionDb uniquement + helpers visibility ---
-  if (banIds.length > 0) {
-    const [leadsRes, contactsRes, biensRes, notesBanRes] = await Promise.all([
-      sessionDb
-        .from('leads')
-        .select('id, address, city, postal_code, score, assigned_to, ban_id')
-        .eq('agency_id', agencyId)
-        .in('ban_id', banIds.slice(0, IN_CHUNK)),
-      sessionDb
-        .from('contacts')
-        .select('id, first_name, last_name, contact_type, assigned_to, created_by, ban_id')
-        .eq('agency_id', agencyId)
-        .in('ban_id', banIds.slice(0, IN_CHUNK)),
-      sessionDb
-        .from('biens')
-        .select('id, address, mandat_statut, created_by, ban_id')
-        .eq('agency_id', agencyId)
-        .in('ban_id', banIds.slice(0, IN_CHUNK)),
-      sessionDb
-        .from('voice_notes')
-        .select('id, transcript, visibilite, created_by, assigned_to, ban_id')
-        .eq('agency_id', agencyId)
-        .in('ban_id', banIds.slice(0, IN_CHUNK)),
-    ]);
+  if (parBan) {
+    const [leadsRes, contactsRes, biensRes, notesBanRes] = parBan;
 
     for (const row of leadsRes.data ?? []) {
       if (!canSeeLeadRecord(viewer, { assignedTo: row.assigned_to ?? null })) continue;
@@ -426,13 +452,8 @@ export async function fetchParcelleFiche(args: {
     }
   }
 
-  if (noteIdsFromLiens.length > 0) {
-    const { data: linkedNotes } = await sessionDb
-      .from('voice_notes')
-      .select('id, transcript, visibilite, created_by')
-      .eq('agency_id', agencyId)
-      .in('id', noteIdsFromLiens);
-    for (const row of linkedNotes ?? []) {
+  if (liees) {
+    for (const row of liees.data ?? []) {
       if (!canSeeVoiceNote(viewer, { visibilite: row.visibilite === 'privee' ? 'privee' : 'agence', createdBy: row.created_by ?? null })) {
         continue;
       }

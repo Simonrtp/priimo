@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { jourSemaineParis, libelleModeDuJour, modeDuJour, zoneDuJour } from './jour';
+import { jourSemaineParis, libelleJours, libelleModeDuJour, modeDuJour, zoneDuJour } from './jour';
 import type { Zone } from './types';
 
 const MOI = 'moi';
@@ -12,7 +12,7 @@ function zone(id: string, jourSemaine: number | null, assignedTo: string | null 
     nom: `Zone ${id}`,
     couleur: '#4C7A9E',
     assignedTo,
-    jourSemaine,
+    joursSemaine: jourSemaine === null ? [] : [jourSemaine],
     actif: true,
     verrouillee: false,
     regles: [],
@@ -80,5 +80,30 @@ describe('mode du jour', () => {
   it('n’attribue aucun secteur le week-end', () => {
     const samedi = new Date('2026-09-12T07:00:00Z');
     assert.equal(modeDuJour([zone('a', 1), zone('b', 5)], MOI, samedi).mode, 'relances');
+  });
+
+  it('retient un secteur tenu plusieurs jours', () => {
+    const deuxJours: Zone = { ...zone('a', null), joursSemaine: [2, 5] };
+    assert.equal(modeDuJour([deuxJours], MOI, MARDI).mode, 'secteur');
+    assert.equal(modeDuJour([deuxJours], MOI, VENDREDI).mode, 'secteur');
+    assert.equal(
+      modeDuJour([deuxJours], MOI, new Date('2026-09-09T07:00:00Z')).mode,
+      'relances',
+    );
+  });
+});
+
+describe('libellé des jours', () => {
+  it('ne dit rien quand aucun jour n’est retenu', () => {
+    assert.equal(libelleJours([]), null);
+  });
+
+  it('énumère dans l’ordre de la semaine, pas dans celui des clics', () => {
+    assert.equal(libelleJours([4, 1]), 'Lundi et jeudi');
+    assert.equal(libelleJours([1, 3, 4]), 'Lundi, mercredi et jeudi');
+  });
+
+  it('résume la semaine entière', () => {
+    assert.equal(libelleJours([1, 2, 3, 4, 5]), 'Tous les jours');
   });
 });

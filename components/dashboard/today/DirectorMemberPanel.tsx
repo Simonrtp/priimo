@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { formatNoteWhen } from '@/lib/notes/format-when';
+import { lienLectureNote } from '@/lib/notes/lecture';
+import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
 
 export type MemberBrief = {
   memberId: string;
@@ -23,6 +25,7 @@ export default function DirectorMemberPanel({
 }) {
   const [brief, setBrief] = useState<MemberBrief | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const lecture = useNotesLectureOptional();
 
   useEffect(() => {
     let cancelled = false;
@@ -130,15 +133,19 @@ export default function DirectorMemberPanel({
                 <ul className="flex flex-col">
                   {brief.notes.map((note) => (
                     <li key={note.id}>
-                      <Link
-                        href={`/dashboard/notes?id=${note.id}`}
-                        className="block min-h-10 cursor-pointer rounded-lg px-1 py-1.5 hover:bg-black/[0.03]"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (lecture) lecture.ouvrir(note.id);
+                          else window.location.assign(lienLectureNote(note.id));
+                        }}
+                        className="block min-h-10 w-full cursor-pointer rounded-lg px-1 py-1.5 text-left hover:bg-black/[0.03]"
                       >
                         <p className="line-clamp-2 text-[13.5px] text-text">{note.excerpt}</p>
                         <p className="mt-0.5 text-[12px] text-text-muted">
                           {formatNoteWhen(note.createdAt)}
                         </p>
-                      </Link>
+                      </button>
                     </li>
                   ))}
                 </ul>

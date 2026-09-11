@@ -1,7 +1,7 @@
 import type { VoiceNote, VoiceNoteStatut } from '@/types/contact';
 
 export type NotesInboxStatut = VoiceNoteStatut | 'tous';
-export type NotesInboxScope = 'moi' | 'agence';
+export type NotesInboxScope = 'moi' | 'agence' | 'visibles';
 export type NotesInboxPeriod = 'tous' | '7j' | '30j';
 export type NotesInboxRattachement = 'tous' | 'rattachees' | 'orphelines';
 
@@ -87,11 +87,17 @@ export function filterInboxNotes<T extends VoiceNote>(
 
   return notes.filter((note) => {
     if (input.statut !== 'tous' && note.statut !== input.statut) return false;
-    if (input.auteurId) {
-      if (note.createdBy !== input.auteurId) return false;
-    } else {
-      if (input.scope === 'moi' && note.createdBy !== input.viewerId) return false;
-      if (input.scope === 'agence' && note.visibilite !== 'agence') return false;
+    if (input.auteurId && note.createdBy !== input.auteurId) return false;
+    if (!input.auteurId && input.scope === 'moi' && note.createdBy !== input.viewerId) {
+      return false;
+    }
+    if (input.scope === 'agence' && note.visibilite !== 'agence') return false;
+    // `visibles` : les miennes, plus celles que les collègues ont publiées.
+    // La visibilité amont (`canSeeVoiceNote`) isole déjà les privées des autres ;
+    // on rejoue ici pour ne jamais les laisser passer par un oubli d'appelant.
+    if (input.scope === 'visibles') {
+      const mienne = note.createdBy === input.viewerId;
+      if (!mienne && note.visibilite !== 'agence') return false;
     }
     if (maxAge !== null) {
       const t = Date.parse(note.createdAt);

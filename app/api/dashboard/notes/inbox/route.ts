@@ -5,6 +5,7 @@ import { viewerFromProfile } from '@/lib/agency/visibility';
 import { visibleVoiceNotesFor } from '@/lib/agency/scope-records';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { fetchVoiceNotesSafe } from '@/lib/queries/contacts';
+import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import {
   filterInboxNotes,
   type NotesInboxPeriod,
@@ -21,7 +22,9 @@ function asStatut(raw: string | null): NotesInboxStatut {
 }
 
 function asScope(raw: string | null): NotesInboxScope {
-  return raw === 'agence' ? 'agence' : 'moi';
+  if (raw === 'agence') return 'agence';
+  if (raw === 'visibles') return 'visibles';
+  return 'moi';
 }
 
 function asPeriod(raw: string | null): NotesInboxPeriod {
@@ -60,10 +63,13 @@ export async function GET(req: Request) {
     auteurId: url.searchParams.get('membre')?.trim() || null,
   });
 
+  const rattachements = await rattachementsDesNotes({ supabase, notes: filtered });
+
   return NextResponse.json({
     notes: filtered.map((n) => ({
       ...n,
       authorName: n.createdBy ? names.get(n.createdBy) ?? null : null,
+      rattachements: rattachements.get(n.id) ?? [],
     })),
   });
 }

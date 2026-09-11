@@ -1,24 +1,20 @@
 import { redirect } from 'next/navigation';
-import { getServerUser } from '@/lib/auth/getServerUser';
-import NotesInboxClient from '@/components/dashboard/notes/NotesInboxClient';
+import { lienLectureNote } from '@/lib/notes/lecture';
 
 export const metadata = { title: 'Notes' };
 
+/**
+ * La page Notes n'existe plus : la lecture vit sur l'accueil.
+ * On conserve l'URL le temps que les anciens liens (mails, cartes du jour)
+ * aboutissent encore quelque part.
+ */
 export default async function NotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string; statut?: string; scope?: string; membre?: string }>;
+  searchParams: Promise<{ id?: string; membre?: string }>;
 }) {
-  const { user, profile, agency } = await getServerUser();
-  if (!user || !profile || !agency) redirect('/login');
-
-  const { id, statut, scope, membre } = await searchParams;
-  return (
-    <NotesInboxClient
-      initialNoteId={id ?? null}
-      initialStatut={statut ?? 'tous'}
-      initialScope={scope ?? 'moi'}
-      initialMembre={membre ?? null}
-    />
-  );
+  const { id, membre } = await searchParams;
+  const cible = new URL(lienLectureNote(id ?? null), 'http://priimo.local');
+  if (membre) cible.searchParams.set('membre', membre);
+  redirect(`${cible.pathname}${cible.search}`);
 }

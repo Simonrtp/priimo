@@ -1,3 +1,4 @@
+import { lienLectureNote } from '@/lib/notes/lecture';
 import type { TodayCardAction } from '@/lib/today/cards';
 
 /**
@@ -22,7 +23,7 @@ export function lienAction(action: TodayCardAction): string | null {
     case 'ouvrir_estimation':
       return `/dashboard/estimation?historique=1&id=${action.estimationId}`;
     case 'ouvrir_note':
-      return `/dashboard/notes?id=${encodeURIComponent(action.noteId)}`;
+      return lienLectureNote(action.noteId);
     case 'ouvrir_promesse':
     case 'ouvrir_rdv':
       return null;

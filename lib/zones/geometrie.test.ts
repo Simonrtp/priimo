@@ -32,7 +32,7 @@ function zone(id: string, polygones: ValeurPolygone[], actif = true): Zone {
     nom: `Zone ${id}`,
     couleur: '#4C7A9E',
     assignedTo: null,
-    jourSemaine: null,
+    joursSemaine: [],
     actif,
     verrouillee: false,
     regles,

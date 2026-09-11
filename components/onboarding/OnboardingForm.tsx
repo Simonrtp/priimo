@@ -331,7 +331,7 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
               {submitting ? (
                 <>
                   <span className="spinner" aria-hidden />
-                  <span>Enregistrement…</span>
+                  <span>Validation…</span>
                 </>
               ) : (
                 <span>Terminer l&apos;onboarding</span>

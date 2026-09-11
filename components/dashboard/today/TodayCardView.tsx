@@ -25,6 +25,8 @@ import { isOverdue, temporalMention, visualLevel } from '@/lib/today/visual-leve
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
+import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
+import { lienLectureNote } from '@/lib/notes/lecture';
 
 const TYPE_ICONS: Record<TodayCardType, LucideIcon> = {
   echeance_contractuelle: AlertTriangle,
@@ -52,6 +54,7 @@ export default function TodayCardView({
   onIgnore: (card: TodayCard) => void;
 }) {
   const router = useRouter();
+  const lecture = useNotesLectureOptional();
   const [expanded, setExpanded] = useState(false);
   const level = visualLevel(card);
   const Icon = TYPE_ICONS[card.type];
@@ -84,7 +87,8 @@ export default function TodayCardView({
         router.push(`/dashboard/estimation?historique=1&id=${action.estimationId}`);
         break;
       case 'ouvrir_note':
-        router.push(`/dashboard/notes?id=${encodeURIComponent(action.noteId)}`);
+        if (lecture) lecture.ouvrir(action.noteId);
+        else router.push(lienLectureNote(action.noteId));
         break;
       default:
         break;

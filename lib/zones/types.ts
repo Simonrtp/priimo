@@ -73,8 +73,8 @@ export type Zone = {
   couleur: string;
   /** Titulaire. Null = zone dessinée, pas encore attribuée. */
   assignedTo: string | null;
-  /** 1 = lundi. Null = pas de calendrier de tournée. */
-  jourSemaine: number | null;
+  /** 1 = lundi. Vide = pas de calendrier de tournée. Trié, sans doublon. */
+  joursSemaine: readonly number[];
   actif: boolean;
   /** Verrouillé par la direction : le titulaire lit, il ne retouche plus. */
   verrouillee: boolean;

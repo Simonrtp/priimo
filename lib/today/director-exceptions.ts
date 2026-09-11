@@ -56,7 +56,7 @@ export function buildDirectorExceptions(input: {
         kind: 'notes-brutes',
         label: brutes > 1 ? 'notes encore brutes' : 'note encore brute',
         count: brutes,
-        href: memberQuery('/dashboard/notes?statut=brute&scope=agence', member.id),
+        href: memberQuery('/dashboard?notes=1', member.id),
         tone: 'surveiller',
       });
     }

@@ -37,7 +37,7 @@ function zone(id: string, assignedTo: string | null, lngMin: number, lngMax: num
     nom: `Zone ${id}`,
     couleur: '#4C7A9E',
     assignedTo,
-    jourSemaine: jour,
+    joursSemaine: jour === null ? [] : [jour],
     actif: true,
     verrouillee: false,
     regles: [regle],

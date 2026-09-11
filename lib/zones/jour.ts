@@ -15,6 +15,25 @@ import type { Zone } from './types';
 
 const PARIS = 'Europe/Paris';
 
+/** Lundi à vendredi. Le samedi n'est pas un jour de tournée chez Priimo. */
+export const JOURS_TOURNEE = [
+  { valeur: 1, label: 'Lundi', initiale: 'L' },
+  { valeur: 2, label: 'Mardi', initiale: 'M' },
+  { valeur: 3, label: 'Mercredi', initiale: 'M' },
+  { valeur: 4, label: 'Jeudi', initiale: 'J' },
+  { valeur: 5, label: 'Vendredi', initiale: 'V' },
+] as const;
+
+/** « Lundi et jeudi », « Tous les jours », ou rien du tout. */
+export function libelleJours(jours: readonly number[]): string | null {
+  const noms = JOURS_TOURNEE.filter((j) => jours.includes(j.valeur)).map((j) => j.label);
+  if (noms.length === 0) return null;
+  if (noms.length === JOURS_TOURNEE.length) return 'Tous les jours';
+  const minuscules = noms.map((n, i) => (i === 0 ? n : n.toLowerCase()));
+  if (minuscules.length === 1) return minuscules[0]!;
+  return `${minuscules.slice(0, -1).join(', ')} et ${minuscules[minuscules.length - 1]}`;
+}
+
 /** 1 = lundi … 7 = dimanche, en heure de Paris. */
 export function jourSemaineParis(maintenant: Date = new Date()): number {
   const nom = new Intl.DateTimeFormat('en-GB', { timeZone: PARIS, weekday: 'short' }).format(
@@ -44,11 +63,11 @@ export function modeDuJour(
   maintenant: Date = new Date(),
 ): ModeDuJour {
   const siennes = zones.filter((z) => z.actif && z.assignedTo === profileId);
-  const avecJour = siennes.filter((z) => z.jourSemaine !== null);
+  const avecJour = siennes.filter((z) => z.joursSemaine.length > 0);
   if (avecJour.length === 0) return { mode: 'libre' };
 
   const jour = jourSemaineParis(maintenant);
-  const duJour = avecJour.find((z) => z.jourSemaine === jour);
+  const duJour = avecJour.find((z) => z.joursSemaine.includes(jour));
   if (duJour) return { mode: 'secteur', zone: duJour };
   return { mode: 'relances', jour };
 }

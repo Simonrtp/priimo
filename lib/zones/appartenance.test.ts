@@ -46,7 +46,7 @@ function zone(partiel: Partial<Zone> & { regles: RegleZone[] }): Zone {
     nom: 'Zone test',
     couleur: '#4C7A9E',
     assignedTo: null,
-    jourSemaine: null,
+    joursSemaine: [],
     actif: true,
     verrouillee: false,
     ...partiel,

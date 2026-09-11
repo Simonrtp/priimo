@@ -8,12 +8,13 @@ import {
 } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import { fetchZonePourDroit } from '@/lib/queries/zones';
+import { fetchZonePourDroit, joursEnConflit } from '@/lib/queries/zones';
 import type { ZoneInsert } from '@/types/database';
+import { libelleJours } from '@/lib/zones/jour';
 import {
   estInvalide,
   validerCouleurZone,
-  validerJourSemaine,
+  validerJoursSemaine,
   validerNomZone,
 } from '@/lib/zones/valider';
 
@@ -73,10 +74,31 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
     if (estInvalide(verdict)) return NextResponse.json({ error: verdict.erreur }, { status: 400 });
     update.couleur = verdict.valeur;
   }
-  if (raw.jourSemaine !== undefined) {
-    const verdict = validerJourSemaine(raw.jourSemaine);
+  if (raw.joursSemaine !== undefined) {
+    const verdict = validerJoursSemaine(raw.joursSemaine);
     if (estInvalide(verdict)) return NextResponse.json({ error: verdict.erreur }, { status: 400 });
-    update.jour_semaine = verdict.valeur;
+
+    // Le titulaire qui compte est celui d'après la requête : réattribuer et
+    // recaler les jours dans le même geste doit rester possible.
+    const titulaire =
+      raw.assignedTo === undefined
+        ? zoneDroit.assignedTo
+        : typeof raw.assignedTo === 'string' && raw.assignedTo !== ''
+          ? raw.assignedTo
+          : null;
+    const conflits = await joursEnConflit(supabase, {
+      agencyId: agency.id,
+      assignedTo: titulaire,
+      jours: verdict.valeur,
+      saufZoneId: zoneId,
+    });
+    if (conflits.length > 0) {
+      return NextResponse.json(
+        { error: `Un autre secteur occupe déjà ${libelleJours(conflits)?.toLowerCase()}` },
+        { status: 409 },
+      );
+    }
+    update.jours_semaine = verdict.valeur;
   }
   if (raw.actif !== undefined || raw.assignedTo !== undefined || raw.verrouillee !== undefined) {
     if (!canManageZone(viewer)) {

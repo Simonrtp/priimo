@@ -1175,8 +1175,10 @@ export type ZoneRow = {
   nom: string;
   couleur: string;
   assigned_to: string | null;
-  /** 1 = lundi. Null = pas de calendrier de tournée. */
-  jour_semaine: number | null;
+  /** 1 = lundi. Tableau vide = pas de calendrier de tournée. */
+  jours_semaine: number[];
+  /** Colonne d'avant les jours multiples, absente une fois la migration passée. */
+  jour_semaine?: number | null;
   actif: boolean;
   verrouillee?: boolean;
   created_at: string;
@@ -1189,7 +1191,7 @@ export type ZoneInsert = {
   nom: string;
   couleur: string;
   assigned_to?: string | null;
-  jour_semaine?: number | null;
+  jours_semaine?: number[];
   actif?: boolean;
   verrouillee?: boolean;
   created_at?: string;

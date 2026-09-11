@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { useOnboardingNavLock } from '@/lib/hooks/useOnboardingNavLock';
@@ -17,6 +16,7 @@ import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import Select from '@/components/ui/Select';
 
 function titleForPath(pathname: string): string {
   if (pathname === '/dashboard' || pathname === '/dashboard/') return 'Accueil';
@@ -28,7 +28,6 @@ function titleForPath(pathname: string): string {
   if (pathname.startsWith('/dashboard/parametres')) return 'Équipe';
   if (pathname.startsWith('/dashboard/equipe')) return 'Équipe';
   if (pathname.startsWith('/dashboard/settings')) return 'Paramètres';
-  if (pathname.startsWith('/dashboard/notes')) return 'Notes';
   return 'Accueil';
 }
 
@@ -53,50 +52,44 @@ function MobileAgencySwitcher({ className = '' }: { className?: string }) {
     );
   }
 
+  const changerAgence = async (agencyId: string) => {
+    if (agencyId === agency.id || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/dashboard/active-agency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agencyId }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Impossible de changer d'agence");
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error("Impossible de changer d'agence");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className={`relative min-w-0 max-w-[min(11rem,38vw)] sm:max-w-[14rem] ${className}`}>
+    <div className={`min-w-0 max-w-[min(11rem,38vw)] sm:max-w-[14rem] ${className}`}>
       <label htmlFor="topbar-agency-switcher" className="sr-only">
         Agence active
       </label>
-      <select
+      <Select
         id="topbar-agency-switcher"
         value={agency.id}
         disabled={saving}
-        onChange={async (e) => {
-          const agencyId = e.target.value;
-          if (agencyId === agency.id || saving) return;
-          setSaving(true);
-          try {
-            const res = await fetch('/api/dashboard/active-agency', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ agencyId }),
-            });
-            const data = (await res.json()) as { error?: string };
-            if (!res.ok) {
-              toast.error(data.error ?? "Impossible de changer d'agence");
-              return;
-            }
-            router.refresh();
-          } catch {
-            toast.error("Impossible de changer d'agence");
-          } finally {
-            setSaving(false);
-          }
-        }}
-        className="w-full appearance-none truncate rounded-lg border border-black/10 bg-white py-1 pl-2 pr-7 text-[12px] font-medium text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
+        onChange={(agencyId) => void changerAgence(agencyId)}
+        options={memberships.map((m) => ({
+          value: m.agency_id,
+          label: m.agency?.name ?? 'Agence',
+        }))}
         aria-label="Choisir l'agence active"
-      >
-        {memberships.map((m) => (
-          <option key={m.agency_id} value={m.agency_id}>
-            {m.agency?.name ?? 'Agence'}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-mute"
-        aria-hidden
+        triggerClassName="flex w-full items-center justify-between gap-1 rounded-lg border border-black/10 bg-white py-1 pl-2 pr-1.5 text-left text-[12px] font-medium text-ink outline-none transition-colors duration-fluid-subtle ease-in-out focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 disabled:opacity-60 [&>svg]:size-3.5"
       />
     </div>
   );
@@ -115,50 +108,44 @@ function ShellAgencySwitcher() {
     );
   }
 
+  const changerAgence = async (agencyId: string) => {
+    if (agencyId === agency.id || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/dashboard/active-agency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agencyId }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Impossible de changer d'agence");
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error("Impossible de changer d'agence");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="relative min-w-0 max-w-[12rem]">
+    <div className="min-w-0 max-w-[12rem]">
       <label htmlFor="shell-agency-switcher" className="sr-only">
         Agence active
       </label>
-      <select
+      <Select
         id="shell-agency-switcher"
         value={agency.id}
         disabled={saving}
-        onChange={async (e) => {
-          const agencyId = e.target.value;
-          if (agencyId === agency.id || saving) return;
-          setSaving(true);
-          try {
-            const res = await fetch('/api/dashboard/active-agency', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ agencyId }),
-            });
-            const data = (await res.json()) as { error?: string };
-            if (!res.ok) {
-              toast.error(data.error ?? "Impossible de changer d'agence");
-              return;
-            }
-            router.refresh();
-          } catch {
-            toast.error("Impossible de changer d'agence");
-          } finally {
-            setSaving(false);
-          }
-        }}
-        className="w-full appearance-none truncate rounded-lg border border-white/15 bg-white/10 py-1 pl-2 pr-7 text-[12px] font-medium text-white outline-none focus:border-white/30 focus:ring-2 focus:ring-white/15 disabled:opacity-60"
+        onChange={(agencyId) => void changerAgence(agencyId)}
+        options={memberships.map((m) => ({
+          value: m.agency_id,
+          label: m.agency?.name ?? 'Agence',
+        }))}
         aria-label="Choisir l'agence active"
-      >
-        {memberships.map((m) => (
-          <option key={m.agency_id} value={m.agency_id} className="text-ink">
-            {m.agency?.name ?? 'Agence'}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-white/70"
-        aria-hidden
+        triggerClassName="flex w-full items-center justify-between gap-1 rounded-lg border border-white/15 bg-white/10 py-1 pl-2 pr-1.5 text-left text-[12px] font-medium text-white outline-none transition-colors duration-fluid-subtle ease-in-out hover:bg-white/15 focus-visible:border-white/30 focus-visible:ring-2 focus-visible:ring-white/15 disabled:opacity-60 [&>svg]:size-3.5 [&>svg]:text-white/70"
       />
     </div>
   );

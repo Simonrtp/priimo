@@ -10,9 +10,10 @@ import {
 type Client = SupabaseClient<Database>;
 
 const ZONES_SELECT =
+  'id, agency_id, nom, couleur, assigned_to, jours_semaine, actif, verrouillee, created_at, updated_at';
+/** Avant la migration des jours multiples : un seul jour, en colonne scalaire. */
+const ZONES_SELECT_JOUR_UNIQUE =
   'id, agency_id, nom, couleur, assigned_to, jour_semaine, actif, verrouillee, created_at, updated_at';
-const ZONES_SELECT_SANS_VERROU =
-  'id, agency_id, nom, couleur, assigned_to, jour_semaine, actif, created_at, updated_at';
 const REGLES_SELECT = 'id, zone_id, type, valeur, inclusion, created_at';
 
 function estObjet(v: unknown): v is Record<string, unknown> {
@@ -95,6 +96,20 @@ function versRegle(row: ZoneRegleRow): RegleZone | null {
   }
 }
 
+/** Trié et dédoublonné à la lecture : la base peut avoir été écrite à la main. */
+function joursDeLaLigne(row: ZoneRow): number[] {
+  const bruts = Array.isArray(row.jours_semaine)
+    ? row.jours_semaine
+    : row.jour_semaine != null
+      ? [row.jour_semaine]
+      : [];
+  const jours = new Set<number>();
+  for (const j of bruts) {
+    if (Number.isInteger(j) && j >= 1 && j <= 5) jours.add(j);
+  }
+  return [...jours].sort((a, b) => a - b);
+}
+
 function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
   return {
     id: row.id,
@@ -102,7 +117,7 @@ function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
     nom: row.nom,
     couleur: row.couleur,
     assignedTo: row.assigned_to,
-    jourSemaine: row.jour_semaine,
+    joursSemaine: joursDeLaLigne(row),
     actif: row.actif,
     verrouillee: row.verrouillee === true,
     regles,
@@ -118,9 +133,11 @@ function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
  */
 export async function fetchZones(supabase: Client): Promise<Zone[]> {
   const premier = await supabase.from('zones').select(ZONES_SELECT).order('nom');
+  // Le temps que la migration des jours multiples passe, l'écran doit afficher
+  // les secteurs plutôt que tomber sur une colonne absente.
   const zonesRes =
-    premier.error && /verrouillee/.test(premier.error.message)
-      ? await supabase.from('zones').select(ZONES_SELECT_SANS_VERROU).order('nom')
+    premier.error && /jours_semaine/.test(premier.error.message)
+      ? await supabase.from('zones').select(ZONES_SELECT_JOUR_UNIQUE).order('nom')
       : premier;
   if (zonesRes.error) throw new Error(zonesRes.error.message);
 
@@ -205,8 +222,44 @@ export async function fetchZonePourDroit(
 /** La zone du titulaire pour un jour donné (1 = lundi), s'il en a une. */
 export function zoneDuJour(zones: readonly Zone[], profileId: string, jour: number): Zone | null {
   return (
-    zones.find((z) => z.actif && z.assignedTo === profileId && z.jourSemaine === jour) ?? null
+    zones.find((z) => z.actif && z.assignedTo === profileId && z.joursSemaine.includes(jour)) ??
+    null
   );
+}
+
+/**
+ * Les jours que d'autres secteurs du même titulaire revendiquent déjà.
+ *
+ * Un index unique tenait cette règle tant qu'un secteur n'avait qu'un jour.
+ * Avec un tableau, elle se contrôle ici : deux secteurs du même négociateur le
+ * même mardi rendraient « la zone du jour » indécidable, et c'est l'ordre de
+ * tri qui trancherait — un tri n'est pas une règle métier.
+ */
+export async function joursEnConflit(
+  supabase: Client,
+  params: {
+    agencyId: string;
+    assignedTo: string | null;
+    jours: readonly number[];
+    saufZoneId: string | null;
+  },
+): Promise<number[]> {
+  if (!params.assignedTo || params.jours.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('zones')
+    .select('id, jours_semaine')
+    .eq('agency_id', params.agencyId)
+    .eq('assigned_to', params.assignedTo)
+    .eq('actif', true);
+  if (error || !data) return [];
+
+  const pris = new Set<number>();
+  for (const row of data as unknown as { id: string; jours_semaine: number[] | null }[]) {
+    if (row.id === params.saufZoneId) continue;
+    for (const jour of row.jours_semaine ?? []) pris.add(jour);
+  }
+  return params.jours.filter((jour) => pris.has(jour));
 }
 
 /** Les zones d'un titulaire, tous jours confondus. */

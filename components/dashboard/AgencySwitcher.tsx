@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
+import Select from '@/components/ui/Select';
 
 type Props = {
   zoneLabel: string | null;
@@ -57,27 +57,18 @@ export default function AgencySwitcher({ zoneLabel }: Props) {
       <label htmlFor="agency-switcher" className="sr-only">
         Agence active
       </label>
-      <div className="relative">
-        <select
-          id="agency-switcher"
-          value={agency.id}
-          disabled={saving}
-          onChange={(e) => void switchAgency(e.target.value)}
-          className="w-full appearance-none truncate rounded-lg border border-white/10 bg-white/10 py-2 pl-2.5 pr-8 text-[13px] font-medium text-white outline-none transition-colors duration-fluid-subtle ease-in-out hover:bg-white/15 focus:border-white/25 focus:ring-2 focus:ring-white/20 disabled:opacity-60"
-          aria-label="Choisir l'agence active"
-        >
-          {memberships.map((m) => (
-            <option key={m.agency_id} value={m.agency_id} className="text-ink">
-              {m.agency?.name ?? 'Agence'}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={16}
-          className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70"
-          aria-hidden
-        />
-      </div>
+      <Select
+        id="agency-switcher"
+        value={agency.id}
+        disabled={saving}
+        onChange={(agencyId) => void switchAgency(agencyId)}
+        options={memberships.map((m) => ({
+          value: m.agency_id,
+          label: m.agency?.name ?? 'Agence',
+        }))}
+        aria-label="Choisir l'agence active"
+        triggerClassName="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/10 py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-white outline-none transition-colors duration-fluid-subtle ease-in-out hover:bg-white/15 focus-visible:border-white/25 focus-visible:ring-2 focus-visible:ring-white/20 disabled:opacity-60 [&>svg]:text-white/70"
+      />
       {zoneLabel ? (
         <p className="mt-1.5 truncate text-[11px] leading-snug text-white/65" title={zoneLabel}>
           {zoneLabel}

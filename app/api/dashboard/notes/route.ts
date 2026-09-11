@@ -20,7 +20,7 @@ import type { ExtractedPersonne, NoteExtraction } from '@/lib/notes/propositions
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
-import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
+import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 import type { NoteLienEntite, NoteLien, TerrainNote } from '@/types/contact';
 import type { NoteLienRow, VoiceNoteRow } from '@/types/database';
@@ -194,7 +194,17 @@ export async function POST(req: Request) {
   const storagePath = `${agency.id}/${voiceNoteId}.typed`;
 
   const immeubleLien = liensManuels.find((l) => l.entiteType === 'immeuble');
-  const geoFromAdresse = adresseRaw.length >= 3 ? await geocodeToColumns(adresseRaw) : { ...EMPTY_BAN_GEO };
+  // Une parcelle sans adresse connue arrive avec sa référence cadastrale en
+  // guise de libellé. La géocoder ne peut rien donner de juste : au mieux la
+  // BAN ne répond pas, au pire elle rapproche un immeuble qui n'a rien à voir
+  // et la note se pose ailleurs. Le lien parcelle suffit à la situer.
+  const adresseEstReference =
+    parcelleId !== null &&
+    (adresseRaw === parcelleId || adresseRaw === formatParcelleId(parcelleId));
+  const geoFromAdresse =
+    adresseRaw.length >= 3 && !adresseEstReference
+      ? await geocodeToColumns(adresseRaw)
+      : { ...EMPTY_BAN_GEO };
   const hasClientCoords = gpsLat !== null && gpsLng !== null;
   const geo = {
     ...geoFromAdresse,

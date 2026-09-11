@@ -1927,6 +1927,47 @@ html:has(.feature-page) {
   }
 }
 
+/* Squelette de chargement : un voile clair traverse le bloc de droite à
+   gauche. Un clignotement dit « ça charge » ; un balayage dit « ça arrive ». */
+.squelette {
+  background-color: rgba(21, 32, 47, 0.05);
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    rgba(255, 255, 255, 0.75) 50%,
+    transparent 72%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: squelette-balayage 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes squelette-balayage {
+  from { background-position: 180% 0; }
+  to { background-position: -60% 0; }
+}
+
+/* Les sections du squelette entrent l'une après l'autre : le panneau se
+   construit au lieu d'apparaître d'un bloc. */
+.squelette-bloc {
+  animation: squelette-entree 300ms var(--ease-soft) both;
+}
+
+@keyframes squelette-entree {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .squelette {
+    animation: none;
+    background-image: none;
+  }
+  .squelette-bloc {
+    animation: none;
+  }
+}
+
 .priimo-pin-field {
   display: block;
   width: 14px;

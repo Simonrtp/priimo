@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { canCreateZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { fetchZones } from '@/lib/queries/zones';
+import { fetchZones, joursEnConflit } from '@/lib/queries/zones';
 import { couleurZoneLibre } from '@/lib/zones/palette';
+import { libelleJours } from '@/lib/zones/jour';
 import {
   estInvalide,
   validerCouleurZone,
-  validerJourSemaine,
+  validerJoursSemaine,
   validerNomZone,
 } from '@/lib/zones/valider';
 
@@ -50,8 +51,8 @@ export async function POST(req: Request) {
   const nom = validerNomZone(raw.nom);
   if (estInvalide(nom)) return NextResponse.json({ error: nom.erreur }, { status: 400 });
 
-  const jour = validerJourSemaine(raw.jourSemaine ?? null);
-  if (estInvalide(jour)) return NextResponse.json({ error: jour.erreur }, { status: 400 });
+  const jours = validerJoursSemaine(raw.joursSemaine ?? null);
+  if (estInvalide(jours)) return NextResponse.json({ error: jours.erreur }, { status: 400 });
 
   const supabase = await createSupabaseServerClient();
 
@@ -80,6 +81,19 @@ export async function POST(req: Request) {
     );
   }
 
+  const conflits = await joursEnConflit(supabase, {
+    agencyId: agency.id,
+    assignedTo,
+    jours: jours.valeur,
+    saufZoneId: null,
+  });
+  if (conflits.length > 0) {
+    return NextResponse.json(
+      { error: `Un autre secteur occupe déjà ${libelleJours(conflits)?.toLowerCase()}` },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await supabase
     .from('zones')
     .insert({
@@ -87,7 +101,7 @@ export async function POST(req: Request) {
       nom: nom.valeur,
       couleur,
       assigned_to: assignedTo,
-      jour_semaine: jour.valeur,
+      jours_semaine: jours.valeur,
     })
     .select('id')
     .single();

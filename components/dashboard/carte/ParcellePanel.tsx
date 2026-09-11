@@ -306,6 +306,88 @@ export default function ParcellePanel({
   );
 }
 
+function Barre({ className }: { className: string }) {
+  return <div className={`squelette rounded-full ${className}`} />;
+}
+
+/**
+ * L'attente, dessinée à la forme de la fiche.
+ *
+ * Les blocs occupent la place exacte des sections réelles — titre, ventes,
+ * diagnostics, notes — pour que l'arrivée des données ne fasse sauter aucune
+ * ligne. Ils entrent en cascade, du haut vers le bas, dans le sens de lecture.
+ */
+function SqueletteParcelle({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-black/[0.05] px-5 pb-4 pt-5 sm:px-7">
+        <div className="squelette-bloc min-w-0 flex-1">
+          <h2 id="parcelle-title" className="sr-only">
+            Chargement de la parcelle
+          </h2>
+          <Barre className="h-[18px] w-3/5" />
+          <Barre className="mt-2.5 h-3 w-4/5" />
+          <Barre className="mt-2 h-3 w-24" />
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <X size={18} strokeWidth={2} aria-hidden />
+        </button>
+      </header>
+
+      <div
+        className="min-h-0 flex-1 overflow-hidden px-5 py-5 sm:px-7"
+        role="status"
+        aria-label="Chargement de la parcelle"
+      >
+        <div className="flex flex-col gap-6" aria-hidden>
+          <section className="squelette-bloc" style={{ animationDelay: '40ms' }}>
+            <Barre className="h-2.5 w-14" />
+            <div className="mt-3 flex flex-col gap-2.5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="grid grid-cols-4 gap-3">
+                  <Barre className="h-3.5" />
+                  <Barre className="h-3.5" />
+                  <Barre className="h-3.5" />
+                  <Barre className="h-3.5" />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="squelette-bloc" style={{ animationDelay: '110ms' }}>
+            <Barre className="h-2.5 w-20" />
+            <div className="mt-3 flex flex-col gap-3">
+              {[0, 1].map((i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <div className="squelette size-7 shrink-0 rounded-full" />
+                  <Barre className="h-3.5 w-2/5" />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="squelette-bloc" style={{ animationDelay: '180ms' }}>
+            <Barre className="h-2.5 w-12" />
+            <div className="mt-3 flex flex-col gap-2">
+              {[0, 1].map((i) => (
+                <div className="rounded-xl border border-black/[0.05] p-3" key={i}>
+                  <Barre className="h-3.5 w-3/4" />
+                  <Barre className="mt-2 h-3 w-1/3" />
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ParcelleDrawer({
   fiche,
   loading,
@@ -382,24 +464,7 @@ export function ParcelleDrawer({
         {fiche ? (
           <ParcellePanel fiche={fiche} onClose={onClose} onNotesChanged={onNotesChanged} />
         ) : (
-          <div className="flex flex-1 flex-col">
-            <header className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-black/[0.05] px-5 pb-4 pt-5 sm:px-7">
-              <h2 id="parcelle-title" className="font-semibold text-text-strong" style={{ fontSize: 18 }}>
-                Parcelle
-              </h2>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Fermer"
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <X size={18} strokeWidth={2} aria-hidden />
-              </button>
-            </header>
-            <div className="flex flex-1 items-center justify-center px-6">
-              <p className="text-[14px] text-text-muted">Chargement de la parcelle…</p>
-            </div>
-          </div>
+          <SqueletteParcelle onClose={onClose} />
         )}
       </aside>
     </>

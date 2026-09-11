@@ -6,6 +6,7 @@ import { ArrowRight, ChevronDown, Mic, NotebookPen } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import type { Compteur, FamilleActivite } from '@/lib/activite/types';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import { useNotesLecture } from '@/components/dashboard/notes/NotesLectureProvider';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 
@@ -98,9 +99,11 @@ const ILLUSTRATION: Record<FamilleActivite, { repos: string; survol: string }> =
 function BoutonNote({
   libelle,
   fond,
+  extra,
 }: {
   libelle: string;
   fond: string;
+  extra?: ReactNode;
 }) {
   const { openCapture, openCompose } = useVoiceCapture();
   const [ouvert, setOuvert] = useState(false);
@@ -142,23 +145,26 @@ function BoutonNote({
         </div>
       ) : null}
       <Volet force={ouvert}>
-        <button
-          type="button"
-          aria-haspopup="menu"
-          aria-expanded={ouvert}
-          aria-controls={ouvert ? menuId : undefined}
-          onClick={() => setOuvert((prev) => !prev)}
-          className={PILULE}
-          style={{ backgroundColor: fond }}
-        >
-          {libelle}
-          <ChevronDown
-            size={12}
-            strokeWidth={2.6}
-            aria-hidden
-            className={ouvert ? 'rotate-180 transition-transform' : 'transition-transform'}
-          />
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={ouvert}
+            aria-controls={ouvert ? menuId : undefined}
+            onClick={() => setOuvert((prev) => !prev)}
+            className={PILULE}
+            style={{ backgroundColor: fond }}
+          >
+            {libelle}
+            <ChevronDown
+              size={12}
+              strokeWidth={2.6}
+              aria-hidden
+              className={ouvert ? 'rotate-180 transition-transform' : 'transition-transform'}
+            />
+          </button>
+          {extra}
+        </div>
       </Volet>
     </div>
   );
@@ -196,6 +202,7 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
   const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[famille];
   const illustration = ILLUSTRATION[famille];
   const action = ACTION[famille];
+  const { ouvrir } = useNotesLecture();
   const pct =
     compteur.objectif > 0
       ? Math.min(100, Math.round((compteur.valeur / compteur.objectif) * 100))
@@ -279,7 +286,23 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
         ) : null}
 
         {'note' in action ? (
-          <BoutonNote libelle={action.libelle} fond={pastelFort} />
+          <BoutonNote
+            libelle={action.libelle}
+            fond={pastelFort}
+            extra={
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  ouvrir();
+                }}
+                className={`${PILULE} shrink-0`}
+                style={{ backgroundColor: 'rgba(255,255,255,0.72)' }}
+              >
+                Mes notes
+              </button>
+            }
+          />
         ) : (
           <Volet>
             <Link

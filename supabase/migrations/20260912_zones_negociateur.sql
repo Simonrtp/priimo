@@ -12,7 +12,7 @@
 -- GeoJSON en jsonb et le test point-dans-polygone se fait en TypeScript
 -- (lib/zones/appartenance.ts).
 --
--- L'appartenance n'est jamais stockée sur un lead, un contact ou un bien :
+-- L'appartenance n'est jamais stockée sur un lead, un contact ou un bien : 
 -- elle se calcule à la lecture. Un négociateur qui part et dont la zone est
 -- réattribuée ne doit pas voir l'historique de ses leads changer de main.
 

@@ -335,6 +335,7 @@ export default function CreateMenu({
           skipSuccessToast
           onSaved={(bien: Bien) => {
             notifySuccess('Bien ajouté', {
+              id: 'bien-ajoute',
               duration: 6000,
               action: {
                 label: 'Ouvrir',

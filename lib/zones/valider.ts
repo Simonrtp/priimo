@@ -36,13 +36,23 @@ export function validerCouleurZone(v: unknown): Verdict<string> {
   return { valeur: v };
 }
 
-/** 1 = lundi, 5 = vendredi. Null est un choix valable : pas de calendrier. */
-export function validerJourSemaine(v: unknown): Verdict<number | null> {
-  if (v === null || v === undefined) return { valeur: null };
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 5) {
-    return { erreur: 'Jour de tournée invalide' };
+/**
+ * 1 = lundi, 5 = vendredi. Le tableau vide est un choix valable : pas de
+ * calendrier. On dédoublonne et on trie ici, une fois, pour que personne en
+ * aval n'ait à se demander si « lundi, lundi, mardi » vaut deux jours ou trois.
+ */
+export function validerJoursSemaine(v: unknown): Verdict<number[]> {
+  if (v === null || v === undefined) return { valeur: [] };
+  if (!Array.isArray(v)) return { erreur: 'Jours de tournée invalides' };
+  const jours = new Set<number>();
+  for (const brut of v) {
+    const jour = typeof brut === 'number' ? brut : Number.NaN;
+    if (!Number.isInteger(jour) || jour < 1 || jour > 5) {
+      return { erreur: 'Jour de tournée invalide' };
+    }
+    jours.add(jour);
   }
-  return { valeur: v };
+  return { valeur: [...jours].sort((a, b) => a - b) };
 }
 
 function validerAnneau(v: unknown): Verdict<[number, number][]> {

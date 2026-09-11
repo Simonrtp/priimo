@@ -88,8 +88,8 @@ export default function StageEditorDialog({
           <WorkspaceButton type="button" variant="secondary" onClick={onCancel} disabled={saving}>
             Annuler
           </WorkspaceButton>
-          <WorkspaceButton type="button" onClick={onConfirm} disabled={saving || libelle.trim().length < 2}>
-            {saving ? 'Enregistrement…' : mode === 'create' ? 'Créer la colonne' : 'Enregistrer'}
+          <WorkspaceButton type="button" onClick={onConfirm} disabled={libelle.trim().length < 2}>
+            {mode === 'create' ? 'Créer la colonne' : 'Valider'}
           </WorkspaceButton>
         </div>
       </div>

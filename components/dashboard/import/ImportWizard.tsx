@@ -14,6 +14,7 @@ import {
 import { BIEN_IMPORT_FIELDS, bienToDuplicateRef, planBienImport } from '@/lib/import/biens';
 import { ImportFileError, parseTabularFile, type ParsedTable } from '@/lib/import/parse-file';
 import Modal from '@/components/ui/Modal';
+import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 
 type Step = 'drop' | 'map' | 'preview' | 'report';
@@ -25,7 +26,7 @@ type ImportReport = {
 };
 
 const SELECT_CLASS =
-  'w-full rounded-xl border border-black/[0.10] bg-surface px-3 py-2 text-[13px] text-text outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15';
+  'flex w-full items-center justify-between gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2 text-left text-[13px] text-text outline-none focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15';
 
 function hasRequiredMapping(kind: 'contacts' | 'biens', mapping: Record<string, string>): boolean {
   if (kind === 'biens') return Boolean(mapping.address);
@@ -246,19 +247,18 @@ export default function ImportWizard({
                     <span className="ml-1 font-normal text-text-subtle">obligatoire</span>
                   ) : null}
                 </label>
-                <select
+                <Select
                   id={`map-${field.key}`}
-                  className={SELECT_CLASS}
                   value={mapping[field.key] ?? IGNORE_COLUMN}
-                  onChange={(e) => setMapping((m) => ({ ...m, [field.key]: e.target.value }))}
-                >
-                  <option value={IGNORE_COLUMN}>À ignorer</option>
-                  {table.headers.map((header) => (
-                    <option key={header} value={header}>
-                      {header}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(colonne) => setMapping((m) => ({ ...m, [field.key]: colonne }))}
+                  options={[
+                    { value: IGNORE_COLUMN, label: 'À ignorer' },
+                    ...table.headers.map((header) => ({ value: header, label: header })),
+                  ]}
+                  searchable={table.headers.length > 8}
+                  searchPlaceholder="Filtrer les colonnes…"
+                  triggerClassName={SELECT_CLASS}
+                />
               </li>
             ))}
           </ul>

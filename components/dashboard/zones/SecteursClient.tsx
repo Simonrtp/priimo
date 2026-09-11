@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Loader2, Lock, Pencil, Plus, Spline, Trash2, X } from 'lucide-react';
 import {
   canCreateZone,
   canDeleteZone,
@@ -12,12 +12,15 @@ import {
 } from '@/lib/agency/visibility';
 import { toast } from 'sonner';
 import ClayButton from '@/components/ui/ClayButton';
+import Select from '@/components/ui/Select';
+import StatistiquesSecteur from './StatistiquesSecteur';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { COULEURS_ZONE } from '@/lib/zones/palette';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
+import { JOURS_TOURNEE, libelleJours } from '@/lib/zones/jour';
 import { decouperAdresse } from '@/lib/zones/adresse';
 import type { PariteVoie, RegleZone, Zone } from '@/lib/zones/types';
-import type { LeadPoint } from './ZonesCarte';
+import type { LeadPoint, ModeCarte } from './ZonesCarte';
 
 const ZonesCarte = dynamic(() => import('./ZonesCarte'), {
   ssr: false,
@@ -46,14 +49,6 @@ export type SecteurLead = LeadPoint & {
 
 type Membre = { id: string; fullName: string };
 
-const JOURS = [
-  { valeur: 1, label: 'Lundi' },
-  { valeur: 2, label: 'Mardi' },
-  { valeur: 3, label: 'Mercredi' },
-  { valeur: 4, label: 'Jeudi' },
-  { valeur: 5, label: 'Vendredi' },
-] as const;
-
 const PARITES: { valeur: PariteVoie; label: string }[] = [
   { valeur: 'toutes', label: 'Tous les numéros' },
   { valeur: 'paires', label: 'Numéros pairs' },
@@ -64,6 +59,9 @@ const champClass =
   'w-full rounded-lg border border-black/10 px-3 py-2 text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
 const labelClass = 'mb-1 block text-[12px] font-medium text-mute';
+
+/** Déclencheur de menu : la même boîte que les champs texte du panneau. */
+const declencheurClass = `${champClass} flex items-center justify-between gap-2 text-left`;
 
 /** Résumé d'une règle en une ligne, pour le panneau latéral. */
 function resumerRegle(regle: RegleZone): string {
@@ -113,7 +111,7 @@ export default function SecteursClient({
       (estDirecteur ? (zones[0]?.id ?? null) : null),
   );
   const [enCours, setEnCours] = useState(false);
-  const [modeDessin, setModeDessin] = useState<'inactif' | 'polygone'>('inactif');
+  const [modeDessin, setModeDessin] = useState<ModeCarte>('inactif');
   const [apercu, setApercu] = useState<GeoJSON.Polygon | null>(null);
   const [survol, setSurvol] = useState<string | null>(null);
   const [nbZonesProposees, setNbZonesProposees] = useState(4);
@@ -353,7 +351,10 @@ export default function SecteursClient({
             zones={zones}
             membres={membres}
             zoneActiveId={zoneActiveId}
-            onChoisir={setZoneActiveId}
+            onChoisir={(id) => {
+              setZoneActiveId(id);
+              setModeDessin('inactif');
+            }}
             profileId={profileId}
           />
 
@@ -417,7 +418,7 @@ function ListeZones({
       {zones.map((zone) => {
         const titulaire = membres.find((m) => m.id === zone.assignedTo);
         const actif = zone.id === zoneActiveId;
-        const jour = JOURS.find((j) => j.valeur === zone.jourSemaine);
+        const jours = libelleJours(zone.joursSemaine);
         return (
           <li key={zone.id}>
             <button
@@ -441,7 +442,7 @@ function ListeZones({
                       ? 'Mon secteur'
                       : titulaire.fullName
                     : 'Sans titulaire'}
-                  {jour ? ` · ${jour.label}` : ''}
+                  {jours ? ` · ${jours}` : ''}
                   {zone.verrouillee ? ' · direction' : ''}
                   {zone.actif ? '' : ' · désactivé'}
                 </span>
@@ -559,8 +560,8 @@ function PanneauZone({
   peutGerer: boolean;
   peutSupprimer: boolean;
   enCours: boolean;
-  modeDessin: 'inactif' | 'polygone';
-  onModeDessin: (m: 'inactif' | 'polygone') => void;
+  modeDessin: ModeCarte;
+  onModeDessin: (m: ModeCarte) => void;
   onModifier: (patch: Record<string, unknown>) => void;
   onSupprimer: () => void;
   onAjouterRegle: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
@@ -570,6 +571,8 @@ function PanneauZone({
   const [renommage, setRenommage] = useState<string | null>(null);
   // Supprimer se demande deux fois : un secteur, c'est une demi-heure de tracé.
   const [confirmeSuppression, setConfirmeSuppression] = useState(false);
+  // Sans contour, il n'y a rien à reprendre : le bouton mentirait.
+  const aUnContour = zone.regles.some((r) => r.type === 'polygone' && r.inclusion);
 
   return (
     <div className="flex flex-col gap-3 rounded-clay bg-white px-4 py-3.5 shadow-clay-sm">
@@ -627,50 +630,63 @@ function PanneauZone({
         <p className="text-pretty text-[12.5px] text-mute">Secteur défini par la direction</p>
       ) : null}
 
+      {zone.regles.length > 0 ? <StatistiquesSecteur zone={zone} /> : null}
+
       {peutGerer ? (
         <div>
           <label className={labelClass} htmlFor={`zone-titulaire-${zone.id}`}>
             Titulaire
           </label>
-          <select
+          <Select
             id={`zone-titulaire-${zone.id}`}
-            className={champClass}
             value={zone.assignedTo ?? ''}
-            onChange={(e) => onModifier({ assignedTo: e.target.value || null })}
-          >
-            <option value="">Sans titulaire</option>
-            {membres.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.fullName}
-              </option>
-            ))}
-          </select>
+            onChange={(valeur) => onModifier({ assignedTo: valeur || null })}
+            options={[
+              { value: '', label: 'Sans titulaire' },
+              ...membres.map((m) => ({ value: m.id, label: m.fullName })),
+            ]}
+            searchable={membres.length > 8}
+            triggerClassName={declencheurClass}
+          />
         </div>
       ) : null}
 
       {peutEditer ? (
         <>
           <div>
-            <label className={labelClass} htmlFor={`zone-jour-${zone.id}`}>
-              Jour de tournée
-            </label>
-            <select
-              id={`zone-jour-${zone.id}`}
-              className={champClass}
-              value={zone.jourSemaine ?? ''}
-              onChange={(e) =>
-                onModifier({ jourSemaine: e.target.value ? Number.parseInt(e.target.value, 10) : null })
-              }
-            >
-              <option value="">Aucun</option>
-              {JOURS.map((j) => (
-                <option key={j.valeur} value={j.valeur}>
-                  {j.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-[11px] text-mute">
-              Facultatif. Le vendredi sans secteur bascule la tournée en relances.
+            <span className={labelClass}>Jours de tournée</span>
+            <div className="flex gap-1.5" role="group" aria-label="Jours de tournée">
+              {JOURS_TOURNEE.map((jour) => {
+                const retenu = zone.joursSemaine.includes(jour.valeur);
+                return (
+                  <button
+                    key={jour.valeur}
+                    type="button"
+                    disabled={enCours}
+                    aria-pressed={retenu}
+                    aria-label={jour.label}
+                    title={jour.label}
+                    onClick={() =>
+                      onModifier({
+                        joursSemaine: retenu
+                          ? zone.joursSemaine.filter((j) => j !== jour.valeur)
+                          : [...zone.joursSemaine, jour.valeur],
+                      })
+                    }
+                    className={`flex h-9 flex-1 items-center justify-center rounded-clay text-[13px] font-semibold transition-[background-color,box-shadow,color] duration-fluid-subtle ease-in-out disabled:opacity-50 ${
+                      retenu
+                        ? 'bg-[#D4E8F5] text-ink shadow-clay-sm'
+                        : 'bg-black/[0.04] text-mute hover:bg-black/[0.07] hover:text-ink'
+                    }`}
+                  >
+                    {jour.initiale}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[11px] text-mute">
+              {libelleJours(zone.joursSemaine) ??
+                'Aucun jour : la tournée ne se filtre pas sur ce secteur.'}
             </p>
           </div>
 
@@ -752,9 +768,25 @@ function PanneauZone({
             >
               {modeDessin === 'polygone' ? 'Annuler le tracé' : 'Dessiner un contour'}
             </ClayButton>
+            {aUnContour ? (
+              <ClayButton
+                variant={modeDessin === 'ajuster' ? 'primary' : 'secondary'}
+                className="px-3 py-2 text-[13px]"
+                onClick={() => onModeDessin(modeDessin === 'ajuster' ? 'inactif' : 'ajuster')}
+              >
+                <Spline size={14} aria-hidden />
+                {modeDessin === 'ajuster' ? 'Terminer l’ajustement' : 'Ajuster le contour'}
+              </ClayButton>
+            ) : null}
             {modeDessin === 'polygone' ? (
               <p className="text-pretty text-[11.5px] text-mute">
                 Maintenez le clic et suivez vos rues. Le contour se ferme quand vous relâchez.
+              </p>
+            ) : null}
+            {modeDessin === 'ajuster' ? (
+              <p className="text-pretty text-[11.5px] text-mute">
+                Tirez un rond plein pour déplacer un angle, un rond creux pour étirer le trait
+                entre deux angles. Double-cliquez un rond plein pour le retirer.
               </p>
             ) : null}
           </div>
@@ -861,18 +893,13 @@ function RegleVoie({
           <p className="text-[11.5px] text-mute">
             {voie ?? choix.label} · {choix.postcode}
           </p>
-          <select
-            className={champClass}
+          <Select
             value={parite}
-            onChange={(e) => setParite(e.target.value as PariteVoie)}
+            onChange={(valeur) => setParite(valeur as PariteVoie)}
+            options={PARITES.map((p) => ({ value: p.valeur, label: p.label }))}
             aria-label="Parité des numéros"
-          >
-            {PARITES.map((p) => (
-              <option key={p.valeur} value={p.valeur}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+            triggerClassName={declencheurClass}
+          />
           <div className="flex items-center gap-2">
             <input
               className={champClass}

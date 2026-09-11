@@ -7,7 +7,7 @@ import TypedNoteGuide, { type TypedNoteSubmitPayload } from '@/components/dashbo
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { readDevicePosition } from '@/lib/voice/gps';
 import { emitNoteCreated } from '@/lib/notes/note-created-event';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 
 export default function TypedNoteDialog({
   onClose,
@@ -27,8 +27,6 @@ export default function TypedNoteDialog({
   const [deviceCoords, setDeviceCoords] = useState<{ latitude: number; longitude: number } | null>(
     null,
   );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void readDevicePosition().then((pos) => {
@@ -38,61 +36,64 @@ export default function TypedNoteDialog({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !saving) onClose();
+      if (e.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, saving]);
+  }, [onClose]);
 
-  async function submit(payload: TypedNoteSubmitPayload) {
-    setSaving(true);
-    setError(null);
+  /**
+   * La fenêtre se ferme au clic : le type, le texte et les rattachements sont
+   * déjà vérifiés localement. Retenir l'agent devant l'écriture — session puis
+   * géocodage puis insert — lui faisait attendre un vert connu d'avance.
+   */
+  function submit(payload: TypedNoteSubmitPayload) {
     const coords = payload.banCoords ?? deviceCoords;
-    try {
-      const res = await fetch('/api/dashboard/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: payload.transcript,
-          draft: payload.draft,
-          adresse: payload.adresse || undefined,
-          latitude: coords?.latitude,
-          longitude: coords?.longitude,
-          parcelleId: parcelleId || undefined,
-          liens: payload.liens.map((l) => ({
-            entiteType: l.entiteType,
-            entiteId: l.entiteId,
-          })),
-        }),
-      });
-      const data = (await res.json()) as { error?: string; voiceNoteId?: string };
-      if (!res.ok) throw new Error(data.error ?? 'save');
-      emitNoteCreated({ noteId: data.voiceNoteId ?? null, source: 'clavier' });
-      notifySuccess('Votre note a bien été enregistrée', {
-        id: data.voiceNoteId ? `note-saved-${data.voiceNoteId}` : undefined,
-      });
-      if (!resterSurPage) router.refresh();
-      onClose();
-    } catch (err) {
-      const message =
-        err instanceof Error && err.message !== 'save'
-          ? err.message
-          : "La note n'a pas pu être enregistrée";
-      setError(message);
-      notifyError(message);
-    } finally {
-      setSaving(false);
-    }
+    const corps = JSON.stringify({
+      text: payload.transcript,
+      draft: payload.draft,
+      adresse: payload.adresse || undefined,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
+      parcelleId: parcelleId || undefined,
+      liens: payload.liens.map((l) => ({
+        entiteType: l.entiteType,
+        entiteId: l.entiteId,
+      })),
+    });
+    onClose();
+    validerEnFond({
+      succes: 'Votre note a bien été enregistrée',
+      echec: "La note n'a pas pu être enregistrée",
+      ecrire: async () => {
+        const res = await fetch('/api/dashboard/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: corps,
+        });
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+          voiceNoteId?: string;
+        } | null;
+        if (!res.ok) throw new Error(data?.error ?? "La note n'a pas pu être enregistrée");
+        return data?.voiceNoteId ?? null;
+      },
+      puis: (voiceNoteId) => {
+        emitNoteCreated({ noteId: voiceNoteId, source: 'clavier' });
+        if (!resterSurPage) router.refresh();
+      },
+    });
   }
 
   const form = (
     <TypedNoteGuide
       field={field}
       initialAdresse={adresse?.trim() ?? ''}
-      saving={saving}
-      error={error}
+      parcelleId={parcelleId}
+      saving={false}
+      error={null}
       onCancel={onClose}
-      onSubmit={(payload) => void submit(payload)}
+      onSubmit={submit}
     />
   );
 

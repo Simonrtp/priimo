@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import PostalCodesEditor, { postalCodesFromAddress } from '@/components/PostalCodesEditor';
+import Select from '@/components/ui/Select';
 import type { AdminDirectorDto } from '@/app/api/admin/directors/route';
 import type { PostalCollision } from '@/lib/admin/postal-collisions';
 import type { AgencyRequestRow, PlanCode } from '@/types/database';
@@ -12,6 +13,9 @@ const inputClass =
   'w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
 const labelClass = 'mb-1 block text-sm font-medium text-gray-700';
+
+/** Déclencheur de menu : la même boîte que les champs texte du formulaire. */
+const declencheurClass = `${inputClass} flex items-center justify-between gap-2 text-left`;
 
 export default function AdminAgenciesClient() {
   const [pendingRequests, setPendingRequests] = useState<AgencyRequestRow[]>([]);
@@ -240,15 +244,16 @@ export default function AdminAgenciesClient() {
             <label htmlFor="admin-plan" className={labelClass}>
               Plan
             </label>
-            <select
+            <Select
               id="admin-plan"
-              className={inputClass}
               value={plan}
-              onChange={(e) => setPlan(e.target.value as PlanCode)}
-            >
-              <option value="fondateur">Fondateur</option>
-              <option value="standard">Standard</option>
-            </select>
+              onChange={(valeur) => setPlan(valeur as PlanCode)}
+              options={[
+                { value: 'fondateur', label: 'Fondateur' },
+                { value: 'standard', label: 'Standard' },
+              ]}
+              triggerClassName={declencheurClass}
+            />
           </div>
 
           <fieldset>
@@ -264,17 +269,18 @@ export default function AdminAgenciesClient() {
                 Directeur existant
               </label>
               {directorMode === 'existing' ? (
-                <select
-                  className={inputClass}
+                <Select
                   value={existingDirectorId}
-                  onChange={(e) => setExistingDirectorId(e.target.value)}
-                >
-                  {directors.map((d) => (
-                    <option key={d.profileId} value={d.profileId}>
-                      {d.firstName} {d.lastName} ({d.email})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setExistingDirectorId}
+                  options={directors.map((d) => ({
+                    value: d.profileId,
+                    label: `${d.firstName} ${d.lastName} (${d.email})`,
+                  }))}
+                  aria-label="Directeur existant"
+                  searchable={directors.length > 8}
+                  searchPlaceholder="Rechercher un directeur…"
+                  triggerClassName={declencheurClass}
+                />
               ) : null}
 
               <label className="flex items-center gap-2 text-sm">

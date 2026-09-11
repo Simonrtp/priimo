@@ -14,7 +14,7 @@ import {
 } from '@/lib/activite/objectifs';
 import { LIBELLE_PERIODE } from '@/lib/activite/semaines';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE, type FamilleActivite } from '@/lib/activite/types';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 
 const ILLUSTRATION: Record<FamilleActivite, string> = {
   contacts_physiques: '/porte-ouverte.png',
@@ -51,7 +51,6 @@ function Ligne({
   fond,
   valeur,
   onChange,
-  disabled,
 }: {
   id: string;
   libelle: string;
@@ -59,7 +58,6 @@ function Ligne({
   fond: string;
   valeur: number;
   onChange: (n: number) => void;
-  disabled: boolean;
 }) {
   return (
     <div className="flex items-center gap-3">
@@ -81,7 +79,6 @@ function Ligne({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        disabled={disabled}
         className={CHAMP}
         value={String(valeur)}
         onChange={(e) => onChange(nombre(e.target.value))}
@@ -102,7 +99,7 @@ function Ligne({
  * jour » enregistre 49 par semaine, et l'équivalent hebdomadaire reste écrit
  * sous chaque ligne pour qu'aucune conversion ne se fasse dans le dos.
  *
- * Rien n'est écrit tant que « Enregistrer » n'est pas cliqué : un objectif qui
+ * Rien n'est écrit tant que « Valider » n'est pas cliqué : un objectif qui
  * bougerait au fil de la frappe rendrait la barre de progression illisible.
  */
 export default function ObjectifsDialog({
@@ -123,37 +120,42 @@ export default function ObjectifsDialog({
 }) {
   const [saisie, setSaisie] = useState<ObjectifsSaisis>(initial);
   const [cadence, setCadence] = useState<Cadence>('semaine');
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [envoi, setEnvoi] = useState(false);
 
   const poser = useCallback((famille: FamilleActivite, hebdo: number) => {
     setSaisie((prev) => ({ ...prev, hebdo: { ...prev.hebdo, [famille]: hebdo } }));
   }, []);
 
-  async function enregistrer() {
-    setEnvoi(true);
-    setErreur(null);
-    try {
-      const res = await fetch('/api/dashboard/objectifs', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ membre, ...saisie }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error ?? "Les objectifs n'ont pas pu être enregistrés.");
-      }
-      notifySuccess('Objectifs enregistrés');
-      onEnregistre();
-      onClose();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Les objectifs n'ont pas pu être enregistrés.";
-      setErreur(message);
-      notifyError(message);
-    } finally {
-      setEnvoi(false);
-    }
+  /**
+   * On ferme sans attendre le serveur.
+   *
+   * L'écriture est un upsert de six lignes sur des valeurs déjà bornées à la
+   * frappe : au moment du clic, son issue ne dépend plus de rien. Retenir
+   * l'agent devant l'aller-retour — session, profil, agence, puis l'écriture —
+   * lui faisait attendre une réponse connue d'avance. Un échec le dit par
+   * notification, et les chiffres à l'écran n'auront pas bougé.
+   */
+  function valider() {
+    const corps = JSON.stringify({ membre, ...saisie });
+    onClose();
+
+    validerEnFond({
+      succes: 'Objectifs enregistrés',
+      echec: "Les objectifs n'ont pas pu être enregistrés.",
+      ecrire: async () => {
+        const res = await fetch('/api/dashboard/objectifs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: corps,
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "Les objectifs n'ont pas pu être enregistrés.");
+        }
+      },
+      // Les chiffres de l'Accueil ne se relisent qu'une fois l'écriture passée :
+      // les redemander plus tôt rapporterait les anciens objectifs.
+      puis: onEnregistre,
+    });
   }
 
   return (
@@ -167,7 +169,7 @@ export default function ObjectifsDialog({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void enregistrer();
+          valider();
         }}
         className="flex flex-col gap-4"
       >
@@ -203,7 +205,6 @@ export default function ObjectifsDialog({
               fond={COULEUR_FAMILLE[famille].pastelFort}
               valeur={objectifACadence(saisie.hebdo[famille], cadence)}
               onChange={(n) => poser(famille, objectifDepuisCadence(n, cadence))}
-              disabled={envoi}
             />
           ))}
         </div>
@@ -219,18 +220,14 @@ export default function ObjectifsDialog({
             fond="#D5EADF"
             valeur={saisie.mandatsMensuel}
             onChange={(n) => setSaisie((prev) => ({ ...prev, mandatsMensuel: n }))}
-            disabled={envoi}
           />
         </div>
-
-        {erreur ? <p className="text-[12.5px] font-medium text-red-600">{erreur}</p> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <button
             type="button"
-            disabled={envoi}
             onClick={() => setSaisie({ hebdo: { ...CONSEILLES.hebdo }, mandatsMensuel: CONSEILLES.mandatsMensuel })}
-            className="text-[12.5px] font-semibold text-mute underline-offset-2 transition-colors hover:text-ink hover:underline disabled:opacity-40"
+            className="text-[12.5px] font-semibold text-mute underline-offset-2 transition-colors hover:text-ink hover:underline"
           >
             Revenir aux repères conseillés
           </button>
@@ -238,17 +235,15 @@ export default function ObjectifsDialog({
             <button
               type="button"
               onClick={onClose}
-              disabled={envoi}
-              className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mute transition-colors hover:bg-black/[0.04] hover:text-ink disabled:opacity-40"
+              className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
             >
               Annuler
             </button>
             <button
               type="submit"
-              disabled={envoi}
-              className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white shadow-clay-sm transition-transform hover:-translate-y-px disabled:opacity-50"
+              className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white shadow-clay-sm transition-transform hover:-translate-y-px"
             >
-              {envoi ? 'Enregistrement…' : 'Enregistrer'}
+              Valider
             </button>
           </div>
         </div>

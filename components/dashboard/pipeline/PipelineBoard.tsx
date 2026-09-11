@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { toast } from 'sonner';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import type { Lead, LeadStage, TeamMember } from '@/types/lead';
 import { fractionalPosition, positionNeighbors } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
@@ -79,20 +80,18 @@ export default function PipelineBoard({
   const [stageLabel, setStageLabel] = useState('');
   const [stageColor, setStageColor] = useState(COULEUR_COLONNE_DEFAUT);
   const [stageError, setStageError] = useState<string | null>(null);
-  const [stageSaving, setStageSaving] = useState(false);
 
   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
   const membersById = useMemo(() => new Map(teamMembers.map((m) => [m.id, m])), [teamMembers]);
 
   const closeEditor = useCallback(() => {
-    if (stageSaving) return;
     setEditorOpen(false);
     setEditingStageId(null);
     setStageLabel('');
     setStageColor(COULEUR_COLONNE_DEFAUT);
     setStageError(null);
-  }, [stageSaving]);
+  }, []);
 
   const openCreateEditor = useCallback(() => {
     setEditorMode('create');
@@ -265,7 +264,7 @@ export default function PipelineBoard({
     setLostReason('');
   }
 
-  const submitStageEditor = useCallback(async () => {
+  const submitStageEditor = useCallback(() => {
     const libelle = stageLabel.trim().replace(/\s+/g, ' ');
     if (libelle.length < 2) {
       setStageError('Le nom doit contenir au moins 2 caractères.');
@@ -276,42 +275,41 @@ export default function PipelineBoard({
       return;
     }
 
-    setStageSaving(true);
-    setStageError(null);
-    try {
-      const endpoint =
-        editorMode === 'create'
-          ? '/api/dashboard/lead-stages'
-          : `/api/dashboard/lead-stages/${editingStageId}`;
-      const method = editorMode === 'create' ? 'POST' : 'PATCH';
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ libelle, accentColor: stageColor }),
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        stage?: LeadStage;
-      };
-      if (!res.ok || !body.stage) {
-        throw new Error(body.error ?? 'Enregistrement impossible');
-      }
-
-      onStagesChange?.((prev) => {
-        const list = Array.isArray(prev) ? prev : stages;
-        const next =
-          editorMode === 'create'
-            ? [...list, body.stage!]
-            : list.map((stage) => (stage.id === body.stage!.id ? body.stage! : stage));
-        return [...next].sort((a, b) => a.ordre - b.ordre);
-      });
-      toast.success(editorMode === 'create' ? 'Colonne créée' : 'Colonne mise à jour');
-      closeEditor();
-    } catch (e) {
-      setStageError(e instanceof Error ? e.message : 'Enregistrement impossible');
-    } finally {
-      setStageSaving(false);
-    }
+    const mode = editorMode;
+    const stageId = editingStageId;
+    const couleur = stageColor;
+    closeEditor();
+    validerEnFond({
+      succes: mode === 'create' ? 'Colonne créée' : 'Colonne mise à jour',
+      echec: "La colonne n'a pas pu être enregistrée",
+      ecrire: async () => {
+        const endpoint =
+          mode === 'create' ? '/api/dashboard/lead-stages' : `/api/dashboard/lead-stages/${stageId}`;
+        const res = await fetch(endpoint, {
+          method: mode === 'create' ? 'POST' : 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ libelle, accentColor: couleur }),
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          stage?: LeadStage;
+        };
+        if (!res.ok || !body.stage) {
+          throw new Error(body.error ?? "La colonne n'a pas pu être enregistrée");
+        }
+        return body.stage;
+      },
+      puis: (stage) => {
+        onStagesChange?.((prev) => {
+          const list = Array.isArray(prev) ? prev : stages;
+          const next =
+            mode === 'create'
+              ? [...list, stage]
+              : list.map((item) => (item.id === stage.id ? stage : item));
+          return [...next].sort((a, b) => a.ordre - b.ordre);
+        });
+      },
+    });
   }, [closeEditor, editorMode, editingStageId, onStagesChange, stageColor, stageLabel, stages]);
 
   const activeLead = activeId ? leadsById.get(activeId) : null;
@@ -409,12 +407,12 @@ export default function PipelineBoard({
         mode={editorMode}
         libelle={stageLabel}
         accentColor={stageColor}
-        saving={stageSaving}
+        saving={false}
         error={stageError}
         onLibelleChange={setStageLabel}
         onAccentColorChange={setStageColor}
         onCancel={closeEditor}
-        onConfirm={() => void submitStageEditor()}
+        onConfirm={submitStageEditor}
       />
     </>
   );

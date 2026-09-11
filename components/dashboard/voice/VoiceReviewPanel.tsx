@@ -534,7 +534,7 @@ export default function VoiceReviewPanel({
         });
         if (!closeRes.ok) {
           if (contactId) {
-            notifySuccess('Contact enregistré. La note reste à finaliser depuis Notes.', {
+            notifySuccess('Contact enregistré. La note reste à finaliser depuis l’accueil.', {
               id: `voice-contact-${snap.voiceNoteId}`,
             });
             onDismiss();
@@ -988,7 +988,7 @@ export default function VoiceReviewPanel({
 
       <footer className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-black/[0.06] px-5 py-4 sm:px-6 lg:px-8 lg:py-5">
         <WorkspaceButton type="button" onClick={terminer} disabled={locked}>
-          {terminating ? 'Enregistrement…' : 'Terminer'}
+          {terminating ? 'Validation…' : 'Terminer'}
         </WorkspaceButton>
       </footer>
     </>

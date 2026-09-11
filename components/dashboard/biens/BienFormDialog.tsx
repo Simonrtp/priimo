@@ -15,6 +15,7 @@ import { CONTACT_TYPE_LABELS, type Contact } from '@/types/contact';
 import type { ContactInputFields } from '@/lib/contact-input';
 import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import { normalizePhotoUrls } from '@/lib/bien-input';
 import { BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
 import { useUser } from '@/lib/hooks/useUser';
@@ -247,7 +248,6 @@ export default function BienFormDialog({
   skipSuccessToast?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(bien ? fromBien(bien) : EMPTY);
-  const [saving, setSaving] = useState(false);
   const [photoDraft, setPhotoDraft] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoView, setPhotoView] = useState<number | null>(null);
@@ -334,47 +334,49 @@ export default function BienFormDialog({
     }
   }
 
-  async function submit(e: React.FormEvent) {
+  /**
+   * La fenêtre se ferme au clic et l'écriture part derrière.
+   *
+   * Elle rend le bien tel que la base l'a enregistré : la liste ne se recale
+   * donc qu'au retour, un battement plus tard. C'est le seul décalage, et il
+   * vaut mieux que de retenir l'agent devant un formulaire déjà rempli.
+   */
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (saving) return;
+    const corps = JSON.stringify({
+      ...form,
+      proprietaireContactId: form.proprietaireContactId || null,
+      honorairesACharge: (form.honorairesACharge || null) as HonorairesACharge | null,
+      procedureEnCours:
+        form.procedureEnCours === 'true' ? true : form.procedureEnCours === 'false' ? false : null,
+      banId: form.banId || null,
+      latitude: form.latitude ? Number(form.latitude) : null,
+      longitude: form.longitude ? Number(form.longitude) : null,
+    });
+    const modification = Boolean(bien);
+    const url = bien ? `/api/dashboard/biens/${bien.id}` : '/api/dashboard/biens';
 
-    setSaving(true);
-    try {
-      const res = await fetch(bien ? `/api/dashboard/biens/${bien.id}` : '/api/dashboard/biens', {
-        method: bien ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          proprietaireContactId: form.proprietaireContactId || null,
-          honorairesACharge: (form.honorairesACharge || null) as HonorairesACharge | null,
-          procedureEnCours:
-            form.procedureEnCours === 'true'
-              ? true
-              : form.procedureEnCours === 'false'
-                ? false
-                : null,
-          banId: form.banId || null,
-          latitude: form.latitude ? Number(form.latitude) : null,
-          longitude: form.longitude ? Number(form.longitude) : null,
-        }),
-      });
-      const data = (await res.json()) as { bien?: Bien; error?: string };
-
-      if (!res.ok || !data.bien) {
-        notifyError(data.error ?? "Le bien n'a pas pu être enregistré");
-        return;
-      }
-
-      if (!skipSuccessToast) {
-        notifySuccess(bien ? 'Bien mis à jour' : 'Bien ajouté');
-      }
-      onSaved(data.bien);
-      onClose();
-    } catch {
-      notifyError("Le bien n'a pas pu être enregistré");
-    } finally {
-      setSaving(false);
-    }
+    onClose();
+    validerEnFond({
+      // Le vert part au clic. Si l'appelant veut y accrocher « Ouvrir », il
+      // réutilise le même identifiant une fois la fiche connue.
+      succes: modification ? 'Bien mis à jour' : 'Bien ajouté',
+      succesId: modification ? 'bien-maj' : 'bien-ajoute',
+      echec: "Le bien n'a pas pu être enregistré",
+      ecrire: async () => {
+        const res = await fetch(url, {
+          method: modification ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: corps,
+        });
+        const data = (await res.json().catch(() => null)) as { bien?: Bien; error?: string } | null;
+        if (!res.ok || !data?.bien) {
+          throw new Error(data?.error ?? "Le bien n'a pas pu être enregistré");
+        }
+        return data.bien;
+      },
+      puis: onSaved,
+    });
   }
 
   const typeOptions = PROPERTY_TYPE_OPTIONS.includes(form.propertyType)
@@ -797,12 +799,10 @@ export default function BienFormDialog({
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-3 border-t border-black/[0.06] pt-5">
-          <WorkspaceButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
+          <WorkspaceButton type="button" variant="secondary" onClick={onClose}>
             Annuler
           </WorkspaceButton>
-          <WorkspaceButton type="submit" disabled={saving}>
-            {saving ? 'Enregistrement…' : bien ? 'Enregistrer' : 'Ajouter le bien'}
-          </WorkspaceButton>
+          <WorkspaceButton type="submit">{bien ? 'Valider' : 'Ajouter le bien'}</WorkspaceButton>
         </div>
       </form>
     </Modal>

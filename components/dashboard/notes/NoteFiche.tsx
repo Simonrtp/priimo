@@ -7,6 +7,7 @@ import type { NoteAttachmentProposal } from '@/lib/notes/attachment-proposals';
 import type { SearchHit } from '@/lib/assistant/search';
 import { SEARCH_MIN_LEN } from '@/lib/assistant/search';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
@@ -43,7 +44,6 @@ export default function NoteFiche({
   const [isAuthor, setIsAuthor] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [manualType, setManualType] = useState<NoteLienEntite>('contact');
   const [manualQ, setManualQ] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -118,24 +118,28 @@ export default function NoteFiche({
     return () => window.clearTimeout(t);
   }, [manualQ, manualType]);
 
-  async function patch(body: Record<string, unknown>, okMessage?: string) {
+  function patch(body: Record<string, unknown>, okMessage?: string) {
     if (!note) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/dashboard/voice-notes/${note.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error('patch');
-      if (okMessage) notifySuccess(okMessage);
-      await load();
-      onChanged();
-    } catch {
-      notifyError("La note n'a pas pu être enregistrée");
-    } finally {
-      setSaving(false);
+    const noteId = note.id;
+    if (typeof body.transcript === 'string') {
+      setNote((n) => (n ? { ...n, transcript: body.transcript as string } : n));
     }
+    validerEnFond({
+      succes: okMessage ?? null,
+      echec: "La note n'a pas pu être enregistrée",
+      ecrire: async () => {
+        const res = await fetch(`/api/dashboard/voice-notes/${noteId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("La note n'a pas pu être enregistrée");
+      },
+      puis: () => {
+        void load();
+        onChanged();
+      },
+    });
   }
 
   async function addLien(entiteType: NoteLienEntite, entiteId: string) {
@@ -227,7 +231,7 @@ export default function NoteFiche({
             id="note-transcript"
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
-            disabled={!isAuthor || saving}
+            disabled={!isAuthor}
             rows={6}
           />
           {note.transcriptOriginal ? (
@@ -239,10 +243,9 @@ export default function NoteFiche({
             <WorkspaceButton
               type="button"
               className="mt-2"
-              disabled={saving}
-              onClick={() => void patch({ transcript }, 'Transcript enregistré')}
+              onClick={() => patch({ transcript }, 'Transcript enregistré')}
             >
-              Enregistrer la correction
+              Valider la correction
             </WorkspaceButton>
           ) : null}
         </div>
@@ -383,8 +386,7 @@ export default function NoteFiche({
           {isAuthor && note.statut === 'brute' ? (
             <WorkspaceButton
               type="button"
-              disabled={saving}
-              onClick={() => void patch({ terminer: true }, 'Note marquée comme revue')}
+              onClick={() => patch({ terminer: true }, 'Note marquée comme revue')}
             >
               Marquer comme revue
             </WorkspaceButton>

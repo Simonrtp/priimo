@@ -152,7 +152,7 @@ export default function EtapeAnniversaire({
               }}
               className="mt-0.5 size-4 rounded border-black/20 accent-[#E8743C]"
             />
-            <span>Enregistrer ma date d’anniversaire</span>
+            <span>Valider ma date d’anniversaire</span>
           </label>
           <label
             className={`flex items-start gap-3 text-[13.5px] leading-snug ${

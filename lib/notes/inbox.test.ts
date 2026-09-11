@@ -77,6 +77,34 @@ describe('filterInboxNotes', () => {
     });
     assert.deepEqual(out.map((n) => n.id), ['1', '3']);
   });
+
+  it('scope visibles garde mes notes privées et celles publiées des collègues', () => {
+    const out = filterInboxNotes(notes, {
+      viewerId: 'me',
+      statut: 'tous',
+      scope: 'visibles',
+      period: 'tous',
+      rattachement: 'tous',
+      q: '',
+    });
+    assert.deepEqual(out.map((n) => n.id), ['1', '2', '3']);
+  });
+
+  it('scope visibles exclut les notes privées des collègues', () => {
+    const mix = [
+      ...notes,
+      note({ id: '4', visibilite: 'privee', createdBy: 'other', transcript: 'Note privée d’un collègue' }),
+    ];
+    const out = filterInboxNotes(mix, {
+      viewerId: 'me',
+      statut: 'tous',
+      scope: 'visibles',
+      period: 'tous',
+      rattachement: 'tous',
+      q: '',
+    });
+    assert.deepEqual(out.map((n) => n.id), ['1', '2', '3']);
+  });
 });
 
 describe('recentNotesForHome', () => {

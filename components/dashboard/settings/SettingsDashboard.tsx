@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { ACCUEIL_VUE_COOKIE, parseAccueilVue, type AccueilVue } from '@/lib/today/accueil-vue';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
 import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
@@ -191,13 +192,12 @@ function SectionAgency() {
     Math.max(2, Math.round((agency.frequence_passage_jours ?? 84) / 7)),
   );
   const [addressError, setAddressError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const primaryPostcode =
     agencyAddress?.postcode?.trim() || agency.codes_postaux?.[0]?.trim() || null;
   const coveredPostalCodes = agency.codes_postaux ?? [];
 
-  const save = async () => {
+  const save = () => {
     const addressLabel = agencyAddress?.label?.trim() ?? '';
     if (!addressLabel || addressLabel.length < 5) {
       const err = "Sélectionnez l'adresse de l'agence dans la liste de suggestions.";
@@ -235,8 +235,6 @@ function SectionAgency() {
       return;
     }
 
-    setSaving(true);
-    const supabase = createSupabaseBrowserClient();
     const payload = {
       name: name.trim(),
       address: addressLabel,
@@ -247,18 +245,21 @@ function SectionAgency() {
       longitude,
       frequence_passage_jours: Math.min(365, Math.max(14, frequenceSemaines * 7)),
     };
-    let { error } = await supabase.from('agencies').update(payload).eq('id', agency.id);
-    if (error && /frequence_passage/.test(error.message)) {
-      const { frequence_passage_jours: _ignore, ...sansFrequence } = payload;
-      ({ error } = await supabase.from('agencies').update(sansFrequence).eq('id', agency.id));
-    }
-    setSaving(false);
-    if (error) {
-      toast.error('Erreur lors de la sauvegarde');
-      return;
-    }
-    toast.success('Agence mise à jour');
-    router.refresh();
+
+    validerEnFond({
+      succes: 'Agence mise à jour',
+      echec: 'Erreur lors de la sauvegarde',
+      ecrire: async () => {
+        const supabase = createSupabaseBrowserClient();
+        let { error } = await supabase.from('agencies').update(payload).eq('id', agency.id);
+        if (error && /frequence_passage/.test(error.message)) {
+          const { frequence_passage_jours: _ignore, ...sansFrequence } = payload;
+          ({ error } = await supabase.from('agencies').update(sansFrequence).eq('id', agency.id));
+        }
+        if (error) throw new Error('Erreur lors de la sauvegarde');
+      },
+      puis: () => router.refresh(),
+    });
   };
 
   return (
@@ -366,9 +367,9 @@ function SectionAgency() {
           className="btn btn-primary mt-2 w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:self-start"
           style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
           onClick={save}
-          disabled={saving || !name.trim()}
+          disabled={!name.trim()}
         >
-          {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          Valider les modifications
         </button>
       </div>
     </section>
@@ -436,7 +437,6 @@ function SectionProfile() {
   const router = useRouter();
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
-  const [saving, setSaving] = useState(false);
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
   const [accueilVue, setAccueilVue] = useState<AccueilVue>('directeur');
 
@@ -444,20 +444,24 @@ function SectionProfile() {
     setAccueilVue(readAccueilVueCookie());
   }, []);
 
-  const save = async () => {
-    setSaving(true);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
-      .from('profiles')
-      .update({ first_name: firstName.trim(), last_name: lastName.trim() })
-      .eq('id', user.id);
-    setSaving(false);
-    if (error) {
-      toast.error('Erreur lors de la sauvegarde');
-      return;
-    }
-    toast.success('Profil mis à jour');
-    router.refresh();
+  const save = () => {
+    const prenom = firstName.trim();
+    const nom = lastName.trim();
+    validerEnFond({
+      succes: 'Profil mis à jour',
+      echec: 'Erreur lors de la sauvegarde',
+      ecrire: async () => {
+        const supabase = createSupabaseBrowserClient();
+        const { error } = await supabase
+          .from('profiles')
+          .update({ first_name: prenom, last_name: nom })
+          .eq('id', user.id);
+        if (error) throw new Error('Erreur lors de la sauvegarde');
+      },
+      // Le nom se lit dans l'en-tête et le menu : la page les recale une fois
+      // l'écriture passée.
+      puis: () => router.refresh(),
+    });
   };
 
   return (
@@ -505,9 +509,9 @@ function SectionProfile() {
             className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
             onClick={save}
-            disabled={saving || !firstName.trim() || !lastName.trim()}
+            disabled={!firstName.trim() || !lastName.trim()}
           >
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
+            Valider
           </button>
           <button
             type="button"
@@ -645,7 +649,7 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
             className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             style={{ padding: '8px 18px', fontSize: 13, borderRadius: 10 }}
           >
-            {saving ? 'Enregistrement…' : 'Mettre à jour'}
+            {saving ? 'Validation…' : 'Mettre à jour'}
           </button>
         </div>
       </div>

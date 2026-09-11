@@ -38,6 +38,7 @@ import {
 } from '@/lib/estimation/parcours';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { toast } from 'sonner';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import SectionWidget from '@/components/dashboard/settings/SectionWidget';
 import EstimationViewSwitch, {
   type EstimationVue,
@@ -260,7 +261,6 @@ export default function EstimationDashboardClient({
   );
   const [agentPct, setAgentPct] = useState(0);
   const [agentJustification, setAgentJustification] = useState('');
-  const [savingAgent, setSavingAgent] = useState(false);
 
   const hintsAbort = useRef<AbortController | null>(null);
   const hintsKey = useRef<string>('');
@@ -500,51 +500,52 @@ export default function EstimationDashboardClient({
   const agentValue = Math.round(marketValue * (1 + agentPct / 100));
   const agentOk = Math.abs(agentPct) <= 5 || agentJustification.trim().length >= 3;
 
-  async function persistAgentAdjustment() {
+  function persistAgentAdjustment() {
     if (!result?.id || result.id === 'local' || !result.value) return;
     if (!agentOk) {
       toast.error('Indiquez une justification pour une correction au-delà de 5 %');
       return;
     }
-    setSavingAgent(true);
-    try {
-      const res = await fetch(`/api/dashboard/estimation/${result.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adjustmentPct: agentPct,
-          justification: agentJustification.trim(),
-          marketValue: result.value,
-          agentValue,
-        }),
-      });
-      if (!res.ok) {
-        toast.error('Enregistrement impossible');
-        return;
-      }
-      const data = (await res.json()) as { context?: Record<string, unknown> };
-      if (data.context) {
-        setResult((r) => (r ? { ...r, context: data.context! } : r));
-      }
-      toast.success('Avis du négociateur enregistré');
-    } finally {
-      setSavingAgent(false);
-    }
+    const estimationId = result.id;
+    const value = result.value;
+    const pct = agentPct;
+    const justification = agentJustification.trim();
+    const valeurAgent = agentValue;
+    validerEnFond({
+      succes: 'Avis du négociateur enregistré',
+      echec: "L'avis n'a pas pu être enregistré",
+      ecrire: async () => {
+        const res = await fetch(`/api/dashboard/estimation/${estimationId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adjustmentPct: pct,
+            justification,
+            marketValue: value,
+            agentValue: valeurAgent,
+          }),
+        });
+        if (!res.ok) throw new Error("L'avis n'a pas pu être enregistré");
+        const data = (await res.json().catch(() => null)) as { context?: Record<string, unknown> } | null;
+        return data?.context ?? null;
+      },
+      puis: (context) => {
+        if (context) setResult((r) => (r ? { ...r, context } : r));
+      },
+    });
   }
 
   function copyLink() {
     if (!shareUrl) return;
-    void persistAgentAdjustment().then(() => {
-      void navigator.clipboard.writeText(shareUrl).then(() => toast.success('Lien copié'));
-    });
+    persistAgentAdjustment();
+    void navigator.clipboard.writeText(shareUrl).then(() => toast.success('Lien copié'));
   }
 
   function whatsappShare() {
     if (!shareUrl) return;
-    void persistAgentAdjustment().then(() => {
-      const text = `Avis de valeur — ${address}\n${shareUrl}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
-    });
+    persistAgentAdjustment();
+    const text = `Avis de valeur — ${address}\n${shareUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
   }
 
   async function revokeShare() {
@@ -572,7 +573,8 @@ export default function EstimationDashboardClient({
   }
 
   function printPdf() {
-    void persistAgentAdjustment().then(() => window.print());
+    persistAgentAdjustment();
+    window.print();
   }
 
   function resetAll() {
@@ -1354,10 +1356,10 @@ export default function EstimationDashboardClient({
                       {agentPct !== 0 ? (
                         <WorkspaceButton
                           type="button"
-                          disabled={!agentOk || savingAgent || result.id === 'local'}
-                          onClick={() => void persistAgentAdjustment()}
+                          disabled={!agentOk || result.id === 'local'}
+                          onClick={persistAgentAdjustment}
                         >
-                          Enregistrer l’avis
+                          Valider l’avis
                         </WorkspaceButton>
                       ) : null}
                     </div>

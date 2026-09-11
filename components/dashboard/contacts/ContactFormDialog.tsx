@@ -6,6 +6,7 @@ import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, typeUsesCriteria } from '@/typ
 import type { ContactFieldErrors, ContactInputFields } from '@/lib/contact-input';
 import { EMPTY_CONTACT_INPUT, validateContactFields } from '@/lib/contact-input';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import DatePickerField from '@/components/ui/DatePickerField';
@@ -171,22 +172,54 @@ export default function ContactFormDialog({
 
     setFieldErrors({});
     setFormError(null);
-    setSaving(true);
     const useForce = force || forceCreate;
+    const url = contact ? `/api/dashboard/contacts/${contact.id}` : '/api/dashboard/contacts';
+    const corps = JSON.stringify({
+      ...fields,
+      postalCodes: fields.postalCodes,
+      assignedTo,
+      forceCreate: !contact && useForce ? true : undefined,
+      banId: geo.banId,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+    });
+
+    // Une modification ne peut plus rien apprendre à l'agent : la saisie est
+    // déjà vérifiée et la route ne cherche de doublon qu'à la création. On
+    // ferme donc au clic. Une création, elle, doit rester ouverte : le serveur
+    // peut répondre par une liste de fiches qui lui ressemblent, et cette
+    // liste n'a de sens que dans la fenêtre.
+    if (contact) {
+      onClose();
+      validerEnFond({
+        succes: skipSuccessToast ? null : 'Contact mis à jour',
+        echec: "Le contact n'a pas pu être enregistré",
+        ecrire: async () => {
+          const res = await fetch(url, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: corps,
+          });
+          const data = (await res.json().catch(() => null)) as {
+            contact?: Contact;
+            error?: string;
+          } | null;
+          if (!res.ok || !data?.contact) {
+            throw new Error(data?.error ?? "Le contact n'a pas pu être enregistré");
+          }
+          return data.contact;
+        },
+        puis: onSaved,
+      });
+      return;
+    }
+
+    setSaving(true);
     try {
-      const url = contact ? `/api/dashboard/contacts/${contact.id}` : '/api/dashboard/contacts';
       const res = await fetch(url, {
-        method: contact ? 'PATCH' : 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...fields,
-          postalCodes: fields.postalCodes,
-          assignedTo,
-          forceCreate: !contact && useForce ? true : undefined,
-          banId: geo.banId,
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-        }),
+        body: corps,
       });
       const data = (await res.json()) as {
         contact?: Contact;
@@ -521,7 +554,7 @@ export default function ContactFormDialog({
             Annuler
           </WorkspaceButton>
           <WorkspaceButton type="submit" disabled={saving}>
-            {saving ? 'Enregistrement…' : contact ? 'Enregistrer' : 'Créer le contact'}
+            {saving ? 'Validation…' : contact ? 'Valider' : 'Créer le contact'}
           </WorkspaceButton>
         </div>
       </form>

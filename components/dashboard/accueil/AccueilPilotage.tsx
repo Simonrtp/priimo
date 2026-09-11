@@ -11,6 +11,7 @@ import {
 import BandeauObjectif from './BandeauObjectif';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
+import { NotesLectureProvider } from '@/components/dashboard/notes/NotesLectureProvider';
 import Entonnoir3D from './Entonnoir3D';
 import JourParJour from './JourParJour';
 import NouvellesAdresses, { type AdresseLivree } from './NouvellesAdresses';
@@ -158,6 +159,7 @@ export default function AccueilPilotage({
   }`;
 
   return (
+    <NotesLectureProvider>
     <div className="flex w-full min-w-0 flex-col gap-4 pb-10">
       <div className="flex flex-col gap-3">
         <EnteteSemaine
@@ -210,5 +212,6 @@ export default function AccueilPilotage({
       </div>
       {secteur}
     </div>
+    </NotesLectureProvider>
   );
 }

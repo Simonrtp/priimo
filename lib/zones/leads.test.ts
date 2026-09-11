@@ -44,7 +44,7 @@ function zone(id: string, assignedTo: string | null, valeur: ValeurPolygone): Zo
     nom: `Zone ${id}`,
     couleur: '#4C7A9E',
     assignedTo,
-    jourSemaine: null,
+    joursSemaine: [],
     actif: true,
     verrouillee: false,
     regles: [regle],
