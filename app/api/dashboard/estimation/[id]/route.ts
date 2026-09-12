@@ -1,13 +1,50 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { ESTIMATION_SELECT, mapEstimation } from '@/lib/estimation/objet';
+import { isEtat } from '@/lib/estimation/cycle';
+import { appliquerPatch } from '@/lib/estimation/patch';
+import { syncLeadEtapeEstimation } from '@/lib/estimation/pipeline';
 
 export const runtime = 'nodejs';
 
-/**
- * Met à jour l’ajustement négociateur sur une estimation déjà calculée.
- * Les deux valeurs (marché + avis agent) restent visibles sur l’avis partagé.
- */
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: 'Identifiant manquant' }, { status: 400 });
+
+  const session = await createSupabaseServerClient();
+  const { data, error } = await session
+    .from('agency_estimations')
+    .select(ESTIMATION_SELECT)
+    .eq('id', id)
+    .eq('agency_id', agency.id)
+    .maybeSingle();
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Estimation introuvable' }, { status: 404 });
+  }
+
+  const viewer = viewerFromProfile(profile);
+  if (
+    !canSeeOwnedRecord(viewer, {
+      assignedTo: data.referent_id,
+      createdBy: data.created_by,
+    })
+  ) {
+    return NextResponse.json({ error: 'Estimation introuvable' }, { status: 404 });
+  }
+
+  return NextResponse.json({ estimation: mapEstimation(data) });
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -27,33 +64,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
-  const pct = typeof body.adjustmentPct === 'number' ? body.adjustmentPct : Number(body.adjustmentPct);
-  if (!Number.isFinite(pct) || pct < -15 || pct > 15) {
-    return NextResponse.json({ error: 'Correction hors plage (−15 % à +15 %)' }, { status: 400 });
-  }
-
-  const justification =
-    typeof body.justification === 'string' ? body.justification.trim() : '';
-  if (Math.abs(pct) > 5 && justification.length < 3) {
-    return NextResponse.json(
-      { error: 'Une justification est requise au-delà de 5 %' },
-      { status: 400 },
-    );
-  }
-
-  const agentValue =
-    typeof body.agentValue === 'number' && Number.isFinite(body.agentValue)
-      ? Math.round(body.agentValue)
-      : null;
-  const marketValue =
-    typeof body.marketValue === 'number' && Number.isFinite(body.marketValue)
-      ? Math.round(body.marketValue)
-      : null;
-
   const session = await createSupabaseServerClient();
   const { data: row, error: fetchErr } = await session
     .from('agency_estimations')
-    .select('id, context, price_value')
+    .select(ESTIMATION_SELECT)
     .eq('id', id)
     .eq('agency_id', agency.id)
     .maybeSingle();
@@ -62,30 +76,77 @@ export async function PATCH(
     return NextResponse.json({ error: 'Estimation introuvable' }, { status: 404 });
   }
 
-  const prev =
-    row.context && typeof row.context === 'object' && !Array.isArray(row.context)
-      ? (row.context as Record<string, unknown>)
-      : {};
+  const viewer = viewerFromProfile(profile);
+  if (
+    !canSeeOwnedRecord(viewer, {
+      assignedTo: row.referent_id,
+      createdBy: row.created_by,
+    })
+  ) {
+    return NextResponse.json({ error: 'Estimation introuvable' }, { status: 404 });
+  }
 
-  const context = {
-    ...prev,
-    agentAdjustment: {
-      pct,
-      justification: justification || null,
-      marketValue: marketValue ?? row.price_value,
-      agentValue: agentValue ?? row.price_value,
-    },
-  };
+  // Ancien contrat : ajustement négociateur seul.
+  if (body.adjustmentPct !== undefined && Object.keys(body).every((k) =>
+    ['adjustmentPct', 'justification', 'agentValue', 'marketValue'].includes(k),
+  )) {
+    const pct = typeof body.adjustmentPct === 'number' ? body.adjustmentPct : Number(body.adjustmentPct);
+    if (!Number.isFinite(pct) || pct < -15 || pct > 15) {
+      return NextResponse.json({ error: 'Correction hors plage (−15 % à +15 %)' }, { status: 400 });
+    }
+    const justification = typeof body.justification === 'string' ? body.justification.trim() : '';
+    if (Math.abs(pct) > 5 && justification.length < 3) {
+      return NextResponse.json({ error: 'Une justification est requise au-delà de 5 %' }, { status: 400 });
+    }
+    const prev =
+      row.context && typeof row.context === 'object' && !Array.isArray(row.context)
+        ? (row.context as Record<string, unknown>)
+        : {};
+    const context = {
+      ...prev,
+      agentAdjustment: {
+        pct,
+        justification: justification || null,
+        marketValue:
+          typeof body.marketValue === 'number' ? body.marketValue : row.price_value,
+        agentValue: typeof body.agentValue === 'number' ? body.agentValue : row.price_value,
+      },
+    };
+    const { error } = await session
+      .from('agency_estimations')
+      .update({ context })
+      .eq('id', id)
+      .eq('agency_id', agency.id);
+    if (error) return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
+    return NextResponse.json({ ok: true, context });
+  }
 
-  const { error } = await session
+  const { patch, etat, error: patchError } = appliquerPatch(body, viewer);
+  if (patchError) {
+    return NextResponse.json({ error: patchError }, { status: 400 });
+  }
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ estimation: mapEstimation(row) });
+  }
+
+  const { data: updated, error } = await session
     .from('agency_estimations')
-    .update({ context })
+    .update(patch)
     .eq('id', id)
-    .eq('agency_id', agency.id);
+    .eq('agency_id', agency.id)
+    .select(ESTIMATION_SELECT)
+    .single();
 
-  if (error) {
+  if (error || !updated) {
     return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, context });
+  await syncLeadEtapeEstimation({
+    supabase: session,
+    agencyId: agency.id,
+    leadId: updated.lead_id,
+    etat: etat ?? (isEtat(updated.etat) ? updated.etat : 'brouillon'),
+  });
+
+  return NextResponse.json({ estimation: mapEstimation(updated) });
 }

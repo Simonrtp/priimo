@@ -24,6 +24,7 @@ import {
   fenetreSemaines,
   intervalleDecale,
   moisDe,
+  intervalleSeptJours,
   nombreDeJours,
   semaineDe,
   semainePrecedente,
@@ -31,6 +32,7 @@ import {
   type Periode,
   type Semaine,
 } from './semaines';
+import { parisYmd, ymdKey } from '@/lib/today/calendar';
 import {
   ACTIVITES,
   FAMILLES_ACTIVITE,
@@ -87,10 +89,15 @@ export type BilanSemaine = {
   /** Cumuls personnels de la fenêtre, pour l'entonnoir et le détail des ratios. */
   fenetrePersonnelle: EtapesConversion;
   /**
-   * Un poste par jour, pour le tableau replié. Vide au-delà de 31 jours :
+   * Un poste par jour de la période affichée. Vide au-delà de 31 jours :
    * un tableau de 365 lignes n'est plus une consultation, c'est un export.
    */
   jours: JourActivite[];
+  /**
+   * Toujours la fenêtre glissante : même jour de semaine, il y a une semaine,
+   * jusqu'à aujourd'hui (ou jusqu'au jour choisi en période « jour »).
+   */
+  joursGlissants: JourActivite[];
   /** Aucune activité avant cette semaine : l'écran « semaine 1 » s'impose. */
   semaine1: boolean;
   /**
@@ -264,13 +271,17 @@ export function bilanPeriode(
     referenceFournie,
   });
 
+  const detail = (fenetre: Intervalle): JourActivite[] =>
+    joursDe(fenetre).map((jour) => ({
+      jour,
+      compteurs: compteursSemaine({ journal, profileId, semaine: { debut: jour, fin: jour } }),
+    }));
+
+  const aujourdhui = ymdKey(parisYmd(new Date()));
+  const finGlissant = periode === 'jour' ? intervalle.fin : aujourdhui;
   const jours: JourActivite[] =
-    nombreDeJours(intervalle) > MAX_JOURS_DETAILLES
-      ? []
-      : joursDe(intervalle).map((jour) => ({
-          jour,
-          compteurs: compteursSemaine({ journal, profileId, semaine: { debut: jour, fin: jour } }),
-        }));
+    nombreDeJours(intervalle) > MAX_JOURS_DETAILLES ? [] : detail(intervalle);
+  const joursGlissants = detail(intervalleSeptJours(finGlissant));
 
   return {
     profileId,
@@ -296,6 +307,7 @@ export function bilanPeriode(
     etatsSource,
     fenetrePersonnelle: versEtapes(personnel),
     jours,
+    joursGlissants,
     semaine1,
     objectifsPoses: saisieDepuisObjectifs(objectifs),
     objectifsParDefaut: objectifs.parDefaut,

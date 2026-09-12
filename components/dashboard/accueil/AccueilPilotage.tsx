@@ -208,7 +208,11 @@ export default function AccueilPilotage({
 
       {aujourdhui}
       <div aria-busy={enCours} className={estompe}>
-        <JourParJour jours={bilan.jours} periode={vue.periode} />
+        <JourParJour
+          jours={bilan.joursGlissants}
+          jourActif={vue.periode === 'jour' ? vue.intervalle.debut : null}
+          onChoisirJour={(jour) => void changer('jour', jour)}
+        />
       </div>
       {secteur}
     </div>

@@ -12,6 +12,7 @@ import {
 } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { ContactRow } from '@/types/database';
+import { invaliderContacts } from '@/lib/cache/dashboard';
 
 export const runtime = 'nodejs';
 
@@ -118,6 +119,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ leadId: string
     }
     contact = { ...contact, doublonDe: weak.other.id };
   }
+
+  invaliderContacts();
 
   return NextResponse.json({ contact, already: false }, { status: 201 });
 }

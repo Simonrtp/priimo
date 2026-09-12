@@ -21,6 +21,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
+import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 import type { NoteLienEntite, NoteLien, TerrainNote } from '@/types/contact';
 import type { NoteLienRow, VoiceNoteRow } from '@/types/database';
@@ -274,6 +275,8 @@ export async function POST(req: Request) {
     console.error('[notes] écriture', err);
     return NextResponse.json({ error: "La note n'a pas pu être enregistrée" }, { status: 500 });
   }
+
+  invaliderNotesAccueil();
 
   return NextResponse.json({
     voiceNoteId,

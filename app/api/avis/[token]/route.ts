@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { sourcesFromContext } from '@/lib/estimation/sources';
+import { parseGrille } from '@/lib/estimation/objet';
+import { MENTION_PEU_FIABLE, estimationPeuFiable } from '@/lib/estimation/grille';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +25,7 @@ export async function GET(
     .select(
       `id, address, postal_code, city, property_type, surface_m2, rooms,
        available, price_value, price_low, price_high, price_per_m2, reliability, reliability_label,
-       comparables, context, share_expires_at, share_revoked_at, view_count,
+       comparables, context, grille, share_expires_at, share_revoked_at, view_count,
        agency_id, created_by, created_at`,
     )
     .eq('share_token', token)
@@ -85,6 +87,7 @@ export async function GET(
     pricePerM2: row.price_per_m2,
     reliability: row.reliability ?? 0,
     reliabilityLabel: row.reliability_label,
+    alerteFiabilite: estimationPeuFiable(parseGrille(row.grille)) ? MENTION_PEU_FIABLE : null,
     comparables,
     context: row.context,
     sources: sourcesFromContext(row.context),

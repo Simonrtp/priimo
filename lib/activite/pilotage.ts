@@ -19,6 +19,7 @@ import {
   fenetreSemaines,
   intervalleDe,
   intervalleDecale,
+  intervalleSeptJours,
   moisDe,
   semaineDe,
   type Intervalle,
@@ -58,9 +59,24 @@ function couvertureJournal(periode: Periode, intervalle: Intervalle): Intervalle
   const fenetreRatios = fenetreSemaines(semaineDe(dateDebut(intervalle)), FENETRE_SEMAINES);
   const mois = moisDe(dateDebut(intervalle));
   const precedente = intervalleDecale(periode, intervalle, -1);
+  const aujourdhui = ymdKey(parisYmd(new Date()));
+  const septJours = intervalleSeptJours(aujourdhui);
+  const septChoisi = periode === 'jour' ? intervalleSeptJours(intervalle.fin) : null;
   return {
-    debut: [fenetreRatios.debut, intervalle.debut, mois.debut, precedente.debut].sort()[0]!,
-    fin: [fenetreRatios.fin, intervalle.fin, mois.fin].sort().at(-1)!,
+    debut: [
+      fenetreRatios.debut,
+      intervalle.debut,
+      mois.debut,
+      precedente.debut,
+      septJours.debut,
+      septChoisi?.debut,
+    ]
+      .filter((d): d is string => Boolean(d))
+      .sort()[0]!,
+    fin: [fenetreRatios.fin, intervalle.fin, mois.fin, septJours.fin, septChoisi?.fin]
+      .filter((d): d is string => Boolean(d))
+      .sort()
+      .at(-1)!,
   };
 }
 

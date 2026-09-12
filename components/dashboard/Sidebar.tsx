@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { useCallback, useState, type ComponentType } from 'react';
 import { useOnboardingNavLock } from '@/lib/hooks/useOnboardingNavLock';
@@ -150,7 +151,7 @@ export default function Sidebar() {
             {group.map(({ href, label, Icon, match }) => {
               const active = match(pathname);
               return (
-                <Link
+                <NavPrefetchLink
                   key={href}
                   href={href}
                   title={navLocked ? 'Disponible après la prise en main' : label}
@@ -176,7 +177,7 @@ export default function Sidebar() {
                 >
                   <Icon active={active} className="shrink-0" />
                   <span className="sidebar-nav-label hidden overflow-hidden whitespace-nowrap md:inline">{label}</span>
-                </Link>
+                </NavPrefetchLink>
               );
             })}
           </div>

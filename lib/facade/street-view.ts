@@ -15,12 +15,17 @@ export function parseFacadeGeoParams(searchParams: URLSearchParams): {
   latitude: number;
   longitude: number;
   format: FacadeFormat;
+  vue: 'street' | 'satellite';
 } | null {
   const latitude = Number(searchParams.get('lat'));
   const longitude = Number(searchParams.get('lng'));
   const coord = toGeoCoord(latitude, longitude);
   if (!coord) return null;
-  return { ...coord, format: parseFacadeFormat(searchParams.get('format')) };
+  return {
+    ...coord,
+    format: parseFacadeFormat(searchParams.get('format')),
+    vue: searchParams.get('vue') === 'satellite' ? 'satellite' : 'street',
+  };
 }
 
 export function streetViewStaticUrl(
@@ -45,13 +50,35 @@ export function streetViewStaticUrl(
   return `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
 }
 
-/** Proxy Street View. La clé Google ne sort jamais du serveur. */
+export function satelliteStaticUrl(
+  latitude: number,
+  longitude: number,
+  format: FacadeFormat,
+): string | null {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+  if (!apiKey) return null;
+  const { width, height } = SIZES[format];
+  const params = new URLSearchParams({
+    size: `${width}x${height}`,
+    center: `${latitude},${longitude}`,
+    zoom: '19',
+    maptype: 'satellite',
+    key: apiKey,
+  });
+  return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+}
+
+/** Proxy Street View / satellite. La clé Google ne sort jamais du serveur. */
 export async function fetchStreetViewImage(
   latitude: number,
   longitude: number,
   format: FacadeFormat,
+  vue: 'street' | 'satellite' = 'street',
 ): Promise<Response> {
-  const googleUrl = streetViewStaticUrl(latitude, longitude, format);
+  const googleUrl =
+    vue === 'satellite'
+      ? satelliteStaticUrl(latitude, longitude, format)
+      : streetViewStaticUrl(latitude, longitude, format);
   if (!googleUrl) return new Response(null, { status: 503 });
 
   let googleRes: Response;

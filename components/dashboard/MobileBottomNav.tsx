@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ComponentType } from 'react';
-import Link from 'next/link';
+import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { Ellipsis } from 'lucide-react';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
@@ -34,7 +34,7 @@ function TabItem({
   active: boolean;
 }) {
   return (
-    <Link
+    <NavPrefetchLink
       href={href}
       aria-current={active ? 'page' : undefined}
       className="nav-link app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5"
@@ -52,7 +52,7 @@ function TabItem({
       >
         {label}
       </span>
-    </Link>
+    </NavPrefetchLink>
   );
 }
 
@@ -109,7 +109,7 @@ function FieldTab({
   active: boolean;
 }) {
   return (
-    <Link
+    <NavPrefetchLink
       href={href}
       aria-current={active ? 'page' : undefined}
       className="nav-link app-press flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1"
@@ -121,7 +121,7 @@ function FieldTab({
       >
         {label}
       </span>
-    </Link>
+    </NavPrefetchLink>
   );
 }
 

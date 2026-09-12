@@ -1,6 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Client Router Cache (Next 16) : `experimental.staleTimes` n'a pas changé
+  // de nom. `dynamic` vaut 0 s par défaut depuis Next 15 — un retour Accueil
+  // après 2 min sur l'Estimation refetchait tout. 180 s = 3 min.
+  // Ce cache est par onglet / session, jamais partagé entre agences.
+  experimental: {
+    staleTimes: {
+      dynamic: 180,
+      static: 300,
+    },
+  },
   // Don't advertise the framework in HTTP responses.
   poweredByHeader: false,
   // Brotli/gzip is handled by Vercel's edge — `compress` would only matter

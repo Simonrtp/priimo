@@ -114,5 +114,5 @@ async function getServerUserUncached(): Promise<ServerUser> {
   });
 }
 
-/** Déduplique layout + page dans le même rendu RSC. */
+/** Une fois par requête RSC : layout et page partagent le même résultat. */
 export const getServerUser = cache(getServerUserUncached);

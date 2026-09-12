@@ -27,6 +27,7 @@ type AvisPayload = {
   high: number | null;
   pricePerM2: number | null;
   reliabilityLabel: string | null;
+  alerteFiabilite?: string | null;
   comparables: Array<{
     date: string;
     surfaceM2: number | null;
@@ -166,6 +167,10 @@ export default function AvisPublicPage() {
           }}
         />
       </div>
+
+      {data.alerteFiabilite ? (
+        <p className="mt-4 text-pretty text-[14px] font-medium text-ink">{data.alerteFiabilite}</p>
+      ) : null}
 
       {agent && marketValue != null && agentValue != null ? (
         <p className="mt-4 text-pretty text-[14px] leading-relaxed text-ink">

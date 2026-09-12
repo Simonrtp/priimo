@@ -3,8 +3,6 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { fetchOriginesStats } from '@/lib/inbound/stats';
 
-export const dynamic = 'force-dynamic';
-
 const SOURCE_LABELS: Record<string, string> = {
   manuel: 'Saisie manuelle',
   vocal: 'Note vocale',

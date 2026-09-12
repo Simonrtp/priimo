@@ -65,7 +65,15 @@ describe('parseFacadeGeoParams', () => {
       latitude: 48.86386,
       longitude: 2.39775,
       format: 'detail',
+      vue: 'street',
     });
+  });
+
+  it('lit la vue satellite', () => {
+    const parsed = parseFacadeGeoParams(
+      new URLSearchParams({ lat: '48.86', lng: '2.35', vue: 'satellite' }),
+    );
+    assert.equal(parsed?.vue, 'satellite');
   });
 
   it('refuse l’origine et les valeurs manquantes', () => {

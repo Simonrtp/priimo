@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { invaliderAccueilEtProspection } from '@/lib/cache/dashboard';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { construireBrief } from '@/lib/push/brief';
 import { configurerVapid, envoyerPush, type AbonnementPush } from '@/lib/push/send';
@@ -123,6 +124,8 @@ export async function GET(req: Request) {
     envoyes += resultat.envoyes;
     supprimes += resultat.supprimes;
   }
+
+  invaliderAccueilEtProspection();
 
   return NextResponse.json({
     ok: true,

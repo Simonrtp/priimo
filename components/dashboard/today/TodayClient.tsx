@@ -8,30 +8,18 @@ import type { HomeNote } from '@/lib/notes/inbox';
 import type { AgencyAction } from '@/lib/automations/types';
 import { phraseEquipe } from '@/lib/today/accueil-vue';
 import DirectorMemberPanel from './DirectorMemberPanel';
-import type { GeoCoord } from '@/lib/carte/coords';
 import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { notifyError } from '@/lib/notify';
-import { readDevicePosition } from '@/lib/voice/gps';
-import {
-  buildSortie,
-  resolveSortieOrigin,
-  sortieStorageKey,
-  type SortiePlan,
-  type SortieProgress,
-} from '@/lib/today/sortie';
-import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import TodayCardView from './TodayCardView';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
 import TodayStatusBand from './TodayStatusBand';
-import SortieMode from './SortieMode';
 import TodayTermineBlock from './TodayTermineBlock';
 import PortfolioBand from './PortfolioBand';
 import AValiderSection from './AValiderSection';
 import RecentNotesCard from './RecentNotesCard';
-import ZoneDuJourCard from './ZoneDuJourCard';
 import DirectorExceptions from './DirectorExceptions';
 
 type DoneItem = { key: string; headline: string; at: string };
@@ -70,14 +58,12 @@ function EmptyState({ secteur }: { secteur?: ReactNode }) {
 
 export default function TodayClient({
   initialCards,
-  initialLeads,
   profileId,
   firstName,
   relancesProgrammees = 0,
   rapprochements = 0,
   portfolio,
   recentNotes,
-  agencyOrigin,
   isDirector = false,
   previewingAgent = false,
   directorExceptions = [],
@@ -94,7 +80,6 @@ export default function TodayClient({
   rapprochements?: number;
   portfolio: PortfolioStats;
   recentNotes: readonly HomeNote[];
-  agencyOrigin: GeoCoord | null;
   isDirector?: boolean;
   previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
@@ -114,17 +99,7 @@ export default function TodayClient({
   const [cards, setCards] = useState(initialCards);
   const [doneToday, setDoneToday] = useState<DoneItem[]>([]);
   const [termineOpen, setTermineOpen] = useState(false);
-  const [sortieOpen, setSortieOpen] = useState(false);
-  const [activePlan, setActivePlan] = useState<SortiePlan | null>(null);
-  const [gps, setGps] = useState<GeoCoord | null>(null);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
-  const [sortieProgress, setSortieProgress] = useState<SortieProgress>({
-    signature: '',
-    done: [],
-    skipped: [],
-    dictees: [],
-  });
-  const { openCapture } = useVoiceCapture();
   const now = useMemo(() => new Date(), [day]);
 
   const initialTotal = initialCards.length;
@@ -138,39 +113,12 @@ export default function TodayClient({
   }, [initialCards]);
 
   useEffect(() => {
-    void readDevicePosition().then((pos) => {
-      if (pos) setGps(pos);
-    });
-  }, []);
-
-  useEffect(() => {
     setDoneToday(readJson(`priimo-today-done:${day}`, []));
-    setSortieProgress(
-      readJson(sortieStorageKey(profileId, day), {
-        signature: '',
-        done: [],
-        skipped: [],
-        dictees: [],
-      }),
-    );
   }, [day, profileId]);
 
   useEffect(() => {
     sessionStorage.setItem(`priimo-today-done:${day}`, JSON.stringify(doneToday));
   }, [day, doneToday]);
-
-  useEffect(() => {
-    sessionStorage.setItem(sortieStorageKey(profileId, day), JSON.stringify(sortieProgress));
-  }, [day, profileId, sortieProgress]);
-
-  const origin = useMemo(
-    () => resolveSortieOrigin(agencyOrigin, gps).origin,
-    [agencyOrigin, gps],
-  );
-  const sortiePlan = useMemo(
-    () => buildSortie(initialLeads, profileId, origin),
-    [initialLeads, profileId, origin],
-  );
 
   const layout = useMemo(() => organizeTodayLayout(cards, now, true), [cards, now]);
   const workCards = useMemo(
@@ -214,20 +162,6 @@ export default function TodayClient({
     until.setDate(until.getDate() + days);
     until.setHours(6, 0, 0, 0);
     void dismiss(card, until.toISOString());
-  }
-
-  function handleStartSortie(plan: SortiePlan) {
-    setActivePlan(plan);
-    setSortieProgress((prev) =>
-      prev.signature === plan.signature ? prev : { signature: plan.signature, done: [], skipped: [], dictees: [] },
-    );
-    setSortieOpen(true);
-  }
-
-  function markSortieDone(key: string) {
-    setSortieProgress((prev) =>
-      prev.done.includes(key) ? prev : { ...prev, done: [...prev.done, key] },
-    );
   }
 
   const pilotage = variant === 'pilotage';
@@ -304,9 +238,6 @@ export default function TodayClient({
         <div className="min-w-0 lg:col-span-2">
           <div className="flex flex-col gap-4 lg:sticky lg:top-4">
             <RecentNotesCard notes={recentNotes} />
-            {directorLayout ? null : (
-              <ZoneDuJourCard plan={sortiePlan} onStart={handleStartSortie} />
-            )}
           </div>
         </div>
       </div>
@@ -323,26 +254,6 @@ export default function TodayClient({
 
       {openMemberId ? (
         <DirectorMemberPanel memberId={openMemberId} onClose={() => setOpenMemberId(null)} />
-      ) : null}
-
-      {sortieOpen && activePlan ? (
-        <SortieMode
-          plan={activePlan}
-          progress={sortieProgress}
-          onClose={() => setSortieOpen(false)}
-          onDone={(stop) => markSortieDone(stop.key)}
-          onSkip={(stop) =>
-            setSortieProgress((prev) =>
-              prev.skipped.includes(stop.key) ? prev : { ...prev, skipped: [...prev.skipped, stop.key] },
-            )
-          }
-          onDicter={(stop) => {
-            setSortieProgress((prev) =>
-              prev.dictees.includes(stop.key) ? prev : { ...prev, dictees: [...prev.dictees, stop.key] },
-            );
-            openCapture({ adresse: stop.address });
-          }}
-        />
       ) : null}
     </div>
   );

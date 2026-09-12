@@ -7,9 +7,6 @@ import { listerActionsOuvertes } from '@/lib/queries/actions';
 import ActionsInbox from '@/components/dashboard/actions/ActionsInbox';
 import ActivationNotifications from '@/components/dashboard/actions/ActivationNotifications';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export const metadata = { title: 'À valider — Priimo' };
 
 export default async function DashboardActionsPage() {

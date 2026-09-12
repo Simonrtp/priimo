@@ -20,6 +20,7 @@ import {
   type EstimationPropertyType,
   type EstimationViewType,
 } from '@/lib/estimation';
+import { libelleEtage, VALEURS_ETAGE } from '@/lib/estimation/etages';
 
 /**
  * Parcours d'estimation public (priimo.fr/estimation).
@@ -78,8 +79,6 @@ const VIEW_OPTIONS: { key: NonNullable<EstimationViewType>; label: string }[] = 
 ];
 
 const DPE_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'inconnu'] as const;
-const FLOOR_OPTIONS = ['RDC', ...Array.from({ length: 19 }, (_, i) => String(i + 1)), '20+'];
-
 const RESIDENCE_OPTIONS = [
   { value: 'principale', label: 'Résidence principale' },
   { value: 'secondaire', label: 'Résidence secondaire' },
@@ -519,13 +518,9 @@ export default function EstimationFunnel() {
                       onChange={(e) => setFloor(e.target.value)}
                       className={champClass}
                     >
-                      {FLOOR_OPTIONS.map((f) => (
+                      {VALEURS_ETAGE.map((f) => (
                         <option key={f} value={f}>
-                          {f === 'RDC'
-                            ? 'Rez-de-chaussée'
-                            : f === '20+'
-                              ? '20e et plus'
-                              : `${f}${f === '1' ? 'er' : 'e'} étage`}
+                          {libelleEtage(f)}
                         </option>
                       ))}
                     </select>

@@ -39,7 +39,7 @@ import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
 import { bienIsActive } from '@/types/bien';
 import { markServerTimingReady, timed } from '@/lib/perf/timing';
 import TodayClient from '@/components/dashboard/today/TodayClient';
-import { TodayDesktopSkeleton } from '@/components/dashboard/today/TodaySkeletons';
+import AccueilAmorce from '@/components/dashboard/accueil/AccueilAmorce';
 import AujourdhuiMobile from '@/app/dashboard/_mobile/AujourdhuiMobile';
 import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
@@ -92,8 +92,6 @@ import {
   dernierPassageParAdresse,
 } from '@/lib/zones/fraicheur';
 
-export const dynamic = 'force-dynamic';
-
 export default async function TodayPage({
   searchParams,
 }: {
@@ -108,9 +106,18 @@ export default async function TodayPage({
   if (!user || !profile || !agency) redirect('/login');
 
   const sp = await searchParams;
+  const device = await getDevice();
 
   return (
-    <Suspense fallback={<TodayDesktopSkeleton />}>
+    <Suspense
+      fallback={
+        <AccueilAmorce
+          prenom={profile.first_name}
+          periodeDemandee={sp.periode ?? null}
+          mobile={device === 'mobile'}
+        />
+      }
+    >
       <TodayContent
         profile={profile}
         agency={agency}

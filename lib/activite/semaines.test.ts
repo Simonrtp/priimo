@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { vuePeriode, vueSurIntervalle } from './semaines';
+import { intervalleSeptJours, vuePeriode, vueSurIntervalle } from './semaines';
 
 // Mercredi 9 septembre 2026, midi UTC.
 const MAINTENANT = new Date('2026-09-09T12:00:00Z');
@@ -57,5 +57,18 @@ describe('vue d’une période', () => {
     const parAncre = vuePeriode('mois', '2026-09-09', MAINTENANT);
     const parDefaut = vuePeriode('mois', null, MAINTENANT);
     assert.equal(parAncre.cle, parDefaut.cle);
+  });
+});
+
+describe('intervalleSeptJours', () => {
+  it('cadre lundi → lundi, mardi → mardi', () => {
+    assert.deepEqual(intervalleSeptJours('2026-09-14'), {
+      debut: '2026-09-07',
+      fin: '2026-09-14',
+    });
+    assert.deepEqual(intervalleSeptJours('2026-09-15'), {
+      debut: '2026-09-08',
+      fin: '2026-09-15',
+    });
   });
 });

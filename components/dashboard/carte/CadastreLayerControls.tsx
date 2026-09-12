@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import {
   CADASTRE_LAYER_IDS,
@@ -66,7 +67,23 @@ export default function CadastreLayerControls({
               layers.cadastre && !tooFarPolygons ? 'text-text-strong' : 'text-text-muted'
             }`}
           >
-            Cadastre
+            <span className="flex items-center gap-2">
+              Cadastre
+              <span
+                className={`relative shrink-0 overflow-hidden rounded ${
+                  compact ? 'h-4 w-8' : 'h-5 w-10'
+                }`}
+                title="Données publiques — République française"
+              >
+                <Image
+                  src="/bloc-macp-cmjn.jpg"
+                  alt="République française"
+                  fill
+                  sizes="36px"
+                  className="object-cover object-center"
+                />
+              </span>
+            </span>
             {tooFarPolygons ? (
               <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
                 Zoomez pour afficher

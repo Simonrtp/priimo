@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { invaliderAccueilEtProspection } from '@/lib/cache/dashboard';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { canSeeLeadRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
@@ -139,6 +140,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leadId: strin
   if (error) {
     console.error('[leads] mise à jour', error);
     return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
+  }
+
+  if (update.stage_id !== undefined || update.assigned_to !== undefined || update.taken_at !== undefined) {
+    invaliderAccueilEtProspection();
   }
 
   return NextResponse.json({ ok: true });

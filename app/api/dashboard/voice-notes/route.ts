@@ -10,6 +10,7 @@ import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { suggestMemberFromText } from '@/lib/agency/match-member';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
+import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -217,6 +218,8 @@ export async function POST(req: Request) {
   }
 
   const review = emptyReviewPayload(savedId, joined || null, 'agence');
+
+  invaliderNotesAccueil();
 
   return NextResponse.json({
     ...review,

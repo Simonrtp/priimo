@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import {
   Building2,
   MessageCircle,
@@ -57,7 +57,7 @@ export default function FieldPlusSheet({
         <ul className="px-3 pb-2">
           {LINKS.map(({ href, label, Icon }) => (
             <li key={href}>
-              <Link
+              <NavPrefetchLink
                 href={href}
                 onClick={onClose}
                 className="app-press flex min-h-[52px] items-center gap-3 rounded-2xl px-3 text-[15.5px] font-medium text-text-strong"
@@ -70,7 +70,7 @@ export default function FieldPlusSheet({
                   <Icon size={18} strokeWidth={2.1} />
                 </span>
                 {label}
-              </Link>
+              </NavPrefetchLink>
             </li>
           ))}
           <li>

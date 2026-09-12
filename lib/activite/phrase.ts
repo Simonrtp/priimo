@@ -37,7 +37,7 @@ import { ACTIVITES, type Activite, type EtatSource } from './types';
  *    - Une période où RIEN n'a été compté ne se chiffre pas. Annoncer « il me
  *      manque 1 contact qualifié » au-dessus de cinq compteurs à zéro fait
  *      passer une journée vide pour un détail à rattraper. On dit alors ce
- *      qu'on voit — rien — et par quoi ça recommence.
+ *      qu'on voit : rien de compté, rien qui rapproche de l'objectif.
  *
  *    - Un seul étage nommé quand trois décrochent est un demi-mensonge. On
  *      annonce l'ampleur, puis le geste par lequel commencer.
@@ -177,8 +177,8 @@ export type EntreePhrase = {
 const PHRASE_DEMARRAGE =
   'Première semaine : une sortie sur le terrain, le reste de cet écran se remplit tout seul.';
 
-/** Par quoi une période vide recommence. Toujours le haut de l'entonnoir. */
-const PREMIER_GESTE = 'Tout part d’une sortie sur le terrain.';
+/** Période vide : le geste n'est pas forcément une sortie — la paperasse non plus. */
+const PREMIER_GESTE = 'Je n’ai encore rien fait qui me rapproche de mon objectif.';
 
 export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const {
@@ -223,9 +223,9 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
     Math.round(hebdo[etage] * semainesDeLaPeriode * fraction);
 
   // Pas un chiffre sur la période. Il n'y a rien à rattraper étage par étage :
-  // il y a une journée à ouvrir. Le levier reste le haut de l'entonnoir même
-  // si sa source est muette — on ne lui reproche aucun retard, on nomme le
-  // geste qui remet la chaîne en route.
+  // il n'y a rien qui avance vers l'objectif. Le levier reste le haut de
+  // l'entonnoir même si sa source est muette — on ne lui reproche aucun
+  // retard chiffré, on dit que rien n'a encore servi le rythme.
   //
   // Ton de démarrage, jamais de retard : « rien de compté » se suffit, et une
   // flèche qui pointe vers le bas au-dessus d'une journée pas encore commencée

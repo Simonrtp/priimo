@@ -540,23 +540,55 @@ export type EstimationConsentInsert = Omit<EstimationConsentRow, 'id' | 'created
   consent_at?: string;
 };
 
+export type EstimationMotifDb =
+  | 'projet_vente'
+  | 'patrimoniale'
+  | 'fiscale'
+  | 'succession'
+  | 'projet_achat';
+
+export type EstimationEtatDb =
+  | 'brouillon'
+  | 'rendez_vous_pris'
+  | 'realisee'
+  | 'envoyee'
+  | 'mandat_signe'
+  | 'sans_suite';
+
+export type EstimationOccupationDb = 'libre' | 'occupe';
+
 export type AgencyEstimationRow = {
   id: string;
   agency_id: string;
   created_by: string | null;
-  address: string;
+  referent_id: string | null;
+  address: string | null;
   postal_code: string | null;
   city: string | null;
   ban_id: string | null;
   parcelle_id: string | null;
   latitude: number | null;
   longitude: number | null;
-  property_type: string;
-  surface_m2: number;
-  rooms: number;
+  property_type: string | null;
+  surface_m2: number | null;
+  rooms: number | null;
   floor: string | null;
   condition_rating: number | null;
   dpe_class: string | null;
+  motif: EstimationMotifDb;
+  etat: EstimationEtatDb;
+  date_valeur: string | null;
+  occupation: EstimationOccupationDb;
+  loyer_annuel: number | null;
+  honoraires_pct: number;
+  commentaires_confidentiels: string | null;
+  commentaires_publics: string | null;
+  bien: unknown;
+  grille: unknown;
+  annexes: unknown;
+  points_forts: unknown;
+  points_faibles: unknown;
+  photos: unknown;
   available: boolean;
   price_value: number | null;
   price_low: number | null;
@@ -583,19 +615,34 @@ export type AgencyEstimationInsert = {
   id?: string;
   agency_id: string;
   created_by?: string | null;
-  address: string;
+  referent_id?: string | null;
+  address?: string | null;
   postal_code?: string | null;
   city?: string | null;
   ban_id?: string | null;
   parcelle_id?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  property_type: string;
-  surface_m2: number;
-  rooms: number;
+  property_type?: string | null;
+  surface_m2?: number | null;
+  rooms?: number | null;
   floor?: string | null;
   condition_rating?: number | null;
   dpe_class?: string | null;
+  motif?: EstimationMotifDb;
+  etat?: EstimationEtatDb;
+  date_valeur?: string | null;
+  occupation?: EstimationOccupationDb;
+  loyer_annuel?: number | null;
+  honoraires_pct?: number;
+  commentaires_confidentiels?: string | null;
+  commentaires_publics?: string | null;
+  bien?: unknown;
+  grille?: unknown;
+  annexes?: unknown;
+  points_forts?: unknown;
+  points_faibles?: unknown;
+  photos?: unknown;
   available?: boolean;
   price_value?: number | null;
   price_low?: number | null;

@@ -28,6 +28,7 @@ import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
 import { useUser } from '@/lib/hooks/useUser';
+import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { pickTourLeadId } from '@/lib/tour-lead';
 import TabsNav from './TabsNav';
@@ -316,6 +317,7 @@ export default function ProspectsClient({
           assignedTo: userId,
           stageChangedAt: now,
         });
+        void invaliderNavigationApresLead();
       } catch (e) {
         applyLeadPatch(id, {
           stageId: lead.stageId,
@@ -354,6 +356,7 @@ export default function ProspectsClient({
           stageChangedAt: now,
           lostReason: stage.type === 'perdu' ? lostReasonValue ?? null : null,
         });
+        void invaliderNavigationApresLead();
         const fromStage = lead.stageId ? stageList.find((s) => s.id === lead.stageId) : null;
         const victory = pipelineVictoryKind(fromStage, stage);
         if (victory) celebratePipelineVictory(victory);

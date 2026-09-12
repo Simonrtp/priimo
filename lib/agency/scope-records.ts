@@ -34,3 +34,15 @@ export function visibleVoiceNotesFor<
     }),
   );
 }
+
+/** Estimations : le référent est l'assigné, sinon l'auteur. */
+export function visibleEstimationsFor<
+  T extends { referentId?: string | null; createdBy: string | null },
+>(viewer: RecordViewer, rows: readonly T[]): T[] {
+  return rows.filter((r) =>
+    canSeeOwnedRecord(viewer, {
+      assignedTo: r.referentId ?? null,
+      createdBy: r.createdBy,
+    }),
+  );
+}

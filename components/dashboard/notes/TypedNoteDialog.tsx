@@ -8,6 +8,7 @@ import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { readDevicePosition } from '@/lib/voice/gps';
 import { emitNoteCreated } from '@/lib/notes/note-created-event';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
+import { invaliderNavigationApresNote } from '@/app/dashboard/_actions/invalider-navigation';
 
 export default function TypedNoteDialog({
   onClose,
@@ -80,6 +81,7 @@ export default function TypedNoteDialog({
       },
       puis: (voiceNoteId) => {
         emitNoteCreated({ noteId: voiceNoteId, source: 'clavier' });
+        void invaliderNavigationApresNote();
         if (!resterSurPage) router.refresh();
       },
     });

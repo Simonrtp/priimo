@@ -13,5 +13,5 @@ export async function GET(req: Request) {
   const parsed = parseFacadeGeoParams(new URL(req.url).searchParams);
   if (!parsed) return new NextResponse(null, { status: 400 });
 
-  return fetchStreetViewImage(parsed.latitude, parsed.longitude, parsed.format);
+  return fetchStreetViewImage(parsed.latitude, parsed.longitude, parsed.format, parsed.vue);
 }

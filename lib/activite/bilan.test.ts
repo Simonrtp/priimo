@@ -234,6 +234,12 @@ describe('bilanSemaine — entonnoir et jour par jour', () => {
     assert.equal(b.jours[6]!.jour, SEMAINE.fin);
   });
 
+  it('détaille aussi la fenêtre glissante, même jour de semaine à même jour', () => {
+    const b = bilan({});
+    assert.equal(b.joursGlissants.length, 8);
+    assert.equal(b.joursGlissants[0]!.jour < b.joursGlissants[7]!.jour, true);
+  });
+
   it('range chaque événement sur le bon jour', () => {
     const b = bilan({
       contactsPhysiques: [

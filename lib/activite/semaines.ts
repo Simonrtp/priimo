@@ -138,6 +138,22 @@ export function vuePeriode(
   return vueSurIntervalle(periode, intervalleDe(periode, date), maintenant);
 }
 
+/** Décale une clé `YYYY-MM-DD` de `delta` jours civils. */
+export function clePlusJours(cle: string, delta: number): string {
+  const [y, m, d] = cle.split('-').map(Number);
+  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + delta, 12, 0, 0))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Sept jours plus tard, même jour de semaine : lundi → lundi, mardi → mardi.
+ * Bornes incluses — 8 dates, 7 × 24 h entre les deux.
+ */
+export function intervalleSeptJours(fin: string): Intervalle {
+  return { debut: clePlusJours(fin, -7), fin };
+}
+
 /** Nombre de jours civils d'un intervalle, bornes incluses. */
 export function nombreDeJours(intervalle: Intervalle): number {
   const [y1, m1, d1] = intervalle.debut.split('-').map(Number);

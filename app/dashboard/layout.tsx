@@ -19,7 +19,12 @@ import MobileChrome, { MobileBackSwipe } from './_mobile/MobileChrome';
 import TouchScrollGuard from './_mobile/TouchScrollGuard';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
 
-export const dynamic = 'force-dynamic';
+/**
+ * Pas de `force-dynamic` : ça cassait le cache de navigation client.
+ * La page reste rendue à la demande via cookies() dans getServerUser —
+ * le HTML n'entre pas dans le Full Route Cache partagé (pas de fuite
+ * inter-agences). Le layout App Router persiste entre les routes sœurs.
+ */
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   beginDashboardTiming();

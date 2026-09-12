@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { invaliderAccueilEtProspection } from '@/lib/cache/dashboard';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { collecterPropositions } from '@/lib/automations/collecte';
 import {
@@ -76,6 +77,8 @@ export async function GET(req: Request) {
       echecs: echecs.map((e) => e.automation),
     });
   }
+
+  invaliderAccueilEtProspection();
 
   return NextResponse.json({
     ok: true,

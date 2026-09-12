@@ -213,7 +213,8 @@ describe('phrasePilotage — une période sans rien de compté', () => {
 
     assert.doesNotMatch(p.texte, /il me manque/i);
     assert.match(p.texte, /Rien de compté aujourd’hui/);
-    assert.match(p.texte, /sortie sur le terrain/);
+    assert.match(p.texte, /rapproche de mon objectif/);
+    assert.doesNotMatch(p.texte, /terrain/);
     // Le geste passe avant la règle du levier muet : c'est par là qu'on repart.
     assert.equal(p.levier, 'contacts_physiques');
   });
