@@ -15,7 +15,6 @@ import type { TeamSettingsData } from '@/lib/queries/team-settings';
 import EquipeClient from '@/components/dashboard/equipe/EquipeClient';
 import Modal from '@/components/ui/Modal';
 import AvatarChooser from '@/components/dashboard/AvatarChooser';
-import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import SectionRequestSector from './SectionRequestSector';
 import SectionIntegrations from './SectionIntegrations';
 
@@ -502,24 +501,16 @@ function SectionProfile() {
         Mon profil
       </h2>
       <div className="flex w-full flex-col gap-5">
-        <div>
+        <div className="max-w-xl">
           <p className={labelClass}>Avatar</p>
-          <div className="mb-3 flex items-center gap-3">
-            <ProfileAvatar
-              firstName={firstName}
-              lastName={lastName}
-              avatarUrl={avatarUrl}
-              size={56}
-            />
-            <p className="text-pretty text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
-              Visible dans la barre et auprès de l’équipe. Le choix s’enregistre tout de suite.
-            </p>
-          </div>
           <AvatarChooser
             initials={initials}
             selected={avatarUrl}
             onChange={enregistrerAvatar}
           />
+          <p className="mt-1.5 text-pretty text-mute" style={{ fontSize: 12 }}>
+            Visible dans la barre et auprès de l’équipe. Le choix s’enregistre tout de suite.
+          </p>
         </div>
 
         <div className="flex w-full max-w-xl flex-col gap-5">

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Lock, Pencil, Plus, Spline, Trash2, X } from 'lucide-react';
 import {
@@ -19,7 +19,7 @@ import { COULEURS_ZONE } from '@/lib/zones/palette';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
 import { JOURS_TOURNEE, libelleJours } from '@/lib/zones/jour';
 import { decouperAdresse } from '@/lib/zones/adresse';
-import type { PariteVoie, RegleZone, Zone } from '@/lib/zones/types';
+import type { PariteVoie, RegleZone, ValeurRegleZone, Zone } from '@/lib/zones/types';
 import type { LeadPoint, ModeCarte } from './ZonesCarte';
 
 const ZonesCarte = dynamic(() => import('./ZonesCarte'), {
@@ -63,6 +63,24 @@ const labelClass = 'mb-1 block text-[12px] font-medium text-mute';
 /** Déclencheur de menu : la même boîte que les champs texte du panneau. */
 const declencheurClass = `${champClass} flex items-center justify-between gap-2 text-left`;
 
+function appliquerPatch(zone: Zone, patch: Record<string, unknown>): Zone {
+  return {
+    ...zone,
+    ...(typeof patch.nom === 'string' ? { nom: patch.nom } : {}),
+    ...(typeof patch.couleur === 'string' ? { couleur: patch.couleur } : {}),
+    ...(patch.assignedTo === null || typeof patch.assignedTo === 'string'
+      ? { assignedTo: patch.assignedTo }
+      : {}),
+    ...(Array.isArray(patch.joursSemaine)
+      ? {
+          joursSemaine: [...(patch.joursSemaine as number[])].sort((a, b) => a - b),
+        }
+      : {}),
+    ...(typeof patch.actif === 'boolean' ? { actif: patch.actif } : {}),
+    ...(typeof patch.verrouillee === 'boolean' ? { verrouillee: patch.verrouillee } : {}),
+  };
+}
+
 /** Résumé d'une règle en une ligne, pour le panneau latéral. */
 function resumerRegle(regle: RegleZone): string {
   const prefixe = regle.inclusion ? '' : 'Sauf ';
@@ -95,6 +113,7 @@ export default function SecteursClient({
   centre,
   estDirecteur,
   profileId,
+  onValider,
 }: {
   zones: Zone[];
   membres: Membre[];
@@ -102,8 +121,21 @@ export default function SecteursClient({
   centre: { latitude: number | null; longitude: number | null };
   estDirecteur: boolean;
   profileId: string;
+  /** Ferme l’atelier : le secteur est déjà enregistré au fil de l’eau. */
+  onValider?: () => void;
 }) {
   const router = useRouter();
+  // Copie locale : un PATCH ne doit pas relancer l'Accueil (le Suspense
+  // démonterait l'atelier). On écrit tout de suite, le serveur suit.
+  const [zonesLocales, setZonesLocales] = useState(zones);
+  const zonesRef = useRef(zones);
+  useEffect(() => {
+    setZonesLocales(zones);
+  }, [zones]);
+  useEffect(() => {
+    zonesRef.current = zonesLocales;
+  }, [zonesLocales]);
+
   // Un négociateur ouvre sur SA zone. À défaut, sur rien : lui poser d'office
   // le secteur d'un collègue, qu'il ne peut que lire, ferait croire à un bug.
   const [zoneActiveId, setZoneActiveId] = useState<string | null>(
@@ -121,8 +153,8 @@ export default function SecteursClient({
   );
 
   const zoneActive = useMemo(
-    () => zones.find((z) => z.id === zoneActiveId) ?? null,
-    [zones, zoneActiveId],
+    () => zonesLocales.find((z) => z.id === zoneActiveId) ?? null,
+    [zonesLocales, zoneActiveId],
   );
   const viewer = useMemo(
     () => ({ id: profileId, role: estDirecteur ? ('directeur' as const) : ('collaborateur' as const) }),
@@ -141,8 +173,13 @@ export default function SecteursClient({
   const rafraichir = useCallback(() => router.refresh(), [router]);
 
   const appeler = useCallback(
-    async (url: string, methode: string, corps?: unknown) => {
-      setEnCours(true);
+    async (
+      url: string,
+      methode: string,
+      corps?: unknown,
+      opts?: { silencieux?: boolean },
+    ) => {
+      if (!opts?.silencieux) setEnCours(true);
       try {
         const res = await fetch(url, {
           method: methode,
@@ -155,7 +192,7 @@ export default function SecteursClient({
         }
         return (await res.json().catch(() => ({}))) as Record<string, unknown>;
       } finally {
-        setEnCours(false);
+        if (!opts?.silencieux) setEnCours(false);
       }
     },
     [],
@@ -186,76 +223,163 @@ export default function SecteursClient({
   );
 
   const modifierZone = useCallback(
-    async (zoneId: string, patch: Record<string, unknown>) => {
-      try {
-        await appeler(`/api/dashboard/zones/${zoneId}`, 'PATCH', patch);
-        rafraichir();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Modification impossible');
-      }
+    (
+      zoneId: string,
+      patch: Record<string, unknown> | ((zone: Zone) => Record<string, unknown>),
+    ) => {
+      const actuelle = zonesRef.current.find((z) => z.id === zoneId);
+      if (!actuelle) return;
+      const corps = typeof patch === 'function' ? patch(actuelle) : patch;
+      const suivante = appliquerPatch(actuelle, corps);
+      zonesRef.current = zonesRef.current.map((z) => (z.id === zoneId ? suivante : z));
+      setZonesLocales(zonesRef.current);
+      void (async () => {
+        try {
+          await appeler(`/api/dashboard/zones/${zoneId}`, 'PATCH', corps, { silencieux: true });
+        } catch (e) {
+          zonesRef.current = zonesRef.current.map((z) => (z.id === zoneId ? actuelle : z));
+          setZonesLocales(zonesRef.current);
+          toast.error(e instanceof Error ? e.message : 'Modification impossible');
+        }
+      })();
     },
-    [appeler, rafraichir],
+    [appeler],
   );
+
+  const poserZones = useCallback((liste: Zone[]) => {
+    zonesRef.current = liste;
+    setZonesLocales(liste);
+  }, []);
 
   const supprimerZone = useCallback(
     async (zoneId: string) => {
       try {
         await appeler(`/api/dashboard/zones/${zoneId}`, 'DELETE');
         setZoneActiveId((id) => (id === zoneId ? null : id));
-        rafraichir();
+        poserZones(zonesRef.current.filter((z) => z.id !== zoneId));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Suppression impossible');
       }
     },
-    [appeler, rafraichir],
+    [appeler, poserZones],
   );
 
   const ajouterRegle = useCallback(
-    async (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => {
-      if (!zoneActive) return;
-      try {
-        await appeler(`/api/dashboard/zones/${zoneActive.id}/regles`, 'POST', {
-          type,
-          valeur,
-          inclusion,
-        });
-        setApercu(null);
-        rafraichir();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Règle non enregistrée');
-      }
+    (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => {
+      const zoneId = zoneActiveId;
+      if (!zoneId) return;
+      const avant = zonesRef.current.find((z) => z.id === zoneId);
+      if (!avant) return;
+      const temporaire = `temp-${crypto.randomUUID()}`;
+      const regle = {
+        id: temporaire,
+        zoneId,
+        inclusion,
+        type,
+        valeur: valeur as ValeurRegleZone,
+      } as RegleZone;
+      poserZones(
+        zonesRef.current.map((z) =>
+          z.id === zoneId ? { ...z, regles: [...z.regles, regle] } : z,
+        ),
+      );
+      setApercu(null);
+      void (async () => {
+        try {
+          const { id } = (await appeler(
+            `/api/dashboard/zones/${zoneId}/regles`,
+            'POST',
+            { type, valeur, inclusion },
+            { silencieux: true },
+          )) as { id?: string };
+          if (id) {
+            poserZones(
+              zonesRef.current.map((z) =>
+                z.id === zoneId
+                  ? {
+                      ...z,
+                      regles: z.regles.map((r) => (r.id === temporaire ? { ...r, id } : r)),
+                    }
+                  : z,
+              ),
+            );
+          }
+        } catch (e) {
+          poserZones(zonesRef.current.map((z) => (z.id === zoneId ? avant : z)));
+          toast.error(e instanceof Error ? e.message : 'Règle non enregistrée');
+        }
+      })();
     },
-    [appeler, rafraichir, zoneActive],
+    [appeler, poserZones, zoneActiveId],
   );
 
   const supprimerRegle = useCallback(
-    async (regleId: string) => {
-      if (!zoneActive) return;
-      try {
-        await appeler(`/api/dashboard/zones/${zoneActive.id}/regles/${regleId}`, 'DELETE');
-        rafraichir();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Suppression impossible');
-      }
+    (regleId: string) => {
+      const zone = zonesRef.current.find((z) => z.regles.some((r) => r.id === regleId));
+      if (!zone) return;
+      const avant = zone;
+      poserZones(
+        zonesRef.current.map((z) =>
+          z.id === zone.id
+            ? { ...z, regles: z.regles.filter((r) => r.id !== regleId) }
+            : z,
+        ),
+      );
+      void (async () => {
+        try {
+          await appeler(`/api/dashboard/zones/${zone.id}/regles/${regleId}`, 'DELETE', undefined, {
+            silencieux: true,
+          });
+        } catch (e) {
+          poserZones(zonesRef.current.map((z) => (z.id === zone.id ? avant : z)));
+          toast.error(e instanceof Error ? e.message : 'Suppression impossible');
+        }
+      })();
     },
-    [appeler, rafraichir, zoneActive],
+    [appeler, poserZones],
   );
 
-  /** Déplacement d'un sommet après validation : la règle est mise à jour en place. */
+  /** Déplacement d'un sommet : le trait bouge tout de suite, le serveur suit. */
   const deplacerContour = useCallback(
-    async (regleId: string, polygone: GeoJSON.Polygon) => {
-      if (!zoneActive) return;
-      try {
-        await appeler(`/api/dashboard/zones/${zoneActive.id}/regles/${regleId}`, 'PATCH', {
-          type: 'polygone',
-          valeur: polygone,
-        });
-        rafraichir();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Contour non enregistré');
-      }
+    (regleId: string, polygone: GeoJSON.Polygon) => {
+      const zone = zonesRef.current.find((z) => z.regles.some((r) => r.id === regleId));
+      if (!zone) return;
+      const avant = zone;
+      poserZones(
+        zonesRef.current.map((z) =>
+          z.id === zone.id
+            ? {
+                ...z,
+                regles: z.regles.map((r) =>
+                  r.id === regleId && r.type === 'polygone'
+                    ? {
+                        ...r,
+                        valeur: {
+                          type: 'Polygon' as const,
+                          coordinates: polygone.coordinates as typeof r.valeur.coordinates,
+                        },
+                      }
+                    : r,
+                ),
+              }
+            : z,
+        ),
+      );
+      void (async () => {
+        try {
+          await appeler(
+            `/api/dashboard/zones/${zone.id}/regles/${regleId}`,
+            'PATCH',
+            { type: 'polygone', valeur: polygone },
+            { silencieux: true },
+          );
+        } catch (e) {
+          poserZones(zonesRef.current.map((z) => (z.id === zone.id ? avant : z)));
+          toast.error(e instanceof Error ? e.message : 'Contour non enregistré');
+        }
+      })();
     },
-    [appeler, rafraichir, zoneActive],
+    [appeler, poserZones],
   );
 
   const proposer = useCallback(async () => {
@@ -263,7 +387,7 @@ export default function SecteursClient({
     const propositions = proposerDecoupage(
       recents,
       nbZonesProposees,
-      zones.map((z) => z.nom),
+      zonesLocales.map((z) => z.nom),
     );
     if (propositions.length === 0) {
       toast.error('Pas assez de leads géolocalisés pour proposer un découpage');
@@ -278,7 +402,7 @@ export default function SecteursClient({
     toast.success(
       `${propositions.length} secteurs proposés, équilibrés sur ${recents.length} leads. À retoucher librement.`,
     );
-  }, [creerZone, leads, nbZonesProposees, zones]);
+  }, [creerZone, leads, nbZonesProposees, zonesLocales]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -287,7 +411,7 @@ export default function SecteursClient({
             du panneau : on dessine en regardant, pas de mémoire. */}
         <div className="min-w-0 lg:sticky lg:top-0 lg:self-start">
           <ZonesCarte
-            zones={zones}
+            zones={zonesLocales}
             zoneActive={peutEditer ? zoneActive : null}
             leads={pointsLeads}
             centre={centre}
@@ -309,8 +433,8 @@ export default function SecteursClient({
 
           {survol ? (
             <p className="mt-2 text-[12px] text-mute">
-              {zones.find((z) => z.id === survol)?.nom} ·{' '}
-              {membres.find((m) => m.id === zones.find((z) => z.id === survol)?.assignedTo)?.fullName ??
+              {zonesLocales.find((z) => z.id === survol)?.nom} ·{' '}
+              {membres.find((m) => m.id === zonesLocales.find((z) => z.id === survol)?.assignedTo)?.fullName ??
                 'sans titulaire'}
             </p>
           ) : null}
@@ -329,16 +453,16 @@ export default function SecteursClient({
               </ClayButton>
               <ClayButton
                 className="px-3 py-1.5 text-[13px]"
-                disabled={!zoneActive || enCours}
-                onClick={() => void ajouterRegle('polygone', apercu, true)}
+                disabled={!zoneActive}
+                onClick={() => ajouterRegle('polygone', apercu, true)}
               >
                 Ajouter au secteur
               </ClayButton>
               <ClayButton
                 variant="secondary"
                 className="px-3 py-1.5 text-[13px]"
-                disabled={!zoneActive || enCours}
-                onClick={() => void ajouterRegle('polygone', apercu, false)}
+                disabled={!zoneActive}
+                onClick={() => ajouterRegle('polygone', apercu, false)}
               >
                 Retirer du secteur
               </ClayButton>
@@ -348,7 +472,7 @@ export default function SecteursClient({
 
         <aside className="flex min-w-0 flex-col gap-3">
           <ListeZones
-            zones={zones}
+            zones={zonesLocales}
             membres={membres}
             zoneActiveId={zoneActiveId}
             onChoisir={(id) => {
@@ -379,11 +503,19 @@ export default function SecteursClient({
               enCours={enCours}
               modeDessin={modeDessin}
               onModeDessin={setModeDessin}
-              onModifier={(patch) => void modifierZone(zoneActive.id, patch)}
+              onModifier={(patch) => modifierZone(zoneActive.id, patch)}
               onSupprimer={() => void supprimerZone(zoneActive.id)}
-              onAjouterRegle={(type, valeur, inclusion) => void ajouterRegle(type, valeur, inclusion)}
-              onSupprimerRegle={(regleId) => void supprimerRegle(regleId)}
+              onAjouterRegle={(type, valeur, inclusion) => ajouterRegle(type, valeur, inclusion)}
+              onSupprimerRegle={(regleId) => supprimerRegle(regleId)}
               onSurlignerVoie={setVoieSurlignee}
+              onValider={
+                onValider
+                  ? () => {
+                      setModeDessin('inactif');
+                      onValider();
+                    }
+                  : undefined
+              }
             />
           ) : null}
         </aside>
@@ -553,6 +685,7 @@ function PanneauZone({
   onAjouterRegle,
   onSupprimerRegle,
   onSurlignerVoie,
+  onValider,
 }: {
   zone: Zone;
   membres: readonly Membre[];
@@ -562,11 +695,14 @@ function PanneauZone({
   enCours: boolean;
   modeDessin: ModeCarte;
   onModeDessin: (m: ModeCarte) => void;
-  onModifier: (patch: Record<string, unknown>) => void;
+  onModifier: (
+    patch: Record<string, unknown> | ((zone: Zone) => Record<string, unknown>),
+  ) => void;
   onSupprimer: () => void;
   onAjouterRegle: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
   onSupprimerRegle: (regleId: string) => void;
   onSurlignerVoie: (coord: { latitude: number; longitude: number } | null) => void;
+  onValider?: () => void;
 }) {
   const [renommage, setRenommage] = useState<string | null>(null);
   // Supprimer se demande deux fois : un secteur, c'est une demi-heure de tracé.
@@ -662,16 +798,15 @@ function PanneauZone({
                   <button
                     key={jour.valeur}
                     type="button"
-                    disabled={enCours}
                     aria-pressed={retenu}
                     aria-label={jour.label}
                     title={jour.label}
                     onClick={() =>
-                      onModifier({
-                        joursSemaine: retenu
-                          ? zone.joursSemaine.filter((j) => j !== jour.valeur)
-                          : [...zone.joursSemaine, jour.valeur],
-                      })
+                      onModifier((actuelle) => ({
+                        joursSemaine: actuelle.joursSemaine.includes(jour.valeur)
+                          ? actuelle.joursSemaine.filter((j) => j !== jour.valeur)
+                          : [...actuelle.joursSemaine, jour.valeur],
+                      }))
                     }
                     className={`flex h-9 flex-1 items-center justify-center rounded-clay text-[13px] font-semibold transition-[background-color,box-shadow,color] duration-fluid-subtle ease-in-out disabled:opacity-50 ${
                       retenu
@@ -792,8 +927,13 @@ function PanneauZone({
           </div>
 
           <RegleVoie onAjouter={onAjouterRegle} enCours={enCours} onSurligner={onSurlignerVoie} />
-          <RegleCodePostal onAjouter={onAjouterRegle} enCours={enCours} />
         </>
+      ) : null}
+
+      {onValider ? (
+        <ClayButton className="w-full px-3 py-2.5 text-[14px]" onClick={onValider}>
+          Valider
+        </ClayButton>
       ) : null}
 
       {peutGerer || peutSupprimer ? (
@@ -956,47 +1096,5 @@ function RegleVoie({
         </>
       ) : null}
     </div>
-  );
-}
-
-/** Pour les secteurs larges, en province, où le contour n'apporte rien. */
-function RegleCodePostal({
-  onAjouter,
-  enCours,
-}: {
-  onAjouter: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
-  enCours: boolean;
-}) {
-  const [code, setCode] = useState('');
-  const valide = /^\d{5}$/.test(code.trim());
-
-  return (
-    <form
-      className="flex items-end gap-2 border-t border-black/[0.06] pt-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!valide) return;
-        onAjouter('code_postal', { code_postal: code.trim() }, true);
-        setCode('');
-      }}
-    >
-      <span className="min-w-0 flex-1">
-        <label className={labelClass} htmlFor="zone-code-postal">
-          Ajouter un code postal
-        </label>
-        <input
-          id="zone-code-postal"
-          className={champClass}
-          inputMode="numeric"
-          maxLength={5}
-          placeholder="75020"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
-      </span>
-      <ClayButton type="submit" variant="secondary" className="px-3 py-2 text-[13px]" disabled={enCours || !valide}>
-        Ajouter
-      </ClayButton>
-    </form>
   );
 }

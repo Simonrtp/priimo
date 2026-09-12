@@ -36,6 +36,7 @@ export default function EtapeAvatar({
       }
     >
       <AvatarChooser
+        variante="grille"
         initials={initials}
         selected={selected}
         onBusy={setUploading}

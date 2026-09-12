@@ -38,7 +38,7 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
     href: '/dashboard/estimation',
   },
   informations_terrain: {
-    libelle: 'Ajouter une note',
+    libelle: 'Noter',
     note: true,
   },
 };
@@ -145,14 +145,14 @@ function BoutonNote({
         </div>
       ) : null}
       <Volet force={ouvert}>
-        <div className="flex flex-wrap items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             aria-haspopup="menu"
             aria-expanded={ouvert}
             aria-controls={ouvert ? menuId : undefined}
             onClick={() => setOuvert((prev) => !prev)}
-            className={PILULE}
+            className={`${PILULE} shrink-0 whitespace-nowrap`}
             style={{ backgroundColor: fond }}
           >
             {libelle}
@@ -296,8 +296,8 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
                   e.stopPropagation();
                   ouvrir();
                 }}
-                className={`${PILULE} shrink-0`}
-                style={{ backgroundColor: 'rgba(255,255,255,0.72)' }}
+                className={`${PILULE} shrink-0 whitespace-nowrap`}
+                style={{ backgroundColor: pastelFort }}
               >
                 Mes notes
               </button>

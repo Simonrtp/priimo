@@ -59,6 +59,7 @@ export default function AtelierSecteur({
         centre={data.centre}
         estDirecteur={estDirecteur}
         profileId={data.profileId}
+        onValider={onClose}
       />
     </Modal>
   );
