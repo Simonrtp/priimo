@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { VoiceNote } from '@/types/contact';
-import { filterInboxNotes, isHomeNoteWorthy, recentNotesForHome } from './inbox';
+import { filterInboxNotes, homeNoteAttachment, homeNoteLieuKind, isHomeNoteWorthy, recentNotesForHome } from './inbox';
 
 function note(partial: Partial<VoiceNote> & { id: string }): VoiceNote {
   return {
@@ -160,5 +160,34 @@ describe('recentNotesForHome', () => {
     assert.equal(isHomeNoteWorthy('Thank you.'), false);
     assert.equal(isHomeNoteWorthy('ok merci'), false);
     assert.equal(isHomeNoteWorthy('Appel à Dupont rue des Lilas'), true);
+  });
+});
+
+describe('homeNoteAttachment', () => {
+  const parcelle = {
+    type: 'parcelle' as const,
+    id: '75120000BN0208',
+    label: 'Parcelle 75120 000 BN 0208',
+    href: null,
+  };
+
+  it('montre la parcelle, même sans contact ni adresse', () => {
+    const n = note({ id: 'p', hasFicheLink: false, adresseNormalisee: null });
+    assert.equal(homeNoteAttachment(n, null, [parcelle]), 'Parcelle 75120 000 BN 0208');
+    assert.equal(homeNoteLieuKind([parcelle]), 'parcelle');
+  });
+
+  it('garde la parcelle visible s’il y a aussi un contact', () => {
+    const n = note({ id: 'p', contactId: 'c1', hasFicheLink: true });
+    assert.equal(
+      homeNoteAttachment(n, 'Gérard René', [parcelle]),
+      'Parcelle 75120 000 BN 0208 · Gérard René',
+    );
+  });
+
+  it('reste orpheline s’il n’y a vraiment rien', () => {
+    const n = note({ id: 'o', hasFicheLink: false, adresseNormalisee: null });
+    assert.equal(homeNoteAttachment(n, null, []), null);
+    assert.equal(homeNoteLieuKind([]), null);
   });
 });

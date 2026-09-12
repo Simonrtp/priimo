@@ -734,6 +734,27 @@ body {
   filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
 
+/* Prospection plein cadre : le filtre des tuiles coupe net au bord du
+   canvas. Un flou qui s’évapore vers le centre, sans trait dur. */
+[data-prospection-carte] .priimo-map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 58%, #000 100%);
+          mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 58%, #000 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-prospection-carte] .priimo-map::after {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* Pas de mention Mapbox (logo / attribution) sur les cartes Priimo. */
 .priimo-map .mapboxgl-ctrl-logo,
 .priimo-map .mapboxgl-ctrl-attrib,

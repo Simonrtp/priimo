@@ -1,9 +1,8 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { MapPin } from 'lucide-react';
-import { formatParcelleId } from '@/lib/carte/parcelle-id';
 import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import NoteAncrage from '@/components/dashboard/notes/NoteAncrage';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import {
   composeTypedNote,
@@ -29,27 +28,6 @@ export type TypedNoteSubmitPayload = {
   banCoords: { latitude: number; longitude: number } | null;
   liens: NoteLinkPick[];
 };
-
-/**
- * D'où part la note quand on l'écrit depuis une parcelle.
- *
- * Le rattachement est posé par le serveur sans que l'agent ait rien à saisir :
- * il n'a donc pas à le chercher, mais il doit le voir. C'est d'autant plus vrai
- * sur une parcelle sans information publique, où la recherche ne trouverait
- * rien et laisserait croire que la note part dans le vide.
- */
-function ancrageParcelle(parcelleId: string | null, initialAdresse: string) {
-  if (!parcelleId) return null;
-  const reference = formatParcelleId(parcelleId);
-  const adresse = initialAdresse.trim();
-  // Sans adresse connue, la fiche a déjà rendu la référence comme libellé :
-  // la répéter sur deux lignes ne dirait rien de plus.
-  const nommee = adresse.length > 0 && adresse !== reference;
-  return {
-    titre: nommee ? adresse : `Parcelle ${reference}`,
-    detail: nommee ? `Parcelle ${reference}` : null,
-  };
-}
 
 export default function TypedNoteGuide({
   field,
@@ -109,28 +87,10 @@ export default function TypedNoteGuide({
 
   const kind = draft.kind;
   const shownError = localError ?? error;
-  const ancrage = ancrageParcelle(parcelleId, initialAdresse);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5 sm:px-6">
-      {ancrage ? (
-        <div className="flex items-start gap-2.5 rounded-clay bg-bg-subtle px-3.5 py-3">
-          <MapPin size={16} strokeWidth={2} className="mt-[3px] shrink-0 text-text-muted" aria-hidden />
-          <div className="min-w-0">
-            <p className="font-medium text-text-muted" style={{ fontSize: 12 }}>
-              Note rattachée à
-            </p>
-            <p className="mt-0.5 truncate text-[13.5px] font-medium text-text-strong">
-              {ancrage.titre}
-            </p>
-            {ancrage.detail ? (
-              <p className="mt-0.5 truncate text-[12px] tabular-nums text-text-subtle">
-                {ancrage.detail}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <NoteAncrage parcelleId={parcelleId} adresse={initialAdresse} />
 
       <ChoicePills
         legend="De quoi parle cette note ?"

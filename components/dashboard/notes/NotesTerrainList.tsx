@@ -6,6 +6,8 @@ import { NOTE_CONFIANCE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { TerrainNote } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import { formatParcelleId } from '@/lib/carte/parcelle-id';
+import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -134,6 +136,12 @@ export default function NotesTerrainList({
             <p className="mt-2 text-pretty text-text" style={{ fontSize: 14, lineHeight: 1.55 }}>
               {excerpt(note.transcript)}
             </p>
+            {lienIci && !probable ? (
+              <p className="mt-2 text-[12.5px] font-medium text-text-muted">
+                Rattachée à {LIBELLE_ENTITE[entiteType].toLowerCase()}
+                {entiteType === 'parcelle' ? ` ${formatParcelleId(entiteId)}` : ''}
+              </p>
+            ) : null}
             {probable && lienIci ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 <WorkspaceButton

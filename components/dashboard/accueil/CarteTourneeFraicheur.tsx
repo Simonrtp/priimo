@@ -84,7 +84,7 @@ export function DessinerMonSecteur({
   onAtelier: () => void;
 }) {
   return (
-    <section className="flex items-center gap-6 rounded-clay-lg bg-white p-5 shadow-clay">
+    <section className="flex h-full items-center gap-6 rounded-clay-lg bg-white p-5 shadow-clay">
       <div className="min-w-0 flex-1">
         <h2 className="text-balance font-semibold text-ink" style={{ fontSize: 16 }}>
           {estDirecteur ? 'Les secteurs de l’agence' : 'Couverture de mon secteur'}

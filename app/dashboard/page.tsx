@@ -29,7 +29,8 @@ import { buildTodayCards } from '@/lib/today/cards';
 import { buildPortfolioStats } from '@/lib/today/portfolio';
 import { buildDirectorExceptions } from '@/lib/today/director-exceptions';
 import { parseAccueilVue, ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
-import { homeNoteAttachment, recentNotesForHome } from '@/lib/notes/inbox';
+import { homeNoteAttachment, homeNoteLieuKind, recentNotesForHome } from '@/lib/notes/inbox';
+import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
 import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
 import { ymdKey, startOfWeekYmd, parisYmd } from '@/lib/today/calendar';
@@ -213,18 +214,28 @@ async function TodayContent({
   }
 
   const contactsById = new Map(visibleContacts.map((c) => [c.id, c.fullName]));
-  const recentNotes = recentNotesForHome(visibleNotes, {
+  const notesAccueil = recentNotesForHome(visibleNotes, {
     viewerId: profile.id,
     isDirector: layoutDirector,
     limit: 5,
     weekStartKey: ymdKey(startOfWeekYmd(new Date())),
-  }).map((note) => ({
-    ...note,
-    attachmentLabel: homeNoteAttachment(
-      note,
-      note.contactId ? contactsById.get(note.contactId) ?? null : null,
-    ),
-  }));
+  });
+  const rattachementsAccueil = await rattachementsDesNotes({
+    supabase,
+    notes: notesAccueil,
+  });
+  const recentNotes = notesAccueil.map((note) => {
+    const rattachements = rattachementsAccueil.get(note.id) ?? [];
+    return {
+      ...note,
+      attachmentLabel: homeNoteAttachment(
+        note,
+        note.contactId ? contactsById.get(note.contactId) ?? null : null,
+        rattachements,
+      ),
+      attachmentKind: homeNoteLieuKind(rattachements),
+    };
+  });
 
   const agencyOrigin = toGeoCoord(agency.latitude, agency.longitude);
 
@@ -544,7 +555,7 @@ async function TodayContent({
   const prenomCite =
     members.find((m) => m.id === membreActivite)?.firstName || profile.first_name;
   const citation = citationDuJour({
-    jour: dateKeyMaintenant(),
+    jour: ymdKey(parisYmd(new Date())),
     prenoms: prenomCite ? [prenomCite] : [],
   });
 
@@ -695,9 +706,4 @@ async function TodayContent({
       />
     </>
   );
-}
-
-/** Jour civil parisien courant. */
-function dateKeyMaintenant(): string {
-  return ymdKey(parisYmd(new Date()));
 }

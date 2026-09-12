@@ -126,14 +126,19 @@ export function rythmeRequis(params: {
   return { mandats, estimations, contacts_qualifies, contacts_physiques };
 }
 
+/** Les mots d'une agence, pas ceux du logiciel. */
 const NOM_ACTION: Record<EtageConversion, { singulier: string; pluriel: string }> = {
-  contacts_physiques: {
-    singulier: 'contact en porte-à-porte',
-    pluriel: 'contacts en porte-à-porte',
-  },
-  contacts_qualifies: { singulier: 'contact qualifié', pluriel: 'contacts qualifiés' },
+  contacts_physiques: { singulier: 'porte', pluriel: 'portes' },
+  contacts_qualifies: { singulier: 'rappel', pluriel: 'rappels' },
   estimations: { singulier: 'estimation', pluriel: 'estimations' },
   mandats: { singulier: 'mandat', pluriel: 'mandats' },
+};
+
+const NOM_FAMILLE: Record<EtageConversion, string> = {
+  contacts_physiques: 'des portes',
+  contacts_qualifies: 'des rappels',
+  estimations: 'des estimations',
+  mandats: 'des mandats',
 };
 
 /** « cette semaine », « ce mois-ci »… La phrase doit nommer ce qu'elle mesure. */
@@ -149,11 +154,11 @@ function accorde(n: number, etage: EtageConversion): string {
   return `${n} ${n > 1 ? pluriel : singulier}`;
 }
 
-function rythmeMandats(objectif: number): string {
-  if (objectif <= 0) return 'mon objectif';
-  return objectif === 1
-    ? 'mon rythme d’un mandat par mois'
-    : `mon rythme de ${objectif} mandats par mois`;
+function listeFamilles(etages: readonly EtageConversion[]): string {
+  const noms = etages.map((e) => NOM_FAMILLE[e]);
+  if (noms.length <= 1) return noms[0] ?? '';
+  if (noms.length === 2) return `${noms[0]} et ${noms[1]}`;
+  return `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`;
 }
 
 export type EntreePhrase = {
@@ -174,11 +179,7 @@ export type EntreePhrase = {
   jourCourant: string;
 };
 
-const PHRASE_DEMARRAGE =
-  'Première semaine : une sortie sur le terrain, le reste de cet écran se remplit tout seul.';
-
-/** Période vide : le geste n'est pas forcément une sortie — la paperasse non plus. */
-const PREMIER_GESTE = 'Je n’ai encore rien fait qui me rapproche de mon objectif.';
+const PHRASE_DEMARRAGE = 'C’est ma première semaine. Je sors voir des adresses.';
 
 export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const {
@@ -205,8 +206,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const hebdo = rythmeRequis({ objectifMandatsMois, ratios });
   if (!hebdo) {
     return {
-      texte:
-        'Il manque les repères de conversion de mon réseau pour calculer mon rythme. Mes compteurs restent justes.',
+      texte: 'Pas encore assez de semaines pour savoir où j’en suis.',
       ton: 'incalculable',
       levier: null,
       manque: 0,
@@ -227,12 +227,12 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   // l'entonnoir même si sa source est muette — on ne lui reproche aucun
   // retard chiffré, on dit que rien n'a encore servi le rythme.
   //
-  // Ton de démarrage, jamais de retard : « rien de compté » se suffit, et une
+  // Ton de démarrage, jamais de retard : « rien de noté » se suffit, et une
   // flèche qui pointe vers le bas au-dessus d'une journée pas encore commencée
   // ne fait que sermonner.
   if (ACTIVITES.every((activite) => compteurs[activite] === 0)) {
     return {
-      texte: `Rien de compté ${quand}. ${PREMIER_GESTE}`,
+      texte: `Rien de noté ${quand}.`,
       ton: 'demarrage',
       levier: 'contacts_physiques',
       manque: attendu('contacts_physiques'),
@@ -251,8 +251,8 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
     return {
       texte:
         retards.length > 1
-          ? `${retards.length} étages en retard sur ${rythmeMandats(objectifMandatsMois)}. Je commence par ${geste}.`
-          : `Il me manque ${geste} pour tenir ${rythmeMandats(objectifMandatsMois)}.`,
+          ? `Il me manque encore ${listeFamilles(retards.map((r) => r.etage))}. Je commence par ${geste}.`
+          : `Il me manque ${geste}.`,
       ton: 'retard',
       levier: premier.etage,
       manque: premier.manque,
@@ -266,7 +266,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const avance = Math.floor(compteurs[tete] - hebdo[tete] * semainesDeLaPeriode * fraction);
   if (avance > 0) {
     return {
-      texte: `C’est en avance de ${accorde(avance, tete)} sur ${rythmeMandats(objectifMandatsMois)}.`,
+      texte: `J’ai ${accorde(avance, tete)} d’avance ${quand}.`,
       ton: 'avance',
       levier: tete,
       manque: 0,
@@ -274,7 +274,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   }
 
   return {
-    texte: `Pile sur ${rythmeMandats(objectifMandatsMois)}. Rien à rattraper ${quand}.`,
+    texte: `Je suis à jour ${quand}.`,
     ton: 'avance',
     levier: null,
     manque: 0,

@@ -632,6 +632,8 @@ export default function VoiceCaptureDialog({
             onDismiss={onClose}
             onDone={onReviewDone}
             extracting={extracting}
+            parcelleId={parcelleId}
+            adresse={gpsAddress ?? adresse}
           />
         ) : phase === 'review' ? (
           <p className="px-6 py-8 text-pretty text-text-muted" style={{ fontSize: 14 }}>

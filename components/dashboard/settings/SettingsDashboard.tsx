@@ -14,6 +14,8 @@ import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
 import type { TeamSettingsData } from '@/lib/queries/team-settings';
 import EquipeClient from '@/components/dashboard/equipe/EquipeClient';
 import Modal from '@/components/ui/Modal';
+import AvatarChooser from '@/components/dashboard/AvatarChooser';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import SectionRequestSector from './SectionRequestSector';
 import SectionIntegrations from './SectionIntegrations';
 
@@ -437,12 +439,17 @@ function SectionProfile() {
   const router = useRouter();
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? null);
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
   const [accueilVue, setAccueilVue] = useState<AccueilVue>('directeur');
 
   useEffect(() => {
     setAccueilVue(readAccueilVueCookie());
   }, []);
+
+  useEffect(() => {
+    setAvatarUrl(profile.avatar_url ?? null);
+  }, [profile.avatar_url]);
 
   const save = () => {
     const prenom = firstName.trim();
@@ -464,12 +471,58 @@ function SectionProfile() {
     });
   };
 
+  const initials =
+    `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase() || '?';
+
+  function enregistrerAvatar(url: string | null, opts?: { dejaEnregistre?: boolean }) {
+    setAvatarUrl(url);
+    if (opts?.dejaEnregistre) {
+      toast.success('Avatar enregistré');
+      router.refresh();
+      return;
+    }
+    validerEnFond({
+      succes: url ? 'Avatar enregistré' : 'Initiales rétablies',
+      echec: 'Avatar non enregistré',
+      ecrire: async () => {
+        const res = await fetch('/api/dashboard/profile/avatar', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarUrl: url }),
+        });
+        if (!res.ok) throw new Error('Avatar non enregistré');
+      },
+      puis: () => router.refresh(),
+    });
+  }
+
   return (
     <section>
       <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
         Mon profil
       </h2>
-      <div className="flex w-full max-w-xl flex-col gap-5">
+      <div className="flex w-full flex-col gap-5">
+        <div>
+          <p className={labelClass}>Avatar</p>
+          <div className="mb-3 flex items-center gap-3">
+            <ProfileAvatar
+              firstName={firstName}
+              lastName={lastName}
+              avatarUrl={avatarUrl}
+              size={56}
+            />
+            <p className="text-pretty text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
+              Visible dans la barre et auprès de l’équipe. Le choix s’enregistre tout de suite.
+            </p>
+          </div>
+          <AvatarChooser
+            initials={initials}
+            selected={avatarUrl}
+            onChange={enregistrerAvatar}
+          />
+        </div>
+
+        <div className="flex w-full max-w-xl flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="profile-firstName" className={labelClass}>
@@ -563,6 +616,7 @@ function SectionProfile() {
               Se déconnecter
             </button>
           </form>
+        </div>
         </div>
       </div>
 

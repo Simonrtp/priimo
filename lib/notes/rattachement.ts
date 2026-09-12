@@ -28,6 +28,24 @@ export function libelleParcelle(id: string): string {
   return `Parcelle ${formatParcelleId(id)}`;
 }
 
+/**
+ * Ce que l'agent doit voir quand la note part d'une parcelle.
+ * L'adresse d'abord, la référence en dessous — jamais deux fois la même ligne.
+ */
+export function ancrageParcelle(
+  parcelleId: string | null | undefined,
+  adresse: string | null | undefined,
+): { titre: string; detail: string | null } | null {
+  if (!parcelleId) return null;
+  const reference = formatParcelleId(parcelleId);
+  const lieu = (adresse ?? '').trim();
+  const nommee = lieu.length > 0 && lieu !== reference;
+  return {
+    titre: nommee ? lieu : `Parcelle ${reference}`,
+    detail: nommee ? `Parcelle ${reference}` : null,
+  };
+}
+
 export function nomContact(prenom: string | null | undefined, nom: string | null | undefined): string {
   const pieces = [prenom, nom].map((s) => (s ?? '').trim()).filter(Boolean);
   return pieces.join(' ') || 'Contact';

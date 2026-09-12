@@ -22,6 +22,7 @@ export default function ProfileAvatar({
   const initials = `${a}${b}` || '?';
 
   if (avatarUrl) {
+    const icone = avatarUrl.startsWith('/avatars/');
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -29,8 +30,13 @@ export default function ProfileAvatar({
         alt=""
         width={size}
         height={size}
-        className={`rounded-full object-cover ${className}`}
-        style={{ width: size, height: size }}
+        className={`rounded-full ${icone ? 'object-contain' : 'object-cover'} ${className}`}
+        style={{
+          width: size,
+          height: size,
+          backgroundColor: icone ? 'rgba(21, 32, 47, 0.05)' : undefined,
+          padding: icone ? Math.max(3, Math.round(size * 0.08)) : undefined,
+        }}
       />
     );
   }

@@ -19,6 +19,7 @@ import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import NoteEntitySearch, {
   type NoteLinkPick,
 } from '@/components/dashboard/notes/NoteEntitySearch';
+import NoteAncrage from '@/components/dashboard/notes/NoteAncrage';
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
@@ -113,6 +114,8 @@ export default function VoiceReviewPanel({
   typed = false,
   initialManualLinks = [],
   extracting = false,
+  parcelleId = null,
+  adresse = null,
 }: {
   review: NoteReviewPayload;
   transcript: string;
@@ -130,6 +133,9 @@ export default function VoiceReviewPanel({
   initialManualLinks?: readonly NoteLinkPick[];
   /** La note est encore en cours de lecture : les champs vont se remplir. */
   extracting?: boolean;
+  /** Parcelle d'origine : déjà liée, à afficher, pas à redemander. */
+  parcelleId?: string | null;
+  adresse?: string | null;
 }) {
   const [visibilite, setVisibilite] = useState<VoiceNoteVisibilite>(review.visibilite);
   const [sourceInfo, setSourceInfo] = useState<NoteSourceInfo | ''>(review.sourceInfo ?? '');
@@ -628,6 +634,8 @@ export default function VoiceReviewPanel({
           </div>
 
           <div className="flex flex-col gap-5">
+            <NoteAncrage parcelleId={parcelleId} adresse={adresse} />
+
             <label className="flex min-h-[40px] cursor-pointer items-center gap-3">
               <input
                 type="checkbox"

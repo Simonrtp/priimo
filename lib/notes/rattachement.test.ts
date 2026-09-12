@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  ancrageParcelle,
   estRattachee,
   hrefRattachement,
   idsParType,
@@ -23,6 +24,18 @@ describe('rattachement d’une note', () => {
 
   it('espace la référence cadastrale', () => {
     assert.equal(libelleParcelle('75120000BN0208'), 'Parcelle 75120 000 BN 0208');
+  });
+
+  it('nomme le lieu : adresse d’abord, parcelle en dessous', () => {
+    assert.deepEqual(ancrageParcelle('75120000BN0208', '6 avenue Crampel'), {
+      titre: '6 avenue Crampel',
+      detail: 'Parcelle 75120 000 BN 0208',
+    });
+    assert.deepEqual(ancrageParcelle('75120000BN0208', ''), {
+      titre: 'Parcelle 75120 000 BN 0208',
+      detail: null,
+    });
+    assert.equal(ancrageParcelle(null, '6 avenue Crampel'), null);
   });
 
   it('fusionne le contact_id avec les liens, sans doublon', () => {

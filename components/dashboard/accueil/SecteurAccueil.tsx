@@ -27,7 +27,7 @@ export default function SecteurAccueil({
   const ouvrir = () => setOuvert(true);
 
   return (
-    <>
+    <div className="flex h-full min-w-0 flex-col">
       {apercu.zones.length > 0 ? (
         <MonSecteur
           apercu={apercu}
@@ -45,6 +45,6 @@ export default function SecteurAccueil({
         data={secteurs}
         estDirecteur={estDirecteur}
       />
-    </>
+    </div>
   );
 }

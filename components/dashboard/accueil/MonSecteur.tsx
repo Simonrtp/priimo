@@ -12,7 +12,9 @@ import {
 } from '@/lib/zones/fraicheur';
 const ZonesCarte = dynamic(() => import('@/components/dashboard/zones/ZonesCarte'), {
   ssr: false,
-  loading: () => <div className="h-[280px] animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />,
+  loading: () => (
+    <div className="h-full min-h-[280px] animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
+  ),
 });
 
 function hrefFraicheur(niveau: NiveauFraicheur | 'a-revoir') {
@@ -54,7 +56,7 @@ export default function MonSecteur({
   }));
 
   return (
-    <section className="rounded-clay-lg bg-white p-4 shadow-clay">
+    <section className="flex h-full flex-col rounded-clay-lg bg-white p-4 shadow-clay">
       <div className="mb-3 flex items-center justify-between gap-3">
         {/* Pas de pictogramme de carte ici : la vraie carte est juste en
             dessous, le répéter en icône n'apprendrait rien. */}
@@ -86,14 +88,15 @@ export default function MonSecteur({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_270px]">
-        <ZonesCarte
-          zones={zones}
-          zoneActive={null}
-          leads={leads}
-          centre={centre}
-          hauteur={280}
-        />
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_270px] lg:items-stretch">
+        <div className="relative h-full min-h-[280px] min-w-0 overflow-hidden rounded-clay-lg">
+          <ZonesCarte
+            zones={zones}
+            zoneActive={null}
+            leads={leads}
+            centre={centre}
+          />
+        </div>
 
         <div className="flex min-w-0 flex-col">
           {estDirecteur ? (

@@ -98,7 +98,8 @@ type Props = {
   zoneActive: Zone | null;
   leads?: readonly LeadPoint[];
   centre: { latitude: number | null; longitude: number | null };
-  hauteur: number;
+  /** Hauteur fixe. Sans valeur, la carte remplit le parent. */
+  hauteur?: number;
   /** Contour proposé mais pas encore enregistré. */
   apercu?: GeoJSON.Polygon | null;
   /** Voie surlignée après le choix dans l'autocomplétion BAN. */
@@ -147,6 +148,7 @@ export default function ZonesCarte({
   onSurvolZone,
 }: Props) {
   const mapRef = useRef<MapRef | null>(null);
+  const boiteRef = useRef<HTMLDivElement | null>(null);
   const [pret, setPret] = useState(false);
 
   /**
@@ -276,6 +278,18 @@ export default function ZonesCarte({
     );
   }, [pret, listeSecteurs]);
 
+  // Un parent en flex change de taille après le premier rendu : sans ça,
+  // Mapbox garde le canvas de 280 px dans une carte déjà plus haute.
+  useEffect(() => {
+    const el = boiteRef.current;
+    if (!pret || !el) return;
+    const ro = new ResizeObserver(() => {
+      mapRef.current?.getMap().resize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pret]);
+
   if (!MAPBOX_TOKEN) return <MapTokenMissing />;
 
   const depart =
@@ -285,10 +299,11 @@ export default function ZonesCarte({
 
   return (
     <div
+      ref={boiteRef}
       className={`priimo-map relative overflow-hidden rounded-clay-lg ${
         dessinActif ? 'touch-none' : ''
-      }`}
-      style={{ height: hauteur }}
+      } ${hauteur == null ? 'h-full min-h-[280px]' : ''}`}
+      style={hauteur != null ? { height: hauteur } : undefined}
       // Relâcher au-dessus d'un point de lead ne passe pas par la carte : sans
       // ça, le geste resterait ouvert et le contour serait perdu.
       onPointerUp={terminerTrace}

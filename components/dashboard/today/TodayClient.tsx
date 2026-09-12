@@ -35,7 +35,7 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 function EmptyState({ secteur }: { secteur?: ReactNode }) {
-  if (secteur) return <div className="min-w-0">{secteur}</div>;
+  if (secteur) return <div className="flex h-full min-w-0 flex-col [&>*]:h-full">{secteur}</div>;
   return (
     <div className="flex flex-col items-center py-12 text-center">
       <div
@@ -196,7 +196,7 @@ export default function TodayClient({
 
       <AValiderSection actions={actionsAValider} className="mb-6 md:mb-8" />
 
-      <div className="grid gap-6 lg:grid-cols-5 lg:gap-8">
+      <div className="grid gap-6 lg:grid-cols-5 lg:items-stretch lg:gap-8">
         <div className="min-w-0 lg:col-span-3">
           {directorLayout ? (
             <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
@@ -235,10 +235,8 @@ export default function TodayClient({
           )}
         </div>
 
-        <div className="min-w-0 lg:col-span-2">
-          <div className="flex flex-col gap-4 lg:sticky lg:top-4">
-            <RecentNotesCard notes={recentNotes} />
-          </div>
+        <div className="relative min-w-0 overflow-visible lg:col-span-2">
+          <RecentNotesCard notes={recentNotes} className="h-full" />
         </div>
       </div>
 

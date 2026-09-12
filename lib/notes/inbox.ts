@@ -1,4 +1,5 @@
 import type { VoiceNote, VoiceNoteStatut } from '@/types/contact';
+import { syntheseRattachement, type RattachementAffiche } from '@/lib/notes/rattachement';
 
 export type NotesInboxStatut = VoiceNoteStatut | 'tous';
 export type NotesInboxScope = 'moi' | 'agence' | 'visibles';
@@ -51,16 +52,35 @@ export function isHomeNoteWorthy(transcript: string | null | undefined): boolean
   return words.some((w) => w.length >= 3 && !STOPWORDS.has(w));
 }
 
+export type HomeNoteLieu = 'parcelle' | 'immeuble';
+
 export type HomeNote = VoiceNote & {
   attachmentLabel: string | null;
+  /** Lieu posé sur la note — le badge Accueil peut alors montrer une parcelle. */
+  attachmentKind: HomeNoteLieu | null;
 };
+
+export function homeNoteLieuKind(
+  rattachements: readonly RattachementAffiche[],
+): HomeNoteLieu | null {
+  const lieu = rattachements.find((r) => r.type === 'parcelle' || r.type === 'immeuble');
+  return lieu?.type === 'parcelle' || lieu?.type === 'immeuble' ? lieu.type : null;
+}
 
 export function homeNoteAttachment(
   note: Pick<VoiceNote, 'contactId' | 'adresseNormalisee' | 'hasFicheLink'>,
   contactName: string | null,
+  rattachements: readonly RattachementAffiche[] = [],
 ): string | null {
+  const lieu = rattachements.find((r) => r.type === 'parcelle' || r.type === 'immeuble');
+  if (lieu) {
+    const extra = contactName?.trim();
+    return extra && extra !== lieu.label ? `${lieu.label} · ${extra}` : lieu.label;
+  }
   const name = contactName?.trim() || null;
   if (name) return name;
+  const synthese = syntheseRattachement(rattachements);
+  if (synthese) return synthese;
   const address = note.adresseNormalisee?.trim() || null;
   if (address) return address;
   if (note.hasFicheLink) return 'Fiche rattachée';

@@ -106,8 +106,8 @@ describe('phrasePilotage', () => {
     const p = phrasePilotage(entree({ compteurs: compteurs({ contacts_physiques: 3 }) }));
     assert.equal(p.ton, 'retard');
     assert.equal(p.levier, 'contacts_physiques');
-    assert.match(p.texte, /porte-à-porte/);
-    assert.match(p.texte, /rythme de 2 mandats par mois/);
+    assert.match(p.texte, /portes/);
+    assert.match(p.texte, /cette semaine/);
   });
 
   it('ne reproche jamais un mandat manquant quand le haut de l’entonnoir tient', () => {
@@ -146,7 +146,7 @@ describe('phrasePilotage', () => {
       }),
     );
     assert.equal(p.ton, 'avance');
-    assert.match(p.texte, /en avance/);
+    assert.match(p.texte, /avance/);
   });
 
   it('proratise : un lundi matin ne déclare pas l’agent en retard d’une semaine entière', () => {
@@ -177,7 +177,7 @@ describe('phrasePilotage', () => {
       }),
     );
     assert.match(p.texte, /1 mandat /);
-    assert.match(p.texte, /rythme d’un mandat par mois/);
+    assert.match(p.texte, /ce mois-ci/);
   });
 
   it('dit qu’il ne sait pas calculer plutôt que d’inventer un rythme', () => {
@@ -186,7 +186,7 @@ describe('phrasePilotage', () => {
     );
     assert.equal(p.ton, 'incalculable');
     assert.equal(p.levier, null);
-    assert.match(p.texte, /repères de conversion/);
+    assert.match(p.texte, /semaines/);
   });
 
   it('a sa propre phrase en semaine 1, sans chiffre de retard', () => {
@@ -212,8 +212,7 @@ describe('phrasePilotage — une période sans rien de compté', () => {
     );
 
     assert.doesNotMatch(p.texte, /il me manque/i);
-    assert.match(p.texte, /Rien de compté aujourd’hui/);
-    assert.match(p.texte, /rapproche de mon objectif/);
+    assert.match(p.texte, /Rien de noté aujourd’hui/);
     assert.doesNotMatch(p.texte, /terrain/);
     // Le geste passe avant la règle du levier muet : c'est par là qu'on repart.
     assert.equal(p.levier, 'contacts_physiques');
@@ -242,9 +241,9 @@ describe('phrasePilotage — plusieurs étages en retard', () => {
 
     assert.equal(p.ton, 'retard');
     assert.equal(p.levier, 'contacts_qualifies');
-    assert.match(p.texte, /2 étages en retard/);
+    assert.match(p.texte, /des rappels et des estimations/);
     assert.match(p.texte, /Je commence par/);
-    assert.match(p.texte, /contacts qualifiés/);
+    assert.match(p.texte, /rappels/);
   });
 
   it('garde la phrase simple quand un seul étage décroche', () => {
@@ -426,7 +425,7 @@ describe('phrasePilotage — sources muettes', () => {
     );
     assert.equal(p.ton, 'avance');
     assert.equal(p.levier, 'contacts_qualifies');
-    assert.match(p.texte, /contacts qualifiés/);
+    assert.match(p.texte, /rappel/);
   });
 });
 
