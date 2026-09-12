@@ -349,12 +349,17 @@ function VueSemaine({
 
   return (
     <>
-      <table className="hidden w-full table-fixed border-collapse sm:table">
+      <table className="hidden h-full w-full table-fixed border-collapse sm:table">
         <caption className="sr-only">Emploi du temps de la semaine</caption>
         <thead>
           <tr>
             {jours.map((jour) => (
-              <th key={jour.cle} scope="col" className="px-1 pb-2 align-middle">
+              <th
+                key={jour.cle}
+                scope="col"
+                className="border-b border-l px-1 pb-2 align-middle first:border-l-0"
+                style={{ borderColor: GOOGLE.line }}
+              >
                 <span
                   className={
                     jour.aujourdhui
@@ -368,13 +373,17 @@ function VueSemaine({
             ))}
           </tr>
         </thead>
-        <tbody>
-          <tr className="align-top">
+        <tbody className="h-full">
+          <tr className="h-full align-top">
             {jours.map((jour) => (
-              <td key={jour.cle} className="px-0.5">
+              <td
+                key={jour.cle}
+                className="h-full border-l px-0.5 first:border-l-0"
+                style={{ borderColor: GOOGLE.line }}
+              >
                 <div
-                  className={`flex min-h-[76px] flex-col gap-1.5 p-1.5 ${
-                    jour.aujourdhui ? 'rounded-clay bg-primary-50' : ''
+                  className={`flex h-full min-h-[76px] flex-col gap-1.5 p-1.5 ${
+                    jour.aujourdhui ? 'bg-primary-50' : ''
                   }`}
                 >
                   {(parJour[jour.cle] ?? []).map((ev) => (
@@ -585,7 +594,7 @@ function CarteConnexionGoogle({
           pas étirée et n'a donc aucun vide à combler. */}
       <div
         aria-hidden
-        className="pointer-events-none mt-6 hidden min-h-0 flex-1 select-none sm:block"
+        className="pointer-events-none mt-6 hidden min-h-0 flex-1 select-none sm:block [&>table]:h-full"
         style={{
           maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 85%)',
           WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 85%)',
