@@ -7,14 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { computeLngLatBounds } from '@/lib/carte/bounds';
-import { FIELD, formatDistance } from '@/lib/today/field';
+import { formatDistance } from '@/lib/today/field';
 import { type SortieStop } from '@/lib/today/sortie';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
-import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
+import ItineraireLayer, { ArretPin } from '@/components/dashboard/carte/ItineraireLayer';
 import { toItineraireStops } from '@/lib/today/directions';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
-
-const ORANGE = '#E8743C';
 
 export default function SortieMap({
   stops,
@@ -120,18 +118,19 @@ export default function SortieMap({
             >
               <button
                 type="button"
-                className="priimo-pin"
+                className="cursor-pointer bg-transparent p-0"
                 style={{
-                  backgroundColor: active ? ORANGE : FIELD.ardoise,
-                  color: '#fff',
-                  transform: active ? 'scale(1.2)' : undefined,
+                  transform: active ? 'scale(1.12)' : undefined,
                   transition: 'transform 150ms ease-out',
                 }}
                 onMouseEnter={() => onHoverIndex(i)}
                 onMouseLeave={() => onHoverIndex(null)}
-                aria-label={`Adresse ${i + 1} : ${stop.address}`}
               >
-                {i + 1}
+                <ArretPin
+                  index={i + 1}
+                  state={active ? 'current' : 'upcoming'}
+                  address={stop.address}
+                />
               </button>
             </Marker>
           );

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { refuserSiEstimationFermee } from '@/lib/billing/exiger';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {
@@ -86,6 +87,8 @@ export async function POST(req: Request) {
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  const ferme = refuserSiEstimationFermee(agency);
+  if (ferme) return ferme;
 
   let raw: unknown;
   try {

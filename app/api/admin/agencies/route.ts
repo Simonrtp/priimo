@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
 import {
   parsePostalCodesFromBody,
@@ -7,12 +6,10 @@ import {
 import { findPostalCollisions } from '@/lib/admin/postal-collisions';
 import { requireAdmin } from '@/lib/auth/requireAdmin';
 import { sendAgencyActivatedEmail } from '@/lib/email/sendAgencyRequestEmail';
-import { sendDirectorInvitationEmail } from '@/lib/email/sendInvitationEmail';
-import { normalizeInviteEmail } from '@/lib/invitations/validate';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { lireConfigAbonnement } from '@/lib/billing/config';
 import type { PlanCode } from '@/types/database';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_PLANS: PlanCode[] = ['fondateur', 'standard'];
 
 function parseCoordinates(body: Record<string, unknown>) {
@@ -70,24 +67,23 @@ export async function POST(request: Request) {
   const plan = planRaw as PlanCode;
 
   const directorMode = body.directorMode === 'invite' ? 'invite' : 'existing';
+  if (directorMode === 'invite') {
+    return NextResponse.json(
+      { error: 'La création d’agence par invitation est retirée. Les nouvelles agences passent par /inscription.' },
+      { status: 410 },
+    );
+  }
   const existingDirectorId =
     typeof body.existingDirectorId === 'string' ? body.existingDirectorId.trim() : '';
-  const inviteEmail =
-    typeof body.inviteEmail === 'string' ? normalizeInviteEmail(body.inviteEmail) : '';
-
-  if (directorMode === 'existing' && !existingDirectorId) {
+  if (!existingDirectorId) {
     return NextResponse.json({ error: 'Sélectionnez un directeur.' }, { status: 400 });
-  }
-  if (directorMode === 'invite') {
-    if (!inviteEmail || !EMAIL_REGEX.test(inviteEmail)) {
-      return NextResponse.json({ error: 'Email du nouveau directeur invalide.' }, { status: 400 });
-    }
   }
 
   const requestId = typeof body.requestId === 'string' ? body.requestId.trim() : null;
 
   const admin = createSupabaseAdminClient();
 
+  const billing = lireConfigAbonnement();
   const { data: agency, error: agencyError } = await admin
     .from('agencies')
     .insert({
@@ -97,6 +93,11 @@ export async function POST(request: Request) {
       longitude: coords.longitude,
       codes_postaux: codesPostaux,
       plan,
+      statut_abonnement: 'actif',
+      demande_decision: 'acceptee',
+      sieges_inclus: billing.siegesInclus,
+      prix_base: billing.prixBase,
+      prix_siege_supplementaire: billing.prixSiege,
     })
     .select()
     .single();
@@ -109,56 +110,39 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (directorMode === 'existing') {
-      const { data: membership } = await admin
-        .from('profile_agencies')
-        .select('role')
-        .eq('profile_id', existingDirectorId)
-        .eq('role', 'directeur')
-        .limit(1)
-        .maybeSingle();
+    const { data: membership } = await admin
+      .from('profile_agencies')
+      .select('role')
+      .eq('profile_id', existingDirectorId)
+      .eq('role', 'directeur')
+      .limit(1)
+      .maybeSingle();
 
-      if (!membership) {
-        throw new Error('Directeur introuvable.');
-      }
+    if (!membership) {
+      throw new Error('Directeur introuvable.');
+    }
 
-      const { error: linkErr } = await admin.from('profile_agencies').insert({
-        profile_id: existingDirectorId,
-        agency_id: agency.id,
-        role: 'directeur',
+    const { error: linkErr } = await admin.from('profile_agencies').insert({
+      profile_id: existingDirectorId,
+      agency_id: agency.id,
+      role: 'directeur',
+    });
+    if (linkErr) throw new Error(linkErr.message);
+
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('first_name, active_agency_id')
+      .eq('id', existingDirectorId)
+      .single();
+
+    const { data: authUser } = await admin.auth.admin.getUserById(existingDirectorId);
+    const email = authUser.user?.email;
+    if (email && profile) {
+      await sendAgencyActivatedEmail({
+        to: email,
+        directorFirstName: profile.first_name,
+        agencyName: name,
       });
-      if (linkErr) throw new Error(linkErr.message);
-
-      const { data: profile } = await admin
-        .from('profiles')
-        .select('first_name, active_agency_id')
-        .eq('id', existingDirectorId)
-        .single();
-
-      const { data: authUser } = await admin.auth.admin.getUserById(existingDirectorId);
-      const email = authUser.user?.email;
-      if (email && profile) {
-        await sendAgencyActivatedEmail({
-          to: email,
-          directorFirstName: profile.first_name,
-          agencyName: name,
-        });
-      }
-    } else {
-      const token = randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
-
-      const { error: invErr } = await admin.from('invitations').insert({
-        token,
-        email: inviteEmail,
-        role: 'directeur',
-        agency_id: agency.id,
-        agency_name: name,
-        expires_at: expiresAt,
-      });
-      if (invErr) throw new Error(invErr.message);
-
-      await sendDirectorInvitationEmail({ to: inviteEmail, token, agencyName: name });
     }
 
     if (requestId) {

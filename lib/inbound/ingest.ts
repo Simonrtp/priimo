@@ -6,6 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { findDuplicates } from '@/lib/contacts/duplicates';
 import { parsePortailEmail, type IncomingEmail, type ParsedPortailLead } from './parsers';
+import { peutCapturerLeads } from '@/lib/billing/acces';
 
 function splitNom(nom: string | null): { firstName: string; lastName: string } {
   const parts = (nom ?? '').trim().split(/\s+/).filter(Boolean);
@@ -44,6 +45,21 @@ export async function ingestPortailEmail(args: {
   /** Domaines déjà filtrés côté appelant (liste blanche). */
 }): Promise<IngestResult> {
   const { admin, agencyId, email } = args;
+
+  const { data: billing } = await admin
+    .from('agencies')
+    .select('statut_abonnement, essai_fin_le, demande_decision')
+    .eq('id', agencyId)
+    .maybeSingle();
+  if (!peutCapturerLeads(billing)) {
+    return {
+      leadPortailId: '',
+      contactId: null,
+      bienId: null,
+      statut: 'ignore_abonnement',
+      rapprochementsHint: false,
+    };
+  }
 
   const { data: existing } = await admin
     .from('leads_portail')

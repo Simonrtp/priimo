@@ -98,7 +98,7 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={`relative z-[1] flex max-h-[calc(100dvh-2rem)] w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto flex-col rounded-2xl bg-white shadow-xl`}
+        className={`relative z-[1] flex max-h-[calc(100dvh-2rem)] w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto flex-col overflow-hidden rounded-2xl bg-white shadow-xl`}
       >
         <div className="flex flex-shrink-0 items-start justify-between gap-4 px-5 pt-5">
           <div className="min-w-0">

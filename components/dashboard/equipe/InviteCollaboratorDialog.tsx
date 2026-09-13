@@ -19,9 +19,13 @@ export default function InviteCollaboratorDialog({
 }) {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
+  const [avertissement, setAvertissement] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) setEmail('');
+    if (!open) {
+      setEmail('');
+      setAvertissement(null);
+    }
   }, [open]);
 
   async function submit(e: React.FormEvent) {
@@ -36,9 +40,20 @@ export default function InviteCollaboratorDialog({
       const res = await fetch('/api/invitations/collaborateur', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({
+          email: trimmed,
+          confirmerDepassement: Boolean(avertissement),
+        }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        avertissement?: string;
+        requiresConfirm?: boolean;
+      };
+      if (res.status === 409 && body.requiresConfirm && body.avertissement) {
+        setAvertissement(body.avertissement);
+        return;
+      }
       if (!res.ok) {
         notifyError(body.error ?? "Impossible d'envoyer l'invitation.");
         return;
@@ -72,12 +87,15 @@ export default function InviteCollaboratorDialog({
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
+        {avertissement ? (
+          <p className="text-pretty text-[13.5px] font-medium text-ink">{avertissement}</p>
+        ) : null}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <WorkspaceButton type="button" variant="secondary" onClick={onClose}>
             Annuler
           </WorkspaceButton>
           <WorkspaceButton type="submit" disabled={sending || !email.trim()}>
-            {sending ? 'Envoi…' : "Envoyer l'invitation"}
+            {sending ? 'Envoi…' : avertissement ? 'Confirmer et inviter' : "Envoyer l'invitation"}
           </WorkspaceButton>
         </div>
       </form>

@@ -55,9 +55,11 @@ function loadScript(): Promise<TurnstileApi | null> {
 export default function Turnstile({
   siteKey,
   onToken,
+  action = 'estimation',
 }: {
   siteKey: string | null;
   onToken: (token: string | null) => void;
+  action?: string;
 }) {
   const holder = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -76,7 +78,7 @@ export default function Turnstile({
       widgetId.current = api.render(node, {
         sitekey: siteKey,
         theme: 'light',
-        action: 'estimation',
+        action,
         callback: (token) => onToken(token),
         'expired-callback': () => onToken(null),
         'error-callback': () => onToken(null),
@@ -95,7 +97,7 @@ export default function Turnstile({
       }
       widgetId.current = null;
     };
-  }, [siteKey, onToken]);
+  }, [siteKey, onToken, action]);
 
   if (!siteKey) return null;
 

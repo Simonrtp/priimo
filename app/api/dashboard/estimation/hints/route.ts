@@ -15,6 +15,9 @@ export async function POST(req: Request) {
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  const { refuserSiEstimationFermee } = await import('@/lib/billing/exiger');
+  const ferme = refuserSiEstimationFermee(agency);
+  if (ferme) return ferme;
 
   let body: Record<string, unknown>;
   try {

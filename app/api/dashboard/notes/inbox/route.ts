@@ -44,16 +44,19 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
+  const limiteLue = Number(url.searchParams.get('limit'));
+  const limite =
+    Number.isFinite(limiteLue) && limiteLue > 0 ? Math.min(80, Math.floor(limiteLue)) : undefined;
   const supabase = await createSupabaseServerClient();
   const viewer = viewerFromProfile(profile);
   const [all, members] = await Promise.all([
-    fetchVoiceNotesSafe(supabase),
+    fetchVoiceNotesSafe(supabase, limite ? { limit: limite } : undefined),
     fetchMembersOfMyAgency(agency.id, memberships),
   ]);
   const visible = visibleVoiceNotesFor(viewer, all);
   const names = new Map(members.map((m) => [m.id, m.fullName]));
 
-  const filtered = filterInboxNotes(visible, {
+  const candidates = filterInboxNotes(visible, {
     viewerId: profile.id,
     statut: asStatut(url.searchParams.get('statut')),
     scope: asScope(url.searchParams.get('scope')),
@@ -62,6 +65,7 @@ export async function GET(req: Request) {
     q: url.searchParams.get('q') ?? '',
     auteurId: url.searchParams.get('membre')?.trim() || null,
   });
+  const filtered = limite ? candidates.slice(0, limite) : candidates;
 
   const rattachements = await rattachementsDesNotes({ supabase, notes: filtered });
 

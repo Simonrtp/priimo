@@ -33,6 +33,7 @@ describe('directionsRequestUrl', () => {
     const url = directionsRequestUrl([A, B], 'pk.test');
     assert.match(url, /mapbox\/walking\/2\.34,48\.86;2\.341,48\.861\?/);
     assert.match(url, /geometries=geojson/);
+    assert.match(url, /overview=full/);
     assert.match(url, /access_token=pk\.test/);
   });
 });

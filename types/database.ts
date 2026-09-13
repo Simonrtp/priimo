@@ -1,4 +1,6 @@
 export type PlanCode = 'fondateur' | 'standard' | 'premium' | 'reseau';
+export type StatutAbonnement = 'essai' | 'actif' | 'impaye' | 'resilie' | 'en_attente';
+export type DemandeDecision = 'en_attente' | 'acceptee' | 'refusee';
 export type ProfileRole = 'directeur' | 'collaborateur';
 export type InvitationRole = ProfileRole;
 export type LeadStatusDb =
@@ -37,6 +39,15 @@ export type AgencyRow = {
   latitude: number | null;
   longitude: number | null;
   stripe_customer_id: string | null;
+  stripe_subscription_id?: string | null;
+  statut_abonnement?: StatutAbonnement;
+  essai_fin_le?: string | null;
+  sieges_inclus?: number | null;
+  prix_base?: number | null;
+  prix_siege_supplementaire?: number | null;
+  demande_decision?: DemandeDecision | null;
+  demande_decidee_le?: string | null;
+  demande_notes?: string | null;
   /** Fréquence cible de passage, en jours. Null = repli 12 semaines. */
   frequence_passage_jours?: number | null;
   created_at: string;
@@ -215,6 +226,13 @@ export type AgencyInsert = {
   latitude?: number | null;
   longitude?: number | null;
   stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  statut_abonnement?: StatutAbonnement;
+  essai_fin_le?: string | null;
+  sieges_inclus?: number | null;
+  prix_base?: number | null;
+  prix_siege_supplementaire?: number | null;
+  demande_decision?: DemandeDecision | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -1364,6 +1382,53 @@ export type AgencyAlertInsert = {
   created_at?: string;
 };
 
+export type NotificationTypeDb =
+  | 'leads_livres'
+  | 'leads_assignes'
+  | 'contact_transfere'
+  | 'invitation_acceptee'
+  | 'zone_modifiee'
+  | 'estimation_consultee'
+  | 'demande_estimation'
+  | 'lead_portail'
+  | 'note_transcrite'
+  | 'estimation_calculee'
+  | 'import_termine'
+  | 'anniversaire'
+  | 'negociateur_sans_activite'
+  | 'zone_non_travaillee'
+  | 'mandat_60_jours';
+
+export type NotificationRow = {
+  id: string;
+  agency_id: string;
+  profile_id: string;
+  type: NotificationTypeDb;
+  titre: string;
+  corps: string;
+  lien: string;
+  entite_type: string | null;
+  entite_id: string | null;
+  lue_le: string | null;
+  groupe_cle: string | null;
+  created_at: string;
+};
+
+export type NotificationInsert = {
+  id?: string;
+  agency_id: string;
+  profile_id: string;
+  type: NotificationTypeDb;
+  titre: string;
+  corps: string;
+  lien: string;
+  entite_type?: string | null;
+  entite_id?: string | null;
+  lue_le?: string | null;
+  groupe_cle?: string | null;
+  created_at?: string;
+};
+
 export type AssistantQueryRow = {
   id: string;
   agency_id: string;
@@ -2046,6 +2111,12 @@ export type Database = {
         Row: AgencyAlertRow;
         Insert: AgencyAlertInsert;
         Update: Partial<AgencyAlertRow>;
+        Relationships: [];
+      };
+      notifications: {
+        Row: NotificationRow;
+        Insert: NotificationInsert;
+        Update: Partial<NotificationRow>;
         Relationships: [];
       };
       assistant_queries: {

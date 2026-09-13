@@ -88,6 +88,22 @@ export function zoneDuLead<T extends LeadSituable>(lead: T, zones: readonly Zone
   );
 }
 
+export function pointDansZone(
+  point: { latitude: number; longitude: number; postalCode?: string | null },
+  zone: Zone,
+): boolean {
+  return (
+    zoneDeLAdresse(
+      adresseAJuger({
+        postalCode: point.postalCode,
+        latitude: point.latitude,
+        longitude: point.longitude,
+      }),
+      [zone],
+    )?.id === zone.id
+  );
+}
+
 /**
  * Trois files pour un négociateur, dans l'ordre où il doit les lire.
  *

@@ -6,8 +6,9 @@ import '@/components/dashboard/carte/carte.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
+import { applyTourneeMapStyle, restoreTourneeMapStyle } from '@/lib/map/tournee-style';
 import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
-import { computeLngLatBounds } from '@/lib/carte/bounds';
+import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { toGeoCoord } from '@/lib/carte/coords';
@@ -74,6 +75,10 @@ export default function MobileMapCanvas({
   suppressAutoFit = false,
   onMapPoint,
   onUserInteract,
+  navigation = false,
+  currentLeadId = null,
+  completedLeadIds,
+  focusBounds = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -100,6 +105,11 @@ export default function MobileMapCanvas({
   /** Mode « choisir un point » : tout appui sur la carte renvoie ses coordonnées. */
   onMapPoint?: (coord: { latitude: number; longitude: number }) => void;
   onUserInteract?: () => void;
+  /** Tournée en cours : plus de cadastre, plus d'immeubles, carte atténuée. */
+  navigation?: boolean;
+  currentLeadId?: string | null;
+  completedLeadIds?: readonly string[];
+  focusBounds?: LngLatBoundsTuple | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -115,6 +125,14 @@ export default function MobileMapCanvas({
   const initialBounds = useMemo(() => computeLngLatBounds(buildings), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clustered = useMemo(() => clusterBuildings(buildings, zoom), [buildings, zoom]);
+
+  useEffect(() => {
+    if (!styleReady) return;
+    const raw = mapRef.current?.getMap();
+    if (!raw) return;
+    if (navigation) applyTourneeMapStyle(raw);
+    else restoreTourneeMapStyle(raw);
+  }, [navigation, styleReady]);
 
   const itineraryBounds = useMemo(() => {
     if (itineraryGeometry?.coordinates?.length) {
@@ -174,16 +192,27 @@ export default function MobileMapCanvas({
   const fitToPoints = useCallback(
     (animate: boolean, group?: readonly BuildingMarker[]) => {
       const source = group && group.length > 0 ? group : buildings;
-      fitBoundsTo(!group && itineraryBounds ? itineraryBounds : computeLngLatBounds(source), animate);
+      fitBoundsTo(
+        !group && itineraryBounds
+          ? itineraryBounds
+          : !group && focusBounds
+            ? focusBounds
+            : computeLngLatBounds(source),
+        animate,
+      );
     },
-    [buildings, itineraryBounds, fitBoundsTo],
+    [buildings, itineraryBounds, focusBounds, fitBoundsTo],
   );
+
+  const focusSignature = focusBounds
+    ? `${focusBounds[0][0]},${focusBounds[0][1]},${focusBounds[1][0]},${focusBounds[1][1]}`
+    : '';
 
   useEffect(() => {
     if (suppressAutoFit) return;
     fitToPoints(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsSignature, itineraryBounds, suppressAutoFit]);
+  }, [idsSignature, itineraryBounds, suppressAutoFit, focusSignature]);
 
   /** Bascule 2D ↔ 3D : seule la caméra bouge, le cadrage reste. */
   useEffect(() => {
@@ -251,7 +280,10 @@ export default function MobileMapCanvas({
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
           if (next) onViewport(next);
-          if (map) setZoom(map.getZoom());
+          if (map) {
+            setZoom(map.getZoom());
+            if (navigation) applyTourneeMapStyle(map.getMap());
+          }
           setStyleReady(true);
           fitToPoints(false);
         }}
@@ -283,10 +315,14 @@ export default function MobileMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        <Buildings3DLayer mapRef={mapRef} enabled={dimension === '3d'} ready={styleReady} />
+        <Buildings3DLayer
+          mapRef={mapRef}
+          enabled={!navigation && dimension === '3d'}
+          ready={styleReady}
+        />
         <ParcellesLayer
           mapRef={mapRef}
-          enabled={parcellesEnabled}
+          enabled={!navigation && parcellesEnabled}
           activeParcelleIds={activeParcelleIds}
           noteMarkers={parcelleNoteMarkers}
           selectedParcelleId={selectedParcelleId}
@@ -298,13 +334,16 @@ export default function MobileMapCanvas({
           <ItineraireLayer
             geometry={itineraryGeometry}
             stops={itineraryStops}
+            currentLeadId={currentLeadId}
+            completedLeadIds={completedLeadIds}
+            progressPoint={agentPosition}
             onStop={(stop) => {
               const building = buildings.find((b) => b.banId && b.banId === stop.banId);
               if (building) onSelect(building);
             }}
           />
         ) : null}
-        {clustered.map((item) => {
+        {!navigation && clustered.map((item) => {
           if (item.kind === 'cluster') {
             return (
               <Marker
@@ -375,7 +414,7 @@ export default function MobileMapCanvas({
             </Marker>
           );
         })}
-        {fallback ? (
+        {!navigation && fallback ? (
           <Marker
             longitude={fallback.longitude}
             latitude={fallback.latitude}

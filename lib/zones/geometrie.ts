@@ -164,6 +164,18 @@ export function fusionnerBbox(boites: readonly Bbox[]): Bbox | null {
   }));
 }
 
+/** Emprise d'un secteur, pour recadrer la carte dessus. */
+export function bboxDeZone(zone: Zone): Bbox | null {
+  return fusionnerBbox(polygonesDeZone(zone).map(bbox).filter((b): b is Bbox => b !== null));
+}
+
+export function bboxVersBounds(boite: Bbox): [[number, number], [number, number]] {
+  return [
+    [boite.ouest, boite.sud],
+    [boite.est, boite.nord],
+  ];
+}
+
 /** Contours d'une zone, prêts à être posés sur la carte. */
 export function polygonesDeZone(zone: Zone): ValeurPolygone[] {
   return zone.regles

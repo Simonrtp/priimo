@@ -49,8 +49,8 @@ export default function AccueilPilotage({
   citation,
   emploiDuTemps,
   tache,
-  alerteTournee,
   secteur,
+  attenteInscription,
 }: {
   /** Le bilan calculé par le serveur au premier rendu. */
   pilotage: Pilotage;
@@ -67,10 +67,9 @@ export default function AccueilPilotage({
   emploiDuTemps?: ReactNode;
   /** Ce qu'il y a à faire à cette heure-ci. */
   tache?: TodayCard | null;
-  /** Tournée proposée quand trop d'adresses dépassent le cycle. */
-  alerteTournee?: ReactNode;
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
   secteur?: ReactNode;
+  attenteInscription?: ReactNode;
 }) {
   const cleServeur = vueDuBilan(pilotage).cle;
   const cache = useRef<Cache>(new Map([[cleServeur, pilotage]]));
@@ -177,8 +176,8 @@ export default function AccueilPilotage({
         ) : null}
       </div>
 
+      {attenteInscription}
       <TacheDuMoment card={tache ?? null} />
-      {alerteTournee}
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
         <PhrasePilotageBloc phrase={phrase} />

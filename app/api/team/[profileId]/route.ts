@@ -187,5 +187,13 @@ export async function DELETE(
     }
   }
 
+  try {
+    const { ajusterSiegesStripe, compterSiegesActifs } = await import('@/lib/billing/sieges');
+    const restants = await compterSiegesActifs(admin, guard.agency.id);
+    await ajusterSiegesStripe({ agency: guard.agency, siegesActifs: restants });
+  } catch (err) {
+    console.error('[team/delete] sieges', err);
+  }
+
   return NextResponse.json({ success: true });
 }

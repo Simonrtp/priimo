@@ -308,23 +308,31 @@ const VOICE_NOTES_SELECT_MID = `
 const VOICE_NOTES_SELECT_LEGACY =
   'id, agency_id, created_by, duration_seconds, transcript, status, contact_id, created_at';
 
-export async function fetchVoiceNotesSafe(supabase: Client): Promise<VoiceNote[]> {
+export async function fetchVoiceNotesSafe(
+  supabase: Client,
+  opts?: { limit?: number },
+): Promise<VoiceNote[]> {
   try {
-    const first = await supabase
-      .from('voice_notes')
-      .select(VOICE_NOTES_SELECT)
-      .order('created_at', { ascending: false });
+    const plafonner = <T extends { limit: (n: number) => T }>(q: T): T =>
+      opts?.limit && opts.limit > 0 ? q.limit(opts.limit) : q;
+    const first = await plafonner(
+      supabase.from('voice_notes').select(VOICE_NOTES_SELECT).order('created_at', { ascending: false }),
+    );
     const second = first.error
-      ? await supabase
-          .from('voice_notes')
-          .select(VOICE_NOTES_SELECT_MID)
-          .order('created_at', { ascending: false })
+      ? await plafonner(
+          supabase
+            .from('voice_notes')
+            .select(VOICE_NOTES_SELECT_MID)
+            .order('created_at', { ascending: false }),
+        )
       : first;
     const result = second.error
-      ? await supabase
-          .from('voice_notes')
-          .select(VOICE_NOTES_SELECT_LEGACY)
-          .order('created_at', { ascending: false })
+      ? await plafonner(
+          supabase
+            .from('voice_notes')
+            .select(VOICE_NOTES_SELECT_LEGACY)
+            .order('created_at', { ascending: false }),
+        )
       : second;
     if (result.error) throw new Error(result.error.message);
     const rows = (result.data ?? []) as unknown as VoiceNoteRow[];

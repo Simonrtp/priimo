@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -71,6 +72,8 @@ import { calculerPilotage } from '@/lib/activite/pilotage';
 import { estPeriode } from '@/lib/activite/semaines';
 import { canSeeActivityOf } from '@/lib/agency/visibility';
 import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
+import EcranAttenteInscription from '@/components/dashboard/abonnement/EcranAttenteInscription';
+import { estEnAttente } from '@/lib/billing/acces';
 import { EmploiDuTempsSquelette } from '@/components/dashboard/accueil/EmploiDuTemps';
 import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsServeur';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
@@ -80,12 +83,9 @@ import { tacheDuMoment } from '@/lib/today/maintenant';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { apercuSecteur } from '@/lib/zones/accueil';
 import SecteurAccueil from '@/components/dashboard/accueil/SecteurAccueil';
-import CarteTourneeFraicheur, {
-  CLE_TOURNEE_FRAICHEUR,
-} from '@/components/dashboard/accueil/CarteTourneeFraicheur';
 import type { SecteursData } from '@/components/dashboard/accueil/SecteurAtelier';
-import { estEcartee } from '@/lib/today/cards';
 import { fetchPassagesObserves } from '@/lib/queries/passages';
+import { notifierAdressesARevoir, SEUIL_ADRESSES_A_REVOIR } from '@/lib/notifications/evenements';
 import {
   CYCLE_DEFAUT_JOURS,
   annoterAdresse,
@@ -537,7 +537,9 @@ async function TodayContent({
     .sort((a, b) => b.score - a.score);
   // Six : de quoi remplir la carte jusqu'au bord de l'emploi du temps posé à
   // côté. Au-delà, la liste défilerait et « Voir tout » existe pour ça.
-  const adressesLivrees: AdresseLivree[] = leadsNonPris.slice(0, 6).map((l) => ({
+  const adressesLivrees: AdresseLivree[] = (estEnAttente(agency) ? [] : leadsNonPris)
+    .slice(0, 6)
+    .map((l) => ({
     id: l.id,
     address: l.address,
     city: l.city,
@@ -609,10 +611,15 @@ async function TodayContent({
     repliCycleJours,
     titulaires: Object.fromEntries(names),
   });
-  const proposerTournee =
-    !isDirector &&
-    apercu.aRevoir > 10 &&
-    !estEcartee(CLE_TOURNEE_FRAICHEUR, dismissals, maintenant);
+  if (!isDirector && apercu.aRevoir > SEUIL_ADRESSES_A_REVOIR) {
+    after(() =>
+      notifierAdressesARevoir({
+        agencyId: agency.id,
+        destinataireId: profile.id,
+        aRevoir: apercu.aRevoir,
+      }),
+    );
+  }
 
   // L'atelier de découpage vit sur l'Accueil. Il se sert des leads et des
   // membres déjà lus plus haut : aucune requête de plus pour ouvrir la carte.
@@ -665,8 +672,10 @@ async function TodayContent({
       </Suspense>
     ),
     tache: tacheDuMoment(cards),
-    alerteTournee: proposerTournee ? <CarteTourneeFraicheur aRevoir={apercu.aRevoir} /> : null,
     secteur: cards.length > 0 ? secteurNode : null,
+    attenteInscription: estEnAttente(agency) ? (
+      <EcranAttenteInscription refusee={agency.demande_decision === 'refusee'} />
+    ) : null,
   };
 
   if (device === 'mobile') {

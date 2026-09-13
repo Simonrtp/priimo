@@ -7,6 +7,8 @@ import {
   ecrireCurseur,
   expirerPropositions,
 } from '@/lib/queries/actions';
+import { genererNotificationsQuotidiennes } from '@/lib/notifications/generer';
+import { productionOuverte } from '@/lib/billing/acces';
 
 /**
  * Passage quotidien des automatisations.
@@ -34,7 +36,9 @@ export async function GET(req: Request) {
   const admin = createSupabaseAdminClient();
   const now = new Date();
 
-  const { data: agencies, error } = await admin.from('agencies').select('id, codes_postaux');
+  const { data: agencies, error } = await admin
+    .from('agencies')
+    .select('id, codes_postaux, statut_abonnement, essai_fin_le, demande_decision');
   if (error) {
     console.error('[cron/automations]', error);
     return NextResponse.json({ error: 'Lecture agences impossible' }, { status: 500 });
@@ -54,6 +58,10 @@ export async function GET(req: Request) {
   for (const agency of agencies ?? []) {
     const agencyId = agency.id as string;
     const codesPostaux = (agency.codes_postaux ?? []) as string[];
+    if (!productionOuverte(agency)) {
+      journal.push({ agencyId, proposees: 0, nouvelles: 0, echecs: [] });
+      continue;
+    }
 
     const { propositions, echecs } = await collecterPropositions(
       admin,
@@ -80,11 +88,14 @@ export async function GET(req: Request) {
 
   invaliderAccueilEtProspection();
 
+  const notifications = await genererNotificationsQuotidiennes(admin, now);
+
   return NextResponse.json({
     ok: true,
     expirees,
     agences: journal.length,
     nouvelles: journal.reduce((n, a) => n + a.nouvelles, 0),
     journal,
+    notifications,
   });
 }

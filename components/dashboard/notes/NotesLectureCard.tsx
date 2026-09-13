@@ -1,13 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Mic, NotebookPen, Unlink } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useUser } from '@/lib/hooks/useUser';
 import { FIELD } from '@/lib/today/field';
 import { formatNoteWhen } from '@/lib/notes/format-when';
-import { onNoteCreated } from '@/lib/notes/note-created-event';
 import {
   estRattachee,
   LIBELLE_ENTITE,
@@ -15,8 +14,6 @@ import {
 } from '@/lib/notes/rattachement';
 import type { NoteLecture } from '@/lib/notes/lecture';
 
-const PAPIER = '#F4EFE6';
-const PAPIER_LIRE = '#FFF9F2';
 const ENCRE = '#15202F';
 
 function IconeSource({ vocale, surSombre = false }: { vocale: boolean; surSombre?: boolean }) {
@@ -34,19 +31,6 @@ function IconeSource({ vocale, surSombre = false }: { vocale: boolean; surSombre
       <Icone size={14} strokeWidth={2.2} aria-hidden />
       <span className="sr-only">{vocale ? 'Note vocale' : 'Note écrite'}</span>
     </span>
-  );
-}
-
-function SqueletteListe() {
-  return (
-    <ul className="flex flex-col gap-2" aria-hidden>
-      {[0, 1, 2, 3].map((i) => (
-        <li key={i} className="squelette-bloc rounded-clay px-3 py-3" style={{ animationDelay: `${i * 40}ms` }}>
-          <div className="squelette h-3.5 w-4/5 rounded-full" />
-          <div className="squelette mt-2 h-3 w-2/5 rounded-full" />
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -97,66 +81,29 @@ function LigneNote({
 }
 
 export default function NotesLectureCard({
+  notes,
+  erreur,
   noteIdInitial,
-  membreId,
   onClose,
   onChoisir,
 }: {
+  notes: NoteLecture[] | null;
+  erreur: boolean;
   noteIdInitial: string | null;
-  membreId: string | null;
   onClose: () => void;
   onChoisir: (id: string | null) => void;
 }) {
   const { profile } = useUser();
-  const [notes, setNotes] = useState<NoteLecture[] | null>(null);
-  const [erreur, setErreur] = useState(false);
   const [choisieId, setChoisieId] = useState<string | null>(noteIdInitial);
 
   useEffect(() => {
     setChoisieId(noteIdInitial);
   }, [noteIdInitial]);
 
-  const charger = useCallback(
-    async (signal?: AbortSignal) => {
-      const params = new URLSearchParams({ scope: 'visibles' });
-      if (membreId) params.set('membre', membreId);
-      try {
-        const res = await fetch(`/api/dashboard/notes/inbox?${params.toString()}`, { signal });
-        const data = (await res.json()) as { notes?: NoteLecture[] };
-        if (signal?.aborted) return;
-        if (!res.ok) {
-          setErreur(true);
-          setNotes([]);
-          return;
-        }
-        setErreur(false);
-        setNotes(data.notes ?? []);
-      } catch {
-        if (signal?.aborted) return;
-        setErreur(true);
-        setNotes([]);
-      }
-    },
-    [membreId],
-  );
-
-  useEffect(() => {
-    const ac = new AbortController();
-    setNotes(null);
-    setErreur(false);
-    void charger(ac.signal);
-    return () => ac.abort();
-  }, [charger]);
-
-  useEffect(() => {
-    return onNoteCreated(() => {
-      void charger();
-    });
-  }, [charger]);
-
-  const choisie = notes?.find((n) => n.id === choisieId) ?? null;
-  const miennes = (notes ?? []).filter((n) => n.createdBy === profile.id);
-  const publiees = (notes ?? []).filter((n) => n.createdBy !== profile.id);
+  const liste = notes ?? [];
+  const choisie = liste.find((n) => n.id === choisieId) ?? null;
+  const miennes = liste.filter((n) => n.createdBy === profile.id);
+  const publiees = liste.filter((n) => n.createdBy !== profile.id);
 
   function choisir(id: string) {
     setChoisieId(id);
@@ -176,13 +123,12 @@ export default function NotesLectureCard({
       description="Les vôtres, et celles que l’équipe a rendues visibles."
       maxWidth="2xl"
     >
-      <div
-        className="-mx-5 -mb-5 grid min-h-[22rem] gap-4 border-t px-5 py-5 md:grid-cols-[minmax(0,17.5rem)_1fr] md:items-stretch"
-        style={{ backgroundColor: PAPIER, borderColor: 'rgba(21, 32, 47, 0.12)' }}
-      >
+      <div className="grid min-h-[22rem] gap-4 border-t border-black/[0.06] pt-4 md:grid-cols-[minmax(0,17.5rem)_1fr] md:items-stretch">
         <div className={choisie ? 'hidden md:flex md:min-h-0 md:flex-col' : 'flex min-h-0 flex-col'}>
           {notes === null ? (
-            <SqueletteListe />
+            <p className="text-pretty py-8 text-[13.5px] font-medium text-mute">
+              Les notes arrivent.
+            </p>
           ) : erreur ? (
             <p className="text-pretty py-8 text-[13.5px] font-medium text-text-strong">
               Les notes n’ont pas pu être chargées. Fermez et réouvrez la carte.
@@ -236,10 +182,9 @@ export default function NotesLectureCard({
         <div
           className={
             choisie
-              ? 'flex min-h-0 flex-col rounded-clay p-4'
-              : 'hidden md:flex md:items-center md:justify-center md:rounded-clay'
+              ? 'flex min-h-0 flex-col rounded-clay border border-black/[0.06] bg-white p-4'
+              : 'hidden md:flex md:items-center md:justify-center md:rounded-clay md:border md:border-black/[0.06] md:bg-white'
           }
-          style={{ backgroundColor: PAPIER_LIRE }}
         >
           {choisie ? (
             <DetailNote note={choisie} onRetour={revenir} />

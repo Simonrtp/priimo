@@ -68,7 +68,9 @@ export async function guardWidgetRequest(
   const admin = createSupabaseAdminClient();
   const config = await fetchWidgetConfig(admin, publicId);
   if (!config) return fail(404, 'Widget inconnu.');
-  if (!config.enabled) return fail(403, 'Ce formulaire est momentanément indisponible.');
+  if (!config.enabled || !config.productionOuverte) {
+    return fail(403, 'Ce formulaire est momentanément indisponible.');
+  }
 
   const verdict = checkRequestOrigin(req, config.allowedDomains, selfHost(req));
   if (!verdict.ok) {

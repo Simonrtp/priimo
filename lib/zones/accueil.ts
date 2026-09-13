@@ -26,6 +26,7 @@ export type PointSecteur = {
   longitude: number;
   niveau: NiveauFraicheur;
   dernierPassageJour: string | null;
+  zoneId: string;
 };
 
 export type RepartitionFraicheur = Record<NiveauFraicheur, number>;
@@ -149,6 +150,7 @@ export function apercuSecteur<T extends LeadSituable>({
         longitude: lead.longitude,
         niveau,
         dernierPassageJour: dernier,
+        zoneId: zone.id,
       });
     }
   }

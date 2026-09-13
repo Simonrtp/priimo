@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { MapPin } from 'lucide-react';
+import { ArrowRight, MapPin } from 'lucide-react';
 import { FIELD } from '@/lib/today/field';
 import type { HomeNote } from '@/lib/notes/inbox';
 import { formatNoteWhen } from '@/lib/notes/format-when';
@@ -9,13 +9,8 @@ import { lienLectureNote } from '@/lib/notes/lecture';
 import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 
-/** Puits ardoise : les autres cartes Accueil se décollent, celle-ci s’enfonce. */
-const PUITS = '#C5D3E4';
-const PUITS_OMBRE =
-  'inset 0 3px 10px rgba(21, 32, 47, 0.2), inset 0 1px 2px rgba(21, 32, 47, 0.12), inset 0 -1px 0 rgba(255, 255, 255, 0.35)';
-
 const CARTE =
-  'flex flex-col rounded-[18px] px-4 py-4 text-ink sm:px-5 sm:py-5';
+  'flex flex-col rounded-clay-lg bg-white px-4 py-4 text-ink shadow-clay sm:px-5 sm:py-5';
 
 export default function RecentNotesCard({
   notes,
@@ -75,7 +70,7 @@ function Puits({
   className?: string;
 }) {
   return (
-    <div className={`${CARTE} ${className}`} style={{ backgroundColor: PUITS, boxShadow: PUITS_OMBRE }}>
+    <div className={`${CARTE} ${className}`}>
       {children}
     </div>
   );
@@ -114,6 +109,13 @@ function Entete({
   );
 }
 
+function titreNote(note: HomeNote): string {
+  const nom = note.attachmentLabel?.trim();
+  if (nom) return nom;
+  const premiere = (note.transcript ?? '').trim().split('\n', 1)[0]?.replace(/\s+/g, ' ') ?? '';
+  return premiere || 'Note';
+}
+
 function Liste({
   notes,
   onOuvrir,
@@ -127,64 +129,75 @@ function Liste({
     <ul className="mt-3 flex flex-col">
       {notes.map((note) => {
         const attached = Boolean(note.attachmentLabel);
+        const titre = titreNote(note);
         const texte = (note.transcript ?? '').trim() || 'Sans transcription';
         const corps = (
           <>
+            <span className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-text-strong">
+                {titre}
+              </span>
+              <ArrowRight
+                size={15}
+                strokeWidth={2.2}
+                aria-hidden
+                className={`shrink-0 text-text-subtle transition-transform duration-fluid ease-soft motion-reduce:transition-none ${
+                  calibre
+                    ? ''
+                    : 'group-hover/note:rotate-90 group-focus-within/note:rotate-90'
+                }`}
+              />
+            </span>
             <span
               className={`fluid-collapse motion-reduce:transition-none ${
                 calibre
-                  ? 'grid-rows-[2lh]'
-                  : 'grid-rows-[2lh] group-hover/note:grid-rows-[1fr] group-focus-within/note:grid-rows-[1fr]'
+                  ? 'grid-rows-[0fr]'
+                  : 'grid-rows-[0fr] group-hover/note:grid-rows-[1fr] group-focus-within/note:grid-rows-[1fr]'
               }`}
             >
               <span>
-                <span
-                  className={`block text-pretty text-[14px] font-medium leading-snug whitespace-pre-wrap ${
-                    calibre
-                      ? ''
-                      : '[mask-image:linear-gradient(to_bottom,black_1.15em,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_1.15em,transparent)] group-hover/note:[mask-image:none] group-hover/note:[-webkit-mask-image:none] group-focus-within/note:[mask-image:none] group-focus-within/note:[-webkit-mask-image:none]'
-                  }`}
-                >
+                <span className="mt-2 block text-pretty text-[13px] font-medium leading-snug text-text-strong whitespace-pre-wrap">
                   {texte}
                 </span>
-              </span>
-            </span>
-            <span
-              className="mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px] font-medium"
-              style={{ color: FIELD.ardoise }}
-            >
-              <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
-              <span
-                className="inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold"
-                style={
-                  attached
-                    ? { backgroundColor: 'rgba(30, 49, 72, 0.1)', color: '#15202F' }
-                    : { backgroundColor: 'rgba(232, 116, 60, 0.16)', color: '#8A3D14' }
-                }
-              >
-                {note.attachmentKind ? (
-                  <MapPin size={11} strokeWidth={2.4} className="shrink-0" aria-hidden />
-                ) : null}
-                {note.attachmentLabel ?? 'Non rattachée'}
-              </span>
-              {note.statut === 'brute' ? (
                 <span
-                  className="inline-block size-2 rounded-full"
-                  style={{ background: FIELD.ardoise }}
-                  title="Note brute"
-                />
-              ) : null}
-              {!attached && !calibre ? (
-                <span className="hidden font-semibold group-hover/note:inline group-focus-within/note:inline">
-                  Rattacher
+                  className="mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px] font-medium"
+                  style={{ color: FIELD.ardoise }}
+                >
+                  <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
+                  <span
+                    className="inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold"
+                    style={
+                      attached
+                        ? { backgroundColor: 'rgba(30, 49, 72, 0.1)', color: '#15202F' }
+                        : { backgroundColor: 'rgba(232, 116, 60, 0.16)', color: '#8A3D14' }
+                    }
+                  >
+                    {note.attachmentKind ? (
+                      <MapPin size={11} strokeWidth={2.4} className="shrink-0" aria-hidden />
+                    ) : null}
+                    {note.attachmentLabel ?? 'Non rattachée'}
+                  </span>
+                  {note.statut === 'brute' ? (
+                    <span
+                      className="inline-block size-2 rounded-full"
+                      style={{ background: FIELD.ardoise }}
+                      title="Note brute"
+                    />
+                  ) : null}
+                  {!attached && !calibre ? (
+                    <span className="font-semibold">Rattacher</span>
+                  ) : null}
                 </span>
-              ) : null}
+              </span>
             </span>
           </>
         );
 
         return (
-          <li key={note.id} className="group/note border-b border-black/15 last:border-b-0">
+          <li
+            key={note.id}
+            className="group/note relative z-0 border-b border-black/[0.06] last:border-b-0 hover:z-20 focus-within:z-20"
+          >
             {calibre ? (
               <div className="px-1.5 py-3">{corps}</div>
             ) : (

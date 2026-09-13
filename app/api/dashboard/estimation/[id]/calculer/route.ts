@@ -24,6 +24,9 @@ export async function POST(
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  const { refuserSiEstimationFermee } = await import('@/lib/billing/exiger');
+  const ferme = refuserSiEstimationFermee(agency);
+  if (ferme) return ferme;
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Identifiant manquant' }, { status: 400 });
 

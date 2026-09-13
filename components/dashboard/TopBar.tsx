@@ -15,6 +15,7 @@ import AssistantPanel from '@/components/dashboard/assistant/AssistantPanel';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
+import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import Select from '@/components/ui/Select';
 
@@ -238,11 +239,17 @@ export default function TopBar() {
               <MobileAgencySwitcher />
             </div>
             <div className="hidden md:block" {...chromeLockProps}>
+              <NotificationsBell tone="shell" />
+            </div>
+            <div className="hidden md:block" {...chromeLockProps}>
               <HeaderProfile
                 firstName={profile.first_name}
                 lastName={profile.last_name}
                 avatarUrl={profile.avatar_url}
               />
+            </div>
+            <div className="md:hidden" {...chromeLockProps}>
+              <NotificationsBell tone="light" />
             </div>
             <Link
               href="/dashboard/settings?tab=profile"

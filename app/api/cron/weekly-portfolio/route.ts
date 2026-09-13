@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { buildPortfolioStats, countRendezVousSansSuite } from '@/lib/today/portfolio';
 import { mondayOf } from '@/lib/today/weekly-snapshot';
 import { upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
+import { genererLeadsLivres } from '@/lib/notifications/generer';
 
 export const runtime = 'nodejs';
 
@@ -18,7 +19,9 @@ export async function GET(req: Request) {
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: agencies, error } = await admin.from('agencies').select('id');
+  const { data: agencies, error } = await admin
+    .from('agencies')
+    .select('id, statut_abonnement, essai_fin_le, demande_decision');
   if (error) {
     console.error('[cron/weekly-portfolio]', error);
     return NextResponse.json({ error: 'Lecture agences impossible' }, { status: 500 });
@@ -72,6 +75,10 @@ export async function GET(req: Request) {
       mandats60j: byKind['mandats-60j']?.value ?? 0,
     });
     written += 1;
+    const { peutLivrerLeads } = await import('@/lib/billing/acces');
+    if (peutLivrerLeads(agency)) {
+      await genererLeadsLivres(admin, agencyId);
+    }
   }
 
   return NextResponse.json({ ok: true, written, weekStart });

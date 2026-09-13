@@ -46,7 +46,7 @@ async function widgetResponse(request: NextRequest, publicId: string) {
   return response;
 }
 
-const PUBLIC_EXACT = new Set(['/', '/login', '/invite', '/cgu', '/signup']);
+const PUBLIC_EXACT = new Set(['/', '/login', '/invite', '/cgu', '/signup', '/inscription']);
 
 async function getDirectorOnboardingState(
   supabase: ReturnType<typeof createServerClient>,
@@ -96,6 +96,7 @@ export async function middleware(request: NextRequest) {
 
   const skipAuth =
     pathname === '/' ||
+    pathname === '/inscription' ||
     SKIP_AUTH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   // Assets / APIs publiques : passer sans session refresh.
@@ -106,6 +107,7 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith('/admin') &&
     pathname !== '/login' &&
     pathname !== '/signup' &&
+    pathname !== '/inscription' &&
     pathname !== '/invite'
   ) {
     return NextResponse.next();

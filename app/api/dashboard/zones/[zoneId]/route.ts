@@ -17,6 +17,7 @@ import {
   validerJoursSemaine,
   validerNomZone,
 } from '@/lib/zones/valider';
+import { notifierZoneModifiee } from '@/lib/notifications/evenements';
 
 export const runtime = 'nodejs';
 
@@ -160,6 +161,29 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
       },
       { status: 400 },
     );
+  }
+
+  if (canManageZone(viewer)) {
+    const { data: zone } = await supabase
+      .from('zones')
+      .select('nom, assigned_to')
+      .eq('id', zoneId)
+      .eq('agency_id', agency.id)
+      .maybeSingle();
+    const nouveauTitulaire = zone?.assigned_to ?? null;
+    const autresChamps =
+      update.nom !== undefined || update.jours_semaine !== undefined || update.couleur !== undefined;
+    if (nouveauTitulaire !== zoneDroit.assignedTo || autresChamps) {
+      void notifierZoneModifiee({
+        agencyId: agency.id,
+        actorId: profile.id,
+        zoneId,
+        nom: zone?.nom ?? 'Secteur',
+        ancienTitulaire: zoneDroit.assignedTo,
+        nouveauTitulaire,
+        autresChamps,
+      }).catch((err) => console.error('[notifications] zone_modifiee', err));
+    }
   }
 
   return NextResponse.json({ ok: true });

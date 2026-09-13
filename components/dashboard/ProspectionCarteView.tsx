@@ -10,6 +10,7 @@ import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import SectorMapClient from '@/components/dashboard/carte/SectorMapClient';
 import CarteMobile from '@/app/dashboard/_mobile/CarteMobile';
 import ProspectsViewSwitch, { prospectionHref, type ProspectionVue } from './ProspectsViewSwitch';
+import type { Zone } from '@/lib/zones/types';
 
 /**
  * Vue Carte de la prospection : même carte qu’avant, avec le switch Liste / Pipeline / Carte.
@@ -29,6 +30,8 @@ export default function ProspectionCarteView({
   itineraryStops,
   showItineraire,
   autoTournee,
+  zones = [],
+  initialZoneId = null,
 }: {
   points: MapPoint[];
   withoutPosition: WithoutPositionCount;
@@ -44,6 +47,8 @@ export default function ProspectionCarteView({
   itineraryStops: ItineraireStop[] | null;
   showItineraire: boolean;
   autoTournee: boolean;
+  zones?: readonly Zone[];
+  initialZoneId?: string | null;
 }) {
   const router = useRouter();
   const device = useDevice();
@@ -57,6 +62,9 @@ export default function ProspectionCarteView({
   );
 
   const switcher = <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} />;
+  const zonesVisibles = zones.filter(
+    (z) => z.actif && (isDirector || z.assignedTo === profileId),
+  );
 
   if (device === 'mobile') {
     return (
@@ -87,6 +95,8 @@ export default function ProspectionCarteView({
             showItineraire={showItineraire}
             autoTournee={autoTournee}
             fillParent
+            zones={zonesVisibles}
+            initialZoneId={initialZoneId}
           />
         </div>
       </div>
@@ -108,6 +118,8 @@ export default function ProspectionCarteView({
         showItineraire={showItineraire}
         embedded
         viewSwitcher={switcher}
+        zones={zonesVisibles}
+        initialZoneId={initialZoneId}
       />
     </div>
   );

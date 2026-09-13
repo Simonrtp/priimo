@@ -4,6 +4,7 @@ import {
   normalizeInviteEmail,
 } from '@/lib/invitations/validate';
 import { normalizeFrenchPhone, validateInviteFields } from '@/lib/invite-account';
+import { notifierInvitationAcceptee } from '@/lib/notifications/evenements';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import type { InvitationRole } from '@/types/database';
 
@@ -53,14 +54,21 @@ async function findAuthUserByEmail(admin: Admin, email: string): Promise<User | 
 }
 
 /**
- * Provisionne un compte via invitation (directeur ou collaborateur).
+ * Provisionne un compte via invitation collaborateur.
  *
  * Cas fréquent après « suppression » d’un collab : le profil / membership part,
  * mais auth.users reste → createUser échoue. On répare : maj mot de passe +
  * recréation profil + rattachement agence (token d’invitation = preuve).
  */
 export async function provisionInviteAccount(input: ProvisionInput): Promise<ProvisionResult> {
-  const requireAgencyName = input.expectedRole === 'directeur';
+  if (input.expectedRole === 'directeur') {
+    return {
+      ok: false,
+      status: 410,
+      error: 'Les invitations directeur sont retirées. Utilisez /inscription.',
+    };
+  }
+
   const validationError = validateInviteFields(
     {
       agencyName: input.agencyName,
@@ -71,7 +79,7 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
       phone: input.phone,
       acceptedCgu: input.acceptedCgu,
     },
-    { requireAgencyName },
+    { requireAgencyName: false },
   );
   if (validationError) {
     return { ok: false, status: 400, error: validationError };
@@ -90,7 +98,7 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
     };
   }
 
-  if (input.expectedRole === 'collaborateur' && !invitation.agency_id) {
+  if (!invitation.agency_id) {
     return { ok: false, status: 400, error: 'Invitation invalide ou expirée' };
   }
 
@@ -100,12 +108,6 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
       status: 400,
       error: "L'email ne correspond pas à celui de l'invitation.",
     };
-  }
-
-  const resolvedAgencyName =
-    (input.agencyName ?? '').trim() || invitation.agency_name || '';
-  if (requireAgencyName && !resolvedAgencyName) {
-    return { ok: false, status: 400, error: "Le nom de l'agence est obligatoire." };
   }
 
   let userId: string;
@@ -145,23 +147,6 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
       };
     }
 
-    // Compte Auth orphelin ou réinvitation : on réutilise l’id existant.
-    if (input.expectedRole === 'directeur') {
-      const { data: anyMembership } = await supabaseAdmin
-        .from('profile_agencies')
-        .select('agency_id')
-        .eq('profile_id', existing.id)
-        .limit(1);
-      if (anyMembership && anyMembership.length > 0) {
-        return {
-          ok: false,
-          status: 409,
-          error:
-            'Un compte existe déjà avec cet email. Connectez-vous, ou utilisez une autre adresse.',
-        };
-      }
-    }
-
     const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
       password: input.password,
       email_confirm: true,
@@ -180,48 +165,11 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
   }
 
   let agencyId = invitation.agency_id;
-  let createdAgency = false;
 
   const rollbackNewUser = async () => {
     if (!isNewAuthUser) return;
     await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (createdAgency && agencyId) {
-      await supabaseAdmin.from('agencies').delete().eq('id', agencyId);
-    }
   };
-
-  if (input.expectedRole === 'directeur') {
-    if (invitation.agency_id) {
-      const { data: existingAgency, error: loadAgencyErr } = await supabaseAdmin
-        .from('agencies')
-        .select('id')
-        .eq('id', invitation.agency_id)
-        .maybeSingle();
-      if (loadAgencyErr || !existingAgency) {
-        await rollbackNewUser();
-        return { ok: false, status: 400, error: "Agence liée à l'invitation introuvable." };
-      }
-      agencyId = existingAgency.id;
-    } else {
-      const { data: newAgency, error: agencyError } = await supabaseAdmin
-        .from('agencies')
-        .insert({
-          name: resolvedAgencyName,
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          plan: 'fondateur',
-        })
-        .select('id')
-        .single();
-      if (agencyError || !newAgency) {
-        await rollbackNewUser();
-        console.error('[provision] agency', agencyError);
-        return { ok: false, status: 500, error: "Impossible de créer l'agence." };
-      }
-      agencyId = newAgency.id;
-      createdAgency = true;
-    }
-  }
 
   if (!agencyId) {
     await rollbackNewUser();
@@ -305,6 +253,25 @@ export async function provisionInviteAccount(input: ProvisionInput): Promise<Pro
     .from('invitations')
     .update({ used_at: new Date().toISOString() })
     .eq('token', input.token.trim());
+
+  void notifierInvitationAcceptee({
+    agencyId,
+    nouvelId: userId,
+    prenom: input.firstName,
+  }).catch((err) => console.error('[notifications] invitation_acceptee', err));
+
+  void (async () => {
+    const { data: ag } = await supabaseAdmin
+      .from('agencies')
+      .select(
+        'statut_abonnement, essai_fin_le, sieges_inclus, prix_base, prix_siege_supplementaire, stripe_customer_id, stripe_subscription_id, demande_decision',
+      )
+      .eq('id', agencyId)
+      .maybeSingle();
+    const { ajusterSiegesStripe, compterSiegesActifs } = await import('@/lib/billing/sieges');
+    const n = await compterSiegesActifs(supabaseAdmin, agencyId);
+    await ajusterSiegesStripe({ agency: ag ?? {}, siegesActifs: n });
+  })().catch((err) => console.error('[provision] sieges', err));
 
   return { ok: true, userId, role: input.expectedRole };
 }

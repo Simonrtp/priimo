@@ -108,6 +108,8 @@ type Props = {
   onPolygoneDessine?: (polygone: GeoJSON.Polygon) => void;
   onPolygoneModifie?: (regleId: string, polygone: GeoJSON.Polygon) => void;
   onSurvolZone?: (zoneId: string | null) => void;
+  /** Lecture seule : un clic dans un contour choisit ce secteur. */
+  onChoisirZone?: (zoneId: string) => void;
 };
 
 /** Retouche en cours de geste, pas encore envoyée au serveur. */
@@ -146,6 +148,7 @@ export default function ZonesCarte({
   onPolygoneDessine,
   onPolygoneModifie,
   onSurvolZone,
+  onChoisirZone,
 }: Props) {
   const mapRef = useRef<MapRef | null>(null);
   const boiteRef = useRef<HTMLDivElement | null>(null);
@@ -251,11 +254,12 @@ export default function ZonesCarte({
    * sans repère.
    */
   const cadre = useMemo(() => {
-    const boites = actives
+    const cibles = onChoisirZone && zoneActive ? [zoneActive] : actives;
+    const boites = cibles
       .flatMap((z) => polygonesDeZone(z).map(bbox))
       .filter((b): b is NonNullable<typeof b> => b !== null);
     return fusionnerBbox(boites);
-  }, [actives]);
+  }, [actives, zoneActive, onChoisirZone]);
 
   /**
    * On recadre à l'arrivée et quand la liste des secteurs change, jamais quand
@@ -274,9 +278,9 @@ export default function ZonesCarte({
         [c.ouest, c.sud],
         [c.est, c.nord],
       ],
-      { padding: 48, maxZoom: 15, duration: 0 },
+      { padding: 48, maxZoom: 15, duration: zoneActive ? 400 : 0 },
     );
-  }, [pret, listeSecteurs]);
+  }, [pret, listeSecteurs, zoneActive?.id]);
 
   // Un parent en flex change de taille après le premier rendu : sans ça,
   // Mapbox garde le canvas de 280 px dans une carte déjà plus haute.
@@ -317,12 +321,17 @@ export default function ZonesCarte({
         // Le geste appartient au tracé : la carte ne coulisse plus sous la main.
         dragPan={!dessinActif}
         doubleClickZoom={!dessinActif}
-        cursor={dessinActif ? 'crosshair' : undefined}
+        cursor={dessinActif ? 'crosshair' : onChoisirZone ? 'pointer' : undefined}
         onMouseDown={debuterTrace}
         onMouseUp={terminerTrace}
         onTouchStart={debuterTrace}
         onTouchMove={prolongerTrace}
         onTouchEnd={terminerTrace}
+        onClick={(e) => {
+          if (dessinActif || ajustActif || !onChoisirZone) return;
+          const zoneId = e.features?.[0]?.properties?.zoneId;
+          if (typeof zoneId === 'string') onChoisirZone(zoneId);
+        }}
         onLoad={(e) => {
           const map = e.target;
           if (!map.hasImage('hachure-chevauchement')) {

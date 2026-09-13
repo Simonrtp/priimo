@@ -131,13 +131,19 @@ function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
  * retient la première zone de la liste. Un tri qui change d'un rendu à
  * l'autre ferait sauter un lead d'un secteur à un autre sans raison.
  */
-export async function fetchZones(supabase: Client): Promise<Zone[]> {
-  const premier = await supabase.from('zones').select(ZONES_SELECT).order('nom');
+async function lireZones(supabase: Client, agencyId?: string): Promise<Zone[]> {
+  const lister = async (colonnes: string) => {
+    let q = supabase.from('zones').select(colonnes);
+    if (agencyId) q = q.eq('agency_id', agencyId);
+    return q.order('nom');
+  };
+
+  const premier = await lister(ZONES_SELECT);
   // Le temps que la migration des jours multiples passe, l'écran doit afficher
   // les secteurs plutôt que tomber sur une colonne absente.
   const zonesRes =
     premier.error && /jours_semaine/.test(premier.error.message)
-      ? await supabase.from('zones').select(ZONES_SELECT_JOUR_UNIQUE).order('nom')
+      ? await lister(ZONES_SELECT_JOUR_UNIQUE)
       : premier;
   if (zonesRes.error) throw new Error(zonesRes.error.message);
 
@@ -167,6 +173,18 @@ export async function fetchZones(supabase: Client): Promise<Zone[]> {
   }
 
   return rows.map((row) => versZone(row, parZone.get(row.id) ?? []));
+}
+
+export async function fetchZones(supabase: Client): Promise<Zone[]> {
+  return lireZones(supabase);
+}
+
+/**
+ * Même lecture, filtrée par agence. Obligatoire dès que le client contourne
+ * le RLS (service role des crons).
+ */
+export async function fetchZonesPourAgence(supabase: Client, agencyId: string): Promise<Zone[]> {
+  return lireZones(supabase, agencyId);
 }
 
 /**

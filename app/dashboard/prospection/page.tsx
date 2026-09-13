@@ -51,6 +51,7 @@ export default async function ProspectionPage({
     itineraire?: string;
     tournee?: string;
     fraicheur?: string;
+    zone?: string;
   }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
@@ -77,13 +78,14 @@ export default async function ProspectionPage({
 
   if (vue === 'carte') {
     const viewer = viewerFromProfile(profile);
-    const [leads, contacts, biens, notes, members, stages] = await Promise.all([
+    const [leads, contacts, biens, notes, members, stages, zones] = await Promise.all([
       fetchLeads(supabase),
       fetchContactsSafe(supabase),
       fetchBiensSafe(supabase),
       fetchVoiceNotesSafe(supabase),
       fetchMembersOfMyAgency(agency.id, memberships),
       fetchLeadStages(supabase),
+      fetchZonesSafe(supabase),
     ]);
     const visibleLeads = visibleLeadsFor(viewer, leads);
     const passages =
@@ -144,6 +146,8 @@ export default async function ProspectionPage({
         itineraryStops={itineraryStops}
         showItineraire={params.itineraire === '1'}
         autoTournee={params.tournee === '1' && profile.role !== 'directeur'}
+        zones={zones}
+        initialZoneId={params.zone ?? null}
       />
     );
   }

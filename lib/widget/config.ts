@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { normalizeDomainList } from '@/lib/widget/domains';
+import { productionOuverte } from '@/lib/billing/acces';
 
 type Db = SupabaseClient<Database>;
 
@@ -29,6 +30,7 @@ export type WidgetConfig = {
   agencyId: string;
   publicId: string;
   enabled: boolean;
+  productionOuverte: boolean;
   displayName: string;
   accentColor: string;
   logoUrl: string | null;
@@ -88,7 +90,7 @@ export async function fetchWidgetConfig(
 
   const { data: agency } = await admin
     .from('agencies')
-    .select('name, phone')
+    .select('name, phone, statut_abonnement, essai_fin_le, demande_decision')
     .eq('id', data.agency_id)
     .maybeSingle();
 
@@ -98,6 +100,7 @@ export async function fetchWidgetConfig(
     agencyId: data.agency_id,
     publicId: data.public_id,
     enabled: data.enabled,
+    productionOuverte: productionOuverte(agency),
     displayName: data.display_name?.trim() || agencyName,
     accentColor: data.accent_color || DEFAULT_ACCENT,
     logoUrl: data.logo_url?.trim() || null,
@@ -147,6 +150,7 @@ export async function ensureWidgetForAgency(
       logoUrl: existing.logo_url?.trim() || null,
       allowedDomains: normalizeDomainList(existing.allowed_domains ?? []),
       dailyCap: existing.daily_cap,
+      productionOuverte: true,
       agencyName,
       agencyPhone: agency?.phone ?? null,
       firstInstalledAt: existing.first_installed_at,
@@ -183,6 +187,7 @@ export async function ensureWidgetForAgency(
     logoUrl: created.logo_url?.trim() || null,
     allowedDomains: normalizeDomainList(created.allowed_domains ?? []),
     dailyCap: created.daily_cap,
+    productionOuverte: true,
     agencyName,
     agencyPhone: agency?.phone ?? null,
     firstInstalledAt: created.first_installed_at,

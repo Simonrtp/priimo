@@ -33,6 +33,10 @@ export async function getValidInvitationByToken(
     return { invitation: null, error: 'Invitation invalide ou expirée' };
   }
 
+  if (data.role === 'directeur') {
+    return { invitation: null, error: 'Cette invitation n’est plus valable.' };
+  }
+
   if (data.role === 'collaborateur' && !data.agency_id) {
     return { invitation: null, error: 'Invitation invalide ou expirée' };
   }

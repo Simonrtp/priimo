@@ -7,6 +7,7 @@ import { contactGeocodeQuery, EMPTY_BAN_GEO, parseClientGeo, resolveGeoColumns }
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import { CONTACTS_SELECT, fetchContactById, mapDbContactToContact } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { notifierContactTransfere } from '@/lib/notifications/evenements';
 import type { ContactRow } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -134,7 +135,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
   }
 
-  return NextResponse.json({ contact: mapDbContactToContact(data as unknown as ContactRow) });
+  const contact = mapDbContactToContact(data as unknown as ContactRow);
+  const nouvelAssigné = assigned.provided && !('invalid' in assigned) ? assigned.id : undefined;
+  if (nouvelAssigné && nouvelAssigné !== existing.assignedTo) {
+    const nom = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
+    void notifierContactTransfere({
+      agencyId: agency.id,
+      destinataireId: nouvelAssigné,
+      actorId: profile.id,
+      contactId,
+      nom: nom || 'Fiche transmise',
+    }).catch((err) => console.error('[notifications] contact_transfere', err));
+  }
+
+  return NextResponse.json({ contact });
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ contactId: string }> }) {

@@ -26,10 +26,21 @@ export default function AdminAgenciesClient() {
   const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(null);
   const [postalCodes, setPostalCodes] = useState<string[]>([]);
   const [plan, setPlan] = useState<PlanCode>('fondateur');
-  const [directorMode, setDirectorMode] = useState<'existing' | 'invite'>('existing');
   const [existingDirectorId, setExistingDirectorId] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [inscriptions, setInscriptions] = useState<
+    Array<{
+      id: string;
+      name: string;
+      address: string | null;
+      email: string | null;
+      phone: string | null;
+      codesPostaux: string[];
+      decision: string | null;
+      createdAt: string;
+      directeur: { prenom: string; nom: string } | null;
+    }>
+  >([]);
   const [collisions, setCollisions] = useState<PostalCollision[]>([]);
   const [creating, setCreating] = useState(false);
 
@@ -38,13 +49,16 @@ export default function AdminAgenciesClient() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [reqRes, dirRes] = await Promise.all([
+      const [reqRes, dirRes, inscRes] = await Promise.all([
         fetch('/api/admin/agency-requests', { cache: 'no-store' }),
         fetch('/api/admin/directors', { cache: 'no-store' }),
+        fetch('/api/admin/inscriptions', { cache: 'no-store' }),
       ]);
       const reqData = (await reqRes.json()) as { requests?: AgencyRequestRow[] };
       const dirData = (await dirRes.json()) as { directors?: AdminDirectorDto[] };
       if (reqRes.ok) setPendingRequests(reqData.requests ?? []);
+      const inscData = (await inscRes.json()) as { demandes?: typeof inscriptions };
+      if (inscRes.ok) setInscriptions(inscData.demandes ?? []);
       if (dirRes.ok) {
         setDirectors(dirData.directors ?? []);
         if ((dirData.directors ?? []).length > 0 && !existingDirectorId) {
@@ -96,6 +110,21 @@ export default function AdminAgenciesClient() {
     }
   };
 
+  async function deciderInscription(id: string, decision: 'acceptee' | 'refusee') {
+    const res = await fetch(`/api/admin/inscriptions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      toast.error(data.error ?? 'Décision impossible');
+      return;
+    }
+    toast.success(decision === 'acceptee' ? 'Essai démarré' : 'Demande conservée comme refusée');
+    void load();
+  }
+
   const createAgency = async () => {
     if (!name.trim() || !agencyAddress?.label) {
       toast.error('Nom et adresse requis.');
@@ -125,9 +154,7 @@ export default function AdminAgenciesClient() {
         longitude: agencyAddress.longitude,
         codesPostaux: postalCodes,
         plan,
-        directorMode,
-        existingDirectorId: directorMode === 'existing' ? existingDirectorId : undefined,
-        inviteEmail: directorMode === 'invite' ? inviteEmail.trim() : undefined,
+        existingDirectorId,
         requestId: requestId ?? undefined,
       }),
     });
@@ -155,11 +182,59 @@ export default function AdminAgenciesClient() {
     <div className="space-y-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Agences & secteurs</h1>
-        <p className="mt-1 text-sm text-mute">Création manuelle — exclusivité vérifiée ci-dessous.</p>
+        <p className="mt-1 text-sm text-mute">
+          Les nouvelles agences naissent par /inscription. Ici on active le secteur, ou on traite une extension.
+        </p>
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold text-ink">Demandes en attente ({pendingRequests.length})</h2>
+        <h2 className="text-lg font-semibold text-ink">Inscriptions</h2>
+        {inscriptions.length === 0 ? (
+          <p className="mt-2 text-sm text-mute">Aucune inscription pour l’instant.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {inscriptions.map((d) => (
+              <li
+                key={d.id}
+                className="flex flex-col gap-3 rounded-xl border border-black/8 bg-white p-4 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium text-ink">{d.name}</p>
+                  <p className="text-sm text-mute">
+                    {d.directeur ? `${d.directeur.prenom} ${d.directeur.nom}` : '—'}
+                    {d.email ? ` · ${d.email}` : ''}
+                    {d.phone ? ` · ${d.phone}` : ''}
+                  </p>
+                  <p className="mt-1 text-sm text-mute">{d.address}</p>
+                  <p className="mt-1 text-sm tabular-nums text-ink">{d.codesPostaux.join(', ')}</p>
+                  <p className="mt-1 text-[12px] uppercase tracking-wide text-mute">{d.decision}</p>
+                </div>
+                {d.decision === 'en_attente' ? (
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => void deciderInscription(d.id, 'acceptee')}
+                    >
+                      Activer
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium"
+                      onClick={() => void deciderInscription(d.id, 'refusee')}
+                    >
+                      Refuser
+                    </button>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-ink">Extensions de secteur ({pendingRequests.length})</h2>
         {pendingRequests.length === 0 ? (
           <p className="mt-2 text-sm text-mute">Aucune demande en attente.</p>
         ) : (
@@ -257,50 +332,20 @@ export default function AdminAgenciesClient() {
           </div>
 
           <fieldset>
-            <legend className={labelClass}>Directeur</legend>
-            <div className="mt-2 flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="directorMode"
-                  checked={directorMode === 'existing'}
-                  onChange={() => setDirectorMode('existing')}
-                />
-                Directeur existant
-              </label>
-              {directorMode === 'existing' ? (
-                <Select
-                  value={existingDirectorId}
-                  onChange={setExistingDirectorId}
-                  options={directors.map((d) => ({
-                    value: d.profileId,
-                    label: `${d.firstName} ${d.lastName} (${d.email})`,
-                  }))}
-                  aria-label="Directeur existant"
-                  searchable={directors.length > 8}
-                  searchPlaceholder="Rechercher un directeur…"
-                  triggerClassName={declencheurClass}
-                />
-              ) : null}
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="directorMode"
-                  checked={directorMode === 'invite'}
-                  onChange={() => setDirectorMode('invite')}
-                />
-                Inviter un nouveau directeur
-              </label>
-              {directorMode === 'invite' ? (
-                <input
-                  type="email"
-                  className={inputClass}
-                  placeholder="email@agence.fr"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                />
-              ) : null}
+            <legend className={labelClass}>Directeur existant</legend>
+            <div className="mt-2">
+              <Select
+                value={existingDirectorId}
+                onChange={setExistingDirectorId}
+                options={directors.map((d) => ({
+                  value: d.profileId,
+                  label: `${d.firstName} ${d.lastName} (${d.email})`,
+                }))}
+                aria-label="Directeur existant"
+                searchable={directors.length > 8}
+                searchPlaceholder="Rechercher un directeur…"
+                triggerClassName={declencheurClass}
+              />
             </div>
           </fieldset>
 

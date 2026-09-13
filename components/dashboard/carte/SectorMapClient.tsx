@@ -48,6 +48,9 @@ import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
+import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
+import { pointDansZone } from '@/lib/zones/leads';
+import type { Zone } from '@/lib/zones/types';
 
 const SectorMapCanvas = dynamic(() => import('./SectorMapCanvas'), {
   ssr: false,
@@ -86,6 +89,9 @@ function LayersPanel({
   postal,
   onPostal,
   codes,
+  zoneId,
+  onZone,
+  zones,
   assignedTo,
   onAssigned,
   members,
@@ -103,6 +109,9 @@ function LayersPanel({
   postal: string;
   onPostal: (v: string) => void;
   codes: string[];
+  zoneId: string;
+  onZone: (v: string) => void;
+  zones: readonly { id: string; nom: string }[];
   assignedTo: string;
   onAssigned: (v: string) => void;
   members: readonly AssigneeOption[];
@@ -165,6 +174,21 @@ function LayersPanel({
       </ul>
 
       <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
+        {zones.length > 0 ? (
+          <Field label="Secteur" htmlFor="carte-secteur">
+            <Select
+              id="carte-secteur"
+              aria-label="Filtrer par secteur"
+              value={zoneId}
+              onChange={onZone}
+              options={[
+                { value: 'tous', label: 'Tous les secteurs' },
+                ...zones.map((z) => ({ value: z.id, label: z.nom })),
+              ]}
+            />
+          </Field>
+        ) : null}
+
         {codes.length > 0 ? (
           <Field label="Code postal" htmlFor="carte-cp">
             <Select
@@ -222,6 +246,8 @@ export default function SectorMapClient({
   viewSwitcher = null,
   itineraryStops: itineraryStopsProp = null,
   showItineraire = false,
+  zones = [],
+  initialZoneId = null,
 }: {
   points: MapPoint[];
   withoutPosition: WithoutPositionCount;
@@ -237,11 +263,16 @@ export default function SectorMapClient({
   viewSwitcher?: ReactNode;
   itineraryStops?: readonly ItineraireStop[] | null;
   showItineraire?: boolean;
+  zones?: readonly Zone[];
+  initialZoneId?: string | null;
 }) {
   const router = useRouter();
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
   const [postal, setPostal] = useState('tous');
+  const [zoneId, setZoneId] = useState(
+    initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'tous',
+  );
   const [assignedTo, setAssignedTo] = useState('tous');
   const [period, setPeriod] = useState<MapPeriod>('all');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
@@ -263,29 +294,41 @@ export default function SectorMapClient({
   const cadastreOn = anyCadastreLayer(layers);
   const parcelle = useParcelleMap(cadastreOn, viewport);
   const mapZoom = viewport?.zoom ?? null;
+  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
+  const pointsDuSecteur = useMemo(
+    () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
+    [points, zoneChoisie],
+  );
+  const focusBounds = useMemo(
+    () => (zoneChoisie ? (() => {
+      const boite = bboxDeZone(zoneChoisie);
+      return boite ? bboxVersBounds(boite) : null;
+    })() : null),
+    [zoneChoisie],
+  );
 
   const filtered = useMemo(
     () =>
-      filterMapEntities(points, {
+      filterMapEntities(pointsDuSecteur, {
         kinds,
         postalCode: postal,
         assignedTo: isDirector ? assignedTo : 'tous',
         period,
         now: Date.now(),
       }),
-    [points, kinds, postal, assignedTo, isDirector, period],
+    [pointsDuSecteur, kinds, postal, assignedTo, isDirector, period],
   );
 
   const filteredAllKinds = useMemo(
     () =>
-      filterMapEntities(points, {
+      filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
         postalCode: postal,
         assignedTo: isDirector ? assignedTo : 'tous',
         period,
         now: Date.now(),
       }),
-    [points, postal, assignedTo, isDirector, period],
+    [pointsDuSecteur, postal, assignedTo, isDirector, period],
   );
 
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
@@ -395,6 +438,9 @@ export default function SectorMapClient({
       postal={postal}
       onPostal={setPostal}
       codes={codes}
+      zoneId={zoneId}
+      onZone={setZoneId}
+      zones={zones}
       assignedTo={assignedTo}
       onAssigned={setAssignedTo}
       members={members}
@@ -442,6 +488,7 @@ export default function SectorMapClient({
             setMissingOpen(false);
             parcelle.openParcelle(parcelleId);
           }}
+          focusBounds={focusBounds}
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
@@ -467,6 +514,9 @@ export default function SectorMapClient({
                   postal={postal}
                   onPostal={setPostal}
                   codes={codes}
+                  zoneId={zoneId}
+                  onZone={setZoneId}
+                  zones={zones}
                   assignedTo={assignedTo}
                   onAssigned={setAssignedTo}
                   members={members}

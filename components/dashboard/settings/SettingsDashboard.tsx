@@ -10,13 +10,13 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
-import { PLAN_BADGE_CLASSES, PLAN_LABEL } from '@/lib/plan-meta';
 import type { TeamSettingsData } from '@/lib/queries/team-settings';
 import EquipeClient from '@/components/dashboard/equipe/EquipeClient';
 import Modal from '@/components/ui/Modal';
 import AvatarChooser from '@/components/dashboard/AvatarChooser';
 import SectionRequestSector from './SectionRequestSector';
 import SectionIntegrations from './SectionIntegrations';
+import SectionAbonnement from './SectionAbonnement';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -88,7 +88,7 @@ export default function SettingsDashboard({
           />
         ) : null;
       case 'billing':
-        return isDirector ? <SectionBilling /> : null;
+        return isDirector ? <SectionAbonnement /> : null;
       case 'integrations':
         return <SectionIntegrations />;
       case 'profile':
@@ -371,51 +371,6 @@ function SectionAgency() {
           disabled={!name.trim()}
         >
           Valider les modifications
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function SectionBilling() {
-  const { agency } = useUser();
-  return (
-    <section>
-      <h2 className="mb-4 hidden font-semibold text-ink md:block sm:mb-6" style={{ fontSize: 18 }}>
-        Abonnement
-      </h2>
-      <div className="flex w-full max-w-xl flex-col gap-5">
-        <div className="flex flex-col gap-1">
-          <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-            Plan actuel
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <span
-              className={`inline-flex w-fit items-center rounded-full px-3 py-1 font-semibold ${PLAN_BADGE_CLASSES[agency.plan]}`}
-              style={{ fontSize: 12 }}
-            >
-              {PLAN_LABEL[agency.plan]}
-            </span>
-            <p className="text-mute" style={{ fontSize: 14 }}>
-              La gestion de l&apos;abonnement et la tarification arrivent bientôt.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-            Prochain renouvellement
-          </p>
-          <p className="text-ink" style={{ fontSize: 14 }}>
-            À venir
-          </p>
-        </div>
-        <button
-          type="button"
-          disabled
-          className="w-full rounded-lg border border-black/10 bg-soft-gray/60 px-4 py-2 font-medium text-mute sm:w-auto sm:self-start"
-          style={{ fontSize: 13 }}
-        >
-          Gérer mon abonnement — Disponible bientôt
         </button>
       </div>
     </section>

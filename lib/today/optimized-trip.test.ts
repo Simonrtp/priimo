@@ -36,6 +36,7 @@ describe('optimizedTripUrl', () => {
     assert.ok(url.includes('roundtrip=true'));
     assert.ok(url.includes('source=first'));
     assert.ok(url.includes('geometries=geojson'));
+    assert.ok(url.includes('overview=full'));
     assert.ok(url.includes('access_token=tok'));
   });
 

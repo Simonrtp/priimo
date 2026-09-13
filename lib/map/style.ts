@@ -4,6 +4,7 @@ export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 /**
  * Rues, parcs, hydrographie. Pas le style « light » (papier blanc).
  * Le voile crème est appliqué en CSS sur `.priimo-map .mapboxgl-canvas`.
+ * En tournée, `applyTourneeMapStyle` atténue routes et masque les commerces.
  */
 export const PRIIMO_MAP_STYLE = 'mapbox://styles/mapbox/streets-v12';
 

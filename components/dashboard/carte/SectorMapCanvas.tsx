@@ -10,7 +10,7 @@ import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
-import { computeLngLatBounds } from '@/lib/carte/bounds';
+import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { toGeoCoord } from '@/lib/carte/coords';
@@ -59,6 +59,7 @@ export default function SectorMapCanvas({
   onSelectParcelle,
   zoomPreset = 'sector',
   showBuildingMarkers = true,
+  focusBounds = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -78,6 +79,8 @@ export default function SectorMapCanvas({
   /** sector = vue d’ensemble ; parcelles = zoom serré sur l’agence pour cliquer le cadastre. */
   zoomPreset?: 'sector' | 'parcelles';
   showBuildingMarkers?: boolean;
+  /** Prioritaire sur l'emprise des points : cadrer un secteur choisi. */
+  focusBounds?: LngLatBoundsTuple | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -127,7 +130,7 @@ export default function SectorMapCanvas({
         return;
       }
 
-      const bounds = itineraryBounds ?? computeLngLatBounds(buildings);
+      const bounds = itineraryBounds ?? focusBounds ?? computeLngLatBounds(buildings);
       if (!bounds) {
         if (fallback) {
           map.easeTo({
@@ -165,13 +168,17 @@ export default function SectorMapCanvas({
         bearing: MAP_3D_BEARING,
       });
     },
-    [fallback, buildings, itineraryBounds, zoomPreset],
+    [fallback, buildings, itineraryBounds, zoomPreset, focusBounds],
   );
+
+  const focusSignature = focusBounds
+    ? `${focusBounds[0][0]},${focusBounds[0][1]},${focusBounds[1][0]},${focusBounds[1][1]}`
+    : '';
 
   useEffect(() => {
     fitToPoints(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsSignature, itineraryBounds]);
+  }, [idsSignature, itineraryBounds, focusSignature]);
 
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;

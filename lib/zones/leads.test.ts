@@ -4,6 +4,7 @@ import {
   JOURS_AVANT_OUVERTURE_AGENCE,
   grouperParSecteur,
   libelleMention,
+  pointDansZone,
   sousGroupesAgence,
   statistiquesParZone,
   type LeadSituable,
@@ -78,6 +79,13 @@ function grouper(leads: readonly LeadSituable[]) {
     maintenant: MAINTENANT,
   });
 }
+
+describe('pointDansZone', () => {
+  it('accepte un point dans le contour, refuse le voisin', () => {
+    assert.equal(pointDansZone({ latitude: 48.85, longitude: 2.39 }, MA_ZONE), true);
+    assert.equal(pointDansZone({ latitude: 48.85, longitude: 2.41 }, MA_ZONE), false);
+  });
+});
 
 describe('mon secteur', () => {
   it('retient les adresses de ma zone, prises ou non', () => {

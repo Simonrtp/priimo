@@ -8,8 +8,8 @@ import type { Lead } from '@/types/lead';
 import type { GeoCoord } from '@/lib/carte/coords';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
-import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import { FIELD, formatDistance } from '@/lib/today/field';
+import { applyTourneeMapStyle } from '@/lib/map/tournee-style';
 import {
   fetchWalkingRoute,
   formatWalkingDuration,
@@ -38,7 +38,6 @@ import { postJsonOrQueue, newOfflineId } from '@/lib/offline/queue';
 import { useOfflineQueue } from '@/components/dashboard/field/OfflineQueueProvider';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
-import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import OfflineIndicator from '@/components/dashboard/field/OfflineIndicator';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
@@ -395,6 +394,14 @@ export default function TourneeMobile({
 
   const lead = active ? leadsById.get(active.leadId) : undefined;
   const script = porteScript(lead);
+  const closedStops = stops.filter(
+    (s) =>
+      session.rencontres.includes(s.key) ||
+      session.absents.includes(s.key) ||
+      session.skipped.includes(s.key) ||
+      session.done.includes(s.key),
+  );
+  const lastClosed = [...closedStops].reverse()[0] ?? null;
 
   // ——— BILAN ———
   if (session.phase === 'bilan' && plan) {
@@ -441,53 +448,17 @@ export default function TourneeMobile({
               }}
               attributionControl={false}
               dragRotate={false}
+              onLoad={(e) => applyTourneeMapStyle(e.target)}
               style={{ width: '100%', height: '100%' }}
             >
               {stops.length >= 2 ? (
                 <ItineraireLayer
                   geometry={routeGeometry}
                   stops={toItineraireStops(stops)}
+                  currentLeadId={active.leadId}
+                  completedLeadIds={closedStops.map((s) => s.leadId)}
+                  progressPoint={agentPos ?? lastClosed}
                 />
-              ) : null}
-              {stops.map((stop, i) => {
-                const closed =
-                  session.rencontres.includes(stop.key) ||
-                  session.absents.includes(stop.key) ||
-                  session.skipped.includes(stop.key) ||
-                  session.done.includes(stop.key);
-                const isActive = stop.key === active.key;
-                return (
-                  <Marker
-                    key={stop.key}
-                    longitude={stop.longitude}
-                    latitude={stop.latitude}
-                    anchor="center"
-                  >
-                    <span
-                      className="flex size-8 items-center justify-center rounded-full border-2 border-white text-[12px] font-bold text-white shadow-md"
-                      style={{
-                        backgroundColor: closed
-                          ? FIELD.vert
-                          : isActive
-                            ? LEAD_FIELD_COLOR
-                            : FIELD.ardoise,
-                        opacity: closed ? 0.7 : 1,
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                  </Marker>
-                );
-              })}
-              {agencyOrigin ? (
-                <Marker
-                  longitude={agencyOrigin.longitude}
-                  latitude={agencyOrigin.latitude}
-                  anchor="center"
-                  style={{ zIndex: 25 }}
-                >
-                  <AgencyLocationMarker />
-                </Marker>
               ) : null}
               {agentPos ? (
                 <Marker

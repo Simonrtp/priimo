@@ -89,6 +89,7 @@ describe('aperçu du secteur — négociateur', () => {
     assert.equal(a.points.length, 2);
     assert.equal(a.points.find((p) => p.id === 'a')?.niveau, 'semaine');
     assert.equal(a.points.find((p) => p.id === 'b')?.niveau, 'revoir');
+    assert.equal(a.points.find((p) => p.id === 'a')?.zoneId, 'ouest');
   });
 
   it('met le secteur du jour en tête', () => {

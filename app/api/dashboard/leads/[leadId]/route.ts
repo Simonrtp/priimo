@@ -5,6 +5,7 @@ import { canSeeLeadRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { notifierLeadsAssignes } from '@/lib/notifications/evenements';
 import type { LeadMlFeedbackDb, LeadRow, LeadStatusDb } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -38,7 +39,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leadId: strin
   const supabase = await createSupabaseServerClient();
   const { data: existing, error: loadError } = await supabase
     .from('leads')
-    .select('id, assigned_to, stage_id')
+    .select('id, assigned_to, stage_id, address')
     .eq('id', leadId)
     .eq('agency_id', agency.id)
     .maybeSingle();
@@ -144,6 +145,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leadId: strin
 
   if (update.stage_id !== undefined || update.assigned_to !== undefined || update.taken_at !== undefined) {
     invaliderAccueilEtProspection();
+  }
+
+  const nouvelAssigné = update.assigned_to;
+  if (
+    typeof nouvelAssigné === 'string' &&
+    nouvelAssigné &&
+    nouvelAssigné !== existing.assigned_to
+  ) {
+    void notifierLeadsAssignes({
+      agencyId: agency.id,
+      destinataireId: nouvelAssigné,
+      actorId: profile.id,
+      leadId,
+      adresse: existing.address,
+    }).catch((err) => console.error('[notifications] leads_assignes', err));
   }
 
   return NextResponse.json({ ok: true });

@@ -11,6 +11,7 @@ import { suggestMemberFromText } from '@/lib/agency/match-member';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
 import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
+import { notifierNoteTranscrite } from '@/lib/notifications/evenements';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -220,6 +221,14 @@ export async function POST(req: Request) {
   const review = emptyReviewPayload(savedId, joined || null, 'agence');
 
   invaliderNotesAccueil();
+
+  if (joined && !previousTranscript.trim()) {
+    void notifierNoteTranscrite({
+      agencyId: agency.id,
+      auteurId: profile.id,
+      noteId: savedId,
+    }).catch((err) => console.error('[notifications] note_transcrite', err));
+  }
 
   return NextResponse.json({
     ...review,

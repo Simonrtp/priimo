@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { fetchParcelleFiche } from '@/lib/queries/parcelle';
+import { estEnAttente } from '@/lib/billing/acces';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +13,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ parcelleId: st
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+  if (estEnAttente(agency)) {
+    return NextResponse.json({ error: 'Parcelle inconnue' }, { status: 404 });
   }
 
   const { parcelleId: raw } = await ctx.params;

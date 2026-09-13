@@ -87,6 +87,10 @@ import {
 } from '@/lib/map/view-mode';
 import { FIELD } from '@/lib/today/field';
 import { vibrateBrief } from './aujourdhui/tap';
+import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
+import { pointDansZone } from '@/lib/zones/leads';
+import type { Zone } from '@/lib/zones/types';
+import Select from '@/components/ui/Select';
 
 /**
  * `brief` = séquence d'ouverture, `route` = chemin tracé + retouche des
@@ -139,6 +143,8 @@ export default function CarteMobile({
   itineraryStops: itineraryStopsProp = null,
   showItineraire = false,
   autoTournee = false,
+  zones = [],
+  initialZoneId = null,
 }: {
   points: MapPoint[];
   withoutPosition: WithoutPositionCount;
@@ -157,6 +163,8 @@ export default function CarteMobile({
   showItineraire?: boolean;
   /** Entrée « tournée » depuis l'accueil : la séquence démarre seule. */
   autoTournee?: boolean;
+  zones?: readonly Zone[];
+  initialZoneId?: string | null;
 }) {
   const router = useRouter();
   const { openCapture } = useVoiceCapture();
@@ -164,6 +172,9 @@ export default function CarteMobile({
   const mapApi = useRef<MobileMapHandle | null>(null);
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
+  const [zoneId, setZoneId] = useState(
+    initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'tous',
+  );
   const [dimension, setDimension] = useState<MapDimension>('2d');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const [viewport, setViewport] = useState<MapViewport | null>(null);
@@ -275,27 +286,37 @@ export default function CarteMobile({
   const parcelle = useParcelleMap(cadastreOn, viewport);
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
+  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
+  const pointsDuSecteur = useMemo(
+    () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
+    [points, zoneChoisie],
+  );
+  const focusBounds = useMemo(() => {
+    if (!zoneChoisie) return null;
+    const boite = bboxDeZone(zoneChoisie);
+    return boite ? bboxVersBounds(boite) : null;
+  }, [zoneChoisie]);
   const filtered = useMemo(
     () =>
-      filterMapEntities(points, {
+      filterMapEntities(pointsDuSecteur, {
         kinds,
         postalCode: 'tous',
         assignedTo: 'tous',
         period: 'all' as MapPeriod,
         now: Date.now(),
       }),
-    [points, kinds],
+    [pointsDuSecteur, kinds],
   );
   const filteredAllKinds = useMemo(
     () =>
-      filterMapEntities(points, {
+      filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
         postalCode: 'tous',
         assignedTo: 'tous',
         period: 'all',
         now: Date.now(),
       }),
-    [points],
+    [pointsDuSecteur],
   );
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
   const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
@@ -564,6 +585,7 @@ export default function CarteMobile({
       <MobileMapCanvas
         buildings={buildings}
         center={center}
+        focusBounds={focusBounds}
         selectedBanId={selectedBanId}
         mapRef={mapApi}
         onSelect={handleMapSelect}
@@ -599,6 +621,7 @@ export default function CarteMobile({
         highlightBanIds={highlightBanIds}
         dimension={dimension}
         suppressAutoFit={tourShown || tourFramed}
+        navigation={tourShown}
         onMapPoint={picking ? addPointFromMap : undefined}
       />
 
@@ -774,6 +797,20 @@ export default function CarteMobile({
         title="Couches"
         initialSnap={2}
       >
+        {zones.length > 0 ? (
+          <div className="mb-4">
+            <p className="mb-1.5 text-[12px] font-medium text-text-subtle">Secteur</p>
+            <Select
+              aria-label="Filtrer par secteur"
+              value={zoneId}
+              onChange={setZoneId}
+              options={[
+                { value: 'tous', label: 'Tous les secteurs' },
+                ...zones.map((z) => ({ value: z.id, label: z.nom })),
+              ]}
+            />
+          </div>
+        ) : null}
         <ul className="flex flex-col gap-1">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];

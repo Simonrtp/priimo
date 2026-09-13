@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import {
   CADASTRE_LAYER_IDS,
@@ -70,17 +69,17 @@ export default function CadastreLayerControls({
             <span className="flex items-center gap-2">
               Cadastre
               <span
-                className={`relative shrink-0 overflow-hidden rounded ${
-                  compact ? 'h-4 w-8' : 'h-5 w-10'
+                className={`relative shrink-0 overflow-hidden rounded-sm ring-1 ring-black/[0.08] ${
+                  compact ? 'h-5 w-11' : 'h-6 w-[2.75rem]'
                 }`}
                 title="Données publiques — République française"
               >
-                <Image
-                  src="/bloc-macp-cmjn.jpg"
-                  alt="République française"
-                  fill
-                  sizes="36px"
-                  className="object-cover object-center"
+                <img
+                  src="/marianne.svg"
+                  alt=""
+                  width={44}
+                  height={18}
+                  className="size-full object-cover"
                 />
               </span>
             </span>
