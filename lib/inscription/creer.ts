@@ -167,22 +167,26 @@ export async function creerInscription(input: InscriptionInput): Promise<Inscrip
       first_name: input.firstName.trim(),
       last_name: input.lastName.trim(),
       phone,
-      active_agency_id: agency.id,
     });
     if (profileErr) {
       await rollback(agency.id);
+      console.error('[inscription] profile', profileErr);
       return { ok: false, status: 500, error: 'Impossible de créer le profil.' };
     }
   } else {
-    await admin
+    const { error: profileUpd } = await admin
       .from('profiles')
       .update({
         first_name: input.firstName.trim(),
         last_name: input.lastName.trim(),
         phone,
-        active_agency_id: agency.id,
       })
       .eq('id', userId);
+    if (profileUpd) {
+      await rollback(agency.id);
+      console.error('[inscription] profile update', profileUpd);
+      return { ok: false, status: 500, error: 'Impossible de créer le profil.' };
+    }
   }
 
   const { error: memberErr } = await admin.from('profile_agencies').insert({
@@ -192,6 +196,17 @@ export async function creerInscription(input: InscriptionInput): Promise<Inscrip
   });
   if (memberErr) {
     await rollback(agency.id);
+    console.error('[inscription] membership', memberErr);
+    return { ok: false, status: 500, error: "Impossible de rattacher l'agence." };
+  }
+
+  const { error: activeErr } = await admin
+    .from('profiles')
+    .update({ active_agency_id: agency.id })
+    .eq('id', userId);
+  if (activeErr) {
+    await rollback(agency.id);
+    console.error('[inscription] active agency', activeErr);
     return { ok: false, status: 500, error: "Impossible de rattacher l'agence." };
   }
 
