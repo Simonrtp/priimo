@@ -19,7 +19,7 @@ import { COULEURS_ZONE } from '@/lib/zones/palette';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
 import { JOURS_TOURNEE, libelleJours } from '@/lib/zones/jour';
 import { decouperAdresse } from '@/lib/zones/adresse';
-import type { PariteVoie, RegleZone, ValeurRegleZone, Zone } from '@/lib/zones/types';
+import type { PariteVoie, RegleZone, ValeurPolygone, ValeurRegleZone, Zone } from '@/lib/zones/types';
 import type { LeadPoint, ModeCarte } from './ZonesCarte';
 
 const ZonesCarte = dynamic(() => import('./ZonesCarte'), {
@@ -355,9 +355,11 @@ export default function SecteursClient({
                     ? {
                         ...r,
                         valeur: {
-                          type: 'Polygon' as const,
-                          coordinates: polygone.coordinates as typeof r.valeur.coordinates,
-                        },
+                          type: 'Polygon',
+                          coordinates: polygone.coordinates.map((anneau) =>
+                            anneau.map((p) => [Number(p[0]), Number(p[1])] as const),
+                          ),
+                        } satisfies ValeurPolygone,
                       }
                     : r,
                 ),
