@@ -52,5 +52,6 @@ export async function GET(req: Request) {
     redirectUri,
     state,
   });
-  return NextResponse.json({ url, note: CALENDAR_VERIFICATION_NOTE });
+  console.info('[calendar oauth] redirect_uri', redirectUri);
+  return NextResponse.json({ url, redirectUri, note: CALENDAR_VERIFICATION_NOTE });
 }

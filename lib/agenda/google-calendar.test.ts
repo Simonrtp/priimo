@@ -42,12 +42,9 @@ describe('oauthPublicOrigin', () => {
 });
 
 describe('calendarOAuthRedirectUri', () => {
-  it('ignore un redirect localhost si la requête vient de priimo.fr', () => {
+  it('pose le chemin Agenda en https sur le site public', () => {
     const prevSite = process.env.NEXT_PUBLIC_SITE_URL;
-    const prevRedir = process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI;
     process.env.NEXT_PUBLIC_SITE_URL = 'https://priimo.fr';
-    process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI =
-      'http://localhost:3000/api/dashboard/integrations/calendar/callback';
     try {
       assert.equal(
         calendarOAuthRedirectUri(
@@ -61,8 +58,6 @@ describe('calendarOAuthRedirectUri', () => {
     } finally {
       if (prevSite === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
       else process.env.NEXT_PUBLIC_SITE_URL = prevSite;
-      if (prevRedir === undefined) delete process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI;
-      else process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI = prevRedir;
     }
   });
 });

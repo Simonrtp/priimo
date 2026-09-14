@@ -798,15 +798,15 @@ body {
   background:
     radial-gradient(
       640px 480px at var(--mx, 50%) var(--my, 35%),
-      rgba(232, 116, 60, 0.22),
+      rgba(232, 116, 60, 0.1),
       transparent 65%
     ),
     radial-gradient(
       900px 700px at calc(100% - var(--mx, 50%)) calc(100% - var(--my, 50%)),
-      rgba(99, 102, 241, 0.16),
+      rgba(99, 102, 241, 0.07),
       transparent 70%
     ),
-    linear-gradient(180deg, #FFF6F5 0%, #FAFAFB 75%);
+    linear-gradient(180deg, #f7f7f8 0%, #f2f2f4 75%);
 }
 
 .hero-bg::before,
@@ -823,7 +823,7 @@ body {
   height: 520px;
   top: -120px;
   left: -120px;
-  opacity: 0.55;
+  opacity: 0.28;
   background: radial-gradient(circle, rgba(255, 181, 133, 0.55) 0%, rgba(255, 181, 133, 0) 70%);
 }
 
@@ -832,7 +832,7 @@ body {
   height: 520px;
   bottom: -160px;
   right: -120px;
-  opacity: 0.55;
+  opacity: 0.28;
   background: radial-gradient(circle, rgba(99, 102, 241, 0.5) 0%, rgba(99, 102, 241, 0) 70%);
 }
 
@@ -963,35 +963,94 @@ body {
 
 /* H1 hero landing — impact fort, lignes étalées */
 .landing .text-hero {
-  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), var(--font-body), system-ui, sans-serif;
   font-weight: 700;
   color: #111827;
-  font-size: 2.375rem;
-  line-height: 1.14;
+  font-size: 2rem;
+  line-height: 1.28;
   letter-spacing: -0.022em;
 }
 @media (min-width: 640px) {
   .landing .text-hero {
-    font-size: 3rem;
-    line-height: 1.12;
+    font-size: 2.5rem;
+    line-height: 1.26;
   }
 }
 @media (min-width: 768px) {
   .landing .text-hero {
-    font-size: 3.375rem;
-    line-height: 1.11;
+    font-size: 2.75rem;
+    line-height: 1.24;
   }
 }
 @media (min-width: 1024px) {
   .landing .text-hero {
-    font-size: 3.875rem;
-    line-height: 1.1;
+    font-size: 3.25rem;
+    line-height: 1.22;
   }
 }
 @media (min-width: 1280px) {
   .landing .text-hero {
-    font-size: 4.125rem;
-    line-height: 1.08;
+    font-size: 3.5rem;
+    line-height: 1.2;
+  }
+}
+
+/* Mot mis en avant dans le H1 — capsule type « Compte Pro », rotation des termes */
+.landing .hero-pill-rotator {
+  display: inline-grid;
+  justify-items: start;
+  max-width: 100%;
+  overflow: visible;
+  perspective: 900px;
+  vertical-align: middle;
+}
+.landing .hero-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.22em;
+  grid-area: 1 / 1;
+  justify-self: start;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.08em 0.42em 0.12em 0.32em;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-align: left;
+  opacity: 0;
+  transform: rotateX(72deg);
+  transform-origin: left center;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 8px 18px -12px rgba(17, 24, 39, 0.22);
+}
+.landing .hero-pill.is-active {
+  opacity: 1;
+  transform: rotateX(0deg);
+}
+.landing .hero-pill-icon {
+  width: 0.68em;
+  height: 0.68em;
+  flex-shrink: 0;
+  stroke-width: 2.4;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing .hero-pill {
+    transition:
+      opacity 450ms ease-out,
+      transform 450ms ease-out;
+  }
+}
+@media (max-width: 399px) {
+  .landing .hero-pill {
+    white-space: normal;
+    text-align: left;
   }
 }
 

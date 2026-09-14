@@ -21,6 +21,7 @@ const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'] as const;
 
 export const CALENDAR_OAUTH_SCOPES = SCOPES;
 export const CALENDAR_OAUTH_STATE_COOKIE = 'priimo_cal_oauth_state';
+export const CALENDAR_OAUTH_CALLBACK_PATH = '/api/dashboard/integrations/calendar/callback';
 
 export const CALENDAR_VERIFICATION_NOTE =
   'calendar.readonly est un scope sensible Google. Prévoir la vérification OAuth ' +
@@ -33,6 +34,16 @@ function estOrigineLocale(origin: string): boolean {
   } catch {
     return false;
   }
+}
+
+function sansSlash(origin: string): string {
+  return origin.replace(/\/$/, '');
+}
+
+function httpsSiPublic(origin: string): string {
+  const propre = sansSlash(origin);
+  if (estOrigineLocale(propre)) return propre;
+  return propre.replace(/^http:\/\//i, 'https://');
 }
 
 /** Hôte vu par le navigateur (Vercel pose x-forwarded-*). */
@@ -53,30 +64,15 @@ export function origineDeLaRequete(req: Request): string {
  * renvoie sur la machine locale : cookie perdu, « Connexion Agenda impossible ».
  */
 export function oauthPublicOrigin(req: Request): string {
-  const vue = origineDeLaRequete(req);
+  const vue = httpsSiPublic(origineDeLaRequete(req));
   if (estOrigineLocale(vue)) return vue;
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '').trim();
-  if (site && !estOrigineLocale(site)) return site;
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site && !estOrigineLocale(site)) return httpsSiPublic(site);
   return vue;
 }
 
 export function calendarOAuthRedirectUri(req: Request): string {
-  const explicite = process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI?.trim();
-  const origin = oauthPublicOrigin(req);
-  if (explicite) {
-    try {
-      const force = new URL(explicite);
-      const forceOrigin = force.origin;
-      // Un redirect localhost n’a de sens que si on est vraiment en local.
-      if (estOrigineLocale(forceOrigin) && !estOrigineLocale(origin)) {
-        return `${origin}/api/dashboard/integrations/calendar/callback`;
-      }
-      if (force.pathname.length > 1) return explicite.replace(/\/$/, '');
-    } catch {
-      /* env illisible : on ignore */
-    }
-  }
-  return `${origin}/api/dashboard/integrations/calendar/callback`;
+  return `${oauthPublicOrigin(req)}${CALENDAR_OAUTH_CALLBACK_PATH}`;
 }
 
 export function calendarOAuthAuthUrl(args: {

@@ -56,7 +56,7 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Priimo — Logiciel de prospection immobilière prédictive",
+    default: "Priimo — Le CRM immobilier qui propulse votre chiffre d'affaires",
     template: "%s · Priimo",
   },
   description:
@@ -81,7 +81,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Priimo — Prospection immobilière prédictive",
+    title: "Priimo — Le CRM immobilier qui propulse votre chiffre d'affaires",
     description:
       "Événements de vie et signaux de marché, livrés chaque semaine sur votre secteur exclusif.",
     url: "/",
@@ -92,7 +92,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Priimo — Prospection immobilière prédictive",
+    title: "Priimo — Le CRM immobilier qui propulse votre chiffre d'affaires",
     description:
       "Événements de vie et signaux de marché, livrés chaque semaine sur votre secteur exclusif.",
     images: ["/logoprii.png"],
