@@ -26,11 +26,57 @@ export const CALENDAR_VERIFICATION_NOTE =
   'calendar.readonly est un scope sensible Google. Prévoir la vérification OAuth ' +
   'avant un déploiement au-delà de 100 utilisateurs de test.';
 
-export function calendarOAuthRedirectUri(): string {
+function estOrigineLocale(origin: string): boolean {
+  try {
+    const host = new URL(origin.includes('://') ? origin : `http://${origin}`).hostname;
+    return host === 'localhost' || host === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
+/** Hôte vu par le navigateur (Vercel pose x-forwarded-*). */
+export function origineDeLaRequete(req: Request): string {
+  const url = new URL(req.url);
+  const proto =
+    req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || url.protocol.replace(':', '');
+  const host =
+    req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
+    req.headers.get('host') ||
+    url.host;
+  return `${proto}://${host}`;
+}
+
+/**
+ * Callback OAuth = l’hôte où l’agent a cliqué.
+ * Sinon, avec SITE_URL=priimo.fr et un redirect localhost en env, Google
+ * renvoie sur la machine locale : cookie perdu, « Connexion Agenda impossible ».
+ */
+export function oauthPublicOrigin(req: Request): string {
+  const vue = origineDeLaRequete(req);
+  if (estOrigineLocale(vue)) return vue;
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '').trim();
+  if (site && !estOrigineLocale(site)) return site;
+  return vue;
+}
+
+export function calendarOAuthRedirectUri(req: Request): string {
   const explicite = process.env.GOOGLE_CALENDAR_OAUTH_REDIRECT_URI?.trim();
-  if (explicite) return explicite;
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || '';
-  return `${site}/api/dashboard/integrations/calendar/callback`;
+  const origin = oauthPublicOrigin(req);
+  if (explicite) {
+    try {
+      const force = new URL(explicite);
+      const forceOrigin = force.origin;
+      // Un redirect localhost n’a de sens que si on est vraiment en local.
+      if (estOrigineLocale(forceOrigin) && !estOrigineLocale(origin)) {
+        return `${origin}/api/dashboard/integrations/calendar/callback`;
+      }
+      if (force.pathname.length > 1) return explicite.replace(/\/$/, '');
+    } catch {
+      /* env illisible : on ignore */
+    }
+  }
+  return `${origin}/api/dashboard/integrations/calendar/callback`;
 }
 
 export function calendarOAuthAuthUrl(args: {

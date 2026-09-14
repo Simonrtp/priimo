@@ -58,7 +58,11 @@ export default function SectionIntegrations() {
     }
     if (agendaFlag === 'connected') toast.success('Google Agenda connecté');
     else if (agendaFlag === 'denied') toast.error('Connexion Agenda refusée');
-    else if (agendaFlag === 'error' || agendaFlag === 'invalid_state') {
+    else if (agendaFlag === 'auth_required') {
+      toast.error('Reconnecte-toi à Priimo, puis relance Google Agenda.');
+    } else if (agendaFlag === 'invalid_state') {
+      toast.error('La connexion a été coupée. Relance-la depuis priimo.fr, pas depuis localhost.');
+    } else if (agendaFlag === 'error' || agendaFlag === 'not_configured') {
       toast.error('Connexion Agenda impossible');
     }
     if (!gmailFlag && !agendaFlag) return;

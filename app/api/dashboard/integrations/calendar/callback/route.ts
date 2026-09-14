@@ -7,6 +7,7 @@ import {
   calendarOAuthRedirectUri,
   encryptCalendarTokens,
   fetchCalendarPrimary,
+  oauthPublicOrigin,
 } from '@/lib/agenda/google-calendar';
 import { exchangeCodeForTokens } from '@/lib/inbound/gmail';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
@@ -14,8 +15,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 export const runtime = 'nodejs';
 
 function redirectAfter(req: Request, next: string, query: string) {
-  // Rester sur l’hôte du callback (localhost en dev), pas NEXT_PUBLIC_SITE_URL.
-  const origin = new URL(req.url).origin;
+  const origin = oauthPublicOrigin(req);
   if (next === 'settings') {
     return NextResponse.redirect(`${origin}/dashboard/settings?tab=integrations&${query}`);
   }
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
-  const redirectUri = calendarOAuthRedirectUri();
+  const redirectUri = calendarOAuthRedirectUri(req);
   if (!clientId || !clientSecret || !redirectUri) {
     return redirectAfter(req, next, 'agenda=not_configured');
   }

@@ -23,7 +23,11 @@ function consommerRetourOAuth(): string | null {
   if (!flag) return null;
   if (flag === 'connected') toast.success('Google Agenda connecté');
   else if (flag === 'denied') toast.error('Connexion Agenda refusée');
-  else if (flag === 'missing_table') {
+  else if (flag === 'auth_required') {
+    toast.error('Reconnecte-toi à Priimo, puis relance Google Agenda.');
+  } else if (flag === 'invalid_state') {
+    toast.error('La connexion a été coupée. Relance-la depuis priimo.fr, pas depuis localhost.');
+  } else if (flag === 'missing_table') {
     toast.error('Table calendar_connexions absente — appliquer la migration Supabase.');
   } else if (flag === 'no_api') {
     toast.error('Active Google Calendar API dans la console Cloud, puis réessaie.');
@@ -572,13 +576,7 @@ function CarteConnexionGoogle({
   const aujourdhui = dateKeyParis(new Date());
 
   return (
-    <section
-      className="relative flex h-full min-w-0 flex-col overflow-hidden rounded-clay-lg bg-white p-6"
-      style={{
-        border: `1px solid ${GOOGLE.line}`,
-        boxShadow: '0 1px 2px 0 rgba(60,64,67,.15), 0 1px 3px 1px rgba(60,64,67,.08)',
-      }}
-    >
+    <section className="relative flex h-full min-w-0 flex-col rounded-clay-lg bg-surface p-5 shadow-clay">
       <div className="flex min-w-0 items-center gap-3">
         <img src="/google.png" alt="" width={40} height={40} className="size-10 shrink-0" />
         <div className="min-w-0">

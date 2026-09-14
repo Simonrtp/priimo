@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   }
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
-  const redirectUri = calendarOAuthRedirectUri();
+  const redirectUri = calendarOAuthRedirectUri(req);
   if (!clientId || !redirectUri) {
     return NextResponse.json(
       {

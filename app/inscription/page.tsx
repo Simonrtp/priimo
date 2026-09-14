@@ -83,6 +83,7 @@ export default function InscriptionPage() {
         password,
       });
       if (signErr) {
+        setError('Le compte est créé. Connectez-vous depuis la page de connexion.');
         router.replace('/login');
         return;
       }

@@ -88,49 +88,30 @@ export async function creerInscription(input: InscriptionInput): Promise<Inscrip
 
   const existing = await findAuthUserByEmail(admin, email);
   if (existing) {
-    const { data: membership } = await admin
-      .from('profile_agencies')
-      .select('agency_id')
-      .eq('profile_id', existing.id)
-      .limit(1);
-    if (membership && membership.length > 0) {
-      return {
-        ok: false,
-        status: 409,
-        error: 'Un compte existe déjà avec cet email. Connectez-vous.',
-      };
-    }
+    return {
+      ok: false,
+      status: 409,
+      error: 'Un compte existe déjà avec cet email. Connectez-vous.',
+    };
   }
 
-  let userId: string;
-  let createdAuth = false;
-
-  if (existing) {
-    const { error: upd } = await admin.auth.admin.updateUserById(existing.id, {
-      password: input.password,
-      email_confirm: true,
-    });
-    if (upd) return { ok: false, status: 500, error: 'Impossible de réactiver le compte.' };
-    userId = existing.id;
-  } else {
-    const { data: authData, error: authError } = await admin.auth.admin.createUser({
-      email,
-      password: input.password,
-      email_confirm: true,
-    });
-    if (authError || !authData.user) {
-      const msg = authError?.message ?? '';
-      if (isEmailAlreadyRegistered(msg)) {
-        return { ok: false, status: 409, error: 'Un compte existe déjà avec cet email. Connectez-vous.' };
-      }
-      if (/password/i.test(msg)) {
-        return { ok: false, status: 400, error: 'Mot de passe refusé. Au moins 8 caractères.' };
-      }
-      return { ok: false, status: 500, error: 'Impossible de créer le compte.' };
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email,
+    password: input.password,
+    email_confirm: true,
+  });
+  if (authError || !authData.user) {
+    const msg = authError?.message ?? '';
+    if (isEmailAlreadyRegistered(msg)) {
+      return { ok: false, status: 409, error: 'Un compte existe déjà avec cet email. Connectez-vous.' };
     }
-    userId = authData.user.id;
-    createdAuth = true;
+    if (/password/i.test(msg)) {
+      return { ok: false, status: 400, error: 'Mot de passe refusé. Au moins 8 caractères.' };
+    }
+    return { ok: false, status: 500, error: 'Impossible de créer le compte.' };
   }
+  const userId = authData.user.id;
+  const createdAuth = true;
 
   const rollback = async (agencyId?: string) => {
     if (agencyId) await admin.from('agencies').delete().eq('id', agencyId);
