@@ -212,7 +212,7 @@ export async function POST(req: Request) {
     latitude: hasClientCoords ? gpsLat : geoFromAdresse.latitude,
     longitude: hasClientCoords ? gpsLng : geoFromAdresse.longitude,
     adresse_normalisee: geoFromAdresse.adresse_normalisee ?? (adresseRaw || null),
-    ban_id: geoFromAdresse.ban_id ?? immeubleLien?.entiteId ?? null,
+    ban_id: immeubleLien?.entiteId ?? geoFromAdresse.ban_id ?? null,
   };
   const extraction = composed?.extraction ?? null;
   let contactId = liensManuels.find((l) => l.entiteType === 'contact')?.entiteId ?? null;

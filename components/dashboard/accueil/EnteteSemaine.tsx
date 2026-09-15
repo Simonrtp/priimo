@@ -7,7 +7,7 @@ import {
   type Intervalle,
   type Periode,
 } from '@/lib/activite/semaines';
-import CitationCard from './CitationCard';
+import PenseBete from './PenseBete';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois', 'annee'];
 
@@ -53,14 +53,14 @@ export default function EnteteSemaine({
   periode,
   intervalle,
   estPeriodeCourante,
-  citation,
+  penseBete,
   enCours,
   onChanger,
 }: {
   periode: Periode;
   intervalle: Intervalle;
   estPeriodeCourante: boolean;
-  citation: string;
+  penseBete: string;
   /** Le bilan de la période demandée est en route. */
   enCours: boolean;
   /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
@@ -70,7 +70,7 @@ export default function EnteteSemaine({
     onChanger(periode, intervalleDecale(periode, intervalle, delta).debut);
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
       <div className="shrink-0">
         <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {TITRE_PERIODE[periode]}
@@ -80,7 +80,7 @@ export default function EnteteSemaine({
         </p>
       </div>
 
-      <CitationCard texte={citation} className="min-w-0 sm:flex-1" />
+      <PenseBete initial={penseBete} className="min-w-0 sm:flex-1" />
 
       <div className="flex shrink-0 items-center gap-2" aria-busy={enCours}>
           <div

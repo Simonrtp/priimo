@@ -13,7 +13,7 @@ import ProspectsViewSwitch, { prospectionHref, type ProspectionVue } from './Pro
 import type { Zone } from '@/lib/zones/types';
 
 /**
- * Vue Carte de la prospection : même carte qu’avant, avec le switch Liste / Pipeline / Carte.
+ * Vue Carte de la prospection : même carte qu’avant, avec le switch Carte / Liste / Pipeline.
  */
 export default function ProspectionCarteView({
   points,

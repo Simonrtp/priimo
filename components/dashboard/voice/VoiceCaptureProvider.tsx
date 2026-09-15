@@ -12,6 +12,8 @@ import TypedNoteDialog from '@/components/dashboard/notes/TypedNoteDialog';
 export type VoiceCaptureOptions = {
   adresse?: string;
   parcelleId?: string;
+  /** Immeuble BAN : la note y est rattachée d’office. */
+  banId?: string;
   /** Ne pas quitter la page après validation (ex. prise en main). */
   resterSurPage?: boolean;
 };
@@ -42,6 +44,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [composeOpen, setComposeOpen] = useState(false);
   const [adresse, setAdresse] = useState<string | null>(null);
   const [parcelleId, setParcelleId] = useState<string | null>(null);
+  const [banId, setBanId] = useState<string | null>(null);
   const [resterSurPage, setResterSurPage] = useState(false);
   const [gestureSession, setGestureSession] = useState<{ adresse: string | null } | null>(null);
   const [gestureLocked, setGestureLocked] = useState(false);
@@ -62,6 +65,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     playRecordStartSound();
     setAdresse(opts?.adresse?.trim() || null);
     setParcelleId(opts?.parcelleId?.trim() || null);
+    setBanId(opts?.banId?.trim() || null);
     setResterSurPage(opts?.resterSurPage === true);
     setOpen(true);
   }, [device, gestureSession]);
@@ -75,6 +79,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setOpen(false);
     setAdresse(opts?.adresse?.trim() || null);
     setParcelleId(opts?.parcelleId?.trim() || null);
+    setBanId(opts?.banId?.trim() || null);
     setResterSurPage(opts?.resterSurPage === true);
     setComposeOpen(true);
   }, [gestureSession]);
@@ -90,6 +95,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     playRecordStartSound();
     setGestureLocked(false);
     setParcelleId(opts?.parcelleId?.trim() || null);
+    setBanId(opts?.banId?.trim() || null);
     setGestureSession({ adresse: opts?.adresse?.trim() || null });
   }, [composeOpen, gestureSession, open]);
 
@@ -102,6 +108,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const handleComposeClose = useCallback(() => {
     setAdresse(null);
     setParcelleId(null);
+    setBanId(null);
     setResterSurPage(false);
     setComposeOpen(false);
   }, []);
@@ -111,6 +118,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     streamPromiseRef.current = null;
     setAdresse(null);
     setParcelleId(null);
+    setBanId(null);
     setResterSurPage(false);
     setOpen(false);
     if (pending) {
@@ -153,6 +161,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
           ref={gestureRef}
           adresse={gestureSession.adresse}
           parcelleId={parcelleId}
+          banId={banId}
           streamPromise={streamPromiseRef.current}
           onLockedChange={setGestureLocked}
           onClose={endGestureSession}
@@ -165,6 +174,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             streamPromise={streamPromiseRef.current}
             adresse={adresse}
             parcelleId={parcelleId}
+            banId={banId}
             resterSurPage={resterSurPage}
           />
         ) : (
@@ -173,6 +183,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             streamPromise={streamPromiseRef.current}
             adresse={adresse}
             parcelleId={parcelleId}
+            banId={banId}
             resterSurPage={resterSurPage}
           />
         )
@@ -182,6 +193,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
           onClose={handleComposeClose}
           adresse={adresse}
           parcelleId={parcelleId}
+          banId={banId}
           resterSurPage={resterSurPage}
         />
       ) : null}

@@ -38,7 +38,7 @@ export default function OnboardingCarte({
   selectedParcelleId?: string | null;
 }) {
   const [viewport, setViewport] = useState<MapViewport | null>(null);
-  const parcelle = useParcelleMap(parcelles, viewport);
+  const parcelle = useParcelleMap(parcelles, viewport, { includeDpeDetail: parcelles });
 
   return (
     <div

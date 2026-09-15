@@ -6,7 +6,8 @@ type Db = SupabaseClient<Database>;
 
 /**
  * Recalcule building_activity après un import. Le seuil DPE n'existe qu'ici
- * (PUBLIC_DPE_MIN_AGE_MONTHS) — le SQL le reçoit en argument, sans INTERVAL en dur.
+ * (PUBLIC_DPE_MIN_AGE_MONTHS) : il alimente la livraison de leads, pas la carte.
+ * Le SQL le reçoit en argument, sans INTERVAL en dur.
  */
 export async function refreshBuildingActivity(
   db: Db,

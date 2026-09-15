@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import type { AgencyOverview } from '@/lib/today/agency-overview';
 import WorkspaceCard, { CardEyebrow } from '@/components/dashboard/workspace/WorkspaceCard';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 
 const STORAGE_KEY = 'priimo-vue-agence-collapsed';
 
@@ -97,7 +98,16 @@ export default function AgencyOverviewBlock({
                   key={row.memberId}
                   className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-black/[0.05] py-2 last:border-b-0"
                 >
-                  <p className="text-[14px] font-medium text-text-strong">{row.fullName}</p>
+                  <p className="flex min-w-0 items-center gap-2.5 text-[14px] font-medium text-text-strong">
+                    <ProfileAvatar
+                      firstName={row.firstName}
+                      lastName={row.lastName}
+                      avatarUrl={row.avatarUrl}
+                      size={28}
+                      className="shrink-0"
+                    />
+                    <span className="truncate">{row.fullName}</span>
+                  </p>
                   {row.volume === 0 ? (
                     <p className="text-[13px] text-text-subtle">Aucune activité</p>
                   ) : (

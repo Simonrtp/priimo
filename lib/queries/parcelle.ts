@@ -6,10 +6,18 @@ import {
   type RecordViewer,
 } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
-import { filterPublicDiagnostics, parseDpeLetter } from '@/lib/carte/dpe-public';
+import { parseDpeLetter } from '@/lib/carte/dpe-public';
+import {
+  DEFAULT_DPE_AGE_BUCKETS,
+  dpeDetailQueryRange,
+  needsDpeDetailRows,
+  toDateParam,
+  type DpeAgeBucket,
+} from '@/lib/carte/dpe-age';
+import { mergeCadastreImmeubles } from '@/lib/carte/cadastre-overlay';
+import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import { CADASTRE_OVERLAY_MIN_ZOOM, formatParcelleId } from '@/lib/carte/parcelle';
 import type {
-  CadastreImmeublePoint,
   ParcelleAgencyItem,
   ParcelleCopro,
   ParcelleFiche,
@@ -65,6 +73,11 @@ export const PARCELLE_READ_QUERIES = {
       'source',
     ] as const,
     when: 'fiche',
+  },
+  dpeFrais: {
+    table: 'building_dpe',
+    columns: ['ban_id', 'date_dpe', 'etiquette_dpe', 'surface', 'etage'] as const,
+    when: 'couche-frais',
   },
   copro: {
     table: 'building_copro',
@@ -365,13 +378,11 @@ export async function fetchParcelleFiche(args: {
   ]);
 
   const diagnostics = inSector
-    ? filterPublicDiagnostics(
-        dpeRows.map((row) => ({
-          date: row.date_dpe,
-          etiquette: parseDpeLetter(row.etiquette_dpe) ?? row.etiquette_dpe,
-          type: 'DPE',
-        })),
-      )
+    ? dpeRows.map((row) => ({
+        date: row.date_dpe,
+        etiquette: parseDpeLetter(row.etiquette_dpe) ?? row.etiquette_dpe,
+        type: 'DPE',
+      }))
     : [];
 
   const ventes = inSector
@@ -490,11 +501,13 @@ export type OverlayViewport = {
 };
 
 /**
- * Couche carte : buildings + building_activity uniquement (open data / agrégat).
- * Les notes parcelle passent par sessionDb + canSeeVoiceNote.
+ * Couche carte : buildings + building_activity (agrégat).
+ * Les diagnostics de moins de 12 mois ne sont pas dans l'agrégat : on lit
+ * building_dpe uniquement pour ces points, un par adresse.
+ * Ventes et copro restent sur l'agrégat. Les notes passent par sessionDb.
  */
 export async function fetchParcelleOverlays(args: {
-  /** Admin — buildings + building_activity uniquement. */
+  /** Admin — buildings + building_activity, et building_dpe si diagnostics frais. */
   publicDb: Db;
   /** Session — marqueurs notes agence. */
   agencyDb: Db;
@@ -502,13 +515,19 @@ export async function fetchParcelleOverlays(args: {
   postalCodes: readonly string[];
   viewer: RecordViewer;
   viewport: OverlayViewport | null;
+  dpeAges?: readonly DpeAgeBucket[];
+  includeDpeDetail?: boolean;
 }): Promise<ParcelleOverlay> {
   const openDataDb = args.publicDb;
   const codes = args.postalCodes.filter((c) => /^\d{5}$/.test(c));
-  const notes = await fetchParcelleNoteMarkers(args.agencyDb, args.agencyId, args.viewer);
+  const ages = args.dpeAges ?? DEFAULT_DPE_AGE_BUCKETS;
+  const [notes, sources] = await Promise.all([
+    fetchParcelleNoteMarkers(args.agencyDb, args.agencyId, args.viewer),
+    fetchCadastreSourceDates(openDataDb, codes),
+  ]);
 
   if (!args.viewport || args.viewport.zoom < CADASTRE_OVERLAY_MIN_ZOOM || codes.length === 0) {
-    return { immeubles: [], notes };
+    return { immeubles: [], notes, sources };
   }
 
   const { west, south, east, north } = args.viewport;
@@ -527,46 +546,107 @@ export async function fetchParcelleOverlays(args: {
 
   if (error) {
     console.error('[parcelle] overlay buildings', error.message);
-    return { immeubles: [], notes };
+    return { immeubles: [], notes, sources };
   }
 
   const buildings = (data ?? []) as unknown as BuildingRow[];
   const banIds = buildings.map((b) => b.ban_id);
-  // Admin : building_activity = agrégat Priimo (pas de table leads/contacts).
-  const activity = await selectByBanIds<ActivityRow>(
+  // Admin : building_activity = agrégat Priimo (pas de table ventes/copro de détail).
+  const activityPromise = selectByBanIds<ActivityRow>(
     openDataDb,
     'building_activity',
     cols(PARCELLE_READ_QUERIES.activity.columns),
     banIds,
   );
-  const activityByBan = new Map(activity.map((a) => [a.ban_id, a]));
+  const dpePromise =
+    args.includeDpeDetail && needsDpeDetailRows(ages)
+      ? selectDpeFrais(openDataDb, banIds, dpeDetailQueryRange(ages) ?? undefined)
+      : Promise.resolve([] as DpeRow[]);
 
-  const immeubles: CadastreImmeublePoint[] = [];
-  const seenBan = new Set<string>();
-  for (const b of buildings) {
-    if (seenBan.has(b.ban_id)) continue;
-    seenBan.add(b.ban_id);
-    if (b.lat == null || b.lng == null) continue;
-    const a = activityByBan.get(b.ban_id);
-    const etiquette = parseDpeLetter(a?.etiquette_dpe ?? null);
-    immeubles.push({
+  const [activity, dpeRows] = await Promise.all([activityPromise, dpePromise]);
+
+  const immeubles = mergeCadastreImmeubles({
+    buildings: buildings.map((b) => ({
       banId: b.ban_id,
       parcelleId: b.parcelle_id,
-      longitude: b.lng,
-      latitude: b.lat,
+      longitude: b.lng ?? 0,
+      latitude: b.lat ?? 0,
       adresse: b.adresse,
-      etiquetteDpe: etiquette,
-      nbDpe: a?.nb_dpe_total ?? 0,
-      nbPassoires: a?.nb_passoires ?? 0,
-      nbTransactions: a?.nb_transactions_total ?? 0,
-      dernierPrix: num(a?.dernier_prix),
-      prixM2: num(a?.prix_m2_median),
-      nbLots: a?.nb_lots ?? null,
-      procedureCopro: Boolean(a?.procedure_copro),
-    });
-  }
+    })),
+    activity: activity.map((a) => ({
+      banId: a.ban_id,
+      nbTransactions: a.nb_transactions_total ?? 0,
+      derniereTransactionLe: a.derniere_transaction_le,
+      prixM2: num(a.prix_m2_median),
+      dernierPrix: num(a.dernier_prix),
+      nbDpe: a.nb_dpe_total ?? 0,
+      dernierDpeLe: a.dernier_dpe_le,
+      etiquetteDpe: a.etiquette_dpe ?? null,
+      nbPassoires: a.nb_passoires ?? 0,
+      nbLots: a.nb_lots ?? null,
+      procedureCopro: Boolean(a.procedure_copro),
+    })),
+    dpeRows: dpeRows.map((row) => ({
+      banId: row.ban_id,
+      dateDpe: row.date_dpe,
+      etiquetteDpe: row.etiquette_dpe,
+      surface: num(row.surface),
+      etage: num(row.etage),
+    })),
+    ages,
+  });
 
-  return { immeubles, notes };
+  return { immeubles, notes, sources };
+}
+
+async function selectDpeFrais(
+  openDataDb: Db,
+  banIds: readonly string[],
+  range?: { from: Date; to: Date },
+): Promise<DpeRow[]> {
+  if (banIds.length === 0) return [];
+  const rows: DpeRow[] = [];
+  const columns = cols(PARCELLE_READ_QUERIES.dpeFrais.columns);
+  for (let i = 0; i < banIds.length; i += IN_CHUNK) {
+    const chunk = banIds.slice(i, i + IN_CHUNK);
+    let query = openDataDb.from('building_dpe').select(columns).in('ban_id', chunk);
+    if (range) {
+      query = query.gte('date_dpe', toDateParam(range.from)).lte('date_dpe', toDateParam(range.to));
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.error('[parcelle] building_dpe frais', error.message);
+      continue;
+    }
+    rows.push(...((data ?? []) as unknown as DpeRow[]));
+  }
+  return rows;
+}
+
+async function fetchCadastreSourceDates(openDataDb: Db, codes: readonly string[]): Promise<CadastreSourceDates> {
+  if (codes.length === 0) return { diagnosticsAt: null, ventesAt: null };
+  const dpeQuery = openDataDb
+    .from('building_dpe')
+    .select('created_at')
+    .in('code_postal', codes)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const ventesQuery = openDataDb
+    .from('building_activity')
+    .select('derniere_transaction_le')
+    .in('code_postal', codes)
+    .not('derniere_transaction_le', 'is', null)
+    .order('derniere_transaction_le', { ascending: false })
+    .limit(1);
+  const [dpeRes, ventesRes] = await Promise.all([dpeQuery, ventesQuery]);
+  if (dpeRes.error) console.error('[parcelle] fraîcheur DPE', dpeRes.error.message);
+  if (ventesRes.error) console.error('[parcelle] fraîcheur ventes', ventesRes.error.message);
+  const dpeRow = (dpeRes.data ?? [])[0] as { created_at?: string } | undefined;
+  const venteRow = (ventesRes.data ?? [])[0] as { derniere_transaction_le?: string | null } | undefined;
+  return {
+    diagnosticsAt: dpeRow?.created_at ?? null,
+    ventesAt: venteRow?.derniere_transaction_le ?? null,
+  };
 }
 
 /** Notes liées à une parcelle — sessionDb + canSeeVoiceNote uniquement. */

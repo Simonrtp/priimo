@@ -1,5 +1,6 @@
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import type { PublicDiagnostic } from '@/lib/carte/dpe-public';
+import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 
 export { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 export {
@@ -7,20 +8,25 @@ export {
   DPE_PALETTE,
   dpeFillColor,
   filterPublicDiagnostics,
+  formatDpeEtage,
   isPublicDpeEligible,
   isPublicDpeTooRecent,
   parseDpeLetter,
   type PublicDiagnostic,
 } from '@/lib/carte/dpe-public';
+export type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 
 export const PARCELLE_MIN_ZOOM = 16;
 /** Zoom initial quand on veut voir et cliquer les parcelles (prise en main, cadastre). */
 export const PARCELLE_FOCUS_ZOOM = 17;
 export const CADASTRE_OVERLAY_MIN_ZOOM = 14;
+/** Étiquette €/m² des ventes : invisible en dessous. */
+export const VENTE_PRICE_LABEL_MIN_ZOOM = 17;
 export const PARCELLE_SLATE = '#3D5A80';
 export const COPRO_PROCEDURE_FILL = '#1E3148';
 export const COPRO_FILL = '#5B7C8A';
 export const VENTE_FILL = '#3D5A80';
+export const VENTE_PRICE_HALO = '#FFFFFF';
 
 export type ParcelleVente = {
   date: string;
@@ -62,6 +68,8 @@ export type ParcelleNoteMarker = {
   longitude: number | null;
 };
 
+export type CadastreDpeGrain = 'adresse' | 'immeuble';
+
 export type CadastreImmeublePoint = {
   banId: string;
   parcelleId: string | null;
@@ -69,10 +77,16 @@ export type CadastreImmeublePoint = {
   latitude: number;
   adresse: string | null;
   etiquetteDpe: string | null;
+  /** adresse = diagnostic < 6 mois ; immeuble = agrégat au-delà. */
+  dpeGrain: CadastreDpeGrain | null;
+  dateDpe: string | null;
+  surfaceDpe: number | null;
+  etageDpe: number | null;
   nbDpe: number;
   nbPassoires: number;
   nbTransactions: number;
   dernierPrix: number | null;
+  derniereTransactionLe: string | null;
   prixM2: number | null;
   nbLots: number | null;
   procedureCopro: boolean;
@@ -81,6 +95,7 @@ export type CadastreImmeublePoint = {
 export type ParcelleOverlay = {
   immeubles: CadastreImmeublePoint[];
   notes: ParcelleNoteMarker[];
+  sources: CadastreSourceDates;
 };
 
 type Ring = readonly (readonly number[])[];

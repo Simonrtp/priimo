@@ -1,10 +1,7 @@
 import { getDevice } from '@/lib/device-server';
-import {
-  TodayDesktopSkeleton,
-  TodayMobileSkeleton,
-} from '@/components/dashboard/today/TodaySkeletons';
+import AccueilAmorce from '@/components/dashboard/accueil/AccueilAmorce';
 
 export default async function TodayLoading() {
   const device = await getDevice();
-  return device === 'mobile' ? <TodayMobileSkeleton /> : <TodayDesktopSkeleton />;
+  return <AccueilAmorce periodeDemandee={null} mobile={device === 'mobile'} />;
 }

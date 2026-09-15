@@ -32,10 +32,15 @@ const immeuble: CadastreImmeublePoint = {
   latitude: 48.85,
   adresse: '10 rue des Maraîchers',
   etiquetteDpe: 'E',
+  dpeGrain: 'adresse',
+  dateDpe: '2026-09-15',
+  surfaceDpe: 62,
+  etageDpe: 3,
   nbDpe: 28,
   nbPassoires: 3,
   nbTransactions: 15,
   dernierPrix: 509100,
+  derniereTransactionLe: '2024-03-12',
   prixM2: 9152,
   nbLots: 20,
   procedureCopro: false,
@@ -94,20 +99,36 @@ describe('hoverPreviewFromPoint', () => {
 });
 
 describe('hoverPreviewFromCadastre', () => {
-  it('montre la lettre DPE et le nombre de diagnostics', () => {
+  it('montre adresse, date, étiquette, surface et étage d’un diagnostic', () => {
     const preview = hoverPreviewFromCadastre(immeuble, 'dpe');
     assert.equal(preview.kindLabel, 'DPE');
     assert.equal(preview.title, 'Classe E');
     assert.equal(preview.letter, 'E');
     assert.ok(preview.lines.includes('10 rue des Maraîchers'));
-    assert.ok(preview.lines.includes('28 diagnostics'));
+    assert.ok(preview.lines.some((l) => l.includes('septembre') && l.includes('2026')));
+    assert.ok(preview.lines.includes('62 m²'));
+    assert.ok(preview.lines.includes('3e étage'));
   });
 
-  it('montre le dernier prix et le nombre de ventes', () => {
+  it('écrit étage non confirmé, jamais Rez-de-chaussée', () => {
+    const preview = hoverPreviewFromCadastre(
+      { ...immeuble, etageDpe: null, dpeGrain: 'immeuble' },
+      'dpe',
+    );
+    assert.ok(preview.lines.includes('étage non confirmé'));
+    assert.equal(
+      preview.lines.some((l) => /rez-de-chaussée/i.test(l)),
+      false,
+    );
+  });
+
+  it('montre la dernière vente, le médian et le nombre de ventes', () => {
     const preview = hoverPreviewFromCadastre(immeuble, 'ventes');
     assert.equal(preview.kindLabel, 'Vente');
-    assert.equal(preview.title, '509 100 €');
-    assert.ok(preview.lines.includes('15 ventes'));
+    assert.equal(preview.title, '10 rue des Maraîchers');
+    assert.ok(preview.lines.some((l) => l.includes('509') && l.includes('2024')));
+    assert.ok(preview.lines.some((l) => l.includes('€/m²') && l.includes('médian')));
+    assert.ok(preview.lines.includes('15 ventes connues'));
   });
 
   it('montre les lots et une procédure copro', () => {

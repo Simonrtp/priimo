@@ -9,7 +9,7 @@ import { persistThenExtract } from '@/lib/notes/persist';
 import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { suggestMemberFromText } from '@/lib/agency/match-member';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
-import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
+import { linkNoteToParcelle, linkNoteToImmeuble } from '@/lib/notes/parcelle-lien';
 import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
 import { notifierNoteTranscrite } from '@/lib/notifications/evenements';
 
@@ -90,6 +90,8 @@ export async function POST(req: Request) {
   const continueIdRaw = form.get('continueNoteId');
   const continueNoteId = typeof continueIdRaw === 'string' && continueIdRaw.trim() ? continueIdRaw.trim() : null;
   const parcelleId = normalizeParcelleId(typeof form.get('parcelleId') === 'string' ? String(form.get('parcelleId')) : null);
+  const banIdRaw = typeof form.get('banId') === 'string' ? String(form.get('banId')).trim() : '';
+  const banId = banIdRaw && !banIdRaw.startsWith('gps:') ? banIdRaw : '';
 
   const admin = createSupabaseAdminClient();
   const voiceNoteId = continueNoteId ?? crypto.randomUUID();
@@ -191,6 +193,7 @@ export async function POST(req: Request) {
           ...(typeof form.get('adresse') === 'string' && String(form.get('adresse')).trim()
             ? { adresse_normalisee: String(form.get('adresse')).trim().slice(0, 240) }
             : {}),
+          ...(banId ? { ban_id: banId } : {}),
         });
         if (error) throw error;
         return { id: voiceNoteId };
@@ -205,6 +208,9 @@ export async function POST(req: Request) {
 
   if (parcelleId) {
     await linkNoteToParcelle(admin, { agencyId: agency.id, noteId: savedId, parcelleId });
+  }
+  if (banId) {
+    await linkNoteToImmeuble(admin, { agencyId: agency.id, noteId: savedId, banId });
   }
 
   let suggestedAssignee: { id: string; fullName: string } | null = null;

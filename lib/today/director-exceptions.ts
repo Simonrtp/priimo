@@ -13,6 +13,9 @@ export type DirectorExceptionItem = {
 export type DirectorMemberExceptions = {
   memberId: string;
   fullName: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
   items: DirectorExceptionItem[];
 };
 
@@ -26,7 +29,13 @@ function memberQuery(href: string, memberId: string): string {
  * Même structure d’accueil, contenu distinct des cartes de tâches.
  */
 export function buildDirectorExceptions(input: {
-  members: readonly { id: string; fullName: string }[];
+  members: readonly {
+    id: string;
+    fullName: string;
+    firstName?: string;
+    lastName?: string;
+    avatarUrl?: string | null;
+  }[];
   leads: readonly { assignedTo: string | null; stageId: string | null }[];
   notes: readonly { createdBy: string | null; statut: string }[];
   activityVolumeByMemberId: Readonly<Record<string, number>>;
@@ -73,7 +82,14 @@ export function buildDirectorExceptions(input: {
     }
 
     if (items.length > 0) {
-      rows.push({ memberId: member.id, fullName: member.fullName, items });
+      rows.push({
+        memberId: member.id,
+        fullName: member.fullName,
+        firstName: member.firstName ?? '',
+        lastName: member.lastName ?? '',
+        avatarUrl: member.avatarUrl ?? null,
+        items,
+      });
     }
   }
 

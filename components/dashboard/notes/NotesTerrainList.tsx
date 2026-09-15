@@ -8,6 +8,7 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { formatParcelleId } from '@/lib/carte/parcelle-id';
 import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
+import { onNoteCreated } from '@/lib/notes/note-created-event';
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -48,6 +49,9 @@ export default function NotesTerrainList({
 
   useEffect(() => {
     void load();
+    return onNoteCreated(() => {
+      void load();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recharge quand la fiche change
   }, [entiteType, entiteId]);
 

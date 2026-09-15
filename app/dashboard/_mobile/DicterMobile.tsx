@@ -7,12 +7,14 @@ export default function DicterMobile({
   streamPromise,
   adresse,
   parcelleId,
+  banId,
   resterSurPage,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
   adresse?: string | null;
   parcelleId?: string | null;
+  banId?: string | null;
   resterSurPage?: boolean;
 }) {
   return (
@@ -22,6 +24,7 @@ export default function DicterMobile({
       variant="mobile"
       adresse={adresse}
       parcelleId={parcelleId}
+      banId={banId}
       resterSurPage={resterSurPage}
     />
   );

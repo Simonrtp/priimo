@@ -34,7 +34,7 @@ import { homeNoteAttachment, homeNoteLieuKind, recentNotesForHome } from '@/lib/
 import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
 import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
-import { ymdKey, startOfWeekYmd, parisYmd } from '@/lib/today/calendar';
+import { ymdKey, startOfWeekYmd } from '@/lib/today/calendar';
 import { centroidFromCoords } from '@/lib/today/quadrant';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
@@ -67,7 +67,7 @@ import AgentOnboarding from '@/components/dashboard/onboarding/AgentOnboarding';
 import OnboardingRelanceBand from '@/components/dashboard/onboarding/OnboardingRelanceBand';
 import BirthdayCard from '@/components/dashboard/onboarding/BirthdayCard';
 import { fetchAnniversairesDuJour } from '@/lib/queries/birthdays';
-import { citationDuJour } from '@/lib/activite/citations';
+import { lirePenseBete } from '@/lib/activite/pense-bete';
 import { calculerPilotage } from '@/lib/activite/pilotage';
 import { estPeriode } from '@/lib/activite/semaines';
 import { canSeeActivityOf } from '@/lib/agency/visibility';
@@ -113,7 +113,6 @@ export default async function TodayPage({
     <Suspense
       fallback={
         <AccueilAmorce
-          prenom={profile.first_name}
           periodeDemandee={sp.periode ?? null}
           mobile={device === 'mobile'}
         />
@@ -437,7 +436,13 @@ async function TodayContent({
         role: 'directeur',
         agencyPostalCodes: agency.codes_postaux ?? [],
         prefetched: {
-          members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+          members: members.map((m) => ({
+            id: m.id,
+            fullName: m.fullName,
+            firstName: m.firstName,
+            lastName: m.lastName,
+            avatarUrl: m.avatarUrl,
+          })),
           leads,
           contacts,
           biens,
@@ -448,7 +453,13 @@ async function TodayContent({
     const volumeById: Record<string, number> = {};
     for (const row of overview.activity) volumeById[row.memberId] = row.volume;
     directorExceptions = buildDirectorExceptions({
-      members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+      members: members.map((m) => ({
+        id: m.id,
+        fullName: m.fullName,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        avatarUrl: m.avatarUrl,
+      })),
       leads: visibleLeads.map((l) => ({ assignedTo: l.assignedTo, stageId: l.stageId })),
       notes: visibleNotes.map((n) => ({ createdBy: n.createdBy, statut: n.statut })),
       activityVolumeByMemberId: volumeById,
@@ -551,15 +562,16 @@ async function TodayContent({
 
   const membresActivite =
     isDirector && !previewingAgent
-      ? members.map((m) => ({ id: m.id, nom: m.fullName }))
+      ? members.map((m) => ({
+          id: m.id,
+          nom: m.fullName,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          avatarUrl: m.avatarUrl,
+        }))
       : [];
 
-  const prenomCite =
-    members.find((m) => m.id === membreActivite)?.firstName || profile.first_name;
-  const citation = citationDuJour({
-    jour: ymdKey(parisYmd(new Date())),
-    prenoms: prenomCite ? [prenomCite] : [],
-  });
+  const penseBete = lirePenseBete(profile.preferences);
 
   const maintenant = new Date();
   const repliCycleJours = agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS;
@@ -660,10 +672,11 @@ async function TodayContent({
     pilotage,
     adresses: adressesLivrees,
     totalAdresses: leadsNonPris.length,
+    sansLivraison: visibleLeads.length === 0,
     membres: membresActivite,
     membreSelectionne: membreActivite,
     moi: profile.id,
-    citation,
+    penseBete,
     // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
     // sous son propre Suspense, sans retenir le reste de l'écran.
     emploiDuTemps: (

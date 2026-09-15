@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { fetchParcelleOverlays } from '@/lib/queries/parcelle';
+import { parseDpeAgeParam } from '@/lib/carte/dpe-age';
 import { estEnAttente } from '@/lib/billing/acces';
 
 export const runtime = 'nodejs';
@@ -20,7 +21,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
   if (estEnAttente(agency)) {
-    return NextResponse.json({ immeubles: [], notes: [] });
+    return NextResponse.json({
+      immeubles: [],
+      notes: [],
+      sources: { diagnosticsAt: null, ventesAt: null },
+    });
   }
 
   const url = new URL(req.url);
@@ -47,6 +52,8 @@ export async function GET(req: Request) {
     postalCodes: agency.codes_postaux ?? [],
     viewer: viewerFromProfile(profile),
     viewport,
+    dpeAges: parseDpeAgeParam(url.searchParams.get('ages')),
+    includeDpeDetail: url.searchParams.get('dpe') === '1',
   });
 
   return NextResponse.json(overlays);

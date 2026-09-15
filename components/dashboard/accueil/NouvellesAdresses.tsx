@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, MapPin } from 'lucide-react';
 import FacadeLead from '@/components/dashboard/FacadeLead';
 import { FIELD } from '@/lib/today/field';
+import CarteVideAccueil, { BOUTON_CARTE_VIDE } from './CarteVideAccueil';
 
 export type AdresseLivree = {
   id: string;
@@ -12,6 +13,12 @@ export type AdresseLivree = {
   ownerName: string | null;
   signaux: readonly string[];
 };
+
+const ETAPES_VIDE = [
+  'Le secteur posé, Priimo livre les adresses encore libres.',
+  'Elles arrivent ici, déjà scorées.',
+  'Les prendre, c’est les mettre dans le suivi.',
+] as const;
 
 /**
  * Les leads livrés que personne n'a encore pris.
@@ -26,10 +33,29 @@ export type AdresseLivree = {
 export default function NouvellesAdresses({
   adresses,
   total,
+  sansLivraison = false,
 }: {
   adresses: readonly AdresseLivree[];
   total: number;
+  /** Compte tout neuf : aucun lead n’est encore arrivé. */
+  sansLivraison?: boolean;
 }) {
+  if (sansLivraison) {
+    return (
+      <CarteVideAccueil
+        titre="Mes nouvelles adresses"
+        accroche="Les adresses à prospecter."
+        etapes={ETAPES_VIDE}
+        icone="/carte.png"
+        action={
+          <Link href="/dashboard/prospection" className={BOUTON_CARTE_VIDE}>
+            Ouvrir la carte
+          </Link>
+        }
+      />
+    );
+  }
+
   if (total === 0) {
     return (
       <section className="flex h-full flex-col rounded-clay-lg bg-surface p-5 shadow-clay-sm">

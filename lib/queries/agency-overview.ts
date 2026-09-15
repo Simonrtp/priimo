@@ -73,7 +73,13 @@ function locatedFromSources({
 }
 
 export type AgencyOverviewPrefetched = {
-  members: readonly { id: string; fullName: string }[];
+  members: readonly {
+    id: string;
+    fullName: string;
+    firstName?: string;
+    lastName?: string;
+    avatarUrl?: string | null;
+  }[];
   leads: readonly Lead[];
   contacts: readonly Contact[];
   biens: readonly Bien[];
@@ -110,7 +116,13 @@ export async function fetchAgencyOverview({
       ]
     : await Promise.all([
         fetchMembersOfMyAgency(agencyId, memberships).then((list) =>
-          list.map((m) => ({ id: m.id, fullName: m.fullName })),
+          list.map((m) => ({
+            id: m.id,
+            fullName: m.fullName,
+            firstName: m.firstName,
+            lastName: m.lastName,
+            avatarUrl: m.avatarUrl,
+          })),
         ),
         fetchLeads(supabase),
         fetchContactsSafe(supabase),
@@ -131,7 +143,13 @@ export async function fetchAgencyOverview({
   }));
 
   return buildAgencyOverview({
-    members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+    members: members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      avatarUrl: m.avatarUrl,
+    })),
     notes: notes.map((n) => ({ createdBy: n.createdBy, createdAt: n.createdAt })),
     contacts,
     interactions,

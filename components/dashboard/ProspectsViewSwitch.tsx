@@ -12,9 +12,9 @@ const ITEMS: {
   Icon: typeof LayoutList;
   desktopOnly?: boolean;
 }[] = [
+  { id: 'carte', label: 'Carte', Icon: Map },
   { id: 'liste', label: 'Liste', Icon: LayoutList },
   { id: 'pipeline', label: 'Pipeline', Icon: Columns3, desktopOnly: true },
-  { id: 'carte', label: 'Carte', Icon: Map },
 ];
 
 export default function ProspectsViewSwitch({

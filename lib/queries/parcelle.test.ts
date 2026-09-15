@@ -78,8 +78,9 @@ describe('PARCELLE_READ_QUERIES', () => {
     }
   });
 
-  it('réserve les tables de détail à la fiche, pas à la couche', () => {
+  it('réserve ventes et copro à la fiche ; DPE frais peut alimenter la couche', () => {
     assert.equal(PARCELLE_READ_QUERIES.dpe.when, 'fiche');
+    assert.equal(PARCELLE_READ_QUERIES.dpeFrais.when, 'couche-frais');
     assert.equal(PARCELLE_READ_QUERIES.transactions.when, 'fiche');
     assert.equal(PARCELLE_READ_QUERIES.copro.when, 'fiche');
     assert.equal(PARCELLE_READ_QUERIES.activity.when, 'couche');

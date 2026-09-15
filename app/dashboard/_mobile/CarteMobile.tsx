@@ -21,10 +21,13 @@ import {
   anyCadastreLayer,
   persistMapLayers,
   readStoredMapLayers,
-  withCadastreToggled,
+  withCadastreLayerToggled,
+  withCadastreMenuToggled,
+  withDpeAgeToggled,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
+import type { DpeAgeBucket } from '@/lib/carte/dpe-age';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import {
@@ -40,6 +43,7 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
@@ -283,7 +287,10 @@ export default function CarteMobile({
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
   const cadastreOn = anyCadastreLayer(layers);
-  const parcelle = useParcelleMap(cadastreOn, viewport);
+  const parcelle = useParcelleMap(cadastreOn, viewport, {
+    dpeAges: layers.cadastreDpeAges,
+    includeDpeDetail: layers.cadastreDpe,
+  });
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
   const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
@@ -598,7 +605,7 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        parcellesEnabled={cadastreOn}
+        parcellesEnabled={layers.cadastre}
         activeParcelleIds={parcelle.immeubles
           .map((row) => row.parcelleId)
           .filter((id): id is string => Boolean(id))}
@@ -836,26 +843,29 @@ export default function CarteMobile({
           })}
           <CadastreLayerControls
             layers={layers}
-            onToggleCadastre={() =>
+            onToggleOverlay={(id: CadastreLayerId) =>
               setLayers((prev) => {
-                const next = withCadastreToggled(prev);
+                const next = withCadastreLayerToggled(prev, id);
                 persistMapLayers(next);
                 return next;
               })
             }
-            onToggleOverlay={(id: CadastreLayerId) =>
+            onToggleDpeAge={(bucket: DpeAgeBucket) =>
               setLayers((prev) => {
-                const next =
-                  id === 'dpe'
-                    ? { ...prev, cadastreDpe: !prev.cadastreDpe }
-                    : id === 'ventes'
-                      ? { ...prev, cadastreVentes: !prev.cadastreVentes }
-                      : { ...prev, cadastreCopro: !prev.cadastreCopro };
+                const next = withDpeAgeToggled(prev, bucket);
+                persistMapLayers(next);
+                return next;
+              })
+            }
+            onToggleMenu={() =>
+              setLayers((prev) => {
+                const next = withCadastreMenuToggled(prev);
                 persistMapLayers(next);
                 return next;
               })
             }
             mapZoom={mapZoom}
+            sources={parcelle.sources}
             compact
           />
         </ul>
@@ -937,9 +947,7 @@ export default function CarteMobile({
               </section>
             ))}
             <section>
-              <p className="mb-2 font-semibold uppercase text-text-subtle" style={{ fontSize: 11 }}>
-                Notes terrain
-              </p>
+              <NotePlusSurPlace adresse={selected.title} banId={selected.banId} />
               <NotesTerrainList entiteType="immeuble" entiteId={selected.banId} />
             </section>
           </div>

@@ -67,6 +67,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ memberId: stri
     brief: {
       memberId: member.id,
       fullName: member.fullName,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      avatarUrl: member.avatarUrl,
       lastActivityAt,
       leads: visibleLeads.map((l) => ({ id: l.id, address: l.address, score: l.score })),
       mandats: visibleBiens.map((b) => ({

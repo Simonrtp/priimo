@@ -1,17 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { emptyParcelleFiche, type CadastreImmeublePoint, type ParcelleFiche, type ParcelleNoteMarker } from '@/lib/carte/parcelle';
+import {
+  emptyParcelleFiche,
+  type CadastreImmeublePoint,
+  type ParcelleFiche,
+  type ParcelleNoteMarker,
+} from '@/lib/carte/parcelle';
+import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
+import { serializeDpeAgeBuckets, type DpeAgeBucket } from '@/lib/carte/dpe-age';
 
-/**
- * Combien de fiches on garde sous la main pendant une session de carte.
- * Un agent fait des allers-retours entre quelques parcelles voisines : les
- * relire au serveur à chaque clic rallume un squelette pour rien.
- */
 const FICHES_EN_MEMOIRE = 40;
+const EMPTY_SOURCES: CadastreSourceDates = { diagnosticsAt: null, ventesAt: null };
 
 function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche: ParcelleFiche) {
-  // Réinsérer remet la fiche en queue : la plus ancienne consultée sort en tête.
   cache.delete(parcelleId);
   cache.set(parcelleId, fiche);
   if (cache.size > FICHES_EN_MEMOIRE) {
@@ -20,16 +22,23 @@ function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche:
   }
 }
 
-export function useParcelleMap(enabled: boolean, viewport: { west: number; south: number; east: number; north: number; zoom: number } | null) {
+export function useParcelleMap(
+  enabled: boolean,
+  viewport: { west: number; south: number; east: number; north: number; zoom: number } | null,
+  options?: { dpeAges?: readonly DpeAgeBucket[]; includeDpeDetail?: boolean },
+) {
   const [immeubles, setImmeubles] = useState<CadastreImmeublePoint[]>([]);
   const [noteMarkers, setNoteMarkers] = useState<ParcelleNoteMarker[]>([]);
+  const [sources, setSources] = useState<CadastreSourceDates>(EMPTY_SOURCES);
   const [selectedParcelleId, setSelectedParcelleId] = useState<string | null>(null);
   const [fiche, setFiche] = useState<ParcelleFiche | null>(null);
   const [loading, setLoading] = useState(false);
 
   const cache = useRef<Map<string, ParcelleFiche>>(new Map());
-  /** La parcelle réellement à l'écran : une réponse doublée par un clic plus récent est jetée. */
   const demande = useRef<string | null>(null);
+  const agesProvided = options?.dpeAges != null;
+  const agesKey = serializeDpeAgeBuckets(options?.dpeAges ?? []);
+  const includeDpe = options?.includeDpeDetail === true;
 
   const reloadOverlays = useCallback(() => {
     if (!enabled) {
@@ -45,25 +54,33 @@ export function useParcelleMap(enabled: boolean, viewport: { west: number; south
       params.set('north', String(viewport.north));
       params.set('zoom', String(viewport.zoom));
     }
+    if (includeDpe) params.set('dpe', '1');
+    if (agesProvided) params.set('ages', agesKey);
     const qs = params.toString();
     void fetch(`/api/carte/parcelles${qs ? `?${qs}` : ''}`)
       .then((res) => res.json())
-      .then((data: { immeubles?: CadastreImmeublePoint[]; notes?: ParcelleNoteMarker[] }) => {
-        setImmeubles(data.immeubles ?? []);
-        setNoteMarkers(data.notes ?? []);
-      })
+      .then(
+        (data: {
+          immeubles?: CadastreImmeublePoint[];
+          notes?: ParcelleNoteMarker[];
+          sources?: CadastreSourceDates;
+        }) => {
+          setImmeubles(data.immeubles ?? []);
+          setNoteMarkers(data.notes ?? []);
+          if (data.sources) setSources(data.sources);
+        },
+      )
       .catch(() => {
         setImmeubles([]);
         setNoteMarkers([]);
       });
-  }, [enabled, viewport?.west, viewport?.south, viewport?.east, viewport?.north, viewport?.zoom]);
+  }, [enabled, includeDpe, agesProvided, agesKey, viewport?.west, viewport?.south, viewport?.east, viewport?.north, viewport?.zoom]);
 
   useEffect(() => {
     const t = window.setTimeout(() => reloadOverlays(), 180);
     return () => window.clearTimeout(t);
   }, [reloadOverlays]);
 
-  /** Lit la fiche au serveur et la met à l'écran si elle est toujours celle demandée. */
   const charger = useCallback(async (parcelleId: string) => {
     try {
       const res = await fetch(`/api/carte/parcelle/${encodeURIComponent(parcelleId)}`);
@@ -74,7 +91,6 @@ export function useParcelleMap(enabled: boolean, viewport: { west: number; south
       setFiche(data);
     } catch {
       if (demande.current !== parcelleId) return;
-      // Une revalidation ratée ne doit pas vider un panneau déjà rempli.
       setFiche((prev) => prev ?? emptyParcelleFiche(parcelleId));
     } finally {
       if (demande.current === parcelleId) setLoading(false);
@@ -85,10 +101,6 @@ export function useParcelleMap(enabled: boolean, viewport: { west: number; south
     (parcelleId: string) => {
       demande.current = parcelleId;
       setSelectedParcelleId(parcelleId);
-
-      // Déjà lue pendant cette session : elle revient à l'écran immédiatement
-      // et se revalide derrière. Le squelette est réservé à une vraie première
-      // ouverture.
       const connue = cache.current.get(parcelleId);
       setFiche(connue ?? null);
       setLoading(!connue);
@@ -113,6 +125,7 @@ export function useParcelleMap(enabled: boolean, viewport: { west: number; south
   return {
     immeubles,
     noteMarkers,
+    sources,
     selectedParcelleId,
     fiche,
     loading,

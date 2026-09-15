@@ -5,7 +5,8 @@ import {
   MAP_LAYERS_STORAGE_REV,
   migrateStoredMapLayers,
   parseMapLayers,
-  withCadastreToggled,
+  withCadastreLayerToggled,
+  withDpeAgeToggled,
 } from './layers';
 
 describe('parseMapLayers', () => {
@@ -25,23 +26,38 @@ describe('parseMapLayers', () => {
     assert.equal(parseMapLayers({ cadastre: true, cadastreDpe: true }).cadastreDpe, true);
   });
 
-  it('allume les points DPE en ouvrant Cadastre', () => {
-    const next = withCadastreToggled({ ...DEFAULT_MAP_LAYERS, cadastre: false, cadastreDpe: false });
+  it('ne couple plus Parcelles et Diagnostics', () => {
+    assert.equal(parseMapLayers({ cadastre: true }).cadastreDpe, false);
+    const next = withCadastreLayerToggled(
+      { ...DEFAULT_MAP_LAYERS, cadastre: false, cadastreDpe: false },
+      'parcelles',
+    );
     assert.equal(next.cadastre, true);
-    assert.equal(next.cadastreDpe, true);
+    assert.equal(next.cadastreDpe, false);
   });
 
-  it('allume DPE si Cadastre est déjà coché sans clé cadastreDpe', () => {
-    assert.equal(parseMapLayers({ cadastre: true }).cadastreDpe, true);
-    assert.equal(parseMapLayers({ cadastre: true, cadastreDpe: false }).cadastreDpe, false);
+  it('persiste les cases d’ancienneté', () => {
+    const parsed = parseMapLayers({ cadastreDpeAges: ['semaine', '3+'] });
+    assert.deepEqual(parsed.cadastreDpeAges, ['semaine', '3+']);
+    const toggled = withDpeAgeToggled(parsed, 'semaine');
+    assert.deepEqual(toggled.cadastreDpeAges, ['3+']);
   });
 
-  it('migre une session Cadastre sans DPE', () => {
+  it('persiste l’état du menu Cadastre', () => {
+    assert.equal(parseMapLayers({}).cadastreMenuOpen, true);
+    assert.equal(parseMapLayers({ cadastreMenuOpen: false }).cadastreMenuOpen, false);
+  });
+
+  it('reprend toutes les cases d’ancienneté si absentes', () => {
+    assert.equal(parseMapLayers({}).cadastreDpeAges.length, 6);
+  });
+
+  it('ne réallume plus DPE sur une session Cadastre seule en rev 2+', () => {
     const migrated = migrateStoredMapLayers(
       { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreDpe: false },
-      0,
+      2,
     );
-    assert.equal(migrated.state.cadastreDpe, true);
+    assert.equal(migrated.state.cadastreDpe, false);
     assert.equal(migrated.rev, MAP_LAYERS_STORAGE_REV);
   });
 });

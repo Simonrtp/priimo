@@ -39,11 +39,12 @@ export default forwardRef<
   {
     adresse?: string | null;
     parcelleId?: string | null;
+    banId?: string | null;
     streamPromise?: Promise<MediaStream> | null;
     onLockedChange: (locked: boolean) => void;
     onClose: () => void;
   }
->(function VoiceGestureCapture({ adresse = null, parcelleId = null, streamPromise, onLockedChange, onClose }, ref) {
+>(function VoiceGestureCapture({ adresse = null, parcelleId = null, banId = null, streamPromise, onLockedChange, onClose }, ref) {
   const router = useRouter();
   const { noteDictee, adresse: tourAdresse } = useTourneeDictation();
 
@@ -126,6 +127,7 @@ export default forwardRef<
     const addr = gpsAddress?.trim();
     if (addr) form.append('adresse', addr);
     if (parcelleId) form.append('parcelleId', parcelleId);
+    if (banId) form.append('banId', banId);
 
     try {
       const { queued, res } = await postFormOrQueue('/api/dashboard/voice-notes', form);

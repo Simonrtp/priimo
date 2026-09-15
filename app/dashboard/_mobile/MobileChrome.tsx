@@ -9,13 +9,21 @@ import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import { useUser } from '@/lib/hooks/useUser';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
+import { resoudreProspectionVue } from '@/lib/prospection/vue';
 
 /** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
-function hideShellHeader(pathname: string, vue: string | null): boolean {
+function hideShellHeader(pathname: string, search: URLSearchParams): boolean {
+  if (pathname.startsWith('/dashboard/tournee') || pathname.startsWith('/dashboard/carte')) {
+    return true;
+  }
+  if (!pathname.startsWith('/dashboard/prospection')) return false;
   return (
-    pathname.startsWith('/dashboard/tournee') ||
-    pathname.startsWith('/dashboard/carte') ||
-    (pathname.startsWith('/dashboard/prospection') && vue === 'carte')
+    resoudreProspectionVue({
+      vue: search.get('vue'),
+      lead: search.get('lead'),
+      filtre: search.get('filtre'),
+      fraicheur: search.get('fraicheur'),
+    }) === 'carte'
   );
 }
 
@@ -48,7 +56,7 @@ export default function MobileChrome() {
   const [accountOpen, setAccountOpen] = useState(false);
   const { openMobileSearch, closeMobileSearch, mobileSearchOpen } = useAssistant();
 
-  if (hideShellHeader(pathname, searchParams.get('vue'))) return null;
+  if (hideShellHeader(pathname, searchParams)) return null;
 
   const prenom = profile.first_name.trim();
   const greeting = prenom ? `Bonjour ${prenom}.` : 'Bonjour.';
@@ -113,7 +121,7 @@ export function MobileBackSwipe() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  if (hideShellHeader(pathname, searchParams.get('vue'))) return null;
+  if (hideShellHeader(pathname, searchParams)) return null;
 
   return (
     <div

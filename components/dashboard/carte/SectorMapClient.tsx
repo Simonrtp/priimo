@@ -23,10 +23,14 @@ import {
   persistLayersPanelOpen,
   readLayersPanelOpen,
   readStoredMapLayers,
-  withCadastreToggled,
+  withCadastreLayerToggled,
+  withCadastreMenuToggled,
+  withDpeAgeToggled,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
+import type { DpeAgeBucket } from '@/lib/carte/dpe-age';
+import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
@@ -44,6 +48,7 @@ import WorkspaceCard, { CardEyebrow } from '@/components/dashboard/workspace/Wor
 import { Field } from '@/components/dashboard/workspace/Field';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
@@ -82,9 +87,11 @@ function formatDate(iso: string): string {
 function LayersPanel({
   layers,
   onToggle,
-  onToggleCadastre,
   onToggleCadastreOverlay,
+  onToggleDpeAge,
+  onToggleCadastreMenu,
   mapZoom,
+  cadastreSources,
   counts,
   postal,
   onPostal,
@@ -99,12 +106,15 @@ function LayersPanel({
   period,
   onPeriod,
   onCollapse,
+  className = '',
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
-  onToggleCadastre: () => void;
   onToggleCadastreOverlay: (id: CadastreLayerId) => void;
+  onToggleDpeAge: (bucket: DpeAgeBucket) => void;
+  onToggleCadastreMenu: () => void;
   mapZoom: number | null;
+  cadastreSources: CadastreSourceDates;
   counts: Record<MapPointKind, number>;
   postal: string;
   onPostal: (v: string) => void;
@@ -119,10 +129,11 @@ function LayersPanel({
   period: MapPeriod;
   onPeriod: (v: MapPeriod) => void;
   onCollapse?: () => void;
+  className?: string;
 }) {
   return (
-    <WorkspaceCard className="shadow-clay-sm">
-      <div className="flex items-start justify-between gap-2">
+    <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden ${className}`}>
+      <div className="flex shrink-0 items-start justify-between gap-2">
         <CardEyebrow>Couches</CardEyebrow>
         {onCollapse ? (
           <button
@@ -138,96 +149,100 @@ function LayersPanel({
           </button>
         ) : null}
       </div>
-      <ul className="mt-3 flex flex-col gap-1.5">
-        {MAP_LAYER_ORDER.map((kind) => {
-          const active = layers[kind];
-          return (
-            <li key={kind}>
-              <label
-                className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors duration-fluid-subtle ease-in-out ${
-                  active ? 'bg-accent/10' : 'hover:bg-black/[0.03]'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-black/20 text-accent focus:ring-accent/30"
-                  style={{ accentColor: '#E8743C' }}
-                  checked={active}
-                  onChange={() => onToggle(kind)}
-                />
-                <span
-                  className={`min-w-0 flex-1 text-[13.5px] font-medium ${active ? 'text-text-strong' : 'text-text-muted'}`}
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <ul className="flex flex-col gap-1.5">
+          {MAP_LAYER_ORDER.map((kind) => {
+            const active = layers[kind];
+            return (
+              <li key={kind}>
+                <label
+                  className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors duration-fluid-subtle ease-in-out ${
+                    active ? 'bg-accent/10' : 'hover:bg-black/[0.03]'
+                  }`}
                 >
-                  {MAP_LAYER_LABELS[kind]}
-                </span>
-                <span className="tabular-nums text-[12.5px] text-text-subtle">{counts[kind]}</span>
-              </label>
-            </li>
-          );
-        })}
-        <CadastreLayerControls
-          layers={layers}
-          onToggleCadastre={onToggleCadastre}
-          onToggleOverlay={onToggleCadastreOverlay}
-          mapZoom={mapZoom}
-        />
-      </ul>
-
-      <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
-        {zones.length > 0 ? (
-          <Field label="Secteur" htmlFor="carte-secteur">
-            <Select
-              id="carte-secteur"
-              aria-label="Filtrer par secteur"
-              value={zoneId}
-              onChange={onZone}
-              options={[
-                { value: 'tous', label: 'Tous les secteurs' },
-                ...zones.map((z) => ({ value: z.id, label: z.nom })),
-              ]}
-            />
-          </Field>
-        ) : null}
-
-        {codes.length > 0 ? (
-          <Field label="Code postal" htmlFor="carte-cp">
-            <Select
-              id="carte-cp"
-              aria-label="Filtrer par code postal"
-              value={postal}
-              onChange={onPostal}
-              options={[
-                { value: 'tous', label: 'Tout le secteur' },
-                ...codes.map((code) => ({ value: code, label: code })),
-              ]}
-            />
-          </Field>
-        ) : null}
-
-        {showAssignee ? (
-          <Field label="Assigné à" htmlFor="carte-assigne">
-            <Select
-              id="carte-assigne"
-              aria-label="Filtrer par membre"
-              value={assignedTo}
-              onChange={onAssigned}
-              options={[
-                { value: 'tous', label: "Toute l'équipe" },
-                ...members.map((m) => ({ value: m.id, label: m.fullName })),
-              ]}
-            />
-          </Field>
-        ) : null}
-
-        <Field label="Période" htmlFor="carte-periode">
-          <Select
-            id="carte-periode"
-            aria-label="Filtrer par période"
-            value={String(period)}
-            onChange={(v) => onPeriod((v === 'all' ? 'all' : Number(v)) as MapPeriod)}
-            options={PERIOD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-black/20 text-accent focus:ring-accent/30"
+                    style={{ accentColor: '#E8743C' }}
+                    checked={active}
+                    onChange={() => onToggle(kind)}
+                  />
+                  <span
+                    className={`min-w-0 flex-1 text-[13.5px] font-medium ${active ? 'text-text-strong' : 'text-text-muted'}`}
+                  >
+                    {MAP_LAYER_LABELS[kind]}
+                  </span>
+                  <span className="tabular-nums text-[12.5px] text-text-subtle">{counts[kind]}</span>
+                </label>
+              </li>
+            );
+          })}
+          <CadastreLayerControls
+            layers={layers}
+            onToggleOverlay={onToggleCadastreOverlay}
+            onToggleDpeAge={onToggleDpeAge}
+            onToggleMenu={onToggleCadastreMenu}
+            mapZoom={mapZoom}
+            sources={cadastreSources}
           />
-        </Field>
+        </ul>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
+          {zones.length > 0 ? (
+            <Field label="Secteur" htmlFor="carte-secteur">
+              <Select
+                id="carte-secteur"
+                aria-label="Filtrer par secteur"
+                value={zoneId}
+                onChange={onZone}
+                options={[
+                  { value: 'tous', label: 'Tous les secteurs' },
+                  ...zones.map((z) => ({ value: z.id, label: z.nom })),
+                ]}
+              />
+            </Field>
+          ) : null}
+
+          {codes.length > 0 ? (
+            <Field label="Code postal" htmlFor="carte-cp">
+              <Select
+                id="carte-cp"
+                aria-label="Filtrer par code postal"
+                value={postal}
+                onChange={onPostal}
+                options={[
+                  { value: 'tous', label: 'Tout le secteur' },
+                  ...codes.map((code) => ({ value: code, label: code })),
+                ]}
+              />
+            </Field>
+          ) : null}
+
+          {showAssignee ? (
+            <Field label="Assigné à" htmlFor="carte-assigne">
+              <Select
+                id="carte-assigne"
+                aria-label="Filtrer par membre"
+                value={assignedTo}
+                onChange={onAssigned}
+                options={[
+                  { value: 'tous', label: "Toute l'équipe" },
+                  ...members.map((m) => ({ value: m.id, label: m.fullName })),
+                ]}
+              />
+            </Field>
+          ) : null}
+
+          <Field label="Période" htmlFor="carte-periode">
+            <Select
+              id="carte-periode"
+              aria-label="Filtrer par période"
+              value={String(period)}
+              onChange={(v) => onPeriod((v === 'all' ? 'all' : Number(v)) as MapPeriod)}
+              options={PERIOD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+            />
+          </Field>
+        </div>
       </div>
     </WorkspaceCard>
   );
@@ -292,7 +307,10 @@ export default function SectorMapClient({
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
   const cadastreOn = anyCadastreLayer(layers);
-  const parcelle = useParcelleMap(cadastreOn, viewport);
+  const parcelle = useParcelleMap(cadastreOn, viewport, {
+    dpeAges: layers.cadastreDpeAges,
+    includeDpeDetail: layers.cadastreDpe,
+  });
   const mapZoom = viewport?.zoom ?? null;
   const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
   const pointsDuSecteur = useMemo(
@@ -409,16 +427,16 @@ export default function SectorMapClient({
     setLayers((prev) => ({ ...prev, [kind]: !prev[kind] }));
   }
 
-  function toggleCadastre() {
-    setLayers((prev) => withCadastreToggled(prev));
+  function toggleCadastreOverlay(id: CadastreLayerId) {
+    setLayers((prev) => withCadastreLayerToggled(prev, id));
   }
 
-  function toggleCadastreOverlay(id: CadastreLayerId) {
-    setLayers((prev) => {
-      if (id === 'dpe') return { ...prev, cadastreDpe: !prev.cadastreDpe };
-      if (id === 'ventes') return { ...prev, cadastreVentes: !prev.cadastreVentes };
-      return { ...prev, cadastreCopro: !prev.cadastreCopro };
-    });
+  function toggleDpeAge(bucket: DpeAgeBucket) {
+    setLayers((prev) => withDpeAgeToggled(prev, bucket));
+  }
+
+  function toggleCadastreMenu() {
+    setLayers((prev) => withCadastreMenuToggled(prev));
   }
 
   const cadastreLayerFlags = {
@@ -431,9 +449,11 @@ export default function SectorMapClient({
     <LayersPanel
       layers={layers}
       onToggle={toggleLayer}
-      onToggleCadastre={toggleCadastre}
       onToggleCadastreOverlay={toggleCadastreOverlay}
+      onToggleDpeAge={toggleDpeAge}
+      onToggleCadastreMenu={toggleCadastreMenu}
       mapZoom={mapZoom}
+      cadastreSources={parcelle.sources}
       counts={counts}
       postal={postal}
       onPostal={setPostal}
@@ -476,7 +496,7 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled={cadastreOn}
+          parcellesEnabled={layers.cadastre}
           activeParcelleIds={parcelle.immeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
           parcelleNoteMarkers={parcelle.noteMarkers}
           selectedParcelleId={parcelle.selectedParcelleId}
@@ -499,33 +519,36 @@ export default function SectorMapClient({
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute right-3 top-3 z-20 hidden md:flex md:flex-col md:items-end md:gap-2">
-          {viewSwitcher ? <div className="pointer-events-auto">{viewSwitcher}</div> : null}
-          <div className="pointer-events-auto">
+        <div className="pointer-events-none absolute inset-y-3 right-3 z-20 hidden w-[min(100%-1.5rem,320px)] md:flex md:flex-col md:items-stretch md:gap-2">
+          {viewSwitcher ? (
+            <div className="pointer-events-auto shrink-0 self-end">{viewSwitcher}</div>
+          ) : null}
+          <div className="pointer-events-auto flex min-h-0 flex-1 flex-col">
             {layersPanelOpen ? (
-              <div className="fluid-reveal max-h-[calc(100dvh-6.5rem)] w-[min(100vw-1.5rem,320px)] overflow-y-auto">
-                <LayersPanel
-                  layers={layers}
-                  onToggle={toggleLayer}
-                  onToggleCadastre={toggleCadastre}
-                  onToggleCadastreOverlay={toggleCadastreOverlay}
-                  mapZoom={mapZoom}
-                  counts={counts}
-                  postal={postal}
-                  onPostal={setPostal}
-                  codes={codes}
-                  zoneId={zoneId}
-                  onZone={setZoneId}
-                  zones={zones}
-                  assignedTo={assignedTo}
-                  onAssigned={setAssignedTo}
-                  members={members}
-                  showAssignee={isDirector}
-                  period={period}
-                  onPeriod={setPeriod}
-                  onCollapse={() => setLayersPanelOpen(false)}
-                />
-              </div>
+              <LayersPanel
+                className="h-full shadow-clay-sm"
+                layers={layers}
+                onToggle={toggleLayer}
+                onToggleCadastreOverlay={toggleCadastreOverlay}
+                onToggleDpeAge={toggleDpeAge}
+                onToggleCadastreMenu={toggleCadastreMenu}
+                mapZoom={mapZoom}
+                cadastreSources={parcelle.sources}
+                counts={counts}
+                postal={postal}
+                onPostal={setPostal}
+                codes={codes}
+                zoneId={zoneId}
+                onZone={setZoneId}
+                zones={zones}
+                assignedTo={assignedTo}
+                onAssigned={setAssignedTo}
+                members={members}
+                showAssignee={isDirector}
+                period={period}
+                onPeriod={setPeriod}
+                onCollapse={() => setLayersPanelOpen(false)}
+              />
             ) : (
               <button
                 type="button"
@@ -533,7 +556,7 @@ export default function SectorMapClient({
                 aria-label="Afficher les couches"
                 aria-expanded={false}
                 title="Couches"
-                className="flex size-10 items-center justify-center rounded-clay border border-black/[0.08] bg-surface/95 text-text shadow-clay-sm backdrop-blur-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="flex size-10 self-end items-center justify-center rounded-clay border border-black/[0.08] bg-surface/95 text-text shadow-clay-sm backdrop-blur-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <Layers size={18} strokeWidth={2} aria-hidden />
               </button>
@@ -646,9 +669,7 @@ export default function SectorMapClient({
             </div>
 
             <div className="mt-5 border-t border-black/[0.06] pt-4">
-              <p className="mb-3 font-semibold uppercase text-text-subtle" style={{ fontSize: 11 }}>
-                Notes terrain
-              </p>
+              <NotePlusSurPlace adresse={selected.title} banId={selected.banId} />
               <NotesTerrainList entiteType="immeuble" entiteId={selected.banId} />
             </div>
           </aside>

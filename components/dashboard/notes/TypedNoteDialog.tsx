@@ -14,11 +14,13 @@ export default function TypedNoteDialog({
   onClose,
   adresse = null,
   parcelleId = null,
+  banId = null,
   resterSurPage = false,
 }: {
   onClose: () => void;
   adresse?: string | null;
   parcelleId?: string | null;
+  banId?: string | null;
   resterSurPage?: boolean;
 }) {
   const router = useRouter();
@@ -50,6 +52,14 @@ export default function TypedNoteDialog({
    */
   function submit(payload: TypedNoteSubmitPayload) {
     const coords = payload.banCoords ?? deviceCoords;
+    const liens = payload.liens.map((l) => ({
+      entiteType: l.entiteType,
+      entiteId: l.entiteId,
+    }));
+    const immeubleId = banId?.trim();
+    if (immeubleId && !liens.some((l) => l.entiteType === 'immeuble' && l.entiteId === immeubleId)) {
+      liens.unshift({ entiteType: 'immeuble', entiteId: immeubleId });
+    }
     const corps = JSON.stringify({
       text: payload.transcript,
       draft: payload.draft,
@@ -57,10 +67,7 @@ export default function TypedNoteDialog({
       latitude: coords?.latitude,
       longitude: coords?.longitude,
       parcelleId: parcelleId || undefined,
-      liens: payload.liens.map((l) => ({
-        entiteType: l.entiteType,
-        entiteId: l.entiteId,
-      })),
+      liens,
     });
     onClose();
     validerEnFond({

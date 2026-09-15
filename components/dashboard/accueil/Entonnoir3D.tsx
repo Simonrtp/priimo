@@ -1,7 +1,6 @@
 import { Filter } from 'lucide-react';
 import {
   ETAPES_ENTONNOIR,
-  entonnoirVide,
   type EtapeEntonnoir,
   type EtapeEntonnoirCle,
 } from '@/lib/activite/entonnoir';
@@ -109,12 +108,18 @@ export default function Entonnoir3D({
   etapes: readonly EtapeEntonnoir[];
   ratios: Ratios;
 }) {
-  const vide = entonnoirVide(etapes);
-  // Ordre canonique forcé : contacts → … → mandats (gros → petit).
   const parCle = new Map(etapes.map((e) => [e.cle, e]));
-  const ordonnees = ETAPES_ENTONNOIR.map((cle) => parCle.get(cle)).filter(
-    (e): e is EtapeEntonnoir => e != null,
-  );
+  const ordonnees = ETAPES_ENTONNOIR.map((cle) => {
+    const connue = parCle.get(cle);
+    if (connue) return connue;
+    return {
+      cle,
+      libelle: LIBELLE_REF[cle],
+      valeur: 0,
+      part: 0,
+      conversion: null,
+    };
+  });
 
   return (
     <section className="flex h-full min-h-0 flex-col rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6">
@@ -126,51 +131,44 @@ export default function Entonnoir3D({
       </div>
 
       <div className="mt-5 grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(240px,0.85fr)] lg:items-stretch">
-        {vide ? (
-          <p className="text-[13px] text-text-muted">
-            Rien à dessiner pour l’instant : l’entonnoir se remplit dès que je prends mon
-            premier lead.
-          </p>
-        ) : (
-          <div className="grid min-h-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] items-stretch gap-4 sm:gap-6">
-            <div className="flex items-center justify-center">
-              <svg
-                viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-                className="h-[280px] w-full max-w-[280px] sm:h-[300px]"
-                role="img"
-                aria-label="Entonnoir de conversion en quatre étages"
-              >
-                {[...ordonnees]
-                  .map((etape, i) => ({ etape, i }))
-                  .reverse()
-                  .map(({ etape, i }) => (
-                    <Etage3D
-                      key={etape.cle}
-                      etape={etape}
-                      index={i}
-                      y={RY + i * (SEG_H + GAP)}
-                    />
-                  ))}
-              </svg>
-            </div>
-
-            <ul
-              className="grid min-w-0 content-stretch divide-y divide-black/[0.07]"
-              style={{ gridTemplateRows: `repeat(${ordonnees.length}, 1fr)` }}
+        <div className="grid min-h-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] items-stretch gap-4 sm:gap-6">
+          <div className="flex items-center justify-center">
+            <svg
+              viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+              className="h-[280px] w-full max-w-[280px] sm:h-[300px]"
+              role="img"
+              aria-label="Entonnoir de conversion en quatre étages"
             >
-              {ordonnees.map((etape, i) => (
-                <li key={etape.cle} className="flex items-center justify-between gap-3 py-1">
-                  <span className="min-w-0 truncate text-[13px] font-medium text-text-muted sm:text-[14px]">
-                    {LIBELLE_REF[etape.cle]}
-                  </span>
-                  <span className="shrink-0 font-display text-[14px] font-bold tabular-nums text-blue-dark sm:text-[15px]">
-                    {formatePart(etape.part, i === 0)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              {[...ordonnees]
+                .map((etape, i) => ({ etape, i }))
+                .reverse()
+                .map(({ etape, i }) => (
+                  <Etage3D
+                    key={etape.cle}
+                    etape={etape}
+                    index={i}
+                    y={RY + i * (SEG_H + GAP)}
+                  />
+                ))}
+            </svg>
           </div>
-        )}
+
+          <ul
+            className="grid min-w-0 content-stretch divide-y divide-black/[0.07]"
+            style={{ gridTemplateRows: `repeat(${ordonnees.length}, 1fr)` }}
+          >
+            {ordonnees.map((etape, i) => (
+              <li key={etape.cle} className="flex items-center justify-between gap-3 py-1">
+                <span className="min-w-0 truncate text-[13px] font-medium text-text-muted sm:text-[14px]">
+                  {LIBELLE_REF[etape.cle]}
+                </span>
+                <span className="shrink-0 font-display text-[14px] font-bold tabular-nums text-blue-dark sm:text-[15px]">
+                    {formatePart(etape.part, i === 0 && etape.valeur > 0)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <RatiosMoyens ratios={ratios} />
       </div>

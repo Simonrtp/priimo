@@ -1,26 +1,48 @@
-import { citationDuJour } from '@/lib/activite/citations';
+import { estPeriode, type Intervalle, type Periode } from '@/lib/activite/semaines';
 import { intervalleAffiche } from '@/lib/activite/pilotage';
-import { estPeriode } from '@/lib/activite/semaines';
-import { parisYmd, ymdKey } from '@/lib/today/calendar';
-import { TodayDesktopSkeleton, TodayMobileSkeleton } from '@/components/dashboard/today/TodaySkeletons';
-import CitationCard from './CitationCard';
+import AccueilSquelette, { EnteteSquelette } from './AccueilSquelette';
+
+function jourLisible(cle: string): string {
+  const [y, m, d] = cle.split('-').map(Number);
+  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12)).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+}
+
+/** Même libellé que l’en-tête chargé, pour ne pas sauter au premier rendu. */
+function intervalleLisible(intervalle: Intervalle, periode: Periode): string {
+  const [ay, am] = intervalle.debut.split('-').map(Number);
+  const [by, bm] = intervalle.fin.split('-').map(Number);
+
+  if (periode === 'jour') return `${jourLisible(intervalle.debut)} ${ay}`;
+  if (periode === 'annee') return String(ay);
+  if (periode === 'mois') {
+    return new Date(Date.UTC(ay ?? 1970, (am ?? 1) - 1, 15, 12)).toLocaleDateString('fr-FR', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
+
+  const debut =
+    am === bm && ay === by
+      ? String(Number(intervalle.debut.slice(8)))
+      : jourLisible(intervalle.debut);
+  return `${debut} – ${jourLisible(intervalle.fin)} ${by}`;
+}
 
 /** En-tête + squelette : visibles avant les blocs lourds de l’Accueil. */
 export default function AccueilAmorce({
-  prenom,
   periodeDemandee,
   mobile,
 }: {
-  prenom: string;
   periodeDemandee: string | null;
   mobile: boolean;
 }) {
   const periode = estPeriode(periodeDemandee) ? periodeDemandee : 'semaine';
   const intervalle = intervalleAffiche(periode, null);
-  const citation = citationDuJour({
-    jour: ymdKey(parisYmd(new Date())),
-    prenoms: prenom ? [prenom] : [],
-  });
   const titre =
     periode === 'jour'
       ? 'Ma journée'
@@ -31,15 +53,13 @@ export default function AccueilAmorce({
           : 'Ma semaine';
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4">
-      <div className="flex flex-col gap-2 pt-2">
-        <p className="text-[22px] font-semibold tracking-tight text-text-strong">{titre}</p>
-        <p className="text-[12.5px] text-text-subtle">
-          {intervalle.debut === intervalle.fin ? intervalle.debut : `${intervalle.debut} – ${intervalle.fin}`}
-        </p>
-        <CitationCard texte={citation} />
-      </div>
-      {mobile ? <TodayMobileSkeleton masquerEntete /> : <TodayDesktopSkeleton masquerEntete />}
+    <div className="flex w-full min-w-0 flex-col gap-4 pb-10">
+      <EnteteSquelette
+        titre={titre}
+        intervalle={intervalleLisible(intervalle, periode)}
+        periodeActive={periode}
+      />
+      <AccueilSquelette mobile={mobile} />
     </div>
   );
 }

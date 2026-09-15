@@ -17,7 +17,7 @@ type Terme = {
 const TERMES: Terme[] = [
   { label: "chiffre d'affaires", Icon: TrendingUp, color: "#6366F1" },
   { label: "productivité", Icon: Zap, color: "#E05C5C" },
-  { label: "prospection", Icon: MapPinned, color: "#16A34A" },
+  { label: "prospection", Icon: MapPinned, color: "#5DC47C" },
 ];
 
 const INTERVALLE_MS = 2800;

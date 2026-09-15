@@ -15,6 +15,9 @@ const DAY_MS = 86_400_000;
 export type OverviewMember = {
   id: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string | null;
 };
 
 export type OverviewVoiceNote = {
@@ -36,6 +39,9 @@ export type OverviewLocated = {
 export type MemberActivityRow = {
   memberId: string;
   fullName: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
   voiceNotes: number;
   contacts: number;
   interactions: number;
@@ -94,6 +100,9 @@ export function buildMemberActivity(
     return {
       memberId: member.id,
       fullName: member.fullName,
+      firstName: member.firstName ?? '',
+      lastName: member.lastName ?? '',
+      avatarUrl: member.avatarUrl ?? null,
       voiceNotes,
       contacts: createdContacts,
       interactions: createdInteractions,

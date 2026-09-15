@@ -8,9 +8,16 @@ import { formatNoteWhen } from '@/lib/notes/format-when';
 import { lienLectureNote } from '@/lib/notes/lecture';
 import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
+import CarteVideAccueil from '@/components/dashboard/accueil/CarteVideAccueil';
 
 const CARTE =
   'flex flex-col rounded-clay-lg bg-white px-4 py-4 text-ink shadow-clay sm:px-5 sm:py-5';
+
+const ETAPES_VIDE = [
+  'On dicte en marchant. La note est déjà écrite.',
+  'On rattache à une adresse, ou plus tard.',
+  'Rien à ressaisir le soir.',
+] as const;
 
 export default function RecentNotesCard({
   notes,
@@ -28,17 +35,14 @@ export default function RecentNotesCard({
 
   if (notes.length === 0) {
     return (
-      <Puits className={className}>
-        <Entete onToutes={() => ouvrir()} />
-        <div className="mt-3">
-          <p className="text-pretty text-[13.5px] font-medium text-text-strong">
-            Aucune note dictée cette semaine
-          </p>
-          <div className="mt-3">
-            <NoteCreateChooser variant="toolbar" />
-          </div>
-        </div>
-      </Puits>
+      <CarteVideAccueil
+        className={className}
+        titre="Dernières notes"
+        accroche="Les nouvelles notes."
+        etapes={ETAPES_VIDE}
+        icone="/noter.png"
+        action={<NoteCreateChooser variant="toolbar" />}
+      />
     );
   }
 

@@ -11,6 +11,7 @@ import Select from '@/components/ui/Select';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import InviteCollaboratorDialog from './InviteCollaboratorDialog';
 import { ETAT_LABEL, type EtatOnboarding } from '@/lib/onboarding/parcours';
 
@@ -204,7 +205,15 @@ export default function EquipeClient({
               <li key={member.id}>
                 <WorkspaceCard>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <ProfileAvatar
+                        firstName={member.firstName}
+                        lastName={member.lastName}
+                        avatarUrl={member.avatarUrl}
+                        size={40}
+                        className="mt-0.5 shrink-0"
+                      />
+                      <div className="min-w-0">
                       <p
                         className="truncate text-[16px] font-semibold text-text-strong sm:text-[18px]"
                         style={{ letterSpacing: '-0.015em' }}
@@ -229,6 +238,7 @@ export default function EquipeClient({
                           />
                         </p>
                       ) : null}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">

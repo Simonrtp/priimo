@@ -40,7 +40,7 @@ export default function EtapeImmeuble({
   onSuivant: () => void;
 }) {
   const [viewport, setViewport] = useState<MapViewport | null>(null);
-  const parcelle = useParcelleMap(true, viewport);
+  const parcelle = useParcelleMap(true, viewport, { includeDpeDetail: true });
   // Sans jeton carte, aucune parcelle n'est cliquable : l'étape ne doit pas
   // se refermer sur l'agent. Elle reste franchissable.
   const [ouverte, setOuverte] = useState(!MAPBOX_TOKEN);

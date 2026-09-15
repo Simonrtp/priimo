@@ -1,9 +1,26 @@
-export type ProspectionVue = 'liste' | 'pipeline' | 'carte';
+export type ProspectionVue = 'carte' | 'liste' | 'pipeline';
 
 export function parseProspectionVue(raw: string | undefined | null): ProspectionVue {
+  if (raw === 'liste') return 'liste';
   if (raw === 'pipeline') return 'pipeline';
-  if (raw === 'carte') return 'carte';
-  return 'liste';
+  return 'carte';
+}
+
+/** Vue réelle : la carte est le défaut, sauf lien vers une liste (lead, filtre…). */
+export function resoudreProspectionVue(params: {
+  vue?: string | null;
+  lead?: string | null;
+  filtre?: string | null;
+  fraicheur?: string | null;
+}): ProspectionVue {
+  if (params.filtre === 'non-pris' || params.filtre === 'estimations') return 'liste';
+  if (!params.vue) {
+    if (params.lead) return 'liste';
+    if (params.filtre) return 'liste';
+    if (params.fraicheur) return 'liste';
+    return 'carte';
+  }
+  return parseProspectionVue(params.vue);
 }
 
 export function prospectionHref(current: URLSearchParams, vue: ProspectionVue): string {
@@ -14,7 +31,7 @@ export function prospectionHref(current: URLSearchParams, vue: ProspectionVue): 
     params.delete('itineraire');
     params.delete('tournee');
   }
-  if (vue === 'liste') params.delete('vue');
+  if (vue === 'carte') params.delete('vue');
   else params.set('vue', vue);
   const q = params.toString();
   return q ? `/dashboard/prospection?${q}` : '/dashboard/prospection';
@@ -23,7 +40,7 @@ export function prospectionHref(current: URLSearchParams, vue: ProspectionVue): 
 /** Ancienne URL `/dashboard/carte` → prospection carte. */
 export function carteVersProspectionHref(search: string | URLSearchParams = ''): string {
   const params = new URLSearchParams(typeof search === 'string' ? search : search.toString());
-  params.set('vue', 'carte');
+  params.delete('vue');
   const q = params.toString();
-  return `/dashboard/prospection?${q}`;
+  return q ? `/dashboard/prospection?${q}` : '/dashboard/prospection';
 }

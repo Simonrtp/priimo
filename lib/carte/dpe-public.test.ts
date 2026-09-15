@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   PUBLIC_DPE_MIN_AGE_MONTHS,
   filterPublicDiagnostics,
+  formatDpeEtage,
   isPublicDpeEligible,
   isPublicDpeTooRecent,
 } from './dpe-public';
@@ -46,5 +47,15 @@ describe('DPE fraîcheur publique', () => {
       ['DPE', 'amiante'],
     );
     assert.equal(kept[0]?.etiquette, 'E');
+  });
+});
+
+describe('formatDpeEtage', () => {
+  it('n’écrit jamais Rez-de-chaussée', () => {
+    assert.equal(formatDpeEtage(null), 'étage non confirmé');
+    assert.equal(formatDpeEtage(0), 'étage non confirmé');
+    assert.equal(formatDpeEtage(-1), 'étage non confirmé');
+    assert.equal(formatDpeEtage(1), '1er étage');
+    assert.equal(formatDpeEtage(3), '3e étage');
   });
 });

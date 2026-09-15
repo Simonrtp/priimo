@@ -42,11 +42,12 @@ export default function AccueilPilotage({
   pilotage,
   adresses,
   totalAdresses,
+  sansLivraison,
   membres,
   membreSelectionne,
   moi,
   aujourdhui,
-  citation,
+  penseBete,
   emploiDuTemps,
   tache,
   secteur,
@@ -56,13 +57,15 @@ export default function AccueilPilotage({
   pilotage: Pilotage;
   adresses: readonly AdresseLivree[];
   totalAdresses: number;
+  /** Aucun lead livré : l’état vide pédagogique, pas « tout est pris ». */
+  sansLivraison?: boolean;
   membres: readonly MembreOption[];
   membreSelectionne: string;
   /** Qui regarde : distingue « mes objectifs » de ceux d'un collaborateur. */
   moi: string;
   /** Les cartes du jour, réutilisées telles quelles depuis lib/today. */
   aujourdhui: ReactNode;
-  citation: string;
+  penseBete: string;
   /** L'emploi du temps, rendu par le serveur sous son propre Suspense. */
   emploiDuTemps?: ReactNode;
   /** Ce qu'il y a à faire à cette heure-ci. */
@@ -165,7 +168,7 @@ export default function AccueilPilotage({
           periode={vue.periode}
           intervalle={vue.intervalle}
           estPeriodeCourante={vue.estPeriodeCourante}
-          citation={citation}
+          penseBete={penseBete}
           enCours={enCours}
           onChanger={changer}
         />
@@ -198,7 +201,11 @@ export default function AccueilPilotage({
           bord bas, l'autre s'y étire. Aucune hauteur n'est imposée ici — une
           rangée figée déborderait dès que l'agenda demande plus de place. */}
       <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-        <NouvellesAdresses adresses={adresses} total={totalAdresses} />
+        <NouvellesAdresses
+          adresses={adresses}
+          total={totalAdresses}
+          sansLivraison={sansLivraison}
+        />
         {emploiDuTemps}
       </div>
       <div aria-busy={enCours} className={`max-md:hidden ${estompe}`}>

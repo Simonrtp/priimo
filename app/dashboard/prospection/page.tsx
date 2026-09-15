@@ -15,7 +15,7 @@ import {
   countLatestBatchLeads,
   shouldShowPipelineBanner,
 } from '@/lib/lead-delivery';
-import { parseProspectionVue } from '@/lib/prospection/vue';
+import { resoudreProspectionVue } from '@/lib/prospection/vue';
 import { fetchContactsSafe, fetchVoiceNotesSafe } from '@/lib/queries/contacts';
 import { fetchBiensSafe } from '@/lib/queries/biens';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
@@ -67,12 +67,12 @@ export default async function ProspectionPage({
     params.filtre === 'estimations'
       ? params.filtre
       : null;
-  const vue =
-    listFilter === 'non-pris' || listFilter === 'estimations'
-      ? 'liste'
-      : fraicheurFiltre && !vueRaw
-        ? 'liste'
-        : parseProspectionVue(vueRaw);
+  const vue = resoudreProspectionVue({
+    vue: vueRaw,
+    lead: params.lead,
+    filtre: listFilter,
+    fraicheur: fraicheurFiltre ? params.fraicheur : null,
+  });
 
   const supabase = await createSupabaseServerClient();
 

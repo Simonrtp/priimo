@@ -6,10 +6,14 @@ import { X } from 'lucide-react';
 import { formatNoteWhen } from '@/lib/notes/format-when';
 import { lienLectureNote } from '@/lib/notes/lecture';
 import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 
 export type MemberBrief = {
   memberId: string;
   fullName: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
   lastActivityAt: string | null;
   leads: { id: string; address: string; score: number }[];
   mandats: { id: string; address: string; mandatStatut: string }[];
@@ -51,25 +55,43 @@ export default function DirectorMemberPanel({
   }, [memberId]);
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="member-panel-title">
-      <button type="button" className="absolute inset-0 bg-[#1E3148]/25" aria-label="Fermer" onClick={onClose} />
-      <aside className="relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-black/[0.08] bg-surface p-5 shadow-clay-lg">
+    <div
+      className="fixed inset-0 z-50 flex justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="member-panel-title"
+    >
+      <button type="button" className="absolute inset-0 z-0 bg-[#1E3148]/25" aria-label="Fermer" onClick={onClose} />
+      <aside className="relative z-10 flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-black/[0.08] bg-surface p-5 shadow-clay-lg">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 id="member-panel-title" className="text-balance text-[18px] font-semibold text-text-strong">
-              {brief?.fullName ?? '…'}
-            </h2>
-            <p className="mt-1 text-[12.5px] text-text-muted">
-              {brief?.lastActivityAt
-                ? `Dernière activité · ${formatNoteWhen(brief.lastActivityAt)}`
-                : 'Aucune activité récente'}
-            </p>
+          <div className="flex min-w-0 items-start gap-3">
+            {brief ? (
+              <ProfileAvatar
+                firstName={brief.firstName}
+                lastName={brief.lastName}
+                avatarUrl={brief.avatarUrl}
+                size={40}
+                className="mt-0.5 shrink-0"
+              />
+            ) : (
+              <span className="mt-0.5 size-10 shrink-0 rounded-full bg-black/[0.06]" aria-hidden />
+            )}
+            <div className="min-w-0">
+              <h2 id="member-panel-title" className="text-balance text-[18px] font-semibold text-text-strong">
+                {brief?.fullName ?? '…'}
+              </h2>
+              <p className="mt-1 text-[12.5px] text-text-muted">
+                {brief?.lastActivityAt
+                  ? `Dernière activité · ${formatNoteWhen(brief.lastActivityAt)}`
+                  : 'Aucune activité récente'}
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="flex size-9 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <X size={18} strokeWidth={2} aria-hidden />
           </button>

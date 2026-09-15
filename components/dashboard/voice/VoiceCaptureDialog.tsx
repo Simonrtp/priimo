@@ -35,6 +35,7 @@ export default function VoiceCaptureDialog({
   variant = 'desktop',
   adresse = null,
   parcelleId = null,
+  banId = null,
   resterSurPage = false,
 }: {
   onClose: () => void;
@@ -42,6 +43,7 @@ export default function VoiceCaptureDialog({
   variant?: 'desktop' | 'mobile';
   adresse?: string | null;
   parcelleId?: string | null;
+  banId?: string | null;
   resterSurPage?: boolean;
 }) {
   const router = useRouter();
@@ -173,6 +175,7 @@ export default function VoiceCaptureDialog({
     const adresse = gpsAddress?.trim();
     if (adresse) form.append('adresse', adresse);
     if (parcelleId) form.append('parcelleId', parcelleId);
+    if (banId) form.append('banId', banId);
 
     const abortToReview = Boolean(continueId) || previous.length > 0;
 

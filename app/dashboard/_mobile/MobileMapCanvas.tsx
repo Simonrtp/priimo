@@ -19,6 +19,7 @@ import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
+  CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
@@ -266,15 +267,13 @@ export default function MobileMapCanvas({
         attributionControl={false}
         dragRotate={false}
         pitchWithRotate={false}
-        interactiveLayerIds={
-          parcellesEnabled
-            ? [
-                PARCELLES_FILL_LAYER_ID,
-                ...(cadastreLayers.cadastreVentes ? [CADASTRE_VENTES_LAYER_ID] : []),
-                ...(cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
-              ]
-            : []
-        }
+        interactiveLayerIds={[
+          ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
+          ...(!navigation && cadastreLayers.cadastreVentes
+            ? [CADASTRE_VENTES_POINT_LAYER_ID, CADASTRE_VENTES_LAYER_ID]
+            : []),
+          ...(!navigation && cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
+        ]}
         onMoveStart={() => onUserInteract?.()}
         onLoad={() => {
           const map = mapRef.current;
@@ -419,7 +418,7 @@ export default function MobileMapCanvas({
             longitude={fallback.longitude}
             latitude={fallback.latitude}
             anchor="center"
-            style={{ zIndex: 25 }}
+            style={{ zIndex: 36 }}
           >
             <AgencyLocationMarker />
           </Marker>

@@ -1,7 +1,8 @@
 /**
- * Seuil unique de fraîcheur DPE pour la couche publique.
- * Un diagnostic plus récent que ce seuil ne sort ni en point, ni en compteur, ni en popup.
- * Filtre côté serveur uniquement — modifier cette constante, une ligne.
+ * Seuil unique pour la livraison hebdomadaire de leads et le recalcul
+ * de building_activity. La carte et la fiche parcelle montrent tous les
+ * diagnostics du secteur, y compris ceux du jour — ne pas réutiliser
+ * ce filtre pour les masquer.
  */
 export const PUBLIC_DPE_MIN_AGE_MONTHS = 12;
 
@@ -48,6 +49,17 @@ export function parseDpeLetter(raw: string | null | undefined): DpeLetter | null
 
 export function dpeFillColor(letter: string | null | undefined): string {
   return DPE_PALETTE[parseDpeLetter(letter) ?? 'D'] ?? DPE_PALETTE.D;
+}
+
+/**
+ * Étage issu d'un DPE ADEME. Jamais « Rez-de-chaussée » : 0 / null
+ * veulent dire que l'étage n'est pas confirmé.
+ */
+export function formatDpeEtage(etage: number | null | undefined): string {
+  if (etage == null || !Number.isFinite(etage) || etage < 1) return 'étage non confirmé';
+  const n = Math.round(etage);
+  if (n === 1) return '1er étage';
+  return `${n}e étage`;
 }
 
 export type PublicDiagnostic = {

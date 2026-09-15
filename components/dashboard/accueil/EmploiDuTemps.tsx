@@ -606,8 +606,8 @@ function CarteConnexionGoogle({
           Mes rendez-vous de la semaine, à côté de mes adresses livrées
         </p>
         <p className="max-w-[30rem] text-pretty text-[13px] leading-relaxed text-text-muted">
-          Lecture seule : Priimo affiche l’agenda, il n’y écrit jamais. L’accès se coupe quand
-          vous voulez, ici ou chez Google.
+          Lecture seule : Priimo affiche l’agenda, il n’y écrit jamais. Vos données sont
+          sécurisées. L’accès se coupe quand vous voulez, ici ou chez Google.
         </p>
         <button
           type="button"
