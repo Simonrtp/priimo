@@ -29,7 +29,6 @@ export default function PenseBete({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dernierEnvoye = useRef(initial);
   const enVol = useRef<AbortController | null>(null);
-  const zone = useRef<HTMLTextAreaElement>(null);
   const erreurId = useId();
 
   const sauver = async (valeur: string) => {
@@ -76,7 +75,6 @@ export default function PenseBete({
         <textarea
           id="pense-bete"
           ref={(el) => {
-            zone.current = el;
             if (el) ajuster(el);
           }}
           value={texte}
