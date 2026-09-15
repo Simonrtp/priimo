@@ -1,14 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  Database,
-  Gauge,
+  Compass,
+  Kanban,
+  LineChart,
   MapPinned,
-  Share2,
-  ShieldCheck,
-  Sparkles,
+  Ruler,
 } from 'lucide-react';
 
 export type FeatureMenuItem = {
@@ -23,74 +19,61 @@ export type FeatureMenuGroup = {
   items: FeatureMenuItem[];
 };
 
+const DETECTION: FeatureMenuItem = {
+  title: 'Détection',
+  description: 'Les adresses encore libres',
+  href: '/fonctionnalites/detection',
+  icon: Compass,
+};
+
+const TERRAIN: FeatureMenuItem = {
+  title: 'Terrain & IA',
+  description: 'Plus rien à ressaisir le soir',
+  href: '/fonctionnalites/terrain',
+  icon: MapPinned,
+};
+
+const PILOTAGE: FeatureMenuItem = {
+  title: 'Pilotage commercial',
+  description: 'Des chiffres sans saisie',
+  href: '/fonctionnalites/pilotage',
+  icon: LineChart,
+};
+
+const PIPELINE: FeatureMenuItem = {
+  title: 'Pipeline & CRM',
+  description: 'Le mandat comme suite du terrain',
+  href: '/fonctionnalites/pipeline',
+  icon: Kanban,
+};
+
+const ESTIMATION: FeatureMenuItem = {
+  title: 'Estimation',
+  description: 'Le vendeur voit d’où vient le chiffre',
+  href: '/fonctionnalites/estimation',
+  icon: Ruler,
+};
+
 export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
   {
-    title: 'DÉTECTION',
-    items: [
-      {
-        title: 'Scoring prédictif',
-        description: 'Par quelle porte commencer',
-        href: '/fonctionnalites/scoring',
-        icon: Gauge,
-      },
-      {
-        title: 'Signaux expliqués',
-        description: 'Votre approche porte ou téléphone',
-        href: '/fonctionnalites/scoring#signaux',
-        icon: Sparkles,
-      },
-      {
-        title: 'Vérification marché',
-        description: 'Aucune adresse déjà en vente',
-        href: '/fonctionnalites/scoring#verification',
-        icon: ShieldCheck,
-      },
-      {
-        title: 'Sources croisées',
-        description: 'DPE, DVF, BODACC, cadastre, copropriétés',
-        href: '/fonctionnalites/scoring#sources',
-        icon: Database,
-      },
-    ],
+    title: 'Détection',
+    items: [DETECTION],
   },
   {
-    title: 'VOS LEADS',
-    items: [
-      {
-        title: 'Liste hebdomadaire',
-        description: 'Votre semaine prête chaque lundi',
-        href: '/fonctionnalites/livraison',
-        icon: CalendarDays,
-      },
-      {
-        title: 'Module Entreprises',
-        description: 'Un interlocuteur joignable après le 11 août',
-        href: '/fonctionnalites/sci',
-        icon: Building2,
-      },
-      {
-        title: 'Secteur exclusif',
-        description: 'Livré à vous seul',
-        href: '/fonctionnalites/livraison#secteur',
-        icon: MapPinned,
-      },
-    ],
+    title: 'Vos leads',
+    items: [PIPELINE, PILOTAGE],
   },
   {
-    title: 'SUR LE TERRAIN',
-    items: [
-      {
-        title: 'Suivi des prospects',
-        description: 'Qui a fait quoi, où ça en est',
-        href: '/fonctionnalites/livraison#suivi',
-        icon: ClipboardList,
-      },
-      {
-        title: 'Export et partage',
-        description: 'Vos tournées préparées',
-        href: '/fonctionnalites/livraison#export',
-        icon: Share2,
-      },
-    ],
+    title: 'Sur le terrain',
+    items: [TERRAIN, ESTIMATION],
   },
+];
+
+/** Ordre des 5 pages, pour footer et nav mobile. */
+export const FEATURE_PAGES_NAV: FeatureMenuItem[] = [
+  DETECTION,
+  TERRAIN,
+  PILOTAGE,
+  PIPELINE,
+  ESTIMATION,
 ];

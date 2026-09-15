@@ -11,7 +11,7 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { FEATURE_MENU_GROUPS } from '@/components/features-menu-data';
+import { FEATURE_PAGES_NAV } from '@/components/features-menu-data';
 
 type SectionKey = 'features' | 'resources';
 
@@ -340,22 +340,15 @@ export default function MobileNav() {
                     shown={shown}
                   >
                     <div className="space-y-4 pb-4 pl-1">
-                      {FEATURE_MENU_GROUPS.map((group) => (
-                        <div key={group.title}>
-                          <p className="mb-1.5 text-[10px] font-semibold uppercase text-accent [letter-spacing:0.08em]">
-                            {group.title}
-                          </p>
-                          <ul>
-                            {group.items.map((item) => (
-                              <li key={item.title}>
-                                <PanelLink href={item.href} onNavigate={close}>
-                                  {item.title}
-                                </PanelLink>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                      <ul>
+                        {FEATURE_PAGES_NAV.map((item) => (
+                          <li key={item.href}>
+                            <PanelLink href={item.href} onNavigate={close}>
+                              {item.title}
+                            </PanelLink>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </CollapsibleSection>
 

@@ -57,27 +57,27 @@ function ShareIcon() {
 
 const FEATURES: Feature[] = [
   {
-    title: "Un score prédictif sur chaque adresse",
-    body: "DVF, DPE ADEME, BODACC, registre des copropriétés, permis de construire, données privées : Priimo croise les signaux qui précèdent une vente et calcule une probabilité de vente de 0 à 100 pour chaque adresse de votre secteur. Résultat : vous ne frappez qu'aux portes qui comptent.",
-    href: "/fonctionnalites/scoring",
+    title: "Les adresses encore libres, avant les portails",
+    body: "Priimo croise diagnostics ADEME, DVF, BODACC, copropriétés et cadastre, note chaque adresse de 0 à 100, puis retire ce qui est déjà en annonce. Vous frappez là où le bien n'est pas encore en vente.",
+    href: "/fonctionnalites/detection",
     Icon: ChartIcon,
   },
   {
-    title: "Le module Entreprises : SCI et dirigeants",
-    body: "Dissolutions, liquidations, cessions de parts publiées au BODACC — avec l'identité du dirigeant et ses coordonnées professionnelles. Des mandats que personne d'autre ne voit venir avec un contact direct.",
-    href: "/fonctionnalites/sci",
+    title: "Plus rien à ressaisir le soir",
+    body: "Carte cadastre, notes dictées en marchant, tournée depuis l'agence : ce que vous voyez dans la rue est déjà dans Priimo. Le carnet reste dans la poche.",
+    href: "/fonctionnalites/terrain",
     Icon: MapPinIcon,
   },
   {
-    title: "Une liste travaillée en équipe",
-    body: "Statuts, assignation, notes : vous voyez qui travaille quoi, ce qui a donné un rendez-vous, et ce qui reste à couvrir. Plus rien ne tombe entre deux carnets.",
-    href: "/fonctionnalites/livraison#suivi",
+    title: "Des chiffres sans saisie",
+    body: "Taux de prise, entonnoir, activité par négociateur, fraîcheur du secteur : Priimo compte ce qui s'est passé. Un indicateur qui exige une saisie est un indicateur faux.",
+    href: "/fonctionnalites/pilotage",
     Icon: DashboardIcon,
   },
   {
-    title: "Export et partage en un clic",
-    body: "Exportez votre liste en CSV ou partagez un lien Google Maps : vos adresses en poche sur le terrain. Votre agent part en tournée avec ses adresses triées — pas avec un annuaire.",
-    href: "/fonctionnalites/livraison#export",
+    title: "Le mandat comme suite du terrain",
+    body: "Pipeline, contacts typés, biens, rapprochement acquéreurs, recherche unifiée. Ce que vous faites dehors n'attend plus un second logiciel.",
+    href: "/fonctionnalites/pipeline",
     Icon: ShareIcon,
   },
 ];

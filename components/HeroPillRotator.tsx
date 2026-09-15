@@ -51,16 +51,25 @@ export default function HeroPillRotator() {
 
   return (
     <span ref={rootRef} className="hero-pill-rotator" aria-hidden="true">
-      {TERMES.map(({ label, Icon, color }, i) => (
+      {TERMES.map(({ label, color }, i) => (
         <span
           key={label}
           className={`hero-pill${i === index ? " is-active" : ""}`}
           style={{ backgroundColor: color }}
         >
-          <Icon className="hero-pill-icon" aria-hidden />
+          <span className="hero-pill-icon-slot" />
           {label}
         </span>
       ))}
+      <span className="hero-pill-icon-well">
+        {TERMES.map(({ Icon, label }, i) => (
+          <Icon
+            key={label}
+            className={`hero-pill-icon${i === index ? " is-active" : ""}`}
+            strokeWidth={2.4}
+          />
+        ))}
+      </span>
     </span>
   );
 }

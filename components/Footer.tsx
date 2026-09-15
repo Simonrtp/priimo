@@ -22,9 +22,11 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Fonctionnalités",
     links: [
-      { label: "Scoring prédictif", href: "/fonctionnalites/scoring" },
-      { label: "Module SCI", href: "/fonctionnalites/sci" },
-      { label: "Liste hebdomadaire", href: "/fonctionnalites/livraison" },
+      { label: "Détection", href: "/fonctionnalites/detection" },
+      { label: "Terrain & IA", href: "/fonctionnalites/terrain" },
+      { label: "Pilotage commercial", href: "/fonctionnalites/pilotage" },
+      { label: "Pipeline & CRM", href: "/fonctionnalites/pipeline" },
+      { label: "Estimation", href: "/fonctionnalites/estimation" },
     ],
   },
   {

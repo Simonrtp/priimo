@@ -23,9 +23,10 @@ export default function HeroSection() {
             <h1 className="text-hero headline mx-auto mb-5 flex max-w-6xl flex-col items-center text-center sm:mb-6">
               <span className="w-full text-balance text-gray-900">
                 Le CRM immobilier qui propulse
+                <span className="sm:hidden"> votre</span>
               </span>
               <span className="mt-[0.12em] flex items-center justify-center gap-[0.28em] text-gray-900">
-                votre
+                <span className="hidden sm:inline">votre</span>
                 <span className="sr-only">
                   chiffre d&apos;affaires, productivité et prospection
                 </span>

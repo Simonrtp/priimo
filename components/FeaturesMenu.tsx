@@ -19,27 +19,27 @@ function FeatureMenuItemLink({
   description,
   icon,
   onNavigate,
-  compact = false,
 }: {
   href: string;
   title: string;
   description: string;
   icon: LucideIcon;
   onNavigate?: () => void;
-  compact?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className={`group flex items-start gap-3 rounded-2xl transition-all duration-200 hover:bg-[#FFF7F0] ${
-        compact ? 'px-2 py-1.5' : 'px-2.5 py-2.5'
-      }`}
+      className="group flex min-w-0 items-center gap-3.5 rounded-2xl px-2.5 py-2.5 transition-all duration-200 hover:bg-[#FFF7F0]"
       onClick={onNavigate}
     >
-      <MenuIconBox icon={icon} compact={compact} />
-      <span className="min-w-0 pt-0.5">
-        <span className="block text-[13px] font-semibold leading-snug text-gray-900">{title}</span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">{description}</span>
+      <MenuIconBox icon={icon} large />
+      <span className="min-w-0">
+        <span className="block text-[14px] font-semibold leading-snug text-gray-900">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-gray-500">
+          {description}
+        </span>
       </span>
     </Link>
   );
@@ -107,7 +107,7 @@ export function FeaturesMegaPanel({ open, onOpenChange, panelId }: FeaturesMenuP
     <div
       ref={panelRef}
       id={panelId}
-      className={`absolute left-0 top-[calc(100%-10px)] z-40 hidden w-[min(calc(100vw-2rem),44rem)] pt-3 lg:block ${
+      className={`absolute left-0 top-[calc(100%-10px)] z-40 hidden w-[min(calc(100vw-2rem),64rem)] pt-3 lg:block ${
         open ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
       onMouseEnter={() => onOpenChange(true)}
@@ -120,15 +120,15 @@ export function FeaturesMegaPanel({ open, onOpenChange, panelId }: FeaturesMenuP
         }`}
         role="menu"
       >
-        <div className="grid grid-cols-1 gap-4 px-5 py-5 sm:px-6 lg:grid-cols-3 lg:gap-6 lg:px-6 lg:py-6">
+        <div className="grid grid-cols-3 gap-x-6 px-5 py-5">
           {FEATURE_MENU_GROUPS.map((group) => (
             <div key={group.title} className="min-w-0">
-              <p className="mb-2 text-[10px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">
+              <p className="mb-2 px-2.5 text-[11px] font-semibold uppercase text-[#E8743C] [letter-spacing:0.08em]">
                 {group.title}
               </p>
-              <ul className="space-y-1">
+              <ul>
                 {group.items.map((item) => (
-                  <li key={item.title}>
+                  <li key={item.href}>
                     <FeatureMenuItemLink
                       href={item.href}
                       title={item.title}

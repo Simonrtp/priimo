@@ -28,6 +28,9 @@ const nextConfig = {
       { source: "/dashboard/overview/:path*", destination: "/dashboard", permanent: true },
       { source: "/dashboard/territory", destination: "/dashboard", permanent: true },
       { source: "/dashboard/territory/:path*", destination: "/dashboard", permanent: true },
+      { source: "/fonctionnalites/scoring", destination: "/fonctionnalites/detection", permanent: true },
+      { source: "/fonctionnalites/sci", destination: "/fonctionnalites/detection", permanent: true },
+      { source: "/fonctionnalites/livraison", destination: "/fonctionnalites/detection", permanent: true },
     ];
   },
   async headers() {

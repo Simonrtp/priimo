@@ -995,8 +995,42 @@ body {
   }
 }
 
+.feature-page .text-hero {
+  font-family: var(--font-sans), var(--font-body), system-ui, sans-serif;
+  font-weight: 700;
+  color: #111827;
+  font-size: 2rem;
+  line-height: 1.28;
+  letter-spacing: -0.022em;
+}
+@media (min-width: 640px) {
+  .feature-page .text-hero {
+    font-size: 2.5rem;
+    line-height: 1.26;
+  }
+}
+@media (min-width: 768px) {
+  .feature-page .text-hero {
+    font-size: 2.75rem;
+    line-height: 1.24;
+  }
+}
+@media (min-width: 1024px) {
+  .feature-page .text-hero {
+    font-size: 3.25rem;
+    line-height: 1.22;
+  }
+}
+@media (min-width: 1280px) {
+  .feature-page .text-hero {
+    font-size: 3.5rem;
+    line-height: 1.2;
+  }
+}
+
 /* Mot mis en avant dans le H1 — capsule type « Compte Pro », rotation des termes */
 .landing .hero-pill-rotator {
+  position: relative;
   display: inline-grid;
   justify-items: start;
   max-width: 100%;
@@ -1023,7 +1057,7 @@ body {
   text-align: left;
   opacity: 0;
   transform: rotateX(72deg);
-  transform-origin: left center;
+  transform-origin: calc(0.32em + 0.34em) center;
   pointer-events: none;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -1033,11 +1067,32 @@ body {
   opacity: 1;
   transform: rotateX(0deg);
 }
-.landing .hero-pill-icon {
+.landing .hero-pill-icon-slot {
+  display: block;
   width: 0.68em;
   height: 0.68em;
   flex-shrink: 0;
-  stroke-width: 2.4;
+}
+.landing .hero-pill-icon-well {
+  position: absolute;
+  left: 0.32em;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: grid;
+  width: 0.68em;
+  place-items: center;
+  color: #fff;
+  pointer-events: none;
+}
+.landing .hero-pill-icon {
+  grid-area: 1 / 1;
+  width: 0.68em;
+  height: 0.68em;
+  opacity: 0;
+}
+.landing .hero-pill-icon.is-active {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1045,6 +1100,9 @@ body {
     transition:
       opacity 450ms ease-out,
       transform 450ms ease-out;
+  }
+  .landing .hero-pill-icon {
+    transition: opacity 450ms ease-out;
   }
 }
 @media (max-width: 399px) {

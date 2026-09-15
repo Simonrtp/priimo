@@ -1,12 +1,30 @@
-export type FeatureSection = {
-  /** Clé stable pour piocher le texte dans les compositions de page. */
-  key?: string;
-  id?: string;
+export type FeatureCapture = {
+  /** Fichier attendu dans /public/captures/ */
+  file: string;
+  alt: string;
+  /** Consigne exacte : écran, vue, élément à cadrer. */
+  shot: string;
+};
+
+export type FeatureBenefit = {
   title: string;
-  paragraphs: string[];
+  body: string;
+  capture: FeatureCapture;
+};
+
+export type FeatureProofItem = {
+  source: string;
+  fact: string;
+};
+
+export type FeatureRelated = {
+  href: string;
+  label: string;
+  blurb: string;
 };
 
 export type FeaturePageContent = {
+  slug: string;
   meta: {
     title: string;
     description: string;
@@ -14,192 +32,439 @@ export type FeaturePageContent = {
   };
   label: string;
   h1: string;
-  accroche: string;
-  sections: FeatureSection[];
-  enClair: string;
+  mecanisme: [string, string];
+  benefits: FeatureBenefit[];
+  proofIntro: string;
+  proof: FeatureProofItem[];
+  related: [FeatureRelated, FeatureRelated];
 };
 
-/** Récupère une section par sa clé (texte inchangé — pour les compositions). */
-export function getSection(content: FeaturePageContent, key: string): FeatureSection {
-  const section = content.sections.find((s) => s.key === key);
-  if (!section) throw new Error(`Section introuvable : ${key}`);
-  return section;
-}
-
-export const SCORING_PAGE: FeaturePageContent = {
+export const DETECTION_PAGE: FeaturePageContent = {
+  slug: 'detection',
   meta: {
-    title: 'Scoring prédictif',
+    title: 'Détection',
     description:
-      'Comment Priimo lit 35 signaux immobiliers — DPE filtrés hors portails, DVF, BODACC, copropriétés — pour noter chaque adresse de 0 à 100 et expliquer pourquoi.',
-    path: '/fonctionnalites/scoring',
+      'Priimo filtre les diagnostics déjà devenus des annonces, note chaque adresse de 0 à 100 et livre la liste à une seule agence par secteur.',
+    path: '/fonctionnalites/detection',
   },
-  label: 'DÉTECTION',
-  h1: 'Comment Priimo sait qui va vendre ?',
-  accroche:
-    'Priimo croise 35 signaux — DPE filtrés hors portails, veille concurrentielle, copropriété, événements de vie, ventes en cascade… — pour repérer où une vente se prépare, et vous dire où aller.',
-  sections: [
+  label: 'Détection',
+  h1: 'Vous n’allez que là où le bien n’est pas encore en vente.',
+  mecanisme: [
+    'Priimo croise des bases publiques françaises : diagnostics ADEME, ventes DVF, registre des copropriétés, cadastre IGN, BODACC. Chaque adresse reçoit un score de 0 à 100, calculé sur la fraîcheur du diagnostic et cinq signaux annexes plafonnés.',
+    'Avant d’arriver dans votre tableau de bord, l’adresse est confrontée aux annonces des portails. Si le bien y figure, il sort de la liste. Ce qui reste, c’est un propriétaire qui a avancé — et un bien introuvable en ligne au jour de la vérification.',
+  ],
+  benefits: [
     {
-      key: 'contacts',
-      title: 'Des numéros à appeler, pas seulement une adresse',
-      paragraphs: [
-        'Chaque lead arrive avec des contacts professionnels quand ils existent. Si le bien est détenu par une société, vous pouvez avoir le numéro du propriétaire. Sinon, les numéros pros des voisins de l\'immeuble — commerces, cabinets, lignes professionnelles — pour travailler le terrain et le réseau local.',
-      ],
+      title: 'Un diagnostic récent ne vaut rien s’il est déjà une annonce.',
+      body: 'La plupart des diagnostics fraîchement déposés correspondent à un bien déjà publié. Priimo rapproche la carte d’identité du diagnostic (surface, classe énergétique, étage, localisation) de celle des annonces. Quand ça concorde, l’adresse n’est pas livrée. Nous affirmons l’absence des portails à la date de vérification — pas l’absence de mandat.',
+      capture: {
+        file: 'detection-verification-marche.png',
+        alt: 'Fiche prospect Priimo avec la mention de vérification marché et la date de contrôle.',
+        shot: 'Desktop · /dashboard/prospection · ouvrir une fiche lead « hors marché » ou « vérifié absent » · cadrer l’en-tête de fiche avec le bandeau de vérification marché et la date.',
+      },
     },
     {
-      key: 'signal',
-      title: 'Le signal que tout le monde a sous les yeux',
-      paragraphs: [
-        'Le DPE est obligatoire pour vendre ou louer, il coûte cher, il se commande des mois avant la mise en vente. Un DPE refait, c\'est souvent une intention qui se prépare — à condition que le bien ne soit pas déjà en ligne. Priimo le filtre systématiquement : chaque DPE est confronté aux annonces des portails (SeLoger, Leboncoin, et les autres). S\'il correspond à un bien déjà publié, il est écarté. Vous ne recevez jamais le DPE d\'un mandat qu\'une autre agence a déjà mis sur le marché.',
-      ],
+      title: 'Le score dit par quelle porte commencer, le pourquoi dit quoi dire.',
+      body: 'Chaque adresse est notée de 0 à 100. Le chiffre combine la fraîcheur du diagnostic — déjà filtré hors portails — et cinq signaux annexes plafonnés : activité de l’immeuble, durée de détention, copropriété, événements de vie, situation d’entreprise. Les signaux s’affichent en clair sur la fiche : « DPE G refait il y a trois semaines », « deux ventes dans l’immeuble cette année ». Un score sans explication ne se défend pas devant un négociateur.',
+      capture: {
+        file: 'detection-fiche-score-signaux.png',
+        alt: 'Fiche prospect avec le score 0 à 100 et les signaux expliqués.',
+        shot: 'Desktop · /dashboard/prospection · ouvrir un lead scoré · cadrer le score et le bloc de signaux expliqués (DPE, cascade, copro), sans le panneau interne des points.',
+      },
     },
     {
-      key: 'sources',
-      id: 'sources',
-      title: 'Bases de données, croisées',
-      paragraphs: [
-        'Une trentaine de signaux, croisés. DPE (ADEME), filtrés hors portails : l\'intention, pas l\'annonce déjà prise. DVF : les ventes réelles, l\'historique, les cascades d\'immeuble. Événements de vie : les moments où un projet de vente devient probable. BODACC : les SCI qui se dissolvent. Registre des copropriétés : les copropriétés fragilisées. Permis de construire : les chantiers en cours. Cadastre : la localisation précise. Brutes, ces sources sont illisibles. Priimo les croise — et écarte ce qui est déjà chez la concurrence.',
-      ],
+      title: 'La liste de la semaine n’appartient qu’à votre agence.',
+      body: 'Une seule agence par secteur. Les nouvelles adresses arrivent dans le tableau de bord, en liste courte, déjà scorées. Un lead non pris reste dans le lot commun de l’agence ; le prendre l’attribue et l’envoie dans le pipeline. Nous livrons moins d’adresses, et aucune qui soit déjà en ligne.',
+      capture: {
+        file: 'detection-nouvelles-adresses.png',
+        alt: 'Bloc Mes nouvelles adresses sur l’accueil Priimo, lot de la semaine.',
+        shot: 'Desktop · /dashboard · cadrer la carte « Mes nouvelles adresses » avec plusieurs leads non pris, scores visibles.',
+      },
     },
     {
-      key: 'score',
-      title: 'Un score, de 0 à 100',
-      paragraphs: [
-        'Chaque adresse est notée. Le score combine la fraîcheur du diagnostic (déjà vérifié hors portails), la pression réglementaire (loi Climat), l\'activité de l\'immeuble, la durée de détention et le contexte de la copropriété. Les meilleures adresses remontent.',
-      ],
-    },
-    {
-      key: 'pourquoi',
-      id: 'signaux',
-      title: 'Le pourquoi, toujours affiché',
-      paragraphs: [
-        'C\'est ce qui distingue Priimo. Chaque lead arrive avec ses signaux expliqués : « DPE G refait il y a 3 semaines — absent des portails », « 2 ventes dans l\'immeuble cette année », « détenu depuis 9 ans ». Un score sans explication est une boîte noire — et une boîte noire ne se défend pas devant un agent. Vous savez pourquoi cette adresse est là, donc vous savez quoi dire.',
-      ],
-    },
-    {
-      key: 'verification',
-      id: 'verification',
-      title:
-        'Un diagnostic récent ne suffit pas. Encore faut-il que le bien soit libre.',
-      paragraphs: [
-        'La plupart des diagnostics fraîchement réalisés correspondent à des biens déjà confiés à une agence. C\'est la raison pour laquelle une simple liste de DPE ne vaut rien — et pourquoi la veille concurrentielle est au cœur de Priimo.',
-        'Chaque adresse retenue est confrontée aux annonces réellement en ligne sur SeLoger, Leboncoin et les autres portails. Si le bien est en vente quelque part, il est retiré de votre liste avant livraison. Résultat : vous ne recevez jamais un DPE « après coup », quand une autre agence du secteur a déjà publié.',
-        'Ce qui reste est l\'anomalie utile : un propriétaire qui a engagé la démarche de vente, et dont le bien n\'est apparu nulle part.',
-      ],
-    },
-    {
-      key: 'verification-comment',
-      title: 'Comment',
-      paragraphs: [
-        'Une annonce ne publie jamais l\'adresse. Elle publie en revanche la carte d\'identité du bien : surface au mètre près, classe énergétique, classe GES, consommation, étage, localisation approchée. Le diagnostic contient la même carte d\'identité — plus l\'adresse. Priimo rapproche les deux sur les portails. Quand tout concorde, le bien est déjà sur le marché : le DPE est filtré, il ne vous est pas livré.',
-      ],
-    },
-    {
-      key: 'verification-disclaimer',
-      title: 'Ce que nous ne promettons pas',
-      paragraphs: [
-        'Un mandat confié sans publicité reste invisible. Nous affirmons l\'absence des portails au jour de la vérification, pas l\'absence de mandat.',
-      ],
+      title: 'Après le 11 août 2026, il reste des propriétaires que vous pouvez encore appeler.',
+      body: 'Le démarchage téléphonique des particuliers sans consentement s’arrête. Une société reste une personne morale : son dirigeant figure dans les registres publics. Priimo surveille le BODACC (dissolutions, liquidations, cessions de parts) et, quand l’identité professionnelle est publiée, la pose sur la fiche. L’échange porte sur la société et le bien qu’elle détient — pas sur la vie privée du dirigeant.',
+      capture: {
+        file: 'detection-fiche-entreprise.png',
+        alt: 'Fiche prospect entreprise avec l’événement BODACC et le dirigeant identifié.',
+        shot: 'Desktop · /dashboard/prospection?vue=liste · onglet Entreprises · ouvrir une fiche SCI · cadrer l’événement BODACC, la raison sociale et le bloc dirigeant.',
+      },
     },
   ],
-  enClair:
-    'Priimo ne vous donne pas des DPE au hasard. Il lit des faits vérifiables, filtre ce qui est déjà en ligne chez la concurrence, et vous montre ce qui reste vraiment ouvert.',
-};
-
-export const SCI_PAGE: FeaturePageContent = {
-  meta: {
-    title: 'Module Entreprises — SCI',
-    description:
-      'Après le 11 août 2026, le B2B reste joignable. Priimo surveille le BODACC et vous alerte sur les SCI avec le dirigeant nommément identifié.',
-    path: '/fonctionnalites/sci',
-  },
-  label: 'VOS LEADS',
-  h1: 'Après le 11 août, il reste des propriétaires que vous pourrez encore appeler.',
-  accroche:
-    'Le démarchage téléphonique des particuliers sera interdit sans consentement. Une SCI est une personne morale : son dirigeant reste joignable — et, dans la grande majorité des cas, nommément identifié.',
-  sections: [
+  proofIntro:
+    'Ce que Priimo lit est public. Ce qu’il ajoute, c’est le croisement, le filtre portails, et le classement.',
+  proof: [
     {
-      key: 'dissolution',
-      title: 'Une dissolution, c\'est un bien qui bouge',
-      paragraphs: [
-        'Une SCI qui se dissout, se liquide, ou dont les parts sont cédées : dans tous les cas, le patrimoine détenu va changer de mains. Ces événements sont publiés au BODACC, le bulletin officiel. Priimo les surveille en continu.',
-      ],
+      source: 'ADEME',
+      fact: 'Diagnostics de performance énergétique, date et classe — le signal d’intention, une fois retiré ce qui est déjà en annonce.',
     },
     {
-      key: 'contact',
-      title: 'Le seul lead avec un interlocuteur joignable',
-      paragraphs: [
-        'Pour un particulier, Priimo ne donne jamais de nom ni de téléphone : ce sont des données personnelles. Pour une société, c\'est différent. Les dirigeants et les coordonnées professionnelles figurent dans les registres légaux publics. Vous recevez donc : la société, l\'événement, le dirigeant nommément identifié, et son contact pro.',
-      ],
+      source: 'DVF · DGFiP',
+      fact: 'Ventes immobilières constatées : historique de l’immeuble, cascades, comparables.',
     },
     {
-      key: 'rare',
-      title: 'Un signal rare, jamais rempli artificiellement',
-      paragraphs: [
-        'Les dissolutions ne se commandent pas. Certaines semaines il y en a trois, d\'autres aucune. Priimo ne comble jamais un quota avec des SCI faibles pour faire du volume : vous recevez celles qui existent, quand elles existent.',
-      ],
+      source: 'Registre des copropriétés',
+      fact: 'Immatriculation et état de la copropriété, pour le contexte avant de sonner.',
     },
     {
-      key: 'cadre',
-      title: 'Cadre de l\'échange',
-      paragraphs: [
-        'L\'échange doit porter exclusivement sur la société et le bien qu\'elle détient.',
-      ],
+      source: 'Cadastre IGN',
+      fact: 'Parcelle et localisation, pour poser l’adresse sur la carte et sur le terrain.',
+    },
+    {
+      source: 'BODACC',
+      fact: 'Dissolutions, liquidations, cessions de parts de sociétés détentrices.',
     },
   ],
-  enClair:
-    'Pendant que vos concurrents attendent l\'annonce, la SCI est déjà en train de se dissoudre — et c\'est écrit noir sur blanc au Journal officiel.',
-};
-
-export const LIVRAISON_PAGE: FeaturePageContent = {
-  meta: {
-    title: 'Liste hebdomadaire et suivi',
-    description:
-      'Chaque lundi, votre semaine de prospection est déjà préparée : liste courte scorée, secteur exclusif, suivi d\'équipe et export Google Maps.',
-    path: '/fonctionnalites/livraison',
-  },
-  label: 'SUR LE TERRAIN',
-  h1: 'Le lundi, votre semaine de prospection est déjà préparée.',
-  accroche:
-    'Une liste courte, priorisée par score, sur un secteur qui n\'appartient qu\'à vous — et de quoi la travailler à plusieurs sans jamais frapper deux fois à la même porte.',
-  sections: [
+  related: [
     {
-      key: 'liste',
-      title: 'La liste du lundi',
-      paragraphs: [
-        'Chaque semaine, les nouvelles adresses prioritaires arrivent dans votre tableau de bord. Une liste courte, scorée : vous savez par où commencer. Nous préférons vous livrer moins d\'adresses, mais aucune qui soit déjà prise.',
-      ],
+      href: '/fonctionnalites/terrain',
+      label: 'Terrain & IA',
+      blurb: 'La liste ne sert que si elle sort. Carte, dictée, tournée.',
     },
     {
-      key: 'secteur',
-      id: 'secteur',
-      title: 'Votre secteur n\'appartient qu\'à vous',
-      paragraphs: [
-        'Une seule agence par zone. Si votre secteur est pris, il est pris. Un avantage que tout le monde possède n\'est plus un avantage.',
-      ],
-    },
-    {
-      key: 'suivi',
-      id: 'suivi',
-      title: 'Travailler la liste à plusieurs',
-      paragraphs: [
-        'Chaque adresse a un statut (nouveau, contacté, intéressé, pas intéressé), peut être assignée à un collaborateur, et reçoit des notes. Vous voyez qui a fait quoi, et où ça en est. Deux agents ne frappent jamais à la même porte.',
-      ],
-    },
-    {
-      key: 'feedback',
-      title: 'Dites-nous ce que ça a donné',
-      paragraphs: [
-        'Pour chaque adresse travaillée, vous indiquez le résultat : mandat signé, vendeur perdu, pas vendeur, injoignable. Ce retour n\'est pas décoratif : il entraîne le moteur. Plus vous nous dites la vérité du terrain, plus les listes suivantes sont justes. C\'est la seule façon honnête de faire progresser un scoring.',
-      ],
-    },
-    {
-      key: 'export',
-      id: 'export',
-      title: 'Sur le terrain',
-      paragraphs: [
-        'Export CSV, ou lien Google Maps partagé en un clic : votre tournée de boîtage est prête. Un canal qui prend de l\'importance quand le téléphone ferme le 11 août.',
-      ],
+      href: '/fonctionnalites/pipeline',
+      label: 'Pipeline & CRM',
+      blurb: 'Une adresse prise devient un dossier, pas une ligne oubliée.',
     },
   ],
-  enClair: 'Priimo ne fait pas les mandats à votre place. Il vous évite de frapper aux mauvaises portes.',
 };
+
+export const TERRAIN_PAGE: FeaturePageContent = {
+  slug: 'terrain',
+  meta: {
+    title: 'Terrain & IA',
+    description:
+      'Carte cadastre, notes dictées en marchant, tournées depuis l’agence : Priimo range le terrain pendant que vous y êtes.',
+    path: '/fonctionnalites/terrain',
+  },
+  label: 'Terrain & IA',
+  h1: 'Plus rien à ressaisir le soir.',
+  mecanisme: [
+    'La carte pose le cadastre sous vos adresses. Un immeuble ouvre les ventes passées, la copropriété, les diagnostics — avant d’appuyer sur la sonnette.',
+    'Vous dictez en marchant. Priimo rattache la note à l’adresse. La tournée se calcule depuis l’agence ; le mode sortie tient dans la poche, y compris hors réseau le temps de la file d’attente.',
+  ],
+  benefits: [
+    {
+      title: 'L’immeuble se lit avant de sonner.',
+      body: 'En vue carte, les couches cadastre montrent les DPE, les ventes DVF et les copropriétés sur la parcelle. Ce n’est pas un fond de plan : c’est la même base que la fiche, posée dans la rue. Vous savez si l’immeuble a bougé, et ce que vous pouvez dire en bas d’escalier.',
+      capture: {
+        file: 'terrain-carte-cadastre.png',
+        alt: 'Carte Priimo avec couches cadastre, DPE et ventes sur un îlot.',
+        shot: 'Desktop · /dashboard/prospection?vue=carte · activer les couches DPE / ventes / copropriétés · cadrer un îlot avec pastilles et panneau parcelle ouvert.',
+      },
+    },
+    {
+      title: 'La phrase dite dans la rue est déjà classée.',
+      body: '« Dicter une note » depuis le menu de création lance l’enregistrement. Au relâchement, le texte est proposé, rattaché à l’adresse ou à l’immeuble, et visible par l’équipe selon les règles de l’agence. Pas de carnet. Pas de recopie le soir au retour.',
+      capture: {
+        file: 'terrain-dictee-note.png',
+        alt: 'Feuille de dictée vocale Priimo avec le texte proposé et l’adresse rattachée.',
+        shot: 'Mobile ou desktop · menu Créer → Dicter une note · cadrer la feuille de relecture (transcription + adresse), pas l’écran d’autorisation micro.',
+      },
+    },
+    {
+      title: 'La tournée part de l’agence, pas d’un tableur.',
+      body: 'Priimo trace un parcours piéton depuis le siège, sur les adresses à voir. Sur mobile, le mode sortie n’affiche que ce qu’il faut pour la porte suivante. Ce qui a été vu met à jour la fraîcheur de la zone : vous ne reconstruisez pas la tournée le lundi matin.',
+      capture: {
+        file: 'terrain-tournee-mobile.png',
+        alt: 'Mode tournée mobile Priimo avec la prochaine adresse et l’itinéraire.',
+        shot: 'Mobile · /dashboard/tournee · cadrer l’écran guidage (adresse courante, suivante, carte). Si la démo est desktop, /dashboard/prospection?vue=carte avec l’itinéraire affiché.',
+      },
+    },
+    {
+      title: 'Vous voyez où vous êtes passé, et où le secteur a vieilli.',
+      body: 'Les zones de prospection découpent le territoire de l’agence. La fraîcheur se calcule sur les passages observés — pas sur une case cochée à la main. Une zone froide, c’est une zone à remettre dans la tournée, pas un sentiment.',
+      capture: {
+        file: 'terrain-zones-fraicheur.png',
+        alt: 'Carte du secteur avec les zones colorées selon la fraîcheur de passage.',
+        shot: 'Desktop · /dashboard · carte Mon secteur, ou /dashboard/prospection?vue=carte avec le calque de fraîcheur · cadrer le coloriage des zones et la légende.',
+      },
+    },
+  ],
+  proofIntro:
+    'Le terrain n’est plus un angle mort du logiciel. Ce qui se passe dehors écrit dans la même base que le pipeline.',
+  proof: [
+    {
+      source: 'Cadastre IGN',
+      fact: 'Parcelles sous la carte, pour coller l’adresse au bâtiment réel.',
+    },
+    {
+      source: 'DVF · ADEME · copropriétés',
+      fact: 'Les mêmes sources que la détection, lisibles immeuble par immeuble sur la carte.',
+    },
+    {
+      source: 'Notes vocales',
+      fact: 'Enregistrement sur place, relecture, rattachement à l’adresse — file hors ligne si le réseau lâche.',
+    },
+  ],
+  related: [
+    {
+      href: '/fonctionnalites/detection',
+      label: 'Détection',
+      blurb: 'D’où viennent les adresses que vous allez frapper.',
+    },
+    {
+      href: '/fonctionnalites/pilotage',
+      label: 'Pilotage commercial',
+      blurb: 'Les passages et les prises, lus sans tableau Excel.',
+    },
+  ],
+};
+
+export const PILOTAGE_PAGE: FeaturePageContent = {
+  slug: 'pilotage',
+  meta: {
+    title: 'Pilotage commercial',
+    description:
+      'Taux de prise, entonnoir, activité par négociateur, couverture du secteur : Priimo compte ce qui s’est passé, pas ce qu’on a saisi.',
+    path: '/fonctionnalites/pilotage',
+  },
+  label: 'Pilotage commercial',
+  h1: 'Un chiffre qui exige une saisie est un chiffre faux.',
+  mecanisme: [
+    'Priimo observe les prises dans le lot livré, les étapes du pipeline, les estimations ouvertes, les passages sur le secteur. Aucun de ces indicateurs n’est un champ à remplir le vendredi soir.',
+    'Le directeur lit l’agence telle qu’elle a travaillé. Le négociateur lit sa propre semaine. Même base, deux profondeurs.',
+  ],
+  benefits: [
+    {
+      title: 'Vous voyez ce qui a été pris dans le lot, et ce qui dort.',
+      body: 'Les leads de la semaine arrivent non attribués. Le compteur de non-pris se met à jour quand quelqu’un prend une adresse — pas quand on déclare l’avoir « travaillée ». Un lot qui stagne se lit en une ligne sur l’accueil.',
+      capture: {
+        file: 'pilotage-compteurs-accueil.png',
+        alt: 'Compteurs d’activité de l’accueil Priimo, dont les leads non pris.',
+        shot: 'Desktop · /dashboard · cadrer la rangée de compteurs (contacts physiques, immeubles, leads, estimations) et, si visible, le volume de non-pris.',
+      },
+    },
+    {
+      title: 'L’entonnoir suit des dossiers, pas des déclarations.',
+      body: 'Chaque colonne du pipeline est un engagement : la fiche n’avance que si le négociateur la déplace après un vrai contact. L’entonnoir du directeur agrège ces déplacements. Il n’y a pas de case « j’ai fait du commercial » à cocher pour gonfler la courbe.',
+      capture: {
+        file: 'pilotage-entonnoir.png',
+        alt: 'Entonnoir de conversion de l’accueil directeur Priimo.',
+        shot: 'Desktop · /dashboard · compte directeur · cadrer la carte entonnoir 3D / conversion, avec les volumes par étape.',
+      },
+    },
+    {
+      title: 'L’activité d’un négociateur se lit sur ses dossiers et ses passages.',
+      body: 'Contacts physiques, immeubles prospectés, notes, estimations : les compteurs partent des objets créés et des tournées faites. Le directeur peut afficher un collaborateur. Personne n’auto-évalue sa journée.',
+      capture: {
+        file: 'pilotage-activite-negociateur.png',
+        alt: 'Accueil filtré sur un négociateur, compteurs et cartes du jour.',
+        shot: 'Desktop · /dashboard · sélecteur collaborateur (directeur) · cadrer l’en-tête + compteurs du négociateur choisi.',
+      },
+    },
+    {
+      title: 'Le secteur montre où vous êtes à jour — et où ça a vieilli.',
+      body: 'La fraîcheur des zones se calcule sur les passages observés. Une estimation en attente, un mandat qui ne bouge plus, une relance due : ces cartes viennent des dates du dossier, pas d’un rappel saisi à la main. Ce qui n’a pas bougé remonte tout seul.',
+      capture: {
+        file: 'pilotage-cartes-du-jour.png',
+        alt: 'Cartes du jour sur l’accueil : relances, mandats immobiles, estimations en attente.',
+        shot: 'Desktop · /dashboard · cadrer le bloc de cartes métier du jour (relance, RDV sans suite, mandat qui stagne, estimation en attente).',
+      },
+    },
+  ],
+  proofIntro:
+    'Le pilotage de Priimo n’a pas de saisie dédiée. Si l’objet n’existe pas dans la base, le chiffre n’existe pas.',
+  proof: [
+    {
+      source: 'Lot livré',
+      fact: 'Prise et non-pris mesurés sur les leads réellement attribués.',
+    },
+    {
+      source: 'Pipeline',
+      fact: 'L’entonnoir agrège les étapes des fiches, pas un formulaire d’activité.',
+    },
+    {
+      source: 'Passages',
+      fact: 'Fraîcheur des zones calculée sur les tournées et les notes de terrain.',
+    },
+  ],
+  related: [
+    {
+      href: '/fonctionnalites/pipeline',
+      label: 'Pipeline & CRM',
+      blurb: 'Là où les dossiers avancent, colonne après colonne.',
+    },
+    {
+      href: '/fonctionnalites/terrain',
+      label: 'Terrain & IA',
+      blurb: 'Les passages que le pilotage compte s’écrivent ici.',
+    },
+  ],
+};
+
+export const PIPELINE_PAGE: FeaturePageContent = {
+  slug: 'pipeline',
+  meta: {
+    title: 'Pipeline & CRM',
+    description:
+      'Pipeline par étapes, contacts typés, biens, rapprochement acquéreurs, recherche unifiée : Priimo est le dossier, pas un export vers un autre logiciel.',
+    path: '/fonctionnalites/pipeline',
+  },
+  label: 'Pipeline & CRM',
+  h1: 'Le mandat n’est plus le début du dossier. Il en est la suite.',
+  mecanisme: [
+    'Une adresse prise quitte le lot commun et entre dans un pipeline par étapes, jusqu’au mandat. Contacts, biens, notes, estimations : la même base que la carte et que l’accueil.',
+    'La recherche du bandeau retrouve une personne, une adresse ou un mandat sans changer d’outil. Rien de ce que vous faites dehors n’attend d’être recollé ailleurs.',
+  ],
+  benefits: [
+    {
+      title: 'Chaque porte a une étape, pas une ligne dans un tableur.',
+      body: 'Le kanban pose les prospects de la première approche au mandat. Déplacer une fiche, c’est enregistrer qu’il s’est passé quelque chose avec le propriétaire. L’équipe voit qui tient quoi. Deux négociateurs ne frappent pas la même porte par ignorance.',
+      capture: {
+        file: 'pipeline-kanban.png',
+        alt: 'Vue pipeline kanban de la prospection Priimo.',
+        shot: 'Desktop · /dashboard/prospection?vue=pipeline · cadrer le tableau kanban avec au moins trois colonnes peuplées.',
+      },
+    },
+    {
+      title: 'Le carnet porte un rôle : vendeur, acquéreur, locataire, gardien, commerçant.',
+      body: 'Le type du contact dit ce qu’il attend de vous. Un acquéreur a des critères (secteur, budget, surface). Un gardien ou un commerçant est un relais de palier. Ce n’est pas un annuaire plat : le type décide des rapprochements et de ce que la fiche propose.',
+      capture: {
+        file: 'pipeline-contacts.png',
+        alt: 'Liste des contacts Priimo avec les types vendeur, acquéreur, gardien.',
+        shot: 'Desktop · /dashboard/contacts · cadrer la liste avec plusieurs types visibles et, si possible, une fiche acquéreur ouverte sur les critères.',
+      },
+    },
+    {
+      title: 'Le bien hérite de l’histoire : estimation, mandat, compromis, vendu.',
+      body: 'Quand le mandat arrive, le dossier existe déjà — notes de palier, estimation, signaux. Les statuts du bien suivent le cycle réel. Le propriétaire reste lié à la fiche. Vous ne reconstituez pas le passé dans un second logiciel le jour de la signature.',
+      capture: {
+        file: 'pipeline-biens.png',
+        alt: 'Liste des biens Priimo avec les statuts de mandat.',
+        shot: 'Desktop · /dashboard/biens · cadrer la liste (estimation / mandat / compromis) et une fiche bien ouverte sur le statut et le propriétaire.',
+      },
+    },
+    {
+      title: 'L’acquéreur se rapproche du bien sur des critères, pas au feeling.',
+      body: 'Priimo confronte secteur, budget et surface de vos acquéreurs aux biens rentrés. Quand ça correspond, une carte le dit. C’est un tri. La décision d’appeler reste la vôtre. Les échéances du dossier (promesse, relance, visite sans retour) remontent toutes seules sur l’accueil.',
+      capture: {
+        file: 'pipeline-rapprochement.png',
+        alt: 'Signal de rapprochement acquéreur–bien dans Priimo.',
+        shot: 'Desktop · /dashboard ou fiche acquéreur · cadrer une carte ou un bloc « rapprochement » avec le bien proposé et les critères (secteur, budget, surface).',
+      },
+    },
+  ],
+  proofIntro:
+    'Priimo n’exporte pas le terrain vers un CRM. Le CRM, c’est la suite du terrain.',
+  proof: [
+    {
+      source: 'Pipeline',
+      fact: 'Étapes tenues par les fiches, visibles par l’équipe selon le rôle.',
+    },
+    {
+      source: 'Contacts',
+      fact: 'Cinq types métier, critères acquéreur, fusion et historique.',
+    },
+    {
+      source: 'Recherche',
+      fact: 'Barre du bandeau : adresse, personne, mandat — sans changer de page.',
+    },
+  ],
+  related: [
+    {
+      href: '/fonctionnalites/pilotage',
+      label: 'Pilotage commercial',
+      blurb: 'L’entonnoir se nourrit de ces colonnes.',
+    },
+    {
+      href: '/fonctionnalites/estimation',
+      label: 'Estimation',
+      blurb: 'Le chiffre que vous défendez chez le vendeur.',
+    },
+  ],
+};
+
+export const ESTIMATION_PAGE: FeaturePageContent = {
+  slug: 'estimation',
+  meta: {
+    title: 'Estimation',
+    description:
+      'Comparables DVF réactualisés à l’indice Notaires-INSEE, grille de caractéristiques, rapport partageable et widget de site d’agence.',
+    path: '/fonctionnalites/estimation',
+  },
+  label: 'Estimation',
+  h1: 'Le vendeur voit d’où vient le chiffre.',
+  mecanisme: [
+    'Les comparables viennent des ventes DVF. Ils sont réactualisés avec l’indice Notaires-INSEE. La grille de caractéristiques compare le bien au secteur — pas à une moyenne nationale.',
+    'Le rapport emporte le contexte : urbanisme, risques, copropriété, statistiques INSEE. Le propriétaire le reçoit. Sur le site de l’agence, le widget collecte le bien avec le consentement de la personne.',
+  ],
+  benefits: [
+    {
+      title: 'La fourchette s’appuie sur des ventes constatées, pas sur un barème.',
+      body: 'L’atelier d’estimation part des mutations DVF du secteur, ramenées à aujourd’hui par l’indice Notaires-INSEE. Vous voyez les comparables. Vous voyez ce qui a été écarté. La fourchette se défend parce que sa matière première est publique.',
+      capture: {
+        file: 'estimation-comparables-dvf.png',
+        alt: 'Atelier d’estimation Priimo, onglet avec les comparables DVF.',
+        shot: 'Desktop · /dashboard/estimation · ouvrir une estimation aboutie · onglet Estimation · cadrer la fourchette et la liste des comparables DVF.',
+      },
+    },
+    {
+      title: 'Chaque caractéristique est lue contre le secteur.',
+      body: 'Étage, standing, travaux, extérieur : la grille ne recopie pas une grille nationale. Elle compare le bien aux ventes du même secteur. L’ajustement est visible. Le négociateur peut le reprendre, il ne part pas d’une boîte noire.',
+      capture: {
+        file: 'estimation-grille-caracteristiques.png',
+        alt: 'Grille de caractéristiques de l’estimation Priimo comparée au secteur.',
+        shot: 'Desktop · même estimation · onglet Caractéristiques · cadrer la grille (lignes de critères et écart au secteur).',
+      },
+    },
+    {
+      title: 'Le contexte du bien est dans le rapport, pas dans un autre onglet à ouvrir plus tard.',
+      body: 'Urbanisme, risques (Géorisques), copropriété, statistiques INSEE du quartier : le rapport que vous envoyez au propriétaire contient le même dossier que vous. Il voit le chemin. Il n’a pas à vous croire sur parole.',
+      capture: {
+        file: 'estimation-rapport.png',
+        alt: 'Rapport d’estimation Priimo, vue propriétaire.',
+        shot: 'Desktop · même estimation · onglet Rapport · cadrer la première écran du rapport (fourchette + un bloc contexte urbanisme ou risques).',
+      },
+    },
+    {
+      title: 'Le site de l’agence peut prendre le bien — avec un consentement, pas une pige.',
+      body: 'Le widget s’installe sur le site. La personne décrit le bien et consent à être recontactée. C’est la voie qui reste ouverte quand le démarchage téléphonique des particuliers sans consentement s’arrête. Le directeur pose le snippet ; les demandes arrivent dans Priimo.',
+      capture: {
+        file: 'estimation-widget-site.png',
+        alt: 'Réglage du widget d’estimation à poser sur le site de l’agence.',
+        shot: 'Desktop · /dashboard/estimation?vue=widget (directeur) · cadrer l’écran d’installation du snippet, pas une page marketing abstraite.',
+      },
+    },
+  ],
+  proofIntro:
+    'Le chiffre d’une estimation Priimo se retrace. Les sources ont un nom.',
+  proof: [
+    {
+      source: 'DVF · DGFiP',
+      fact: 'Mutations du secteur, matière première de la fourchette.',
+    },
+    {
+      source: 'Indice Notaires-INSEE',
+      fact: 'Actualisation des ventes anciennes vers le marché présent.',
+    },
+    {
+      source: 'Géorisques · INSEE · copropriétés',
+      fact: 'Risques, statistiques de quartier, état de la copropriété — dans le rapport.',
+    },
+  ],
+  related: [
+    {
+      href: '/fonctionnalites/detection',
+      label: 'Détection',
+      blurb: 'L’adresse estimée a souvent commencé ici, avant l’annonce.',
+    },
+    {
+      href: '/fonctionnalites/pipeline',
+      label: 'Pipeline & CRM',
+      blurb: 'L’estimation rejoint le dossier, puis le mandat.',
+    },
+  ],
+};
+
+export const FEATURE_PAGES: FeaturePageContent[] = [
+  DETECTION_PAGE,
+  TERRAIN_PAGE,
+  PILOTAGE_PAGE,
+  PIPELINE_PAGE,
+  ESTIMATION_PAGE,
+];
+
+export const FEATURE_CAPTURES: FeatureCapture[] = FEATURE_PAGES.flatMap((page) =>
+  page.benefits.map((b) => b.capture),
+);
