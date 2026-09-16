@@ -16,6 +16,38 @@ export const DPE_AGE_LABELS: Record<DpeAgeBucket, string> = {
   '3+': 'plus de 3 ans',
 };
 
+export const DPE_AGE_TICK_LABELS: Record<DpeAgeBucket, string> = {
+  semaine: 'Sem.',
+  mois: 'Mois',
+  '1-6': '1–6 m',
+  '6-12': '6–12 m',
+  '1-3': '1–3 a',
+  '3+': '+3 a',
+};
+
+export const DPE_AGE_LAST = DPE_AGE_BUCKETS.length - 1;
+
+/** Bornes du curseur : min et max des cases cochées, plage entière si vide. */
+export function dpeAgeSpan(selected: readonly DpeAgeBucket[]): { from: number; to: number } {
+  let from = DPE_AGE_LAST;
+  let to = 0;
+  let any = false;
+  for (let i = 0; i < DPE_AGE_BUCKETS.length; i += 1) {
+    if (!selected.includes(DPE_AGE_BUCKETS[i])) continue;
+    any = true;
+    if (i < from) from = i;
+    if (i > to) to = i;
+  }
+  if (!any) return { from: 0, to: DPE_AGE_LAST };
+  return { from, to };
+}
+
+export function dpeAgeBucketsInSpan(from: number, to: number): DpeAgeBucket[] {
+  const start = Math.max(0, Math.min(from, to));
+  const end = Math.min(DPE_AGE_LAST, Math.max(from, to));
+  return DPE_AGE_BUCKETS.slice(start, end + 1);
+}
+
 /** Au-dessous, un point par adresse ; au-delà, agrégat immeuble. */
 export const DPE_FRESH_MONTHS = 6;
 

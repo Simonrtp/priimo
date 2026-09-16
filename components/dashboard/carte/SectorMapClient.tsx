@@ -25,11 +25,10 @@ import {
   readStoredMapLayers,
   withCadastreLayerToggled,
   withCadastreMenuToggled,
-  withDpeAgeToggled,
+  withDpeAgeSpan,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import type { DpeAgeBucket } from '@/lib/carte/dpe-age';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
@@ -88,7 +87,7 @@ function LayersPanel({
   layers,
   onToggle,
   onToggleCadastreOverlay,
-  onToggleDpeAge,
+  onChangeDpeAge,
   onToggleCadastreMenu,
   mapZoom,
   cadastreSources,
@@ -111,7 +110,7 @@ function LayersPanel({
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
   onToggleCadastreOverlay: (id: CadastreLayerId) => void;
-  onToggleDpeAge: (bucket: DpeAgeBucket) => void;
+  onChangeDpeAge: (from: number, to: number) => void;
   onToggleCadastreMenu: () => void;
   mapZoom: number | null;
   cadastreSources: CadastreSourceDates;
@@ -180,7 +179,7 @@ function LayersPanel({
           <CadastreLayerControls
             layers={layers}
             onToggleOverlay={onToggleCadastreOverlay}
-            onToggleDpeAge={onToggleDpeAge}
+            onChangeDpeAge={onChangeDpeAge}
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
             sources={cadastreSources}
@@ -431,8 +430,8 @@ export default function SectorMapClient({
     setLayers((prev) => withCadastreLayerToggled(prev, id));
   }
 
-  function toggleDpeAge(bucket: DpeAgeBucket) {
-    setLayers((prev) => withDpeAgeToggled(prev, bucket));
+  function changeDpeAge(from: number, to: number) {
+    setLayers((prev) => withDpeAgeSpan(prev, from, to));
   }
 
   function toggleCadastreMenu() {
@@ -450,7 +449,7 @@ export default function SectorMapClient({
       layers={layers}
       onToggle={toggleLayer}
       onToggleCadastreOverlay={toggleCadastreOverlay}
-      onToggleDpeAge={toggleDpeAge}
+      onChangeDpeAge={changeDpeAge}
       onToggleCadastreMenu={toggleCadastreMenu}
       mapZoom={mapZoom}
       cadastreSources={parcelle.sources}
@@ -496,7 +495,7 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled={layers.cadastre}
+          parcellesEnabled={false}
           activeParcelleIds={parcelle.immeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
           parcelleNoteMarkers={parcelle.noteMarkers}
           selectedParcelleId={parcelle.selectedParcelleId}
@@ -530,7 +529,7 @@ export default function SectorMapClient({
                 layers={layers}
                 onToggle={toggleLayer}
                 onToggleCadastreOverlay={toggleCadastreOverlay}
-                onToggleDpeAge={toggleDpeAge}
+                onChangeDpeAge={changeDpeAge}
                 onToggleCadastreMenu={toggleCadastreMenu}
                 mapZoom={mapZoom}
                 cadastreSources={parcelle.sources}

@@ -23,11 +23,10 @@ import {
   readStoredMapLayers,
   withCadastreLayerToggled,
   withCadastreMenuToggled,
-  withDpeAgeToggled,
+  withDpeAgeSpan,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import type { DpeAgeBucket } from '@/lib/carte/dpe-age';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import {
@@ -605,7 +604,7 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        parcellesEnabled={layers.cadastre}
+        parcellesEnabled={false}
         activeParcelleIds={parcelle.immeubles
           .map((row) => row.parcelleId)
           .filter((id): id is string => Boolean(id))}
@@ -850,9 +849,9 @@ export default function CarteMobile({
                 return next;
               })
             }
-            onToggleDpeAge={(bucket: DpeAgeBucket) =>
+            onChangeDpeAge={(from, to) =>
               setLayers((prev) => {
-                const next = withDpeAgeToggled(prev, bucket);
+                const next = withDpeAgeSpan(prev, from, to);
                 persistMapLayers(next);
                 return next;
               })

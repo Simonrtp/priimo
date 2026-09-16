@@ -9,6 +9,8 @@ import {
   needsDpeDetailRows,
   parseDpeAgeBuckets,
   parseDpeAgeParam,
+  dpeAgeBucketsInSpan,
+  dpeAgeSpan,
 } from './dpe-age';
 
 describe('ancienneté DPE carte', () => {
@@ -53,6 +55,12 @@ describe('ancienneté DPE carte', () => {
     assert.equal(range.from.toISOString().slice(0, 10), '2026-03-15');
     assert.equal(needsDpeDetailRows(['3+']), false);
     assert.equal(dpeDetailQueryRange(['3+'], now), null);
+  });
+
+  it('convertit un curseur en cases continues', () => {
+    assert.deepEqual(dpeAgeBucketsInSpan(0, 2), ['semaine', 'mois', '1-6']);
+    assert.deepEqual(dpeAgeSpan(['mois', '6-12']), { from: 1, to: 3 });
+    assert.deepEqual(dpeAgeSpan([]), { from: 0, to: 5 });
   });
 
   it('reprend toutes les cases si le stockage est vide', () => {

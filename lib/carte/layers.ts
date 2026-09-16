@@ -1,6 +1,7 @@
 import type { MapPointKind } from '@/lib/carte/points';
 import {
   DEFAULT_DPE_AGE_BUCKETS,
+  dpeAgeBucketsInSpan,
   parseDpeAgeBuckets,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
@@ -24,7 +25,7 @@ export type CadastreLayerId = (typeof CADASTRE_LAYER_IDS)[number];
 
 export const CADASTRE_LAYER_LABELS: Record<CadastreLayerId, string> = {
   parcelles: 'Parcelles',
-  dpe: 'Diagnostics',
+  dpe: 'DPE',
   ventes: 'Ventes',
   copro: 'Copropriétés',
 };
@@ -92,7 +93,7 @@ export function migrateStoredMapLayers(
 }
 
 export function anyCadastreLayer(layers: MapLayerState): boolean {
-  return layers.cadastre || layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+  return layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
 }
 
 export function anyCadastreOverlay(layers: MapLayerState): boolean {
@@ -110,12 +111,8 @@ export function withCadastreMenuToggled(prev: MapLayerState): MapLayerState {
   return { ...prev, cadastreMenuOpen: !prev.cadastreMenuOpen };
 }
 
-export function withDpeAgeToggled(prev: MapLayerState, bucket: DpeAgeBucket): MapLayerState {
-  const has = prev.cadastreDpeAges.includes(bucket);
-  const cadastreDpeAges = has
-    ? prev.cadastreDpeAges.filter((item) => item !== bucket)
-    : [...prev.cadastreDpeAges, bucket];
-  return { ...prev, cadastreDpeAges };
+export function withDpeAgeSpan(prev: MapLayerState, from: number, to: number): MapLayerState {
+  return { ...prev, cadastreDpeAges: dpeAgeBucketsInSpan(from, to) };
 }
 
 export function readStoredMapLayers(): MapLayerState {

@@ -6,7 +6,7 @@ import {
   migrateStoredMapLayers,
   parseMapLayers,
   withCadastreLayerToggled,
-  withDpeAgeToggled,
+  withDpeAgeSpan,
 } from './layers';
 
 describe('parseMapLayers', () => {
@@ -36,11 +36,10 @@ describe('parseMapLayers', () => {
     assert.equal(next.cadastreDpe, false);
   });
 
-  it('persiste les cases d’ancienneté', () => {
+  it('persiste la plage d’ancienneté du curseur', () => {
     const parsed = parseMapLayers({ cadastreDpeAges: ['semaine', '3+'] });
     assert.deepEqual(parsed.cadastreDpeAges, ['semaine', '3+']);
-    const toggled = withDpeAgeToggled(parsed, 'semaine');
-    assert.deepEqual(toggled.cadastreDpeAges, ['3+']);
+    assert.deepEqual(withDpeAgeSpan(parsed, 1, 3).cadastreDpeAges, ['mois', '1-6', '6-12']);
   });
 
   it('persiste l’état du menu Cadastre', () => {

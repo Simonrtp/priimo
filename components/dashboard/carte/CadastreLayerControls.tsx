@@ -1,15 +1,22 @@
 'use client';
 
+import './carte.css';
 import { ChevronDown } from 'lucide-react';
 import {
-  CADASTRE_LAYER_IDS,
   CADASTRE_LAYER_LABELS,
+  CADASTRE_OVERLAY_IDS,
   anyCadastreLayer,
-  type CadastreLayerId,
+  type CadastreOverlayId,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import { DPE_AGE_BUCKETS, DPE_AGE_LABELS, type DpeAgeBucket } from '@/lib/carte/dpe-age';
-import { CADASTRE_OVERLAY_MIN_ZOOM, PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
+import {
+  DPE_AGE_BUCKETS,
+  DPE_AGE_LABELS,
+  DPE_AGE_LAST,
+  DPE_AGE_TICK_LABELS,
+  dpeAgeSpan,
+} from '@/lib/carte/dpe-age';
+import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
 import {
   formatCadastreFreshness,
   type CadastreSourceDates,
@@ -17,35 +24,97 @@ import {
 
 const SLATE = '#3D5A80';
 
-function layerKey(id: CadastreLayerId): keyof Pick<
+function overlayKey(id: CadastreOverlayId): keyof Pick<
   MapLayerState,
-  'cadastre' | 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'
+  'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'
 > {
-  if (id === 'parcelles') return 'cadastre';
   if (id === 'dpe') return 'cadastreDpe';
   if (id === 'ventes') return 'cadastreVentes';
   return 'cadastreCopro';
 }
 
+function DpeAgeSlider({
+  ages,
+  disabled,
+  onChange,
+}: {
+  ages: readonly string[];
+  disabled: boolean;
+  onChange: (from: number, to: number) => void;
+}) {
+  const { from, to } = dpeAgeSpan(ages);
+  const max = DPE_AGE_LAST;
+  const startPct = (from / max) * 100;
+  const endPct = (to / max) * 100;
+  return (
+    <div className={disabled ? 'opacity-55' : undefined}>
+      <div className="priimo-dpe-age">
+        <div className="priimo-dpe-age__track" aria-hidden>
+          <span
+            className="priimo-dpe-age__fill"
+            style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
+          />
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={1}
+          value={from}
+          disabled={disabled}
+          aria-label="Début de la plage d’ancienneté"
+          aria-valuetext={DPE_AGE_LABELS[DPE_AGE_BUCKETS[from]]}
+          className="priimo-dpe-age__input priimo-dpe-age__input--from"
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            onChange(Math.min(next, to), to);
+          }}
+        />
+        <input
+          type="range"
+          min={0}
+          max={max}
+          step={1}
+          value={to}
+          disabled={disabled}
+          aria-label="Fin de la plage d’ancienneté"
+          aria-valuetext={DPE_AGE_LABELS[DPE_AGE_BUCKETS[to]]}
+          className="priimo-dpe-age__input priimo-dpe-age__input--to"
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            onChange(from, Math.max(next, from));
+          }}
+        />
+      </div>
+      <div className="mt-1 flex justify-between gap-0.5">
+        {DPE_AGE_BUCKETS.map((bucket) => (
+          <span key={bucket} className="min-w-0 flex-1 text-center text-[10px] leading-tight text-text-subtle">
+            {DPE_AGE_TICK_LABELS[bucket]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CadastreLayerControls({
   layers,
   onToggleOverlay,
-  onToggleDpeAge,
+  onChangeDpeAge,
   onToggleMenu,
   mapZoom,
   sources = null,
   compact = false,
 }: {
   layers: MapLayerState;
-  onToggleOverlay: (id: CadastreLayerId) => void;
-  onToggleDpeAge: (bucket: DpeAgeBucket) => void;
+  onToggleOverlay: (id: CadastreOverlayId) => void;
+  onChangeDpeAge: (from: number, to: number) => void;
   onToggleMenu: () => void;
   mapZoom: number | null;
   sources?: CadastreSourceDates | null;
   compact?: boolean;
 }) {
   const open = layers.cadastreMenuOpen;
-  const tooFarPolygons = mapZoom !== null && mapZoom < PARCELLE_MIN_ZOOM;
   const tooFarPoints = mapZoom !== null && mapZoom < CADASTRE_OVERLAY_MIN_ZOOM;
   const row = compact ? 'min-h-[44px]' : 'min-h-[40px]';
   const pad = compact ? 'px-1' : 'px-2.5 py-1.5';
@@ -100,15 +169,14 @@ export default function CadastreLayerControls({
         aria-hidden={!open}
       >
         <ul className={`mt-1 flex flex-col gap-0.5 ${compact ? 'pl-4' : 'pl-7'}`}>
-          {CADASTRE_LAYER_IDS.map((id) => {
-            const key = layerKey(id);
+          {CADASTRE_OVERLAY_IDS.map((id) => {
+            const key = overlayKey(id);
             const active = layers[key];
-            const tooFar = id === 'parcelles' ? tooFarPolygons : tooFarPoints;
             return (
-              <li key={id}>
+              <li key={id} className={`rounded-xl ${pad}`}>
                 <label
-                  className={`flex ${row} cursor-pointer items-center gap-3 rounded-xl ${pad} transition-colors duration-fluid-subtle ease-in-out ${
-                    tooFar ? 'opacity-55' : ''
+                  className={`flex ${row} cursor-pointer items-center gap-3 transition-colors duration-fluid-subtle ease-in-out ${
+                    tooFarPoints ? 'opacity-55' : ''
                   }`}
                 >
                   <input
@@ -120,52 +188,24 @@ export default function CadastreLayerControls({
                   />
                   <span
                     className={`min-w-0 flex-1 text-[13.5px] font-medium ${
-                      active && !tooFar ? 'text-text-strong' : 'text-text-muted'
+                      active && !tooFarPoints ? 'text-text-strong' : 'text-text-muted'
                     }`}
                   >
                     {CADASTRE_LAYER_LABELS[id]}
-                    {tooFar ? (
+                    {tooFarPoints ? (
                       <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
                         Zoomez pour afficher
-                      </span>
-                    ) : null}
-                    {id === 'parcelles' ? (
-                      <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                        Plan cadastral indicatif, sans valeur juridique
                       </span>
                     ) : null}
                   </span>
                 </label>
                 {id === 'dpe' ? (
-                  <div
-                    role="group"
-                    aria-label="Ancienneté des diagnostics"
-                    className={`pb-2 ${compact ? 'pl-8' : 'pl-7'} ${
-                      layers.cadastreDpe ? '' : 'opacity-55'
-                    }`}
-                  >
-                    <div className="mt-1 h-1 rounded-full bg-black/[0.08]" aria-hidden />
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {DPE_AGE_BUCKETS.map((bucket) => {
-                        const selected = layers.cadastreDpeAges.includes(bucket);
-                        return (
-                          <button
-                            key={bucket}
-                            type="button"
-                            aria-pressed={selected}
-                            onClick={() => onToggleDpeAge(bucket)}
-                            className={`rounded-full px-2 py-1 text-left text-[11px] font-medium leading-tight transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                              selected
-                                ? 'text-white'
-                                : 'bg-black/[0.04] text-text-muted hover:bg-black/[0.07]'
-                            }`}
-                            style={selected ? { backgroundColor: SLATE } : undefined}
-                          >
-                            {DPE_AGE_LABELS[bucket]}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="mt-1">
+                    <DpeAgeSlider
+                      ages={layers.cadastreDpeAges}
+                      disabled={!layers.cadastreDpe}
+                      onChange={onChangeDpeAge}
+                    />
                   </div>
                 ) : null}
               </li>
