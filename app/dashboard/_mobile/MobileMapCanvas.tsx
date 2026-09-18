@@ -27,7 +27,7 @@ import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarke
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
-import type { MapLayerState } from '@/lib/carte/layers';
+import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import type { DevicePosition } from '@/lib/voice/gps';
 
 export type MobileMapHandle = {
@@ -69,7 +69,12 @@ export default function MobileMapCanvas({
   parcelleNoteMarkers = [],
   selectedParcelleId = null,
   cadastreImmeubles = [],
-  cadastreLayers = { cadastreDpe: false, cadastreVentes: false, cadastreCopro: false },
+  cadastreLayers = {
+    cadastreDpe: DEFAULT_MAP_LAYERS.cadastreDpe,
+    cadastreVentes: DEFAULT_MAP_LAYERS.cadastreVentes,
+    cadastreCopro: DEFAULT_MAP_LAYERS.cadastreCopro,
+    cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
+  },
   onSelectParcelle,
   agentPosition = null,
   highlightBanIds = null,

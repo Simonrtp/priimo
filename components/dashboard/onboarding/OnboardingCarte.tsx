@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
+import { DEFAULT_MAP_LAYERS } from '@/lib/carte/layers';
 
 const SectorMapCanvas = dynamic(
   () => import('@/components/dashboard/carte/SectorMapCanvas'),
@@ -56,7 +57,12 @@ export default function OnboardingCarte({
         onViewport={setViewport}
         parcellesEnabled={parcelles}
         cadastreImmeubles={parcelle.immeubles}
-        cadastreLayers={{ cadastreDpe: true, cadastreVentes: true, cadastreCopro: true }}
+        cadastreLayers={{
+          cadastreDpe: true,
+          cadastreVentes: true,
+          cadastreCopro: true,
+          cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
+        }}
         selectedParcelleId={selectedParcelleId}
         onSelectParcelle={onSelectParcelle}
       />

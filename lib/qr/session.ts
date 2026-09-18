@@ -151,8 +151,11 @@ export async function consumeQrSessionSlot(
   admin: Admin,
   row: QrSessionTerrainRow,
   now = new Date(),
+  scan?: { prenom: string; nom: string },
 ): Promise<boolean> {
   let current = row;
+  const prenom = scan?.prenom.trim() || null;
+  const nom = scan?.nom.trim() || null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (!sessionEstVivante(current, now)) return false;
     const res = await admin
@@ -160,6 +163,13 @@ export async function consumeQrSessionSlot(
       .update({
         contacts_crees: current.contacts_crees + 1,
         dernier_usage_le: now.toISOString(),
+        ...(prenom || nom
+          ? {
+              dernier_scan_prenom: prenom,
+              dernier_scan_nom: nom,
+              dernier_scan_le: now.toISOString(),
+            }
+          : {}),
       })
       .eq('id', current.id)
       .eq('contacts_crees', current.contacts_crees)

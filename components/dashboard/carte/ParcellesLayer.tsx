@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Layer, Marker, Popup, Source, type MapRef } from 'react-map-gl';
-import type { MapLayerMouseEvent } from 'mapbox-gl';
+import type { ExpressionSpecification, MapLayerMouseEvent } from 'mapbox-gl';
 import {
   IGN_PCI_SOURCE_ID,
   IGN_PCI_SOURCE_LAYER,
@@ -39,7 +39,7 @@ export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 
 const FILL = 'rgba(61, 90, 128, 0.14)';
 const LINE = 'rgba(61, 90, 128, 0.4)';
-const DPE_CIRCLE_COLOR = [
+const DPE_CIRCLE_COLOR: ExpressionSpecification = [
   'match',
   ['get', 'letter'],
   'A',
@@ -57,7 +57,7 @@ const DPE_CIRCLE_COLOR = [
   'G',
   DPE_PALETTE.G,
   DPE_PALETTE.D,
-] as const;
+];
 
 type Pin = { parcelleId: string; longitude: number; latitude: number };
 type OverlayHover = { lng: number; lat: number; preview: HoverPreview };

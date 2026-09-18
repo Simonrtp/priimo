@@ -6,6 +6,7 @@ import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { MAPBOX_TOKEN } from '@/lib/map/style';
+import { DEFAULT_MAP_LAYERS } from '@/lib/carte/layers';
 import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
 
 const SectorMapCanvas = dynamic(
@@ -78,7 +79,12 @@ export default function EtapeImmeuble({
             onViewport={setViewport}
             parcellesEnabled
             cadastreImmeubles={parcelle.immeubles}
-            cadastreLayers={{ cadastreDpe: true, cadastreVentes: true, cadastreCopro: true }}
+            cadastreLayers={{
+              cadastreDpe: true,
+              cadastreVentes: true,
+              cadastreCopro: true,
+              cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
+            }}
             selectedParcelleId={parcelle.selectedParcelleId}
             onSelectParcelle={parcelle.openParcelle}
             zoomPreset="parcelles"

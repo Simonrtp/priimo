@@ -28,7 +28,7 @@ import ParcellesLayer, {
 } from '@/components/dashboard/carte/ParcellesLayer';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
-import type { MapLayerState } from '@/lib/carte/layers';
+import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 
 function boundsToViewport(map: MapRef): MapViewport | null {
@@ -57,7 +57,12 @@ export default function SectorMapCanvas({
   parcelleNoteMarkers = [],
   selectedParcelleId = null,
   cadastreImmeubles = [],
-  cadastreLayers = { cadastreDpe: false, cadastreVentes: false, cadastreCopro: false },
+  cadastreLayers = {
+    cadastreDpe: DEFAULT_MAP_LAYERS.cadastreDpe,
+    cadastreVentes: DEFAULT_MAP_LAYERS.cadastreVentes,
+    cadastreCopro: DEFAULT_MAP_LAYERS.cadastreCopro,
+    cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
+  },
   onSelectParcelle,
   zoomPreset = 'sector',
   showBuildingMarkers = true,
