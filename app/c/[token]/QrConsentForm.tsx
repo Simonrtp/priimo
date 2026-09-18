@@ -90,9 +90,9 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
   }
 
   return (
-    <div className="relative min-h-[100svh] overflow-x-hidden">
+    <div className="relative min-h-dvh overflow-x-hidden">
       <form
-        className="flex min-h-[100svh] flex-col"
+        className="flex min-h-dvh flex-col"
         onSubmit={onSubmit}
         noValidate
         aria-hidden={done || undefined}
@@ -108,7 +108,7 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
             Merci pour votre confiance <span aria-hidden>☺️</span>
           </h1>
 
-          <div className="qr-in mt-8 grid grid-cols-2 gap-2.5" style={{ animationDelay: '120ms' }}>
+          <div className="qr-in mt-8 grid grid-cols-2 gap-4" style={{ animationDelay: '120ms' }}>
             <div className="min-w-0">
               <label htmlFor={prenomId} className="sr-only">
                 Prénom
@@ -160,7 +160,7 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
             </div>
           </div>
 
-          <div className="qr-in mt-2.5 min-w-0" style={{ animationDelay: '180ms' }}>
+          <div className="qr-in mt-5 min-w-0" style={{ animationDelay: '180ms' }}>
             <label htmlFor={telId} className="sr-only">
               Numéro de téléphone, France +33
             </label>
@@ -197,7 +197,7 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
             ) : null}
           </div>
 
-          <label className="qr-in mt-8 flex cursor-pointer items-start gap-3" style={{ animationDelay: '260ms' }}>
+          <label className="qr-in mt-10 flex cursor-pointer items-start gap-3" style={{ animationDelay: '260ms' }}>
             <span className="relative mt-0.5 size-6 shrink-0">
               <input
                 id={consentId}
@@ -233,7 +233,7 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
           ) : null}
         </div>
 
-        <div className="qr-in relative mt-10 flex min-h-0 flex-1 flex-col" style={{ animationDelay: '340ms' }}>
+        <div className="qr-in relative mt-8 flex min-h-0 flex-1 flex-col" style={{ animationDelay: '340ms' }}>
           <svg
             viewBox="0 0 375 56"
             preserveAspectRatio="none"
@@ -247,10 +247,10 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
           </svg>
 
           <div
-            className="relative flex flex-1 flex-col items-center px-5 pt-1"
+            className="relative z-[2] flex flex-1 flex-col items-center px-5 pt-8"
             style={{
               backgroundColor: BLUE,
-              paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))',
             }}
           >
             {errors.form ? (
@@ -261,12 +261,12 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
             <button
               type="submit"
               disabled={pending || done}
-              className="h-12 w-full max-w-[16.5rem] rounded-full text-[17px] font-bold text-white outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-white/80 active:scale-[0.97] disabled:opacity-50"
+              className="h-12 w-full max-w-[16.5rem] shrink-0 rounded-full text-[17px] font-bold text-white outline-none transition-transform duration-150 ease-out focus-visible:ring-2 focus-visible:ring-white/80 active:scale-[0.97] disabled:opacity-50"
               style={{ backgroundColor: GREEN, boxShadow: '0 8px 18px rgba(20,30,80,0.28)' }}
             >
               <span className={pending ? 'qr-wait' : undefined}>{pending ? 'Envoi…' : 'Valider'}</span>
             </button>
-            <p className="mt-8 pb-1 text-center text-[11px] leading-relaxed text-white/90">
+            <p className="mt-8 shrink-0 pb-1 text-center text-[11px] leading-relaxed text-white/90">
               <span aria-hidden>🔒 </span>
               Vos données restent 100% confidentielles
               <br />
