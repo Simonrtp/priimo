@@ -32,6 +32,7 @@ const SOURCES: readonly ContactSourceDb[] = [
   'logicimmo',
   'leboncoin',
   'autre_portail',
+  'qr_terrain',
 ];
 
 /** Création d'un contact : saisie manuelle ou dictée validée par l'agent. */

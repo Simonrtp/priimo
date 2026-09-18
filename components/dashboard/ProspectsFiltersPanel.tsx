@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import Select from '@/components/ui/Select';
+import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
 import type { Filters, Lead, LeadStatus, TeamMember } from '@/types/lead';
 import { STATUS_META, STATUS_ORDER } from '@/lib/lead-meta';
 import { PROSPECTS_SORT_LABELS, type ProspectsSortMode } from '@/lib/lead-dpe';
@@ -100,7 +101,11 @@ export default function ProspectsFiltersPanel({
   const assignedOptions = [
     { value: 'all', label: 'Tous les collaborateurs' },
     { value: 'unassigned', label: 'Non assigné' },
-    ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
+    ...teamMembers.map((m) => ({
+      value: m.id,
+      label: m.fullName,
+      avatar: assigneeSelectAvatar(m),
+    })),
   ];
 
   const shellClass = plain

@@ -29,7 +29,6 @@ import {
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
@@ -45,7 +44,10 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import Select from '@/components/ui/Select';
 import WorkspaceCard, { CardEyebrow } from '@/components/dashboard/workspace/WorkspaceCard';
 import { Field } from '@/components/dashboard/workspace/Field';
-import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import {
+  assigneeSelectAvatar,
+  type AssigneeOption,
+} from '@/components/dashboard/workspace/AssigneeSelect';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
@@ -90,7 +92,6 @@ function LayersPanel({
   onChangeDpeAge,
   onToggleCadastreMenu,
   mapZoom,
-  cadastreSources,
   counts,
   postal,
   onPostal,
@@ -113,7 +114,6 @@ function LayersPanel({
   onChangeDpeAge: (from: number, to: number) => void;
   onToggleCadastreMenu: () => void;
   mapZoom: number | null;
-  cadastreSources: CadastreSourceDates;
   counts: Record<MapPointKind, number>;
   postal: string;
   onPostal: (v: string) => void;
@@ -182,7 +182,6 @@ function LayersPanel({
             onChangeDpeAge={onChangeDpeAge}
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
-            sources={cadastreSources}
           />
         </ul>
 
@@ -226,7 +225,11 @@ function LayersPanel({
                 onChange={onAssigned}
                 options={[
                   { value: 'tous', label: "Toute l'équipe" },
-                  ...members.map((m) => ({ value: m.id, label: m.fullName })),
+                  ...members.map((m) => ({
+                    value: m.id,
+                    label: m.fullName,
+                    avatar: assigneeSelectAvatar(m),
+                  })),
                 ]}
               />
             </Field>
@@ -442,6 +445,7 @@ export default function SectorMapClient({
     cadastreDpe: layers.cadastreDpe,
     cadastreVentes: layers.cadastreVentes,
     cadastreCopro: layers.cadastreCopro,
+    cadastreDpeAges: layers.cadastreDpeAges,
   };
 
   const layersUi = (
@@ -452,7 +456,6 @@ export default function SectorMapClient({
       onChangeDpeAge={changeDpeAge}
       onToggleCadastreMenu={toggleCadastreMenu}
       mapZoom={mapZoom}
-      cadastreSources={parcelle.sources}
       counts={counts}
       postal={postal}
       onPostal={setPostal}
@@ -501,6 +504,7 @@ export default function SectorMapClient({
           selectedParcelleId={parcelle.selectedParcelleId}
           cadastreImmeubles={parcelle.immeubles}
           cadastreLayers={cadastreLayerFlags}
+          showBuildingMarkers={!cadastreOn}
           onSelectParcelle={(parcelleId) => {
             setSelectedBanId(null);
             setSheetOpen(false);
@@ -532,7 +536,6 @@ export default function SectorMapClient({
                 onChangeDpeAge={changeDpeAge}
                 onToggleCadastreMenu={toggleCadastreMenu}
                 mapZoom={mapZoom}
-                cadastreSources={parcelle.sources}
                 counts={counts}
                 postal={postal}
                 onPostal={setPostal}

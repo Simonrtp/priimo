@@ -36,11 +36,13 @@ export function useParcelleMap(
 
   const cache = useRef<Map<string, ParcelleFiche>>(new Map());
   const demande = useRef<string | null>(null);
+  const seq = useRef(0);
   const agesProvided = options?.dpeAges != null;
   const agesKey = serializeDpeAgeBuckets(options?.dpeAges ?? []);
   const includeDpe = options?.includeDpeDetail === true;
 
   const reloadOverlays = useCallback(() => {
+    const ticket = ++seq.current;
     if (!enabled) {
       setImmeubles([]);
       setNoteMarkers([]);
@@ -65,12 +67,14 @@ export function useParcelleMap(
           notes?: ParcelleNoteMarker[];
           sources?: CadastreSourceDates;
         }) => {
+          if (ticket !== seq.current) return;
           setImmeubles(data.immeubles ?? []);
           setNoteMarkers(data.notes ?? []);
           if (data.sources) setSources(data.sources);
         },
       )
       .catch(() => {
+        if (ticket !== seq.current) return;
         setImmeubles([]);
         setNoteMarkers([]);
       });

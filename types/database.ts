@@ -200,6 +200,7 @@ export type LeadRow = {
   script_approche?: unknown;
   /** Date du lot pipeline (YYYY-MM-DD). */
   delivered_at?: string;
+  telephone_consenti_le?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -698,7 +699,8 @@ export type ContactSourceDb =
   | 'bienici'
   | 'logicimmo'
   | 'leboncoin'
-  | 'autre_portail';
+  | 'autre_portail'
+  | 'qr_terrain';
 export type MandatStatutDb =
   | 'estimation'
   | 'mandat_simple'
@@ -760,6 +762,7 @@ export type ContactRow = {
   collecte_at?: string | null;
   collecte_base_legale?: string | null;
   is_demo?: boolean;
+  telephone_consenti_le?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -800,6 +803,7 @@ export type ContactInsert = {
   collecte_at?: string | null;
   collecte_base_legale?: string | null;
   is_demo?: boolean;
+  telephone_consenti_le?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -1874,6 +1878,99 @@ export type LeadPortailInsert = {
   created_at?: string;
 };
 
+export type QrSessionTerrainRow = {
+  id: string;
+  agency_id: string;
+  agent_id: string;
+  token_sha256: string;
+  ouverte_le: string;
+  expire_le: string;
+  revoquee_le: string | null;
+  plafond: number;
+  contacts_crees: number;
+  dernier_usage_le: string | null;
+  dernier_scan_prenom?: string | null;
+  dernier_scan_nom?: string | null;
+  dernier_scan_le?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type QrSessionTerrainInsert = {
+  id?: string;
+  agency_id: string;
+  agent_id: string;
+  token_sha256: string;
+  ouverte_le?: string;
+  expire_le: string;
+  revoquee_le?: string | null;
+  plafond?: number;
+  contacts_crees?: number;
+  dernier_usage_le?: string | null;
+  dernier_scan_prenom?: string | null;
+  dernier_scan_nom?: string | null;
+  dernier_scan_le?: string | null;
+};
+
+export type ConsentementTelephoneRow = {
+  id: string;
+  agency_id: string;
+  provenance: 'page_qr_terrain' | 'formulaire_estimation';
+  contact_id: string | null;
+  estimation_request_id: string | null;
+  agent_id: string | null;
+  agent_prenom: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  gps_precision_m: number | null;
+  sens: 'accord' | 'retrait';
+  texte_affiche: string;
+  version: string;
+  texte_sha256: string;
+  agence_nom_affiche: string;
+  horodatage: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  telephone_normalise?: string | null;
+  prenom_saisi?: string | null;
+  nom_saisi?: string | null;
+  email_saisi?: string | null;
+  created_at: string;
+};
+
+export type ConsentementTelephoneInsert = Omit<
+  ConsentementTelephoneRow,
+  'id' | 'created_at' | 'horodatage'
+> & {
+  id?: string;
+  created_at?: string;
+  horodatage?: string;
+};
+
+export type InformationLegaleDelivranceRow = {
+  id: string;
+  agency_id: string;
+  contact_id: string | null;
+  agent_id: string | null;
+  agent_prenom: string;
+  agence_nom: string;
+  support: 'page_qr' | 'premier_contact';
+  moyen: 'appel' | 'email' | 'rencontre' | null;
+  contenu_delivre: string;
+  version: string;
+  delivre_le: string;
+  created_at: string;
+};
+
+export type InformationLegaleDelivranceInsert = Omit<
+  InformationLegaleDelivranceRow,
+  'id' | 'created_at' | 'delivre_le'
+> & {
+  id?: string;
+  created_at?: string;
+  delivre_le?: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -2290,6 +2387,46 @@ export type Database = {
         Row: LeadPortailRow;
         Insert: LeadPortailInsert;
         Update: Partial<LeadPortailRow>;
+        Relationships: [];
+      };
+      qr_sessions_terrain: {
+        Row: QrSessionTerrainRow;
+        Insert: QrSessionTerrainInsert;
+        Update: Partial<QrSessionTerrainRow>;
+        Relationships: [];
+      };
+      consentements_telephone: {
+        Row: ConsentementTelephoneRow;
+        Insert: ConsentementTelephoneInsert;
+        Update: never;
+        Relationships: [];
+      };
+      consentements_telephone_versions: {
+        Row: { version: string; corps: string; created_at: string };
+        Insert: { version: string; corps: string; created_at?: string };
+        Update: never;
+        Relationships: [];
+      };
+      informations_legales_versions: {
+        Row: {
+          version: string;
+          support: 'page_qr' | 'page_information' | 'premier_contact';
+          corps: string;
+          created_at: string;
+        };
+        Insert: {
+          version: string;
+          support: 'page_qr' | 'page_information' | 'premier_contact';
+          corps: string;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      informations_legales_delivrances: {
+        Row: InformationLegaleDelivranceRow;
+        Insert: InformationLegaleDelivranceInsert;
+        Update: Partial<Pick<InformationLegaleDelivranceRow, 'contact_id'>>;
         Relationships: [];
       };
     };

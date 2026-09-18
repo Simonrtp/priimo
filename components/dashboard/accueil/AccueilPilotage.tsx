@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useRef, useState, type ReactNode } from 'react';
 import type { Pilotage } from '@/lib/activite/pilotage';
 import {
   vuePeriode,
@@ -179,7 +179,9 @@ export default function AccueilPilotage({
         ) : null}
       </div>
 
-      {attenteInscription}
+      {attenteInscription ? (
+        <Fragment key="accueil-attente">{attenteInscription}</Fragment>
+      ) : null}
       <TacheDuMoment card={tache ?? null} />
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
@@ -206,13 +208,13 @@ export default function AccueilPilotage({
           total={totalAdresses}
           sansLivraison={sansLivraison}
         />
-        {emploiDuTemps}
+        {emploiDuTemps ? <Fragment key="accueil-emploi">{emploiDuTemps}</Fragment> : null}
       </div>
       <div aria-busy={enCours} className={`max-md:hidden ${estompe}`}>
         <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} />
       </div>
 
-      {aujourdhui}
+      {aujourdhui ? <Fragment key="accueil-aujourdhui">{aujourdhui}</Fragment> : null}
       <div aria-busy={enCours} className={estompe}>
         <JourParJour
           jours={bilan.joursGlissants}
@@ -220,7 +222,7 @@ export default function AccueilPilotage({
           onChoisirJour={(jour) => void changer('jour', jour)}
         />
       </div>
-      {secteur}
+      {secteur ? <Fragment key="accueil-secteur">{secteur}</Fragment> : null}
     </div>
     </NotesLectureProvider>
   );

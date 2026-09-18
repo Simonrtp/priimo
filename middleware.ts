@@ -18,6 +18,9 @@ const SKIP_AUTH_PREFIXES = [
   '/estimation',
   '/avis',
   '/e',
+  '/c',
+  '/information',
+  '/api/c',
   '/embed',
 ];
 

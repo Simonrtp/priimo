@@ -615,6 +615,7 @@ export default function CarteMobile({
           cadastreDpe: layers.cadastreDpe,
           cadastreVentes: layers.cadastreVentes,
           cadastreCopro: layers.cadastreCopro,
+          cadastreDpeAges: layers.cadastreDpeAges,
         }}
         onSelectParcelle={(parcelleId) => {
           if (tourActive) return;
@@ -864,7 +865,6 @@ export default function CarteMobile({
               })
             }
             mapZoom={mapZoom}
-            sources={parcelle.sources}
             compact
           />
         </ul>

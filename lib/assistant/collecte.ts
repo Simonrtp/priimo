@@ -751,9 +751,13 @@ function collectAcquereurs(
     lastInteractionAt: null,
     recontacterLe: null,
     doublonDe: null,
-    source: (c.source === 'manuel' || c.source === 'vocal' || c.source === 'prospection'
-      ? c.source
-      : 'manuel'),
+    source:
+      c.source === 'manuel' ||
+      c.source === 'vocal' ||
+      c.source === 'prospection' ||
+      c.source === 'qr_terrain'
+        ? c.source
+        : 'manuel',
     address: c.address,
     banId: c.banId,
     latitude: null,

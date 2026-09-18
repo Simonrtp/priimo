@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import type { Lead, TeamMember } from '@/types/lead';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Select from '@/components/ui/Select';
+import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
 
 interface LeadAssigneeControlProps {
   lead: Lead;
@@ -54,7 +55,11 @@ export default function LeadAssigneeControl({
           triggerClassName={selectTriggerClassName}
           options={[
             { value: '', label: 'Non assigné' },
-            ...teamMembers.map((m) => ({ value: m.id, label: m.fullName })),
+            ...teamMembers.map((m) => ({
+              value: m.id,
+              label: m.fullName,
+              avatar: assigneeSelectAvatar(m),
+            })),
           ]}
           onChange={(v) => handleAssign(v === '' ? null : v)}
         />

@@ -23,7 +23,13 @@ export async function GET() {
   const visible = visibleContactsFor(viewerFromProfile(profile), contacts);
 
   return NextResponse.json({
-    members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+    members: members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      avatarUrl: m.avatarUrl,
+    })),
     vendeurs: visible.filter((c) => c.type === 'vendeur'),
   });
 }

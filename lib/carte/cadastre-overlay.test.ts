@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatPrixM2Court, mergeCadastreImmeubles } from './cadastre-overlay';
+import { formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles } from './cadastre-overlay';
 import type { OverlayActivity, OverlayBuilding, OverlayDpeRow } from './cadastre-overlay';
 
 const building: OverlayBuilding = {
@@ -84,6 +84,26 @@ describe('mergeCadastreImmeubles', () => {
     assert.equal(point.etiquetteDpe, null);
   });
 
+  it('n’affiche pas un DPE de 2025 si le curseur est sur cette semaine', () => {
+    const [point] = mergeCadastreImmeubles({
+      buildings: [building],
+      activity: [{ ...activity, etiquetteDpe: 'B', dernierDpeLe: '2025-07-22' }],
+      dpeRows: [
+        {
+          banId: 'ban-1',
+          dateDpe: '2025-07-22',
+          etiquetteDpe: 'B',
+          surface: 55,
+          etage: null,
+        },
+      ],
+      ages: ['semaine'],
+      now,
+    });
+    assert.equal(point.dpeGrain, null);
+    assert.equal(point.etiquetteDpe, null);
+  });
+
   it('agrège un DPE de 6 à 12 mois hors building_activity', () => {
     const [point] = mergeCadastreImmeubles({
       buildings: [building],
@@ -110,5 +130,59 @@ describe('formatPrixM2Court', () => {
   it('écrit le format court demandé sur la carte', () => {
     assert.equal(formatPrixM2Court(9200), '9 200 €/m²');
     assert.equal(formatPrixM2Court(null), null);
+  });
+});
+
+describe('hasCadastreOverlay', () => {
+  it('garde un DPE sans vente ni copro', () => {
+    assert.equal(
+      hasCadastreOverlay({
+        dpeGrain: 'adresse',
+        etiquetteDpe: 'C',
+        nbTransactions: 0,
+        nbLots: null,
+        procedureCopro: false,
+      }),
+      true,
+    );
+  });
+
+  it('ignore un immeuble sans couche cadastre', () => {
+    assert.equal(
+      hasCadastreOverlay({
+        dpeGrain: null,
+        etiquetteDpe: null,
+        nbTransactions: 0,
+        nbLots: null,
+        procedureCopro: false,
+      }),
+      false,
+    );
+  });
+});
+
+describe('dpeVisibleOnMap', () => {
+  const now = new Date('2026-09-18T12:00:00.000Z');
+
+  it('masque un DPE hors de la plage du curseur', () => {
+    assert.equal(
+      dpeVisibleOnMap(
+        { dpeGrain: 'adresse', etiquetteDpe: 'B', dateDpe: '2025-07-22' },
+        ['semaine'],
+        now,
+      ),
+      false,
+    );
+  });
+
+  it('garde un DPE de la semaine demandée', () => {
+    assert.equal(
+      dpeVisibleOnMap(
+        { dpeGrain: 'adresse', etiquetteDpe: 'B', dateDpe: '2026-09-16' },
+        ['semaine'],
+        now,
+      ),
+      true,
+    );
   });
 });

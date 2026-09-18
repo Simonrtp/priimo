@@ -966,32 +966,32 @@ body {
   font-family: var(--font-sans), var(--font-body), system-ui, sans-serif;
   font-weight: 700;
   color: #111827;
-  font-size: 2rem;
-  line-height: 1.28;
+  font-size: 2.5rem;
+  line-height: 1.22;
   letter-spacing: -0.022em;
 }
 @media (min-width: 640px) {
   .landing .text-hero {
-    font-size: 2.5rem;
-    line-height: 1.26;
+    font-size: 3.125rem;
+    line-height: 1.2;
   }
 }
 @media (min-width: 768px) {
   .landing .text-hero {
-    font-size: 2.75rem;
-    line-height: 1.24;
+    font-size: 3.5rem;
+    line-height: 1.18;
   }
 }
 @media (min-width: 1024px) {
   .landing .text-hero {
-    font-size: 3.25rem;
-    line-height: 1.22;
+    font-size: 4rem;
+    line-height: 1.16;
   }
 }
 @media (min-width: 1280px) {
   .landing .text-hero {
-    font-size: 3.5rem;
-    line-height: 1.2;
+    font-size: 4.5rem;
+    line-height: 1.14;
   }
 }
 

@@ -15,12 +15,9 @@ import {
   DPE_AGE_LAST,
   DPE_AGE_TICK_LABELS,
   dpeAgeSpan,
+  type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
 import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
-import {
-  formatCadastreFreshness,
-  type CadastreSourceDates,
-} from '@/lib/carte/cadastre-freshness';
 
 const SLATE = '#3D5A80';
 
@@ -38,7 +35,7 @@ function DpeAgeSlider({
   disabled,
   onChange,
 }: {
-  ages: readonly string[];
+  ages: readonly DpeAgeBucket[];
   disabled: boolean;
   onChange: (from: number, to: number) => void;
 }) {
@@ -46,13 +43,14 @@ function DpeAgeSlider({
   const max = DPE_AGE_LAST;
   const startPct = (from / max) * 100;
   const endPct = (to / max) * 100;
+  const spanPct = Math.max(endPct - startPct, from === to ? 100 / max / 2 : 0);
   return (
     <div className={disabled ? 'opacity-55' : undefined}>
       <div className="priimo-dpe-age">
         <div className="priimo-dpe-age__track" aria-hidden>
           <span
             className="priimo-dpe-age__fill"
-            style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
+            style={{ left: `${startPct}%`, width: `${spanPct}%` }}
           />
         </div>
         <input
@@ -103,7 +101,6 @@ export default function CadastreLayerControls({
   onChangeDpeAge,
   onToggleMenu,
   mapZoom,
-  sources = null,
   compact = false,
 }: {
   layers: MapLayerState;
@@ -111,7 +108,6 @@ export default function CadastreLayerControls({
   onChangeDpeAge: (from: number, to: number) => void;
   onToggleMenu: () => void;
   mapZoom: number | null;
-  sources?: CadastreSourceDates | null;
   compact?: boolean;
 }) {
   const open = layers.cadastreMenuOpen;
@@ -119,7 +115,6 @@ export default function CadastreLayerControls({
   const row = compact ? 'min-h-[44px]' : 'min-h-[40px]';
   const pad = compact ? 'px-1' : 'px-2.5 py-1.5';
   const folderOn = anyCadastreLayer(layers);
-  const freshness = sources ? formatCadastreFreshness(sources) : null;
 
   return (
     <li>
@@ -128,8 +123,8 @@ export default function CadastreLayerControls({
         aria-expanded={open}
         aria-label={open ? 'Replier Cadastre' : 'Déplier Cadastre'}
         onClick={onToggleMenu}
-        className={`flex w-full ${row} items-center gap-3 rounded-xl ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-          folderOn ? 'bg-black/[0.04]' : ''
+        className={`flex w-full ${row} items-center gap-3 rounded-xl ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#B4BAC4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          folderOn ? 'bg-[#C2C8D1]' : 'bg-[#D4D8DF]'
         }`}
       >
         <span
@@ -212,9 +207,6 @@ export default function CadastreLayerControls({
             );
           })}
         </ul>
-        {freshness ? (
-          <p className="mt-2 px-1 text-[11px] leading-snug text-text-subtle">{freshness}</p>
-        ) : null}
       </div>
     </li>
   );

@@ -21,6 +21,7 @@ import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
+  CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
   CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
@@ -75,7 +76,7 @@ export default function SectorMapCanvas({
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
-  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
+  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onSelectParcelle?: (parcelleId: string) => void;
   /** sector = vue d’ensemble ; parcelles = zoom serré sur l’agence pour cliquer le cadastre. */
   zoomPreset?: 'sector' | 'parcelles';
@@ -212,6 +213,7 @@ export default function SectorMapCanvas({
         attributionControl={false}
         interactiveLayerIds={[
           ...(parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
+          ...(cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
           ...(cadastreLayers.cadastreVentes
             ? [CADASTRE_VENTES_POINT_LAYER_ID, CADASTRE_VENTES_LAYER_ID]
             : []),

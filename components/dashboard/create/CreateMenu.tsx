@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Building2, Calculator, Mic, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
+import { Building2, Calculator, Mic, NotebookPen, Plus, QrCode, Users, X, type LucideIcon } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { notifySuccess } from '@/lib/notify';
@@ -13,12 +13,14 @@ import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog
 import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import QrTerrainOverlay from '@/components/dashboard/qr/QrTerrainOverlay';
 import { FIELD } from '@/lib/today/field';
 
 type CreateKind = 'contact' | 'bien';
-type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice';
+type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice' | 'qr';
 
 const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: LucideIcon }[] = [
+  { value: 'qr', label: 'QR de consentement', hint: 'Il scanne, il saisit', Icon: QrCode },
   { value: 'estimation', label: 'Nouvelle estimation', hint: 'Ouvrir l’outil', Icon: Calculator },
   { value: 'contact', label: 'Nouveau contact', hint: 'Fiche client', Icon: Users },
   { value: 'bien', label: 'Nouveau bien', hint: 'Mandat / annonce', Icon: Building2 },
@@ -47,6 +49,7 @@ export default function CreateMenu({
   const { openCapture, openCompose } = useVoiceCapture();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<CreateKind | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
   const [members, setMembers] = useState<AssigneeOption[]>([
     { id: profile.id, fullName: `${profile.first_name} ${profile.last_name}`.trim() || 'Moi' },
   ]);
@@ -132,6 +135,11 @@ export default function CreateMenu({
 
   function pick(action: MenuAction) {
     setOpen(false);
+    if (action === 'qr') {
+      armPointerShield();
+      setQrOpen(true);
+      return;
+    }
     if (action === 'estimation') {
       armPointerShield();
       router.push('/dashboard/estimation');
@@ -299,6 +307,7 @@ export default function CreateMenu({
         {desktopMenu}
       </div>
 
+      {qrOpen ? <QrTerrainOverlay onClose={() => setQrOpen(false)} /> : null}
       {kind === 'contact' ? (
         <ContactFormDialog
           open

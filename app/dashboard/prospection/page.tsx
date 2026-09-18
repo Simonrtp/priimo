@@ -122,7 +122,13 @@ export default async function ProspectionPage({
       biens: visibleBiensFor(viewer, biens),
       notes: visibleVoiceNotesFor(viewer, notes),
     });
-    const membersUi = members.map((m) => ({ id: m.id, fullName: m.fullName }));
+    const membersUi = members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      avatarUrl: m.avatarUrl,
+    }));
     const plan = params.itineraire === '1' ? buildSortie(leadsTournee, profile.id, null) : null;
     const itineraryStops = plan ? toItineraireStops(plan.ordered) : null;
 

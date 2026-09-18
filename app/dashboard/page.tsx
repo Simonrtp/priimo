@@ -605,9 +605,9 @@ async function TodayContent({
   const banners = (
     <>
       {anniversaires.length > 0 ? (
-        <BirthdayCard prenoms={anniversaires.map((a) => a.firstName)} />
+        <BirthdayCard key="anniversaires" prenoms={anniversaires.map((a) => a.firstName)} />
       ) : null}
-      {relance ? <OnboardingRelanceBand minutes={relance.minutes} /> : null}
+      {relance ? <OnboardingRelanceBand key="onboarding-relance" minutes={relance.minutes} /> : null}
     </>
   );
 
@@ -661,6 +661,7 @@ async function TodayContent({
 
   const secteurNode = (
     <SecteurAccueil
+      key="secteur-accueil"
       apercu={apercu}
       centre={{ latitude: agency.latitude, longitude: agency.longitude }}
       estDirecteur={isDirector}
@@ -680,14 +681,14 @@ async function TodayContent({
     // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
     // sous son propre Suspense, sans retenir le reste de l'écran.
     emploiDuTemps: (
-      <Suspense fallback={<EmploiDuTempsSquelette />}>
+      <Suspense key="emploi-du-temps" fallback={<EmploiDuTempsSquelette />}>
         <EmploiDuTempsServeur agenda={agendaPromise} />
       </Suspense>
     ),
     tache: tacheDuMoment(cards),
     secteur: cards.length > 0 ? secteurNode : null,
     attenteInscription: estEnAttente(agency) ? (
-      <EcranAttenteInscription refusee={agency.demande_decision === 'refusee'} />
+      <EcranAttenteInscription key="attente-inscription" refusee={agency.demande_decision === 'refusee'} />
     ) : null,
   };
 
@@ -699,6 +700,7 @@ async function TodayContent({
           {...pilotageCommun}
           aujourdhui={
             <AujourdhuiMobile
+              key="today-mobile"
               {...homeProps}
               variant="pilotage"
               week={week}
@@ -718,6 +720,7 @@ async function TodayContent({
         {...pilotageCommun}
         aujourdhui={
           <TodayClient
+            key="today-pilotage"
             {...homeProps}
             variant="pilotage"
             relancesProgrammees={week.relancesProgrammees}

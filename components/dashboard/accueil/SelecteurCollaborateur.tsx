@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTransition } from 'react';
 import Select from '@/components/ui/Select';
-import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 
 export type MembreOption = {
   id: string;
@@ -35,21 +34,19 @@ export default function SelecteurCollaborateur({
 
   if (membres.length <= 1) return null;
 
-  const options = membres.map((m) => ({ value: m.id, label: m.nom }));
-  const choisi = membres.find((m) => m.id === selectionne);
+  const options = membres.map((m) => ({
+    value: m.id,
+    label: m.nom,
+    avatar: {
+      firstName: m.firstName ?? '',
+      lastName: m.lastName ?? '',
+      url: m.avatarUrl,
+    },
+  }));
 
   return (
     <label className="flex items-center gap-2 text-[12px] font-semibold text-text-muted">
       <span>Collaborateur</span>
-      {choisi ? (
-        <ProfileAvatar
-          firstName={choisi.firstName ?? ''}
-          lastName={choisi.lastName ?? ''}
-          avatarUrl={choisi.avatarUrl}
-          size={28}
-          className="shrink-0"
-        />
-      ) : null}
       <Select
         aria-label="Collaborateur"
         value={selectionne}

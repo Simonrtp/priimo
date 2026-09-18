@@ -73,11 +73,9 @@ async function getServerUserUncached(): Promise<ServerUser> {
 
   const agencyIds = rows.map((r) => r.agency_id);
   const { data: agencies } = await timed('agencies.select', async () => {
-    const withFrequence = await supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds);
-    if (
-      withFrequence.error &&
-      /frequence_passage|statut_abonnement|stripe_subscription/.test(withFrequence.error.message)
-    ) {
+    const withBilling = await supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds);
+    if (withBilling.error) {
+      console.error('[getServerUser] agencies.select', withBilling.error.message);
       return supabase
         .from('agencies')
         .select(
@@ -85,7 +83,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
         )
         .in('id', agencyIds);
     }
-    return withFrequence;
+    return withBilling;
   });
   const agencyList = agencies ?? [];
 

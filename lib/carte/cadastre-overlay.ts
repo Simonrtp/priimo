@@ -133,3 +133,30 @@ export function formatPrixM2Court(value: number | null | undefined): string | nu
   if (value == null || !Number.isFinite(value)) return null;
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(value))} €/m²`;
 }
+
+/** Point DPE affiché pour la plage du curseur. */
+export function dpeVisibleOnMap(
+  row: {
+    dpeGrain: CadastreImmeublePoint['dpeGrain'];
+    etiquetteDpe: string | null;
+    dateDpe: string | null;
+  },
+  ages: readonly DpeAgeBucket[],
+  now: Date = new Date(),
+): boolean {
+  if (!row.dpeGrain || !parseDpeLetter(row.etiquetteDpe)) return false;
+  return dpeMatchesSelectedAges(row.dateDpe, ages, now);
+}
+
+/** Point à dessiner : DPE, vente ou copro — indépendant des polygones PCI. */
+export function hasCadastreOverlay(row: {
+  dpeGrain: CadastreImmeublePoint['dpeGrain'];
+  etiquetteDpe: string | null;
+  nbTransactions: number;
+  nbLots: number | null;
+  procedureCopro: boolean;
+}): boolean {
+  if (row.dpeGrain && parseDpeLetter(row.etiquetteDpe)) return true;
+  if (row.nbTransactions > 0) return true;
+  return row.nbLots != null || row.procedureCopro;
+}

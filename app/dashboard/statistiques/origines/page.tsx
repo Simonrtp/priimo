@@ -14,6 +14,7 @@ const SOURCE_LABELS: Record<string, string> = {
   logicimmo: 'Logic-Immo',
   leboncoin: 'Leboncoin',
   autre_portail: 'Autre portail',
+  qr_terrain: 'QR terrain',
 };
 
 /**

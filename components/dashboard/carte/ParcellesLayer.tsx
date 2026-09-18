@@ -10,7 +10,8 @@ import {
 } from '@/lib/map/style';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { DPE_PALETTE, parseDpeLetter } from '@/lib/carte/dpe-public';
-import { formatPrixM2Court } from '@/lib/carte/cadastre-overlay';
+import { DEFAULT_DPE_AGE_BUCKETS } from '@/lib/carte/dpe-age';
+import { dpeVisibleOnMap, formatPrixM2Court } from '@/lib/carte/cadastre-overlay';
 import {
   COPRO_FILL,
   COPRO_PROCEDURE_FILL,
@@ -38,17 +39,28 @@ export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 
 const FILL = 'rgba(61, 90, 128, 0.14)';
 const LINE = 'rgba(61, 90, 128, 0.4)';
-const DPE_MARKER_CAP = 800;
+const DPE_CIRCLE_COLOR = [
+  'match',
+  ['get', 'letter'],
+  'A',
+  DPE_PALETTE.A,
+  'B',
+  DPE_PALETTE.B,
+  'C',
+  DPE_PALETTE.C,
+  'D',
+  DPE_PALETTE.D,
+  'E',
+  DPE_PALETTE.E,
+  'F',
+  DPE_PALETTE.F,
+  'G',
+  DPE_PALETTE.G,
+  DPE_PALETTE.D,
+] as const;
 
 type Pin = { parcelleId: string; longitude: number; latitude: number };
 type OverlayHover = { lng: number; lat: number; preview: HoverPreview };
-type DpeMarker = {
-  banId: string;
-  parcelleId: string | null;
-  longitude: number;
-  latitude: number;
-  letter: keyof typeof DPE_PALETTE;
-};
 
 function overlayLayerOf(layerId: string | undefined): CadastreOverlayId | null {
   if (layerId === CADASTRE_DPE_LAYER_ID || layerId === CADASTRE_DPE_LABEL_LAYER_ID) return 'dpe';
@@ -91,7 +103,7 @@ export default function ParcellesLayer({
   noteMarkers: readonly ParcelleNoteMarker[];
   selectedParcelleId: string | null;
   immeubles: readonly CadastreImmeublePoint[];
-  layers: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
+  layers: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onPick: (parcelleId: string) => void;
 }) {
   const hoverId = useRef<string | null>(null);
@@ -102,6 +114,8 @@ export default function ParcellesLayer({
   immeublesRef.current = immeubles;
   const selectedParcelleRef = useRef(selectedParcelleId);
   selectedParcelleRef.current = selectedParcelleId;
+  const layersRef = useRef(layers);
+  layersRef.current = layers;
   const [pins, setPins] = useState<Pin[]>([]);
   const [overlayHover, setOverlayHover] = useState<OverlayHover | null>(null);
   const showOverlays = layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
@@ -114,41 +128,23 @@ export default function ParcellesLayer({
     return map;
   }, [noteMarkers]);
 
-  const dpeMarkers = useMemo<DpeMarker[]>(() => {
-    if (!layers.cadastreDpe) return [];
-    const fresh: DpeMarker[] = [];
-    const older: DpeMarker[] = [];
-    for (const row of immeubles) {
-      if (!row.dpeGrain) continue;
-      const letter = parseDpeLetter(row.etiquetteDpe);
-      if (!letter) continue;
-      if (!Number.isFinite(row.longitude) || !Number.isFinite(row.latitude)) continue;
-      const marker: DpeMarker = {
-        banId: row.banId,
-        parcelleId: row.parcelleId,
-        longitude: row.longitude,
-        latitude: row.latitude,
-        letter,
-      };
-      if (row.dpeGrain === 'adresse') fresh.push(marker);
-      else older.push(marker);
-      if (fresh.length + older.length >= DPE_MARKER_CAP) break;
-    }
-    return [...fresh, ...older].slice(0, DPE_MARKER_CAP);
-  }, [immeubles, layers.cadastreDpe]);
-
   const overlayGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
+    const ages = layers.cadastreDpeAges?.length ? layers.cadastreDpeAges : DEFAULT_DPE_AGE_BUCKETS;
     const features: GeoJSON.Feature[] = [];
     for (const row of immeubles) {
-      const hasVente = row.nbTransactions > 0;
-      const hasCopro = row.nbLots != null || row.procedureCopro;
-      if (!hasVente && !hasCopro) continue;
+      const letter = parseDpeLetter(row.etiquetteDpe);
+      const hasDpe = Boolean(layers.cadastreDpe) && dpeVisibleOnMap(row, ages);
+      const hasVente = Boolean(layers.cadastreVentes) && row.nbTransactions > 0;
+      const hasCopro = Boolean(layers.cadastreCopro) && (row.nbLots != null || row.procedureCopro);
+      if (!hasDpe && !hasVente && !hasCopro) continue;
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [row.longitude, row.latitude] },
         properties: {
           banId: row.banId,
           parcelleId: row.parcelleId,
+          hasDpe: hasDpe ? '1' : '0',
+          letter: letter ?? '',
           hasVente: hasVente ? '1' : '0',
           hasCopro: hasCopro ? '1' : '0',
           procedure: row.procedureCopro ? '1' : '0',
@@ -157,7 +153,11 @@ export default function ParcellesLayer({
       });
     }
     return { type: 'FeatureCollection', features };
-  }, [immeubles]);
+  }, [immeubles, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro, layers.cadastreDpeAges]);
+
+  useEffect(() => {
+    setOverlayHover(null);
+  }, [layers.cadastreDpeAges, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
@@ -319,6 +319,15 @@ export default function ParcellesLayer({
         setOverlayHover(null);
         return;
       }
+      if (layer === 'dpe') {
+        const ages = layersRef.current.cadastreDpeAges?.length
+          ? layersRef.current.cadastreDpeAges
+          : DEFAULT_DPE_AGE_BUCKETS;
+        if (!dpeVisibleOnMap(row, ages)) {
+          setOverlayHover(null);
+          return;
+        }
+      }
       if (row.parcelleId && row.parcelleId === selectedParcelleRef.current) {
         setOverlayHover(null);
         return;
@@ -342,43 +351,31 @@ export default function ParcellesLayer({
       onPick(parcelleId);
     };
 
-    const venteLayers = [CADASTRE_VENTES_LAYER_ID, CADASTRE_VENTES_POINT_LAYER_ID];
-    for (const id of venteLayers) {
+    const overlayLayers = [
+      CADASTRE_DPE_LAYER_ID,
+      CADASTRE_DPE_LABEL_LAYER_ID,
+      CADASTRE_VENTES_LAYER_ID,
+      CADASTRE_VENTES_POINT_LAYER_ID,
+      CADASTRE_COPRO_LAYER_ID,
+    ];
+    for (const id of overlayLayers) {
       map.on('mousemove', id, onOverlayMove);
       map.on('mouseleave', id, onOverlayLeave);
       map.on('click', id, onOverlayClick);
     }
-    map.on('mousemove', CADASTRE_COPRO_LAYER_ID, onOverlayMove);
-    map.on('mouseleave', CADASTRE_COPRO_LAYER_ID, onOverlayLeave);
-    map.on('click', CADASTRE_COPRO_LAYER_ID, onOverlayClick);
 
     return () => {
-      for (const id of venteLayers) {
+      for (const id of overlayLayers) {
         map.off('mousemove', id, onOverlayMove);
         map.off('mouseleave', id, onOverlayLeave);
         map.off('click', id, onOverlayClick);
       }
-      map.off('mousemove', CADASTRE_COPRO_LAYER_ID, onOverlayMove);
-      map.off('mouseleave', CADASTRE_COPRO_LAYER_ID, onOverlayLeave);
-      map.off('click', CADASTRE_COPRO_LAYER_ID, onOverlayClick);
       const canvas = mapCanvas(map);
       if (canvas && !enabled) canvas.style.cursor = '';
     };
   }, [enabled, mapRef, onPick, showOverlays]);
 
   if (!enabled && !showOverlays) return null;
-
-  function showDpeHover(marker: DpeMarker) {
-    if (!pointerCanHover()) return;
-    const row = immeublesRef.current.find((item) => item.banId === marker.banId);
-    if (!row) return;
-    if (row.parcelleId && row.parcelleId === selectedParcelleRef.current) return;
-    setOverlayHover({
-      lng: marker.longitude,
-      lat: marker.latitude,
-      preview: hoverPreviewFromCadastre(row, 'dpe'),
-    });
-  }
 
   return (
     <>
@@ -422,42 +419,42 @@ export default function ParcellesLayer({
       {showOverlays ? (
         <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson}>
           {layers.cadastreVentes ? (
-            <>
-              <Layer
-                id={CADASTRE_VENTES_POINT_LAYER_ID}
-                type="circle"
-                filter={['==', ['get', 'hasVente'], '1']}
-                paint={{
-                  'circle-radius': 5,
-                  'circle-color': VENTE_FILL,
-                  'circle-stroke-width': 1,
-                  'circle-stroke-color': VENTE_PRICE_HALO,
-                  'circle-pitch-alignment': 'viewport',
-                  'circle-pitch-scale': 'viewport',
-                }}
-              />
-              <Layer
-                id={CADASTRE_VENTES_LAYER_ID}
-                type="symbol"
-                filter={['all', ['==', ['get', 'hasVente'], '1'], ['!=', ['get', 'prixM2'], '']]}
-                minzoom={VENTE_PRICE_LABEL_MIN_ZOOM}
-                layout={{
-                  'text-field': ['get', 'prixM2'],
-                  'text-size': 11,
-                  'text-offset': [1.35, 0],
-                  'text-anchor': 'left',
-                  'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-                  'text-allow-overlap': false,
-                  'text-pitch-alignment': 'viewport',
-                  'text-rotation-alignment': 'viewport',
-                }}
-                paint={{
-                  'text-color': VENTE_FILL,
-                  'text-halo-color': VENTE_PRICE_HALO,
-                  'text-halo-width': 1.4,
-                }}
-              />
-            </>
+            <Layer
+              id={CADASTRE_VENTES_POINT_LAYER_ID}
+              type="circle"
+              filter={['==', ['get', 'hasVente'], '1']}
+              paint={{
+                'circle-radius': 5,
+                'circle-color': VENTE_FILL,
+                'circle-stroke-width': 1,
+                'circle-stroke-color': VENTE_PRICE_HALO,
+                'circle-pitch-alignment': 'viewport',
+                'circle-pitch-scale': 'viewport',
+              }}
+            />
+          ) : null}
+          {layers.cadastreVentes ? (
+            <Layer
+              id={CADASTRE_VENTES_LAYER_ID}
+              type="symbol"
+              filter={['all', ['==', ['get', 'hasVente'], '1'], ['!=', ['get', 'prixM2'], '']]}
+              minzoom={VENTE_PRICE_LABEL_MIN_ZOOM}
+              layout={{
+                'text-field': ['get', 'prixM2'],
+                'text-size': 11,
+                'text-offset': [1.35, 0],
+                'text-anchor': 'left',
+                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+                'text-allow-overlap': false,
+                'text-pitch-alignment': 'viewport',
+                'text-rotation-alignment': 'viewport',
+              }}
+              paint={{
+                'text-color': VENTE_FILL,
+                'text-halo-color': VENTE_PRICE_HALO,
+                'text-halo-width': 1.4,
+              }}
+            />
           ) : null}
           {layers.cadastreCopro ? (
             <Layer
@@ -484,48 +481,52 @@ export default function ParcellesLayer({
               }}
             />
           ) : null}
+          {layers.cadastreDpe ? (
+            <Layer
+              id={CADASTRE_DPE_LAYER_ID}
+              type="circle"
+              filter={['==', ['get', 'hasDpe'], '1']}
+              paint={{
+                'circle-radius': 8,
+                'circle-color': DPE_CIRCLE_COLOR,
+                'circle-stroke-width': 1.2,
+                'circle-stroke-color': '#F4EFE8',
+                'circle-pitch-alignment': 'viewport',
+                'circle-pitch-scale': 'viewport',
+              }}
+            />
+          ) : null}
+          {layers.cadastreDpe ? (
+            <Layer
+              id={CADASTRE_DPE_LABEL_LAYER_ID}
+              type="symbol"
+              filter={['==', ['get', 'hasDpe'], '1']}
+              layout={{
+                'text-field': ['get', 'letter'],
+                'text-size': 10,
+                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+                'text-pitch-alignment': 'viewport',
+                'text-rotation-alignment': 'viewport',
+              }}
+              paint={{
+                'text-color': [
+                  'match',
+                  ['get', 'letter'],
+                  'C',
+                  '#1A1A1A',
+                  'D',
+                  '#1A1A1A',
+                  'E',
+                  '#1A1A1A',
+                  '#ffffff',
+                ],
+              }}
+            />
+          ) : null}
         </Source>
       ) : null}
-
-      {dpeMarkers.map((m) => {
-        const color = DPE_PALETTE[m.letter];
-        const canOpen = Boolean(m.parcelleId);
-        return (
-          <Marker
-            key={`dpe:${m.banId}`}
-            longitude={m.longitude}
-            latitude={m.latitude}
-            anchor="center"
-            style={{ zIndex: 1 }}
-            onClick={(event) => {
-              event.originalEvent.stopPropagation();
-              if (m.parcelleId) {
-                setOverlayHover(null);
-                onPick(m.parcelleId);
-              }
-            }}
-          >
-            <button
-              type="button"
-              className="priimo-dpe-dot"
-              aria-label={
-                canOpen
-                  ? `DPE ${m.letter} — ouvrir la parcelle`
-                  : `DPE ${m.letter}`
-              }
-              style={{ backgroundColor: color }}
-              onMouseEnter={() => showDpeHover(m)}
-              onMouseLeave={() => setOverlayHover(null)}
-              onFocus={() => showDpeHover(m)}
-              onBlur={() => setOverlayHover(null)}
-            >
-              <span className="priimo-dpe-dot__letter" aria-hidden>
-                {m.letter}
-              </span>
-            </button>
-          </Marker>
-        );
-      })}
 
       {overlayHover ? (
         <Popup

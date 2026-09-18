@@ -18,6 +18,7 @@ describe('ancienneté DPE carte', () => {
 
   it('découpe toute la plage sans trou ni chevauchement', () => {
     assert.equal(dpeAgeBucketOf('2026-09-14', now), 'semaine');
+    assert.equal(dpeAgeBucketOf('2027-01-01', now), null);
     assert.equal(dpeAgeBucketOf('2026-09-01', now), 'mois');
     assert.equal(dpeAgeBucketOf('2026-06-01', now), '1-6');
     assert.equal(dpeAgeBucketOf('2026-01-15', now), '6-12');
@@ -41,6 +42,7 @@ describe('ancienneté DPE carte', () => {
     assert.equal(dpeMatchesSelectedAges('2026-09-14', ['1-3'], now), false);
     assert.equal(dpeMatchesSelectedAges('2024-09-15', ['semaine', '1-3'], now), true);
     assert.equal(dpeMatchesSelectedAges('2026-09-14', [], now), false);
+    assert.equal(dpeMatchesSelectedAges('2025-07-22', ['semaine'], now), false);
   });
 
   it('ne lit building_dpe que pour les cases hors agrégat 12 mois+', () => {

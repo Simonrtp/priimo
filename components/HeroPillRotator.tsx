@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Database,
+  Footprints,
   MapPinned,
-  TrendingUp,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -15,9 +15,9 @@ type Terme = {
 };
 
 const TERMES: Terme[] = [
-  { label: "chiffre d'affaires", Icon: TrendingUp, color: "#6366F1" },
-  { label: "productivité", Icon: Zap, color: "#E05C5C" },
-  { label: "prospection", Icon: MapPinned, color: "#5DC47C" },
+  { label: "le terrain", Icon: Footprints, color: "#E8743C" },
+  { label: "la prospection", Icon: MapPinned, color: "#5DC47C" },
+  { label: "la data", Icon: Database, color: "#6366F1" },
 ];
 
 const INTERVALLE_MS = 2800;

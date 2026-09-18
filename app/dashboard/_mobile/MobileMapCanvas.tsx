@@ -18,6 +18,7 @@ import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
+  CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
   CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
@@ -96,7 +97,7 @@ export default function MobileMapCanvas({
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
-  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'>;
+  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onSelectParcelle?: (parcelleId: string) => void;
   agentPosition?: DevicePosition | null;
   highlightBanIds?: ReadonlySet<string> | null;
@@ -242,6 +243,12 @@ export default function MobileMapCanvas({
     };
   }, [mapRefOut, fitToPoints, fitBoundsTo, camera.pitch, camera.bearing]);
 
+  const showCrmPins =
+    !navigation &&
+    !cadastreLayers.cadastreDpe &&
+    !cadastreLayers.cadastreVentes &&
+    !cadastreLayers.cadastreCopro;
+
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;
   }
@@ -269,6 +276,7 @@ export default function MobileMapCanvas({
         pitchWithRotate={false}
         interactiveLayerIds={[
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
+          ...(!navigation && cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
           ...(!navigation && cadastreLayers.cadastreVentes
             ? [CADASTRE_VENTES_POINT_LAYER_ID, CADASTRE_VENTES_LAYER_ID]
             : []),
@@ -342,7 +350,8 @@ export default function MobileMapCanvas({
             }}
           />
         ) : null}
-        {!navigation && clustered.map((item) => {
+        {showCrmPins
+          ? clustered.map((item) => {
           if (item.kind === 'cluster') {
             return (
               <Marker
@@ -412,7 +421,8 @@ export default function MobileMapCanvas({
               </span>
             </Marker>
           );
-        })}
+        })
+          : null}
         {!navigation && fallback ? (
           <Marker
             longitude={fallback.longitude}

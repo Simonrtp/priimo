@@ -3,10 +3,18 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+
+export type SelectOptionAvatar = {
+  firstName: string;
+  lastName: string;
+  url?: string | null;
+};
 
 export interface SelectOption {
   value: string;
   label: string;
+  avatar?: SelectOptionAvatar;
 }
 
 interface SelectProps {
@@ -28,6 +36,18 @@ const defaultTriggerClass =
   'flex w-full min-w-[140px] items-center justify-between gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2.5 text-left text-[14px] text-text outline-none transition-[color,background-color,border-color,box-shadow] duration-fluid-subtle ease-in-out hover:border-black/[0.14] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50';
 
 const MENU_GAP = 6;
+
+function OptionAvatar({ avatar, size }: { avatar: SelectOptionAvatar; size: number }) {
+  return (
+    <ProfileAvatar
+      firstName={avatar.firstName}
+      lastName={avatar.lastName}
+      avatarUrl={avatar.url}
+      size={size}
+      className="shrink-0"
+    />
+  );
+}
 
 function normalizeQuery(q: string): string {
   return q
@@ -230,6 +250,7 @@ export default function Select({
                     : 'text-text-muted hover:bg-black/[0.04] hover:text-text'
                 } ${isSelected ? 'font-medium' : ''}`}
               >
+                {option.avatar ? <OptionAvatar avatar={option.avatar} size={22} /> : null}
                 <span className="flex-1 truncate">{option.label}</span>
                 {isSelected ? (
                   <Check size={14} strokeWidth={2.5} className="flex-shrink-0 text-accent-dark" aria-hidden />
@@ -291,7 +312,10 @@ export default function Select({
         onClick={() => !disabled && setOpen((o) => !o)}
         className={triggerClassName}
       >
-        <span className="truncate">{selected?.label ?? '—'}</span>
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          {selected?.avatar ? <OptionAvatar avatar={selected.avatar} size={22} /> : null}
+          <span className="truncate">{selected?.label ?? '—'}</span>
+        </span>
         <ChevronDown
           size={16}
           strokeWidth={2}

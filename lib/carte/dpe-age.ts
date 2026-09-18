@@ -95,6 +95,7 @@ export function dpeAgeBucketOf(dateIso: string | null | undefined, now: Date = n
   const t = timestamp(dateIso);
   if (t == null) return null;
   const age = now.getTime() - t;
+  if (age < -DAY_MS) return null;
   if (age < 7 * DAY_MS) return 'semaine';
   if (t >= addMonths(now, -1).getTime()) return 'mois';
   if (t >= addMonths(now, -DPE_FRESH_MONTHS).getTime()) return '1-6';
