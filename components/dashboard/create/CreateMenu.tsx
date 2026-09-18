@@ -14,6 +14,7 @@ import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import QrTerrainOverlay from '@/components/dashboard/qr/QrTerrainOverlay';
+import { prefetchQrCard } from '@/lib/qr/client-session';
 import { FIELD } from '@/lib/today/field';
 
 type CreateKind = 'contact' | 'bien';
@@ -304,17 +305,39 @@ export default function CreateMenu({
         {variant === 'default' ? (
           <button
             type="button"
+            onPointerEnter={prefetchQrCard}
+            onFocus={prefetchQrCard}
             onClick={() => {
               setOpen(false);
               armPointerShield();
               setQrOpen(true);
             }}
-            aria-label="QR de consentement"
-            title="QR de consentement"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-clay hover:brightness-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:size-9"
-            style={{ backgroundColor: FIELD.creme, color: FIELD.orange }}
+            aria-label="Conformité"
+            aria-expanded={qrOpen}
+            className={`assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-[#111] transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0 ${
+              qrOpen ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
+            }`}
           >
-            <QrCode size={17} strokeWidth={2.15} aria-hidden />
+            <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
+              <QrCode size={17} strokeWidth={2.15} className="text-[#3D5A80]" />
+            </span>
+            <span
+              className={`grid min-w-0 transition-[grid-template-columns] duration-fluid ease-in-out motion-reduce:transition-none ${
+                qrOpen
+                  ? 'grid-cols-[1fr]'
+                  : 'grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr]'
+              }`}
+            >
+              <span
+                className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-[#111] transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
+                  qrOpen
+                    ? 'opacity-100'
+                    : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
+                }`}
+              >
+                Conformité
+              </span>
+            </span>
           </button>
         ) : null}
         {sheet}

@@ -34,7 +34,7 @@ export default function PhrasePilotage({ phrase }: { phrase: Phrase }) {
   return (
     <section
       aria-live="polite"
-      className="rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6"
+      className="max-md:hidden rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6"
       style={{ borderLeft: `4px solid ${teinte}` }}
     >
       <div className="flex items-start gap-3.5">

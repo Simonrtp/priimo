@@ -24,10 +24,10 @@ export type CouleurFamille = {
 
 export const COULEUR_FAMILLE: Record<FamilleActivite, CouleurFamille> = {
   contacts_physiques: {
-    teinte: '#1F6FE0',
-    pastelFort: '#BFD6FF',
-    pastille: '#DCEBFF',
-    voile: '#EDF4FD',
+    teinte: '#3F3F46',
+    pastelFort: '#D4D4D8',
+    pastille: '#E4E4E7',
+    voile: '#F4F4F5',
   },
   immeubles_prospectes: {
     teinte: '#B07700',

@@ -7,7 +7,7 @@ describe('couleurs de colonne', () => {
   it('propose les pastels de l’accueil, pas des primaires', () => {
     assert.ok(COULEURS_COLONNE.length >= 12);
     assert.equal(COULEUR_COLONNE_DEFAUT, COULEUR_FAMILLE.contacts_physiques.pastelFort);
-    assert.ok(COULEURS_COLONNE.includes('#BFD6FF'));
+    assert.ok(COULEURS_COLONNE.includes(COULEUR_FAMILLE.contacts_physiques.pastelFort));
     assert.ok(!COULEURS_COLONNE.includes('#E8743C'));
     assert.ok(!COULEURS_COLONNE.includes('#4A90E2'));
   });

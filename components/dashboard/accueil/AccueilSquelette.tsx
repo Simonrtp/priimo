@@ -34,7 +34,7 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
     <div className="flex min-w-0 flex-col gap-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Chargement de l’accueil</span>
 
-      <section className="rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6">
+      <section className="max-md:hidden rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6">
         <div className="flex items-start gap-3.5">
           <span className="squelette mt-0.5 size-9 shrink-0 rounded-full" />
           <div className="min-w-0 flex-1 space-y-2.5 pt-0.5">
@@ -250,21 +250,13 @@ export function EnteteSquelette({
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-      <div className="shrink-0">
+      <div className="hidden shrink-0 sm:block">
         <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {titre}
         </h1>
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalle}</p>
       </div>
-      <div
-        className="w-full max-w-[16rem] rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:w-[16rem] sm:px-4"
-        style={{ backgroundColor: ACCUEIL.creme }}
-        aria-hidden
-      >
-        <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
-        <div className="mt-1 h-5 rounded" />
-      </div>
-      <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+      <div className="flex items-center justify-end gap-2 sm:order-last sm:ml-auto">
         <div className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset">
           {periodes.map(([id, libelle]) => (
             <span
@@ -278,6 +270,25 @@ export function EnteteSquelette({
               {libelle}
             </span>
           ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 items-stretch gap-2.5 sm:block sm:w-[16rem] sm:max-w-[16rem] sm:flex-none">
+        <div
+          className="rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:px-4"
+          style={{ backgroundColor: ACCUEIL.creme }}
+          aria-hidden
+        >
+          <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
+          <div className="mt-1 h-5 rounded" />
+        </div>
+        <div
+          className="flex h-full min-h-0 items-stretch sm:hidden"
+          aria-hidden
+        >
+          <div
+            className="w-full rounded-clay-lg shadow-clay-sm"
+            style={{ backgroundColor: '#DCEBFF' }}
+          />
         </div>
       </div>
     </header>

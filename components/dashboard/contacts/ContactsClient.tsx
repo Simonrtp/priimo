@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Download, Phone, Search, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, Download, Phone, Search, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
@@ -39,7 +39,7 @@ import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
 
 const SLATE = '#3D5A80';
-const CREAM = '#FFF7F0';
+const SELECTED = '#F1F2F4';
 
 type EtatFilter = 'tous' | 'relance' | 'incompletes' | 'doublons';
 
@@ -137,13 +137,13 @@ function ContactRow({
     <li
       className="overflow-hidden border-b border-[#1E3148]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
       style={{
-        background: selected ? CREAM : '#FFFFFF',
+        background: selected ? SELECTED : '#FFFFFF',
         borderBottomWidth: 0.5,
       }}
     >
       <div
-        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#FFF7F0] motion-reduce:transition-none sm:px-5"
-        style={selected ? { background: CREAM } : undefined}
+        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#F1F2F4] motion-reduce:transition-none sm:px-5"
+        style={selected ? { background: SELECTED } : undefined}
         onClick={onOpen}
       >
         <span
@@ -252,17 +252,6 @@ function ContactRow({
                 selected ? 'rotate-180' : ''
               }`}
             />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            aria-label={`Supprimer ${contact.fullName}`}
-            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <Trash2 size={15} strokeWidth={2} aria-hidden />
           </button>
         </div>
       </div>

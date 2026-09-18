@@ -8,6 +8,7 @@ import {
   type Periode,
 } from '@/lib/activite/semaines';
 import PenseBete from './PenseBete';
+import QrScanCarte from '@/components/dashboard/qr/QrScanCarte';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois', 'annee'];
 
@@ -71,16 +72,15 @@ export default function EnteteSemaine({
 
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-      <div className="shrink-0">
+      <div className="hidden shrink-0 sm:block">
         <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {TITRE_PERIODE[periode]}
         </h1>
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalleLisible(intervalle, periode)}</p>
       </div>
+      <h1 className="sr-only sm:hidden">{TITRE_PERIODE[periode]}</h1>
 
-      <PenseBete initial={penseBete} className="w-full max-w-[16rem] sm:w-[16rem]" />
-
-      <div className="flex shrink-0 items-center gap-2 sm:ml-auto" aria-busy={enCours}>
+      <div className="flex items-center justify-end gap-2 sm:order-last sm:ml-auto" aria-busy={enCours}>
         <div
           role="group"
           aria-label="Granularité"
@@ -130,6 +130,13 @@ export default function EnteteSemaine({
               Aujourd’hui
             </button>
           ) : null}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 items-stretch gap-2.5 sm:block sm:w-[16rem] sm:max-w-[16rem] sm:flex-none">
+        <PenseBete initial={penseBete} className="h-full" />
+        <div className="h-full min-h-0 sm:hidden">
+          <QrScanCarte />
         </div>
       </div>
     </header>

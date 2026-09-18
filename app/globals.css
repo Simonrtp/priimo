@@ -2169,6 +2169,11 @@ html:has(.feature-page) {
   }
 }
 
+.qr-public,
+.qr-public :is(h1, h2, h3, h4, p, a, button, input, textarea, label, span, strong, em) {
+  font-family: var(--font-nunito), Nunito, ui-sans-serif, sans-serif;
+}
+
 .qr-in {
   animation: qrIn 420ms ease-out both;
 }

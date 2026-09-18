@@ -7,12 +7,11 @@ import type { Contact } from '@/types/contact';
 import { criteriaAreEmpty, typeUsesCriteria } from '@/types/contact';
 import { evaluerCorrespondance } from '@/lib/matching/rapprochement';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
-import { postAgencyAlert } from '@/lib/agency/post-alert';
 import { notifyError } from '@/lib/notify';
 import DatePickerField from '@/components/ui/DatePickerField';
+import { Trash2 } from 'lucide-react';
 
 function euros(v: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(v)} €`;
@@ -353,23 +352,14 @@ export default function ContactDetailPanel({
         <WorkspaceButton type="button" variant="secondary" onClick={onEdit} className="!min-h-9 !py-1.5">
           Modifier
         </WorkspaceButton>
-        <ActionMenu
-          items={[
-            {
-              label: 'Signaler une baisse de prix',
-              onSelect: () => {
-                void postAgencyAlert({ kind: 'baisse_prix', contactId: contact.id });
-              },
-            },
-            {
-              label: 'Signaler un mandat à récupérer',
-              onSelect: () => {
-                void postAgencyAlert({ kind: 'mandat_a_recuperer', contactId: contact.id });
-              },
-            },
-            { label: 'Supprimer ce contact', onSelect: onDelete, destructive: true },
-          ]}
-        />
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Supprimer ${contact.fullName}`}
+          className="flex size-9 items-center justify-center rounded-clay border border-black/[0.12] bg-surface text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <Trash2 size={16} strokeWidth={2} aria-hidden />
+        </button>
       </div>
     </div>
   );

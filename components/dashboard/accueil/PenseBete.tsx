@@ -66,7 +66,7 @@ export default function PenseBete({
   return (
     <div className={`min-w-0 ${className}`}>
       <div
-        className="rounded-clay-lg px-3.5 py-2 shadow-clay-sm focus-within:ring-2 focus-within:ring-accent/20 sm:px-4"
+        className="flex h-full flex-col rounded-clay-lg px-3.5 py-2 shadow-clay-sm focus-within:ring-2 focus-within:ring-accent/20 sm:px-4"
         style={{ backgroundColor: ACCUEIL.creme }}
       >
         <label htmlFor="pense-bete" className="block text-[11px] font-semibold text-text-muted">

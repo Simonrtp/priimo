@@ -176,7 +176,7 @@ export default function MergeContactsDialog({
                 className="grid grid-cols-[7.5rem_1fr_1fr] gap-2 border-b border-black/[0.06] px-3 py-2.5 last:border-b-0"
               >
                 <p className="pt-1 text-[12.5px] font-medium text-text-muted">{label}</p>
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1 hover:bg-[#FFF7F0]">
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1 hover:bg-[#F1F2F4]">
                   <input
                     type="radio"
                     name={`merge-${key}`}
@@ -188,7 +188,7 @@ export default function MergeContactsDialog({
                     {displayValue(left, key, members)}
                   </span>
                 </label>
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1 hover:bg-[#FFF7F0]">
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1 hover:bg-[#F1F2F4]">
                   <input
                     type="radio"
                     name={`merge-${key}`}
