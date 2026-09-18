@@ -80,7 +80,7 @@ export default function PenseBete({
           value={texte}
           rows={1}
           maxLength={PENSE_BETE_MAX}
-          placeholder="Un numéro, un rappel. Ça reste ici."
+          placeholder="note, essai, gribouillis"
           aria-describedby={erreur ? erreurId : undefined}
           aria-invalid={erreur ? true : undefined}
           className="mt-1 block w-full resize-none overflow-hidden bg-transparent text-[13.5px] leading-snug text-text-strong outline-none [field-sizing:content] max-h-[7.5rem] placeholder:text-text-muted"

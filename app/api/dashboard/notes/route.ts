@@ -5,20 +5,11 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { composeTypedNote, parseTypedNoteDraft } from '@/lib/notes/typed-compose';
-import {
-  buildFullName,
-  fetchContactsDuplicateLite,
-  insertContactRow,
-  mapDbVoiceNote,
-} from '@/lib/queries/contacts';
+import { mapDbVoiceNote } from '@/lib/queries/contacts';
 import { mapDbNoteLien, NOTE_LIENS_SELECT } from '@/lib/notes/liens';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
-import { visibleContactsFor } from '@/lib/agency/scope-records';
-import { findDuplicates } from '@/lib/contacts/duplicates';
-import { EMPTY_BAN_GEO, geocodeToColumns, type BanGeoColumns } from '@/lib/geo/fields';
-import type { ExtractedPersonne, NoteExtraction } from '@/lib/notes/propositions';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import { auteurNote, portraitsParId } from '@/lib/notes/auteur';
+import { EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
@@ -90,7 +81,7 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false });
 
   const members = await fetchMembersOfMyAgency(agency.id, memberships);
-  const names = new Map(members.map((m) => [m.id, m.fullName]));
+  const auteurs = portraitsParId(members);
 
   const { data: allLiens } = await supabase
     .from('note_liens')
@@ -113,10 +104,12 @@ export async function GET(req: Request) {
           (l) => l.entiteType === 'contact' || l.entiteType === 'bien' || l.entiteType === 'lead',
         ),
       });
+      const author = auteurNote(mapped.createdBy, auteurs);
       return {
         ...mapped,
         liens: liensByNote.get(row.id) ?? [],
-        authorName: mapped.createdBy ? names.get(mapped.createdBy) ?? null : null,
+        authorName: author?.fullName ?? null,
+        author,
       };
     })
     .filter((n) => canSeeVoiceNote(viewer, { visibilite: n.visibilite, createdBy: n.createdBy }));
@@ -257,20 +250,6 @@ export async function POST(req: Request) {
       );
       if (lienErr) console.error('[notes] liens manuels', lienErr);
     }
-    if (!contactId && extraction) {
-      const supabase = await createSupabaseServerClient();
-      contactId = await ensureTypedContact({
-        admin,
-        supabase,
-        agencyId: agency.id,
-        profileId: profile.id,
-        viewer: viewerFromProfile(profile),
-        noteId: voiceNoteId,
-        extraction,
-        address: geo.adresse_normalisee ?? adresseRaw,
-        geo,
-      });
-    }
   } catch (err) {
     console.error('[notes] écriture', err);
     return NextResponse.json({ error: "La note n'a pas pu être enregistrée" }, { status: 500 });
@@ -282,89 +261,4 @@ export async function POST(req: Request) {
     voiceNoteId,
     contactId,
   });
-}
-
-async function ensureTypedContact(args: {
-  admin: SupabaseClient<Database>;
-  supabase: SupabaseClient<Database>;
-  agencyId: string;
-  profileId: string;
-  viewer: ReturnType<typeof viewerFromProfile>;
-  noteId: string;
-  extraction: NoteExtraction;
-  address: string;
-  geo: BanGeoColumns;
-}): Promise<string | null> {
-  const personne: ExtractedPersonne | undefined = args.extraction.personnes[0];
-  const firstName = personne?.firstName.trim() ?? '';
-  const lastName = personne?.lastName.trim() ?? '';
-  if (!firstName && !lastName) return null;
-
-  const existing = await fetchContactsDuplicateLite(args.supabase);
-  const visible = visibleContactsFor(args.viewer, existing);
-  const strong = findDuplicates(
-    {
-      id: '__new__',
-      firstName,
-      lastName,
-      fullName: buildFullName(firstName, lastName),
-      phone: personne?.phone ?? null,
-      email: personne?.email ?? null,
-    },
-    visible,
-  ).filter((h) => h.strength === 'strong');
-  const reusedId = strong[0]?.other.id ?? null;
-
-  let contactId = reusedId;
-  if (!contactId) {
-    const { data, error } = await insertContactRow(args.admin, {
-      agency_id: args.agencyId,
-      created_by: args.profileId,
-      first_name: firstName || null,
-      last_name: lastName || null,
-      contact_type: personne?.type ?? 'autre',
-      phone: personne?.phone ?? null,
-      email: personne?.email ?? null,
-      secteur: args.extraction.secteur,
-      address: args.address || null,
-      postal_codes: [],
-      budget_max: args.extraction.prix,
-      surface_min: args.extraction.surface,
-      rooms_min: args.extraction.rooms,
-      summary: null,
-      source: 'manuel',
-      assigned_to: args.profileId,
-      assigned_by: null,
-      assigned_at: null,
-      ban_id: args.geo.ban_id,
-      latitude: args.geo.latitude,
-      longitude: args.geo.longitude,
-      adresse_normalisee: args.geo.adresse_normalisee,
-      geocode_score: args.geo.geocode_score,
-      geocode_le: args.geo.geocode_le,
-    });
-    if (error || !data) {
-      console.error('[notes] contact tapé', error);
-      return null;
-    }
-    contactId = data.id;
-  }
-
-  await args.admin.from('note_liens').upsert(
-    {
-      note_id: args.noteId,
-      agency_id: args.agencyId,
-      entite_type: 'contact',
-      entite_id: contactId,
-      confiance: 'certain',
-      cree_par: 'agent',
-    },
-    { onConflict: 'note_id,entite_type,entite_id' },
-  );
-  await args.admin
-    .from('voice_notes')
-    .update({ contact_id: contactId })
-    .eq('id', args.noteId)
-    .eq('agency_id', args.agencyId);
-  return contactId;
 }

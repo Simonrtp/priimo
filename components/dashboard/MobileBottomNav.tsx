@@ -81,7 +81,7 @@ function DesktopCompactNav() {
       <TabItem href="/dashboard" label="Accueil" Icon={IconAccueil} active={activeToday} />
       <TabItem
         href="/dashboard/prospection"
-        label="Prospects"
+        label="Prospection"
         Icon={IconProspection}
         active={activeProspects}
       />
@@ -179,7 +179,7 @@ function FieldBottomNav() {
               </div>
               <FieldTab
                 href="/dashboard/prospection"
-                label="Prospects"
+                label="Prospection"
                 Icon={IconProspection}
                 active={activeProspects}
               />

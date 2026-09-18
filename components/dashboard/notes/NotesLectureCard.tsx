@@ -13,6 +13,7 @@ import {
   syntheseRattachement,
 } from '@/lib/notes/rattachement';
 import type { NoteLecture } from '@/lib/notes/lecture';
+import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
 
 const ENCRE = '#15202F';
 
@@ -65,7 +66,18 @@ function LigneNote({
             style={{ color: active ? 'rgba(255,255,255,0.78)' : FIELD.ardoise }}
           >
             <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
-            {note.authorName ? <span>· {note.authorName}</span> : null}
+            {note.author ? (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                ·{' '}
+                <CollaborateurNom
+                  portrait={note.author}
+                  size={16}
+                  className={active ? 'text-white' : undefined}
+                />
+              </span>
+            ) : note.authorName ? (
+              <span>· {note.authorName}</span>
+            ) : null}
             {rattachee ? (
               <span className="truncate">· {syntheseRattachement(note.rattachements)}</span>
             ) : (
@@ -223,7 +235,13 @@ function DetailNote({ note, onRetour }: { note: NoteLecture; onRetour: () => voi
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] font-medium" style={{ color: FIELD.ardoise }}>
             <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
-            {note.authorName ? <span>· {note.authorName}</span> : null}
+            {note.author ? (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                · <CollaborateurNom portrait={note.author} size={16} />
+              </span>
+            ) : note.authorName ? (
+              <span>· {note.authorName}</span>
+            ) : null}
             {note.visibilite === 'privee' ? <span>· Privée</span> : <span>· Visible dans l’agence</span>}
           </p>
         </div>

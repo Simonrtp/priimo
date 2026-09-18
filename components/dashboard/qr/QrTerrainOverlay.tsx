@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { QrCode, X } from 'lucide-react';
+import { notifySuccess } from '@/lib/notify';
+import { FIELD } from '@/lib/today/field';
 
 type Session = {
   id: string;
@@ -9,6 +11,7 @@ type Session = {
   plafond: number;
   contactsCrees: number;
   vivant: boolean;
+  dernierScan: { prenom: string; nom: string; le: string } | null;
 };
 
 function formatExpire(iso: string): string {
@@ -22,12 +25,11 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sessionRef = useRef<Session | null>(null);
+  const lastCountRef = useRef(0);
   const [url, setUrl] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  sessionRef.current = session;
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -71,8 +73,8 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
       if (cancelled || !canvasRef.current) return;
       void QRCode.toCanvas(canvasRef.current, url, {
         width: 280,
-        margin: 1,
-        color: { dark: '#15202F', light: '#FFFFFF' },
+        margin: 2,
+        color: { dark: FIELD.orange, light: '#FFFFFF' },
         errorCorrectionLevel: 'M',
       });
     });
@@ -80,6 +82,21 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
       cancelled = true;
     };
   }, [url]);
+
+  useEffect(() => {
+    if (!session) return;
+    const prev = lastCountRef.current;
+    const next = session.contactsCrees;
+    lastCountRef.current = next;
+    if (next <= prev) return;
+    const who = [session.dernierScan?.prenom, session.dernierScan?.nom]
+      .filter((p) => Boolean(p?.trim()))
+      .join(' ')
+      .trim();
+    notifySuccess(who ? `${who} a été ajouté à la base` : 'Un lead a été ajouté à la base', {
+      id: `qr-lead-${session.id}-${next}`,
+    });
+  }, [session]);
 
   useEffect(() => {
     if (!session?.id || !session.vivant) return;
@@ -90,21 +107,9 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
           if (data.session) setSession(data.session);
         })
         .catch(() => undefined);
-    }, 2000);
+    }, 1000);
     return () => window.clearInterval(t);
   }, [session?.id, session?.vivant]);
-
-  const revoke = useCallback(async () => {
-    const current = sessionRef.current;
-    if (current) {
-      await fetch('/api/dashboard/qr-session', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: current.id }),
-      }).catch(() => undefined);
-    }
-    onClose();
-  }, [onClose]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -112,7 +117,7 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault();
-        void revoke();
+        onClose();
       }
     }
     function onFocusIn(e: FocusEvent) {
@@ -127,26 +132,30 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
       document.removeEventListener('focusin', onFocusIn);
       previouslyFocused?.focus();
     };
-  }, [revoke]);
+  }, [onClose]);
 
   return (
     <div
       ref={rootRef}
-      className="fixed inset-0 z-[140] flex flex-col bg-[#FFF7F0]"
+      className="fixed inset-0 z-[140] flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{
+        backgroundColor: FIELD.creme,
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
     >
       <div className="flex items-center justify-between px-4 py-3">
-        <p className="flex items-center gap-2 text-[13px] font-medium text-[#3D5A80]">
+        <p className="flex items-center gap-2 text-[13px] font-medium" style={{ color: FIELD.orange }}>
           <QrCode size={16} strokeWidth={2} aria-hidden />
           Consentement
         </p>
         <button
           ref={closeRef}
           type="button"
-          onClick={() => void revoke()}
+          onClick={onClose}
           aria-label="Fermer"
           className="app-press flex size-11 items-center justify-center rounded-full text-text-muted"
         >
@@ -162,7 +171,7 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
           Il le scanne avec son téléphone. Rien n’est prérempli : c’est lui qui saisit.
         </p>
 
-        <div className="mt-8 rounded-[28px] bg-white p-5 shadow-[0_18px_40px_-24px_rgba(21,32,47,0.35)]">
+        <div className="mt-8 rounded-[28px] bg-white p-5 shadow-[0_18px_40px_-24px_rgba(232,116,60,0.45)]">
           {loading ? (
             <div className="size-[280px] animate-pulse rounded-2xl bg-black/[0.04]" aria-hidden />
           ) : error ? (
@@ -180,14 +189,6 @@ export default function QrTerrainOverlay({ onClose }: { onClose: () => void }) {
             {session.vivant ? ` · expire à ${formatExpire(session.expireLe)}` : ' · code fermé'}
           </p>
         ) : null}
-
-        <button
-          type="button"
-          onClick={() => void revoke()}
-          className="mt-6 min-h-11 text-[14px] font-medium text-text-muted underline-offset-4 hover:text-text hover:underline"
-        >
-          Éteindre ce code
-        </button>
       </div>
     </div>
   );

@@ -584,7 +584,7 @@ export default function CarteMobile({
     <div
       className={
         fillParent
-          ? 'relative h-full overflow-hidden overscroll-none bg-soft-cool'
+          ? 'field-map relative h-full min-h-0 overflow-hidden overscroll-none bg-soft-cool'
           : 'field-map fixed inset-0 overflow-hidden overscroll-none bg-soft-cool'
       }
     >

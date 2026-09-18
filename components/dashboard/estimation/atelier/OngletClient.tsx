@@ -3,6 +3,8 @@
 import { Field, TextInput } from '@/components/dashboard/workspace/Field';
 import Select from '@/components/ui/Select';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import NoteEntitySearch from '@/components/dashboard/notes/NoteEntitySearch';
 import {
   ETAT_LABELS,
@@ -66,7 +68,14 @@ export default function OngletClient({
           />
         ) : (
           <p className="text-[14px] text-text-strong">
-            {members.find((m) => m.id === estimation.referentId)?.fullName ?? 'Vous'}
+            {(() => {
+              const referent = members.find((m) => m.id === estimation.referentId);
+              return referent ? (
+                <CollaborateurNom portrait={portraitDepuisMembre(referent)} size={22} />
+              ) : (
+                'Vous'
+              );
+            })()}
           </p>
         )}
       </Field>

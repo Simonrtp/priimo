@@ -17,10 +17,9 @@ import QrTerrainOverlay from '@/components/dashboard/qr/QrTerrainOverlay';
 import { FIELD } from '@/lib/today/field';
 
 type CreateKind = 'contact' | 'bien';
-type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice' | 'qr';
+type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice';
 
 const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: LucideIcon }[] = [
-  { value: 'qr', label: 'QR de consentement', hint: 'Il scanne, il saisit', Icon: QrCode },
   { value: 'estimation', label: 'Nouvelle estimation', hint: 'Ouvrir l’outil', Icon: Calculator },
   { value: 'contact', label: 'Nouveau contact', hint: 'Fiche client', Icon: Users },
   { value: 'bien', label: 'Nouveau bien', hint: 'Mandat / annonce', Icon: Building2 },
@@ -135,11 +134,6 @@ export default function CreateMenu({
 
   function pick(action: MenuAction) {
     setOpen(false);
-    if (action === 'qr') {
-      armPointerShield();
-      setQrOpen(true);
-      return;
-    }
     if (action === 'estimation') {
       armPointerShield();
       router.push('/dashboard/estimation');
@@ -158,7 +152,11 @@ export default function CreateMenu({
     setKind(action);
   }
 
-  const menuItems = CREATE_ITEMS.map(({ value, label, hint, Icon }) => (
+  const visibleItems = isCompact
+    ? CREATE_ITEMS.filter((item) => item.value === 'note-write' || item.value === 'note-voice')
+    : CREATE_ITEMS;
+
+  const menuItems = visibleItems.map(({ value, label, hint, Icon }) => (
     <button
       key={value}
       type="button"
@@ -261,7 +259,7 @@ export default function CreateMenu({
 
   return (
     <>
-      <div ref={rootRef} className={`relative ${className}`}>
+      <div ref={rootRef} className={`relative flex items-center gap-1.5 ${className}`}>
         <button
           ref={triggerRef}
           type="button"
@@ -303,6 +301,22 @@ export default function CreateMenu({
           )}
           {isFab || variant === 'compact' ? null : 'Nouveau'}
         </button>
+        {variant === 'default' ? (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              armPointerShield();
+              setQrOpen(true);
+            }}
+            aria-label="QR de consentement"
+            title="QR de consentement"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-clay hover:brightness-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:size-9"
+            style={{ backgroundColor: FIELD.creme, color: FIELD.orange }}
+          >
+            <QrCode size={17} strokeWidth={2.15} aria-hidden />
+          </button>
+        ) : null}
         {sheet}
         {desktopMenu}
       </div>

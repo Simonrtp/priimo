@@ -2,6 +2,7 @@
 
 import type { TeamMember } from '@/types/lead';
 import Select from '@/components/ui/Select';
+import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
 
 export default function PipelineFilters({
   scope,
@@ -54,7 +55,11 @@ export default function PipelineFilters({
             onChange={onNegotiator}
             options={[
               { value: '', label: 'Tous les négociateurs' },
-              ...members.map((m) => ({ value: m.id, label: m.fullName })),
+              ...members.map((m) => ({
+                value: m.id,
+                label: m.fullName,
+                avatar: assigneeSelectAvatar(m),
+              })),
             ]}
           />
         ) : null}

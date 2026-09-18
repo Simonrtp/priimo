@@ -336,7 +336,7 @@ export default function PipelineBoard({
           setColumns(buildColumns(stages, leads));
         }}
       >
-        <div className="flex min-h-[420px] items-stretch gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1">
+        <div className="flex min-h-[min(420px,calc(100dvh-14rem))] items-stretch gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1 [-webkit-overflow-scrolling:touch]">
           {stages.map((stage) => (
             <PipelineColumn
               key={stage.id}

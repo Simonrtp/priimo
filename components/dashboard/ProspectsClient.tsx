@@ -29,7 +29,6 @@ import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/vi
 import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
 import { useUser } from '@/lib/hooks/useUser';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
-import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { pickTourLeadId } from '@/lib/tour-lead';
 import TabsNav from './TabsNav';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
@@ -71,18 +70,6 @@ function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
   return lead.ownerType === 'particulier';
 }
 
-function useWideViewport(initial: boolean) {
-  const [wide, setWide] = useState(initial);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    const apply = () => setWide(mq.matches);
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, []);
-  return wide;
-}
-
 export default function ProspectsClient({
   initialLeads,
   teamMembers,
@@ -99,14 +86,9 @@ export default function ProspectsClient({
 }: ProspectsClientProps) {
   const { profile } = useUser();
   const router = useRouter();
-  const device = useDevice();
-  const wide = useWideViewport(false);
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
   const [stageList, setStageList] = useState<LeadStage[]>(stages);
-  const vueFromUrl = vueState;
-  // Pipeline hors mobile / viewport étroit ; carte et liste restent disponibles.
-  const vue: ProspectionVue =
-    vueFromUrl === 'pipeline' && (device === 'mobile' || !wide) ? 'liste' : vueFromUrl;
+  const vue = vueState;
 
   useEffect(() => {
     setVueState(initialVue);

@@ -70,71 +70,68 @@ export default function EnteteSemaine({
     onChanger(periode, intervalleDecale(periode, intervalle, delta).debut);
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="shrink-0">
         <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {TITRE_PERIODE[periode]}
         </h1>
-        <p className="mt-0.5 text-[13px] text-text-muted">
-          {intervalleLisible(intervalle, periode)}
-        </p>
+        <p className="mt-0.5 text-[13px] text-text-muted">{intervalleLisible(intervalle, periode)}</p>
       </div>
 
-      <PenseBete initial={penseBete} className="min-w-0 sm:flex-1" />
+      <PenseBete initial={penseBete} className="w-full max-w-[16rem] sm:w-[16rem]" />
 
-      <div className="flex shrink-0 items-center gap-2" aria-busy={enCours}>
-          <div
-            role="group"
-            aria-label="Granularité"
-            className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-          >
-            {PERIODES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={p === periode}
-                onClick={() => onChanger(p, null)}
-                className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                  p === periode
-                    ? 'bg-surface text-text-strong shadow-clay-sm'
-                    : 'text-text-muted hover:text-text-strong'
-                }`}
-              >
-                {LIBELLE_PERIODE[p]}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-2 sm:ml-auto" aria-busy={enCours}>
+        <div
+          role="group"
+          aria-label="Granularité"
+          className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
+        >
+          {PERIODES.map((p) => (
             <button
+              key={p}
               type="button"
-              onClick={() => decaler(-1)}
-              aria-label={`${LIBELLE_PERIODE[periode]} précédent`}
-              className="flex h-9 w-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed"
+              aria-pressed={p === periode}
+              onClick={() => onChanger(p, null)}
+              className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
+                p === periode
+                  ? 'bg-surface text-text-strong shadow-clay-sm'
+                  : 'text-text-muted hover:text-text-strong'
+              }`}
             >
-              <ChevronLeft size={17} strokeWidth={2.2} aria-hidden />
+              {LIBELLE_PERIODE[p]}
             </button>
-            <button
-              type="button"
-              onClick={() => decaler(1)}
-              disabled={estPeriodeCourante}
-              aria-label={`${LIBELLE_PERIODE[periode]} suivant`}
-              className="flex h-9 w-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none"
-            >
-              <ChevronRight size={17} strokeWidth={2.2} aria-hidden />
-            </button>
-            {!estPeriodeCourante ? (
-              <button
-                type="button"
-                onClick={() => onChanger(periode, null)}
-                className="flex h-9 items-center gap-1.5 rounded-clay bg-surface px-3 text-[12px] font-semibold text-text-muted shadow-clay-sm transition hover:text-text-strong"
-              >
-                <RotateCcw size={13} strokeWidth={2.2} aria-hidden />
-                Aujourd’hui
-              </button>
-            ) : null}
-          </div>
+          ))}
         </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => decaler(-1)}
+            aria-label={`${LIBELLE_PERIODE[periode]} précédent`}
+            className="flex size-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed"
+          >
+            <ChevronLeft size={17} strokeWidth={2.2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => decaler(1)}
+            disabled={estPeriodeCourante}
+            aria-label={`${LIBELLE_PERIODE[periode]} suivant`}
+            className="flex size-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong active:shadow-clay-pressed disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none"
+          >
+            <ChevronRight size={17} strokeWidth={2.2} aria-hidden />
+          </button>
+          {!estPeriodeCourante ? (
+            <button
+              type="button"
+              onClick={() => onChanger(periode, null)}
+              className="flex h-9 items-center gap-1.5 rounded-clay bg-surface px-3 text-[12px] font-semibold text-text-muted shadow-clay-sm transition hover:text-text-strong"
+            >
+              <RotateCcw size={13} strokeWidth={2.2} aria-hidden />
+              Aujourd’hui
+            </button>
+          ) : null}
+        </div>
+      </div>
     </header>
   );
 }

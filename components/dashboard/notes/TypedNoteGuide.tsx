@@ -1,16 +1,13 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import { Field, TextArea } from '@/components/dashboard/workspace/Field';
 import NoteAncrage from '@/components/dashboard/notes/NoteAncrage';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import {
   composeTypedNote,
   EMPTY_TYPED_NOTE_DRAFT,
-  showsAcquereurCriteria,
-  showsPersonFields,
   showsSource,
-  showsVendeurBien,
   TYPED_NOTE_KIND_OPTIONS,
   TYPED_NOTE_SOURCE_OPTIONS,
   type TypedNoteDraft,
@@ -64,6 +61,10 @@ export default function TypedNoteGuide({
       setLocalError('Choisissez d’abord le type de note.');
       return;
     }
+    if (draft.body.trim().length < 8) {
+      setLocalError('Ajoutez une note.');
+      return;
+    }
     const immeuble = liens.find((l) => l.entiteType === 'immeuble');
     const adresse = (immeuble?.label ?? initialAdresse).trim();
     const banCoords =
@@ -71,10 +72,6 @@ export default function TypedNoteGuide({
         ? { latitude: immeuble.latitude, longitude: immeuble.longitude }
         : null;
     const composed = composeTypedNote(draft, adresse);
-    if (composed.transcript.length < 8) {
-      setLocalError('Ajoutez une note ou quelques infos (m², nom…).');
-      return;
-    }
     onSubmit({
       transcript: composed.transcript,
       draft,
@@ -100,186 +97,77 @@ export default function TypedNoteGuide({
         onChange={(v) => patch('kind', v as TypedNoteKind)}
       />
 
-      {kind ? (
-        <>
-          {showsSource(kind) ? (
-            <ChoicePills
-              legend="Qui vous a renseigné ?"
-              groupId={sourceGroupId}
-              value={draft.sourceInfo || null}
-              options={TYPED_NOTE_SOURCE_OPTIONS}
-              onChange={(v) => patch('sourceInfo', v as NoteSourceInfo)}
-            />
-          ) : null}
+      {showsSource(kind) ? (
+        <ChoicePills
+          legend="Qui vous a renseigné ?"
+          groupId={sourceGroupId}
+          value={draft.sourceInfo || null}
+          options={TYPED_NOTE_SOURCE_OPTIONS}
+          onChange={(v) => patch('sourceInfo', v as NoteSourceInfo)}
+        />
+      ) : null}
 
-          {showsPersonFields(kind) ? (
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Prénom" htmlFor="typed-fn">
-                  <TextInput
-                    id="typed-fn"
-                    value={draft.firstName}
-                    onChange={(e) => patch('firstName', e.target.value)}
-                    autoComplete="off"
-                  />
-                </Field>
-                <Field label="Nom" htmlFor="typed-ln">
-                  <TextInput
-                    id="typed-ln"
-                    value={draft.lastName}
-                    onChange={(e) => patch('lastName', e.target.value)}
-                    autoComplete="off"
-                  />
-                </Field>
-              </div>
-              <Field label="Téléphone" htmlFor="typed-phone">
-                <TextInput
-                  id="typed-phone"
-                  type="tel"
-                  value={draft.phone}
-                  onChange={(e) => patch('phone', e.target.value)}
-                  autoComplete="off"
-                />
-              </Field>
-            </div>
-          ) : null}
+      <Field label="Note" htmlFor={textId}>
+        <TextArea
+          id={textId}
+          value={draft.body}
+          onChange={(e) => patch('body', e.target.value)}
+          rows={field ? 7 : 5}
+          placeholder="Ce que vous venez de vivre, ce qu’il faut retenir…"
+        />
+      </Field>
 
-          {showsVendeurBien(kind) ? (
-            <fieldset>
-              <legend className="mb-2.5 font-medium text-text-strong" style={{ fontSize: 14 }}>
-                Le bien
-              </legend>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Surface m²" htmlFor="typed-surface">
-                  <TextInput
-                    id="typed-surface"
-                    inputMode="numeric"
-                    value={draft.surface}
-                    onChange={(e) => patch('surface', e.target.value)}
-                  />
-                </Field>
-                <Field label="Pièces" htmlFor="typed-rooms">
-                  <TextInput
-                    id="typed-rooms"
-                    inputMode="numeric"
-                    value={draft.rooms}
-                    onChange={(e) => patch('rooms', e.target.value)}
-                  />
-                </Field>
-                <Field label="Prix €" htmlFor="typed-prix">
-                  <TextInput
-                    id="typed-prix"
-                    inputMode="numeric"
-                    value={draft.prix}
-                    onChange={(e) => patch('prix', e.target.value)}
-                  />
-                </Field>
-              </div>
-            </fieldset>
-          ) : null}
-
-          {showsAcquereurCriteria(kind) ? (
-            <fieldset>
-              <legend className="mb-2.5 font-medium text-text-strong" style={{ fontSize: 14 }}>
-                Ce qu’il cherche
-              </legend>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Budget €" htmlFor="typed-budget">
-                  <TextInput
-                    id="typed-budget"
-                    inputMode="numeric"
-                    value={draft.prix}
-                    onChange={(e) => patch('prix', e.target.value)}
-                  />
-                </Field>
-                <Field label="Surface m²" htmlFor="typed-surf-min">
-                  <TextInput
-                    id="typed-surf-min"
-                    inputMode="numeric"
-                    value={draft.surface}
-                    onChange={(e) => patch('surface', e.target.value)}
-                  />
-                </Field>
-                <Field label="Pièces" htmlFor="typed-rooms-min">
-                  <TextInput
-                    id="typed-rooms-min"
-                    inputMode="numeric"
-                    value={draft.rooms}
-                    onChange={(e) => patch('rooms', e.target.value)}
-                  />
-                </Field>
-              </div>
-            </fieldset>
-          ) : null}
-
-          <Field label="Note" htmlFor={textId}>
-            <TextArea
-              id={textId}
-              value={draft.body}
-              onChange={(e) => patch('body', e.target.value)}
-              rows={field ? 7 : 5}
-              placeholder="Ce que vous venez de vivre, ce qu’il faut retenir…"
-            />
-          </Field>
-
-          <div>
-            {liens.length > 0 ? (
-              <ul className="mb-2 flex flex-col gap-1.5">
-                {liens.map((lien) => (
-                  <li
-                    key={`${lien.entiteType}:${lien.entiteId}`}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.08] px-3 py-2"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13.5px] font-medium text-text-strong">
-                        {lien.label}
-                      </span>
-                      <span className="block text-[12px] text-text-muted">
-                        {lien.subtitle ?? lien.entiteType}
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLiens((prev) =>
-                          prev.filter(
-                            (l) =>
-                              !(l.entiteType === lien.entiteType && l.entiteId === lien.entiteId),
-                          ),
-                        )
-                      }
-                      className="shrink-0 text-[12px] font-semibold text-text-muted hover:text-text-strong"
-                    >
-                      Retirer
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <NoteEntitySearch
-              onPick={(pick) =>
-                setLiens((prev) => {
-                  const base =
-                    pick.entiteType === 'immeuble'
-                      ? prev.filter((l) => l.entiteType !== 'immeuble')
-                      : prev;
-                  return base.some(
-                    (l) => l.entiteType === pick.entiteType && l.entiteId === pick.entiteId,
-                  )
-                    ? base
-                    : [...base, pick];
-                })
-              }
-              excludeIds={new Set(liens.map((l) => `${l.entiteType}:${l.entiteId}`))}
-            />
-          </div>
-        </>
-      ) : (
-        <p className="text-pretty text-text-muted" style={{ fontSize: 13.5, lineHeight: 1.45 }}>
-          Choisissez un type : les champs utiles s’affichent ensuite. Vous pourrez rattacher la
-          note à une fiche de l’agence, ou à un immeuble qui n’y est pas encore.
-        </p>
-      )}
+      <div>
+        {liens.length > 0 ? (
+          <ul className="mb-2 flex flex-col gap-1.5">
+            {liens.map((lien) => (
+              <li
+                key={`${lien.entiteType}:${lien.entiteId}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.08] px-3 py-2"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[13.5px] font-medium text-text-strong">
+                    {lien.label}
+                  </span>
+                  <span className="block text-[12px] text-text-muted">
+                    {lien.subtitle ?? lien.entiteType}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLiens((prev) =>
+                      prev.filter(
+                        (l) =>
+                          !(l.entiteType === lien.entiteType && l.entiteId === lien.entiteId),
+                      ),
+                    )
+                  }
+                  className="shrink-0 text-[12px] font-semibold text-text-muted hover:text-text-strong"
+                >
+                  Retirer
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <NoteEntitySearch
+          onPick={(pick) =>
+            setLiens((prev) => {
+              const base =
+                pick.entiteType === 'immeuble'
+                  ? prev.filter((l) => l.entiteType !== 'immeuble')
+                  : prev;
+              return base.some(
+                (l) => l.entiteType === pick.entiteType && l.entiteId === pick.entiteId,
+              )
+                ? base
+                : [...base, pick];
+            })
+          }
+          excludeIds={new Set(liens.map((l) => `${l.entiteType}:${l.entiteId}`))}
+        />
+      </div>
 
       {shownError ? (
         <p className="text-pretty text-[13.5px] text-text" role="alert">

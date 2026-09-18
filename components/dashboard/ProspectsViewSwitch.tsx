@@ -10,11 +10,10 @@ const ITEMS: {
   id: ProspectionVue;
   label: string;
   Icon: typeof LayoutList;
-  desktopOnly?: boolean;
 }[] = [
   { id: 'carte', label: 'Carte', Icon: Map },
   { id: 'liste', label: 'Liste', Icon: LayoutList },
-  { id: 'pipeline', label: 'Pipeline', Icon: Columns3, desktopOnly: true },
+  { id: 'pipeline', label: 'Pipeline', Icon: Columns3 },
 ];
 
 export default function ProspectsViewSwitch({
@@ -34,7 +33,7 @@ export default function ProspectsViewSwitch({
 
   return (
     <div className={shellClass} role="tablist" aria-label="Vue prospection">
-      {ITEMS.map(({ id, label, Icon, desktopOnly }) => {
+      {ITEMS.map(({ id, label, Icon }) => {
         const active = value === id;
         return (
           <button
@@ -44,12 +43,12 @@ export default function ProspectsViewSwitch({
             aria-selected={active}
             aria-label={label}
             onClick={() => onChange(id)}
-            className={`${desktopOnly ? 'hidden md:inline-flex' : 'inline-flex'} min-h-[36px] items-center gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-semibold transition-colors duration-fluid-subtle ease-in-out md:px-3 ${
+            className={`inline-flex min-h-[36px] items-center gap-1 rounded-[10px] px-2 text-[12px] font-semibold transition-colors duration-fluid-subtle ease-in-out sm:gap-1.5 sm:px-2.5 sm:text-[12.5px] md:px-3 ${
               active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
             }`}
           >
             <Icon size={14} strokeWidth={2.2} aria-hidden />
-            <span className="hidden sm:inline">{label}</span>
+            <span>{label}</span>
           </button>
         );
       })}

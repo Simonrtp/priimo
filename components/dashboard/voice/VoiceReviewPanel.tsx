@@ -1,20 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, RefreshCw, UserPlus, X } from 'lucide-react';
-import type { ContactType, NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
-import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, NOTE_SOURCE_LABELS } from '@/types/contact';
+import { RefreshCw, X } from 'lucide-react';
+import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
+import { NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
 import { normalizeName } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
 import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
-import type { ExtractedPersonne } from '@/lib/notes/propositions';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Select from '@/components/ui/Select';
-import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
+import type { SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import { Field, TextArea } from '@/components/dashboard/workspace/Field';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import NoteEntitySearch, {
   type NoteLinkPick,
@@ -25,19 +24,6 @@ const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
   ...Object.entries(NOTE_SOURCE_LABELS).map(([value, label]) => ({ value, label })),
 ];
-
-const TYPE_OPTIONS = CONTACT_TYPE_ORDER.map((value) => ({
-  value,
-  label: CONTACT_TYPE_LABELS[value],
-}));
-
-const BLANK_PERSONNE: ExtractedPersonne = {
-  firstName: '',
-  lastName: '',
-  phone: null,
-  email: null,
-  type: 'autre',
-};
 
 type ManualLink = NoteLinkPick & { key: string };
 
@@ -86,12 +72,6 @@ function LinkChip({
       </button>
     </li>
   );
-}
-
-function parsePositiveInt(raw: string, max: number): number | null {
-  const n = Number(raw.replace(/[^\d]/g, ''));
-  if (!Number.isFinite(n) || n <= 0 || n > max) return null;
-  return Math.round(n);
 }
 
 function pickMatch(matches: readonly ContactMatch[]): ContactMatch | null {
@@ -143,7 +123,6 @@ export default function VoiceReviewPanel({
   const [promesseAssignee, setPromesseAssignee] = useState<string | null>(suggestedAssigneeId);
   const [refreshing, setRefreshing] = useState(false);
   const [terminating, setTerminating] = useState(false);
-  const [extraPersonnes, setExtraPersonnes] = useState<PersonneProposal[]>([]);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [deselectedIds, setDeselectedIds] = useState<string[]>([]);
   const [chosenMatch, setChosenMatch] = useState<Record<string, string>>({});
@@ -156,7 +135,6 @@ export default function VoiceReviewPanel({
   const locked = refreshing || terminating;
 
   useEffect(() => {
-    setExtraPersonnes([]);
     setHiddenIds([]);
     setDeselectedIds([]);
     setChosenMatch({});
@@ -195,9 +173,7 @@ export default function VoiceReviewPanel({
   }
 
   function visiblePersonnes(): PersonneProposal[] {
-    return [...review.personnes, ...extraPersonnes].filter(
-      (p) => !hiddenIds.includes(p.id) && !isConseillerPersonne(p),
-    );
+    return review.personnes.filter((p) => !hiddenIds.includes(p.id) && !isConseillerPersonne(p));
   }
 
   function selectedMatchFor(p: PersonneProposal): ContactMatch | null {
@@ -205,26 +181,6 @@ export default function VoiceReviewPanel({
     const chosen = chosenMatch[p.id];
     if (chosen) return p.matches.find((m) => m.contactId === chosen) ?? null;
     return pickMatch(p.matches);
-  }
-
-  function patchPersonnes(next: PersonneProposal[]) {
-    onReviewChange({ ...review, personnes: next });
-  }
-
-  function patchPersonne(id: string, patch: Partial<ExtractedPersonne>) {
-    if (review.personnes.some((p) => p.id === id)) {
-      patchPersonnes(
-        review.personnes.map((p) => (p.id === id ? { ...p, personne: { ...p.personne, ...patch } } : p)),
-      );
-      return;
-    }
-    setExtraPersonnes((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, personne: { ...p.personne, ...patch } } : p)),
-    );
-  }
-
-  function patchFiche(patch: Partial<Pick<NoteReviewPayload, 'secteur' | 'prix' | 'rooms' | 'surface'>>) {
-    onReviewChange({ ...review, ...patch });
   }
 
   function patchAdresse(address: string, selected?: SelectedAddress | null) {
@@ -274,18 +230,7 @@ export default function VoiceReviewPanel({
     setManualLinks((prev) => prev.filter((l) => l.key !== key));
   }
 
-  function addBlankContact() {
-    setExtraPersonnes((prev) => [
-      ...prev,
-      { id: `new-${Date.now()}`, personne: { ...BLANK_PERSONNE }, matches: [] },
-    ]);
-  }
-
   function dismissPersonne(id: string) {
-    if (extraPersonnes.some((p) => p.id === id)) {
-      setExtraPersonnes((prev) => prev.filter((p) => p.id !== id));
-      return;
-    }
     setHiddenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   }
 
@@ -335,14 +280,11 @@ export default function VoiceReviewPanel({
         firstName: p.personne.firstName,
         lastName: p.personne.lastName,
         type: p.personne.type,
-        phone: p.personne.phone,
+        phone: null,
         email: p.personne.email,
         address,
         banId,
         secteur: fiche.secteur,
-        budgetMax: fiche.prix,
-        roomsMin: fiche.rooms,
-        surfaceMin: fiche.surface,
         summary: summary.trim() || null,
         source: typed ? 'manuel' : 'vocal',
         voiceNoteId: fiche.voiceNoteId,
@@ -696,7 +638,6 @@ export default function VoiceReviewPanel({
                 })}
                 {visiblePersonnes()
                   .filter((p) => p.matches.length > 0 || p.personne.firstName.trim() || p.personne.lastName.trim())
-                  .filter((p) => extraPersonnes.every((e) => e.id !== p.id) || p.matches.length > 0)
                   .map((p) => {
                     const match = selectedMatchFor(p);
                     const label =
@@ -727,135 +668,6 @@ export default function VoiceReviewPanel({
                 ])
               }
             />
-
-            {extraPersonnes
-              .filter((p) => !hiddenIds.includes(p.id))
-              .map((p) => (
-                <article
-                  key={p.id}
-                  className="flex flex-col gap-3 rounded-xl border border-black/[0.08] px-4 py-3.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                      Nouveau contact
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => dismissPersonne(p.id)}
-                      disabled={locked}
-                      aria-label="Retirer le nouveau contact"
-                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
-                    >
-                      <X size={16} strokeWidth={2} aria-hidden />
-                    </button>
-                  </div>
-                  <Field label="Type" htmlFor={`voice-type-${p.id}`}>
-                    <Select
-                      id={`voice-type-${p.id}`}
-                      value={p.personne.type}
-                      onChange={(v) => patchPersonne(p.id, { type: v as ContactType })}
-                      options={TYPE_OPTIONS}
-                    />
-                  </Field>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Prénom" htmlFor={`voice-fn-${p.id}`}>
-                      <TextInput
-                        id={`voice-fn-${p.id}`}
-                        value={p.personne.firstName}
-                        onChange={(e) => patchPersonne(p.id, { firstName: e.target.value })}
-                        autoComplete="off"
-                      />
-                    </Field>
-                    <Field label="Nom" htmlFor={`voice-ln-${p.id}`}>
-                      <TextInput
-                        id={`voice-ln-${p.id}`}
-                        value={p.personne.lastName}
-                        onChange={(e) => patchPersonne(p.id, { lastName: e.target.value })}
-                        autoComplete="off"
-                      />
-                    </Field>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Téléphone" htmlFor={`voice-phone-${p.id}`}>
-                      <TextInput
-                        id={`voice-phone-${p.id}`}
-                        type="tel"
-                        value={p.personne.phone ?? ''}
-                        onChange={(e) => patchPersonne(p.id, { phone: e.target.value.trim() || null })}
-                        autoComplete="off"
-                      />
-                    </Field>
-                    <Field label="Email" htmlFor={`voice-email-${p.id}`}>
-                      <TextInput
-                        id={`voice-email-${p.id}`}
-                        type="email"
-                        value={p.personne.email ?? ''}
-                        onChange={(e) => patchPersonne(p.id, { email: e.target.value.trim() || null })}
-                        autoComplete="off"
-                      />
-                    </Field>
-                  </div>
-                </article>
-              ))}
-
-            <div className="flex flex-wrap gap-2">
-              <WorkspaceButton type="button" variant="secondary" onClick={addBlankContact} disabled={locked}>
-                <UserPlus size={15} strokeWidth={2} aria-hidden />
-                Nouveau contact
-              </WorkspaceButton>
-              <WorkspaceButton
-                type="button"
-                variant="secondary"
-                disabled={locked}
-                onClick={() => {
-                  document.getElementById('voice-address')?.focus();
-                }}
-              >
-                <Plus size={15} strokeWidth={2} aria-hidden />
-                Nouvelle adresse
-              </WorkspaceButton>
-            </div>
-
-            <article className="flex flex-col gap-3 rounded-xl border border-black/[0.08] px-4 py-3.5">
-              <Field label="Adresse" htmlFor="voice-address">
-                <AddressAutocomplete
-                  id="voice-address"
-                  value={review.immeuble?.adresseNormalisee ?? review.immeuble?.address ?? ''}
-                  onChange={(data) => {
-                    if (data) patchAdresse(data.label, data);
-                  }}
-                  onQueryChange={(q) => patchAdresse(q)}
-                  placeholder="Créer ou rattacher un immeuble…"
-                  inputClassName={ADDRESS_FIELD_INPUT_CLASS}
-                />
-              </Field>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Surface m²" htmlFor="voice-surface">
-                  <TextInput
-                    id="voice-surface"
-                    inputMode="numeric"
-                    value={review.surface != null ? String(review.surface) : ''}
-                    onChange={(e) => patchFiche({ surface: parsePositiveInt(e.target.value, 100_000) })}
-                  />
-                </Field>
-                <Field label="Pièces" htmlFor="voice-rooms">
-                  <TextInput
-                    id="voice-rooms"
-                    inputMode="numeric"
-                    value={review.rooms != null ? String(review.rooms) : ''}
-                    onChange={(e) => patchFiche({ rooms: parsePositiveInt(e.target.value, 50) })}
-                  />
-                </Field>
-                <Field label="Prix €" htmlFor="voice-prix">
-                  <TextInput
-                    id="voice-prix"
-                    inputMode="numeric"
-                    value={review.prix != null ? String(review.prix) : ''}
-                    onChange={(e) => patchFiche({ prix: parsePositiveInt(e.target.value, 100_000_000) })}
-                  />
-                </Field>
-              </div>
-            </article>
 
             {review.relance ? (
               <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">

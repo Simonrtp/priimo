@@ -34,6 +34,9 @@ import ContactDetailPanel from './ContactDetailPanel';
 import ContactFormDialog from './ContactFormDialog';
 import MergeContactsDialog from './MergeContactsDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import { portraitDepuisMembre } from '@/lib/notes/auteur';
 
 const SLATE = '#3D5A80';
 const CREAM = '#FFF7F0';
@@ -110,6 +113,8 @@ function ContactRow({
     bienAddress: bien?.address ?? null,
     leadAddress,
   });
+  const assignee = members.find((m) => m.id === (contact.assignedTo ?? contact.createdBy));
+  const assigneePortrait = assignee ? portraitDepuisMembre(assignee) : null;
   const future = isRelanceFuture(contact.recontacterLe, todayKey);
   const callableNow = Boolean(contact.phone) && !future;
   const [mounted, setMounted] = useState(selected);
@@ -176,7 +181,18 @@ function ContactRow({
               </button>
             ) : null}
           </div>
-          <p className="mt-0.5 truncate text-[13px] text-text-muted">{meta || '—'}</p>
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-text-muted">
+            {assigneePortrait ? (
+              <ProfileAvatar
+                firstName={assigneePortrait.firstName}
+                lastName={assigneePortrait.lastName}
+                avatarUrl={assigneePortrait.avatarUrl}
+                size={16}
+                className="shrink-0"
+              />
+            ) : null}
+            <span className="min-w-0 truncate">{meta || '—'}</span>
+          </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -557,6 +573,7 @@ export default function ContactsClient({
                 ...members.map((m) => ({
                   value: m.id,
                   label: m.id === currentUserId ? `${m.fullName} (moi)` : m.fullName,
+                  avatar: assigneeSelectAvatar(m),
                 })),
               ]}
               aria-label="Filtrer par membre"

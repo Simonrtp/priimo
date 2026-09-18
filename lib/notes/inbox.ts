@@ -1,4 +1,4 @@
-import type { VoiceNote, VoiceNoteStatut } from '@/types/contact';
+import type { PortraitCollaborateur, VoiceNote, VoiceNoteStatut } from '@/types/contact';
 import { syntheseRattachement, type RattachementAffiche } from '@/lib/notes/rattachement';
 
 export type NotesInboxStatut = VoiceNoteStatut | 'tous';
@@ -58,7 +58,18 @@ export type HomeNote = VoiceNote & {
   attachmentLabel: string | null;
   /** Lieu posé sur la note — le badge Accueil peut alors montrer une parcelle. */
   attachmentKind: HomeNoteLieu | null;
+  /** Auteur de la note (collaborateur). */
+  author: PortraitCollaborateur | null;
+  /** Portrait à coller au titre : nom d’équipe reconnu, sinon l’auteur. */
+  collaborateur: PortraitCollaborateur | null;
 };
+
+export function homeNoteTitre(note: Pick<HomeNote, 'attachmentLabel' | 'transcript'>): string {
+  const nom = note.attachmentLabel?.trim();
+  if (nom) return nom;
+  const premiere = (note.transcript ?? '').trim().split('\n', 1)[0]?.replace(/\s+/g, ' ') ?? '';
+  return premiere || 'Note';
+}
 
 export function homeNoteLieuKind(
   rattachements: readonly RattachementAffiche[],

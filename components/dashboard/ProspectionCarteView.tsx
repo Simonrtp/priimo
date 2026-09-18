@@ -70,15 +70,15 @@ export default function ProspectionCarteView({
     return (
       <div
         data-prospection-carte
-        className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col"
+        className="field-map relative h-full min-h-0 w-full overflow-hidden"
       >
         <div
           className="pointer-events-none absolute right-3 z-[25]"
-          style={{ top: 'calc(58px + env(safe-area-inset-top, 0px))' }}
+          style={{ top: 'max(10px, env(safe-area-inset-top, 0px))' }}
         >
           <div className="pointer-events-auto">{switcher}</div>
         </div>
-        <div className="min-h-0 flex-1">
+        <div className="h-full min-h-0">
           <CarteMobile
             points={points}
             withoutPosition={withoutPosition}

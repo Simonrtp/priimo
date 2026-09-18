@@ -15,7 +15,6 @@ import AssistantPanel from '@/components/dashboard/assistant/AssistantPanel';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
-import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import Select from '@/components/ui/Select';
 
@@ -162,7 +161,7 @@ function HeaderProfile({
   avatarUrl?: string | null;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-0.5 pl-0.5 pr-2.5">
+    <div className="flex min-w-0 items-center gap-2">
       <Link
         href="/dashboard/settings?tab=profile"
         className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 text-[11px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/22 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
@@ -239,17 +238,11 @@ export default function TopBar() {
               <MobileAgencySwitcher />
             </div>
             <div className="hidden md:block" {...chromeLockProps}>
-              <NotificationsBell tone="shell" />
-            </div>
-            <div className="hidden md:block" {...chromeLockProps}>
               <HeaderProfile
                 firstName={profile.first_name}
                 lastName={profile.last_name}
                 avatarUrl={profile.avatar_url}
               />
-            </div>
-            <div className="md:hidden" {...chromeLockProps}>
-              <NotificationsBell tone="light" />
             </div>
             <Link
               href="/dashboard/settings?tab=profile"

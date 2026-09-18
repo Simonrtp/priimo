@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { viewerFromProfile } from '@/lib/agency/visibility';
 import { visibleVoiceNotesFor } from '@/lib/agency/scope-records';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
+import { auteurNote, portraitsParId } from '@/lib/notes/auteur';
 import { fetchVoiceNotesSafe } from '@/lib/queries/contacts';
 import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import {
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
     fetchMembersOfMyAgency(agency.id, memberships),
   ]);
   const visible = visibleVoiceNotesFor(viewer, all);
-  const names = new Map(members.map((m) => [m.id, m.fullName]));
+  const auteurs = portraitsParId(members);
 
   const candidates = filterInboxNotes(visible, {
     viewerId: profile.id,
@@ -70,10 +71,14 @@ export async function GET(req: Request) {
   const rattachements = await rattachementsDesNotes({ supabase, notes: filtered });
 
   return NextResponse.json({
-    notes: filtered.map((n) => ({
-      ...n,
-      authorName: n.createdBy ? names.get(n.createdBy) ?? null : null,
-      rattachements: rattachements.get(n.id) ?? [],
-    })),
+    notes: filtered.map((n) => {
+      const author = auteurNote(n.createdBy, auteurs);
+      return {
+        ...n,
+        authorName: author?.fullName ?? null,
+        author,
+        rattachements: rattachements.get(n.id) ?? [],
+      };
+    }),
   });
 }

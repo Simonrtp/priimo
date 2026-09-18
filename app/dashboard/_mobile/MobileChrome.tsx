@@ -4,7 +4,6 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import MobileAccountMenu from './MobileAccountMenu';
-import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
 import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import { useUser } from '@/lib/hooks/useUser';
@@ -105,7 +104,6 @@ export default function MobileChrome() {
               >
                 <Search size={20} strokeWidth={2} aria-hidden />
               </button>
-              <NotificationsBell tone="shell" />
               <AccountButton onClick={() => setAccountOpen(true)} />
             </>
           )}

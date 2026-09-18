@@ -1,8 +1,9 @@
-import type { VoiceNote } from '@/types/contact';
+import type { PortraitCollaborateur, VoiceNote } from '@/types/contact';
 import type { RattachementAffiche } from '@/lib/notes/rattachement';
 
 export type NoteLecture = VoiceNote & {
   authorName: string | null;
+  author: PortraitCollaborateur | null;
   rattachements: RattachementAffiche[];
 };
 

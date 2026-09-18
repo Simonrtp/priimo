@@ -13,6 +13,9 @@ import {
 import { toast } from 'sonner';
 import ClayButton from '@/components/ui/ClayButton';
 import Select from '@/components/ui/Select';
+import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
+import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import StatistiquesSecteur from './StatistiquesSecteur';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { COULEURS_ZONE } from '@/lib/zones/palette';
@@ -47,7 +50,13 @@ export type SecteurLead = LeadPoint & {
   createdAt: string;
 };
 
-type Membre = { id: string; fullName: string };
+type Membre = {
+  id: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string | null;
+};
 
 const PARITES: { valeur: PariteVoie; label: string }[] = [
   { valeur: 'toutes', label: 'Tous les numéros' },
@@ -434,10 +443,18 @@ export default function SecteursClient({
           />
 
           {survol ? (
-            <p className="mt-2 text-[12px] text-mute">
-              {zonesLocales.find((z) => z.id === survol)?.nom} ·{' '}
-              {membres.find((m) => m.id === zonesLocales.find((z) => z.id === survol)?.assignedTo)?.fullName ??
-                'sans titulaire'}
+            <p className="mt-2 flex items-center gap-1.5 text-[12px] text-mute">
+              <span>{zonesLocales.find((z) => z.id === survol)?.nom} ·</span>
+              {(() => {
+                const titulaire = membres.find(
+                  (m) => m.id === zonesLocales.find((z) => z.id === survol)?.assignedTo,
+                );
+                return titulaire ? (
+                  <CollaborateurNom portrait={portraitDepuisMembre(titulaire)} size={16} />
+                ) : (
+                  <span>sans titulaire</span>
+                );
+              })()}
             </p>
           ) : null}
 
@@ -574,7 +591,13 @@ function ListeZones({
                   {titulaire
                     ? zone.assignedTo === profileId
                       ? 'Mon secteur'
-                      : titulaire.fullName
+                      : (
+                          <CollaborateurNom
+                            portrait={portraitDepuisMembre(titulaire)}
+                            size={16}
+                            className="text-[11.5px] text-mute"
+                          />
+                        )
                     : 'Sans titulaire'}
                   {jours ? ` · ${jours}` : ''}
                   {zone.verrouillee ? ' · direction' : ''}
@@ -781,7 +804,17 @@ function PanneauZone({
             onChange={(valeur) => onModifier({ assignedTo: valeur || null })}
             options={[
               { value: '', label: 'Sans titulaire' },
-              ...membres.map((m) => ({ value: m.id, label: m.fullName })),
+              ...membres.map((m) => ({
+                value: m.id,
+                label: m.fullName,
+                avatar: assigneeSelectAvatar({
+                  id: m.id,
+                  fullName: m.fullName,
+                  firstName: m.firstName,
+                  lastName: m.lastName,
+                  avatarUrl: m.avatarUrl,
+                }),
+              })),
             ]}
             searchable={membres.length > 8}
             triggerClassName={declencheurClass}

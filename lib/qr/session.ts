@@ -113,25 +113,6 @@ export async function fetchQrSessionForAgent(
   return res.data;
 }
 
-export async function revokeQrSession(
-  admin: Admin,
-  args: { agencyId: string; agentId: string; sessionId: string; now?: Date },
-): Promise<{ ok: true } | { missing: true } | { error: string }> {
-  const now = args.now ?? new Date();
-  const res = await admin
-    .from('qr_sessions_terrain')
-    .update({ revoquee_le: now.toISOString() })
-    .eq('id', args.sessionId)
-    .eq('agency_id', args.agencyId)
-    .eq('agent_id', args.agentId)
-    .is('revoquee_le', null);
-  if (res.error) {
-    if (tableMissing(res.error)) return { missing: true };
-    return { error: res.error.message };
-  }
-  return { ok: true };
-}
-
 export async function lookupLiveQrSession(
   admin: Admin,
   token: string,

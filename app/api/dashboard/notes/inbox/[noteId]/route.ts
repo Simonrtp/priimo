@@ -6,6 +6,7 @@ import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { mapDbVoiceNote } from '@/lib/queries/contacts';
 import { fetchContactsSafe } from '@/lib/queries/contacts';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
+import { auteurNote, portraitsParId } from '@/lib/notes/auteur';
 import { mapDbNoteLien, NOTE_LIENS_SELECT } from '@/lib/notes/liens';
 import { buildReviewPayload } from '@/lib/notes/build-review';
 import {
@@ -69,16 +70,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ noteId: string
   ]);
 
   const liens: NoteLien[] = ((lienRows ?? []) as unknown as NoteLienRow[]).map(mapDbNoteLien);
-  const names = new Map(members.map((m) => [m.id, m.fullName]));
+  const auteurs = portraitsParId(members);
   const mapped = mapDbVoiceNote(noteRow, {
     hasFicheLink: liens.some(
       (l) => l.entiteType === 'contact' || l.entiteType === 'bien' || l.entiteType === 'lead',
     ),
   });
+  const author = auteurNote(mapped.createdBy, auteurs);
   const note: TerrainNote = {
     ...mapped,
     liens,
-    authorName: mapped.createdBy ? names.get(mapped.createdBy) ?? null : null,
+    authorName: author?.fullName ?? null,
+    author,
   };
 
   const review = buildReviewPayload({

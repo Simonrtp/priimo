@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { ChevronDown, Filter } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
 import { ACCUEIL, FIELD } from '@/lib/today/field';
@@ -249,7 +249,7 @@ export function EnteteSquelette({
   ] as const;
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="shrink-0">
         <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {titre}
@@ -257,14 +257,14 @@ export function EnteteSquelette({
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalle}</p>
       </div>
       <div
-        className="min-w-0 rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:flex-1 sm:px-4"
+        className="w-full max-w-[16rem] rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:w-[16rem] sm:px-4"
         style={{ backgroundColor: ACCUEIL.creme }}
         aria-hidden
       >
         <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
-        <div className="mt-1 h-11 rounded" />
+        <div className="mt-1 h-5 rounded" />
       </div>
-      <div className="flex shrink-0 items-center gap-2" aria-hidden>
+      <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
         <div className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset">
           {periodes.map(([id, libelle]) => (
             <span
@@ -278,14 +278,6 @@ export function EnteteSquelette({
               {libelle}
             </span>
           ))}
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="flex size-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm">
-            <ChevronLeft size={17} strokeWidth={2.2} />
-          </span>
-          <span className="flex size-9 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm">
-            <ChevronRight size={17} strokeWidth={2.2} />
-          </span>
         </div>
       </div>
     </header>

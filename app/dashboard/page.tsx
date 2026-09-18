@@ -30,7 +30,8 @@ import { buildTodayCards } from '@/lib/today/cards';
 import { buildPortfolioStats } from '@/lib/today/portfolio';
 import { buildDirectorExceptions } from '@/lib/today/director-exceptions';
 import { parseAccueilVue, ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
-import { homeNoteAttachment, homeNoteLieuKind, recentNotesForHome } from '@/lib/notes/inbox';
+import { homeNoteAttachment, homeNoteLieuKind, homeNoteTitre, recentNotesForHome } from '@/lib/notes/inbox';
+import { auteurNote, portraitsParId, portraitsParNom, portraitPourNom } from '@/lib/notes/auteur';
 import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
 import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
@@ -213,6 +214,8 @@ async function TodayContent({
   }
 
   const contactsById = new Map(visibleContacts.map((c) => [c.id, c.fullName]));
+  const auteursParId = portraitsParId(members);
+  const auteursParNom = portraitsParNom(members);
   const notesAccueil = recentNotesForHome(visibleNotes, {
     viewerId: profile.id,
     isDirector: layoutDirector,
@@ -225,14 +228,19 @@ async function TodayContent({
   });
   const recentNotes = notesAccueil.map((note) => {
     const rattachements = rattachementsAccueil.get(note.id) ?? [];
+    const attachmentLabel = homeNoteAttachment(
+      note,
+      note.contactId ? contactsById.get(note.contactId) ?? null : null,
+      rattachements,
+    );
+    const author = auteurNote(note.createdBy, auteursParId);
+    const titre = homeNoteTitre({ attachmentLabel, transcript: note.transcript });
     return {
       ...note,
-      attachmentLabel: homeNoteAttachment(
-        note,
-        note.contactId ? contactsById.get(note.contactId) ?? null : null,
-        rattachements,
-      ),
+      attachmentLabel,
       attachmentKind: homeNoteLieuKind(rattachements),
+      author,
+      collaborateur: portraitPourNom(titre, auteursParNom) ?? author,
     };
   });
 
@@ -637,7 +645,13 @@ async function TodayContent({
   // membres déjà lus plus haut : aucune requête de plus pour ouvrir la carte.
   const secteursData: SecteursData = {
     zones,
-    membres: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+    membres: members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      avatarUrl: m.avatarUrl,
+    })),
     leads: visibleLeads
       .filter(
         (l): l is typeof l & { latitude: number; longitude: number } =>

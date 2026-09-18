@@ -9,6 +9,8 @@ import { lienLectureNote } from '@/lib/notes/lecture';
 import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import CarteVideAccueil from '@/components/dashboard/accueil/CarteVideAccueil';
+import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import { homeNoteTitre } from '@/lib/notes/inbox';
 
 const CARTE =
   'flex flex-col rounded-clay-lg bg-white px-4 py-4 text-ink shadow-clay sm:px-5 sm:py-5';
@@ -114,10 +116,7 @@ function Entete({
 }
 
 function titreNote(note: HomeNote): string {
-  const nom = note.attachmentLabel?.trim();
-  if (nom) return nom;
-  const premiere = (note.transcript ?? '').trim().split('\n', 1)[0]?.replace(/\s+/g, ' ') ?? '';
-  return premiere || 'Note';
+  return homeNoteTitre(note);
 }
 
 function Liste({
@@ -138,9 +137,18 @@ function Liste({
         const corps = (
           <>
             <span className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-text-strong">
-                {titre}
-              </span>
+              {note.collaborateur ? (
+                <CollaborateurNom
+                  portrait={note.collaborateur}
+                  nom={titre}
+                  size={24}
+                  className="min-w-0 flex-1 text-[14px] font-semibold text-text-strong"
+                />
+              ) : (
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-text-strong">
+                  {titre}
+                </span>
+              )}
               <ArrowRight
                 size={15}
                 strokeWidth={2.2}

@@ -11,6 +11,13 @@ import type {
   VoiceNoteVisibiliteDb,
 } from '@/types/database';
 
+export type PortraitCollaborateur = {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  avatarUrl: string | null;
+};
+
 export type ContactType = ContactTypeDb;
 export type ContactSource = ContactSourceDb;
 export type VoiceNoteStatus = VoiceNoteStatusDb;
@@ -117,6 +124,7 @@ export interface NoteLien {
 export type TerrainNote = VoiceNote & {
   liens: NoteLien[];
   authorName: string | null;
+  author?: PortraitCollaborateur | null;
 };
 
 export const NOTE_SOURCE_LABELS: Record<NoteSourceInfo, string> = {

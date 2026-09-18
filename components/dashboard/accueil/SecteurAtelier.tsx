@@ -23,7 +23,7 @@ const SecteursClient = dynamic(() => import('@/components/dashboard/zones/Secteu
 
 export type SecteursData = {
   zones: Zone[];
-  membres: { id: string; fullName: string }[];
+  membres: { id: string; fullName: string; firstName?: string; lastName?: string; avatarUrl?: string | null }[];
   leads: SecteurLead[];
   centre: { latitude: number | null; longitude: number | null };
   profileId: string;

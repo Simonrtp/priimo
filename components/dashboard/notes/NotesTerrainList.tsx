@@ -9,6 +9,7 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { formatParcelleId } from '@/lib/carte/parcelle-id';
 import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
 import { onNoteCreated } from '@/lib/notes/note-created-event';
+import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -121,10 +122,16 @@ export default function NotesTerrainList({
         const mine = currentUserId && note.createdBy === currentUserId;
         return (
           <li key={note.id} className="rounded-xl border border-black/[0.06] px-3.5 py-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-[12px] text-text-subtle">
-                {formatDate(note.createdAt)}
-                {note.authorName ? ` · ${note.authorName}` : ''}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-text-subtle">
+                <span>{formatDate(note.createdAt)}</span>
+                {note.author ? (
+                  <span className="inline-flex min-w-0 items-center gap-1">
+                    · <CollaborateurNom portrait={note.author} size={16} />
+                  </span>
+                ) : note.authorName ? (
+                  <span>· {note.authorName}</span>
+                ) : null}
                 {note.sourceInfo ? ` · ${NOTE_SOURCE_LABELS[note.sourceInfo]}` : ''}
               </p>
               {lienIci ? (

@@ -18,9 +18,9 @@ const PAGE_BG = 'bg-[#E4F1FC]';
 
 function Expire() {
   return (
-    <main className={`flex min-h-dvh items-center justify-center ${PAGE_BG} px-6 text-center`}>
+    <main className={`flex min-h-[100svh] items-center justify-center ${PAGE_BG} px-6 text-center`}>
       <div>
-        <p className="font-display text-[24px] font-bold text-[#111]">Ce lien n’est plus valable.</p>
+        <p className="text-[24px] font-bold text-[#111]">Ce lien n’est plus valable.</p>
         <p className="mt-2 text-[15px] text-[#5A6573]">Demandez un nouveau code à la personne qui vous l’a montré.</p>
       </div>
     </main>
@@ -52,7 +52,7 @@ export default async function QrConsentPage({ params }: { params: Promise<{ toke
   });
 
   return (
-    <main className={`min-h-dvh ${PAGE_BG}`}>
+    <main className={`min-h-[100svh] overflow-x-hidden ${PAGE_BG}`}>
       <QrConsentForm token={token} agentPrenom={agentPrenom} consentText={legal.consentText} />
     </main>
   );
