@@ -91,23 +91,26 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
               className="flex flex-col rounded-clay-lg p-4 shadow-clay-sm"
               style={{ backgroundColor: couleur.voile }}
             >
-              <span
-                aria-hidden
-                className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px]"
-                style={{ backgroundColor: couleur.pastelFort }}
-              >
-                <img
-                  src={ILLUSTRATION[famille]}
-                  alt=""
-                  width={36}
-                  height={36}
-                  className="size-9"
-                />
-              </span>
-              <p className="mt-3 text-[12px] font-semibold leading-tight text-text-strong">
+              <div className="flex items-center gap-2.5 lg:block">
+                <span
+                  aria-hidden
+                  className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px]"
+                  style={{ backgroundColor: couleur.pastelFort }}
+                >
+                  <img
+                    src={ILLUSTRATION[famille]}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="size-9"
+                  />
+                </span>
+                <Trait className="h-7 w-16 rounded lg:hidden" />
+              </div>
+              <p className="mt-2 text-[12px] font-semibold leading-tight text-text-strong lg:mt-3">
                 {LIBELLE_ACTIVITE[famille]}
               </p>
-              <Trait className="mt-2 h-7 w-16 rounded" />
+              <Trait className="mt-2 hidden h-7 w-16 rounded lg:block" />
               <div
                 className="mt-3 h-2.5 w-full overflow-hidden rounded-full"
                 style={{ backgroundColor: couleur.pastille }}

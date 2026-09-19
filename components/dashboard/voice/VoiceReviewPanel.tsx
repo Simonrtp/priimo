@@ -19,6 +19,7 @@ import NoteEntitySearch, {
   type NoteLinkPick,
 } from '@/components/dashboard/notes/NoteEntitySearch';
 import NoteAncrage from '@/components/dashboard/notes/NoteAncrage';
+import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
@@ -531,6 +532,7 @@ export default function VoiceReviewPanel({
             }
             className="flex-1 lg:min-h-[280px]"
           />
+          <NoteMentionSensible />
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <WorkspaceButton
               type="button"

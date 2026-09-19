@@ -763,6 +763,7 @@ export type ContactRow = {
   collecte_base_legale?: string | null;
   is_demo?: boolean;
   telephone_consenti_le?: string | null;
+  numero_communique_par_la_personne?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -804,6 +805,7 @@ export type ContactInsert = {
   collecte_base_legale?: string | null;
   is_demo?: boolean;
   telephone_consenti_le?: string | null;
+  numero_communique_par_la_personne?: boolean;
   created_at?: string;
   updated_at?: string;
 };

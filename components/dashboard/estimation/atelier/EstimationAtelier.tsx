@@ -1,12 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Mic } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { AxeRadar } from '@/lib/estimation/grille';
 import { fusionnerGrille } from '@/lib/estimation/grille';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
+import {
+  applyEstimationVoiceDraft,
+  type EstimationVoiceDraft,
+  type EstimationVoiceField,
+} from '@/lib/estimation/voice-extract';
+import {
+  ETAPES_ATELIER,
+  etapeInitiale,
+  indexEtape,
+  indexMaxAccessible,
+  manquesEtape,
+  type EtapeAtelierId,
+} from '@/lib/estimation/etapes';
 import OngletClient from './OngletClient';
 import OngletBien from './OngletBien';
 import OngletCaracteristiques from './OngletCaracteristiques';
@@ -36,16 +52,6 @@ function capitalisationDepuisContexte(e: EstimationObjet): DecompositionValeur |
   return o as DecompositionValeur;
 }
 
-const ONGLETS = [
-  { id: 'client', label: 'Client' },
-  { id: 'bien', label: 'Le bien' },
-  { id: 'caracteristiques', label: 'Caractéristiques' },
-  { id: 'estimation', label: 'Estimation' },
-  { id: 'rapport', label: 'Rapport' },
-] as const;
-
-type OngletId = (typeof ONGLETS)[number]['id'];
-
 export default function EstimationAtelier({
   initial,
   agencyName,
@@ -62,7 +68,8 @@ export default function EstimationAtelier({
   onRetour: () => void;
 }) {
   const [estimation, setEstimation] = useState(initial);
-  const [onglet, setOnglet] = useState<OngletId>('bien');
+  const [onglet, setOnglet] = useState<EtapeAtelierId>(() => etapeInitiale(initial));
+  const [atteint, setAtteint] = useState(() => indexMaxAccessible(initial, 0));
   const [contexte, setContexte] = useState<ContexteAtelier | null>(null);
   const [contexteChargement, setContexteChargement] = useState(false);
   const [radarSecteur, setRadarSecteur] = useState<AxeRadar[]>([]);
@@ -75,7 +82,11 @@ export default function EstimationAtelier({
   );
   const [calculating, setCalculating] = useState(false);
   const [sauve, setSauve] = useState<'ok' | '…' | 'err'>('ok');
+  const [pendingVoice, setPendingVoice] = useState<ReadonlySet<EstimationVoiceField>>(new Set());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const estimationRef = useRef(estimation);
+  estimationRef.current = estimation;
+  const { openCapture } = useVoiceCapture();
 
   const patch = useCallback((body: Record<string, unknown>) => {
     setEstimation((prev) => ({
@@ -102,6 +113,31 @@ export default function EstimationAtelier({
       })();
     }, 450);
   }, [initial.id]);
+
+  const clearPendingVoice = useCallback((key: EstimationVoiceField) => {
+    setPendingVoice((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const applyVoiceDraft = useCallback(
+    (draft: EstimationVoiceDraft) => {
+      const { patch: body, keys } = applyEstimationVoiceDraft(estimationRef.current, draft);
+      if (keys.length === 0) {
+        notifyInfo('Aucun champ reconnu. Reformulez ou saisissez à la main.');
+        return;
+      }
+      patch(body);
+      setPendingVoice(new Set(keys));
+      setOnglet('bien');
+      setAtteint((prev) => Math.max(prev, indexEtape('bien')));
+      notifySuccess('Relisez les champs surlignés — rien n’est validé sans vous.');
+    },
+    [patch],
+  );
 
   useEffect(() => {
     if (estimation.latitude == null || estimation.longitude == null || !estimation.postalCode) {
@@ -189,6 +225,32 @@ export default function EstimationAtelier({
     }
   }
 
+  const maxAccessible = indexMaxAccessible(estimation, atteint);
+  const indexCourant = indexEtape(onglet);
+  const estDerniere = onglet === 'rapport';
+
+  function allerEtape(id: EtapeAtelierId) {
+    const index = indexEtape(id);
+    if (index > maxAccessible) {
+      const blocage = ETAPES_ATELIER.slice(0, index).find((e) => manquesEtape(estimation, e.id));
+      notifyError(blocage ? manquesEtape(estimation, blocage.id)! : 'Complétez l’étape en cours.');
+      return;
+    }
+    setOnglet(id);
+  }
+
+  function suivant() {
+    const manque = manquesEtape(estimation, onglet);
+    if (manque) {
+      notifyError(manque);
+      return;
+    }
+    const next = ETAPES_ATELIER[indexCourant + 1];
+    if (!next) return;
+    setAtteint((prev) => Math.max(prev, indexCourant + 1));
+    setOnglet(next.id);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -202,21 +264,76 @@ export default function EstimationAtelier({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-1 border-b border-black/[0.06] pb-2" role="tablist" aria-label="Atelier">
-        {ONGLETS.map((t) => (
-          <button
-            key={t.id}
+      {onglet === 'bien' ? (
+        <div className="flex flex-col gap-3 rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-pretty text-[13.5px] text-text-muted">
+            Décrivez à voix haute le bien déjà visité. Les champs se pré-remplissent ; vous relisez,
+            corrigez, validez.
+          </p>
+          <WorkspaceButton
             type="button"
-            role="tab"
-            aria-selected={onglet === t.id}
-            onClick={() => setOnglet(t.id)}
-            className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${
-              onglet === t.id ? 'bg-text-strong text-white' : 'text-text-muted hover:bg-black/[0.04]'
-            }`}
+            onClick={() =>
+              openCapture({
+                purpose: 'estimation',
+                resterSurPage: true,
+                onEstimationDraft: applyVoiceDraft,
+              })
+            }
+            className="min-h-11 shrink-0"
           >
-            {t.label}
+            <Mic size={16} strokeWidth={2} aria-hidden />
+            Dicter le bien
+          </WorkspaceButton>
+        </div>
+      ) : null}
+
+      {pendingVoice.size > 0 ? (
+        <div className="flex flex-col gap-2 rounded-clay bg-[#E8743C]/[0.08] px-3 py-2.5 ring-1 ring-[#E8743C]/50 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-pretty text-[13px] font-medium text-[#E8743C]">
+            Champs issus de la dictée — à relire. Un chiffre n’est jamais sûr.
+          </p>
+          <button
+            type="button"
+            onClick={() => setPendingVoice(new Set())}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-clay px-3 text-[13px] font-semibold text-[#E8743C] hover:bg-[#E8743C]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            Tout valider
           </button>
-        ))}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap gap-1 border-b border-black/[0.06] pb-2" role="tablist" aria-label="Étapes de l’estimation">
+        {ETAPES_ATELIER.map((t, i) => {
+          const courant = onglet === t.id;
+          const verrouille = i > maxAccessible;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={courant}
+              aria-disabled={verrouille}
+              disabled={verrouille}
+              onClick={() => allerEtape(t.id)}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
+                courant
+                  ? 'bg-text-strong text-white'
+                  : verrouille
+                    ? 'cursor-not-allowed text-text-subtle'
+                    : 'text-text-muted hover:bg-black/[0.04]'
+              }`}
+            >
+              <span
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] tabular-nums ${
+                  courant ? 'bg-white text-text-strong' : 'bg-black/[0.08] text-text'
+                }`}
+              >
+                {i + 1}
+              </span>
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
@@ -231,7 +348,13 @@ export default function EstimationAtelier({
             />
           ) : null}
           {onglet === 'bien' ? (
-            <OngletBien estimation={estimation} parkingMedian={parkingMedian} onPatch={patch} />
+            <OngletBien
+              estimation={estimation}
+              parkingMedian={parkingMedian}
+              onPatch={patch}
+              pendingVoice={pendingVoice}
+              onClearPending={clearPendingVoice}
+            />
           ) : null}
           {onglet === 'caracteristiques' ? (
             <OngletCaracteristiques
@@ -253,11 +376,24 @@ export default function EstimationAtelier({
           {onglet === 'rapport' ? (
             <OngletRapport estimation={estimation} agencyName={agencyName} />
           ) : null}
+          {!estDerniere ? (
+            <div
+              className="sticky bottom-0 z-10 mt-4 flex justify-end border-t border-black/[0.06] bg-bg-base/95 py-3"
+              style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
+            >
+              <WorkspaceButton type="button" onClick={suivant} className="min-h-11 min-w-[8.5rem]">
+                Suivant
+              </WorkspaceButton>
+            </div>
+          ) : null}
         </div>
         <PanneauContexteAtelier
           contexte={contexte}
           chargement={contexteChargement}
           couvertureActive={estimation.bien.facadeCouverture}
+          latitude={estimation.latitude}
+          longitude={estimation.longitude}
+          onPosition={(latitude, longitude) => patch({ latitude, longitude })}
           onCouverture={() =>
             patch({ bien: { ...estimation.bien, facadeCouverture: !estimation.bien.facadeCouverture } })
           }

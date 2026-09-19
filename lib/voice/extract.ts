@@ -66,6 +66,8 @@ export function mergeVoiceFields(
     lastName: incoming.lastName.trim() || current.lastName,
     type: incoming.type !== 'autre' ? incoming.type : current.type,
     phone: incoming.phone || current.phone,
+    numeroCommuniqueParLaPersonne:
+      incoming.numeroCommuniqueParLaPersonne || current.numeroCommuniqueParLaPersonne,
     email: incoming.email || current.email,
     secteur: incoming.secteur || current.secteur,
     address: incoming.address || current.address,
@@ -96,6 +98,7 @@ export function parseExtraction(raw: string): ContactInputFields {
     lastName: asString(parsed.lastName, 80) ?? '',
     type,
     phone: asString(parsed.phone, 40),
+    numeroCommuniqueParLaPersonne: false,
     email: asString(parsed.email, 160),
     secteur: asString(parsed.secteur, 160),
     address: asString(parsed.address, 240),

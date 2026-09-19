@@ -174,6 +174,7 @@ export function contactToInput(contact: Contact): ContactInputFields {
     lastName: contact.lastName,
     type: contact.type,
     phone: contact.phone,
+    numeroCommuniqueParLaPersonne: contact.numeroCommuniqueParLaPersonne === true,
     email: contact.email,
     secteur: contact.secteur,
     address: contact.address,

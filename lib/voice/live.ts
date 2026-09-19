@@ -2,8 +2,7 @@
 export const LIVE_FLUSH_MS = 4000;
 export const LIVE_MIN_BYTES = 2800;
 
-export async function transcribeLive(blob: Blob): Promise<string | null> {
-  if (blob.size < LIVE_MIN_BYTES) return null;
+export async function transcribeBlob(blob: Blob): Promise<string | null> {
   const form = new FormData();
   form.append('audio', blob, 'live.webm');
   const res = await fetch('/api/dashboard/voice-notes/transcribe', { method: 'POST', body: form });
@@ -11,6 +10,11 @@ export async function transcribeLive(blob: Blob): Promise<string | null> {
   const data = (await res.json()) as { text?: string };
   const text = data.text?.trim();
   return text || null;
+}
+
+export async function transcribeLive(blob: Blob): Promise<string | null> {
+  if (blob.size < LIVE_MIN_BYTES) return null;
+  return transcribeBlob(blob);
 }
 
 export async function hydrateNoteReview(

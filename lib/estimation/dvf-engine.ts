@@ -19,7 +19,12 @@ import {
 } from '@/lib/estimation';
 import { parseDpeLetter } from '@/lib/carte/dpe-public';
 import { formatPeriodeConstruction } from '@/lib/queries/parcelle';
-import type { EstimationSourceId } from '@/lib/estimation/sources';
+import {
+  DVF_HORIZON_ANS,
+  DVF_RAYON_M,
+  dvfHorizonDepuisIso,
+  type EstimationSourceId,
+} from '@/lib/estimation/sources';
 import {
   extrasCoefficients,
   extrasTotalPct,
@@ -32,7 +37,7 @@ import {
 
 type Db = SupabaseClient<Database>;
 
-export const RADIUS_M = 200;
+export const RADIUS_M = DVF_RAYON_M;
 /** ~1° lat ≈ 111 km ; approx longitude à 48°N. */
 const LAT_DELTA = RADIUS_M / 111_320;
 const LNG_DELTA_AT_48 = RADIUS_M / (111_320 * Math.cos((48.85 * Math.PI) / 180));
@@ -493,6 +498,7 @@ export async function runDvfEstimation(
       .select(
         'ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local',
       )
+      .gte('date_mutation', dvfHorizonDepuisIso())
       .order('date_mutation', { ascending: false })
       .limit(80);
     if (parcelleId) q = q.eq('parcelle_id', parcelleId);
@@ -505,7 +511,7 @@ export async function runDvfEstimation(
     id: 'immeuble_count',
     label:
       immeubleTx.length === 0
-        ? 'Élargissement au quartier : aucune vente enregistrée dans cet immeuble'
+        ? `Élargissement au quartier : aucune vente enregistrée dans cet immeuble sur ${DVF_HORIZON_ANS} ans`
         : `${immeubleTx.length} vente${immeubleTx.length > 1 ? 's' : ''} trouvée${immeubleTx.length > 1 ? 's' : ''} dans l’immeuble`,
     detail: immeubleTx.length > 0 ? `${immeubleTx.length} mutations` : undefined,
   });
@@ -545,6 +551,7 @@ export async function runDvfEstimation(
         'ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local',
       )
       .in('parcelle_id', nearParcelleIds.slice(0, 200))
+      .gte('date_mutation', dvfHorizonDepuisIso())
       .order('date_mutation', { ascending: false })
       .limit(400);
     quartierTx = (data ?? []) as unknown as TxRow[];
@@ -555,6 +562,7 @@ export async function runDvfEstimation(
         'ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local',
       )
       .in('ban_id', nearBanIds.slice(0, 200))
+      .gte('date_mutation', dvfHorizonDepuisIso())
       .order('date_mutation', { ascending: false })
       .limit(400);
     quartierTx = (data ?? []) as unknown as TxRow[];
@@ -1019,6 +1027,7 @@ export async function fetchAddressContext(
   let txQuery = admin
     .from('building_transactions')
     .select('date_mutation')
+    .gte('date_mutation', dvfHorizonDepuisIso())
     .order('date_mutation', { ascending: false })
     .limit(100);
   txQuery = parcelleId ? txQuery.eq('parcelle_id', parcelleId) : txQuery.eq('ban_id', banId!);
@@ -1093,6 +1102,7 @@ export async function countComparables(
   let q = admin
     .from('building_transactions')
     .select('type_local, valeur_fonciere, surface_reelle_bati, prix_m2')
+    .gte('date_mutation', dvfHorizonDepuisIso())
     .limit(400);
   q = parcelleIds.length > 0 ? q.in('parcelle_id', parcelleIds.slice(0, 200)) : q.in('ban_id', banIds.slice(0, 200));
   const { data } = await q;

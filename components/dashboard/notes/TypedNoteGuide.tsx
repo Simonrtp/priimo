@@ -16,6 +16,7 @@ import {
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import type { NoteExtraction } from '@/lib/notes/propositions';
 import type { NoteSourceInfo } from '@/types/contact';
+import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 
 export type TypedNoteSubmitPayload = {
   transcript: string;
@@ -115,6 +116,7 @@ export default function TypedNoteGuide({
           rows={field ? 7 : 5}
           placeholder="Ce que vous venez de vivre, ce qu’il faut retenir…"
         />
+        <NoteMentionSensible />
       </Field>
 
       <div>

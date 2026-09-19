@@ -5,12 +5,15 @@ import type { ContexteGpu } from '@/lib/geo/gpu';
 import type { RisqueRecense } from '@/lib/geo/georisques';
 import type { ProximiteAdresse } from '@/lib/geo/proximite';
 import { lignesStatsSecteur, type SecteurStatsObserves } from '@/lib/estimation/secteur-stats';
+import { DVF_HORIZON_ANS, DVF_RAYON_M } from '@/lib/estimation/sources';
+import CartePosition from './CartePosition';
 
 type Onglet = 'facade' | 'immeuble' | 'secteur' | 'urbanisme';
 
 export type ContexteAtelier = {
   resolved: boolean;
   immeuble?: {
+    resolved?: boolean;
     immeubleVentes: number;
     derniereVente: string | null;
     coproLots: number | null;
@@ -32,20 +35,27 @@ export default function PanneauContexteAtelier({
   chargement,
   onCouverture,
   couvertureActive,
+  latitude,
+  longitude,
+  onPosition,
 }: {
   contexte: ContexteAtelier | null;
   chargement?: boolean;
   onCouverture: () => void;
   couvertureActive: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  onPosition?: (lat: number, lng: number) => void;
 }) {
   const [onglet, setOnglet] = useState<Onglet>('facade');
   const [vue, setVue] = useState<'street' | 'satellite'>('street');
+  const hasCoords = latitude != null && longitude != null;
 
-  if (!contexte?.resolved && !chargement) {
+  if (!contexte?.resolved && !chargement && !hasCoords) {
     return <aside className="rounded-clay border border-dashed border-black/10 bg-bg-subtle p-3" aria-hidden />;
   }
 
-  if (!contexte?.resolved && chargement) {
+  if (!contexte?.resolved && chargement && !hasCoords) {
     return (
       <aside className="rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm">
         <p className="text-[13px] text-text-muted">Chargement du quartier…</p>
@@ -114,31 +124,65 @@ export default function PanneauContexteAtelier({
           >
             {couvertureActive ? 'Retirer la couverture' : 'Couverture du rapport'}
           </button>
+          {hasCoords ? (
+            <CartePosition
+              latitude={latitude}
+              longitude={longitude}
+              onChoisir={onPosition}
+            />
+          ) : null}
         </div>
       ) : null}
 
+      {onglet === 'facade' && !contexte?.facade && hasCoords ? (
+        <CartePosition
+          latitude={latitude}
+          longitude={longitude}
+          onChoisir={onPosition}
+        />
+      ) : null}
+
       {onglet === 'immeuble' ? (
-        <dl className="flex flex-col gap-2 text-[13.5px]">
-          {contexte?.immeuble ? (
-            <Ligne libelle="Ventes dans l’immeuble" valeur={String(contexte.immeuble.immeubleVentes)} />
-          ) : null}
-          {contexte?.immeuble?.coproLots != null ? (
-            <Ligne libelle="Lots" valeur={String(contexte.immeuble.coproLots)} />
-          ) : null}
-          {contexte?.immeuble?.coproPeriode ? (
-            <Ligne libelle="Construction" valeur={contexte.immeuble.coproPeriode} />
-          ) : null}
-          {contexte?.immeuble?.dpeKnown ? <Ligne libelle="DPE" valeur={contexte.immeuble.dpeKnown} /> : null}
-          {contexte?.dpe?.surfaceM2 != null ? (
-            <Ligne libelle="Surface DPE" valeur={`${Math.round(contexte.dpe.surfaceM2)} m²`} />
-          ) : null}
-          {contexte?.immeuble?.comparablesAppartement != null ? (
-            <Ligne libelle="Comparables appartements" valeur={String(contexte.immeuble.comparablesAppartement)} />
-          ) : null}
-          {contexte?.immeuble?.comparablesMaison != null ? (
-            <Ligne libelle="Comparables maisons" valeur={String(contexte.immeuble.comparablesMaison)} />
-          ) : null}
-        </dl>
+        <div>
+          <dl className="flex flex-col gap-2 text-[13.5px]">
+            {contexte?.immeuble?.resolved === false ? (
+              <p className="text-[13px] leading-snug text-text-muted">
+                Cet immeuble n’est pas encore rattaché aux ventes DVF. Ce n’est pas un décompte
+                du marché.
+              </p>
+            ) : contexte?.immeuble ? (
+              <Ligne
+                libelle="Ventes dans l’immeuble"
+                valeur={compteHorizon(contexte.immeuble.immeubleVentes)}
+              />
+            ) : null}
+            {contexte?.immeuble?.coproLots != null ? (
+              <Ligne libelle="Lots" valeur={String(contexte.immeuble.coproLots)} />
+            ) : null}
+            {contexte?.immeuble?.coproPeriode ? (
+              <Ligne libelle="Construction" valeur={contexte.immeuble.coproPeriode} />
+            ) : null}
+            {contexte?.immeuble?.dpeKnown ? <Ligne libelle="DPE" valeur={contexte.immeuble.dpeKnown} /> : null}
+            {contexte?.dpe?.surfaceM2 != null ? (
+              <Ligne libelle="Surface DPE" valeur={`${Math.round(contexte.dpe.surfaceM2)} m²`} />
+            ) : null}
+            {contexte?.immeuble?.comparablesAppartement != null ? (
+              <Ligne
+                libelle="Comparables appartements"
+                valeur={compteRayon(contexte.immeuble.comparablesAppartement)}
+              />
+            ) : null}
+            {contexte?.immeuble?.comparablesMaison != null ? (
+              <Ligne
+                libelle="Comparables maisons"
+                valeur={compteRayon(contexte.immeuble.comparablesMaison)}
+              />
+            ) : null}
+          </dl>
+          <p className="mt-3 text-[11.5px] leading-snug text-text-muted">
+            DVF · Etalab · {DVF_HORIZON_ANS} dernières années
+          </p>
+        </div>
       ) : null}
 
       {onglet === 'secteur' ? (
@@ -192,6 +236,16 @@ export default function PanneauContexteAtelier({
       ) : null}
     </aside>
   );
+}
+
+function compteHorizon(n: number): string {
+  return n > 0 ? `${n} sur ${DVF_HORIZON_ANS} ans` : `Aucune sur ${DVF_HORIZON_ANS} ans`;
+}
+
+function compteRayon(n: number): string {
+  return n > 0
+    ? `${n} dans ${DVF_RAYON_M} m, ${DVF_HORIZON_ANS} ans`
+    : `Aucune dans ${DVF_RAYON_M} m, ${DVF_HORIZON_ANS} ans`;
 }
 
 function Ligne({ libelle, valeur }: { libelle: string; valeur: string }) {

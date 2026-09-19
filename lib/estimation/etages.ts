@@ -42,6 +42,29 @@ export function libelleEtagesImmeuble(n: number): string {
   return `${n} étages`;
 }
 
+/** RDC = 0. Null si l’étage n’est pas un nombre comparable. */
+export function numeroEtage(floor: string | null | undefined): number | null {
+  if (!floor) return null;
+  const v = floor.trim();
+  if (v === 'RDC') return 0;
+  if (v === '20+') return 20;
+  const n = Number.parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * 2e étage / 3 étages → pas dernier. 3e / 3 → dernier.
+ * Ne devine rien si l’un des deux manque.
+ */
+export function inferDernierEtage(
+  floor: string | null | undefined,
+  etagesImmeuble: number | null | undefined,
+): boolean | null {
+  const etage = numeroEtage(floor);
+  if (etage == null || etagesImmeuble == null || etagesImmeuble <= 0) return null;
+  return etage >= etagesImmeuble;
+}
+
 export function optionsEtagesImmeuble(selected: number | null): { value: string; label: string }[] {
   const set = new Set<number>(VALEURS_ETAGES_IMMEUBLE);
   if (selected != null && selected > 0) set.add(selected);

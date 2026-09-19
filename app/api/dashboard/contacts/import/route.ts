@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { contactFieldsToRow } from '@/lib/contact-input';
 import { createBanGeocodeCache } from '@/lib/geo/ban';
 import { contactGeocodeQuery, EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
-import { CONTACTS_SELECT, mapDbContactToContact } from '@/lib/queries/contacts';
+import { insertContactRow, mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
 import { activeMappedKeys } from '@/lib/import/mapping';
 import {
   CONTACT_IMPORT_FIELDS,
@@ -73,9 +73,9 @@ export async function POST(req: Request) {
   const keys = activeMappedKeys(mapping);
 
   const supabase = await createSupabaseServerClient();
-  const { data: existingRows, error: loadError } = await supabase
-    .from('contacts')
-    .select(CONTACTS_SELECT);
+  const { data: existingRows, error: loadError } = await withContactsSelect((sel) =>
+    supabase.from('contacts').select(sel),
+  );
 
   if (loadError) {
     console.error('[contacts/import] lecture', loadError);
@@ -100,19 +100,15 @@ export async function POST(req: Request) {
     if (item.action === 'create') {
       const query = contactGeocodeQuery(item.fields.address, item.fields.secteur, item.fields.postalCodes);
       const geo = query ? await geocodeToColumns(query.adresse, query.codePostal, cache) : {};
-      const { data, error } = await supabase
-        .from('contacts')
-        .insert({
-          ...contactFieldsToRow(item.fields, {
-            agencyId: agency.id,
-            createdBy: profile.id,
-            source: 'manuel',
-          }),
-          last_interaction_at: new Date().toISOString(),
-          ...geo,
-        })
-        .select(CONTACTS_SELECT)
-        .single();
+      const { data, error } = await insertContactRow(supabase, {
+        ...contactFieldsToRow(item.fields, {
+          agencyId: agency.id,
+          createdBy: profile.id,
+          source: 'manuel',
+        }),
+        last_interaction_at: new Date().toISOString(),
+        ...geo,
+      });
       if (error || !data) {
         console.error('[contacts/import] création', error);
         skipped.push({ line: item.line, reason: 'Écriture impossible' });
@@ -155,13 +151,15 @@ export async function POST(req: Request) {
       ...geo,
     };
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .update(patch)
-      .eq('id', item.duplicate.id)
-      .eq('agency_id', agency.id)
-      .select(CONTACTS_SELECT)
-      .single();
+    const { data, error } = await withContactsSelect((sel) =>
+      supabase
+        .from('contacts')
+        .update(patch)
+        .eq('id', item.duplicate.id)
+        .eq('agency_id', agency.id)
+        .select(sel)
+        .single(),
+    );
     if (error || !data) {
       console.error('[contacts/import] mise à jour', error);
       skipped.push({ line: item.line, reason: 'Mise à jour impossible' });

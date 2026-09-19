@@ -1,6 +1,8 @@
 'use client';
 
 import VoiceCaptureDialog from '@/components/dashboard/voice/VoiceCaptureDialog';
+import type { VoiceCapturePurpose } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
 
 export default function DicterMobile({
   onClose,
@@ -9,6 +11,8 @@ export default function DicterMobile({
   parcelleId,
   banId,
   resterSurPage,
+  purpose = 'note',
+  onEstimationDraft,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
@@ -16,6 +20,8 @@ export default function DicterMobile({
   parcelleId?: string | null;
   banId?: string | null;
   resterSurPage?: boolean;
+  purpose?: VoiceCapturePurpose;
+  onEstimationDraft?: (draft: EstimationVoiceDraft) => void;
 }) {
   return (
     <VoiceCaptureDialog
@@ -26,6 +32,8 @@ export default function DicterMobile({
       parcelleId={parcelleId}
       banId={banId}
       resterSurPage={resterSurPage}
+      purpose={purpose}
+      onEstimationDraft={onEstimationDraft}
     />
   );
 }

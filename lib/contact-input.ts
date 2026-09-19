@@ -13,6 +13,7 @@ export interface ContactInputFields {
   lastName: string;
   type: ContactType;
   phone: string | null;
+  numeroCommuniqueParLaPersonne: boolean;
   email: string | null;
   secteur: string | null;
   address: string | null;
@@ -31,6 +32,7 @@ export const EMPTY_CONTACT_INPUT: ContactInputFields = {
   lastName: '',
   type: 'autre',
   phone: null,
+  numeroCommuniqueParLaPersonne: false,
   email: null,
   secteur: null,
   address: null,
@@ -220,6 +222,7 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
       lastName,
       type,
       phone: str(b.phone, 40),
+      numeroCommuniqueParLaPersonne: b.numeroCommuniqueParLaPersonne === true,
       email,
       secteur: str(b.secteur, 160),
       address: str(b.address, 240),
@@ -246,6 +249,7 @@ export function contactFieldsToRow(
     last_name: f.lastName || null,
     contact_type: f.type,
     phone: f.phone,
+    numero_communique_par_la_personne: f.numeroCommuniqueParLaPersonne,
     email: f.email,
     secteur: f.secteur,
     address: f.address,

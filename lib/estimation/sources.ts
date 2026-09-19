@@ -3,6 +3,17 @@
  * réellement mobilisées par le moteur pour CETTE estimation.
  */
 
+/** Fenêtre Etalab / DVF : les mutations des 5 dernières années. */
+export const DVF_HORIZON_ANS = 5;
+/** Rayon des comparables de quartier, aligné sur le moteur. */
+export const DVF_RAYON_M = 200;
+
+export function dvfHorizonDepuisIso(now = new Date()): string {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  d.setUTCFullYear(d.getUTCFullYear() - DVF_HORIZON_ANS);
+  return d.toISOString().slice(0, 10);
+}
+
 export const ESTIMATION_SOURCE_IDS = [
   'dvf',
   'notaires_insee',
@@ -25,7 +36,7 @@ export const ESTIMATION_SOURCE_CATALOG: readonly EstimationSourceMeta[] = [
   {
     id: 'dvf',
     title: 'DVF · Etalab',
-    subtitle: 'Ventes réelles actées chez le notaire, 5 dernières années',
+    subtitle: `Ventes réelles actées chez le notaire, ${DVF_HORIZON_ANS} dernières années`,
   },
   {
     id: 'notaires_insee',

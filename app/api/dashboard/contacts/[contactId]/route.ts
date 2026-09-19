@@ -5,7 +5,12 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
 import { contactGeocodeQuery, EMPTY_BAN_GEO, parseClientGeo, resolveGeoColumns } from '@/lib/geo/fields';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import { CONTACTS_SELECT, fetchContactById, mapDbContactToContact } from '@/lib/queries/contacts';
+import {
+  fetchContactById,
+  isMissingContactsColumn,
+  mapDbContactToContact,
+  withContactsSelect,
+} from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { notifierContactTransfere } from '@/lib/notifications/evenements';
 import type { ContactRow } from '@/types/database';
@@ -106,6 +111,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
       ...(geo ?? {}),
     });
   }
+  if (Object.prototype.hasOwnProperty.call(raw, 'numeroCommuniqueParLaPersonne')) {
+    update.numero_communique_par_la_personne = raw.numeroCommuniqueParLaPersonne === true;
+  }
   if (relanceProvided && !parsed) {
     if (raw.recontacterLe === null || raw.recontacterLe === '') {
       update.recontacter_le = null;
@@ -122,13 +130,31 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     Object.assign(update, assignmentMeta(assigned.id, profile.id));
   }
 
-  const { data, error } = await supabase
-    .from('contacts')
-    .update(update)
-    .eq('id', contactId)
-    .eq('agency_id', agency.id)
-    .select(CONTACTS_SELECT)
-    .single();
+  let { data, error } = await withContactsSelect((sel) =>
+    supabase
+      .from('contacts')
+      .update(update)
+      .eq('id', contactId)
+      .eq('agency_id', agency.id)
+      .select(sel)
+      .single(),
+  );
+
+  if (isMissingContactsColumn(error, 'numero_communique_par_la_personne')) {
+    const { numero_communique_par_la_personne: _c, ...without } = update;
+    void _c;
+    const retry = await withContactsSelect((sel) =>
+      supabase
+        .from('contacts')
+        .update(without)
+        .eq('id', contactId)
+        .eq('agency_id', agency.id)
+        .select(sel)
+        .single(),
+    );
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error || !data) {
     console.error('[contacts] mise à jour', error);

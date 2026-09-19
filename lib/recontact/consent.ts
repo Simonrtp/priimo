@@ -1,10 +1,4 @@
-/** Droit d'appeler / écrire : un numéro sans accord s'affiche, il n'est pas une action. */
-
-export const NUMERO_NON_CONSENTI = 'numéro non consenti';
-
-export function estNumeroConsenti(consentiLe: string | null | undefined): boolean {
-  return Boolean(consentiLe);
-}
+/** Lien SMS à partir d'un numéro français ou international. */
 
 export function smsHref(raw: string): string {
   const digits = raw.replace(/\D/g, '');

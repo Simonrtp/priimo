@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mic, Square, X } from 'lucide-react';
 import { notifyError } from '@/lib/notify';
-import { shouldLockVoice } from '@/lib/voice/gesture-lock';
 import { playRecordStartSound, playRecordStopSound } from '@/lib/voice/feedback-sound';
 import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
 import { readDevicePosition } from '@/lib/voice/gps';
@@ -14,14 +13,14 @@ import { ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Fiel
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceReviewPanel from './VoiceReviewPanel';
-import VoiceLockHint from './VoiceLockHint';
 import { useUser } from '@/lib/hooks/useUser';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
 import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { joinVoiceTranscripts } from '@/lib/voice/extract';
-import { hydrateNoteReview, LIVE_FLUSH_MS, transcribeLive } from '@/lib/voice/live';
+import { hydrateNoteReview, LIVE_FLUSH_MS, transcribeBlob, transcribeLive } from '@/lib/voice/live';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
 import { postFormOrQueue } from '@/lib/offline/queue';
 import { notifySuccess } from '@/lib/notify';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
@@ -37,6 +36,8 @@ export default function VoiceCaptureDialog({
   parcelleId = null,
   banId = null,
   resterSurPage = false,
+  purpose = 'note',
+  onEstimationDraft,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
@@ -45,7 +46,10 @@ export default function VoiceCaptureDialog({
   parcelleId?: string | null;
   banId?: string | null;
   resterSurPage?: boolean;
+  purpose?: 'note' | 'estimation';
+  onEstimationDraft?: (draft: EstimationVoiceDraft) => void;
 }) {
+  const estimationMode = purpose === 'estimation';
   const router = useRouter();
   const { profile } = useUser();
   const { noteDictee, adresse: tourAdresse } = useTourneeDictation();
@@ -62,10 +66,6 @@ export default function VoiceCaptureDialog({
   const [error, setError] = useState<string | null>(null);
   const [gpsAddress, setGpsAddress] = useState<string | null>(adresse);
   const [editingAddress, setEditingAddress] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [recordingLocked, setRecordingLocked] = useState(false);
-  const [lockSwipeY, setLockSwipeY] = useState(0);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const field = variant === 'mobile';
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -86,18 +86,6 @@ export default function VoiceCaptureDialog({
 
   const hasPriorTake = Boolean(voiceNoteId) || transcript.trim().length > 0;
 
-  useEffect(() => {
-    if (phase !== 'recording' || !micReady) {
-      setElapsed(0);
-      return;
-    }
-    setElapsed(0);
-    const t = window.setInterval(() => {
-      setElapsed(Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000)));
-    }, 250);
-    return () => window.clearInterval(t);
-  }, [phase, micReady]);
-
   const releaseMic = useCallback(() => {
     stopMicStream(recorderRef.current?.stream);
     setMicStream(null);
@@ -105,6 +93,7 @@ export default function VoiceCaptureDialog({
   }, []);
 
   useEffect(() => {
+    if (estimationMode) return;
     if (adresse) setGpsAddress(adresse);
     void readDevicePosition().then(async (pos) => {
       gpsRef.current = pos;
@@ -112,7 +101,7 @@ export default function VoiceCaptureDialog({
       const hit = await reverseGeocode(pos.latitude, pos.longitude);
       if (hit) setGpsAddress(hit.adresse_normalisee);
     });
-  }, [adresse]);
+  }, [adresse, estimationMode]);
 
   useEffect(() => {
     return () => {
@@ -127,7 +116,8 @@ export default function VoiceCaptureDialog({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && phase === 'review') onClose();
+      if (e.key !== 'Escape') return;
+      if (phase === 'review') onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -138,7 +128,68 @@ export default function VoiceCaptureDialog({
     setPhase('review');
   }, [releaseMic]);
 
+  async function uploadEstimation(blob: Blob) {
+    const preview = joinVoiceTranscripts(takeBaseRef.current, liveTextRef.current);
+    if (preview.trim()) setTranscript(preview);
+    setPhase('processing');
+    setError(null);
+    releaseMic();
+
+    if (blob.size === 0 && !preview.trim()) {
+      setError('Aucun son reçu. Reprenez la dictée.');
+      setPhase('recording');
+      return;
+    }
+
+    try {
+      let text = preview;
+      if (blob.size > 0) {
+        const finalText = await transcribeBlob(blob);
+        if (cancelledRef.current) return;
+        if (finalText) {
+          text = joinVoiceTranscripts(takeBaseRef.current, finalText);
+          setTranscript(text);
+        }
+      }
+      const trimmed = text.trim();
+      if (trimmed.length < 12) {
+        const message = 'Dictée trop courte. Décrivez le bien visité.';
+        notifyError(message);
+        setError(message);
+        setPhase('recording');
+        return;
+      }
+
+      const res = await fetch('/api/dashboard/estimation/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: trimmed }),
+      });
+      if (cancelledRef.current) return;
+      const data = (await res.json()) as { draft?: EstimationVoiceDraft; error?: string };
+      if (!res.ok || !data.draft) {
+        const message = data.error ?? 'Lecture impossible';
+        notifyError(message);
+        setError(message);
+        setPhase('recording');
+        return;
+      }
+      onEstimationDraft?.(data.draft);
+      onClose();
+    } catch {
+      if (cancelledRef.current) return;
+      const message = 'Lecture impossible';
+      notifyError(message);
+      setError(message);
+      setPhase('recording');
+    }
+  }
+
   async function upload(blob: Blob, durationSeconds: number) {
+    if (estimationMode) {
+      await uploadEstimation(blob);
+      return;
+    }
     const preview = joinVoiceTranscripts(takeBaseRef.current, liveTextRef.current);
     if (preview.trim()) {
       setTranscript(preview);
@@ -271,8 +322,6 @@ export default function VoiceCaptureDialog({
 
   const startRecording = useCallback(async (reuseInitial = false) => {
     setPhase('recording');
-    setRecordingLocked(false);
-    setLockSwipeY(0);
     cancelledRef.current = false;
     setError(null);
 
@@ -378,7 +427,7 @@ export default function VoiceCaptureDialog({
   }
 
   function cancelRecording() {
-    if (phase === 'processing') {
+    if (estimationMode || phase === 'processing') {
       abandonCapture();
       return;
     }
@@ -434,12 +483,27 @@ export default function VoiceCaptureDialog({
     avatarUrl: m.avatarUrl ?? null,
   }));
 
-  const title =
-    phase === 'review'
+  const title = estimationMode
+    ? 'Dicter le bien'
+    : phase === 'review'
       ? 'Vérifiez la note'
       : hasPriorTake
         ? 'Compléter la dictée'
         : 'Dicter une note';
+
+  const processingCopy = estimationMode
+    ? 'Lecture de la description…'
+    : transcript.trim()
+      ? 'Enregistrement de la note…'
+      : hasPriorTake
+        ? 'Mise en forme de ce que vous avez ajouté…'
+        : 'Mise en texte de la dictée…';
+
+  const helpCopy = estimationMode
+    ? 'Décrivez le bien que vous avez visité aujourd’hui. Les champs se pré-remplissent ; vous relirez avant de valider.'
+    : hasPriorTake
+      ? 'Ajoutez ce qui manque.'
+      : 'Parlez normalement.';
 
   function closeHeader() {
     if (phase === 'recording') {
@@ -453,141 +517,60 @@ export default function VoiceCaptureDialog({
     onClose();
   }
 
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  const chrono = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
   if (field && (phase === 'recording' || phase === 'processing')) {
     return (
       <div
-        className="fixed inset-0 z-[220] flex flex-col bg-bg-base"
+        className="fixed inset-x-3 z-[220] mx-auto w-[min(100%,20rem)] rounded-clay-lg bg-surface px-3 py-3 shadow-clay-lg"
         role="dialog"
-        aria-modal="true"
-        aria-label="Dicter une note"
-        style={{ height: '100dvh' }}
+        aria-modal="false"
+        aria-label={estimationMode ? 'Dicter le bien' : 'Dicter une note'}
+        style={{ bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
       >
-        <header
-          className="flex flex-shrink-0 items-center justify-between px-4"
-          style={{ paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))' }}
-        >
-          <button
-            type="button"
-            onClick={cancelRecording}
-            aria-label="Annuler la dictée"
-            className="app-press flex size-11 items-center justify-center rounded-lg text-text-muted"
-          >
-            <X size={20} strokeWidth={2} aria-hidden />
-          </button>
-          <p className="tabular-nums font-semibold text-text-strong" style={{ fontSize: 16 }}>
-            {chrono}
-          </p>
-          <span className="w-16" aria-hidden />
-        </header>
-
-        <div
-          className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 touch-none"
-          onPointerDown={(e) => {
-            if (phase !== 'recording' || recordingLocked) return;
-            touchStartRef.current = { x: e.clientX, y: e.clientY };
-          }}
-          onPointerMove={(e) => {
-            if (phase !== 'recording' || recordingLocked || !touchStartRef.current) return;
-            const deltaY = touchStartRef.current.y - e.clientY;
-            const deltaX = e.clientX - touchStartRef.current.x;
-            setLockSwipeY(deltaY);
-            if (shouldLockVoice(deltaY, deltaX)) {
-              setRecordingLocked(true);
-              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([10, 20, 10]);
-            }
-          }}
-          onPointerUp={() => {
-            touchStartRef.current = null;
-            if (!recordingLocked) setLockSwipeY(0);
-          }}
-          onPointerCancel={() => {
-            touchStartRef.current = null;
-            if (!recordingLocked) setLockSwipeY(0);
-          }}
-        >
-          {phase === 'processing' ? (
-            <div className="w-full max-w-sm" aria-busy="true" aria-label="Mise en texte de la dictée">
-              {transcript.trim() ? (
-                <p className="text-pretty text-left text-text" style={{ fontSize: 15 }}>
-                  {transcript}
-                </p>
-              ) : (
-                <>
-                  <div className="h-3 w-3/4 animate-pulse rounded bg-black/[0.08]" />
-                  <div className="mt-3 h-3 w-full animate-pulse rounded bg-black/[0.06]" />
-                  <div className="mt-3 h-3 w-2/3 animate-pulse rounded bg-black/[0.06]" />
-                </>
-              )}
-              <p className="mt-6 text-pretty text-center text-text-muted" style={{ fontSize: 14 }}>
-                {transcript.trim() ? 'Enregistrement de la note…' : 'Mise en texte de la dictée…'}
+        {phase === 'processing' ? (
+          <div className="py-1" aria-busy="true" aria-label={processingCopy}>
+            <VoiceWaveform stream={null} compact />
+            <p className="mt-2 text-pretty text-center text-text-muted" style={{ fontSize: 13 }}>
+              {processingCopy}
+            </p>
+          </div>
+        ) : (
+          <>
+            <VoiceWaveform stream={micStream} compact />
+            {error ? (
+              <p className="mt-2 text-pretty text-center text-text" style={{ fontSize: 12.5 }}>
+                {error}
               </p>
-            </div>
-          ) : (
-            <>
-              <VoiceWaveform stream={micStream} />
-              <VoiceLockHint locked={recordingLocked} progress={lockSwipeY} />
-              {error ? (
-                <p className="mt-6 text-pretty text-center text-text" style={{ fontSize: 14 }}>
-                  {error}
-                </p>
-              ) : null}
-              {editingAddress ? (
-                <div className="mt-8 w-full max-w-sm text-left">
-                  <AddressAutocomplete
-                    id="voice-capture-address"
-                    aria-label="Adresse"
-                    value={gpsAddress ?? ''}
-                    onChange={(data) => {
-                      if (data) {
-                        setGpsAddress(data.label);
-                        setEditingAddress(false);
-                      }
-                    }}
-                    onQueryChange={(q) => setGpsAddress(q)}
-                    placeholder="Rattacher à un immeuble…"
-                    inputClassName={ADDRESS_FIELD_INPUT_CLASS}
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setEditingAddress(true)}
-                  className="app-press mt-8 max-w-sm text-pretty text-center text-text-muted"
-                  style={{ fontSize: 13 }}
-                >
-                  {gpsAddress ?? 'Position en cours…'}
-                </button>
-              )}
-            </>
-          )}
-        </div>
-
-        {phase === 'recording' ? (
-          <div
-            className="flex flex-shrink-0 justify-center px-6"
-            style={{ paddingBottom: 'calc(28px + env(safe-area-inset-bottom, 0px))' }}
-          >
-            {error && !micReady ? (
-              <WorkspaceButton type="button" onClick={() => void startRecording(false)} className="min-h-[48px] w-full max-w-sm">
-                Reprendre
-              </WorkspaceButton>
-            ) : (
+            ) : null}
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <WorkspaceButton
                 type="button"
-                onClick={stopRecording}
-                disabled={!micReady}
-                className="min-h-[48px] w-full max-w-sm"
+                variant="secondary"
+                onClick={cancelRecording}
+                className="min-h-11"
               >
-                <Square size={16} strokeWidth={2} aria-hidden />
                 Arrêter
               </WorkspaceButton>
-            )}
-          </div>
-        ) : null}
+              {error && !micReady ? (
+                <WorkspaceButton
+                  type="button"
+                  onClick={() => void startRecording(false)}
+                  className="min-h-11"
+                >
+                  Reprendre
+                </WorkspaceButton>
+              ) : (
+                <WorkspaceButton
+                  type="button"
+                  onClick={stopRecording}
+                  disabled={!micReady}
+                  className="min-h-11"
+                >
+                  Valider
+                </WorkspaceButton>
+              )}
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -657,11 +640,7 @@ export default function VoiceCaptureDialog({
                   />
                 )}
                 <p className="mt-5 text-pretty text-text-muted" style={{ fontSize: 14 }}>
-                  {transcript.trim()
-                    ? 'Enregistrement de la note…'
-                    : hasPriorTake
-                      ? 'Mise en forme de ce que vous avez ajouté…'
-                      : 'Mise en texte de la dictée…'}
+                  {processingCopy}
                 </p>
               </>
             ) : (
@@ -676,7 +655,7 @@ export default function VoiceCaptureDialog({
                 <VoiceWaveform stream={micStream} />
 
                 <p className="mt-6 text-pretty text-text-muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
-                  {hasPriorTake ? 'Ajoutez ce qui manque.' : 'Parlez normalement.'}
+                  {helpCopy}
                 </p>
                 {error ? (
                   <p className="mt-3 text-pretty text-text" style={{ fontSize: 13.5, lineHeight: 1.45 }}>

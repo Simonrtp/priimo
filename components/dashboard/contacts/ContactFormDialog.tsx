@@ -28,6 +28,7 @@ function fromContact(contact: Contact): ContactInputFields {
     lastName: contact.lastName,
     type: contact.type,
     phone: contact.phone,
+    numeroCommuniqueParLaPersonne: contact.numeroCommuniqueParLaPersonne === true,
     email: contact.email,
     secteur: contact.secteur,
     address: contact.address,
@@ -447,6 +448,20 @@ export default function ContactFormDialog({
             />
           </Field>
         </div>
+
+        <label
+          htmlFor="contact-numero-communique"
+          className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug text-text-muted"
+        >
+          <input
+            id="contact-numero-communique"
+            type="checkbox"
+            checked={fields.numeroCommuniqueParLaPersonne}
+            onChange={(e) => set('numeroCommuniqueParLaPersonne', e.target.checked)}
+            className="mt-0.5 size-4 rounded border-black/20"
+          />
+          Numéro communiqué par la personne
+        </label>
 
         {showCriteria ? (
           <fieldset className="border-t border-black/[0.06] pt-6">

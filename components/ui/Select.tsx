@@ -73,7 +73,8 @@ export default function Select({
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(-1);
   const [menuPos, setMenuPos] = useState<{
-    top: number;
+    top?: number;
+    bottom?: number;
     left: number;
     width: number;
     maxHeight: number;
@@ -116,22 +117,26 @@ export default function Select({
       const trigger = triggerRef.current;
       if (!trigger) return;
       const r = trigger.getBoundingClientRect();
+      const width = Math.max(r.width, searchable ? 260 : r.width);
+      const panelH = panelRef.current?.offsetHeight ?? 0;
+      const needed = panelH > 0 ? panelH : searchable ? 220 : Math.min(280, options.length * 40 + 16);
       const spaceBelow = window.innerHeight - r.bottom - MENU_GAP - 8;
       const spaceAbove = r.top - MENU_GAP - 8;
-      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
-      const maxHeight = Math.min(280, Math.max(160, openUp ? spaceAbove : spaceBelow));
-      const top = openUp ? Math.max(8, r.top - maxHeight - MENU_GAP) : r.bottom + MENU_GAP;
-      setMenuPos({
-        top,
-        left: r.left,
-        width: Math.max(r.width, searchable ? 260 : r.width),
-        maxHeight,
-      });
+      const openUp = spaceBelow < needed && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(280, Math.max(needed, openUp ? spaceAbove : spaceBelow));
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+      setMenuPos(
+        openUp
+          ? { bottom: window.innerHeight - r.top + MENU_GAP, left, width, maxHeight }
+          : { top: r.bottom + MENU_GAP, left, width, maxHeight },
+      );
     }
     place();
+    const raf = window.requestAnimationFrame(place);
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {
+      window.cancelAnimationFrame(raf);
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
@@ -269,6 +274,7 @@ export default function Select({
             ref={panelRef}
             style={{
               top: menuPos.top,
+              bottom: menuPos.bottom,
               left: menuPos.left,
               width: menuPos.width,
               maxHeight: menuPos.maxHeight,

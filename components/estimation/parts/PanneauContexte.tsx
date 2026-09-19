@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DVF_HORIZON_ANS, DVF_RAYON_M } from '@/lib/estimation/sources';
 
 /**
  * Ce que la base sait déjà, pendant que le visiteur répond.
@@ -158,7 +159,8 @@ export default function PanneauContexte({
               </>
             ) : (
               <span className="text-neutral-600">
-                Nous élargirons au quartier pour trouver des comparables.
+                Aucune vente enregistrée dans l’immeuble sur {DVF_HORIZON_ANS} ans. Nous
+                élargirons au quartier.
               </span>
             )
           }
@@ -187,11 +189,15 @@ export default function PanneauContexte({
               comparables > 0 ? (
                 <>
                   {comparables} vente{comparables > 1 ? 's' : ''} du même type
-                  <span className="text-neutral-500"> dans un rayon de 200 m</span>
+                  <span className="text-neutral-500">
+                    {' '}
+                    dans un rayon de {DVF_RAYON_M} m, {DVF_HORIZON_ANS} ans
+                  </span>
                 </>
               ) : (
                 <span className="text-neutral-600">
-                  Recherche en cours d’élargissement au quartier.
+                  Aucune dans un rayon de {DVF_RAYON_M} m sur {DVF_HORIZON_ANS} ans. Recherche
+                  élargie au quartier.
                 </span>
               )
             }

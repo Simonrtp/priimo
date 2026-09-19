@@ -13,6 +13,7 @@ import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { TextArea } from '@/components/dashboard/workspace/Field';
+import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 
 const ENTITE_LABELS: Record<NoteLienEntite, string> = {
   contact: 'Contact',
@@ -234,6 +235,7 @@ export default function NoteFiche({
             disabled={!isAuthor}
             rows={6}
           />
+          <NoteMentionSensible />
           {note.transcriptOriginal ? (
             <p className="mt-1.5 text-[12px] text-text-muted">
               Le texte brut d&apos;origine est conservé.

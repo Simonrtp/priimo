@@ -8,6 +8,9 @@ import DicterMobile from '@/app/dashboard/_mobile/DicterMobile';
 import VoiceCaptureDialog from './VoiceCaptureDialog';
 import VoiceGestureCapture, { type VoiceGestureCaptureHandle } from './VoiceGestureCapture';
 import TypedNoteDialog from '@/components/dashboard/notes/TypedNoteDialog';
+import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+
+export type VoiceCapturePurpose = 'note' | 'estimation';
 
 export type VoiceCaptureOptions = {
   adresse?: string;
@@ -16,6 +19,9 @@ export type VoiceCaptureOptions = {
   banId?: string;
   /** Ne pas quitter la page après validation (ex. prise en main). */
   resterSurPage?: boolean;
+  /** Dictée d’un bien visité, pour pré-remplir le formulaire d’estimation. */
+  purpose?: VoiceCapturePurpose;
+  onEstimationDraft?: (draft: EstimationVoiceDraft) => void;
 };
 
 interface VoiceCaptureContextValue {
@@ -46,6 +52,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [parcelleId, setParcelleId] = useState<string | null>(null);
   const [banId, setBanId] = useState<string | null>(null);
   const [resterSurPage, setResterSurPage] = useState(false);
+  const [purpose, setPurpose] = useState<VoiceCapturePurpose>('note');
+  const estimationDraftRef = useRef<((draft: EstimationVoiceDraft) => void) | null>(null);
   const [gestureSession, setGestureSession] = useState<{ adresse: string | null } | null>(null);
   const [gestureLocked, setGestureLocked] = useState(false);
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
@@ -67,6 +75,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setParcelleId(opts?.parcelleId?.trim() || null);
     setBanId(opts?.banId?.trim() || null);
     setResterSurPage(opts?.resterSurPage === true);
+    setPurpose(opts?.purpose ?? 'note');
+    estimationDraftRef.current = opts?.onEstimationDraft ?? null;
     setOpen(true);
   }, [device, gestureSession]);
 
@@ -110,6 +120,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setParcelleId(null);
     setBanId(null);
     setResterSurPage(false);
+    setPurpose('note');
+    estimationDraftRef.current = null;
     setComposeOpen(false);
   }, []);
 
@@ -120,6 +132,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setParcelleId(null);
     setBanId(null);
     setResterSurPage(false);
+    setPurpose('note');
+    estimationDraftRef.current = null;
     setOpen(false);
     if (pending) {
       void pending.then(stopMicStream).catch(() => undefined);
@@ -176,6 +190,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             parcelleId={parcelleId}
             banId={banId}
             resterSurPage={resterSurPage}
+            purpose={purpose}
+            onEstimationDraft={(draft) => estimationDraftRef.current?.(draft)}
           />
         ) : (
           <VoiceCaptureDialog
@@ -185,6 +201,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             parcelleId={parcelleId}
             banId={banId}
             resterSurPage={resterSurPage}
+            purpose={purpose}
+            onEstimationDraft={(draft) => estimationDraftRef.current?.(draft)}
           />
         )
       ) : null}

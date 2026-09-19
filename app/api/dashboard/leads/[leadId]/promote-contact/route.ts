@@ -6,9 +6,9 @@ import { findDuplicates } from '@/lib/contacts/duplicates';
 import { parseContactsImmeuble } from '@/lib/lead-contacts';
 import { visibleContactsFor } from '@/lib/agency/scope-records';
 import {
-  CONTACTS_SELECT,
   fetchContactsSafe,
   mapDbContactToContact,
+  withContactsSelect,
 } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { ContactRow } from '@/types/database';
@@ -84,26 +84,28 @@ export async function POST(req: Request, ctx: { params: Promise<{ leadId: string
   const summaryBits = [categorie || match.categorie, nafLibelle || match.nafLibelle].filter(Boolean);
   const meta = assignmentMeta(lead.assigned_to ?? profile.id, profile.id);
 
-  const { data, error } = await supabase
-    .from('contacts')
-    .insert({
-      agency_id: agency.id,
-      created_by: profile.id,
-      first_name: null,
-      last_name: companyName,
-      contact_type: 'commercant',
-      phone,
-      address: lead.address,
-      ban_id: lead.ban_id,
-      latitude: lead.latitude,
-      longitude: lead.longitude,
-      lead_id: leadId,
-      source: 'prospection',
-      summary: summaryBits.length ? summaryBits.join(' · ') : null,
-      ...meta,
-    })
-    .select(CONTACTS_SELECT)
-    .single();
+  const { data, error } = await withContactsSelect((sel) =>
+    supabase
+      .from('contacts')
+      .insert({
+        agency_id: agency.id,
+        created_by: profile.id,
+        first_name: null,
+        last_name: companyName,
+        contact_type: 'commercant',
+        phone,
+        address: lead.address,
+        ban_id: lead.ban_id,
+        latitude: lead.latitude,
+        longitude: lead.longitude,
+        lead_id: leadId,
+        source: 'prospection',
+        summary: summaryBits.length ? summaryBits.join(' · ') : null,
+        ...meta,
+      })
+      .select(sel)
+      .single(),
+  );
 
   if (error || !data) {
     console.error('[leads] promote-contact', error);

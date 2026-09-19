@@ -64,9 +64,6 @@ export async function POST(req: Request) {
     ? (sourceRaw as ContactSourceDb)
     : 'manuel';
   const voiceNoteId = typeof raw.voiceNoteId === 'string' ? raw.voiceNoteId : null;
-  // Une note ne pose jamais le téléphone : le consentement n’existe que sur
-  // la fiche contact (saisie Nouveau, QR, import).
-  if (voiceNoteId) f.phone = null;
 
   // Pas de fetch membres si l’assignation est soi-même ou absente.
   const assignedRaw = raw.assignedTo;
@@ -173,6 +170,7 @@ export async function POST(req: Request) {
     last_name: f.lastName || null,
     contact_type: f.type,
     phone: f.phone,
+    numero_communique_par_la_personne: f.numeroCommuniqueParLaPersonne,
     email: f.email,
     secteur: f.secteur,
     address: f.address,

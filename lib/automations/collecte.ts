@@ -10,7 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ContactRow, Database } from '@/types/database';
 import type { Contact } from '@/types/contact';
-import { CONTACTS_SELECT, mapDbContactToContact } from '@/lib/queries/contacts';
+import { mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
 import { proposerComptesRendus, type ActiviteBien, type BienSousMandat } from './compte-rendu';
 import { proposerEngagements, type PromesseOuverte, type TraceInteraction } from './engagements';
@@ -89,10 +89,9 @@ async function chargerBiens(admin: Client, agencyId: string): Promise<BienBrut[]
 }
 
 async function chargerContacts(admin: Client, agencyId: string): Promise<Contact[]> {
-  const { data, error } = await admin
-    .from('contacts')
-    .select(CONTACTS_SELECT)
-    .eq('agency_id', agencyId);
+  const { data, error } = await withContactsSelect((sel) =>
+    admin.from('contacts').select(sel).eq('agency_id', agencyId),
+  );
 
   if (error) throw new Error(`contacts: ${error.message}`);
   return (data ?? []).map((row) => mapDbContactToContact(row as unknown as ContactRow));

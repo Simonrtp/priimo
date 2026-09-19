@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Building2, Calculator, Mic, NotebookPen, Plus, QrCode, Users, X, type LucideIcon } from 'lucide-react';
+import { Building2, Calculator, Mic, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { notifySuccess } from '@/lib/notify';
@@ -13,8 +13,6 @@ import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog
 import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
-import QrTerrainOverlay from '@/components/dashboard/qr/QrTerrainOverlay';
-import { prefetchQrCard } from '@/lib/qr/client-session';
 import { FIELD } from '@/lib/today/field';
 
 type CreateKind = 'contact' | 'bien';
@@ -49,7 +47,6 @@ export default function CreateMenu({
   const { openCapture, openCompose } = useVoiceCapture();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<CreateKind | null>(null);
-  const [qrOpen, setQrOpen] = useState(false);
   const [members, setMembers] = useState<AssigneeOption[]>([
     { id: profile.id, fullName: `${profile.first_name} ${profile.last_name}`.trim() || 'Moi' },
   ]);
@@ -302,49 +299,10 @@ export default function CreateMenu({
           )}
           {isFab || variant === 'compact' ? null : 'Nouveau'}
         </button>
-        {variant === 'default' ? (
-          <button
-            type="button"
-            onPointerEnter={prefetchQrCard}
-            onFocus={prefetchQrCard}
-            onClick={() => {
-              setOpen(false);
-              armPointerShield();
-              setQrOpen(true);
-            }}
-            aria-label="Conformité"
-            aria-expanded={qrOpen}
-            className={`assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-[#111] transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0 ${
-              qrOpen ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
-            }`}
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
-              <QrCode size={17} strokeWidth={2.15} className="text-[#3D5A80]" />
-            </span>
-            <span
-              className={`grid min-w-0 transition-[grid-template-columns] duration-fluid ease-in-out motion-reduce:transition-none ${
-                qrOpen
-                  ? 'grid-cols-[1fr]'
-                  : 'grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr]'
-              }`}
-            >
-              <span
-                className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-[#111] transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
-                  qrOpen
-                    ? 'opacity-100'
-                    : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
-                }`}
-              >
-                Conformité
-              </span>
-            </span>
-          </button>
-        ) : null}
         {sheet}
         {desktopMenu}
       </div>
 
-      {qrOpen ? <QrTerrainOverlay onClose={() => setQrOpen(false)} /> : null}
       {kind === 'contact' ? (
         <ContactFormDialog
           open

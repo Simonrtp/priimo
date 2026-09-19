@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { contactGeocodeQuery, geocodeToColumns, type BanGeoColumns } from '@/lib/geo/fields';
-import { CONTACTS_SELECT, mapDbContactToContact } from '@/lib/queries/contacts';
+import { mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
 import { extractNotePropositions, type NoteExtraction } from '@/lib/notes/propositions';
 import { buildReviewPayload, type NoteReviewPayload } from '@/lib/notes/build-review';
 import { requireMistralKey } from '@/lib/voice/transcribe';
@@ -112,11 +112,9 @@ export async function extractAndBuildReview(args: {
       .eq('agency_id', args.agencyId);
   }
 
-  const { data: contactRows } = await args.admin
-    .from('contacts')
-    .select(CONTACTS_SELECT)
-    .eq('agency_id', args.agencyId)
-    .limit(400);
+  const { data: contactRows } = await withContactsSelect((sel) =>
+    args.admin.from('contacts').select(sel).eq('agency_id', args.agencyId).limit(400),
+  );
 
   const contacts = ((contactRows ?? []) as unknown as ContactRow[]).map(mapDbContactToContact);
 

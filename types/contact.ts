@@ -49,6 +49,8 @@ export interface Contact {
   fullName: string;
   type: ContactType;
   phone: string | null;
+  /** L'agent déclare que la personne lui a communiqué ce numéro. */
+  numeroCommuniqueParLaPersonne?: boolean;
   email: string | null;
   secteur: string | null;
   criteria: SearchCriteria;

@@ -8,7 +8,6 @@ import {
   type Periode,
 } from '@/lib/activite/semaines';
 import PenseBete from './PenseBete';
-import QrScanCarte from '@/components/dashboard/qr/QrScanCarte';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois', 'annee'];
 
@@ -133,11 +132,8 @@ export default function EnteteSemaine({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 items-stretch gap-2.5 sm:block sm:w-[16rem] sm:max-w-[16rem] sm:flex-none">
+      <div className="sm:w-[16rem] sm:max-w-[16rem] sm:flex-none">
         <PenseBete initial={penseBete} className="h-full" />
-        <div className="h-full min-h-0 sm:hidden">
-          <QrScanCarte />
-        </div>
       </div>
     </header>
   );

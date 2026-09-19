@@ -16,13 +16,35 @@ import type {
 
 type Client = SupabaseClient<Database>;
 
-export const CONTACTS_SELECT = `
+const CONTACTS_SELECT_BASE = `
   id, agency_id, created_by, first_name, last_name, contact_type, phone, email,
   secteur, address, postal_codes, budget_min, budget_max, surface_min, surface_max,
   rooms_min, summary, last_interaction_at, recontacter_le, doublon_de, source, lead_id,
   ban_id, latitude, longitude, adresse_normalisee, geocode_score, geocode_le,
   assigned_to, assigned_by, assigned_at, created_at, updated_at
 `;
+
+export const CONTACTS_SELECT = `${CONTACTS_SELECT_BASE.trim()},
+  numero_communique_par_la_personne
+`;
+
+export function isMissingContactsColumn(
+  error: { code?: string; message?: string } | null | undefined,
+  column: string,
+): boolean {
+  if (!error) return false;
+  const msg = error.message ?? '';
+  return msg.includes(column) && (error.code === 'PGRST204' || error.code === '42703');
+}
+
+/** Relit avec le SELECT sans la colonne récente si la migration n'est pas encore passée. */
+export async function withContactsSelect<T extends { error: { message?: string; code?: string } | null }>(
+  run: (select: string) => Promise<T>,
+): Promise<T> {
+  const full = await run(CONTACTS_SELECT);
+  if (!isMissingContactsColumn(full.error, 'numero_communique_par_la_personne')) return full;
+  return run(CONTACTS_SELECT_BASE);
+}
 
 const CONTACTS_SELECT_MID = `
   id, agency_id, created_by, first_name, last_name, contact_type, phone, email,
@@ -73,6 +95,7 @@ export function mapDbContactToContact(row: ContactRow): Contact {
     fullName: buildFullName(firstName, lastName) || 'Contact sans nom',
     type: row.contact_type,
     phone: cleanText(row.phone) || null,
+    numeroCommuniqueParLaPersonne: row.numero_communique_par_la_personne === true,
     email: cleanText(row.email) || null,
     secteur: cleanText(row.secteur) || null,
     address: cleanText(row.address) || null,
@@ -95,10 +118,9 @@ export function mapDbContactToContact(row: ContactRow): Contact {
 }
 
 export async function fetchContacts(supabase: Client): Promise<Contact[]> {
-  const first = await supabase
-    .from('contacts')
-    .select(CONTACTS_SELECT)
-    .order('created_at', { ascending: false });
+  const first = await withContactsSelect((sel) =>
+    supabase.from('contacts').select(sel).order('created_at', { ascending: false }),
+  );
 
   const second = first.error
     ? await supabase.from('contacts').select(CONTACTS_SELECT_MID).order('created_at', { ascending: false })
@@ -112,7 +134,9 @@ export async function fetchContacts(supabase: Client): Promise<Contact[]> {
 }
 
 export async function fetchContactById(supabase: Client, id: string): Promise<Contact | null> {
-  const first = await supabase.from('contacts').select(CONTACTS_SELECT).eq('id', id).maybeSingle();
+  const first = await withContactsSelect((sel) =>
+    supabase.from('contacts').select(sel).eq('id', id).maybeSingle(),
+  );
   const second = first.error
     ? await supabase.from('contacts').select(CONTACTS_SELECT_MID).eq('id', id).maybeSingle()
     : first;
@@ -177,9 +201,24 @@ export async function insertContactRow(
   supabase: Client,
   row: ContactInsert,
 ): Promise<{ data: ContactRow | null; error: { message: string; code?: string } | null }> {
-  const full = await supabase.from('contacts').insert(row).select(CONTACTS_SELECT).single();
+  let payload: ContactInsert = row;
+  let full = await supabase.from('contacts').insert(payload).select(CONTACTS_SELECT).single();
+
+  if (isMissingContactsColumn(full.error, 'numero_communique_par_la_personne')) {
+    const { numero_communique_par_la_personne: _c, ...withoutCommunique } = payload;
+    void _c;
+    payload = withoutCommunique as ContactInsert;
+    full = await supabase.from('contacts').insert(payload).select(CONTACTS_SELECT_BASE).single();
+  }
+
   if (!full.error && full.data) {
-    return { data: full.data as unknown as ContactRow, error: null };
+    return {
+      data: {
+        ...(full.data as unknown as ContactRow),
+        numero_communique_par_la_personne: row.numero_communique_par_la_personne === true,
+      },
+      error: null,
+    };
   }
 
   const missingRelance =
@@ -191,7 +230,7 @@ export async function insertContactRow(
     return { data: null, error: full.error };
   }
 
-  const { recontacter_le: _r, doublon_de: _d, ...withoutRelance } = row;
+  const { recontacter_le: _r, doublon_de: _d, ...withoutRelance } = payload;
   void _r;
   void _d;
   const mid = await supabase
@@ -209,6 +248,7 @@ export async function insertContactRow(
       ...(mid.data as unknown as ContactRow),
       recontacter_le: (row.recontacter_le as string | null | undefined) ?? null,
       doublon_de: null,
+      numero_communique_par_la_personne: row.numero_communique_par_la_personne === true,
     },
     error: null,
   };
