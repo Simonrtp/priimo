@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic } from 'lucide-react';
+import { ArrowRight, Mic } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
@@ -17,7 +17,6 @@ import {
 } from '@/lib/estimation/voice-extract';
 import {
   ETAPES_ATELIER,
-  etapeInitiale,
   indexEtape,
   indexMaxAccessible,
   manquesEtape,
@@ -68,7 +67,7 @@ export default function EstimationAtelier({
   onRetour: () => void;
 }) {
   const [estimation, setEstimation] = useState(initial);
-  const [onglet, setOnglet] = useState<EtapeAtelierId>(() => etapeInitiale(initial));
+  const [onglet, setOnglet] = useState<EtapeAtelierId>('client');
   const [atteint, setAtteint] = useState(() => indexMaxAccessible(initial, 0));
   const [contexte, setContexte] = useState<ContexteAtelier | null>(null);
   const [contexteChargement, setContexteChargement] = useState(false);
@@ -381,9 +380,14 @@ export default function EstimationAtelier({
               className="sticky bottom-0 z-10 mt-4 flex justify-end border-t border-black/[0.06] bg-bg-base/95 py-3"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
             >
-              <WorkspaceButton type="button" onClick={suivant} className="min-h-11 min-w-[8.5rem]">
+              <button
+                type="button"
+                onClick={suivant}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-text-strong px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
                 Suivant
-              </WorkspaceButton>
+                <ArrowRight size={14} strokeWidth={2} aria-hidden />
+              </button>
             </div>
           ) : null}
         </div>

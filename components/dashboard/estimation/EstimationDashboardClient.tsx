@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/hooks/useUser';
 import type { EstimationVue } from '@/lib/estimation/vue';
@@ -31,6 +31,7 @@ export default function EstimationDashboardClient({
   const [fiche, setFiche] = useState<'idle' | 'load' | 'ready'>(id ? 'load' : 'idle');
   const [members, setMembers] = useState<AssigneeOption[]>([]);
   const [creating, setCreating] = useState(false);
+  const justCreatedIds = useRef(new Set<string>());
 
   const chargerListe = useCallback(async () => {
     const res = await fetch('/api/dashboard/estimation');
@@ -53,8 +54,13 @@ export default function EstimationDashboardClient({
 
   useEffect(() => {
     if (!id) {
+      justCreatedIds.current.clear();
       setCourante(null);
       setFiche('idle');
+      return;
+    }
+    if (justCreatedIds.current.has(id)) {
+      setFiche('ready');
       return;
     }
     let cancel = false;
@@ -91,7 +97,9 @@ export default function EstimationDashboardClient({
       const res = await fetch('/api/dashboard/estimation', { method: 'POST' });
       const data = (await res.json()) as { estimation?: EstimationObjet };
       if (data.estimation) {
+        justCreatedIds.current.add(data.estimation.id);
         setCourante(data.estimation);
+        setFiche('ready');
         aller(data.estimation.id);
       }
     } finally {

@@ -38,12 +38,12 @@ export function isMissingContactsColumn(
 }
 
 /** Relit avec le SELECT sans la colonne récente si la migration n'est pas encore passée. */
-export async function withContactsSelect<T extends { error: { message?: string; code?: string } | null }>(
-  run: (select: string) => Promise<T>,
-): Promise<T> {
+export async function withContactsSelect<
+  T extends { data: unknown; error: { message?: string; code?: string } | null },
+>(run: (select: string) => PromiseLike<T>): Promise<T> {
   const full = await run(CONTACTS_SELECT);
   if (!isMissingContactsColumn(full.error, 'numero_communique_par_la_personne')) return full;
-  return run(CONTACTS_SELECT_BASE);
+  return await run(CONTACTS_SELECT_BASE);
 }
 
 const CONTACTS_SELECT_MID = `

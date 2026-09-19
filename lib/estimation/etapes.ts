@@ -53,6 +53,7 @@ export function indexMaxAccessible(e: EstimationObjet, atteint: number): number 
   return Math.max(indexDepuisDonnees(e), atteint, 0);
 }
 
+/** Nouvelle estimation : toujours le client. Une fiche déjà avancée reprend où elle en est. */
 export function etapeInitiale(e: EstimationObjet): EtapeAtelierId {
   if (!etapeClientOk(e)) return 'client';
   if (!etapeBienOk(e)) return 'bien';
