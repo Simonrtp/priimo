@@ -9,6 +9,8 @@ import Footer from '@/components/Footer';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
 import { isValidFrenchPostcode, normalizeFrenchPostcode } from '@/lib/agency-postal-codes';
 import { isValidFrenchPhone, normalizeFrenchPhone } from '@/lib/phone';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
+import PhoneInput from '@/components/ui/PhoneInput';
 import type { AgencyRow } from '@/types/database';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,7 +44,7 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState(agency.name);
-  const [phone, setPhone] = useState(agency.phone ?? '');
+  const [phone, setPhone] = useState(formatPhoneDisplay(agency.phone ?? ''));
   const [email, setEmail] = useState(agency.email ?? userEmail);
   const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(() =>
     agency.address
@@ -289,15 +291,13 @@ export default function OnboardingForm({ agency, userEmail }: OnboardingFormProp
                 <label htmlFor="agency-phone" className={labelClass}>
                   Téléphone
                 </label>
-                <input
+                <PhoneInput
                   id="agency-phone"
-                  type="tel"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="01 23 45 67 89"
                   className={inputClass}
-                  autoComplete="tel"
                 />
               </div>
               <div>

@@ -7,6 +7,7 @@
  */
 
 import type { ContactType } from '@/types/contact';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 export interface ContactInputFields {
   firstName: string;
@@ -26,6 +27,10 @@ export interface ContactInputFields {
   summary: string | null;
   recontacterLe: string | null;
 }
+
+/** Ce qu’une note de fiche peut contenir — visible à la saisie. */
+export const CONTACT_NOTE_HINT =
+  'Les notes doivent être objectives, mesurées et directement pertinentes.';
 
 export const EMPTY_CONTACT_INPUT: ContactInputFields = {
   firstName: '',
@@ -221,7 +226,7 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
       firstName,
       lastName,
       type,
-      phone: str(b.phone, 40),
+      phone: formatPhoneOrNull(str(b.phone, 40)),
       numeroCommuniqueParLaPersonne: b.numeroCommuniqueParLaPersonne === true,
       email,
       secteur: str(b.secteur, 160),

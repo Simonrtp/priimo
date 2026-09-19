@@ -14,6 +14,7 @@ import { optionsNiveaux } from '@/lib/estimation/niveaux';
 import { optionsSousType } from '@/lib/estimation/sous-types';
 import { suggestionsPoints } from '@/lib/estimation/suggestions';
 import type { EstimationAnnexe, EstimationBien, EstimationObjet, EstimationPhoto } from '@/lib/estimation/objet';
+import { nombreSaisi, nombreStrictementPositif } from '@/lib/estimation/objet';
 import {
   CHIFFRES_A_CONFIRMER,
   type EstimationVoiceField,
@@ -193,23 +194,25 @@ export default function OngletBien({
               />
             </Field>
           </Propose>
-          <Field label="Année de construction" htmlFor="est-annee">
-            <Select
-              id="est-annee"
-              searchable
-              searchPlaceholder="Année…"
-              value={bien.anneeConstruction != null ? String(bien.anneeConstruction) : ''}
-              options={optionsAnneesConstruction(bien.anneeConstruction)}
-              onChange={(v) => setBien({ anneeConstruction: v ? Number(v) : null })}
-            />
-          </Field>
+          <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="anneeConstruction">
+            <Field label="Année de construction" htmlFor="est-annee">
+              <Select
+                id="est-annee"
+                searchable
+                searchPlaceholder="Année…"
+                value={bien.anneeConstruction != null ? String(bien.anneeConstruction) : ''}
+                options={optionsAnneesConstruction(bien.anneeConstruction)}
+                onChange={(v) => editBien('anneeConstruction', { anneeConstruction: v ? Number(v) : null })}
+              />
+            </Field>
+          </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="rooms">
             <Field label="Pièces" htmlFor="est-pieces">
               <TextInput
                 id="est-pieces"
                 inputMode="numeric"
                 value={estimation.rooms ?? ''}
-                onChange={(e) => edit('rooms', { rooms: Number(e.target.value) || null })}
+                onChange={(e) => edit('rooms', { rooms: nombreStrictementPositif(e.target.value) })}
               />
             </Field>
           </Propose>
@@ -219,7 +222,7 @@ export default function OngletBien({
                 id="est-chambres"
                 inputMode="numeric"
                 value={bien.chambres ?? ''}
-                onChange={(e) => editBien('chambres', { chambres: Number(e.target.value) || null })}
+                onChange={(e) => editBien('chambres', { chambres: nombreSaisi(e.target.value) })}
               />
             </Field>
           </Propose>
@@ -229,7 +232,7 @@ export default function OngletBien({
                 id="est-surf"
                 inputMode="numeric"
                 value={estimation.surfaceM2 ?? ''}
-                onChange={(e) => edit('surfaceM2', { surfaceM2: Number(e.target.value) || null })}
+                onChange={(e) => edit('surfaceM2', { surfaceM2: nombreStrictementPositif(e.target.value) })}
               />
             </Field>
           </Propose>
@@ -254,7 +257,7 @@ export default function OngletBien({
                 inputMode="numeric"
                 value={bien.surfaceTerrain ?? ''}
                 onChange={(e) =>
-                  editBien('surfaceTerrain', { surfaceTerrain: Number(e.target.value) || null })
+                  editBien('surfaceTerrain', { surfaceTerrain: nombreSaisi(e.target.value) })
                 }
               />
             </Field>
@@ -390,7 +393,7 @@ export default function OngletBien({
                   id="est-loyer"
                   inputMode="numeric"
                   value={estimation.loyerAnnuel ?? ''}
-                  onChange={(e) => edit('loyerAnnuel', { loyerAnnuel: Number(e.target.value) || null })}
+                  onChange={(e) => edit('loyerAnnuel', { loyerAnnuel: nombreSaisi(e.target.value) })}
                 />
               </Field>
             </Propose>
@@ -407,7 +410,7 @@ export default function OngletBien({
                 inputMode="numeric"
                 value={bien.chargesAnnuelles ?? ''}
                 onChange={(e) =>
-                  editBien('chargesAnnuelles', { chargesAnnuelles: Number(e.target.value) || null })
+                  editBien('chargesAnnuelles', { chargesAnnuelles: nombreSaisi(e.target.value) })
                 }
               />
             </Field>
@@ -419,7 +422,7 @@ export default function OngletBien({
                 inputMode="numeric"
                 value={bien.chargesCopro ?? ''}
                 onChange={(e) =>
-                  editBien('chargesCopro', { chargesCopro: Number(e.target.value) || null })
+                  editBien('chargesCopro', { chargesCopro: nombreSaisi(e.target.value) })
                 }
               />
             </Field>
@@ -431,7 +434,7 @@ export default function OngletBien({
                 inputMode="numeric"
                 value={bien.taxeFonciere ?? ''}
                 onChange={(e) =>
-                  editBien('taxeFonciere', { taxeFonciere: Number(e.target.value) || null })
+                  editBien('taxeFonciere', { taxeFonciere: nombreSaisi(e.target.value) })
                 }
               />
             </Field>
@@ -470,7 +473,7 @@ export default function OngletBien({
                       value={a.surfaceM2 ?? ''}
                       onChange={(e) => {
                         const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, surfaceM2: Number(e.target.value) || null } : x,
+                          j === i ? { ...x, surfaceM2: nombreSaisi(e.target.value) } : x,
                         );
                         edit('annexes', { annexes: next });
                       }}
@@ -482,7 +485,7 @@ export default function OngletBien({
                       value={a.valorisationEur ?? ''}
                       onChange={(e) => {
                         const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, valorisationEur: Number(e.target.value) || null } : x,
+                          j === i ? { ...x, valorisationEur: nombreSaisi(e.target.value) } : x,
                         );
                         edit('annexes', { annexes: next });
                       }}
@@ -560,7 +563,7 @@ export default function OngletBien({
                 id="est-conso"
                 inputMode="numeric"
                 value={bien.consoKwh ?? ''}
-                onChange={(e) => editBien('consoKwh', { consoKwh: Number(e.target.value) || null })}
+                onChange={(e) => editBien('consoKwh', { consoKwh: nombreSaisi(e.target.value) })}
               />
             </Field>
           </Propose>

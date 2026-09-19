@@ -16,15 +16,20 @@ export interface ServerUser {
   memberships: ProfileAgencyMembership[];
 }
 
-const AGENCIES_SELECT =
+const AGENCIES_SELECT_BASE =
   'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, stripe_subscription_id, statut_abonnement, essai_fin_le, sieges_inclus, prix_base, prix_siege_supplementaire, demande_decision, frequence_passage_jours, created_at, updated_at';
+
+/** Colonnes 20260930 — logo et identité de rapport. */
+const AGENCIES_SELECT_EXTRAS = 'logo_path, nom_commercial, site_web';
+
+const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}`;
 
 const PROFILE_SELECT_BASE =
   'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at';
 
-/** Colonnes 20260847 — chargées en best-effort (le login ne doit pas dépendre d’elles). */
+/** Colonnes 20260847 + 20260930 — chargées en best-effort (le login ne doit pas dépendre d’elles). */
 const PROFILE_SELECT_EXTRAS =
-  'birthday_month, birthday_day, birthday_visible_team, avatar_url';
+  'birthday_month, birthday_day, birthday_visible_team, avatar_url, email_pro';
 
 async function getServerUserUncached(): Promise<ServerUser> {
   return timed('getServerUser', async () => {
@@ -76,6 +81,11 @@ async function getServerUserUncached(): Promise<ServerUser> {
     const withBilling = await supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds);
     if (withBilling.error) {
       console.error('[getServerUser] agencies.select', withBilling.error.message);
+      const sansRapport = await supabase
+        .from('agencies')
+        .select(AGENCIES_SELECT_BASE)
+        .in('id', agencyIds);
+      if (!sansRapport.error) return sansRapport;
       return supabase
         .from('agencies')
         .select(

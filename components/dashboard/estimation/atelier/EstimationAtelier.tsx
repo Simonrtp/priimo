@@ -17,6 +17,7 @@ import {
 } from '@/lib/estimation/voice-extract';
 import {
   ETAPES_ATELIER,
+  etapeAccessible,
   indexEtape,
   indexMaxAccessible,
   manquesEtape,
@@ -85,7 +86,8 @@ export default function EstimationAtelier({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const estimationRef = useRef(estimation);
   estimationRef.current = estimation;
-  const { openCapture } = useVoiceCapture();
+  const { openCapture, captureSessionOpen, capturePurpose } = useVoiceCapture();
+  const dicteeEstimationOuverte = captureSessionOpen && capturePurpose === 'estimation';
 
   const patch = useCallback((body: Record<string, unknown>) => {
     setEstimation((prev) => ({
@@ -224,14 +226,14 @@ export default function EstimationAtelier({
     }
   }
 
-  const maxAccessible = indexMaxAccessible(estimation, atteint);
   const indexCourant = indexEtape(onglet);
   const estDerniere = onglet === 'rapport';
 
   function allerEtape(id: EtapeAtelierId) {
-    const index = indexEtape(id);
-    if (index > maxAccessible) {
-      const blocage = ETAPES_ATELIER.slice(0, index).find((e) => manquesEtape(estimation, e.id));
+    if (!etapeAccessible(estimation, atteint, id)) {
+      const blocage = ETAPES_ATELIER.slice(0, indexEtape(id)).find((e) =>
+        manquesEtape(estimation, e.id),
+      );
       notifyError(blocage ? manquesEtape(estimation, blocage.id)! : 'Complétez l’étape en cours.');
       return;
     }
@@ -304,7 +306,7 @@ export default function EstimationAtelier({
       <div className="flex flex-wrap gap-1 border-b border-black/[0.06] pb-2" role="tablist" aria-label="Étapes de l’estimation">
         {ETAPES_ATELIER.map((t, i) => {
           const courant = onglet === t.id;
-          const verrouille = i > maxAccessible;
+          const verrouille = !etapeAccessible(estimation, atteint, t.id);
           return (
             <button
               key={t.id}
@@ -403,6 +405,9 @@ export default function EstimationAtelier({
           }
         />
       </div>
+      {dicteeEstimationOuverte ? (
+        <div className="h-[min(22rem,48dvh)] shrink-0 sm:h-80" aria-hidden />
+      ) : null}
     </div>
   );
 }

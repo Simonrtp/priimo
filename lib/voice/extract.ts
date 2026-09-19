@@ -5,6 +5,7 @@
 import type { ContactInputFields } from '@/lib/contact-input';
 import { EMPTY_CONTACT_INPUT, normalizePostalCodes } from '@/lib/contact-input';
 import type { ContactType } from '@/types/contact';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_MODEL = 'mistral-small-latest';
@@ -97,7 +98,7 @@ export function parseExtraction(raw: string): ContactInputFields {
     firstName: asString(parsed.firstName, 80) ?? '',
     lastName: asString(parsed.lastName, 80) ?? '',
     type,
-    phone: asString(parsed.phone, 40),
+    phone: formatPhoneOrNull(asString(parsed.phone, 40)),
     numeroCommuniqueParLaPersonne: false,
     email: asString(parsed.email, 160),
     secteur: asString(parsed.secteur, 160),

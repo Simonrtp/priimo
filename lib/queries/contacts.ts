@@ -13,6 +13,7 @@ import type {
   SearchCriteria,
   VoiceNote,
 } from '@/types/contact';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 type Client = SupabaseClient<Database>;
 
@@ -94,7 +95,7 @@ export function mapDbContactToContact(row: ContactRow): Contact {
     lastName,
     fullName: buildFullName(firstName, lastName) || 'Contact sans nom',
     type: row.contact_type,
-    phone: cleanText(row.phone) || null,
+    phone: formatPhoneOrNull(row.phone),
     numeroCommuniqueParLaPersonne: row.numero_communique_par_la_personne === true,
     email: cleanText(row.email) || null,
     secteur: cleanText(row.secteur) || null,

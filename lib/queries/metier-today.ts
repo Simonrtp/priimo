@@ -8,6 +8,7 @@ import type {
   TodayVisite,
 } from '@/types/metier';
 import { buildFullName } from '@/lib/queries/contacts';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 type Client = SupabaseClient<Database>;
 
@@ -111,13 +112,13 @@ async function fetchVisitesPostVisite(supabase: Client): Promise<TodayVisite[]> 
       bienAddress: String(bien.address),
       contactId: r.contact_id ? String(r.contact_id) : null,
       contactName: contactName(contact),
-      contactPhone: contact?.phone ?? null,
+      contactPhone: formatPhoneOrNull(contact?.phone),
       dateVisite: String(r.date_visite),
       compteRenduAcquereurFaitLe: (r.compte_rendu_acquereur_fait_le as string | null) ?? null,
       compteRenduVendeurFaitLe: (r.compte_rendu_vendeur_fait_le as string | null) ?? null,
       proprietaireContactId: bien.proprietaire_contact_id ? String(bien.proprietaire_contact_id) : null,
       proprietaireName: contactName(proprietaire),
-      proprietairePhone: proprietaire?.phone ?? null,
+      proprietairePhone: formatPhoneOrNull(proprietaire?.phone),
     };
   });
 }
@@ -179,7 +180,7 @@ async function fetchPromessesAFaire(supabase: Client, profileId: string): Promis
       profileId: String(r.profile_id),
       contactId: r.contact_id ? String(r.contact_id) : null,
       contactName: contactName(contact),
-      contactPhone: contact?.phone ?? null,
+      contactPhone: formatPhoneOrNull(contact?.phone),
       intitule: String(r.intitule),
       echeance: String(r.echeance).slice(0, 10),
       statut: r.statut as TodayPromesse['statut'],
@@ -214,7 +215,7 @@ async function fetchRendezVousAVenir(supabase: Client, profileId: string): Promi
       profileId: String(r.profile_id),
       contactId: r.contact_id ? String(r.contact_id) : null,
       contactName: contactName(contact),
-      contactPhone: contact?.phone ?? null,
+      contactPhone: formatPhoneOrNull(contact?.phone),
       bienId: r.bien_id ? String(r.bien_id) : null,
       bienAddress: bien?.address ?? null,
       debut: String(r.debut),

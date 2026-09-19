@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { sourcesFromContext } from '@/lib/estimation/sources';
 import { parseGrille } from '@/lib/estimation/objet';
 import { MENTION_PEU_FIABLE, estimationPeuFiable } from '@/lib/estimation/grille';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 export const runtime = 'nodejs';
 
@@ -93,7 +94,7 @@ export async function GET(
     sources: sourcesFromContext(row.context),
     createdAt: row.created_at,
     agencyName: agency?.name ?? 'Agence',
-    agencyPhone: agency?.phone ?? null,
+    agencyPhone: formatPhoneOrNull(agency?.phone),
     agencyEmail: agency?.email ?? null,
     negotiatorName: profile
       ? [profile.first_name, profile.last_name].filter(Boolean).join(' ')

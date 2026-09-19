@@ -1,6 +1,8 @@
 'use client';
 
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
+import PhoneInputBase from '@/components/ui/PhoneInput';
+import { CocheConsentementTel } from '@/components/dashboard/contacts/ConsentementRappelField';
 
 /** Aucun champ sans étiquette : la règle vaut pour tout l'espace de travail. */
 export function Field({
@@ -65,6 +67,28 @@ export function TextInput({
       aria-invalid={invalid || undefined}
       {...rest}
     />
+  );
+}
+
+/** Téléphone FR : espaces par paires, à la saisie comme à l’affichage. */
+export function PhoneInput({
+  className = '',
+  invalid = false,
+  consenti = false,
+  ...rest
+}: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; consenti?: boolean }) {
+  return (
+    <span className="relative block">
+      <PhoneInputBase
+        className={`${inputClass} ${invalid ? INPUT_ERROR_CLASS : ''} ${consenti ? 'pr-10' : ''} ${className}`}
+        style={{ fontSize: 14 }}
+        aria-invalid={invalid || undefined}
+        {...rest}
+      />
+      {consenti ? (
+        <CocheConsentementTel className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+      ) : null}
+    </span>
   );
 }
 

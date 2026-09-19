@@ -29,13 +29,28 @@ export function normalizePhone(raw: string): string {
   return digits;
 }
 
-/** Affichage FR groupé par 2, sans toucher au numéro stocké. */
+/** Affichage FR groupé par 2 : 0678765456 → 06 78 76 54 56. Aussi en cours de saisie. */
 export function formatPhoneDisplay(raw: string): string {
-  const digits = normalizePhone(raw);
-  if (digits.length === 10) {
-    return `${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 10)}`;
-  }
-  return raw.trim();
+  if (!raw.trim()) return '';
+  const digits = normalizePhone(raw).slice(0, 10);
+  if (!digits) return '';
+  return digits.replace(/(\d{2})(?=\d)/g, '$1 ');
+}
+
+export function formatPhoneOrNull(raw: string | null | undefined): string | null {
+  if (raw == null || !raw.trim()) return null;
+  return formatPhoneDisplay(raw) || null;
+}
+
+/** Partie nationale après +33 : 612345678 → 6 12 34 56 78. */
+export function formatPhoneAfterCountryCode(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('33')) digits = digits.slice(2);
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  digits = digits.slice(0, 9);
+  if (!digits) return '';
+  const rest = digits.slice(1).replace(/(\d{2})(?=\d)/g, '$1 ');
+  return rest ? `${digits[0]} ${rest}` : digits[0];
 }
 
 export function telHref(raw: string): string {

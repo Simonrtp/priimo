@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,6 +17,9 @@ import AvatarChooser from '@/components/dashboard/AvatarChooser';
 import SectionRequestSector from './SectionRequestSector';
 import SectionIntegrations from './SectionIntegrations';
 import SectionAbonnement from './SectionAbonnement';
+import PhoneInput from '@/components/ui/PhoneInput';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
+import SectionBibliothequePages from './SectionBibliothequePages';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -176,6 +179,10 @@ function SectionAgency() {
   const { agency } = useUser();
   const router = useRouter();
   const [name, setName] = useState(agency.name);
+  const [nomCommercial, setNomCommercial] = useState(agency.nom_commercial ?? '');
+  const [siteWeb, setSiteWeb] = useState(agency.site_web ?? '');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const logoRef = useRef<HTMLInputElement>(null);
   const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(() =>
     agency.address
       ? {
@@ -187,12 +194,19 @@ function SectionAgency() {
         }
       : null,
   );
-  const [phone, setPhone] = useState(agency.phone ?? '');
+  const [phone, setPhone] = useState(formatPhoneDisplay(agency.phone ?? ''));
   const [email, setEmail] = useState(agency.email ?? '');
   const [frequenceSemaines, setFrequenceSemaines] = useState(
     Math.max(2, Math.round((agency.frequence_passage_jours ?? 84) / 7)),
   );
   const [addressError, setAddressError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetch('/api/dashboard/agence/logo')
+      .then((r) => r.json())
+      .then((data: { url?: string | null }) => setLogoUrl(data.url ?? null))
+      .catch(() => undefined);
+  }, []);
 
   const primaryPostcode =
     agencyAddress?.postcode?.trim() || agency.codes_postaux?.[0]?.trim() || null;
@@ -238,6 +252,8 @@ function SectionAgency() {
 
     const payload = {
       name: name.trim(),
+      nom_commercial: nomCommercial.trim() || null,
+      site_web: siteWeb.trim() || null,
       address: addressLabel,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -253,6 +269,10 @@ function SectionAgency() {
       ecrire: async () => {
         const supabase = createSupabaseBrowserClient();
         let { error } = await supabase.from('agencies').update(payload).eq('id', agency.id);
+        if (error && /nom_commercial|site_web/.test(error.message)) {
+          const { nom_commercial: _n, site_web: _s, ...sansIdentite } = payload;
+          ({ error } = await supabase.from('agencies').update(sansIdentite).eq('id', agency.id));
+        }
         if (error && /frequence_passage/.test(error.message)) {
           const { frequence_passage_jours: _ignore, ...sansFrequence } = payload;
           ({ error } = await supabase.from('agencies').update(sansFrequence).eq('id', agency.id));
@@ -270,10 +290,84 @@ function SectionAgency() {
       </h2>
       <div className="flex w-full max-w-xl flex-col gap-5">
         <div>
+          <p className={labelClass}>Logo du rapport</p>
+          <div className="flex items-center gap-3">
+            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-black/8 bg-soft-gray/40">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="" className="size-full object-contain" />
+              ) : (
+                <span className="px-1 text-center text-[11px] text-mute">Aucun</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={logoRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const form = new FormData();
+                  form.append('file', file);
+                  const res = await fetch('/api/dashboard/agence/logo', { method: 'POST', body: form });
+                  const data = (await res.json()) as { url?: string; error?: string };
+                  if (!res.ok) {
+                    toast.error(data.error ?? 'Logo non enregistré');
+                    return;
+                  }
+                  setLogoUrl(data.url ?? null);
+                  toast.success('Logo enregistré');
+                  router.refresh();
+                  if (logoRef.current) logoRef.current.value = '';
+                }}
+              />
+              <button
+                type="button"
+                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-black/[0.04]"
+                onClick={() => logoRef.current?.click()}
+              >
+                Téléverser un logo
+              </button>
+              {logoUrl ? (
+                <button
+                  type="button"
+                  className="text-left text-[12.5px] text-mute hover:text-ink"
+                  onClick={async () => {
+                    const res = await fetch('/api/dashboard/agence/logo', { method: 'DELETE' });
+                    if (!res.ok) {
+                      toast.error('Logo non retiré');
+                      return;
+                    }
+                    setLogoUrl(null);
+                    toast.success('Logo retiré');
+                    router.refresh();
+                  }}
+                >
+                  Retirer le logo
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div>
           <label htmlFor="agency-name" className={labelClass}>
             Nom de l&apos;agence
           </label>
           <input id="agency-name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div>
+          <label htmlFor="agency-nom-commercial" className={labelClass}>
+            Nom commercial
+          </label>
+          <input
+            id="agency-nom-commercial"
+            className={inputClass}
+            value={nomCommercial}
+            onChange={(e) => setNomCommercial(e.target.value)}
+            placeholder="Tel qu’il apparaît sur l’avis de valeur"
+          />
         </div>
         <div>
           <label htmlFor="agency-address" className={labelClass}>
@@ -304,10 +398,9 @@ function SectionAgency() {
           <label htmlFor="agency-phone" className={labelClass}>
             Téléphone
           </label>
-          <input
+          <PhoneInput
             id="agency-phone"
             className={inputClass}
-            type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -322,6 +415,20 @@ function SectionAgency() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div>
+          <label htmlFor="agency-site" className={labelClass}>
+            Site web
+          </label>
+          <input
+            id="agency-site"
+            className={inputClass}
+            type="url"
+            inputMode="url"
+            value={siteWeb}
+            onChange={(e) => setSiteWeb(e.target.value)}
+            placeholder="https://www.agence.fr"
           />
         </div>
 
@@ -363,6 +470,8 @@ function SectionAgency() {
 
         <SectionRequestSector />
 
+        <SectionBibliothequePages />
+
         <button
           type="button"
           className="btn btn-primary mt-2 w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:self-start"
@@ -393,6 +502,8 @@ function SectionProfile() {
   const router = useRouter();
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
+  const [phone, setPhone] = useState(formatPhoneDisplay(profile.phone ?? ''));
+  const [emailPro, setEmailPro] = useState(profile.email_pro ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? null);
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
   const [accueilVue, setAccueilVue] = useState<AccueilVue>('directeur');
@@ -413,10 +524,17 @@ function SectionProfile() {
       echec: 'Erreur lors de la sauvegarde',
       ecrire: async () => {
         const supabase = createSupabaseBrowserClient();
-        const { error } = await supabase
-          .from('profiles')
-          .update({ first_name: prenom, last_name: nom })
-          .eq('id', user.id);
+        const payload = {
+          first_name: prenom,
+          last_name: nom,
+          phone: phone.trim() || null,
+          email_pro: emailPro.trim() || null,
+        };
+        let { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
+        if (error && /email_pro/.test(error.message)) {
+          const { email_pro: _e, ...sansEmail } = payload;
+          ({ error } = await supabase.from('profiles').update(sansEmail).eq('id', user.id));
+        }
         if (error) throw new Error('Erreur lors de la sauvegarde');
       },
       // Le nom se lit dans l'en-tête et le menu : la page les recale une fois
@@ -457,7 +575,7 @@ function SectionProfile() {
       </h2>
       <div className="flex w-full flex-col gap-5">
         <div className="max-w-xl">
-          <p className={labelClass}>Avatar</p>
+          <p className={labelClass}>Photo</p>
           <AvatarChooser
             initials={initials}
             selected={avatarUrl}
@@ -495,12 +613,39 @@ function SectionProfile() {
         </div>
         <div>
           <label htmlFor="profile-email" className={labelClass}>
-            Email
+            Email de connexion
           </label>
           <input id="profile-email" className={`${inputClass} bg-soft-gray/40`} value={user.email} readOnly />
           <p className="mt-1 text-mute" style={{ fontSize: 12 }}>
-            Pour modifier votre adresse, contactez le support.
+            Pour modifier votre adresse de connexion, contactez le support.
           </p>
+        </div>
+        <div>
+          <label htmlFor="profile-email-pro" className={labelClass}>
+            Email professionnel
+          </label>
+          <input
+            id="profile-email-pro"
+            className={inputClass}
+            type="email"
+            value={emailPro}
+            onChange={(e) => setEmailPro(e.target.value)}
+            placeholder={user.email}
+          />
+          <p className="mt-1 text-mute" style={{ fontSize: 12 }}>
+            Affiché au pied de l’avis de valeur. Vide = e-mail de connexion.
+          </p>
+        </div>
+        <div>
+          <label htmlFor="profile-phone" className={labelClass}>
+            Téléphone
+          </label>
+          <PhoneInput
+            id="profile-phone"
+            className={inputClass}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <button

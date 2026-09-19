@@ -12,6 +12,7 @@ import {
   PROPERTY_TYPE_OPTIONS,
 } from '@/types/bien';
 import { CONTACT_TYPE_LABELS, type Contact } from '@/types/contact';
+import { CocheConsentementTel } from '@/components/dashboard/contacts/ConsentementRappelField';
 import type { ContactInputFields } from '@/lib/contact-input';
 import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -202,6 +203,7 @@ function ProprietairePreview({ contact }: { contact: Contact }) {
             >
               <Phone size={13} strokeWidth={2.2} aria-hidden />
               {formatPhoneDisplay(contact.phone)}
+              {contact.numeroCommuniqueParLaPersonne ? <CocheConsentementTel size={14} /> : null}
             </a>
           ) : null}
           {contact.email?.trim() ? (

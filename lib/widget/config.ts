@@ -11,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { normalizeDomainList } from '@/lib/widget/domains';
 import { productionOuverte } from '@/lib/billing/acces';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 type Db = SupabaseClient<Database>;
 
@@ -107,7 +108,7 @@ export async function fetchWidgetConfig(
     allowedDomains: normalizeDomainList(data.allowed_domains ?? []),
     dailyCap: data.daily_cap,
     agencyName,
-    agencyPhone: agency?.phone ?? null,
+    agencyPhone: formatPhoneOrNull(agency?.phone),
     firstInstalledAt: data.first_installed_at,
     lastSeenAt: data.last_seen_at,
     lastSeenHost: data.last_seen_host,
@@ -152,7 +153,7 @@ export async function ensureWidgetForAgency(
       dailyCap: existing.daily_cap,
       productionOuverte: true,
       agencyName,
-      agencyPhone: agency?.phone ?? null,
+      agencyPhone: formatPhoneOrNull(agency?.phone),
       firstInstalledAt: existing.first_installed_at,
       lastSeenAt: existing.last_seen_at,
       lastSeenHost: existing.last_seen_host,
@@ -189,7 +190,7 @@ export async function ensureWidgetForAgency(
     dailyCap: created.daily_cap,
     productionOuverte: true,
     agencyName,
-    agencyPhone: agency?.phone ?? null,
+    agencyPhone: formatPhoneOrNull(agency?.phone),
     firstInstalledAt: created.first_installed_at,
     lastSeenAt: created.last_seen_at,
     lastSeenHost: created.last_seen_host,

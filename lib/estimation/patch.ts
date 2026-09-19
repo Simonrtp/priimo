@@ -75,7 +75,7 @@ export function appliquerPatch(
   }
   if (body.loyerAnnuel !== undefined) {
     const n = Number(body.loyerAnnuel);
-    patch.loyer_annuel = Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+    patch.loyer_annuel = Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
   }
   if (body.honorairesPct !== undefined) {
     const n = Number(body.honorairesPct);

@@ -17,6 +17,7 @@ import {
   toDisplayPersonName,
 } from '@/lib/lead-person-display';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
@@ -89,12 +90,12 @@ function ImmeubleContactRow({
       )}
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
         <a
-          href={`tel:${contact.phone}`}
+          href={telHref(contact.phone)}
           className="inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
           style={{ fontSize: 13 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {contact.phone}
+          {formatPhoneDisplay(contact.phone)}
         </a>
         <button
           type="button"
@@ -162,12 +163,12 @@ function OwnerPersonBlock({ lead }: { lead: Lead }) {
       {phone && (
         <div className="mt-2">
           <a
-            href={`tel:${phone}`}
+            href={telHref(phone)}
             className="inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
             style={{ fontSize: 13 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {phone}
+            {formatPhoneDisplay(phone)}
           </a>
           {lead.ownerPhoneSource === 'probable' && (
             <p className="mt-1 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.45 }}>

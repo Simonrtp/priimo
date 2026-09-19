@@ -13,6 +13,7 @@ import { ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Fiel
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceReviewPanel from './VoiceReviewPanel';
+import AntisecheDictee from '@/components/dashboard/estimation/atelier/AntisecheDictee';
 import { useUser } from '@/lib/hooks/useUser';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
@@ -152,6 +153,11 @@ export default function VoiceCaptureDialog({
         }
       }
       const trimmed = text.trim();
+      console.info('[estimation] dictée client transcript', {
+        blobBytes: blob.size,
+        chars: trimmed.length,
+        text: trimmed,
+      });
       if (trimmed.length < 12) {
         const message = 'Dictée trop courte. Décrivez le bien visité.';
         notifyError(message);
@@ -174,6 +180,7 @@ export default function VoiceCaptureDialog({
         setPhase('recording');
         return;
       }
+      console.info('[estimation] dictée client draft', data.draft);
       onEstimationDraft?.(data.draft);
       onClose();
     } catch {
@@ -515,6 +522,73 @@ export default function VoiceCaptureDialog({
       return;
     }
     onClose();
+  }
+
+  const actionsEnregistrement = (
+    <div className={`grid grid-cols-2 gap-2 ${field ? '' : 'sm:flex sm:justify-end'}`}>
+      <WorkspaceButton
+        type="button"
+        variant="secondary"
+        onClick={cancelRecording}
+        className="min-h-11"
+      >
+        {field ? 'Arrêter' : 'Annuler'}
+      </WorkspaceButton>
+      {error && !micReady ? (
+        <WorkspaceButton type="button" onClick={() => void startRecording(false)} className="min-h-11">
+          Reprendre
+        </WorkspaceButton>
+      ) : (
+        <WorkspaceButton type="button" onClick={stopRecording} disabled={!micReady} className="min-h-11">
+          {field ? (
+            'Valider'
+          ) : (
+            <>
+              <Square size={15} strokeWidth={2} aria-hidden />
+              Arrêter
+            </>
+          )}
+        </WorkspaceButton>
+      )}
+    </div>
+  );
+
+  if (estimationMode && (phase === 'recording' || phase === 'processing')) {
+    return (
+      <aside
+        className="pointer-events-auto fixed inset-x-3 z-[220] mx-auto w-[min(100%,28rem)] rounded-clay-lg bg-surface px-3 py-3 shadow-clay-lg sm:inset-x-auto sm:right-6 sm:mx-0"
+        role="dialog"
+        aria-modal="false"
+        aria-label="Dicter le bien"
+        style={{
+          bottom: field
+            ? 'calc(var(--field-nav-height) + 8px)'
+            : '16px',
+        }}
+      >
+        {phase === 'processing' ? (
+          <div className="py-1" aria-busy="true" aria-label={processingCopy}>
+            <VoiceWaveform stream={null} compact />
+            <p className="mt-2 text-pretty text-center text-text-muted" style={{ fontSize: 13 }}>
+              {processingCopy}
+            </p>
+          </div>
+        ) : (
+          <>
+            <AntisecheDictee compact={field} />
+            <div className="mt-3">
+              <VoiceWaveform stream={micStream} compact />
+            </div>
+            {error ? (
+              <p className="mt-2 text-pretty text-center text-text" style={{ fontSize: 12.5 }}>
+                {error}
+              </p>
+            ) : null}
+            <div className="mt-3">{actionsEnregistrement}</div>
+          </>
+        )}
+      </aside>
+    );
   }
 
   if (field && (phase === 'recording' || phase === 'processing')) {

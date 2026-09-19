@@ -16,10 +16,10 @@ const MIN_TRANSCRIPT_CHARS = 12;
 const MAX_OUTPUT_TOKENS = 480;
 
 const SYSTEM_PROMPT =
-  'Extrais les caractéristiques d’un bien immobilier déjà visité, dictées par un agent (FR). JSON strict. Null ou [] si non dit. Ne devine jamais. N’extrais jamais l’adresse.';
+  'Tu ranges une description LIBRE d’un bien visité (FR), dite comme à un collègue : pas d’ordre, pas de noms de champs. JSON strict. Null ou [] si non dit. Ne devine jamais. Jamais d’adresse. Un style (haussmannien, art déco, années 30…) n’est PAS une année : mets-le dans pointsForts. anneeConstruction seulement si une année chiffrée est dite. Qualitatif (lumineux, moulures, calme, sombre) → pointsForts, pointsFaibles ou commentairesPublics, jamais un champ de précision.';
 
 function buildPrompt(transcript: string): string {
-  return `Dictée:\n${transcript}\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
+  return `Description libre, dans le désordre :\n${transcript}\n\nRange chaque élément au bon champ. L’agent n’a pas à nommer les champs.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
 }
 
 export type EstimationVoiceField =
@@ -34,6 +34,7 @@ export type EstimationVoiceField =
   | 'floor'
   | 'etagesImmeuble'
   | 'dernierEtage'
+  | 'anneeConstruction'
   | 'qualiteEmplacement'
   | 'ascenseur'
   | 'balconTerrasse'
@@ -58,6 +59,7 @@ export const CHIFFRES_A_CONFIRMER: ReadonlySet<EstimationVoiceField> = new Set([
   'surfaceTerrain',
   'niveaux',
   'etagesImmeuble',
+  'anneeConstruction',
   'loyerAnnuel',
   'chargesAnnuelles',
   'chargesCopro',
@@ -84,6 +86,7 @@ export type EstimationVoiceDraft = {
   floor: string | null;
   etagesImmeuble: number | null;
   dernierEtage: boolean | null;
+  anneeConstruction: number | null;
   qualiteEmplacement: string | null;
   ascenseur: boolean | null;
   balconTerrasse: boolean | null;
@@ -114,6 +117,7 @@ export const EMPTY_ESTIMATION_VOICE: EstimationVoiceDraft = {
   floor: null,
   etagesImmeuble: null,
   dernierEtage: null,
+  anneeConstruction: null,
   qualiteEmplacement: null,
   ascenseur: null,
   balconTerrasse: null,
@@ -134,11 +138,22 @@ export const EMPTY_ESTIMATION_VOICE: EstimationVoiceDraft = {
 
 const ANNEXES_CANON = ['Cave', 'Parking', 'Terrasse', 'Box'] as const;
 
+/** Année uniquement si un millésime est dit — jamais un style architectural. */
+export function parseAnneeConstruction(v: unknown): number | null {
+  const max = new Date().getFullYear();
+  if (typeof v === 'number' && Number.isInteger(v) && v >= 1800 && v <= max) return v;
+  if (typeof v !== 'string') return null;
+  const hit = v.match(/\b(1[89]\d{2}|20[0-2]\d)\b/);
+  if (!hit) return null;
+  const y = Number(hit[1]);
+  return y >= 1800 && y <= max ? y : null;
+}
+
 function asInt(v: unknown, max: number): number | null {
   if (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max) return Math.round(v);
   if (typeof v === 'string') {
     const n = Number(v.replace(/[^\d.,]/g, '').replace(',', '.'));
-    if (Number.isFinite(n) && n > 0 && n <= max) return Math.round(n);
+    if (Number.isFinite(n) && n >= 0 && n <= max) return Math.round(n);
   }
   return null;
 }
@@ -272,7 +287,11 @@ export function parseEstimationVoice(raw: string): EstimationVoiceDraft {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(raw) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.warn('[estimation] dictée parse JSON', {
+      err: err instanceof Error ? err.message : String(err),
+      raw,
+    });
     return { ...EMPTY_ESTIMATION_VOICE };
   }
 
@@ -288,6 +307,7 @@ export function parseEstimationVoice(raw: string): EstimationVoiceDraft {
     floor: parseFloor(parsed.floor),
     etagesImmeuble: asInt(parsed.etagesImmeuble, 40),
     dernierEtage: asBool(parsed.dernierEtage),
+    anneeConstruction: parseAnneeConstruction(parsed.anneeConstruction),
     qualiteEmplacement: parseQualite(parsed.qualiteEmplacement),
     ascenseur: asBool(parsed.ascenseur),
     balconTerrasse: asBool(parsed.balconTerrasse),
@@ -321,6 +341,7 @@ export function voiceDraftKeys(draft: EstimationVoiceDraft): EstimationVoiceFiel
     'floor',
     'etagesImmeuble',
     'dernierEtage',
+    'anneeConstruction',
     'qualiteEmplacement',
     'ascenseur',
     'balconTerrasse',
@@ -424,6 +445,10 @@ export function applyEstimationVoiceDraft(
     bien.dernierEtage = draft.dernierEtage;
     keys.push('dernierEtage');
   }
+  if (draft.anneeConstruction != null) {
+    bien.anneeConstruction = draft.anneeConstruction;
+    keys.push('anneeConstruction');
+  }
 
   const floorFinal = typeof patch.floor === 'string' ? patch.floor : current.floor;
   const dernierCalcule = inferDernierEtage(floorFinal, bien.etagesImmeuble);
@@ -477,6 +502,7 @@ export function applyEstimationVoiceDraft(
       'niveaux',
       'etagesImmeuble',
       'dernierEtage',
+      'anneeConstruction',
       'qualiteEmplacement',
       'ascenseur',
       'balconTerrasse',
@@ -549,6 +575,7 @@ export async function extractEstimationFields(
 
   const capped =
     trimmed.length > MAX_TRANSCRIPT_CHARS ? trimmed.slice(0, MAX_TRANSCRIPT_CHARS) : trimmed;
+  console.info('[estimation] dictée transcript', { chars: capped.length, text: capped });
 
   const res = await fetch(MISTRAL_API_URL, {
     method: 'POST',
@@ -569,11 +596,26 @@ export async function extractEstimationFields(
   });
 
   if (!res.ok) {
-    console.error('[estimation] dictée HTTP', res.status, await res.text().catch(() => ''));
+    const errBody = await res.text().catch(() => '');
+    console.error('[estimation] dictée HTTP', res.status, errBody);
     return { ...EMPTY_ESTIMATION_VOICE };
   }
 
-  const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const body = (await res.json()) as {
+    choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }>;
+  };
   const content = body.choices?.[0]?.message?.content;
-  return content ? parseEstimationVoice(content) : { ...EMPTY_ESTIMATION_VOICE };
+  console.info('[estimation] dictée extract brut', {
+    finish_reason: body.choices?.[0]?.finish_reason ?? null,
+    content_typeof: typeof content,
+    content_is_array: Array.isArray(content),
+    content,
+  });
+  if (typeof content !== 'string' || !content.trim()) {
+    console.warn('[estimation] dictée extract vide ou non-texte');
+    return { ...EMPTY_ESTIMATION_VOICE };
+  }
+  const draft = parseEstimationVoice(content);
+  console.info('[estimation] dictée draft clés', voiceDraftKeys(draft));
+  return draft;
 }

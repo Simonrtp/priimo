@@ -3,6 +3,7 @@ import { formatPrixM2Court } from '@/lib/carte/cadastre-overlay';
 import type { CadastreOverlayId } from '@/lib/carte/layers';
 import type { CadastreImmeublePoint } from '@/lib/carte/parcelle';
 import type { MapPoint, MapPointKind } from '@/lib/carte/points';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 
 export type HoverPreview = {
   kindLabel: string;
@@ -50,7 +51,7 @@ export function hoverPreviewFromPoint(point: MapPoint, ficheCount = 1): HoverPre
     lines.push(`${Math.round(point.score)} / 100`);
   }
   if (point.kind === 'contact' && point.phone) {
-    lines.push(point.phone);
+    lines.push(formatPhoneDisplay(point.phone));
   }
   lines.push(...takeBits(point.subtitle, point.title, lines, 3));
   if (ficheCount > 1) lines.push(`${ficheCount} fiches à cette adresse`);

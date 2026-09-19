@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Footer from '@/components/Footer';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { isValidFrenchPhone } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 type Invitation = {
   role: 'directeur' | 'collaborateur';
@@ -318,13 +319,10 @@ function InvitePageContent() {
                 <label htmlFor="phone" className={labelClass}>
                   Téléphone
                 </label>
-                <input
+                <PhoneInput
                   id="phone"
                   name="phone"
-                  type="tel"
                   required
-                  autoComplete="tel"
-                  inputMode="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="06 12 34 56 78"

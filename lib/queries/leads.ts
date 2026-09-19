@@ -5,6 +5,7 @@ import { parseDisplaySignals } from '@/lib/display-signals';
 import { parseContactsImmeuble, parseContactabilite, parseOwnerPhoneSource } from '@/lib/lead-contacts';
 import { parseScriptApproche } from '@/lib/script-approche';
 import { assignmentMeta } from '@/lib/agency/assignees';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 type Client = SupabaseClient<Database>;
 
@@ -74,7 +75,7 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     ownerType: row.owner_type,
     companyName: row.company_name,
     companyDirector: row.company_director,
-    companyPhone: row.company_phone,
+    companyPhone: formatPhoneOrNull(row.company_phone),
     companyEmail: row.company_email,
     score: row.score,
     signals,
@@ -114,7 +115,7 @@ export function mapDbLeadToLead(row: LeadRow): Lead {
     ownerAge: row.owner_age ?? null,
     ownerCompany: row.owner_company ?? null,
     ownerSiren: row.owner_siren ?? null,
-    ownerPhone: row.owner_phone ?? null,
+    ownerPhone: formatPhoneOrNull(row.owner_phone),
     ownerPhoneSource: parseOwnerPhoneSource(row.owner_phone_source),
     contactabilite: parseContactabilite(row.contactabilite),
     contactsImmeuble: parseContactsImmeuble(row.contacts_immeuble),

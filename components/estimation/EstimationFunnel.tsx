@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, Check, ChevronLeft, Home } from 'lucide-react';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
+import PhoneInput from '@/components/ui/PhoneInput';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import Progression from '@/components/estimation/parts/Progression';
 import PanneauContexte, {
@@ -795,12 +796,10 @@ export default function EstimationFunnel() {
 
               <label className="block">
                 <span className="mb-1 block text-[12px] font-medium text-gray-600">Téléphone *</span>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className={champClass}
-                  autoComplete="tel"
                   placeholder="06 12 34 56 78"
                 />
               </label>

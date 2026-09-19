@@ -50,6 +50,11 @@ export type AgencyRow = {
   demande_notes?: string | null;
   /** Fréquence cible de passage, en jours. Null = repli 12 semaines. */
   frequence_passage_jours?: number | null;
+  /** Chemin storage du logo (bucket rapport-pages). */
+  logo_path?: string | null;
+  /** Nom commercial du rapport. Null = `name`. */
+  nom_commercial?: string | null;
+  site_web?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -74,6 +79,8 @@ export type ProfileRow = {
   birthday_visible_team?: boolean;
   /** Avatar (illustration /avatars/… ou photo). */
   avatar_url?: string | null;
+  /** Email professionnel du pied de rapport. Null = email de connexion. */
+  email_pro?: string | null;
   /** Donnée fictive de démo — supprimable via purge-demo-agency. */
   is_demo?: boolean;
   created_at: string;
@@ -682,6 +689,70 @@ export type AgencyEstimationInsert = {
   last_viewed_at?: string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type AgencyRapportPageKind = 'pdf' | 'image';
+export type EstimationRapportPageSource = 'bibliotheque' | 'import' | 'generee';
+export type EstimationRapportPageKind = 'pdf' | 'image' | 'generee';
+
+export type AgencyRapportPageRow = {
+  id: string;
+  agency_id: string;
+  nom: string;
+  description: string | null;
+  kind: AgencyRapportPageKind;
+  storage_path: string;
+  mime_type: string;
+  page_count: number;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgencyRapportPageInsert = {
+  id?: string;
+  agency_id: string;
+  nom: string;
+  description?: string | null;
+  kind: AgencyRapportPageKind;
+  storage_path: string;
+  mime_type: string;
+  page_count?: number;
+  position?: number;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type EstimationRapportPageRow = {
+  id: string;
+  estimation_id: string;
+  agency_id: string;
+  source: EstimationRapportPageSource;
+  bibliotheque_id: string | null;
+  nom: string;
+  kind: EstimationRapportPageKind;
+  storage_path: string | null;
+  mime_type: string | null;
+  page_index: number;
+  position: number;
+  created_at: string;
+};
+
+export type EstimationRapportPageInsert = {
+  id?: string;
+  estimation_id: string;
+  agency_id: string;
+  source: EstimationRapportPageSource;
+  bibliotheque_id?: string | null;
+  nom: string;
+  kind: EstimationRapportPageKind;
+  storage_path?: string | null;
+  mime_type?: string | null;
+  page_index?: number;
+  position?: number;
+  created_at?: string;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -2041,6 +2112,18 @@ export type Database = {
         Row: AgencyEstimationRow;
         Insert: AgencyEstimationInsert;
         Update: Partial<AgencyEstimationRow>;
+        Relationships: [];
+      };
+      agency_rapport_pages: {
+        Row: AgencyRapportPageRow;
+        Insert: AgencyRapportPageInsert;
+        Update: Partial<AgencyRapportPageRow>;
+        Relationships: [];
+      };
+      estimation_rapport_pages: {
+        Row: EstimationRapportPageRow;
+        Insert: EstimationRapportPageInsert;
+        Update: Partial<EstimationRapportPageRow>;
         Relationships: [];
       };
       agent_onboarding: {

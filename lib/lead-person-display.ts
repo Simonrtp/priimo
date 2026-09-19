@@ -1,5 +1,7 @@
 /** Affichage propriétaire / société — casse normale, anti-doublon, rôles raccourcis. */
 
+import { formatPhoneDisplay } from '@/lib/import/normalize';
+
 const LEGAL_FORMS =
   /\b(sci|sas|sarl|sa|eurl|sasu|snc|sc|sccv|selarl|selas|scop|scm)\b/gi;
 
@@ -92,7 +94,7 @@ export function collectLeadCallTargets(lead: {
     const key = p.replace(/\s+/g, '');
     if (seen.has(key)) return;
     seen.add(key);
-    targets.push({ phone: p, label, tag });
+    targets.push({ phone: formatPhoneDisplay(p), label, tag });
   };
 
   const ownerLabel =

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BienRow, Database, DpeLettreDb, HonorairesAChargeDb } from '@/types/database';
 import type { Bien } from '@/types/bien';
 import { buildFullName } from '@/lib/queries/contacts';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 type Client = SupabaseClient<Database>;
 
@@ -64,7 +65,7 @@ export function mapDbBienToBien(row: BienRowWithOwner): Bien {
     mandatStatut: row.mandat_statut,
     proprietaireContactId: row.proprietaire_contact_id,
     proprietaireName: ownerName,
-    proprietairePhone: owner?.phone?.trim() || null,
+    proprietairePhone: formatPhoneOrNull(owner?.phone),
     proprietaireEmail: owner?.email?.trim() || null,
     leadId: row.lead_id,
     banId: row.ban_id ?? null,

@@ -70,6 +70,19 @@ function asText(raw: unknown): string | null {
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
 }
 
+/** Saisie : vide → null, zéro conservé. */
+export function nombreSaisi(raw: string): number | null {
+  const s = raw.trim().replace(',', '.');
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function nombreStrictementPositif(raw: string): number | null {
+  const n = nombreSaisi(raw);
+  return n != null && n > 0 ? n : null;
+}
+
 function asNum(raw: unknown): number | null {
   const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
   return Number.isFinite(n) ? n : null;

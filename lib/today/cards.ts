@@ -29,6 +29,7 @@ import {
 } from '@/lib/today/metier-cards';
 import { ENJEU_PAR_TYPE, imminenceJoursRestants, scoreCarte } from '@/lib/today/scoring';
 import { geoFrom, type FieldGeo } from '@/lib/today/field';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 
 /** Le strict nécessaire d'un lead pour produire une carte. */
 export type TodayLead = Pick<
@@ -256,7 +257,7 @@ function cartesRelance(contacts: readonly Contact[], maintenant: Date, config: T
           headline: contact.fullName,
           context: contexteParts.join(' · '),
           action: contact.phone
-            ? { kind: 'appeler', label: `Appeler ${contact.fullName}`, phone: contact.phone, contactId: contact.id }
+            ? { kind: 'appeler', label: `Appeler ${contact.fullName}`, phone: formatPhoneDisplay(contact.phone), contactId: contact.id }
             : { kind: 'ouvrir_contact', label: `Ouvrir la fiche de ${contact.fullName}`, contactId: contact.id },
           priority: (enRetard ? PRIORITE.relanceEnRetard : PRIORITE.relance) - joursTri,
           urgent: enRetard,
@@ -350,7 +351,7 @@ function cartesRapprochement(
           matches: matches.map((m) => ({
             contactId: m.contact.id,
             name: m.contact.fullName,
-            phone: m.contact.phone,
+            phone: m.contact.phone ? formatPhoneDisplay(m.contact.phone) : null,
             raisons: m.raisons,
           })),
           geo: geoFrom(bien.latitude, bien.longitude, bien.address),
@@ -445,7 +446,7 @@ function cartesDemandePortail(
         ? ({
             kind: 'appeler' as const,
             label: 'Appeler',
-            phone: d.telephone,
+            phone: formatPhoneDisplay(d.telephone),
             contactId: d.contactId ?? undefined,
           })
         : d.contactId
@@ -525,7 +526,7 @@ function cartesDemandeEstimation(
       ? {
           kind: 'appeler',
           label: `Appeler ${d.nom}`,
-          phone: d.telephone,
+          phone: formatPhoneDisplay(d.telephone),
           contactId: d.contactId ?? undefined,
         }
       : d.contactId

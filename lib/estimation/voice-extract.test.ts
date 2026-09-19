@@ -5,6 +5,7 @@ import { BIEN_VIDE } from './objet';
 import {
   applyEstimationVoiceDraft,
   EMPTY_ESTIMATION_VOICE,
+  parseAnneeConstruction,
   parseEstimationVoice,
   parseFloor,
   voiceDraftKeys,
@@ -57,6 +58,18 @@ describe('parseEstimationVoice', () => {
   it('lit une qualité d’emplacement partielle', () => {
     const d = parseEstimationVoice(JSON.stringify({ qualiteEmplacement: 'très bon emplacement' }));
     assert.equal(d.qualiteEmplacement, 'Très bon');
+  });
+
+  it('prend une année chiffrée, refuse un style', () => {
+    assert.equal(parseAnneeConstruction(1910), 1910);
+    assert.equal(parseAnneeConstruction('construit en 1910'), 1910);
+    assert.equal(parseAnneeConstruction('haussmannien'), null);
+    assert.equal(parseAnneeConstruction('années 30'), null);
+    const style = parseEstimationVoice(
+      JSON.stringify({ anneeConstruction: 'haussmannien', pointsForts: ['haussmannien', 'lumineux'] }),
+    );
+    assert.equal(style.anneeConstruction, null);
+    assert.deepEqual(style.pointsForts, ['haussmannien', 'lumineux']);
   });
 
   it('laisse vide un champ non dit', () => {
@@ -122,6 +135,16 @@ describe('applyEstimationVoiceDraft', () => {
     });
     const bien = patch.bien as { dernierEtage: boolean | null };
     assert.equal(bien.dernierEtage, false);
+  });
+
+  it('écrit une année dite, pas un style', () => {
+    const { patch, keys } = applyEstimationVoiceDraft(base, {
+      ...EMPTY_ESTIMATION_VOICE,
+      anneeConstruction: 1910,
+    });
+    assert.ok(keys.includes('anneeConstruction'));
+    const bien = patch.bien as { anneeConstruction: number | null };
+    assert.equal(bien.anneeConstruction, 1910);
   });
 
   it('ajoute une cave et sa valorisation', () => {

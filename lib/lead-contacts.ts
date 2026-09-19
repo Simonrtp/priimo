@@ -1,4 +1,5 @@
 import type { Lead } from '@/types/lead';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 
 export type ImmeubleContactCategorie = 'commerce' | 'professionnel' | 'domicile_pro';
 
@@ -59,8 +60,9 @@ export function parseContactsImmeuble(raw: unknown): ImmeubleContact[] {
     // Les "cible" restent hors liste (affichés via owner_*).
     if (type !== 'immeuble') continue;
 
-    const phone = pickString(obj, ['telephone', 'phone', 'tel']);
-    if (!phone) continue;
+    const phoneRaw = pickString(obj, ['telephone', 'phone', 'tel']);
+    if (!phoneRaw) continue;
+    const phone = formatPhoneDisplay(phoneRaw);
 
     // Clé pipeline principale : nom_societe
     const companyName = pickString(obj, [

@@ -10,6 +10,7 @@ import PostalCodesEditor, { postalCodesFromAddress } from '@/components/PostalCo
 import Turnstile from '@/components/estimation/parts/Turnstile';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { isValidFrenchPhone } from '@/lib/phone';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { turnstileSiteKey } from '@/lib/turnstile';
 
 const labelClass = 'block text-sm font-medium tracking-wide mb-1.5 text-gray-900';
@@ -156,11 +157,9 @@ export default function InscriptionPage() {
               <label htmlFor="insc-tel" className={labelClass}>
                 Téléphone
               </label>
-              <input
+              <PhoneInput
                 id="insc-tel"
-                type="tel"
                 className={inputClass}
-                autoComplete="tel"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}

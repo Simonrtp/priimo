@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 type Props = {
   token: string;
@@ -173,10 +174,10 @@ export default function QrConsentForm({ token, agentPrenom, consentText }: Props
                 <DrapeauFr />
                 +33
               </span>
-              <input
+              <PhoneInput
                 id={telId}
                 name="tel"
-                type="tel"
+                grouping="after33"
                 autoComplete="tel-national"
                 inputMode="numeric"
                 enterKeyHint="done"

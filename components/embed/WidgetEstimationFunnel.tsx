@@ -15,6 +15,7 @@ import SourceBadges from '@/components/estimation/SourceBadges';
 import type { EstimationSourceId } from '@/lib/estimation/sources';
 import type { RevealableStep } from '@/lib/estimation/use-revealed-steps';
 import type { WidgetPublicConfig } from '@/lib/widget/config';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 /**
  * Parcours d'estimation embarqué sur le site d'une agence.
@@ -592,11 +593,9 @@ export default function WidgetEstimationFunnel({
 
                     <label className="block">
                       <span className="mb-1.5 block text-[13px] font-medium text-neutral-700">Téléphone</span>
-                      <input
-                        type="tel"
+                      <PhoneInput
                         value={telephone}
                         onChange={(e) => setTelephone(e.target.value)}
-                        autoComplete="tel"
                         placeholder="06 12 34 56 78"
                         className={champClass}
                       />

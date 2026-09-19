@@ -31,6 +31,7 @@ interface VoiceCaptureContextValue {
   gestureActive: boolean;
   gestureLocked: boolean;
   captureSessionOpen: boolean;
+  capturePurpose: VoiceCapturePurpose | null;
   gesturePointerMove: (deltaY: number, deltaX?: number) => void;
   gesturePointerUp: () => void;
   gesturePointerCancel: () => void;
@@ -141,6 +142,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   }, []);
 
   const captureSessionOpen = open || composeOpen || gestureSession != null;
+  const capturePurpose = open ? purpose : null;
 
   const value = useMemo(
     () => ({
@@ -150,13 +152,14 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
       gestureActive: gestureSession != null,
       gestureLocked,
       captureSessionOpen,
+      capturePurpose,
       gesturePointerMove: (deltaY: number, deltaX?: number) =>
         gestureRef.current?.pointerMove(deltaY, deltaX),
       gesturePointerUp: () => gestureRef.current?.pointerUp(),
       gesturePointerCancel: () => gestureRef.current?.pointerCancel(),
       stopLockedGesture: () => gestureRef.current?.stopLocked(),
     }),
-    [beginGestureCapture, captureSessionOpen, gestureLocked, gestureSession, openCapture, openCompose],
+    [beginGestureCapture, capturePurpose, captureSessionOpen, gestureLocked, gestureSession, openCapture, openCompose],
   );
 
   useEffect(() => {

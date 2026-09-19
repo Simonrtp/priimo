@@ -53,6 +53,16 @@ export function indexMaxAccessible(e: EstimationObjet, atteint: number): number 
   return Math.max(indexDepuisDonnees(e), atteint, 0);
 }
 
+/** Le rapport se compose sans bloquer sur les champs encore vides. */
+export function etapeAccessible(
+  e: EstimationObjet,
+  atteint: number,
+  id: EtapeAtelierId,
+): boolean {
+  if (id === 'rapport') return true;
+  return indexEtape(id) <= indexMaxAccessible(e, atteint);
+}
+
 /** Nouvelle estimation : toujours le client. Une fiche déjà avancée reprend où elle en est. */
 export function etapeInitiale(e: EstimationObjet): EtapeAtelierId {
   if (!etapeClientOk(e)) return 'client';

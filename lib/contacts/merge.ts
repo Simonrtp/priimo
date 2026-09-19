@@ -1,6 +1,7 @@
 import type { Contact } from '@/types/contact';
 import { CONTACT_TYPE_LABELS } from '@/types/contact';
 import type { ContactPatch } from '@/lib/queries/contacts';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 
 export type MergeSide = 'keep' | 'absorb';
 
@@ -93,7 +94,7 @@ export function mergeFieldDisplay(contact: Contact, key: MergeFieldKey): string 
     case 'type':
       return CONTACT_TYPE_LABELS[contact.type];
     case 'phone':
-      return contact.phone ?? '';
+      return contact.phone ? formatPhoneDisplay(contact.phone) : '';
     case 'email':
       return contact.email ?? '';
     case 'secteur':

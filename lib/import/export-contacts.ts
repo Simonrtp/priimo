@@ -1,6 +1,7 @@
 import type { Contact } from '@/types/contact';
 import { CONTACT_TYPE_LABELS } from '@/types/contact';
 import { downloadCsv } from './download-csv';
+import { formatPhoneDisplay } from './normalize';
 
 export const CONTACT_EXPORT_FIELDS = [
   'Prénom',
@@ -21,7 +22,7 @@ export function exportContactsCsv(contacts: readonly Contact[]): void {
   const rows = contacts.map((c) => ({
     Prénom: c.firstName,
     Nom: c.lastName,
-    Téléphone: c.phone ?? '',
+    Téléphone: c.phone ? formatPhoneDisplay(c.phone) : '',
     Email: c.email ?? '',
     Type: CONTACT_TYPE_LABELS[c.type],
     Secteur: c.secteur ?? '',

@@ -4,6 +4,7 @@ import { CONTACT_TYPE_LABELS, type Contact, type ContactType } from '@/types/con
 import type { Bien } from '@/types/bien';
 import { MANDAT_STATUT_LABELS } from '@/types/bien';
 import type { Lead } from '@/types/lead';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 export type MapPointKind = 'lead' | 'contact' | 'bien' | 'note';
 
@@ -231,7 +232,7 @@ export function contactToMapPoint(contact: MappableContact): MapPoint | null {
     contactType: contact.type,
     assignedTo: contact.assignedTo,
     occurredAt: contact.lastInteractionAt ?? contact.createdAt,
-    phone: contact.phone,
+    phone: formatPhoneOrNull(contact.phone),
   };
 }
 

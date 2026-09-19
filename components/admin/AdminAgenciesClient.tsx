@@ -8,6 +8,7 @@ import Select from '@/components/ui/Select';
 import type { AdminDirectorDto } from '@/app/api/admin/directors/route';
 import type { PostalCollision } from '@/lib/admin/postal-collisions';
 import type { AgencyRequestRow, PlanCode } from '@/types/database';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -203,7 +204,7 @@ export default function AdminAgenciesClient() {
                   <p className="text-sm text-mute">
                     {d.directeur ? `${d.directeur.prenom} ${d.directeur.nom}` : '—'}
                     {d.email ? ` · ${d.email}` : ''}
-                    {d.phone ? ` · ${d.phone}` : ''}
+                    {d.phone ? ` · ${formatPhoneDisplay(d.phone)}` : ''}
                   </p>
                   <p className="mt-1 text-sm text-mute">{d.address}</p>
                   <p className="mt-1 text-sm tabular-nums text-ink">{d.codesPostaux.join(', ')}</p>

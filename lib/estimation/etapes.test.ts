@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  etapeAccessible,
   etapeBienOk,
   etapeClientOk,
   etapeInitiale,
@@ -58,5 +59,11 @@ describe('étapes atelier', () => {
       priceValue: 320000,
     };
     assert.equal(indexMaxAccessible(complete as never, 0), 4);
+  });
+
+  it('laisse le rapport accessible même si l’estimation n’est pas finie', () => {
+    assert.equal(etapeAccessible(vide as never, 0, 'rapport'), true);
+    assert.equal(etapeAccessible(vide as never, 0, 'bien'), false);
+    assert.equal(etapeAccessible(vide as never, 0, 'estimation'), false);
   });
 });

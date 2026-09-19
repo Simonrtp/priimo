@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { escapeHtml } from '@/lib/email/invitation-email-layout';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 import { getAdminEmail } from '@/lib/auth/requireAdmin';
 
 const FROM_ADDRESS = 'Priimo <hello@priimo.fr>';
@@ -24,7 +25,7 @@ export async function sendInscriptionNotificationToAdmin(params: {
       <h1 style="font-size:20px;color:#111827;margin:0 0 16px;">Nouvelle inscription</h1>
       <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#374151;">
         <strong>${escapeHtml(params.prenom)} ${escapeHtml(params.nom)}</strong>
-        — ${escapeHtml(params.email)} — ${escapeHtml(params.telephone)}
+        — ${escapeHtml(params.email)} — ${escapeHtml(formatPhoneDisplay(params.telephone))}
       </p>
       <table style="width:100%;border-collapse:collapse;font-size:14px;color:#111827;">
         <tr><td style="padding:6px 0;color:#6B7280;width:140px;">Agence</td><td><strong>${escapeHtml(params.agencyName)}</strong></td></tr>

@@ -6,6 +6,7 @@ import { Field, TextInput } from '@/components/dashboard/workspace/Field';
 import DetailCalcul from '@/components/estimation/parts/DetailCalcul';
 import { formatEuro } from '@/lib/estimation/resultat';
 import type { EstimationObjet } from '@/lib/estimation/objet';
+import { nombreSaisi } from '@/lib/estimation/objet';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
 
 export default function OngletEstimation({
@@ -48,7 +49,10 @@ export default function OngletEstimation({
           id="est-hon"
           inputMode="decimal"
           value={estimation.honorairesPct}
-          onChange={(e) => onPatch({ honorairesPct: Number(e.target.value) || 5 })}
+          onChange={(e) => {
+            const n = nombreSaisi(e.target.value);
+            onPatch({ honorairesPct: n == null ? 5 : n });
+          }}
         />
       </Field>
 

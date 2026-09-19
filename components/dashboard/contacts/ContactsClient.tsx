@@ -32,6 +32,7 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import ContactDetailPanel from './ContactDetailPanel';
 import ContactFormDialog from './ContactFormDialog';
+import { CocheConsentementTel } from './ConsentementRappelField';
 import MergeContactsDialog from './MergeContactsDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
@@ -209,6 +210,7 @@ function ContactRow({
                 >
                   <Phone size={12} strokeWidth={2.2} aria-hidden />
                   {formatPhoneDisplay(contact.phone)}
+                  {contact.numeroCommuniqueParLaPersonne ? <CocheConsentementTel size={14} /> : null}
                 </a>
               ) : incomplete ? (
                 <button

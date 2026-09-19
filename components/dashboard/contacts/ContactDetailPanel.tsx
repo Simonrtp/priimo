@@ -5,10 +5,12 @@ import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { criteriaAreEmpty, typeUsesCriteria } from '@/types/contact';
+import { CONTACT_NOTE_HINT } from '@/lib/contact-input';
 import { evaluerCorrespondance } from '@/lib/matching/rapprochement';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import { Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import { Field, PhoneInput, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
+import ConsentementRappelField from '@/components/dashboard/contacts/ConsentementRappelField';
 import { notifyError } from '@/lib/notify';
 import DatePickerField from '@/components/ui/DatePickerField';
 import { Trash2 } from 'lucide-react';
@@ -54,18 +56,22 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function payloadFrom(contact: Contact, draft: {
+type ContactDraft = {
   summary: string;
   phone: string;
   email: string;
   address: string;
-}) {
+  numeroCommuniqueParLaPersonne: boolean;
+};
+
+function payloadFrom(contact: Contact, draft: ContactDraft) {
   return {
     firstName: contact.firstName,
     lastName: contact.lastName,
     type: contact.type,
     phone: draft.phone.trim() || null,
     email: draft.email.trim() || null,
+    numeroCommuniqueParLaPersonne: draft.numeroCommuniqueParLaPersonne,
     secteur: contact.secteur,
     address: draft.address.trim() || null,
     postalCodes: contact.criteria.postalCodes,
@@ -80,24 +86,23 @@ function payloadFrom(contact: Contact, draft: {
   };
 }
 
-function fieldSnapshot(contact: Contact) {
+function fieldSnapshot(contact: Contact): ContactDraft {
   return {
     summary: contact.summary ?? '',
     phone: contact.phone ?? '',
     email: contact.email ?? '',
     address: contact.address ?? '',
+    numeroCommuniqueParLaPersonne: contact.numeroCommuniqueParLaPersonne === true,
   };
 }
 
-function draftsEqual(
-  a: { summary: string; phone: string; email: string; address: string },
-  b: { summary: string; phone: string; email: string; address: string },
-): boolean {
+function draftsEqual(a: ContactDraft, b: ContactDraft): boolean {
   return (
     a.summary === b.summary &&
     a.phone === b.phone &&
     a.email === b.email &&
-    a.address === b.address
+    a.address === b.address &&
+    a.numeroCommuniqueParLaPersonne === b.numeroCommuniqueParLaPersonne
   );
 }
 
@@ -118,12 +123,7 @@ export default function ContactDetailPanel({
   onDelete: () => void;
   onAssigned: (contact: Contact) => void;
 }) {
-  const [draft, setDraft] = useState({
-    summary: contact.summary ?? '',
-    phone: contact.phone ?? '',
-    email: contact.email ?? '',
-    address: contact.address ?? '',
-  });
+  const [draft, setDraft] = useState(() => fieldSnapshot(contact));
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const draftRef = useRef(draft);
@@ -235,18 +235,25 @@ export default function ContactDetailPanel({
           value={draft.summary}
           onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))}
           onBlur={() => void saveDraft()}
-          placeholder="Ce qu’il faut se rappeler de cette personne"
+          aria-describedby={`contact-note-${contact.id}-hint`}
           className="rounded-2xl bg-white"
         />
+        <p
+          id={`contact-note-${contact.id}-hint`}
+          className="mt-1.5 text-pretty text-text-subtle"
+          style={{ fontSize: 12 }}
+        >
+          {CONTACT_NOTE_HINT}
+        </p>
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 sm:gap-x-6">
         <Field label="Téléphone" htmlFor={`contact-phone-${contact.id}`}>
-          <TextInput
+          <PhoneInput
             id={`contact-phone-${contact.id}`}
-            type="tel"
             autoComplete="off"
             value={draft.phone}
+            consenti={draft.numeroCommuniqueParLaPersonne}
             onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
             onBlur={() => void saveDraft()}
             placeholder="06 12 34 56 78"
@@ -263,6 +270,18 @@ export default function ContactDetailPanel({
             placeholder="prenom@email.fr"
           />
         </Field>
+        <div className="sm:col-span-2">
+          <ConsentementRappelField
+            id={`contact-numero-communique-${contact.id}`}
+            checked={draft.numeroCommuniqueParLaPersonne}
+            onChange={(checked) => {
+              const next = { ...draftRef.current, numeroCommuniqueParLaPersonne: checked };
+              draftRef.current = next;
+              setDraft(next);
+              void saveDraft();
+            }}
+          />
+        </div>
         <div className="sm:col-span-2">
           <Field label={addressLabel} htmlFor={`contact-address-${contact.id}`}>
             <TextInput

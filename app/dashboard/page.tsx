@@ -52,6 +52,7 @@ import { buildSectorMapPoints } from '@/lib/carte/points';
 import { buildSortie } from '@/lib/today/sortie';
 import { groupEntitiesByBanId } from '@/lib/carte/buildings';
 import { entreeStage } from '@/lib/queries/lead-stages';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
 import {
   fetchAgentOnboarding,
   fetchOnboardingSecteur,
@@ -316,7 +317,7 @@ async function TodayContent({
           return {
             id: row.id as string,
             nom: (row.nom as string | null) ?? null,
-            telephone: (row.telephone as string | null) ?? null,
+            telephone: formatPhoneOrNull(row.telephone as string | null),
             contactId: (row.contact_id as string | null) ?? null,
             bienId: (row.bien_id as string | null) ?? null,
             bienAdresse: adresse ?? null,
@@ -359,7 +360,7 @@ async function TodayContent({
                 .filter(Boolean)
                 .join(' ')
                 .trim() || 'Demande d’estimation',
-            telephone: (row.phone as string | null) ?? null,
+            telephone: formatPhoneOrNull(row.phone as string | null),
             contactId: (row.contact_id as string | null) ?? null,
             address: (row.address as string | null) ?? '',
             valeur: (row.estimation_value as number | null) ?? null,

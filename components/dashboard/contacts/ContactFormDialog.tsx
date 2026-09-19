@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { Contact, ContactType } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, typeUsesCriteria } from '@/types/contact';
 import type { ContactFieldErrors, ContactInputFields } from '@/lib/contact-input';
-import { EMPTY_CONTACT_INPUT, validateContactFields } from '@/lib/contact-input';
+import { CONTACT_NOTE_HINT, EMPTY_CONTACT_INPUT, validateContactFields } from '@/lib/contact-input';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import Modal from '@/components/ui/Modal';
@@ -17,10 +17,12 @@ import {
   ADDRESS_FIELD_INPUT_CLASS,
   Field,
   INPUT_ERROR_CLASS,
+  PhoneInput,
   TextArea,
   TextInput,
 } from '@/components/dashboard/workspace/Field';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import ConsentementRappelField from '@/components/dashboard/contacts/ConsentementRappelField';
 
 function fromContact(contact: Contact): ContactInputFields {
   return {
@@ -430,10 +432,10 @@ export default function ContactFormDialog({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Téléphone" htmlFor="contact-phone">
-            <TextInput
+            <PhoneInput
               id="contact-phone"
-              type="tel"
               value={fields.phone ?? ''}
+              consenti={fields.numeroCommuniqueParLaPersonne}
               onChange={(e) => set('phone', e.target.value || null)}
             />
           </Field>
@@ -449,19 +451,11 @@ export default function ContactFormDialog({
           </Field>
         </div>
 
-        <label
-          htmlFor="contact-numero-communique"
-          className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug text-text-muted"
-        >
-          <input
-            id="contact-numero-communique"
-            type="checkbox"
-            checked={fields.numeroCommuniqueParLaPersonne}
-            onChange={(e) => set('numeroCommuniqueParLaPersonne', e.target.checked)}
-            className="mt-0.5 size-4 rounded border-black/20"
-          />
-          Numéro communiqué par la personne
-        </label>
+        <ConsentementRappelField
+          id="contact-numero-communique"
+          checked={fields.numeroCommuniqueParLaPersonne}
+          onChange={(checked) => set('numeroCommuniqueParLaPersonne', checked)}
+        />
 
         {showCriteria ? (
           <fieldset className="border-t border-black/[0.06] pt-6">
@@ -555,12 +549,13 @@ export default function ContactFormDialog({
           />
         </Field>
 
-        <Field label="Résumé" htmlFor="contact-summary" hint="Ce qu'il faut se rappeler de cette personne">
+        <Field label="Résumé" htmlFor="contact-summary" hint={CONTACT_NOTE_HINT}>
           <TextArea
             id="contact-summary"
             rows={4}
             value={fields.summary ?? ''}
             onChange={(e) => set('summary', e.target.value || null)}
+            aria-describedby="contact-summary-hint"
           />
         </Field>
 

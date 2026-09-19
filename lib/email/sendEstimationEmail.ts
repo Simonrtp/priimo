@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { escapeHtml } from '@/lib/email/invitation-email-layout';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import { getAdminEmail } from '@/lib/auth/requireAdmin';
 
 const FROM_ADDRESS = 'Priimo <hello@priimo.fr>';
@@ -59,7 +60,7 @@ export async function sendEstimationNotificationToAdmin(
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:14px;color:#111827;">
         <tr><td style="padding:6px 0;color:#6B7280;width:140px;">Contact</td><td><strong>${escapeHtml([params.civility, params.firstName, params.lastName].filter(Boolean).join(' '))}</strong></td></tr>
-        <tr><td style="padding:6px 0;color:#6B7280;">Téléphone</td><td><a href="tel:${escapeHtml(params.phone)}">${escapeHtml(params.phone)}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#6B7280;">Téléphone</td><td><a href="${escapeHtml(telHref(params.phone))}">${escapeHtml(formatPhoneDisplay(params.phone))}</a></td></tr>
         <tr><td style="padding:6px 0;color:#6B7280;">Email</td><td><a href="mailto:${escapeHtml(params.email)}">${escapeHtml(params.email)}</a></td></tr>
         <tr><td style="padding:6px 0;color:#6B7280;">Adresse</td><td>${escapeHtml(params.address)} (${escapeHtml(params.postalCode)})</td></tr>
         <tr><td style="padding:6px 0;color:#6B7280;">Bien</td><td>${escapeHtml(params.propertyType)} · ${params.surfaceM2} m² · ${params.rooms} pièces</td></tr>

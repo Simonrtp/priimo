@@ -6,6 +6,7 @@ import type { Lead } from '@/types/lead';
 import { formatLeadAddressQuery, googleMapsSearchUrl } from '@/lib/utils';
 import { collectLeadCallTargets } from '@/lib/lead-person-display';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 
 type LeadActionBarProps = {
   lead: Lead;
@@ -71,7 +72,7 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
 
       {hasPhone && !multi && (
         <a
-          href={`tel:${targets[0].phone}`}
+          href={telHref(targets[0].phone)}
           className={`${btnBase} min-w-0 bg-[#E8743C] text-white hover:bg-[#C25E2C]`}
           style={{ fontSize: btnSize }}
           onClick={(e) => e.stopPropagation()}
@@ -111,7 +112,7 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
                   <li key={`${t.phone}-${i}`} role="none">
                     <a
                       role="menuitem"
-                      href={`tel:${t.phone}`}
+                      href={telHref(t.phone)}
                       className="flex min-h-12 flex-col justify-center px-3.5 py-2.5 text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] focus:outline-none focus-visible:bg-black/[0.04]"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -127,7 +128,7 @@ export default function LeadActionBar({ lead, dense = false }: LeadActionBarProp
                         ) : null}
                       </span>
                       <span className="tabular-nums text-[#3D5A80]" style={{ fontSize: 12.5 }}>
-                        {t.phone}
+                        {formatPhoneDisplay(t.phone)}
                       </span>
                     </a>
                   </li>
