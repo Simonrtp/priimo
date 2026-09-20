@@ -418,7 +418,6 @@ export type EstimationRequestRow = {
   agency_id: string | null;
   source: string;
   origin_url: string | null;
-  widget_public_id: string | null;
   contact_id: string | null;
   assigned_to: string | null;
   estimation_price_per_m2: number | null;
@@ -469,7 +468,6 @@ export type EstimationRequestInsert = {
   agency_id?: string | null;
   source?: string;
   origin_url?: string | null;
-  widget_public_id?: string | null;
   contact_id?: string | null;
   assigned_to?: string | null;
   estimation_price_per_m2?: number | null;
@@ -477,7 +475,6 @@ export type EstimationRequestInsert = {
   estimation_sources?: unknown;
 };
 
-/** Configuration du widget embarquable — une ligne par agence. */
 /** Prise en main du négociateur — progression et mesure. */
 export type AgentOnboardingRow = {
   profile_id: string;
@@ -509,36 +506,6 @@ export type AgentOnboardingInsert = {
   relance_dismissed_at?: string | null;
 };
 
-export type AgencyWidgetRow = {
-  agency_id: string;
-  public_id: string;
-  enabled: boolean;
-  display_name: string | null;
-  accent_color: string;
-  logo_url: string | null;
-  allowed_domains: string[];
-  daily_cap: number;
-  /** Premier chargement constaté depuis un domaine autorisé. */
-  first_installed_at: string | null;
-  last_seen_at: string | null;
-  last_seen_host: string | null;
-  install_email_to: string | null;
-  install_email_sent_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AgencyWidgetInsert = {
-  agency_id: string;
-  public_id: string;
-  enabled?: boolean;
-  display_name?: string | null;
-  accent_color?: string;
-  logo_url?: string | null;
-  allowed_domains?: string[];
-  daily_cap?: number;
-};
-
 export type EstimationConsentVersionRow = {
   version: string;
   body: string;
@@ -559,7 +526,6 @@ export type EstimationConsentRow = {
   ip_address: string | null;
   user_agent: string | null;
   origin_url: string | null;
-  widget_public_id: string | null;
   created_at: string;
 };
 
@@ -2144,12 +2110,6 @@ export type Database = {
         Update: Partial<AgentOnboardingRow>;
         Relationships: [];
       };
-      agency_widgets: {
-        Row: AgencyWidgetRow;
-        Insert: AgencyWidgetInsert;
-        Update: Partial<AgencyWidgetRow>;
-        Relationships: [];
-      };
       estimation_consents: {
         Row: EstimationConsentRow;
         Insert: EstimationConsentInsert;
@@ -2533,8 +2493,6 @@ export type Database = {
         Args: { p_agency_id: string; p_debut: string };
         Returns: number;
       };
-      agency_estimations_today: { Args: { p_agency_id: string }; Returns: number };
-      record_widget_seen: { Args: { p_public_id: string; p_host: string | null }; Returns: void };
       current_user_agency_ids: { Args: Record<string, never>; Returns: string[] };
       current_user_agency_id: { Args: Record<string, never>; Returns: string };
       current_user_role: { Args: Record<string, never>; Returns: string };

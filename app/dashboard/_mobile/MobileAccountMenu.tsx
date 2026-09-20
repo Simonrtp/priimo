@@ -27,8 +27,8 @@ export default function MobileAccountMenu({
         onClick={onClose}
       />
       <div
-        className="absolute right-4 overflow-hidden rounded-2xl bg-surface shadow-clay-lg"
-        style={{ top: 'calc(12px + env(safe-area-inset-top, 0px))', width: 240 }}
+        className="absolute left-4 overflow-hidden rounded-2xl bg-surface shadow-clay-lg"
+        style={{ top: 'calc(64px + env(safe-area-inset-top, 0px))', width: 240 }}
       >
         <div className="border-b border-black/[0.06] px-4 py-3">
           <p className="truncate font-semibold text-text-strong" style={{ fontSize: 14.5 }}>

@@ -2,12 +2,10 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Search, X } from 'lucide-react';
 import MobileAccountMenu from './MobileAccountMenu';
-import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
-import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
+import { AssistantSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { useUser } from '@/lib/hooks/useUser';
-import { SHELL_BG_CLASS } from '@/lib/today/field';
 import { resoudreProspectionVue } from '@/lib/prospection/vue';
 
 /** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
@@ -26,26 +24,8 @@ function hideShellHeader(pathname: string, search: URLSearchParams): boolean {
   );
 }
 
-function AccountButton({ onClick }: { onClick: () => void }) {
-  const { profile } = useUser();
-  const initials =
-    `${profile.first_name.trim().charAt(0)}${profile.last_name.trim().charAt(0)}`.toUpperCase() ||
-    '?';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Compte et réglages"
-      className="app-press mt-0.5 flex size-11 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-      style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
-    >
-      {initials}
-    </button>
-  );
-}
-
 /**
- * Bandeau terrain : Bonjour + prénom, recherche, compte.
+ * Bandeau terrain : photo de profil + barre de recherche.
  * Création (contact / bien / note) → onglet Plus en bas.
  */
 export default function MobileChrome() {
@@ -53,60 +33,38 @@ export default function MobileChrome() {
   const searchParams = useSearchParams();
   const { profile } = useUser();
   const [accountOpen, setAccountOpen] = useState(false);
-  const { openMobileSearch, closeMobileSearch, mobileSearchOpen } = useAssistant();
 
   if (hideShellHeader(pathname, searchParams)) return null;
 
-  const prenom = profile.first_name.trim();
-  const greeting = prenom ? `Bonjour ${prenom}.` : 'Bonjour.';
-
   return (
     <>
-      <div className={`${SHELL_BG_CLASS} mobile-shell-header flex-shrink-0`}>
+      <div className="mobile-shell-header flex-shrink-0 bg-bg-base">
         <header
-          className="relative z-[10] flex items-center gap-2 pb-3 pt-3"
+          className="relative z-[10] flex items-center gap-2.5 pb-2"
           style={{
-            paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
+            paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))',
             paddingLeft: 'var(--field-page-px)',
             paddingRight: 'var(--field-page-px)',
           }}
         >
-          {mobileSearchOpen ? (
-            <>
-              <div className="min-w-0 flex-1">
-                <AssistantMobileSearchBar tone="shell" />
-              </div>
-              <button
-                type="button"
-                onClick={closeMobileSearch}
-                aria-label="Fermer la recherche"
-                className="app-press flex size-11 flex-shrink-0 items-center justify-center rounded-full text-white"
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
-              >
-                <X size={20} strokeWidth={2} aria-hidden />
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="min-w-0 flex-1">
-                <p
-                  className="truncate font-brand font-normal tracking-[-0.015em] text-white"
-                  style={{ fontSize: 24, lineHeight: 1.18 }}
-                >
-                  {greeting}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openMobileSearch}
-                aria-label="Rechercher"
-                className="app-press mt-0.5 flex size-11 flex-shrink-0 items-center justify-center rounded-full text-white"
-              >
-                <Search size={20} strokeWidth={2} aria-hidden />
-              </button>
-              <AccountButton onClick={() => setAccountOpen(true)} />
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            aria-label="Compte et réglages"
+            aria-expanded={accountOpen}
+            aria-haspopup="dialog"
+            className="app-press flex size-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full"
+          >
+            <ProfileAvatar
+              firstName={profile.first_name}
+              lastName={profile.last_name}
+              avatarUrl={profile.avatar_url}
+              size={44}
+            />
+          </button>
+          <div className="min-w-0 flex-1">
+            <AssistantSearchBar />
+          </div>
         </header>
       </div>
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />

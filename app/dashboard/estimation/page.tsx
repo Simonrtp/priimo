@@ -1,29 +1,16 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import { parseEstimationVue } from '@/lib/estimation/vue';
 import EstimationDashboardClient from '@/components/dashboard/estimation/EstimationDashboardClient';
 import EstimationLoading from './loading';
 
-export default async function DashboardEstimationPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ vue?: string; id?: string }>;
-}) {
+export default async function DashboardEstimationPage() {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
 
-  const params = await searchParams;
-  const isDirector = profile.role === 'directeur';
-  const initialVue = isDirector ? parseEstimationVue(params.vue) : 'outil';
-
   return (
     <Suspense fallback={<EstimationLoading />}>
-      <EstimationDashboardClient
-        agencyName={agency.name}
-        sectorPostcodes={agency.codes_postaux ?? []}
-        initialVue={initialVue}
-      />
+      <EstimationDashboardClient agencyName={agency.name} />
     </Suspense>
   );
 }

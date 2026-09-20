@@ -26,10 +26,9 @@ import { libelleEtage, VALEURS_ETAGE } from '@/lib/estimation/etages';
 /**
  * Parcours d'estimation public (priimo.fr/estimation).
  *
- * Même ossature que le widget des agences : progression explicite, panneau de
- * contexte qui se remplit à mesure, étapes de calcul lisibles et trace
- * conservée dans la méthode. Seules la marque et la mention de consentement
- * changent — ici, c'est Priimo qui recontacte, avec l'agence de secteur.
+ * Progression explicite, panneau de contexte qui se remplit à mesure,
+ * étapes de calcul lisibles et trace conservée dans la méthode. Priimo
+ * recontacte, avec l'agence de secteur.
  */
 
 type Step =

@@ -380,14 +380,14 @@ export const ESTIMATION_PAGE: FeaturePageContent = {
   meta: {
     title: 'Estimation',
     description:
-      'Comparables DVF réactualisés à l’indice Notaires-INSEE, grille de caractéristiques, rapport partageable et widget de site d’agence.',
+      'Comparables DVF réactualisés à l’indice Notaires-INSEE, grille de caractéristiques et rapport partageable.',
     path: '/fonctionnalites/estimation',
   },
   label: 'Estimation',
   h1: 'Le vendeur voit d’où vient le chiffre.',
   mecanisme: [
     'Les comparables viennent des ventes DVF. Ils sont réactualisés avec l’indice Notaires-INSEE. La grille de caractéristiques compare le bien au secteur — pas à une moyenne nationale.',
-    'Le rapport emporte le contexte : urbanisme, risques, copropriété, statistiques INSEE. Le propriétaire le reçoit. Sur le site de l’agence, le widget collecte le bien avec le consentement de la personne.',
+    'Le rapport emporte le contexte : urbanisme, risques, copropriété, statistiques INSEE. Le propriétaire le reçoit.',
   ],
   benefits: [
     {
@@ -415,15 +415,6 @@ export const ESTIMATION_PAGE: FeaturePageContent = {
         file: 'estimation-rapport.png',
         alt: 'Rapport d’estimation Priimo, vue propriétaire.',
         shot: 'Desktop · même estimation · onglet Rapport · cadrer la première écran du rapport (fourchette + un bloc contexte urbanisme ou risques).',
-      },
-    },
-    {
-      title: 'Le site de l’agence peut prendre le bien — avec un consentement, pas une pige.',
-      body: 'Le widget s’installe sur le site. La personne décrit le bien et consent à être recontactée. C’est la voie qui reste ouverte quand le démarchage téléphonique des particuliers sans consentement s’arrête. Le directeur pose le snippet ; les demandes arrivent dans Priimo.',
-      capture: {
-        file: 'estimation-widget-site.png',
-        alt: 'Réglage du widget d’estimation à poser sur le site de l’agence.',
-        shot: 'Desktop · /dashboard/estimation?vue=widget (directeur) · cadrer l’écran d’installation du snippet, pas une page marketing abstraite.',
       },
     },
   ],

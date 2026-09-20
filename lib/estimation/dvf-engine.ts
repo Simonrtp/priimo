@@ -3,9 +3,9 @@
  * Chaque étape renvoyée correspond à un vrai comptage / vrai traitement.
  * Coefficients partagés avec lib/estimation.ts (funnel public).
  *
- * Le moteur sert deux appelants : le dashboard (agence connectée) et le widget
- * public embarqué sur le site d'une agence. Quand `agencyId` est null, aucune
- * donnée interne d'agence n'est lue ni renvoyée.
+ * Le moteur sert le dashboard (agence connectée) et le parcours public
+ * /estimation. Quand `agencyId` est null, aucune donnée interne d'agence
+ * n'est lue ni renvoyée.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -74,8 +74,8 @@ export type DvfEngineInput = {
   dpeClass: string | null;
   features: EstimationFeatureKey[];
   /**
-   * Critères complémentaires du parcours agent. Facultatifs : le widget public
-   * et le funnel priimo.fr ne les collectent pas.
+   * Critères complémentaires du parcours agent. Facultatifs : le funnel
+   * priimo.fr ne les collecte pas.
    */
   extras?: EstimationExtras | null;
 };

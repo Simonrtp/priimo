@@ -40,7 +40,7 @@ export function lectureOuverte(_agency: AgencyBilling | null | undefined): true 
 }
 
 /**
- * Livraison du lundi, estimation, widget, captation.
+ * Livraison du lundi, estimation, captation.
  * Fermé en attente, après essai sans paiement, impayé ou résilié.
  */
 export function productionOuverte(

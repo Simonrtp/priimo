@@ -5,6 +5,11 @@ import { lireImageModele } from '@/lib/rapport/image-modele';
 import { contenuDepuisJson, estDisposition } from '@/lib/rapport/modele';
 import { extensionMime, mapPageBibliotheque } from '@/lib/rapport/pages';
 import { cheminBiblio, deposerRapport, signerCheminRapport, supprimerRapport } from '@/lib/rapport/storage';
+import type { AgencyRapportPageRow } from '@/types/database';
+
+type PageUpdate = Partial<
+  Pick<AgencyRapportPageRow, 'nom' | 'description' | 'disposition' | 'contenu' | 'storage_path' | 'mime_type'>
+>;
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -26,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .maybeSingle();
   if (!current) return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
 
-  const update: Record<string, unknown> = {};
+  const update: PageUpdate = {};
   let nextPath = current.storage_path as string | null;
   let nextMime = current.mime_type as string | null;
   let imageChangee = false;
@@ -120,7 +125,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
 }
 
-function appliquerChamps(update: Record<string, unknown>, body: Record<string, unknown>, kind: string) {
+function appliquerChamps(update: PageUpdate, body: Record<string, unknown>, kind: string) {
   if (typeof body.nom === 'string') {
     const nom = body.nom.trim().slice(0, 80);
     if (nom) update.nom = nom;

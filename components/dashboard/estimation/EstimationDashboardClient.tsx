@@ -3,10 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/hooks/useUser';
-import type { EstimationVue } from '@/lib/estimation/vue';
-import { replaceEstimationVueUrl } from '@/lib/estimation/vue';
-import EstimationViewSwitch from '@/components/dashboard/estimation/EstimationViewSwitch';
-import SectionWidget from '@/components/dashboard/settings/SectionWidget';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import type { EstimationObjet } from '@/lib/estimation/objet';
@@ -15,17 +11,13 @@ import EstimationAtelier from './atelier/EstimationAtelier';
 
 export default function EstimationDashboardClient({
   agencyName,
-  initialVue,
 }: {
   agencyName: string;
-  sectorPostcodes: string[];
-  initialVue: EstimationVue;
 }) {
   const { profile, isDirector } = useUser();
   const router = useRouter();
   const params = useSearchParams();
   const id = params.get('id');
-  const [vue, setVue] = useState<EstimationVue>(initialVue);
   const [rows, setRows] = useState<EstimationResume[] | null>(null);
   const [courante, setCourante] = useState<EstimationObjet | null>(null);
   const [fiche, setFiche] = useState<'idle' | 'load' | 'ready'>(id ? 'load' : 'idle');
@@ -109,23 +101,9 @@ export default function EstimationDashboardClient({
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
-      <PageHeader
-        title="Estimation"
-        secondaryAction={
-          <EstimationViewSwitch
-            value={vue}
-            showWidget={isDirector}
-            onChange={(v) => {
-              setVue(v);
-              replaceEstimationVueUrl(v);
-            }}
-          />
-        }
-      />
+      <PageHeader title="Estimation" />
 
-      {vue === 'widget' && isDirector ? (
-        <SectionWidget />
-      ) : id && fiche === 'load' ? (
+      {id && fiche === 'load' ? (
         <p className="text-[14px] text-text-muted">Chargement de l’estimation…</p>
       ) : courante ? (
         <EstimationAtelier

@@ -330,8 +330,8 @@ async function TodayContent({
       }
     }),
     timed('fetchDemandesEstimation', async () => {
-      // Demandes abouties sur le site de l'agence (widget). Sept jours : au-delà,
-      // le rappel n'est plus une urgence du jour mais une relance ordinaire.
+      // Demandes d'estimation abouties. Sept jours : au-delà, le rappel
+      // n'est plus une urgence du jour mais une relance ordinaire.
       try {
         const since = new Date();
         since.setDate(since.getDate() - 7);

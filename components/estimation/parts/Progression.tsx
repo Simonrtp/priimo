@@ -6,7 +6,7 @@
  * Le rang ET le total sont écrits en toutes lettres : « Étape 3 sur 8 ».
  * Une barre seule ne dit pas combien il reste à faire.
  *
- * `tone="accent"` : couleur d’agence / widget (--est-accent).
+ * `tone="accent"` : couleur d’agence (--est-accent).
  * `tone="neutral"` : barre sobre (dashboard Priimo — pas d’orange).
  */
 export default function Progression({

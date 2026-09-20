@@ -28,7 +28,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
   if (rawTab === 'widget') {
-    redirect('/dashboard/estimation?vue=widget');
+    redirect('/dashboard/estimation');
   }
   // Les secteurs se dessinent depuis l'Accueil : les anciens liens y renvoient.
   if (rawTab === 'secteurs') {

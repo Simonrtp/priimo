@@ -107,7 +107,7 @@ function SearchField({
             ? 'min-h-11 rounded-full bg-white px-3.5 shadow-sm focus-within:ring-2 focus-within:ring-white/35 md:h-9 md:min-h-0'
             : map
               ? 'min-h-[44px] px-1'
-              : 'rounded-xl px-3.5 py-2 assistant-search-field'
+              : 'min-h-11 rounded-xl px-3.5 py-2 assistant-search-field'
         }`}
       >
         <button

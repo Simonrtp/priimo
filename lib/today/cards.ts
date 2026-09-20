@@ -477,7 +477,7 @@ function cartesDemandePortail(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Demandes d'estimation venues du site de l'agence                           */
+/* Demandes d'estimation abouties                                             */
 /* -------------------------------------------------------------------------- */
 
 export type TodayDemandeEstimation = {
@@ -614,7 +614,7 @@ export interface BuildTodayInput {
   rendezVous?: readonly TodayRendezVous[];
   /** Demandes entrantes portail (24–72 h). */
   demandesPortail?: readonly TodayDemandePortail[];
-  /** Estimations abouties sur le site de l'agence (widget). */
+  /** Estimations abouties à rappeler. */
   demandesEstimation?: readonly TodayDemandeEstimation[];
   /** Avis de valeur ouverts par le destinataire. */
   estimationsVuees?: readonly TodayEstimationVuee[];
