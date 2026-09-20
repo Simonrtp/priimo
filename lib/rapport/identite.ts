@@ -3,6 +3,8 @@
  * Aucun libellé orphelin : une ligne vide n’existe pas.
  */
 
+export const COULEUR_PRIIIMO = '#E8743C';
+
 export type IdentiteAgenceRapport = {
   nom: string;
   nomCommercial: string;
@@ -11,7 +13,15 @@ export type IdentiteAgenceRapport = {
   email: string | null;
   siteWeb: string | null;
   logoUrl: string | null;
+  couleurPrincipale: string;
 };
+
+/** Un hex #RRGGBB, sinon l’orange Priimo. */
+export function normaliserCouleurPrincipale(raw: string | null | undefined): string {
+  const s = raw?.trim() ?? '';
+  if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s.toUpperCase();
+  return COULEUR_PRIIIMO;
+}
 
 export type IdentiteAgentRapport = {
   nom: string | null;

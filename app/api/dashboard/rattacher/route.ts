@@ -1,0 +1,61 @@
+import { NextResponse } from 'next/server';
+import { getServerUser } from '@/lib/auth/getServerUser';
+import { viewerFromProfile } from '@/lib/agency/visibility';
+import { visibleBiensFor, visibleContactsFor, visibleLeadsFor } from '@/lib/agency/scope-records';
+import { fetchContactsSafe } from '@/lib/queries/contacts';
+import { fetchBiensSafe } from '@/lib/queries/biens';
+import { fetchLeads } from '@/lib/queries/leads';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { RattacherItem } from '@/lib/notes/rattacher-catalogue';
+
+export const runtime = 'nodejs';
+
+const MAX = 400;
+
+export async function GET() {
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const viewer = viewerFromProfile(profile);
+  const [contacts, biens, leads] = await Promise.all([
+    fetchContactsSafe(supabase),
+    fetchBiensSafe(supabase),
+    fetchLeads(supabase).catch(() => []),
+  ]);
+
+  const contactItems: RattacherItem[] = visibleContactsFor(viewer, contacts)
+    .slice(0, MAX)
+    .map((c) => ({
+      id: c.id,
+      kind: 'contact',
+      label: c.fullName,
+      subtitle: [c.phone, c.address].filter(Boolean).join(' · ') || null,
+    }));
+
+  const bienItems: RattacherItem[] = visibleBiensFor(viewer, biens)
+    .slice(0, MAX)
+    .map((b) => ({
+      id: b.id,
+      kind: 'bien',
+      label: b.address,
+      subtitle: [b.city, b.proprietaireName].filter(Boolean).join(' · ') || null,
+    }));
+
+  const leadItems: RattacherItem[] = visibleLeadsFor(viewer, leads)
+    .slice(0, MAX)
+    .map((l) => ({
+      id: l.id,
+      kind: 'lead',
+      label: l.ownerName?.trim() || l.address,
+      subtitle: l.ownerName?.trim() ? l.address : [l.city, l.postalCode].filter(Boolean).join(' ') || null,
+    }));
+
+  return NextResponse.json({
+    contact: contactItems,
+    bien: bienItems,
+    lead: leadItems,
+  });
+}

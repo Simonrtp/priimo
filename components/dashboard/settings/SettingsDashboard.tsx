@@ -181,6 +181,7 @@ function SectionAgency() {
   const [name, setName] = useState(agency.name);
   const [nomCommercial, setNomCommercial] = useState(agency.nom_commercial ?? '');
   const [siteWeb, setSiteWeb] = useState(agency.site_web ?? '');
+  const [couleurPrincipale, setCouleurPrincipale] = useState(agency.couleur_principale ?? '#E8743C');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(() =>
@@ -254,6 +255,9 @@ function SectionAgency() {
       name: name.trim(),
       nom_commercial: nomCommercial.trim() || null,
       site_web: siteWeb.trim() || null,
+      couleur_principale: /^#[0-9A-Fa-f]{6}$/.test(couleurPrincipale.trim())
+        ? couleurPrincipale.trim().toUpperCase()
+        : '#E8743C',
       address: addressLabel,
       phone: phone.trim() || null,
       email: email.trim() || null,
@@ -269,8 +273,8 @@ function SectionAgency() {
       ecrire: async () => {
         const supabase = createSupabaseBrowserClient();
         let { error } = await supabase.from('agencies').update(payload).eq('id', agency.id);
-        if (error && /nom_commercial|site_web/.test(error.message)) {
-          const { nom_commercial: _n, site_web: _s, ...sansIdentite } = payload;
+        if (error && /nom_commercial|site_web|couleur_principale/.test(error.message)) {
+          const { nom_commercial: _n, site_web: _s, couleur_principale: _c, ...sansIdentite } = payload;
           ({ error } = await supabase.from('agencies').update(sansIdentite).eq('id', agency.id));
         }
         if (error && /frequence_passage/.test(error.message)) {
@@ -430,6 +434,30 @@ function SectionAgency() {
             onChange={(e) => setSiteWeb(e.target.value)}
             placeholder="https://www.agence.fr"
           />
+        </div>
+        <div>
+          <label htmlFor="agency-couleur" className={labelClass}>
+            Couleur principale
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="agency-couleur"
+              type="color"
+              className="size-11 shrink-0 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
+              value={/^#[0-9A-Fa-f]{6}$/.test(couleurPrincipale) ? couleurPrincipale : '#E8743C'}
+              onChange={(e) => setCouleurPrincipale(e.target.value.toUpperCase())}
+            />
+            <input
+              aria-label="Couleur principale en hexadécimal"
+              className={`${inputClass} font-mono tabular-nums`}
+              value={couleurPrincipale}
+              onChange={(e) => setCouleurPrincipale(e.target.value)}
+              placeholder="#E8743C"
+            />
+          </div>
+          <p className="mt-1.5 text-pretty text-[12.5px] text-mute">
+            Accent du rapport. Orange Priimo si le champ est vide ou invalide.
+          </p>
         </div>
 
         <p className="flex items-center gap-2 text-[13px] text-mute">

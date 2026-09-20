@@ -1,27 +1,16 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Search } from 'lucide-react';
 import type { NoteLienEntite } from '@/types/contact';
-import type { SearchHit } from '@/lib/assistant/search';
-import { SEARCH_MIN_LEN } from '@/lib/assistant/search';
-import { normalizeTexte } from '@/lib/assistant/normalize';
 import { banFeatureToSelectedAddress, searchBanAddresses } from '@/lib/ban';
-import { TextInput } from '@/components/dashboard/workspace/Field';
-
-const KIND_TO_ENTITE: Partial<Record<SearchHit['kind'], NoteLienEntite>> = {
-  contact: 'contact',
-  bien: 'bien',
-  lead: 'lead',
-};
-
-const KIND_LABEL: Record<string, string> = {
-  contact: 'Contact',
-  bien: 'Bien',
-  lead: 'Prospect',
-  immeuble: 'Nouvel immeuble',
-};
-
-const BAN_MIN_LEN = 3;
+import {
+  filtrerCatalogue,
+  RATTACHER_CARTES,
+  type RattacherItem,
+  type RattacherKind,
+} from '@/lib/notes/rattacher-catalogue';
 
 export type NoteLinkPick = {
   entiteType: NoteLienEntite;
@@ -39,49 +28,89 @@ type BanHit = {
   longitude: number;
 };
 
+const BAN_MIN_LEN = 3;
+const MENU_GAP = 6;
+
+const PLACEHOLDER: Record<RattacherKind, string> = {
+  contact: 'Rechercher un contact…',
+  bien: 'Rechercher un bien…',
+  lead: 'Rechercher un prospect…',
+  immeuble: 'Rechercher une adresse…',
+};
+
+const LIBELLE_VIDE: Record<RattacherKind, string> = {
+  contact: 'Aucun contact',
+  bien: 'Aucun bien',
+  lead: 'Aucun prospect',
+  immeuble: 'Tapez une adresse pour rattacher un immeuble.',
+};
+
 export default function NoteEntitySearch({
   onPick,
   disabled = false,
   excludeIds,
+  id,
 }: {
   onPick: (pick: NoteLinkPick) => void;
   disabled?: boolean;
   excludeIds?: ReadonlySet<string>;
+  id?: string;
 }) {
-  const inputId = useId();
   const listId = useId();
+  const searchId = useId();
+  const [kind, setKind] = useState<RattacherKind>('contact');
+  const [catalogue, setCatalogue] = useState<Record<'contact' | 'bien' | 'lead', RattacherItem[]>>({
+    contact: [],
+    bien: [],
+    lead: [],
+  });
+  const [charge, setCharge] = useState(true);
   const [query, setQuery] = useState('');
-  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [open, setOpen] = useState(false);
   const [banHits, setBanHits] = useState<BanHit[]>([]);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(
+    null,
+  );
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let cancel = false;
+    void fetch('/api/dashboard/rattacher')
+      .then((r) => r.json())
+      .then((data: { contact?: RattacherItem[]; bien?: RattacherItem[]; lead?: RattacherItem[] }) => {
+        if (cancel) return;
+        setCatalogue({
+          contact: data.contact ?? [],
+          bien: data.bien ?? [],
+          lead: data.lead ?? [],
+        });
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancel) setCharge(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (kind !== 'immeuble') {
+      setBanHits([]);
+      return;
+    }
     const q = query.trim();
-    if (q.length < SEARCH_MIN_LEN) {
-      setHits([]);
+    if (q.length < BAN_MIN_LEN) {
       setBanHits([]);
       return;
     }
     const ac = new AbortController();
     const t = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/assistant/search?q=${encodeURIComponent(q)}`, {
-            signal: ac.signal,
-          });
-          const data = (await res.json()) as { hits?: SearchHit[] };
-          const next = (data.hits ?? []).filter((h) => KIND_TO_ENTITE[h.kind]);
-          setHits(next.slice(0, 8));
-        } catch {
-          if (!ac.signal.aborted) setHits([]);
-        }
-      })();
-      if (q.length < BAN_MIN_LEN) {
-        setBanHits([]);
-        return;
-      }
-      void (async () => {
-        try {
-          const features = await searchBanAddresses(q, 5, undefined, ac.signal);
+      void searchBanAddresses(q, 8, undefined, ac.signal)
+        .then((features) => {
           setBanHits(
             features.flatMap((feature) => {
               const selected = banFeatureToSelectedAddress(feature);
@@ -96,113 +125,269 @@ export default function NoteEntitySearch({
               ];
             }),
           );
-        } catch {
+        })
+        .catch(() => {
           if (!ac.signal.aborted) setBanHits([]);
-        }
-      })();
+        });
     }, 220);
     return () => {
       window.clearTimeout(t);
       ac.abort();
     };
-  }, [query]);
+  }, [kind, query]);
 
-  const visibleAgency = hits.filter((h) => !excludeIds?.has(`${KIND_TO_ENTITE[h.kind]}:${h.id}`));
-  const knownAddresses = new Set(
-    hits.flatMap((h) => [normalizeTexte(h.label), normalizeTexte(h.subtitle)].filter(Boolean)),
-  );
-  const visibleBan = banHits.filter((b) => {
-    if (excludeIds?.has(`immeuble:${b.id}`)) return false;
-    return !knownAddresses.has(normalizeTexte(b.label));
-  });
-  const hasResults = visibleAgency.length > 0 || visibleBan.length > 0;
+  const tous = useMemo(() => {
+    if (kind === 'immeuble') {
+      return banHits
+        .filter((b) => !excludeIds?.has(`immeuble:${b.id}`))
+        .map((b) => ({
+          id: b.id,
+          kind: 'immeuble' as const,
+          label: b.label,
+          subtitle: 'Immeuble',
+        }));
+    }
+    return catalogue[kind].filter((item) => !excludeIds?.has(`${item.kind}:${item.id}`));
+  }, [banHits, catalogue, excludeIds, kind]);
 
-  function pickAgency(hit: SearchHit) {
-    const entiteType = KIND_TO_ENTITE[hit.kind];
-    if (!entiteType) return;
-    onPick({
-      entiteType,
-      entiteId: hit.id,
-      label: hit.label,
-      subtitle: hit.subtitle || KIND_LABEL[hit.kind] || null,
-    });
+  const filtres = useMemo(() => filtrerCatalogue(tous, query), [tous, query]);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    function place() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const r = trigger.getBoundingClientRect();
+      const width = Math.max(r.width, 260);
+      const spaceBelow = window.innerHeight - r.bottom - MENU_GAP - 8;
+      setMenuPos({
+        top: r.bottom + MENU_GAP,
+        left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
+        width,
+        maxHeight: Math.min(320, Math.max(160, spaceBelow)),
+      });
+    }
+    place();
+    const raf = window.requestAnimationFrame(place);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, filtres.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      close();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [close, open]);
+
+  function pickItem(item: RattacherItem) {
+    if (kind === 'immeuble') {
+      const ban = banHits.find((b) => b.id === item.id);
+      onPick({
+        entiteType: 'immeuble',
+        entiteId: item.id,
+        label: item.label,
+        subtitle: 'Immeuble',
+        latitude: ban?.latitude,
+        longitude: ban?.longitude,
+      });
+    } else {
+      const carte = RATTACHER_CARTES.find((c) => c.id === kind);
+      if (!carte) return;
+      onPick({
+        entiteType: carte.entite,
+        entiteId: item.id,
+        label: item.label,
+        subtitle: item.subtitle,
+      });
+    }
     setQuery('');
-    setHits([]);
-    setBanHits([]);
-  }
-
-  function pickBan(hit: BanHit) {
-    onPick({
-      entiteType: 'immeuble',
-      entiteId: hit.id,
-      label: hit.label,
-      subtitle: KIND_LABEL.immeuble,
-      latitude: hit.latitude,
-      longitude: hit.longitude,
-    });
-    setQuery('');
-    setHits([]);
-    setBanHits([]);
+    setOpen(false);
   }
 
   return (
-    <div>
-      <label htmlFor={inputId} className="mb-1.5 block font-medium text-text-muted" style={{ fontSize: 12.5 }}>
-        Rattacher à un contact, un bien, un prospect ou un immeuble
-      </label>
-      <TextInput
-        id={inputId}
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Tapez un nom, une adresse…"
-        autoComplete="off"
-        disabled={disabled}
-        aria-controls={listId}
-        aria-expanded={hasResults}
-      />
-      {hasResults ? (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-label="Résultats"
-          className="mt-2 overflow-hidden rounded-xl border border-black/[0.08]"
+    <div ref={rootRef} className="flex flex-col gap-3">
+      <div>
+        <p className="mb-1.5 font-medium text-text-muted" style={{ fontSize: 12.5 }}>
+          Rattacher
+        </p>
+        <div
+          role="tablist"
+          aria-label="Type de fiche"
+          className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
         >
-          {visibleAgency.map((hit) => {
-            const entiteType = KIND_TO_ENTITE[hit.kind];
-            if (!entiteType) return null;
+          {RATTACHER_CARTES.map((carte) => {
+            const actif = carte.id === kind;
             return (
-              <li key={`${hit.kind}-${hit.id}`} role="option">
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => pickAgency(hit)}
-                  className="flex w-full flex-col items-start px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03] focus-visible:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
-                >
-                  <span className="text-[13.5px] font-medium text-text">{hit.label}</span>
-                  <span className="text-[12px] text-text-muted">
-                    {KIND_LABEL[hit.kind]}
-                    {hit.subtitle ? ` · ${hit.subtitle}` : ''}
-                  </span>
-                </button>
-              </li>
+              <button
+                key={carte.id}
+                type="button"
+                role="tab"
+                aria-selected={actif}
+                disabled={disabled}
+                onClick={() => {
+                  setKind(carte.id);
+                  setQuery('');
+                }}
+                className={`min-h-9 flex-1 rounded-[12px] px-2 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
+                  actif
+                    ? 'bg-surface text-text-strong shadow-clay-sm'
+                    : 'text-text-muted hover:text-text-strong'
+                }`}
+              >
+                {carte.label}
+              </button>
             );
           })}
-          {visibleBan.map((hit) => (
-            <li key={`immeuble-${hit.id}`} role="option">
-              <button
-                type="button"
+        </div>
+      </div>
+
+      <button
+        ref={triggerRef}
+        type="button"
+        id={id}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        onClick={() => !disabled && setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2.5 text-left text-[14px] text-text outline-none hover:border-black/[0.14] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="truncate text-text-muted">{PLACEHOLDER[kind]}</span>
+        <ChevronDown
+          size={16}
+          strokeWidth={2}
+          aria-hidden
+          className={`shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && menuPos && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={panelRef}
+              style={{
+                top: menuPos.top,
+                left: menuPos.left,
+                width: menuPos.width,
+                maxHeight: menuPos.maxHeight,
+              }}
+              className="fixed z-[230] flex flex-col overflow-hidden rounded-xl border border-black/[0.10] bg-surface shadow-clay-lg"
+            >
+              <div className="flex shrink-0 items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
+                <Search size={15} strokeWidth={2} className="shrink-0 text-text-muted" aria-hidden />
+                <input
+                  ref={searchRef}
+                  id={searchId}
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={PLACEHOLDER[kind]}
+                  aria-label={PLACEHOLDER[kind]}
+                  autoComplete="off"
+                  className="min-w-0 flex-1 bg-transparent text-[14px] text-text outline-none placeholder:text-text-subtle"
+                />
+              </div>
+              <ListeItems
+                id={listId}
+                items={filtres}
+                vide={LIBELLE_VIDE[kind]}
+                onPick={pickItem}
                 disabled={disabled}
-                onClick={() => pickBan(hit)}
-                className="flex w-full flex-col items-start px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03] focus-visible:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
-              >
-                <span className="text-[13.5px] font-medium text-text">{hit.label}</span>
-                <span className="text-[12px] text-text-muted">{KIND_LABEL.immeuble}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
+
+      <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-surface">
+        {charge && kind !== 'immeuble' ? (
+          <div className="h-28 animate-pulse bg-black/[0.04]" aria-hidden />
+        ) : (
+          <ListeItems
+            id={`${listId}-tous`}
+            items={query.trim() ? filtres : tous}
+            vide={LIBELLE_VIDE[kind]}
+            onPick={pickItem}
+            disabled={disabled}
+            maxHeightClass="max-h-64"
+          />
+        )}
+      </div>
     </div>
+  );
+}
+
+function ListeItems({
+  id,
+  items,
+  vide,
+  onPick,
+  disabled,
+  maxHeightClass = 'max-h-full',
+}: {
+  id: string;
+  items: RattacherItem[];
+  vide: string;
+  onPick: (item: RattacherItem) => void;
+  disabled: boolean;
+  maxHeightClass?: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <p className="px-3 py-3 text-pretty text-[13.5px] text-text-muted">{vide}</p>
+    );
+  }
+  return (
+    <ul id={id} role="listbox" aria-label="Fiches" className={`overflow-y-auto p-1 ${maxHeightClass}`}>
+      {items.map((item) => (
+        <li key={`${item.kind}-${item.id}`} role="option">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onPick(item)}
+            className="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
+          >
+            <span className="text-[13.5px] font-medium text-text">{item.label}</span>
+            {item.subtitle ? (
+              <span className="text-[12px] text-text-muted">{item.subtitle}</span>
+            ) : null}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

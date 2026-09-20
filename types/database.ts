@@ -55,6 +55,8 @@ export type AgencyRow = {
   /** Nom commercial du rapport. Null = `name`. */
   nom_commercial?: string | null;
   site_web?: string | null;
+  /** Couleur d'accent du rapport (#RRGGBB). Défaut #E8743C. */
+  couleur_principale?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -241,6 +243,7 @@ export type AgencyInsert = {
   prix_base?: number | null;
   prix_siege_supplementaire?: number | null;
   demande_decision?: DemandeDecision | null;
+  couleur_principale?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -691,9 +694,10 @@ export type AgencyEstimationInsert = {
   updated_at?: string;
 };
 
-export type AgencyRapportPageKind = 'pdf' | 'image';
+export type AgencyRapportPageKind = 'pdf' | 'image' | 'modele';
 export type EstimationRapportPageSource = 'bibliotheque' | 'import' | 'generee';
-export type EstimationRapportPageKind = 'pdf' | 'image' | 'generee';
+export type EstimationRapportPageKind = 'pdf' | 'image' | 'generee' | 'modele';
+export type DispositionPageAgence = 'texte' | 'texte_image' | 'image' | 'points';
 
 export type AgencyRapportPageRow = {
   id: string;
@@ -701,10 +705,12 @@ export type AgencyRapportPageRow = {
   nom: string;
   description: string | null;
   kind: AgencyRapportPageKind;
-  storage_path: string;
-  mime_type: string;
+  storage_path: string | null;
+  mime_type: string | null;
   page_count: number;
   position: number;
+  disposition?: DispositionPageAgence | null;
+  contenu?: Record<string, unknown>;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -716,10 +722,12 @@ export type AgencyRapportPageInsert = {
   nom: string;
   description?: string | null;
   kind: AgencyRapportPageKind;
-  storage_path: string;
-  mime_type: string;
+  storage_path?: string | null;
+  mime_type?: string | null;
   page_count?: number;
   position?: number;
+  disposition?: DispositionPageAgence | null;
+  contenu?: Record<string, unknown>;
   created_by?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -737,6 +745,8 @@ export type EstimationRapportPageRow = {
   mime_type: string | null;
   page_index: number;
   position: number;
+  disposition?: DispositionPageAgence | null;
+  contenu?: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -752,6 +762,8 @@ export type EstimationRapportPageInsert = {
   mime_type?: string | null;
   page_index?: number;
   position?: number;
+  disposition?: DispositionPageAgence | null;
+  contenu?: Record<string, unknown> | null;
   created_at?: string;
 };
 

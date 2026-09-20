@@ -22,7 +22,10 @@ const AGENCIES_SELECT_BASE =
 /** Colonnes 20260930 — logo et identité de rapport. */
 const AGENCIES_SELECT_EXTRAS = 'logo_path, nom_commercial, site_web';
 
-const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}`;
+/** Colonne 20260931 — accent du gabarit. */
+const AGENCIES_SELECT_COULEUR = 'couleur_principale';
+
+const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}`;
 
 const PROFILE_SELECT_BASE =
   'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at';
@@ -81,6 +84,11 @@ async function getServerUserUncached(): Promise<ServerUser> {
     const withBilling = await supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds);
     if (withBilling.error) {
       console.error('[getServerUser] agencies.select', withBilling.error.message);
+      const sansCouleur = await supabase
+        .from('agencies')
+        .select(`${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}`)
+        .in('id', agencyIds);
+      if (!sansCouleur.error) return sansCouleur;
       const sansRapport = await supabase
         .from('agencies')
         .select(AGENCIES_SELECT_BASE)

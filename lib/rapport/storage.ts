@@ -46,7 +46,14 @@ export async function deposerRapport(
   return { error: error?.message ?? null };
 }
 
-export async function supprimerRapport(path: string): Promise<void> {
+export async function copierRapport(from: string, to: string): Promise<{ error: string | null }> {
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.storage.from(RAPPORT_BUCKET).copy(from, to);
+  return { error: error?.message ?? null };
+}
+
+export async function supprimerRapport(path: string | null | undefined): Promise<void> {
+  if (!path?.trim()) return;
   const admin = createSupabaseAdminClient();
   await admin.storage.from(RAPPORT_BUCKET).remove([path]);
 }

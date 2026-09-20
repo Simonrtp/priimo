@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { IdentiteAgenceRapport, IdentiteAgentRapport, PiedRapport } from '@/lib/rapport/identite';
-import { construirePied, type PiedBienRapport } from '@/lib/rapport/identite';
+import { construirePied, normaliserCouleurPrincipale, type PiedBienRapport } from '@/lib/rapport/identite';
 
 /**
  * Gabarit unique de page paysage. En-tête logo, pied agent / bien / date / page.
@@ -24,13 +24,14 @@ export default function PageRapport({
   children?: ReactNode;
 }) {
   const pied = construirePied({ agent, bien, dateIso, page, pages });
+  const accent = normaliserCouleurPrincipale(agence.couleurPrincipale);
   return (
     <article
       className="relative flex aspect-[297/210] w-full flex-col overflow-hidden rounded-clay border border-black/[0.08] bg-white shadow-clay-sm"
       aria-label={`Page ${page} sur ${Math.max(pages, 1)}`}
     >
       <header className="flex h-10 shrink-0 items-center border-b border-black/[0.06] px-4">
-        <span className="absolute inset-x-0 top-0 h-0.5 bg-[#E8743C]" aria-hidden />
+        <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: accent }} aria-hidden />
         {agence.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={agence.logoUrl} alt="" className="h-7 max-w-[10rem] object-contain object-left" />

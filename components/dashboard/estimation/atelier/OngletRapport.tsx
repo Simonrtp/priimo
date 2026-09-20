@@ -23,10 +23,19 @@ import type { CSSProperties } from 'react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import PageRapport from '@/components/rapport/PageRapport';
+import EditeurPageAgence from '@/components/dashboard/settings/EditeurPageAgence';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { useUser } from '@/lib/hooks/useUser';
 import type { EstimationObjet } from '@/lib/estimation/objet';
-import type { IdentiteAgenceRapport, IdentiteAgentRapport, PiedBienRapport } from '@/lib/rapport/identite';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
+import ContenuPageModele from '@/components/rapport/ContenuPageModele';
+import {
+  normaliserCouleurPrincipale,
+  type IdentiteAgenceRapport,
+  type IdentiteAgentRapport,
+  type PiedBienRapport,
+} from '@/lib/rapport/identite';
+import { estDisposition } from '@/lib/rapport/modele';
 
 export default function OngletRapport({
   estimation,
@@ -46,7 +55,9 @@ export default function OngletRapport({
   const [pending, setPending] = useState<PageRapportComposee | null>(null);
   const [emailTo, setEmailTo] = useState('');
   const [envoi, setEnvoi] = useState(false);
+  const [creerPage, setCreerPage] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  const { user, profile, agency } = useUser();
 
   const charger = useCallback(async () => {
     setChargement(true);
@@ -221,17 +232,22 @@ export default function OngletRapport({
       <input
         ref={importRef}
         type="file"
-        accept="application/pdf,image/jpeg,image/png,image/webp"
+        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
         className="sr-only"
         onChange={(e) => void importer(e.target.files?.[0])}
       />
 
       {biblioOuverte ? (
         <div className="rounded-clay border border-black/[0.06] bg-surface p-3">
-          <p className="text-[13px] font-semibold text-text-strong">Pages de l’agence</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[13px] font-semibold text-text-strong">Pages de l’agence</p>
+            <WorkspaceButton type="button" variant="secondary" onClick={() => setCreerPage(true)}>
+              Créer une page
+            </WorkspaceButton>
+          </div>
           {biblio.length === 0 ? (
             <p className="mt-2 text-pretty text-[13px] text-text-muted">
-              Aucune page en bibliothèque. Un directeur peut en déposer dans Paramètres → Mon agence.
+              Aucune page en bibliothèque. Créez-en une ici, ou importez un PDF.
             </p>
           ) : (
             <ul className="mt-2 flex flex-col gap-1.5">
@@ -291,7 +307,7 @@ export default function OngletRapport({
               page={pages.length === 0 ? 1 : index + 1}
               pages={Math.max(pages.length, 1)}
             >
-              <ApercuPage page={courante} />
+              <ApercuPage page={courante} accent={normaliserCouleurPrincipale(agence.couleurPrincipale)} />
             </PageRapport>
           ) : (
             <div className="aspect-[297/210] animate-pulse rounded-clay bg-black/[0.04]" aria-hidden />
@@ -345,6 +361,21 @@ export default function OngletRapport({
         </div>
       </div>
 
+      <EditeurPageAgence
+        key={creerPage ? 'rapport-new' : 'rapport-ferme'}
+        open={creerPage}
+        page={null}
+        agency={agency}
+        profile={profile}
+        loginEmail={user.email}
+        logoUrl={agence?.logoUrl ?? null}
+        onClose={() => setCreerPage(false)}
+        onSaved={(saved) => {
+          setBiblio((prev) => [...prev, saved]);
+          setCreerPage(false);
+        }}
+      />
+
       <ConfirmModal
         open={pending !== null}
         onClose={() => setPending(null)}
@@ -358,7 +389,7 @@ export default function OngletRapport({
   );
 }
 
-function ApercuPage({ page }: { page: PageRapportComposee | null }) {
+function ApercuPage({ page, accent }: { page: PageRapportComposee | null; accent: string }) {
   if (!page) {
     return (
       <div className="flex h-full items-center justify-center px-6">
@@ -366,6 +397,16 @@ function ApercuPage({ page }: { page: PageRapportComposee | null }) {
           Le gabarit est prêt. Ajoutez une page pour l’aperçu.
         </p>
       </div>
+    );
+  }
+  if (page.kind === 'modele' && page.disposition && estDisposition(page.disposition)) {
+    return (
+      <ContenuPageModele
+        disposition={page.disposition}
+        contenu={page.contenu ?? {}}
+        imageUrl={page.previewUrl}
+        accent={accent}
+      />
     );
   }
   if (page.kind === 'image' && page.previewUrl) {

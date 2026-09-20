@@ -9,12 +9,16 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import {
   construirePied,
+  normaliserCouleurPrincipale,
   type IdentiteAgenceRapport,
   type IdentiteAgentRapport,
   type PiedBienRapport,
   type PiedRapport,
 } from '@/lib/rapport/identite';
+import { estDisposition } from '@/lib/rapport/modele';
 import type { PageRapportComposee } from '@/lib/rapport/pages';
+import { dessinerPageModele } from '@/lib/rapport/pdf-modele';
+import { hexVersRgb, latin1 } from '@/lib/rapport/pdf-texte';
 import { telechargerRapport } from '@/lib/rapport/storage';
 
 export const PAGE_W = 841.89;
@@ -22,15 +26,19 @@ export const PAGE_H = 595.28;
 const HEADER_H = 36;
 const FOOTER_H = 42;
 const MARGIN = 22;
-const ACCENT = rgb(232 / 255, 116 / 255, 60 / 255);
 const INK = rgb(0.08, 0.09, 0.11);
 const MUTE = rgb(0.38, 0.4, 0.43);
+
+function couleurAccent(hex: string) {
+  const { r, g, b } = hexVersRgb(normaliserCouleurPrincipale(hex));
+  return rgb(r / 255, g / 255, b / 255);
+}
 
 export type PageExport = PageRapportComposee;
 
 export async function compterPagesPdf(bytes: Uint8Array): Promise<number> {
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-  return Math.min(doc.getPageCount(), 40);
+  return doc.getPageCount();
 }
 
 export async function genererPdfRapport(input: {
@@ -43,7 +51,11 @@ export async function genererPdfRapport(input: {
   const out = await PDFDocument.create();
   const font = await out.embedFont(StandardFonts.Helvetica);
   const fontBold = await out.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await out.embedFont(StandardFonts.HelveticaOblique);
+  const fontBoldItalic = await out.embedFont(StandardFonts.HelveticaBoldOblique);
   const logo = await embedLogo(out, input.agence.logoUrl);
+  const accent = couleurAccent(input.agence.couleurPrincipale);
+  const fonts = { regular: font, bold: fontBold, italic: fontItalic, boldItalic: fontBoldItalic };
 
   const total = Math.max(1, input.pages.length);
   if (input.pages.length === 0) {
@@ -55,7 +67,7 @@ export async function genererPdfRapport(input: {
       page: 1,
       pages: 1,
     });
-    dessinerGabarit(page, { font, fontBold, logo, pied });
+    dessinerGabarit(page, { font, fontBold, logo, pied, accent });
     return out.save();
   }
 
@@ -70,8 +82,11 @@ export async function genererPdfRapport(input: {
       page: index,
       pages: total,
     });
-    await dessinerContenu(out, page, item);
-    dessinerGabarit(page, { font, fontBold, logo, pied });
+    await dessinerContenu(out, page, item, {
+      accentHex: normaliserCouleurPrincipale(input.agence.couleurPrincipale),
+      fonts,
+    });
+    dessinerGabarit(page, { font, fontBold, logo, pied, accent });
   }
 
   return out.save();
@@ -121,7 +136,28 @@ async function dessinerContenu(
   doc: PDFDocument,
   page: PDFPage,
   item: PageExport,
+  ctx: {
+    accentHex: string;
+    fonts: {
+      regular: PDFFont;
+      bold: PDFFont;
+      italic: PDFFont;
+      boldItalic: PDFFont;
+    };
+  },
 ): Promise<void> {
+  if (item.kind === 'modele' && item.disposition && estDisposition(item.disposition)) {
+    const file = item.storagePath ? await telechargerRapport(item.storagePath) : null;
+    await dessinerPageModele(doc, page, {
+      disposition: item.disposition,
+      contenu: item.contenu ?? {},
+      accentHex: ctx.accentHex,
+      fonts: ctx.fonts,
+      zone: zoneContenu(),
+      imageBytes: file?.bytes ?? null,
+    });
+    return;
+  }
   if (!item.storagePath || item.kind === 'generee') return;
   const file = await telechargerRapport(item.storagePath);
   if (!file) return;
@@ -171,6 +207,7 @@ function dessinerGabarit(
     fontBold: PDFFont;
     logo: Awaited<ReturnType<typeof embedLogo>>;
     pied: PiedRapport;
+    accent: ReturnType<typeof rgb>;
   },
 ) {
   page.drawRectangle({
@@ -178,7 +215,7 @@ function dessinerGabarit(
     y: PAGE_H - 3,
     width: PAGE_W,
     height: 3,
-    color: ACCENT,
+    color: ctx.accent,
   });
 
   if (ctx.logo) {
@@ -219,7 +256,3 @@ function dessinerGabarit(
   }
 }
 
-/** Helvetica (WinAnsi) : on retire ce qui casserait le rendu. */
-function latin1(s: string): string {
-  return s.replace(/[^\u0000-\u00FF]/g, '');
-}

@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
+import { estDisposition, normaliserContenu } from '@/lib/rapport/modele';
 import {
+  detecterFichier,
+  estFichierUpload,
   extensionMime,
-  kindDepuisMime,
   mapPageComposee,
   MAX_PAGES_PDF,
   MAX_RAPPORT_UPLOAD_BYTES,
-  MIME_PAGES,
   nomFichierPropre,
 } from '@/lib/rapport/pages';
 import { cheminImport, deposerRapport, signerCheminRapport } from '@/lib/rapport/storage';
@@ -71,6 +72,7 @@ async function ajouterDepuisBibliotheque(estimationId: string, agencyId: string,
   }
 
   const start = await prochainePosition(estimationId);
+  const modele = source.kind === 'modele';
   const rows = Array.from({ length: source.page_count }, (_, i) => ({
     estimation_id: estimationId,
     agency_id: agencyId,
@@ -82,6 +84,8 @@ async function ajouterDepuisBibliotheque(estimationId: string, agencyId: string,
     mime_type: source.mime_type,
     page_index: i,
     position: start + i,
+    disposition: modele && estDisposition(source.disposition) ? source.disposition : null,
+    contenu: modele ? normaliserContenu(source.contenu) : null,
   }));
 
   const { data, error } = await session.from('estimation_rapport_pages').insert(rows).select('*');
@@ -105,19 +109,20 @@ async function importerFichier(estimationId: string, agencyId: string, req: Requ
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
   const file = form.get('file');
-  if (!(file instanceof File)) {
+  if (!estFichierUpload(file) || file.size === 0) {
     return NextResponse.json({ error: 'Fichier manquant' }, { status: 400 });
   }
   if (file.size > MAX_RAPPORT_UPLOAD_BYTES) {
     return NextResponse.json({ error: 'Fichier trop lourd (15 Mo max.)' }, { status: 413 });
   }
-  const mime = (file.type || '').split(';')[0];
-  const kind = kindDepuisMime(mime);
-  if (!MIME_PAGES.has(mime) || !kind) {
+
+  const nomFichier = 'name' in file ? String(file.name) : '';
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const detecte = detecterFichier({ type: file.type, name: nomFichier }, bytes);
+  if (!detecte) {
     return NextResponse.json({ error: 'PDF ou image (JPEG, PNG, WebP)' }, { status: 415 });
   }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { mime, kind } = detecte;
   let pageCount = 1;
   if (kind === 'pdf') {
     try {
@@ -133,7 +138,7 @@ async function importerFichier(estimationId: string, agencyId: string, req: Requ
   const nom =
     typeof form.get('nom') === 'string' && form.get('nom')!.toString().trim()
       ? form.get('nom')!.toString().trim().slice(0, 80)
-      : nomFichierPropre(file.name);
+      : nomFichierPropre(nomFichier);
 
   const fileId = crypto.randomUUID();
   const path = cheminImport(agencyId, estimationId, fileId, extensionMime(mime));

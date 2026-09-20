@@ -3,6 +3,7 @@ import { formatPhoneDisplay } from '@/lib/import/normalize';
 import {
   nomAgentAffiche,
   nomCommercialAgence,
+  normaliserCouleurPrincipale,
   type IdentiteAgenceRapport,
   type IdentiteAgentRapport,
   type PiedBienRapport,
@@ -20,6 +21,7 @@ export async function identiteAgenceDepuisRow(
     email: agency.email?.trim() || null,
     siteWeb: agency.site_web?.trim() || null,
     logoUrl: await signerCheminRapport(agency.logo_path),
+    couleurPrincipale: normaliserCouleurPrincipale(agency.couleur_principale),
   };
 }
 

@@ -95,6 +95,7 @@ export default function OngletClient({
             </p>
           ) : (
             <NoteEntitySearch
+              id="est-rattacher"
               onPick={(pick) => {
                 if (pick.entiteType === 'contact') {
                   setClientLabel(pick.label);

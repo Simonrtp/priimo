@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { Copy, GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { useUser } from '@/lib/hooks/useUser';
+import EditeurPageAgence from './EditeurPageAgence';
+import { libelleKindPage } from '@/lib/rapport/modele';
 import {
   DndContext,
   KeyboardSensor,
@@ -29,11 +32,14 @@ const inputClass =
 const labelClass = 'mb-1.5 block font-medium text-gray-700';
 
 export default function SectionBibliothequePages() {
+  const { user, profile, agency } = useUser();
   const [pages, setPages] = useState<PageBibliotheque[] | null>(null);
   const [nom, setNom] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<PageBibliotheque | null>(null);
+  const [editeur, setEditeur] = useState<PageBibliotheque | 'new' | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const charger = useCallback(async () => {
@@ -50,6 +56,13 @@ export default function SectionBibliothequePages() {
   useEffect(() => {
     void charger();
   }, [charger]);
+
+  useEffect(() => {
+    void fetch('/api/dashboard/agence/logo')
+      .then((r) => r.json())
+      .then((data: { url?: string | null }) => setLogoUrl(data.url ?? null))
+      .catch(() => undefined);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -109,6 +122,17 @@ export default function SectionBibliothequePages() {
     if (!res.ok) notifyError('Renommage impossible');
   }
 
+  async function dupliquer(page: PageBibliotheque) {
+    const res = await fetch(`/api/dashboard/rapport/bibliotheque/${page.id}/dupliquer`, { method: 'POST' });
+    const data = (await res.json()) as { page?: PageBibliotheque; error?: string };
+    if (!res.ok || !data.page) {
+      notifyError(data.error ?? 'Copie impossible');
+      return;
+    }
+    setPages((prev) => [...(prev ?? []), data.page!]);
+    notifySuccess('Page dupliquée');
+  }
+
   async function supprimer() {
     if (!pending) return;
     const res = await fetch(`/api/dashboard/rapport/bibliotheque/${pending.id}`, { method: 'DELETE' });
@@ -127,8 +151,19 @@ export default function SectionBibliothequePages() {
         Bibliothèque de pages
       </h3>
       <p className="mt-1 text-pretty text-mute" style={{ fontSize: 13 }}>
-        Plaquette, services, références : des pages réutilisables dans tous les avis de valeur.
+        Créez une page dans Priimo, ou importez un PDF. Réutilisable dans tous les avis de valeur.
       </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
+          onClick={() => setEditeur('new')}
+        >
+          Créer une page
+        </button>
+      </div>
 
       <div className="mt-4 flex flex-col gap-3">
         <div>
@@ -158,14 +193,13 @@ export default function SectionBibliothequePages() {
         <input
           ref={fileRef}
           type="file"
-          accept="application/pdf,image/jpeg,image/png,image/webp"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
           className="sr-only"
           onChange={(e) => void onUpload(e.target.files?.[0])}
         />
         <button
           type="button"
-          className="btn btn-primary w-full sm:w-auto sm:self-start"
-          style={{ padding: '10px 20px', fontSize: 14, borderRadius: 10 }}
+          className="rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[14px] font-medium text-ink hover:bg-black/[0.04] disabled:opacity-50"
           disabled={busy}
           onClick={() => fileRef.current?.click()}
         >
@@ -177,19 +211,45 @@ export default function SectionBibliothequePages() {
         <div className="mt-4 h-16 animate-pulse rounded-lg bg-black/[0.04]" aria-hidden />
       ) : pages.length === 0 ? (
         <p className="mt-4 text-pretty text-[13.5px] text-mute">
-          Aucune page pour l’instant. Déposez la plaquette de l’agence pour la réutiliser.
+          Aucune page pour l’instant. Créez-en une ou déposez un PDF.
         </p>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => void onDragEnd(e)}>
           <SortableContext items={pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
             <ul className="mt-4 flex flex-col gap-2" aria-label="Pages de la bibliothèque">
               {pages.map((p) => (
-                <LigneBiblio key={p.id} page={p} onRename={renommer} onDelete={() => setPending(p)} />
+                <LigneBiblio
+                  key={p.id}
+                  page={p}
+                  onRename={renommer}
+                  onEdit={p.kind === 'modele' ? () => setEditeur(p) : undefined}
+                  onDuplicate={() => void dupliquer(p)}
+                  onDelete={() => setPending(p)}
+                />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       )}
+
+      <EditeurPageAgence
+        key={editeur === 'new' ? 'new' : editeur?.id ?? 'ferme'}
+        open={editeur !== null}
+        page={editeur && editeur !== 'new' ? editeur : null}
+        agency={agency}
+        profile={profile}
+        loginEmail={user.email}
+        logoUrl={logoUrl}
+        onClose={() => setEditeur(null)}
+        onSaved={(saved) => {
+          setPages((prev) => {
+            const list = prev ?? [];
+            const idx = list.findIndex((p) => p.id === saved.id);
+            if (idx < 0) return [...list, saved];
+            return list.map((p) => (p.id === saved.id ? saved : p));
+          });
+        }}
+      />
 
       <ConfirmModal
         open={pending !== null}
@@ -207,10 +267,14 @@ export default function SectionBibliothequePages() {
 function LigneBiblio({
   page,
   onRename,
+  onEdit,
+  onDuplicate,
   onDelete,
 }: {
   page: PageBibliotheque;
   onRename: (id: string, nom: string) => void;
+  onEdit?: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }) {
   const sortable = useSortable({ id: page.id });
@@ -242,11 +306,28 @@ function LigneBiblio({
           onBlur={(e) => onRename(page.id, e.target.value)}
         />
         <p className="px-1 text-[12px] text-mute">
-          {page.kind === 'pdf' ? 'PDF' : 'Image'}
-          {page.pageCount > 1 ? ` · ${page.pageCount} pages` : ''}
+          {libelleKindPage(page.kind, page.disposition, page.pageCount)}
           {page.description ? ` · ${page.description}` : ''}
         </p>
       </div>
+      {onEdit ? (
+        <button
+          type="button"
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-ink"
+          aria-label={`Modifier ${page.nom}`}
+          onClick={onEdit}
+        >
+          <Pencil size={16} strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-ink"
+        aria-label={`Dupliquer ${page.nom}`}
+        onClick={onDuplicate}
+      >
+        <Copy size={16} strokeWidth={2} aria-hidden />
+      </button>
       <button
         type="button"
         className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-red-700"

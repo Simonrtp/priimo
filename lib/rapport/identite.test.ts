@@ -7,6 +7,7 @@ import {
   ligneBienPied,
   nomAgentAffiche,
   nomCommercialAgence,
+  normaliserCouleurPrincipale,
 } from './identite';
 
 describe('pied de rapport — aucun libellé orphelin', () => {
@@ -55,5 +56,10 @@ describe('pied de rapport — aucun libellé orphelin', () => {
     assert.equal(nomCommercialAgence('SARL Dupont', null), 'SARL Dupont');
     assert.equal(nomAgentAffiche('Marie', 'Durand'), 'Marie Durand');
     assert.equal(nomAgentAffiche(null, 'Durand'), 'Durand');
+  });
+
+  it('replie la couleur d’agence sur l’orange Priimo', () => {
+    assert.equal(normaliserCouleurPrincipale('#1a2b3c'), '#1A2B3C');
+    assert.equal(normaliserCouleurPrincipale(null), '#E8743C');
   });
 });
