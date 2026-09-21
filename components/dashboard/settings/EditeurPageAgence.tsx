@@ -418,9 +418,16 @@ export default function EditeurPageAgence({
           </p>
         ) : null}
 
-        <WorkspaceButton type="button" variant="secondary" disabled={busy} onClick={() => void enregistrer()}>
-          {busy ? 'Enregistrement…' : 'Enregistrer'}
-        </WorkspaceButton>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void enregistrer()}
+            className="inline-flex min-h-9 items-center rounded-full bg-text-strong px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? 'Validation…' : 'Valider'}
+          </button>
+        </div>
 
         {montrerApercu ? (
           <div>
