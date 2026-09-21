@@ -123,7 +123,10 @@ export async function PUT(req: Request) {
   }
 
   if (typeof body.titreCouverture === 'string' || typeof body.ctaProchaineEtape === 'string') {
-    const patch: Record<string, string | null> = {};
+    const patch: {
+      rapport_titre_couverture?: string | null;
+      rapport_cta_prochaine_etape?: string | null;
+    } = {};
     if (typeof body.titreCouverture === 'string') {
       const t = body.titreCouverture.trim();
       if (t.length > 80) return NextResponse.json({ error: 'Titre trop long' }, { status: 400 });
