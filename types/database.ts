@@ -59,6 +59,8 @@ export type AgencyRow = {
   couleur_principale?: string | null;
   /** Texte proposé à l'agent avant l'envoi de l'avis. NULL = texte Priimo. */
   rapport_email_modele?: string | null;
+  rapport_titre_couverture?: string | null;
+  rapport_cta_prochaine_etape?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -605,6 +607,7 @@ export type AgencyEstimationRow = {
   view_count: number;
   last_viewed_at: string | null;
   rapport_compose_at?: string | null;
+  rapport_exclus?: { comparables?: string[]; annonces?: string[] } | null;
   created_at: string;
   updated_at: string;
 };
@@ -737,7 +740,20 @@ export type EstimationRapportPageInsert = {
 };
 
 export type AgencyRapportModeleSource = 'bibliotheque' | 'generee';
-export type AgencyRapportModeleKindGeneree = 'couverture' | 'comparables' | 'prix';
+export type AgencyRapportModeleKindGeneree =
+  | 'couverture'
+  | 'votre_bien'
+  | 'description'
+  | 'immeuble_appartement'
+  | 'secteur'
+  | 'points_interet'
+  | 'connectivite'
+  | 'permis'
+  | 'comparables'
+  | 'concurrentiel'
+  | 'indices'
+  | 'prix'
+  | 'prochaine_etape';
 
 export type AgencyRapportModeleRow = {
   id: string;
@@ -1223,6 +1239,114 @@ export type BuildingCoproRow = {
   source: string | null;
   created_at: string;
   code_postal?: string | null;
+};
+
+/** Annonces relevées par le moteur — étude concurrentielle. Pas de photo. */
+export type AnnonceMarcheRow = {
+  id: string;
+  source: string;
+  source_id: string;
+  ban_id: string | null;
+  parcelle_id: string | null;
+  code_postal: string;
+  type_local: string | null;
+  surface_m2: number | null;
+  pieces: number | null;
+  prix: number | null;
+  prix_m2: number | null;
+  prix_initial: number | null;
+  date_releve: string;
+  date_premiere_vue: string | null;
+  date_derniere_vue: string | null;
+  statut: 'active' | 'vendue' | 'retiree';
+  collected_at: string;
+};
+
+export type IrisAdresseRow = {
+  id: string;
+  ban_id: string | null;
+  parcelle_id: string | null;
+  code_postal: string;
+  iris_code: string;
+  collected_at: string;
+};
+
+export type IrisLogementRow = {
+  iris_code: string;
+  code_postal: string;
+  commune: string | null;
+  part_appartements: number | null;
+  pieces_dominant: number | null;
+  epoque_construction_dominante: string | null;
+  part_proprietaires: number | null;
+  part_locataires: number | null;
+  collected_at: string;
+};
+
+export type EquipementProximiteRow = {
+  id: string;
+  ban_id: string | null;
+  parcelle_id: string | null;
+  code_postal: string;
+  categorie: 'administration' | 'enseignement' | 'transports' | 'sante';
+  nom: string;
+  distance_m: number;
+  latitude: number | null;
+  longitude: number | null;
+  collected_at: string;
+};
+
+export type ConnectiviteFixeRow = {
+  id: string;
+  ban_id: string | null;
+  parcelle_id: string | null;
+  code_postal: string;
+  technologie: string;
+  operateur: string;
+  eligible: boolean;
+  debit_max_mbps: number | null;
+  collected_at: string;
+};
+
+export type ConnectiviteMobileRow = {
+  id: string;
+  ban_id: string | null;
+  parcelle_id: string | null;
+  code_postal: string;
+  operateur: string;
+  generation: '2g' | '3g' | '4g' | '5g';
+  niveau: 'tres_bonne' | 'bonne' | 'moyenne' | 'limitee' | 'nulle';
+  collected_at: string;
+};
+
+export type PermisUrbanismeRow = {
+  id: string;
+  code_postal: string;
+  commune: string | null;
+  numero: string;
+  type_autorisation: string | null;
+  date_decision: string | null;
+  adresse: string | null;
+  distance_m: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  collected_at: string;
+};
+
+export type TauxOatRow = {
+  date: string;
+  taux: number;
+  collected_at: string;
+};
+
+export type EffortAchatRow = {
+  code_postal: string;
+  commune: string | null;
+  code_departement: string | null;
+  annees_revenu_median_secteur: number | null;
+  annees_revenu_median_departement: number | null;
+  annees_revenu_median_france: number | null;
+  collected_at: string;
 };
 
 export type BuildingActivityRow = {
@@ -2534,6 +2658,60 @@ export type Database = {
         Row: { version: string; corps: string; created_at: string };
         Insert: { version: string; corps: string; created_at?: string };
         Update: never;
+        Relationships: [];
+      };
+      annonces_marche: {
+        Row: AnnonceMarcheRow;
+        Insert: Omit<AnnonceMarcheRow, 'id' | 'collected_at'> & { id?: string; collected_at?: string };
+        Update: Partial<AnnonceMarcheRow>;
+        Relationships: [];
+      };
+      iris_adresses: {
+        Row: IrisAdresseRow;
+        Insert: Omit<IrisAdresseRow, 'id' | 'collected_at'> & { id?: string; collected_at?: string };
+        Update: Partial<IrisAdresseRow>;
+        Relationships: [];
+      };
+      iris_logement: {
+        Row: IrisLogementRow;
+        Insert: Omit<IrisLogementRow, 'collected_at'> & { collected_at?: string };
+        Update: Partial<IrisLogementRow>;
+        Relationships: [];
+      };
+      equipements_proximite: {
+        Row: EquipementProximiteRow;
+        Insert: Omit<EquipementProximiteRow, 'id' | 'collected_at'> & { id?: string; collected_at?: string };
+        Update: Partial<EquipementProximiteRow>;
+        Relationships: [];
+      };
+      connectivite_fixe: {
+        Row: ConnectiviteFixeRow;
+        Insert: Omit<ConnectiviteFixeRow, 'id' | 'collected_at'> & { id?: string; collected_at?: string };
+        Update: Partial<ConnectiviteFixeRow>;
+        Relationships: [];
+      };
+      connectivite_mobile: {
+        Row: ConnectiviteMobileRow;
+        Insert: Omit<ConnectiviteMobileRow, 'id' | 'collected_at'> & { id?: string; collected_at?: string };
+        Update: Partial<ConnectiviteMobileRow>;
+        Relationships: [];
+      };
+      permis_urbanisme: {
+        Row: PermisUrbanismeRow;
+        Insert: Omit<PermisUrbanismeRow, 'id' | 'collected_at'> & { id?: string; collected_at?: string };
+        Update: Partial<PermisUrbanismeRow>;
+        Relationships: [];
+      };
+      taux_oat: {
+        Row: TauxOatRow;
+        Insert: Omit<TauxOatRow, 'collected_at'> & { collected_at?: string };
+        Update: Partial<TauxOatRow>;
+        Relationships: [];
+      };
+      effort_achat: {
+        Row: EffortAchatRow;
+        Insert: Omit<EffortAchatRow, 'collected_at'> & { collected_at?: string };
+        Update: Partial<EffortAchatRow>;
         Relationships: [];
       };
       informations_legales_versions: {

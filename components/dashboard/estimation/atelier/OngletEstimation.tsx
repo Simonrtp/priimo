@@ -1,13 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import { Field, TextInput } from '@/components/dashboard/workspace/Field';
+import { Field } from '@/components/dashboard/workspace/Field';
+import { ChampSaisi } from './ChampSaisi';
 import DetailCalcul from '@/components/estimation/parts/DetailCalcul';
 import { formatEuro } from '@/lib/estimation/resultat';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import { nombreSaisi } from '@/lib/estimation/objet';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
+import { parseRapportExclus, basculerExclusion } from '@/lib/rapport/genere/exclus';
+import type { VenteComparable } from '@/lib/rapport/genere/comparables';
+import type { AnnonceMarche } from '@/lib/rapport/genere/types';
+import { formatDateCourte, formatPrixM2, formatSurface } from '@/lib/rapport/genere/format';
 
 export default function OngletEstimation({
   estimation,
@@ -35,8 +40,30 @@ export default function OngletEstimation({
   const [decote, setDecote] = useState(0);
   const [autres, setAutres] = useState(0);
   const [justif, setJustif] = useState('');
+  const [ventes, setVentes] = useState<VenteComparable[]>([]);
+  const [ventesReserve, setVentesReserve] = useState<VenteComparable[]>([]);
+  const [annonces, setAnnonces] = useState<AnnonceMarche[]>([]);
+  const [annoncesReserve, setAnnoncesReserve] = useState<AnnonceMarche[]>([]);
+  const exclus = parseRapportExclus(estimation.rapportExclus);
   const affiche = decomposition ?? null;
   const valeur = net ? affiche?.netVendeur ?? estimation.priceValue : affiche?.valeur ?? estimation.priceValue;
+
+  useEffect(() => {
+    let ignore = false;
+    void fetch(`/api/dashboard/estimation/${estimation.id}/rapport`)
+      .then((r) => r.json())
+      .then((data: { dossier?: { comparables?: VenteComparable[]; comparablesReserve?: VenteComparable[]; annonces?: AnnonceMarche[]; annoncesReserve?: AnnonceMarche[] } }) => {
+        if (ignore || !data.dossier) return;
+        setVentes(data.dossier.comparables ?? []);
+        setVentesReserve(data.dossier.comparablesReserve ?? []);
+        setAnnonces(data.dossier.annonces ?? []);
+        setAnnoncesReserve(data.dossier.annoncesReserve ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      ignore = true;
+    };
+  }, [estimation.id, estimation.rapportExclus, estimation.surfaceM2, estimation.priceValue]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -45,47 +72,52 @@ export default function OngletEstimation({
         Afficher en net vendeur
       </label>
       <Field label="Honoraires (%)" htmlFor="est-hon">
-        <TextInput
+        <ChampSaisi
           id="est-hon"
           inputMode="decimal"
-          value={estimation.honorairesPct}
-          onChange={(e) => {
-            const n = nombreSaisi(e.target.value);
-            onPatch({ honorairesPct: n == null ? 5 : n });
+          value={estimation.honorairesPct === 0 ? '' : String(estimation.honorairesPct)}
+          onCommit={(raw) => {
+            const n = nombreSaisi(raw.replace(/[^\d.,]/g, ''));
+            if (n == null) {
+              onPatch({ honorairesPct: 0 });
+              return;
+            }
+            onPatch({ honorairesPct: Math.min(20, Math.max(0, n)) });
           }}
         />
       </Field>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Travaux à déduire (€)" htmlFor="est-trav">
-          <TextInput
+          <ChampSaisi
             id="est-trav"
             inputMode="numeric"
-            value={travaux || ''}
-            onChange={(e) => setTravaux(Number(e.target.value) || 0)}
+            value={travaux === 0 ? '' : String(travaux)}
+            onCommit={(raw) => setTravaux(nombreSaisi(raw) ?? 0)}
           />
         </Field>
         <Field label="Décote occupation (€)" htmlFor="est-decote">
-          <TextInput
+          <ChampSaisi
             id="est-decote"
             inputMode="numeric"
-            value={decote || ''}
-            onChange={(e) => setDecote(Number(e.target.value) || 0)}
+            value={decote === 0 ? '' : String(decote)}
+            onCommit={(raw) => setDecote(nombreSaisi(raw) ?? 0)}
           />
         </Field>
         <Field label="Autre ajustement (€)" htmlFor="est-autres">
-          <TextInput
+          <ChampSaisi
             id="est-autres"
-            value={autres || ''}
-            onChange={(e) => setAutres(Number(e.target.value) || 0)}
+            inputMode="numeric"
+            value={autres === 0 ? '' : String(autres)}
+            onCommit={(raw) => setAutres(nombreSaisi(raw) ?? 0)}
           />
         </Field>
       </div>
       <Field label="Justification" htmlFor="est-justif">
-        <TextInput
+        <ChampSaisi
           id="est-justif"
           value={justif}
-          onChange={(e) => setJustif(e.target.value)}
+          onCommit={setJustif}
         />
       </Field>
 
@@ -121,6 +153,14 @@ export default function OngletEstimation({
         </div>
       ) : null}
 
+      <Field label="Remarques de l’expert" htmlFor="est-remarques">
+        <ChampSaisi
+          id="est-remarques"
+          value={estimation.remarquesExpert ?? ''}
+          onCommit={(raw) => onPatch({ remarquesExpert: raw.trim() || null })}
+        />
+      </Field>
+
       {affiche ? <DetailCalcul lines={affiche.lignes} low={affiche.low} high={affiche.high} /> : null}
 
       {capitalisation ? (
@@ -129,6 +169,76 @@ export default function OngletEstimation({
           <DetailCalcul lines={capitalisation.lignes} low={null} high={null} />
         </div>
       ) : null}
+
+      <section>
+        <h3 className="text-[14px] font-semibold text-text-strong">Ventes comparables</h3>
+        <p className="mt-1 text-pretty text-[13px] text-text-muted">
+          Ces ventes figurent au rapport. Retirez celles qui ne conviennent pas ; vous pouvez les rétablir.
+        </p>
+        <ListeSelection
+          items={[...ventes, ...ventesReserve].map((v) => ({
+            id: v.id,
+            label: `${formatSurface(v.surfaceM2)} · ${formatEuro(v.prix)}${v.prixM2 != null ? ` · ${formatPrixM2(v.prixM2)}` : ''}${v.date ? ` · ${formatDateCourte(v.date)}` : ''}`,
+            retiree: exclus.comparables.includes(v.id),
+          }))}
+          onToggle={(id) =>
+            onPatch({
+              rapportExclus: {
+                comparables: basculerExclusion(exclus.comparables, id),
+                annonces: exclus.annonces,
+              },
+            })
+          }
+        />
+      </section>
+
+      <section>
+        <h3 className="text-[14px] font-semibold text-text-strong">Annonces concurrentes</h3>
+        <p className="mt-1 text-pretty text-[13px] text-text-muted">
+          Annonces relevées pour la zone. Retirez celles qui ne doivent pas figurer à l’étude.
+        </p>
+        <ListeSelection
+          items={[...annonces, ...annoncesReserve].map((a) => ({
+            id: a.id,
+            label: `${a.surfaceM2 != null ? formatSurface(a.surfaceM2) : 'Surface inconnue'}${a.prix != null ? ` · ${formatEuro(a.prix)}` : ''}${a.dateReleve ? ` · ${formatDateCourte(a.dateReleve)}` : ''}`,
+            retiree: exclus.annonces.includes(a.id),
+          }))}
+          onToggle={(id) =>
+            onPatch({
+              rapportExclus: {
+                comparables: exclus.comparables,
+                annonces: basculerExclusion(exclus.annonces, id),
+              },
+            })
+          }
+        />
+      </section>
     </div>
+  );
+}
+
+function ListeSelection({
+  items,
+  onToggle,
+}: {
+  items: Array<{ id: string; label: string; retiree: boolean }>;
+  onToggle: (id: string) => void;
+}) {
+  if (items.length === 0) {
+    return <p className="mt-2 text-pretty text-[13px] text-text-muted">Aucune ligne pour l’instant.</p>;
+  }
+  return (
+    <ul className="mt-2 flex flex-col gap-1">
+      {items.map((item) => (
+        <li key={item.id} className="flex items-center justify-between gap-2 rounded-clay px-1 py-1">
+          <span className={`min-w-0 truncate text-[13px] ${item.retiree ? 'text-text-muted line-through' : 'text-text'}`}>
+            {item.label}
+          </span>
+          <WorkspaceButton type="button" variant="secondary" onClick={() => onToggle(item.id)}>
+            {item.retiree ? 'Rétablir' : 'Retirer'}
+          </WorkspaceButton>
+        </li>
+      ))}
+    </ul>
   );
 }

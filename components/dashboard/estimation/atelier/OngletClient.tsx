@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { Field, TextInput } from '@/components/dashboard/workspace/Field';
+import { Pencil, X } from 'lucide-react';
+import type { Contact } from '@/types/contact';
+import { Field } from '@/components/dashboard/workspace/Field';
+import { ChampSaisi } from './ChampSaisi';
 import Select from '@/components/ui/Select';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
@@ -10,7 +12,7 @@ import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import NoteEntitySearch from '@/components/dashboard/notes/NoteEntitySearch';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog';
-import { notifySuccess } from '@/lib/notify';
+import { notifyError, notifySuccess } from '@/lib/notify';
 import {
   ETAT_LABELS,
   ESTIMATION_ETATS,
@@ -32,10 +34,12 @@ const KIND_LIBELLE: Record<RattacheKind, string> = {
 function RattacheChip({
   kind,
   label,
+  onEdit,
   onRemove,
 }: {
   kind: RattacheKind;
   label: string;
+  onEdit?: () => void;
   onRemove: () => void;
 }) {
   const libelle = KIND_LIBELLE[kind];
@@ -45,6 +49,16 @@ function RattacheChip({
         <span className="text-text-muted">{libelle} · </span>
         {label}
       </p>
+      {onEdit ? (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Modifier la fiche ${libelle.toLowerCase()}`}
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <Pencil size={16} strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onRemove}
@@ -71,6 +85,7 @@ export default function OngletClient({
   onPatch: (body: Record<string, unknown>) => void;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<Contact | null>(null);
   const [labels, setLabels] = useState<Record<RattacheKind, string | null>>({
     contact: null,
     lead: null,
@@ -126,6 +141,30 @@ export default function OngletClient({
     return pick.subtitle ? `${pick.label} · ${pick.subtitle}` : pick.label;
   }
 
+  function labelFromContact(contact: Contact) {
+    const nom = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
+    const extra = [contact.phone, contact.address].filter(Boolean).join(' · ');
+    if (nom && extra) return `${nom} · ${extra}`;
+    return nom || extra || 'Client rattaché';
+  }
+
+  async function ouvrirFiche(contactId: string) {
+    try {
+      const res = await fetch(`/api/dashboard/contacts/${contactId}`);
+      const data = (await res.json()) as { contact?: Contact; error?: string };
+      if (!res.ok || !data.contact) throw new Error(data.error);
+      setEditing(data.contact);
+      setCreateOpen(true);
+    } catch {
+      notifyError('Impossible d’ouvrir la fiche');
+    }
+  }
+
+  function fermerFiche() {
+    setCreateOpen(false);
+    setEditing(null);
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <Field label="Motif" htmlFor="est-motif">
@@ -138,11 +177,11 @@ export default function OngletClient({
       </Field>
       {estimation.motif === 'succession' ? (
         <Field label="Date de valeur" htmlFor="est-date-valeur">
-          <TextInput
+          <ChampSaisi
             id="est-date-valeur"
             type="date"
             value={estimation.dateValeur ?? ''}
-            onChange={(e) => onPatch({ dateValeur: e.target.value || null })}
+            onCommit={(raw) => onPatch({ dateValeur: raw || null })}
           />
         </Field>
       ) : null}
@@ -186,6 +225,7 @@ export default function OngletClient({
                   <RattacheChip
                     kind="contact"
                     label={labels.contact ?? 'Client rattaché'}
+                    onEdit={() => void ouvrirFiche(estimation.contactId!)}
                     onRemove={() => {
                       setLabel('contact', null);
                       onPatch({ contactId: null });
@@ -249,7 +289,10 @@ export default function OngletClient({
           <WorkspaceButton
             type="button"
             variant={estimation.contactId ? 'secondary' : 'primary'}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => {
+              setEditing(null);
+              setCreateOpen(true);
+            }}
             className="min-h-11"
           >
             {estimation.contactId ? 'Créer un autre client' : 'Créer un client'}
@@ -259,10 +302,11 @@ export default function OngletClient({
 
       {createOpen ? (
         <ContactFormDialog
-          key={`client-est-${estimation.id}`}
+          key={editing?.id ?? `client-est-${estimation.id}`}
           open
           elevated
-          onClose={() => setCreateOpen(false)}
+          contact={editing ?? undefined}
+          onClose={fermerFiche}
           initialType="vendeur"
           createTitle="Nouveau client"
           members={
@@ -271,17 +315,15 @@ export default function OngletClient({
           currentUserId={currentUserId}
           skipSuccessToast
           onSaved={(contact) => {
-            const nom = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
-            setLabel('contact', nom || 'Client rattaché');
+            setLabel('contact', labelFromContact(contact));
             onPatch({ contactId: contact.id });
-            setCreateOpen(false);
-            notifySuccess('Client créé et rattaché');
+            fermerFiche();
+            notifySuccess(editing ? 'Fiche mise à jour' : 'Client créé et rattaché');
           }}
           onOpenExisting={(contact) => {
-            const nom = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
-            setLabel('contact', nom || 'Client rattaché');
+            setLabel('contact', labelFromContact(contact));
             onPatch({ contactId: contact.id });
-            setCreateOpen(false);
+            fermerFiche();
           }}
         />
       ) : null}

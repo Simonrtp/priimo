@@ -59,6 +59,8 @@ describe('export PDF rapport', () => {
           pageIndex: 0,
           position: 0,
           previewUrl: null,
+          kindGeneree: null,
+          manques: [],
           disposition: 'texte',
           contenu: {
             titre: 'Notre méthode',

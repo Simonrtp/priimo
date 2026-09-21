@@ -13,6 +13,7 @@ export type EstimationBien = {
   anneeConstruction: number | null;
   chambres: number | null;
   carrez: boolean | null;
+  surfaceCarrez: number | null;
   surfaceTerrain: number | null;
   niveaux: number | null;
   etagesImmeuble: number | null;
@@ -39,6 +40,7 @@ export type EstimationAnnexe = {
 export type EstimationPhoto = {
   url: string;
   kind: 'photo' | 'plan';
+  couverture?: boolean;
 };
 
 export const BIEN_VIDE: EstimationBien = {
@@ -46,6 +48,7 @@ export const BIEN_VIDE: EstimationBien = {
   anneeConstruction: null,
   chambres: null,
   carrez: null,
+  surfaceCarrez: null,
   surfaceTerrain: null,
   niveaux: null,
   etagesImmeuble: null,
@@ -83,6 +86,12 @@ export function nombreStrictementPositif(raw: string): number | null {
   return n != null && n > 0 ? n : null;
 }
 
+/** 0 % est une vraie valeur. Le 5 % n’est que le défaut d’une fiche neuve. */
+export function lireHonorairesPct(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 20 ? n : 5;
+}
+
 function asNum(raw: unknown): number | null {
   const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
   return Number.isFinite(n) ? n : null;
@@ -100,6 +109,7 @@ export function parseBien(raw: unknown): EstimationBien {
     anneeConstruction: asNum(o.anneeConstruction),
     chambres: asNum(o.chambres),
     carrez: asBool(o.carrez),
+    surfaceCarrez: asNum(o.surfaceCarrez),
     surfaceTerrain: asNum(o.surfaceTerrain),
     niveaux: asNum(o.niveaux),
     etagesImmeuble: asNum(o.etagesImmeuble),
@@ -153,7 +163,7 @@ export function parsePhotos(raw: unknown): EstimationPhoto[] {
       const o = asObject(item);
       const url = asText(o.url);
       if (!url) return null;
-      return { url, kind: o.kind === 'plan' ? 'plan' : 'photo' } as const;
+      return { url, kind: o.kind === 'plan' ? 'plan' : 'photo', couverture: o.couverture === true };
     })
     .filter((p): p is EstimationPhoto => p != null);
 }
@@ -203,6 +213,8 @@ export type EstimationObjet = {
   reliabilityLabel: string | null;
   comparables: unknown;
   context: Record<string, unknown>;
+  rapportExclus: unknown;
+  remarquesExpert: string | null;
   leadId: string | null;
   contactId: string | null;
   bienId: string | null;
@@ -244,7 +256,7 @@ export function mapEstimation(row: AgencyEstimationRow): EstimationObjet {
     dateValeur: row.date_valeur,
     occupation: row.occupation === 'occupe' ? 'occupe' : 'libre',
     loyerAnnuel: row.loyer_annuel,
-    honorairesPct: Number(row.honoraires_pct) || 5,
+    honorairesPct: lireHonorairesPct(row.honoraires_pct),
     commentairesConfidentiels: row.commentaires_confidentiels,
     commentairesPublics: row.commentaires_publics,
     bien: parseBien(row.bien),
@@ -262,6 +274,8 @@ export function mapEstimation(row: AgencyEstimationRow): EstimationObjet {
     reliabilityLabel: row.reliability_label,
     comparables: row.comparables,
     context: ctx,
+    rapportExclus: ctx.rapportExclus ?? row.rapport_exclus,
+    remarquesExpert: typeof ctx.remarquesExpert === 'string' ? ctx.remarquesExpert.trim() || null : null,
     leadId: row.lead_id,
     contactId: row.contact_id,
     bienId: row.bien_id,

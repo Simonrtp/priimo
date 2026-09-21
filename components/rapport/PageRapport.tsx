@@ -13,6 +13,7 @@ export default function PageRapport({
   dateIso,
   page,
   pages,
+  sansChrome,
   children,
 }: {
   agence: IdentiteAgenceRapport;
@@ -21,6 +22,7 @@ export default function PageRapport({
   dateIso?: string | null;
   page: number;
   pages: number;
+  sansChrome?: boolean;
   children?: ReactNode;
 }) {
   const pied = construirePied({ agent, bien, dateIso, page, pages });
@@ -30,6 +32,10 @@ export default function PageRapport({
       className="relative flex aspect-[297/210] w-full flex-col overflow-hidden rounded-clay border border-black/[0.08] bg-white shadow-clay-sm"
       aria-label={`Page ${page} sur ${Math.max(pages, 1)}`}
     >
+      {sansChrome ? (
+        <div className="min-h-0 flex-1 bg-white">{children}</div>
+      ) : (
+        <>
       <header className="flex h-10 shrink-0 items-center border-b border-black/[0.06] px-4">
         <span className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: accent }} aria-hidden />
         {agence.logoUrl ? (
@@ -43,6 +49,8 @@ export default function PageRapport({
       </header>
       <div className="min-h-0 flex-1 bg-[#F7F6F4]">{children}</div>
       <PiedRapportVue pied={pied} />
+        </>
+      )}
     </article>
   );
 }

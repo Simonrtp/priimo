@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { lignesDepuisModele } from './composer';
 import {
   EMAIL_MODELE_DEFAUT,
+  insererPagesGenerees,
   nomSlotModele,
   parseSlotsModele,
   slotsDepuisLignes,
@@ -81,7 +82,7 @@ describe('modèle de rapport', () => {
     assert.equal(lignes[1]?.nom, 'Présentation (2)');
     assert.equal(lignes[1]?.page_index, 1);
     assert.equal(lignes[2]?.source, 'generee');
-    assert.equal(lignes[2]?.nom, 'Comparables');
+    assert.equal(lignes[2]?.nom, 'Ventes comparables');
     assert.deepEqual(lignes[2]?.contenu, { kind: 'comparables' });
     assert.equal(lignes[3]?.nom, 'Mentions');
     assert.equal(lignes[3]?.disposition, 'texte');
@@ -92,7 +93,26 @@ describe('modèle de rapport', () => {
       nomSlotModele({ source: 'bibliotheque', bibliothequeId: 'x' }, new Map()),
       'Page retirée',
     );
-    assert.equal(nomSlotModele({ source: 'generee', kindGeneree: 'prix' }, new Map()), 'Prix');
+    assert.equal(nomSlotModele({ source: 'generee', kindGeneree: 'prix' }, new Map()), 'Notre estimation');
+
+  it('insère les pages générées autour de la bibliothèque', () => {
+    const slots = insererPagesGenerees([
+      { source: 'bibliotheque', bibliothequeId: 'b1' },
+      { source: 'generee', kindGeneree: 'prix' },
+    ]);
+    assert.equal(slots[0]?.source, 'generee');
+    if (slots[0]?.source === 'generee') assert.equal(slots[0].kindGeneree, 'couverture');
+    assert.equal(slots[slots.length - 1]?.source, 'generee');
+    if (slots[slots.length - 1]?.source === 'generee') {
+      assert.equal(slots[slots.length - 1].kindGeneree, 'prochaine_etape');
+    }
+    const biblio = slots.filter((s) => s.source === 'bibliotheque');
+    assert.equal(biblio.length, 1);
+    const idxPrix = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prix');
+    const idxBiblio = slots.findIndex((s) => s.source === 'bibliotheque');
+    const idxFin = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prochaine_etape');
+    assert.ok(idxPrix < idxBiblio && idxBiblio < idxFin);
+  });
   });
 
   it('reprend le texte d’agence, sinon le texte Priimo', () => {
@@ -117,10 +137,14 @@ describe('avant d’envoyer', () => {
       photos: 0,
       contactEmail: '  ',
       pages: 0,
+      pagesIncompletes: [{ kind: 'secteur', manques: ['Indicateurs logement de l’IRIS'] }],
+      contradictions: [
+        { id: 'ascenseur', label: 'La description mentionne un ascenseur alors que le champ indique « sans ascenseur »' },
+      ],
     });
     assert.deepEqual(
       manques.map((m) => m.id),
-      ['prix', 'photos', 'email', 'pages'],
+      ['prix', 'photos', 'email', 'pages', 'page:secteur', 'contradiction:ascenseur'],
     );
     assert.equal(manques.find((m) => m.id === 'prix')?.etape, 'estimation');
     assert.equal(manques.find((m) => m.id === 'photos')?.etape, 'bien');

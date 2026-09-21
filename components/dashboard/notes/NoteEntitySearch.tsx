@@ -216,7 +216,7 @@ export default function NoteEntitySearch({
 
       <div className="mt-2.5 overflow-hidden rounded-xl border border-black/[0.06] bg-surface">
         {charge && kind !== 'immeuble' ? (
-          <div className="h-28 animate-pulse bg-black/[0.04]" aria-hidden />
+          <div className="h-16 animate-pulse bg-black/[0.04]" aria-hidden />
         ) : (
           <ListeItems
             id={listId}
@@ -248,7 +248,7 @@ function ListeItems({
     return <p className="px-3 py-3 text-pretty text-[13.5px] text-text-muted">{vide}</p>;
   }
   return (
-    <ul id={id} role="listbox" aria-label="Fiches" className="max-h-64 overflow-y-auto p-1">
+    <ul id={id} role="listbox" aria-label="Fiches" className="max-h-32 overflow-y-auto p-1">
       {items.map((item) => (
         <li key={`${item.kind}-${item.id}`} role="option">
           <button

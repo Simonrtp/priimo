@@ -28,6 +28,8 @@ import ModePresentationRapport from '@/components/dashboard/estimation/atelier/M
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
+import { pageExportable } from '@/lib/rapport/pages';
+import type { DossierRapport } from '@/lib/rapport/genere/types';
 import {
   normaliserCouleurPrincipale,
   type IdentiteAgenceRapport,
@@ -49,9 +51,15 @@ export default function OngletRapport({
 }: {
   estimation: EstimationObjet;
   agencyName?: string;
-  onEtatChange?: (etat: { pages: number; contactEmail: string | null }) => void;
+  onEtatChange?: (etat: {
+    pages: number;
+    contactEmail: string | null;
+    pagesIncompletes: Array<{ kind: import('@/lib/rapport/modele-defaut').KindGeneree; manques: string[] }>;
+    contradictions: import('@/lib/rapport/genere/contradictions').ContradictionRapport[];
+  }) => void;
 }) {
   const [pages, setPages] = useState<PageRapportComposee[]>([]);
+  const [dossier, setDossier] = useState<DossierRapport | null>(null);
   const [biblio, setBiblio] = useState<PageBibliotheque[]>([]);
   const [agence, setAgence] = useState<IdentiteAgenceRapport | null>(null);
   const [agent, setAgent] = useState<IdentiteAgentRapport | null>(null);
@@ -80,6 +88,7 @@ export default function OngletRapport({
       ]);
       const compose = comp as {
         pages?: PageRapportComposee[];
+        dossier?: DossierRapport;
         agence?: IdentiteAgenceRapport;
         agent?: IdentiteAgentRapport;
         bien?: PiedBienRapport;
@@ -92,6 +101,7 @@ export default function OngletRapport({
       if (compose.error) throw new Error(compose.error);
       const nextPages = compose.pages ?? [];
       setPages(nextPages);
+      if (compose.dossier) setDossier(compose.dossier);
       if (compose.agence) setAgence(compose.agence);
       if (compose.agent) setAgent(compose.agent);
       if (compose.bien) setBien(compose.bien);
@@ -106,6 +116,10 @@ export default function OngletRapport({
       onEtatChangeRef.current?.({
         pages: nextPages.length,
         contactEmail: mailClient,
+        pagesIncompletes: nextPages
+          .filter((p) => p.kind === 'generee' && p.kindGeneree && p.manques.length > 0)
+          .map((p) => ({ kind: p.kindGeneree!, manques: p.manques })),
+        contradictions: compose.dossier?.contradictions ?? [],
       });
       setBiblio((lib as { pages?: PageBibliotheque[] }).pages ?? []);
     } catch (err) {
@@ -135,6 +149,10 @@ export default function OngletRapport({
     onEtatChangeRef.current?.({
       pages: nextPages.length,
       contactEmail,
+      pagesIncompletes: nextPages
+        .filter((p) => p.kind === 'generee' && p.kindGeneree && p.manques.length > 0)
+        .map((p) => ({ kind: p.kindGeneree!, manques: p.manques })),
+      contradictions: dossier?.contradictions ?? [],
     });
   }
 
@@ -278,7 +296,7 @@ export default function OngletRapport({
           <WorkspaceButton
             type="button"
             variant="secondary"
-            disabled={vide}
+            disabled={vide || pages.filter(pageExportable).length === 0}
             title={vide ? 'Ajoutez au moins une page pour présenter' : undefined}
             onClick={() => setPresentation(true)}
           >
@@ -367,10 +385,12 @@ export default function OngletRapport({
               dateIso={dateIso}
               page={pages.length === 0 ? 1 : index + 1}
               pages={Math.max(pages.length, 1)}
+              sansChrome={courante?.kindGeneree === 'couverture'}
             >
               <ApercuPageComposee
                 page={courante}
                 accent={normaliserCouleurPrincipale(agence.couleurPrincipale)}
+                dossier={dossier}
               />
             </PageRapport>
           ) : (
@@ -474,16 +494,24 @@ export default function OngletRapport({
         </div>
       </div>
 
-      {presentation && agence && agent && !vide ? (
+      {presentation && agence && agent && pages.filter(pageExportable).length > 0 ? (
         <ModePresentationRapport
-          pages={pages}
-          index={index}
-          onIndex={setIndex}
+          pages={pages.filter(pageExportable)}
+          index={Math.min(
+            pages.filter(pageExportable).findIndex((p) => p.id === courante?.id),
+            pages.filter(pageExportable).length - 1,
+          )}
+          onIndex={(i) => {
+            const exportables = pages.filter(pageExportable);
+            const cible = exportables[i];
+            if (cible) setIndex(pages.findIndex((p) => p.id === cible.id));
+          }}
           onFermer={() => setPresentation(false)}
           agence={agence}
           agent={agent}
           bien={bien}
           dateIso={dateIso}
+          dossier={dossier}
         />
       ) : null}
 
@@ -543,6 +571,11 @@ function LigneComposee({
       >
         <span className="mr-1.5 tabular-nums text-text-muted">{index + 1}.</span>
         {page.nom}
+        {page.kind === 'generee' && page.manques.length > 0 ? (
+          <span className="ml-1.5 text-[11px] font-normal text-text-muted" title={page.manques.join(', ')}>
+            incomplète — {page.manques.join(', ')}
+          </span>
+        ) : null}
       </button>
       <button
         type="button"

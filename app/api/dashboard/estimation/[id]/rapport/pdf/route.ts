@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
-import { identiteAgenceDepuisRow, identiteAgentDepuisProfil, piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
-import { mapPageComposee } from '@/lib/rapport/pages';
+import { piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
+import { assemblerRapport } from '@/lib/rapport/genere/assembler';
 import { genererPdfRapport } from '@/lib/rapport/pdf';
+import { pageExportable } from '@/lib/rapport/pages';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -21,27 +22,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!limit.ok) return NextResponse.json({ error: 'Trop d’exports' }, { status: 429 });
 
   const session = await createSupabaseServerClient();
-  const { data, error } = await session
-    .from('estimation_rapport_pages')
-    .select('*')
-    .eq('estimation_id', ctx.estimation.id)
-    .eq('agency_id', ctx.agency.id)
-    .order('position', { ascending: true })
-    .order('created_at', { ascending: true });
-  if (error) {
+  let assemble;
+  try {
+    assemble = await assemblerRapport(session, ctx, { signer: false });
+  } catch {
     return NextResponse.json({ error: 'Composition indisponible' }, { status: 500 });
   }
-  if (!data || data.length === 0) {
+  const pages = assemble.pages.filter(pageExportable);
+  if (pages.length === 0) {
     return NextResponse.json({ error: 'Ajoutez au moins une page au rapport' }, { status: 400 });
   }
 
-  const pages = data.map((row) => mapPageComposee(row, null));
   const pdf = await genererPdfRapport({
-    agence: await identiteAgenceDepuisRow(ctx.agency),
-    agent: identiteAgentDepuisProfil(ctx.profile, ctx.user.email),
+    agence: assemble.agence,
+    agent: assemble.agent,
     bien: piedBienDepuisEstimation(ctx.estimation),
     dateIso: ctx.estimation.updatedAt,
     pages,
+    dossier: assemble.dossier,
   });
 
   const nom = ctx.estimation.address?.trim()

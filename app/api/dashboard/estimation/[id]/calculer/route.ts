@@ -6,7 +6,13 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { runDvfEstimation } from '@/lib/estimation/dvf-engine';
-import { ESTIMATION_SELECT, mapEstimation, parseAnnexes, parseBien } from '@/lib/estimation/objet';
+import {
+  ESTIMATION_SELECT,
+  lireHonorairesPct,
+  mapEstimation,
+  parseAnnexes,
+  parseBien,
+} from '@/lib/estimation/objet';
 import { parseGrille } from '@/lib/estimation/objet';
 import { appliquerQualiteEtAgent, capitaliser, type AjustementAgent } from '@/lib/estimation/valeur';
 import { CONFIG_ESTIMATION } from '@/lib/estimation';
@@ -121,7 +127,7 @@ export async function POST(
   const decomposition = appliquerQualiteEtAgent(result.corrections, {
     grille,
     agent,
-    honorairesPct: Number(row.honoraires_pct) || 5,
+    honorairesPct: lireHonorairesPct(row.honoraires_pct),
     netVendeur,
     rangePct: CONFIG_ESTIMATION.RANGE_PCT,
   });
@@ -129,7 +135,7 @@ export async function POST(
   const cap = capitaliser({
     occupation: row.occupation === 'occupe' ? 'occupe' : 'libre',
     loyerAnnuel: row.loyer_annuel,
-    honorairesPct: Number(row.honoraires_pct) || 5,
+    honorairesPct: lireHonorairesPct(row.honoraires_pct),
     netVendeur,
   });
 

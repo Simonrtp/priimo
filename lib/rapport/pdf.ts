@@ -20,6 +20,9 @@ import type { PageRapportComposee } from '@/lib/rapport/pages';
 import { dessinerPageModele } from '@/lib/rapport/pdf-modele';
 import { hexVersRgb, latin1 } from '@/lib/rapport/pdf-texte';
 import { telechargerRapport } from '@/lib/rapport/storage';
+import { dessinerPageGeneree } from '@/lib/rapport/pdf-generee';
+import type { DossierRapport } from '@/lib/rapport/genere/types';
+import { pageExportable } from '@/lib/rapport/pages';
 
 export const PAGE_W = 841.89;
 export const PAGE_H = 595.28;
@@ -47,6 +50,7 @@ export async function genererPdfRapport(input: {
   bien: PiedBienRapport;
   dateIso?: string | null;
   pages: PageExport[];
+  dossier?: DossierRapport | null;
 }): Promise<Uint8Array> {
   const out = await PDFDocument.create();
   const font = await out.embedFont(StandardFonts.Helvetica);
@@ -57,8 +61,9 @@ export async function genererPdfRapport(input: {
   const accent = couleurAccent(input.agence.couleurPrincipale);
   const fonts = { regular: font, bold: fontBold, italic: fontItalic, boldItalic: fontBoldItalic };
 
-  const total = Math.max(1, input.pages.length);
-  if (input.pages.length === 0) {
+  const exportables = input.pages.filter(pageExportable);
+  const total = Math.max(1, exportables.length);
+  if (exportables.length === 0) {
     const page = out.addPage([PAGE_W, PAGE_H]);
     const pied = construirePied({
       agent: input.agent,
@@ -72,7 +77,7 @@ export async function genererPdfRapport(input: {
   }
 
   let index = 0;
-  for (const item of input.pages) {
+  for (const item of exportables) {
     index += 1;
     const page = out.addPage([PAGE_W, PAGE_H]);
     const pied = construirePied({
@@ -82,11 +87,15 @@ export async function genererPdfRapport(input: {
       page: index,
       pages: total,
     });
+    const couverture = item.kindGeneree === 'couverture';
     await dessinerContenu(out, page, item, {
       accentHex: normaliserCouleurPrincipale(input.agence.couleurPrincipale),
       fonts,
+      dossier: input.dossier ?? null,
     });
-    dessinerGabarit(page, { font, fontBold, logo, pied, accent });
+    if (!couverture) {
+      dessinerGabarit(page, { font, fontBold, logo, pied, accent });
+    }
   }
 
   return out.save();
@@ -144,8 +153,23 @@ async function dessinerContenu(
       italic: PDFFont;
       boldItalic: PDFFont;
     };
+    dossier: DossierRapport | null;
   },
 ): Promise<void> {
+  if (item.kind === 'generee' && item.kindGeneree && ctx.dossier) {
+    const plein = item.kindGeneree === 'couverture';
+    await dessinerPageGeneree(
+      doc,
+      page,
+      item.kindGeneree,
+      ctx.dossier,
+      zoneContenu(),
+      { regular: ctx.fonts.regular, bold: ctx.fonts.bold },
+      ctx.accentHex,
+      plein,
+    );
+    return;
+  }
   if (item.kind === 'modele' && item.disposition && estDisposition(item.disposition)) {
     const file = item.storagePath ? await telechargerRapport(item.storagePath) : null;
     await dessinerPageModele(doc, page, {

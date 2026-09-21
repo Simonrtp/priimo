@@ -1,6 +1,9 @@
 import type { EtapeAtelierId } from '@/lib/estimation/etapes';
+import type { KindGeneree } from '@/lib/rapport/modele-defaut';
+import { LIBELLE_KIND_GENEREE } from '@/lib/rapport/modele-defaut';
+import type { ContradictionRapport } from '@/lib/rapport/genere/contradictions';
 
-export type ManqueEnvoiId = 'prix' | 'photos' | 'email' | 'pages';
+export type ManqueEnvoiId = string;
 
 export type ManqueEnvoi = {
   id: ManqueEnvoiId;
@@ -13,6 +16,8 @@ export function manquesAvantEnvoi(input: {
   photos: number;
   contactEmail: string | null;
   pages: number;
+  pagesIncompletes?: Array<{ kind: KindGeneree; manques: string[] }>;
+  contradictions?: ContradictionRapport[];
 }): ManqueEnvoi[] {
   const out: ManqueEnvoi[] = [];
   if (input.priceValue == null) {
@@ -27,5 +32,22 @@ export function manquesAvantEnvoi(input: {
   if (input.pages < 1) {
     out.push({ id: 'pages', label: 'Rapport sans page', etape: 'rapport' });
   }
+  for (const p of input.pagesIncompletes ?? []) {
+    out.push({
+      id: `page:${p.kind}`,
+      label: `${LIBELLE_KIND_GENEREE[p.kind]} incomplète — ${p.manques.join(', ')}`,
+      etape: etapePourKind(p.kind),
+    });
+  }
+  for (const c of input.contradictions ?? []) {
+    out.push({ id: `contradiction:${c.id}`, label: c.label, etape: 'bien' });
+  }
   return out;
+}
+
+function etapePourKind(kind: KindGeneree): EtapeAtelierId {
+  if (kind === 'votre_bien') return 'client';
+  if (kind === 'prix' || kind === 'comparables' || kind === 'concurrentiel') return 'estimation';
+  if (kind === 'description' || kind === 'immeuble_appartement' || kind === 'couverture') return 'bien';
+  return 'rapport';
 }

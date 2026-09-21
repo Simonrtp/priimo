@@ -5,6 +5,7 @@ import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { ESTIMATION_SELECT, mapEstimation } from '@/lib/estimation/objet';
 import { isEtat } from '@/lib/estimation/cycle';
 import { appliquerPatch } from '@/lib/estimation/patch';
+import { parseRapportExclus } from '@/lib/rapport/genere/exclus';
 import { syncLeadEtapeEstimation } from '@/lib/estimation/pipeline';
 
 export const runtime = 'nodejs';
@@ -124,6 +125,24 @@ export async function PATCH(
   const { patch, etat, error: patchError } = appliquerPatch(body, viewer);
   if (patchError) {
     return NextResponse.json({ error: patchError }, { status: 400 });
+  }
+  if (body.rapportExclus !== undefined || typeof body.remarquesExpert === 'string') {
+    const prev =
+      row.context && typeof row.context === 'object' && !Array.isArray(row.context)
+        ? (row.context as Record<string, unknown>)
+        : {};
+    const deja =
+      patch.context && typeof patch.context === 'object' && !Array.isArray(patch.context)
+        ? (patch.context as Record<string, unknown>)
+        : {};
+    const next = { ...prev, ...deja };
+    if (body.rapportExclus !== undefined) {
+      next.rapportExclus = parseRapportExclus(body.rapportExclus);
+    }
+    if (typeof body.remarquesExpert === 'string') {
+      next.remarquesExpert = body.remarquesExpert.trim() || null;
+    }
+    patch.context = next;
   }
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ estimation: mapEstimation(row) });

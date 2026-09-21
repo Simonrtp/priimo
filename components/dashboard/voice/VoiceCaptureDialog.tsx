@@ -13,7 +13,6 @@ import { ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Fiel
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceReviewPanel from './VoiceReviewPanel';
-import AntisecheDictee from '@/components/dashboard/estimation/atelier/AntisecheDictee';
 import { useUser } from '@/lib/hooks/useUser';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
@@ -525,14 +524,14 @@ export default function VoiceCaptureDialog({
   }
 
   const actionsEnregistrement = (
-    <div className={`grid grid-cols-2 gap-2 ${field ? '' : 'sm:flex sm:justify-end'}`}>
+    <div className="grid grid-cols-2 gap-2">
       <WorkspaceButton
         type="button"
         variant="secondary"
         onClick={cancelRecording}
         className="min-h-11"
       >
-        {field ? 'Arrêter' : 'Annuler'}
+        Annuler
       </WorkspaceButton>
       {error && !micReady ? (
         <WorkspaceButton type="button" onClick={() => void startRecording(false)} className="min-h-11">
@@ -540,14 +539,7 @@ export default function VoiceCaptureDialog({
         </WorkspaceButton>
       ) : (
         <WorkspaceButton type="button" onClick={stopRecording} disabled={!micReady} className="min-h-11">
-          {field ? (
-            'Valider'
-          ) : (
-            <>
-              <Square size={15} strokeWidth={2} aria-hidden />
-              Arrêter
-            </>
-          )}
+          Arrêter
         </WorkspaceButton>
       )}
     </div>
@@ -569,16 +561,10 @@ export default function VoiceCaptureDialog({
         {phase === 'processing' ? (
           <div className="py-1" aria-busy="true" aria-label={processingCopy}>
             <VoiceWaveform stream={null} compact />
-            <p className="mt-2 text-pretty text-center text-text-muted" style={{ fontSize: 13 }}>
-              {processingCopy}
-            </p>
           </div>
         ) : (
           <>
-            <AntisecheDictee compact={field} />
-            <div className="mt-3">
-              <VoiceWaveform stream={micStream} compact />
-            </div>
+            <VoiceWaveform stream={micStream} compact />
             {error ? (
               <p className="mt-2 text-pretty text-center text-text" style={{ fontSize: 12.5 }}>
                 {error}

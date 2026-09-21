@@ -35,7 +35,7 @@ export async function GET() {
   }
 
   const session = await createSupabaseServerClient();
-  const [{ data: modeleRows }, { data: biblioRows }, { data: agence }] = await Promise.all([
+  const [{ data: modeleRows }, { data: biblioRows }, { data: agence }, extraAgence] = await Promise.all([
     session
       .from('agency_rapport_modele')
       .select('source, bibliotheque_id, kind_generee')
@@ -49,6 +49,12 @@ export async function GET() {
       .order('position', { ascending: true })
       .order('created_at', { ascending: true }),
     session.from('agencies').select('rapport_email_modele').eq('id', agency.id).maybeSingle(),
+    session
+      .from('agencies')
+      .select('rapport_titre_couverture, rapport_cta_prochaine_etape')
+      .eq('id', agency.id)
+      .maybeSingle()
+      .then((r) => (r.error ? { rapport_titre_couverture: null, rapport_cta_prochaine_etape: null } : r.data)),
   ]);
 
   const parId = new Map((biblioRows ?? []).map((p) => [p.id, p]));
@@ -70,6 +76,8 @@ export async function GET() {
     })),
     pages,
     emailModele: texteEmailModele(agence?.rapport_email_modele),
+    titreCouverture: extraAgence?.rapport_titre_couverture ?? null,
+    ctaProchaineEtape: extraAgence?.rapport_cta_prochaine_etape ?? null,
   });
 }
 
@@ -112,6 +120,22 @@ export async function PUT(req: Request) {
         .insert(payloadSlots(slots, guard.agency.id));
       if (insErr) return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
     }
+  }
+
+  if (typeof body.titreCouverture === 'string' || typeof body.ctaProchaineEtape === 'string') {
+    const patch: Record<string, string | null> = {};
+    if (typeof body.titreCouverture === 'string') {
+      const t = body.titreCouverture.trim();
+      if (t.length > 80) return NextResponse.json({ error: 'Titre trop long' }, { status: 400 });
+      patch.rapport_titre_couverture = t.length > 0 ? t : null;
+    }
+    if (typeof body.ctaProchaineEtape === 'string') {
+      const t = body.ctaProchaineEtape.trim();
+      if (t.length > 400) return NextResponse.json({ error: 'Texte trop long' }, { status: 400 });
+      patch.rapport_cta_prochaine_etape = t.length > 0 ? t : null;
+    }
+    const { error } = await session.from('agencies').update(patch).eq('id', guard.agency.id);
+    if (error) return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
   }
 
   if (typeof body.emailModele === 'string') {

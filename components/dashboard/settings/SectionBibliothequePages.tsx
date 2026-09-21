@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, X } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
 import EditeurPageAgence from './EditeurPageAgence';
 import { libelleKindPage } from '@/lib/rapport/modele';
@@ -25,7 +25,11 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CSSProperties } from 'react';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { PageBibliotheque } from '@/lib/rapport/pages';
-import type { SlotModele } from '@/lib/rapport/modele-defaut';
+import {
+  KINDS_GENEREES,
+  LIBELLE_KIND_GENEREE,
+  type SlotModele,
+} from '@/lib/rapport/modele-defaut';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 
@@ -117,6 +121,18 @@ export default function SectionBibliothequePages() {
     if (from < 0 || to < 0) return;
     const next = arrayMove(slots, from, to).map((s, i) => ({ ...s, key: cleSlot(s, i) }));
     void enregistrerSlots(next);
+  }
+
+  function ajouterGeneree(kind: (typeof KINDS_GENEREES)[number]) {
+    const base = slots ?? [];
+    if (base.some((s) => s.source === 'generee' && s.kindGeneree === kind)) return;
+    const slot: SlotVue = {
+      source: 'generee',
+      kindGeneree: kind,
+      nom: LIBELLE_KIND_GENEREE[kind],
+      key: cleSlot({ source: 'generee', kindGeneree: kind }, base.length),
+    };
+    void enregistrerSlots([...base, slot]);
   }
 
   function ajouterAuModele(page: PageBibliotheque) {
@@ -226,6 +242,26 @@ export default function SectionBibliothequePages() {
         )}
       </section>
 
+      {isDirector && slots ? (
+        <section>
+          <h2 className="text-balance text-[16px] font-semibold text-ink">Pages de données</h2>
+          <p className="mt-1 text-pretty text-[13px] text-mute">
+            Pages produites depuis le dossier. Retirez-les du modèle ou remettez-les ici.
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {KINDS_GENEREES.filter(
+              (k) => !slots.some((s) => s.source === 'generee' && s.kindGeneree === k),
+            ).map((k) => (
+              <li key={k}>
+                <WorkspaceButton type="button" variant="secondary" onClick={() => ajouterGeneree(k)}>
+                  {LIBELLE_KIND_GENEREE[k]}
+                </WorkspaceButton>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section>
         <h2 className="text-balance text-[16px] font-semibold text-ink">Bibliothèque</h2>
         <p className="mt-1 text-pretty text-[13px] text-mute">
@@ -331,7 +367,7 @@ function LigneSlot({
           aria-label={`Retirer ${slot.nom} du modèle`}
           onClick={onDelete}
         >
-          <Trash2 size={16} strokeWidth={2} aria-hidden />
+          <X size={16} strokeWidth={2} aria-hidden />
         </button>
       ) : null}
     </li>

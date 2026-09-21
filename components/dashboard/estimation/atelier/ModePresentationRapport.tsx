@@ -11,6 +11,7 @@ import {
   type PiedBienRapport,
 } from '@/lib/rapport/identite';
 import type { PageRapportComposee } from '@/lib/rapport/pages';
+import type { DossierRapport } from '@/lib/rapport/genere/types';
 
 export default function ModePresentationRapport({
   pages,
@@ -21,6 +22,7 @@ export default function ModePresentationRapport({
   agent,
   bien,
   dateIso,
+  dossier,
 }: {
   pages: PageRapportComposee[];
   index: number;
@@ -30,6 +32,7 @@ export default function ModePresentationRapport({
   agent: IdentiteAgentRapport;
   bien: PiedBienRapport;
   dateIso: string | null;
+  dossier?: DossierRapport | null;
 }) {
   const debutX = useRef<number | null>(null);
   const fermerRef = useRef<HTMLButtonElement>(null);
@@ -129,8 +132,9 @@ export default function ModePresentationRapport({
             dateIso={dateIso}
             page={max === 0 ? 1 : courant + 1}
             pages={Math.max(max, 1)}
+            sansChrome={page?.kindGeneree === 'couverture'}
           >
-            <ApercuPageComposee page={page} accent={accent} />
+            <ApercuPageComposee page={page} accent={accent} dossier={dossier} />
           </PageRapport>
         </div>
       </div>

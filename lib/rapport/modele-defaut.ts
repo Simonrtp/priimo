@@ -1,16 +1,64 @@
 /**
- * Modèle de rapport d'agence : pages de bibliothèque et pages du dossier
- * (couverture, comparables, prix) dans le même ordre.
+ * Modèle de rapport d'agence : pages de bibliothèque et pages générées
+ * depuis les données du dossier, dans le même ordre.
  */
 
-export const KINDS_GENEREES = ['couverture', 'comparables', 'prix'] as const;
+export const KINDS_GENEREES = [
+  'couverture',
+  'votre_bien',
+  'description',
+  'immeuble_appartement',
+  'secteur',
+  'points_interet',
+  'connectivite',
+  'permis',
+  'comparables',
+  'concurrentiel',
+  'indices',
+  'prix',
+  'prochaine_etape',
+] as const;
 export type KindGeneree = (typeof KINDS_GENEREES)[number];
+
+/** Pages générées avant le bloc bibliothèque. */
+export const KINDS_AVANT_BIBLIO = [
+  'couverture',
+  'votre_bien',
+  'description',
+  'immeuble_appartement',
+  'secteur',
+  'points_interet',
+  'connectivite',
+  'permis',
+  'comparables',
+  'concurrentiel',
+  'indices',
+  'prix',
+] as const satisfies readonly KindGeneree[];
+
+/** Dernière page du rapport, après la bibliothèque. */
+export const KINDS_APRES_BIBLIO = ['prochaine_etape'] as const satisfies readonly KindGeneree[];
 
 export const LIBELLE_KIND_GENEREE: Record<KindGeneree, string> = {
   couverture: 'Couverture',
-  comparables: 'Comparables',
-  prix: 'Prix',
+  votre_bien: 'Votre bien',
+  description: 'Description du bien',
+  immeuble_appartement: 'L’immeuble et l’appartement',
+  secteur: 'Le secteur',
+  points_interet: 'Points d’intérêt',
+  connectivite: 'Connectivité',
+  permis: 'Permis de construire',
+  comparables: 'Ventes comparables',
+  concurrentiel: 'Étude concurrentielle',
+  indices: 'Indices du marché',
+  prix: 'Notre estimation',
+  prochaine_etape: 'Prochaine étape',
 };
+
+export const TITRE_COUVERTURE_DEFAUT = 'Avis de valeur';
+
+export const CTA_PROCHAINE_ETAPE_DEFAUT =
+  'Pour lancer la commercialisation de votre bien, la prochaine étape est la signature du mandat.';
 
 export type SlotModele =
   | { source: 'bibliotheque'; bibliothequeId: string }
@@ -67,6 +115,26 @@ export function nomSlotModele(
 ): string {
   if (slot.source === 'generee') return LIBELLE_KIND_GENEREE[slot.kindGeneree];
   return biblioParId.get(slot.bibliothequeId)?.nom ?? 'Page retirée';
+}
+
+/** Insère les 13 pages générées autour des pages de bibliothèque déjà présentes. */
+export function insererPagesGenerees(slots: readonly SlotModele[]): SlotModele[] {
+  const biblio = slots.filter((s): s is Extract<SlotModele, { source: 'bibliotheque' }> => s.source === 'bibliotheque');
+  return [
+    ...KINDS_AVANT_BIBLIO.map((kindGeneree) => ({ source: 'generee' as const, kindGeneree })),
+    ...biblio,
+    ...KINDS_APRES_BIBLIO.map((kindGeneree) => ({ source: 'generee' as const, kindGeneree })),
+  ];
+}
+
+export function titreCouvertureAgence(raw: string | null | undefined): string {
+  const s = raw?.trim();
+  return s && s.length > 0 ? s : TITRE_COUVERTURE_DEFAUT;
+}
+
+export function ctaProchaineEtape(raw: string | null | undefined): string {
+  const s = raw?.trim();
+  return s && s.length > 0 ? s : CTA_PROCHAINE_ETAPE_DEFAUT;
 }
 
 export const EMAIL_MODELE_DEFAUT = `Bonjour,

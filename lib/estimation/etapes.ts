@@ -1,3 +1,4 @@
+import { criteresRenseignes } from '@/lib/estimation/grille';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 
 export const ETAPES_ATELIER = [
@@ -32,6 +33,21 @@ export function etapeRapportOk(
   e: Pick<EstimationObjet, 'contactId' | 'address' | 'propertyType' | 'surfaceM2' | 'rooms' | 'priceValue'>,
 ): boolean {
   return etapeClientOk(e) && etapeBienOk(e) && etapeEstimationOk(e);
+}
+
+/** L’étape a ce qu’il faut : coche discrète dans le fil. */
+export function etapeValidee(
+  e: EstimationObjet,
+  id: EtapeAtelierId,
+  atteint = 0,
+): boolean {
+  if (id === 'client') return etapeClientOk(e);
+  if (id === 'bien') return etapeBienOk(e);
+  if (id === 'caracteristiques') {
+    return criteresRenseignes(e.grille) > 0 || atteint > indexEtape('caracteristiques');
+  }
+  if (id === 'estimation') return etapeEstimationOk(e);
+  return e.etat === 'envoyee' || e.etat === 'mandat_signe';
 }
 
 export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | null {

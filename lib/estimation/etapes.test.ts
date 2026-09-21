@@ -1,78 +1,45 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import {
-  etapeAccessible,
-  etapeBienOk,
-  etapeClientOk,
-  etapeInitiale,
-  indexDepuisDonnees,
-  indexMaxAccessible,
-  manquesEtape,
-} from './etapes';
+import type { EstimationObjet } from './objet';
+import { BIEN_VIDE } from './objet';
+import { etapeValidee } from './etapes';
 
-const vide = {
-  contactId: null,
-  address: null,
-  propertyType: null,
-  surfaceM2: null,
-  rooms: null,
-  priceValue: null,
-} as const;
+function fiche(partial: Partial<EstimationObjet>): EstimationObjet {
+  return {
+    bien: { ...BIEN_VIDE },
+    grille: {},
+    contactId: null,
+    address: null,
+    propertyType: null,
+    surfaceM2: null,
+    rooms: null,
+    priceValue: null,
+    etat: 'brouillon',
+    ...partial,
+  } as EstimationObjet;
+}
 
-describe('étapes atelier', () => {
-  it('bloque le client tant qu’aucun contact n’est rattaché', () => {
-    assert.equal(etapeClientOk(vide), false);
-    assert.equal(manquesEtape(vide as never, 'client'), 'Rattachez ou créez un client pour continuer.');
+describe('etapeValidee', () => {
+  it('coche le client dès qu’une fiche est rattachée', () => {
+    assert.equal(etapeValidee(fiche({}), 'client'), false);
+    assert.equal(etapeValidee(fiche({ contactId: 'c1' }), 'client'), true);
   });
 
-  it('exige adresse, type, surface et pièces pour le bien', () => {
-    assert.equal(etapeBienOk({ ...vide, address: '12 rue X', propertyType: 'appartement' }), false);
+  it('coche le bien seulement si adresse, type, surface et pièces sont là', () => {
+    const incomplet = fiche({ address: '12 rue X', propertyType: 'appartement' });
+    assert.equal(etapeValidee(incomplet, 'bien'), false);
     assert.equal(
-      etapeBienOk({
-        address: '12 rue X',
-        propertyType: 'appartement',
-        surfaceM2: 65,
-        rooms: 3,
-      }),
+      etapeValidee(fiche({ address: '12 rue X', propertyType: 'appartement', surfaceM2: 60, rooms: 3 }), 'bien'),
       true,
     );
   });
 
-  it('une estimation neuve commence au client', () => {
-    assert.equal(etapeInitiale(vide as never), 'client');
-    assert.equal(indexDepuisDonnees(vide as never), 0);
-  });
-
-  it('interdit de sauter à l’estimation si le bien n’est pas rempli', () => {
-    const avecClient = { ...vide, contactId: 'c1' };
-    assert.equal(indexMaxAccessible(avecClient as never, 0), 1);
-    assert.ok(indexMaxAccessible(avecClient as never, 0) < 3);
-  });
-
-  it('déverrouille tout une fois la valeur calculée', () => {
-    const complete = {
-      contactId: 'c1',
-      address: '12 rue X',
-      propertyType: 'maison' as const,
-      surfaceM2: 90,
-      rooms: 4,
-      priceValue: 320000,
-    };
-    assert.equal(indexMaxAccessible(complete as never, 0), 4);
-  });
-
-  it('interdit le rapport tant que client, bien et valeur ne sont pas faits', () => {
-    assert.equal(etapeAccessible(vide as never, 0, 'rapport'), false);
-    assert.equal(etapeAccessible(vide as never, 0, 'bien'), false);
-    assert.equal(etapeAccessible(vide as never, 0, 'estimation'), false);
-    const complete = {
-      contactId: 'c1',
-      address: '12 rue X',
-      propertyType: 'maison' as const,
-      surfaceM2: 90,
-      rooms: 4,
-      priceValue: 320000,
-    };
-    assert.equal(etapeAccessible(complete as never, 0, 'rapport'), true);
+  it('coche les caractéristiques si la grille a une note, ou si on est passé après', () => {
+    assert.equal(etapeValidee(fiche({}), 'caracteristiques', 0), false);
+    assert.equal(
+      etapeValidee(fiche({ grille: { standing: { valeur: 4, source: 'agent' } } }), 'caracteristiques'),
+      true,
+    );
+    assert.equal(etapeValidee(fiche({}), 'caracteristiques', 3), true);
   });
 });

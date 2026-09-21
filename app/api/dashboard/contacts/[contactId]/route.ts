@@ -17,6 +17,28 @@ import type { ContactRow } from '@/types/database';
 
 export const runtime = 'nodejs';
 
+export async function GET(_req: Request, ctx: { params: Promise<{ contactId: string }> }) {
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  const { contactId } = await ctx.params;
+  if (!contactId) return NextResponse.json({ error: 'Contact inconnu' }, { status: 400 });
+
+  const supabase = await createSupabaseServerClient();
+  const existing = await fetchContactById(supabase, contactId);
+  const viewer = viewerFromProfile(profile);
+  if (
+    !existing ||
+    !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })
+  ) {
+    return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
+  }
+
+  return NextResponse.json({ contact: existing });
+}
+
 export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: string }> }) {
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) {

@@ -79,7 +79,7 @@ export function appliquerPatch(
   }
   if (body.honorairesPct !== undefined) {
     const n = Number(body.honorairesPct);
-    patch.honoraires_pct = Number.isFinite(n) && n >= 0 && n <= 20 ? n : 5;
+    patch.honoraires_pct = Number.isFinite(n) && n >= 0 && n <= 20 ? n : 0;
   }
   if (body.commentairesPublics !== undefined) {
     patch.commentaires_publics =

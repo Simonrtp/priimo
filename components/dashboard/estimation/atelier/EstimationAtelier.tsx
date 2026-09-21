@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Mic } from 'lucide-react';
+import { ArrowRight, Check, Mic } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
@@ -18,6 +18,7 @@ import {
 import {
   ETAPES_ATELIER,
   etapeAccessible,
+  etapeValidee,
   indexEtape,
   indexMaxAccessible,
   manquesEtape,
@@ -85,11 +86,21 @@ export default function EstimationAtelier({
   const [calculating, setCalculating] = useState(false);
   const [sauve, setSauve] = useState<'ok' | '…' | 'err'>('ok');
   const [pendingVoice, setPendingVoice] = useState<ReadonlySet<EstimationVoiceField>>(new Set());
-  const [etatRapport, setEtatRapport] = useState<{ pages: number; contactEmail: string | null }>({
+  const [etatRapport, setEtatRapport] = useState<{
+    pages: number;
+    contactEmail: string | null;
+    pagesIncompletes: Array<{ kind: import('@/lib/rapport/modele-defaut').KindGeneree; manques: string[] }>;
+    contradictions: import('@/lib/rapport/genere/contradictions').ContradictionRapport[];
+  }>({
     pages: 0,
     contactEmail: null,
+    pagesIncompletes: [],
+    contradictions: [],
   });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef<Record<string, unknown>>({});
+  const seqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
   const estimationRef = useRef(estimation);
   estimationRef.current = estimation;
   const { openCapture, captureSessionOpen, capturePurpose } = useVoiceCapture();
@@ -100,21 +111,36 @@ export default function EstimationAtelier({
       ...prev,
       ...mapLocal(body, prev),
     }));
+    pendingRef.current = fusionnerCorps(pendingRef.current, body);
     setSauve('…');
     if (timer.current) clearTimeout(timer.current);
+    abortRef.current?.abort();
+    const mine = ++seqRef.current;
     timer.current = setTimeout(() => {
+      const payload = pendingRef.current;
+      pendingRef.current = {};
+      const ac = new AbortController();
+      abortRef.current = ac;
       void (async () => {
         try {
           const res = await fetch(`/api/dashboard/estimation/${initial.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
+            signal: ac.signal,
           });
           const data = (await res.json()) as { estimation?: EstimationObjet; error?: string };
           if (!res.ok || !data.estimation) throw new Error(data.error);
-          setEstimation(data.estimation);
+          if (mine !== seqRef.current) return;
+          setEstimation((prev) => {
+            const extra = pendingRef.current;
+            if (Object.keys(extra).length === 0) return data.estimation!;
+            return { ...data.estimation!, ...mapLocal(extra, data.estimation!) };
+          });
           setSauve('ok');
-        } catch {
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          if (mine !== seqRef.current) return;
           setSauve('err');
         }
       })();
@@ -141,7 +167,11 @@ export default function EstimationAtelier({
       setPendingVoice(new Set(keys));
       setOnglet('bien');
       setAtteint((prev) => Math.max(prev, indexEtape('bien')));
-      notifySuccess('Relisez les champs surlignés — rien n’est validé sans vous.');
+      if (keys.length === 1 && keys[0] === 'commentairesPublics') {
+        notifyInfo('Description notée. Relisez et complétez les champs à la main.');
+      } else {
+        notifySuccess('Relisez les champs surlignés — rien n’est validé sans vous.');
+      }
     },
     [patch],
   );
@@ -314,6 +344,7 @@ export default function EstimationAtelier({
         {ETAPES_ATELIER.map((t, i) => {
           const courant = onglet === t.id;
           const verrouille = !etapeAccessible(estimation, atteint, t.id);
+          const validee = etapeValidee(estimation, t.id, atteint);
           return (
             <button
               key={t.id}
@@ -322,6 +353,7 @@ export default function EstimationAtelier({
               aria-selected={courant}
               aria-disabled={verrouille}
               disabled={verrouille}
+              aria-label={validee ? `${t.label}, terminée` : t.label}
               onClick={() => allerEtape(t.id)}
               className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
                 courant
@@ -339,6 +371,14 @@ export default function EstimationAtelier({
                 {i + 1}
               </span>
               {t.label}
+              {validee ? (
+                <Check
+                  size={11}
+                  strokeWidth={2.6}
+                  className={courant ? 'text-emerald-300' : 'text-emerald-600'}
+                  aria-hidden
+                />
+              ) : null}
             </button>
           );
         })}
@@ -418,6 +458,8 @@ export default function EstimationAtelier({
               photos: estimation.photos.length,
               contactEmail: etatRapport.contactEmail,
               pages: etatRapport.pages,
+              pagesIncompletes: etatRapport.pagesIncompletes,
+              contradictions: etatRapport.contradictions,
             })}
             onAllerA={(etape) => {
               setOnglet(etape);
@@ -443,6 +485,25 @@ export default function EstimationAtelier({
       ) : null}
     </div>
   );
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** Plusieurs champs touchés avant le debounce : on les envoie ensemble. */
+function fusionnerCorps(
+  acc: Record<string, unknown>,
+  body: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...acc, ...body };
+  if (isRecord(acc.bien) && isRecord(body.bien)) {
+    next.bien = { ...acc.bien, ...body.bien };
+  }
+  if (isRecord(acc.grille) && isRecord(body.grille)) {
+    next.grille = { ...acc.grille, ...body.grille };
+  }
+  return next;
 }
 
 function mapLocal(body: Record<string, unknown>, prev: EstimationObjet): Partial<EstimationObjet> {
@@ -474,6 +535,8 @@ function mapLocal(body: Record<string, unknown>, prev: EstimationObjet): Partial
   if ('pointsForts' in body) next.pointsForts = body.pointsForts as string[];
   if ('pointsFaibles' in body) next.pointsFaibles = body.pointsFaibles as string[];
   if ('photos' in body) next.photos = body.photos as EstimationObjet['photos'];
+  if ('rapportExclus' in body) next.rapportExclus = body.rapportExclus;
+  if ('remarquesExpert' in body) next.remarquesExpert = body.remarquesExpert as string | null;
   if ('contactId' in body) next.contactId = body.contactId as string | null;
   if ('leadId' in body) next.leadId = body.leadId as string | null;
   if ('bienId' in body) next.bienId = body.bienId as string | null;

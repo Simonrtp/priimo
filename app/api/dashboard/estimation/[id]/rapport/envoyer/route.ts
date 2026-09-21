@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
-import { identiteAgenceDepuisRow, identiteAgentDepuisProfil, piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
+import { identiteAgentDepuisProfil, piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
 import { emailDestinataireValide, mapEnvoiRapport } from '@/lib/rapport/envois';
-import { mapPageComposee } from '@/lib/rapport/pages';
+import { assemblerRapport } from '@/lib/rapport/genere/assembler';
+import { pageExportable } from '@/lib/rapport/pages';
 import { genererPdfRapport } from '@/lib/rapport/pdf';
 import { joindreSansVide } from '@/lib/rapport/identite';
 import { cheminEnvoi, deposerRapport } from '@/lib/rapport/storage';
@@ -61,23 +62,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'E-mail de l’agent manquant' }, { status: 400 });
   }
 
-  const { data, error } = await session
-    .from('estimation_rapport_pages')
-    .select('*')
-    .eq('estimation_id', ctx.estimation.id)
-    .eq('agency_id', ctx.agency.id)
-    .order('position', { ascending: true })
-    .order('created_at', { ascending: true });
-  if (error) {
+  let assemble;
+  try {
+    assemble = await assemblerRapport(session, ctx, { signer: false });
+  } catch {
     return NextResponse.json({ error: 'Composition indisponible' }, { status: 500 });
   }
-  if (!data || data.length === 0) {
+  const pages = assemble.pages.filter(pageExportable);
+  if (pages.length === 0) {
     return NextResponse.json({ error: 'Ajoutez au moins une page au rapport' }, { status: 400 });
   }
 
-  const pages = data.map((row) => mapPageComposee(row, null));
-  const agence = await identiteAgenceDepuisRow(ctx.agency);
-  const agent = identiteAgentDepuisProfil(ctx.profile, ctx.user.email);
+  const agence = assemble.agence;
+  const agent = assemble.agent;
   const bien = piedBienDepuisEstimation(ctx.estimation);
   const bienLabel = joindreSansVide([bien.adresse, bien.ville], ', ');
   const pdf = await genererPdfRapport({
@@ -86,6 +83,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     bien,
     dateIso: ctx.estimation.updatedAt,
     pages,
+    dossier: assemble.dossier,
   });
 
   const { data: dernier } = await session

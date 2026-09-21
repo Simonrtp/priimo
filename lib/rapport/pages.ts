@@ -7,6 +7,7 @@ import type {
   EstimationRapportPageSource,
 } from '@/types/database';
 import { estDisposition, normaliserContenu, type ContenuPageModele } from '@/lib/rapport/modele';
+import { estKindGeneree, type KindGeneree } from '@/lib/rapport/modele-defaut';
 
 export const RAPPORT_BUCKET = 'rapport-pages';
 export const MAX_RAPPORT_UPLOAD_BYTES = 15 * 1024 * 1024;
@@ -59,6 +60,8 @@ export type PageRapportComposee = {
   previewUrl: string | null;
   disposition: DispositionPageAgence | null;
   contenu: ContenuPageModele | null;
+  kindGeneree: KindGeneree | null;
+  manques: string[];
 };
 
 export function kindDepuisMime(mime: string): 'pdf' | 'image' | null {
@@ -152,10 +155,18 @@ export function mapPageBibliotheque(
   };
 }
 
+export function kindGenereeDepuisContenu(raw: unknown): KindGeneree | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const k = (raw as { kind?: unknown }).kind;
+  return estKindGeneree(k) ? k : null;
+}
+
 export function mapPageComposee(
   row: EstimationRapportPageRow,
   previewUrl: string | null,
+  extra?: { manques?: string[] },
 ): PageRapportComposee {
+  const kindGeneree = row.kind === 'generee' ? kindGenereeDepuisContenu(row.contenu) : null;
   return {
     id: row.id,
     source: row.source,
@@ -168,8 +179,15 @@ export function mapPageComposee(
     position: row.position,
     previewUrl,
     disposition: estDisposition(row.disposition) ? row.disposition : null,
-    contenu: row.contenu ? normaliserContenu(row.contenu) : null,
+    contenu: row.kind === 'generee' ? null : row.contenu ? normaliserContenu(row.contenu) : null,
+    kindGeneree,
+    manques: extra?.manques ?? [],
   };
+}
+
+export function pageExportable(page: PageRapportComposee): boolean {
+  if (page.kind !== 'generee') return true;
+  return page.manques.length === 0;
 }
 
 export function reordonnerIds(ids: string[], from: number, to: number): string[] {

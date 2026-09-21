@@ -3,7 +3,8 @@
 import { type ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import { Field, TextArea, TextInput, ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Field';
+import { Field, ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Field';
+import { ChampSaisi, ZoneSaisie, texteNombre } from './ChampSaisi';
 import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import SectionRepliable from './SectionRepliable';
@@ -208,31 +209,31 @@ export default function OngletBien({
           </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="rooms">
             <Field label="Pièces" htmlFor="est-pieces">
-              <TextInput
+              <ChampSaisi
                 id="est-pieces"
                 inputMode="numeric"
-                value={estimation.rooms ?? ''}
-                onChange={(e) => edit('rooms', { rooms: nombreStrictementPositif(e.target.value) })}
+                value={texteNombre(estimation.rooms)}
+                onCommit={(raw) => edit('rooms', { rooms: nombreStrictementPositif(raw) })}
               />
             </Field>
           </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="chambres">
             <Field label="Chambres" htmlFor="est-chambres">
-              <TextInput
+              <ChampSaisi
                 id="est-chambres"
                 inputMode="numeric"
-                value={bien.chambres ?? ''}
-                onChange={(e) => editBien('chambres', { chambres: nombreSaisi(e.target.value) })}
+                value={texteNombre(bien.chambres)}
+                onCommit={(raw) => editBien('chambres', { chambres: nombreSaisi(raw) })}
               />
             </Field>
           </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="surfaceM2">
             <Field label="Surface habitable (m²)" htmlFor="est-surf">
-              <TextInput
+              <ChampSaisi
                 id="est-surf"
                 inputMode="numeric"
-                value={estimation.surfaceM2 ?? ''}
-                onChange={(e) => edit('surfaceM2', { surfaceM2: nombreStrictementPositif(e.target.value) })}
+                value={texteNombre(estimation.surfaceM2)}
+                onCommit={(raw) => edit('surfaceM2', { surfaceM2: nombreStrictementPositif(raw) })}
               />
             </Field>
           </Propose>
@@ -250,14 +251,22 @@ export default function OngletBien({
               />
             </Field>
           </Propose>
+          <Field label="Surface Carrez (m²)" htmlFor="est-surf-carrez">
+            <ChampSaisi
+              id="est-surf-carrez"
+              inputMode="numeric"
+              value={texteNombre(bien.surfaceCarrez)}
+              onCommit={(raw) => editBien('carrez', { surfaceCarrez: nombreSaisi(raw) })}
+            />
+          </Field>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="surfaceTerrain">
             <Field label="Terrain (m²)" htmlFor="est-terrain">
-              <TextInput
+              <ChampSaisi
                 id="est-terrain"
                 inputMode="numeric"
-                value={bien.surfaceTerrain ?? ''}
-                onChange={(e) =>
-                  editBien('surfaceTerrain', { surfaceTerrain: nombreSaisi(e.target.value) })
+                value={texteNombre(bien.surfaceTerrain)}
+                onCommit={(raw) =>
+                  editBien('surfaceTerrain', { surfaceTerrain: nombreSaisi(raw) })
                 }
               />
             </Field>
@@ -389,11 +398,11 @@ export default function OngletBien({
           {estimation.occupation === 'occupe' ? (
             <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="loyerAnnuel">
               <Field label="Loyer annuel (€)" htmlFor="est-loyer">
-                <TextInput
+                <ChampSaisi
                   id="est-loyer"
                   inputMode="numeric"
-                  value={estimation.loyerAnnuel ?? ''}
-                  onChange={(e) => edit('loyerAnnuel', { loyerAnnuel: nombreSaisi(e.target.value) })}
+                  value={texteNombre(estimation.loyerAnnuel)}
+                  onCommit={(raw) => edit('loyerAnnuel', { loyerAnnuel: nombreSaisi(raw) })}
                 />
               </Field>
             </Propose>
@@ -405,36 +414,36 @@ export default function OngletBien({
         <div className="grid gap-3 sm:grid-cols-3">
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="chargesAnnuelles">
             <Field label="Charges annuelles" htmlFor="est-ch-an">
-              <TextInput
+              <ChampSaisi
                 id="est-ch-an"
                 inputMode="numeric"
-                value={bien.chargesAnnuelles ?? ''}
-                onChange={(e) =>
-                  editBien('chargesAnnuelles', { chargesAnnuelles: nombreSaisi(e.target.value) })
+                value={texteNombre(bien.chargesAnnuelles)}
+                onCommit={(raw) =>
+                  editBien('chargesAnnuelles', { chargesAnnuelles: nombreSaisi(raw) })
                 }
               />
             </Field>
           </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="chargesCopro">
             <Field label="Charges de copropriété" htmlFor="est-ch-copro">
-              <TextInput
+              <ChampSaisi
                 id="est-ch-copro"
                 inputMode="numeric"
-                value={bien.chargesCopro ?? ''}
-                onChange={(e) =>
-                  editBien('chargesCopro', { chargesCopro: nombreSaisi(e.target.value) })
+                value={texteNombre(bien.chargesCopro)}
+                onCommit={(raw) =>
+                  editBien('chargesCopro', { chargesCopro: nombreSaisi(raw) })
                 }
               />
             </Field>
           </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="taxeFonciere">
             <Field label="Taxe foncière" htmlFor="est-tf">
-              <TextInput
+              <ChampSaisi
                 id="est-tf"
                 inputMode="numeric"
-                value={bien.taxeFonciere ?? ''}
-                onChange={(e) =>
-                  editBien('taxeFonciere', { taxeFonciere: nombreSaisi(e.target.value) })
+                value={texteNombre(bien.taxeFonciere)}
+                onCommit={(raw) =>
+                  editBien('taxeFonciere', { taxeFonciere: nombreSaisi(raw) })
                 }
               />
             </Field>
@@ -457,35 +466,35 @@ export default function OngletBien({
               {estimation.annexes.map((a, i) => (
                 <tr key={a.id}>
                   <td className="py-1 pr-2">
-                    <TextInput
+                    <ChampSaisi
                       value={a.libelle}
-                      onChange={(e) => {
+                      onCommit={(raw) => {
                         const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, libelle: e.target.value } : x,
+                          j === i ? { ...x, libelle: raw } : x,
                         );
                         edit('annexes', { annexes: next });
                       }}
                     />
                   </td>
                   <td className="py-1 pr-2">
-                    <TextInput
+                    <ChampSaisi
                       inputMode="numeric"
-                      value={a.surfaceM2 ?? ''}
-                      onChange={(e) => {
+                      value={texteNombre(a.surfaceM2)}
+                      onCommit={(raw) => {
                         const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, surfaceM2: nombreSaisi(e.target.value) } : x,
+                          j === i ? { ...x, surfaceM2: nombreSaisi(raw) } : x,
                         );
                         edit('annexes', { annexes: next });
                       }}
                     />
                   </td>
                   <td className="py-1 pr-2">
-                    <TextInput
+                    <ChampSaisi
                       inputMode="numeric"
-                      value={a.valorisationEur ?? ''}
-                      onChange={(e) => {
+                      value={texteNombre(a.valorisationEur)}
+                      onCommit={(raw) => {
                         const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, valorisationEur: nombreSaisi(e.target.value) } : x,
+                          j === i ? { ...x, valorisationEur: nombreSaisi(raw) } : x,
                         );
                         edit('annexes', { annexes: next });
                       }}
@@ -530,10 +539,10 @@ export default function OngletBien({
         <div className="grid gap-3 sm:grid-cols-2">
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="dpeVersion">
             <Field label="Version du DPE" htmlFor="est-dpe-v">
-              <TextInput
+              <ChampSaisi
                 id="est-dpe-v"
                 value={bien.dpeVersion ?? ''}
-                onChange={(e) => editBien('dpeVersion', { dpeVersion: e.target.value || null })}
+                onCommit={(raw) => editBien('dpeVersion', { dpeVersion: raw || null })}
               />
             </Field>
           </Propose>
@@ -559,11 +568,11 @@ export default function OngletBien({
           </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="consoKwh">
             <Field label="Consommation (kWh/m².an)" htmlFor="est-conso">
-              <TextInput
+              <ChampSaisi
                 id="est-conso"
                 inputMode="numeric"
-                value={bien.consoKwh ?? ''}
-                onChange={(e) => editBien('consoKwh', { consoKwh: nombreSaisi(e.target.value) })}
+                value={texteNombre(bien.consoKwh)}
+                onCommit={(raw) => editBien('consoKwh', { consoKwh: nombreSaisi(raw) })}
               />
             </Field>
           </Propose>
@@ -592,8 +601,24 @@ export default function OngletBien({
         {estimation.photos.length > 0 ? (
           <ul className="mt-3 grid grid-cols-3 gap-2">
             {estimation.photos.map((p) => (
-              <li key={p.url}>
+              <li key={p.url} className="flex flex-col gap-1">
                 <img src={p.url} alt="" className="h-24 w-full rounded-clay object-cover" />
+                {p.kind === 'photo' ? (
+                  <button
+                    type="button"
+                    className="min-h-9 text-[12px] text-text-muted hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    onClick={() =>
+                      onPatch({
+                        photos: estimation.photos.map((x) => ({
+                          ...x,
+                          couverture: x.url === p.url,
+                        })),
+                      })
+                    }
+                  >
+                    {p.couverture ? 'Photo de couverture' : 'Choisir en couverture'}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -652,21 +677,21 @@ export default function OngletBien({
 
       <SectionRepliable titre="Commentaires confidentiels">
         <Field label="Notes internes" htmlFor="est-conf">
-          <TextArea
+          <ZoneSaisie
             id="est-conf"
             rows={4}
             value={estimation.commentairesConfidentiels ?? ''}
-            onChange={(e) => onPatch({ commentairesConfidentiels: e.target.value })}
+            onCommit={(raw) => onPatch({ commentairesConfidentiels: raw })}
           />
         </Field>
         <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="commentairesPublics">
           <Field label="Commentaire public" htmlFor="est-pub">
-            <TextArea
+            <ZoneSaisie
               id="est-pub"
               rows={3}
               value={estimation.commentairesPublics ?? ''}
-              onChange={(e) =>
-                edit('commentairesPublics', { commentairesPublics: e.target.value })
+              onCommit={(raw) =>
+                edit('commentairesPublics', { commentairesPublics: raw })
               }
             />
           </Field>

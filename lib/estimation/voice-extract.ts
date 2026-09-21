@@ -8,18 +8,89 @@ import { inferDernierEtage, VALEURS_ETAGE } from '@/lib/estimation/etages';
 import { CRITERE_NOTE_LABELS } from '@/lib/estimation/grille';
 import type { EstimationAnnexe, EstimationBien, EstimationObjet } from '@/lib/estimation/objet';
 import type { EstimationOccupation } from '@/lib/estimation/cycle';
+import { extractEstimationHeuristic } from '@/lib/estimation/voice-heuristic';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_MODEL = 'mistral-small-latest';
 const MAX_TRANSCRIPT_CHARS = 3200;
 const MIN_TRANSCRIPT_CHARS = 12;
-const MAX_OUTPUT_TOKENS = 480;
+const MAX_OUTPUT_TOKENS = 800;
 
 const SYSTEM_PROMPT =
-  'Tu ranges une description LIBRE d’un bien visité (FR), dite comme à un collègue : pas d’ordre, pas de noms de champs. JSON strict. Null ou [] si non dit. Ne devine jamais. Jamais d’adresse. Un style (haussmannien, art déco, années 30…) n’est PAS une année : mets-le dans pointsForts. anneeConstruction seulement si une année chiffrée est dite. Qualitatif (lumineux, moulures, calme, sombre) → pointsForts, pointsFaibles ou commentairesPublics, jamais un champ de précision.';
+  'Tu ranges une description LIBRE d’un bien visité (FR), dite comme à un collègue : pas d’ordre, pas de noms de champs. JSON strict. Null ou [] seulement si vraiment absent. T3/F3/studio → rooms + propertyType appartement. Une surface en m² → surfaceM2. Ne devine pas un chiffre non dit. Jamais d’adresse. Un style (haussmannien, art déco, années 30…) n’est PAS une année : mets-le dans pointsForts. anneeConstruction seulement si une année chiffrée est dite. Qualitatif (lumineux, moulures, calme, sombre) → pointsForts, pointsFaibles ou commentairesPublics.';
 
 function buildPrompt(transcript: string): string {
-  return `Description libre, dans le désordre :\n${transcript}\n\nRange chaque élément au bon champ. L’agent n’a pas à nommer les champs.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
+  return `Description libre, dans le désordre :\n${transcript}\n\nRange chaque élément au bon champ. L’agent n’a pas à nommer les champs. Un T3 de 65 m² au 3e avec cave doit remplir rooms, surfaceM2, floor, annexes.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
+}
+
+function extractJsonObject(raw: string): string {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) return fenced[1].trim();
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start >= 0 && end > start) return raw.slice(start, end + 1);
+  return raw.trim();
+}
+
+/** Mistral peut renvoyer une string, un objet, ou des parts [{text}]. */
+export function modelContentToJson(content: unknown): string {
+  if (typeof content === 'string') return extractJsonObject(content);
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (part && typeof part === 'object' && 'text' in part) return String(part.text ?? '');
+        return '';
+      })
+      .join('');
+    return extractJsonObject(text);
+  }
+  if (content && typeof content === 'object') return JSON.stringify(content);
+  return '';
+}
+
+function prefer<T>(primary: T | null, fallback: T | null): T | null {
+  return primary != null && primary !== '' ? primary : fallback;
+}
+
+export function mergeEstimationVoiceDrafts(
+  primary: EstimationVoiceDraft,
+  fallback: EstimationVoiceDraft,
+): EstimationVoiceDraft {
+  const annexes = [...primary.annexes];
+  for (const extra of fallback.annexes) {
+    if (!annexes.some((a) => a.libelle === extra.libelle)) annexes.push(extra);
+  }
+  return {
+    propertyType: prefer(primary.propertyType, fallback.propertyType),
+    sousType: prefer(primary.sousType, fallback.sousType),
+    rooms: prefer(primary.rooms, fallback.rooms),
+    chambres: prefer(primary.chambres, fallback.chambres),
+    surfaceM2: prefer(primary.surfaceM2, fallback.surfaceM2),
+    carrez: prefer(primary.carrez, fallback.carrez),
+    surfaceTerrain: prefer(primary.surfaceTerrain, fallback.surfaceTerrain),
+    niveaux: prefer(primary.niveaux, fallback.niveaux),
+    floor: prefer(primary.floor, fallback.floor),
+    etagesImmeuble: prefer(primary.etagesImmeuble, fallback.etagesImmeuble),
+    dernierEtage: prefer(primary.dernierEtage, fallback.dernierEtage),
+    anneeConstruction: prefer(primary.anneeConstruction, fallback.anneeConstruction),
+    qualiteEmplacement: prefer(primary.qualiteEmplacement, fallback.qualiteEmplacement),
+    ascenseur: prefer(primary.ascenseur, fallback.ascenseur),
+    balconTerrasse: prefer(primary.balconTerrasse, fallback.balconTerrasse),
+    occupation: prefer(primary.occupation, fallback.occupation),
+    loyerAnnuel: prefer(primary.loyerAnnuel, fallback.loyerAnnuel),
+    chargesAnnuelles: prefer(primary.chargesAnnuelles, fallback.chargesAnnuelles),
+    chargesCopro: prefer(primary.chargesCopro, fallback.chargesCopro),
+    taxeFonciere: prefer(primary.taxeFonciere, fallback.taxeFonciere),
+    annexes,
+    dpeClass: prefer(primary.dpeClass, fallback.dpeClass),
+    ges: prefer(primary.ges, fallback.ges),
+    consoKwh: prefer(primary.consoKwh, fallback.consoKwh),
+    dpeVersion: prefer(primary.dpeVersion, fallback.dpeVersion),
+    pointsForts: unique([...primary.pointsForts, ...fallback.pointsForts]),
+    pointsFaibles: unique([...primary.pointsFaibles, ...fallback.pointsFaibles]),
+    commentairesPublics: prefer(primary.commentairesPublics, fallback.commentairesPublics),
+  };
 }
 
 export type EstimationVoiceField =
@@ -286,7 +357,7 @@ function parseListe(raw: unknown): string[] {
 export function parseEstimationVoice(raw: string): EstimationVoiceDraft {
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(raw) as Record<string, unknown>;
+    parsed = JSON.parse(extractJsonObject(raw)) as Record<string, unknown>;
   } catch (err) {
     console.warn('[estimation] dictée parse JSON', {
       err: err instanceof Error ? err.message : String(err),
@@ -566,6 +637,15 @@ export function applyEstimationVoiceDraft(
   return { patch, keys };
 }
 
+function finalizeVoiceDraft(transcript: string, model: EstimationVoiceDraft): EstimationVoiceDraft {
+  const draft = mergeEstimationVoiceDrafts(model, extractEstimationHeuristic(transcript));
+  if (voiceDraftKeys(draft).length === 0) {
+    draft.commentairesPublics = transcript.slice(0, 2000);
+  }
+  console.info('[estimation] dictée draft clés', voiceDraftKeys(draft));
+  return draft;
+}
+
 export async function extractEstimationFields(
   transcript: string,
   apiKey: string,
@@ -598,7 +678,7 @@ export async function extractEstimationFields(
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
     console.error('[estimation] dictée HTTP', res.status, errBody);
-    return { ...EMPTY_ESTIMATION_VOICE };
+    return finalizeVoiceDraft(capped, { ...EMPTY_ESTIMATION_VOICE });
   }
 
   const body = (await res.json()) as {
@@ -611,11 +691,7 @@ export async function extractEstimationFields(
     content_is_array: Array.isArray(content),
     content,
   });
-  if (typeof content !== 'string' || !content.trim()) {
-    console.warn('[estimation] dictée extract vide ou non-texte');
-    return { ...EMPTY_ESTIMATION_VOICE };
-  }
-  const draft = parseEstimationVoice(content);
-  console.info('[estimation] dictée draft clés', voiceDraftKeys(draft));
-  return draft;
+  const json = modelContentToJson(content);
+  const model = json.trim() ? parseEstimationVoice(json) : { ...EMPTY_ESTIMATION_VOICE };
+  return finalizeVoiceDraft(capped, model);
 }

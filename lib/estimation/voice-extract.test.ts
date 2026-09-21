@@ -5,11 +5,14 @@ import { BIEN_VIDE } from './objet';
 import {
   applyEstimationVoiceDraft,
   EMPTY_ESTIMATION_VOICE,
+  mergeEstimationVoiceDrafts,
+  modelContentToJson,
   parseAnneeConstruction,
   parseEstimationVoice,
   parseFloor,
   voiceDraftKeys,
 } from './voice-extract';
+import { extractEstimationHeuristic } from './voice-heuristic';
 
 describe('parseEstimationVoice', () => {
   it('ne devine rien sur un JSON vide', () => {
@@ -157,5 +160,60 @@ describe('applyEstimationVoiceDraft', () => {
     assert.equal(annexes.length, 1);
     assert.equal(annexes[0].libelle, 'Cave');
     assert.equal(annexes[0].valorisationEur, 2000);
+  });
+});
+
+describe('parseEstimationVoice — réponses modèle', () => {
+  it('lit un JSON entouré de fences', () => {
+    const d = parseEstimationVoice('```json\n{"rooms":3,"surfaceM2":65}\n```');
+    assert.equal(d.rooms, 3);
+    assert.equal(d.surfaceM2, 65);
+  });
+
+  it('lit un objet déjà parsé', () => {
+    const json = modelContentToJson({ rooms: 2, propertyType: 'appartement' });
+    const d = parseEstimationVoice(json);
+    assert.equal(d.rooms, 2);
+    assert.equal(d.propertyType, 'appartement');
+  });
+});
+
+describe('extractEstimationHeuristic', () => {
+  it('range une dictée d’appartement parlée', () => {
+    const d = extractEstimationHeuristic(
+      'Alors c’est un T3 de 65 mètres carrés au troisième étage avec cave et ascenseur, assez lumineux, occupé, DPE D',
+    );
+    assert.equal(d.propertyType, 'appartement');
+    assert.equal(d.rooms, 3);
+    assert.equal(d.surfaceM2, 65);
+    assert.equal(d.floor, '3');
+    assert.equal(d.ascenseur, true);
+    assert.equal(d.occupation, 'occupe');
+    assert.equal(d.dpeClass, 'D');
+    assert.equal(d.annexes[0]?.libelle, 'Cave');
+    assert.ok(d.pointsForts.includes('lumineux'));
+  });
+
+  it('lit un studio RDC sans ascenseur', () => {
+    const d = extractEstimationHeuristic('Studio 28 m2 RDC sans ascenseur un peu sombre');
+    assert.equal(d.propertyType, 'appartement');
+    assert.equal(d.sousType, 'Studio');
+    assert.equal(d.rooms, 1);
+    assert.equal(d.surfaceM2, 28);
+    assert.equal(d.floor, 'RDC');
+    assert.equal(d.ascenseur, false);
+    assert.ok(d.pointsFaibles.includes('sombre'));
+  });
+});
+
+describe('mergeEstimationVoiceDrafts', () => {
+  it('garde le modèle et complète avec l’heuristique', () => {
+    const merged = mergeEstimationVoiceDrafts(
+      { ...EMPTY_ESTIMATION_VOICE, rooms: 4 },
+      extractEstimationHeuristic('T3 de 70 m2 avec cave'),
+    );
+    assert.equal(merged.rooms, 4);
+    assert.equal(merged.surfaceM2, 70);
+    assert.equal(merged.annexes[0]?.libelle, 'Cave');
   });
 });
