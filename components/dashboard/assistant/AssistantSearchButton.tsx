@@ -107,7 +107,7 @@ function SearchField({
             ? 'min-h-11 rounded-full bg-white px-3.5 shadow-sm focus-within:ring-2 focus-within:ring-white/35 md:h-9 md:min-h-0'
             : map
               ? 'min-h-[44px] px-1'
-              : 'min-h-11 rounded-xl px-3.5 py-2 assistant-search-field'
+              : 'min-h-11 rounded-full px-4 py-2 assistant-search-field md:rounded-xl'
         }`}
       >
         <button
@@ -149,7 +149,7 @@ function SearchField({
 
       {showPanel ? (
         <div
-          className="absolute left-0 right-0 top-[calc(100%+6px)] z-[120] max-h-[min(50vh,360px)] overflow-y-auto overflow-x-hidden rounded-xl border border-black/[0.08] bg-white/95 shadow-lg backdrop-blur-sm"
+          className="absolute left-0 right-0 top-[calc(100%+6px)] z-[120] max-h-[min(50vh,360px)] overflow-y-auto overflow-x-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg"
           role="region"
           aria-live="polite"
           aria-label="Résultats de recherche"

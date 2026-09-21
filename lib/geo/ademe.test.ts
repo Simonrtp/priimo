@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mapLigneDpe } from './ademe';
+import { mapLigneDpe, ademeLinesUrl } from './ademe';
 
 describe('mapLigneDpe', () => {
   it('lit le millésime aux noms de colonnes accentués', () => {
@@ -20,6 +20,7 @@ describe('mapLigneDpe', () => {
     assert.equal(dpe?.lettre, 'F');
     assert.equal(dpe?.surfaceM2, 82.5);
     assert.equal(dpe?.dateEtablissement, '2026-08-25');
+    assert.equal(dpe?.identifiantBan, null);
   });
 
   it('lit aussi les noms de colonnes normalisés', () => {
@@ -28,6 +29,8 @@ describe('mapLigneDpe', () => {
       adresse_ban: '5 avenue des Fleurs',
       code_postal_ban: '44100',
       date_etablissement_dpe: '2026-07-01T00:00:00',
+      identifiant_ban: '44100_xxxx_00012',
+      numero_etage_appartement: '3',
       etiquette_dpe: 'c',
       surface_habitable_logement: '64,5',
       type_batiment: 'Maison',
@@ -37,6 +40,8 @@ describe('mapLigneDpe', () => {
     assert.equal(dpe?.lettre, 'C');
     assert.equal(dpe?.surfaceM2, 64.5, 'la virgule décimale française doit être lue');
     assert.equal(dpe?.dateEtablissement, '2026-07-01');
+    assert.equal(dpe?.identifiantBan, '44100_xxxx_00012');
+    assert.equal(dpe?.etage, 3);
   });
 
   it('rejette une ligne sans identifiant, adresse ou date', () => {
@@ -69,5 +74,13 @@ describe('mapLigneDpe', () => {
 
     assert.equal(dpe?.latitude, 47.2184);
     assert.equal(dpe?.longitude, -1.5536);
+  });
+});
+
+describe('ademeLinesUrl', () => {
+  it('construit l’URL data-fair sur les champs snake_case du jeu actuel', () => {
+    const url = ademeLinesUrl({ codePostal: '75020', depuis: '2026-08-21', taille: 80 });
+    assert.match(url, /code_postal_ban/);
+    assert.match(url, /date_etablissement_dpe/);
   });
 });

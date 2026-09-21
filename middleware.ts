@@ -13,12 +13,15 @@ const SKIP_AUTH_PREFIXES = [
   '/a-propos',
   '/cgu',
   '/confidentialite',
+  '/politique-de-confidentialite',
   '/mentions-legales',
   '/estimation',
   '/avis',
+  '/rapport',
   '/c',
   '/information',
   '/api/c',
+  '/api/rapport',
 ];
 
 const PUBLIC_EXACT = new Set(['/', '/login', '/invite', '/cgu', '/signup', '/inscription']);

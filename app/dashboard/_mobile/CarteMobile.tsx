@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, MapPin, Navigation, Phone, Search, Square, X } from 'lucide-react';
+import { Box, Layers, MapPin, Navigation, Phone, Search, Square, X } from 'lucide-react';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
@@ -148,6 +148,7 @@ export default function CarteMobile({
   autoTournee = false,
   zones = [],
   initialZoneId = null,
+  viewSwitcher = null,
 }: {
   points: MapPoint[];
   withoutPosition: WithoutPositionCount;
@@ -168,6 +169,7 @@ export default function CarteMobile({
   autoTournee?: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
+  viewSwitcher?: ReactNode;
 }) {
   const router = useRouter();
   const { openCapture } = useVoiceCapture();
@@ -178,7 +180,7 @@ export default function CarteMobile({
   const [zoneId, setZoneId] = useState(
     initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'tous',
   );
-  const [dimension, setDimension] = useState<MapDimension>('2d');
+  const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -555,15 +557,6 @@ export default function CarteMobile({
     [tourActive, picking, tourKeys, addStop, removeStop, closeParcelle],
   );
 
-  const recenterOnMe = useCallback(() => {
-    void requestDevicePosition().then((pos) => {
-      if (!pos) return;
-      setAgentPosition(pos);
-      setTracking(true);
-      mapApi.current?.recenter(pos);
-    });
-  }, []);
-
   const switchDimension = useCallback(() => {
     setDimension((prev) => {
       const next = toggleDimension(prev);
@@ -689,6 +682,9 @@ export default function CarteMobile({
               </>
             )}
           </div>
+          {viewSwitcher ? (
+            <div className="pointer-events-auto mt-2 flex justify-end">{viewSwitcher}</div>
+          ) : null}
           {!tourShown && itineraryStops && itineraryStops.length >= 2 ? (
             <div className="pointer-events-auto mt-2">
               <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
@@ -732,7 +728,7 @@ export default function CarteMobile({
             aria-pressed={dimension === '3d'}
             className="app-press absolute right-4 z-20 flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
             style={{
-              bottom: `calc(${floatBottom} + 56px)`,
+              bottom: floatBottom,
               color: dimension === '3d' ? FIELD.orange : undefined,
             }}
           >
@@ -747,19 +743,6 @@ export default function CarteMobile({
             >
               {dimension === '3d' ? '3D' : '2D'}
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={recenterOnMe}
-            aria-label="Recentrer sur ma position"
-            className="app-press absolute right-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
-            style={{
-              bottom: floatBottom,
-              boxShadow: tracking ? `0 0 0 2px ${FIELD.ardoise}` : undefined,
-            }}
-          >
-            <Locate size={20} strokeWidth={2} aria-hidden />
           </button>
         </>
       ) : null}

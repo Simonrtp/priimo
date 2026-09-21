@@ -5,6 +5,7 @@ import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { refuserSiEstimationFermee } from '@/lib/billing/exiger';
 import { extensionMime, mapPageBibliotheque } from '@/lib/rapport/pages';
 import { cheminBiblio, copierRapport, signerCheminRapport } from '@/lib/rapport/storage';
+import { ownerPourCreation } from '@/lib/rapport/propriete';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +25,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!id) return NextResponse.json({ error: 'Identifiant manquant' }, { status: 400 });
 
+  let personnel = false;
+  try {
+    const body = (await req.json()) as { personnel?: unknown };
+    personnel = body.personnel === true;
+  } catch {
+    /* POST sans corps : copie dans le même périmètre */
+  }
+
   const session = await createSupabaseServerClient();
   const { data: source } = await session
     .from('agency_rapport_pages')
@@ -33,13 +42,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .maybeSingle();
   if (!source) return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
 
-  const { data: last } = await session
+  const ownerId = personnel
+    ? profile.id
+    : ownerPourCreation(profile.role, profile.id, source.owner_id == null);
+  let lastQ = session
     .from('agency_rapport_pages')
     .select('position')
     .eq('agency_id', agency.id)
     .order('position', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  lastQ = ownerId == null ? lastQ.is('owner_id', null) : lastQ.eq('owner_id', ownerId);
+  const { data: last } = await lastQ.maybeSingle();
 
   const copieId = crypto.randomUUID();
   let storagePath = source.storage_path;
@@ -54,12 +67,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const nomBase = source.nom.replace(/\s*\(copie\)\s*$/i, '').trim() || source.nom;
+  const nom = personnel ? nomBase : `${nomBase} (copie)`;
   const { data, error } = await session
     .from('agency_rapport_pages')
     .insert({
       id: copieId,
       agency_id: agency.id,
-      nom: `${nomBase} (copie)`.slice(0, 80),
+      nom: nom.slice(0, 80),
       description: source.description,
       kind: source.kind,
       storage_path: storagePath,
@@ -69,6 +83,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       disposition: source.disposition ?? null,
       contenu: source.contenu ?? {},
       created_by: profile.id,
+      owner_id: ownerId,
     })
     .select('*')
     .single();

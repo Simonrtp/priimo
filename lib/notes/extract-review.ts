@@ -18,6 +18,8 @@ export async function extractAndBuildReview(args: {
   keepGps: boolean;
   /** Ne pas écraser l'adresse / BAN déjà posés (note écrite). */
   keepAdresse?: boolean;
+  /** L’agent a déjà choisi la source : ne pas la recouvrir. */
+  keepSourceInfo?: boolean;
   initialGeo?: BanGeoColumns;
   /** Note écrite guidée : on ne relance pas l’IA. */
   providedExtraction?: NoteExtraction | null;
@@ -51,7 +53,7 @@ export async function extractAndBuildReview(args: {
       .update({
         transcript,
         structured: extraction,
-        source_info: extraction.sourceInfo,
+        ...(args.keepSourceInfo ? {} : { source_info: extraction.sourceInfo }),
         ...(args.keepGps ? {} : { latitude: geo.latitude, longitude: geo.longitude }),
         ...(args.keepAdresse
           ? {}
@@ -80,7 +82,7 @@ export async function extractAndBuildReview(args: {
         .update({
           transcript,
           structured: extraction,
-          source_info: extraction.sourceInfo,
+          ...(args.keepSourceInfo ? {} : { source_info: extraction.sourceInfo }),
           ...(args.keepGps ? {} : { latitude: geo.latitude, longitude: geo.longitude }),
           ...(args.keepAdresse
             ? {}

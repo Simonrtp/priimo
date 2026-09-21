@@ -28,7 +28,9 @@ import OngletBien from './OngletBien';
 import OngletCaracteristiques from './OngletCaracteristiques';
 import OngletEstimation from './OngletEstimation';
 import OngletRapport from './OngletRapport';
+import BlocAvantEnvoyer from './BlocAvantEnvoyer';
 import PanneauContexteAtelier, { type ContexteAtelier } from './PanneauContexteAtelier';
+import { manquesAvantEnvoi } from '@/lib/rapport/avant-envoyer';
 
 function decompositionDepuisContexte(e: EstimationObjet): DecompositionValeur | null {
   const lines = e.context.corrections;
@@ -83,6 +85,10 @@ export default function EstimationAtelier({
   const [calculating, setCalculating] = useState(false);
   const [sauve, setSauve] = useState<'ok' | '…' | 'err'>('ok');
   const [pendingVoice, setPendingVoice] = useState<ReadonlySet<EstimationVoiceField>>(new Set());
+  const [etatRapport, setEtatRapport] = useState<{ pages: number; contactEmail: string | null }>({
+    pages: 0,
+    contactEmail: null,
+  });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const estimationRef = useRef(estimation);
   estimationRef.current = estimation;
@@ -228,6 +234,7 @@ export default function EstimationAtelier({
 
   const indexCourant = indexEtape(onglet);
   const estDerniere = onglet === 'rapport';
+  const manqueSuivant = manquesEtape(estimation, onglet);
 
   function allerEtape(id: EtapeAtelierId) {
     if (!etapeAccessible(estimation, atteint, id)) {
@@ -375,7 +382,11 @@ export default function EstimationAtelier({
             />
           ) : null}
           {onglet === 'rapport' ? (
-            <OngletRapport estimation={estimation} agencyName={agencyName} />
+            <OngletRapport
+              estimation={estimation}
+              agencyName={agencyName}
+              onEtatChange={setEtatRapport}
+            />
           ) : null}
           {!estDerniere ? (
             <div
@@ -385,7 +396,14 @@ export default function EstimationAtelier({
               <button
                 type="button"
                 onClick={suivant}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-text-strong px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                disabled={Boolean(manqueSuivant)}
+                title={manqueSuivant ?? undefined}
+                aria-label={manqueSuivant ? `Suivant indisponible. ${manqueSuivant}` : 'Suivant'}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                  manqueSuivant
+                    ? 'cursor-not-allowed bg-black/[0.08] text-text-subtle'
+                    : 'bg-text-strong text-white hover:bg-black'
+                }`}
               >
                 Suivant
                 <ArrowRight size={14} strokeWidth={2} aria-hidden />
@@ -393,17 +411,32 @@ export default function EstimationAtelier({
             </div>
           ) : null}
         </div>
-        <PanneauContexteAtelier
-          contexte={contexte}
-          chargement={contexteChargement}
-          couvertureActive={estimation.bien.facadeCouverture}
-          latitude={estimation.latitude}
-          longitude={estimation.longitude}
-          onPosition={(latitude, longitude) => patch({ latitude, longitude })}
-          onCouverture={() =>
-            patch({ bien: { ...estimation.bien, facadeCouverture: !estimation.bien.facadeCouverture } })
-          }
-        />
+        {onglet === 'rapport' ? (
+          <BlocAvantEnvoyer
+            manques={manquesAvantEnvoi({
+              priceValue: estimation.priceValue,
+              photos: estimation.photos.length,
+              contactEmail: etatRapport.contactEmail,
+              pages: etatRapport.pages,
+            })}
+            onAllerA={(etape) => {
+              setOnglet(etape);
+              setAtteint((prev) => Math.max(prev, indexEtape(etape)));
+            }}
+          />
+        ) : (
+          <PanneauContexteAtelier
+            contexte={contexte}
+            chargement={contexteChargement}
+            couvertureActive={estimation.bien.facadeCouverture}
+            latitude={estimation.latitude}
+            longitude={estimation.longitude}
+            onPosition={(latitude, longitude) => patch({ latitude, longitude })}
+            onCouverture={() =>
+              patch({ bien: { ...estimation.bien, facadeCouverture: !estimation.bien.facadeCouverture } })
+            }
+          />
+        )}
       </div>
       {dicteeEstimationOuverte ? (
         <div className="h-[min(22rem,48dvh)] shrink-0 sm:h-80" aria-hidden />

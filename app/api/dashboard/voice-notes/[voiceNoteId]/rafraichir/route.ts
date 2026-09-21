@@ -34,7 +34,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const { data: note } = await admin
     .from('voice_notes')
     .select(
-      'id, agency_id, created_by, visibilite, latitude, longitude, ban_id, adresse_normalisee, geocode_score, geocode_le, storage_path',
+      'id, agency_id, created_by, visibilite, source_info, latitude, longitude, ban_id, adresse_normalisee, geocode_score, geocode_le, storage_path',
     )
     .eq('id', voiceNoteId)
     .eq('agency_id', agency.id)
@@ -48,6 +48,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const keepGps = note.latitude != null && note.longitude != null;
   const typed = Boolean(note.storage_path?.endsWith('.typed'));
   const keepAdresse = typed && Boolean(note.adresse_normalisee || note.ban_id);
+  const keepSourceInfo = Boolean(note.source_info);
 
   const review = await extractAndBuildReview({
     admin,
@@ -57,6 +58,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     visibilite,
     keepGps,
     keepAdresse,
+    keepSourceInfo,
     initialGeo: keepAdresse
       ? {
           ban_id: note.ban_id ?? null,

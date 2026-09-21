@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
@@ -32,12 +33,19 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: note } = await admin
+  // `transcript_original` n'est pas encore en base partout (20260834).
+  // Un SELECT qui la demande renvoyait 404 et bloquait visibilité / source.
+  const { data: note, error: selectError } = await admin
     .from('voice_notes')
-    .select('id, agency_id, created_by, structured, transcript, transcript_original')
+    .select('id, agency_id, created_by, structured, transcript')
     .eq('id', voiceNoteId)
     .eq('agency_id', agency.id)
     .maybeSingle();
+
+  if (selectError) {
+    console.error('[voice] patch select', selectError);
+    return NextResponse.json({ error: "La note n'a pas pu être mise à jour" }, { status: 500 });
+  }
 
   if (!note) return NextResponse.json({ error: 'Dictée introuvable' }, { status: 404 });
   if (note.created_by !== profile.id) {
@@ -51,9 +59,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
     const current = typeof note.transcript === 'string' ? note.transcript : '';
     if (next !== current) {
       patch.transcript = next || null;
-      if (note.transcript_original == null && current) {
-        patch.transcript_original = current;
-      }
+      if (current) patch.transcript_original = current;
     }
   }
 
@@ -129,7 +135,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ voiceNoteId: 
 
   if (error) {
     console.error('[voice] patch', error);
-    return NextResponse.json({ error: "La note n'a pas pu être mise à jour" }, { status: 500 });
+    const session = await createSupabaseServerClient();
+    const viaSession = await session
+      .from('voice_notes')
+      .update(patch)
+      .eq('id', voiceNoteId)
+      .eq('agency_id', agency.id);
+    if (viaSession.error) {
+      console.error('[voice] patch session', viaSession.error);
+      return NextResponse.json({ error: "La note n'a pas pu être mise à jour" }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

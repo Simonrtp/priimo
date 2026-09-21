@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles } from './cadastre-overlay';
+import { formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles, overlayRowsFromAdeme } from './cadastre-overlay';
 import type { OverlayActivity, OverlayBuilding, OverlayDpeRow } from './cadastre-overlay';
 
 const building: OverlayBuilding = {
@@ -40,7 +40,7 @@ describe('mergeCadastreImmeubles', () => {
       buildings: [building],
       activity: [activity],
       dpeRows: [frais],
-      ages: ['semaine', '1-3'],
+      ages: ['jours', '1-3'],
       now,
     });
     assert.equal(point.dpeGrain, 'adresse');
@@ -175,14 +175,59 @@ describe('dpeVisibleOnMap', () => {
     );
   });
 
-  it('garde un DPE de la semaine demandée', () => {
+  it('garde un DPE des 1 à 3 derniers jours', () => {
     assert.equal(
       dpeVisibleOnMap(
         { dpeGrain: 'adresse', etiquetteDpe: 'B', dateDpe: '2026-09-16' },
+        ['jours'],
+        now,
+      ),
+      true,
+    );
+  });
+
+  it('garde un DPE de la semaine demandée', () => {
+    assert.equal(
+      dpeVisibleOnMap(
+        { dpeGrain: 'adresse', etiquetteDpe: 'B', dateDpe: '2026-09-12' },
         ['semaine'],
         now,
       ),
       true,
     );
+  });
+});
+
+describe('overlayRowsFromAdeme', () => {
+  it('ne garde que les DPE d’un immeuble déjà sur la carte', () => {
+    const rows = overlayRowsFromAdeme(
+      [
+        {
+          identifiantBan: 'ban-1',
+          dateEtablissement: '2026-09-20',
+          lettre: 'B',
+          surfaceM2: 44,
+          etage: 2,
+        },
+        {
+          identifiantBan: 'ailleurs',
+          dateEtablissement: '2026-09-20',
+          lettre: 'A',
+          surfaceM2: 30,
+        },
+        {
+          identifiantBan: null,
+          dateEtablissement: '2026-09-20',
+          lettre: 'C',
+          surfaceM2: 20,
+        },
+      ],
+      new Set(['ban-1']),
+    );
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.banId, 'ban-1');
+    assert.equal(rows[0]?.dateDpe, '2026-09-20');
+    assert.equal(rows[0]?.etiquetteDpe, 'B');
+    assert.equal(rows[0]?.etage, 2);
   });
 });

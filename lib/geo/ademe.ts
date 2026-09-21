@@ -23,21 +23,42 @@ const DATASET = process.env.ADEME_DPE_DATASET ?? 'dpe03existant';
 /**
  * Les seuls réglages à toucher si la base change de vocabulaire.
  * Premier nom trouvé dans la ligne = valeur retenue.
+ * Les clés snake_case sont celles du jeu data-fair actuel.
  */
 const CHAMPS = {
-  numero: ['N°DPE', 'numero_dpe', 'N_DPE'],
-  adresse: ['Adresse_(BAN)', 'adresse_ban', 'Adresse_brute', 'adresse_brute'],
-  codePostal: ['Code_postal_(BAN)', 'code_postal_ban', 'Code_postal_(brut)', 'code_postal_brut'],
-  commune: ['Nom__commune_(BAN)', 'nom_commune_ban', 'Nom_commune_(Brut)', 'commune'],
-  date: ['Date_établissement_DPE', 'date_etablissement_dpe', 'Date_visite_diagnostiqueur'],
-  lettre: ['Etiquette_DPE', 'etiquette_dpe', 'Classe_estimation_DPE'],
-  surface: ['Surface_habitable_logement', 'surface_habitable_logement'],
-  type: ['Type_bâtiment', 'type_batiment'],
-  latitude: ['Coordonnée_cartographique_Y_(BAN)', 'latitude', '_geopoint'],
-  longitude: ['Coordonnée_cartographique_X_(BAN)', 'longitude'],
+  numero: ['numero_dpe', 'N°DPE', 'N_DPE'],
+  adresse: ['adresse_ban', 'Adresse_(BAN)', 'adresse_brute', 'Adresse_brute'],
+  codePostal: ['code_postal_ban', 'Code_postal_(BAN)', 'code_postal_brut', 'Code_postal_(brut)'],
+  commune: ['nom_commune_ban', 'Nom__commune_(BAN)', 'Nom_commune_(Brut)', 'commune'],
+  date: [
+    'date_etablissement_dpe',
+    'Date_établissement_DPE',
+    'date_visite_diagnostiqueur',
+    'Date_visite_diagnostiqueur',
+  ],
+  lettre: ['etiquette_dpe', 'Etiquette_DPE', 'Classe_estimation_DPE'],
+  surface: ['surface_habitable_logement', 'Surface_habitable_logement'],
+  type: ['type_batiment', 'Type_bâtiment'],
+  etage: ['numero_etage_appartement', 'etage'],
+  ban: ['identifiant_ban', 'ban_id'],
+  latitude: ['latitude', '_geopoint'],
+  longitude: ['longitude'],
 } as const;
 
+/** Variantes de requête : le jeu actuel, puis l’ancien millésime accentué. */
+const QUERY_VARIANTS = [
+  { date: 'date_etablissement_dpe', cp: 'code_postal_ban' },
+  { date: 'Date_établissement_DPE', cp: 'Code_postal_(BAN)' },
+] as const;
+
 const LETTRES: readonly string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const ADEME_HEADERS = {
+  accept: 'application/json',
+  'user-agent': 'Priimo/1.0 (cadastre-dpe)',
+} as const;
+
+const CACHE_TTL_MS = 15 * 60 * 1000;
+const cache = new Map<string, { at: number; rows: DpeRecent[] }>();
 
 type Ligne = Record<string, unknown>;
 
@@ -92,8 +113,10 @@ export function mapLigneDpe(ligne: Ligne): DpeRecent | null {
     codePostal: texte(ligne, CHAMPS.codePostal),
     commune: texte(ligne, CHAMPS.commune),
     dateEtablissement,
+    identifiantBan: texte(ligne, CHAMPS.ban),
     lettre: lettreDpe(ligne),
     surfaceM2: nombre(ligne, CHAMPS.surface),
+    etage: nombre(ligne, CHAMPS.etage),
     typeBatiment: texte(ligne, CHAMPS.type),
     latitude: nombre(ligne, CHAMPS.latitude) ?? geo.lat,
     longitude: nombre(ligne, CHAMPS.longitude) ?? geo.lon,
@@ -109,16 +132,54 @@ export interface FetchDpeParams {
   signal?: AbortSignal;
 }
 
-function urlLignes(params: FetchDpeParams): string {
-  const champDate = CHAMPS.date[0];
-  const champCp = CHAMPS.codePostal[0];
-  const qs = `${champCp}:"${params.codePostal}" AND ${champDate}:[${params.depuis} TO *]`;
-
+export function ademeLinesUrl(
+  params: FetchDpeParams,
+  champs: { date: string; cp: string } = QUERY_VARIANTS[0],
+): string {
+  const qs = `${champs.cp}:"${params.codePostal}" AND ${champs.date}:[${params.depuis} TO *]`;
   const url = new URL(`${BASE}/${DATASET}/lines`);
-  url.searchParams.set('size', String(params.taille ?? 200));
+  url.searchParams.set('size', String(Math.min(params.taille ?? 200, 5000)));
   url.searchParams.set('qs', qs);
-  url.searchParams.set('sort', `-${champDate}`);
+  url.searchParams.set('sort', `-${champs.date}`);
   return url.toString();
+}
+
+function parseResults(body: unknown): DpeRecent[] {
+  if (!body || typeof body !== 'object') return [];
+  const results = (body as { results?: unknown }).results;
+  if (!Array.isArray(results)) return [];
+  const out: DpeRecent[] = [];
+  for (const ligne of results) {
+    if (typeof ligne !== 'object' || ligne === null) continue;
+    const dpe = mapLigneDpe(ligne as Ligne);
+    if (dpe) out.push(dpe);
+  }
+  return out;
+}
+
+async function fetchPage(url: string, signal?: AbortSignal): Promise<{
+  rows: DpeRecent[];
+  next: string | null;
+  ok: boolean;
+}> {
+  const res = await fetch(url, {
+    headers: ADEME_HEADERS,
+    signal,
+    cache: 'no-store',
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    console.error('[ademe] réponse', res.status, url.slice(0, 180));
+    return { rows: [], next: null, ok: false };
+  }
+  try {
+    const body = JSON.parse(text) as { results?: unknown; next?: unknown };
+    const next = typeof body.next === 'string' && body.next.startsWith('http') ? body.next : null;
+    return { rows: parseResults(body), next, ok: true };
+  } catch {
+    console.error('[ademe] json', text.slice(0, 180));
+    return { rows: [], next: null, ok: false };
+  }
 }
 
 /**
@@ -126,30 +187,36 @@ function urlLignes(params: FetchDpeParams): string {
  * qui casse le cron ferait perdre les autres agences du passage.
  */
 export async function fetchDpeRecents(params: FetchDpeParams): Promise<DpeRecent[]> {
+  const plafond = params.taille ?? 200;
   try {
-    const res = await fetch(urlLignes(params), {
-      headers: { accept: 'application/json' },
-      signal: params.signal,
-      cache: 'no-store',
-    });
-    if (!res.ok) {
-      console.error('[ademe] réponse', res.status, params.codePostal);
-      return [];
+    for (const champs of QUERY_VARIANTS) {
+      const first = await fetchPage(ademeLinesUrl(params, champs), params.signal);
+      if (!first.ok) continue;
+      const out = [...first.rows];
+      let next = first.next;
+      while (next && out.length < plafond) {
+        const page = await fetchPage(next, params.signal);
+        if (!page.ok) break;
+        out.push(...page.rows);
+        next = page.next;
+        if (page.rows.length === 0) break;
+      }
+      return out.slice(0, plafond);
     }
-    const body = (await res.json()) as { results?: unknown };
-    if (!Array.isArray(body.results)) return [];
-
-    const out: DpeRecent[] = [];
-    for (const ligne of body.results) {
-      if (typeof ligne !== 'object' || ligne === null) continue;
-      const dpe = mapLigneDpe(ligne as Ligne);
-      if (dpe) out.push(dpe);
-    }
-    return out;
+    return [];
   } catch (err) {
     console.error('[ademe] échec', params.codePostal, err);
     return [];
   }
+}
+
+export async function fetchDpeRecentsCached(params: FetchDpeParams): Promise<DpeRecent[]> {
+  const key = `${params.codePostal}|${params.depuis}|${params.taille ?? 200}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.rows;
+  const rows = await fetchDpeRecents(params);
+  cache.set(key, { at: Date.now(), rows });
+  return rows;
 }
 
 /** Les DPE de tout un secteur, sans jamais paralléliser à outrance. */
@@ -157,10 +224,12 @@ export async function fetchDpeSecteur(
   codesPostaux: readonly string[],
   depuis: string,
   signal?: AbortSignal,
+  opts?: { taille?: number; cached?: boolean },
 ): Promise<DpeRecent[]> {
   const out: DpeRecent[] = [];
+  const fetchOne = opts?.cached ? fetchDpeRecentsCached : fetchDpeRecents;
   for (const codePostal of codesPostaux) {
-    out.push(...(await fetchDpeRecents({ codePostal, depuis, signal })));
+    out.push(...(await fetchOne({ codePostal, depuis, signal, taille: opts?.taille })));
   }
   return out;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState, type PointerEvent } from 'react';
 import './carte.css';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -14,12 +15,16 @@ import {
   DPE_AGE_LABELS,
   DPE_AGE_LAST,
   DPE_AGE_TICK_LABELS,
+  dpeAgeIndexFromRatio,
+  dpeAgeNearerHandle,
+  dpeAgeRangePhrase,
   dpeAgeSpan,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
 import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
 
 const SLATE = '#3D5A80';
+const THUMB_PAD = 14;
 
 function overlayKey(id: CadastreOverlayId): keyof Pick<
   MapLayerState,
@@ -40,17 +45,112 @@ function DpeAgeSlider({
   onChange: (from: number, to: number) => void;
 }) {
   const { from, to } = dpeAgeSpan(ages);
+  const railRef = useRef<HTMLDivElement>(null);
+  const spanRef = useRef({ from, to });
+  spanRef.current = { from, to };
+  const dragRef = useRef<{
+    handle: 'from' | 'to' | 'split';
+    pointerId: number;
+  } | null>(null);
+  const [active, setActive] = useState<'from' | 'to' | null>(null);
+
   const max = DPE_AGE_LAST;
   const startPct = (from / max) * 100;
   const endPct = (to / max) * 100;
-  const spanPct = Math.max(endPct - startPct, from === to ? 100 / max / 2 : 0);
+  const phrase = dpeAgeRangePhrase(from, to);
+
+  function commit(handle: 'from' | 'to', index: number) {
+    const cur = spanRef.current;
+    const next =
+      handle === 'from'
+        ? { from: Math.min(index, cur.to), to: cur.to }
+        : { from: cur.from, to: Math.max(index, cur.from) };
+    spanRef.current = next;
+    onChange(next.from, next.to);
+  }
+
+  function indexFromClientX(clientX: number): number {
+    const el = railRef.current;
+    if (!el) return spanRef.current.from;
+    const rect = el.getBoundingClientRect();
+    const inner = rect.width - THUMB_PAD * 2;
+    if (inner <= 0) return spanRef.current.from;
+    return dpeAgeIndexFromRatio((clientX - rect.left - THUMB_PAD) / inner);
+  }
+
+  function onPointerDown(e: PointerEvent<HTMLDivElement>) {
+    if (disabled || e.button !== 0) return;
+    const cur = spanRef.current;
+    const index = indexFromClientX(e.clientX);
+    let handle: 'from' | 'to' | 'split';
+    if (cur.from === cur.to && index === cur.from) {
+      handle = 'split';
+    } else {
+      handle = dpeAgeNearerHandle(index, cur.from, cur.to);
+      commit(handle, index);
+    }
+    dragRef.current = { handle, pointerId: e.pointerId };
+    setActive(handle === 'split' ? null : handle);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  function onPointerMove(e: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const index = indexFromClientX(e.clientX);
+    const cur = spanRef.current;
+    if (drag.handle === 'split') {
+      if (index === cur.from) return;
+      const handle = index < cur.from ? 'from' : 'to';
+      drag.handle = handle;
+      setActive(handle);
+      commit(handle, index);
+      return;
+    }
+    commit(drag.handle, index);
+  }
+
+  function onPointerUp(e: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setActive(null);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  function snapTick(index: number) {
+    if (disabled) return;
+    const cur = spanRef.current;
+    commit(dpeAgeNearerHandle(index, cur.from, cur.to), index);
+  }
+
   return (
-    <div className={disabled ? 'opacity-55' : undefined}>
-      <div className="priimo-dpe-age">
+    <div className={disabled ? 'pointer-events-none opacity-55' : undefined}>
+      <p className="mb-1.5 text-pretty text-[12.5px] font-medium text-text-strong">{phrase}</p>
+      <div
+        ref={railRef}
+        className={`priimo-dpe-age${active ? ' priimo-dpe-age--dragging' : ''}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
         <div className="priimo-dpe-age__track" aria-hidden>
+          <span className="priimo-dpe-age__marks">
+            {DPE_AGE_BUCKETS.map((bucket, i) => (
+              <span
+                key={bucket}
+                className="priimo-dpe-age__mark"
+                style={{ left: `${(i / max) * 100}%` }}
+              />
+            ))}
+          </span>
           <span
             className="priimo-dpe-age__fill"
-            style={{ left: `${startPct}%`, width: `${spanPct}%` }}
+            style={{ left: `${startPct}%`, width: `${Math.max(endPct - startPct, 0)}%` }}
           />
         </div>
         <input
@@ -60,9 +160,12 @@ function DpeAgeSlider({
           step={1}
           value={from}
           disabled={disabled}
-          aria-label="Début de la plage d’ancienneté"
+          tabIndex={disabled ? -1 : 0}
+          aria-label="DPE les plus récents à montrer"
           aria-valuetext={DPE_AGE_LABELS[DPE_AGE_BUCKETS[from]]}
-          className="priimo-dpe-age__input priimo-dpe-age__input--from"
+          className={`priimo-dpe-age__input priimo-dpe-age__input--from${
+            active === 'from' ? ' priimo-dpe-age__input--active' : ''
+          }`}
           onChange={(e) => {
             const next = Number(e.target.value);
             onChange(Math.min(next, to), to);
@@ -75,21 +178,37 @@ function DpeAgeSlider({
           step={1}
           value={to}
           disabled={disabled}
-          aria-label="Fin de la plage d’ancienneté"
+          tabIndex={disabled ? -1 : 0}
+          aria-label="DPE les plus anciens à montrer"
           aria-valuetext={DPE_AGE_LABELS[DPE_AGE_BUCKETS[to]]}
-          className="priimo-dpe-age__input priimo-dpe-age__input--to"
+          className={`priimo-dpe-age__input priimo-dpe-age__input--to${
+            active === 'to' ? ' priimo-dpe-age__input--active' : ''
+          }`}
           onChange={(e) => {
             const next = Number(e.target.value);
             onChange(from, Math.max(next, from));
           }}
         />
       </div>
-      <div className="mt-1 flex justify-between gap-0.5">
-        {DPE_AGE_BUCKETS.map((bucket) => (
-          <span key={bucket} className="min-w-0 flex-1 text-center text-[10px] leading-tight text-text-subtle">
-            {DPE_AGE_TICK_LABELS[bucket]}
-          </span>
-        ))}
+      <div className="mt-0.5 flex justify-between gap-0.5">
+        {DPE_AGE_BUCKETS.map((bucket, i) => {
+          const on = i >= from && i <= to;
+          return (
+            <button
+              key={bucket}
+              type="button"
+              tabIndex={-1}
+              disabled={disabled}
+              aria-label={DPE_AGE_LABELS[bucket]}
+              onClick={() => snapTick(i)}
+              className={`min-h-8 min-w-0 flex-1 rounded-md px-0.5 text-center text-[11px] leading-tight transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed ${
+                on ? 'font-semibold text-text-strong' : 'font-medium text-text-subtle'
+              }`}
+            >
+              {DPE_AGE_TICK_LABELS[bucket]}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -195,7 +314,7 @@ export default function CadastreLayerControls({
                   </span>
                 </label>
                 {id === 'dpe' ? (
-                  <div className="mt-1">
+                  <div className="mt-1.5">
                     <DpeAgeSlider
                       ages={layers.cadastreDpeAges}
                       disabled={!layers.cadastreDpe}

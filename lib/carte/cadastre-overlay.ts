@@ -134,6 +134,31 @@ export function formatPrixM2Court(value: number | null | undefined): string | nu
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(value))} €/m²`;
 }
 
+export function overlayRowsFromAdeme(
+  rows: readonly {
+    identifiantBan?: string | null;
+    dateEtablissement: string;
+    lettre: string | null;
+    surfaceM2: number | null;
+    etage?: number | null;
+  }[],
+  banIds: ReadonlySet<string>,
+): OverlayDpeRow[] {
+  const out: OverlayDpeRow[] = [];
+  for (const row of rows) {
+    const banId = row.identifiantBan?.trim();
+    if (!banId || !banIds.has(banId) || !row.dateEtablissement) continue;
+    out.push({
+      banId,
+      dateDpe: row.dateEtablissement,
+      etiquetteDpe: row.lettre,
+      surface: row.surfaceM2,
+      etage: row.etage ?? null,
+    });
+  }
+  return out;
+}
+
 /** Point DPE affiché pour la plage du curseur. */
 export function dpeVisibleOnMap(
   row: {

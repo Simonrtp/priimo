@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { peutModifierPage } from '@/lib/rapport/propriete';
 
 export const runtime = 'nodejs';
 
@@ -25,6 +26,18 @@ export async function PATCH(req: Request) {
   }
 
   const session = await createSupabaseServerClient();
+  const { data: rows } = await session
+    .from('agency_rapport_pages')
+    .select('id, owner_id')
+    .eq('agency_id', agency.id)
+    .in('id', ids);
+  if (!rows || rows.length !== ids.length) {
+    return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
+  }
+  if (rows.some((row) => !peutModifierPage(profile.role, profile.id, row.owner_id))) {
+    return NextResponse.json({ error: 'Page non modifiable' }, { status: 403 });
+  }
+
   const updates = ids.map((id, position) =>
     session
       .from('agency_rapport_pages')

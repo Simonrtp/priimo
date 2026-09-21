@@ -28,6 +28,12 @@ export function etapeEstimationOk(e: Pick<EstimationObjet, 'priceValue'>): boole
   return e.priceValue != null;
 }
 
+export function etapeRapportOk(
+  e: Pick<EstimationObjet, 'contactId' | 'address' | 'propertyType' | 'surfaceM2' | 'rooms' | 'priceValue'>,
+): boolean {
+  return etapeClientOk(e) && etapeBienOk(e) && etapeEstimationOk(e);
+}
+
 export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | null {
   if (id === 'client' && !etapeClientOk(e)) {
     return 'Rattachez ou créez un client pour continuer.';
@@ -38,6 +44,9 @@ export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | n
   if (id === 'estimation' && !etapeEstimationOk(e)) {
     return 'Calculez la valeur pour continuer.';
   }
+  if (id === 'rapport' && !etapeRapportOk(e)) {
+    return 'Terminez le client, le bien et l’estimation avant le rapport.';
+  }
   return null;
 }
 
@@ -45,21 +54,20 @@ export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | n
 export function indexDepuisDonnees(e: EstimationObjet): number {
   if (!etapeClientOk(e)) return 0;
   if (!etapeBienOk(e)) return 1;
-  if (etapeEstimationOk(e)) return 4;
-  return 2;
+  if (!etapeEstimationOk(e)) return 2;
+  return 4;
 }
 
 export function indexMaxAccessible(e: EstimationObjet, atteint: number): number {
   return Math.max(indexDepuisDonnees(e), atteint, 0);
 }
 
-/** Le rapport se compose sans bloquer sur les champs encore vides. */
 export function etapeAccessible(
   e: EstimationObjet,
   atteint: number,
   id: EtapeAtelierId,
 ): boolean {
-  if (id === 'rapport') return true;
+  if (id === 'rapport') return etapeRapportOk(e);
   return indexEtape(id) <= indexMaxAccessible(e, atteint);
 }
 

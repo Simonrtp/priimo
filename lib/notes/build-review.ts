@@ -3,9 +3,11 @@ import type { NoteSourceInfo } from '@/types/contact';
 import { normalizeName } from '@/lib/import/normalize';
 import { confianceImmeuble, matchContacts, type ContactMatch } from '@/lib/notes/match';
 import {
+  extraireTelephones,
   guessPersonnesFromTranscript,
   matchContactsInTranscript,
   personneFromMatch,
+  rattacherTelephonePersonne,
   recadrerPersonne,
 } from '@/lib/notes/from-transcript';
 import type { ExtractedPersonne, ExtractedRelance, ExtractedPromesse, ExtractedRendezVous, ExtractedVisite, NoteExtraction } from '@/lib/notes/propositions';
@@ -133,6 +135,11 @@ export function buildReviewPayload(args: {
         personne: personneFromMatch(match, args.contacts),
         matches: [match],
       });
+    }
+
+    const telephones = extraireTelephones(cited);
+    for (const p of personnes) {
+      p.personne = rattacherTelephonePersonne(p.personne, telephones);
     }
   }
 

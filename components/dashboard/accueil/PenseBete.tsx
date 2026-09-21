@@ -20,9 +20,12 @@ function ajuster(el: HTMLTextAreaElement) {
 export default function PenseBete({
   initial,
   className = '',
+  remplir = false,
 }: {
   initial: string;
   className?: string;
+  /** Occupe toute la case de grille, à hauteur des cartes d’activité. */
+  remplir?: boolean;
 }) {
   const [texte, setTexte] = useState(initial);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -66,7 +69,9 @@ export default function PenseBete({
   return (
     <div className={`min-w-0 ${className}`}>
       <div
-        className="flex h-full flex-col rounded-clay-lg px-3.5 py-2 shadow-clay-sm focus-within:ring-2 focus-within:ring-accent/20 sm:px-4"
+        className={`flex h-full flex-col rounded-clay-lg shadow-clay-sm focus-within:ring-2 focus-within:ring-accent/20 ${
+          remplir ? 'px-4 py-4' : 'px-3.5 py-2 sm:px-4'
+        }`}
         style={{ backgroundColor: ACCUEIL.creme }}
       >
         <label htmlFor="pense-bete" className="block text-[11px] font-semibold text-text-muted">
@@ -75,7 +80,7 @@ export default function PenseBete({
         <textarea
           id="pense-bete"
           ref={(el) => {
-            if (el) ajuster(el);
+            if (el && !remplir) ajuster(el);
           }}
           value={texte}
           rows={1}
@@ -83,14 +88,20 @@ export default function PenseBete({
           placeholder="note, essai, gribouillis"
           aria-describedby={erreur ? erreurId : undefined}
           aria-invalid={erreur ? true : undefined}
-          className="mt-1 block w-full resize-none overflow-hidden bg-transparent text-[13.5px] leading-snug text-text-strong outline-none [field-sizing:content] max-h-[7.5rem] placeholder:text-text-muted"
-          onInput={(e) => ajuster(e.currentTarget)}
+          className={
+            remplir
+              ? 'mt-1 min-h-0 w-full flex-1 resize-none overflow-y-auto bg-transparent text-[13.5px] leading-snug text-text-strong outline-none placeholder:text-text-muted'
+              : 'mt-1 block w-full resize-none overflow-hidden bg-transparent text-[13.5px] leading-snug text-text-strong outline-none [field-sizing:content] max-h-[7.5rem] placeholder:text-text-muted'
+          }
+          onInput={(e) => {
+            if (!remplir) ajuster(e.currentTarget);
+          }}
           onChange={(e) => {
             const suivant = e.currentTarget.value.slice(0, PENSE_BETE_MAX);
             setTexte(suivant);
             setErreur(null);
             planifier(suivant);
-            ajuster(e.currentTarget);
+            if (!remplir) ajuster(e.currentTarget);
           }}
           onBlur={() => {
             if (timer.current) clearTimeout(timer.current);

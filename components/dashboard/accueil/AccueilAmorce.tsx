@@ -53,7 +53,7 @@ export default function AccueilAmorce({
           : 'Ma semaine';
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 pb-10">
+    <div data-accueil className="flex w-full min-w-0 flex-col gap-4 pb-10">
       <EnteteSquelette
         titre={titre}
         intervalle={intervalleLisible(intervalle, periode)}

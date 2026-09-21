@@ -9,6 +9,7 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { useNotesLecture } from '@/components/dashboard/notes/NotesLectureProvider';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
+import PenseBete from './PenseBete';
 
 /**
  * Le geste qui fait monter le chiffre, et rien d'autre. Chaque libellé nomme
@@ -331,13 +332,22 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
   );
 }
 
-/** Les cinq familles. Au survol la carte s'allonge par-dessus la grille. */
-export default function CompteursActivite({ familles }: { familles: readonly Compteur[] }) {
+/** Les cinq familles, puis le pense-bête à droite de la dernière carte. */
+export default function CompteursActivite({
+  familles,
+  penseBete,
+}: {
+  familles: readonly Compteur[];
+  penseBete: string;
+}) {
   return (
-    <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-6">
       {familles.map((c) => (
         <CarteCompteur key={c.activite} compteur={c} />
       ))}
+      <li className="min-w-0">
+        <PenseBete initial={penseBete} className="h-full" remplir />
+      </li>
     </ul>
   );
 }

@@ -48,6 +48,17 @@ export default function MobileAccountMenu({
               Paramètres
             </Link>
           </li>
+          <li>
+            <a
+              href="/politique-de-confidentialite"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClose}
+              className="app-press flex min-h-[44px] items-center px-4 text-[14px] font-medium text-text"
+            >
+              Confidentialité
+            </a>
+          </li>
           {isDirector ? (
             <li>
               <Link

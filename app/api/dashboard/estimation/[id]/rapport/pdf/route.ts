@@ -31,8 +31,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (error) {
     return NextResponse.json({ error: 'Composition indisponible' }, { status: 500 });
   }
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: 'Ajoutez au moins une page au rapport' }, { status: 400 });
+  }
 
-  const pages = (data ?? []).map((row) => mapPageComposee(row, null));
+  const pages = data.map((row) => mapPageComposee(row, null));
   const pdf = await genererPdfRapport({
     agence: await identiteAgenceDepuisRow(ctx.agency),
     agent: identiteAgentDepuisProfil(ctx.profile, ctx.user.email),

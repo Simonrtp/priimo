@@ -8,6 +8,7 @@ import {
   type Periode,
   type VuePeriode,
 } from '@/lib/activite/semaines';
+import AccueilAube from './AccueilAube';
 import BandeauObjectif from './BandeauObjectif';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
@@ -162,13 +163,12 @@ export default function AccueilPilotage({
 
   return (
     <NotesLectureProvider>
-    <div className="flex w-full min-w-0 flex-col gap-4 pb-10">
+    <div data-accueil className="flex w-full min-w-0 flex-col gap-4 pb-10">
       <div className="flex flex-col gap-3">
         <EnteteSemaine
           periode={vue.periode}
           intervalle={vue.intervalle}
           estPeriodeCourante={vue.estPeriodeCourante}
-          penseBete={penseBete}
           enCours={enCours}
           onChanger={changer}
         />
@@ -186,17 +186,19 @@ export default function AccueilPilotage({
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
         <PhrasePilotageBloc phrase={phrase} />
-        <BandeauObjectif
-          bilan={bilan}
-          membre={membreSelectionne}
-          membreNom={
-            membreSelectionne === moi
-              ? null
-              : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
-          }
-          onObjectifsChanges={rafraichir}
-        />
-        <CompteursActivite familles={bilan.familles} />
+        <AccueilAube>
+          <BandeauObjectif
+            bilan={bilan}
+            membre={membreSelectionne}
+            membreNom={
+              membreSelectionne === moi
+                ? null
+                : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
+            }
+            onObjectifsChanges={rafraichir}
+          />
+        </AccueilAube>
+        <CompteursActivite familles={bilan.familles} penseBete={penseBete} />
       </div>
 
       {/* Les deux cartes s'alignent par étirement : la plus haute donne le

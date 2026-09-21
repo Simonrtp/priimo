@@ -51,6 +51,7 @@ export default function EditeurPageAgence({
   profile,
   loginEmail,
   logoUrl,
+  modeleAgence = false,
   onClose,
   onSaved,
 }: {
@@ -60,6 +61,8 @@ export default function EditeurPageAgence({
   profile: ContextualProfile;
   loginEmail: string;
   logoUrl: string | null;
+  /** Page du modèle d’agence (directeur). */
+  modeleAgence?: boolean;
   onClose: () => void;
   onSaved: (saved: PageBibliotheque) => void;
 }) {
@@ -136,6 +139,7 @@ export default function EditeurPageAgence({
       form.append('disposition', disposition);
       form.append('nom', nom.trim() || nomDepuisContenu(contenu, disposition));
       form.append('contenu', JSON.stringify(contenu));
+      if (modeleAgence && !edition) form.append('modeleAgence', '1');
       if (imageFichier) form.append('file', imageFichier);
       if (retirerImage && !imageFichier) form.append('retirerImage', '1');
       const url = edition

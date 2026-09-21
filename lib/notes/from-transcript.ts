@@ -214,6 +214,36 @@ function phoneInTranscript(transcript: string, phone: string | null): boolean {
   return hay.includes(digits) || hay.includes(digits.slice(1));
 }
 
+/** Numéros FR même dictés avec des points ou des virgules (« 06 87 71. 28, 42 »). */
+const TEL_FR = /(?:\+33|0033|0)\s*[1-9](?:[\s.\-/,]*\d){8}/g;
+
+export function extraireTelephones(transcript: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const match of transcript.matchAll(TEL_FR)) {
+    const n = normalizePhone(match[0]);
+    if (n.length !== 10 || !n.startsWith('0') || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out;
+}
+
+export function rattacherTelephonePersonne<T extends { phone: string | null }>(
+  personne: T,
+  telephones: string[],
+): T {
+  if (personne.phone?.trim()) {
+    const n = normalizePhone(personne.phone);
+    const i = n.length >= 10 ? telephones.indexOf(n) : -1;
+    if (i >= 0) telephones.splice(i, 1);
+    return personne;
+  }
+  const next = telephones.shift();
+  if (!next) return personne;
+  return { ...personne, phone: next };
+}
+
 /**
  * Contacts dont le nom complet (prénom + nom) ou le téléphone est dans la dictée.
  * On ne mélange pas les tokens de deux personnes (« Amélie Jacquet » + « Perrin »
@@ -239,6 +269,9 @@ export function matchContactsInTranscript(
       label: contact.fullName,
       confiance: 'certain',
       raison: 'telephone',
+      phone: contact.phone,
+      email: contact.email,
+      address: contact.address,
     });
   }
 

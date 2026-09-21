@@ -8,7 +8,8 @@ import Map, { Marker, type MapRef } from 'react-map-gl';
 import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
-import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
+import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
+import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import { markerBadgeColor } from '@/lib/carte/colors';
@@ -67,6 +68,7 @@ export default function SectorMapCanvas({
   zoomPreset = 'sector',
   showBuildingMarkers = true,
   focusBounds = null,
+  dimension = '2d',
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -88,10 +90,13 @@ export default function SectorMapCanvas({
   showBuildingMarkers?: boolean;
   /** Prioritaire sur l'emprise des points : cadrer un secteur choisi. */
   focusBounds?: LngLatBoundsTuple | null;
+  dimension?: MapDimension;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [hoveredBanId, setHoveredBanId] = useState<string | null>(null);
+  const [styleReady, setStyleReady] = useState(false);
+  const camera = cameraFor(dimension);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -130,8 +135,8 @@ export default function SectorMapCanvas({
         map.easeTo({
           center: [fallback.longitude, fallback.latitude],
           zoom: PARCELLE_FOCUS_ZOOM,
-          pitch: MAP_3D_PITCH,
-          bearing: MAP_3D_BEARING,
+          pitch: camera.pitch,
+          bearing: camera.bearing,
           duration,
         });
         return;
@@ -143,8 +148,8 @@ export default function SectorMapCanvas({
           map.easeTo({
             center: [fallback.longitude, fallback.latitude],
             zoom: 13,
-            pitch: MAP_3D_PITCH,
-            bearing: MAP_3D_BEARING,
+            pitch: camera.pitch,
+            bearing: camera.bearing,
             duration,
           });
         } else {
@@ -161,8 +166,8 @@ export default function SectorMapCanvas({
         map.easeTo({
           center: [west, south],
           zoom: 14,
-          pitch: MAP_3D_PITCH,
-          bearing: MAP_3D_BEARING,
+          pitch: camera.pitch,
+          bearing: camera.bearing,
           duration,
         });
         return;
@@ -171,11 +176,11 @@ export default function SectorMapCanvas({
         padding: { top: 80, bottom: 80, left: 80, right: 80 },
         maxZoom: 15,
         duration,
-        pitch: MAP_3D_PITCH,
-        bearing: MAP_3D_BEARING,
+        pitch: camera.pitch,
+        bearing: camera.bearing,
       });
     },
-    [fallback, buildings, itineraryBounds, zoomPreset, focusBounds],
+    [fallback, buildings, itineraryBounds, zoomPreset, focusBounds, camera.pitch, camera.bearing],
   );
 
   const focusSignature = focusBounds
@@ -186,6 +191,15 @@ export default function SectorMapCanvas({
     fitToPoints(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsSignature, itineraryBounds, focusSignature]);
+
+  useEffect(() => {
+    mapRef.current?.easeTo({
+      pitch: camera.pitch,
+      bearing: camera.bearing,
+      duration: 450,
+      essential: true,
+    });
+  }, [camera.pitch, camera.bearing]);
 
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;
@@ -203,8 +217,8 @@ export default function SectorMapCanvas({
                 longitude: fallback.longitude,
                 latitude: fallback.latitude,
                 zoom: PARCELLE_FOCUS_ZOOM,
-                pitch: MAP_3D_PITCH,
-                bearing: MAP_3D_BEARING,
+                pitch: camera.pitch,
+                bearing: camera.bearing,
               }
             : initialBounds
               ? {
@@ -225,6 +239,7 @@ export default function SectorMapCanvas({
           ...(cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
         ]}
         onLoad={() => {
+          setStyleReady(true);
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
           if (next) onViewport(next);
@@ -252,6 +267,7 @@ export default function SectorMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
+        <Buildings3DLayer mapRef={mapRef} enabled={dimension === '3d'} ready={styleReady} />
         <ParcellesLayer
           mapRef={mapRef}
           enabled={parcellesEnabled}

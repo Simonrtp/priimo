@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronDown, Search } from 'lucide-react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
 import type { NoteLienEntite } from '@/types/contact';
 import { banFeatureToSelectedAddress, searchBanAddresses } from '@/lib/ban';
 import {
@@ -29,7 +28,6 @@ type BanHit = {
 };
 
 const BAN_MIN_LEN = 3;
-const MENU_GAP = 6;
 
 const PLACEHOLDER: Record<RattacherKind, string> = {
   contact: 'Rechercher un contact…',
@@ -50,14 +48,15 @@ export default function NoteEntitySearch({
   disabled = false,
   excludeIds,
   id,
+  className = 'w-full max-w-sm',
 }: {
   onPick: (pick: NoteLinkPick) => void;
   disabled?: boolean;
   excludeIds?: ReadonlySet<string>;
   id?: string;
+  className?: string;
 }) {
   const listId = useId();
-  const searchId = useId();
   const [kind, setKind] = useState<RattacherKind>('contact');
   const [catalogue, setCatalogue] = useState<Record<'contact' | 'bien' | 'lead', RattacherItem[]>>({
     contact: [],
@@ -66,15 +65,7 @@ export default function NoteEntitySearch({
   });
   const [charge, setCharge] = useState(true);
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
   const [banHits, setBanHits] = useState<BanHit[]>([]);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(
-    null,
-  );
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -152,67 +143,6 @@ export default function NoteEntitySearch({
 
   const filtres = useMemo(() => filtrerCatalogue(tous, query), [tous, query]);
 
-  const close = useCallback(() => setOpen(false), []);
-
-  useEffect(() => {
-    if (!open) {
-      setMenuPos(null);
-      return;
-    }
-    function place() {
-      const trigger = triggerRef.current;
-      if (!trigger) return;
-      const r = trigger.getBoundingClientRect();
-      const width = Math.max(r.width, 260);
-      const spaceBelow = window.innerHeight - r.bottom - MENU_GAP - 8;
-      setMenuPos({
-        top: r.bottom + MENU_GAP,
-        left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
-        width,
-        maxHeight: Math.min(320, Math.max(160, spaceBelow)),
-      });
-    }
-    place();
-    const raf = window.requestAnimationFrame(place);
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      window.cancelAnimationFrame(raf);
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [open, filtres.length]);
-
-  useEffect(() => {
-    if (!open) return;
-    const t = window.setTimeout(() => searchRef.current?.focus(), 0);
-    return () => window.clearTimeout(t);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(e: PointerEvent) {
-      const target = e.target;
-      if (!(target instanceof Node)) return;
-      if (rootRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      close();
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        close();
-        triggerRef.current?.focus();
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown, true);
-    document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true);
-      document.removeEventListener('keydown', onKey, true);
-    };
-  }, [close, open]);
-
   function pickItem(item: RattacherItem) {
     if (kind === 'immeuble') {
       const ban = banHits.find((b) => b.id === item.id);
@@ -235,115 +165,65 @@ export default function NoteEntitySearch({
       });
     }
     setQuery('');
-    setOpen(false);
   }
 
   return (
-    <div ref={rootRef} className="flex flex-col gap-3">
-      <div>
-        <p className="mb-1.5 font-medium text-text-muted" style={{ fontSize: 12.5 }}>
-          Rattacher
-        </p>
-        <div
-          role="tablist"
-          aria-label="Type de fiche"
-          className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-        >
-          {RATTACHER_CARTES.map((carte) => {
-            const actif = carte.id === kind;
-            return (
-              <button
-                key={carte.id}
-                type="button"
-                role="tab"
-                aria-selected={actif}
-                disabled={disabled}
-                onClick={() => {
-                  setKind(carte.id);
-                  setQuery('');
-                }}
-                className={`min-h-9 flex-1 rounded-[12px] px-2 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                  actif
-                    ? 'bg-surface text-text-strong shadow-clay-sm'
-                    : 'text-text-muted hover:text-text-strong'
-                }`}
-              >
-                {carte.label}
-              </button>
-            );
-          })}
-        </div>
+    <div className={`rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm ${className}`}>
+      <div className="flex min-h-11 items-center gap-2 rounded-full border border-black/[0.10] bg-surface px-4 max-md:min-h-12">
+        <Search size={15} strokeWidth={2} className="shrink-0 text-text-muted" aria-hidden />
+        <input
+          id={id}
+          type="search"
+          value={query}
+          disabled={disabled}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={PLACEHOLDER[kind]}
+          aria-label={PLACEHOLDER[kind]}
+          autoComplete="off"
+          className="min-w-0 flex-1 bg-transparent py-2 text-[14px] text-text outline-none placeholder:text-text-subtle disabled:opacity-50"
+        />
       </div>
 
-      <button
-        ref={triggerRef}
-        type="button"
-        id={id}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={open ? listId : undefined}
-        onClick={() => !disabled && setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2.5 text-left text-[14px] text-text outline-none hover:border-black/[0.14] focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
+      <div
+        role="tablist"
+        aria-label="Type de fiche"
+        className="mt-2.5 flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
       >
-        <span className="truncate text-text-muted">{PLACEHOLDER[kind]}</span>
-        <ChevronDown
-          size={16}
-          strokeWidth={2}
-          aria-hidden
-          className={`shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {open && menuPos && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              ref={panelRef}
-              style={{
-                top: menuPos.top,
-                left: menuPos.left,
-                width: menuPos.width,
-                maxHeight: menuPos.maxHeight,
+        {RATTACHER_CARTES.map((carte) => {
+          const actif = carte.id === kind;
+          return (
+            <button
+              key={carte.id}
+              type="button"
+              role="tab"
+              aria-selected={actif}
+              disabled={disabled}
+              onClick={() => {
+                setKind(carte.id);
+                setQuery('');
               }}
-              className="fixed z-[230] flex flex-col overflow-hidden rounded-xl border border-black/[0.10] bg-surface shadow-clay-lg"
+              className={`min-h-9 flex-1 rounded-[12px] px-1.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
+                actif
+                  ? 'bg-surface text-text-strong shadow-clay-sm'
+                  : 'text-text-muted hover:text-text-strong'
+              }`}
             >
-              <div className="flex shrink-0 items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
-                <Search size={15} strokeWidth={2} className="shrink-0 text-text-muted" aria-hidden />
-                <input
-                  ref={searchRef}
-                  id={searchId}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={PLACEHOLDER[kind]}
-                  aria-label={PLACEHOLDER[kind]}
-                  autoComplete="off"
-                  className="min-w-0 flex-1 bg-transparent text-[14px] text-text outline-none placeholder:text-text-subtle"
-                />
-              </div>
-              <ListeItems
-                id={listId}
-                items={filtres}
-                vide={LIBELLE_VIDE[kind]}
-                onPick={pickItem}
-                disabled={disabled}
-              />
-            </div>,
-            document.body,
-          )
-        : null}
+              {carte.label}
+            </button>
+          );
+        })}
+      </div>
 
-      <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-surface">
+      <div className="mt-2.5 overflow-hidden rounded-xl border border-black/[0.06] bg-surface">
         {charge && kind !== 'immeuble' ? (
           <div className="h-28 animate-pulse bg-black/[0.04]" aria-hidden />
         ) : (
           <ListeItems
-            id={`${listId}-tous`}
+            id={listId}
             items={query.trim() ? filtres : tous}
             vide={LIBELLE_VIDE[kind]}
             onPick={pickItem}
             disabled={disabled}
-            maxHeightClass="max-h-64"
           />
         )}
       </div>
@@ -357,33 +237,32 @@ function ListeItems({
   vide,
   onPick,
   disabled,
-  maxHeightClass = 'max-h-full',
 }: {
   id: string;
   items: RattacherItem[];
   vide: string;
   onPick: (item: RattacherItem) => void;
   disabled: boolean;
-  maxHeightClass?: string;
 }) {
   if (items.length === 0) {
-    return (
-      <p className="px-3 py-3 text-pretty text-[13.5px] text-text-muted">{vide}</p>
-    );
+    return <p className="px-3 py-3 text-pretty text-[13.5px] text-text-muted">{vide}</p>;
   }
   return (
-    <ul id={id} role="listbox" aria-label="Fiches" className={`overflow-y-auto p-1 ${maxHeightClass}`}>
+    <ul id={id} role="listbox" aria-label="Fiches" className="max-h-64 overflow-y-auto p-1">
       {items.map((item) => (
         <li key={`${item.kind}-${item.id}`} role="option">
           <button
             type="button"
             disabled={disabled}
             onClick={() => onPick(item)}
-            className="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
+            title={item.subtitle ? `${item.label} · ${item.subtitle}` : item.label}
+            className="flex w-full min-w-0 items-baseline gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
           >
-            <span className="text-[13.5px] font-medium text-text">{item.label}</span>
+            <span className="shrink-0 text-[13.5px] font-medium text-text">{item.label}</span>
             {item.subtitle ? (
-              <span className="text-[12px] text-text-muted">{item.subtitle}</span>
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-text-muted">
+                {item.subtitle}
+              </span>
             ) : null}
           </button>
         </li>

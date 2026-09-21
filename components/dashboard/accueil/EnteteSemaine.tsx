@@ -7,7 +7,6 @@ import {
   type Intervalle,
   type Periode,
 } from '@/lib/activite/semaines';
-import PenseBete from './PenseBete';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois', 'annee'];
 
@@ -53,14 +52,12 @@ export default function EnteteSemaine({
   periode,
   intervalle,
   estPeriodeCourante,
-  penseBete,
   enCours,
   onChanger,
 }: {
   periode: Periode;
   intervalle: Intervalle;
   estPeriodeCourante: boolean;
-  penseBete: string;
   /** Le bilan de la période demandée est en route. */
   enCours: boolean;
   /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
@@ -130,10 +127,6 @@ export default function EnteteSemaine({
             </button>
           ) : null}
         </div>
-      </div>
-
-      <div className="sm:w-[16rem] sm:max-w-[16rem] sm:flex-none">
-        <PenseBete initial={penseBete} className="h-full" />
       </div>
     </header>
   );

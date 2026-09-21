@@ -57,6 +57,8 @@ export type AgencyRow = {
   site_web?: string | null;
   /** Couleur d'accent du rapport (#RRGGBB). Défaut #E8743C. */
   couleur_principale?: string | null;
+  /** Texte proposé à l'agent avant l'envoi de l'avis. NULL = texte Priimo. */
+  rapport_email_modele?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -602,6 +604,7 @@ export type AgencyEstimationRow = {
   share_revoked_at: string | null;
   view_count: number;
   last_viewed_at: string | null;
+  rapport_compose_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -678,6 +681,7 @@ export type AgencyRapportPageRow = {
   disposition?: DispositionPageAgence | null;
   contenu?: Record<string, unknown>;
   created_by: string | null;
+  owner_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -695,6 +699,7 @@ export type AgencyRapportPageInsert = {
   disposition?: DispositionPageAgence | null;
   contenu?: Record<string, unknown>;
   created_by?: string | null;
+  owner_id?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -731,6 +736,63 @@ export type EstimationRapportPageInsert = {
   disposition?: DispositionPageAgence | null;
   contenu?: Record<string, unknown> | null;
   created_at?: string;
+};
+
+export type AgencyRapportModeleSource = 'bibliotheque' | 'generee';
+export type AgencyRapportModeleKindGeneree = 'couverture' | 'comparables' | 'prix';
+
+export type AgencyRapportModeleRow = {
+  id: string;
+  agency_id: string;
+  position: number;
+  source: AgencyRapportModeleSource;
+  bibliotheque_id: string | null;
+  kind_generee: AgencyRapportModeleKindGeneree | null;
+  created_at: string;
+};
+
+export type AgencyRapportModeleInsert = {
+  id?: string;
+  agency_id: string;
+  position?: number;
+  source: AgencyRapportModeleSource;
+  bibliotheque_id?: string | null;
+  kind_generee?: AgencyRapportModeleKindGeneree | null;
+  created_at?: string;
+};
+
+export type EstimationRapportEnvoiRow = {
+  id: string;
+  estimation_id: string;
+  agency_id: string;
+  token: string;
+  destinataire: string;
+  message: string;
+  version: number;
+  pdf_path: string;
+  bien_label: string | null;
+  agence_nom: string;
+  agent_nom: string | null;
+  envoye_at: string;
+  premier_vu_at: string | null;
+  created_by: string | null;
+};
+
+export type EstimationRapportEnvoiInsert = {
+  id?: string;
+  estimation_id: string;
+  agency_id: string;
+  token: string;
+  destinataire: string;
+  message: string;
+  version: number;
+  pdf_path: string;
+  bien_label?: string | null;
+  agence_nom: string;
+  agent_nom?: string | null;
+  envoye_at?: string;
+  premier_vu_at?: string | null;
+  created_by?: string | null;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -2102,6 +2164,18 @@ export type Database = {
         Row: EstimationRapportPageRow;
         Insert: EstimationRapportPageInsert;
         Update: Partial<EstimationRapportPageRow>;
+        Relationships: [];
+      };
+      agency_rapport_modele: {
+        Row: AgencyRapportModeleRow;
+        Insert: AgencyRapportModeleInsert;
+        Update: Partial<AgencyRapportModeleRow>;
+        Relationships: [];
+      };
+      estimation_rapport_envois: {
+        Row: EstimationRapportEnvoiRow;
+        Insert: EstimationRapportEnvoiInsert;
+        Update: Partial<EstimationRapportEnvoiRow>;
         Relationships: [];
       };
       agent_onboarding: {

@@ -207,6 +207,14 @@ export default function Sidebar() {
             <WhatsAppIcon size={18} className="shrink-0 text-[#25D366] group-hover:text-[#25D366]" />
             Nous écrire
           </a>
+          <a
+            href="/politique-de-confidentialite"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 block rounded-lg px-2 py-1.5 text-[12px] font-medium text-[#7B9AC0] transition-colors duration-fluid-subtle ease-in-out hover:text-white"
+          >
+            Confidentialité
+          </a>
         </div>
       </div>
 

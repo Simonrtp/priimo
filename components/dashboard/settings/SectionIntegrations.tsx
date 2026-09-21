@@ -195,7 +195,15 @@ export default function SectionIntegrations() {
               </h3>
               <p className="mt-1 text-[13px] text-text-muted">
                 Lecture seule (gmail.readonly), notifications push. Seuls les emails des domaines
-                portail en liste blanche sont ouverts — jamais le reste de la boîte.
+                portail en liste blanche sont ouverts — jamais le reste de la boîte.{' '}
+                <a
+                  href="/politique-de-confidentialite#donnees-issues-de-google-gmail"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-ink underline underline-offset-2"
+                >
+                  Politique de confidentialité — données Gmail
+                </a>
               </p>
               {note ? (
                 <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">

@@ -12,4 +12,4 @@ export const LEGAL_CONTACT = {
 
 export const CGU_LAST_UPDATED = '8 septembre 2026';
 export const MENTIONS_LAST_UPDATED = '8 septembre 2026';
-export const CONFIDENTIALITE_LAST_UPDATED = '8 septembre 2026';
+export const CONFIDENTIALITE_LAST_UPDATED = '21 septembre 2026';

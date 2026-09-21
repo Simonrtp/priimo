@@ -8,6 +8,14 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import EstimationListe, { type EstimationResume } from './atelier/EstimationListe';
 import EstimationAtelier from './atelier/EstimationAtelier';
+import SectionBibliothequePages from '@/components/dashboard/settings/SectionBibliothequePages';
+
+type EstimationVue = 'estimer' | 'rapport';
+
+function parseVue(raw: string | null): EstimationVue {
+  if (raw === 'rapport' || raw === 'widget') return 'rapport';
+  return 'estimer';
+}
 
 export default function EstimationDashboardClient({
   agencyName,
@@ -18,6 +26,7 @@ export default function EstimationDashboardClient({
   const router = useRouter();
   const params = useSearchParams();
   const id = params.get('id');
+  const vue = parseVue(params.get('vue'));
   const [rows, setRows] = useState<EstimationResume[] | null>(null);
   const [courante, setCourante] = useState<EstimationObjet | null>(null);
   const [fiche, setFiche] = useState<'idle' | 'load' | 'ready'>(id ? 'load' : 'idle');
@@ -80,6 +89,15 @@ export default function EstimationDashboardClient({
     const url = new URL(window.location.href);
     if (next) url.searchParams.set('id', next);
     else url.searchParams.delete('id');
+    url.searchParams.delete('vue');
+    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+  }
+
+  function allerVue(next: EstimationVue) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('id');
+    if (next === 'rapport') url.searchParams.set('vue', 'rapport');
+    else url.searchParams.delete('vue');
     router.replace(`${url.pathname}${url.search}`, { scroll: false });
   }
 
@@ -99,11 +117,51 @@ export default function EstimationDashboardClient({
     }
   }
 
+  const dansAtelier = Boolean(id && (fiche === 'load' || courante));
+
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
-      <PageHeader title="Estimation" />
+      <PageHeader
+        title={vue === 'rapport' && !dansAtelier ? 'Modifier mon rapport' : 'Estimation'}
+        primaryAction={
+          dansAtelier ? undefined : (
+            <div
+              className="flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset"
+              role="tablist"
+              aria-label="Vue estimation"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={vue === 'estimer'}
+                onClick={() => allerVue('estimer')}
+                className={`inline-flex min-h-[36px] items-center rounded-[10px] px-3 text-[12.5px] font-semibold transition-colors ${
+                  vue === 'estimer'
+                    ? 'bg-surface text-text-strong shadow-clay-sm'
+                    : 'text-text-muted hover:text-text'
+                }`}
+              >
+                Estimer
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={vue === 'rapport'}
+                onClick={() => allerVue('rapport')}
+                className={`inline-flex min-h-[36px] items-center rounded-[10px] px-3 text-[12.5px] font-semibold transition-colors ${
+                  vue === 'rapport'
+                    ? 'bg-surface text-text-strong shadow-clay-sm'
+                    : 'text-text-muted hover:text-text'
+                }`}
+              >
+                Modifier mon rapport
+              </button>
+            </div>
+          )
+        }
+      />
 
-      {id && fiche === 'load' ? (
+      {dansAtelier && fiche === 'load' ? (
         <p className="text-[14px] text-text-muted">Chargement de l’estimation…</p>
       ) : courante ? (
         <EstimationAtelier
@@ -118,6 +176,8 @@ export default function EstimationDashboardClient({
             void chargerListe();
           }}
         />
+      ) : vue === 'rapport' ? (
+        <SectionBibliothequePages />
       ) : (
         <EstimationListe
           rows={rows ?? []}

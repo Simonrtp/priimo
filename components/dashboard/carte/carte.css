@@ -257,17 +257,42 @@
 
 .priimo-dpe-age {
   position: relative;
-  height: 28px;
+  height: 44px;
+  user-select: none;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.priimo-dpe-age--dragging {
+  cursor: grabbing;
 }
 
 .priimo-dpe-age__track {
   position: absolute;
-  top: 12px;
-  right: 8px;
-  left: 8px;
-  height: 4px;
+  top: 50%;
+  right: 14px;
+  left: 14px;
+  height: 8px;
+  margin-top: -4px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.08);
+}
+
+.priimo-dpe-age__marks {
+  position: absolute;
+  inset: 0;
+}
+
+.priimo-dpe-age__mark {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  margin-top: -2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(61, 90, 128, 0.18);
 }
 
 .priimo-dpe-age__fill {
@@ -289,36 +314,36 @@
 }
 
 .priimo-dpe-age__input::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 8px;
   background: transparent;
 }
 
 .priimo-dpe-age__input::-webkit-slider-thumb {
-  pointer-events: auto;
-  width: 16px;
-  height: 16px;
-  margin-top: -6px;
+  pointer-events: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -7px;
   appearance: none;
-  border: 2px solid #fff;
+  border: 3px solid #fff;
   border-radius: 999px;
   background: #3d5a80;
-  box-shadow: 0 1px 2px rgba(21, 32, 47, 0.22);
+  box-shadow: 0 1px 4px rgba(21, 32, 47, 0.28);
 }
 
 .priimo-dpe-age__input::-moz-range-track {
-  height: 4px;
+  height: 8px;
   background: transparent;
   border: none;
 }
 
 .priimo-dpe-age__input::-moz-range-thumb {
-  pointer-events: auto;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #fff;
+  pointer-events: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #fff;
   border-radius: 999px;
   background: #3d5a80;
-  box-shadow: 0 1px 2px rgba(21, 32, 47, 0.22);
+  box-shadow: 0 1px 4px rgba(21, 32, 47, 0.28);
 }
 
 .priimo-dpe-age__input--from {
@@ -327,6 +352,10 @@
 
 .priimo-dpe-age__input--to {
   z-index: 3;
+}
+
+.priimo-dpe-age__input--active {
+  z-index: 4;
 }
 
 .priimo-dpe-age__input:focus-visible {

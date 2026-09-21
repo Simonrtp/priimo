@@ -16,10 +16,10 @@ import Modal from '@/components/ui/Modal';
 import AvatarChooser from '@/components/dashboard/AvatarChooser';
 import SectionRequestSector from './SectionRequestSector';
 import SectionIntegrations from './SectionIntegrations';
+import SectionModeleRapport from './SectionModeleRapport';
 import SectionAbonnement from './SectionAbonnement';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { formatPhoneDisplay } from '@/lib/import/normalize';
-import SectionBibliothequePages from './SectionBibliothequePages';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -496,9 +496,9 @@ function SectionAgency() {
           </div>
         ) : null}
 
-        <SectionRequestSector />
+        <SectionModeleRapport />
 
-        <SectionBibliothequePages />
+        <SectionRequestSector />
 
         <button
           type="button"

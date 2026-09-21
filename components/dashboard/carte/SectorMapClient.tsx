@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronUp, Layers, X } from 'lucide-react';
+import { Box, ChevronUp, Layers, Square, X } from 'lucide-react';
+import {
+  persistMapDimension,
+  readMapDimension,
+  toggleDimension,
+  type MapDimension,
+} from '@/lib/map/view-mode';
+import { FIELD } from '@/lib/today/field';
 import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
@@ -285,6 +292,7 @@ export default function SectorMapClient({
 }) {
   const router = useRouter();
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
+  const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
   const [postal, setPostal] = useState('tous');
   const [zoneId, setZoneId] = useState(
@@ -512,6 +520,7 @@ export default function SectorMapClient({
             parcelle.openParcelle(parcelleId);
           }}
           focusBounds={focusBounds}
+          dimension={dimension}
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
@@ -565,6 +574,33 @@ export default function SectorMapClient({
             )}
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setDimension((prev) => {
+              const next = toggleDimension(prev);
+              persistMapDimension(next);
+              return next;
+            });
+          }}
+          aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
+          aria-pressed={dimension === '3d'}
+          className="absolute bottom-3 right-3 z-20 hidden size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md md:flex"
+          style={{ color: dimension === '3d' ? FIELD.orange : undefined }}
+        >
+          {dimension === '3d' ? (
+            <Box size={17} strokeWidth={2.2} aria-hidden />
+          ) : (
+            <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
+          )}
+          <span
+            className="text-[10px] font-bold leading-none"
+            style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
+          >
+            {dimension === '3d' ? '3D' : '2D'}
+          </span>
+        </button>
 
         {missingTotal > 0 ? (
           <button

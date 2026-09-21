@@ -61,7 +61,8 @@ export default function ProspectionCarteView({
     [router],
   );
 
-  const switcher = <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} />;
+  const switcherCarte = <ProspectsViewSwitch variant="bar" value="carte" onChange={setVue} />;
+  const switcherBureau = <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} />;
   const zonesVisibles = zones.filter(
     (z) => z.actif && (isDirector || z.assignedTo === profileId),
   );
@@ -72,12 +73,6 @@ export default function ProspectionCarteView({
         data-prospection-carte
         className="field-map relative h-full min-h-0 w-full overflow-hidden"
       >
-        <div
-          className="pointer-events-none absolute right-3 z-[25]"
-          style={{ top: 'max(10px, env(safe-area-inset-top, 0px))' }}
-        >
-          <div className="pointer-events-auto">{switcher}</div>
-        </div>
         <div className="h-full min-h-0">
           <CarteMobile
             points={points}
@@ -97,6 +92,7 @@ export default function ProspectionCarteView({
             fillParent
             zones={zonesVisibles}
             initialZoneId={initialZoneId}
+            viewSwitcher={switcherCarte}
           />
         </div>
       </div>
@@ -117,7 +113,7 @@ export default function ProspectionCarteView({
         itineraryStops={itineraryStops}
         showItineraire={showItineraire}
         embedded
-        viewSwitcher={switcher}
+        viewSwitcher={switcherBureau}
         zones={zonesVisibles}
         initialZoneId={initialZoneId}
       />

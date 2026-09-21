@@ -14,7 +14,9 @@ import {
   toDateParam,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
-import { mergeCadastreImmeubles } from '@/lib/carte/cadastre-overlay';
+import { mergeCadastreImmeubles, overlayRowsFromAdeme } from '@/lib/carte/cadastre-overlay';
+import { fetchDpeSecteur } from '@/lib/geo/ademe';
+import type { DpeRecent } from '@/lib/automations/veille-dpe';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import { CADASTRE_OVERLAY_MIN_ZOOM, formatParcelleId } from '@/lib/carte/parcelle';
 import type {
@@ -29,6 +31,10 @@ type Db = SupabaseClient<Database>;
 
 const IN_CHUNK = 200;
 const MAP_POINT_CAP = 2500;
+const DPE_PAGE = 1000;
+const DPE_PAGE_CAP = 8000;
+/** Au-delà, building_dpe suffit : l’ADEME ne comble que le trou d’ingest. */
+const ADEME_MAP_LOOKBACK_DAYS = 62;
 
 /**
  * Colonnes réellement lues — à tenir alignées sur le schéma live.
@@ -521,6 +527,7 @@ export async function fetchParcelleOverlays(args: {
   const openDataDb = args.publicDb;
   const codes = args.postalCodes.filter((c) => /^\d{5}$/.test(c));
   const ages = args.dpeAges ?? DEFAULT_DPE_AGE_BUCKETS;
+  const includeDpe = args.includeDpeDetail === true && needsDpeDetailRows(ages);
   const [notes, sources] = await Promise.all([
     fetchParcelleNoteMarkers(args.agencyDb, args.agencyId, args.viewer),
     fetchCadastreSourceDates(openDataDb, codes),
@@ -529,6 +536,12 @@ export async function fetchParcelleOverlays(args: {
   if (!args.viewport || args.viewport.zoom < CADASTRE_OVERLAY_MIN_ZOOM || codes.length === 0) {
     return { immeubles: [], notes, sources };
   }
+
+  const ademeDepuis = includeDpe ? ademeLookbackDepuis(dpeDetailQueryRange(ages)?.from) : null;
+  const ademePromise =
+    ademeDepuis && codes.length > 0
+      ? fetchDpeSecteur(codes, ademeDepuis, undefined, { taille: 4000, cached: true })
+      : Promise.resolve([]);
 
   const { west, south, east, north } = args.viewport;
   // Admin : buildings filtré au secteur agence (open data géolocalisé).
@@ -558,10 +571,7 @@ export async function fetchParcelleOverlays(args: {
     cols(PARCELLE_READ_QUERIES.activity.columns),
     banIds,
   );
-  const dpePromise =
-    args.includeDpeDetail && needsDpeDetailRows(ages)
-      ? selectDpeFrais(openDataDb, banIds, dpeDetailQueryRange(ages) ?? undefined)
-      : Promise.resolve([] as DpeRow[]);
+  const dpePromise = loadDetailDpe(openDataDb, banIds, ages, includeDpe, ademePromise);
 
   const [activity, dpeRows] = await Promise.all([activityPromise, dpePromise]);
 
@@ -599,6 +609,47 @@ export async function fetchParcelleOverlays(args: {
   return { immeubles, notes, sources };
 }
 
+async function loadDetailDpe(
+  openDataDb: Db,
+  banIds: readonly string[],
+  ages: readonly DpeAgeBucket[],
+  include: boolean,
+  ademePromise: Promise<DpeRecent[]>,
+): Promise<DpeRow[]> {
+  if (!include || banIds.length === 0) {
+    await ademePromise.catch(() => []);
+    return [];
+  }
+  const range = dpeDetailQueryRange(ages) ?? undefined;
+  const [frais, ademe] = await Promise.all([selectDpeFrais(openDataDb, banIds, range), ademePromise]);
+  if (ademe.length === 0) return frais;
+  const extra = overlayRowsFromAdeme(ademe, new Set(banIds));
+  if (extra.length === 0) return frais;
+  return [
+    ...frais,
+    ...extra.map((row) => ({
+      ban_id: row.banId,
+      date_dpe: row.dateDpe,
+      etiquette_dpe: row.etiquetteDpe,
+      etiquette_ges: null,
+      conso_kwh_m2_an: null,
+      surface: row.surface,
+      etage: row.etage,
+      numero_dpe: null,
+      source: 'ademe',
+    })),
+  ];
+}
+
+function ademeLookbackDepuis(rangeFrom: Date | undefined): string | null {
+  if (!rangeFrom) return null;
+  const now = new Date();
+  const floor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  floor.setDate(floor.getDate() - ADEME_MAP_LOOKBACK_DAYS);
+  const from = rangeFrom.getTime() > floor.getTime() ? rangeFrom : floor;
+  return toDateParam(from);
+}
+
 async function selectDpeFrais(
   openDataDb: Db,
   banIds: readonly string[],
@@ -609,16 +660,27 @@ async function selectDpeFrais(
   const columns = cols(PARCELLE_READ_QUERIES.dpeFrais.columns);
   for (let i = 0; i < banIds.length; i += IN_CHUNK) {
     const chunk = banIds.slice(i, i + IN_CHUNK);
-    let query = openDataDb.from('building_dpe').select(columns).in('ban_id', chunk);
-    if (range) {
-      query = query.gte('date_dpe', toDateParam(range.from)).lte('date_dpe', toDateParam(range.to));
+    let from = 0;
+    while (from < DPE_PAGE_CAP) {
+      let query = openDataDb
+        .from('building_dpe')
+        .select(columns)
+        .in('ban_id', chunk)
+        .not('date_dpe', 'is', null)
+        .order('date_dpe', { ascending: false });
+      if (range) {
+        query = query.gte('date_dpe', toDateParam(range.from)).lte('date_dpe', toDateParam(range.to));
+      }
+      const { data, error } = await query.range(from, from + DPE_PAGE - 1);
+      if (error) {
+        console.error('[parcelle] building_dpe frais', error.message);
+        break;
+      }
+      const page = (data ?? []) as unknown as DpeRow[];
+      rows.push(...page);
+      if (page.length < DPE_PAGE) break;
+      from += DPE_PAGE;
     }
-    const { data, error } = await query;
-    if (error) {
-      console.error('[parcelle] building_dpe frais', error.message);
-      continue;
-    }
-    rows.push(...((data ?? []) as unknown as DpeRow[]));
   }
   return rows;
 }

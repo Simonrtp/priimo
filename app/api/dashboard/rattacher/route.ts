@@ -6,7 +6,7 @@ import { fetchContactsSafe } from '@/lib/queries/contacts';
 import { fetchBiensSafe } from '@/lib/queries/biens';
 import { fetchLeads } from '@/lib/queries/leads';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import type { RattacherItem } from '@/lib/notes/rattacher-catalogue';
+import { ligneRattachementContact, type RattacherItem } from '@/lib/notes/rattacher-catalogue';
 
 export const runtime = 'nodejs';
 
@@ -26,23 +26,34 @@ export async function GET() {
     fetchLeads(supabase).catch(() => []),
   ]);
 
-  const contactItems: RattacherItem[] = visibleContactsFor(viewer, contacts)
-    .slice(0, MAX)
-    .map((c) => ({
-      id: c.id,
-      kind: 'contact',
-      label: c.fullName,
-      subtitle: [c.phone, c.address].filter(Boolean).join(' · ') || null,
-    }));
+  const contactsVisibles = visibleContactsFor(viewer, contacts).slice(0, MAX);
+  const biensVisibles = visibleBiensFor(viewer, biens).slice(0, MAX);
+  const contactsPourLigne = contactsVisibles.map((c) => ({
+    id: c.id,
+    fullName: c.fullName,
+    phone: c.phone,
+    address: c.address,
+    banId: c.banId,
+  }));
+  const biensPourLigne = biensVisibles.map((b) => ({
+    proprietaireContactId: b.proprietaireContactId,
+    address: b.address,
+    banId: b.banId,
+  }));
 
-  const bienItems: RattacherItem[] = visibleBiensFor(viewer, biens)
-    .slice(0, MAX)
-    .map((b) => ({
-      id: b.id,
-      kind: 'bien',
-      label: b.address,
-      subtitle: [b.city, b.proprietaireName].filter(Boolean).join(' · ') || null,
-    }));
+  const contactItems: RattacherItem[] = contactsVisibles.map((c) => ({
+    id: c.id,
+    kind: 'contact',
+    label: c.fullName,
+    subtitle: ligneRattachementContact(c, biensPourLigne, contactsPourLigne),
+  }));
+
+  const bienItems: RattacherItem[] = biensVisibles.map((b) => ({
+    id: b.id,
+    kind: 'bien',
+    label: b.address,
+    subtitle: [b.city, b.proprietaireName].filter(Boolean).join(' · ') || null,
+  }));
 
   const leadItems: RattacherItem[] = visibleLeadsFor(viewer, leads)
     .slice(0, MAX)

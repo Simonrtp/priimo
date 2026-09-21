@@ -447,7 +447,7 @@ export default function ProspectsClient({
         />
       )}
 
-      <div className="sticky top-0 z-20 -mx-2 mb-4 flex justify-end bg-bg-base/95 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-bg-base/85">
+      <div className="sticky top-0 z-20 -mx-2 mb-4 hidden justify-end bg-bg-base/95 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-bg-base/85 md:flex">
         {switcher}
       </div>
 

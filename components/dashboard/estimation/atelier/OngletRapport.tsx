@@ -23,25 +23,35 @@ import type { CSSProperties } from 'react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import PageRapport from '@/components/rapport/PageRapport';
+import ApercuPageComposee from '@/components/rapport/ApercuPageComposee';
 import EditeurPageAgence from '@/components/dashboard/settings/EditeurPageAgence';
+import ModePresentationRapport from '@/components/dashboard/estimation/atelier/ModePresentationRapport';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { useUser } from '@/lib/hooks/useUser';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
-import ContenuPageModele from '@/components/rapport/ContenuPageModele';
 import {
   normaliserCouleurPrincipale,
   type IdentiteAgenceRapport,
   type IdentiteAgentRapport,
   type PiedBienRapport,
 } from '@/lib/rapport/identite';
-import { estDisposition } from '@/lib/rapport/modele';
+import type { EnvoiRapport } from '@/lib/rapport/envois';
+
+function formatDateHeure(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
 
 export default function OngletRapport({
   estimation,
+  onEtatChange,
 }: {
   estimation: EstimationObjet;
   agencyName?: string;
+  onEtatChange?: (etat: { pages: number; contactEmail: string | null }) => void;
 }) {
   const [pages, setPages] = useState<PageRapportComposee[]>([]);
   const [biblio, setBiblio] = useState<PageBibliotheque[]>([]);
@@ -54,10 +64,16 @@ export default function OngletRapport({
   const [biblioOuverte, setBiblioOuverte] = useState(false);
   const [pending, setPending] = useState<PageRapportComposee | null>(null);
   const [emailTo, setEmailTo] = useState('');
+  const [message, setMessage] = useState('');
+  const [envois, setEnvois] = useState<EnvoiRapport[]>([]);
   const [envoi, setEnvoi] = useState(false);
   const [creerPage, setCreerPage] = useState(false);
+  const [presentation, setPresentation] = useState(false);
+  const [contactEmail, setContactEmail] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const { user, profile, agency } = useUser();
+  const onEtatChangeRef = useRef(onEtatChange);
+  onEtatChangeRef.current = onEtatChange;
 
   const charger = useCallback(async () => {
     setChargement(true);
@@ -72,14 +88,29 @@ export default function OngletRapport({
         agent?: IdentiteAgentRapport;
         bien?: PiedBienRapport;
         dateIso?: string;
+        contactEmail?: string | null;
+        emailModele?: string;
+        envois?: EnvoiRapport[];
         error?: string;
       };
       if (compose.error) throw new Error(compose.error);
-      setPages(compose.pages ?? []);
+      const nextPages = compose.pages ?? [];
+      setPages(nextPages);
       if (compose.agence) setAgence(compose.agence);
       if (compose.agent) setAgent(compose.agent);
       if (compose.bien) setBien(compose.bien);
       setDateIso(compose.dateIso ?? estimation.updatedAt);
+      setEnvois(compose.envois ?? []);
+      if (compose.emailModele) setMessage((prev) => (prev.trim() ? prev : compose.emailModele ?? ''));
+      const mailClient = compose.contactEmail ?? null;
+      setContactEmail(mailClient);
+      if (mailClient) {
+        setEmailTo((prev) => prev || mailClient);
+      }
+      onEtatChangeRef.current?.({
+        pages: nextPages.length,
+        contactEmail: mailClient,
+      });
       setBiblio((lib as { pages?: PageBibliotheque[] }).pages ?? []);
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Rapport indisponible');
@@ -102,6 +133,14 @@ export default function OngletRapport({
   );
 
   const courante = pages[index] ?? null;
+  const vide = pages.length === 0;
+
+  function publierEtat(nextPages: PageRapportComposee[]) {
+    onEtatChangeRef.current?.({
+      pages: nextPages.length,
+      contactEmail,
+    });
+  }
 
   async function ajouterBiblio(id: string) {
     const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/pages`, {
@@ -114,7 +153,11 @@ export default function OngletRapport({
       notifyError(data.error ?? 'Ajout impossible');
       return;
     }
-    setPages((prev) => [...prev, ...data.pages!]);
+    setPages((prev) => {
+      const next = [...prev, ...data.pages!];
+      publierEtat(next);
+      return next;
+    });
     setIndex(pages.length);
     setBiblioOuverte(false);
     notifySuccess('Page ajoutée au rapport');
@@ -133,7 +176,11 @@ export default function OngletRapport({
       notifyError(data.error ?? 'Import impossible');
       return;
     }
-    setPages((prev) => [...prev, ...data.pages!]);
+    setPages((prev) => {
+      const next = [...prev, ...data.pages!];
+      publierEtat(next);
+      return next;
+    });
     setIndex(pages.length);
     notifySuccess('Document importé');
     if (importRef.current) importRef.current.value = '';
@@ -169,12 +216,17 @@ export default function OngletRapport({
       notifyError('Retrait impossible');
       return;
     }
-    setPages((prev) => prev.filter((p) => p.id !== pending.id));
+    setPages((prev) => {
+      const next = prev.filter((p) => p.id !== pending.id);
+      publierEtat(next);
+      return next;
+    });
     setPending(null);
     notifySuccess('Page retirée');
   }
 
   async function exporter() {
+    if (vide) return;
     const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/pdf`);
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -192,15 +244,20 @@ export default function OngletRapport({
   }
 
   async function envoyer() {
+    if (vide) return;
     setEnvoi(true);
     try {
       const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/envoyer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: emailTo.trim() || undefined }),
+        body: JSON.stringify({
+          to: emailTo.trim() || undefined,
+          message: message.trim(),
+        }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; envoi?: EnvoiRapport };
       if (!res.ok) throw new Error(data.error ?? 'Envoi impossible');
+      if (data.envoi) setEnvois((prev) => [data.envoi!, ...prev]);
       notifySuccess('Avis de valeur envoyé');
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Envoi impossible');
@@ -213,8 +270,7 @@ export default function OngletRapport({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <p className="text-pretty text-[13.5px] text-text-muted">
-          Composez le contenant : pages de l’agence, documents importés. Les pages de données
-          viendront ensuite. Accessible dès maintenant, même si le bien n’est pas encore renseigné.
+          Composez le rapport remis à votre client : pages de votre agence et documents importés.
         </p>
         <div className="flex flex-wrap gap-2">
           <WorkspaceButton type="button" variant="secondary" onClick={() => setBiblioOuverte((o) => !o)}>
@@ -223,8 +279,22 @@ export default function OngletRapport({
           <WorkspaceButton type="button" variant="secondary" onClick={() => importRef.current?.click()}>
             Importer un PDF
           </WorkspaceButton>
-          <WorkspaceButton type="button" onClick={() => void exporter()}>
-            Exporter le PDF
+          <WorkspaceButton
+            type="button"
+            variant="secondary"
+            disabled={vide}
+            title={vide ? 'Ajoutez au moins une page pour présenter' : undefined}
+            onClick={() => setPresentation(true)}
+          >
+            Présenter
+          </WorkspaceButton>
+          <WorkspaceButton
+            type="button"
+            disabled={vide}
+            title={vide ? 'Ajoutez au moins une page pour exporter' : undefined}
+            onClick={() => void exporter()}
+          >
+            Exporter
           </WorkspaceButton>
         </div>
       </div>
@@ -307,7 +377,10 @@ export default function OngletRapport({
               page={pages.length === 0 ? 1 : index + 1}
               pages={Math.max(pages.length, 1)}
             >
-              <ApercuPage page={courante} accent={normaliserCouleurPrincipale(agence.couleurPrincipale)} />
+              <ApercuPageComposee
+                page={courante}
+                accent={normaliserCouleurPrincipale(agence.couleurPrincipale)}
+              />
             </PageRapport>
           ) : (
             <div className="aspect-[297/210] animate-pulse rounded-clay bg-black/[0.04]" aria-hidden />
@@ -339,27 +412,89 @@ export default function OngletRapport({
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <label htmlFor="rapport-email" className="mb-1.5 block text-[13px] font-medium text-text">
-                Envoyer par e-mail
+          <div className="mt-4 flex flex-col gap-3">
+            <div>
+              <label htmlFor="rapport-message" className="mb-1.5 block text-[13px] font-medium text-text">
+                Message au client
               </label>
-              <input
-                id="rapport-email"
-                type="email"
-                autoComplete="email"
-                className="w-full rounded-clay border border-black/[0.1] bg-white px-3 py-2.5 text-[14px] text-text placeholder:text-text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
-                placeholder="client@exemple.fr — ou l’e-mail du contact rattaché"
-                value={emailTo}
-                onChange={(e) => setEmailTo(e.target.value)}
+              <textarea
+                id="rapport-message"
+                className="min-h-[7.5rem] w-full resize-y rounded-clay border border-black/[0.1] bg-white px-3 py-2.5 text-[14px] text-text placeholder:text-text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                maxLength={4000}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
               />
             </div>
-            <WorkspaceButton type="button" variant="secondary" disabled={envoi} onClick={() => void envoyer()}>
-              {envoi ? 'Envoi…' : 'Envoyer'}
-            </WorkspaceButton>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <label htmlFor="rapport-email" className="mb-1.5 block text-[13px] font-medium text-text">
+                  Destinataire
+                </label>
+                <input
+                  id="rapport-email"
+                  type="email"
+                  autoComplete="email"
+                  className="w-full rounded-clay border border-black/[0.1] bg-white px-3 py-2.5 text-[14px] text-text placeholder:text-text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+                  placeholder="client@exemple.fr"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                />
+              </div>
+              <WorkspaceButton
+                type="button"
+                variant="secondary"
+                disabled={envoi || vide}
+                title={vide ? 'Ajoutez au moins une page pour envoyer' : undefined}
+                onClick={() => void envoyer()}
+              >
+                {envoi ? 'Envoi…' : 'Envoyer'}
+              </WorkspaceButton>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <h3 className="text-[13px] font-semibold text-text-strong">Envois</h3>
+            {envois.length === 0 ? (
+              <p className="mt-1.5 text-pretty text-[13px] text-text-muted">
+                Aucun envoi pour l’instant.
+              </p>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-2">
+                {envois.map((e) => (
+                  <li
+                    key={e.id}
+                    className="rounded-clay border border-black/[0.06] bg-surface px-3 py-2.5 text-[13px] text-text"
+                  >
+                    <p className="truncate font-medium">{e.destinataire}</p>
+                    <p className="mt-0.5 text-text-muted">
+                      {formatDateHeure(e.envoyeAt)}
+                      {' · '}
+                      Version {e.version}
+                      {' · '}
+                      {e.premierVuAt
+                        ? `Consulté le ${formatDateHeure(e.premierVuAt)}`
+                        : 'Pas encore consulté'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
+
+      {presentation && agence && agent && !vide ? (
+        <ModePresentationRapport
+          pages={pages}
+          index={index}
+          onIndex={setIndex}
+          onFermer={() => setPresentation(false)}
+          agence={agence}
+          agent={agent}
+          bien={bien}
+          dateIso={dateIso}
+        />
+      ) : null}
 
       <EditeurPageAgence
         key={creerPage ? 'rapport-new' : 'rapport-ferme'}
@@ -385,48 +520,6 @@ export default function OngletRapport({
         primaryLabel="Retirer"
         variant="danger"
       />
-    </div>
-  );
-}
-
-function ApercuPage({ page, accent }: { page: PageRapportComposee | null; accent: string }) {
-  if (!page) {
-    return (
-      <div className="flex h-full items-center justify-center px-6">
-        <p className="text-pretty text-center text-[13.5px] text-text-muted">
-          Le gabarit est prêt. Ajoutez une page pour l’aperçu.
-        </p>
-      </div>
-    );
-  }
-  if (page.kind === 'modele' && page.disposition && estDisposition(page.disposition)) {
-    return (
-      <ContenuPageModele
-        disposition={page.disposition}
-        contenu={page.contenu ?? {}}
-        imageUrl={page.previewUrl}
-        accent={accent}
-      />
-    );
-  }
-  if (page.kind === 'image' && page.previewUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={page.previewUrl} alt="" className="h-full w-full object-contain" />
-    );
-  }
-  if (page.kind === 'pdf' && page.previewUrl) {
-    return (
-      <iframe
-        title={page.nom}
-        src={`${page.previewUrl}#page=${page.pageIndex + 1}&view=FitH`}
-        className="h-full w-full border-0 bg-white"
-      />
-    );
-  }
-  return (
-    <div className="flex h-full items-center justify-center px-6">
-      <p className="text-pretty text-center text-[13.5px] text-text-muted">{page.nom}</p>
     </div>
   );
 }

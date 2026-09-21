@@ -2,6 +2,7 @@ import { ChevronDown, Filter } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
 import { ACCUEIL, FIELD } from '@/lib/today/field';
+import AccueilAube from './AccueilAube';
 import { EmploiDuTempsSquelette } from './EmploiDuTemps';
 
 const OBJECTIF = {
@@ -44,6 +45,7 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
         </div>
       </section>
 
+      <AccueilAube>
       <section
         className="flex flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8"
         style={{ backgroundColor: OBJECTIF.voile }}
@@ -81,8 +83,9 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
           </div>
         </div>
       </section>
+      </AccueilAube>
 
-      <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-6">
         {FAMILLES_ACTIVITE.map((famille) => {
           const couleur = COULEUR_FAMILLE[famille];
           return (
@@ -118,6 +121,15 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
             </li>
           );
         })}
+        <li
+          className="flex flex-col rounded-clay-lg px-4 py-4 shadow-clay-sm"
+          style={{ backgroundColor: ACCUEIL.creme }}
+          aria-hidden
+        >
+          <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
+          <Trait className="mt-2 h-5 w-full rounded" />
+          <Trait className="mt-1.5 h-5 w-4/5 rounded" />
+        </li>
       </ul>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
@@ -273,25 +285,6 @@ export function EnteteSquelette({
               {libelle}
             </span>
           ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 items-stretch gap-2.5 sm:block sm:w-[16rem] sm:max-w-[16rem] sm:flex-none">
-        <div
-          className="rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:px-4"
-          style={{ backgroundColor: ACCUEIL.creme }}
-          aria-hidden
-        >
-          <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
-          <div className="mt-1 h-5 rounded" />
-        </div>
-        <div
-          className="flex h-full min-h-0 items-stretch sm:hidden"
-          aria-hidden
-        >
-          <div
-            className="w-full rounded-clay-lg shadow-clay-sm"
-            style={{ backgroundColor: '#DCEBFF' }}
-          />
         </div>
       </div>
     </header>

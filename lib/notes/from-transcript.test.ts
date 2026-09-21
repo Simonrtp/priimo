@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  extraireTelephones,
   guessPersonneFromTranscript,
   guessPersonnesFromTranscript,
   matchContactsInTranscript,
@@ -211,5 +212,14 @@ describe('matchMembersInTranscript', () => {
     ]);
     assert.equal(hits.length, 1);
     assert.equal(hits[0]?.memberId, 'm-thomas');
+  });
+});
+
+describe('extraireTelephones', () => {
+  it('lit un numéro dicté avec points et virgules', () => {
+    const tels = extraireTelephones(
+      "J'ai rencontré Nicolas. Son numéro de téléphone, c'est 06 87 71. 28, 42.",
+    );
+    assert.deepEqual(tels, ['0687712842']);
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { Field, TextInput } from '@/components/dashboard/workspace/Field';
 import Select from '@/components/ui/Select';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
@@ -20,6 +21,42 @@ import {
 } from '@/lib/estimation/cycle';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 
+type RattacheKind = 'contact' | 'lead' | 'bien';
+
+const KIND_LIBELLE: Record<RattacheKind, string> = {
+  contact: 'Client',
+  lead: 'Prospect',
+  bien: 'Bien',
+};
+
+function RattacheChip({
+  kind,
+  label,
+  onRemove,
+}: {
+  kind: RattacheKind;
+  label: string;
+  onRemove: () => void;
+}) {
+  const libelle = KIND_LIBELLE[kind];
+  return (
+    <div className="flex min-h-11 items-center gap-2 rounded-xl border border-black/[0.08] bg-bg-subtle px-3 py-2">
+      <p className="min-w-0 flex-1 truncate text-[14px] text-text-strong">
+        <span className="text-text-muted">{libelle} · </span>
+        {label}
+      </p>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Retirer le ${libelle.toLowerCase()} rattaché`}
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <X size={16} strokeWidth={2} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 export default function OngletClient({
   estimation,
   members,
@@ -34,7 +71,60 @@ export default function OngletClient({
   onPatch: (body: Record<string, unknown>) => void;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
-  const [clientLabel, setClientLabel] = useState<string | null>(null);
+  const [labels, setLabels] = useState<Record<RattacheKind, string | null>>({
+    contact: null,
+    lead: null,
+    bien: null,
+  });
+
+  useEffect(() => {
+    const ids = {
+      contact: estimation.contactId,
+      lead: estimation.leadId,
+      bien: estimation.bienId,
+    };
+    if (!ids.contact && !ids.lead && !ids.bien) {
+      setLabels({ contact: null, lead: null, bien: null });
+      return;
+    }
+    let cancel = false;
+    void fetch('/api/dashboard/rattacher')
+      .then((r) => r.json())
+      .then(
+        (data: {
+          contact?: { id: string; label: string; subtitle: string | null }[];
+          lead?: { id: string; label: string; subtitle: string | null }[];
+          bien?: { id: string; label: string; subtitle: string | null }[];
+        }) => {
+          if (cancel) return;
+          const next: Record<RattacheKind, string | null> = {
+            contact: null,
+            lead: null,
+            bien: null,
+          };
+          for (const kind of ['contact', 'lead', 'bien'] as const) {
+            const id = ids[kind];
+            if (!id) continue;
+            const hit = (data[kind] ?? []).find((item) => item.id === id);
+            if (!hit) continue;
+            next[kind] = hit.subtitle ? `${hit.label} · ${hit.subtitle}` : hit.label;
+          }
+          setLabels(next);
+        },
+      )
+      .catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, [estimation.contactId, estimation.leadId, estimation.bienId]);
+
+  function setLabel(kind: RattacheKind, value: string | null) {
+    setLabels((prev) => ({ ...prev, [kind]: value }));
+  }
+
+  function labelFromPick(pick: { label: string; subtitle: string | null }) {
+    return pick.subtitle ? `${pick.label} · ${pick.subtitle}` : pick.label;
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -89,24 +179,71 @@ export default function OngletClient({
 
       <div className="flex flex-col gap-3">
         <Field label="Client rattaché au bien" htmlFor="est-rattacher">
-          {estimation.contactId ? (
-            <p className="rounded-xl border border-black/[0.08] bg-bg-subtle px-3 py-2.5 text-[14px] text-text-strong">
-              {clientLabel ?? 'Client rattaché'}
-            </p>
-          ) : (
+          <div className="flex flex-col gap-3">
+            {estimation.contactId || estimation.leadId || estimation.bienId ? (
+              <div className="flex flex-col gap-1.5">
+                {estimation.contactId ? (
+                  <RattacheChip
+                    kind="contact"
+                    label={labels.contact ?? 'Client rattaché'}
+                    onRemove={() => {
+                      setLabel('contact', null);
+                      onPatch({ contactId: null });
+                    }}
+                  />
+                ) : null}
+                {estimation.leadId ? (
+                  <RattacheChip
+                    kind="lead"
+                    label={labels.lead ?? 'Prospect rattaché'}
+                    onRemove={() => {
+                      setLabel('lead', null);
+                      onPatch({ leadId: null });
+                    }}
+                  />
+                ) : null}
+                {estimation.bienId ? (
+                  <RattacheChip
+                    kind="bien"
+                    label={labels.bien ?? 'Bien rattaché'}
+                    onRemove={() => {
+                      setLabel('bien', null);
+                      onPatch({ bienId: null });
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
             <NoteEntitySearch
               id="est-rattacher"
+              className="w-full"
+              excludeIds={
+                new Set(
+                  [
+                    estimation.contactId ? `contact:${estimation.contactId}` : null,
+                    estimation.leadId ? `lead:${estimation.leadId}` : null,
+                    estimation.bienId ? `bien:${estimation.bienId}` : null,
+                  ].filter((id): id is string => Boolean(id)),
+                )
+              }
               onPick={(pick) => {
                 if (pick.entiteType === 'contact') {
-                  setClientLabel(pick.label);
+                  setLabel('contact', labelFromPick(pick));
                   onPatch({ contactId: pick.entiteId });
                   return;
                 }
-                if (pick.entiteType === 'lead') onPatch({ leadId: pick.entiteId });
-                if (pick.entiteType === 'bien') onPatch({ bienId: pick.entiteId });
+                if (pick.entiteType === 'lead') {
+                  setLabel('lead', labelFromPick(pick));
+                  onPatch({ leadId: pick.entiteId });
+                  return;
+                }
+                if (pick.entiteType === 'bien') {
+                  setLabel('bien', labelFromPick(pick));
+                  onPatch({ bienId: pick.entiteId });
+                }
               }}
             />
-          )}
+          </div>
         </Field>
         <div className="flex flex-wrap gap-2">
           <WorkspaceButton
@@ -117,19 +254,6 @@ export default function OngletClient({
           >
             {estimation.contactId ? 'Créer un autre client' : 'Créer un client'}
           </WorkspaceButton>
-          {estimation.contactId ? (
-            <WorkspaceButton
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              onClick={() => {
-                setClientLabel(null);
-                onPatch({ contactId: null });
-              }}
-            >
-              Changer
-            </WorkspaceButton>
-          ) : null}
         </div>
       </div>
 
@@ -148,14 +272,14 @@ export default function OngletClient({
           skipSuccessToast
           onSaved={(contact) => {
             const nom = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
-            setClientLabel(nom || 'Client rattaché');
+            setLabel('contact', nom || 'Client rattaché');
             onPatch({ contactId: contact.id });
             setCreateOpen(false);
             notifySuccess('Client créé et rattaché');
           }}
           onOpenExisting={(contact) => {
             const nom = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
-            setClientLabel(nom || 'Client rattaché');
+            setLabel('contact', nom || 'Client rattaché');
             onPatch({ contactId: contact.id });
             setCreateOpen(false);
           }}

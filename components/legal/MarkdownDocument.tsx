@@ -1,10 +1,25 @@
 import { LEGAL_CONTACT } from '@/lib/legal/contact';
 
 function inlineFormat(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+    if (link) {
+      const href = link[2];
+      const external = href.startsWith('http');
+      return (
+        <a
+          key={i}
+          href={href}
+          className="text-accent-dark hover:underline"
+          {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        >
+          {link[1]}
+        </a>
+      );
     }
     return part;
   });
@@ -98,6 +113,8 @@ export function MarkdownDocument({ source }: { source: string }) {
           id={trimmed
             .slice(3)
             .replace(/^\d+\.\s*/, '')
+            .normalize('NFD')
+            .replace(/\p{M}/gu, '')
             .toLowerCase()
             .replace(/\s+/g, '-')
             .replace(/[^a-z0-9-]/g, '')}

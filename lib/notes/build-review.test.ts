@@ -73,4 +73,42 @@ describe('buildReviewPayload — fallback dictée', () => {
     assert.equal(review.immeuble?.address, '161 avenue Ledru-Rolin');
     assert.equal(review.secteur, '11e');
   });
+
+  it('rattache le numéro dicté au contact proposé, même ponctué', () => {
+    const review = buildReviewPayload({
+      voiceNoteId: 'n3',
+      transcript:
+        "J'ai rencontré Nicolas, il est intéressé pour un bien dans le Marais à 1,2 millions. Son numéro de téléphone, c'est 06 87 71. 28, 42.",
+      visibilite: 'agence',
+      extraction: {
+        personnes: [
+          {
+            firstName: 'Nicolas',
+            lastName: '',
+            phone: null,
+            email: null,
+            type: 'acquereur',
+          },
+        ],
+        address: null,
+        secteur: 'le Marais',
+        prix: 1_200_000,
+        rooms: null,
+        surface: null,
+        sourceInfo: null,
+        relance: null,
+        promesse: null,
+        rendezVous: null,
+        visite: null,
+      },
+      extractFailed: false,
+      contacts: [],
+      agencyId: 'a1',
+      geo: { ban_id: null, adresse_normalisee: null, geocode_score: null },
+    });
+    assert.equal(review.personnes[0]?.personne.firstName, 'Nicolas');
+    assert.equal(review.personnes[0]?.personne.phone, '0687712842');
+    assert.equal(review.prix, 1_200_000);
+    assert.equal(review.secteur, 'le Marais');
+  });
 });

@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
-import { NOTE_SOURCE_LABELS } from '@/types/contact';
+import { CONTACT_TYPE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
-import { normalizeName } from '@/lib/import/normalize';
+import { formatPhoneOrNull, normalizeName, telHref } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
 import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -79,6 +79,98 @@ function pickMatch(matches: readonly ContactMatch[]): ContactMatch | null {
   const certain = matches.find((m) => m.confiance === 'certain');
   if (certain) return certain;
   return matches[0] ?? null;
+}
+
+function formatPrix(n: number): string {
+  return `${new Intl.NumberFormat('fr-FR').format(n)} €`;
+}
+
+function ficheContact(
+  p: PersonneProposal,
+  match: ContactMatch | null,
+  review: NoteReviewPayload,
+) {
+  const nom =
+    match?.label ||
+    [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
+    'Contact';
+  const phone = formatPhoneOrNull(match?.phone ?? p.personne.phone);
+  const email = (match?.email ?? p.personne.email)?.trim() || null;
+  const adresse = match?.address?.trim() || null;
+  const type = p.personne.type !== 'autre' ? CONTACT_TYPE_LABELS[p.personne.type] : null;
+  const faits = [
+    review.secteur,
+    review.prix != null ? formatPrix(review.prix) : null,
+  ].filter((v): v is string => Boolean(v));
+  return { nom, phone, email, adresse, type, faits, nouveau: !match };
+}
+
+function ContactFiche({
+  fiche,
+  onRemove,
+  disabled = false,
+}: {
+  fiche: ReturnType<typeof ficheContact>;
+  onRemove: () => void;
+  disabled?: boolean;
+}) {
+  const names = fiche.nom.trim().split(/\s+/);
+  const firstName = names[0] ?? '';
+  const lastName = names.slice(1).join(' ');
+
+  return (
+    <article className="rounded-clay border border-black/[0.08] bg-surface px-4 py-4 shadow-clay-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <ProfileAvatar
+            firstName={firstName}
+            lastName={lastName || firstName}
+            size={44}
+            className="shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-[16px] font-semibold text-text-strong">{fiche.nom}</p>
+            <p className="mt-0.5 text-[12.5px] text-text-muted">
+              {fiche.nouveau ? 'Nouveau contact' : 'Déjà dans l’agence'}
+              {fiche.type ? ` · ${fiche.type}` : ''}
+            </p>
+            {fiche.phone || fiche.email || fiche.adresse ? (
+              <ul className="mt-2.5 flex flex-col gap-1">
+                {fiche.phone ? (
+                  <li>
+                    <a
+                      href={telHref(fiche.phone)}
+                      className="text-[13.5px] tabular-nums text-text-strong hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      {fiche.phone}
+                    </a>
+                  </li>
+                ) : null}
+                {fiche.email ? (
+                  <li className="truncate text-[13.5px] text-text">{fiche.email}</li>
+                ) : null}
+                {fiche.adresse ? (
+                  <li className="text-pretty text-[13.5px] text-text">{fiche.adresse}</li>
+                ) : null}
+              </ul>
+            ) : null}
+            {fiche.faits.length > 0 ? (
+              <p className="mt-2 text-[12.5px] text-text-subtle">{fiche.faits.join(' · ')}</p>
+            ) : null}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          aria-label={`Retirer ${fiche.nom}`}
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+        >
+          <X size={16} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
+    </article>
+  );
 }
 
 export default function VoiceReviewPanel({
@@ -206,7 +298,8 @@ export default function VoiceReviewPanel({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error('patch');
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) throw new Error(data.error ?? 'patch');
   }
 
   function addManualLink(pick: NoteLinkPick) {
@@ -249,9 +342,13 @@ export default function VoiceReviewPanel({
     setVisibilite(value);
     try {
       await patchNote({ visibilite: value });
-    } catch {
+    } catch (err) {
       setVisibilite(visibilite);
-      notifyError("La visibilité n'a pas pu être enregistrée");
+      notifyError(
+        err instanceof Error && err.message && err.message !== 'patch'
+          ? err.message
+          : "La visibilité n'a pas pu être enregistrée",
+      );
     }
   }
 
@@ -261,8 +358,12 @@ export default function VoiceReviewPanel({
     setSourceInfo(value);
     try {
       await patchNote({ sourceInfo: value || null });
-    } catch {
-      notifyError("La source n'a pas pu être enregistrée");
+    } catch (err) {
+      notifyError(
+        err instanceof Error && err.message && err.message !== 'patch'
+          ? err.message
+          : "La source n'a pas pu être enregistrée",
+      );
     }
   }
 
@@ -281,7 +382,7 @@ export default function VoiceReviewPanel({
         firstName: p.personne.firstName,
         lastName: p.personne.lastName,
         type: p.personne.type,
-        phone: null,
+        phone: p.personne.phone,
         email: p.personne.email,
         address,
         banId,
@@ -354,7 +455,7 @@ export default function VoiceReviewPanel({
       if (!res.ok) throw new Error(data.error);
       onTranscript(data.transcript ?? transcript);
       onReviewChange(data);
-      if (data.sourceInfo) setSourceInfo(data.sourceInfo);
+      if (data.sourceInfo && !sourceChoisie.current) setSourceInfo(data.sourceInfo);
       notifySuccess('Propositions mises à jour');
     } catch {
       notifyError("Les propositions n'ont pas pu être mises à jour");
@@ -479,7 +580,11 @@ export default function VoiceReviewPanel({
         const closeRes = await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ terminer: true }),
+          body: JSON.stringify({
+            terminer: true,
+            visibilite,
+            sourceInfo: sourceInfo || null,
+          }),
         });
         if (!closeRes.ok) {
           if (contactId) {
@@ -580,6 +685,17 @@ export default function VoiceReviewPanel({
           <div className="flex flex-col gap-5">
             <NoteAncrage parcelleId={parcelleId} adresse={adresse} />
 
+            {visiblePersonnes()
+              .filter((p) => p.matches.length > 0 || p.personne.firstName.trim() || p.personne.lastName.trim())
+              .map((p) => (
+                <ContactFiche
+                  key={p.id}
+                  fiche={ficheContact(p, selectedMatchFor(p), review)}
+                  onRemove={() => dismissPersonne(p.id)}
+                  disabled={locked}
+                />
+              ))}
+
             <label className="flex min-h-[40px] cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
@@ -601,9 +717,7 @@ export default function VoiceReviewPanel({
               />
             </Field>
 
-            {manualLinks.length > 0 ||
-            conseillers.length > 0 ||
-            visiblePersonnes().some((p) => p.matches.length > 0 || p.personne.firstName || p.personne.lastName) ? (
+            {manualLinks.length > 0 || conseillers.length > 0 ? (
               <ul className="flex flex-col gap-2">
                 {manualLinks.map((link) => (
                   <LinkChip
@@ -638,23 +752,6 @@ export default function VoiceReviewPanel({
                     />
                   );
                 })}
-                {visiblePersonnes()
-                  .filter((p) => p.matches.length > 0 || p.personne.firstName.trim() || p.personne.lastName.trim())
-                  .map((p) => {
-                    const match = selectedMatchFor(p);
-                    const label =
-                      match?.label ||
-                      [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ');
-                    return (
-                      <LinkChip
-                        key={p.id}
-                        label={label}
-                        subtitle={match ? 'Contact' : 'Nouveau contact'}
-                        onRemove={() => dismissPersonne(p.id)}
-                        disabled={locked}
-                      />
-                    );
-                  })}
               </ul>
             ) : null}
 

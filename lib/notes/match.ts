@@ -28,6 +28,9 @@ export type ContactMatch = {
   label: string;
   confiance: NoteLienConfiance;
   raison: 'telephone' | 'email' | 'nom';
+  phone: string | null;
+  email: string | null;
+  address: string | null;
 };
 
 function phonesEqual(a: string | null, b: string | null): boolean {
@@ -69,12 +72,18 @@ export function matchContacts(
   const hits: ContactMatch[] = [];
 
   for (const contact of pool) {
+    const fiche = {
+      phone: contact.phone,
+      email: contact.email,
+      address: contact.address,
+    };
     if (phonesEqual(personne.phone, contact.phone)) {
       hits.push({
         contactId: contact.id,
         label: contact.fullName,
         confiance: 'certain',
         raison: 'telephone',
+        ...fiche,
       });
       continue;
     }
@@ -84,6 +93,7 @@ export function matchContacts(
         label: contact.fullName,
         confiance: 'certain',
         raison: 'email',
+        ...fiche,
       });
       continue;
     }
@@ -93,6 +103,7 @@ export function matchContacts(
         label: contact.fullName,
         confiance: 'probable',
         raison: 'nom',
+        ...fiche,
       });
     }
   }

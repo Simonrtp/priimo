@@ -60,6 +60,29 @@ Les données sont vues par les personnes habilitées chez Priimo, par les membre
 
 Ces prestataires sont choisis pour pouvoir travailler en conformité avec le RGPD et sont encadrés contractuellement.
 
+## Données issues de Google (Gmail)
+
+Cette section décrit uniquement les données obtenues lorsque vous connectez Gmail à Priimo (scope `gmail.readonly`) : jetons d’accès, adresse de la boîte, et contenu des e-mails des domaines portail autorisés, le temps de les parser.
+
+**Trajet.** Priimo reçoit une notification de nouveau message, ouvre l’e-mail uniquement si l’expéditeur appartient à la liste blanche des portails immobiliers, en extrait les champs de la demande (nom, téléphone, e-mail, référence d’annonce, message), puis jette le corps brut. Le corps n’est jamais enregistré.
+
+**Tiers auxquels ces données sont communiquées.** Chaque service ci-dessous les traite uniquement pour fournir le service à l’utilisateur qui a connecté Gmail :
+
+- **Vercel** — héberge l’application Priimo : callback OAuth, webhook de notification, exécution du parseur en mémoire.
+- **Supabase** — base de données : jetons OAuth chiffrés, identifiant du message, et informations extraites (coordonnées du demandeur, référence, extrait du message de demande). Pas le corps brut de l’e-mail.
+
+Les notifications de nouveaux messages transitent par **Google Cloud Pub/Sub** (infrastructure Google) : identifiant de la boîte et curseur d’historique, pas le contenu des e-mails.
+
+Le contenu des e-mails Gmail n’est **pas** envoyé à Mistral ni à aucun autre modèle d’IA. Les informations extraites ne transitent **pas** par Resend : elles s’affichent dans Priimo, pour l’agence. Les données obtenues via les API Google Workspace ne sont pas utilisées pour développer, améliorer ou entraîner des modèles d’IA ou d’apprentissage automatique non personnalisés.
+
+**Engagement.** Aucune vente, aucune publicité, aucun courtier en données, aucun transfert à des tiers pour une autre finalité. Divulgation uniquement si la loi l’exige.
+
+**Lecture humaine.** Aucune lecture humaine du contenu des e-mails, sauf accord explicite de l’utilisateur, raison de sécurité, ou obligation légale.
+
+**Utilisation limitée.** L’utilisation par Priimo des informations reçues des API Google et leur transfert à toute autre application se conforment à la [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy#limited-use), y compris les exigences d’utilisation limitée (Limited Use).
+
+Priimo's use and transfer to any other app of information received from Google APIs will adhere to [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy#limited-use), including the Limited Use requirements.
+
 ## 6. Combien de temps
 
 - **Compte** : pendant l’abonnement, puis le temps nécessaire pour clôturer (export, factures, litige).

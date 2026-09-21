@@ -53,8 +53,11 @@ export interface DpeRecent {
   commune: string | null;
   /** Date d'établissement (YYYY-MM-DD). */
   dateEtablissement: string;
+  /** Identifiant BAN, pour coller le diagnostic à l'immeuble carte. */
+  identifiantBan: string | null;
   lettre: DpeLettre | null;
   surfaceM2: number | null;
+  etage: number | null;
   /** « maison », « appartement »… tel que fourni. */
   typeBatiment: string | null;
   latitude: number | null;

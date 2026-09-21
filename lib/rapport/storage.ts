@@ -15,6 +15,10 @@ export function cheminImport(agencyId: string, estimationId: string, id: string,
   return `${agencyId}/import/${estimationId}/${id}.${ext}`;
 }
 
+export function cheminEnvoi(agencyId: string, envoiId: string): string {
+  return `${agencyId}/envois/${envoiId}.pdf`;
+}
+
 export async function signerCheminRapport(path: string | null | undefined): Promise<string | null> {
   if (!path?.trim()) return null;
   const admin = createSupabaseAdminClient();

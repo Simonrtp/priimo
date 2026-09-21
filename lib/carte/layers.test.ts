@@ -39,7 +39,7 @@ describe('parseMapLayers', () => {
   it('persiste la plage d’ancienneté du curseur', () => {
     const parsed = parseMapLayers({ cadastreDpeAges: ['semaine', '3+'] });
     assert.deepEqual(parsed.cadastreDpeAges, ['semaine', '3+']);
-    assert.deepEqual(withDpeAgeSpan(parsed, 1, 3).cadastreDpeAges, ['mois', '1-6', '6-12']);
+    assert.deepEqual(withDpeAgeSpan(parsed, 1, 3).cadastreDpeAges, ['semaine', 'mois', '1-6']);
   });
 
   it('persiste l’état du menu Cadastre', () => {
@@ -48,7 +48,7 @@ describe('parseMapLayers', () => {
   });
 
   it('reprend toutes les cases d’ancienneté si absentes', () => {
-    assert.equal(parseMapLayers({}).cadastreDpeAges.length, 6);
+    assert.equal(parseMapLayers({}).cadastreDpeAges.length, 7);
   });
 
   it('ne réallume plus DPE sur une session Cadastre seule en rev 2+', () => {

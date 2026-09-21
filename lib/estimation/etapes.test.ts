@@ -61,9 +61,18 @@ describe('étapes atelier', () => {
     assert.equal(indexMaxAccessible(complete as never, 0), 4);
   });
 
-  it('laisse le rapport accessible même si l’estimation n’est pas finie', () => {
-    assert.equal(etapeAccessible(vide as never, 0, 'rapport'), true);
+  it('interdit le rapport tant que client, bien et valeur ne sont pas faits', () => {
+    assert.equal(etapeAccessible(vide as never, 0, 'rapport'), false);
     assert.equal(etapeAccessible(vide as never, 0, 'bien'), false);
     assert.equal(etapeAccessible(vide as never, 0, 'estimation'), false);
+    const complete = {
+      contactId: 'c1',
+      address: '12 rue X',
+      propertyType: 'maison' as const,
+      surfaceM2: 90,
+      rooms: 4,
+      priceValue: 320000,
+    };
+    assert.equal(etapeAccessible(complete as never, 0, 'rapport'), true);
   });
 });
