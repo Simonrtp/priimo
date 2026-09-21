@@ -1644,6 +1644,9 @@ html:has(.feature-page) {
   --field-nav-height: calc(96px + env(safe-area-inset-bottom, 0px));
   --field-page-px: 1.25rem;
   --field-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Capsule + paddings du bandeau, hors encoche. */
+  --mobile-accueil-search-offset: calc(4.5rem + env(safe-area-inset-top, 0px));
+  position: relative;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -1688,6 +1691,20 @@ html:has(.feature-page) {
 .dashboard-mobile:has([data-agent-onboarding]) > main {
   padding: 0 !important;
   overflow: hidden !important;
+}
+
+/* Accueil : la capsule flotte, les cartes défilent derrière. */
+.dashboard-mobile > .mobile-shell-header--overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 20;
+  background: transparent;
+}
+
+.dashboard-mobile:has(> .mobile-shell-header--overlay) > main {
+  padding-top: var(--mobile-accueil-search-offset);
 }
 
 /* Desktop : chrome (sidebar, top bar) atténué pendant la prise en main. */

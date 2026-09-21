@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, MapPin, Navigation, Phone, Search, Square, X } from 'lucide-react';
+import { Box, Layers, MapPin, Navigation, Phone, Square } from 'lucide-react';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
@@ -39,8 +39,6 @@ import {
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requestDevicePosition, watchDevicePosition, type DevicePosition } from '@/lib/voice/gps';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
-import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
-import { AssistantMobileSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
@@ -48,7 +46,8 @@ import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import MobileMapCanvas, { type MobileMapHandle } from './MobileMapCanvas';
 import MobileSheet from './MobileSheet';
-import MobileAccountMenu, { AvatarButton } from './MobileAccountMenu';
+import MobileAccountMenu from './MobileAccountMenu';
+import MobileSearchCapsule from './MobileSearchCapsule';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import {
@@ -173,7 +172,6 @@ export default function CarteMobile({
 }) {
   const router = useRouter();
   const { openCapture } = useVoiceCapture();
-  const { openMobileSearch, mobileSearchOpen, closeMobileSearch } = useAssistant();
   const mapApi = useRef<MobileMapHandle | null>(null);
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
@@ -650,37 +648,13 @@ export default function CarteMobile({
           className="pointer-events-none absolute inset-x-0 z-20 px-4"
           style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
         >
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-md">
-            {mobileSearchOpen ? (
-              <>
-                <div className="min-w-0 flex-1">
-                  <AssistantMobileSearchBar tone="map" />
-                </div>
-                <button
-                  type="button"
-                  onClick={closeMobileSearch}
-                  aria-label="Fermer la recherche"
-                  className="app-press flex size-11 flex-shrink-0 items-center justify-center rounded-full text-text"
-                >
-                  <X size={20} strokeWidth={2} aria-hidden />
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={openMobileSearch}
-                  className="app-press flex min-h-[44px] min-w-0 flex-1 items-center gap-2 px-1 text-left"
-                  aria-label="Rechercher une adresse, un contact"
-                >
-                  <Search size={18} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
-                  <span className="truncate text-[14px] text-text-muted">
-                    Rechercher une adresse, un contact
-                  </span>
-                </button>
-                {!hideAccount ? <AvatarButton onClick={() => setAccountOpen(true)} /> : null}
-              </>
-            )}
+          <div className="pointer-events-auto">
+            <MobileSearchCapsule
+              translucent
+              hideAccount={hideAccount}
+              onAccount={() => setAccountOpen(true)}
+              accountOpen={accountOpen}
+            />
           </div>
           {viewSwitcher ? (
             <div className="pointer-events-auto mt-2 flex justify-end">{viewSwitcher}</div>

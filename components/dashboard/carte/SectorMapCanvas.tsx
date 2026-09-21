@@ -227,7 +227,6 @@ export default function SectorMapCanvas({
         dragRotate
         pitchWithRotate
         touchPitch
-        touchRotate
         touchZoomRotate
         interactiveLayerIds={[
           ...(parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),

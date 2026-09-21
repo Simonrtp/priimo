@@ -3,10 +3,7 @@
 import Link from 'next/link';
 import { LogOut } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
-
-function initials(firstName: string, lastName: string): string {
-  return `${firstName.trim().charAt(0).toUpperCase()}${lastName.trim().charAt(0).toUpperCase()}` || '?';
-}
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 
 export default function MobileAccountMenu({
   open,
@@ -88,9 +85,11 @@ export default function MobileAccountMenu({
 export function AvatarButton({
   onClick,
   className = '',
+  expanded,
 }: {
   onClick: () => void;
   className?: string;
+  expanded?: boolean;
 }) {
   const { profile } = useUser();
   return (
@@ -98,9 +97,16 @@ export function AvatarButton({
       type="button"
       onClick={onClick}
       aria-label="Compte et réglages"
-      className={`app-press flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-semibold text-primary-700 ${className}`}
+      aria-haspopup="dialog"
+      aria-expanded={expanded}
+      className={`app-press flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full ${className}`}
     >
-      {initials(profile.first_name, profile.last_name)}
+      <ProfileAvatar
+        firstName={profile.first_name}
+        lastName={profile.last_name}
+        avatarUrl={profile.avatar_url}
+        size={36}
+      />
     </button>
   );
 }

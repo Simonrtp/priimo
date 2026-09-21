@@ -3,10 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import MobileAccountMenu from './MobileAccountMenu';
-import { AssistantSearchBar } from '@/components/dashboard/assistant/AssistantSearchButton';
-import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import MobileSearchCapsule from './MobileSearchCapsule';
 import ProspectsViewSwitch from '@/components/dashboard/ProspectsViewSwitch';
-import { useUser } from '@/lib/hooks/useUser';
 import { prospectionHref, resoudreProspectionVue } from '@/lib/prospection/vue';
 
 /** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
@@ -26,19 +24,19 @@ function hideShellHeader(pathname: string, search: URLSearchParams): boolean {
 }
 
 /**
- * Bandeau terrain : photo de profil + barre de recherche.
+ * Bandeau terrain : même capsule de recherche que la carte, photo de profil à droite.
  * Création (contact / bien / note) → onglet Plus en bas.
  */
 export default function MobileChrome() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { profile } = useUser();
   const [accountOpen, setAccountOpen] = useState(false);
 
   if (hideShellHeader(pathname, searchParams)) return null;
 
   const surProspection = pathname.startsWith('/dashboard/prospection');
+  const surAccueil = pathname === '/dashboard' || pathname === '/dashboard/';
   const vueProspection = resoudreProspectionVue({
     vue: searchParams.get('vue'),
     lead: searchParams.get('lead'),
@@ -48,35 +46,31 @@ export default function MobileChrome() {
 
   return (
     <>
-      <div className="mobile-shell-header flex-shrink-0 bg-bg-base">
+      <div
+        className={`mobile-shell-header ${
+          surAccueil
+            ? 'mobile-shell-header--overlay pointer-events-none'
+            : 'flex-shrink-0 bg-bg-base'
+        }`}
+      >
         <header
-          className="relative z-[10] flex flex-col gap-2 pb-2"
+          className={`relative z-[10] flex flex-col gap-2 pb-2 ${
+            surAccueil ? 'pointer-events-none' : ''
+          }`}
           style={{
             paddingTop: 'calc(8px + env(safe-area-inset-top, 0px))',
             paddingLeft: 'var(--field-page-px)',
             paddingRight: 'var(--field-page-px)',
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setAccountOpen(true)}
-              aria-label="Compte et réglages"
-              aria-expanded={accountOpen}
-              aria-haspopup="dialog"
-              className="app-press flex size-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full"
-            >
-              <ProfileAvatar
-                firstName={profile.first_name}
-                lastName={profile.last_name}
-                avatarUrl={profile.avatar_url}
-                size={44}
-              />
-            </button>
-            <div className="min-w-0 flex-1">
-              <AssistantSearchBar />
-            </div>
-            {surProspection ? (
+          <div className={surAccueil ? 'pointer-events-auto' : undefined}>
+            <MobileSearchCapsule
+              onAccount={() => setAccountOpen(true)}
+              accountOpen={accountOpen}
+            />
+          </div>
+          {surProspection ? (
+            <div className="flex justify-end">
               <ProspectsViewSwitch
                 variant="bar"
                 value={vueProspection}
@@ -86,8 +80,8 @@ export default function MobileChrome() {
                   });
                 }}
               />
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </header>
       </div>
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />

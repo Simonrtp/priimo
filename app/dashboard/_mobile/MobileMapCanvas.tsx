@@ -230,9 +230,13 @@ export default function MobileMapCanvas({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || navigation) return;
+    if (!map) return;
+    const gestures = map.getMap().touchZoomRotate;
+    if (relief) gestures.enableRotation();
+    else gestures.disableRotation();
+    if (navigation) return;
     map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
-  }, [camera.pitch, camera.bearing, navigation]);
+  }, [camera.pitch, camera.bearing, navigation, relief, styleReady]);
 
   useEffect(() => {
     if (!mapRefOut) return;
@@ -279,11 +283,11 @@ export default function MobileMapCanvas({
           initialBounds
             ? {
                 bounds: initialBounds,
+                pitch: camera.pitch,
+                bearing: camera.bearing,
                 fitBoundsOptions: {
                   padding: 60,
                   maxZoom: 15,
-                  pitch: camera.pitch,
-                  bearing: camera.bearing,
                 },
               }
             : fallback
@@ -301,7 +305,6 @@ export default function MobileMapCanvas({
         dragRotate={relief}
         pitchWithRotate={relief}
         touchPitch={relief}
-        touchRotate={relief}
         touchZoomRotate
         interactiveLayerIds={[
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
