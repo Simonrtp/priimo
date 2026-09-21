@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/auth/getServerUser';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { mapPageBibliotheque } from '@/lib/rapport/pages';
 import { nomSlotModele, parseSlotsModele, slotsDepuisLignes, texteEmailModele, type SlotModele } from '@/lib/rapport/modele-defaut';
 import { signerCheminRapport } from '@/lib/rapport/storage';
-import { estModeleAgence } from '@/lib/rapport/propriete';
 
 export const runtime = 'nodejs';
 
@@ -29,35 +29,36 @@ function payloadSlots(slots: SlotModele[], agencyId: string) {
 }
 
 export async function GET() {
-  const guard = await requireDirector();
-  if (!guard.ok) return guard.response;
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
 
   const session = await createSupabaseServerClient();
   const [{ data: modeleRows }, { data: biblioRows }, { data: agence }] = await Promise.all([
     session
       .from('agency_rapport_modele')
       .select('source, bibliotheque_id, kind_generee')
-      .eq('agency_id', guard.agency.id)
+      .eq('agency_id', agency.id)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true }),
     session
       .from('agency_rapport_pages')
       .select('*')
-      .eq('agency_id', guard.agency.id)
+      .eq('agency_id', agency.id)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true }),
-    session.from('agencies').select('rapport_email_modele').eq('id', guard.agency.id).maybeSingle(),
+    session.from('agencies').select('rapport_email_modele').eq('id', agency.id).maybeSingle(),
   ]);
 
-  const pagesAgence = (biblioRows ?? []).filter((p) => estModeleAgence(p.owner_id));
-  const parId = new Map(pagesAgence.map((p) => [p.id, p]));
+  const parId = new Map((biblioRows ?? []).map((p) => [p.id, p]));
   const slots = slotsDepuisLignes(modeleRows ?? []).filter((slot) => {
     if (slot.source === 'generee') return true;
     return parId.has(slot.bibliothequeId);
   });
 
   const pages = await Promise.all(
-    pagesAgence.map(async (row) =>
+    (biblioRows ?? []).map(async (row) =>
       mapPageBibliotheque(row, row.storage_path ? await signerCheminRapport(row.storage_path) : null),
     ),
   );
@@ -92,11 +93,9 @@ export async function PUT(req: Request) {
     }
     const { data: biblioRows } = await session
       .from('agency_rapport_pages')
-      .select('id, owner_id')
+      .select('id')
       .eq('agency_id', guard.agency.id);
-    const autorises = new Set(
-      (biblioRows ?? []).filter((p) => estModeleAgence(p.owner_id)).map((p) => p.id),
-    );
+    const autorises = new Set((biblioRows ?? []).map((p) => p.id));
     for (const slot of slots) {
       if (slot.source === 'bibliotheque' && !autorises.has(slot.bibliothequeId)) {
         return NextResponse.json({ error: 'Page inconnue' }, { status: 400 });

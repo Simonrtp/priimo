@@ -24,10 +24,8 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import PageRapport from '@/components/rapport/PageRapport';
 import ApercuPageComposee from '@/components/rapport/ApercuPageComposee';
-import EditeurPageAgence from '@/components/dashboard/settings/EditeurPageAgence';
 import ModePresentationRapport from '@/components/dashboard/estimation/atelier/ModePresentationRapport';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { useUser } from '@/lib/hooks/useUser';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
 import {
@@ -67,11 +65,9 @@ export default function OngletRapport({
   const [message, setMessage] = useState('');
   const [envois, setEnvois] = useState<EnvoiRapport[]>([]);
   const [envoi, setEnvoi] = useState(false);
-  const [creerPage, setCreerPage] = useState(false);
   const [presentation, setPresentation] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
-  const { user, profile, agency } = useUser();
   const onEtatChangeRef = useRef(onEtatChange);
   onEtatChangeRef.current = onEtatChange;
 
@@ -270,7 +266,7 @@ export default function OngletRapport({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <p className="text-pretty text-[13.5px] text-text-muted">
-          Composez le rapport remis à votre client : pages de votre agence et documents importés.
+          Composez le rapport remis à votre client : pages de l’agence, réordonnées ou importées pour ce dossier.
         </p>
         <div className="flex flex-wrap gap-2">
           <WorkspaceButton type="button" variant="secondary" onClick={() => setBiblioOuverte((o) => !o)}>
@@ -309,15 +305,10 @@ export default function OngletRapport({
 
       {biblioOuverte ? (
         <div className="rounded-clay border border-black/[0.06] bg-surface p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[13px] font-semibold text-text-strong">Pages de l’agence</p>
-            <WorkspaceButton type="button" variant="secondary" onClick={() => setCreerPage(true)}>
-              Créer une page
-            </WorkspaceButton>
-          </div>
+          <p className="text-[13px] font-semibold text-text-strong">Pages de l’agence</p>
           {biblio.length === 0 ? (
             <p className="mt-2 text-pretty text-[13px] text-text-muted">
-              Aucune page en bibliothèque. Créez-en une ici, ou importez un PDF.
+              Aucune page en bibliothèque. Le directeur les crée dans le modèle de rapport.
             </p>
           ) : (
             <ul className="mt-2 flex flex-col gap-1.5">
@@ -495,21 +486,6 @@ export default function OngletRapport({
           dateIso={dateIso}
         />
       ) : null}
-
-      <EditeurPageAgence
-        key={creerPage ? 'rapport-new' : 'rapport-ferme'}
-        open={creerPage}
-        page={null}
-        agency={agency}
-        profile={profile}
-        loginEmail={user.email}
-        logoUrl={agence?.logoUrl ?? null}
-        onClose={() => setCreerPage(false)}
-        onSaved={(saved) => {
-          setBiblio((prev) => [...prev, saved]);
-          setCreerPage(false);
-        }}
-      />
 
       <ConfirmModal
         open={pending !== null}

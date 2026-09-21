@@ -681,7 +681,6 @@ export type AgencyRapportPageRow = {
   disposition?: DispositionPageAgence | null;
   contenu?: Record<string, unknown>;
   created_by: string | null;
-  owner_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -699,7 +698,6 @@ export type AgencyRapportPageInsert = {
   disposition?: DispositionPageAgence | null;
   contenu?: Record<string, unknown>;
   created_by?: string | null;
-  owner_id?: string | null;
   created_at?: string;
   updated_at?: string;
 };

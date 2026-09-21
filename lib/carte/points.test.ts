@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 import { isUsableCoord } from './coords';
 import {
   buildSectorMapPoints,
-  postalCodesFromPoints,
   type MappableBien,
   type MappableContact,
   type MappableLead,
@@ -259,15 +258,5 @@ describe('buildSectorMapPoints', () => {
     });
     assert.equal(orphan.points.filter((p) => p.kind === 'contact').length, 0);
     assert.equal(orphan.withoutPosition.contacts, 1);
-  });
-});
-
-describe('postalCodesFromPoints', () => {
-  it('unionne le secteur de l’agence et les codes présents', () => {
-    const codes = postalCodesFromPoints(
-      ['59000', 'abc'],
-      [{ postalCode: '59100' } as never],
-    );
-    assert.deepEqual(codes, ['59000', '59100']);
   });
 });

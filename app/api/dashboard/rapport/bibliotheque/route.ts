@@ -21,7 +21,7 @@ import {
 } from '@/lib/rapport/pages';
 import { cheminBiblio, deposerRapport, signerCheminRapport } from '@/lib/rapport/storage';
 import { compterPagesPdf } from '@/lib/rapport/pdf';
-import { ownerPourCreation } from '@/lib/rapport/propriete';
+import { peutEditerBibliotheque } from '@/lib/rapport/propriete';
 import type { DispositionPageAgence } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -38,7 +38,6 @@ export async function GET() {
     .from('agency_rapport_pages')
     .select('*')
     .eq('agency_id', agency.id)
-    .or(`owner_id.is.null,owner_id.eq.${profile.id}`)
     .order('position', { ascending: true })
     .order('created_at', { ascending: true });
 
@@ -51,15 +50,16 @@ export async function GET() {
       mapPageBibliotheque(row, row.storage_path ? await signerCheminRapport(row.storage_path) : null),
     ),
   );
-  const modele = pages.filter((p) => p.ownerId == null);
-  const personnel = pages.filter((p) => p.ownerId === profile.id);
-  return NextResponse.json({ pages, modele, personnel });
+  return NextResponse.json({ pages });
 }
 
 export async function POST(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+  if (!peutEditerBibliotheque(profile.role)) {
+    return NextResponse.json({ error: 'Réservé au directeur' }, { status: 403 });
   }
   const ferme = refuserSiEstimationFermee(agency);
   if (ferme) return ferme;
@@ -80,8 +80,6 @@ export async function POST(req: Request) {
     return creerPageModele({
       agencyId: agency.id,
       profileId: profile.id,
-      role: profile.role,
-      modeleAgence: body.modeleAgence === true,
       disposition: body.disposition,
       nom: body.nom,
       description: body.description,
@@ -105,8 +103,6 @@ export async function POST(req: Request) {
     return creerPageModele({
       agencyId: agency.id,
       profileId: profile.id,
-      role: profile.role,
-      modeleAgence: form.get('modeleAgence') === '1' || form.get('modeleAgence') === 'true',
       disposition: form.get('disposition'),
       nom: form.get('nom'),
       description: form.get('description'),
@@ -115,27 +111,24 @@ export async function POST(req: Request) {
     });
   }
 
-  return importerFichier(agency.id, profile.id, profile.role, form);
+  return importerFichier(agency.id, profile.id, form);
 }
 
-async function prochainePosition(agencyId: string, ownerId: string | null): Promise<number> {
+async function prochainePosition(agencyId: string): Promise<number> {
   const session = await createSupabaseServerClient();
-  let q = session
+  const { data: last } = await session
     .from('agency_rapport_pages')
     .select('position')
     .eq('agency_id', agencyId)
     .order('position', { ascending: false })
-    .limit(1);
-  q = ownerId == null ? q.is('owner_id', null) : q.eq('owner_id', ownerId);
-  const { data: last } = await q.maybeSingle();
+    .limit(1)
+    .maybeSingle();
   return (last?.position ?? -1) + 1;
 }
 
 async function creerPageModele(input: {
   agencyId: string;
   profileId: string;
-  role: string;
-  modeleAgence: boolean;
   disposition: unknown;
   nom: unknown;
   description: unknown;
@@ -150,7 +143,6 @@ async function creerPageModele(input: {
   const nom = nomSaisi || nomDepuisContenu(input.contenu, disposition);
   const description =
     typeof input.description === 'string' ? input.description.trim().slice(0, 400) || null : null;
-  const ownerId = ownerPourCreation(input.role, input.profileId, input.modeleAgence);
 
   const id = crypto.randomUUID();
   let storagePath: string | null = null;
@@ -181,11 +173,10 @@ async function creerPageModele(input: {
       storage_path: storagePath,
       mime_type: mimeType,
       page_count: 1,
-      position: await prochainePosition(input.agencyId, ownerId),
+      position: await prochainePosition(input.agencyId),
       disposition,
       contenu: input.contenu,
       created_by: input.profileId,
-      owner_id: ownerId,
     })
     .select('*')
     .single();
@@ -200,12 +191,7 @@ async function creerPageModele(input: {
   });
 }
 
-async function importerFichier(
-  agencyId: string,
-  profileId: string,
-  role: string,
-  form: FormData,
-) {
+async function importerFichier(agencyId: string, profileId: string, form: FormData) {
   const file = form.get('file');
   if (!estFichierUpload(file) || file.size === 0) {
     return NextResponse.json({ error: 'Fichier manquant' }, { status: 400 });
@@ -243,11 +229,6 @@ async function importerFichier(
     }
   }
 
-  const ownerId = ownerPourCreation(
-    role,
-    profileId,
-    form.get('modeleAgence') === '1' || form.get('modeleAgence') === 'true',
-  );
   const id = crypto.randomUUID();
   const path = cheminBiblio(agencyId, id, extensionMime(mime));
   const { error: upErr } = await deposerRapport(path, Buffer.from(bytes), mime);
@@ -268,9 +249,8 @@ async function importerFichier(
       storage_path: path,
       mime_type: mime,
       page_count: pageCount,
-      position: await prochainePosition(agencyId, ownerId),
+      position: await prochainePosition(agencyId),
       created_by: profileId,
-      owner_id: ownerId,
     })
     .select('*')
     .single();

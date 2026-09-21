@@ -5,7 +5,7 @@ import { lireImageModele } from '@/lib/rapport/image-modele';
 import { contenuDepuisJson, estDisposition } from '@/lib/rapport/modele';
 import { extensionMime, mapPageBibliotheque } from '@/lib/rapport/pages';
 import { cheminBiblio, deposerRapport, signerCheminRapport, supprimerRapport } from '@/lib/rapport/storage';
-import { peutModifierPage } from '@/lib/rapport/propriete';
+import { peutEditerBibliotheque } from '@/lib/rapport/propriete';
 import type { AgencyRapportPageRow } from '@/types/database';
 
 type PageUpdate = Partial<
@@ -31,8 +31,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .eq('agency_id', agency.id)
     .maybeSingle();
   if (!current) return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
-  if (!peutModifierPage(profile.role, profile.id, current.owner_id)) {
-    return NextResponse.json({ error: 'Page non modifiable' }, { status: 403 });
+  if (!peutEditerBibliotheque(profile.role)) {
+    return NextResponse.json({ error: 'Réservé au directeur' }, { status: 403 });
   }
 
   const update: PageUpdate = {};
@@ -155,13 +155,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const session = await createSupabaseServerClient();
   const { data } = await session
     .from('agency_rapport_pages')
-    .select('id, storage_path, owner_id')
+    .select('id, storage_path')
     .eq('id', id)
     .eq('agency_id', agency.id)
     .maybeSingle();
   if (!data) return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
-  if (!peutModifierPage(profile.role, profile.id, data.owner_id)) {
-    return NextResponse.json({ error: 'Page non modifiable' }, { status: 403 });
+  if (!peutEditerBibliotheque(profile.role)) {
+    return NextResponse.json({ error: 'Réservé au directeur' }, { status: 403 });
   }
 
   const { error } = await session

@@ -8,7 +8,6 @@ import {
   type Periode,
   type VuePeriode,
 } from '@/lib/activite/semaines';
-import AccueilAube from './AccueilAube';
 import BandeauObjectif from './BandeauObjectif';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
@@ -186,18 +185,16 @@ export default function AccueilPilotage({
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
         <PhrasePilotageBloc phrase={phrase} />
-        <AccueilAube>
-          <BandeauObjectif
-            bilan={bilan}
-            membre={membreSelectionne}
-            membreNom={
-              membreSelectionne === moi
-                ? null
-                : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
-            }
-            onObjectifsChanges={rafraichir}
-          />
-        </AccueilAube>
+        <BandeauObjectif
+          bilan={bilan}
+          membre={membreSelectionne}
+          membreNom={
+            membreSelectionne === moi
+              ? null
+              : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
+          }
+          onObjectifsChanges={rafraichir}
+        />
         <CompteursActivite familles={bilan.familles} penseBete={penseBete} />
       </div>
 

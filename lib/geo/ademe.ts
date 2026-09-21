@@ -45,11 +45,29 @@ const CHAMPS = {
   longitude: ['longitude'],
 } as const;
 
-/** Variantes de requête : le jeu actuel, puis l’ancien millésime accentué. */
+/**
+ * Variantes de requête : le jeu actuel, puis l’ancien millésime accentué.
+ * Ne pas passer par `qs` : nginx (WAF) répond 403 dès qu’il voit ce paramètre.
+ * data-fair accepte `{champ}_eq` / `{champ}_gte` à la place.
+ */
 const QUERY_VARIANTS = [
   { date: 'date_etablissement_dpe', cp: 'code_postal_ban' },
   { date: 'Date_établissement_DPE', cp: 'Code_postal_(BAN)' },
 ] as const;
+
+const SELECT_ACTUEL = [
+  'numero_dpe',
+  'adresse_ban',
+  'code_postal_ban',
+  'nom_commune_ban',
+  'date_etablissement_dpe',
+  'identifiant_ban',
+  'etiquette_dpe',
+  'surface_habitable_logement',
+  'type_batiment',
+  'numero_etage_appartement',
+  '_geopoint',
+].join(',');
 
 const LETTRES: readonly string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 const ADEME_HEADERS = {
@@ -136,11 +154,14 @@ export function ademeLinesUrl(
   params: FetchDpeParams,
   champs: { date: string; cp: string } = QUERY_VARIANTS[0],
 ): string {
-  const qs = `${champs.cp}:"${params.codePostal}" AND ${champs.date}:[${params.depuis} TO *]`;
   const url = new URL(`${BASE}/${DATASET}/lines`);
   url.searchParams.set('size', String(Math.min(params.taille ?? 200, 5000)));
-  url.searchParams.set('qs', qs);
+  url.searchParams.set(`${champs.cp}_eq`, params.codePostal);
+  url.searchParams.set(`${champs.date}_gte`, params.depuis);
   url.searchParams.set('sort', `-${champs.date}`);
+  if (champs.cp === QUERY_VARIANTS[0].cp) {
+    url.searchParams.set('select', SELECT_ACTUEL);
+  }
   return url.toString();
 }
 
@@ -182,6 +203,12 @@ async function fetchPage(url: string, signal?: AbortSignal): Promise<{
   }
 }
 
+/** data-fair ignore un `{champ}_eq` inconnu et renvoie le jeu entier. */
+function filtrePostalHonore(rows: readonly DpeRecent[], codePostal: string): boolean {
+  if (rows.length === 0) return true;
+  return rows.some((r) => r.codePostal === codePostal);
+}
+
 /**
  * DPE d'un code postal établis depuis une date. Ne lève jamais : une veille
  * qui casse le cron ferait perdre les autres agences du passage.
@@ -192,6 +219,7 @@ export async function fetchDpeRecents(params: FetchDpeParams): Promise<DpeRecent
     for (const champs of QUERY_VARIANTS) {
       const first = await fetchPage(ademeLinesUrl(params, champs), params.signal);
       if (!first.ok) continue;
+      if (!filtrePostalHonore(first.rows, params.codePostal)) continue;
       const out = [...first.rows];
       let next = first.next;
       while (next && out.length < plafond) {

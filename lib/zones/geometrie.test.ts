@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { bbox, centrePolygone, chevauchements, polygonesSeChevauchent } from './geometrie';
+import {
+  bbox,
+  centrePolygone,
+  chevauchements,
+  collectionGeojsonDeZone,
+  polygonesSeChevauchent,
+} from './geometrie';
 import type { RegleZone, ValeurPolygone, Zone } from './types';
 
 function rect(ouest: number, sud: number, est: number, nord: number): ValeurPolygone {
@@ -120,5 +126,21 @@ describe('alerte de chevauchement entre zones', () => {
 
   it('ne signale rien sans aucun contour', () => {
     assert.deepEqual(chevauchements([zone('a', [])]), []);
+  });
+});
+
+describe('collectionGeojsonDeZone', () => {
+  it('expose les contours d’inclusion, pas les retraits', () => {
+    const z = zone('a', [rect(2.3, 48.8, 2.4, 48.9)]);
+    const retrait: RegleZone = {
+      id: 'a-hors',
+      zoneId: 'a',
+      inclusion: false,
+      type: 'polygone',
+      valeur: rect(2.35, 48.85, 2.36, 48.86),
+    };
+    const geo = collectionGeojsonDeZone({ ...z, regles: [...z.regles, retrait] });
+    assert.equal(geo.features.length, 1);
+    assert.equal(geo.features[0]?.properties?.zoneId, 'a');
   });
 });

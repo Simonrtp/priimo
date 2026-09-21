@@ -48,7 +48,7 @@ export default function MobileChrome() {
 
   return (
     <>
-      <div className="mobile-shell-header flex-shrink-0 bg-transparent">
+      <div className="mobile-shell-header flex-shrink-0 bg-bg-base">
         <header
           className="relative z-[10] flex flex-col gap-2 pb-2"
           style={{

@@ -182,3 +182,20 @@ export function polygonesDeZone(zone: Zone): ValeurPolygone[] {
     .filter((r) => r.inclusion && r.type === 'polygone')
     .map((r) => r.valeur as ValeurPolygone);
 }
+
+/** FeatureCollection Mapbox d'un secteur — uniquement les contours d'inclusion. */
+export function collectionGeojsonDeZone(zone: Zone): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: polygonesDeZone(zone).map((polygone) => ({
+      type: 'Feature',
+      properties: { zoneId: zone.id, nom: zone.nom },
+      geometry: {
+        type: 'Polygon',
+        coordinates: polygone.coordinates.map((anneau) =>
+          anneau.map(([lng, lat]) => [lng, lat]),
+        ),
+      },
+    })),
+  };
+}

@@ -730,6 +730,12 @@ body {
 .priimo-map .mapboxgl-canvas-container {
   background: #c8c0b4;
 }
+.priimo-map,
+.priimo-map .mapboxgl-map,
+.priimo-map .mapboxgl-canvas-container,
+.priimo-map .mapboxgl-canvas {
+  touch-action: none;
+}
 .priimo-map .mapboxgl-canvas {
   filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
@@ -1648,71 +1654,6 @@ html:has(.feature-page) {
   padding-right: var(--field-page-px);
 }
 
-/*
- * Accueil — fond pêche crème façon écran Alan : un aplat chaud derrière
- * le header, plus soutenu à gauche, plus clair à droite. Le bas est une
- * coupure nette, pas un fondu.
- */
-.dashboard-mobile:has([data-accueil]) {
-  position: relative;
-}
-
-.dashboard-mobile:has([data-accueil]) > .mobile-shell-header,
-.dashboard-mobile:has([data-accueil]) > main {
-  background-color: transparent !important;
-  position: relative;
-  z-index: 1;
-}
-
-.dashboard-mobile:has([data-accueil]) .assistant-search-field {
-  background-color: transparent;
-  border-color: rgba(80, 48, 24, 0.2);
-}
-
-.dashboard-mobile:has([data-accueil]) .assistant-search-field:hover {
-  border-color: rgba(80, 48, 24, 0.32);
-}
-
-.dashboard-mobile:has([data-accueil]) .assistant-search-field:focus-within {
-  background-image:
-    linear-gradient(transparent, transparent),
-    linear-gradient(90deg, rgba(74, 122, 255, 0.4) 0%, rgba(144, 124, 247, 0.4) 52%, rgba(216, 102, 176, 0.4) 100%);
-}
-
-.dashboard-mobile:has([data-accueil])::before {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  z-index: 0;
-  inset-inline: 0;
-  top: 0;
-  height: var(--accueil-aube-h, calc(18.5rem + env(safe-area-inset-top, 0px)));
-  background: linear-gradient(
-    90deg,
-    #edc29a 0%,
-    #f0c9a6 50%,
-    #f3d2b4 100%
-  );
-  border-bottom: 1px solid rgba(184, 132, 92, 0.36);
-}
-
-.priimo-workspace-panel:has([data-accueil])::before {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  z-index: 0;
-  inset-inline: 0;
-  top: 0;
-  height: var(--accueil-aube-h, 16.5rem);
-  background: linear-gradient(
-    90deg,
-    #edc29a 0%,
-    #f0c9a6 50%,
-    #f3d2b4 100%
-  );
-  border-bottom: 1px solid rgba(184, 132, 92, 0.36);
-}
-
 .dashboard-mobile:has(.field-map) > main,
 .dashboard-mobile:has(.field-bleed) > main,
 .dashboard-mobile:has([data-prospection-carte]) > main {
@@ -1725,6 +1666,16 @@ html:has(.feature-page) {
   overflow: hidden;
   /* L’inline `paddingBottom` du layout doit céder : la carte passe sous les onglets. */
   padding-bottom: 0 !important;
+}
+
+.dashboard-mobile:has(.field-map),
+.dashboard-mobile:has([data-prospection-carte]) {
+  touch-action: none;
+}
+
+.dashboard-mobile .field-map,
+.dashboard-mobile .priimo-map {
+  touch-action: none;
 }
 
 /* Prise en main agent : plein écran, sans chrome ni tab bar. */

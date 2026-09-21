@@ -31,7 +31,6 @@ export type BuildingMarker = {
 
 export type MapListFilters = {
   kinds: ReadonlySet<MapPointKind>;
-  postalCode: string | 'tous';
   assignedTo: string | 'tous';
   period: MapPeriod;
   now: number;
@@ -90,9 +89,6 @@ export function filterMapEntities(
 
   return points.filter((point) => {
     if (!filters.kinds.has(point.kind)) return false;
-    if (filters.postalCode !== 'tous' && point.postalCode !== filters.postalCode) {
-      return false;
-    }
     if (filters.assignedTo !== 'tous' && point.assignedTo !== filters.assignedTo) {
       return false;
     }

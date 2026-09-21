@@ -178,7 +178,7 @@ export default function CarteMobile({
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [zoneId, setZoneId] = useState(
-    initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'tous',
+    initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
   );
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
@@ -308,7 +308,6 @@ export default function CarteMobile({
     () =>
       filterMapEntities(pointsDuSecteur, {
         kinds,
-        postalCode: 'tous',
         assignedTo: 'tous',
         period: 'all' as MapPeriod,
         now: Date.now(),
@@ -319,7 +318,6 @@ export default function CarteMobile({
     () =>
       filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
-        postalCode: 'tous',
         assignedTo: 'tous',
         period: 'all',
         now: Date.now(),
@@ -585,6 +583,9 @@ export default function CarteMobile({
         buildings={buildings}
         center={center}
         focusBounds={focusBounds}
+        zones={zoneId === 'aucun' ? [] : zones}
+        highlightedZoneId={zoneChoisie?.id ?? null}
+        dimension={dimension}
         selectedBanId={selectedBanId}
         mapRef={mapApi}
         onSelect={handleMapSelect}
@@ -619,7 +620,6 @@ export default function CarteMobile({
         }}
         agentPosition={agentPosition}
         highlightBanIds={highlightBanIds}
-        dimension={dimension}
         suppressAutoFit={tourShown || tourFramed}
         navigation={tourShown}
         onMapPoint={picking ? addPointFromMap : undefined}
@@ -721,29 +721,31 @@ export default function CarteMobile({
             <Layers size={20} strokeWidth={2} aria-hidden />
           </button>
 
-          <button
-            type="button"
-            onClick={switchDimension}
-            aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
-            aria-pressed={dimension === '3d'}
-            className="app-press absolute right-4 z-20 flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
-            style={{
-              bottom: floatBottom,
-              color: dimension === '3d' ? FIELD.orange : undefined,
-            }}
-          >
-            {dimension === '3d' ? (
-              <Box size={17} strokeWidth={2.2} aria-hidden />
-            ) : (
-              <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
-            )}
-            <span
-              className="text-[10px] font-bold leading-none"
-              style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
+          {!tourShown ? (
+            <button
+              type="button"
+              onClick={switchDimension}
+              aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
+              aria-pressed={dimension === '3d'}
+              className="app-press absolute right-4 z-20 flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
+              style={{
+                bottom: floatBottom,
+                color: dimension === '3d' ? FIELD.orange : undefined,
+              }}
             >
-              {dimension === '3d' ? '3D' : '2D'}
-            </span>
-          </button>
+              {dimension === '3d' ? (
+                <Box size={17} strokeWidth={2.2} aria-hidden />
+              ) : (
+                <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
+              )}
+              <span
+                className="text-[10px] font-bold leading-none"
+                style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
+              >
+                {dimension === '3d' ? '3D' : '2D'}
+              </span>
+            </button>
+          ) : null}
         </>
       ) : null}
 
@@ -795,6 +797,7 @@ export default function CarteMobile({
               value={zoneId}
               onChange={setZoneId}
               options={[
+                { value: 'aucun', label: 'Aucun secteur' },
                 { value: 'tous', label: 'Tous les secteurs' },
                 ...zones.map((z) => ({ value: z.id, label: z.nom })),
               ]}

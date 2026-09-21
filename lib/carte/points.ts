@@ -417,21 +417,6 @@ export function buildSectorMapPoints({
   };
 }
 
-export function postalCodesFromPoints(
-  agencyCodes: readonly string[],
-  points: readonly MapPoint[],
-): string[] {
-  const set = new Set<string>();
-  for (const code of agencyCodes) {
-    const trimmed = code.trim();
-    if (/^\d{5}$/.test(trimmed)) set.add(trimmed);
-  }
-  for (const point of points) {
-    if (point.postalCode && /^\d{5}$/.test(point.postalCode)) set.add(point.postalCode);
-  }
-  return [...set].sort();
-}
-
 export function withoutPositionTotal(count: WithoutPositionCount): number {
   return count.leads + count.contacts + count.biens + count.notes;
 }

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { applyTourneeMapStyle, restoreTourneeMapStyle } from '@/lib/map/tournee-style';
+import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
@@ -29,6 +30,8 @@ import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import type { DevicePosition } from '@/lib/voice/gps';
+import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
+import type { Zone } from '@/lib/zones/types';
 
 export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }, zoom?: number) => void;
@@ -78,7 +81,6 @@ export default function MobileMapCanvas({
   onSelectParcelle,
   agentPosition = null,
   highlightBanIds = null,
-  dimension = '2d',
   suppressAutoFit = false,
   onMapPoint,
   onUserInteract,
@@ -86,6 +88,9 @@ export default function MobileMapCanvas({
   currentLeadId = null,
   completedLeadIds,
   focusBounds = null,
+  zones = [],
+  highlightedZoneId = null,
+  dimension = '2d',
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -106,8 +111,6 @@ export default function MobileMapCanvas({
   onSelectParcelle?: (parcelleId: string) => void;
   agentPosition?: DevicePosition | null;
   highlightBanIds?: ReadonlySet<string> | null;
-  /** Plan à plat ou relief des immeubles. */
-  dimension?: MapDimension;
   suppressAutoFit?: boolean;
   /** Mode « choisir un point » : tout appui sur la carte renvoie ses coordonnées. */
   onMapPoint?: (coord: { latitude: number; longitude: number }) => void;
@@ -117,12 +120,17 @@ export default function MobileMapCanvas({
   currentLeadId?: string | null;
   completedLeadIds?: readonly string[];
   focusBounds?: LngLatBoundsTuple | null;
+  zones?: readonly Zone[];
+  highlightedZoneId?: string | null;
+  /** Plan à plat ou relief des immeubles. */
+  dimension?: MapDimension;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [zoom, setZoom] = useState(13);
   const [styleReady, setStyleReady] = useState(false);
   const camera = cameraFor(dimension);
+  const relief = !navigation && dimension === '3d';
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -156,20 +164,21 @@ export default function MobileMapCanvas({
       const map = mapRef.current;
       if (!map) return;
       const duration = animate ? 400 : 0;
+      const tilt = navigation ? tiltFromMap(map) : camera;
       if (!bounds) {
         if (fallback) {
           map.easeTo({
             center: [fallback.longitude, fallback.latitude],
             zoom: 16,
-            pitch: camera.pitch,
-            bearing: camera.bearing,
             duration,
+            ...tilt,
           });
         } else {
           map.easeTo({
             center: [FRANCE_MAP_VIEW.longitude, FRANCE_MAP_VIEW.latitude],
             zoom: FRANCE_MAP_VIEW.zoom,
             duration,
+            ...tilt,
           });
         }
         return;
@@ -179,9 +188,8 @@ export default function MobileMapCanvas({
         map.easeTo({
           center: [west, south],
           zoom: 16,
-          pitch: camera.pitch,
-          bearing: camera.bearing,
           duration,
+          ...tilt,
         });
         return;
       }
@@ -189,11 +197,10 @@ export default function MobileMapCanvas({
         padding: { top: 80, bottom: 160, left: 40, right: 40 },
         maxZoom: 17,
         duration,
-        pitch: camera.pitch,
-        bearing: camera.bearing,
+        ...tilt,
       });
     },
-    [fallback, camera.pitch, camera.bearing],
+    [fallback, camera, navigation],
   );
 
   const fitToPoints = useCallback(
@@ -221,23 +228,22 @@ export default function MobileMapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsSignature, itineraryBounds, suppressAutoFit, focusSignature]);
 
-  /** Bascule 2D ↔ 3D : seule la caméra bouge, le cadrage reste. */
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || navigation) return;
     map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
-  }, [camera.pitch, camera.bearing]);
+  }, [camera.pitch, camera.bearing, navigation]);
 
   useEffect(() => {
     if (!mapRefOut) return;
     mapRefOut.current = {
       recenter: (coord, zoomLevel) => {
-        mapRef.current?.easeTo({
+        const map = mapRef.current;
+        map?.easeTo({
           center: [coord.longitude, coord.latitude],
           zoom: zoomLevel ?? 16,
-          pitch: camera.pitch,
-          bearing: camera.bearing,
           duration: 400,
+          ...(map ? (navigation ? tiltFromMap(map) : camera) : {}),
         });
       },
       fitGroup: (group) => fitToPoints(true, group),
@@ -246,7 +252,7 @@ export default function MobileMapCanvas({
     return () => {
       mapRefOut.current = null;
     };
-  }, [mapRefOut, fitToPoints, fitBoundsTo, camera.pitch, camera.bearing]);
+  }, [mapRefOut, fitToPoints, fitBoundsTo, camera, navigation]);
 
   const showCrmPins =
     !navigation &&
@@ -261,7 +267,10 @@ export default function MobileMapCanvas({
   const showScore = zoom > 16;
 
   return (
-    <div className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden">
+    <div
+      className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden"
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
@@ -270,15 +279,30 @@ export default function MobileMapCanvas({
           initialBounds
             ? {
                 bounds: initialBounds,
-                fitBoundsOptions: { padding: 60, maxZoom: 15 },
+                fitBoundsOptions: {
+                  padding: 60,
+                  maxZoom: 15,
+                  pitch: camera.pitch,
+                  bearing: camera.bearing,
+                },
               }
             : fallback
-              ? { longitude: fallback.longitude, latitude: fallback.latitude, zoom: 15 }
-              : FRANCE_MAP_VIEW
+              ? {
+                  longitude: fallback.longitude,
+                  latitude: fallback.latitude,
+                  zoom: 15,
+                  ...camera,
+                }
+              : { ...FRANCE_MAP_VIEW, ...camera }
         }
         attributionControl={false}
-        dragRotate={false}
-        pitchWithRotate={false}
+        minPitch={0}
+        maxPitch={MAP_MAX_PITCH}
+        dragRotate={relief}
+        pitchWithRotate={relief}
+        touchPitch={relief}
+        touchRotate={relief}
+        touchZoomRotate
         interactiveLayerIds={[
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
           ...(!navigation && cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
@@ -329,7 +353,7 @@ export default function MobileMapCanvas({
       >
         <Buildings3DLayer
           mapRef={mapRef}
-          enabled={!navigation && dimension === '3d'}
+          enabled={relief}
           ready={styleReady}
         />
         <ParcellesLayer
@@ -342,6 +366,9 @@ export default function MobileMapCanvas({
           layers={cadastreLayers}
           onPick={(parcelleId) => onSelectParcelle?.(parcelleId)}
         />
+        {navigation ? null : (
+          <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
+        )}
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer
             geometry={itineraryGeometry}

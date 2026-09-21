@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { peutModifierPage } from '@/lib/rapport/propriete';
+import { peutEditerBibliotheque } from '@/lib/rapport/propriete';
 
 export const runtime = 'nodejs';
 
@@ -9,6 +9,10 @@ export async function PATCH(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  if (!peutEditerBibliotheque(profile.role)) {
+    return NextResponse.json({ error: 'Réservé au directeur' }, { status: 403 });
   }
 
   let body: unknown;
@@ -28,14 +32,11 @@ export async function PATCH(req: Request) {
   const session = await createSupabaseServerClient();
   const { data: rows } = await session
     .from('agency_rapport_pages')
-    .select('id, owner_id')
+    .select('id')
     .eq('agency_id', agency.id)
     .in('id', ids);
   if (!rows || rows.length !== ids.length) {
     return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
-  }
-  if (rows.some((row) => !peutModifierPage(profile.role, profile.id, row.owner_id))) {
-    return NextResponse.json({ error: 'Page non modifiable' }, { status: 403 });
   }
 
   const updates = ids.map((id, position) =>

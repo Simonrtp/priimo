@@ -3,6 +3,9 @@ import type { LngLatBoundsTuple } from '@/lib/carte/bounds';
 /** Inclinaison partagée — assez lisible en terrain, bâtiments visibles dès ~z15. */
 export const MAP_3D_PITCH = 45;
 
+/** Plafond Mapbox : assez pour plonger sur les toits, sans basculer sous l’horizon. */
+export const MAP_MAX_PITCH = 85;
+
 /** Légère rotation pour la profondeur sans désorienter. */
 export const MAP_3D_BEARING = -15;
 
@@ -86,3 +89,11 @@ export function bearingBetween(
 
 /** Pitch navigation terrain (style guidage). */
 export const NAV_MAP_PITCH = 62;
+
+/** Garde l’angle choisi (clic droit / deux doigts) quand on recadre. */
+export function tiltFromMap(map: { getPitch: () => number; getBearing: () => number }): {
+  pitch: number;
+  bearing: number;
+} {
+  return { pitch: map.getPitch(), bearing: map.getBearing() };
+}

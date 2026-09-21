@@ -105,7 +105,6 @@ export default function ProspectionCarteView({
         points={points}
         withoutPosition={withoutPosition}
         unplaced={unplaced}
-        agencyPostalCodes={agencyPostalCodes}
         center={center}
         members={members}
         isDirector={isDirector}

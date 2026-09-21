@@ -242,8 +242,8 @@ export default function CadastreLayerControls({
         aria-expanded={open}
         aria-label={open ? 'Replier Cadastre' : 'Déplier Cadastre'}
         onClick={onToggleMenu}
-        className={`flex w-full ${row} items-center gap-3 rounded-xl ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#B4BAC4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-          folderOn ? 'bg-[#C2C8D1]' : 'bg-[#D4D8DF]'
+        className={`flex w-full ${row} items-center gap-3 rounded-xl ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#E8EBEF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          folderOn ? 'bg-[#EEF0F3]' : 'bg-[#F5F6F8]'
         }`}
       >
         <span

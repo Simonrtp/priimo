@@ -1,7 +1,7 @@
 /**
  * Export PDF paysage du rapport.
  *
- * pdf-lib : composition native (gabarit + PDF importés + images),
+ * pdf-lib : composition native (en-tête, pied, PDF importés, images),
  * sans navigateur, polices embarquables, A4 paysage fiable sur Vercel.
  * Aucune photo Street View : uniquement fichiers déposés.
  */

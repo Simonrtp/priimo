@@ -8,7 +8,7 @@ import Map, { Marker, type MapRef } from 'react-map-gl';
 import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
-import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
+import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
@@ -31,6 +31,8 @@ import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
+import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
+import type { Zone } from '@/lib/zones/types';
 
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
@@ -68,7 +70,8 @@ export default function SectorMapCanvas({
   zoomPreset = 'sector',
   showBuildingMarkers = true,
   focusBounds = null,
-  dimension = '2d',
+  zones = [],
+  highlightedZoneId = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -90,13 +93,13 @@ export default function SectorMapCanvas({
   showBuildingMarkers?: boolean;
   /** Prioritaire sur l'emprise des points : cadrer un secteur choisi. */
   focusBounds?: LngLatBoundsTuple | null;
-  dimension?: MapDimension;
+  zones?: readonly Zone[];
+  highlightedZoneId?: string | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [hoveredBanId, setHoveredBanId] = useState<string | null>(null);
   const [styleReady, setStyleReady] = useState(false);
-  const camera = cameraFor(dimension);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -135,9 +138,8 @@ export default function SectorMapCanvas({
         map.easeTo({
           center: [fallback.longitude, fallback.latitude],
           zoom: PARCELLE_FOCUS_ZOOM,
-          pitch: camera.pitch,
-          bearing: camera.bearing,
           duration,
+          ...tiltFromMap(map),
         });
         return;
       }
@@ -148,15 +150,15 @@ export default function SectorMapCanvas({
           map.easeTo({
             center: [fallback.longitude, fallback.latitude],
             zoom: 13,
-            pitch: camera.pitch,
-            bearing: camera.bearing,
             duration,
+            ...tiltFromMap(map),
           });
         } else {
           map.easeTo({
             center: [FRANCE_MAP_VIEW.longitude, FRANCE_MAP_VIEW.latitude],
             zoom: FRANCE_MAP_VIEW.zoom,
             duration,
+            ...tiltFromMap(map),
           });
         }
         return;
@@ -166,9 +168,8 @@ export default function SectorMapCanvas({
         map.easeTo({
           center: [west, south],
           zoom: 14,
-          pitch: camera.pitch,
-          bearing: camera.bearing,
           duration,
+          ...tiltFromMap(map),
         });
         return;
       }
@@ -176,11 +177,10 @@ export default function SectorMapCanvas({
         padding: { top: 80, bottom: 80, left: 80, right: 80 },
         maxZoom: 15,
         duration,
-        pitch: camera.pitch,
-        bearing: camera.bearing,
+        ...tiltFromMap(map),
       });
     },
-    [fallback, buildings, itineraryBounds, zoomPreset, focusBounds, camera.pitch, camera.bearing],
+    [fallback, buildings, itineraryBounds, zoomPreset, focusBounds],
   );
 
   const focusSignature = focusBounds
@@ -192,21 +192,15 @@ export default function SectorMapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsSignature, itineraryBounds, focusSignature]);
 
-  useEffect(() => {
-    mapRef.current?.easeTo({
-      pitch: camera.pitch,
-      bearing: camera.bearing,
-      duration: 450,
-      essential: true,
-    });
-  }, [camera.pitch, camera.bearing]);
-
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;
   }
 
   return (
-    <div className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden">
+    <div
+      className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden"
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
@@ -217,8 +211,6 @@ export default function SectorMapCanvas({
                 longitude: fallback.longitude,
                 latitude: fallback.latitude,
                 zoom: PARCELLE_FOCUS_ZOOM,
-                pitch: camera.pitch,
-                bearing: camera.bearing,
               }
             : initialBounds
               ? {
@@ -230,6 +222,13 @@ export default function SectorMapCanvas({
                 : FRANCE_MAP_VIEW
         }
         attributionControl={false}
+        minPitch={0}
+        maxPitch={MAP_MAX_PITCH}
+        dragRotate
+        pitchWithRotate
+        touchPitch
+        touchRotate
+        touchZoomRotate
         interactiveLayerIds={[
           ...(parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
           ...(cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
@@ -267,7 +266,7 @@ export default function SectorMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        <Buildings3DLayer mapRef={mapRef} enabled={dimension === '3d'} ready={styleReady} />
+        <Buildings3DLayer mapRef={mapRef} enabled ready={styleReady} />
         <ParcellesLayer
           mapRef={mapRef}
           enabled={parcellesEnabled}
@@ -278,6 +277,7 @@ export default function SectorMapCanvas({
           layers={cadastreLayers}
           onPick={(parcelleId) => onSelectParcelle?.(parcelleId)}
         />
+        <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer
             geometry={itineraryGeometry}

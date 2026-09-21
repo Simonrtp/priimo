@@ -78,9 +78,11 @@ describe('mapLigneDpe', () => {
 });
 
 describe('ademeLinesUrl', () => {
-  it('construit l’URL data-fair sur les champs snake_case du jeu actuel', () => {
+  it('filtre par _eq / _gte, sans qs (WAF nginx)', () => {
     const url = ademeLinesUrl({ codePostal: '75020', depuis: '2026-08-21', taille: 80 });
-    assert.match(url, /code_postal_ban/);
-    assert.match(url, /date_etablissement_dpe/);
+    assert.match(url, /code_postal_ban_eq=75020/);
+    assert.match(url, /date_etablissement_dpe_gte=2026-08-21/);
+    assert.match(url, /select=/);
+    assert.doesNotMatch(url, /[?&]qs=/);
   });
 });

@@ -34,7 +34,6 @@ const ALL_KINDS = new Set<MapPointKind>(['lead', 'contact', 'bien', 'note']);
 function filters(partial: Partial<MapListFilters> = {}): MapListFilters {
   return {
     kinds: ALL_KINDS,
-    postalCode: 'tous',
     assignedTo: 'tous',
     period: 'all',
     now: Date.parse('2026-08-20T12:00:00.000Z'),
@@ -111,21 +110,19 @@ describe('pickBuildingAppearance', () => {
 });
 
 describe('filterMapEntities', () => {
-  it('filtre par couche, code postal, assigné et période', () => {
+  it('filtre par couche, assigné et période', () => {
     const points = [
       point({
         id: 'in',
         kind: 'lead',
         banId: 'a',
-        postalCode: '59000',
         assignedTo: 'marie',
         occurredAt: '2026-08-10T00:00:00.000Z',
       }),
       point({
         id: 'cp',
-        kind: 'lead',
+        kind: 'contact',
         banId: 'b',
-        postalCode: '59100',
         assignedTo: 'marie',
         occurredAt: '2026-08-10T00:00:00.000Z',
       }),
@@ -139,7 +136,7 @@ describe('filterMapEntities', () => {
     ];
     const visible = filterMapEntities(
       points,
-      filters({ kinds: new Set(['lead']), postalCode: '59000', assignedTo: 'marie', period: 30 }),
+      filters({ kinds: new Set(['lead']), assignedTo: 'marie', period: 30 }),
     );
     assert.equal(visible.length, 1);
     assert.equal(visible[0]?.recordId, 'in');

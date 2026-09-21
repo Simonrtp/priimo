@@ -122,13 +122,20 @@ export default function EstimationDashboardClient({
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
       <PageHeader
-        title={vue === 'rapport' && !dansAtelier ? 'Modifier mon rapport' : 'Estimation'}
+        title={
+          dansAtelier ? 'Estimation' : vue === 'rapport' ? 'Modèle de rapport' : 'Estimations'
+        }
+        subtitle={
+          vue === 'rapport' && !dansAtelier
+            ? 'Les pages qui composent chaque avis de valeur de l’agence. Chaque agent adapte ensuite le rapport pour son client.'
+            : undefined
+        }
         primaryAction={
           dansAtelier ? undefined : (
             <div
               className="flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset"
               role="tablist"
-              aria-label="Vue estimation"
+              aria-label="Vue estimations"
             >
               <button
                 type="button"
@@ -141,7 +148,7 @@ export default function EstimationDashboardClient({
                     : 'text-text-muted hover:text-text'
                 }`}
               >
-                Estimer
+                Estimations
               </button>
               <button
                 type="button"
@@ -154,7 +161,7 @@ export default function EstimationDashboardClient({
                     : 'text-text-muted hover:text-text'
                 }`}
               >
-                Modifier mon rapport
+                Modèle de rapport
               </button>
             </div>
           )

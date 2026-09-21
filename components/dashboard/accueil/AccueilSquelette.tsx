@@ -2,7 +2,6 @@ import { ChevronDown, Filter } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
 import { ACCUEIL, FIELD } from '@/lib/today/field';
-import AccueilAube from './AccueilAube';
 import { EmploiDuTempsSquelette } from './EmploiDuTemps';
 
 const OBJECTIF = {
@@ -45,7 +44,6 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
         </div>
       </section>
 
-      <AccueilAube>
       <section
         className="flex flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8"
         style={{ backgroundColor: OBJECTIF.voile }}
@@ -83,7 +81,6 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
           </div>
         </div>
       </section>
-      </AccueilAube>
 
       <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-6">
         {FAMILLES_ACTIVITE.map((famille) => {

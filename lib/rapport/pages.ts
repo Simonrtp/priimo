@@ -44,7 +44,6 @@ export type PageBibliotheque = {
   previewUrl: string | null;
   disposition: DispositionPageAgence | null;
   contenu: ContenuPageModele;
-  ownerId: string | null;
 };
 
 export type PageRapportComposee = {
@@ -150,7 +149,6 @@ export function mapPageBibliotheque(
     previewUrl,
     disposition: estDisposition(row.disposition) ? row.disposition : null,
     contenu: normaliserContenu(row.contenu),
-    ownerId: row.owner_id ?? null,
   };
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { GripVertical, Pencil, Trash2 } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
 import EditeurPageAgence from './EditeurPageAgence';
 import { libelleKindPage } from '@/lib/rapport/modele';
@@ -25,42 +25,52 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CSSProperties } from 'react';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { PageBibliotheque } from '@/lib/rapport/pages';
+import type { SlotModele } from '@/lib/rapport/modele-defaut';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 
-const inputClass =
-  'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
-const labelClass = 'mb-1.5 block font-medium text-gray-700';
+type SlotVue = SlotModele & { nom: string; key: string };
+
+function cleSlot(slot: SlotModele, index: number): string {
+  if (slot.source === 'bibliotheque') return `b:${slot.bibliothequeId}:${index}`;
+  return `g:${slot.kindGeneree}:${index}`;
+}
+
+function upsertPage(prev: PageBibliotheque[] | null, saved: PageBibliotheque): PageBibliotheque[] {
+  const list = prev ?? [];
+  const idx = list.findIndex((p) => p.id === saved.id);
+  if (idx < 0) return [...list, saved];
+  return list.map((p) => (p.id === saved.id ? saved : p));
+}
 
 export default function SectionBibliothequePages() {
   const { user, profile, agency, isDirector } = useUser();
-  const [modele, setModele] = useState<PageBibliotheque[] | null>(null);
-  const [personnel, setPersonnel] = useState<PageBibliotheque[] | null>(null);
-  const [nom, setNom] = useState('');
-  const [description, setDescription] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [pages, setPages] = useState<PageBibliotheque[] | null>(null);
+  const [slots, setSlots] = useState<SlotVue[] | null>(null);
   const [pending, setPending] = useState<PageBibliotheque | null>(null);
-  const [editeur, setEditeur] = useState<PageBibliotheque | 'new-agence' | 'new-moi' | null>(null);
+  const [editeur, setEditeur] = useState<PageBibliotheque | 'new' | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const charger = useCallback(async () => {
-    const res = await fetch('/api/dashboard/rapport/bibliotheque');
+    const res = await fetch('/api/dashboard/agence/rapport-modele');
     const data = (await res.json()) as {
+      slots?: Array<SlotModele & { nom: string }>;
       pages?: PageBibliotheque[];
-      modele?: PageBibliotheque[];
-      personnel?: PageBibliotheque[];
       error?: string;
     };
     if (!res.ok) {
-      notifyError(data.error ?? 'Bibliothèque indisponible');
-      setModele([]);
-      setPersonnel([]);
+      notifyError(data.error ?? 'Modèle indisponible');
+      setPages([]);
+      setSlots([]);
       return;
     }
-    const all = data.pages ?? [];
-    setModele(data.modele ?? all.filter((p) => p.ownerId == null));
-    setPersonnel(data.personnel ?? all.filter((p) => p.ownerId != null));
+    setPages(data.pages ?? []);
+    setSlots(
+      (data.slots ?? []).map((s, i) => ({
+        ...s,
+        key: cleSlot(s, i),
+      })),
+    );
   }, []);
 
   useEffect(() => {
@@ -79,48 +89,50 @@ export default function SectionBibliothequePages() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  async function onUpload(file: File | undefined) {
-    if (!file) return;
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      if (nom.trim()) form.append('nom', nom.trim());
-      if (description.trim()) form.append('description', description.trim());
-      const res = await fetch('/api/dashboard/rapport/bibliotheque', { method: 'POST', body: form });
-      const data = (await res.json()) as { page?: PageBibliotheque; error?: string };
-      if (!res.ok || !data.page) throw new Error(data.error ?? 'Envoi impossible');
-      setPersonnel((prev) => [...(prev ?? []), data.page!]);
-      setNom('');
-      setDescription('');
-      notifySuccess('Page ajoutée à votre rapport');
-    } catch (err) {
-      notifyError(err instanceof Error ? err.message : 'Envoi impossible');
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = '';
+  async function enregistrerSlots(next: SlotVue[]) {
+    setSlots(next);
+    const res = await fetch('/api/dashboard/agence/rapport-modele', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slots: next.map((s) =>
+          s.source === 'bibliotheque'
+            ? { source: 'bibliotheque', bibliothequeId: s.bibliothequeId }
+            : { source: 'generee', kindGeneree: s.kindGeneree },
+        ),
+      }),
+    });
+    if (!res.ok) {
+      notifyError('Modèle non enregistré');
+      void charger();
     }
   }
 
-  async function onDragEnd(liste: 'agence' | 'moi', event: DragEndEvent) {
+  function onDragEnd(event: DragEndEvent) {
+    if (!slots || !isDirector) return;
     const { active, over } = event;
-    const pages = liste === 'agence' ? modele : personnel;
-    if (!over || active.id === over.id || !pages) return;
-    const from = pages.findIndex((p) => p.id === active.id);
-    const to = pages.findIndex((p) => p.id === over.id);
+    if (!over || active.id === over.id) return;
+    const from = slots.findIndex((s) => s.key === active.id);
+    const to = slots.findIndex((s) => s.key === over.id);
     if (from < 0 || to < 0) return;
-    const next = arrayMove(pages, from, to);
-    if (liste === 'agence') setModele(next);
-    else setPersonnel(next);
-    const res = await fetch('/api/dashboard/rapport/bibliotheque/ordre', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: next.map((p) => p.id) }),
-    });
-    if (!res.ok) {
-      notifyError('Réordonnancement impossible');
-      void charger();
-    }
+    const next = arrayMove(slots, from, to).map((s, i) => ({ ...s, key: cleSlot(s, i) }));
+    void enregistrerSlots(next);
+  }
+
+  function ajouterAuModele(page: PageBibliotheque) {
+    const base = slots ?? [];
+    const slot: SlotVue = {
+      source: 'bibliotheque',
+      bibliothequeId: page.id,
+      nom: page.nom,
+      key: cleSlot({ source: 'bibliotheque', bibliothequeId: page.id }, base.length),
+    };
+    void enregistrerSlots([...base, slot]);
+  }
+
+  function retirerDuModele(key: string) {
+    if (!slots) return;
+    void enregistrerSlots(slots.filter((s) => s.key !== key).map((s, i) => ({ ...s, key: cleSlot(s, i) })));
   }
 
   async function renommer(id: string, nextNom: string) {
@@ -131,45 +143,16 @@ export default function SectionBibliothequePages() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nom: nomTrim }),
     });
-    if (!res.ok) notifyError('Renommage impossible');
-  }
-
-  async function dupliquer(page: PageBibliotheque, personnelCible: boolean) {
-    const res = await fetch(`/api/dashboard/rapport/bibliotheque/${page.id}/dupliquer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ personnel: personnelCible }),
-    });
-    const data = (await res.json()) as { page?: PageBibliotheque; error?: string };
-    if (!res.ok || !data.page) {
-      notifyError(data.error ?? 'Copie impossible');
+    if (!res.ok) {
+      notifyError('Renommage impossible');
       return;
     }
-    if (data.page.ownerId == null) setModele((prev) => [...(prev ?? []), data.page!]);
-    else setPersonnel((prev) => [...(prev ?? []), data.page!]);
-    notifySuccess(personnelCible ? 'Page reprise dans votre rapport' : 'Page dupliquée');
-  }
-
-  async function reprendreModele() {
-    if (!modele || modele.length === 0) return;
-    setBusy(true);
-    try {
-      for (const page of modele) {
-        const res = await fetch(`/api/dashboard/rapport/bibliotheque/${page.id}/dupliquer`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ personnel: true }),
-        });
-        const data = (await res.json()) as { page?: PageBibliotheque; error?: string };
-        if (!res.ok || !data.page) throw new Error(data.error ?? 'Copie impossible');
-        setPersonnel((prev) => [...(prev ?? []), data.page!]);
-      }
-      notifySuccess('Modèle repris dans votre rapport');
-    } catch (err) {
-      notifyError(err instanceof Error ? err.message : 'Copie impossible');
-    } finally {
-      setBusy(false);
-    }
+    setPages((prev) => (prev ?? []).map((p) => (p.id === id ? { ...p, nom: nomTrim } : p)));
+    setSlots((prev) =>
+      (prev ?? []).map((s) =>
+        s.source === 'bibliotheque' && s.bibliothequeId === id ? { ...s, nom: nomTrim } : s,
+      ),
+    );
   }
 
   async function supprimer() {
@@ -179,162 +162,121 @@ export default function SectionBibliothequePages() {
       notifyError('Suppression impossible');
       return;
     }
-    setModele((prev) => (prev ?? []).filter((p) => p.id !== pending.id));
-    setPersonnel((prev) => (prev ?? []).filter((p) => p.id !== pending.id));
+    const id = pending.id;
+    setPages((prev) => (prev ?? []).filter((p) => p.id !== id));
+    setSlots((prev) =>
+      (prev ?? [])
+        .filter((s) => !(s.source === 'bibliotheque' && s.bibliothequeId === id))
+        .map((s, i) => ({ ...s, key: cleSlot(s, i) })),
+    );
     setPending(null);
-    notifySuccess('Page retirée');
+    notifySuccess('Page retirée de la bibliothèque');
   }
 
   if (!user || !profile || !agency) return null;
 
-  const editeurPage = editeur && editeur !== 'new-agence' && editeur !== 'new-moi' ? editeur : null;
-  const modeleAgence = editeur === 'new-agence' || (editeurPage != null && editeurPage.ownerId == null);
+  const editeurPage = editeur && editeur !== 'new' ? editeur : null;
+  const idsDansModele = new Set(
+    (slots ?? [])
+      .filter((s): s is SlotVue & { source: 'bibliotheque' } => s.source === 'bibliotheque')
+      .map((s) => s.bibliothequeId),
+  );
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h2 className="font-semibold text-ink" style={{ fontSize: 18 }}>
-          Modifier mon rapport
-        </h2>
-        <p className="mt-1 text-pretty text-mute" style={{ fontSize: 13.5 }}>
-          Le modèle de l’agence reste le gabarit de départ. Chaque agent a ensuite son propre
-          rapport, sans écraser celui des autres.
-        </p>
-      </div>
-
-      <section>
-        <h3 className="font-semibold text-ink" style={{ fontSize: 16 }}>
-          Modèle de l’agence
-        </h3>
-        <p className="mt-1 text-pretty text-mute" style={{ fontSize: 13 }}>
-          {isDirector
-            ? 'Ces pages s’appliquent à toute l’équipe, tant qu’un agent n’a pas repris le modèle.'
-            : 'Lecture seule. Reprenez-le pour le personnaliser.'}
-        </p>
-        {isDirector ? (
-          <div className="mt-3">
-            <WorkspaceButton type="button" onClick={() => setEditeur('new-agence')}>
-              Créer une page modèle
-            </WorkspaceButton>
-          </div>
-        ) : null}
-        <ListePages
-          pages={modele}
-          sensors={sensors}
-          lectureSeule={!isDirector}
-          onDragEnd={(e) => void onDragEnd('agence', e)}
-          onRename={renommer}
-          onEdit={isDirector ? (p) => setEditeur(p) : undefined}
-          onDuplicate={(p) => void dupliquer(p, !isDirector)}
-          onDelete={isDirector ? (p) => setPending(p) : undefined}
-          vide="Aucune page modèle pour l’instant."
-        />
-      </section>
-
-      <section>
-        <h3 className="font-semibold text-ink" style={{ fontSize: 16 }}>
-          Mon rapport
-        </h3>
-        <p className="mt-1 text-pretty text-mute" style={{ fontSize: 13 }}>
-          Pages utilisées dans vos avis de valeur. Vous pouvez reprendre le modèle, puis modifier.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <WorkspaceButton type="button" onClick={() => setEditeur('new-moi')}>
+      {isDirector ? (
+        <div>
+          <WorkspaceButton type="button" onClick={() => setEditeur('new')}>
             Créer une page
           </WorkspaceButton>
-          {modele && modele.length > 0 ? (
-            <WorkspaceButton
-              type="button"
-              variant="secondary"
-              disabled={busy}
-              onClick={() => void reprendreModele()}
-            >
-              Reprendre le modèle
-            </WorkspaceButton>
-          ) : null}
         </div>
-        <div className="mt-4 flex flex-col gap-3">
-          <div>
-            <label htmlFor="biblio-nom" className={labelClass}>
-              Nom
-            </label>
-            <input
-              id="biblio-nom"
-              className={inputClass}
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              placeholder="Présentation"
-            />
-          </div>
-          <div>
-            <label htmlFor="biblio-desc" className={labelClass}>
-              Description
-            </label>
-            <textarea
-              id="biblio-desc"
-              className={`${inputClass} min-h-[4.5rem] resize-y`}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optionnel — ce que contient cette page"
-            />
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-            className="sr-only"
-            onChange={(e) => void onUpload(e.target.files?.[0])}
-          />
-          <button
-            type="button"
-            className="self-start rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[14px] font-medium text-ink hover:bg-black/[0.04] disabled:opacity-50"
-            disabled={busy}
-            onClick={() => fileRef.current?.click()}
-          >
-            {busy ? 'Envoi…' : 'Ajouter un PDF ou une image'}
-          </button>
-        </div>
-        <ListePages
-          pages={personnel}
-          sensors={sensors}
-          onDragEnd={(e) => void onDragEnd('moi', e)}
-          onRename={renommer}
-          onEdit={(p) => setEditeur(p)}
-          onDuplicate={(p) => void dupliquer(p, true)}
-          onDelete={(p) => setPending(p)}
-          vide="Aucune page pour l’instant. Créez-en une ou reprenez le modèle."
-        />
+      ) : (
+        <p className="text-pretty text-[13.5px] text-mute">Lecture seule — le directeur compose le modèle.</p>
+      )}
+
+      <section>
+        <h2 className="text-balance text-[16px] font-semibold text-ink">Modèle</h2>
+        <p className="mt-1 text-pretty text-[13px] text-mute">
+          Ordre des pages dans chaque nouvel avis de valeur. Un rapport déjà envoyé ne bouge pas.
+        </p>
+        {slots === null ? (
+          <div className="mt-4 h-16 animate-pulse rounded-lg bg-black/[0.04]" aria-hidden />
+        ) : slots.length === 0 ? (
+          <p className="mt-4 text-pretty text-[13.5px] text-mute">
+            {isDirector
+              ? 'Aucune page dans le modèle. Ajoutez-en une depuis la bibliothèque.'
+              : 'Le modèle est encore vide.'}
+          </p>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={slots.map((s) => s.key)} strategy={verticalListSortingStrategy}>
+              <ol className="mt-4 flex flex-col gap-2" aria-label="Pages du modèle">
+                {slots.map((slot, i) => (
+                  <LigneSlot
+                    key={slot.key}
+                    slot={slot}
+                    index={i}
+                    lectureSeule={!isDirector}
+                    onDelete={isDirector ? () => retirerDuModele(slot.key) : undefined}
+                  />
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
+        )}
       </section>
 
-      <EditeurPageAgence
-        key={
-          editeur === 'new-agence' || editeur === 'new-moi'
-            ? editeur
-            : editeur?.id ?? 'ferme'
-        }
-        open={editeur !== null}
-        page={editeurPage}
-        agency={agency}
-        profile={profile}
-        loginEmail={user.email}
-        logoUrl={logoUrl}
-        modeleAgence={modeleAgence}
-        onClose={() => setEditeur(null)}
-        onSaved={(saved) => {
-          if (saved.ownerId == null) {
-            setModele((prev) => upsertPage(prev, saved));
-          } else {
-            setPersonnel((prev) => upsertPage(prev, saved));
-          }
-        }}
-      />
+      <section>
+        <h2 className="text-balance text-[16px] font-semibold text-ink">Bibliothèque</h2>
+        <p className="mt-1 text-pretty text-[13px] text-mute">
+          Toutes les pages de l’agence. {isDirector ? 'Ajoutez-les au modèle quand elles doivent figurer par défaut.' : ''}
+        </p>
+        {pages === null ? (
+          <div className="mt-4 h-16 animate-pulse rounded-lg bg-black/[0.04]" aria-hidden />
+        ) : pages.length === 0 ? (
+          <p className="mt-4 text-pretty text-[13.5px] text-mute">
+            {isDirector
+              ? 'Aucune page pour l’instant. Créez-en une pour commencer.'
+              : 'Aucune page en bibliothèque.'}
+          </p>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-2" aria-label="Pages de la bibliothèque">
+            {pages.map((p) => (
+              <LigneBiblio
+                key={p.id}
+                page={p}
+                lectureSeule={!isDirector}
+                dejaAuModele={idsDansModele.has(p.id)}
+                onRename={renommer}
+                onEdit={isDirector && p.kind === 'modele' ? () => setEditeur(p) : undefined}
+                onAjouter={isDirector && !idsDansModele.has(p.id) ? () => ajouterAuModele(p) : undefined}
+                onDelete={isDirector ? () => setPending(p) : undefined}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {isDirector ? (
+        <EditeurPageAgence
+          key={editeur === 'new' ? 'new' : editeur?.id ?? 'ferme'}
+          open={editeur !== null}
+          page={editeurPage}
+          agency={agency}
+          profile={profile}
+          loginEmail={user.email}
+          logoUrl={logoUrl}
+          onClose={() => setEditeur(null)}
+          onSaved={(saved) => setPages((prev) => upsertPage(prev, saved))}
+        />
+      ) : null}
 
       <ConfirmModal
         open={pending !== null}
         onClose={() => setPending(null)}
         onConfirm={() => void supprimer()}
         title="Retirer cette page"
-        message={`${pending?.nom ?? ''} quittera ${pending?.ownerId ? 'votre rapport' : 'le modèle d’agence'}. Les avis déjà composés gardent une copie.`}
+        message={`${pending?.nom ?? ''} quittera la bibliothèque. Les avis déjà composés gardent une copie.`}
         primaryLabel="Retirer"
         variant="danger"
       />
@@ -342,84 +284,22 @@ export default function SectionBibliothequePages() {
   );
 }
 
-function upsertPage(
-  prev: PageBibliotheque[] | null,
-  saved: PageBibliotheque,
-): PageBibliotheque[] {
-  const list = prev ?? [];
-  const idx = list.findIndex((p) => p.id === saved.id);
-  if (idx < 0) return [...list, saved];
-  return list.map((p) => (p.id === saved.id ? saved : p));
-}
-
-function ListePages({
-  pages,
-  sensors,
-  lectureSeule = false,
-  onDragEnd,
-  onRename,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  vide,
-}: {
-  pages: PageBibliotheque[] | null;
-  sensors: ReturnType<typeof useSensors>;
-  lectureSeule?: boolean;
-  onDragEnd: (e: DragEndEvent) => void;
-  onRename: (id: string, nom: string) => void;
-  onEdit?: (page: PageBibliotheque) => void;
-  onDuplicate: (page: PageBibliotheque) => void;
-  onDelete?: (page: PageBibliotheque) => void;
-  vide: string;
-}) {
-  if (pages === null) {
-    return <div className="mt-4 h-16 animate-pulse rounded-lg bg-black/[0.04]" aria-hidden />;
-  }
-  if (pages.length === 0) {
-    return <p className="mt-4 text-pretty text-[13.5px] text-mute">{vide}</p>;
-  }
-  return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-        <ul className="mt-4 flex flex-col gap-2" aria-label="Pages">
-          {pages.map((p) => (
-            <LigneBiblio
-              key={p.id}
-              page={p}
-              lectureSeule={lectureSeule}
-              onRename={onRename}
-              onEdit={onEdit && p.kind === 'modele' ? () => onEdit(p) : undefined}
-              onDuplicate={() => onDuplicate(p)}
-              onDelete={onDelete ? () => onDelete(p) : undefined}
-            />
-          ))}
-        </ul>
-      </SortableContext>
-    </DndContext>
-  );
-}
-
-function LigneBiblio({
-  page,
+function LigneSlot({
+  slot,
+  index,
   lectureSeule,
-  onRename,
-  onEdit,
-  onDuplicate,
   onDelete,
 }: {
-  page: PageBibliotheque;
+  slot: SlotVue;
+  index: number;
   lectureSeule: boolean;
-  onRename: (id: string, nom: string) => void;
-  onEdit?: () => void;
-  onDuplicate: () => void;
   onDelete?: () => void;
 }) {
-  const sortable = useSortable({ id: page.id, disabled: lectureSeule });
+  const sortable = useSortable({ id: slot.key, disabled: lectureSeule });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(sortable.transform),
     transition: sortable.transition,
-    opacity: sortable.isDragging ? 0.5 : 1,
+    opacity: sortable.isDragging ? 0.45 : 1,
   };
   return (
     <li
@@ -428,18 +308,55 @@ function LigneBiblio({
       className="flex items-center gap-2 rounded-lg border border-black/8 bg-white px-2 py-2"
     >
       {lectureSeule ? (
-        <span className="size-9 shrink-0" aria-hidden />
+        <span className="size-11 shrink-0" aria-hidden />
       ) : (
         <button
           type="button"
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04]"
-          aria-label={`Déplacer ${page.nom}`}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04]"
+          aria-label={`Déplacer ${slot.nom}`}
           {...sortable.attributes}
           {...sortable.listeners}
         >
           <GripVertical size={16} strokeWidth={2} aria-hidden />
         </button>
       )}
+      <span className="min-w-0 flex-1 truncate py-1 text-[13.5px] text-ink">
+        <span className="mr-1.5 tabular-nums text-mute">{index + 1}.</span>
+        {slot.nom}
+      </span>
+      {onDelete ? (
+        <button
+          type="button"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-red-700"
+          aria-label={`Retirer ${slot.nom} du modèle`}
+          onClick={onDelete}
+        >
+          <Trash2 size={16} strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
+    </li>
+  );
+}
+
+function LigneBiblio({
+  page,
+  lectureSeule,
+  dejaAuModele,
+  onRename,
+  onEdit,
+  onAjouter,
+  onDelete,
+}: {
+  page: PageBibliotheque;
+  lectureSeule: boolean;
+  dejaAuModele: boolean;
+  onRename: (id: string, nom: string) => void;
+  onEdit?: () => void;
+  onAjouter?: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <li className="flex flex-col gap-2 rounded-lg border border-black/8 bg-white px-3 py-2 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
         {lectureSeule ? (
           <p className="px-1 py-1 text-[13.5px] font-medium text-ink">{page.nom}</p>
@@ -454,36 +371,36 @@ function LigneBiblio({
         <p className="px-1 text-[12px] text-mute">
           {libelleKindPage(page.kind, page.disposition, page.pageCount)}
           {page.description ? ` · ${page.description}` : ''}
+          {dejaAuModele ? ' · Dans le modèle' : ''}
         </p>
       </div>
-      {onEdit ? (
-        <button
-          type="button"
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-ink"
-          aria-label={`Modifier ${page.nom}`}
-          onClick={onEdit}
-        >
-          <Pencil size={16} strokeWidth={2} aria-hidden />
-        </button>
-      ) : null}
-      <button
-        type="button"
-        className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-ink"
-        aria-label={lectureSeule ? `Reprendre ${page.nom} dans mon rapport` : `Dupliquer ${page.nom}`}
-        onClick={onDuplicate}
-      >
-        <Copy size={16} strokeWidth={2} aria-hidden />
-      </button>
-      {onDelete ? (
-        <button
-          type="button"
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-red-700"
-          aria-label={`Supprimer ${page.nom}`}
-          onClick={onDelete}
-        >
-          <Trash2 size={16} strokeWidth={2} aria-hidden />
-        </button>
-      ) : null}
+      <div className="flex shrink-0 items-center justify-end gap-1">
+        {onAjouter ? (
+          <WorkspaceButton type="button" variant="secondary" className="shrink-0" onClick={onAjouter}>
+            Ajouter au modèle
+          </WorkspaceButton>
+        ) : null}
+        {onEdit ? (
+          <button
+            type="button"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-ink"
+            aria-label={`Modifier ${page.nom}`}
+            onClick={onEdit}
+          >
+            <Pencil size={16} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
+        {onDelete ? (
+          <button
+            type="button"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-red-700"
+            aria-label={`Supprimer ${page.nom}`}
+            onClick={onDelete}
+          >
+            <Trash2 size={16} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
+      </div>
     </li>
   );
 }

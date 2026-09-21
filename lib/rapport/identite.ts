@@ -1,5 +1,5 @@
 /**
- * Identité d’agence et d’agent pour le gabarit du rapport.
+ * Identité d’agence et d’agent pour l’en-tête et le pied du rapport.
  * Aucun libellé orphelin : une ligne vide n’existe pas.
  */
 

@@ -22,7 +22,7 @@ const AGENCIES_SELECT_BASE =
 /** Colonnes 20260930 — logo et identité de rapport. */
 const AGENCIES_SELECT_EXTRAS = 'logo_path, nom_commercial, site_web';
 
-/** Colonne 20260931 — accent du gabarit. */
+/** Colonne 20260931 — accent du rapport. */
 const AGENCIES_SELECT_COULEUR = 'couleur_principale';
 
 const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}`;
