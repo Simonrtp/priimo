@@ -243,8 +243,9 @@ export default function OngletRapport({
     if (vide) return;
     const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/pdf`);
     if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string; imprimer?: string };
       notifyError(data.error ?? 'Export impossible');
+      if (data.imprimer) window.open(data.imprimer, '_blank', 'noopener');
       return;
     }
     const blob = await res.blob();
@@ -301,6 +302,15 @@ export default function OngletRapport({
             onClick={() => setPresentation(true)}
           >
             Présenter
+          </WorkspaceButton>
+          <WorkspaceButton
+            type="button"
+            variant="secondary"
+            disabled={vide || pages.filter(pageExportable).length === 0}
+            title={vide ? 'Ajoutez au moins une page pour imprimer' : undefined}
+            onClick={() => window.open(`/imprimer/estimation/${estimation.id}`, '_blank', 'noopener')}
+          >
+            Imprimer
           </WorkspaceButton>
           <WorkspaceButton
             type="button"
@@ -385,7 +395,7 @@ export default function OngletRapport({
               dateIso={dateIso}
               page={pages.length === 0 ? 1 : index + 1}
               pages={Math.max(pages.length, 1)}
-              sansChrome={courante?.kindGeneree === 'couverture'}
+              sansChrome={courante?.kind === 'generee'}
             >
               <ApercuPageComposee
                 page={courante}

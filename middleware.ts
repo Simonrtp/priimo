@@ -116,7 +116,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding') || pathname.startsWith('/admin'))) {
+  if (
+    !user &&
+    (pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/onboarding') ||
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/imprimer'))
+  ) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 

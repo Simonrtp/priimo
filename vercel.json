@@ -4,6 +4,16 @@
   "regions": [
     "cdg1"
   ],
+  "functions": {
+    "app/api/dashboard/estimation/[id]/rapport/pdf/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "app/api/dashboard/estimation/[id]/rapport/envoyer/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/weekly-portfolio",

@@ -7,14 +7,14 @@ import { identiteAgentDepuisProfil, piedBienDepuisEstimation } from '@/lib/rappo
 import { emailDestinataireValide, mapEnvoiRapport } from '@/lib/rapport/envois';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
 import { pageExportable } from '@/lib/rapport/pages';
-import { genererPdfRapport } from '@/lib/rapport/pdf';
+import { ChromiumIndisponible, genererPdfRapport } from '@/lib/rapport/pdf';
 import { joindreSansVide } from '@/lib/rapport/identite';
 import { cheminEnvoi, deposerRapport } from '@/lib/rapport/storage';
 import { sendAvisValeurEmail } from '@/lib/email/sendAvisValeurEmail';
 import { absoluteUrl } from '@/lib/site-url';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -77,14 +77,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const agent = assemble.agent;
   const bien = piedBienDepuisEstimation(ctx.estimation);
   const bienLabel = joindreSansVide([bien.adresse, bien.ville], ', ');
-  const pdf = await genererPdfRapport({
-    agence,
-    agent,
-    bien,
-    dateIso: ctx.estimation.updatedAt,
-    pages,
-    dossier: assemble.dossier,
-  });
+  let pdf: Uint8Array;
+  try {
+    pdf = await genererPdfRapport({
+      agence,
+      agent,
+      bien,
+      dateIso: ctx.estimation.updatedAt,
+      pages,
+      dossier: assemble.dossier,
+    });
+  } catch (err) {
+    if (err instanceof ChromiumIndisponible) {
+      return NextResponse.json(
+        {
+          error: 'Impression serveur indisponible. Utilisez Imprimer depuis le navigateur.',
+          imprimer: `/imprimer/estimation/${id}`,
+        },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
 
   const { data: dernier } = await session
     .from('estimation_rapport_envois')

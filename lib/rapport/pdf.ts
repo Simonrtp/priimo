@@ -1,9 +1,8 @@
 /**
  * Export PDF paysage du rapport.
  *
- * pdf-lib : composition native (en-tête, pied, PDF importés, images),
- * sans navigateur, polices embarquables, A4 paysage fiable sur Vercel.
- * Aucune photo Street View : uniquement fichiers déposés.
+ * Pages générées : HTML/CSS imprimé par Chromium.
+ * Pages de bibliothèque : fusionnées avec pdf-lib, sans redessiner.
  */
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
@@ -13,16 +12,17 @@ import {
   type IdentiteAgenceRapport,
   type IdentiteAgentRapport,
   type PiedBienRapport,
-  type PiedRapport,
 } from '@/lib/rapport/identite';
 import { estDisposition } from '@/lib/rapport/modele';
 import type { PageRapportComposee } from '@/lib/rapport/pages';
+import { pageExportable } from '@/lib/rapport/pages';
 import { dessinerPageModele } from '@/lib/rapport/pdf-modele';
 import { hexVersRgb, latin1 } from '@/lib/rapport/pdf-texte';
 import { telechargerRapport } from '@/lib/rapport/storage';
-import { dessinerPageGeneree } from '@/lib/rapport/pdf-generee';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
-import { pageExportable } from '@/lib/rapport/pages';
+import type { KindGeneree } from '@/lib/rapport/modele-defaut';
+import { ChromiumIndisponible, imprimerHtmlEnPdf } from '@/lib/rapport/print/chromium';
+import { htmlPagesGenerees } from '@/lib/rapport/print/document';
 
 export const PAGE_W = 841.89;
 export const PAGE_H = 595.28;
@@ -44,6 +44,8 @@ export async function compterPagesPdf(bytes: Uint8Array): Promise<number> {
   return doc.getPageCount();
 }
 
+export { ChromiumIndisponible };
+
 export async function genererPdfRapport(input: {
   agence: IdentiteAgenceRapport;
   agent: IdentiteAgentRapport;
@@ -60,9 +62,9 @@ export async function genererPdfRapport(input: {
   const logo = await embedLogo(out, input.agence.logoUrl);
   const accent = couleurAccent(input.agence.couleurPrincipale);
   const fonts = { regular: font, bold: fontBold, italic: fontItalic, boldItalic: fontBoldItalic };
+  const accentHex = normaliserCouleurPrincipale(input.agence.couleurPrincipale);
 
   const exportables = input.pages.filter(pageExportable);
-  const total = Math.max(1, exportables.length);
   if (exportables.length === 0) {
     const page = out.addPage([PAGE_W, PAGE_H]);
     const pied = construirePied({
@@ -76,72 +78,48 @@ export async function genererPdfRapport(input: {
     return out.save();
   }
 
+  const kinds = exportables
+    .filter((p) => p.kind === 'generee' && p.kindGeneree && input.dossier)
+    .map((p) => p.kindGeneree!) as KindGeneree[];
+
+  let chromeDoc: PDFDocument | null = null;
+  if (kinds.length > 0 && input.dossier) {
+    const html = htmlPagesGenerees(kinds, input.dossier, accentHex);
+    const bytes = await imprimerHtmlEnPdf(html);
+    chromeDoc = await PDFDocument.load(bytes);
+  }
+
+  let chromeIndex = 0;
   let index = 0;
   for (const item of exportables) {
     index += 1;
+    if (item.kind === 'generee' && item.kindGeneree && chromeDoc) {
+      if (chromeIndex >= chromeDoc.getPageCount()) continue;
+      const [copied] = await out.copyPages(chromeDoc, [chromeIndex]);
+      chromeIndex += 1;
+      if (copied) out.addPage(copied);
+      continue;
+    }
+
     const page = out.addPage([PAGE_W, PAGE_H]);
     const pied = construirePied({
       agent: input.agent,
       bien: input.bien,
       dateIso: input.dateIso,
       page: index,
-      pages: total,
+      pages: exportables.length,
     });
-    const couverture = item.kindGeneree === 'couverture';
-    await dessinerContenu(out, page, item, {
-      accentHex: normaliserCouleurPrincipale(input.agence.couleurPrincipale),
+    await dessinerBibliotheque(out, page, item, {
+      accentHex,
       fonts,
-      dossier: input.dossier ?? null,
     });
-    if (!couverture) {
-      dessinerGabarit(page, { font, fontBold, logo, pied, accent });
-    }
+    dessinerGabarit(page, { font, fontBold, logo, pied, accent });
   }
 
   return out.save();
 }
 
-async function embedLogo(
-  doc: PDFDocument,
-  logoUrl: string | null,
-): Promise<{ width: number; height: number; draw: (page: PDFPage, x: number, y: number, h: number) => void } | null> {
-  if (!logoUrl) return null;
-  try {
-    const res = await fetch(logoUrl);
-    if (!res.ok) return null;
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    const mime = res.headers.get('content-type') ?? '';
-    const img =
-      mime.includes('png') || looksPng(bytes)
-        ? await doc.embedPng(bytes)
-        : await doc.embedJpg(bytes);
-    return {
-      width: img.width,
-      height: img.height,
-      draw(page, x, y, h) {
-        const w = (img.width / img.height) * h;
-        page.drawImage(img, { x, y, width: w, height: h });
-      },
-    };
-  } catch {
-    return null;
-  }
-}
-
-function looksPng(bytes: Uint8Array): boolean {
-  return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
-}
-
-function zoneContenu(): { x: number; y: number; w: number; h: number } {
-  return {
-    x: MARGIN,
-    y: FOOTER_H,
-    w: PAGE_W - MARGIN * 2,
-    h: PAGE_H - HEADER_H - FOOTER_H,
-  };
-}
-
-async function dessinerContenu(
+async function dessinerBibliotheque(
   doc: PDFDocument,
   page: PDFPage,
   item: PageExport,
@@ -153,23 +131,14 @@ async function dessinerContenu(
       italic: PDFFont;
       boldItalic: PDFFont;
     };
-    dossier: DossierRapport | null;
   },
 ): Promise<void> {
-  if (item.kind === 'generee' && item.kindGeneree && ctx.dossier) {
-    const plein = item.kindGeneree === 'couverture';
-    await dessinerPageGeneree(
-      doc,
-      page,
-      item.kindGeneree,
-      ctx.dossier,
-      zoneContenu(),
-      { regular: ctx.fonts.regular, bold: ctx.fonts.bold },
-      ctx.accentHex,
-      plein,
-    );
-    return;
-  }
+  const box = {
+    x: MARGIN,
+    y: FOOTER_H,
+    w: PAGE_W - MARGIN * 2,
+    h: PAGE_H - HEADER_H - FOOTER_H,
+  };
   if (item.kind === 'modele' && item.disposition && estDisposition(item.disposition)) {
     const file = item.storagePath ? await telechargerRapport(item.storagePath) : null;
     await dessinerPageModele(doc, page, {
@@ -177,7 +146,7 @@ async function dessinerContenu(
       contenu: item.contenu ?? {},
       accentHex: ctx.accentHex,
       fonts: ctx.fonts,
-      zone: zoneContenu(),
+      zone: box,
       imageBytes: file?.bytes ?? null,
     });
     return;
@@ -185,7 +154,6 @@ async function dessinerContenu(
   if (!item.storagePath || item.kind === 'generee') return;
   const file = await telechargerRapport(item.storagePath);
   if (!file) return;
-  const box = zoneContenu();
 
   if (item.kind === 'pdf' || file.contentType.includes('pdf')) {
     try {
@@ -224,13 +192,42 @@ async function dessinerContenu(
   }
 }
 
+async function embedLogo(
+  doc: PDFDocument,
+  logoUrl: string | null,
+): Promise<{ width: number; height: number; draw: (page: PDFPage, x: number, y: number, h: number) => void } | null> {
+  if (!logoUrl) return null;
+  try {
+    const res = await fetch(logoUrl);
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const mime = res.headers.get('content-type') ?? '';
+    const img =
+      mime.includes('png') || looksPng(bytes) ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+    return {
+      width: img.width,
+      height: img.height,
+      draw(page, x, y, h) {
+        const w = (img.width / img.height) * h;
+        page.drawImage(img, { x, y, width: w, height: h });
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function looksPng(bytes: Uint8Array): boolean {
+  return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+}
+
 function dessinerGabarit(
   page: PDFPage,
   ctx: {
     font: PDFFont;
     fontBold: PDFFont;
     logo: Awaited<ReturnType<typeof embedLogo>>;
-    pied: PiedRapport;
+    pied: ReturnType<typeof construirePied>;
     accent: ReturnType<typeof rgb>;
   },
 ) {
@@ -241,18 +238,13 @@ function dessinerGabarit(
     height: 3,
     color: ctx.accent,
   });
-
-  if (ctx.logo) {
-    ctx.logo.draw(page, MARGIN, PAGE_H - HEADER_H + 8, 20);
-  }
-
+  if (ctx.logo) ctx.logo.draw(page, MARGIN, PAGE_H - HEADER_H + 8, 20);
   page.drawLine({
     start: { x: MARGIN, y: FOOTER_H - 2 },
     end: { x: PAGE_W - MARGIN, y: FOOTER_H - 2 },
     thickness: 0.6,
     color: rgb(0.86, 0.86, 0.87),
   });
-
   const baseline = 16;
   if (ctx.pied.agent) {
     page.drawText(latin1(ctx.pied.agent), {
@@ -263,7 +255,6 @@ function dessinerGabarit(
       color: INK,
     });
   }
-
   const droite = [ctx.pied.bien, ctx.pied.date, ctx.pied.page].filter((s): s is string => Boolean(s));
   let y = baseline + 10;
   for (const ligne of droite.reverse()) {
@@ -279,4 +270,3 @@ function dessinerGabarit(
     y -= 11;
   }
 }
-

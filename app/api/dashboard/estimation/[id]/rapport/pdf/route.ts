@@ -4,11 +4,11 @@ import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
 import { piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
-import { genererPdfRapport } from '@/lib/rapport/pdf';
+import { ChromiumIndisponible, genererPdfRapport } from '@/lib/rapport/pdf';
 import { pageExportable } from '@/lib/rapport/pages';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,14 +33,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Ajoutez au moins une page au rapport' }, { status: 400 });
   }
 
-  const pdf = await genererPdfRapport({
-    agence: assemble.agence,
-    agent: assemble.agent,
-    bien: piedBienDepuisEstimation(ctx.estimation),
-    dateIso: ctx.estimation.updatedAt,
-    pages,
-    dossier: assemble.dossier,
-  });
+  let pdf: Uint8Array;
+  try {
+    pdf = await genererPdfRapport({
+      agence: assemble.agence,
+      agent: assemble.agent,
+      bien: piedBienDepuisEstimation(ctx.estimation),
+      dateIso: ctx.estimation.updatedAt,
+      pages,
+      dossier: assemble.dossier,
+    });
+  } catch (err) {
+    if (err instanceof ChromiumIndisponible) {
+      return NextResponse.json(
+        {
+          error: 'Impression serveur indisponible. Utilisez Imprimer depuis le navigateur.',
+          imprimer: `/imprimer/estimation/${id}`,
+        },
+        { status: 503 },
+      );
+    }
+    throw err;
+  }
 
   const nom = ctx.estimation.address?.trim()
     ? `avis-de-valeur-${ctx.estimation.address.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 48)}.pdf`

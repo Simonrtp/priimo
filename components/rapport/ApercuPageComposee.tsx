@@ -1,5 +1,6 @@
 import ContenuPageModele from '@/components/rapport/ContenuPageModele';
-import PageGeneree from '@/components/rapport/genere/PageGeneree';
+import PageGenereeHtml from '@/components/rapport/print/PageGenereeHtml';
+import { PrintStyles } from '@/components/rapport/print/Gabarit';
 import { estDisposition } from '@/lib/rapport/modele';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
 import type { PageRapportComposee } from '@/lib/rapport/pages';
@@ -33,7 +34,12 @@ export default function ApercuPageComposee({
         </div>
       );
     }
-    return <PageGeneree kind={page.kindGeneree} dossier={dossier} accent={accent} />;
+    return (
+      <div className="avis-print h-full">
+        <PrintStyles />
+        <PageGenereeHtml kind={page.kindGeneree} dossier={dossier} accent={accent} />
+      </div>
+    );
   }
   if (page.kind === 'modele' && page.disposition && estDisposition(page.disposition)) {
     return (

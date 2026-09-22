@@ -132,7 +132,7 @@ export default function ModePresentationRapport({
             dateIso={dateIso}
             page={max === 0 ? 1 : courant + 1}
             pages={Math.max(max, 1)}
-            sansChrome={page?.kindGeneree === 'couverture'}
+            sansChrome={page?.kind === 'generee'}
           >
             <ApercuPageComposee page={page} accent={accent} dossier={dossier} />
           </PageRapport>
