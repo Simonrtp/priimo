@@ -20,7 +20,7 @@ import {
   nomFichierPropre,
 } from '@/lib/rapport/pages';
 import { cheminBiblio, deposerRapport, signerCheminRapport } from '@/lib/rapport/storage';
-import { compterPagesPdf } from '@/lib/rapport/pdf';
+import { compterPagesPdf } from '@/lib/rapport/pdf-compter';
 import { peutEditerBibliotheque } from '@/lib/rapport/propriete';
 import type { DispositionPageAgence } from '@/types/database';
 

@@ -13,7 +13,7 @@ import {
   nomFichierPropre,
 } from '@/lib/rapport/pages';
 import { cheminImport, deposerRapport, signerCheminRapport } from '@/lib/rapport/storage';
-import { compterPagesPdf } from '@/lib/rapport/pdf';
+import { compterPagesPdf } from '@/lib/rapport/pdf-compter';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;

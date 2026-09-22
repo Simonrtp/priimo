@@ -23,9 +23,11 @@ import type { DossierRapport } from '@/lib/rapport/genere/types';
 import type { KindGeneree } from '@/lib/rapport/modele-defaut';
 import { ChromiumIndisponible, imprimerHtmlEnPdf } from '@/lib/rapport/print/chromium';
 import { htmlPagesGenerees } from '@/lib/rapport/print/document';
+import { compterPagesPdf } from '@/lib/rapport/pdf-compter';
 
 export const PAGE_W = 841.89;
 export const PAGE_H = 595.28;
+export { compterPagesPdf };
 const HEADER_H = 36;
 const FOOTER_H = 42;
 const MARGIN = 22;
@@ -38,11 +40,6 @@ function couleurAccent(hex: string) {
 }
 
 export type PageExport = PageRapportComposee;
-
-export async function compterPagesPdf(bytes: Uint8Array): Promise<number> {
-  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-  return doc.getPageCount();
-}
 
 export { ChromiumIndisponible };
 
