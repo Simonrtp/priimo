@@ -66,9 +66,9 @@ function dossier(over: Partial<DossierRapport> = {}): DossierRapport {
 }
 
 describe('complétude des pages générées', () => {
-  it('marque le secteur incomplet sans IRIS', () => {
+  it('affiche le secteur même sans IRIS', () => {
     const c = completudePage('secteur', dossier());
-    assert.ok(c.manques.length > 0);
+    assert.deepEqual(c.manques, []);
   });
 
   it('accepte la couverture typographique sans photo', () => {
@@ -81,8 +81,8 @@ describe('complétude des pages générées', () => {
     assert.ok(c.manques.includes('Valeur estimée'));
   });
 
-  it('n’invente pas l’étude concurrentielle sans annonce', () => {
+  it('affiche l’étude concurrentielle même sans annonce', () => {
     const c = completudePage('concurrentiel', dossier({ annonces: [] }));
-    assert.ok(c.manques.length > 0);
+    assert.deepEqual(c.manques, []);
   });
 });

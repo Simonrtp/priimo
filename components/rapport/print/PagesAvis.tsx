@@ -457,26 +457,30 @@ export function PageDescription({ d, accent }: { d: DossierRapport; accent: stri
 }
 
 export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }) {
-  const iris = d.iris!;
-  const phrase = phraseSecteur({
-    commune: iris.commune,
-    partAppartements: iris.partAppartements,
-    piecesDominant: iris.piecesDominant,
-    epoque: iris.epoque,
-    partProprietaires: iris.partProprietaires,
-    partLocataires: iris.partLocataires,
-  });
+  const iris = d.iris;
+  const phrase = iris
+    ? phraseSecteur({
+        commune: iris.commune,
+        partAppartements: iris.partAppartements,
+        piecesDominant: iris.piecesDominant,
+        epoque: iris.epoque,
+        partProprietaires: iris.partProprietaires,
+        partLocataires: iris.partLocataires,
+      })
+    : null;
   return (
     <GabaritPage titre="Le secteur" accent={accent}>
       <div className="avis-grille avis-grille-2" style={{ flex: 1 }}>
-        <Carte flex>
-          {iris.partAppartements != null ? <Fait label="Part d’appartements" valeur={formatPct(iris.partAppartements)} /> : null}
-          {iris.piecesDominant != null ? <Fait label="Pièces dominantes" valeur={String(iris.piecesDominant)} /> : null}
-          {iris.epoque ? <Fait label="Époque dominante" valeur={iris.epoque} /> : null}
-          {iris.partProprietaires != null ? <Fait label="Propriétaires" valeur={formatPct(iris.partProprietaires)} /> : null}
-          {iris.partLocataires != null ? <Fait label="Locataires" valeur={formatPct(iris.partLocataires)} /> : null}
-          {phrase ? <p className="avis-muted" style={{ marginTop: 'auto', fontSize: '0.82rem' }}>{phrase}</p> : null}
-        </Carte>
+        {iris ? (
+          <Carte flex>
+            {iris.partAppartements != null ? <Fait label="Part d’appartements" valeur={formatPct(iris.partAppartements)} /> : null}
+            {iris.piecesDominant != null ? <Fait label="Pièces dominantes" valeur={String(iris.piecesDominant)} /> : null}
+            {iris.epoque ? <Fait label="Époque dominante" valeur={iris.epoque} /> : null}
+            {iris.partProprietaires != null ? <Fait label="Propriétaires" valeur={formatPct(iris.partProprietaires)} /> : null}
+            {iris.partLocataires != null ? <Fait label="Locataires" valeur={formatPct(iris.partLocataires)} /> : null}
+            {phrase ? <p className="avis-muted" style={{ marginTop: 'auto', fontSize: '0.82rem' }}>{phrase}</p> : null}
+          </Carte>
+        ) : null}
         {d.latitude != null && d.longitude != null ? (
           <Carte flex>
             {/* eslint-disable-next-line @next/next/no-img-element */}

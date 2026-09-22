@@ -24,16 +24,6 @@ export default function ApercuPageComposee({
     );
   }
   if (page.kind === 'generee' && page.kindGeneree && dossier) {
-    if (page.manques.length > 0) {
-      return (
-        <div className="flex h-full flex-col items-center justify-center gap-2 px-8">
-          <p className="text-[13.5px] font-semibold text-text-strong">Page incomplète</p>
-          <p className="text-pretty text-center text-[13px] text-text-muted">
-            {page.manques.join(' · ')}
-          </p>
-        </div>
-      );
-    }
     return (
       <div className="avis-print h-full">
         <PrintStyles />

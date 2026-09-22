@@ -241,25 +241,27 @@ function Immeuble({ d, accent }: { d: DossierRapport; accent: string }) {
 }
 
 function Secteur({ d, accent }: { d: DossierRapport; accent: string }) {
-  const iris = d.iris!;
-  const phrase = phraseSecteur({
-    commune: iris.commune,
-    partAppartements: iris.partAppartements,
-    piecesDominant: iris.piecesDominant,
-    epoque: iris.epoque,
-    partProprietaires: iris.partProprietaires,
-    partLocataires: iris.partLocataires,
-  });
+  const iris = d.iris;
+  const phrase = iris
+    ? phraseSecteur({
+        commune: iris.commune,
+        partAppartements: iris.partAppartements,
+        piecesDominant: iris.piecesDominant,
+        epoque: iris.epoque,
+        partProprietaires: iris.partProprietaires,
+        partLocataires: iris.partLocataires,
+      })
+    : null;
   return (
     <Cadre>
       <TitrePage accent={accent}>Le secteur</TitrePage>
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
-          {iris.partAppartements != null ? <Fait label="Part d’appartements" valeur={formatPct(iris.partAppartements)} /> : null}
-          {iris.piecesDominant != null ? <Fait label="Pièces dominantes" valeur={String(iris.piecesDominant)} /> : null}
-          {iris.epoque ? <Fait label="Époque dominante" valeur={iris.epoque} /> : null}
-          {iris.partProprietaires != null ? <Fait label="Propriétaires" valeur={formatPct(iris.partProprietaires)} /> : null}
-          {iris.partLocataires != null ? <Fait label="Locataires" valeur={formatPct(iris.partLocataires)} /> : null}
+          {iris?.partAppartements != null ? <Fait label="Part d’appartements" valeur={formatPct(iris.partAppartements)} /> : null}
+          {iris?.piecesDominant != null ? <Fait label="Pièces dominantes" valeur={String(iris.piecesDominant)} /> : null}
+          {iris?.epoque ? <Fait label="Époque dominante" valeur={iris.epoque} /> : null}
+          {iris?.partProprietaires != null ? <Fait label="Propriétaires" valeur={formatPct(iris.partProprietaires)} /> : null}
+          {iris?.partLocataires != null ? <Fait label="Locataires" valeur={formatPct(iris.partLocataires)} /> : null}
           {phrase ? <Encadre>{phrase}</Encadre> : null}
         </div>
         <div className="flex min-h-0 flex-col gap-2">

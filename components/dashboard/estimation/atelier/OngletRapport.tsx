@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, GripVertical, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, GripVertical, Trash2 } from 'lucide-react';
 import {
   DndContext,
   KeyboardSensor,
@@ -24,7 +24,6 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import PageRapport from '@/components/rapport/PageRapport';
 import ApercuPageComposee from '@/components/rapport/ApercuPageComposee';
-import ModePresentationRapport from '@/components/dashboard/estimation/atelier/ModePresentationRapport';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
@@ -73,7 +72,6 @@ export default function OngletRapport({
   const [message, setMessage] = useState('');
   const [envois, setEnvois] = useState<EnvoiRapport[]>([]);
   const [envoi, setEnvoi] = useState(false);
-  const [presentation, setPresentation] = useState(false);
   const [exportEnCours, setExportEnCours] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -291,41 +289,78 @@ export default function OngletRapport({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <WorkspaceButton type="button" variant="secondary" onClick={() => setBiblioOuverte((o) => !o)}>
-            Bibliothèque
-          </WorkspaceButton>
-          <WorkspaceButton type="button" variant="secondary" onClick={() => importRef.current?.click()}>
-            Importer un PDF
-          </WorkspaceButton>
-          <WorkspaceButton
-            type="button"
-            variant="secondary"
-            disabled={vide || pages.filter(pagePourPdf).length === 0}
-            title={vide ? 'Ajoutez au moins une page pour présenter' : undefined}
-            onClick={() => setPresentation(true)}
-          >
-            Présenter
-          </WorkspaceButton>
-          <WorkspaceButton
-            type="button"
-            variant="secondary"
-            disabled={vide || pages.filter(pagePourPdf).length === 0}
-            title={vide ? 'Ajoutez au moins une page pour imprimer' : undefined}
-            onClick={() => window.open(`/imprimer/estimation/${estimation.id}`, '_blank', 'noopener')}
-          >
-            Imprimer
-          </WorkspaceButton>
+      <div className="flex flex-col items-start gap-2">
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <WorkspaceButton type="button" variant="secondary" onClick={() => importRef.current?.click()}>
+              Importer un PDF
+            </WorkspaceButton>
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              disabled={vide || pages.filter(pagePourPdf).length === 0}
+              title={vide ? 'Ajoutez au moins une page pour imprimer' : undefined}
+              onClick={() => window.open(`/imprimer/estimation/${estimation.id}`, '_blank', 'noopener')}
+            >
+              Imprimer
+            </WorkspaceButton>
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              aria-expanded={biblioOuverte}
+              aria-controls="rapport-bibliotheque"
+              onClick={() => setBiblioOuverte((o) => !o)}
+            >
+              Bibliothèque
+              {biblio.length > 0 ? (
+                <span className="font-normal tabular-nums text-text-muted">({biblio.length})</span>
+              ) : null}
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
+                aria-hidden
+                className={`shrink-0 ${biblioOuverte ? 'rotate-180' : ''}`}
+              />
+            </WorkspaceButton>
+          </div>
           <WorkspaceButton
             type="button"
             disabled={vide || exportEnCours || pages.filter(pagePourPdf).length === 0}
-            title={vide ? 'Ajoutez au moins une page pour exporter' : undefined}
+            title={vide ? 'Ajoutez au moins une page pour télécharger' : undefined}
             onClick={() => void exporter()}
           >
-            {exportEnCours ? 'Export…' : 'Exporter'}
+            {exportEnCours ? 'Téléchargement…' : 'Télécharger en PDF'}
           </WorkspaceButton>
         </div>
+        {biblioOuverte ? (
+          <div
+            id="rapport-bibliotheque"
+            className="w-fit min-w-[14rem] max-w-sm rounded-clay border border-black/[0.08] bg-surface px-3 py-2.5"
+          >
+            <p className="text-[13px] font-semibold text-text-strong">Pages de l’agence</p>
+            {biblio.length === 0 ? (
+              <p className="mt-1.5 text-pretty text-[13px] text-text-muted">
+                Aucune page en bibliothèque. Le directeur les crée dans le modèle de rapport.
+              </p>
+            ) : (
+              <ul className="mt-1.5 flex flex-col gap-1">
+                {biblio.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-[13.5px] text-text">
+                      {p.nom}
+                      <span className="text-text-muted">
+                        {p.pageCount > 1 ? ` · ${p.pageCount} pages` : ''}
+                      </span>
+                    </span>
+                    <WorkspaceButton type="button" variant="secondary" onClick={() => void ajouterBiblio(p.id)}>
+                      Ajouter
+                    </WorkspaceButton>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <input
@@ -335,33 +370,6 @@ export default function OngletRapport({
         className="sr-only"
         onChange={(e) => void importer(e.target.files?.[0])}
       />
-
-      {biblioOuverte ? (
-        <div className="rounded-clay border border-black/[0.06] bg-surface p-3">
-          <p className="text-[13px] font-semibold text-text-strong">Pages de l’agence</p>
-          {biblio.length === 0 ? (
-            <p className="mt-2 text-pretty text-[13px] text-text-muted">
-              Aucune page en bibliothèque. Le directeur les crée dans le modèle de rapport.
-            </p>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {biblio.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-[13.5px] text-text">
-                    {p.nom}
-                    <span className="text-text-muted">
-                      {p.pageCount > 1 ? ` · ${p.pageCount} pages` : ''}
-                    </span>
-                  </span>
-                  <WorkspaceButton type="button" variant="secondary" onClick={() => void ajouterBiblio(p.id)}>
-                    Ajouter
-                  </WorkspaceButton>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
         <div className="rounded-clay border border-black/[0.06] bg-surface p-2">
@@ -512,27 +520,6 @@ export default function OngletRapport({
         </div>
       </div>
 
-      {presentation && agence && agent && pages.filter(pagePourPdf).length > 0 ? (
-        <ModePresentationRapport
-          pages={pages.filter(pagePourPdf)}
-          index={Math.min(
-            pages.filter(pagePourPdf).findIndex((p) => p.id === courante?.id),
-            pages.filter(pagePourPdf).length - 1,
-          )}
-          onIndex={(i) => {
-            const exportables = pages.filter(pagePourPdf);
-            const cible = exportables[i];
-            if (cible) setIndex(pages.findIndex((p) => p.id === cible.id));
-          }}
-          onFermer={() => setPresentation(false)}
-          agence={agence}
-          agent={agent}
-          bien={bien}
-          dateIso={dateIso}
-          dossier={dossier}
-        />
-      ) : null}
-
       <ConfirmModal
         open={pending !== null}
         onClose={() => setPending(null)}
@@ -589,11 +576,6 @@ function LigneComposee({
       >
         <span className="mr-1.5 tabular-nums text-text-muted">{index + 1}.</span>
         {page.nom}
-        {page.kind === 'generee' && page.manques.length > 0 ? (
-          <span className="ml-1.5 text-[11px] font-normal text-text-muted" title={page.manques.join(', ')}>
-            incomplète — {page.manques.join(', ')}
-          </span>
-        ) : null}
       </button>
       <button
         type="button"
