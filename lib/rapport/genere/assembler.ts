@@ -58,7 +58,7 @@ export async function assemblerRapport(
     dossier,
     agence,
     agent,
-    emailModele: params.rapport_email_modele,
+    emailModele: params.rapport_email_modele ?? null,
   };
 }
 

@@ -94,25 +94,25 @@ describe('modèle de rapport', () => {
       'Page retirée',
     );
     assert.equal(nomSlotModele({ source: 'generee', kindGeneree: 'prix' }, new Map()), 'Notre estimation');
+  });
 
   it('insère les pages générées autour de la bibliothèque', () => {
     const slots = insererPagesGenerees([
       { source: 'bibliotheque', bibliothequeId: 'b1' },
       { source: 'generee', kindGeneree: 'prix' },
     ]);
-    assert.equal(slots[0]?.source, 'generee');
-    if (slots[0]?.source === 'generee') assert.equal(slots[0].kindGeneree, 'couverture');
-    assert.equal(slots[slots.length - 1]?.source, 'generee');
-    if (slots[slots.length - 1]?.source === 'generee') {
-      assert.equal(slots[slots.length - 1].kindGeneree, 'prochaine_etape');
-    }
+    const premiere = slots[0];
+    const derniere = slots[slots.length - 1];
+    assert.equal(premiere?.source, 'generee');
+    if (premiere?.source === 'generee') assert.equal(premiere.kindGeneree, 'couverture');
+    assert.equal(derniere?.source, 'generee');
+    if (derniere?.source === 'generee') assert.equal(derniere.kindGeneree, 'prochaine_etape');
     const biblio = slots.filter((s) => s.source === 'bibliotheque');
     assert.equal(biblio.length, 1);
     const idxPrix = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prix');
     const idxBiblio = slots.findIndex((s) => s.source === 'bibliotheque');
     const idxFin = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prochaine_etape');
     assert.ok(idxPrix < idxBiblio && idxBiblio < idxFin);
-  });
   });
 
   it('reprend le texte d’agence, sinon le texte Priimo', () => {

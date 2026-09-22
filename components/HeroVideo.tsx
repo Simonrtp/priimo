@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
-const VIDEO_SRC = "/priimo-video-v2.mp4";
+const VIDEO_SRC = "/priimo-film-heros.mp4";
 const AUTOPLAY_DELAY_MS = 1500;
 const CONTROL_COLOR = "#6366F1";
 const MAGNETIC_MAX = 58;
@@ -405,12 +405,14 @@ export default function HeroVideo() {
       >
         <video
           ref={videoRef}
-          className={`pointer-events-none block h-full w-full object-cover transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
+          className={`pointer-events-none block h-full w-full object-contain transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
           src={VIDEO_SRC}
+          width={1920}
+          height={1080}
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           aria-hidden
         />
 

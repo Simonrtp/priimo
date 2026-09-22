@@ -303,86 +303,68 @@ async function chargerPublic(
   const cp = e.postalCode;
   if (!cp) return vide;
 
-  const pub = session as unknown as {
-    from: (t: string) => {
-      select: (c: string) => {
-        eq: (a: string, b: string) => ReturnType<typeof eqChain>;
-        order: (c: string, o: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: unknown }>; };
-        limit: (n: number) => Promise<{ data: unknown }>;
-      };
-    };
-  };
-  function eqChain(this: unknown) {
-    return this as {
-      eq: (a: string, b: string) => ReturnType<typeof eqChain>;
-      order: (c: string, o: { ascending: boolean }) => {
-        limit: (n: number) => Promise<{ data: unknown }>;
-      };
-      maybeSingle: () => Promise<{ data: unknown }>;
-      limit: (n: number) => Promise<{ data: unknown }>;
-    };
-  }
-
-  const q = (table: string, cols: string) => pub.from(table).select(cols);
-
   const irisPromise = (async () => {
     let irisCode: string | null = null;
     if (e.banId) {
-      const { data } = await q('iris_adresses', 'iris_code').eq('ban_id', e.banId).maybeSingle();
-      irisCode = texte((data as { iris_code?: string } | null)?.iris_code);
+      const { data } = await session
+        .from('iris_adresses')
+        .select('iris_code')
+        .eq('ban_id', e.banId)
+        .maybeSingle();
+      irisCode = texte(data?.iris_code);
     }
     if (!irisCode && e.parcelleId) {
-      const { data } = await q('iris_adresses', 'iris_code').eq('parcelle_id', e.parcelleId).maybeSingle();
-      irisCode = texte((data as { iris_code?: string } | null)?.iris_code);
+      const { data } = await session
+        .from('iris_adresses')
+        .select('iris_code')
+        .eq('parcelle_id', e.parcelleId)
+        .maybeSingle();
+      irisCode = texte(data?.iris_code);
     }
     if (!irisCode) return null;
-    const { data } = await q(
-      'iris_logement',
-      'iris_code, commune, part_appartements, pieces_dominant, epoque_construction_dominante, part_proprietaires, part_locataires',
-    )
+    const { data } = await session
+      .from('iris_logement')
+      .select(
+        'iris_code, commune, part_appartements, pieces_dominant, epoque_construction_dominante, part_proprietaires, part_locataires',
+      )
       .eq('iris_code', irisCode)
       .maybeSingle();
-    const row = data as Record<string, unknown> | null;
-    if (!row) return null;
+    if (!data) return null;
     return {
       irisCode,
-      commune: texte(row.commune),
-      partAppartements: num(row.part_appartements),
-      piecesDominant: num(row.pieces_dominant),
-      epoque: texte(row.epoque_construction_dominante),
-      partProprietaires: num(row.part_proprietaires),
-      partLocataires: num(row.part_locataires),
+      commune: texte(data.commune),
+      partAppartements: num(data.part_appartements),
+      piecesDominant: num(data.pieces_dominant),
+      epoque: texte(data.epoque_construction_dominante),
+      partProprietaires: num(data.part_proprietaires),
+      partLocataires: num(data.part_locataires),
     } satisfies IrisLogement;
   })();
 
-  const annoncesPromise = q(
-    'annonces_marche',
-    'id, type_local, surface_m2, pieces, prix, prix_m2, date_releve, date_premiere_vue, prix_initial, statut',
-  )
-    .eq('code_postal', cp)
-    .order('date_releve', { ascending: false })
-    .limit(80);
-
+  const poiBase = session
+    .from('equipements_proximite')
+    .select('id, categorie, nom, distance_m, latitude, longitude');
   const poiQ = e.banId
-    ? q('equipements_proximite', 'id, categorie, nom, distance_m, latitude, longitude').eq('ban_id', e.banId)
+    ? poiBase.eq('ban_id', e.banId)
     : e.parcelleId
-      ? q('equipements_proximite', 'id, categorie, nom, distance_m, latitude, longitude').eq(
-          'parcelle_id',
-          e.parcelleId,
-        )
-      : q('equipements_proximite', 'id, categorie, nom, distance_m, latitude, longitude').eq('code_postal', cp);
+      ? poiBase.eq('parcelle_id', e.parcelleId)
+      : poiBase.eq('code_postal', cp);
 
+  const fixeBase = session
+    .from('connectivite_fixe')
+    .select('technologie, operateur, eligible, debit_max_mbps');
   const fixeQ = e.banId
-    ? q('connectivite_fixe', 'technologie, operateur, eligible, debit_max_mbps').eq('ban_id', e.banId)
+    ? fixeBase.eq('ban_id', e.banId)
     : e.parcelleId
-      ? q('connectivite_fixe', 'technologie, operateur, eligible, debit_max_mbps').eq('parcelle_id', e.parcelleId)
-      : q('connectivite_fixe', 'technologie, operateur, eligible, debit_max_mbps').eq('code_postal', cp);
+      ? fixeBase.eq('parcelle_id', e.parcelleId)
+      : fixeBase.eq('code_postal', cp);
 
+  const mobileBase = session.from('connectivite_mobile').select('operateur, generation, niveau');
   const mobileQ = e.banId
-    ? q('connectivite_mobile', 'operateur, generation, niveau').eq('ban_id', e.banId)
+    ? mobileBase.eq('ban_id', e.banId)
     : e.parcelleId
-      ? q('connectivite_mobile', 'operateur, generation, niveau').eq('parcelle_id', e.parcelleId)
-      : q('connectivite_mobile', 'operateur, generation, niveau').eq('code_postal', cp);
+      ? mobileBase.eq('parcelle_id', e.parcelleId)
+      : mobileBase.eq('code_postal', cp);
 
   const [
     iris,
@@ -395,22 +377,27 @@ async function chargerPublic(
     effortRes,
   ] = await Promise.all([
     irisPromise,
-    annoncesPromise,
+    session
+      .from('annonces_marche')
+      .select(
+        'id, type_local, surface_m2, pieces, prix, prix_m2, date_releve, date_premiere_vue, prix_initial, statut',
+      )
+      .eq('code_postal', cp)
+      .order('date_releve', { ascending: false })
+      .limit(80),
     poiQ.order('distance_m', { ascending: true }).limit(40),
     fixeQ.limit(40),
     mobileQ.limit(40),
-    q(
-      'permis_urbanisme',
-      'id, numero, type_autorisation, date_decision, adresse, commune, distance_m, latitude, longitude',
-    )
+    session
+      .from('permis_urbanisme')
+      .select('id, numero, type_autorisation, date_decision, adresse, commune, distance_m, latitude, longitude')
       .eq('code_postal', cp)
       .order('date_decision', { ascending: false })
       .limit(20),
-    q('taux_oat', 'date, taux').order('date', { ascending: false }).limit(60),
-    q(
-      'effort_achat',
-      'annees_revenu_median_secteur, annees_revenu_median_departement, annees_revenu_median_france',
-    )
+    session.from('taux_oat').select('date, taux').order('date', { ascending: false }).limit(60),
+    session
+      .from('effort_achat')
+      .select('annees_revenu_median_secteur, annees_revenu_median_departement, annees_revenu_median_france')
       .eq('code_postal', cp)
       .maybeSingle(),
   ]);

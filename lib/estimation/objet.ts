@@ -158,14 +158,18 @@ export function parseAnnexes(raw: unknown): EstimationAnnexe[] {
 
 export function parsePhotos(raw: unknown): EstimationPhoto[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => {
-      const o = asObject(item);
-      const url = asText(o.url);
-      if (!url) return null;
-      return { url, kind: o.kind === 'plan' ? 'plan' : 'photo', couverture: o.couverture === true };
-    })
-    .filter((p): p is EstimationPhoto => p != null);
+  const out: EstimationPhoto[] = [];
+  for (const item of raw) {
+    const o = asObject(item);
+    const url = asText(o.url);
+    if (!url) continue;
+    out.push({
+      url,
+      kind: o.kind === 'plan' ? 'plan' : 'photo',
+      couverture: o.couverture === true,
+    });
+  }
+  return out;
 }
 
 export function parseListe(raw: unknown): string[] {

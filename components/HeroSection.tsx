@@ -22,9 +22,11 @@ export default function HeroSection() {
           <Reveal direction="up">
             <h1 className="text-hero headline mx-auto mb-5 flex max-w-6xl flex-col items-center text-center sm:mb-6">
               <span className="w-full text-balance text-gray-900">
-                Le CRM immobilier pensé pour
+                Le CRM immobilier pensé
+                <span className="sm:hidden"> pour</span>
               </span>
-              <span className="mt-[0.12em] flex items-center justify-center text-gray-900">
+              <span className="mt-[0.12em] flex w-full items-center justify-center gap-[0.3em] text-gray-900">
+                <span className="hidden sm:inline">pour</span>
                 <span className="sr-only">
                   le terrain, la prospection et la data
                 </span>
@@ -72,7 +74,7 @@ export default function HeroSection() {
 
       {/* Démo produit — vidéo en boucle */}
       <div className="relative mx-auto mt-6 min-w-0 w-full max-w-4xl px-2 sm:mt-8 sm:max-w-[980px] sm:px-4 lg:max-w-[1120px]">
-        <Reveal direction="scale" delay={180}>
+        <Reveal direction="fade" delay={180}>
           <div className="relative mx-auto w-full min-w-0 overflow-hidden rounded-[20px] bg-white shadow-[0_40px_100px_-36px_rgba(30,27,75,0.36)] ring-1 ring-black/[0.06] sm:rounded-[24px]">
             <HeroVideo />
           </div>
