@@ -28,7 +28,7 @@ import ModePresentationRapport from '@/components/dashboard/estimation/atelier/M
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
-import { pageExportable } from '@/lib/rapport/pages';
+import { pagePourPdf } from '@/lib/rapport/pages';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
 import {
   normaliserCouleurPrincipale,
@@ -74,6 +74,7 @@ export default function OngletRapport({
   const [envois, setEnvois] = useState<EnvoiRapport[]>([]);
   const [envoi, setEnvoi] = useState(false);
   const [presentation, setPresentation] = useState(false);
+  const [exportEnCours, setExportEnCours] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const onEtatChangeRef = useRef(onEtatChange);
@@ -240,22 +241,29 @@ export default function OngletRapport({
   }
 
   async function exporter() {
-    if (vide) return;
-    const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/pdf`);
-    if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string; imprimer?: string };
-      notifyError(data.error ?? 'Export impossible');
-      if (data.imprimer) window.open(data.imprimer, '_blank', 'noopener');
-      return;
+    if (vide || exportEnCours) return;
+    setExportEnCours(true);
+    try {
+      const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/pdf`);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string; imprimer?: string };
+        notifyError(data.error ?? 'Export impossible');
+        if (data.imprimer) window.open(data.imprimer, '_blank', 'noopener');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'avis-de-valeur.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+      notifySuccess('PDF téléchargé');
+    } catch {
+      notifyError('Export impossible');
+    } finally {
+      setExportEnCours(false);
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'avis-de-valeur.pdf';
-    a.click();
-    URL.revokeObjectURL(url);
-    notifySuccess('PDF téléchargé');
   }
 
   async function envoyer() {
@@ -284,9 +292,6 @@ export default function OngletRapport({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <p className="text-pretty text-[13.5px] text-text-muted">
-          Composez le rapport remis à votre client : pages de l’agence, réordonnées ou importées pour ce dossier.
-        </p>
         <div className="flex flex-wrap gap-2">
           <WorkspaceButton type="button" variant="secondary" onClick={() => setBiblioOuverte((o) => !o)}>
             Bibliothèque
@@ -297,7 +302,7 @@ export default function OngletRapport({
           <WorkspaceButton
             type="button"
             variant="secondary"
-            disabled={vide || pages.filter(pageExportable).length === 0}
+            disabled={vide || pages.filter(pagePourPdf).length === 0}
             title={vide ? 'Ajoutez au moins une page pour présenter' : undefined}
             onClick={() => setPresentation(true)}
           >
@@ -306,7 +311,7 @@ export default function OngletRapport({
           <WorkspaceButton
             type="button"
             variant="secondary"
-            disabled={vide || pages.filter(pageExportable).length === 0}
+            disabled={vide || pages.filter(pagePourPdf).length === 0}
             title={vide ? 'Ajoutez au moins une page pour imprimer' : undefined}
             onClick={() => window.open(`/imprimer/estimation/${estimation.id}`, '_blank', 'noopener')}
           >
@@ -314,11 +319,11 @@ export default function OngletRapport({
           </WorkspaceButton>
           <WorkspaceButton
             type="button"
-            disabled={vide}
+            disabled={vide || exportEnCours || pages.filter(pagePourPdf).length === 0}
             title={vide ? 'Ajoutez au moins une page pour exporter' : undefined}
             onClick={() => void exporter()}
           >
-            Exporter
+            {exportEnCours ? 'Export…' : 'Exporter'}
           </WorkspaceButton>
         </div>
       </div>
@@ -507,15 +512,15 @@ export default function OngletRapport({
         </div>
       </div>
 
-      {presentation && agence && agent && pages.filter(pageExportable).length > 0 ? (
+      {presentation && agence && agent && pages.filter(pagePourPdf).length > 0 ? (
         <ModePresentationRapport
-          pages={pages.filter(pageExportable)}
+          pages={pages.filter(pagePourPdf)}
           index={Math.min(
-            pages.filter(pageExportable).findIndex((p) => p.id === courante?.id),
-            pages.filter(pageExportable).length - 1,
+            pages.filter(pagePourPdf).findIndex((p) => p.id === courante?.id),
+            pages.filter(pagePourPdf).length - 1,
           )}
           onIndex={(i) => {
-            const exportables = pages.filter(pageExportable);
+            const exportables = pages.filter(pagePourPdf);
             const cible = exportables[i];
             if (cible) setIndex(pages.findIndex((p) => p.id === cible.id));
           }}

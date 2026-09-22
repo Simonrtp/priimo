@@ -5,7 +5,7 @@ import { refuserSiEstimationFermee } from '@/lib/billing/exiger';
 import { ESTIMATION_SELECT, mapEstimation } from '@/lib/estimation/objet';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
-import { pageExportable } from '@/lib/rapport/pages';
+import { pagePourPdf } from '@/lib/rapport/pages';
 import { normaliserCouleurPrincipale } from '@/lib/rapport/identite';
 import PageGenereeHtml from '@/components/rapport/print/PageGenereeHtml';
 import { PrintStyles } from '@/components/rapport/print/Gabarit';
@@ -53,7 +53,7 @@ export default async function ImprimerAvisPage({ params }: { params: Promise<{ i
     redirect('/dashboard');
   }
 
-  const pages = assemble.pages.filter(pageExportable);
+  const pages = assemble.pages.filter(pagePourPdf);
   const accent = normaliserCouleurPrincipale(assemble.agence.couleurPrincipale);
   const dossier = assemble.dossier;
 

@@ -34,12 +34,8 @@ describe('etapeValidee', () => {
     );
   });
 
-  it('coche les caractéristiques si la grille a une note, ou si on est passé après', () => {
-    assert.equal(etapeValidee(fiche({}), 'caracteristiques', 0), false);
-    assert.equal(
-      etapeValidee(fiche({ grille: { standing: { valeur: 4, source: 'agent' } } }), 'caracteristiques'),
-      true,
-    );
-    assert.equal(etapeValidee(fiche({}), 'caracteristiques', 3), true);
+  it('coche l’estimation dès qu’un prix est posé', () => {
+    assert.equal(etapeValidee(fiche({}), 'estimation'), false);
+    assert.equal(etapeValidee(fiche({ priceValue: 400_000 }), 'estimation'), true);
   });
 });

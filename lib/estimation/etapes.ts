@@ -1,10 +1,8 @@
-import { criteresRenseignes } from '@/lib/estimation/grille';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 
 export const ETAPES_ATELIER = [
   { id: 'client', label: 'Client' },
   { id: 'bien', label: 'Le bien' },
-  { id: 'caracteristiques', label: 'Caractéristiques' },
   { id: 'estimation', label: 'Estimation' },
   { id: 'rapport', label: 'Rapport' },
 ] as const;
@@ -39,13 +37,9 @@ export function etapeRapportOk(
 export function etapeValidee(
   e: EstimationObjet,
   id: EtapeAtelierId,
-  atteint = 0,
 ): boolean {
   if (id === 'client') return etapeClientOk(e);
   if (id === 'bien') return etapeBienOk(e);
-  if (id === 'caracteristiques') {
-    return criteresRenseignes(e.grille) > 0 || atteint > indexEtape('caracteristiques');
-  }
   if (id === 'estimation') return etapeEstimationOk(e);
   return e.etat === 'envoyee' || e.etat === 'mandat_signe';
 }
@@ -71,7 +65,7 @@ export function indexDepuisDonnees(e: EstimationObjet): number {
   if (!etapeClientOk(e)) return 0;
   if (!etapeBienOk(e)) return 1;
   if (!etapeEstimationOk(e)) return 2;
-  return 4;
+  return 3;
 }
 
 export function indexMaxAccessible(e: EstimationObjet, atteint: number): number {
@@ -91,6 +85,5 @@ export function etapeAccessible(
 export function etapeInitiale(e: EstimationObjet): EtapeAtelierId {
   if (!etapeClientOk(e)) return 'client';
   if (!etapeBienOk(e)) return 'bien';
-  if (!etapeEstimationOk(e)) return 'caracteristiques';
   return 'estimation';
 }

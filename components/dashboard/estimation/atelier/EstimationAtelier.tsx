@@ -8,7 +8,6 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import type { EstimationObjet } from '@/lib/estimation/objet';
-import type { AxeRadar } from '@/lib/estimation/grille';
 import { fusionnerGrille } from '@/lib/estimation/grille';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
 import {
@@ -28,7 +27,6 @@ import {
 } from '@/lib/estimation/etapes';
 import OngletClient from './OngletClient';
 import OngletBien from './OngletBien';
-import OngletCaracteristiques from './OngletCaracteristiques';
 import OngletEstimation from './OngletEstimation';
 import OngletRapport from './OngletRapport';
 import BlocAvantEnvoyer from './BlocAvantEnvoyer';
@@ -77,7 +75,6 @@ export default function EstimationAtelier({
   const [atteint, setAtteint] = useState(() => indexMaxAccessible(initial, 0));
   const [contexte, setContexte] = useState<ContexteAtelier | null>(null);
   const [contexteChargement, setContexteChargement] = useState(false);
-  const [radarSecteur, setRadarSecteur] = useState<AxeRadar[]>([]);
   const [parkingMedian, setParkingMedian] = useState<number | null>(null);
   const [decomposition, setDecomposition] = useState<DecompositionValeur | null>(() =>
     decompositionDepuisContexte(initial),
@@ -203,7 +200,6 @@ export default function EstimationAtelier({
       .then(
         (
           data: ContexteAtelier & {
-            radarSecteur?: AxeRadar[];
             parkingMedian?: number | null;
             grille?: EstimationObjet['grille'];
             bien?: EstimationObjet['bien'];
@@ -213,7 +209,6 @@ export default function EstimationAtelier({
           },
         ) => {
           setContexte(data);
-          setRadarSecteur(data.radarSecteur ?? []);
           setParkingMedian(data.parkingMedian ?? null);
           setEstimation((prev) => ({
             ...prev,
@@ -379,7 +374,7 @@ export default function EstimationAtelier({
         {ETAPES_ATELIER.map((t, i) => {
           const courant = onglet === t.id;
           const verrouille = !etapeAccessible(estimation, atteint, t.id);
-          const validee = etapeValidee(estimation, t.id, atteint);
+          const validee = etapeValidee(estimation, t.id);
           return (
             <button
               key={t.id}
@@ -440,13 +435,6 @@ export default function EstimationAtelier({
               pendingVoice={pendingVoice}
               onClearPending={clearPendingVoice}
               propositions={propositions}
-            />
-          ) : null}
-          {onglet === 'caracteristiques' ? (
-            <OngletCaracteristiques
-              grille={estimation.grille}
-              radarSecteur={radarSecteur}
-              onChange={(grille) => patch({ grille })}
             />
           ) : null}
           {onglet === 'estimation' ? (

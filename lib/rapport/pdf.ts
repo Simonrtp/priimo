@@ -15,7 +15,7 @@ import {
 } from '@/lib/rapport/identite';
 import { estDisposition } from '@/lib/rapport/modele';
 import type { PageRapportComposee } from '@/lib/rapport/pages';
-import { pageExportable } from '@/lib/rapport/pages';
+import { pagePourPdf } from '@/lib/rapport/pages';
 import { dessinerPageModele } from '@/lib/rapport/pdf-modele';
 import { hexVersRgb, latin1 } from '@/lib/rapport/pdf-texte';
 import { telechargerRapport } from '@/lib/rapport/storage';
@@ -61,7 +61,7 @@ export async function genererPdfRapport(input: {
   const fonts = { regular: font, bold: fontBold, italic: fontItalic, boldItalic: fontBoldItalic };
   const accentHex = normaliserCouleurPrincipale(input.agence.couleurPrincipale);
 
-  const exportables = input.pages.filter(pageExportable);
+  const exportables = input.pages.filter(pagePourPdf);
   if (exportables.length === 0) {
     const page = out.addPage([PAGE_W, PAGE_H]);
     const pied = construirePied({

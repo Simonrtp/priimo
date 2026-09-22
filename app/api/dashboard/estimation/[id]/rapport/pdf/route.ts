@@ -5,7 +5,7 @@ import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
 import { piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
 import { ChromiumIndisponible, genererPdfRapport } from '@/lib/rapport/pdf';
-import { pageExportable } from '@/lib/rapport/pages';
+import { pagePourPdf } from '@/lib/rapport/pages';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   } catch {
     return NextResponse.json({ error: 'Composition indisponible' }, { status: 500 });
   }
-  const pages = assemble.pages.filter(pageExportable);
+  const pages = assemble.pages.filter(pagePourPdf);
   if (pages.length === 0) {
     return NextResponse.json({ error: 'Ajoutez au moins une page au rapport' }, { status: 400 });
   }

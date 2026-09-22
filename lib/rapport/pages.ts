@@ -185,9 +185,16 @@ export function mapPageComposee(
   };
 }
 
+/** Pages assez complètes pour être remises au client. */
 export function pageExportable(page: PageRapportComposee): boolean {
   if (page.kind !== 'generee') return true;
   return page.manques.length === 0;
+}
+
+/** L’agent peut exporter / imprimer le dossier même si une page générée manque encore un champ. */
+export function pagePourPdf(page: PageRapportComposee): boolean {
+  if (page.kind === 'generee') return Boolean(page.kindGeneree);
+  return Boolean(page.storagePath) || page.kind === 'modele';
 }
 
 export function reordonnerIds(ids: string[], from: number, to: number): string[] {
