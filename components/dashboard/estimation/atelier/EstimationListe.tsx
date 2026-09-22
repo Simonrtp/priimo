@@ -23,21 +23,25 @@ export default function EstimationListe({
   rows,
   onOuvrir,
   onNouvelle,
-  creating,
 }: {
-  rows: EstimationResume[];
+  rows: EstimationResume[] | null;
   onOuvrir: (id: string) => void;
   onNouvelle: () => void;
-  creating: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <WorkspaceButton type="button" onClick={onNouvelle} disabled={creating}>
+        <WorkspaceButton type="button" onClick={onNouvelle}>
           Nouvelle estimation
         </WorkspaceButton>
       </div>
-      {rows.length === 0 ? (
+      {rows == null ? (
+        <ul className="flex flex-col gap-2" aria-busy="true" aria-label="Chargement des estimations">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="h-[4.25rem] animate-pulse rounded-clay bg-black/[0.05]" />
+          ))}
+        </ul>
+      ) : rows.length === 0 ? (
         <WorkspaceCard>
           <p className="text-[14px] text-text-muted">Aucune estimation.</p>
         </WorkspaceCard>

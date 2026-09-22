@@ -36,7 +36,7 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
   },
   estimations: {
     libelle: 'Créer une estimation',
-    href: '/dashboard/estimation',
+    href: '/dashboard/estimation?id=nouvelle',
   },
   informations_terrain: {
     libelle: 'Noter',

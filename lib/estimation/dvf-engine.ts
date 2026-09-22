@@ -11,29 +11,25 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import {
-  CONFIG_ESTIMATION,
-  computeEstimation,
-  getReferencePricePerM2,
   type EstimationFeatureKey,
   type EstimationPropertyType,
 } from '@/lib/estimation';
 import { parseDpeLetter } from '@/lib/carte/dpe-public';
 import { formatPeriodeConstruction } from '@/lib/queries/parcelle';
+import { DVF_RAYON_M, dvfHorizonDepuisIso, type EstimationSourceId } from '@/lib/estimation/sources';
+import { extrasCoefficients, type EstimationExtras } from '@/lib/estimation/extras';
+import { buildCorrectionLines, type CorrectionLine } from '@/lib/estimation/corrections';
+import { collecterVentesComparables } from '@/lib/estimation/moteur-collecte';
 import {
-  DVF_HORIZON_ANS,
-  DVF_RAYON_M,
-  dvfHorizonDepuisIso,
-  type EstimationSourceId,
-} from '@/lib/estimation/sources';
-import {
-  extrasCoefficients,
-  extrasTotalPct,
-  type EstimationExtras,
-} from '@/lib/estimation/extras';
-import {
-  buildCorrectionLines,
-  type CorrectionLine,
-} from '@/lib/estimation/corrections';
+  assemblerEstimation,
+  construireIndice,
+  impossible,
+  motifDepuisSaisie,
+  preparerLot,
+  voieNormalisee,
+  type AjustementApplique,
+  type MotifImpossible,
+} from '@/lib/estimation/moteur';
 
 type Db = SupabaseClient<Database>;
 
@@ -78,6 +74,13 @@ export type DvfEngineInput = {
    * priimo.fr ne les collecte pas.
    */
   extras?: EstimationExtras | null;
+  dernierEtage?: boolean | null;
+  etagesImmeuble?: number | null;
+  annexes?: Array<{ libelle: string; valorisationEur: number | null }>;
+  exclusIds?: readonly string[];
+  avant?: string | null;
+  excludeMutationId?: string | null;
+  maintenant?: Date;
 };
 
 export type EstimationStep = {
@@ -87,6 +90,7 @@ export type EstimationStep = {
 };
 
 export type ComparableSale = {
+  id: string;
   date: string;
   surfaceM2: number | null;
   price: number | null;
@@ -143,6 +147,11 @@ export type DvfEngineContext = {
   degradationLabel: string | null;
   /** Code métier pour l’UI — jamais d’erreur technique brute. */
   degradationCode: 'secteur_non_couvert' | null;
+  impossible: MotifImpossible | null;
+  ajustements: AjustementApplique[];
+  moteurValeur: number | null;
+  fenetreMois: number | null;
+  moteurTrace: unknown;
 };
 
 export type DvfEngineResult = {
@@ -162,6 +171,7 @@ export type DvfEngineResult = {
   parcelleId: string | null;
   /** Détail ligne à ligne du calcul (base + coefficients en euros). */
   corrections: CorrectionLine[];
+  impossible: MotifImpossible | null;
 };
 
 type TxRow = {
@@ -191,10 +201,6 @@ function num(v: unknown): number | null {
   return null;
 }
 
-function roundToThousand(n: number): number {
-  return Math.round(n / 1000) * 1000;
-}
-
 function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -204,92 +210,6 @@ function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): num
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
-}
-
-function voieFromAdresse(adresse: string | null): string | null {
-  if (!adresse?.trim()) return null;
-  // Retire le numéro en tête : "12 Rue des Maraîchers 75020 Paris" → "Rue des Maraîchers"
-  const withoutNum = adresse.trim().replace(/^\d+\s*(bis|ter|quater)?\s*/i, '');
-  const beforeCp = withoutNum.replace(/\s+\d{5}\b.*$/, '').trim();
-  return beforeCp || withoutNum;
-}
-
-function mapConditionToCoeff(rating: 1 | 2 | 3 | 4 | null): number {
-  if (rating == null) return 0;
-  // Funnel public : 1–5. Dashboard : 1–4 (mauvais → excellent).
-  const mapped = { 1: 1, 2: 2, 3: 3, 4: 5 }[rating];
-  return CONFIG_ESTIMATION.CONDITION[mapped] ?? 0;
-}
-
-function dpeCoeff(dpe: string | null): number {
-  if (!dpe || dpe === 'inconnu') return 0;
-  return CONFIG_ESTIMATION.DPE[dpe.toUpperCase()] ?? 0;
-}
-
-function floorCoeff(
-  propertyType: EstimationPropertyType,
-  floor: string | null,
-  hasElevator: boolean | null,
-): number {
-  if (propertyType !== 'appartement' || floor == null) return 0;
-  const raw = floor.trim();
-  let level: number | null = null;
-  if (/^rdc$/i.test(raw) || raw === '0') level = 0;
-  else {
-    const n = Number.parseInt(raw, 10);
-    if (Number.isFinite(n)) level = n;
-  }
-  if (level == null) return 0;
-
-  let coeff = 0;
-  if (level === 0) coeff += CONFIG_ESTIMATION.FLOOR.RDC_PCT;
-  else if (level > 2) {
-    const bonus = (level - 2) * CONFIG_ESTIMATION.FLOOR.ABOVE_2_PER_FLOOR_PCT;
-    coeff += Math.min(bonus, CONFIG_ESTIMATION.FLOOR.ABOVE_2_CAP_PCT);
-  }
-  if (level > 3 && hasElevator === false) {
-    coeff += CONFIG_ESTIMATION.FLOOR.NO_ELEVATOR_ABOVE_3_PCT;
-  }
-  return coeff;
-}
-
-function featuresCoeff(features: EstimationFeatureKey[]): number {
-  let coeff = 0;
-  if (features.includes('balcon_terrasse')) coeff += CONFIG_ESTIMATION.FEATURES.balcon_terrasse;
-  if (features.includes('parking')) coeff += CONFIG_ESTIMATION.FEATURES.parking;
-  if (features.includes('cave')) coeff += CONFIG_ESTIMATION.FEATURES.cave;
-  return coeff;
-}
-
-/** Actualisation simple : ventes > 24 mois ramenées vers le médian des 24 derniers mois du lot. */
-function adjustPrixM2(
-  prixM2: number,
-  dateIso: string,
-  recentMedian: number | null,
-): number {
-  if (recentMedian == null || recentMedian <= 0) return prixM2;
-  const t = Date.parse(dateIso);
-  if (!Number.isFinite(t)) return prixM2;
-  const ageYears = (Date.now() - t) / (365.25 * 24 * 3600 * 1000);
-  if (ageYears <= 2) return prixM2;
-  // Blend vers le médian récent (poids croissant avec l'âge, plafonné).
-  const w = Math.min(0.55, (ageYears - 2) * 0.12);
-  return Math.round(prixM2 * (1 - w) + recentMedian * w);
-}
-
-function excludeOutliers(rows: { prixM2: number }[]): {
-  kept: typeof rows;
-  excluded: number;
-} {
-  if (rows.length < 5) return { kept: rows, excluded: 0 };
-  const sorted = [...rows].sort((a, b) => a.prixM2 - b.prixM2);
-  const q1 = sorted[Math.floor(sorted.length * 0.25)]!.prixM2;
-  const q3 = sorted[Math.floor(sorted.length * 0.75)]!.prixM2;
-  const iqr = q3 - q1;
-  const low = q1 - 1.5 * iqr;
-  const high = q3 + 1.5 * iqr;
-  const kept = rows.filter((r) => r.prixM2 >= low && r.prixM2 <= high);
-  return { kept, excluded: rows.length - kept.length };
 }
 
 /**
@@ -320,24 +240,6 @@ export function trimestreLabel(dateIso: string | null): string | null {
   const q = Math.floor(d.getUTCMonth() / 3) + 1;
   const ordinal = q === 1 ? '1er' : `${q}e`;
   return `${ordinal} trimestre ${d.getUTCFullYear()}`;
-}
-
-function reliabilityScore(args: {
-  immeuble: number;
-  quartier: number;
-  surfaceOk: boolean;
-}): { score: number; label: string } {
-  let score = 15;
-  score += Math.min(args.immeuble * 12, 36);
-  score += Math.min(args.quartier * 2, 36);
-  if (args.surfaceOk) score += 8;
-  score = Math.max(0, Math.min(100, score));
-
-  // Le libellé dit ce dont on dispose, jamais ce qui manque : le niveau de
-  // fiabilité s'affiche à part, en pastille.
-  if (score >= 70) return { score, label: 'Fiabilité élevée' };
-  if (score >= 40) return { score, label: 'Fiabilité correcte' };
-  return { score, label: 'Fiabilité limitée' };
 }
 
 /** Phrase de synthèse : ce que l'on a réuni, avec sa période de référence. */
@@ -478,6 +380,58 @@ export async function runDvfEstimation(
     await onStep(step);
   }
 
+  const saisie = motifDepuisSaisie({
+    surfaceM2: input.surfaceM2,
+    propertyType: input.propertyType,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    postalCode: input.postalCode,
+  });
+  if (saisie) {
+    await emit({ id: 'impossible', label: saisie.motif });
+    return {
+      available: false,
+      value: null,
+      low: null,
+      high: null,
+      pricePerM2: null,
+      reliability: 0,
+      reliabilityLabel: 'Fiabilité faible',
+      steps,
+      comparables: [],
+      sources: [],
+      corrections: [],
+      impossible: saisie,
+      context: {
+        immeubleVentes: 0,
+        quartierVentes: 0,
+        outliersExcluded: 0,
+        coproLots: null,
+        coproPeriode: null,
+        dpeKnown: null,
+        dpeSource: null,
+        dpeRepartition: [],
+        biensEnVenteSecteur: 0,
+        biensEnVenteDetail: [],
+        negociacionMedianePct: null,
+        radiusM: 0,
+        trimestreLabel: null,
+        dispersionElevee: false,
+        dispersionRatio: null,
+        sources: [],
+        degradation: null,
+        degradationLabel: saisie.motif,
+        degradationCode: 'secteur_non_couvert',
+        impossible: saisie,
+        ajustements: [],
+        moteurValeur: null,
+        fenetreMois: null,
+        moteurTrace: null,
+      },
+      parcelleId: null,
+    };
+  }
+
   const { banId, parcelleId, building } = await resolveBuilding(admin, {
     banId: input.banId,
     latitude: input.latitude,
@@ -490,165 +444,49 @@ export async function runDvfEstimation(
     label: `Recherche des ventes enregistrées au ${input.address}`,
   });
 
-  // Ventes même immeuble / parcelle
-  let immeubleTx: TxRow[] = [];
-  if (banId || parcelleId) {
-    let q = admin
-      .from('building_transactions')
-      .select(
-        'ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local',
-      )
-      .gte('date_mutation', dvfHorizonDepuisIso())
-      .order('date_mutation', { ascending: false })
-      .limit(80);
-    if (parcelleId) q = q.eq('parcelle_id', parcelleId);
-    else if (banId) q = q.eq('ban_id', banId);
-    const { data } = await q;
-    immeubleTx = (data ?? []) as unknown as TxRow[];
-  }
+  const collecte = await collecterVentesComparables(
+    admin,
+    {
+      latitude: input.latitude,
+      longitude: input.longitude,
+      postalCode: input.postalCode,
+      propertyType: input.propertyType,
+      banId,
+      parcelleId,
+    },
+    {
+      avant: input.avant ?? null,
+      excludeMutationId: input.excludeMutationId ?? null,
+      exclusIds: input.exclusIds,
+      maintenant: input.maintenant,
+    },
+  );
+
+  const immeubleCount = collecte.candidates.filter(
+    (v) =>
+      (banId != null && v.banId === banId) || (parcelleId != null && v.parcelleId === parcelleId),
+  ).length;
+  const quartierCount = collecte.candidates.length;
+  const excluded = collecte.exclues.filter((e) => e.motif === 'aberrant_mad').length;
 
   await emit({
     id: 'immeuble_count',
     label:
-      immeubleTx.length === 0
-        ? `Élargissement au quartier : aucune vente enregistrée dans cet immeuble sur ${DVF_HORIZON_ANS} ans`
-        : `${immeubleTx.length} vente${immeubleTx.length > 1 ? 's' : ''} trouvée${immeubleTx.length > 1 ? 's' : ''} dans l’immeuble`,
-    detail: immeubleTx.length > 0 ? `${immeubleTx.length} mutations` : undefined,
+      immeubleCount === 0
+        ? `Élargissement : aucune vente dans cet immeuble`
+        : `${immeubleCount} vente${immeubleCount > 1 ? 's' : ''} dans l’immeuble`,
   });
-
   await emit({
     id: 'expand_quartier',
-    label: `Relevé des ventes dans un rayon de ${RADIUS_M} m`,
+    label:
+      collecte.radiusM != null
+        ? `Relevé des ventes dans un rayon de ${collecte.radiusM} m (${collecte.fenetreMois ?? 24} mois)`
+        : `Relevé des ventes du code postal ${input.postalCode}`,
   });
-
-  const lat = input.latitude;
-  const lng = input.longitude;
-  const { data: nearBuildings } = await admin
-    .from('buildings')
-    .select('ban_id, parcelle_id, adresse, lat, lng')
-    .eq('code_postal', input.postalCode)
-    .gte('lat', lat - LAT_DELTA)
-    .lte('lat', lat + LAT_DELTA)
-    .gte('lng', lng - LNG_DELTA_AT_48)
-    .lte('lng', lng + LNG_DELTA_AT_48)
-    .not('lat', 'is', null)
-    .not('lng', 'is', null)
-    .limit(400);
-
-  const near = ((nearBuildings ?? []) as unknown as BuildingRow[]).filter((b) => {
-    if (b.lat == null || b.lng == null) return false;
-    return haversineM(lat, lng, b.lat, b.lng) <= RADIUS_M;
-  });
-
-  const nearBanIds = [...new Set(near.map((b) => b.ban_id))];
-  const nearParcelleIds = [...new Set(near.map((b) => b.parcelle_id).filter(Boolean))] as string[];
-
-  let quartierTx: TxRow[] = [];
-  if (nearParcelleIds.length > 0) {
-    const { data } = await admin
-      .from('building_transactions')
-      .select(
-        'ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local',
-      )
-      .in('parcelle_id', nearParcelleIds.slice(0, 200))
-      .gte('date_mutation', dvfHorizonDepuisIso())
-      .order('date_mutation', { ascending: false })
-      .limit(400);
-    quartierTx = (data ?? []) as unknown as TxRow[];
-  } else if (nearBanIds.length > 0) {
-    const { data } = await admin
-      .from('building_transactions')
-      .select(
-        'ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local',
-      )
-      .in('ban_id', nearBanIds.slice(0, 200))
-      .gte('date_mutation', dvfHorizonDepuisIso())
-      .order('date_mutation', { ascending: false })
-      .limit(400);
-    quartierTx = (data ?? []) as unknown as TxRow[];
-  }
-
-  // Type de local cohérent
-  const typeFilter =
-    input.propertyType === 'maison'
-      ? (t: string | null) => /maison/i.test(t ?? '')
-      : (t: string | null) => !t || /appart/i.test(t) || /local/i.test(t) === false;
-
-  const filteredQuartier = quartierTx.filter((t) => typeFilter(t.type_local));
-
   await emit({
     id: 'quartier_count',
-    label: `${filteredQuartier.length} mutation${filteredQuartier.length > 1 ? 's' : ''} retenue${filteredQuartier.length > 1 ? 's' : ''} dans un rayon de ${RADIUS_M} m`,
+    label: `${quartierCount} vente${quartierCount > 1 ? 's' : ''} exploitable${quartierCount > 1 ? 's' : ''} après nettoyage`,
   });
-
-  // Prix au m² exploitables
-  type Priced = {
-    row: TxRow;
-    prixM2: number;
-    sameBuilding: boolean;
-    adresse: string | null;
-  };
-
-  const adresseByBan = new Map(near.map((b) => [b.ban_id, b.adresse]));
-  if (building) adresseByBan.set(building.ban_id, building.adresse);
-
-  const priced: Priced[] = [];
-  for (const row of filteredQuartier) {
-    const surface = num(row.surface_reelle_bati);
-    const prix = num(row.valeur_fonciere);
-    let pm2 = num(row.prix_m2);
-    if (pm2 == null && surface && surface > 0 && prix && prix > 0) {
-      pm2 = Math.round(prix / surface);
-    }
-    if (pm2 == null || pm2 < 500 || pm2 > 50_000) continue;
-    const sameBuilding =
-      (banId != null && row.ban_id === banId) ||
-      (parcelleId != null && row.parcelle_id === parcelleId);
-    priced.push({
-      row,
-      prixM2: pm2,
-      sameBuilding,
-      adresse: row.ban_id ? adresseByBan.get(row.ban_id) ?? null : null,
-    });
-  }
-
-  // Médiane récente (24 mois) pour actualisation
-  const cutoff24 = Date.now() - 24 * 30.44 * 24 * 3600 * 1000;
-  const recentPm2 = priced
-    .filter((p) => Date.parse(p.row.date_mutation) >= cutoff24)
-    .map((p) => p.prixM2)
-    .sort((a, b) => a - b);
-  const recentMedian =
-    recentPm2.length > 0 ? recentPm2[Math.floor(recentPm2.length / 2)]! : null;
-
-  if (priced.length > 0) {
-    const trimestre =
-      recentMedian != null
-        ? `médiane récente du secteur ${Math.round(recentMedian).toLocaleString('fr-FR')} €/m²`
-        : 'échantillon local';
-    await emit({
-      id: 'actualisation',
-      label: `Actualisation des prix selon l’évolution constatée dans le secteur (${trimestre})`,
-    });
-  }
-
-  const adjusted = priced.map((p) => ({
-    ...p,
-    prixM2Adj: adjustPrixM2(p.prixM2, p.row.date_mutation, recentMedian),
-  }));
-
-  const { kept, excluded } = excludeOutliers(adjusted.map((p) => ({ prixM2: p.prixM2Adj })));
-  const finalRows =
-    excluded === 0
-      ? adjusted
-      : adjusted.filter((p) => {
-          if (kept.length === 0) return true;
-          const vals = kept.map((k) => k.prixM2).sort((a, b) => a - b);
-          const lo = vals[0]!;
-          const hi = vals[vals.length - 1]!;
-          return p.prixM2Adj >= lo && p.prixM2Adj <= hi;
-        });
-
   if (excluded > 0) {
     await emit({
       id: 'outliers',
@@ -753,33 +591,78 @@ export async function runDvfEstimation(
     bieniciUsed = false;
   }
 
-  const work = finalRows.length > 0 ? finalRows : adjusted;
-  const immeubleCount = work.filter((p) => p.sameBuilding).length;
-  const quartierCount = work.length;
-
   const sources: EstimationSourceId[] = [];
-  if (priced.length > 0) sources.push('dvf');
-  if (priced.length > 0 && recentMedian != null) sources.push('notaires_insee');
+  if (collecte.toutes.length > 0) sources.push('dvf');
+  if (collecte.candidates.length > 0) sources.push('notaires_insee');
   if (parcelleId) sources.push('cadastre');
   if (dpeFromAdeme) sources.push('dpe');
   if (coproLots != null || coproPeriode != null) sources.push('copro');
   if (bieniciUsed) sources.push('bienici');
 
-  const { score, label } = reliabilityScore({
-    immeuble: immeubleCount,
-    quartier: quartierCount,
-    surfaceOk: input.surfaceM2 >= 20 && input.surfaceM2 <= 300,
-  });
+  const features = input.features ?? [];
+  const moteurInput = {
+    surfaceM2: input.surfaceM2,
+    propertyType: input.propertyType,
+    floor: input.floor,
+    hasElevator: input.hasElevator ?? null,
+    dernierEtage: input.dernierEtage ?? null,
+    conditionRating: input.conditionRating,
+    dpeClass: input.dpeClass ?? dpeKnown,
+    balconTerrasse: features.includes('balcon_terrasse') || input.extras?.balconM2 != null,
+    annexes: input.annexes ?? [],
+    terrainM2: input.extras?.terrainM2 ?? null,
+    exclusIds: input.exclusIds,
+  };
 
-  const derniereVente = work
-    .map((p) => p.row.date_mutation)
-    .sort()
-    .at(-1) ?? null;
+  const indice = construireIndice(collecte.indicePool, input.maintenant);
+  const origine = {
+    lat: input.latitude,
+    lng: input.longitude,
+    banId,
+    parcelleId,
+    voie: voieNormalisee(building?.adresse ?? input.address),
+  };
+
+  let moteur = collecte.toutes.length === 0
+    ? impossible(
+        'aucune_vente_zone',
+        `Aucune vente en base sur le code postal ${input.postalCode}.`,
+        'Vérifiez le secteur, ou saisissez le prix à la main.',
+      )
+    : collecte.candidates.length === 0
+      ? {
+          ...impossible(
+            'aucune_vente_apres_nettoyage',
+            'Des ventes existent dans la zone, mais aucune n’est exploitable après nettoyage.',
+            'Vérifiez le type de bien, ou saisissez le prix à la main.',
+          ),
+          exclues: collecte.exclues,
+        }
+      : assemblerEstimation({
+          input: moteurInput,
+          lot: preparerLot(collecte.candidates, moteurInput, origine, indice, input.maintenant),
+          indice,
+          radiusM: collecte.radiusM ?? 0,
+          fenetreMois: collecte.fenetreMois ?? 60,
+          exclues: collecte.exclues,
+          maintenant: input.maintenant,
+        });
+
+  const fiabLabel =
+    moteur.reliability === 'élevée'
+      ? 'Fiabilité élevée'
+      : moteur.reliability === 'moyenne'
+        ? 'Fiabilité moyenne'
+        : 'Fiabilité faible';
+
+  const derniereVente = moteur.retenues.map((v) => v.date).sort().at(-1) ?? null;
   const trimestre = trimestreLabel(derniereVente);
+  const ratio = dispersionRatio(moteur.retenues.map((v) => v.prixM2Actualise));
+  const dispersionElevee = isDispersionElevee(ratio);
 
   const baseContext: DvfEngineContext = {
     immeubleVentes: immeubleCount,
-    quartierVentes: quartierCount,
+    quartierVentes: moteur.retenues.length,
     outliersExcluded: excluded,
     coproLots,
     coproPeriode,
@@ -789,156 +672,80 @@ export async function runDvfEstimation(
     biensEnVenteSecteur: biensEnVente,
     biensEnVenteDetail,
     negociacionMedianePct: null,
-    radiusM: RADIUS_M,
+    radiusM: collecte.radiusM ?? 0,
     trimestreLabel: trimestre,
-    dispersionElevee: false,
-    dispersionRatio: null,
+    dispersionElevee,
+    dispersionRatio: ratio,
     sources,
-    degradation: null,
-    degradationLabel: null,
-    degradationCode: null,
+    degradation: moteur.available ? (dispersionElevee ? 'dispersion' : null) : null,
+    degradationLabel: moteur.impossible?.motif ?? null,
+    degradationCode: moteur.available ? null : 'secteur_non_couvert',
+    impossible: moteur.impossible,
+    ajustements: moteur.ajustements,
+    moteurValeur: moteur.value,
+    fenetreMois: collecte.fenetreMois,
+    moteurTrace: {
+      retenues: moteur.retenues,
+      exclues: moteur.exclues,
+      indice,
+      radiusM: collecte.radiusM,
+      fenetreMois: collecte.fenetreMois,
+      candidates: collecte.toutes,
+    },
   };
 
-  const features = input.features ?? [];
-  const floorC = floorCoeff(input.propertyType, input.floor, input.hasElevator ?? null);
-  const dpeC = dpeCoeff(input.dpeClass ?? dpeKnown);
-  const conditionC = mapConditionToCoeff(input.conditionRating);
-  const featC = featuresCoeff(features);
-  const extraCoeffs = extrasCoefficients(input.propertyType, input.extras);
-  const extraC = extrasTotalPct(extraCoeffs);
-
-  if (quartierCount === 0) {
-    // Repli sur le référentiel code postal — toujours une réponse quand on peut.
-    const reference = computeEstimation({
-      postalCode: input.postalCode,
-      propertyType: input.propertyType,
-      surfaceM2: input.surfaceM2,
-      rooms: input.rooms,
-      floor: input.floor,
-      hasElevator: input.hasElevator ?? null,
-      bathrooms: null,
-      features,
-      viewType: null,
-      constructionYear: null,
-      dpeClass: input.dpeClass ?? dpeKnown,
-      conditionRating: input.conditionRating,
-    });
-
-    if (!reference.available || reference.value == null || reference.pricePerM2 == null) {
-      await emit({
-        id: 'secteur_non_couvert',
-        label: 'Ce secteur n’est pas encore couvert par nos données de ventes',
-      });
-      return {
-        available: false,
-        value: null,
-        low: null,
-        high: null,
-        pricePerM2: null,
-        reliability: score,
-        reliabilityLabel: label,
-        steps,
-        comparables: [],
-        sources,
-        corrections: [],
-        context: {
-          ...baseContext,
-          immeubleVentes: immeubleTx.length,
-          quartierVentes: 0,
-          degradationCode: 'secteur_non_couvert',
-          degradationLabel:
-            'Ce secteur n’est pas encore couvert par nos données de ventes. Nous chargeons actuellement Paris et la Haute-Savoie.',
-        },
-        parcelleId,
-      };
-    }
-
-    await emit({
-      id: 'referentiel_cp',
-      label: `Repli sur le prix de référence du code postal ${input.postalCode}`,
-    });
-
-    const medianPm2 = getReferencePricePerM2(input.postalCode) ?? reference.pricePerM2;
-    const corrections = buildCorrectionLines(
-      {
-        surfaceM2: input.surfaceM2,
-        medianPm2,
-        propertyType: input.propertyType,
-        floor: input.floor,
-        hasElevator: input.hasElevator ?? null,
-        dpeClass: input.dpeClass ?? dpeKnown,
-        conditionRating: input.conditionRating,
-        hasParking: features.includes('parking'),
-        hasCave: features.includes('cave'),
-        hasBalconTerrasse: features.includes('balcon_terrasse'),
-        quartierVentes: 0,
-      },
-      { floor: floorC, dpe: dpeC, condition: conditionC, features: featC, extras: extraCoeffs },
-    );
-
+  if (!moteur.available || moteur.value == null) {
+    const motif = moteur.impossible ?? {
+      code: 'valeur_incalculable' as const,
+      motif: 'Estimation impossible.',
+      action: 'Saisissez le prix à la main.',
+    };
+    await emit({ id: 'impossible', label: motif.motif });
     return {
-      available: true,
-      value: reference.value,
-      low: reference.low,
-      high: reference.high,
-      pricePerM2: reference.pricePerM2,
-      reliability: Math.min(score, 35),
-      reliabilityLabel: 'Fiabilité limitée',
+      available: false,
+      value: null,
+      low: null,
+      high: null,
+      pricePerM2: null,
+      reliability: moteur.reliabilityScore,
+      reliabilityLabel: fiabLabel,
       steps,
       comparables: [],
       sources,
-      corrections,
-      context: {
-        ...baseContext,
-        immeubleVentes: immeubleTx.length,
-        quartierVentes: 0,
-        degradation: 'referentiel_cp',
-        degradationLabel: `Estimation fondée sur le prix de référence du code postal ${input.postalCode}, faute de ventes comparables à proximité.`,
-      },
+      corrections: [],
+      impossible: motif,
+      context: { ...baseContext, quartierVentes: 0 },
       parcelleId,
     };
   }
 
-  const pm2List = work.map((p) => p.prixM2Adj).sort((a, b) => a - b);
-  const medianPm2 = pm2List[Math.floor(pm2List.length / 2)]!;
-
-  const ratio = dispersionRatio(pm2List);
-  const dispersionElevee = isDispersionElevee(ratio);
-  if (dispersionElevee) {
+  if (indice) {
     await emit({
-      id: 'dispersion',
-      label: 'Prix au m² très dispersés dans ce secteur : la fourchette n’est pas resserrable',
+      id: 'actualisation',
+      label: `Actualisation à l’indice ${indice.niveau.replace('_', ' ')} (${Math.round(indice.actuel).toLocaleString('fr-FR')} €/m²)`,
     });
   }
-
-  const coeff = 1 + floorC + dpeC + conditionC + featC + extraC;
-
-  const value = roundToThousand(medianPm2 * input.surfaceM2 * coeff);
-  let rangePct: number = CONFIG_ESTIMATION.RANGE_PCT;
-  if (score < 40) rangePct = 0.14;
-  else if (score < 70) rangePct = 0.1;
-
-  // Dispersion élevée : pas de fourchette. Mieux vaut dire qu'une visite est
-  // nécessaire qu'afficher un intervalle qui ne veut rien dire.
-  const low = dispersionElevee ? null : roundToThousand(value * (1 - rangePct));
-  const high = dispersionElevee ? null : roundToThousand(value * (1 + rangePct));
-  const pricePerM2 = Math.round(value / input.surfaceM2);
-
+  for (const a of moteur.ajustements) {
+    await emit({ id: `ajust_${a.id}`, label: a.label });
+  }
   await emit({
     id: 'valeur',
-    label: `Valeur retenue : ${pricePerM2.toLocaleString('fr-FR')} €/m² appliqués à ${input.surfaceM2} m²`,
+    label: `Valeur retenue : ${moteur.pricePerM2!.toLocaleString('fr-FR')} €/m² × ${input.surfaceM2} m²`,
   });
 
-  const comparables: ComparableSale[] = work.slice(0, 20).map((p) => ({
-    date: p.row.date_mutation,
-    surfaceM2: num(p.row.surface_reelle_bati),
-    price: num(p.row.valeur_fonciere),
-    pricePerM2: p.prixM2,
-    pricePerM2Adjusted: p.prixM2Adj,
-    voie: voieFromAdresse(p.adresse),
-    sameBuilding: p.sameBuilding,
+  const comparables: ComparableSale[] = moteur.retenues.slice(0, 24).map((v) => ({
+    id: v.id,
+    date: v.date,
+    surfaceM2: v.surfaceM2,
+    price: v.prix,
+    pricePerM2: v.prixM2,
+    pricePerM2Adjusted: v.prixM2Actualise,
+    voie: v.voie,
+    sameBuilding: v.sameBuilding,
   }));
 
+  const extraCoeffs = extrasCoefficients(input.propertyType, input.extras);
+  const medianPm2 = moteur.pricePerM2!;
   const corrections = buildCorrectionLines(
     {
       surfaceM2: input.surfaceM2,
@@ -949,34 +756,60 @@ export async function runDvfEstimation(
       dpeClass: input.dpeClass ?? dpeKnown,
       conditionRating: input.conditionRating,
       hasParking: features.includes('parking'),
-      hasCave: features.includes('cave'),
-      hasBalconTerrasse: features.includes('balcon_terrasse'),
-      quartierVentes: quartierCount,
+      hasCave: (input.annexes ?? []).some((a) => /cave|cellier/i.test(a.libelle)),
+      hasBalconTerrasse: moteurInput.balconTerrasse,
+      quartierVentes: moteur.retenues.length,
     },
-    { floor: floorC, dpe: dpeC, condition: conditionC, features: featC, extras: extraCoeffs },
+    {
+      floor: 0,
+      dpe: 0,
+      condition: 0,
+      features: 0,
+      extras: extraCoeffs,
+    },
   );
+  const horsAnnexes = moteur.ajustements.filter((a) => !a.id.startsWith('annexe_'));
+  const linesFromMoteur: CorrectionLine[] = [
+    corrections[0]!,
+    ...horsAnnexes.map((a) => ({
+      id: a.id,
+      label: a.label,
+      amountEur: a.amountEur,
+      sampleSize: moteur.retenues.length,
+      kind: 'ajustement' as const,
+    })),
+    ...moteur.ajustements
+      .filter((a) => a.id.startsWith('annexe_'))
+      .map((a) => ({
+        id: a.id,
+        label: a.label,
+        amountEur: a.amountEur,
+        sampleSize: null,
+        kind: 'ajustement' as const,
+      })),
+    {
+      id: 'total',
+      label: 'Valeur de marché',
+      amountEur: moteur.value,
+      sampleSize: null,
+      kind: 'total',
+    },
+  ];
 
   return {
     available: true,
-    value,
-    low,
-    high,
-    pricePerM2,
-    reliability: score,
-    reliabilityLabel: label,
+    value: moteur.value,
+    low: moteur.low,
+    high: moteur.high,
+    pricePerM2: moteur.pricePerM2,
+    reliability: moteur.reliabilityScore,
+    reliabilityLabel: fiabLabel,
     steps,
     comparables,
     sources,
-    corrections,
-    context: {
-      ...baseContext,
-      dispersionElevee,
-      dispersionRatio: ratio,
-      degradation: dispersionElevee ? 'dispersion' : null,
-      degradationLabel: dispersionElevee
-        ? 'Les ventes du secteur sont hétérogènes : la valeur centrale reste affichée, sans fourchette resserrée.'
-        : null,
-    },
+    corrections: linesFromMoteur,
+    impossible: null,
+    context: baseContext,
     parcelleId,
   };
 }
@@ -1075,48 +908,13 @@ export async function countComparables(
   },
 ): Promise<number> {
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) return 0;
-
-  const { data: nearBuildings } = await admin
-    .from('buildings')
-    .select('ban_id, parcelle_id, lat, lng')
-    .eq('code_postal', input.postalCode)
-    .gte('lat', input.latitude - LAT_DELTA)
-    .lte('lat', input.latitude + LAT_DELTA)
-    .gte('lng', input.longitude - LNG_DELTA_AT_48)
-    .lte('lng', input.longitude + LNG_DELTA_AT_48)
-    .not('lat', 'is', null)
-    .not('lng', 'is', null)
-    .limit(400);
-
-  const near = ((nearBuildings ?? []) as unknown as BuildingRow[]).filter(
-    (b) =>
-      b.lat != null &&
-      b.lng != null &&
-      haversineM(input.latitude, input.longitude, b.lat, b.lng) <= RADIUS_M,
-  );
-  if (near.length === 0) return 0;
-
-  const parcelleIds = [...new Set(near.map((b) => b.parcelle_id).filter(Boolean))] as string[];
-  const banIds = [...new Set(near.map((b) => b.ban_id))];
-
-  let q = admin
-    .from('building_transactions')
-    .select('type_local, valeur_fonciere, surface_reelle_bati, prix_m2')
-    .gte('date_mutation', dvfHorizonDepuisIso())
-    .limit(400);
-  q = parcelleIds.length > 0 ? q.in('parcelle_id', parcelleIds.slice(0, 200)) : q.in('ban_id', banIds.slice(0, 200));
-  const { data } = await q;
-
-  const typeFilter =
-    input.propertyType === 'maison'
-      ? (t: string | null) => /maison/i.test(t ?? '')
-      : (t: string | null) => !t || /appart/i.test(t) || /local/i.test(t) === false;
-
-  return (data ?? []).filter((row) => {
-    if (!typeFilter((row.type_local as string | null) ?? null)) return false;
-    const surface = num(row.surface_reelle_bati);
-    const prix = num(row.valeur_fonciere);
-    const pm2 = num(row.prix_m2) ?? (surface && prix ? prix / surface : null);
-    return pm2 != null && pm2 >= 500 && pm2 <= 50_000;
-  }).length;
+  const collecte = await collecterVentesComparables(admin, {
+    latitude: input.latitude,
+    longitude: input.longitude,
+    postalCode: input.postalCode,
+    propertyType: input.propertyType,
+    banId: null,
+    parcelleId: null,
+  });
+  return collecte.candidates.length;
 }

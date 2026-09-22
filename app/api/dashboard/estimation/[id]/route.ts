@@ -126,7 +126,11 @@ export async function PATCH(
   if (patchError) {
     return NextResponse.json({ error: patchError }, { status: 400 });
   }
-  if (body.rapportExclus !== undefined || typeof body.remarquesExpert === 'string') {
+  if (
+    body.rapportExclus !== undefined ||
+    typeof body.remarquesExpert === 'string' ||
+    body.prixAgent !== undefined
+  ) {
     const prev =
       row.context && typeof row.context === 'object' && !Array.isArray(row.context)
         ? (row.context as Record<string, unknown>)
@@ -141,6 +145,19 @@ export async function PATCH(
     }
     if (typeof body.remarquesExpert === 'string') {
       next.remarquesExpert = body.remarquesExpert.trim() || null;
+    }
+    if (body.prixAgent !== undefined) {
+      const n = Number(body.prixAgent);
+      const prixAgent = Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+      next.prixAgent = prixAgent;
+      const moteur =
+        typeof next.moteurValeur === 'number' && next.moteurValeur > 0 ? next.moteurValeur : null;
+      const retenu = prixAgent ?? moteur;
+      patch.price_value = retenu;
+      patch.price_per_m2 =
+        retenu != null && row.surface_m2 != null && row.surface_m2 > 0
+          ? Math.round(retenu / row.surface_m2)
+          : null;
     }
     patch.context = next;
   }

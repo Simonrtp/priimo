@@ -12,7 +12,7 @@ import {
   parseFloor,
   voiceDraftKeys,
 } from './voice-extract';
-import { extractEstimationHeuristic } from './voice-heuristic';
+import { ditSurfaceLogement, extractEstimationHeuristic } from './voice-heuristic';
 
 describe('parseEstimationVoice', () => {
   it('ne devine rien sur un JSON vide', () => {
@@ -66,6 +66,9 @@ describe('parseEstimationVoice', () => {
   it('prend une année chiffrée, refuse un style', () => {
     assert.equal(parseAnneeConstruction(1910), 1910);
     assert.equal(parseAnneeConstruction('construit en 1910'), 1910);
+    assert.equal(parseAnneeConstruction(96), 1996);
+    assert.equal(parseAnneeConstruction('année 96'), 1996);
+    assert.equal(parseAnneeConstruction(1000), null);
     assert.equal(parseAnneeConstruction('haussmannien'), null);
     assert.equal(parseAnneeConstruction('années 30'), null);
     const style = parseEstimationVoice(
@@ -81,6 +84,14 @@ describe('parseEstimationVoice', () => {
     assert.equal(d.surfaceM2, null);
     assert.equal(d.ascenseur, null);
     assert.deepEqual(d.annexes, []);
+  });
+
+  it('donne un libellé Terrasse à une annexe sans nom si balcon/terrasse est dit', () => {
+    const d = parseEstimationVoice(
+      JSON.stringify({ balconTerrasse: true, annexes: [{ surfaceM2: 30 }] }),
+    );
+    assert.equal(d.annexes[0]?.libelle, 'Terrasse');
+    assert.equal(d.annexes[0]?.surfaceM2, 30);
   });
 });
 
@@ -150,6 +161,58 @@ describe('applyEstimationVoiceDraft', () => {
     assert.equal(bien.anneeConstruction, 1910);
   });
 
+  it('retire la surface du bien si elle appartenait à la terrasse', () => {
+    const deja = { ...base, surfaceM2: 30 } as unknown as EstimationObjet;
+    const { patch } = applyEstimationVoiceDraft(deja, {
+      ...EMPTY_ESTIMATION_VOICE,
+      annexes: [{ libelle: 'Terrasse', surfaceM2: 30, valorisationEur: null }],
+    });
+    assert.equal(patch.surfaceM2, null);
+    const annexes = patch.annexes as { libelle: string; surfaceM2: number | null }[];
+    assert.equal(annexes[0]?.libelle, 'Terrasse');
+    assert.equal(annexes[0]?.surfaceM2, 30);
+  });
+
+  it('n’écrit pas 30 au logement si le brouillon répète la surface de la terrasse', () => {
+    const { patch } = applyEstimationVoiceDraft(base, {
+      ...EMPTY_ESTIMATION_VOICE,
+      surfaceM2: 30,
+      annexes: [{ libelle: 'Terrasse', surfaceM2: 30, valorisationEur: null }],
+    });
+    assert.equal(patch.surfaceM2, undefined);
+    const annexes = patch.annexes as { libelle: string; surfaceM2: number | null }[];
+    assert.equal(annexes[0]?.libelle, 'Terrasse');
+    assert.equal(annexes[0]?.surfaceM2, 30);
+  });
+
+  it('remplit le libellé d’une annexe déjà posée vide', () => {
+    const vide = {
+      ...base,
+      annexes: [{ id: 'a1', libelle: '', surfaceM2: 30, valorisationEur: null }],
+    } as unknown as EstimationObjet;
+    const { patch } = applyEstimationVoiceDraft(vide, {
+      ...EMPTY_ESTIMATION_VOICE,
+      annexes: [{ libelle: 'Terrasse', surfaceM2: 30, valorisationEur: null }],
+    });
+    const annexes = patch.annexes as { libelle: string; surfaceM2: number | null }[];
+    assert.equal(annexes.length, 1);
+    assert.equal(annexes[0]?.libelle, 'Terrasse');
+    assert.equal(annexes[0]?.surfaceM2, 30);
+  });
+
+  it('met à jour la surface d’une cave déjà posée', () => {
+    const avecCave = {
+      ...base,
+      annexes: [{ id: 'a1', libelle: 'Cave', surfaceM2: null, valorisationEur: null }],
+    } as unknown as EstimationObjet;
+    const { patch } = applyEstimationVoiceDraft(avecCave, {
+      ...EMPTY_ESTIMATION_VOICE,
+      annexes: [{ libelle: 'Cave', surfaceM2: 10, valorisationEur: null }],
+    });
+    const annexes = patch.annexes as { libelle: string; surfaceM2: number | null }[];
+    assert.equal(annexes[0]?.surfaceM2, 10);
+  });
+
   it('ajoute une cave et sa valorisation', () => {
     const { patch, keys } = applyEstimationVoiceDraft(base, {
       ...EMPTY_ESTIMATION_VOICE,
@@ -194,6 +257,63 @@ describe('extractEstimationHeuristic', () => {
     assert.ok(d.pointsForts.includes('lumineux'));
   });
 
+  it('prend la surface de la cave, pas comme surface du logement', () => {
+    const d = extractEstimationHeuristic(
+      'T3 de 65 mètres carrés avec une cave de 10 m² environ',
+    );
+    assert.equal(d.rooms, 3);
+    assert.equal(d.surfaceM2, 65);
+    assert.equal(d.annexes[0]?.libelle, 'Cave');
+    assert.equal(d.annexes[0]?.surfaceM2, 10);
+  });
+
+  it('met une terrasse de 30 m² dans les annexes, pas dans la surface du bien', () => {
+    const d = extractEstimationHeuristic('Il y a une terrasse de 30 m²');
+    assert.equal(d.surfaceM2, null);
+    assert.equal(d.annexes[0]?.libelle, 'Terrasse');
+    assert.equal(d.annexes[0]?.surfaceM2, 30);
+    assert.equal(d.balconTerrasse, true);
+  });
+
+  it('garde 70 m² pour le T3, la cave n’a pas cette surface', () => {
+    const d = extractEstimationHeuristic('T3 de 70 m2 avec cave');
+    assert.equal(d.rooms, 3);
+    assert.equal(d.surfaceM2, 70);
+    assert.equal(d.annexes[0]?.libelle, 'Cave');
+    assert.equal(d.annexes[0]?.surfaceM2, null);
+  });
+
+  it('ne donne pas le 70 m² à une terrasse citée plus tôt', () => {
+    const d = extractEstimationHeuristic('terrasse et un T3 de 70 m2');
+    assert.equal(d.surfaceM2, 70);
+    assert.equal(d.annexes[0]?.libelle, 'Terrasse');
+    assert.equal(d.annexes[0]?.surfaceM2, null);
+  });
+
+  it('met un balcon de 8 m² dans les annexes', () => {
+    const d = extractEstimationHeuristic('il y a un balcon de 8 m²');
+    assert.equal(d.surfaceM2, null);
+    assert.equal(d.annexes[0]?.libelle, 'Terrasse');
+    assert.equal(d.annexes[0]?.surfaceM2, 8);
+  });
+
+  it('ne prend pas un m² isolé pour la surface du logement', () => {
+    assert.equal(ditSurfaceLogement('Il y a une terrasse de 30 m²'), false);
+    assert.equal(ditSurfaceLogement('30 m²'), false);
+    assert.equal(ditSurfaceLogement('T3 de 70 m2 avec cave'), true);
+    assert.equal(ditSurfaceLogement('surface habitable 65 m2'), true);
+  });
+
+  it('lit « année 96 » et garde la dernière année après une reprise', () => {
+    assert.equal(extractEstimationHeuristic('année de construction 96').anneeConstruction, 1996);
+    assert.equal(
+      extractEstimationHeuristic(
+        'année de construction 2000 ah non pardon l’année de construction c’est 1800',
+      ).anneeConstruction,
+      1800,
+    );
+  });
+
   it('lit un studio RDC sans ascenseur', () => {
     const d = extractEstimationHeuristic('Studio 28 m2 RDC sans ascenseur un peu sombre');
     assert.equal(d.propertyType, 'appartement');
@@ -207,6 +327,16 @@ describe('extractEstimationHeuristic', () => {
 });
 
 describe('mergeEstimationVoiceDrafts', () => {
+  it('empêche le modèle de voler la surface d’une terrasse', () => {
+    const merged = mergeEstimationVoiceDrafts(
+      { ...EMPTY_ESTIMATION_VOICE, surfaceM2: 30, annexes: [{ libelle: 'Terrasse', surfaceM2: null, valorisationEur: null }] },
+      extractEstimationHeuristic('Il y a une terrasse de 30 m²'),
+    );
+    assert.equal(merged.surfaceM2, null);
+    assert.equal(merged.annexes[0]?.libelle, 'Terrasse');
+    assert.equal(merged.annexes[0]?.surfaceM2, 30);
+  });
+
   it('garde le modèle et complète avec l’heuristique', () => {
     const merged = mergeEstimationVoiceDrafts(
       { ...EMPTY_ESTIMATION_VOICE, rooms: 4 },

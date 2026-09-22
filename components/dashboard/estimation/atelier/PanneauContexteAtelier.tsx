@@ -57,8 +57,17 @@ export default function PanneauContexteAtelier({
 
   if (!contexte?.resolved && chargement && !hasCoords) {
     return (
-      <aside className="rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm">
-        <p className="text-[13px] text-text-muted">Chargement du quartier…</p>
+      <aside
+        className="rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm"
+        aria-busy="true"
+        aria-label="Chargement du quartier"
+      >
+        <div className="mb-3 flex gap-1">
+          <div className="h-7 w-16 animate-pulse rounded-full bg-black/[0.06]" />
+          <div className="h-7 w-20 animate-pulse rounded-full bg-black/[0.04]" />
+        </div>
+        <div className="h-40 animate-pulse rounded-clay bg-black/[0.05]" />
+        <div className="mt-3 h-3 w-3/4 animate-pulse rounded bg-black/[0.05]" />
       </aside>
     );
   }

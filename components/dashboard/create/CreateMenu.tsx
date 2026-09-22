@@ -14,6 +14,7 @@ import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { FIELD } from '@/lib/today/field';
+import { ID_ESTIMATION_NOUVELLE } from '@/lib/estimation/navigation';
 
 type CreateKind = 'contact' | 'bien';
 type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice';
@@ -134,7 +135,7 @@ export default function CreateMenu({
     setOpen(false);
     if (action === 'estimation') {
       armPointerShield();
-      router.push('/dashboard/estimation');
+      router.push(`/dashboard/estimation?id=${ID_ESTIMATION_NOUVELLE}`);
       return;
     }
     if (action === 'note-write') {

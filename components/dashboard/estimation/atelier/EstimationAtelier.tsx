@@ -12,6 +12,7 @@ import { fusionnerGrille } from '@/lib/estimation/grille';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
 import {
   applyEstimationVoiceDraft,
+  type EstimationVoiceApplyOpts,
   type EstimationVoiceDraft,
   type EstimationVoiceField,
 } from '@/lib/estimation/voice-extract';
@@ -157,16 +158,17 @@ export default function EstimationAtelier({
   }, []);
 
   const applyVoiceDraft = useCallback(
-    (draft: EstimationVoiceDraft) => {
+    (draft: EstimationVoiceDraft, opts?: EstimationVoiceApplyOpts) => {
       const { patch: body, keys } = applyEstimationVoiceDraft(estimationRef.current, draft);
       if (keys.length === 0) {
-        notifyInfo('Aucun champ reconnu. Reformulez ou saisissez à la main.');
+        if (!opts?.live) notifyInfo('Aucun champ reconnu. Reformulez ou saisissez à la main.');
         return;
       }
       patch(body);
-      setPendingVoice(new Set(keys));
+      setPendingVoice((prev) => new Set([...prev, ...keys]));
       setOnglet('bien');
       setAtteint((prev) => Math.max(prev, indexEtape('bien')));
+      if (opts?.live) return;
       if (keys.length === 1 && keys[0] === 'commentairesPublics') {
         notifyInfo('Description notée. Relisez et complétez les champs à la main.');
       } else {
@@ -241,6 +243,7 @@ export default function EstimationAtelier({
     decoteOccupationEur: number;
     autresEur: number;
     justification: string;
+    exclusIds?: string[];
   }) {
     setCalculating(true);
     try {
@@ -292,9 +295,13 @@ export default function EstimationAtelier({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <WorkspaceButton type="button" variant="secondary" onClick={onRetour}>
-          Toutes les estimations
-        </WorkspaceButton>
+        <button
+          type="button"
+          onClick={onRetour}
+          className="inline-flex min-h-11 items-center text-[13.5px] font-medium text-text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          Retour
+        </button>
         {sauve !== 'ok' ? (
           <p className="text-[12.5px] text-text-muted" aria-live="polite">
             {sauve === '…' ? 'Enregistrement…' : 'Non enregistré'}

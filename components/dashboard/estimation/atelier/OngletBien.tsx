@@ -16,10 +16,7 @@ import { optionsSousType } from '@/lib/estimation/sous-types';
 import { suggestionsPoints } from '@/lib/estimation/suggestions';
 import type { EstimationAnnexe, EstimationBien, EstimationObjet, EstimationPhoto } from '@/lib/estimation/objet';
 import { nombreSaisi, nombreStrictementPositif } from '@/lib/estimation/objet';
-import {
-  CHIFFRES_A_CONFIRMER,
-  type EstimationVoiceField,
-} from '@/lib/estimation/voice-extract';
+import type { EstimationVoiceField } from '@/lib/estimation/voice-extract';
 
 const DPE = ['', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
@@ -37,7 +34,6 @@ function Propose({
   return (
     <ChampPropose
       pending={pendingVoice.has(field)}
-      chiffre={CHIFFRES_A_CONFIRMER.has(field)}
       onConfirm={() => onClearPending(field)}
     >
       {children}

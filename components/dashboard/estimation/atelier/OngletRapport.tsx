@@ -464,11 +464,14 @@ export default function OngletRapport({
               <WorkspaceButton
                 type="button"
                 variant="secondary"
-                disabled={envoi || vide}
+                disabled={vide}
                 title={vide ? 'Ajoutez au moins une page pour envoyer' : undefined}
-                onClick={() => void envoyer()}
+                onClick={() => {
+                  if (envoi) return;
+                  void envoyer();
+                }}
               >
-                {envoi ? 'Envoi…' : 'Envoyer'}
+                Envoyer
               </WorkspaceButton>
             </div>
           </div>

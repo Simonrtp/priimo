@@ -38,8 +38,8 @@ describe('phraseComparables', () => {
 describe('niveau de fiabilité', () => {
   it('se lit en trois paliers', () => {
     assert.equal(FIABILITE_LABEL[niveauFiabilite(85)], 'Fiabilité élevée');
-    assert.equal(FIABILITE_LABEL[niveauFiabilite(55)], 'Fiabilité correcte');
-    assert.equal(FIABILITE_LABEL[niveauFiabilite(20)], 'Fiabilité limitée');
+    assert.equal(FIABILITE_LABEL[niveauFiabilite(55)], 'Fiabilité moyenne');
+    assert.equal(FIABILITE_LABEL[niveauFiabilite(20)], 'Fiabilité faible');
   });
 });
 

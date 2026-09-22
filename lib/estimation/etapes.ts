@@ -26,7 +26,7 @@ export function etapeBienOk(
 }
 
 export function etapeEstimationOk(e: Pick<EstimationObjet, 'priceValue'>): boolean {
-  return e.priceValue != null;
+  return e.priceValue != null && e.priceValue > 0;
 }
 
 export function etapeRapportOk(

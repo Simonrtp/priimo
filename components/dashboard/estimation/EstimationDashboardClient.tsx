@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/hooks/useUser';
+import { notifyError } from '@/lib/notify';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import type { EstimationObjet } from '@/lib/estimation/objet';
+import { ID_ESTIMATION_NOUVELLE } from '@/lib/estimation/navigation';
 import EstimationListe, { type EstimationResume } from './atelier/EstimationListe';
 import EstimationAtelier from './atelier/EstimationAtelier';
+import EstimationAtelierSquelette from './atelier/EstimationAtelierSquelette';
 import SectionBibliothequePages from '@/components/dashboard/settings/SectionBibliothequePages';
 
 type EstimationVue = 'estimer' | 'rapport';
@@ -25,14 +28,51 @@ export default function EstimationDashboardClient({
   const { profile, isDirector } = useUser();
   const router = useRouter();
   const params = useSearchParams();
-  const id = params.get('id');
+  const idUrl = params.get('id');
   const vue = parseVue(params.get('vue'));
+  const [id, setId] = useState<string | null>(idUrl);
   const [rows, setRows] = useState<EstimationResume[] | null>(null);
   const [courante, setCourante] = useState<EstimationObjet | null>(null);
-  const [fiche, setFiche] = useState<'idle' | 'load' | 'ready'>(id ? 'load' : 'idle');
+  const [fiche, setFiche] = useState<'idle' | 'load' | 'ready'>(idUrl ? 'load' : 'idle');
   const [members, setMembers] = useState<AssigneeOption[]>([]);
-  const [creating, setCreating] = useState(false);
   const justCreatedIds = useRef(new Set<string>());
+  const createPromise = useRef<Promise<EstimationObjet | null> | null>(null);
+
+  useEffect(() => {
+    setId((actuel) => {
+      if (actuel && actuel !== ID_ESTIMATION_NOUVELLE && idUrl === ID_ESTIMATION_NOUVELLE) {
+        return actuel;
+      }
+      return idUrl;
+    });
+  }, [idUrl]);
+
+  const ecrireUrl = useCallback(
+    (nextId: string | null, nextVue: EstimationVue = 'estimer') => {
+      const url = new URL(window.location.href);
+      if (nextId) url.searchParams.set('id', nextId);
+      else url.searchParams.delete('id');
+      if (nextVue === 'rapport') url.searchParams.set('vue', 'rapport');
+      else url.searchParams.delete('vue');
+      router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    },
+    [router],
+  );
+
+  const aller = useCallback(
+    (next: string | null) => {
+      setId(next);
+      if (next) {
+        setFiche('load');
+        setCourante((prev) => (prev?.id === next ? prev : null));
+      } else {
+        setFiche('idle');
+        setCourante(null);
+      }
+      ecrireUrl(next, 'estimer');
+    },
+    [ecrireUrl],
+  );
 
   const chargerListe = useCallback(async () => {
     const res = await fetch('/api/dashboard/estimation');
@@ -56,9 +96,40 @@ export default function EstimationDashboardClient({
   useEffect(() => {
     if (!id) {
       justCreatedIds.current.clear();
+      createPromise.current = null;
       setCourante(null);
       setFiche('idle');
       return;
+    }
+    if (id === ID_ESTIMATION_NOUVELLE) {
+      setCourante(null);
+      setFiche('load');
+      if (!createPromise.current) {
+        createPromise.current = fetch('/api/dashboard/estimation', { method: 'POST' })
+          .then(async (r) => {
+            const data = (await r.json()) as { estimation?: EstimationObjet; error?: string };
+            return data.estimation ?? null;
+          })
+          .catch(() => null);
+      }
+      let cancel = false;
+      void createPromise.current.then((estimation) => {
+        if (cancel) return;
+        if (!estimation) {
+          createPromise.current = null;
+          notifyError('Création impossible');
+          aller(null);
+          return;
+        }
+        justCreatedIds.current.add(estimation.id);
+        setCourante(estimation);
+        setFiche('ready');
+        setId(estimation.id);
+        ecrireUrl(estimation.id);
+      });
+      return () => {
+        cancel = true;
+      };
     }
     if (justCreatedIds.current.has(id)) {
       setFiche('ready');
@@ -83,41 +154,16 @@ export default function EstimationDashboardClient({
     return () => {
       cancel = true;
     };
-  }, [id]);
-
-  function aller(next: string | null) {
-    const url = new URL(window.location.href);
-    if (next) url.searchParams.set('id', next);
-    else url.searchParams.delete('id');
-    url.searchParams.delete('vue');
-    router.replace(`${url.pathname}${url.search}`, { scroll: false });
-  }
+  }, [id, aller, ecrireUrl]);
 
   function allerVue(next: EstimationVue) {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('id');
-    if (next === 'rapport') url.searchParams.set('vue', 'rapport');
-    else url.searchParams.delete('vue');
-    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    setId(null);
+    setCourante(null);
+    setFiche('idle');
+    ecrireUrl(null, next);
   }
 
-  async function nouvelle() {
-    setCreating(true);
-    try {
-      const res = await fetch('/api/dashboard/estimation', { method: 'POST' });
-      const data = (await res.json()) as { estimation?: EstimationObjet };
-      if (data.estimation) {
-        justCreatedIds.current.add(data.estimation.id);
-        setCourante(data.estimation);
-        setFiche('ready');
-        aller(data.estimation.id);
-      }
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  const dansAtelier = Boolean(id && (fiche === 'load' || courante));
+  const dansAtelier = Boolean(id);
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
@@ -168,8 +214,8 @@ export default function EstimationDashboardClient({
         }
       />
 
-      {dansAtelier && fiche === 'load' ? (
-        <p className="text-[14px] text-text-muted">Chargement de l’estimation…</p>
+      {dansAtelier && (fiche === 'load' || !courante) ? (
+        <EstimationAtelierSquelette />
       ) : courante ? (
         <EstimationAtelier
           key={courante.id}
@@ -187,9 +233,8 @@ export default function EstimationDashboardClient({
         <SectionBibliothequePages />
       ) : (
         <EstimationListe
-          rows={rows ?? []}
-          creating={creating}
-          onNouvelle={() => void nouvelle()}
+          rows={rows}
+          onNouvelle={() => aller(ID_ESTIMATION_NOUVELLE)}
           onOuvrir={aller}
         />
       )}

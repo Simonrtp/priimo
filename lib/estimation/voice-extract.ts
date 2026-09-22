@@ -8,19 +8,23 @@ import { inferDernierEtage, VALEURS_ETAGE } from '@/lib/estimation/etages';
 import { CRITERE_NOTE_LABELS } from '@/lib/estimation/grille';
 import type { EstimationAnnexe, EstimationBien, EstimationObjet } from '@/lib/estimation/objet';
 import type { EstimationOccupation } from '@/lib/estimation/cycle';
-import { extractEstimationHeuristic } from '@/lib/estimation/voice-heuristic';
+import {
+  anneeDepuisDictée,
+  completerAnneeCourte,
+  extractEstimationHeuristic,
+} from '@/lib/estimation/voice-heuristic';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_MODEL = 'mistral-small-latest';
 const MAX_TRANSCRIPT_CHARS = 3200;
-const MIN_TRANSCRIPT_CHARS = 12;
+const MIN_TRANSCRIPT_CHARS = 8;
 const MAX_OUTPUT_TOKENS = 800;
 
 const SYSTEM_PROMPT =
-  'Tu ranges une description LIBRE d’un bien visité (FR), dite comme à un collègue : pas d’ordre, pas de noms de champs. JSON strict. Null ou [] seulement si vraiment absent. T3/F3/studio → rooms + propertyType appartement. Une surface en m² → surfaceM2. Ne devine pas un chiffre non dit. Jamais d’adresse. Un style (haussmannien, art déco, années 30…) n’est PAS une année : mets-le dans pointsForts. anneeConstruction seulement si une année chiffrée est dite. Qualitatif (lumineux, moulures, calme, sombre) → pointsForts, pointsFaibles ou commentairesPublics.';
+  'Tu comprends une description parlée de bien (FR), comme un agent sur place. JSON strict. Attache chaque quantité au nom qu’elle complète : « il y a une terrasse de 30 m² » = une Terrasse de 30, surfaceM2 du logement = null. Ne scanne pas les mots isolés (30 m² n’est pas le logement si c’est la terrasse / cave / parking / box / balcon). « T3 de 70 m² avec cave » = surfaceM2 70 + Cave sans surface. Libellé d’annexe toujours renseigné (Terrasse, Cave, Parking, Box). Reprise (pardon, non) : dernière valeur. année 96 → 1996. Style ≠ année. Jamais d’adresse.';
 
 function buildPrompt(transcript: string): string {
-  return `Description libre, dans le désordre :\n${transcript}\n\nRange chaque élément au bon champ. L’agent n’a pas à nommer les champs. Un T3 de 65 m² au 3e avec cave doit remplir rooms, surfaceM2, floor, annexes.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
+  return `Dictée libre :\n${transcript}\n\nLis la phrase. Exemples : « il y a une terrasse de 30 m² » → annexes:[{libelle:Terrasse,surfaceM2:30}], surfaceM2=null, balconTerrasse=true. « T3 de 65 m² au 3e avec une cave de 10 m² » → rooms=3, surfaceM2=65, floor=3, annexes:[{libelle:Cave,surfaceM2:10}]. « T3 de 70 m² avec cave » → surfaceM2=70, Cave sans m². Si correction, dernière valeur.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
 }
 
 function extractJsonObject(raw: string): string {
@@ -59,14 +63,29 @@ export function mergeEstimationVoiceDrafts(
 ): EstimationVoiceDraft {
   const annexes = [...primary.annexes];
   for (const extra of fallback.annexes) {
-    if (!annexes.some((a) => a.libelle === extra.libelle)) annexes.push(extra);
+    const exist = annexes.find((a) => a.libelle === extra.libelle);
+    if (!exist) {
+      annexes.push(extra);
+      continue;
+    }
+    if (exist.surfaceM2 == null && extra.surfaceM2 != null) exist.surfaceM2 = extra.surfaceM2;
+    if (exist.valorisationEur == null && extra.valorisationEur != null) {
+      exist.valorisationEur = extra.valorisationEur;
+    }
   }
+  let surfaceM2 = prefer(primary.surfaceM2, fallback.surfaceM2);
+  if (surfaceM2 != null && annexes.some((a) => a.surfaceM2 === surfaceM2)) {
+    const fallbackOk =
+      fallback.surfaceM2 != null && !annexes.some((a) => a.surfaceM2 === fallback.surfaceM2);
+    surfaceM2 = fallbackOk ? fallback.surfaceM2 : null;
+  }
+
   return {
     propertyType: prefer(primary.propertyType, fallback.propertyType),
     sousType: prefer(primary.sousType, fallback.sousType),
     rooms: prefer(primary.rooms, fallback.rooms),
     chambres: prefer(primary.chambres, fallback.chambres),
-    surfaceM2: prefer(primary.surfaceM2, fallback.surfaceM2),
+    surfaceM2,
     carrez: prefer(primary.carrez, fallback.carrez),
     surfaceTerrain: prefer(primary.surfaceTerrain, fallback.surfaceTerrain),
     niveaux: prefer(primary.niveaux, fallback.niveaux),
@@ -92,6 +111,11 @@ export function mergeEstimationVoiceDrafts(
     commentairesPublics: prefer(primary.commentairesPublics, fallback.commentairesPublics),
   };
 }
+
+export type EstimationVoiceApplyOpts = {
+  /** Pendant l’enregistrement : pas de toast, le formulaire se remplit au fil de la parole. */
+  live?: boolean;
+};
 
 export type EstimationVoiceField =
   | 'propertyType'
@@ -122,22 +146,6 @@ export type EstimationVoiceField =
   | 'pointsForts'
   | 'pointsFaibles'
   | 'commentairesPublics';
-
-export const CHIFFRES_A_CONFIRMER: ReadonlySet<EstimationVoiceField> = new Set([
-  'rooms',
-  'chambres',
-  'surfaceM2',
-  'surfaceTerrain',
-  'niveaux',
-  'etagesImmeuble',
-  'anneeConstruction',
-  'loyerAnnuel',
-  'chargesAnnuelles',
-  'chargesCopro',
-  'taxeFonciere',
-  'annexes',
-  'consoKwh',
-]);
 
 export type EstimationVoiceAnnexe = {
   libelle: string;
@@ -212,12 +220,13 @@ const ANNEXES_CANON = ['Cave', 'Parking', 'Terrasse', 'Box'] as const;
 /** Année uniquement si un millésime est dit — jamais un style architectural. */
 export function parseAnneeConstruction(v: unknown): number | null {
   const max = new Date().getFullYear();
-  if (typeof v === 'number' && Number.isInteger(v) && v >= 1800 && v <= max) return v;
+  if (typeof v === 'number' && Number.isInteger(v)) {
+    if (v >= 1800 && v <= max) return v;
+    if (v >= 0 && v <= 99) return completerAnneeCourte(v);
+    return null;
+  }
   if (typeof v !== 'string') return null;
-  const hit = v.match(/\b(1[89]\d{2}|20[0-2]\d)\b/);
-  if (!hit) return null;
-  const y = Number(hit[1]);
-  return y >= 1800 && y <= max ? y : null;
+  return anneeDepuisDictée(v);
 }
 
 function asInt(v: unknown, max: number): number | null {
@@ -326,18 +335,20 @@ function parseAnnexeLibelle(v: unknown): string | null {
   return ANNEXES_CANON.find((a) => norm(a) === n) ?? null;
 }
 
-function parseAnnexes(raw: unknown): EstimationVoiceAnnexe[] {
+function parseAnnexes(raw: unknown, infererTerrasse = false): EstimationVoiceAnnexe[] {
   if (!Array.isArray(raw)) return [];
   const out: EstimationVoiceAnnexe[] = [];
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
     const o = item as Record<string, unknown>;
-    const libelle = parseAnnexeLibelle(o.libelle);
+    const surfaceM2 = asInt(o.surfaceM2, 10_000);
+    const libelle =
+      parseAnnexeLibelle(o.libelle) ?? (infererTerrasse && surfaceM2 != null ? 'Terrasse' : null);
     if (!libelle) continue;
     if (out.some((a) => a.libelle === libelle)) continue;
     out.push({
       libelle,
-      surfaceM2: asInt(o.surfaceM2, 10_000),
+      surfaceM2,
       valorisationEur: asInt(o.valorisationEur, 10_000_000),
     });
   }
@@ -387,7 +398,7 @@ export function parseEstimationVoice(raw: string): EstimationVoiceDraft {
     chargesAnnuelles: asInt(parsed.chargesAnnuelles, 10_000_000),
     chargesCopro: asInt(parsed.chargesCopro, 10_000_000),
     taxeFonciere: asInt(parsed.taxeFonciere, 10_000_000),
-    annexes: parseAnnexes(parsed.annexes),
+    annexes: parseAnnexes(parsed.annexes, asBool(parsed.balconTerrasse) === true),
     dpeClass: parseDpeLetter(parsed.dpeClass),
     ges: parseDpeLetter(parsed.ges),
     consoKwh: asInt(parsed.consoKwh, 2_000),
@@ -460,8 +471,18 @@ export function applyEstimationVoiceDraft(
     patch.rooms = draft.rooms;
     keys.push('rooms');
   }
-  if (draft.surfaceM2 != null) {
+  const surfacesAnnexes = draft.annexes
+    .map((a) => a.surfaceM2)
+    .filter((s): s is number => s != null);
+  const surfaceVolee = draft.surfaceM2 != null && surfacesAnnexes.includes(draft.surfaceM2);
+  if (draft.surfaceM2 != null && !surfaceVolee) {
     patch.surfaceM2 = draft.surfaceM2;
+    keys.push('surfaceM2');
+  } else if (
+    current.surfaceM2 != null &&
+    (surfaceVolee || surfacesAnnexes.includes(current.surfaceM2))
+  ) {
+    patch.surfaceM2 = null;
     keys.push('surfaceM2');
   }
   if (draft.floor) {
@@ -591,15 +612,19 @@ export function applyEstimationVoiceDraft(
     const next: EstimationAnnexe[] = current.annexes.map((a) => ({ ...a }));
     let annexesTouchees = false;
     for (const a of draft.annexes) {
-      const exist = next.find(
-        (x) => x.libelle.toLocaleLowerCase('fr') === a.libelle.toLocaleLowerCase('fr'),
-      );
+      const exist =
+        next.find((x) => x.libelle.toLocaleLowerCase('fr') === a.libelle.toLocaleLowerCase('fr')) ??
+        next.find((x) => !x.libelle.trim() && (a.surfaceM2 == null || x.surfaceM2 === a.surfaceM2));
       if (exist) {
-        if (a.surfaceM2 != null && exist.surfaceM2 == null) {
+        if (!exist.libelle.trim()) {
+          exist.libelle = a.libelle;
+          annexesTouchees = true;
+        }
+        if (a.surfaceM2 != null && exist.surfaceM2 !== a.surfaceM2) {
           exist.surfaceM2 = a.surfaceM2;
           annexesTouchees = true;
         }
-        if (a.valorisationEur != null && exist.valorisationEur == null) {
+        if (a.valorisationEur != null && exist.valorisationEur !== a.valorisationEur) {
           exist.valorisationEur = a.valorisationEur;
           annexesTouchees = true;
         }

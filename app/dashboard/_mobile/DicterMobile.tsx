@@ -2,7 +2,7 @@
 
 import VoiceCaptureDialog from '@/components/dashboard/voice/VoiceCaptureDialog';
 import type { VoiceCapturePurpose } from '@/components/dashboard/voice/VoiceCaptureProvider';
-import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+import type { EstimationVoiceApplyOpts, EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
 
 export default function DicterMobile({
   onClose,
@@ -21,7 +21,7 @@ export default function DicterMobile({
   banId?: string | null;
   resterSurPage?: boolean;
   purpose?: VoiceCapturePurpose;
-  onEstimationDraft?: (draft: EstimationVoiceDraft) => void;
+  onEstimationDraft?: (draft: EstimationVoiceDraft, opts?: EstimationVoiceApplyOpts) => void;
 }) {
   return (
     <VoiceCaptureDialog

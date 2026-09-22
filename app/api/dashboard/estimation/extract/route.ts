@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     typeof body === 'object' && body && 'transcript' in body && typeof body.transcript === 'string'
       ? body.transcript
       : '';
-  if (transcript.trim().length < 12) {
+  if (transcript.trim().length < 8) {
     return NextResponse.json({ error: 'Dictée trop courte' }, { status: 400 });
   }
 

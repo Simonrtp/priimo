@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { runDvfEstimation } from '@/lib/estimation/dvf-engine';
+import { motifDepuisSaisie } from '@/lib/estimation/moteur';
 import {
   ESTIMATION_SELECT,
   lireHonorairesPct,
@@ -15,7 +16,6 @@ import {
 } from '@/lib/estimation/objet';
 import { parseGrille } from '@/lib/estimation/objet';
 import { appliquerQualiteEtAgent, capitaliser, type AjustementAgent } from '@/lib/estimation/valeur';
-import { CONFIG_ESTIMATION } from '@/lib/estimation';
 import type { EstimationFeatureKey } from '@/lib/estimation';
 
 export const runtime = 'nodejs';
@@ -71,11 +71,45 @@ export async function POST(
     row.property_type === 'maison' || row.property_type === 'appartement'
       ? row.property_type
       : null;
-  if (!address || !/^\d{5}$/.test(postalCode) || !propertyType) {
-    return NextResponse.json({ error: 'Adresse et type de bien requis' }, { status: 400 });
-  }
-  if (lat == null || lng == null || surface == null || surface <= 0 || rooms == null || rooms <= 0) {
-    return NextResponse.json({ error: 'Surface, pièces et position requises' }, { status: 400 });
+  const saisie = motifDepuisSaisie({
+    surfaceM2: surface,
+    propertyType,
+    latitude: lat,
+    longitude: lng,
+    postalCode,
+  });
+  if (saisie || !address) {
+    const motif = saisie ?? {
+      code: 'adresse_incomplete' as const,
+      motif: 'Adresse manquante.',
+      action: 'Saisissez l’adresse, ou le prix à la main.',
+    };
+    const ctxActuel =
+      row.context && typeof row.context === 'object' && !Array.isArray(row.context)
+        ? (row.context as Record<string, unknown>)
+        : {};
+    const prixAgent =
+      typeof ctxActuel.prixAgent === 'number' && ctxActuel.prixAgent > 0 ? ctxActuel.prixAgent : null;
+    const { data: updated } = await session
+      .from('agency_estimations')
+      .update({
+        available: false,
+        price_value: prixAgent,
+        price_low: null,
+        price_high: null,
+        price_per_m2: prixAgent != null && surface != null && surface > 0 ? Math.round(prixAgent / surface) : null,
+        context: { ...ctxActuel, impossible: motif, moteurValeur: null },
+      })
+      .eq('id', id)
+      .eq('agency_id', agency.id)
+      .select(ESTIMATION_SELECT)
+      .single();
+    return NextResponse.json({
+      estimation: updated ? mapEstimation(updated) : mapEstimation(row),
+      decomposition: null,
+      capitalisation: null,
+      impossible: motif,
+    });
   }
 
   const bien = parseBien(row.bien);
@@ -94,11 +128,11 @@ export async function POST(
       postalCode,
       city: row.city,
       banId: row.ban_id,
-      latitude: lat,
-      longitude: lng,
-      propertyType,
-      surfaceM2: surface,
-      rooms,
+      latitude: lat!,
+      longitude: lng!,
+      propertyType: propertyType!,
+      surfaceM2: surface!,
+      rooms: rooms ?? 1,
       floor: row.floor,
       hasElevator: bien.ascenseur,
       conditionRating: null,
@@ -110,6 +144,12 @@ export async function POST(
         balconM2: bien.balconTerrasse ? 12 : null,
         chargesMensuelles: bien.chargesAnnuelles != null ? Math.round(bien.chargesAnnuelles / 12) : null,
       },
+      dernierEtage: bien.dernierEtage,
+      etagesImmeuble: bien.etagesImmeuble,
+      annexes: annexes.map((a) => ({ libelle: a.libelle, valorisationEur: a.valorisationEur })),
+      exclusIds: Array.isArray(body.exclusIds)
+        ? body.exclusIds.filter((x): x is string => typeof x === 'string')
+        : undefined,
     },
     agency.id,
     async () => undefined,
@@ -124,13 +164,16 @@ export async function POST(
     justification: typeof body.justification === 'string' ? body.justification : null,
   };
 
-  const decomposition = appliquerQualiteEtAgent(result.corrections, {
-    grille,
-    agent,
-    honorairesPct: lireHonorairesPct(row.honoraires_pct),
-    netVendeur,
-    rangePct: CONFIG_ESTIMATION.RANGE_PCT,
-  });
+  const decomposition =
+    result.available && result.corrections.length > 0
+      ? appliquerQualiteEtAgent(result.corrections, {
+          grille,
+          agent,
+          honorairesPct: lireHonorairesPct(row.honoraires_pct),
+          netVendeur,
+          rangePct: 0,
+        })
+      : null;
 
   const cap = capitaliser({
     occupation: row.occupation === 'occupe' ? 'occupe' : 'libre',
@@ -148,22 +191,36 @@ export async function POST(
         return d;
       })();
 
+  const ctxActuel =
+    row.context && typeof row.context === 'object' && !Array.isArray(row.context)
+      ? (row.context as Record<string, unknown>)
+      : {};
+  const prixAgentExistant =
+    typeof ctxActuel.prixAgent === 'number' && ctxActuel.prixAgent > 0 ? ctxActuel.prixAgent : null;
+  const moteurValeur = result.value != null && result.value > 0 ? result.value : null;
+  const prixRetenu = prixAgentExistant ?? moteurValeur;
+  const pricePerM2 =
+    prixRetenu != null && surface != null && surface > 0 ? Math.round(prixRetenu / surface) : null;
+
   const context = {
     ...result.context,
-    corrections: decomposition.lignes,
+    corrections: decomposition?.lignes ?? [],
     capitalisation: cap,
     netVendeur,
     agentAjustements: agent,
+    moteurValeur,
+    prixAgent: prixAgentExistant,
+    impossible: result.impossible,
   };
 
   const { data: updated, error } = await session
     .from('agency_estimations')
     .update({
       available: result.available,
-      price_value: decomposition.valeur,
-      price_low: decomposition.low,
-      price_high: decomposition.high,
-      price_per_m2: result.pricePerM2,
+      price_value: prixRetenu,
+      price_low: result.available ? result.low : null,
+      price_high: result.available ? result.high : null,
+      price_per_m2: pricePerM2,
       reliability: result.reliability,
       reliability_label: result.reliabilityLabel,
       steps: result.steps,

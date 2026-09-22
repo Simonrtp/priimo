@@ -51,8 +51,9 @@ export function appliquerQualiteEtAgent(
     netVendeur: boolean;
     rangePct: number;
   },
-): DecompositionValeur {
+): DecompositionValeur | null {
   const horsTotal = baseLines.filter((l) => l.kind !== 'total');
+  if (horsTotal.length === 0) return null;
   const lignes: LigneValeur[] = avecHints(horsTotal);
   const sousTotal = horsTotal.reduce((s, l) => s + l.amountEur, 0);
 

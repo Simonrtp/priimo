@@ -608,6 +608,10 @@ export type AgencyEstimationRow = {
   last_viewed_at: string | null;
   rapport_compose_at?: string | null;
   rapport_exclus?: { comparables?: string[]; annonces?: string[] } | null;
+  moteur_valeur?: number | null;
+  prix_agent?: number | null;
+  moteur_impossible_motif?: string | null;
+  moteur_trace?: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -1211,6 +1215,7 @@ export type BuildingTransactionRow = {
   id_mutation: string | null;
   created_at: string;
   code_postal?: string | null;
+  nature_mutation?: string | null;
 };
 
 export type BuildingDpeRow = {

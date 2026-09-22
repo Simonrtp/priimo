@@ -18,9 +18,20 @@ import type { NameMatchMember } from '@/lib/agency/match-member';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
 import { emptyReviewPayload } from '@/lib/notes/build-review';
 import { joinVoiceTranscripts } from '@/lib/voice/extract';
-import { hydrateNoteReview, LIVE_FLUSH_MS, transcribeBlob, transcribeLive } from '@/lib/voice/live';
+import {
+  hydrateNoteReview,
+  LIVE_FIRST_FLUSH_ESTIMATION_MS,
+  LIVE_FIRST_FLUSH_MS,
+  LIVE_FLUSH_ESTIMATION_MS,
+  LIVE_FLUSH_MS,
+  LIVE_MIN_BYTES_ESTIMATION,
+  transcribeBlob,
+  transcribeLive,
+} from '@/lib/voice/live';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+import type { EstimationVoiceApplyOpts, EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+import { voiceDraftKeys } from '@/lib/estimation/voice-extract';
+import { ditSurfaceLogement, extractEstimationHeuristic } from '@/lib/estimation/voice-heuristic';
 import { postFormOrQueue } from '@/lib/offline/queue';
 import { notifySuccess } from '@/lib/notify';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
@@ -47,7 +58,7 @@ export default function VoiceCaptureDialog({
   banId?: string | null;
   resterSurPage?: boolean;
   purpose?: 'note' | 'estimation';
-  onEstimationDraft?: (draft: EstimationVoiceDraft) => void;
+  onEstimationDraft?: (draft: EstimationVoiceDraft, opts?: EstimationVoiceApplyOpts) => void;
 }) {
   const estimationMode = purpose === 'estimation';
   const router = useRouter();
@@ -83,6 +94,54 @@ export default function VoiceCaptureDialog({
   const mimeRef = useRef('audio/webm');
   transcriptRef.current = transcript;
   voiceNoteIdRef.current = voiceNoteId;
+  const draftCbRef = useRef(onEstimationDraft);
+  draftCbRef.current = onEstimationDraft;
+  const extractTimerRef = useRef(0);
+  const extractBusyRef = useRef(false);
+  const extractAttenteRef = useRef<string | null>(null);
+  const extractVuRef = useRef('');
+
+  function pousserDictéeLive(text: string) {
+    if (!estimationMode) return;
+    const draft = { ...extractEstimationHeuristic(text) };
+    if (draft.surfaceM2 != null && !ditSurfaceLogement(text)) draft.surfaceM2 = null;
+    if (voiceDraftKeys(draft).length > 0) draftCbRef.current?.(draft, { live: true });
+    window.clearTimeout(extractTimerRef.current);
+    extractTimerRef.current = window.setTimeout(() => {
+      void extraireDictéeModele(text);
+    }, 700);
+  }
+
+  async function extraireDictéeModele(text: string) {
+    const trimmed = text.trim();
+    if (!estimationMode || trimmed.length < 8) return;
+    if (extractBusyRef.current) {
+      extractAttenteRef.current = trimmed;
+      return;
+    }
+    if (trimmed === extractVuRef.current) return;
+    extractBusyRef.current = true;
+    try {
+      const res = await fetch('/api/dashboard/estimation/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: trimmed }),
+      });
+      const data = (await res.json()) as { draft?: EstimationVoiceDraft };
+      if (cancelledRef.current) return;
+      if (data.draft && voiceDraftKeys(data.draft).length > 0) {
+        extractVuRef.current = trimmed;
+        draftCbRef.current?.(data.draft, { live: true });
+      }
+    } catch {
+      /* la passe locale a déjà rempli ce qui était sûr */
+    } finally {
+      extractBusyRef.current = false;
+      const suivant = extractAttenteRef.current;
+      extractAttenteRef.current = null;
+      if (suivant && suivant !== extractVuRef.current) void extraireDictéeModele(suivant);
+    }
+  }
 
   const hasPriorTake = Boolean(voiceNoteId) || transcript.trim().length > 0;
 
@@ -130,7 +189,10 @@ export default function VoiceCaptureDialog({
 
   async function uploadEstimation(blob: Blob) {
     const preview = joinVoiceTranscripts(takeBaseRef.current, liveTextRef.current);
-    if (preview.trim()) setTranscript(preview);
+    if (preview.trim()) {
+      setTranscript(preview);
+      pousserDictéeLive(preview);
+    }
     setPhase('processing');
     setError(null);
     releaseMic();
@@ -149,6 +211,7 @@ export default function VoiceCaptureDialog({
         if (finalText) {
           text = joinVoiceTranscripts(takeBaseRef.current, finalText);
           setTranscript(text);
+          pousserDictéeLive(text);
         }
       }
       const trimmed = text.trim();
@@ -157,7 +220,7 @@ export default function VoiceCaptureDialog({
         chars: trimmed.length,
         text: trimmed,
       });
-      if (trimmed.length < 12) {
+      if (trimmed.length < 8) {
         const message = 'Dictée trop courte. Décrivez le bien visité.';
         notifyError(message);
         setError(message);
@@ -389,16 +452,23 @@ export default function VoiceCaptureDialog({
         if (recorderRef.current?.state !== 'recording') return;
         const blob = new Blob(chunksRef.current, { type: mimeRef.current });
         liveInFlightRef.current = true;
-        void transcribeLive(blob)
+        void transcribeLive(blob, estimationMode ? LIVE_MIN_BYTES_ESTIMATION : undefined)
           .then((text) => {
-            if (text && !cancelledRef.current) liveTextRef.current = text;
+            if (!text || cancelledRef.current) return;
+            liveTextRef.current = text;
+            const full = joinVoiceTranscripts(takeBaseRef.current, text);
+            setTranscript(full);
+            pousserDictéeLive(full);
           })
           .finally(() => {
             liveInFlightRef.current = false;
           });
       };
-      flushTimer = window.setInterval(flush, LIVE_FLUSH_MS);
-      flushSoon = window.setTimeout(flush, 1800);
+      flushTimer = window.setInterval(flush, estimationMode ? LIVE_FLUSH_ESTIMATION_MS : LIVE_FLUSH_MS);
+      flushSoon = window.setTimeout(
+        flush,
+        estimationMode ? LIVE_FIRST_FLUSH_ESTIMATION_MS : LIVE_FIRST_FLUSH_MS,
+      );
     } catch (error) {
       notifyError(micErrorMessage(error));
       if (transcriptRef.current.trim()) {
@@ -407,7 +477,7 @@ export default function VoiceCaptureDialog({
       }
       onClose();
     }
-  }, [onClose, streamPromise]);
+  }, [estimationMode, onClose, streamPromise]);
 
   useEffect(() => {
     if (autoStartedRef.current) return;
@@ -506,7 +576,7 @@ export default function VoiceCaptureDialog({
         : 'Mise en texte de la dictée…';
 
   const helpCopy = estimationMode
-    ? 'Décrivez le bien que vous avez visité aujourd’hui. Les champs se pré-remplissent ; vous relirez avant de valider.'
+    ? 'Parlez, les champs se remplissent tout de suite. Si vous vous reprenez, la dernière valeur compte.'
     : hasPriorTake
       ? 'Ajoutez ce qui manque.'
       : 'Parlez normalement.';

@@ -16,6 +16,19 @@ const AGENT_ZERO = {
 };
 
 describe('valeur d’estimation', () => {
+  it('ne fabrique pas 0 € à partir d’un détail vide', () => {
+    assert.equal(
+      appliquerQualiteEtAgent([], {
+        grille: {},
+        agent: AGENT_ZERO,
+        honorairesPct: 5,
+        netVendeur: false,
+        rangePct: 0.08,
+      }),
+      null,
+    );
+  });
+
   it('n’invente pas de capitalisation si le bien est libre', () => {
     assert.equal(
       capitaliser({ occupation: 'libre', loyerAnnuel: 12_000, honorairesPct: 5, netVendeur: false }),
@@ -44,6 +57,7 @@ describe('valeur d’estimation', () => {
       netVendeur: true,
       rangePct: 0.08,
     });
+    assert.ok(out);
     assert.equal(out.valeur, 400_000);
     assert.equal(out.netVendeur, 380_000);
   });
@@ -56,6 +70,7 @@ describe('valeur d’estimation', () => {
       netVendeur: false,
       rangePct: 0.08,
     });
+    assert.ok(vide);
     assert.equal(vide.lignes.some((l) => l.id === 'qualite'), false);
 
     const pleine = appliquerQualiteEtAgent(BASE, {
@@ -65,6 +80,7 @@ describe('valeur d’estimation', () => {
       netVendeur: false,
       rangePct: 0.08,
     });
+    assert.ok(pleine);
     assert.equal(pleine.lignes.some((l) => l.id === 'qualite'), true);
   });
 });

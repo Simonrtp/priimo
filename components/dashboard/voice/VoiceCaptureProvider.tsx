@@ -21,7 +21,10 @@ export type VoiceCaptureOptions = {
   resterSurPage?: boolean;
   /** Dictée d’un bien visité, pour pré-remplir le formulaire d’estimation. */
   purpose?: VoiceCapturePurpose;
-  onEstimationDraft?: (draft: EstimationVoiceDraft) => void;
+  onEstimationDraft?: (
+    draft: EstimationVoiceDraft,
+    opts?: import('@/lib/estimation/voice-extract').EstimationVoiceApplyOpts,
+  ) => void;
 };
 
 interface VoiceCaptureContextValue {
@@ -54,7 +57,13 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [banId, setBanId] = useState<string | null>(null);
   const [resterSurPage, setResterSurPage] = useState(false);
   const [purpose, setPurpose] = useState<VoiceCapturePurpose>('note');
-  const estimationDraftRef = useRef<((draft: EstimationVoiceDraft) => void) | null>(null);
+  const estimationDraftRef = useRef<
+    | ((
+        draft: EstimationVoiceDraft,
+        opts?: import('@/lib/estimation/voice-extract').EstimationVoiceApplyOpts,
+      ) => void)
+    | null
+  >(null);
   const [gestureSession, setGestureSession] = useState<{ adresse: string | null } | null>(null);
   const [gestureLocked, setGestureLocked] = useState(false);
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
@@ -194,7 +203,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             banId={banId}
             resterSurPage={resterSurPage}
             purpose={purpose}
-            onEstimationDraft={(draft) => estimationDraftRef.current?.(draft)}
+            onEstimationDraft={(draft, opts) => estimationDraftRef.current?.(draft, opts)}
           />
         ) : (
           <VoiceCaptureDialog
@@ -205,7 +214,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             banId={banId}
             resterSurPage={resterSurPage}
             purpose={purpose}
-            onEstimationDraft={(draft) => estimationDraftRef.current?.(draft)}
+            onEstimationDraft={(draft, opts) => estimationDraftRef.current?.(draft, opts)}
           />
         )
       ) : null}

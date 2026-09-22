@@ -35,18 +35,18 @@ export function phraseImmeuble(summary: ResultatSummary): string | null {
   return `dont ${n} dans l’immeuble`;
 }
 
-export type NiveauFiabilite = 'elevee' | 'correcte' | 'limitee';
+export type NiveauFiabilite = 'elevee' | 'moyenne' | 'faible';
 
 export function niveauFiabilite(score: number): NiveauFiabilite {
   if (score >= 70) return 'elevee';
-  if (score >= 40) return 'correcte';
-  return 'limitee';
+  if (score >= 40) return 'moyenne';
+  return 'faible';
 }
 
 export const FIABILITE_LABEL: Record<NiveauFiabilite, string> = {
   elevee: 'Fiabilité élevée',
-  correcte: 'Fiabilité correcte',
-  limitee: 'Fiabilité limitée',
+  moyenne: 'Fiabilité moyenne',
+  faible: 'Fiabilité faible',
 };
 
 export function formatEuro(n: number): string {
