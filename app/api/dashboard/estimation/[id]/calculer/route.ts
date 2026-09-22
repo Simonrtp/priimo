@@ -210,6 +210,7 @@ export async function POST(
     agentAjustements: agent,
     moteurValeur,
     prixAgent: prixAgentExistant,
+    majorationPct: ctxActuel.majorationPct ?? 0,
     impossible: result.impossible,
   };
 

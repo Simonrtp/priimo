@@ -16,8 +16,15 @@ export type NoteLinkPick = {
   entiteId: string;
   label: string;
   subtitle: string | null;
+  address?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  banId?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  propertyType?: string | null;
+  surfaceM2?: number | null;
+  rooms?: number | null;
 };
 
 type BanHit = {
@@ -162,6 +169,15 @@ export default function NoteEntitySearch({
         entiteId: item.id,
         label: item.label,
         subtitle: item.subtitle,
+        address: item.address ?? (item.kind === 'bien' ? item.label : null),
+        city: item.city,
+        postalCode: item.postalCode,
+        banId: item.banId,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        propertyType: item.propertyType,
+        surfaceM2: item.surfaceM2,
+        rooms: item.rooms,
       });
     }
     setQuery('');

@@ -58,7 +58,7 @@ export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | n
     return 'Indiquez l’adresse, le type, la surface et le nombre de pièces.';
   }
   if (id === 'estimation' && !etapeEstimationOk(e)) {
-    return 'Calculez la valeur pour continuer.';
+    return 'Le prix n’est pas encore prêt.';
   }
   if (id === 'rapport' && !etapeRapportOk(e)) {
     return 'Terminez le client, le bien et l’estimation avant le rapport.';

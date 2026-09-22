@@ -46,6 +46,10 @@ export async function GET() {
     kind: 'contact',
     label: c.fullName,
     subtitle: ligneRattachementContact(c, biensPourLigne, contactsPourLigne),
+    address: c.address,
+    banId: c.banId,
+    latitude: c.latitude,
+    longitude: c.longitude,
   }));
 
   const bienItems: RattacherItem[] = biensVisibles.map((b) => ({
@@ -53,6 +57,16 @@ export async function GET() {
     kind: 'bien',
     label: b.address,
     subtitle: [b.city, b.proprietaireName].filter(Boolean).join(' · ') || null,
+    address: b.address,
+    city: b.city,
+    postalCode: b.postalCode,
+    banId: b.banId,
+    latitude: b.latitude,
+    longitude: b.longitude,
+    proprietaireContactId: b.proprietaireContactId,
+    propertyType: b.propertyType,
+    surfaceM2: b.surfaceM2,
+    rooms: b.rooms,
   }));
 
   const leadItems: RattacherItem[] = visibleLeadsFor(viewer, leads)

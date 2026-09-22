@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   DISPERSION_MESSAGE,
   FIABILITE_LABEL,
+  formatNoteSurDix,
   niveauFiabilite,
   phraseComparables,
   phraseImmeuble,
@@ -40,6 +41,12 @@ describe('niveau de fiabilité', () => {
     assert.equal(FIABILITE_LABEL[niveauFiabilite(85)], 'Fiabilité élevée');
     assert.equal(FIABILITE_LABEL[niveauFiabilite(55)], 'Fiabilité moyenne');
     assert.equal(FIABILITE_LABEL[niveauFiabilite(20)], 'Fiabilité faible');
+  });
+
+  it('affiche une note sur dix', () => {
+    assert.equal(formatNoteSurDix(77), '7,7 / 10');
+    assert.equal(formatNoteSurDix(80), '8 / 10');
+    assert.equal(formatNoteSurDix(0), '0 / 10');
   });
 });
 

@@ -12,6 +12,15 @@ import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import NoteEntitySearch from '@/components/dashboard/notes/NoteEntitySearch';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog';
+import CartesAdresseProposee from './CartesAdresseProposee';
+import {
+  extraireCodePostal,
+  extraireVille,
+  fusionnerAdressesProposees,
+  patchDepuisAdresseProposee,
+  typeBienEstimation,
+  type AdresseProposee,
+} from '@/lib/notes/rattacher-catalogue';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import {
   ETAT_LABELS,
@@ -77,15 +86,20 @@ export default function OngletClient({
   isDirector,
   currentUserId,
   onPatch,
+  propositions = [],
+  onAllerBien,
 }: {
   estimation: EstimationObjet;
   members: AssigneeOption[];
   isDirector: boolean;
   currentUserId: string;
   onPatch: (body: Record<string, unknown>) => void;
+  propositions?: AdresseProposee[];
+  onAllerBien?: () => void;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
+  const [ficheAdresse, setFicheAdresse] = useState<AdresseProposee | null>(null);
   const [labels, setLabels] = useState<Record<RattacheKind, string | null>>({
     contact: null,
     lead: null,
@@ -100,6 +114,7 @@ export default function OngletClient({
     };
     if (!ids.contact && !ids.lead && !ids.bien) {
       setLabels({ contact: null, lead: null, bien: null });
+      setFicheAdresse(null);
       return;
     }
     let cancel = false;
@@ -146,6 +161,67 @@ export default function OngletClient({
     const extra = [contact.phone, contact.address].filter(Boolean).join(' · ');
     if (nom && extra) return `${nom} · ${extra}`;
     return nom || extra || 'Client rattaché';
+  }
+
+  function propositionDepuisFiche(contact: Contact): AdresseProposee | null {
+    const label = contact.address?.trim();
+    if (!label) return null;
+    const postalCode = extraireCodePostal(label);
+    return {
+      key: `contact:${contact.id}`,
+      source: 'contact',
+      bienId: null,
+      label,
+      city: extraireVille(label, postalCode),
+      postalCode,
+      banId: contact.banId,
+      latitude: contact.latitude,
+      longitude: contact.longitude,
+      propertyType: null,
+      surfaceM2: null,
+      rooms: null,
+    };
+  }
+
+  function appliquerAdresse(p: AdresseProposee) {
+    onPatch(patchDepuisAdresseProposee(p, estimation));
+    onAllerBien?.();
+  }
+
+  const cartesAdresse = fusionnerAdressesProposees(ficheAdresse, propositions);
+
+  function appliquerBienDepuisPick(pick: {
+    entiteId: string;
+    address?: string | null;
+    city?: string | null;
+    postalCode?: string | null;
+    banId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    propertyType?: string | null;
+    surfaceM2?: number | null;
+    rooms?: number | null;
+    label: string;
+  }) {
+    const label = pick.address?.trim() || pick.label;
+    if (!label) {
+      onPatch({ bienId: pick.entiteId });
+      return;
+    }
+    appliquerAdresse({
+      key: `bien:${pick.entiteId}`,
+      source: 'bien',
+      bienId: pick.entiteId,
+      label,
+      city: pick.city ?? extraireVille(label, pick.postalCode ?? extraireCodePostal(label)),
+      postalCode: pick.postalCode ?? extraireCodePostal(label),
+      banId: pick.banId ?? null,
+      latitude: pick.latitude ?? null,
+      longitude: pick.longitude ?? null,
+      propertyType: typeBienEstimation(pick.propertyType),
+      surfaceM2: pick.surfaceM2 ?? null,
+      rooms: pick.rooms ?? null,
+    });
   }
 
   async function ouvrirFiche(contactId: string) {
@@ -228,6 +304,7 @@ export default function OngletClient({
                     onEdit={() => void ouvrirFiche(estimation.contactId!)}
                     onRemove={() => {
                       setLabel('contact', null);
+                      setFicheAdresse(null);
                       onPatch({ contactId: null });
                     }}
                   />
@@ -252,11 +329,16 @@ export default function OngletClient({
                     }}
                   />
                 ) : null}
+                <CartesAdresseProposee
+                  propositions={cartesAdresse}
+                  actuel={{ address: estimation.address, bienId: estimation.bienId }}
+                  onChoisir={appliquerAdresse}
+                />
               </div>
             ) : null}
             <NoteEntitySearch
               id="est-rattacher"
-              className="w-full"
+              className="w-full max-w-sm"
               excludeIds={
                 new Set(
                   [
@@ -269,6 +351,24 @@ export default function OngletClient({
               onPick={(pick) => {
                 if (pick.entiteType === 'contact') {
                   setLabel('contact', labelFromPick(pick));
+                  const label = pick.address?.trim();
+                  if (label) {
+                    const postalCode = pick.postalCode ?? extraireCodePostal(label);
+                    setFicheAdresse({
+                      key: `contact:${pick.entiteId}`,
+                      source: 'contact',
+                      bienId: null,
+                      label,
+                      city: pick.city ?? extraireVille(label, postalCode),
+                      postalCode,
+                      banId: pick.banId ?? null,
+                      latitude: pick.latitude ?? null,
+                      longitude: pick.longitude ?? null,
+                      propertyType: null,
+                      surfaceM2: null,
+                      rooms: null,
+                    });
+                  }
                   onPatch({ contactId: pick.entiteId });
                   return;
                 }
@@ -279,7 +379,7 @@ export default function OngletClient({
                 }
                 if (pick.entiteType === 'bien') {
                   setLabel('bien', labelFromPick(pick));
-                  onPatch({ bienId: pick.entiteId });
+                  appliquerBienDepuisPick(pick);
                 }
               }}
             />
@@ -316,12 +416,14 @@ export default function OngletClient({
           skipSuccessToast
           onSaved={(contact) => {
             setLabel('contact', labelFromContact(contact));
+            setFicheAdresse(propositionDepuisFiche(contact));
             onPatch({ contactId: contact.id });
             fermerFiche();
             notifySuccess(editing ? 'Fiche mise à jour' : 'Client créé et rattaché');
           }}
           onOpenExisting={(contact) => {
             setLabel('contact', labelFromContact(contact));
+            setFicheAdresse(propositionDepuisFiche(contact));
             onPatch({ contactId: contact.id });
             fermerFiche();
           }}

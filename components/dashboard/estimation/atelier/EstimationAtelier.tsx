@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, Mic } from 'lucide-react';
+import { useAdressesProposees } from './useAdressesProposees';
+import { ArrowLeft, ArrowRight, Check, Mic } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
@@ -106,6 +107,12 @@ export default function EstimationAtelier({
   estimationRef.current = estimation;
   const { openCapture, captureSessionOpen, capturePurpose } = useVoiceCapture();
   const dicteeEstimationOuverte = captureSessionOpen && capturePurpose === 'estimation';
+  const propositions = useAdressesProposees(estimation.contactId);
+
+  const allerBien = useCallback(() => {
+    setOnglet('bien');
+    setAtteint((prev) => Math.max(prev, indexEtape('bien')));
+  }, []);
 
   const patch = useCallback((body: Record<string, unknown>) => {
     setEstimation((prev) => ({
@@ -265,6 +272,29 @@ export default function EstimationAtelier({
     }
   }
 
+  const autoCalcRef = useRef(false);
+  useEffect(() => {
+    if (onglet !== 'estimation') {
+      autoCalcRef.current = false;
+      return;
+    }
+    const moteur =
+      typeof estimation.context.moteurValeur === 'number' && estimation.context.moteurValeur > 0
+        ? estimation.context.moteurValeur
+        : null;
+    if (autoCalcRef.current || calculating || moteur != null || estimation.context.impossible) {
+      return;
+    }
+    autoCalcRef.current = true;
+    void calculer({
+      netVendeur: true,
+      travauxEur: 0,
+      decoteOccupationEur: 0,
+      autresEur: 0,
+      justification: '',
+    });
+  }, [onglet, calculating, estimation.context.moteurValeur, estimation.context.impossible]);
+
   const indexCourant = indexEtape(onglet);
   const estDerniere = onglet === 'rapport';
   const manqueSuivant = manquesEtape(estimation, onglet);
@@ -298,8 +328,9 @@ export default function EstimationAtelier({
         <button
           type="button"
           onClick={onRetour}
-          className="inline-flex min-h-11 items-center text-[13.5px] font-medium text-text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-medium text-text-muted hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
+          <ArrowLeft size={15} strokeWidth={2.2} aria-hidden />
           Retour
         </button>
         {sauve !== 'ok' ? (
@@ -310,11 +341,8 @@ export default function EstimationAtelier({
       </div>
 
       {onglet === 'bien' ? (
-        <div className="flex flex-col gap-3 rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-pretty text-[13.5px] text-text-muted">
-            Décrivez à voix haute le bien déjà visité. Les champs se pré-remplissent ; vous relisez,
-            corrigez, validez.
-          </p>
+        <div className="flex w-fit max-w-full items-center gap-3 self-start rounded-clay border border-black/[0.06] bg-surface px-3 py-2 shadow-clay-sm">
+          <p className="text-[13px] text-text-muted">Dictez le bien. Relisez ensuite.</p>
           <WorkspaceButton
             type="button"
             onClick={() =>
@@ -400,6 +428,8 @@ export default function EstimationAtelier({
               isDirector={isDirector}
               currentUserId={currentUserId}
               onPatch={patch}
+              propositions={propositions}
+              onAllerBien={allerBien}
             />
           ) : null}
           {onglet === 'bien' ? (
@@ -409,6 +439,7 @@ export default function EstimationAtelier({
               onPatch={patch}
               pendingVoice={pendingVoice}
               onClearPending={clearPendingVoice}
+              propositions={propositions}
             />
           ) : null}
           {onglet === 'caracteristiques' ? (
@@ -548,5 +579,30 @@ function mapLocal(body: Record<string, unknown>, prev: EstimationObjet): Partial
   if ('leadId' in body) next.leadId = body.leadId as string | null;
   if ('bienId' in body) next.bienId = body.bienId as string | null;
   if ('referentId' in body) next.referentId = body.referentId as string | null;
+  if ('prixAgent' in body || 'majorationPct' in body) {
+    const prixAgent =
+      'prixAgent' in body
+        ? typeof body.prixAgent === 'number' && body.prixAgent > 0
+          ? body.prixAgent
+          : null
+        : typeof prev.context.prixAgent === 'number'
+          ? prev.context.prixAgent
+          : null;
+    const majorationPct =
+      'majorationPct' in body && typeof body.majorationPct === 'number'
+        ? body.majorationPct
+        : prev.context.majorationPct;
+    next.context = { ...prev.context, prixAgent, majorationPct };
+    const moteur =
+      typeof prev.context.moteurValeur === 'number' && prev.context.moteurValeur > 0
+        ? prev.context.moteurValeur
+        : null;
+    const retenu = prixAgent ?? moteur;
+    if (retenu != null) {
+      next.priceValue = retenu;
+      next.pricePerM2 =
+        prev.surfaceM2 != null && prev.surfaceM2 > 0 ? Math.round(retenu / prev.surfaceM2) : null;
+    }
+  }
   return next;
 }

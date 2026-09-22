@@ -7,6 +7,16 @@ export type RattacherItem = {
   kind: RattacherKind;
   label: string;
   subtitle: string | null;
+  address?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  banId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  proprietaireContactId?: string | null;
+  propertyType?: string | null;
+  surfaceM2?: number | null;
+  rooms?: number | null;
 };
 
 export const RATTACHER_CARTES: { id: RattacherKind; label: string; entite: NoteLienEntite }[] = [
@@ -39,12 +49,37 @@ export type ContactRattacher = {
   phone: string | null;
   address: string | null;
   banId: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type BienRattacher = {
+  id?: string;
   proprietaireContactId: string | null;
   address: string;
+  city?: string | null;
+  postalCode?: string | null;
   banId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  propertyType?: string | null;
+  surfaceM2?: number | null;
+  rooms?: number | null;
+};
+
+export type AdresseProposee = {
+  key: string;
+  source: 'bien' | 'contact';
+  bienId: string | null;
+  label: string;
+  city: string | null;
+  postalCode: string | null;
+  banId: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  propertyType: 'appartement' | 'maison' | null;
+  surfaceM2: number | null;
+  rooms: number | null;
 };
 
 function unique(values: readonly string[]): string[] {
@@ -92,4 +127,177 @@ export function ligneRattachementContact(
   const parts = unique([...biensLies, ...autres]);
   if (parts.length > 0) return parts.join(' · ');
   return [contact.phone, contact.address].filter(Boolean).join(' · ') || null;
+}
+
+export function extraireCodePostal(adresse: string | null | undefined): string | null {
+  const m = (adresse ?? '').match(/\b(\d{5})\b/);
+  return m?.[1] ?? null;
+}
+
+export function extraireVille(
+  adresse: string | null | undefined,
+  codePostal: string | null,
+): string | null {
+  if (!adresse || !codePostal) return null;
+  const after = adresse.split(codePostal)[1]?.replace(/^[\s,]+/, '').trim();
+  return after || null;
+}
+
+export function typeBienEstimation(
+  raw: string | null | undefined,
+): 'appartement' | 'maison' | null {
+  const t = (raw ?? '').toLocaleLowerCase('fr');
+  if (!t) return null;
+  if (t.includes('maison')) return 'maison';
+  if (t.includes('appart')) return 'appartement';
+  return null;
+}
+
+export function contactDepuisItem(item: RattacherItem): ContactRattacher {
+  return {
+    id: item.id,
+    fullName: item.label,
+    phone: null,
+    address: item.address ?? null,
+    banId: item.banId ?? null,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+  };
+}
+
+export function bienDepuisItem(item: RattacherItem): BienRattacher {
+  return {
+    id: item.id,
+    proprietaireContactId: item.proprietaireContactId ?? null,
+    address: item.address ?? item.label,
+    city: item.city ?? null,
+    postalCode: item.postalCode ?? null,
+    banId: item.banId ?? null,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    propertyType: item.propertyType ?? null,
+    surfaceM2: item.surfaceM2 ?? null,
+    rooms: item.rooms ?? null,
+  };
+}
+
+function propositionDepuisBien(b: BienRattacher): AdresseProposee | null {
+  const label = b.address.trim();
+  if (!label) return null;
+  const postalCode = b.postalCode?.trim() || extraireCodePostal(label);
+  return {
+    key: b.id ? `bien:${b.id}` : `bien:${normaliserRecherche(label)}`,
+    source: 'bien',
+    bienId: b.id ?? null,
+    label,
+    city: b.city?.trim() || extraireVille(label, postalCode),
+    postalCode,
+    banId: b.banId ?? null,
+    latitude: b.latitude ?? null,
+    longitude: b.longitude ?? null,
+    propertyType: typeBienEstimation(b.propertyType),
+    surfaceM2: b.surfaceM2 ?? null,
+    rooms: b.rooms ?? null,
+  };
+}
+
+function propositionDepuisContact(c: ContactRattacher): AdresseProposee | null {
+  const label = c.address?.trim();
+  if (!label) return null;
+  const postalCode = extraireCodePostal(label);
+  return {
+    key: `contact:${c.id}`,
+    source: 'contact',
+    bienId: null,
+    label,
+    city: extraireVille(label, postalCode),
+    postalCode,
+    banId: c.banId,
+    latitude: c.latitude ?? null,
+    longitude: c.longitude ?? null,
+    propertyType: null,
+    surfaceM2: null,
+    rooms: null,
+  };
+}
+
+function uniquePropositions(items: AdresseProposee[]): AdresseProposee[] {
+  const out: AdresseProposee[] = [];
+  for (const item of items) {
+    const deja = out.some(
+      (p) =>
+        (p.banId && item.banId && p.banId === item.banId) ||
+        adressesCompatibles(p.label, item.label),
+    );
+    if (deja) continue;
+    out.push(item);
+  }
+  return out;
+}
+
+/** Appartements liés, sinon l’adresse de la fiche client. */
+export function adressesProposeesPourContact(
+  contact: ContactRattacher,
+  biens: readonly BienRattacher[],
+): AdresseProposee[] {
+  const fromBiens = biens
+    .filter((b) => contactSurBien(contact, b))
+    .flatMap((b) => {
+      const p = propositionDepuisBien(b);
+      return p ? [p] : [];
+    });
+  const fromContact = propositionDepuisContact(contact);
+  if (!fromContact) return uniquePropositions(fromBiens);
+  const deja = fromBiens.some(
+    (p) =>
+      (p.banId && contact.banId && p.banId === contact.banId) ||
+      adressesCompatibles(p.label, fromContact.label),
+  );
+  return uniquePropositions(deja ? fromBiens : [...fromBiens, fromContact]);
+}
+
+export function fusionnerAdressesProposees(
+  fiche: AdresseProposee | null,
+  remote: readonly AdresseProposee[],
+): AdresseProposee[] {
+  const ordered = [
+    ...remote.filter((p) => p.source === 'bien'),
+    ...(fiche && fiche.source === 'bien' ? [fiche] : []),
+    ...remote.filter((p) => p.source !== 'bien'),
+    ...(fiche && fiche.source !== 'bien' ? [fiche] : []),
+  ];
+  return uniquePropositions(ordered);
+}
+
+export function adresseDejaAppliquee(
+  actuel: { address?: string | null; bienId?: string | null },
+  p: AdresseProposee,
+): boolean {
+  if (p.bienId && actuel.bienId === p.bienId && adressesCompatibles(actuel.address, p.label)) {
+    return true;
+  }
+  return adressesCompatibles(actuel.address, p.label);
+}
+
+export function patchDepuisAdresseProposee(
+  p: AdresseProposee,
+  actuel: {
+    propertyType?: string | null;
+    surfaceM2?: number | null;
+    rooms?: number | null;
+  },
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    address: p.label,
+    postalCode: p.postalCode,
+    city: p.city,
+    banId: p.banId,
+    latitude: p.latitude,
+    longitude: p.longitude,
+  };
+  if (p.bienId) body.bienId = p.bienId;
+  if (!actuel.propertyType && p.propertyType) body.propertyType = p.propertyType;
+  if (actuel.surfaceM2 == null && p.surfaceM2 != null) body.surfaceM2 = p.surfaceM2;
+  if (actuel.rooms == null && p.rooms != null) body.rooms = p.rooms;
+  return body;
 }

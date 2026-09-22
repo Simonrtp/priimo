@@ -9,6 +9,8 @@ import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import SectionRepliable from './SectionRepliable';
 import ChampPropose from './ChampPropose';
+import CartesAdresseProposee from './CartesAdresseProposee';
+import { patchDepuisAdresseProposee, type AdresseProposee } from '@/lib/notes/rattacher-catalogue';
 import { inferDernierEtage, numeroEtage, optionsEtage, optionsEtagesImmeuble } from '@/lib/estimation/etages';
 import { optionsQualiteEmplacement } from '@/lib/estimation/qualite-emplacement';
 import { optionsNiveaux } from '@/lib/estimation/niveaux';
@@ -59,12 +61,14 @@ export default function OngletBien({
   onPatch,
   pendingVoice = new Set(),
   onClearPending = () => undefined,
+  propositions = [],
 }: {
   estimation: EstimationObjet;
   parkingMedian: number | null;
   onPatch: (body: Record<string, unknown>) => void;
   pendingVoice?: ReadonlySet<EstimationVoiceField>;
   onClearPending?: (key: EstimationVoiceField) => void;
+  propositions?: AdresseProposee[];
 }) {
   const bien = estimation.bien;
 
@@ -151,12 +155,19 @@ export default function OngletBien({
     <div className="flex flex-col gap-3">
       <SectionRepliable titre="Localisation" ouvertDefaut>
         <Field label="Adresse" htmlFor="est-adresse">
-          <AddressAutocomplete
-            id="est-adresse"
-            value={estimation.address ?? ''}
-            onChange={onAdresse}
-            inputClassName={ADDRESS_FIELD_INPUT_CLASS}
-          />
+          <div className="flex flex-col gap-2">
+            <CartesAdresseProposee
+              propositions={propositions}
+              actuel={{ address: estimation.address, bienId: estimation.bienId }}
+              onChoisir={(p) => onPatch(patchDepuisAdresseProposee(p, estimation))}
+            />
+            <AddressAutocomplete
+              id="est-adresse"
+              value={estimation.address ?? ''}
+              onChange={onAdresse}
+              inputClassName={ADDRESS_FIELD_INPUT_CLASS}
+            />
+          </div>
         </Field>
         {estimation.parcelleId ? (
           <p className="mt-2 text-[12.5px] text-text-muted">Parcelle {estimation.parcelleId}</p>

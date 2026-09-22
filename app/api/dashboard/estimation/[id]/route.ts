@@ -129,7 +129,8 @@ export async function PATCH(
   if (
     body.rapportExclus !== undefined ||
     typeof body.remarquesExpert === 'string' ||
-    body.prixAgent !== undefined
+    body.prixAgent !== undefined ||
+    body.majorationPct !== undefined
   ) {
     const prev =
       row.context && typeof row.context === 'object' && !Array.isArray(row.context)
@@ -158,6 +159,12 @@ export async function PATCH(
         retenu != null && row.surface_m2 != null && row.surface_m2 > 0
           ? Math.round(retenu / row.surface_m2)
           : null;
+    }
+    if (body.majorationPct !== undefined) {
+      const n = Number(body.majorationPct);
+      next.majorationPct = Number.isFinite(n)
+        ? Math.round(Math.min(10, Math.max(-10, n)) * 10) / 10
+        : 0;
     }
     patch.context = next;
   }

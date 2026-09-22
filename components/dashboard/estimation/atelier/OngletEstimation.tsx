@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Euro } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { Field } from '@/components/dashboard/workspace/Field';
 import { ChampSaisi } from './ChampSaisi';
-import { formatEuro } from '@/lib/estimation/resultat';
+import { formatEuro, formatNoteSurDix } from '@/lib/estimation/resultat';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import { nombreSaisi } from '@/lib/estimation/objet';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
 import { parseRapportExclus, basculerExclusion } from '@/lib/rapport/genere/exclus';
 import { formatDateCourte, formatPrixM2, formatSurface } from '@/lib/rapport/genere/format';
 
-type AjustementVu = { id: string; label: string; amountEur?: number };
 type VenteVu = {
   id: string;
   date: string;
@@ -53,14 +53,14 @@ export default function OngletEstimation({
   const moteurValeur = lireNombre(ctx.moteurValeur) ?? (estimation.available ? estimation.priceValue : null);
   const prixAgent = lireNombre(ctx.prixAgent);
   const impossible = (ctx.impossible ?? null) as ImpossibleVu | null;
-  const ajustements = (Array.isArray(ctx.ajustements) ? ctx.ajustements : []) as AjustementVu[];
   const exclus = parseRapportExclus(estimation.rapportExclus);
   const [net, setNet] = useState(true);
   const [travaux, setTravaux] = useState(0);
   const [decote, setDecote] = useState(0);
   const [autres, setAutres] = useState(0);
   const [justif, setJustif] = useState('');
-  const [prixSaisi, setPrixSaisi] = useState(prixAgent != null ? String(prixAgent) : '');
+  const prixRetenu = prixAgent ?? moteurValeur;
+  const [prixSaisi, setPrixSaisi] = useState(prixRetenu != null ? String(prixRetenu) : '');
 
   const [connues, setConnues] = useState<VenteVu[]>([]);
   const retenues = Array.isArray(estimation.comparables)
@@ -85,8 +85,15 @@ export default function OngletEstimation({
   }, [estimation.id, estimation.comparables]);
 
   useEffect(() => {
-    setPrixSaisi(prixAgent != null ? String(prixAgent) : '');
-  }, [prixAgent]);
+    setPrixSaisi(prixRetenu != null ? String(prixRetenu) : '');
+  }, [prixRetenu]);
+
+  function saisirPrix(raw: string) {
+    const n = nombreSaisi(raw);
+    const prix = n != null && n > 0 ? Math.round(n) : null;
+    setPrixSaisi(prix != null ? String(prix) : '');
+    onPatch({ prixAgent: prix });
+  }
 
   function lancer(exclusIds?: string[]) {
     if (calculating) return;
@@ -100,24 +107,16 @@ export default function OngletEstimation({
     });
   }
 
+  const listeVentes = connues.length > 0 ? connues : retenues;
   const fourchetteBasse = estimation.priceLow;
   const fourchetteHaute = estimation.priceHigh;
   const prixM2 =
-    moteurValeur != null && estimation.surfaceM2
-      ? Math.round(moteurValeur / estimation.surfaceM2)
+    prixRetenu != null && estimation.surfaceM2
+      ? Math.round(prixRetenu / estimation.surfaceM2)
       : null;
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-pretty text-[13.5px] text-text-muted">
-          Le moteur propose. Vous gardez le dernier mot.
-        </p>
-        <WorkspaceButton type="button" onClick={() => lancer()} disabled={calculating}>
-          {calculating ? 'Calcul…' : moteurValeur != null || impossible ? 'Recalculer' : 'Calculer'}
-        </WorkspaceButton>
-      </div>
-
       {calculating ? (
         <div
           className="rounded-clay border border-black/[0.06] bg-surface px-5 py-4 shadow-clay-sm"
@@ -127,7 +126,7 @@ export default function OngletEstimation({
           <div className="h-3.5 w-24 animate-pulse rounded bg-black/[0.06]" />
           <div className="mt-3 h-10 w-44 animate-pulse rounded bg-black/[0.08]" />
         </div>
-      ) : impossible && moteurValeur == null ? (
+      ) : impossible && moteurValeur == null && prixRetenu == null ? (
         <div className="rounded-clay border border-black/[0.08] bg-surface px-5 py-4 shadow-clay-sm">
           <p className="text-[12.5px] font-semibold uppercase tracking-wide text-text-muted">
             Estimation impossible
@@ -135,11 +134,14 @@ export default function OngletEstimation({
           <p className="mt-2 text-pretty text-[15px] font-medium text-text-strong">{impossible.motif}</p>
           <p className="mt-1 text-pretty text-[13.5px] text-text-muted">{impossible.action}</p>
         </div>
-      ) : moteurValeur != null ? (
+      ) : prixRetenu != null ? (
         <div className="rounded-clay border border-black/[0.06] bg-surface px-5 py-4 shadow-clay-sm">
-          <p className="text-[12.5px] text-text-muted">Prix proposé par le moteur</p>
-          <p className="mt-1 font-display text-[32px] font-bold tabular-nums text-text-strong">
-            {formatEuro(moteurValeur)}
+          <p className="flex items-center gap-2 font-display text-[32px] font-bold tabular-nums text-text-strong">
+            <Euro size={22} strokeWidth={2.2} className="shrink-0 text-text-muted" aria-hidden />
+            <span>
+              {new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(prixRetenu)}
+              <span className="sr-only"> euros</span>
+            </span>
           </p>
           {prixM2 != null && estimation.surfaceM2 != null ? (
             <p className="mt-1 text-[13.5px] tabular-nums text-text-muted">
@@ -151,86 +153,75 @@ export default function OngletEstimation({
               Fourchette {formatEuro(fourchetteBasse)} – {formatEuro(fourchetteHaute)}
             </p>
           ) : null}
-          {estimation.reliabilityLabel ? (
-            <p className="mt-2 text-[13px] font-semibold text-text-strong">{estimation.reliabilityLabel}</p>
-          ) : null}
+          <p className="mt-2 text-[13px] font-semibold tabular-nums text-text-strong">
+            Fiabilité : {formatNoteSurDix(estimation.reliability)}
+          </p>
         </div>
       ) : (
-        <p className="text-pretty text-[13.5px] text-text-muted">
-          Calculez pour obtenir une proposition, ou saisissez le prix à la main.
-        </p>
+        <p className="text-pretty text-[13.5px] text-text-muted">Saisissez le prix si le calcul n’aboutit pas.</p>
       )}
 
-      <Field label="Prix final de l’agent" htmlFor="est-prix-agent">
-        <ChampSaisi
-          id="est-prix-agent"
-          inputMode="numeric"
-          value={prixSaisi}
-          onCommit={(raw) => {
-            const n = nombreSaisi(raw);
-            setPrixSaisi(n != null && n > 0 ? String(n) : '');
-            onPatch({ prixAgent: n != null && n > 0 ? n : null });
-          }}
-        />
+      <Field label="Prix" htmlFor="est-prix-agent">
+        <div className="relative max-w-sm">
+          <ChampSaisi
+            id="est-prix-agent"
+            inputMode="numeric"
+            value={prixSaisi}
+            onCommit={saisirPrix}
+            className="pr-9"
+            aria-label="Prix du bien en euros"
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[14px] text-text-muted">
+            €
+          </span>
+        </div>
       </Field>
 
-      {ajustements.length > 0 ? (
-        <section>
-          <h3 className="text-[14px] font-semibold text-text-strong">Ajustements appliqués</h3>
-          <ul className="mt-2 flex flex-col gap-1">
-            {ajustements.map((a) => (
-              <li key={a.id} className="flex justify-between gap-3 text-[13.5px]">
-                <span className="text-text">{a.label}</span>
-                {a.amountEur != null ? (
-                  <span className="tabular-nums text-text-muted">
-                    {a.amountEur > 0 ? '+' : ''}
-                    {formatEuro(a.amountEur)}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section>
-        <h3 className="text-[14px] font-semibold text-text-strong">Ventes retenues</h3>
-        <p className="mt-1 text-pretty text-[13px] text-text-muted">
-          Retirez une vente pour recalculer tout de suite. Vous pouvez la rétablir.
-        </p>
-        {connues.length === 0 && retenues.length === 0 ? (
-          <p className="mt-2 text-pretty text-[13px] text-text-muted">Aucune vente retenue pour l’instant.</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-1">
-            {(connues.length > 0 ? connues : retenues).map((v) => {
-              const retiree = exclus.comparables.includes(v.id);
-              return (
-                <li key={v.id} className="flex items-center justify-between gap-2 rounded-clay px-1 py-1">
-                  <span className={`min-w-0 text-[13px] ${retiree ? 'text-text-muted line-through' : 'text-text'}`}>
-                    {v.sameBuilding ? 'Immeuble · ' : ''}
-                    {formatSurface(v.surfaceM2)} · {formatEuro(v.prix)}
-                    {v.prixM2 > 0 ? ` · ${formatPrixM2(v.prixM2)}` : ''}
-                    {v.date ? ` · ${formatDateCourte(v.date)}` : ''}
-                  </span>
-                  <WorkspaceButton
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      const next = basculerExclusion(exclus.comparables, v.id);
-                      onPatch({
-                        rapportExclus: { comparables: next, annonces: exclus.annonces },
-                      });
-                      lancer(next);
-                    }}
-                  >
-                    {retiree ? 'Rétablir' : 'Retirer'}
-                  </WorkspaceButton>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <details className="rounded-clay border border-black/[0.06] px-3 py-2">
+        <summary className="min-h-11 cursor-pointer text-[13.5px] font-semibold text-text">
+          Ventes retenues
+          {listeVentes.length > 0 ? (
+            <span className="ml-1.5 font-normal tabular-nums text-text-muted">({listeVentes.length})</span>
+          ) : null}
+        </summary>
+        <div className="mt-3 pb-2">
+          <p className="text-pretty text-[13px] text-text-muted">
+            Retirez une vente pour recalculer tout de suite. Vous pouvez la rétablir.
+          </p>
+          {listeVentes.length === 0 ? (
+            <p className="mt-2 text-pretty text-[13px] text-text-muted">Aucune vente retenue pour l’instant.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1">
+              {listeVentes.map((v) => {
+                const retiree = exclus.comparables.includes(v.id);
+                return (
+                  <li key={v.id} className="flex items-center justify-between gap-2 rounded-clay px-1 py-1">
+                    <span className={`min-w-0 text-[13px] ${retiree ? 'text-text-muted line-through' : 'text-text'}`}>
+                      {v.sameBuilding ? 'Immeuble · ' : ''}
+                      {formatSurface(v.surfaceM2)} · {formatEuro(v.prix)}
+                      {v.prixM2 > 0 ? ` · ${formatPrixM2(v.prixM2)}` : ''}
+                      {v.date ? ` · ${formatDateCourte(v.date)}` : ''}
+                    </span>
+                    <WorkspaceButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        const next = basculerExclusion(exclus.comparables, v.id);
+                        onPatch({
+                          rapportExclus: { comparables: next, annonces: exclus.annonces },
+                        });
+                        lancer(next);
+                      }}
+                    >
+                      {retiree ? 'Rétablir' : 'Retirer'}
+                    </WorkspaceButton>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </details>
 
       <details className="rounded-clay border border-black/[0.06] px-3 py-2">
         <summary className="min-h-11 cursor-pointer text-[13.5px] font-semibold text-text">

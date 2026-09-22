@@ -49,6 +49,20 @@ export const FIABILITE_LABEL: Record<NiveauFiabilite, string> = {
   faible: 'Fiabilité faible',
 };
 
+/** Score moteur 0–100 → note / 10. */
+export function noteFiabiliteSurDix(score: number): number {
+  if (!Number.isFinite(score) || score <= 0) return 0;
+  return Math.round(Math.min(100, score)) / 10;
+}
+
+export function formatNoteSurDix(score: number): string {
+  const note = noteFiabiliteSurDix(score);
+  return `${note.toLocaleString('fr-FR', {
+    minimumFractionDigits: note % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  })} / 10`;
+}
+
 export function formatEuro(n: number): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
