@@ -25,6 +25,7 @@ import type { KindGeneree } from '@/lib/rapport/modele-defaut';
 import { ChromiumIndisponible, imprimerHtmlEnPdf } from '@/lib/rapport/print/chromium';
 import { htmlPagesGenerees } from '@/lib/rapport/print/document';
 import { compterPagesPdf } from '@/lib/rapport/pdf-compter';
+import { indicesPagesChrome, pagesVisiblesRapport } from '@/lib/rapport/pages-visibles';
 
 export const PAGE_W = 841.89;
 export const PAGE_H = 595.28;
@@ -62,7 +63,7 @@ export async function genererPdfRapport(input: {
   const fonts = { regular: font, bold: fontBold, italic: fontItalic, boldItalic: fontBoldItalic };
   const accentHex = normaliserCouleurPrincipale(input.agence.couleurPrincipale);
 
-  const exportables = input.pages.filter(pagePourPdf);
+  const exportables = pagesVisiblesRapport(input.pages).filter(pagePourPdf);
   if (exportables.length === 0) {
     const page = out.addPage([PAGE_W, PAGE_H]);
     const pied = construirePied({
@@ -92,14 +93,18 @@ export async function genererPdfRapport(input: {
     }
   }
 
-  let chromeIndex = 0;
+  const chromeIdx = chromeDoc
+    ? indicesPagesChrome(chromeDoc.getPageCount(), kinds.length)
+    : [];
+  let chromeCurseur = 0;
   let index = 0;
   for (const item of exportables) {
     index += 1;
     if (item.kind === 'generee' && item.kindGeneree && input.dossier) {
-      if (chromeDoc && chromeIndex < chromeDoc.getPageCount()) {
-        const [copied] = await out.copyPages(chromeDoc, [chromeIndex]);
-        chromeIndex += 1;
+      const chromePage = chromeDoc ? chromeIdx[chromeCurseur] : undefined;
+      chromeCurseur += 1;
+      if (chromeDoc && chromePage != null && chromePage < chromeDoc.getPageCount()) {
+        const [copied] = await out.copyPages(chromeDoc, [chromePage]);
         if (copied) out.addPage(copied);
         continue;
       }

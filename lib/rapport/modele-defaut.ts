@@ -5,57 +5,56 @@
 
 import { nomPersonne } from '@/lib/rapport/genere/format';
 
-export const KINDS_GENEREES = [
+/** Gabarit avis v2 : une page, un sujet. Les kinds absorbés restent lisibles pour les anciens rapports. */
+export const KINDS_GABARIT_V2 = [
   'couverture',
   'votre_bien',
-  'description',
   'immeuble_appartement',
   'secteur',
+  'comparables',
+  'concurrentiel',
+  'prix',
+] as const;
+
+/** Anciennes pages fusionnées dans le gabarit 7 — ne plus les insérer ni les afficher. */
+export const KINDS_ABSORBEES = [
+  'description',
   'points_interet',
   'connectivite',
   'permis',
-  'comparables',
-  'concurrentiel',
   'indices',
-  'prix',
   'prochaine_etape',
 ] as const;
+
+export const KINDS_GENEREES = [...KINDS_GABARIT_V2, ...KINDS_ABSORBEES] as const;
 export type KindGeneree = (typeof KINDS_GENEREES)[number];
+export type KindGabaritV2 = (typeof KINDS_GABARIT_V2)[number];
 
 /** Pages générées avant le bloc bibliothèque. */
-export const KINDS_AVANT_BIBLIO = [
-  'couverture',
-  'votre_bien',
-  'description',
-  'immeuble_appartement',
-  'secteur',
-  'points_interet',
-  'connectivite',
-  'permis',
-  'comparables',
-  'concurrentiel',
-  'indices',
-  'prix',
-] as const satisfies readonly KindGeneree[];
+export const KINDS_AVANT_BIBLIO = KINDS_GABARIT_V2;
 
-/** Dernière page du rapport, après la bibliothèque. */
-export const KINDS_APRES_BIBLIO = ['prochaine_etape'] as const satisfies readonly KindGeneree[];
+/** Plus de page dédiée après la bibliothèque : le CTA est sur Notre estimation. */
+export const KINDS_APRES_BIBLIO = [] as const satisfies readonly KindGeneree[];
 
 export const LIBELLE_KIND_GENEREE: Record<KindGeneree, string> = {
   couverture: 'Couverture',
   votre_bien: 'Votre bien',
   description: 'Description du bien',
-  immeuble_appartement: 'L’immeuble et l’appartement',
-  secteur: 'Le secteur',
+  immeuble_appartement: 'L’immeuble et son environnement',
+  secteur: 'Les prix dans votre quartier',
   points_interet: 'Points d’intérêt',
   connectivite: 'Connectivité',
   permis: 'Permis de construire',
-  comparables: 'Ventes comparables',
-  concurrentiel: 'Étude concurrentielle',
+  comparables: 'Les ventes comparables',
+  concurrentiel: 'Les biens en vente autour de vous',
   indices: 'Indices du marché',
   prix: 'Notre estimation',
   prochaine_etape: 'Prochaine étape',
 };
+
+export function estKindAbsorbee(kind: KindGeneree): boolean {
+  return (KINDS_ABSORBEES as readonly string[]).includes(kind);
+}
 
 export const TITRE_COUVERTURE_DEFAUT = 'Avis de valeur';
 
@@ -119,7 +118,23 @@ export function nomSlotModele(
   return biblioParId.get(slot.bibliothequeId)?.nom ?? 'Page retirée';
 }
 
-/** Insère les 13 pages générées autour des pages de bibliothèque déjà présentes. */
+/** Page bibliothèque de test (captures internes) — jamais livrée au client. */
+export function estPageTestBibliotheque(nom: string | null | undefined): boolean {
+  const n = (nom ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLocaleLowerCase('fr');
+  if (!n.trim()) return false;
+  return (
+    /\bhello\b/.test(n) ||
+    /dans ton secteur/.test(n) ||
+    /\balan\b/.test(n) ||
+    /page de test/.test(n) ||
+    /^test\b/.test(n)
+  );
+}
+
+/** Insère les 7 pages du gabarit autour des pages de bibliothèque déjà présentes. */
 export function insererPagesGenerees(slots: readonly SlotModele[]): SlotModele[] {
   const biblio = slots.filter((s): s is Extract<SlotModele, { source: 'bibliotheque' }> => s.source === 'bibliotheque');
   return [

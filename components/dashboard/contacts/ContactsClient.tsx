@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { ChevronDown, Download, Phone, Search, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
@@ -14,6 +15,7 @@ import {
   isRelanceFuture,
 } from '@/lib/contacts/duplicates';
 import {
+  adresseRattachee,
   contactInitials,
   formatContactMeta,
   formatLastInteraction,
@@ -114,6 +116,13 @@ function ContactRow({
     bienAddress: bien?.address ?? null,
     leadAddress,
   });
+  const rattache = adresseRattachee({
+    bienAddress: bien?.address ?? null,
+    leadAddress,
+    contactAddress: contact.address,
+    bienBanId: bien?.banId ?? null,
+    contactBanId: contact.banId,
+  });
   const assignee = members.find((m) => m.id === (contact.assignedTo ?? contact.createdBy));
   const assigneePortrait = assignee ? portraitDepuisMembre(assignee) : null;
   const future = isRelanceFuture(contact.recontacterLe, todayKey);
@@ -162,6 +171,22 @@ function ContactRow({
             >
               {contact.fullName}
             </span>
+            {rattache ? (
+              <span className="min-w-0 truncate text-[13px] text-text-muted">
+                rattaché à{' '}
+                {rattache.href ? (
+                  <Link
+                    href={rattache.href}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-text-strong underline decoration-black/20 underline-offset-2 hover:decoration-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    {rattache.adresse}
+                  </Link>
+                ) : (
+                  rattache.adresse
+                )}
+              </span>
+            ) : null}
             <span
               className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
               style={{ background: '#EAEFF5', color: SLATE }}

@@ -79,6 +79,34 @@ export function libelleOccupation(occupation: 'libre' | 'occupe'): string {
   return occupation === 'occupe' ? 'Occupé' : 'Libre';
 }
 
+const ETAT_CONDITION: Record<number, string> = {
+  1: 'À rénover',
+  2: 'État correct',
+  3: 'Bon état',
+  4: 'Excellent état',
+};
+
+const ETAT_NOTE: Record<number, string> = {
+  1: 'Mauvais',
+  2: 'Médiocre',
+  3: 'Moyen',
+  4: 'Bon',
+  5: 'Très bon',
+};
+
+export function libelleEtatBien(input: {
+  conditionRating: number | null | undefined;
+  etatGeneral: number | null | undefined;
+}): string | null {
+  if (input.conditionRating != null && ETAT_CONDITION[input.conditionRating]) {
+    return ETAT_CONDITION[input.conditionRating]!;
+  }
+  if (input.etatGeneral != null && ETAT_NOTE[input.etatGeneral]) {
+    return ETAT_NOTE[input.etatGeneral]!;
+  }
+  return null;
+}
+
 export function libelleTypeLocal(type: string | null | undefined): string | null {
   if (!type?.trim()) return null;
   const t = type.trim();

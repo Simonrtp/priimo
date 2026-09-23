@@ -1,7 +1,11 @@
 /**
  * Sélection des ventes DVF pour la page « Ventes comparables ».
  * Uniquement les mutations d'un seul logement (dépendances tolérées).
+ * Les prix au m² aberrants (MAD 2,5) sont écartés, comme le moteur.
  */
+
+import { ecartAbsoluMedian, mediane } from '@/lib/estimation/moteur';
+import { MOTEUR_CONFIG } from '@/lib/estimation/moteur-config';
 
 export const COMPARABLES_RAYON_M = 500;
 export const COMPARABLES_SURFACE_TOLERANCE = 0.25;
@@ -99,6 +103,31 @@ export function mutationsMonoLogement(rows: readonly MutationBrute[]): MutationB
   return out;
 }
 
+/** Même règle que le moteur : écarte un €/m² à plus de 2,5 MAD de la médiane. */
+export function ecarterComparablesAberrants<T extends { id: string; prixM2: number | null }>(
+  ventes: readonly T[],
+): { retenues: T[]; exclues: T[] } {
+  const avecPrix = ventes.filter((v) => v.prixM2 != null && v.prixM2 > 0);
+  const prix = avecPrix.map((v) => v.prixM2!);
+  const med = mediane(prix);
+  const mad = ecartAbsoluMedian(prix);
+  if (med == null || mad == null || mad === 0 || avecPrix.length < 5) {
+    return { retenues: [...ventes], exclues: [] };
+  }
+  const seuil = MOTEUR_CONFIG.MAD_SEUIL * mad;
+  const retenues: T[] = [];
+  const exclues: T[] = [];
+  for (const v of ventes) {
+    if (v.prixM2 == null || v.prixM2 <= 0) {
+      retenues.push(v);
+      continue;
+    }
+    if (Math.abs(v.prixM2 - med) > seuil) exclues.push(v);
+    else retenues.push(v);
+  }
+  return { retenues, exclues };
+}
+
 export function selectionnerComparables(
   rows: readonly MutationBrute[],
   critere: CritereComparables,
@@ -158,6 +187,7 @@ export function selectionnerComparables(
   let pool = filtrer(24, true);
   if (pool.length < COMPARABLES_MIN) pool = filtrer(24, false);
   if (pool.length < COMPARABLES_MIN) pool = filtrer(36, false);
+  pool = ecarterComparablesAberrants(pool).retenues;
 
   const visibles = pool.filter((v) => !exclus.has(v.id));
   const retenues = visibles.slice(0, COMPARABLES_MAX);

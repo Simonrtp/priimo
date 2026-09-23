@@ -12,7 +12,8 @@ import {
   selectionnerComparables,
   type MutationBrute,
 } from '@/lib/rapport/genere/comparables';
-import { assurerFourchette, surfacePourPrixM2 } from '@/lib/rapport/genere/fourchette';
+import { assurerFourchette, prixAuM2DepuisDossier } from '@/lib/rapport/genere/fourchette';
+import { libelleEtatBien } from '@/lib/rapport/genere/format';
 import type {
   AnnonceMarche,
   ClientRapport,
@@ -61,11 +62,12 @@ export async function chargerDossierRapport(
 
   const fourchette =
     e.priceValue != null ? assurerFourchette(e.priceValue, e.priceLow, e.priceHigh) : null;
-  const surfPrix = surfacePourPrixM2({ surfaceM2: e.surfaceM2, surfaceCarrez });
-  let pricePerM2 = e.pricePerM2;
-  if (e.priceValue != null && surfPrix && (pricePerM2 == null || e.pricePerM2 == null)) {
-    pricePerM2 = Math.round(e.priceValue / surfPrix.m2);
-  }
+  const surfPrix = prixAuM2DepuisDossier({
+    priceValue: e.priceValue,
+    surfaceM2: e.surfaceM2,
+    surfaceCarrez,
+  });
+  const pricePerM2 = surfPrix?.prixM2 ?? null;
 
   if (fourchette?.ajoutee && e.priceValue != null) {
     await session
@@ -106,6 +108,12 @@ export async function chargerDossierRapport(
     floor: e.floor,
     occupation: e.occupation,
     dpeClass: e.dpeClass,
+    gesClass: e.bien.ges,
+    etatLibelle: libelleEtatBien({
+      conditionRating: e.conditionRating,
+      etatGeneral: e.grille.etat_general?.valeur ?? null,
+    }),
+    balconTerrasse: e.bien.balconTerrasse,
     commentairesPublics: e.commentairesPublics,
     remarquesExpert: e.remarquesExpert,
     etagesImmeuble: e.bien.etagesImmeuble,

@@ -37,12 +37,29 @@ export function formatVendeurMeta(input: {
   bienAddress: string | null;
   leadAddress: string | null;
 }): string {
-  if (input.bienAddress) {
-    const statut = input.mandatStatut ? MANDAT_STATUT_LABELS[input.mandatStatut] : null;
-    return [statut, input.bienAddress].filter(Boolean).join(' · ');
-  }
-  if (input.leadAddress) return `Lead · ${input.leadAddress}`;
+  if (input.mandatStatut) return MANDAT_STATUT_LABELS[input.mandatStatut];
   return '';
+}
+
+/** Adresse du bien, du lead ou de la fiche — pour « rattaché à ». */
+export function adresseRattachee(input: {
+  bienAddress: string | null;
+  leadAddress: string | null;
+  contactAddress: string | null;
+  bienBanId: string | null;
+  contactBanId: string | null;
+}): { adresse: string; href: string | null } | null {
+  const adresse =
+    (input.bienAddress ?? '').trim() ||
+    (input.leadAddress ?? '').trim() ||
+    (input.contactAddress ?? '').trim() ||
+    null;
+  if (!adresse) return null;
+  const banId = (input.bienBanId ?? '').trim() || (input.contactBanId ?? '').trim() || null;
+  return {
+    adresse,
+    href: banId ? `/dashboard/prospection?vue=carte&immeuble=${encodeURIComponent(banId)}` : null,
+  };
 }
 
 export function contactInitials(contact: Pick<Contact, 'firstName' | 'lastName' | 'fullName'>): string {

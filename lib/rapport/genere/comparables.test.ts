@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mutationsMonoLogement, selectionnerComparables, type MutationBrute } from './comparables';
+import {
+  ecarterComparablesAberrants,
+  mutationsMonoLogement,
+  selectionnerComparables,
+  type MutationBrute,
+} from './comparables';
 
 function tx(over: Partial<MutationBrute> & Pick<MutationBrute, 'id'>): MutationBrute {
   return {
@@ -58,6 +63,19 @@ describe('ventes comparables', () => {
       maintenant,
     });
     assert.ok(retenues.some((v) => v.id === 'p'));
+  });
+
+  it('écarte une vente à 4 833 €/m² trop loin de la médiane', () => {
+    const proches = [7000, 7100, 7176, 7200, 7300, 7400].map((pm2, i) => ({
+      id: `n${i}`,
+      prixM2: pm2,
+    }));
+    const { retenues, exclues } = ecarterComparablesAberrants([
+      ...proches,
+      { id: 'bas', prixM2: 4833 },
+    ]);
+    assert.equal(retenues.some((v) => v.id === 'bas'), false);
+    assert.equal(exclues.some((v) => v.id === 'bas'), true);
   });
 
   it('honore les exclusions de l’agent', () => {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Contact } from '@/types/contact';
 import {
+  adresseRattachee,
   formatAcquereurCriteria,
   formatContactMeta,
   formatLastInteraction,
@@ -29,25 +30,56 @@ describe('formatAcquereurCriteria', () => {
 });
 
 describe('formatVendeurMeta', () => {
-  it('préfère le bien au lead', () => {
+  it('ne garde que le statut — l’adresse est à côté du nom', () => {
     assert.equal(
       formatVendeurMeta({
         mandatStatut: 'mandat_simple',
         bienAddress: '12 rue de la Monnaie',
         leadAddress: 'autre',
       }),
-      'Mandat simple · 12 rue de la Monnaie',
+      'Mandat simple',
     );
   });
 
-  it('tombe sur le lead d’origine', () => {
+  it('ne répète pas l’adresse du lead', () => {
     assert.equal(
       formatVendeurMeta({
         mandatStatut: null,
         bienAddress: null,
         leadAddress: '8 rue du Lead',
       }),
-      'Lead · 8 rue du Lead',
+      '',
+    );
+  });
+});
+
+describe('adresseRattachee', () => {
+  it('préfère le bien, puis le lead, puis la fiche', () => {
+    assert.deepEqual(
+      adresseRattachee({
+        bienAddress: '12 rue de la Monnaie',
+        leadAddress: 'autre',
+        contactAddress: 'fiche',
+        bienBanId: 'ban-1',
+        contactBanId: 'ban-2',
+      }),
+      {
+        adresse: '12 rue de la Monnaie',
+        href: '/dashboard/prospection?vue=carte&immeuble=ban-1',
+      },
+    );
+  });
+
+  it('reste lisible sans BAN, sans lien carte', () => {
+    assert.deepEqual(
+      adresseRattachee({
+        bienAddress: null,
+        leadAddress: null,
+        contactAddress: '8 rue du Lead',
+        bienBanId: null,
+        contactBanId: null,
+      }),
+      { adresse: '8 rue du Lead', href: null },
     );
   });
 });

@@ -27,3 +27,25 @@ export function surfacePourPrixM2(input: {
   }
   return null;
 }
+
+/** Source unique : prix final ÷ surface retenue. Jamais une valeur stockée. */
+export function prixAuM2(
+  prix: number | null | undefined,
+  surfaceM2: number | null | undefined,
+): number | null {
+  if (prix == null || !Number.isFinite(prix) || prix <= 0) return null;
+  if (surfaceM2 == null || !Number.isFinite(surfaceM2) || surfaceM2 <= 0) return null;
+  return Math.round(prix / surfaceM2);
+}
+
+export function prixAuM2DepuisDossier(input: {
+  priceValue: number | null;
+  surfaceM2: number | null;
+  surfaceCarrez: number | null;
+}): { prixM2: number; libelle: 'Carrez' | 'habitable' } | null {
+  const surf = surfacePourPrixM2(input);
+  if (!surf) return null;
+  const prixM2 = prixAuM2(input.priceValue, surf.m2);
+  if (prixM2 == null) return null;
+  return { prixM2, libelle: surf.libelle };
+}

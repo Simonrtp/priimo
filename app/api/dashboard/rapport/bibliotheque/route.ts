@@ -19,6 +19,7 @@ import {
   MAX_RAPPORT_UPLOAD_BYTES,
   nomFichierPropre,
 } from '@/lib/rapport/pages';
+import { estPageTestBibliotheque } from '@/lib/rapport/modele-defaut';
 import { cheminBiblio, deposerRapport, signerCheminRapport } from '@/lib/rapport/storage';
 import { compterPagesPdf } from '@/lib/rapport/pdf-compter';
 import { peutEditerBibliotheque } from '@/lib/rapport/propriete';
@@ -46,9 +47,11 @@ export async function GET() {
   }
 
   const pages = await Promise.all(
-    (data ?? []).map(async (row) =>
-      mapPageBibliotheque(row, row.storage_path ? await signerCheminRapport(row.storage_path) : null),
-    ),
+    (data ?? [])
+      .filter((row) => !estPageTestBibliotheque(row.nom))
+      .map(async (row) =>
+        mapPageBibliotheque(row, row.storage_path ? await signerCheminRapport(row.storage_path) : null),
+      ),
   );
   return NextResponse.json({ pages });
 }

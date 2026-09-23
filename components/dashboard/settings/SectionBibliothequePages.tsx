@@ -26,7 +26,7 @@ import type { CSSProperties } from 'react';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { PageBibliotheque } from '@/lib/rapport/pages';
 import {
-  KINDS_GENEREES,
+  KINDS_GABARIT_V2,
   LIBELLE_KIND_GENEREE,
   type SlotModele,
 } from '@/lib/rapport/modele-defaut';
@@ -123,7 +123,7 @@ export default function SectionBibliothequePages() {
     void enregistrerSlots(next);
   }
 
-  function ajouterGeneree(kind: (typeof KINDS_GENEREES)[number]) {
+  function ajouterGeneree(kind: (typeof KINDS_GABARIT_V2)[number]) {
     const base = slots ?? [];
     if (base.some((s) => s.source === 'generee' && s.kindGeneree === kind)) return;
     const slot: SlotVue = {
@@ -249,7 +249,7 @@ export default function SectionBibliothequePages() {
             Pages produites depuis le dossier. Retirez-les du modèle ou remettez-les ici.
           </p>
           <ul className="mt-3 flex flex-wrap gap-2">
-            {KINDS_GENEREES.filter(
+            {KINDS_GABARIT_V2.filter(
               (k) => !slots.some((s) => s.source === 'generee' && s.kindGeneree === k),
             ).map((k) => (
               <li key={k}>

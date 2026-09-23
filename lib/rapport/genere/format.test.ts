@@ -5,6 +5,7 @@ import {
   formatEuro,
   formatPrixM2,
   formatSurface,
+  libelleEtatBien,
   memeContact,
   nomPersonne,
 } from './format';
@@ -23,6 +24,12 @@ describe('formatage avis de valeur', () => {
   it('écrit la surface avec m²', () => {
     assert.equal(formatSurface(76).endsWith('m²'), true);
     assert.doesNotMatch(formatSurface(76), /m2$/);
+  });
+
+  it('nomme l’état du bien', () => {
+    assert.equal(libelleEtatBien({ conditionRating: 3, etatGeneral: 1 }), 'Bon état');
+    assert.equal(libelleEtatBien({ conditionRating: null, etatGeneral: 4 }), 'Bon');
+    assert.equal(libelleEtatBien({ conditionRating: null, etatGeneral: null }), null);
   });
 
   it('écrit le prix au m²', () => {

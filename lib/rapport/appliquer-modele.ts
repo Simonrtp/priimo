@@ -2,7 +2,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AgencyRapportPageRow, Database, EstimationRapportPageRow } from '@/types/database';
 import { lignesDepuisModele } from '@/lib/rapport/composer';
 import { kindGenereeDepuisContenu } from '@/lib/rapport/pages';
-import { KINDS_AVANT_BIBLIO, KINDS_APRES_BIBLIO, slotsDepuisLignes } from '@/lib/rapport/modele-defaut';
+import {
+  estKindAbsorbee,
+  estPageTestBibliotheque,
+  KINDS_AVANT_BIBLIO,
+  KINDS_APRES_BIBLIO,
+  slotsDepuisLignes,
+} from '@/lib/rapport/modele-defaut';
+import { retenirPagesUniques } from '@/lib/rapport/pages-visibles';
 
 type Session = SupabaseClient<Database>;
 
@@ -31,7 +38,8 @@ export async function appliquerModeleSiVide(
 
   if (pagesErr) throw new Error('Composition indisponible');
   if ((pages ?? []).length > 0) {
-    return completerPagesGenereesSiLegacy(session, input, pages ?? []);
+    const legacy = await completerPagesGenereesSiLegacy(session, input, pages ?? []);
+    return dedupliquerPagesPersistees(session, legacy);
   }
 
   const { data: meta, error: metaErr } = await session
@@ -55,7 +63,10 @@ export async function appliquerModeleSiVide(
     return [];
   }
 
-  const slots = slotsDepuisLignes(modeleRows ?? []);
+  const slots = slotsDepuisLignes(modeleRows ?? []).filter((s) => {
+    if (s.source === 'generee') return !estKindAbsorbee(s.kindGeneree);
+    return true;
+  });
   const biblioIds = slots
     .filter((s): s is { source: 'bibliotheque'; bibliothequeId: string } => s.source === 'bibliotheque')
     .map((s) => s.bibliothequeId);
@@ -63,7 +74,7 @@ export async function appliquerModeleSiVide(
   let biblio: AgencyRapportPageRow[] = [];
   if (biblioIds.length > 0) {
     const { data: biblioRows } = await session.from('agency_rapport_pages').select('*').in('id', biblioIds);
-    biblio = biblioRows ?? [];
+    biblio = (biblioRows ?? []).filter((p) => !estPageTestBibliotheque(p.nom));
   }
 
   const inserts = lignesDepuisModele({
@@ -88,7 +99,7 @@ export async function appliquerModeleSiVide(
 }
 
 /**
- * Rapports déjà composés sans aucune page générée : on insère les 13 pages
+ * Rapports déjà composés sans aucune page générée : on insère le gabarit 7
  * autour des pages existantes. Si une page générée est déjà là, on ne touche pas.
  */
 async function completerPagesGenereesSiLegacy(
@@ -105,7 +116,9 @@ async function completerPagesGenereesSiLegacy(
     .order('position', { ascending: true })
     .order('created_at', { ascending: true });
 
-  const slots = slotsDepuisLignes(modeleRows ?? []).filter((s) => s.source === 'generee');
+  const slots = slotsDepuisLignes(modeleRows ?? []).filter(
+    (s) => s.source === 'generee' && !estKindAbsorbee(s.kindGeneree),
+  );
   if (slots.length === 0) return pages;
 
   const inserts = lignesDepuisModele({
@@ -131,4 +144,23 @@ async function completerPagesGenereesSiLegacy(
     ),
   );
   return ordonnees.map((p, i) => ({ ...p, position: i }));
+}
+
+async function dedupliquerPagesPersistees(
+  session: Session,
+  pages: EstimationRapportPageRow[],
+): Promise<EstimationRapportPageRow[]> {
+  const { gardees, retirees } = retenirPagesUniques(pages);
+  if (retirees.length === 0) return pages;
+  await session
+    .from('estimation_rapport_pages')
+    .delete()
+    .in(
+      'id',
+      retirees.map((p) => p.id),
+    );
+  await Promise.all(
+    gardees.map((p, i) => session.from('estimation_rapport_pages').update({ position: i }).eq('id', p.id)),
+  );
+  return gardees.map((p, i) => ({ ...p, position: i }));
 }

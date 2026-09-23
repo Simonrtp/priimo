@@ -18,6 +18,9 @@ function dossier(over: Partial<DossierRapport> = {}): DossierRapport {
     floor: '3',
     occupation: 'libre',
     dpeClass: 'D',
+    gesClass: null,
+    etatLibelle: null,
+    balconTerrasse: null,
     commentairesPublics: 'Bel appartement.',
     remarquesExpert: null,
     etagesImmeuble: 6,
@@ -81,8 +84,8 @@ describe('complétude des pages générées', () => {
     assert.ok(c.manques.includes('Valeur estimée'));
   });
 
-  it('affiche l’étude concurrentielle même sans annonce', () => {
+  it('n’affiche pas les biens en vente sans nuage ni tableau', () => {
     const c = completudePage('concurrentiel', dossier({ annonces: [] }));
-    assert.deepEqual(c.manques, []);
+    assert.ok(c.manques.includes('Annonces insuffisantes'));
   });
 });

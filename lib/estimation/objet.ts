@@ -194,6 +194,7 @@ export type EstimationObjet = {
   rooms: number | null;
   floor: string | null;
   dpeClass: string | null;
+  conditionRating: 1 | 2 | 3 | 4 | null;
   motif: EstimationMotif;
   etat: EstimationEtat;
   dateValeur: string | null;
@@ -255,6 +256,13 @@ export function mapEstimation(row: AgencyEstimationRow): EstimationObjet {
     rooms: row.rooms,
     floor: row.floor,
     dpeClass: row.dpe_class,
+    conditionRating:
+      row.condition_rating === 1 ||
+      row.condition_rating === 2 ||
+      row.condition_rating === 3 ||
+      row.condition_rating === 4
+        ? row.condition_rating
+        : null,
     motif: isMotif(row.motif) ? row.motif : 'projet_vente',
     etat: isEtat(row.etat) ? row.etat : 'brouillon',
     dateValeur: row.date_valeur,

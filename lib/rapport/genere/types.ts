@@ -103,6 +103,9 @@ export type DossierRapport = {
   floor: string | null;
   occupation: 'libre' | 'occupe';
   dpeClass: string | null;
+  gesClass: string | null;
+  etatLibelle: string | null;
+  balconTerrasse: boolean | null;
   commentairesPublics: string | null;
   remarquesExpert: string | null;
   etagesImmeuble: number | null;

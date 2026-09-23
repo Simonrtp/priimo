@@ -1,5 +1,5 @@
 import { rgb, type PDFFont, type PDFPage, type PDFDocument } from 'pdf-lib';
-import type { KindGeneree } from '@/lib/rapport/modele-defaut';
+import { LIBELLE_KIND_GENEREE, type KindGeneree } from '@/lib/rapport/modele-defaut';
 import { formatDateRapport, joindreSansVide } from '@/lib/rapport/identite';
 import { hexVersRgb, latin1, couperLignes } from '@/lib/rapport/pdf-texte';
 import { ATTRIBUTION_IGN, urlCarteIgn } from '@/lib/rapport/genere/carte-ign';
@@ -158,22 +158,8 @@ export async function dessinerPageGeneree(
 }
 
 function libelle(kind: KindGeneree): string {
-  const map: Record<KindGeneree, string> = {
-    couverture: '',
-    votre_bien: 'Votre bien',
-    description: 'Description du bien',
-    immeuble_appartement: "L'immeuble et l'appartement",
-    secteur: 'Le secteur',
-    points_interet: "Points d'interet",
-    connectivite: 'Connectivite',
-    permis: 'Permis de construire',
-    comparables: 'Ventes comparables',
-    concurrentiel: 'Etude concurrentielle',
-    indices: 'Indices du marche',
-    prix: 'Notre estimation',
-    prochaine_etape: 'Prochaine etape',
-  };
-  return map[kind];
+  if (kind === 'couverture') return '';
+  return LIBELLE_KIND_GENEREE[kind];
 }
 
 type Ctx = {

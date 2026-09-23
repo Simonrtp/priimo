@@ -3,6 +3,7 @@ import { Ruler } from 'lucide-react';
 import { formatDateRapport, joindreSansVide } from '@/lib/rapport/identite';
 import { ATTRIBUTION_IGN, urlCarteIgn } from '@/lib/rapport/genere/carte-ign';
 import { COMPARABLES_RAYON_M } from '@/lib/rapport/genere/comparables';
+import { prixAuM2, surfacePourPrixM2 } from '@/lib/rapport/genere/fourchette';
 import { DPE_LETTERS, parseDpeLetter, type DpeLetter } from '@/lib/carte/dpe-public';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
 import {
@@ -94,13 +95,29 @@ function BarreLettre({
 }) {
   const p = palette[lettre];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', height: active ? haut + 6 : haut }}>
+    <div style={{ display: 'flex', alignItems: 'center', position: 'relative', height: active ? haut + 8 : haut }}>
+      {active ? (
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: `calc(${p.w} - 7px)`,
+            top: -8,
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: '8px solid #0A0D11',
+          }}
+        />
+      ) : null}
       <div
         style={{
           width: p.w,
           height: '100%',
           background: p.bg,
           color: p.ink,
+          boxShadow: active ? '0 0 0 2px #fff, 0 0 0 3.5px #0A0D11' : undefined,
           ...(active ? CLIP_ON : CLIP),
         }}
       >
@@ -110,7 +127,15 @@ function BarreLettre({
   );
 }
 
-function EchelleDpeGes({ dpe, compact }: { dpe: DpeLetter | null; compact?: boolean }) {
+function EchelleDpeGes({
+  dpe,
+  ges,
+  compact,
+}: {
+  dpe: DpeLetter | null;
+  ges?: DpeLetter | null;
+  compact?: boolean;
+}) {
   const h = compact ? 15 : 16;
   return (
     <>
@@ -128,7 +153,7 @@ function EchelleDpeGes({ dpe, compact }: { dpe: DpeLetter | null; compact?: bool
           Climat · GES
         </div>
         {DPE_LETTERS.map((l) => (
-          <BarreLettre key={l} lettre={l} active={false} palette={GES_BAR} haut={h} />
+          <BarreLettre key={l} lettre={l} active={ges === l} palette={GES_BAR} haut={h} />
         ))}
         <div style={{ fontSize: 10.5, color: '#3D5A80', marginTop: 6 }}>kg CO₂/m²·an</div>
       </div>
@@ -145,11 +170,12 @@ function Fiche({
   label: string;
   valeur: string | null;
 }) {
+  if (!valeur) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {svg}
       <div style={{ fontSize: 10.5, color: '#3D5A80' }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600 }}>{valeur ?? ''}</div>
+      <div style={{ fontSize: 15, fontWeight: 600 }}>{valeur}</div>
     </div>
   );
 }
@@ -307,21 +333,23 @@ function fichesBien(d: DossierRapport) {
     [libelleEtageAffiche(d.floor), d.ascenseur === true ? 'avec asc.' : d.ascenseur === false ? 'sans asc.' : null],
     ' · ',
   );
-  const ext = d.annexes.find((a) => /terrasse|balcon|jardin|cour/i.test(a.libelle));
+  const extAnnexe = d.annexes.find((a) => /terrasse|balcon|jardin|cour/i.test(a.libelle));
+  const ext = extAnnexe?.libelle ?? (d.balconTerrasse ? 'Balcon / terrasse' : null);
+  const autresAnnexes = d.annexes.filter((a) => !/terrasse|balcon|jardin|cour/i.test(a.libelle));
   const annexes =
-    d.annexes.length > 0
-      ? d.annexes.map((a) => (a.surfaceM2 != null ? `${a.libelle} de ${formatSurface(a.surfaceM2)}` : a.libelle)).join(', ')
+    autresAnnexes.length > 0
+      ? autresAnnexes.map((a) => (a.surfaceM2 != null ? `${a.libelle} de ${formatSurface(a.surfaceM2)}` : a.libelle)).join(', ')
       : null;
   return [
     { svg: SVG_SURF, label: 'Surface habitable', valeur: d.surfaceM2 != null ? formatSurface(d.surfaceM2) : null },
     { svg: SVG_CARREZ, label: 'Surface Carrez', valeur: d.surfaceCarrez != null ? formatSurface(d.surfaceCarrez) : null },
     { svg: SVG_PIECES, label: 'Pièces et chambres', valeur: pieces },
     { svg: SVG_ETAGE, label: 'Étage et ascenseur', valeur: etageAsc },
-    { svg: SVG_EXT, label: 'Extérieur', valeur: ext ? ext.libelle : null },
+    { svg: SVG_EXT, label: 'Extérieur', valeur: ext },
     { svg: SVG_ANNEXE, label: 'Annexes', valeur: annexes },
-    { svg: SVG_ETAT, label: 'État', valeur: null },
+    { svg: SVG_ETAT, label: 'État', valeur: d.etatLibelle },
     { svg: SVG_OCC, label: 'Occupation', valeur: libelleOccupation(d.occupation) },
-  ];
+  ].filter((f) => f.valeur);
 }
 
 export function PageVotreBien({ d, accent }: { d: DossierRapport; accent: string }) {
@@ -333,6 +361,7 @@ export function PageVotreBien({ d, accent }: { d: DossierRapport; accent: string
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .slice(0, 3);
   const dpe = parseDpeLetter(d.dpeClass);
+  const ges = parseDpeLetter(d.gesClass);
   const { rue, ville } = rueEtVille(d);
   const ligne = joindreSansVide([joindreSansVide([rue, ville], ', '), libelleEtageAffiche(d.floor)], ' · ');
   const fiches = fichesBien(d);
@@ -349,7 +378,7 @@ export function PageVotreBien({ d, accent }: { d: DossierRapport; accent: string
               <PhotoSlot src={photos[2]?.url} label="photo" />
             </div>
             <div style={{ flex: 1, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <EchelleDpeGes dpe={dpe} />
+              <EchelleDpeGes dpe={dpe} ges={ges} />
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
@@ -397,7 +426,7 @@ export function PageVotreBien({ d, accent }: { d: DossierRapport; accent: string
             ))}
           </div>
           <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28 }}>
-            <EchelleDpeGes dpe={dpe} compact />
+            <EchelleDpeGes dpe={dpe} ges={ges} compact />
           </div>
         </div>
       </div>
@@ -412,10 +441,11 @@ export function PageImmeuble({ d, accent }: { d: DossierRapport; accent: string 
     .map((c) => {
       const items = d.equipements.filter((e) => e.categorie === c).slice(0, 2);
       return { c, items };
-    });
+    })
+    .filter((x) => x.items.length > 0);
   return (
-    <GabaritPage d={d} titre="L’immeuble et l’appartement" accent={accent}>
-      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)', gap: 16 }}>
+    <GabaritPage d={d} titre="L’immeuble et son environnement" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: proximite.length > 0 ? 'minmax(0, 1.1fr) minmax(0, 1fr)' : '1fr', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
           <div style={{ flex: 1, minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -457,15 +487,16 @@ export function PageImmeuble({ d, accent }: { d: DossierRapport; accent: string 
             </div>
           </div>
         </div>
+        {proximite.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
           <div style={{ flex: 1, minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>À proximité</div>
               <div style={{ fontSize: 11, color: '#3D5A80' }}>Distances à pied</div>
             </div>
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', columnGap: 22, rowGap: 10 }}>
+            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: proximite.length === 1 ? '1fr' : '1fr 1fr', columnGap: 22, rowGap: 10 }}>
               {proximite.map(({ c, items }, i) => (
-                <div key={c} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: i > 1 ? '1px solid rgba(61,90,128,.12)' : undefined, paddingTop: i > 1 ? 10 : undefined }}>
+                <div key={c} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: proximite.length > 2 && i > 1 ? '1px solid rgba(61,90,128,.12)' : undefined, paddingTop: proximite.length > 2 && i > 1 ? 10 : undefined }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lib[c]}</div>
                   {items.map((e) => (
                     <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, gap: 8 }}>
@@ -478,6 +509,7 @@ export function PageImmeuble({ d, accent }: { d: DossierRapport; accent: string 
             </div>
           </div>
         </div>
+        ) : null}
       </div>
     </GabaritPage>
   );
@@ -503,7 +535,7 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
   };
 
   return (
-    <GabaritPage d={d} titre="Ventes comparables" accent={accent}>
+    <GabaritPage d={d} titre="Les ventes comparables" accent={accent}>
       <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '392px minmax(0, 1fr)', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
           <div style={{ flex: 1, minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -598,8 +630,9 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
   const high = d.priceHigh;
   const span = low != null && high != null && high > low ? high - low : null;
   const curseur = mid != null && low != null && span != null && span > 0 ? Math.min(100, Math.max(0, ((mid - low) / span) * 100)) : 50;
-  const m2Low = low != null && d.surfaceM2 ? low / d.surfaceM2 : null;
-  const m2High = high != null && d.surfaceM2 ? high / d.surfaceM2 : null;
+  const surfPrix = surfacePourPrixM2({ surfaceM2: d.surfaceM2, surfaceCarrez: d.surfaceCarrez });
+  const m2Low = prixAuM2(low, surfPrix?.m2);
+  const m2High = prixAuM2(high, surfPrix?.m2);
   const agent = nomPersonne(d.agent.nom);
   const pts = [d.pricePerM2, mediane].filter((n): n is number => n != null);
   const minP = pts.length ? Math.min(...pts) * 0.92 : 0;
@@ -737,9 +770,17 @@ export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }
         partLocataires: iris.partLocataires,
       })
     : null;
+  const profil =
+    iris != null &&
+    (iris.partAppartements != null ||
+      iris.piecesDominant != null ||
+      Boolean(iris.epoque) ||
+      iris.partProprietaires != null ||
+      iris.partLocataires != null ||
+      Boolean(phrase));
   return (
-    <GabaritPage d={d} titre="Le secteur" accent={accent}>
-      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '540px minmax(0, 1fr)', gap: 16 }}>
+    <GabaritPage d={d} titre="Les prix dans votre quartier" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: profil ? '540px minmax(0, 1fr)' : '1fr', gap: 16 }}>
         <div style={{ minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>Prix au m² autour du bien</div>
@@ -754,6 +795,7 @@ export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }
             <div style={{ fontSize: 10.5, color: '#3D5A80' }}>Votre bien · {formatPrixM2(d.pricePerM2)}</div>
           ) : null}
         </div>
+        {profil ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
           <div style={{ flex: 1, minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>Profil du secteur</div>
@@ -765,6 +807,7 @@ export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }
             {phrase ? <p className="avis-muted" style={{ marginTop: 'auto', fontSize: 12 }}>{phrase}</p> : null}
           </div>
         </div>
+        ) : null}
       </div>
     </GabaritPage>
   );
@@ -885,7 +928,7 @@ export function PageConcurrentiel({ d, accent }: { d: DossierRapport; accent: st
   const criteres = phraseCriteresConcurrentiels({ propertyType: d.propertyType, postalCode: d.postalCode });
   const ecart = d.negotiationPctMedian;
   return (
-    <GabaritPage d={d} titre="Étude concurrentielle" accent={accent}>
+    <GabaritPage d={d} titre="Les biens en vente autour de vous" accent={accent}>
       <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 470px', gap: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'repeat(3, 1fr)', gap: 12, minHeight: 0 }}>
           {cartes.map((a, i) => (

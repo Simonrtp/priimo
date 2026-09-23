@@ -18,6 +18,9 @@ function dossier(over: Partial<DossierRapport> = {}): DossierRapport {
     floor: '3',
     occupation: 'libre',
     dpeClass: 'D',
+    gesClass: 'C',
+    etatLibelle: 'Bon état',
+    balconTerrasse: null,
     commentairesPublics: 'Bel appartement.',
     remarquesExpert: 'Travaux de peinture à prévoir.',
     etagesImmeuble: 6,
@@ -121,27 +124,22 @@ describe('document HTML avis de valeur', () => {
     assert.doesNotMatch(html, /[\u{1F300}-\u{1FAFF}]/u);
   });
 
-  it('rend les 13 pages générées sans lever', () => {
+  it('rend les 7 pages du gabarit sans lever', () => {
     const html = htmlPagesGenerees(
       [
         'couverture',
         'votre_bien',
-        'description',
         'immeuble_appartement',
         'secteur',
-        'points_interet',
-        'connectivite',
-        'permis',
         'comparables',
         'concurrentiel',
-        'indices',
         'prix',
-        'prochaine_etape',
       ],
       dossier(),
       '#14AED6',
     );
     assert.match(html, /<!DOCTYPE html>/);
     assert.match(html, /avis-page/);
+    assert.equal((html.match(/class="avis-page/g) ?? []).length, 7);
   });
 });

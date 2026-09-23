@@ -7,6 +7,7 @@ import { chargerDossierRapport } from '@/lib/rapport/genere/dossier';
 import { completudePage } from '@/lib/rapport/genere/completude';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
 import { kindGenereeDepuisContenu, mapPageComposee, type PageRapportComposee } from '@/lib/rapport/pages';
+import { pagesVisiblesRapport } from '@/lib/rapport/pages-visibles';
 import { signerCheminRapport } from '@/lib/rapport/storage';
 import type { IdentiteAgenceRapport, IdentiteAgentRapport } from '@/lib/rapport/identite';
 
@@ -43,7 +44,7 @@ export async function assemblerRapport(
     exclusRaw: ctx.estimation.rapportExclus,
   });
 
-  const pages = await Promise.all(
+  const mapped = await Promise.all(
     rows.map(async (row) => {
       const kind = kindGenereeDepuisContenu(row.contenu);
       const manques = kind ? completudePage(kind, dossier).manques : [];
@@ -52,6 +53,7 @@ export async function assemblerRapport(
       return mapPageComposee(row, preview, { manques });
     }),
   );
+  const pages = pagesVisiblesRapport(mapped);
 
   return {
     pages,

@@ -83,7 +83,7 @@ describe('modèle de rapport', () => {
     assert.equal(lignes[1]?.nom, 'Présentation (2)');
     assert.equal(lignes[1]?.page_index, 1);
     assert.equal(lignes[2]?.source, 'generee');
-    assert.equal(lignes[2]?.nom, 'Ventes comparables');
+    assert.equal(lignes[2]?.nom, 'Les ventes comparables');
     assert.deepEqual(lignes[2]?.contenu, { kind: 'comparables' });
     assert.equal(lignes[3]?.nom, 'Mentions');
     assert.equal(lignes[3]?.disposition, 'texte');
@@ -106,14 +106,23 @@ describe('modèle de rapport', () => {
     const derniere = slots[slots.length - 1];
     assert.equal(premiere?.source, 'generee');
     if (premiere?.source === 'generee') assert.equal(premiere.kindGeneree, 'couverture');
-    assert.equal(derniere?.source, 'generee');
-    if (derniere?.source === 'generee') assert.equal(derniere.kindGeneree, 'prochaine_etape');
+    assert.equal(derniere?.source, 'bibliotheque');
     const biblio = slots.filter((s) => s.source === 'bibliotheque');
     assert.equal(biblio.length, 1);
+    const kinds = slots.filter((s) => s.source === 'generee').map((s) => s.source === 'generee' ? s.kindGeneree : null);
+    assert.deepEqual(kinds, [
+      'couverture',
+      'votre_bien',
+      'immeuble_appartement',
+      'secteur',
+      'comparables',
+      'concurrentiel',
+      'prix',
+    ]);
     const idxPrix = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prix');
     const idxBiblio = slots.findIndex((s) => s.source === 'bibliotheque');
-    const idxFin = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prochaine_etape');
-    assert.ok(idxPrix < idxBiblio && idxBiblio < idxFin);
+    assert.ok(idxPrix < idxBiblio);
+    assert.equal(slots.some((s) => s.source === 'generee' && s.kindGeneree === 'description'), false);
   });
 
   it('reprend le texte d’agence, sinon le texte Priimo', () => {

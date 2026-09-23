@@ -3,7 +3,15 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { mapPageBibliotheque } from '@/lib/rapport/pages';
-import { nomSlotModele, parseSlotsModele, slotsDepuisLignes, texteEmailModele, type SlotModele } from '@/lib/rapport/modele-defaut';
+import {
+  estKindAbsorbee,
+  estPageTestBibliotheque,
+  nomSlotModele,
+  parseSlotsModele,
+  slotsDepuisLignes,
+  texteEmailModele,
+  type SlotModele,
+} from '@/lib/rapport/modele-defaut';
 import { signerCheminRapport } from '@/lib/rapport/storage';
 
 export const runtime = 'nodejs';
@@ -59,8 +67,9 @@ export async function GET() {
 
   const parId = new Map((biblioRows ?? []).map((p) => [p.id, p]));
   const slots = slotsDepuisLignes(modeleRows ?? []).filter((slot) => {
-    if (slot.source === 'generee') return true;
-    return parId.has(slot.bibliothequeId);
+    if (slot.source === 'generee') return !estKindAbsorbee(slot.kindGeneree);
+    const page = parId.get(slot.bibliothequeId);
+    return Boolean(page) && !estPageTestBibliotheque(page?.nom);
   });
 
   const pages = await Promise.all(

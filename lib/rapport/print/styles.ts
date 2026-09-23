@@ -95,8 +95,16 @@ export const AVIS_LAYOUT_CSS = `
   .avis-page {
     width: 297mm;
     height: 210mm;
-    break-after: page;
+    max-height: 210mm;
+    overflow: hidden;
     break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
+  }
+  .avis-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
   .avis-no-print { display: none !important; }
 }

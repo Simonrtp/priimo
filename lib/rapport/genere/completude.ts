@@ -1,28 +1,18 @@
-import type { KindGeneree } from '@/lib/rapport/modele-defaut';
+import { KINDS_GABARIT_V2, type KindGeneree } from '@/lib/rapport/modele-defaut';
 import type { CompletudePage, DossierRapport } from '@/lib/rapport/genere/types';
+
+export function pageConcurrentielPossible(d: DossierRapport): boolean {
+  if (d.annonces.length === 0) return false;
+  const nuage = d.annonces.filter((a) => a.surfaceM2 != null && a.prixM2 != null).length;
+  return nuage >= 2;
+}
 
 export function completudePage(kind: KindGeneree, d: DossierRapport): CompletudePage {
   return { kind, manques: manquesKind(kind, d) };
 }
 
 export function completudeDossier(d: DossierRapport): CompletudePage[] {
-  return (
-    [
-      'couverture',
-      'votre_bien',
-      'description',
-      'immeuble_appartement',
-      'secteur',
-      'points_interet',
-      'connectivite',
-      'permis',
-      'comparables',
-      'concurrentiel',
-      'indices',
-      'prix',
-      'prochaine_etape',
-    ] as const
-  ).map((kind) => completudePage(kind, d));
+  return KINDS_GABARIT_V2.map((kind) => completudePage(kind, d));
 }
 
 /** Seuls les faits sans lesquels la page n’a plus de sujet. Le reste s’affiche avec ce qui est connu. */
@@ -40,10 +30,11 @@ function manquesKind(kind: KindGeneree, d: DossierRapport): string[] {
     case 'connectivite':
     case 'permis':
     case 'comparables':
-    case 'concurrentiel':
     case 'indices':
     case 'prochaine_etape':
       return [];
+    case 'concurrentiel':
+      return pageConcurrentielPossible(d) ? [] : ['Annonces insuffisantes'];
   }
 }
 
