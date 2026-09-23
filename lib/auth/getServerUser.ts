@@ -90,7 +90,11 @@ async function getServerUserUncached(): Promise<ServerUser> {
   const { data: agencies } = await timed('agencies.select', async () => {
     const withBilling = await supabase
       .from('agencies')
-      .select(agenciesSelectAvecSecondaire ? AGENCIES_SELECT : AGENCIES_SELECT_SANS_SECONDAIRE)
+      .select(
+        (agenciesSelectAvecSecondaire
+          ? AGENCIES_SELECT
+          : AGENCIES_SELECT_SANS_SECONDAIRE) as typeof AGENCIES_SELECT_SANS_SECONDAIRE,
+      )
       .in('id', agencyIds);
     if (withBilling.error) {
       if (/couleur_secondaire/.test(withBilling.error.message)) {
@@ -121,7 +125,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
     }
     return withBilling;
   });
-  const agencyList = agencies ?? [];
+  const agencyList = (agencies ?? []) as AgencyRow[];
 
   const memberships = buildAgencyMemberships(rows, agencyList);
   const activeAgencyId = resolveActiveAgencyId(profile as ProfileRow, memberships);

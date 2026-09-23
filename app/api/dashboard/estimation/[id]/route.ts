@@ -182,7 +182,7 @@ export async function PATCH(
     .single();
 
   if (error && /prix_agent|moteur_valeur/.test(error.message)) {
-    const { prix_agent: _p, moteur_valeur: _m, ...sansTrace } = patch as Record<string, unknown>;
+    const { prix_agent: _p, moteur_valeur: _m, ...sansTrace } = patch;
     const repli = await session
       .from('agency_estimations')
       .update(sansTrace)

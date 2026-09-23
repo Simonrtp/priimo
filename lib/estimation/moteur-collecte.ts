@@ -129,8 +129,11 @@ async function chargerTransactionsCp(
       .limit(2500);
     if (avantIso) repli = repli.lt('date_mutation', avantIso);
     const second = await repli;
-    data = second.data;
-    error = second.error;
+    if (second.error) {
+      console.error('[moteur] building_transactions', second.error.message);
+      return [];
+    }
+    return (second.data ?? []) as unknown as TxRow[];
   }
   if (error) {
     console.error('[moteur] building_transactions', error.message);
