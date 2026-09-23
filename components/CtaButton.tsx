@@ -33,7 +33,7 @@ export default function CtaButton({
       <span className="cta-cq">
         <CtaSparkles />
       </span>
-      <a>
+      <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
