@@ -73,9 +73,6 @@ export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
     });
     return new Uint8Array(pdf);
-  } catch (err) {
-    if (err instanceof ChromiumIndisponible) throw err;
-    throw new ChromiumIndisponible(err instanceof Error ? err.message : undefined);
   } finally {
     await browser.close();
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { cheminLogo, deposerRapport, signerCheminRapport, supprimerRapport } from '@/lib/rapport/storage';
 import { extensionMime, MAX_RAPPORT_UPLOAD_BYTES, MIME_PAGES } from '@/lib/rapport/pages';
@@ -19,9 +19,6 @@ export async function POST(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-  }
-  if (profile.role !== 'directeur') {
-    return NextResponse.json({ error: 'Réservé au directeur' }, { status: 403 });
   }
   const limit = rateLimit(`rapport-logo:${clientIpFromRequest(req)}`, {
     limit: 20,
@@ -56,8 +53,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Envoi impossible' }, { status: 500 });
   }
 
-  const session = await createSupabaseServerClient();
-  const { error } = await session.from('agencies').update({ logo_path: path }).eq('id', agency.id);
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.from('agencies').update({ logo_path: path }).eq('id', agency.id);
   if (error) {
     return NextResponse.json({ error: 'Agence non mise à jour' }, { status: 500 });
   }
@@ -70,14 +67,11 @@ export async function DELETE() {
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
-  if (profile.role !== 'directeur') {
-    return NextResponse.json({ error: 'Réservé au directeur' }, { status: 403 });
-  }
   if (agency.logo_path) {
     await supprimerRapport(agency.logo_path);
   }
-  const session = await createSupabaseServerClient();
-  const { error } = await session.from('agencies').update({ logo_path: null }).eq('id', agency.id);
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.from('agencies').update({ logo_path: null }).eq('id', agency.id);
   if (error) {
     return NextResponse.json({ error: 'Agence non mise à jour' }, { status: 500 });
   }

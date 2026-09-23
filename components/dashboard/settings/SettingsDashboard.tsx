@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ import SectionIntegrations from './SectionIntegrations';
 import SectionModeleRapport from './SectionModeleRapport';
 import SectionAbonnement from './SectionAbonnement';
 import PhoneInput from '@/components/ui/PhoneInput';
+import LogoAgenceChamp from '@/components/dashboard/settings/LogoAgenceChamp';
 import NuancierAvis from '@/components/dashboard/settings/NuancierAvis';
 import { ACCENT2_DEFAUT } from '@/lib/rapport/couleurs';
 import { formatPhoneDisplay } from '@/lib/import/normalize';
@@ -186,7 +187,6 @@ function SectionAgency() {
   const [couleurPrincipale, setCouleurPrincipale] = useState(agency.couleur_principale ?? '#E8743C');
   const [couleurSecondaire, setCouleurSecondaire] = useState(agency.couleur_secondaire ?? ACCENT2_DEFAUT);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const logoRef = useRef<HTMLInputElement>(null);
   const [agencyAddress, setAgencyAddress] = useState<SelectedAddress | null>(() =>
     agency.address
       ? {
@@ -303,68 +303,13 @@ function SectionAgency() {
         Mon agence
       </h2>
       <div className="flex w-full max-w-xl flex-col gap-5">
-        <div>
-          <p className={labelClass}>Logo du rapport</p>
-          <div className="flex items-center gap-3">
-            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-black/8 bg-soft-gray/40">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" className="size-full object-contain" />
-              ) : (
-                <span className="px-1 text-center text-[11px] text-mute">Aucun</span>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <input
-                ref={logoRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const form = new FormData();
-                  form.append('file', file);
-                  const res = await fetch('/api/dashboard/agence/logo', { method: 'POST', body: form });
-                  const data = (await res.json()) as { url?: string; error?: string };
-                  if (!res.ok) {
-                    toast.error(data.error ?? 'Logo non enregistré');
-                    return;
-                  }
-                  setLogoUrl(data.url ?? null);
-                  toast.success('Logo enregistré');
-                  router.refresh();
-                  if (logoRef.current) logoRef.current.value = '';
-                }}
-              />
-              <button
-                type="button"
-                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-black/[0.04]"
-                onClick={() => logoRef.current?.click()}
-              >
-                Téléverser un logo
-              </button>
-              {logoUrl ? (
-                <button
-                  type="button"
-                  className="text-left text-[12.5px] text-mute hover:text-ink"
-                  onClick={async () => {
-                    const res = await fetch('/api/dashboard/agence/logo', { method: 'DELETE' });
-                    if (!res.ok) {
-                      toast.error('Logo non retiré');
-                      return;
-                    }
-                    setLogoUrl(null);
-                    toast.success('Logo retiré');
-                    router.refresh();
-                  }}
-                >
-                  Retirer le logo
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <LogoAgenceChamp
+          url={logoUrl}
+          onUrl={(next) => {
+            setLogoUrl(next);
+            router.refresh();
+          }}
+        />
         <div>
           <label htmlFor="agency-name" className={labelClass}>
             Nom de l&apos;agence
@@ -445,12 +390,15 @@ function SectionAgency() {
             placeholder="https://www.agence.fr"
           />
         </div>
-        <NuancierAvis
-          accent={couleurPrincipale}
-          accent2={couleurSecondaire}
-          onAccent={setCouleurPrincipale}
-          onAccent2={setCouleurSecondaire}
-        />
+        <div>
+          <p className={labelClass}>Couleurs de l’avis de valeur</p>
+          <NuancierAvis
+            accent={couleurPrincipale}
+            accent2={couleurSecondaire}
+            onAccent={setCouleurPrincipale}
+            onAccent2={setCouleurSecondaire}
+          />
+        </div>
 
         <p className="flex items-center gap-2 text-[13px] text-mute">
           <label htmlFor="agency-frequence">Fréquence cible de passage</label>

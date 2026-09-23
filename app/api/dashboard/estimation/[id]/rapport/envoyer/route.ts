@@ -7,7 +7,7 @@ import { identiteAgentDepuisProfil, piedBienDepuisEstimation } from '@/lib/rappo
 import { emailDestinataireValide, mapEnvoiRapport } from '@/lib/rapport/envois';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
 import { pageExportable } from '@/lib/rapport/pages';
-import { ChromiumIndisponible, genererPdfRapport } from '@/lib/rapport/pdf';
+import { genererPdfRapport } from '@/lib/rapport/pdf';
 import { joindreSansVide } from '@/lib/rapport/identite';
 import { cheminEnvoi, deposerRapport } from '@/lib/rapport/storage';
 import { sendAvisValeurEmail } from '@/lib/email/sendAvisValeurEmail';
@@ -88,15 +88,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       dossier: assemble.dossier,
     });
   } catch (err) {
-    if (err instanceof ChromiumIndisponible || (err instanceof Error && err.name === 'ChromiumIndisponible')) {
-      return NextResponse.json(
-        {
-          error: 'Impression serveur indisponible. Utilisez Imprimer depuis le navigateur.',
-          imprimer: `/imprimer/estimation/${id}`,
-        },
-        { status: 503 },
-      );
-    }
     console.error('[rapport/envoyer]', err);
     return NextResponse.json({ error: 'Envoi impossible' }, { status: 500 });
   }

@@ -24,6 +24,8 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import PageRapport from '@/components/rapport/PageRapport';
 import ApercuPageComposee from '@/components/rapport/ApercuPageComposee';
+import LogoAgenceChamp from '@/components/dashboard/settings/LogoAgenceChamp';
+import NuancierAvis from '@/components/dashboard/settings/NuancierAvis';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import type { PageBibliotheque, PageRapportComposee } from '@/lib/rapport/pages';
@@ -31,6 +33,7 @@ import { pagePourPdf } from '@/lib/rapport/pages';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
 import {
   normaliserCouleurPrincipale,
+  normaliserCouleurSecondaire,
   type IdentiteAgenceRapport,
   type IdentiteAgentRapport,
   type PiedBienRapport,
@@ -75,8 +78,15 @@ export default function OngletRapport({
   const [exportEnCours, setExportEnCours] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const couleursTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEtatChangeRef = useRef(onEtatChange);
   onEtatChangeRef.current = onEtatChange;
+
+  useEffect(() => {
+    return () => {
+      if (couleursTimer.current) clearTimeout(couleursTimer.current);
+    };
+  }, []);
 
   const charger = useCallback(async () => {
     setChargement(true);
@@ -238,23 +248,58 @@ export default function OngletRapport({
     notifySuccess('Page retirée');
   }
 
+  function appliquerCouleurs(principale: string, secondaire: string) {
+    setAgence((prev) =>
+      prev ? { ...prev, couleurPrincipale: principale, couleurSecondaire: secondaire } : prev,
+    );
+    setDossier((prev) =>
+      prev
+        ? { ...prev, agence: { ...prev.agence, couleurPrincipale: principale, couleurSecondaire: secondaire } }
+        : prev,
+    );
+  }
+
+  function changerCouleur(quelle: 'principale' | 'secondaire', hex: string) {
+    if (!agence) return;
+    const principale =
+      quelle === 'principale' ? hex : normaliserCouleurPrincipale(agence.couleurPrincipale);
+    const secondaire =
+      quelle === 'secondaire' ? hex : normaliserCouleurSecondaire(agence.couleurSecondaire);
+    appliquerCouleurs(principale, secondaire);
+    if (couleursTimer.current) clearTimeout(couleursTimer.current);
+    couleursTimer.current = setTimeout(() => {
+      void fetch('/api/dashboard/agence/couleurs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ principale, secondaire }),
+      }).then(async (res) => {
+        if (!res.ok) notifyError('Couleurs non enregistrées');
+      });
+    }, 400);
+  }
+
   async function exporter() {
     if (vide || exportEnCours) return;
     setExportEnCours(true);
     try {
       const res = await fetch(`/api/dashboard/estimation/${estimation.id}/rapport/pdf`);
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string; imprimer?: string };
+      const type = res.headers.get('content-type') ?? '';
+      if (!res.ok || !type.includes('pdf')) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
         notifyError(data.error ?? 'Export impossible');
-        if (data.imprimer) window.open(data.imprimer, '_blank', 'noopener');
         return;
       }
       const blob = await res.blob();
+      const dispo = res.headers.get('content-disposition') ?? '';
+      const nom = /filename="([^"]+)"/.exec(dispo)?.[1] ?? 'avis-de-valeur.pdf';
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'avis-de-valeur.pdf';
+      a.download = nom;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
       notifySuccess('PDF téléchargé');
     } catch {
@@ -332,6 +377,27 @@ export default function OngletRapport({
             {exportEnCours ? 'Téléchargement…' : 'Télécharger en PDF'}
           </WorkspaceButton>
         </div>
+        {agence ? (
+          <div className="flex flex-wrap items-start gap-2">
+            <LogoAgenceChamp
+              compact
+              url={agence.logoUrl}
+              onUrl={(url) => {
+                setAgence((prev) => (prev ? { ...prev, logoUrl: url } : prev));
+                setDossier((prev) =>
+                  prev ? { ...prev, agence: { ...prev.agence, logoUrl: url } } : prev,
+                );
+              }}
+            />
+            <NuancierAvis
+              compact
+              accent={normaliserCouleurPrincipale(agence.couleurPrincipale)}
+              accent2={normaliserCouleurSecondaire(agence.couleurSecondaire)}
+              onAccent={(hex) => changerCouleur('principale', hex)}
+              onAccent2={(hex) => changerCouleur('secondaire', hex)}
+            />
+          </div>
+        ) : null}
         {biblioOuverte ? (
           <div
             id="rapport-bibliotheque"

@@ -4,7 +4,7 @@ import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
 import { piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
-import { ChromiumIndisponible, genererPdfRapport } from '@/lib/rapport/pdf';
+import { genererPdfRapport } from '@/lib/rapport/pdf';
 import { pagePourPdf } from '@/lib/rapport/pages';
 
 export const runtime = 'nodejs';
@@ -44,15 +44,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       dossier: assemble.dossier,
     });
   } catch (err) {
-    if (err instanceof ChromiumIndisponible || (err instanceof Error && err.name === 'ChromiumIndisponible')) {
-      return NextResponse.json(
-        {
-          error: 'Impression serveur indisponible. Utilisez Imprimer depuis le navigateur.',
-          imprimer: `/imprimer/estimation/${id}`,
-        },
-        { status: 503 },
-      );
-    }
     console.error('[rapport/pdf]', err);
     return NextResponse.json({ error: 'Export impossible' }, { status: 500 });
   }

@@ -6,6 +6,8 @@ import {
   NUANCIER_ACCENT,
   NUANCIER_ACCENT2,
   decouperTitre,
+  hexVersHsv,
+  hsvVersHex,
   normaliserAccent,
   normaliserAccent2,
 } from './couleurs';
@@ -18,6 +20,9 @@ describe('nuanciers de l’avis', () => {
     assert.equal(normaliserAccent(null), ACCENT_DEFAUT);
     assert.equal(normaliserAccent2('bleu'), ACCENT2_DEFAUT);
     assert.equal(normaliserAccent('#14aed6'), '#14AED6');
+    assert.equal(normaliserAccent('#abcdef'), '#ABCDEF');
+    assert.equal(normaliserAccent2('#010203'), '#010203');
+    assert.equal(hsvVersHex(hexVersHsv('#E8743C').h, hexVersHsv('#E8743C').s, hexVersHsv('#E8743C').v), '#E8743C');
   });
 
   it('découpe les titres comme l’en-tête v2', () => {
