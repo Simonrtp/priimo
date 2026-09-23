@@ -108,6 +108,7 @@ export function NotesLectureProvider({ children }: { children: ReactNode }) {
           noteIdInitial={noteId}
           onClose={fermer}
           onChoisir={setNoteId}
+          onRafraichir={() => void charger()}
         />
       ) : null}
     </NotesLectureContext.Provider>

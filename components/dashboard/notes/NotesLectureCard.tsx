@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Mic, NotebookPen, Unlink } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import { useUser } from '@/lib/hooks/useUser';
+import { notifyError, notifySuccess } from '@/lib/notify';
 import { FIELD } from '@/lib/today/field';
 import { formatNoteWhen } from '@/lib/notes/format-when';
 import {
@@ -98,12 +101,14 @@ export default function NotesLectureCard({
   noteIdInitial,
   onClose,
   onChoisir,
+  onRafraichir,
 }: {
   notes: NoteLecture[] | null;
   erreur: boolean;
   noteIdInitial: string | null;
   onClose: () => void;
   onChoisir: (id: string | null) => void;
+  onRafraichir: () => void;
 }) {
   const { profile } = useUser();
   const [choisieId, setChoisieId] = useState<string | null>(noteIdInitial);
@@ -199,7 +204,7 @@ export default function NotesLectureCard({
           }
         >
           {choisie ? (
-            <DetailNote note={choisie} onRetour={revenir} />
+            <DetailNote note={choisie} onRetour={revenir} onRafraichir={onRafraichir} />
           ) : (
             <p className="text-pretty px-4 text-center text-[14px] font-medium" style={{ color: FIELD.ardoise }}>
               Choisissez une note pour la lire.
@@ -211,9 +216,45 @@ export default function NotesLectureCard({
   );
 }
 
-function DetailNote({ note, onRetour }: { note: NoteLecture; onRetour: () => void }) {
+function DetailNote({
+  note,
+  onRetour,
+  onRafraichir,
+}: {
+  note: NoteLecture;
+  onRetour: () => void;
+  onRafraichir: () => void;
+}) {
+  const { profile } = useUser();
+  const [recherche, setRecherche] = useState(false);
+  const [enCours, setEnCours] = useState(false);
   const rattachee = estRattachee(note.rattachements);
   const vocale = note.hasAudio;
+  const peutRattacher = Boolean(profile.id && note.createdBy === profile.id);
+
+  async function rattacher(pick: NoteLinkPick) {
+    setEnCours(true);
+    try {
+      const res = await fetch(`/api/dashboard/voice-notes/${note.id}/liens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entiteType: pick.entiteType,
+          entiteId: pick.entiteId,
+          creePar: 'agent',
+          confiance: 'certain',
+        }),
+      });
+      if (!res.ok) throw new Error('lien');
+      notifySuccess('Rattachement enregistré');
+      setRecherche(false);
+      onRafraichir();
+    } catch {
+      notifyError('Le rattachement n’a pas pu être ajouté');
+    } finally {
+      setEnCours(false);
+    }
+  }
 
   return (
     <article className="flex min-h-0 flex-col gap-4">
@@ -290,17 +331,39 @@ function DetailNote({ note, onRetour }: { note: NoteLecture; onRetour: () => voi
             })}
           </ul>
         ) : (
-          <div
-            className="flex items-start gap-2.5 rounded-clay border border-dashed px-3.5 py-3"
-            style={{ borderColor: 'rgba(138, 61, 20, 0.35)', backgroundColor: 'rgba(232, 116, 60, 0.1)' }}
-          >
-            <Unlink size={16} strokeWidth={2} className="mt-0.5 shrink-0" style={{ color: '#8A3D14' }} aria-hidden />
-            <div>
-              <p className="text-[14px] font-semibold text-text-strong">Non rattachée</p>
-              <p className="mt-0.5 text-pretty text-[13px] font-medium" style={{ color: '#8A3D14' }}>
-                Cette note n’est liée à aucun contact, bien, prospect, immeuble ou parcelle.
-              </p>
+          <div className="flex flex-col gap-3">
+            <div
+              className="flex flex-col gap-3 rounded-clay border border-dashed px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between"
+              style={{ borderColor: 'rgba(138, 61, 20, 0.35)', backgroundColor: 'rgba(232, 116, 60, 0.1)' }}
+            >
+              <div className="flex items-start gap-2.5">
+                <Unlink size={16} strokeWidth={2} className="mt-0.5 shrink-0" style={{ color: '#8A3D14' }} aria-hidden />
+                <div>
+                  <p className="text-[14px] font-semibold text-text-strong">Non rattachée</p>
+                  <p className="mt-0.5 text-pretty text-[13px] font-medium" style={{ color: '#8A3D14' }}>
+                    Cette note n’est liée à aucun contact, bien, prospect, immeuble ou parcelle.
+                  </p>
+                </div>
+              </div>
+              {peutRattacher ? (
+                <WorkspaceButton
+                  type="button"
+                  className="shrink-0 self-start sm:self-center"
+                  disabled={enCours}
+                  onClick={() => setRecherche((o) => !o)}
+                  aria-expanded={recherche}
+                >
+                  {recherche ? 'Fermer' : 'Rattacher'}
+                </WorkspaceButton>
+              ) : null}
             </div>
+            {peutRattacher && recherche ? (
+              <NoteEntitySearch
+                className="w-full max-w-none"
+                disabled={enCours}
+                onPick={(pick) => void rattacher(pick)}
+              />
+            ) : null}
           </div>
         )}
       </section>

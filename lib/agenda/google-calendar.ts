@@ -27,6 +27,9 @@ export const CALENDAR_VERIFICATION_NOTE =
   'calendar.readonly est un scope sensible Google. Prévoir la vérification OAuth ' +
   'avant un déploiement au-delà de 100 utilisateurs de test.';
 
+/** Google compare l’URI caractère par caractère. Une seule valeur en prod. */
+const ORIGINE_PUBLIQUE = 'https://priimo.fr';
+
 function estOrigineLocale(origin: string): boolean {
   try {
     const host = new URL(origin.includes('://') ? origin : `http://${origin}`).hostname;
@@ -59,16 +62,13 @@ export function origineDeLaRequete(req: Request): string {
 }
 
 /**
- * Callback OAuth = l’hôte où l’agent a cliqué.
- * Sinon, avec SITE_URL=priimo.fr et un redirect localhost en env, Google
- * renvoie sur la machine locale : cookie perdu, « Connexion Agenda impossible ».
+ * Local → localhost. Partout ailleurs → priimo.fr (jamais www, jamais *.vercel.app).
+ * Google refuse toute variante non listée dans le client OAuth.
  */
 export function oauthPublicOrigin(req: Request): string {
   const vue = httpsSiPublic(origineDeLaRequete(req));
   if (estOrigineLocale(vue)) return vue;
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (site && !estOrigineLocale(site)) return httpsSiPublic(site);
-  return vue;
+  return ORIGINE_PUBLIQUE;
 }
 
 export function calendarOAuthRedirectUri(req: Request): string {

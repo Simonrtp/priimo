@@ -21,23 +21,25 @@ describe('oauthPublicOrigin', () => {
     }
   });
 
-  it('renvoie le site public hors local', () => {
-    const prev = process.env.NEXT_PUBLIC_SITE_URL;
-    process.env.NEXT_PUBLIC_SITE_URL = 'https://priimo.fr';
-    try {
-      assert.equal(
-        oauthPublicOrigin(
-          req('https://priimo.fr/api/dashboard/integrations/calendar/start', {
-            'x-forwarded-host': 'priimo.fr',
-            'x-forwarded-proto': 'https',
-          }),
-        ),
-        'https://priimo.fr',
-      );
-    } finally {
-      if (prev === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
-      else process.env.NEXT_PUBLIC_SITE_URL = prev;
-    }
+  it('renvoie priimo.fr hors local, même derrière www ou Vercel', () => {
+    assert.equal(
+      oauthPublicOrigin(
+        req('https://priimo.fr/api/dashboard/integrations/calendar/start', {
+          'x-forwarded-host': 'www.priimo.fr',
+          'x-forwarded-proto': 'https',
+        }),
+      ),
+      'https://priimo.fr',
+    );
+    assert.equal(
+      oauthPublicOrigin(
+        req('https://priimo-xxx.vercel.app/api/dashboard/integrations/calendar/start', {
+          'x-forwarded-host': 'priimo-xxx.vercel.app',
+          'x-forwarded-proto': 'https',
+        }),
+      ),
+      'https://priimo.fr',
+    );
   });
 });
 
