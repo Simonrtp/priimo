@@ -90,20 +90,37 @@ export async function POST(
         : {};
     const prixAgent =
       typeof ctxActuel.prixAgent === 'number' && ctxActuel.prixAgent > 0 ? ctxActuel.prixAgent : null;
-    const { data: updated } = await session
+    const patchImpossible = {
+      available: false,
+      price_value: prixAgent,
+      price_low: null,
+      price_high: null,
+      price_per_m2: prixAgent != null && surface != null && surface > 0 ? Math.round(prixAgent / surface) : null,
+      context: { ...ctxActuel, impossible: motif, moteurValeur: null },
+    };
+    let { data: updated, error: errImp } = await session
       .from('agency_estimations')
       .update({
-        available: false,
-        price_value: prixAgent,
-        price_low: null,
-        price_high: null,
-        price_per_m2: prixAgent != null && surface != null && surface > 0 ? Math.round(prixAgent / surface) : null,
-        context: { ...ctxActuel, impossible: motif, moteurValeur: null },
+        ...patchImpossible,
+        moteur_valeur: null,
+        prix_agent: prixAgent,
+        moteur_impossible_motif: motif.motif,
+        moteur_trace: null,
       })
       .eq('id', id)
       .eq('agency_id', agency.id)
       .select(ESTIMATION_SELECT)
       .single();
+    if (errImp && /moteur_valeur|prix_agent|moteur_impossible|moteur_trace/.test(errImp.message)) {
+      const repli = await session
+        .from('agency_estimations')
+        .update(patchImpossible)
+        .eq('id', id)
+        .eq('agency_id', agency.id)
+        .select(ESTIMATION_SELECT)
+        .single();
+      updated = repli.data;
+    }
     return NextResponse.json({
       estimation: updated ? mapEstimation(updated) : mapEstimation(row),
       decomposition: null,
@@ -135,7 +152,13 @@ export async function POST(
       rooms: rooms ?? 1,
       floor: row.floor,
       hasElevator: bien.ascenseur,
-      conditionRating: null,
+      conditionRating:
+        row.condition_rating === 1 ||
+        row.condition_rating === 2 ||
+        row.condition_rating === 3 ||
+        row.condition_rating === 4
+          ? row.condition_rating
+          : null,
       dpeClass: row.dpe_class,
       features,
       extras: {
@@ -214,27 +237,47 @@ export async function POST(
     impossible: result.impossible,
   };
 
-  const { data: updated, error } = await session
+  const patchCommun = {
+    available: result.available,
+    price_value: prixRetenu,
+    price_low: result.available ? result.low : null,
+    price_high: result.available ? result.high : null,
+    price_per_m2: pricePerM2,
+    reliability: result.reliability,
+    reliability_label: result.reliabilityLabel,
+    steps: result.steps,
+    comparables: result.comparables,
+    context,
+    parcelle_id: result.parcelleId ?? row.parcelle_id,
+    share_token: shareToken,
+    share_expires_at: expires.toISOString(),
+  };
+  const patchTrace = {
+    moteur_valeur: moteurValeur,
+    prix_agent: prixAgentExistant,
+    moteur_impossible_motif: result.impossible?.motif ?? null,
+    moteur_trace: result.context.moteurTrace ?? null,
+  };
+
+  let { data: updated, error } = await session
     .from('agency_estimations')
-    .update({
-      available: result.available,
-      price_value: prixRetenu,
-      price_low: result.available ? result.low : null,
-      price_high: result.available ? result.high : null,
-      price_per_m2: pricePerM2,
-      reliability: result.reliability,
-      reliability_label: result.reliabilityLabel,
-      steps: result.steps,
-      comparables: result.comparables,
-      context,
-      parcelle_id: result.parcelleId ?? row.parcelle_id,
-      share_token: shareToken,
-      share_expires_at: expires.toISOString(),
-    })
+    .update({ ...patchCommun, ...patchTrace })
     .eq('id', id)
     .eq('agency_id', agency.id)
     .select(ESTIMATION_SELECT)
     .single();
+
+  if (error && /moteur_valeur|prix_agent|moteur_impossible|moteur_trace/.test(error.message)) {
+    const repli = await session
+      .from('agency_estimations')
+      .update(patchCommun)
+      .eq('id', id)
+      .eq('agency_id', agency.id)
+      .select(ESTIMATION_SELECT)
+      .single();
+    updated = repli.data;
+    error = repli.error;
+  }
 
   if (error || !updated) {
     return NextResponse.json({ error: 'Enregistrement du calcul impossible' }, { status: 500 });

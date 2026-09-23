@@ -4,7 +4,7 @@ import { estNextResponse, sessionRapportEstimation } from '@/lib/rapport/acces';
 import { assemblerRapport } from '@/lib/rapport/genere/assembler';
 import { piedBienDepuisEstimation } from '@/lib/rapport/depuis-session';
 import { mapEnvoiRapport } from '@/lib/rapport/envois';
-import { texteEmailModele } from '@/lib/rapport/modele-defaut';
+import { composerMessageClient } from '@/lib/rapport/modele-defaut';
 
 export const runtime = 'nodejs';
 
@@ -36,7 +36,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     bien: piedBienDepuisEstimation(ctx.estimation),
     dateIso: ctx.estimation.updatedAt,
     contactEmail: assemble.dossier.client.email,
-    emailModele: texteEmailModele(assemble.emailModele),
+    emailModele: composerMessageClient({
+      prenomClient: assemble.dossier.client.prenom,
+      nomAgent: assemble.agent.nom,
+      modele: assemble.emailModele,
+    }),
     envois: (envois ?? []).map(mapEnvoiRapport),
   });
 }

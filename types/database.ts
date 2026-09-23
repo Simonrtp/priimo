@@ -57,6 +57,8 @@ export type AgencyRow = {
   site_web?: string | null;
   /** Couleur d'accent du rapport (#RRGGBB). Défaut #E8743C. */
   couleur_principale?: string | null;
+  /** Seconde couleur de l’avis (#RRGGBB). Défaut #1F6FB5. */
+  couleur_secondaire?: string | null;
   /** Texte proposé à l'agent avant l'envoi de l'avis. NULL = texte Priimo. */
   rapport_email_modele?: string | null;
   rapport_titre_couverture?: string | null;
@@ -248,6 +250,7 @@ export type AgencyInsert = {
   prix_siege_supplementaire?: number | null;
   demande_decision?: DemandeDecision | null;
   couleur_principale?: string | null;
+  couleur_secondaire?: string | null;
   created_at?: string;
   updated_at?: string;
 };

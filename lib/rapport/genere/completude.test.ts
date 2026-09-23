@@ -35,7 +35,7 @@ function dossier(over: Partial<DossierRapport> = {}): DossierRapport {
     pricePerM2: 6000,
     surfacePrixLibelle: 'habitable',
     fourchetteAjoutee: false,
-    client: { nom: 'Marie Durand', telephone: null, email: 'a@b.fr' },
+    client: { prenom: 'Marie', nom: 'Marie Durand', telephone: null, email: 'a@b.fr' },
     agence: {
       nom: 'SARL',
       nomCommercial: 'Agence',

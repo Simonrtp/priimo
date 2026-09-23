@@ -86,7 +86,25 @@ async function chargerImmeubles(admin: Db, banIds: string[]): Promise<Map<string
   return map;
 }
 
-async function chargerTransactions(
+const COLS =
+  'id, id_mutation, ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local, code_postal';
+const COLS_NATURE = `${COLS}, nature_mutation`;
+
+/** Paris / Lyon / Marseille : le CP est l’arrondissement, la commune est l’ensemble. */
+export function cpsCommune(cp: string): string[] {
+  if (/^750\d{2}$/.test(cp)) {
+    return Array.from({ length: 20 }, (_, i) => `750${String(i + 1).padStart(2, '0')}`);
+  }
+  if (/^6900[1-9]$/.test(cp)) {
+    return Array.from({ length: 9 }, (_, i) => `6900${i + 1}`);
+  }
+  if (/^130(0[1-9]|1[0-6])$/.test(cp)) {
+    return Array.from({ length: 16 }, (_, i) => `130${String(i + 1).padStart(2, '0')}`);
+  }
+  return [cp];
+}
+
+async function chargerTransactionsCp(
   admin: Db,
   postalCode: string,
   depuisIso: string,
@@ -94,20 +112,54 @@ async function chargerTransactions(
 ): Promise<TxRow[]> {
   let q = admin
     .from('building_transactions')
-    .select(
-      'id, id_mutation, ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local, code_postal',
-    )
+    .select(COLS_NATURE)
     .eq('code_postal', postalCode)
     .gte('date_mutation', depuisIso)
     .order('date_mutation', { ascending: false })
     .limit(2500);
   if (avantIso) q = q.lt('date_mutation', avantIso);
-  const { data, error } = await q;
+  let { data, error } = await q;
+  if (error && /nature_mutation/.test(error.message)) {
+    let repli = admin
+      .from('building_transactions')
+      .select(COLS)
+      .eq('code_postal', postalCode)
+      .gte('date_mutation', depuisIso)
+      .order('date_mutation', { ascending: false })
+      .limit(2500);
+    if (avantIso) repli = repli.lt('date_mutation', avantIso);
+    const second = await repli;
+    data = second.data;
+    error = second.error;
+  }
   if (error) {
     console.error('[moteur] building_transactions', error.message);
     return [];
   }
   return (data ?? []) as unknown as TxRow[];
+}
+
+async function chargerTransactions(
+  admin: Db,
+  postalCode: string,
+  depuisIso: string,
+  avantIso: string | null,
+): Promise<TxRow[]> {
+  return chargerTransactionsCp(admin, postalCode, depuisIso, avantIso);
+}
+
+export async function chargerVentesIndiceCommune(
+  admin: Db,
+  postalCode: string,
+  depuisIso: string,
+  avantIso: string | null,
+): Promise<VenteBrute[]> {
+  const cps = cpsCommune(postalCode).filter((c) => c !== postalCode);
+  const rows: TxRow[] = [];
+  for (const cp of cps) {
+    rows.push(...(await chargerTransactionsCp(admin, cp, depuisIso, avantIso)));
+  }
+  return rows.map((r) => mapVente(r, undefined));
 }
 
 export type CollecteOpts = {

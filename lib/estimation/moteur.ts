@@ -364,6 +364,12 @@ export function construireIndice(
   return { niveau, actuel, trimestres: lisses };
 }
 
+export function indiceMaigre(indice: IndiceLocal | null): boolean {
+  if (!indice) return true;
+  const riches = indice.trimestres.filter((t) => t.n >= MOTEUR_CONFIG.MIN_VENTES_TRIMESTRE);
+  return riches.length < MOTEUR_CONFIG.MIN_TRIMESTRES_INDICE;
+}
+
 export function actualiserPrixM2(prixM2: number, dateIso: string, indice: IndiceLocal | null): number {
   if (!indice || indice.actuel <= 0) return prixM2;
   const cle = trimestreCle(dateIso);
@@ -384,6 +390,29 @@ export function medianePonderee(pairs: readonly { valeur: number; poids: number 
     if (acc >= total / 2) return p.valeur;
   }
   return sorted[sorted.length - 1]!.valeur;
+}
+
+/** Bornes issues des comparables pondérés. Jamais un ± fixe. */
+export function fourchetteDepuisDispersion(
+  prixVentes: readonly { valeur: number; poids: number }[],
+  value: number,
+): { low: number | null; high: number | null } {
+  const q20 = quantilePondere(prixVentes, 0.2);
+  const q80 = quantilePondere(prixVentes, 0.8);
+  let low = q20 != null ? arrondirMillier(q20) : null;
+  let high = q80 != null ? arrondirMillier(q80) : null;
+  const bruts = prixVentes.map((p) => p.valeur).filter((n) => Number.isFinite(n) && n > 0);
+  const mini = bruts.length > 0 ? Math.min(...bruts) : null;
+  const maxi = bruts.length > 0 ? Math.max(...bruts) : null;
+  if (low != null && low >= value && mini != null && mini < value) low = arrondirMillier(mini);
+  if (high != null && high <= value && maxi != null && maxi > value) high = arrondirMillier(maxi);
+  if (low != null && low >= value) low = null;
+  if (high != null && high <= value) high = null;
+  if (low != null && high != null && low >= high) {
+    low = null;
+    high = null;
+  }
+  return { low, high };
 }
 
 export function quantilePondere(
@@ -662,16 +691,7 @@ export function assemblerEstimation(args: {
       + ajustements.reduce((s, a) => s + a.amountEur, 0),
     poids: l.poids,
   }));
-  const q20 = quantilePondere(prixVentes, 0.2);
-  const q80 = quantilePondere(prixVentes, 0.8);
-  let low = q20 != null ? arrondirMillier(q20) : null;
-  let high = q80 != null ? arrondirMillier(q80) : null;
-  if (low != null && low >= value) low = arrondirMillier(value * 0.92);
-  if (high != null && high <= value) high = arrondirMillier(value * 1.08);
-  if (low != null && high != null && low >= high) {
-    low = arrondirMillier(value * 0.9);
-    high = arrondirMillier(value * 1.1);
-  }
+  const { low, high } = fourchetteDepuisDispersion(prixVentes, value);
 
   const maintenant = args.maintenant ?? new Date();
   const fiab = scorerFiabilite({

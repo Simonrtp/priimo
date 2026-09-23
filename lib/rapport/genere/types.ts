@@ -4,6 +4,7 @@ import type { VenteComparable } from '@/lib/rapport/genere/comparables';
 import type { ContradictionRapport } from '@/lib/rapport/genere/contradictions';
 
 export type ClientRapport = {
+  prenom: string | null;
   nom: string | null;
   telephone: string | null;
   email: string | null;

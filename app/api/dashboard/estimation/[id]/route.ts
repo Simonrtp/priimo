@@ -159,6 +159,7 @@ export async function PATCH(
         retenu != null && row.surface_m2 != null && row.surface_m2 > 0
           ? Math.round(retenu / row.surface_m2)
           : null;
+      patch.prix_agent = prixAgent;
     }
     if (body.majorationPct !== undefined) {
       const n = Number(body.majorationPct);
@@ -172,13 +173,26 @@ export async function PATCH(
     return NextResponse.json({ estimation: mapEstimation(row) });
   }
 
-  const { data: updated, error } = await session
+  let { data: updated, error } = await session
     .from('agency_estimations')
     .update(patch)
     .eq('id', id)
     .eq('agency_id', agency.id)
     .select(ESTIMATION_SELECT)
     .single();
+
+  if (error && /prix_agent|moteur_valeur/.test(error.message)) {
+    const { prix_agent: _p, moteur_valeur: _m, ...sansTrace } = patch as Record<string, unknown>;
+    const repli = await session
+      .from('agency_estimations')
+      .update(sansTrace)
+      .eq('id', id)
+      .eq('agency_id', agency.id)
+      .select(ESTIMATION_SELECT)
+      .single();
+    updated = repli.data;
+    error = repli.error;
+  }
 
   if (error || !updated) {
     return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });

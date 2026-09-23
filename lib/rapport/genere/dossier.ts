@@ -158,7 +158,7 @@ async function chargerClient(
   contactId: string | null,
   agencyId: string,
 ): Promise<ClientRapport> {
-  if (!contactId) return { nom: null, telephone: null, email: null };
+  if (!contactId) return { prenom: null, nom: null, telephone: null, email: null };
   const { data } = await session
     .from('contacts')
     .select('first_name, last_name, phone, email')
@@ -166,6 +166,7 @@ async function chargerClient(
     .eq('agency_id', agencyId)
     .maybeSingle();
   return {
+    prenom: data?.first_name?.trim() || null,
     nom: nomAgentAffiche(data?.first_name, data?.last_name),
     telephone: data?.phone ? formatPhoneDisplay(data.phone) : null,
     email: data?.email?.trim() || null,

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&amp;display=swap"><style>:root{--accent:#14AED6;--accent-2:#1F6FB5;--c-orange:#F7931E;--c-green:#6BB02E;--c-purple:#4B2E83;--c-red:#F0445A;--logo:repeating-linear-gradient(135deg,rgba(61,90,128,.16) 0 4px,rgba(61,90,128,.05) 4px 8px)}</style></helmet>
+<section data-page="5" style="width:297mm;height:210mm;box-sizing:border-box;background:#FFFFFF;color:#0A0D11;font-family:'Open Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;overflow:hidden;position:relative;box-shadow:0 2px 14px rgba(10,13,17,.08)">
+  <dc-import name="EnTeteV2" bold="Les ventes" light="comparables" hint-size="100%,72px"></dc-import>
+  <div style="flex:1;min-height:0;padding:18px 40px 16px;display:grid;grid-template-columns:392px minmax(0,1fr);gap:16px">
+    <div style="display:flex;flex-direction:column;gap:14px;min-height:0">
+      <div style="flex:1;min-height:0;background:#F3F4F6;border-radius:16px;box-shadow:0 1px 2px rgba(10,13,17,.03);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-2)">Emplacement des ventes</div>
+        <div style="flex:1;min-height:0;border-radius:10px;overflow:hidden;background:#F2EBE2">
+          <svg viewBox="0 0 360 360" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" style="display:block">
+            <rect width="360" height="360" fill="#F2EBE2"></rect>
+            <g stroke="#fff" fill="none" style="stroke-width:9"><path d="M0 205 L360 196"></path><path d="M122 0 L98 360"></path><path d="M0 90 L360 58"></path><path d="M262 0 L302 360"></path><path d="M0 302 L360 330"></path></g>
+            <text x="330" y="190" style="font-size:8px;letter-spacing:1.5px;text-anchor:end;fill:#8C7B66">RUE DES TILLEULS</text>
+            <circle cx="180" cy="180" r="150" fill="none" stroke="#3D5A80" style="stroke-opacity:.45;stroke-width:1.2;stroke-dasharray:4 4"></circle>
+            <g style="font-size:10.5px;font-weight:700;text-anchor:middle">
+              <circle cx="228" cy="199" r="11" stroke="#fff" style="fill:var(--accent-2);stroke-width:2"></circle><text x="228" y="203" fill="#fff">1</text>
+              <circle cx="84" cy="122" r="11" stroke="#fff" style="fill:var(--accent-2);stroke-width:2"></circle><text x="84" y="126" fill="#fff">2</text>
+              <circle cx="286" cy="274" r="11" stroke="#fff" style="fill:var(--accent-2);stroke-width:2"></circle><text x="286" y="278" fill="#fff">3</text>
+              <circle cx="72" cy="258" r="11" stroke="#fff" style="fill:var(--accent-2);stroke-width:2"></circle><text x="72" y="262" fill="#fff">4</text>
+              <circle cx="250" cy="86" r="11" stroke="#fff" style="fill:var(--accent-2);stroke-width:2"></circle><text x="250" y="90" fill="#fff">5</text>
+              <circle cx="160" cy="300" r="11" stroke="#fff" style="fill:var(--accent-2);stroke-width:2"></circle><text x="160" y="304" fill="#fff">6</text>
+            </g>
+            <circle cx="180" cy="200" r="13" stroke="#fff" style="fill:var(--accent);stroke-width:3"></circle>
+            <circle cx="180" cy="200" r="4" fill="#fff"></circle>
+          </svg>
+        </div>
+        <div style="display:flex;gap:14px;font-size:10.5px;color:#3D5A80;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></span>Votre bien</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent-2)"></span>Vente comparable</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:1.5px dashed #3D5A80"></span>Rayon de 500 m</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div style="background:#F3F4F6;border-radius:16px;box-shadow:0 1px 2px rgba(10,13,17,.03);padding:14px 14px;display:flex;flex-direction:column;gap:4px"><div style="font-size:19px;font-weight:600;letter-spacing:-.02em">7 650 €</div><div style="font-size:10.5px;color:#3D5A80;line-height:1.35">prix médian au m²</div></div>
+        <div style="background:#F3F4F6;border-radius:16px;box-shadow:0 1px 2px rgba(10,13,17,.03);padding:14px 14px;display:flex;flex-direction:column;gap:4px"><div style="font-size:19px;font-weight:600;letter-spacing:-.02em">6 ventes</div><div style="font-size:10.5px;color:#3D5A80;line-height:1.35">retenues pour la comparaison</div></div>
+        <div style="background:#F3F4F6;border-radius:16px;box-shadow:0 1px 2px rgba(10,13,17,.03);padding:14px 14px;display:flex;flex-direction:column;gap:4px"><div style="font-size:19px;font-weight:600;letter-spacing:-.02em">500 m</div><div style="font-size:10.5px;color:#3D5A80;line-height:1.35">sur les 12 derniers mois</div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;min-height:0">
+      <div style="background:#F3F4F6;border-radius:16px;box-shadow:0 1px 2px rgba(10,13,17,.03);padding:16px 20px 12px;display:flex;flex-direction:column">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-2);margin-bottom:10px">Détail des ventes</div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#3D5A80;padding:0 8px 8px;border-bottom:1px solid rgba(61,90,128,.16)"><span>N°</span><span>Rue</span><span>Date</span><span style="text-align:right">Pièces</span><span style="text-align:right">Surface</span><span style="text-align:right">Prix</span><span style="text-align:right">Prix/m²</span></div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:12px;height:30px;padding:0 8px;border-radius:6px;background:rgba(61,90,128,.05)"><span style="width:18px;height:18px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><span>Rue des Tilleuls</span><span>nov. 2025</span><span style="text-align:right">4</span><span style="text-align:right">74 m²</span><span style="text-align:right">553 500 €</span><span style="text-align:right;font-weight:600">7 480 €</span></div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:12px;height:30px;padding:0 8px"><span style="width:18px;height:18px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><span>Rue de la Py</span><span>févr. 2026</span><span style="text-align:right">3</span><span style="text-align:right">61 m²</span><span style="text-align:right">470 300 €</span><span style="text-align:right;font-weight:600">7 710 €</span></div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:12px;height:30px;padding:0 8px;border-radius:6px;background:rgba(61,90,128,.05)"><span style="width:18px;height:18px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><span>Rue Pelleport</span><span>sept. 2025</span><span style="text-align:right">4</span><span style="text-align:right">82 m²</span><span style="text-align:right">591 200 €</span><span style="text-align:right;font-weight:600">7 210 €</span></div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:12px;height:30px;padding:0 8px"><span style="width:18px;height:18px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span><span>Rue du Surmelin</span><span>janv. 2026</span><span style="text-align:right">3</span><span style="text-align:right">68 m²</span><span style="text-align:right">536 500 €</span><span style="text-align:right;font-weight:600">7 890 €</span></div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:12px;height:30px;padding:0 8px;border-radius:6px;background:rgba(61,90,128,.05)"><span style="width:18px;height:18px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">5</span><span>Rue Stendhal</span><span>mai 2026</span><span style="text-align:right">4</span><span style="text-align:right">79 m²</span><span style="text-align:right">599 600 €</span><span style="text-align:right;font-weight:600">7 590 €</span></div>
+        <div style="display:grid;grid-template-columns:30px minmax(0,1.5fr) 1fr .6fr .8fr 1.1fr 1fr;column-gap:10px;align-items:center;font-size:12px;height:30px;padding:0 8px"><span style="width:18px;height:18px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">6</span><span>Rue Belgrand</span><span>avr. 2026</span><span style="text-align:right">4</span><span style="text-align:right">71 m²</span><span style="text-align:right">571 550 €</span><span style="text-align:right;font-weight:600">8 050 €</span></div>
+      </div>
+      <div style="flex:1;min-height:0;background:#F3F4F6;border-radius:16px;box-shadow:0 1px 2px rgba(10,13,17,.03);padding:16px 20px 14px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-2)">Prix au m², du plus bas au plus haut</div>
+        <div style="position:relative;display:flex;flex-direction:column;gap:8px;padding-bottom:22px">
+          <div style="display:grid;grid-template-columns:134px 1fr 66px;align-items:center;gap:10px;height:18px"><div style="font-size:11.5px;display:flex;gap:7px;align-items:center"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span>Rue Pelleport</div><div style="height:12px;background:rgba(61,90,128,.07);border-radius:3px"><div style="width:29.3%;height:100%;background:var(--accent-2);border-radius:3px"></div></div><div style="font-size:12px;font-weight:600;text-align:right">7 210 €</div></div>
+          <div style="display:grid;grid-template-columns:134px 1fr 66px;align-items:center;gap:10px;height:18px"><div style="font-size:11.5px;display:flex;gap:7px;align-items:center"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span>Rue des Tilleuls</div><div style="height:12px;background:rgba(61,90,128,.07);border-radius:3px"><div style="width:48.6%;height:100%;background:var(--accent-2);border-radius:3px"></div></div><div style="font-size:12px;font-weight:600;text-align:right">7 480 €</div></div>
+          <div style="display:grid;grid-template-columns:134px 1fr 66px;align-items:center;gap:10px;height:18px"><div style="font-size:11.5px;display:flex;gap:7px;align-items:center"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">5</span>Rue Stendhal</div><div style="height:12px;background:rgba(61,90,128,.07);border-radius:3px"><div style="width:56.4%;height:100%;background:var(--accent-2);border-radius:3px"></div></div><div style="font-size:12px;font-weight:600;text-align:right">7 590 €</div></div>
+          <div style="display:grid;grid-template-columns:134px 1fr 66px;align-items:center;gap:10px;height:18px"><div style="font-size:11.5px;display:flex;gap:7px;align-items:center"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span>Rue de la Py</div><div style="height:12px;background:rgba(61,90,128,.07);border-radius:3px"><div style="width:65%;height:100%;background:var(--accent-2);border-radius:3px"></div></div><div style="font-size:12px;font-weight:600;text-align:right">7 710 €</div></div>
+          <div style="display:grid;grid-template-columns:134px 1fr 66px;align-items:center;gap:10px;height:18px"><div style="font-size:11.5px;display:flex;gap:7px;align-items:center"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span>Rue du Surmelin</div><div style="height:12px;background:rgba(61,90,128,.07);border-radius:3px"><div style="width:77.9%;height:100%;background:var(--accent-2);border-radius:3px"></div></div><div style="font-size:12px;font-weight:600;text-align:right">7 890 €</div></div>
+          <div style="display:grid;grid-template-columns:134px 1fr 66px;align-items:center;gap:10px;height:18px"><div style="font-size:11.5px;display:flex;gap:7px;align-items:center"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent-2);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">6</span>Rue Belgrand</div><div style="height:12px;background:rgba(61,90,128,.07);border-radius:3px"><div style="width:89.3%;height:100%;background:var(--accent-2);border-radius:3px"></div></div><div style="font-size:12px;font-weight:600;text-align:right">8 050 €</div></div>
+          <div style="position:absolute;top:-4px;bottom:0;left:144px;right:76px;pointer-events:none">
+            <div style="position:absolute;left:31.2%;top:0;bottom:18px;width:2px;margin-left:-1px;background:var(--accent)"></div>
+            <div style="position:absolute;left:31.2%;bottom:0;transform:translateX(-100%);padding-right:6px;font-size:10.5px;font-weight:600;white-space:nowrap;color:#0A0D11">Votre bien · 7 237 €</div>
+            <div style="position:absolute;left:60.7%;top:0;bottom:18px;width:0;border-left:1.5px dashed #0A0D11"></div>
+            <div style="position:absolute;left:60.7%;bottom:0;padding-left:6px;font-size:10.5px;white-space:nowrap;color:#3D5A80">Médiane · 7 650 €</div>
+          </div>
+        </div>
+        <div style="margin-top:auto;font-size:10.5px;color:#3D5A80">Source : ventes réelles publiées par l'État (DVF)</div>
+      </div>
+    </div>
+  </div>
+  <dc-import name="PiedDePageV2" page="5" hint-size="100%,50px"></dc-import>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1123,&quot;height&quot;:794}}"></script>
+</body>
+</html>

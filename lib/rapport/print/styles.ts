@@ -1,6 +1,7 @@
-/** Feuille unique : écran (composeur, présentation) et impression Chromium. */
+/** Gabarit David Valor : variables et page A4. Le HTML des pages reste inline, comme les maquettes. */
 
 export const AVIS_FONT_FACE_ECRAN = `
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -31,135 +32,99 @@ export const AVIS_LAYOUT_CSS = `
 .avis-print {
   margin: 0;
   height: 100%;
-  background: #FFF7F0;
+  background: #fff;
   color: #0A0D11;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Open Sans', Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  counter-reset: avis-folio;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
 .avis-page {
-  --avis-fond: #FFF7F0;
-  --avis-encre: #0A0D11;
-  --avis-ardoise: #3D5A80;
-  --avis-accent: #E8743C;
-  --avis-carte: #ffffff;
+  --accent: #14AED6;
+  --accent-2: #1F6FB5;
+  --c-orange: #F7931E;
+  --c-green: #6BB02E;
+  --c-purple: #4B2E83;
+  --c-red: #F0445A;
+  --logo: repeating-linear-gradient(135deg, rgba(61,90,128,.16) 0 4px, rgba(61,90,128,.05) 4px 8px);
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--avis-fond);
-  color: var(--avis-encre);
-  padding: 5.2% 5.6% 4.6%;
+  background: #fff;
+  color: #0A0D11;
+  font-family: 'Open Sans', Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  counter-increment: avis-folio;
 }
 .avis-page--plein { padding: 0; }
 
 @media print {
-  html, body { margin: 0; background: #FFF7F0; }
+  html, body { margin: 0; background: #fff; }
   .avis-page {
     width: 297mm;
     height: 210mm;
-    padding: 12mm 14mm 11mm;
     break-after: page;
     break-inside: avoid;
   }
-  .avis-page--plein { padding: 0; }
   .avis-no-print { display: none !important; }
 }
 
-.avis-titre {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  text-wrap: balance;
-}
-.avis-filet {
-  display: block;
-  width: 2.6rem;
-  height: 3px;
-  margin: 0.55rem 0 1.05rem;
-  background: var(--avis-accent);
-  border-radius: 99px;
-}
-.avis-corps {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  flex-direction: column;
-  gap: 0.85rem;
-}
+.avis-folio { color: #fff; font-weight: 700; }
+.avis-folio::after { content: counter(avis-folio); }
+
+/* Reliquats pages hors gabarit 7 (bibliothèque, connectivité…) */
 .avis-carte {
-  background: var(--avis-carte);
+  background: #F3F4F6;
   border-radius: 16px;
-  box-shadow: 0 10px 28px -22px rgba(10, 13, 17, 0.28);
-  padding: 0.95rem 1.1rem;
-  break-inside: avoid;
+  box-shadow: 0 1px 2px rgba(10, 13, 17, 0.03);
+  padding: 16px 20px;
 }
 .avis-carte--flex { display: flex; flex: 1; min-height: 0; flex-direction: column; }
-.avis-label {
-  margin: 0 0 0.2rem;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--avis-ardoise);
-}
-.avis-valeur {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--avis-encre);
-}
-.avis-muted { color: var(--avis-ardoise); }
-.avis-grille { display: grid; gap: 0.75rem; }
+.avis-label { margin: 0 0 0.2rem; font-size: 10.5px; color: #3D5A80; }
+.avis-valeur { margin: 0; font-weight: 600; }
+.avis-muted { color: #3D5A80; }
+.avis-grille { display: grid; gap: 14px; }
 .avis-grille-2 { grid-template-columns: 1fr 1fr; }
-.avis-grille-3 { grid-template-columns: 1fr 1fr 1fr; }
+.avis-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.avis-table th {
+  padding: 0.35rem 0.5rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3D5A80;
+  text-align: left;
+  border-bottom: 1px solid rgba(61, 90, 128, 0.16);
+}
+.avis-table td {
+  padding: 0.38rem 0.5rem;
+  border-bottom: 1px solid rgba(61, 90, 128, 0.08);
+}
+.avis-table .num { text-align: right; }
 .avis-ligne {
   display: flex;
   align-items: center;
   gap: 0.55rem;
   padding: 0.38rem 0;
-  border-bottom: 1px solid rgba(10, 13, 17, 0.06);
+  border-bottom: 1px solid rgba(61, 90, 128, 0.12);
 }
 .avis-ligne:last-child { border-bottom: 0; }
-.avis-pastille {
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 5.2rem;
-  padding: 0.45rem 0.65rem;
-  border-radius: 12px;
-  background: rgba(61, 90, 128, 0.06);
-}
-.avis-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-.avis-table th {
-  padding: 0.4rem 0.55rem;
-  font-size: 0.62rem;
-  font-weight: 600;
+.avis-cta { margin: 0; font-size: 21px; font-weight: 600; }
+.avis-titre { margin: 0; font-size: 23px; }
+.avis-filet { display: none; }
+.avis-corps { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 14px; padding: 18px 40px 16px; }
+.avis-kicker {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--avis-ardoise);
-  text-align: left;
-  border-bottom: 1px solid rgba(10, 13, 17, 0.08);
-}
-.avis-table td {
-  padding: 0.42rem 0.55rem;
-  font-variant-numeric: tabular-nums;
-  border-bottom: 1px solid rgba(10, 13, 17, 0.04);
-}
-.avis-table .num { text-align: right; }
-.avis-table tbody tr:nth-child(even) { background: rgba(61, 90, 128, 0.045); }
-.avis-cta {
-  margin: 0;
-  max-width: 38rem;
-  font-size: 1.35rem;
-  font-weight: 600;
-  line-height: 1.35;
-  text-wrap: pretty;
+  color: var(--accent-2);
 }
 `;
 

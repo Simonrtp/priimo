@@ -3,6 +3,8 @@
  * depuis les données du dossier, dans le même ordre.
  */
 
+import { nomPersonne } from '@/lib/rapport/genere/format';
+
 export const KINDS_GENEREES = [
   'couverture',
   'votre_bien',
@@ -148,4 +150,25 @@ Bien cordialement,`;
 export function texteEmailModele(raw: string | null | undefined): string {
   const s = raw?.trim();
   return s && s.length > 0 ? s : EMAIL_MODELE_DEFAUT;
+}
+
+/** Message proposé à l’agent pour ce dossier : prénom du client et signature de l’agent. */
+export function composerMessageClient(input: {
+  prenomClient?: string | null;
+  nomAgent?: string | null;
+  modele?: string | null;
+}): string {
+  const custom = input.modele?.trim();
+  if (custom && custom !== EMAIL_MODELE_DEFAUT) return custom;
+  const prenom = nomPersonne(input.prenomClient);
+  const agent = nomPersonne(input.nomAgent);
+  const salut = prenom ? `Bonjour ${prenom},` : 'Bonjour,';
+  const signature = agent ? `\n\n${agent}` : '';
+  return `${salut}
+
+Voici le lien pour consulter l'avis de valeur de votre bien.
+
+Je reste à votre disposition pour en parler.
+
+Bien cordialement,${signature}`;
 }

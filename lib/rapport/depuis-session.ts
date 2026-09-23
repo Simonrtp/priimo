@@ -4,6 +4,7 @@ import {
   nomAgentAffiche,
   nomCommercialAgence,
   normaliserCouleurPrincipale,
+  normaliserCouleurSecondaire,
   type IdentiteAgenceRapport,
   type IdentiteAgentRapport,
   type PiedBienRapport,
@@ -22,6 +23,7 @@ export async function identiteAgenceDepuisRow(
     siteWeb: agency.site_web?.trim() || null,
     logoUrl: await signerCheminRapport(agency.logo_path),
     couleurPrincipale: normaliserCouleurPrincipale(agency.couleur_principale),
+    couleurSecondaire: normaliserCouleurSecondaire(agency.couleur_secondaire),
   };
 }
 

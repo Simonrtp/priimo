@@ -19,11 +19,12 @@ import { formatPeriodeConstruction } from '@/lib/queries/parcelle';
 import { DVF_RAYON_M, dvfHorizonDepuisIso, type EstimationSourceId } from '@/lib/estimation/sources';
 import { extrasCoefficients, type EstimationExtras } from '@/lib/estimation/extras';
 import { buildCorrectionLines, type CorrectionLine } from '@/lib/estimation/corrections';
-import { collecterVentesComparables } from '@/lib/estimation/moteur-collecte';
+import { chargerVentesIndiceCommune, collecterVentesComparables } from '@/lib/estimation/moteur-collecte';
 import {
   assemblerEstimation,
   construireIndice,
   impossible,
+  indiceMaigre,
   motifDepuisSaisie,
   preparerLot,
   voieNormalisee,
@@ -614,7 +615,25 @@ export async function runDvfEstimation(
     exclusIds: input.exclusIds,
   };
 
-  const indice = construireIndice(collecte.indicePool, input.maintenant);
+  let indice = construireIndice(collecte.indicePool, input.maintenant);
+  if (indiceMaigre(indice)) {
+    const extra = await chargerVentesIndiceCommune(
+      admin,
+      input.postalCode,
+      collecte.fenetreMois != null
+        ? new Date(
+            (input.maintenant ?? new Date()).getTime() - collecte.fenetreMois * 30.44 * 24 * 3600 * 1000,
+          )
+            .toISOString()
+            .slice(0, 10)
+        : '2018-01-01',
+      input.avant ?? null,
+    );
+    if (extra.length > 0) {
+      const elargi = construireIndice([...collecte.indicePool, ...extra], input.maintenant);
+      if (elargi) indice = { ...elargi, niveau: 'commune' };
+    }
+  }
   const origine = {
     lat: input.latitude,
     lng: input.longitude,

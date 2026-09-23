@@ -7,6 +7,7 @@ import {
   nomSlotModele,
   parseSlotsModele,
   slotsDepuisLignes,
+  composerMessageClient,
   texteEmailModele,
 } from './modele-defaut';
 import { manquesAvantEnvoi } from './avant-envoyer';
@@ -118,6 +119,32 @@ describe('modèle de rapport', () => {
   it('reprend le texte d’agence, sinon le texte Priimo', () => {
     assert.equal(texteEmailModele('  '), EMAIL_MODELE_DEFAUT);
     assert.equal(texteEmailModele('Bonjour, voici le lien.'), 'Bonjour, voici le lien.');
+  });
+
+  it('compose le message avec le prénom du client et la signature de l’agent', () => {
+    assert.equal(
+      composerMessageClient({ prenomClient: 'marie', nomAgent: 'paul martin' }),
+      `Bonjour Marie,
+
+Voici le lien pour consulter l'avis de valeur de votre bien.
+
+Je reste à votre disposition pour en parler.
+
+Bien cordialement,
+
+Paul Martin`,
+    );
+  });
+
+  it('garde un modèle d’agence déjà rédigé', () => {
+    assert.equal(
+      composerMessageClient({
+        prenomClient: 'Marie',
+        nomAgent: 'Paul Martin',
+        modele: 'Bonjour, voici le lien.',
+      }),
+      'Bonjour, voici le lien.',
+    );
   });
 });
 

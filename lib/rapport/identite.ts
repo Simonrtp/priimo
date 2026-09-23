@@ -3,7 +3,10 @@
  * Aucun libellé orphelin : une ligne vide n’existe pas.
  */
 
+import { ACCENT2_DEFAUT, normaliserAccent2 } from '@/lib/rapport/couleurs';
+
 export const COULEUR_PRIIIMO = '#E8743C';
+export const COULEUR_SECONDAIRE_DEFAUT = ACCENT2_DEFAUT;
 
 export type IdentiteAgenceRapport = {
   nom: string;
@@ -14,13 +17,18 @@ export type IdentiteAgenceRapport = {
   siteWeb: string | null;
   logoUrl: string | null;
   couleurPrincipale: string;
+  couleurSecondaire?: string;
 };
 
-/** Un hex #RRGGBB, sinon l’orange Priimo. */
+/** Un hex #RRGGBB, sinon l’orange Priimo (agences déjà paramétrées). */
 export function normaliserCouleurPrincipale(raw: string | null | undefined): string {
   const s = raw?.trim() ?? '';
   if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s.toUpperCase();
   return COULEUR_PRIIIMO;
+}
+
+export function normaliserCouleurSecondaire(raw: string | null | undefined): string {
+  return normaliserAccent2(raw);
 }
 
 export type IdentiteAgentRapport = {

@@ -124,6 +124,7 @@ export default function EditeurPageAgence({
     siteWeb: agency.site_web ?? null,
     logoUrl,
     couleurPrincipale: normaliserCouleurPrincipale(agency.couleur_principale),
+    couleurSecondaire: agency.couleur_secondaire ?? undefined,
   };
   const agent: IdentiteAgentRapport = {
     nom: nomAgentAffiche(profile.first_name, profile.last_name),

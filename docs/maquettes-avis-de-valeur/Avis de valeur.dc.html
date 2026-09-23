@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"><style>:root{--accent:#E8743C;--logo:repeating-linear-gradient(135deg,rgba(61,90,128,.16) 0 4px,rgba(61,90,128,.05) 4px 8px)}body{margin:0;background:#E7E1DA;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-variant-numeric:tabular-nums}a{color:#3D5A80}a:hover{color:#0A0D11}@page{size:297mm 210mm;margin:0}@media print{body{background:none}[data-desk]{padding:0!important;gap:0!important}[data-screen-only]{display:none!important}[data-page]{break-after:page;box-shadow:none!important}}</style></helmet>
+<div data-desk style="display:flex;flex-direction:column;align-items:safe center;gap:36px;padding:48px 24px 96px;font-family:Inter,system-ui,sans-serif;color:#0A0D11">
+  <div data-screen-only style="width:297mm;max-width:100%;display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:20px;font-weight:600;letter-spacing:-.01em">Avis de valeur — gabarit 7 pages · A4 paysage</div>
+    <div style="font-size:13px;line-height:1.55;color:#3D5A80;max-width:760px">Un composant par page (Page1…Page7), en-tête et pied de page partagés (EnTete, PiedDePage). Identité en variables CSS : <code>--accent</code> et <code>--logo</code> (valeur CSS de fond, ex. <code>url(logo.svg) center/contain no-repeat</code>). Photos, logo et portrait : emplacements rayés nommés. Impression : une page par feuille, repères masqués.</div>
+  </div>
+  <sc-if value="{{ showPhoto }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="01 Couverture" style="display:flex;flex-direction:column;gap:10px">
+      <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">01 · COUVERTURE</div>
+      <dc-import name="Page1Couverture" hint-size="1123px,794px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ showNoPhoto }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="01 Couverture sans photo" style="display:flex;flex-direction:column;gap:10px">
+      <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">01 · COUVERTURE — VARIANTE SANS PHOTO</div>
+      <dc-import name="Page1CouvertureSansPhoto" hint-size="1123px,794px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ showPhoto }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="02 Votre bien" style="display:flex;flex-direction:column;gap:10px">
+      <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">02 · VOTRE BIEN</div>
+      <dc-import name="Page2VotreBien" hint-size="1123px,794px"></dc-import>
+    </div>
+  </sc-if>
+  <sc-if value="{{ showNoPhoto }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="02 Votre bien sans photo" style="display:flex;flex-direction:column;gap:10px">
+      <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">02 · VOTRE BIEN — VARIANTE SANS PHOTO</div>
+      <dc-import name="Page2VotreBienSansPhoto" hint-size="1123px,794px"></dc-import>
+    </div>
+  </sc-if>
+  <div data-screen-label="03 Immeuble" style="display:flex;flex-direction:column;gap:10px">
+    <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">03 · L'IMMEUBLE ET SON ENVIRONNEMENT</div>
+    <dc-import name="Page3Immeuble" hint-size="1123px,794px"></dc-import>
+  </div>
+  <div data-screen-label="04 Prix du quartier" style="display:flex;flex-direction:column;gap:10px">
+    <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">04 · LES PRIX DANS VOTRE QUARTIER</div>
+    <dc-import name="Page4PrixQuartier" hint-size="1123px,794px"></dc-import>
+  </div>
+  <div data-screen-label="05 Ventes comparables" style="display:flex;flex-direction:column;gap:10px">
+    <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">05 · LES VENTES COMPARABLES</div>
+    <dc-import name="Page5VentesComparables" hint-size="1123px,794px"></dc-import>
+  </div>
+  <div data-screen-label="06 Biens en vente" style="display:flex;flex-direction:column;gap:10px">
+    <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">06 · LES BIENS EN VENTE AUTOUR DE VOUS</div>
+    <dc-import name="Page6BiensEnVente" hint-size="1123px,794px"></dc-import>
+  </div>
+  <div data-screen-label="07 Estimation" style="display:flex;flex-direction:column;gap:10px">
+    <div data-screen-only style="font:500 11px ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3D5A80">07 · NOTRE ESTIMATION</div>
+    <dc-import name="Page7Estimation" hint-size="1123px,794px"></dc-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#E8743C&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#E8743C&quot;,&quot;#2F6B5E&quot;,&quot;#3D5A80&quot;,&quot;#8E3B5C&quot;]},&quot;variante&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Toutes les pages&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;Toutes les pages&quot;,&quot;Avec photos&quot;,&quot;Sans photo&quot;]}}">
+class Component extends DCLogic {
+  applyAccent() {
+    document.documentElement.style.setProperty('--accent', this.props.accent ?? '#E8743C');
+  }
+  componentDidMount() { this.applyAccent(); }
+  componentDidUpdate() { this.applyAccent(); }
+  renderVals() {
+    const v = this.props.variante ?? 'Toutes les pages';
+    return { showPhoto: v !== 'Sans photo', showNoPhoto: v !== 'Avec photos' };
+  }
+}
+</script>
+</body>
+</html>

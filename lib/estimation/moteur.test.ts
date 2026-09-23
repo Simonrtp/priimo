@@ -8,6 +8,7 @@ import {
   construireIndice,
   ecartAbsoluMedian,
   estVenteSimple,
+  fourchetteDepuisDispersion,
   haversineM,
   impossible,
   mediane,
@@ -21,6 +22,7 @@ import {
   type MoteurInput,
   type VenteBrute,
 } from './moteur';
+import { cpsCommune } from './moteur-collecte';
 
 function vente(partial: Partial<VenteBrute> & { id: string }): VenteBrute {
   return {
@@ -219,6 +221,33 @@ describe('assemblage', () => {
     const zero = impossible('valeur_incalculable', 'x', 'y');
     assert.equal(zero.value, null);
     assert.equal(zero.available, false);
+  });
+});
+
+describe('commune pour l’indice', () => {
+  it('élargit Paris à les 20 arrondissements', () => {
+    const cps = cpsCommune('75020');
+    assert.equal(cps.length, 20);
+    assert.ok(cps.includes('75001') && cps.includes('75020'));
+    assert.deepEqual(cpsCommune('74000'), ['74000']);
+  });
+});
+
+describe('fourchette', () => {
+  it('vient de la dispersion, pas d’un ± fixe', () => {
+    const f = fourchetteDepuisDispersion(
+      [
+        { valeur: 400_000, poids: 1 },
+        { valeur: 500_000, poids: 2 },
+        { valeur: 600_000, poids: 1 },
+      ],
+      500_000,
+    );
+    assert.ok(f.low != null && f.low < 500_000);
+    assert.ok(f.high != null && f.high > 500_000);
+    const plate = fourchetteDepuisDispersion([{ valeur: 500_000, poids: 1 }], 500_000);
+    assert.equal(plate.low, null);
+    assert.equal(plate.high, null);
   });
 });
 

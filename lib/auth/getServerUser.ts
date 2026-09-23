@@ -25,7 +25,14 @@ const AGENCIES_SELECT_EXTRAS = 'logo_path, nom_commercial, site_web';
 /** Colonne 20260931 — accent du rapport. */
 const AGENCIES_SELECT_COULEUR = 'couleur_principale';
 
-const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}`;
+/** Colonne 20260939 — seconde couleur de l’avis. */
+const AGENCIES_SELECT_COULEUR2 = 'couleur_secondaire';
+
+const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}, ${AGENCIES_SELECT_COULEUR2}`;
+const AGENCIES_SELECT_SANS_SECONDAIRE = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}`;
+
+/** La colonne 20260939 peut manquer tant que la migration n’est pas passée. */
+let agenciesSelectAvecSecondaire = true;
 
 const PROFILE_SELECT_BASE =
   'id, active_agency_id, first_name, last_name, phone, preferences, leads_last_seen_at, onboarding_completed_at, created_at, updated_at';
@@ -81,8 +88,19 @@ async function getServerUserUncached(): Promise<ServerUser> {
 
   const agencyIds = rows.map((r) => r.agency_id);
   const { data: agencies } = await timed('agencies.select', async () => {
-    const withBilling = await supabase.from('agencies').select(AGENCIES_SELECT).in('id', agencyIds);
+    const withBilling = await supabase
+      .from('agencies')
+      .select(agenciesSelectAvecSecondaire ? AGENCIES_SELECT : AGENCIES_SELECT_SANS_SECONDAIRE)
+      .in('id', agencyIds);
     if (withBilling.error) {
+      if (/couleur_secondaire/.test(withBilling.error.message)) {
+        agenciesSelectAvecSecondaire = false;
+        const sansSecondaire = await supabase
+          .from('agencies')
+          .select(AGENCIES_SELECT_SANS_SECONDAIRE)
+          .in('id', agencyIds);
+        if (!sansSecondaire.error) return sansSecondaire;
+      }
       console.error('[getServerUser] agencies.select', withBilling.error.message);
       const sansCouleur = await supabase
         .from('agencies')

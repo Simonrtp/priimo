@@ -33,7 +33,7 @@ export default function PageRapport({
       aria-label={`Page ${page} sur ${Math.max(pages, 1)}`}
     >
       {sansChrome ? (
-        <div className="min-h-0 flex-1 bg-[#FFF7F0]">{children}</div>
+        <div className="min-h-0 flex-1 bg-white">{children}</div>
       ) : (
         <>
       <header className="flex h-10 shrink-0 items-center border-b border-black/[0.06] px-4">

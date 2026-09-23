@@ -27,5 +27,5 @@ export function htmlPagesGenerees(
   const pages = kinds
     .map((kind) => markup(createElement(PageGenereeHtml, { kind, dossier, accent })))
     .join('');
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><style>${cssPolicesInterEmbeddees()}${AVIS_LAYOUT_CSS}</style></head><body class="avis-print">${pages}</body></html>`;
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap"/><style>${cssPolicesInterEmbeddees()}${AVIS_LAYOUT_CSS}</style></head><body class="avis-print">${pages}</body></html>`;
 }

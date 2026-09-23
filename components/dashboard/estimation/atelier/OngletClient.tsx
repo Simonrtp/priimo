@@ -242,57 +242,60 @@ export default function OngletClient({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <Field label="Motif" htmlFor="est-motif">
-        <Select
-          id="est-motif"
-          value={estimation.motif}
-          options={ESTIMATION_MOTIFS.map((m) => ({ value: m, label: MOTIF_LABELS[m] }))}
-          onChange={(v) => onPatch({ motif: v as EstimationMotif })}
-        />
-      </Field>
-      {estimation.motif === 'succession' ? (
-        <Field label="Date de valeur" htmlFor="est-date-valeur">
-          <ChampSaisi
-            id="est-date-valeur"
-            type="date"
-            value={estimation.dateValeur ?? ''}
-            onCommit={(raw) => onPatch({ dateValeur: raw || null })}
+    <>
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,20rem)_minmax(16rem,22rem)]">
+      <div className="flex min-w-0 flex-col gap-5">
+        <Field label="Motif" htmlFor="est-motif">
+          <Select
+            id="est-motif"
+            value={estimation.motif}
+            options={ESTIMATION_MOTIFS.map((m) => ({ value: m, label: MOTIF_LABELS[m] }))}
+            onChange={(v) => onPatch({ motif: v as EstimationMotif })}
           />
         </Field>
-      ) : null}
-      <Field label="État" htmlFor="est-etat">
-        <Select
-          id="est-etat"
-          value={estimation.etat}
-          options={ESTIMATION_ETATS.map((e) => ({ value: e, label: ETAT_LABELS[e] }))}
-          onChange={(v) => onPatch({ etat: v as EstimationEtat })}
-        />
-      </Field>
-      <Field label="Référent" htmlFor="est-referent">
-        {isDirector ? (
-          <AssigneeSelect
-            id="est-referent"
-            value={estimation.referentId}
-            members={members}
-            currentUserId={currentUserId}
-            onChange={(id) => onPatch({ referentId: id })}
+        {estimation.motif === 'succession' ? (
+          <Field label="Date de valeur" htmlFor="est-date-valeur">
+            <ChampSaisi
+              id="est-date-valeur"
+              type="date"
+              value={estimation.dateValeur ?? ''}
+              onCommit={(raw) => onPatch({ dateValeur: raw || null })}
+            />
+          </Field>
+        ) : null}
+        <Field label="État" htmlFor="est-etat">
+          <Select
+            id="est-etat"
+            value={estimation.etat}
+            options={ESTIMATION_ETATS.map((e) => ({ value: e, label: ETAT_LABELS[e] }))}
+            onChange={(v) => onPatch({ etat: v as EstimationEtat })}
           />
-        ) : (
-          <p className="text-[14px] text-text-strong">
-            {(() => {
-              const referent = members.find((m) => m.id === estimation.referentId);
-              return referent ? (
-                <CollaborateurNom portrait={portraitDepuisMembre(referent)} size={22} />
-              ) : (
-                'Vous'
-              );
-            })()}
-          </p>
-        )}
-      </Field>
+        </Field>
+        <Field label="Référent" htmlFor="est-referent">
+          {isDirector ? (
+            <AssigneeSelect
+              id="est-referent"
+              value={estimation.referentId}
+              members={members}
+              currentUserId={currentUserId}
+              onChange={(id) => onPatch({ referentId: id })}
+            />
+          ) : (
+            <p className="text-[14px] text-text-strong">
+              {(() => {
+                const referent = members.find((m) => m.id === estimation.referentId);
+                return referent ? (
+                  <CollaborateurNom portrait={portraitDepuisMembre(referent)} size={22} />
+                ) : (
+                  'Vous'
+                );
+              })()}
+            </p>
+          )}
+        </Field>
+      </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <Field label="Client rattaché au bien" htmlFor="est-rattacher">
           <div className="flex flex-col gap-3">
             {estimation.contactId || estimation.leadId || estimation.bienId ? (
@@ -338,7 +341,7 @@ export default function OngletClient({
             ) : null}
             <NoteEntitySearch
               id="est-rattacher"
-              className="w-full max-w-sm"
+              className="w-full"
               excludeIds={
                 new Set(
                   [
@@ -399,8 +402,9 @@ export default function OngletClient({
           </WorkspaceButton>
         </div>
       </div>
+    </div>
 
-      {createOpen ? (
+    {createOpen ? (
         <ContactFormDialog
           key={editing?.id ?? `client-est-${estimation.id}`}
           open
@@ -429,6 +433,6 @@ export default function OngletClient({
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }

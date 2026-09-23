@@ -35,7 +35,7 @@ function dossier(over: Partial<DossierRapport> = {}): DossierRapport {
     pricePerM2: 7579,
     surfacePrixLibelle: 'Carrez',
     fourchetteAjoutee: false,
-    client: { nom: 'marie DURAND', telephone: '0612345678', email: 'a@b.fr' },
+    client: { prenom: 'marie', nom: 'marie DURAND', telephone: '0612345678', email: 'a@b.fr' },
     agence: {
       nom: 'SARL',
       nomCommercial: 'Agence Lumière',
@@ -107,7 +107,10 @@ describe('document HTML avis de valeur', () => {
       dossier(),
       '#E8743C',
     );
-    assert.match(html, /Avis de valeur/);
+    assert.match(html, /Avis de/);
+    assert.match(html, /valeur/);
+    assert.match(html, /Open Sans/);
+    assert.match(html, /clip-path/);
     assert.match(html, /Prochaine étape/);
     assert.match(html, /546\u202f000\u00a0€/);
     assert.match(html, /76\u00a0m²/);
