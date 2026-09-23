@@ -15,6 +15,8 @@ function chromeLocal(): string | null {
       ? [
           'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         ]
       : process.platform === 'darwin'
         ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
@@ -41,15 +43,23 @@ export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
   }
   if (!executablePath) throw new ChromiumIndisponible();
 
-  const browser = await puppeteer.launch({
-    args,
-    executablePath,
-    headless,
-  });
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>>;
+  try {
+    browser = await puppeteer.launch({
+      args: [...args, '--disable-dev-shm-usage', '--disable-gpu'],
+      executablePath,
+      headless,
+    });
+  } catch (err) {
+    throw new ChromiumIndisponible(err instanceof Error ? err.message : undefined);
+  }
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'load', timeout: 45_000 });
-    await page.evaluate(() => document.fonts.ready);
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await Promise.race([
+      page.evaluate(() => document.fonts.ready),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
     const pdf = await page.pdf({
       format: 'A4',
       landscape: true,
@@ -58,6 +68,9 @@ export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
     });
     return new Uint8Array(pdf);
+  } catch (err) {
+    if (err instanceof ChromiumIndisponible) throw err;
+    throw new ChromiumIndisponible(err instanceof Error ? err.message : undefined);
   } finally {
     await browser.close();
   }

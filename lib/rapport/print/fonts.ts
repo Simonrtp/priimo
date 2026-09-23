@@ -15,11 +15,17 @@ const RANGE_LATIN =
 const RANGE_EXT =
   'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF';
 
-/** @font-face en data-URI : Chromium imprime sans réseau. */
+function face(family: string, file: string, weight: number, ext: boolean): string {
+  const bytes = readFileSync(join(process.cwd(), 'public', 'fonts', file));
+  const b64 = bytes.toString('base64');
+  return `@font-face{font-family:'${family}';font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${b64}) format('woff2');unicode-range:${ext ? RANGE_EXT : RANGE_LATIN};}`;
+}
+
+/** @font-face en data-URI : Chromium imprime sans réseau. Open Sans = mêmes fichiers (pas d’appel Google). */
 export function cssPolicesInterEmbeddees(): string {
-  return FILES.map(({ file, weight, ext }) => {
-    const bytes = readFileSync(join(process.cwd(), 'public', 'fonts', file));
-    const b64 = bytes.toString('base64');
-    return `@font-face{font-family:'Inter';font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${b64}) format('woff2');unicode-range:${ext ? RANGE_EXT : RANGE_LATIN};}`;
-  }).join('');
+  return FILES.flatMap(({ file, weight, ext }) => [
+    face('Inter', file, weight, ext),
+    face('Open Sans', file, weight, ext),
+    ...(weight === 400 ? [face('Open Sans', file, 300, ext)] : []),
+  ]).join('');
 }

@@ -1,7 +1,6 @@
 /** Gabarit David Valor : variables et page A4. Le HTML des pages reste inline, comme les maquettes. */
 
 export const AVIS_FONT_FACE_ECRAN = `
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -22,6 +21,34 @@ export const AVIS_FONT_FACE_ECRAN = `
   font-weight: 700;
   font-display: swap;
   src: url('/fonts/inter-700-ext.woff2') format('woff2'), url('/fonts/inter-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/inter-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/inter-700.woff2') format('woff2');
 }
 `;
 

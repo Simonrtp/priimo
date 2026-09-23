@@ -88,7 +88,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       dossier: assemble.dossier,
     });
   } catch (err) {
-    if (err instanceof ChromiumIndisponible) {
+    if (err instanceof ChromiumIndisponible || (err instanceof Error && err.name === 'ChromiumIndisponible')) {
       return NextResponse.json(
         {
           error: 'Impression serveur indisponible. Utilisez Imprimer depuis le navigateur.',
@@ -97,7 +97,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         { status: 503 },
       );
     }
-    throw err;
+    console.error('[rapport/envoyer]', err);
+    return NextResponse.json({ error: 'Envoi impossible' }, { status: 500 });
   }
 
   const { data: dernier } = await session

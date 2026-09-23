@@ -44,7 +44,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       dossier: assemble.dossier,
     });
   } catch (err) {
-    if (err instanceof ChromiumIndisponible) {
+    if (err instanceof ChromiumIndisponible || (err instanceof Error && err.name === 'ChromiumIndisponible')) {
       return NextResponse.json(
         {
           error: 'Impression serveur indisponible. Utilisez Imprimer depuis le navigateur.',
@@ -53,7 +53,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         { status: 503 },
       );
     }
-    throw err;
+    console.error('[rapport/pdf]', err);
+    return NextResponse.json({ error: 'Export impossible' }, { status: 500 });
   }
 
   const nom = ctx.estimation.address?.trim()

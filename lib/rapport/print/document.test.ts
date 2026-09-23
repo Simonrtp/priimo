@@ -120,4 +120,28 @@ describe('document HTML avis de valeur', () => {
     assert.doesNotMatch(html, /546000/);
     assert.doesNotMatch(html, /[\u{1F300}-\u{1FAFF}]/u);
   });
+
+  it('rend les 13 pages générées sans lever', () => {
+    const html = htmlPagesGenerees(
+      [
+        'couverture',
+        'votre_bien',
+        'description',
+        'immeuble_appartement',
+        'secteur',
+        'points_interet',
+        'connectivite',
+        'permis',
+        'comparables',
+        'concurrentiel',
+        'indices',
+        'prix',
+        'prochaine_etape',
+      ],
+      dossier(),
+      '#14AED6',
+    );
+    assert.match(html, /<!DOCTYPE html>/);
+    assert.match(html, /avis-page/);
+  });
 });
