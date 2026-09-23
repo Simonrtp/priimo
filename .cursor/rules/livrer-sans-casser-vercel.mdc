@@ -1,0 +1,33 @@
+---
+description: Ne jamais livrer un changement qui casse le build ou le site en production
+alwaysApply: true
+---
+
+# Livrer sans casser Vercel
+
+Chaque push part sur Vercel. Un fichier JSX cassé ou une redirection en boucle = le site down.
+
+## Avant de dire que c’est fini
+
+1. Relire le JSX touché : une balise `<a>` / `<div>` doit ouvrir avec ses attributs, jamais `<a>` puis `href=` en dessous.
+2. Lancer `npm run build` (ou au minimum `npx tsc --noEmit` + le test du fichier) après toute modification TypeScript / React / `next.config`.
+3. Ne pas inventer de redirections `www` ↔ apex dans `next.config.js` ni `vercel.json`. Le domaine canonique se règle **une seule fois** dans Vercel → Domaines (priimo.fr principal, www redirige vers l’apex). Les deux en même temps = `ERR_TOO_MANY_REDIRECTS`.
+4. Si le build local échoue, corriger avant de s’arrêter. Ne pas « pousser pour voir ».
+
+## Exemples
+
+```tsx
+// ❌ BAD — casse Turbopack / Vercel
+<a>
+  href={href}
+  className="btn"
+>
+
+// ✅ GOOD
+<a href={href} className="btn">
+```
+
+```js
+// ❌ BAD — boucle si Vercel redirige déjà l’autre sens
+{ source: "/:path*", has: [{ type: "host", value: "www.priimo.fr" }], destination: "https://priimo.fr/:path*" }
+```
