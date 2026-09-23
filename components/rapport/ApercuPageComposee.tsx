@@ -1,4 +1,5 @@
 import ContenuPageModele from '@/components/rapport/ContenuPageModele';
+import CadreAvisA4 from '@/components/rapport/print/CadreAvisA4';
 import PageGenereeHtml from '@/components/rapport/print/PageGenereeHtml';
 import { PrintStyles } from '@/components/rapport/print/Gabarit';
 import { estDisposition } from '@/lib/rapport/modele';
@@ -25,10 +26,10 @@ export default function ApercuPageComposee({
   }
   if (page.kind === 'generee' && page.kindGeneree && dossier) {
     return (
-      <div className="avis-print h-full">
+      <CadreAvisA4>
         <PrintStyles />
         <PageGenereeHtml kind={page.kindGeneree} dossier={dossier} accent={accent} />
-      </div>
+      </CadreAvisA4>
     );
   }
   if (page.kind === 'modele' && page.disposition && estDisposition(page.disposition)) {

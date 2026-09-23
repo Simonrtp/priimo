@@ -9,12 +9,12 @@ import { AVIS_LAYOUT_CSS } from './styles';
 /**
  * Turbopack refuse `import … from 'react-dom/server'` dans le graphe App Router
  * et n’accepte que `import.meta.url` comme argument de `createRequire`.
+ * Chargé à l’appel seulement — pas au prerender des pages.
  */
-const { renderToStaticMarkup } = createRequire(import.meta.url)('react-dom/' + 'server') as {
-  renderToStaticMarkup: (el: ReactElement) => string;
-};
-
 function markup(node: ReactElement): string {
+  const { renderToStaticMarkup } = createRequire(import.meta.url)('react-dom/' + 'server') as {
+    renderToStaticMarkup: (el: ReactElement) => string;
+  };
   return renderToStaticMarkup(node);
 }
 

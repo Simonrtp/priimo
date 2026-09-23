@@ -11,7 +11,7 @@ const nextConfig = {
       static: 300,
     },
   },
-  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core', 'react-dom'],
+  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
   // Don't advertise the framework in HTTP responses.
   poweredByHeader: false,
   // Brotli/gzip is handled by Vercel's edge — `compress` would only matter

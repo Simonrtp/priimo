@@ -55,6 +55,11 @@ export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
   }
   try {
     const page = await browser.newPage();
+    await page.setViewport({
+      width: Math.round((297 * 96) / 25.4),
+      height: Math.round((210 * 96) / 25.4),
+      deviceScaleFactor: 1,
+    });
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     await Promise.race([
       page.evaluate(() => document.fonts.ready),
