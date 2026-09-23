@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { NoteLienEntite } from '@/types/contact';
 import { banFeatureToSelectedAddress, searchBanAddresses } from '@/lib/ban';
 import {
@@ -52,12 +52,14 @@ const LIBELLE_VIDE: Record<RattacherKind, string> = {
 
 export default function NoteEntitySearch({
   onPick,
+  onCreateContact,
   disabled = false,
   excludeIds,
   id,
   className = 'w-full max-w-sm',
 }: {
   onPick: (pick: NoteLinkPick) => void;
+  onCreateContact?: () => void;
   disabled?: boolean;
   excludeIds?: ReadonlySet<string>;
   id?: string;
@@ -240,6 +242,7 @@ export default function NoteEntitySearch({
             vide={LIBELLE_VIDE[kind]}
             onPick={pickItem}
             disabled={disabled}
+            onCreate={kind === 'contact' ? onCreateContact : undefined}
           />
         )}
       </div>
@@ -253,36 +256,57 @@ function ListeItems({
   vide,
   onPick,
   disabled,
+  onCreate,
 }: {
   id: string;
   items: RattacherItem[];
   vide: string;
   onPick: (item: RattacherItem) => void;
   disabled: boolean;
+  onCreate?: () => void;
 }) {
-  if (items.length === 0) {
+  if (!onCreate && items.length === 0) {
     return <p className="px-3 py-3 text-pretty text-[13.5px] text-text-muted">{vide}</p>;
   }
   return (
-    <ul id={id} role="listbox" aria-label="Fiches" className="max-h-32 overflow-y-auto p-1">
-      {items.map((item) => (
-        <li key={`${item.kind}-${item.id}`} role="option">
+    <ul id={id} role="listbox" aria-label="Fiches" className="max-h-40 overflow-y-auto p-1">
+      {onCreate ? (
+        <li>
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onPick(item)}
-            title={item.subtitle ? `${item.label} · ${item.subtitle}` : item.label}
-            className="flex w-full min-w-0 items-baseline gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
+            onClick={onCreate}
+            className="flex w-full min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
           >
-            <span className="shrink-0 text-[13.5px] font-medium text-text">{item.label}</span>
-            {item.subtitle ? (
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-text-muted">
-                {item.subtitle}
-              </span>
-            ) : null}
+            <Plus size={15} strokeWidth={2.2} className="shrink-0 text-text-muted" aria-hidden />
+            <span className="text-[13.5px] font-medium text-text">Rajouter un contact</span>
           </button>
         </li>
-      ))}
+      ) : null}
+      {items.length === 0 ? (
+        <li className="px-3 py-2 text-pretty text-[13.5px] text-text-muted" role="presentation">
+          {vide}
+        </li>
+      ) : (
+        items.map((item) => (
+          <li key={`${item.kind}-${item.id}`} role="option">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onPick(item)}
+              title={item.subtitle ? `${item.label} · ${item.subtitle}` : item.label}
+              className="flex w-full min-w-0 items-baseline gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
+            >
+              <span className="shrink-0 text-[13.5px] font-medium text-text">{item.label}</span>
+              {item.subtitle ? (
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-text-muted">
+                  {item.subtitle}
+                </span>
+              ) : null}
+            </button>
+          </li>
+        ))
+      )}
     </ul>
   );
 }

@@ -286,7 +286,7 @@ export default function OngletRapport({
       const type = res.headers.get('content-type') ?? '';
       if (!res.ok || !type.includes('pdf')) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        notifyError(data.error ?? 'Export impossible');
+        notifyError(data.error ?? 'Téléchargement interrompu');
         return;
       }
       const blob = await res.blob();
@@ -303,7 +303,7 @@ export default function OngletRapport({
       URL.revokeObjectURL(url);
       notifySuccess('PDF téléchargé');
     } catch {
-      notifyError('Export impossible');
+      notifyError('Téléchargement interrompu');
     } finally {
       setExportEnCours(false);
     }

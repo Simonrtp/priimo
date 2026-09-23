@@ -45,7 +45,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
   } catch (err) {
     console.error('[rapport/pdf]', err);
-    return NextResponse.json({ error: 'Export impossible' }, { status: 500 });
+    return NextResponse.json({ error: 'Téléchargement interrompu' }, { status: 500 });
   }
 
   const nom = ctx.estimation.address?.trim()

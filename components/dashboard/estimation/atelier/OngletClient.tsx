@@ -10,7 +10,6 @@ import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/work
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import NoteEntitySearch from '@/components/dashboard/notes/NoteEntitySearch';
-import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog';
 import CartesAdresseProposee from './CartesAdresseProposee';
 import {
@@ -342,6 +341,10 @@ export default function OngletClient({
             <NoteEntitySearch
               id="est-rattacher"
               className="w-full"
+              onCreateContact={() => {
+                setEditing(null);
+                setCreateOpen(true);
+              }}
               excludeIds={
                 new Set(
                   [
@@ -388,19 +391,6 @@ export default function OngletClient({
             />
           </div>
         </Field>
-        <div className="flex flex-wrap gap-2">
-          <WorkspaceButton
-            type="button"
-            variant={estimation.contactId ? 'secondary' : 'primary'}
-            onClick={() => {
-              setEditing(null);
-              setCreateOpen(true);
-            }}
-            className="min-h-11"
-          >
-            {estimation.contactId ? 'Créer un autre client' : 'Créer un client'}
-          </WorkspaceButton>
-        </div>
       </div>
     </div>
 

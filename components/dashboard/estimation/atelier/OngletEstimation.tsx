@@ -4,10 +4,16 @@ import { useEffect, useState } from 'react';
 import { Euro } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { Field } from '@/components/dashboard/workspace/Field';
-import { ChampSaisi } from './ChampSaisi';
+import { ChampSaisi, texteEuro } from './ChampSaisi';
 import { formatEuro, formatNoteSurDix } from '@/lib/estimation/resultat';
 import type { EstimationObjet } from '@/lib/estimation/objet';
 import { nombreSaisi } from '@/lib/estimation/objet';
+import {
+  bornerMajoration,
+  libelleMajoration,
+  majorationDepuisPrix,
+  prixAvecMajoration,
+} from '@/lib/estimation/majoration-agent';
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
 import { parseRapportExclus, basculerExclusion } from '@/lib/rapport/genere/exclus';
 import { formatDateCourte, formatPrixM2, formatSurface } from '@/lib/rapport/genere/format';
@@ -60,7 +66,8 @@ export default function OngletEstimation({
   const [autres, setAutres] = useState(0);
   const [justif, setJustif] = useState('');
   const prixRetenu = prixAgent ?? moteurValeur;
-  const [prixSaisi, setPrixSaisi] = useState(prixRetenu != null ? String(prixRetenu) : '');
+  const [prixSaisi, setPrixSaisi] = useState(prixRetenu != null ? texteEuro(prixRetenu) : '');
+  const [pctGlisse, setPctGlisse] = useState<number | null>(null);
 
   const [connues, setConnues] = useState<VenteVu[]>([]);
   const retenues = Array.isArray(estimation.comparables)
@@ -85,14 +92,40 @@ export default function OngletEstimation({
   }, [estimation.id, estimation.comparables]);
 
   useEffect(() => {
-    setPrixSaisi(prixRetenu != null ? String(prixRetenu) : '');
-  }, [prixRetenu]);
+    if (pctGlisse != null) return;
+    setPrixSaisi(prixRetenu != null ? texteEuro(prixRetenu) : '');
+  }, [prixRetenu, pctGlisse]);
+
+  const pctStocke =
+    typeof ctx.majorationPct === 'number' ? bornerMajoration(ctx.majorationPct) : 0;
+  const pctDerive =
+    moteurValeur != null && prixRetenu != null
+      ? majorationDepuisPrix(moteurValeur, prixRetenu)
+      : null;
+  const pct = pctGlisse ?? pctDerive ?? pctStocke;
+
+  function appliquerMajoration(raw: number) {
+    const n = bornerMajoration(raw);
+    setPctGlisse(n);
+    if (moteurValeur == null) {
+      onPatch({ majorationPct: n });
+      return;
+    }
+    const prix = prixAvecMajoration(moteurValeur, n);
+    setPrixSaisi(texteEuro(prix));
+    onPatch({ majorationPct: n, prixAgent: prix });
+  }
 
   function saisirPrix(raw: string) {
     const n = nombreSaisi(raw);
     const prix = n != null && n > 0 ? Math.round(n) : null;
-    setPrixSaisi(prix != null ? String(prix) : '');
-    onPatch({ prixAgent: prix });
+    setPrixSaisi(prix != null ? texteEuro(prix) : raw);
+    const pctPrix =
+      prix != null && moteurValeur != null ? majorationDepuisPrix(moteurValeur, prix) : null;
+    onPatch({
+      prixAgent: prix,
+      majorationPct: pctPrix ?? 0,
+    });
   }
 
   function lancer(exclusIds?: string[]) {
@@ -177,6 +210,40 @@ export default function OngletEstimation({
         </div>
       </Field>
 
+      {moteurValeur != null ? (
+        <div className="max-w-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="est-majoration" className="text-[12.5px] font-medium text-text-muted">
+              Ajustement
+            </label>
+            <span className="tabular-nums text-[13px] font-semibold text-text-strong">
+              {libelleMajoration(pct)}
+            </span>
+          </div>
+          <input
+            id="est-majoration"
+            type="range"
+            min={-10}
+            max={10}
+            step={0.1}
+            value={pct}
+            onChange={(e) => appliquerMajoration(Number(e.target.value))}
+            onPointerUp={() => setPctGlisse(null)}
+            onPointerCancel={() => setPctGlisse(null)}
+            className="prix-curseur mt-1"
+            aria-valuemin={-10}
+            aria-valuemax={10}
+            aria-valuenow={pct}
+            aria-valuetext={`${libelleMajoration(pct)}, soit ${formatEuro(prixAvecMajoration(moteurValeur, pct))}`}
+          />
+          <div className="mt-0.5 flex justify-between text-[11px] text-text-subtle">
+            <span>−10 %</span>
+            <span>0</span>
+            <span>+10 %</span>
+          </div>
+        </div>
+      ) : null}
+
       <details className="rounded-clay border border-black/[0.06] px-3 py-2">
         <summary className="min-h-11 cursor-pointer text-[13.5px] font-semibold text-text">
           Ventes retenues
@@ -248,7 +315,7 @@ export default function OngletEstimation({
               <ChampSaisi
                 id="est-trav"
                 inputMode="numeric"
-                value={travaux === 0 ? '' : String(travaux)}
+                value={travaux === 0 ? '' : texteEuro(travaux)}
                 onCommit={(raw) => setTravaux(nombreSaisi(raw) ?? 0)}
               />
             </Field>
@@ -256,7 +323,7 @@ export default function OngletEstimation({
               <ChampSaisi
                 id="est-decote"
                 inputMode="numeric"
-                value={decote === 0 ? '' : String(decote)}
+                value={decote === 0 ? '' : texteEuro(decote)}
                 onCommit={(raw) => setDecote(nombreSaisi(raw) ?? 0)}
               />
             </Field>
@@ -264,7 +331,7 @@ export default function OngletEstimation({
               <ChampSaisi
                 id="est-autres"
                 inputMode="numeric"
-                value={autres === 0 ? '' : String(autres)}
+                value={autres === 0 ? '' : texteEuro(autres)}
                 onCommit={(raw) => setAutres(nombreSaisi(raw) ?? 0)}
               />
             </Field>

@@ -4,7 +4,7 @@ import { type ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { Field, ADDRESS_FIELD_INPUT_CLASS } from '@/components/dashboard/workspace/Field';
-import { ChampSaisi, ZoneSaisie, texteNombre } from './ChampSaisi';
+import { ChampSaisi, ZoneSaisie, texteEuro, texteNombre } from './ChampSaisi';
 import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import SectionRepliable from './SectionRepliable';
@@ -408,7 +408,7 @@ export default function OngletBien({
                 <ChampSaisi
                   id="est-loyer"
                   inputMode="numeric"
-                  value={texteNombre(estimation.loyerAnnuel)}
+                  value={texteEuro(estimation.loyerAnnuel)}
                   onCommit={(raw) => edit('loyerAnnuel', { loyerAnnuel: nombreSaisi(raw) })}
                 />
               </Field>
@@ -424,7 +424,7 @@ export default function OngletBien({
               <ChampSaisi
                 id="est-ch-an"
                 inputMode="numeric"
-                value={texteNombre(bien.chargesAnnuelles)}
+                value={texteEuro(bien.chargesAnnuelles)}
                 onCommit={(raw) =>
                   editBien('chargesAnnuelles', { chargesAnnuelles: nombreSaisi(raw) })
                 }
@@ -436,7 +436,7 @@ export default function OngletBien({
               <ChampSaisi
                 id="est-ch-copro"
                 inputMode="numeric"
-                value={texteNombre(bien.chargesCopro)}
+                value={texteEuro(bien.chargesCopro)}
                 onCommit={(raw) =>
                   editBien('chargesCopro', { chargesCopro: nombreSaisi(raw) })
                 }
@@ -448,7 +448,7 @@ export default function OngletBien({
               <ChampSaisi
                 id="est-tf"
                 inputMode="numeric"
-                value={texteNombre(bien.taxeFonciere)}
+                value={texteEuro(bien.taxeFonciere)}
                 onCommit={(raw) =>
                   editBien('taxeFonciere', { taxeFonciere: nombreSaisi(raw) })
                 }
@@ -498,7 +498,7 @@ export default function OngletBien({
                   <td className="py-1 pr-2">
                     <ChampSaisi
                       inputMode="numeric"
-                      value={texteNombre(a.valorisationEur)}
+                      value={texteEuro(a.valorisationEur)}
                       onCommit={(raw) => {
                         const next = estimation.annexes.map((x, j) =>
                           j === i ? { ...x, valorisationEur: nombreSaisi(raw) } : x,

@@ -21,10 +21,10 @@ const MIN_TRANSCRIPT_CHARS = 8;
 const MAX_OUTPUT_TOKENS = 800;
 
 const SYSTEM_PROMPT =
-  'Tu comprends une description parlée de bien (FR), comme un agent sur place. JSON strict. Attache chaque quantité au nom qu’elle complète : « il y a une terrasse de 30 m² » = une Terrasse de 30, surfaceM2 du logement = null. Ne scanne pas les mots isolés (30 m² n’est pas le logement si c’est la terrasse / cave / parking / box / balcon). « T3 de 70 m² avec cave » = surfaceM2 70 + Cave sans surface. Libellé d’annexe toujours renseigné (Terrasse, Cave, Parking, Box). Reprise (pardon, non) : dernière valeur. année 96 → 1996. Style ≠ année. Jamais d’adresse.';
+  'Tu comprends une description parlée de bien (FR), comme un agent sur place. JSON strict. Attache chaque quantité au nom qu’elle complète : « il y a une terrasse de 30 m² » = une Terrasse de 30, surfaceM2 du logement = null. Ne scanne pas les mots isolés (30 m² n’est pas le logement si c’est la terrasse / cave / parking / box / balcon). « T3 de 70 m² avec cave » = surfaceM2 70 + Cave sans surface. Libellé d’annexe toujours renseigné (Terrasse, Cave, Parking, Box). « 3 étages dans l’immeuble » / « immeuble de 3 étages » = etagesImmeuble=3, pas floor. « au 3e étage » = floor=3. « cave de 10 m², valorisation 50 000 € » = annexes:[{libelle:Cave,surfaceM2:10,valorisationEur:50000}] — 50 000 ≠ 500000. Montants en nombre entier sans espace. Reprise (pardon, non) : dernière valeur. année 96 → 1996. Style ≠ année. Jamais d’adresse.';
 
 function buildPrompt(transcript: string): string {
-  return `Dictée libre :\n${transcript}\n\nLis la phrase. Exemples : « il y a une terrasse de 30 m² » → annexes:[{libelle:Terrasse,surfaceM2:30}], surfaceM2=null, balconTerrasse=true. « T3 de 65 m² au 3e avec une cave de 10 m² » → rooms=3, surfaceM2=65, floor=3, annexes:[{libelle:Cave,surfaceM2:10}]. « T3 de 70 m² avec cave » → surfaceM2=70, Cave sans m². Si correction, dernière valeur.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
+  return `Dictée libre :\n${transcript}\n\nLis la phrase. Exemples : « il y a une terrasse de 30 m² » → annexes:[{libelle:Terrasse,surfaceM2:30}], surfaceM2=null, balconTerrasse=true. « T3 de 65 m² au 3e avec une cave de 10 m² » → rooms=3, surfaceM2=65, floor=3, annexes:[{libelle:Cave,surfaceM2:10}]. « 3 étages dans l’immeuble » → etagesImmeuble=3. « cave de 10 m² d’une valorisation de 50 000 € » → annexes:[{libelle:Cave,surfaceM2:10,valorisationEur:50000}]. « T3 de 70 m² avec cave » → surfaceM2=70, Cave sans m². Si correction, dernière valeur.\n\nJSON:{propertyType:appartement|maison|null,sousType,rooms,chambres,surfaceM2,carrez:true|false|null,surfaceTerrain,niveaux,floor,etagesImmeuble,dernierEtage:true|false|null,anneeConstruction:number|null,qualiteEmplacement,ascenseur:true|false|null,balconTerrasse:true|false|null,occupation:libre|occupe|null,loyerAnnuel,chargesAnnuelles,chargesCopro,taxeFonciere,annexes:[{libelle,surfaceM2,valorisationEur}],dpeClass,ges,consoKwh,dpeVersion,pointsForts:[],pointsFaibles:[],commentairesPublics}`;
 }
 
 function extractJsonObject(raw: string): string {
@@ -232,7 +232,7 @@ export function parseAnneeConstruction(v: unknown): number | null {
 function asInt(v: unknown, max: number): number | null {
   if (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max) return Math.round(v);
   if (typeof v === 'string') {
-    const n = Number(v.replace(/[^\d.,]/g, '').replace(',', '.'));
+    const n = Number(v.replace(/[\s\u00a0\u202f]/g, '').replace(/[^\d.,]/g, '').replace(',', '.'));
     if (Number.isFinite(n) && n >= 0 && n <= max) return Math.round(n);
   }
   return null;

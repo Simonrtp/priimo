@@ -972,32 +972,32 @@ body {
   font-family: var(--font-sans), var(--font-body), system-ui, sans-serif;
   font-weight: 700;
   color: #111827;
-  font-size: 2.5rem;
-  line-height: 1.22;
+  font-size: 2.75rem;
+  line-height: 1.2;
   letter-spacing: -0.022em;
 }
 @media (min-width: 640px) {
   .landing .text-hero {
-    font-size: 3.125rem;
-    line-height: 1.2;
+    font-size: 3.375rem;
+    line-height: 1.18;
   }
 }
 @media (min-width: 768px) {
   .landing .text-hero {
-    font-size: 3.5rem;
-    line-height: 1.18;
+    font-size: 3.75rem;
+    line-height: 1.16;
   }
 }
 @media (min-width: 1024px) {
   .landing .text-hero {
-    font-size: 4rem;
-    line-height: 1.16;
+    font-size: 4.35rem;
+    line-height: 1.14;
   }
 }
 @media (min-width: 1280px) {
   .landing .text-hero {
-    font-size: 4.5rem;
-    line-height: 1.14;
+    font-size: 4.85rem;
+    line-height: 1.12;
   }
 }
 
@@ -1082,8 +1082,8 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .landing .hero-pill {
     transition:
-      opacity 450ms ease-out,
-      transform 450ms ease-out;
+      opacity 320ms ease-out,
+      transform 320ms ease-out;
   }
 }
 @media (max-width: 639px) {
@@ -1207,11 +1207,14 @@ body {
 
 /* --- Boutons landing : couleur unie + hover lift --- */
 .landing .btn-primary {
-  background-color: #e8743c;
+  --cta-bg: #e8743c;
+  --cta-bg-hover: #e8743c;
+  --cta-shadow: rgba(232, 116, 60, 0.32);
+  background-color: var(--cta-bg);
   background-image: none;
   opacity: 1;
   position: relative;
-  box-shadow: 0 6px 20px rgba(232, 116, 60, 0.28);
+  box-shadow: 0 6px 20px var(--cta-shadow);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   transition:
@@ -1220,14 +1223,14 @@ body {
     background-color 200ms ease;
 }
 .landing .btn-primary:hover {
-  background-color: #c25e2c;
+  background-color: var(--cta-bg-hover);
   background-image: none;
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 12px 28px rgba(232, 116, 60, 0.38);
+  box-shadow: 0 12px 28px var(--cta-shadow);
 }
 .landing .btn-primary:active {
   transform: translateY(0) scale(1);
-  box-shadow: 0 6px 16px rgba(232, 116, 60, 0.28);
+  box-shadow: 0 6px 16px var(--cta-shadow);
 }
 .landing .btn-invert {
   background-color: #ffffff;
@@ -1244,6 +1247,96 @@ body {
 }
 .landing .btn-invert:active {
   transform: translateY(0) scale(1);
+}
+
+/* --- CTA : petite explosion depuis le centre, hors du texte --- */
+.cta-spark-host {
+  display: inline-grid;
+  vertical-align: middle;
+  overflow: visible;
+}
+.cta-cq {
+  grid-area: 1 / 1;
+  position: relative;
+  container-type: size;
+  pointer-events: none;
+}
+.cta-spark-host > .btn {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 1;
+}
+.cta-sparkles {
+  pointer-events: none;
+  position: absolute;
+  inset: -36px;
+  z-index: 2;
+  padding: 36px;
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-clip: content-box, border-box;
+  mask-composite: exclude;
+}
+.cta-sparkle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  width: var(--spark-size, 22px);
+  height: var(--spark-size, 22px);
+  color: var(--spark-color, #9dd6c8);
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scale(0.15);
+  transition:
+    transform 480ms cubic-bezier(0.16, 1.18, 0.3, 1),
+    opacity 180ms ease-out;
+  transition-delay: 0ms;
+}
+.cta-spark-host:hover .cta-sparkle,
+.cta-spark-host:focus-within .cta-sparkle {
+  opacity: 1;
+  transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0) scale(1);
+  transition-delay: var(--spark-delay, 0ms);
+  animation: var(--spark-drift, spark-drift-a) 5.6s ease-in-out 0.5s infinite;
+}
+@keyframes spark-drift-a {
+  0%,
+  100% {
+    transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0) scale(1);
+  }
+  50% {
+    transform: translate3d(calc(-50% + var(--dx) - 5px), calc(-50% + var(--dy) - 4px), 0)
+      scale(1.04);
+  }
+}
+@keyframes spark-drift-b {
+  0%,
+  100% {
+    transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0) scale(1);
+  }
+  40% {
+    transform: translate3d(calc(-50% + var(--dx) + 5px), calc(-50% + var(--dy) - 4px), 0)
+      scale(1.03);
+  }
+}
+@keyframes spark-drift-c {
+  0%,
+  100% {
+    transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0) scale(1);
+  }
+  55% {
+    transform: translate3d(calc(-50% + var(--dx) + 4px), calc(-50% + var(--dy) + 4px), 0)
+      scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-sparkle {
+    animation: none !important;
+    transition: opacity 160ms ease;
+    transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy)), 0) scale(1);
+  }
 }
 .landing .btn-ghost:hover {
   transform: translateY(-2px);
@@ -2185,6 +2278,53 @@ html:has(.feature-page) {
   50% {
     opacity: 0.7;
   }
+}
+
+/* Curseur d’ajustement prix : ±10 %, pas 0,1 — pas de transition (saccades). */
+.prix-curseur {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+}
+.prix-curseur:focus-visible {
+  outline: 2px solid var(--accent, #e8743c);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+.prix-curseur::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #e8ebf4;
+}
+.prix-curseur::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #e8743c;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.18);
+}
+.prix-curseur::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #e8ebf4;
+}
+.prix-curseur::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #e8743c;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.18);
 }
 
 .qr-public,

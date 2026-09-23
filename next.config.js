@@ -25,6 +25,19 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // OAuth Google compare l’URI caractère par caractère : www ≠ apex.
+      {
+        source: "/",
+        has: [{ type: "host", value: "www.priimo.fr" }],
+        destination: "https://priimo.fr/",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.priimo.fr" }],
+        destination: "https://priimo.fr/:path*",
+        permanent: true,
+      },
       { source: "/dashboard/overview", destination: "/dashboard", permanent: true },
       { source: "/dashboard/overview/:path*", destination: "/dashboard", permanent: true },
       { source: "/dashboard/territory", destination: "/dashboard", permanent: true },

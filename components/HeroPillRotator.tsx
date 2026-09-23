@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Compass,
   Database,
-  Footprints,
   MapPinned,
   type LucideIcon,
 } from "lucide-react";
@@ -15,12 +15,12 @@ type Terme = {
 };
 
 const TERMES: Terme[] = [
-  { label: "le terrain", Icon: Footprints, color: "#E8743C" },
   { label: "la prospection", Icon: MapPinned, color: "#5DC47C" },
+  { label: "le terrain", Icon: Compass, color: "#E8743C" },
   { label: "la data", Icon: Database, color: "#6366F1" },
 ];
 
-const INTERVALLE_MS = 2800;
+const INTERVALLE_MS = 1400;
 
 export default function HeroPillRotator() {
   const rootRef = useRef<HTMLSpanElement>(null);

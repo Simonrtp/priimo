@@ -3,7 +3,7 @@ import Reveal from "./Reveal";
 import HeroBackground from "./HeroBackground";
 import HeroPillRotator from "./HeroPillRotator";
 import HeroVideo from "./HeroVideo";
-import { CALENDLY_URL } from "@/lib/calendly";
+import CtaButton from "./CtaButton";
 
 // === HERO SECTION ===
 // Promesse compacte centrée, démo produit en vidéo (lecture au scroll, loop).
@@ -28,7 +28,7 @@ export default function HeroSection() {
               <span className="mt-[0.12em] flex w-full items-center justify-center gap-[0.3em] text-gray-900">
                 <span className="hidden sm:inline">pour</span>
                 <span className="sr-only">
-                  le terrain, la prospection et la data
+                  la prospection, le terrain et la data
                 </span>
                 <HeroPillRotator />
               </span>
@@ -45,20 +45,19 @@ export default function HeroSection() {
           </Reveal>
 
           <Reveal direction="up" delay={120} className="mt-5 sm:mt-6">
-            <div className="flex flex-col items-center gap-2.5">
-              <a
-                href={CALENDLY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary shrink-0 px-4 py-2.5 text-[13.5px] sm:px-7 sm:py-3.5 sm:text-[15px]"
-              >
+            <div className="flex flex-col items-center">
+              <CtaButton className="shrink-0 px-4 py-2.5 text-[13.5px] sm:px-7 sm:py-3.5 sm:text-[15px]">
                 Réserver une démo
                 <span data-arrow aria-hidden>
                   →
                 </span>
-              </a>
+              </CtaButton>
 
-              <p className="small-text !normal-case !tracking-normal text-gray-600">
+              <p className="mt-2.5 small-text !normal-case !tracking-normal text-gray-500">
+                1 mois gratuit sans engagement
+              </p>
+
+              <p className="mt-5 small-text !normal-case !tracking-normal text-gray-600">
                 Déjà client ?{" "}
                 <Link
                   href="/login"

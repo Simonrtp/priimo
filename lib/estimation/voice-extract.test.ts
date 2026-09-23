@@ -267,6 +267,34 @@ describe('extractEstimationHeuristic', () => {
     assert.equal(d.annexes[0]?.surfaceM2, 10);
   });
 
+  it('lit 3 étages dans l’immeuble', () => {
+    const d = extractEstimationHeuristic('il y a 3 étages dans l’immeuble');
+    assert.equal(d.etagesImmeuble, 3);
+    assert.equal(d.floor, null);
+  });
+
+  it('lit immeuble de trois étages', () => {
+    const d = extractEstimationHeuristic('immeuble de trois étages');
+    assert.equal(d.etagesImmeuble, 3);
+  });
+
+  it('attache 50 000 € à la cave, pas 500 000', () => {
+    const d = extractEstimationHeuristic(
+      'il y a une cave de 10 m², d’une valorisation de 50 000 €',
+    );
+    assert.equal(d.annexes[0]?.libelle, 'Cave');
+    assert.equal(d.annexes[0]?.surfaceM2, 10);
+    assert.equal(d.annexes[0]?.valorisationEur, 50_000);
+    assert.equal(d.surfaceM2, null);
+  });
+
+  it('lit cinquante mille euros de valorisation de cave', () => {
+    const d = extractEstimationHeuristic(
+      'cave de 10 m2 valorisation cinquante mille euros',
+    );
+    assert.equal(d.annexes[0]?.valorisationEur, 50_000);
+  });
+
   it('met une terrasse de 30 m² dans les annexes, pas dans la surface du bien', () => {
     const d = extractEstimationHeuristic('Il y a une terrasse de 30 m²');
     assert.equal(d.surfaceM2, null);

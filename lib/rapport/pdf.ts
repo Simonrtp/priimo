@@ -17,6 +17,7 @@ import { estDisposition } from '@/lib/rapport/modele';
 import type { PageRapportComposee } from '@/lib/rapport/pages';
 import { pagePourPdf } from '@/lib/rapport/pages';
 import { dessinerPageModele } from '@/lib/rapport/pdf-modele';
+import { dessinerPageGeneree } from '@/lib/rapport/pdf-generee';
 import { hexVersRgb, latin1 } from '@/lib/rapport/pdf-texte';
 import { telechargerRapport } from '@/lib/rapport/storage';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
@@ -81,20 +82,47 @@ export async function genererPdfRapport(input: {
 
   let chromeDoc: PDFDocument | null = null;
   if (kinds.length > 0 && input.dossier) {
-    const html = htmlPagesGenerees(kinds, input.dossier, accentHex);
-    const bytes = await imprimerHtmlEnPdf(html);
-    chromeDoc = await PDFDocument.load(bytes);
+    try {
+      const html = htmlPagesGenerees(kinds, input.dossier, accentHex);
+      const bytes = await imprimerHtmlEnPdf(html);
+      chromeDoc = await PDFDocument.load(bytes);
+    } catch (err) {
+      console.error('[rapport/pdf] impression HTML, repli pdf-lib', err);
+      chromeDoc = null;
+    }
   }
 
   let chromeIndex = 0;
   let index = 0;
   for (const item of exportables) {
     index += 1;
-    if (item.kind === 'generee' && item.kindGeneree && chromeDoc) {
-      if (chromeIndex >= chromeDoc.getPageCount()) continue;
-      const [copied] = await out.copyPages(chromeDoc, [chromeIndex]);
-      chromeIndex += 1;
-      if (copied) out.addPage(copied);
+    if (item.kind === 'generee' && item.kindGeneree && input.dossier) {
+      if (chromeDoc && chromeIndex < chromeDoc.getPageCount()) {
+        const [copied] = await out.copyPages(chromeDoc, [chromeIndex]);
+        chromeIndex += 1;
+        if (copied) out.addPage(copied);
+        continue;
+      }
+      const page = out.addPage([PAGE_W, PAGE_H]);
+      try {
+        await dessinerPageGeneree(
+          out,
+          page,
+          item.kindGeneree,
+          input.dossier,
+          {
+            x: MARGIN,
+            y: FOOTER_H,
+            w: PAGE_W - MARGIN * 2,
+            h: PAGE_H - HEADER_H - FOOTER_H,
+          },
+          { regular: font, bold: fontBold },
+          accentHex,
+          true,
+        );
+      } catch (err) {
+        console.error('[rapport/pdf] page générée', item.kindGeneree, err);
+      }
       continue;
     }
 

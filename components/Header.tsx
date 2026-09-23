@@ -9,7 +9,7 @@ import {
   FeaturesMenuTrigger,
 } from "@/components/FeaturesMenu";
 import MobileNav from "@/components/MobileNav";
-import { CALENDLY_URL } from "@/lib/calendly";
+import CtaButton from "@/components/CtaButton";
 import type { BlogPostSummary } from "@/lib/blog/types";
 
 type HeaderProps = {
@@ -90,18 +90,13 @@ export default function Header({ latestPost = null }: HeaderProps) {
               />
             </Link>
 
-            <a
-              href={CALENDLY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary inline-flex min-h-11 items-center gap-1.5 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]"
-            >
+            <CtaButton className="min-h-11 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]">
               <span className="sm:hidden">Démo</span>
               <span className="hidden sm:inline">Réserver une démo</span>
               <span data-arrow aria-hidden>
                 →
               </span>
-            </a>
+            </CtaButton>
 
             <MobileNav />
           </div>

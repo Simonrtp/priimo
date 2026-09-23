@@ -1,4 +1,5 @@
 import { CALENDLY_URL } from "@/lib/calendly";
+import CtaSparkles from "./CtaSparkles";
 
 // === CTA BUTTON ===
 // CTA centralisé. Tous les CTA de la landing pointent vers Calendly
@@ -28,13 +29,18 @@ export default function CtaButton({
   const sizeClass = size === "lg" ? "px-7 py-4 text-base" : "";
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`btn ${variantClass} ${sizeClass} ${className}`}
-    >
-      {children}
-    </a>
+    <span className="cta-spark-host">
+      <span className="cta-cq">
+        <CtaSparkles />
+      </span>
+      <a>
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`btn ${variantClass} ${sizeClass} ${className}`}
+      >
+        {children}
+      </a>
+    </span>
   );
 }

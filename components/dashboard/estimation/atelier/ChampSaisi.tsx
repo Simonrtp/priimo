@@ -78,3 +78,9 @@ export function ZoneSaisie({
 export function texteNombre(n: number | null | undefined): string {
   return n == null ? '' : String(n);
 }
+
+/** 50000 → « 50 000 » (espace tous les 3 chiffres). */
+export function texteEuro(n: number | null | undefined): string {
+  if (n == null) return '';
+  return Math.round(n).toLocaleString('fr-FR');
+}

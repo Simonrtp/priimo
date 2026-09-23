@@ -138,6 +138,51 @@ function surfaceAnnexe(n: string, nomRe: string): number | null {
   return motOuChiffre(raw);
 }
 
+const DIZAINES: Record<string, number> = {
+  vingt: 20,
+  trente: 30,
+  quarante: 40,
+  cinquante: 50,
+  soixante: 60,
+  cent: 100,
+};
+
+function lireEuros(raw: string): number | null {
+  const compact = raw.replace(/[\s\u00a0\u202f.]/g, '');
+  if (/^\d+$/.test(compact)) {
+    const n = Number(compact);
+    return n > 0 && n <= 10_000_000 ? n : null;
+  }
+  const mille = raw
+    .trim()
+    .match(/^(vingt|trente|quarante|cinquante|soixante|cent|\d+)\s*mille$/);
+  if (!mille?.[1]) return null;
+  const tete = DIZAINES[mille[1]] ?? Number(mille[1]);
+  if (!Number.isFinite(tete) || tete <= 0) return null;
+  const n = tete * 1000;
+  return n <= 10_000_000 ? n : null;
+}
+
+function valorisationAnnexe(n: string, nomRe: string): number | null {
+  const apres = n.match(
+    new RegExp(
+      `\\b(?:${nomRe})\\b[\\s\\S]{0,100}?(?:valorisation|valorise[eé]?|vaut|valoir|estimee?)[^\\d]{0,28}(\\d[\\d\\s.\\u00a0\\u202f]{0,14}\\d|\\d+|vingt|trente|quarante|cinquante|soixante|cent)\\s*(mille)?\\s*(?:€|euros?)?`,
+    ),
+  );
+  if (apres?.[1]) {
+    const brut = `${apres[1]}${apres[2] ? ' mille' : ''}`;
+    const v = lireEuros(brut);
+    if (v != null) return v;
+  }
+  const euro = n.match(
+    new RegExp(
+      `\\b(?:${nomRe})\\b[\\s\\S]{0,80}?(\\d[\\d\\s.\\u00a0\\u202f]{2,14}\\d)\\s*(?:€|euros?)\\b`,
+    ),
+  );
+  if (euro?.[1]) return lireEuros(euro[1]);
+  return null;
+}
+
 function extraireAnnexes(n: string): EstimationVoiceDraft['annexes'] {
   const out: EstimationVoiceDraft['annexes'] = [];
   for (const { re, libelle } of ANNEXES_MOTS) {
@@ -145,10 +190,25 @@ function extraireAnnexes(n: string): EstimationVoiceDraft['annexes'] {
     out.push({
       libelle,
       surfaceM2: surfaceAnnexe(n, re),
-      valorisationEur: null,
+      valorisationEur: valorisationAnnexe(n, re),
     });
   }
   return out;
+}
+
+function etagesImmeubleDepuis(n: string): number | null {
+  const motifs = [
+    /\b(?:immeuble|batiment)\s+(?:de\s+)?(\d+|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze)\s*etages?\b/,
+    /\b(\d+|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze)\s*etages?\s+(?:dans\s+|de\s+)?(?:l[ '] ?|le\s+)?(?:immeuble|batiment)\b/,
+    /\betages?\s+(?:de\s+|dans\s+)?(?:l[ '] ?|le\s+)?(?:immeuble|batiment)\s*(?:de\s+|:\s*)?(\d+|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\b/,
+  ];
+  for (const re of motifs) {
+    const hit = n.match(re);
+    if (!hit?.[1]) continue;
+    const v = motOuChiffre(hit[1]);
+    if (v != null && v >= 1 && v <= 40) return v;
+  }
+  return null;
 }
 
 /** Le chiffre complète l’annexe (« une terrasse de 30 m² »), pas un mot vu plus loin. */
@@ -264,8 +324,7 @@ export function extractEstimationHeuristic(transcript: string): EstimationVoiceD
     }
   }
 
-  const immeuble = n.match(/\b(?:immeuble|batiment)\s+(?:de\s+)?(\d+)\s*etages?\b/);
-  if (immeuble) draft.etagesImmeuble = Number(immeuble[1]);
+  draft.etagesImmeuble = etagesImmeubleDepuis(n);
 
   if (/\bdernier etage\b/.test(n)) draft.dernierEtage = true;
 

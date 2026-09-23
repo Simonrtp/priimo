@@ -75,7 +75,7 @@ function asText(raw: unknown): string | null {
 
 /** Saisie : vide → null, zéro conservé. */
 export function nombreSaisi(raw: string): number | null {
-  const s = raw.trim().replace(',', '.');
+  const s = raw.trim().replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
   if (!s) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;

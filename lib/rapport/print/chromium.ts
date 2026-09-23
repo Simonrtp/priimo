@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import puppeteer from 'puppeteer-core';
+import puppeteer, { type Browser } from 'puppeteer-core';
 
 export class ChromiumIndisponible extends Error {
   constructor(message = 'Impression Chromium indisponible') {
@@ -8,62 +8,46 @@ export class ChromiumIndisponible extends Error {
   }
 }
 
-function chromeLocal(): string | null {
-  if (process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
+function chromeLocaux(): string[] {
+  const env = process.env.CHROME_PATH?.trim();
   const candidats =
     process.platform === 'win32'
       ? [
+          env,
           'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
           'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         ]
       : process.platform === 'darwin'
-        ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-        : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-  return candidats.find((p) => existsSync(p)) ?? null;
+        ? [env, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+        : [env, '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  return [...new Set(candidats.filter((p): p is string => Boolean(p && existsSync(p))))];
 }
 
-export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
-  const local = chromeLocal();
-  let executablePath = local;
-  let args: string[] = ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none'];
-
-  let headless: boolean | 'shell' = true;
-  if (!executablePath) {
-    try {
-      const chromium = await import('@sparticuz/chromium');
-      chromium.default.setGraphicsMode = false;
-      executablePath = await chromium.default.executablePath();
-      args = [...chromium.default.args, '--font-render-hinting=none'];
-      headless = 'shell';
-    } catch {
-      throw new ChromiumIndisponible();
-    }
-  }
-  if (!executablePath) throw new ChromiumIndisponible();
-
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>>;
+async function imprimerAvec(
+  html: string,
+  executablePath: string,
+  args: string[],
+  headless: boolean | 'shell',
+): Promise<Uint8Array> {
+  let browser: Browser | undefined;
   try {
     browser = await puppeteer.launch({
       args: [...args, '--disable-dev-shm-usage', '--disable-gpu'],
       executablePath,
       headless,
     });
-  } catch (err) {
-    throw new ChromiumIndisponible(err instanceof Error ? err.message : undefined);
-  }
-  try {
     const page = await browser.newPage();
     await page.setViewport({
       width: Math.round((297 * 96) / 25.4),
       height: Math.round((210 * 96) / 25.4),
       deviceScaleFactor: 1,
     });
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20_000 });
     await Promise.race([
       page.evaluate(() => document.fonts.ready),
-      new Promise((resolve) => setTimeout(resolve, 2000)),
+      new Promise((resolve) => setTimeout(resolve, 1500)),
     ]);
     const pdf = await page.pdf({
       format: 'A4',
@@ -74,6 +58,32 @@ export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
     });
     return new Uint8Array(pdf);
   } finally {
-    await browser.close();
+    await browser?.close().catch(() => undefined);
   }
+}
+
+export async function imprimerHtmlEnPdf(html: string): Promise<Uint8Array> {
+  const args = ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none'];
+  let dernier: unknown;
+
+  for (const executablePath of chromeLocaux()) {
+    try {
+      return await imprimerAvec(html, executablePath, args, true);
+    } catch (err) {
+      dernier = err;
+    }
+  }
+
+  try {
+    const chromium = await import('@sparticuz/chromium');
+    chromium.default.setGraphicsMode = false;
+    const executablePath = await chromium.default.executablePath();
+    if (executablePath) {
+      return await imprimerAvec(html, executablePath, [...chromium.default.args, ...args], 'shell');
+    }
+  } catch (err) {
+    dernier = err;
+  }
+
+  throw new ChromiumIndisponible(dernier instanceof Error ? dernier.message : undefined);
 }

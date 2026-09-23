@@ -6,7 +6,7 @@ import AboutSidebar from '@/components/about/AboutSidebar';
 import AboutMobileNav from '@/components/about/AboutMobileNav';
 import { getAboutContent } from '@/lib/about/content';
 import { extractH2Headings } from '@/lib/blog/toc';
-import { CALENDLY_URL } from '@/lib/calendly';
+import CtaButton from '@/components/CtaButton';
 
 export const metadata: Metadata = {
   title: 'À propos',
@@ -59,17 +59,12 @@ export default function AboutPage() {
             <article className="mt-8 lg:mt-10">
               <BlogMarkdown source={content} headings={headings} />
               <div className="mt-10 border-t border-black/8 pt-8">
-                <a
-                  href={CALENDLY_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary inline-flex items-center gap-1.5 px-6 py-3 text-[15px]"
-                >
+                <CtaButton className="px-6 py-3 text-[15px]">
                   Réserver une démo
                   <span data-arrow aria-hidden>
                     →
                   </span>
-                </a>
+                </CtaButton>
               </div>
             </article>
           </div>
