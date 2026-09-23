@@ -4,12 +4,29 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Layer, Marker, Source, type MapRef } from 'react-map-gl';
-import { FRANCE_MAP_VIEW, MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
+import {
+  FRANCE_MAP_VIEW,
+  IGN_PCI_MINZOOM,
+  IGN_PCI_SOURCE_ID,
+  IGN_PCI_SOURCE_LAYER,
+  IGN_PCI_VECTOR_SOURCE,
+  MAPBOX_TOKEN,
+  PRIIMO_MAP_STYLE,
+} from '@/lib/map/style';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import { OPACITE_REMPLISSAGE_ZONE } from '@/lib/zones/palette';
 import { bbox, chevauchements, fusionnerBbox, polygonesDeZone } from '@/lib/zones/geometrie';
 import { COULEUR_FRAICHEUR, type NiveauFraicheur } from '@/lib/zones/fraicheur';
 import { polygoneDepuisTrace, type PointTrace } from '@/lib/zones/trace';
+import { pointDansPolygone } from '@/lib/zones/appartenance';
+import { polygoneForme, type FormePredeterminee, type PointEcran } from '@/lib/zones/formes';
+import {
+  accrocherAuBord,
+  anneauxDepuisGeometrie,
+  centroideAnneau,
+  contourDepuisParcelles,
+} from '@/lib/zones/parcelles-contour';
+import type { Map as MapboxMap } from 'mapbox-gl';
 import {
   deplacerSommet,
   insererSommet,
@@ -37,7 +54,13 @@ export type LeadPoint = {
   niveau?: NiveauFraicheur;
 };
 
-export type ModeCarte = 'inactif' | 'polygone' | 'ajuster';
+export type ModeCarte = 'inactif' | 'polygone' | 'ajuster' | 'carre' | 'rond' | 'triangle';
+
+const FORMES: readonly FormePredeterminee[] = ['carre', 'rond', 'triangle'];
+
+function estForme(mode: ModeCarte): mode is FormePredeterminee {
+  return FORMES.includes(mode as FormePredeterminee);
+}
 
 const ORANGE_LEAD = '#E8743C';
 
@@ -59,6 +82,11 @@ const LISSAGE_PX = 9;
 /** Au-delà, les milieux de segment encombrent le contour plus qu'ils n'aident. */
 const MILIEUX_JUSQUA = 120;
 
+const ZONE_PCI_FILL = 'zone-parcelles-fill';
+const ZONE_PCI_LINE = 'zone-parcelles-line';
+/** Distance à laquelle le trait se colle à un bord de parcelle. */
+const SNAP_PX = 18;
+
 /**
  * Tolérance de simplification, exprimée en degrés à l'échelle affichée : le
  * même geste doit donner le même contour qu'on soit zoomé sur un pâté de
@@ -70,6 +98,22 @@ function toleranceDegres(ref: MapRef | null, pixels: number): number {
   const largeur = map?.getCanvas().clientWidth ?? 0;
   if (!bornes || largeur <= 0) return 0.00001 * pixels;
   return (Math.abs(bornes.getEast() - bornes.getWest()) / largeur) * pixels;
+}
+
+function ramasserParcelles(
+  map: MapboxMap,
+  box: [[number, number], [number, number]],
+  dest: globalThis.Map<string, [number, number][]>,
+) {
+  if (!map.getLayer(ZONE_PCI_FILL)) return;
+  const feats = map.queryRenderedFeatures(box, { layers: [ZONE_PCI_FILL] });
+  for (const f of feats) {
+    const idu = typeof f.properties?.idu === 'string' ? f.properties.idu : null;
+    const id = idu ?? (f.id != null ? String(f.id) : '');
+    if (!id || dest.has(id)) continue;
+    const anneau = anneauxDepuisGeometrie(f.geometry as GeoJSON.Geometry)[0];
+    if (anneau) dest.set(id, anneau);
+  }
 }
 
 function canvasHachure(): HTMLCanvasElement {
@@ -100,8 +144,6 @@ type Props = {
   centre: { latitude: number | null; longitude: number | null };
   /** Hauteur fixe. Sans valeur, la carte remplit le parent. */
   hauteur?: number;
-  /** Contour proposé mais pas encore enregistré. */
-  apercu?: GeoJSON.Polygon | null;
   /** Voie surlignée après le choix dans l'autocomplétion BAN. */
   voieSurlignee?: { latitude: number; longitude: number } | null;
   modeDessin?: ModeCarte;
@@ -142,7 +184,6 @@ export default function ZonesCarte({
   leads = [],
   centre,
   hauteur,
-  apercu = null,
   voieSurlignee = null,
   modeDessin = 'inactif',
   onPolygoneDessine,
@@ -159,12 +200,17 @@ export default function ZonesCarte({
    * un par un : quand on essaie de suivre une rue d'un geste, la carte se
    * contente de coulisser. On récolte donc le geste nous-mêmes.
    */
-  const dessinActif = modeDessin === 'polygone' && Boolean(onPolygoneDessine);
+  const formeActive = estForme(modeDessin) && Boolean(onPolygoneDessine);
+  const dessinActif =
+    (modeDessin === 'polygone' && Boolean(onPolygoneDessine)) || formeActive;
   const ajustActif = modeDessin === 'ajuster' && Boolean(onPolygoneModifie) && zoneActive !== null;
   const traceRef = useRef<PointTrace[]>([]);
   const dernierPixelRef = useRef<{ x: number; y: number } | null>(null);
   const enTraceRef = useRef(false);
+  const parcellesRef = useRef(new globalThis.Map<string, [number, number][]>());
+  const formeRef = useRef<{ origine: PointEcran; actuel: PointEcran } | null>(null);
   const [trace, setTrace] = useState<PointTrace[]>([]);
+  const [formeApercu, setFormeApercu] = useState<GeoJSON.Polygon | null>(null);
 
   /**
    * Retouche élastique. L'éditeur de mapbox-gl-draw déplace le secteur entier
@@ -175,27 +221,51 @@ export default function ZonesCarte({
   /** Index du sommet né sous le doigt quand on tire un milieu de segment. */
   const sommetNeRef = useRef<number | null>(null);
 
+  const collerPoint = useCallback((e: GesteCarte): PointTrace => {
+    const map = mapRef.current?.getMap();
+    const libre: PointTrace = [e.lngLat.lng, e.lngLat.lat];
+    if (!map?.getLayer(ZONE_PCI_FILL)) return libre;
+    const proche = new globalThis.Map<string, [number, number][]>();
+    ramasserParcelles(
+      map,
+      [
+        [e.point.x - SNAP_PX, e.point.y - SNAP_PX],
+        [e.point.x + SNAP_PX, e.point.y + SNAP_PX],
+      ],
+      proche,
+    );
+    for (const [id, anneau] of proche) parcellesRef.current.set(id, anneau);
+    const colle = accrocherAuBord(libre, [...proche.values()], toleranceDegres(mapRef.current, SNAP_PX));
+    return colle ?? libre;
+  }, []);
+
   const debuterTrace = useCallback(
     (e: GesteCarte) => {
-      if (!dessinActif) return;
+      if (!dessinActif || formeActive) return;
       enTraceRef.current = true;
-      traceRef.current = [[e.lngLat.lng, e.lngLat.lat]];
+      parcellesRef.current = new globalThis.Map();
+      const point = collerPoint(e);
+      traceRef.current = [point];
       dernierPixelRef.current = { x: e.point.x, y: e.point.y };
       setTrace(traceRef.current.slice());
     },
-    [dessinActif],
+    [collerPoint, dessinActif, formeActive],
   );
 
-  const prolongerTrace = useCallback((e: GesteCarte) => {
-    if (!enTraceRef.current) return;
-    const dernier = dernierPixelRef.current;
-    if (dernier && Math.hypot(e.point.x - dernier.x, e.point.y - dernier.y) < PAS_MINIMUM_PX) {
-      return;
-    }
-    dernierPixelRef.current = { x: e.point.x, y: e.point.y };
-    traceRef.current = [...traceRef.current, [e.lngLat.lng, e.lngLat.lat]];
-    setTrace(traceRef.current);
-  }, []);
+  const prolongerTrace = useCallback(
+    (e: GesteCarte) => {
+      if (!enTraceRef.current) return;
+      const dernier = dernierPixelRef.current;
+      if (dernier && Math.hypot(e.point.x - dernier.x, e.point.y - dernier.y) < PAS_MINIMUM_PX) {
+        return;
+      }
+      dernierPixelRef.current = { x: e.point.x, y: e.point.y };
+      const point = collerPoint(e);
+      traceRef.current = [...traceRef.current, point];
+      setTrace(traceRef.current);
+    },
+    [collerPoint],
+  );
 
   const terminerTrace = useCallback(() => {
     if (!enTraceRef.current) return;
@@ -204,9 +274,85 @@ export default function ZonesCarte({
     traceRef.current = [];
     dernierPixelRef.current = null;
     setTrace([]);
-    const polygone = polygoneDepuisTrace(points, toleranceDegres(mapRef.current, LISSAGE_PX));
+    const map = mapRef.current?.getMap();
+    const libre = polygoneDepuisTrace(points, toleranceDegres(mapRef.current, LISSAGE_PX));
+    if (libre && map?.getLayer(ZONE_PCI_FILL)) {
+      const canvas = map.getCanvas();
+      const visibles = new globalThis.Map<string, [number, number][]>();
+      ramasserParcelles(
+        map,
+        [
+          [0, 0],
+          [canvas.clientWidth, canvas.clientHeight],
+        ],
+        visibles,
+      );
+      const valeur = { type: 'Polygon' as const, coordinates: libre.coordinates as [number, number][][] };
+      for (const [id, anneau] of visibles) {
+        const c = centroideAnneau(anneau);
+        if (c && pointDansPolygone({ latitude: c[1], longitude: c[0] }, valeur)) {
+          parcellesRef.current.set(id, anneau);
+        }
+      }
+    }
+    const colle = contourDepuisParcelles([...parcellesRef.current.values()]);
+    parcellesRef.current = new globalThis.Map();
+    const polygone = colle ?? libre;
     if (polygone) onPolygoneDessine?.(polygone);
   }, [onPolygoneDessine]);
+
+  const debuterForme = useCallback(
+    (e: GesteCarte) => {
+      if (!formeActive) return;
+      formeRef.current = { origine: e.point, actuel: e.point };
+      setFormeApercu(null);
+    },
+    [formeActive],
+  );
+
+  const etirerForme = useCallback(
+    (e: GesteCarte) => {
+      if (!formeRef.current || !formeActive) return;
+      formeRef.current = { ...formeRef.current, actuel: e.point };
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      setFormeApercu(
+        polygoneForme(modeDessin as FormePredeterminee, formeRef.current.origine, e.point, (p) => {
+          const ll = map.unproject([p.x, p.y]);
+          return [ll.lng, ll.lat];
+        }),
+      );
+    },
+    [formeActive, modeDessin],
+  );
+
+  const terminerForme = useCallback(() => {
+    if (!formeRef.current || !formeActive) return;
+    const geste = formeRef.current;
+    formeRef.current = null;
+    setFormeApercu(null);
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const polygone = polygoneForme(modeDessin as FormePredeterminee, geste.origine, geste.actuel, (p) => {
+      const ll = map.unproject([p.x, p.y]);
+      return [ll.lng, ll.lat];
+    });
+    if (polygone) onPolygoneDessine?.(polygone);
+  }, [formeActive, modeDessin, onPolygoneDessine]);
+
+  const relacherGeste = useCallback(() => {
+    if (formeRef.current) terminerForme();
+    else terminerTrace();
+  }, [terminerForme, terminerTrace]);
+
+  useEffect(() => {
+    if (!dessinActif || !pret) return;
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    if (map.getZoom() < IGN_PCI_MINZOOM) {
+      map.easeTo({ zoom: IGN_PCI_MINZOOM + 0.4, duration: 380 });
+    }
+  }, [dessinActif, pret]);
 
   const commiter = useCallback(() => {
     sommetNeRef.current = null;
@@ -310,7 +456,7 @@ export default function ZonesCarte({
       style={hauteur != null ? { height: hauteur } : undefined}
       // Relâcher au-dessus d'un point de lead ne passe pas par la carte : sans
       // ça, le geste resterait ouvert et le contour serait perdu.
-      onPointerUp={terminerTrace}
+      onPointerUp={relacherGeste}
     >
       <Map
         ref={mapRef}
@@ -322,11 +468,20 @@ export default function ZonesCarte({
         dragPan={!dessinActif}
         doubleClickZoom={!dessinActif}
         cursor={dessinActif ? 'crosshair' : onChoisirZone ? 'pointer' : undefined}
-        onMouseDown={debuterTrace}
-        onMouseUp={terminerTrace}
-        onTouchStart={debuterTrace}
-        onTouchMove={prolongerTrace}
-        onTouchEnd={terminerTrace}
+        onMouseDown={(e) => {
+          if (formeActive) debuterForme(e);
+          else debuterTrace(e);
+        }}
+        onMouseUp={relacherGeste}
+        onTouchStart={(e) => {
+          if (formeActive) debuterForme(e);
+          else debuterTrace(e);
+        }}
+        onTouchMove={(e) => {
+          if (formeRef.current) etirerForme(e);
+          else prolongerTrace(e);
+        }}
+        onTouchEnd={relacherGeste}
         onClick={(e) => {
           if (dessinActif || ajustActif || !onChoisirZone) return;
           const zoneId = e.features?.[0]?.properties?.zoneId;
@@ -343,6 +498,10 @@ export default function ZonesCarte({
         }}
         interactiveLayerIds={actives.map((z) => `zone-fill-${z.id}`)}
         onMouseMove={(e) => {
+          if (formeRef.current) {
+            etirerForme(e);
+            return;
+          }
           if (enTraceRef.current) {
             prolongerTrace(e);
             return;
@@ -410,15 +569,39 @@ export default function ZonesCarte({
           </Source>
         ) : null}
 
-        {apercu ? (
-          <Source id="zone-apercu" type="geojson" data={{ type: 'Feature', properties: {}, geometry: apercu }}>
+        <Source id={IGN_PCI_SOURCE_ID} {...IGN_PCI_VECTOR_SOURCE}>
+          <Layer
+            id={ZONE_PCI_FILL}
+            type="fill"
+            source-layer={IGN_PCI_SOURCE_LAYER}
+            minzoom={IGN_PCI_MINZOOM}
+            paint={{
+              'fill-color': 'rgba(61, 90, 128, 0.05)',
+              'fill-opacity': dessinActif || ajustActif ? 1 : 0,
+            }}
+          />
+          <Layer
+            id={ZONE_PCI_LINE}
+            type="line"
+            source-layer={IGN_PCI_SOURCE_LAYER}
+            minzoom={IGN_PCI_MINZOOM}
+            paint={{
+              'line-color': 'rgba(61, 90, 128, 0.42)',
+              'line-width': 0.8,
+              'line-opacity': dessinActif || ajustActif ? 1 : 0.35,
+            }}
+          />
+        </Source>
+
+        {formeApercu ? (
+          <Source id="zone-forme" type="geojson" data={{ type: 'Feature', properties: {}, geometry: formeApercu }}>
             <Layer
-              id="zone-apercu-fill"
+              id="zone-forme-fill"
               type="fill"
               paint={{ 'fill-color': zoneActive?.couleur ?? '#4C7A9E', 'fill-opacity': 0.18 }}
             />
             <Layer
-              id="zone-apercu-line"
+              id="zone-forme-line"
               type="line"
               paint={{
                 'line-color': zoneActive?.couleur ?? '#4C7A9E',

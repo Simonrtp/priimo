@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ACCUEIL, FIELD } from '@/lib/today/field';
+import { FIELD } from '@/lib/today/field';
 import type { TodayCard } from '@/lib/today/cards';
 import { tapProps } from './tap';
 
@@ -35,52 +35,6 @@ export function MaSemaine({
           }}
         />
       </div>
-    </section>
-  );
-}
-
-export function TermineBlock({
-  items,
-  expanded,
-  onToggle,
-}: {
-  items: readonly { key: string; headline: string; at: string }[];
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <section className="overflow-hidden rounded-[16px] text-ink" style={{ backgroundColor: ACCUEIL.vert }}>
-      <button
-        type="button"
-        className="flex min-h-[44px] w-full items-center justify-between px-4 py-2 text-left"
-        aria-expanded={expanded}
-        {...tapProps(onToggle)}
-      >
-        <span className="font-semibold text-text-strong" style={{ fontSize: 14 }}>
-          Terminé · {items.length}
-        </span>
-        <span className="text-[12.5px] text-text-muted">{expanded ? 'Replier' : 'Voir'}</span>
-      </button>
-      {expanded ? (
-        items.length === 0 ? (
-          <p className="px-4 pb-3 text-pretty text-text-muted" style={{ fontSize: 13 }}>
-            Rien de validé pour l’instant.
-          </p>
-        ) : (
-          <ul className="px-4 pb-3">
-            {items.map((item) => (
-              <li key={item.key} className="flex items-baseline justify-between gap-3 py-1">
-                <p className="min-w-0 truncate text-pretty text-text line-through decoration-black/30" style={{ fontSize: 13.5 }}>
-                  {item.headline}
-                </p>
-                <p className="flex-shrink-0 tabular-nums text-text-subtle" style={{ fontSize: 12 }}>
-                  {new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(item.at))}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )
-      ) : null}
     </section>
   );
 }

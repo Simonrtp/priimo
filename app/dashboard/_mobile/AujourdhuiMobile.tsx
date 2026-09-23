@@ -27,7 +27,6 @@ import {
   ConfirmDoneSheet,
   MaSemaine,
   SnoozeSheet,
-  TermineBlock,
 } from './aujourdhui/Blocks';
 import TaskCard from './aujourdhui/TaskCard';
 import PortfolioBand from '@/components/dashboard/today/PortfolioBand';
@@ -102,7 +101,6 @@ export default function AujourdhuiMobile({
   const [origin, setOrigin] = useState<GeoCoord | null>(agencyOrigin);
   const [snoozeCard, setSnoozeCard] = useState<TodayCard | null>(null);
   const [confirmDone, setConfirmDone] = useState<TodayCard | null>(null);
-  const [termineOpen, setTermineOpen] = useState(false);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const directorLayout = isDirector && !previewingAgent;
 
@@ -159,8 +157,6 @@ export default function AujourdhuiMobile({
   const total = remaining + doneToday.length;
   const emptyKind =
     total === 0 && initialTotal === 0 ? 'rien' : remaining === 0 && total > 0 ? 'bouclee' : null;
-  const termineExpanded = termineOpen || emptyKind === 'bouclee';
-
   async function dismiss(card: TodayCard, snoozedUntil: string | null, asDone: boolean) {
     const previous = cards;
     setCards((list) => list.filter((c) => c.key !== card.key));
@@ -310,11 +306,6 @@ export default function AujourdhuiMobile({
               </ul>
             ) : null}
 
-            <TermineBlock
-              items={doneToday}
-              expanded={termineExpanded}
-              onToggle={() => setTermineOpen((v) => !v)}
-            />
           </>
         ) : null}
 

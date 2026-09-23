@@ -82,7 +82,7 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
         </div>
       </section>
 
-      <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-6">
+      <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
         {FAMILLES_ACTIVITE.map((famille) => {
           const couleur = COULEUR_FAMILLE[famille];
           return (
@@ -118,15 +118,6 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
             </li>
           );
         })}
-        <li
-          className="flex flex-col rounded-clay-lg px-4 py-4 shadow-clay-sm"
-          style={{ backgroundColor: ACCUEIL.creme }}
-          aria-hidden
-        >
-          <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
-          <Trait className="mt-2 h-5 w-full rounded" />
-          <Trait className="mt-1.5 h-5 w-4/5 rounded" />
-        </li>
       </ul>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
@@ -261,9 +252,17 @@ export function EnteteSquelette({
   ] as const;
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+      <div
+        className="w-full rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:w-[15.5rem] sm:shrink-0"
+        style={{ backgroundColor: ACCUEIL.creme }}
+        aria-hidden
+      >
+        <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
+        <Trait className="mt-1.5 h-4 w-4/5 rounded" />
+      </div>
       <div className="hidden shrink-0 sm:block">
-        <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
+        <h1 className="text-balance font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {titre}
         </h1>
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalle}</p>

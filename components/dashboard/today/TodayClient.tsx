@@ -16,7 +16,6 @@ import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import TodayCardView from './TodayCardView';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
 import TodayStatusBand from './TodayStatusBand';
-import TodayTermineBlock from './TodayTermineBlock';
 import PortfolioBand from './PortfolioBand';
 import AValiderSection from './AValiderSection';
 import RecentNotesCard from './RecentNotesCard';
@@ -98,7 +97,6 @@ export default function TodayClient({
   const day = dateKeyParis(new Date());
   const [cards, setCards] = useState(initialCards);
   const [doneToday, setDoneToday] = useState<DoneItem[]>([]);
-  const [termineOpen, setTermineOpen] = useState(false);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const now = useMemo(() => new Date(), [day]);
 
@@ -239,14 +237,6 @@ export default function TodayClient({
           <RecentNotesCard notes={recentNotes} className="h-full" />
         </div>
       </div>
-
-      {!directorLayout && (total > 0 || doneToday.length > 0) ? (
-        <TodayTermineBlock
-          items={doneToday}
-          expanded={termineOpen || emptyKind === 'bouclee'}
-          onToggle={() => setTermineOpen((v) => !v)}
-        />
-      ) : null}
 
       {children}
 

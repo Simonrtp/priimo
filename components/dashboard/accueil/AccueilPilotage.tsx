@@ -11,6 +11,7 @@ import {
 import BandeauObjectif from './BandeauObjectif';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
+import PenseBete from './PenseBete';
 import { NotesLectureProvider } from '@/components/dashboard/notes/NotesLectureProvider';
 import Entonnoir3D from './Entonnoir3D';
 import JourParJour from './JourParJour';
@@ -31,8 +32,9 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
 /**
  * L'écran de pilotage.
  *
- * L'ordre n'est pas décoratif : la phrase d'abord, les cinq cartes ensuite,
- * les adresses livrées à gauche de l'emploi du temps, puis l'entonnoir.
+ * L'ordre n'est pas décoratif : le pense-bête à gauche du titre, la phrase
+ * ensuite, les cinq cartes, les adresses à gauche de l'emploi du temps, puis
+ * l'entonnoir.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
  * ne dépend pas de la granularité (les cartes du jour, l'emploi du temps, le
@@ -170,6 +172,7 @@ export default function AccueilPilotage({
           estPeriodeCourante={vue.estPeriodeCourante}
           enCours={enCours}
           onChanger={changer}
+          gauche={<PenseBete initial={penseBete} className="w-full sm:w-[15.5rem] sm:shrink-0" />}
         />
         {membres.length > 1 ? (
           <div className="flex justify-end">
@@ -195,7 +198,7 @@ export default function AccueilPilotage({
           }
           onObjectifsChanges={rafraichir}
         />
-        <CompteursActivite familles={bilan.familles} penseBete={penseBete} />
+        <CompteursActivite familles={bilan.familles} />
       </div>
 
       {/* Les deux cartes s'alignent par étirement : la plus haute donne le

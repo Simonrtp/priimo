@@ -207,3 +207,50 @@ export async function PATCH(
 
   return NextResponse.json({ estimation: mapEstimation(updated) });
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  if (!id) return NextResponse.json({ error: 'Identifiant manquant' }, { status: 400 });
+
+  const session = await createSupabaseServerClient();
+  const { data, error: fetchErr } = await session
+    .from('agency_estimations')
+    .select(ESTIMATION_SELECT)
+    .eq('id', id)
+    .eq('agency_id', agency.id)
+    .maybeSingle();
+
+  if (fetchErr || !data) {
+    return NextResponse.json({ error: 'Estimation introuvable' }, { status: 404 });
+  }
+
+  const viewer = viewerFromProfile(profile);
+  if (
+    !canSeeOwnedRecord(viewer, {
+      assignedTo: data.referent_id,
+      createdBy: data.created_by,
+    })
+  ) {
+    return NextResponse.json({ error: 'Estimation introuvable' }, { status: 404 });
+  }
+
+  const { error } = await session
+    .from('agency_estimations')
+    .delete()
+    .eq('id', id)
+    .eq('agency_id', agency.id);
+
+  if (error) {
+    return NextResponse.json({ error: 'Suppression impossible' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

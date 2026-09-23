@@ -236,6 +236,9 @@ export default function EstimationDashboardClient({
           rows={rows}
           onNouvelle={() => aller(ID_ESTIMATION_NOUVELLE)}
           onOuvrir={aller}
+          onSupprimee={(supprimeeId) =>
+            setRows((list) => list?.filter((row) => row.id !== supprimeeId) ?? [])
+          }
         />
       )}
     </div>

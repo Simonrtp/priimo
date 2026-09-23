@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import {
   LIBELLE_PERIODE,
@@ -54,6 +55,7 @@ export default function EnteteSemaine({
   estPeriodeCourante,
   enCours,
   onChanger,
+  gauche,
 }: {
   periode: Periode;
   intervalle: Intervalle;
@@ -62,14 +64,17 @@ export default function EnteteSemaine({
   enCours: boolean;
   /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
   onChanger: (periode: Periode, ancre: string | null) => void;
+  /** Coin haut gauche : le pense-bête, avant le titre de période. */
+  gauche?: ReactNode;
 }) {
   const decaler = (delta: number) =>
     onChanger(periode, intervalleDecale(periode, intervalle, delta).debut);
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+      {gauche}
       <div className="hidden shrink-0 sm:block">
-        <h1 className="font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
+        <h1 className="text-balance font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {TITRE_PERIODE[periode]}
         </h1>
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalleLisible(intervalle, periode)}</p>
