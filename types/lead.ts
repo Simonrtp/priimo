@@ -5,8 +5,6 @@ import type { ScriptApproche } from '@/lib/script-approche';
 import type { LeadFilters } from '@/lib/lead-filters';
 import { EMPTY_LEAD_FILTERS } from '@/lib/lead-filters';
 
-export type LeadSegmentTab = 'tous' | 'entreprises' | 'particuliers';
-
 export type LeadStatus = LeadStatusDb;
 export type OwnerType = LeadOwnerTypeDb;
 export type MlFeedback = LeadMlFeedbackDb | null;

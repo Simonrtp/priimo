@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { Filters, Lead, LeadSegmentTab, LeadStage } from '@/types/lead';
+import type { Filters, Lead, LeadStage } from '@/types/lead';
 import type { DeliveryBatchGroup } from '@/lib/lead-delivery';
 import { matchesLeadFilters } from '@/lib/lead-filters';
 import { sortProspects } from '@/lib/lead-dpe';
@@ -13,19 +13,17 @@ interface LeadsListProps {
   newBatch: Lead[];
   previousGroups: DeliveryBatchGroup[];
   filters: Filters;
-  segmentTab: LeadSegmentTab;
   hasAnyLead: boolean;
   onLeadClick: (id: string) => void;
   onStatusChange: (id: string, status: Lead['status']) => void;
   stages?: readonly LeadStage[];
-  onTake?: (id: string) => void;
+  onTake?: (id: string, origine?: HTMLElement) => void;
   onStageChange?: (id: string, stageId: string) => void;
   onResetFilters?: () => void;
 }
 
 function PreviousLeadsSection({
   groups,
-  segmentTab,
   indexOffset,
   onLeadClick,
   onStatusChange,
@@ -34,12 +32,11 @@ function PreviousLeadsSection({
   onStageChange,
 }: {
   groups: DeliveryBatchGroup[];
-  segmentTab: LeadSegmentTab;
   indexOffset: number;
   onLeadClick: (id: string) => void;
   onStatusChange: (id: string, status: Lead['status']) => void;
   stages?: readonly LeadStage[];
-  onTake?: (id: string) => void;
+  onTake?: (id: string, origine?: HTMLElement) => void;
   onStageChange?: (id: string, stageId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -92,12 +89,11 @@ function PreviousLeadsSection({
                     lead={lead}
                     index={cardIndex}
                     isLast={isLastGroup && isLastLead}
-                    segmentTab={segmentTab}
                     stagger={false}
                     onClick={() => onLeadClick(lead.id)}
                     onStatusChange={(s) => onStatusChange(lead.id, s)}
                     stages={stages}
-                    onTake={onTake ? () => onTake(lead.id) : undefined}
+                    onTake={onTake ? (origine) => onTake(lead.id, origine) : undefined}
                     onStageChange={onStageChange ? (stageId) => onStageChange(lead.id, stageId) : undefined}
                   />
                 );
@@ -113,7 +109,6 @@ export default function LeadsList({
   newBatch,
   previousGroups,
   filters,
-  segmentTab,
   hasAnyLead,
   onLeadClick,
   onStatusChange,
@@ -169,19 +164,17 @@ export default function LeadsList({
           lead={lead}
           index={i}
           isLast={!hasPrevious && i === visibleNewBatch.length - 1}
-          segmentTab={segmentTab}
           showNewBadge
           onClick={() => onLeadClick(lead.id)}
           onStatusChange={(s) => onStatusChange(lead.id, s)}
           stages={stages}
-          onTake={onTake ? () => onTake(lead.id) : undefined}
+          onTake={onTake ? (origine) => onTake(lead.id, origine) : undefined}
           onStageChange={onStageChange ? (stageId) => onStageChange(lead.id, stageId) : undefined}
         />
       ))}
 
       <PreviousLeadsSection
         groups={visiblePreviousGroups}
-        segmentTab={segmentTab}
         indexOffset={visibleNewBatch.length}
         onLeadClick={onLeadClick}
         onStatusChange={onStatusChange}

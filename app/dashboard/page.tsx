@@ -81,7 +81,6 @@ import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsSe
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 import { nomProprietaireAffiche, signauxEssentiels } from '@/lib/lead-apercu';
 import { lireAgendaSemaine } from '@/lib/agenda/lire';
-import { tacheDuMoment } from '@/lib/today/maintenant';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { apercuSecteur } from '@/lib/zones/accueil';
 import SecteurAccueil from '@/components/dashboard/accueil/SecteurAccueil';
@@ -700,7 +699,6 @@ async function TodayContent({
         <EmploiDuTempsServeur agenda={agendaPromise} />
       </Suspense>
     ),
-    tache: tacheDuMoment(cards),
     secteur: cards.length > 0 ? secteurNode : null,
     attenteInscription: estEnAttente(agency) ? (
       <EcranAttenteInscription key="attente-inscription" refusee={agency.demande_decision === 'refusee'} />

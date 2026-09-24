@@ -15,6 +15,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Lead, LeadStatus, MlFeedback, SignalType } from '@/types/lead';
+import { COULEUR_STATUT } from '@/lib/lead-etat-couleur';
+
+export { couleurEtatPipeline, COULEUR_ETAPE, COULEUR_STATUT } from '@/lib/lead-etat-couleur';
 
 export const SIGNAL_META: Record<SignalType, { label: string; pts: number; Icon: LucideIcon; color: string }> = {
   dissolution_sci: { label: 'Dissolution SCI en cours', pts: 35, Icon: Building2, color: '#B91C1C' },
@@ -34,32 +37,32 @@ export const STATUS_META: Record<LeadStatus, { label: string; chipClass: string;
   nouveau: {
     label: 'Nouveau',
     chipClass: 'bg-blue/10 text-blue-dark',
-    dotColor: '#93B4E0',
+    dotColor: COULEUR_STATUT.nouveau,
   },
   contacte: {
     label: 'Contacté',
     chipClass: 'bg-accent/10 text-accent-dark',
-    dotColor: '#F5A882',
+    dotColor: COULEUR_STATUT.contacte,
   },
   interesse: {
     label: 'Intéressé',
     chipClass: 'bg-emerald-500/10 text-emerald-700',
-    dotColor: '#8FD4A8',
+    dotColor: COULEUR_STATUT.interesse,
   },
   pas_interesse: {
     label: 'Pas intéressé',
     chipClass: 'bg-black/[0.07] text-mute',
-    dotColor: '#B8C0CC',
+    dotColor: COULEUR_STATUT.pas_interesse,
   },
   mandat_signe: {
     label: 'Mandat signé',
     chipClass: 'bg-emerald-500/20 text-emerald-800',
-    dotColor: '#DFC87A',
+    dotColor: COULEUR_STATUT.mandat_signe,
   },
   vendeur_ailleurs: {
     label: 'Vendeur ailleurs',
     chipClass: 'bg-violet-500/10 text-violet-800',
-    dotColor: '#B8A4E8',
+    dotColor: COULEUR_STATUT.vendeur_ailleurs,
   },
 };
 

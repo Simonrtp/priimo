@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import type { Filters, Lead, LeadSegmentTab, LeadStage, TeamMember } from '@/types/lead';
+import type { Filters, Lead, LeadStage, TeamMember } from '@/types/lead';
 import { EMPTY_FILTERS } from '@/types/lead';
 import {
   countActiveLeadFilters,
@@ -30,7 +30,8 @@ import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
 import { useUser } from '@/lib/hooks/useUser';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { pickTourLeadId } from '@/lib/tour-lead';
-import TabsNav from './TabsNav';
+import { leadListAddressLine } from '@/lib/lead-display';
+import { mesurerVolLead, pulseOngletPipeline, type VolLead } from '@/lib/ui/vol-pipeline';
 import ProspectsFiltersPanel from './ProspectsFiltersPanel';
 import ProspectsListToolbar from './ProspectsListToolbar';
 import ProspectsFiltersSheet from './ProspectsFiltersSheet';
@@ -40,6 +41,7 @@ import ProspectsViewSwitch, {
 } from './ProspectsViewSwitch';
 import LeadsList from './LeadsList';
 import LeadsSecteur, { LeadsParZone } from './prospection/LeadsSecteur';
+import VolLeadPipeline from './prospection/VolLeadPipeline';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
 import PipelineFilters from './pipeline/PipelineFilters';
@@ -62,12 +64,6 @@ interface ProspectsClientProps {
   /** Découpage interne de l'agence. Vide = l'écran se comporte comme avant. */
   zones?: Zone[];
   fraicheurFilter?: FiltreFraicheur | null;
-}
-
-function matchesSegmentTab(lead: Lead, tab: LeadSegmentTab): boolean {
-  if (tab === 'tous') return true;
-  if (tab === 'entreprises') return lead.ownerType === 'entreprise';
-  return lead.ownerType === 'particulier';
 }
 
 export default function ProspectsClient({
@@ -99,41 +95,27 @@ export default function ProspectsClient({
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [showPipelineBanner, setShowPipelineBanner] = useState(initialShowPipelineBanner);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(initialSelectedLeadId);
-  const [segmentTab, setSegmentTab] = useState<LeadSegmentTab>('tous');
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [pipelineScope, setPipelineScope] = useState<'mine' | 'agency'>('mine');
   const [negotiatorId, setNegotiatorId] = useState('');
   const [pendingLost, setPendingLost] = useState<{ leadId: string; stageId: string } | null>(null);
   const [lostReason, setLostReason] = useState('');
+  const [volsPipeline, setVolsPipeline] = useState<VolLead[]>([]);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
-  const tabCounts = useMemo(
-    () => ({
-      tous: leads.length,
-      entreprises: leads.filter((l) => l.ownerType === 'entreprise').length,
-      particuliers: leads.filter((l) => l.ownerType === 'particulier').length,
-    }),
-    [leads],
-  );
-
-  const segmentLeads = useMemo(
-    () => leads.filter((l) => matchesSegmentTab(l, segmentTab)),
-    [leads, segmentTab],
-  );
-
   useEffect(() => {
     setFilters((prev) => {
-      let next = sanitizeSignalFamilyForLeads(prev, segmentLeads);
-      next = sanitizeSortByForLeads(next, segmentLeads);
+      let next = sanitizeSignalFamilyForLeads(prev, leads);
+      next = sanitizeSortByForLeads(next, leads);
       return next === prev ? prev : next;
     });
-  }, [segmentTab, segmentLeads]);
+  }, [leads]);
 
   const filtered = useMemo(() => {
     const DAY_MS = 86_400_000;
-    return segmentLeads.filter((l) => {
+    return leads.filter((l) => {
       if (!matchesLeadFilters(l, filters)) return false;
       if (memberId && l.assignedTo !== memberId) return false;
       if (listFilter === 'sans-position' && l.banId) return false;
@@ -152,7 +134,7 @@ export default function ProspectsClient({
       }
       return true;
     });
-  }, [segmentLeads, filters, listFilter, memberId, stageList, fraicheurFilter]);
+  }, [leads, filters, listFilter, memberId, stageList, fraicheurFilter]);
 
   const partitioned = useMemo(
     () =>
@@ -273,14 +255,30 @@ export default function ProspectsClient({
     [updateLeadHandler],
   );
 
+  const onFiniVol = useCallback((volId: string) => {
+    pulseOngletPipeline();
+    setVolsPipeline((prev) => prev.filter((v) => v.id !== volId));
+  }, []);
+
   const onTake = useCallback(
-    async (id: string) => {
+    async (id: string, origine?: HTMLElement) => {
       const lead = leads.find((l) => l.id === id);
       const gate = entreeStage(stageList);
       const userId = profile?.id;
       if (!lead || !gate || !userId) {
         toast.error('Impossible d’ajouter ce lead au pipeline pour le moment.');
         return;
+      }
+      const vol = mesurerVolLead({
+        id,
+        score: lead.score,
+        adresse: leadListAddressLine(lead.address, lead.postalCode, lead.city),
+        origine,
+      });
+      if (vol) {
+        setVolsPipeline((prev) => [...prev, vol]);
+      } else {
+        pulseOngletPipeline();
       }
       const now = new Date().toISOString();
       const stagePosition = nextStagePosition(leads, gate.id);
@@ -439,6 +437,7 @@ export default function ProspectsClient({
 
   return (
     <div className="w-full min-w-0 pb-4 pt-2 md:pt-0">
+      <VolLeadPipeline vols={volsPipeline} onFini={onFiniVol} />
       {showPipelineBanner && initialNewBatchCount > 0 && vue === 'liste' && (
         <PipelineUpdateBanner
           newCount={initialNewBatchCount}
@@ -478,8 +477,6 @@ export default function ProspectsClient({
         <>
           <div className="flex flex-col">
             <div className="order-3 mb-3 md:mb-3">
-              <TabsNav value={segmentTab} onTabChange={setSegmentTab} counts={tabCounts} />
-
               <ProspectsListToolbar
                 count={compteurAffiche}
                 filterActiveCount={filterCount}
@@ -500,7 +497,7 @@ export default function ProspectsClient({
               filters={filters}
               onFiltersChange={setFilters}
               teamMembers={teamMembers}
-              leads={segmentLeads}
+              leads={leads}
               showAssignedFilter={isDirector}
             />
           </div>
@@ -511,7 +508,7 @@ export default function ProspectsClient({
             appliedFilters={filters}
             onApply={setFilters}
             teamMembers={teamMembers}
-            leads={segmentLeads}
+            leads={leads}
             showAssignedFilter={isDirector}
           />
 
@@ -520,7 +517,6 @@ export default function ProspectsClient({
               secteur={secteur}
               actions={{
                 filters,
-                segmentTab,
                 nouveauxIds,
                 onLeadClick: setSelectedLeadId,
                 onStatusChange: onStatusInline,
@@ -537,7 +533,6 @@ export default function ProspectsClient({
               horsZone={vueParZone.horsZone}
               actions={{
                 filters,
-                segmentTab,
                 nouveauxIds,
                 onLeadClick: setSelectedLeadId,
                 onStatusChange: onStatusInline,
@@ -553,7 +548,6 @@ export default function ProspectsClient({
               newBatch={partitioned.newBatch}
               previousGroups={partitioned.previousGroups}
               filters={filters}
-              segmentTab={segmentTab}
               hasAnyLead={leads.length > 0}
               onLeadClick={setSelectedLeadId}
               onStatusChange={onStatusInline}

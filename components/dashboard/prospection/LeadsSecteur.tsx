@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { Filters, Lead, LeadSegmentTab, LeadStage } from '@/types/lead';
+import type { Filters, Lead, LeadStage } from '@/types/lead';
 import { matchesLeadFilters } from '@/lib/lead-filters';
 import { sortProspects } from '@/lib/lead-dpe';
 import { sousGroupesAgence, type GroupesSecteur, type StatistiqueZone } from '@/lib/zones/leads';
@@ -23,12 +23,11 @@ import EmptyState from '../EmptyState';
 
 type Actions = {
   filters: Filters;
-  segmentTab: LeadSegmentTab;
   nouveauxIds: ReadonlySet<string>;
   onLeadClick: (id: string) => void;
   onStatusChange: (id: string, status: Lead['status']) => void;
   stages?: readonly LeadStage[];
-  onTake?: (id: string) => void;
+  onTake?: (id: string, origine?: HTMLElement) => void;
   onStageChange?: (id: string, stageId: string) => void;
 };
 
@@ -62,7 +61,7 @@ function Cartes({
   suivant: () => number;
   dernier: boolean;
 }) {
-  const { segmentTab, nouveauxIds, onLeadClick, onStatusChange, stages, onTake, onStageChange } =
+  const { nouveauxIds, onLeadClick, onStatusChange, stages, onTake, onStageChange } =
     actions;
   return (
     <>
@@ -72,12 +71,11 @@ function Cartes({
           lead={lead}
           index={suivant()}
           isLast={dernier && i === leads.length - 1}
-          segmentTab={segmentTab}
           showNewBadge={nouveauxIds.has(lead.id)}
           onClick={() => onLeadClick(lead.id)}
           onStatusChange={(s) => onStatusChange(lead.id, s)}
           stages={stages}
-          onTake={onTake ? () => onTake(lead.id) : undefined}
+          onTake={onTake ? (origine) => onTake(lead.id, origine) : undefined}
           onStageChange={onStageChange ? (stageId) => onStageChange(lead.id, stageId) : undefined}
         />
       ))}
@@ -293,7 +291,6 @@ export function LeadsParZone({
           <Fragment key={section.zone.id}>
             <EnteteSection
               titre={section.zone.nom}
-              detail={`${section.tauxPrise} % pris · ${section.pris} sur ${section.total}`}
               compteur={section.visibles.length}
               ouvert={ouvert}
               onToggle={() => basculer(section.zone.id)}

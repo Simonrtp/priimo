@@ -723,6 +723,25 @@ body {
   animation: leadReveal 0.32s ease-out both;
 }
 
+@keyframes pipelineRecoit {
+  0%,
+  100% { transform: scale(1); }
+  40% { transform: scale(1.1); }
+}
+[data-prospection-vue='pipeline'].pipeline-attend,
+[data-prospection-vue='pipeline'].pipeline-recoit {
+  color: #e8743c;
+}
+[data-prospection-vue='pipeline'].pipeline-recoit {
+  animation: pipelineRecoit 280ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-prospection-vue='pipeline'].pipeline-recoit {
+    animation: none;
+  }
+}
+
 /* === VUE CARTE (Mapbox streets) — voile crème chaud, pas papier blanc ===
    On teinte UNIQUEMENT le canvas des tuiles. Marqueurs, popups et contrôles
    gardent leurs vraies couleurs. */

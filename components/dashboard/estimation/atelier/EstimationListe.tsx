@@ -39,27 +39,19 @@ export default function EstimationListe({
   onSupprimee: (id: string) => void;
 }) {
   const [pending, setPending] = useState<EstimationResume | null>(null);
-  const [etape, setEtape] = useState<1 | 2>(1);
   const [chargement, setChargement] = useState(false);
 
   function demanderSuppression(row: EstimationResume) {
     setPending(row);
-    setEtape(1);
   }
 
   function fermer() {
     if (chargement) return;
     setPending(null);
-    setEtape(1);
   }
 
   async function confirmer() {
     if (!pending) return;
-    if (etape === 1) {
-      setEtape(2);
-      return;
-    }
-
     setChargement(true);
     try {
       const res = await fetch(`/api/dashboard/estimation/${pending.id}`, { method: 'DELETE' });
@@ -67,7 +59,6 @@ export default function EstimationListe({
       onSupprimee(pending.id);
       notifySuccess('Estimation supprimée');
       setPending(null);
-      setEtape(1);
     } catch {
       notifyError("L'estimation n'a pas pu être supprimée");
     } finally {
@@ -136,17 +127,9 @@ export default function EstimationListe({
         open={pending !== null}
         onClose={fermer}
         onConfirm={() => void confirmer()}
-        title={
-          etape === 1
-            ? 'Supprimer cette estimation ?'
-            : 'Confirmez la suppression définitive'
-        }
-        message={
-          etape === 1
-            ? 'Cette action est irréversible. L’estimation et l’avis de valeur seront définitivement supprimés.'
-            : `« ${pending ? libelleAdresse(pending) : ''} » sera définitivement supprimée. Cette action ne peut pas être annulée.`
-        }
-        primaryLabel={etape === 1 ? 'Continuer' : 'Supprimer définitivement'}
+        title="Supprimer cette estimation ?"
+        message={`Cette action est irréversible. « ${pending ? libelleAdresse(pending) : ''} » et l’avis de valeur seront définitivement supprimés.`}
+        primaryLabel="Supprimer définitivement"
         variant="danger"
         isLoading={chargement}
       />

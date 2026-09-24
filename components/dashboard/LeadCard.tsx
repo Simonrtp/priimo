@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { ChevronRight, Phone, ShieldCheck } from 'lucide-react';
-import { isSciDirectorPending, type Lead, type LeadSegmentTab, type LeadStage } from '@/types/lead';
+import { isSciDirectorPending, type Lead, type LeadStage } from '@/types/lead';
 import ScoreRing from './ScoreRing';
 import StatusBadge from './StatusBadge';
 import LeadStageBadge from './LeadStageBadge';
@@ -75,14 +75,13 @@ interface LeadCardProps {
   lead: Lead;
   index: number;
   isLast: boolean;
-  segmentTab: LeadSegmentTab;
   showNewBadge?: boolean;
   /** Cascade d'apparition. À couper quand des dizaines de cartes surgissent d'un coup. */
   stagger?: boolean;
   onClick: () => void;
   onStatusChange: (status: Lead['status']) => void;
   stages?: readonly LeadStage[];
-  onTake?: () => void;
+  onTake?: (origine: HTMLElement) => void;
   onStageChange?: (stageId: string) => void;
 }
 
@@ -90,7 +89,6 @@ function LeadCard({
   lead,
   index,
   isLast,
-  segmentTab: _segmentTab,
   showNewBadge: _showNewBadge = false,
   stagger = true,
   onClick,
@@ -132,7 +130,7 @@ function LeadCard({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onTake();
+            onTake(e.currentTarget);
           }}
           aria-label="Ajouter au pipeline"
           className="inline-flex min-h-[32px] items-center rounded-full bg-accent px-3 text-[11.5px] font-semibold text-white sm:text-[12px]"

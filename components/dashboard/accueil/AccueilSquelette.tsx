@@ -252,22 +252,22 @@ export function EnteteSquelette({
   ] as const;
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-      <div
-        className="w-full rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:w-[15.5rem] sm:shrink-0"
-        style={{ backgroundColor: ACCUEIL.creme }}
-        aria-hidden
-      >
-        <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
-        <Trait className="mt-1.5 h-4 w-4/5 rounded" />
-      </div>
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="hidden shrink-0 sm:block">
         <h1 className="text-balance font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {titre}
         </h1>
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalle}</p>
       </div>
-      <div className="flex items-center justify-end gap-2 sm:order-last sm:ml-auto">
+      <div
+        className="order-2 w-full rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:order-none sm:w-[15.5rem] sm:shrink-0"
+        style={{ backgroundColor: ACCUEIL.creme }}
+        aria-hidden
+      >
+        <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
+        <Trait className="mt-1.5 h-4 w-4/5 rounded" />
+      </div>
+      <div className="order-1 flex items-center justify-end gap-2 sm:order-none sm:ml-auto">
         <div className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset">
           {periodes.map(([id, libelle]) => (
             <span

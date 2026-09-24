@@ -35,7 +35,7 @@ export default function ProspectsViewSwitch({
         : 'flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset';
 
   return (
-    <div className={shellClass} role="tablist" aria-label="Vue prospection">
+    <div className={`${shellClass} overflow-visible`} role="tablist" aria-label="Vue prospection">
       {ITEMS.map(({ id, label, Icon }) => {
         const active = value === id;
         return (
@@ -46,6 +46,7 @@ export default function ProspectsViewSwitch({
             aria-selected={active}
             aria-label={label}
             title={label}
+            data-prospection-vue={id}
             onClick={() => onChange(id)}
             className={`inline-flex items-center justify-center font-semibold transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
               bar

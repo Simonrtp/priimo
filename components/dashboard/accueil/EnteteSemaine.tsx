@@ -55,7 +55,7 @@ export default function EnteteSemaine({
   estPeriodeCourante,
   enCours,
   onChanger,
-  gauche,
+  droite,
 }: {
   periode: Periode;
   intervalle: Intervalle;
@@ -64,24 +64,24 @@ export default function EnteteSemaine({
   enCours: boolean;
   /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
   onChanger: (periode: Periode, ancre: string | null) => void;
-  /** Coin haut gauche : le pense-bête, avant le titre de période. */
-  gauche?: ReactNode;
+  /** Juste à droite du titre, avant le sélecteur de période. */
+  droite?: ReactNode;
 }) {
   const decaler = (delta: number) =>
     onChanger(periode, intervalleDecale(periode, intervalle, delta).debut);
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-      {gauche}
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="hidden shrink-0 sm:block">
         <h1 className="text-balance font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {TITRE_PERIODE[periode]}
         </h1>
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalleLisible(intervalle, periode)}</p>
       </div>
+      {droite ? <div className="order-2 min-w-0 sm:order-none sm:shrink-0">{droite}</div> : null}
       <h1 className="sr-only sm:hidden">{TITRE_PERIODE[periode]}</h1>
 
-      <div className="flex items-center justify-end gap-2 sm:order-last sm:ml-auto" aria-busy={enCours}>
+      <div className="order-1 flex items-center justify-end gap-2 sm:order-none sm:ml-auto" aria-busy={enCours}>
         <div
           role="group"
           aria-label="Granularité"

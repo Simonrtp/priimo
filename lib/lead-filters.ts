@@ -82,7 +82,7 @@ export function leadHasDisplayFamily(
   }
 }
 
-/** Réinitialise `signalFamily` si la famille n'existe pas dans l'onglet courant. */
+/** Réinitialise `signalFamily` si la famille n'existe pas dans la liste. */
 export function sanitizeSignalFamilyForLeads(
   filters: LeadFilters,
   leads: Pick<Lead, 'displaySignals'>[],

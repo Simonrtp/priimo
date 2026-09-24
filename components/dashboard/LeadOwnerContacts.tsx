@@ -73,30 +73,27 @@ function ImmeubleContactRow({
     }
   }
 
+  const metier = contact.nafLibelle?.trim() || immeubleCategorieLabel(contact.categorie);
+
   return (
     <li className="min-w-0 border-t border-black/[0.05] py-3 first:border-t-0 first:pt-0">
-      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <p className="min-w-0 break-words font-medium text-ink" style={{ fontSize: 13.5 }}>
-          {toDisplayPersonName(contact.companyName)}
-        </p>
-        <span className="shrink-0 text-mute" style={{ fontSize: 12 }}>
-          {immeubleCategorieLabel(contact.categorie)}
-        </span>
-      </div>
-      {contact.nafLibelle && (
+      <p className="min-w-0 break-words font-medium text-ink" style={{ fontSize: 13.5 }}>
+        {toDisplayPersonName(contact.companyName)}
+      </p>
+      {metier ? (
         <p className="mt-0.5 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.4 }}>
-          {contact.nafLibelle}
+          {metier}
         </p>
-      )}
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <a
-          href={telHref(contact.phone)}
-          className="inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-          style={{ fontSize: 13 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {formatPhoneDisplay(contact.phone)}
-        </a>
+      ) : null}
+      <a
+        href={telHref(contact.phone)}
+        className="mt-1 inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+        style={{ fontSize: 13 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {formatPhoneDisplay(contact.phone)}
+      </a>
+      <div>
         <button
           type="button"
           onClick={(e) => {
@@ -106,7 +103,7 @@ function ImmeubleContactRow({
           disabled={saving || promoted}
           className="inline-flex min-h-10 items-center text-[12.5px] font-semibold text-[#3D5A80] underline-offset-2 hover:underline disabled:opacity-50"
         >
-          {promoted ? 'Dans les contacts' : saving ? 'Création…' : 'Créer le contact'}
+          {promoted ? 'Dans les contacts' : saving ? 'Création…' : 'Créer un contact'}
         </button>
       </div>
     </li>
@@ -256,7 +253,7 @@ export function LeadWhoYouSpeakTo({
         {contacts.length > 0 && (
           <div>
             <p className="mb-2 font-medium text-ink" style={{ fontSize: 12.5 }}>
-              Dans l&apos;immeuble
+              Dans l&apos;immeuble :
             </p>
             <ul>
               {contacts.map((contact, index) => {

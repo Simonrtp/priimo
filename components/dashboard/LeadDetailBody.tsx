@@ -15,7 +15,6 @@ import { postAgencyAlert } from '@/lib/agency/post-alert';
 import { LeadWhoYouSpeakTo } from './LeadOwnerContacts';
 import LeadStatusControl from './LeadStatusControl';
 import LeadApproachScript from './LeadApproachScript';
-import LeadActionBar from './LeadActionBar';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 
@@ -334,10 +333,6 @@ export default function LeadDetailBody({
             </div>
           </DetailSection>
         </div>
-      </div>
-
-      <div className={padX}>
-        <LeadActionBar lead={lead} dense={isMobile} />
       </div>
     </div>
   );

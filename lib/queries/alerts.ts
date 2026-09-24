@@ -43,6 +43,7 @@ export async function fetchAgencyAlerts(
     const items: TodayAlertItem[] = [];
     for (const row of (data ?? []) as unknown as AlertRow[]) {
       if (!isAgencyAlertKind(row.kind)) continue;
+      if (row.kind === 'chevauchement_zones') continue;
       const by = namesById.get(row.created_by) ?? 'un collègue';
       items.push({
         id: row.id,

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import type { LeadStage } from '@/types/lead';
+import { couleurEtatPipeline } from '@/lib/lead-meta';
 
 export default function LeadStageBadge({
   stage,
@@ -64,6 +65,7 @@ export default function LeadStageBadge({
   }, [open]);
 
   const label = stage?.libelle ?? 'Sans étape';
+  const couleur = couleurEtatPipeline(stage);
 
   return (
     <div ref={rootRef} className="relative" onClick={(e) => e.stopPropagation()}>
@@ -73,9 +75,14 @@ export default function LeadStageBadge({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex min-h-[44px] items-center gap-1.5 rounded-full bg-black/[0.06] px-3 font-medium text-ink transition-opacity duration-fluid-subtle ease-in-out hover:opacity-80"
-        style={{ fontSize: 12.5 }}
+        className="flex min-h-[44px] items-center gap-1.5 rounded-full bg-black/[0.06] px-3 font-medium transition-opacity duration-fluid-subtle ease-in-out hover:opacity-80"
+        style={{ fontSize: 12.5, color: couleur }}
       >
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: couleur }}
+          aria-hidden
+        />
         {label}
         <ChevronDown size={10} strokeWidth={2.5} aria-hidden />
       </button>
@@ -83,7 +90,7 @@ export default function LeadStageBadge({
         ? createPortal(
             <div
               ref={menuRef}
-              className="fixed z-[120] min-w-[170px] overflow-hidden rounded-xl border border-black/[0.08] bg-white py-1 shadow-clay-lg"
+              className="fixed z-40 min-w-[170px] overflow-hidden rounded-xl border border-black/[0.08] bg-white py-1 shadow-clay-lg"
               style={
                 menuPos
                   ? { top: menuPos.top, left: menuPos.left }

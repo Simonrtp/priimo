@@ -1,16 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarDays, ExternalLink, Link2Off, Mail, Megaphone } from 'lucide-react';
+import { CalendarDays, ExternalLink, Link2Off, Megaphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
-
-type GmailStatus = {
-  connected: boolean;
-  gmailAddress?: string;
-  etat?: string;
-  dernierErreur?: string | null;
-};
 
 type CalendarStatus = {
   connected: boolean;
@@ -21,23 +14,17 @@ type CalendarStatus = {
 };
 
 /**
- * Connexions portails + Gmail.
+ * Connexions portails + Google Agenda.
  * Rappelle clairement que les abonnements portails restent à la charge de l'agence.
  */
 export default function SectionIntegrations() {
   const { isDirector } = useUser();
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-  const [gmail, setGmail] = useState<GmailStatus | null>(null);
   const [agenda, setAgenda] = useState<CalendarStatus | null>(null);
 
   async function loadStatus() {
     try {
-      const [gmailRes, calRes] = await Promise.all([
-        fetch('/api/dashboard/integrations/gmail/status'),
-        fetch('/api/dashboard/integrations/calendar/status'),
-      ]);
-      if (gmailRes.ok) setGmail((await gmailRes.json()) as GmailStatus);
+      const calRes = await fetch('/api/dashboard/integrations/calendar/status');
       if (calRes.ok) setAgenda((await calRes.json()) as CalendarStatus);
     } catch {
       /* ignore */
@@ -47,15 +34,7 @@ export default function SectionIntegrations() {
   useEffect(() => {
     void loadStatus();
     const params = new URLSearchParams(window.location.search);
-    const gmailFlag = params.get('gmail');
     const agendaFlag = params.get('agenda');
-    if (gmailFlag === 'connected') toast.success('Gmail connecté');
-    else if (gmailFlag === 'watch_error') {
-      toast.success('Gmail connecté — watch Pub/Sub à finaliser');
-    } else if (gmailFlag === 'denied') toast.error('Connexion Gmail refusée');
-    else if (gmailFlag === 'error' || gmailFlag === 'invalid_state') {
-      toast.error('Connexion Gmail impossible');
-    }
     if (agendaFlag === 'connected') toast.success('Google Agenda connecté');
     else if (agendaFlag === 'denied') toast.error('Connexion Agenda refusée');
     else if (agendaFlag === 'auth_required') {
@@ -65,31 +44,11 @@ export default function SectionIntegrations() {
     } else if (agendaFlag === 'error' || agendaFlag === 'not_configured') {
       toast.error('Connexion Agenda impossible');
     }
-    if (!gmailFlag && !agendaFlag) return;
+    if (!agendaFlag) return;
     const url = new URL(window.location.href);
-    url.searchParams.delete('gmail');
     url.searchParams.delete('agenda');
     window.history.replaceState({}, '', url.pathname + url.search);
   }, []);
-
-  async function connectGmail() {
-    setBusy(true);
-    setNote(null);
-    try {
-      const res = await fetch('/api/dashboard/integrations/gmail/start');
-      const data = (await res.json()) as { url?: string; note?: string; error?: string };
-      if (data.note) setNote(data.note);
-      if (!res.ok || !data.url) {
-        toast.error(data.error ?? 'OAuth Gmail indisponible');
-        return;
-      }
-      window.location.href = data.url;
-    } catch {
-      toast.error('Impossible de démarrer la connexion Gmail');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function connectAgenda() {
     setBusy(true);
@@ -120,25 +79,6 @@ export default function SectionIntegrations() {
       }
       toast.success('Google Agenda déconnecté');
       setAgenda({ connected: false });
-    } catch {
-      toast.error('Déconnexion impossible');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function disconnectGmail() {
-    setBusy(true);
-    try {
-      const res = await fetch('/api/dashboard/integrations/gmail/disconnect', {
-        method: 'POST',
-      });
-      if (!res.ok) {
-        toast.error('Déconnexion impossible');
-        return;
-      }
-      toast.success('Gmail déconnecté (jeton révoqué chez Google)');
-      setGmail({ connected: false });
     } catch {
       toast.error('Déconnexion impossible');
     } finally {
@@ -185,67 +125,6 @@ export default function SectionIntegrations() {
             </div>
           </div>
         ) : null}
-
-        <div className="rounded-clay border border-black/[0.06] bg-surface p-4 shadow-clay-sm">
-          <div className="flex items-start gap-3">
-            <Mail className="mt-0.5 size-5 text-text-subtle" strokeWidth={2} aria-hidden />
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-text-strong" style={{ fontSize: 15 }}>
-                Gmail — demandes entrantes
-              </h3>
-              <p className="mt-1 text-[13px] text-text-muted">
-                Lecture seule (gmail.readonly), notifications push. Seuls les emails des domaines
-                portail en liste blanche sont ouverts — jamais le reste de la boîte.{' '}
-                <a
-                  href="/politique-de-confidentialite#donnees-issues-de-google-gmail"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-ink underline underline-offset-2"
-                >
-                  Politique de confidentialité — données Gmail
-                </a>
-              </p>
-              {note ? (
-                <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">
-                  {note}
-                </p>
-              ) : null}
-              {gmail?.connected ? (
-                <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-[13px] text-text">
-                    Connecté :{' '}
-                    <span className="font-medium tabular-nums">{gmail.gmailAddress}</span>
-                    {gmail.etat && gmail.etat !== 'actif' ? (
-                      <span className="text-text-muted"> ({gmail.etat})</span>
-                    ) : null}
-                  </p>
-                  {gmail.dernierErreur ? (
-                    <p className="text-[12.5px] text-amber-800">{gmail.dernierErreur}</p>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void disconnectGmail()}
-                    className="inline-flex w-fit items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-soft-gray/40 disabled:opacity-60"
-                  >
-                    <Link2Off size={14} strokeWidth={2} aria-hidden />
-                    {busy ? 'Déconnexion…' : 'Déconnecter (révoquer chez Google)'}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void connectGmail()}
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-soft-gray/40 disabled:opacity-60"
-                >
-                  <ExternalLink size={14} strokeWidth={2} aria-hidden />
-                  {busy ? 'Redirection…' : 'Connecter Gmail'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
 
         <div className="rounded-clay border border-black/[0.06] bg-surface p-4 shadow-clay-sm">
           <div className="flex items-start gap-3">

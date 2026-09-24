@@ -18,8 +18,6 @@ import JourParJour from './JourParJour';
 import NouvellesAdresses, { type AdresseLivree } from './NouvellesAdresses';
 import PhrasePilotageBloc from './PhrasePilotage';
 import SelecteurCollaborateur, { type MembreOption } from './SelecteurCollaborateur';
-import TacheDuMoment from './TacheDuMoment';
-import type { TodayCard } from '@/lib/today/cards';
 
 /** Une période déjà consultée est réaffichée telle quelle, sans nouvel appel. */
 type Cache = Map<string, Pilotage>;
@@ -32,9 +30,9 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
 /**
  * L'écran de pilotage.
  *
- * L'ordre n'est pas décoratif : le pense-bête à gauche du titre, la phrase
- * ensuite, les cinq cartes, les adresses à gauche de l'emploi du temps, puis
- * l'entonnoir.
+ * L'ordre n'est pas décoratif : le titre, le pense-bête juste à sa
+ * droite, le sélecteur de période au bout, la phrase ensuite, les cinq
+ * cartes, les adresses à gauche de l'emploi du temps, puis l'entonnoir.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
  * ne dépend pas de la granularité (les cartes du jour, l'emploi du temps, le
@@ -51,7 +49,6 @@ export default function AccueilPilotage({
   aujourdhui,
   penseBete,
   emploiDuTemps,
-  tache,
   secteur,
   attenteInscription,
 }: {
@@ -70,8 +67,6 @@ export default function AccueilPilotage({
   penseBete: string;
   /** L'emploi du temps, rendu par le serveur sous son propre Suspense. */
   emploiDuTemps?: ReactNode;
-  /** Ce qu'il y a à faire à cette heure-ci. */
-  tache?: TodayCard | null;
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
   secteur?: ReactNode;
   attenteInscription?: ReactNode;
@@ -172,7 +167,7 @@ export default function AccueilPilotage({
           estPeriodeCourante={vue.estPeriodeCourante}
           enCours={enCours}
           onChanger={changer}
-          gauche={<PenseBete initial={penseBete} className="w-full sm:w-[15.5rem] sm:shrink-0" />}
+          droite={<PenseBete initial={penseBete} className="w-full sm:w-[15.5rem] sm:shrink-0" />}
         />
         {membres.length > 1 ? (
           <div className="flex justify-end">
@@ -184,7 +179,6 @@ export default function AccueilPilotage({
       {attenteInscription ? (
         <Fragment key="accueil-attente">{attenteInscription}</Fragment>
       ) : null}
-      <TacheDuMoment card={tache ?? null} />
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
         <PhrasePilotageBloc phrase={phrase} />
