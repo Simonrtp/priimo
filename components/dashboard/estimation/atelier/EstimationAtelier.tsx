@@ -414,7 +414,13 @@ export default function EstimationAtelier({
         })}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+      <div
+        className={`grid gap-4 ${
+          onglet === 'rapport'
+            ? 'lg:grid-cols-[minmax(0,1fr)_minmax(12rem,14rem)]'
+            : 'lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]'
+        }`}
+      >
         <div>
           {onglet === 'client' ? (
             <OngletClient

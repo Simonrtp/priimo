@@ -4,7 +4,7 @@ import type { ExtractedPersonne } from '@/lib/notes/propositions';
 import { matchContacts, type ContactMatch, type MatchableContact } from '@/lib/notes/match';
 
 const VERB =
-  '(?:contacter|appeler|joindre|relancer|rappeler|rencontrer|voir(?:\\s+avec)?|chez|par)';
+  "(?:contacter|appeler|joindre|relancer|rappeler|rencontrer|rencontré|voir(?:\\s+avec)?|chez|par|avec|pour|vu|c['’]est|s['’]appelle|nommé)";
 const CIVILITE = '(?:m(?:me)?\\.?\\s+|monsieur\\s+|madame\\s+)?';
 const NAME_PART = "([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\\-]{1,39})";
 
@@ -12,9 +12,17 @@ const AFTER_VERB = new RegExp(
   `(?:^|[^A-Za-zÀ-ÿ])${VERB}\\s+${CIVILITE}${NAME_PART}\\s+${NAME_PART}`,
   'giu',
 );
+const AFTER_CIVILITE = new RegExp(
+  `(?:^|[^A-Za-zÀ-ÿ])(?:monsieur|madame|mademoiselle)\\s+${NAME_PART}(?:\\s+${NAME_PART})?`,
+  'giu',
+);
 const CAPITALIZED_PAIR = new RegExp(
   `\\b([A-ZÉÈÊÀÂÎÏÙÛÇ][A-Za-zÀ-ÿ'’\\-]{1,39})\\s+([A-ZÉÈÊÀÂÎÏÙÛÇ][A-Za-zÀ-ÿ'’\\-]{1,39})\\b`,
   'gu',
+);
+const ADRESSE_FR = new RegExp(
+  String.raw`\b(\d{1,4}\s*(?:bis|ter)?\s+(?:rue|avenue|av\.?|boulevard|bd\.?|impasse|place|all[ée]e|chemin|quai|cours|route|passage)\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9'’\-\s]{1,40})`,
+  'iu',
 );
 
 const GUESS_STOPWORDS = new Set([
@@ -151,10 +159,40 @@ export function guessPersonnesFromTranscript(transcript: string): ExtractedPerso
   for (const match of text.matchAll(AFTER_VERB)) {
     if (match[1] && match[2]) add(match[1], match[2], match.index ?? 0);
   }
+  for (const match of text.matchAll(AFTER_CIVILITE)) {
+    if (match[1] && match[2]) add(match[1], match[2], match.index ?? 0);
+    else if (match[1] && isNamePart(match[1])) {
+      const last = titleCaseNom(match[1].trim());
+      const key = `|${normalizeName(last)}`;
+      if (!seen.has(key) && !seen.has(`${normalizeName(last)}|`)) {
+        seen.add(key);
+        out.push({
+          personne: {
+            firstName: '',
+            lastName: last,
+            phone: null,
+            email: null,
+            type: 'autre',
+          },
+          index: match.index ?? 0,
+        });
+      }
+    }
+  }
   for (const match of text.matchAll(CAPITALIZED_PAIR)) {
     if (match[1] && match[2]) add(match[1], match[2], match.index ?? 0);
   }
   return out.sort((a, b) => a.index - b.index).map((row) => row.personne);
+}
+
+export function guessAdresseFromTranscript(transcript: string): string | null {
+  const m = transcript.match(ADRESSE_FR);
+  if (!m?.[1]) return null;
+  return m[1]
+    .replace(/\s+/g, ' ')
+    .replace(/[.,;:]+$/u, '')
+    .trim()
+    .slice(0, 240) || null;
 }
 
 export function guessPersonneFromTranscript(transcript: string): ExtractedPersonne | null {
@@ -269,6 +307,25 @@ export function matchContactsInTranscript(
       label: contact.fullName,
       confiance: 'certain',
       raison: 'telephone',
+      phone: contact.phone,
+      email: contact.email,
+      address: contact.address,
+    });
+  }
+
+  const texte = ` ${normalizeName(text)} `;
+  for (const contact of contacts) {
+    if (contact.agencyId !== agencyId || seen.has(contact.id)) continue;
+    const first = normalizeName(contact.firstName);
+    const last = normalizeName(contact.lastName);
+    if (!first || !last) continue;
+    if (!motDansTexte(texte, first) || !motDansTexte(texte, last)) continue;
+    seen.add(contact.id);
+    hits.push({
+      contactId: contact.id,
+      label: contact.fullName,
+      confiance: 'certain',
+      raison: 'nom',
       phone: contact.phone,
       email: contact.email,
       address: contact.address,

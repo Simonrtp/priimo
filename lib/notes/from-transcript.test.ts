@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   extraireTelephones,
+  guessAdresseFromTranscript,
   guessPersonneFromTranscript,
   guessPersonnesFromTranscript,
   matchContactsInTranscript,
@@ -81,6 +82,20 @@ describe('guessPersonneFromTranscript', () => {
     assert.equal(guessPersonneFromTranscript('Il faut contacter le propriétaire'), null);
   });
 
+  it('lit un nom après monsieur, même en minuscules', () => {
+    const guessed = guessPersonnesFromTranscript('j’ai vu monsieur martin durand ce matin');
+    assert.deepEqual(
+      guessed.map((p) => `${p.firstName} ${p.lastName}`.trim()),
+      ['Martin Durand'],
+    );
+  });
+
+  it('lit un patronyme seul après madame', () => {
+    const guessed = guessPersonneFromTranscript('à relancer madame lemoine');
+    assert.equal(guessed?.firstName, '');
+    assert.equal(guessed?.lastName, 'Lemoine');
+  });
+
   it('lit tous les noms d’une dictée, pas seulement le premier', () => {
     const guessed = guessPersonnesFromTranscript(DICTEE_AMELIE);
     assert.deepEqual(
@@ -111,6 +126,15 @@ describe('matchContactsInTranscript', () => {
     const hits = matchContactsInTranscript('Son numéro 06 11 22 33 44', [simon], 'a1');
     assert.equal(hits[0]?.confiance, 'certain');
     assert.equal(hits[0]?.raison, 'telephone');
+  });
+
+  it('rattache un contact nommé sans verbe, dictée en minuscules', () => {
+    const hits = matchContactsInTranscript(
+      'note pour simon ropiot au sujet du mobilier',
+      [simon, jean],
+      'a1',
+    );
+    assert.equal(hits[0]?.contactId, 'c-simon');
   });
 
   it('ne rattache pas une homonyme dont le nom n’est pas dit', () => {
@@ -212,6 +236,15 @@ describe('matchMembersInTranscript', () => {
     ]);
     assert.equal(hits.length, 1);
     assert.equal(hits[0]?.memberId, 'm-thomas');
+  });
+});
+
+describe('guessAdresseFromTranscript', () => {
+  it('lit une rue dictée', () => {
+    assert.equal(
+      guessAdresseFromTranscript('il habite au 12 rue de la paix à nantes'),
+      '12 rue de la paix à nantes',
+    );
   });
 });
 

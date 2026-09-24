@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { contactGeocodeQuery, geocodeToColumns, type BanGeoColumns } from '@/lib/geo/fields';
 import { mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
-import { extractNotePropositions, type NoteExtraction } from '@/lib/notes/propositions';
+import { extractNotePropositions, EMPTY_NOTE_EXTRACTION, type NoteExtraction } from '@/lib/notes/propositions';
 import { buildReviewPayload, type NoteReviewPayload } from '@/lib/notes/build-review';
+import { guessAdresseFromTranscript } from '@/lib/notes/from-transcript';
 import { requireMistralKey } from '@/lib/voice/transcribe';
 import type { ContactRow, Database } from '@/types/database';
 import type { VoiceNoteVisibilite } from '@/types/contact';
@@ -114,11 +115,33 @@ export async function extractAndBuildReview(args: {
       .eq('agency_id', args.agencyId);
   }
 
-  const { data: contactRows } = await withContactsSelect((sel) =>
-    args.admin.from('contacts').select(sel).eq('agency_id', args.agencyId).limit(400),
-  );
+  if (transcript && !extraction?.address && !args.keepAdresse) {
+    const guess = guessAdresseFromTranscript(transcript);
+    if (guess) {
+      extraction = { ...(extraction ?? EMPTY_NOTE_EXTRACTION), address: guess };
+      const query = contactGeocodeQuery(guess, null, null);
+      if (query) {
+        const columns = await geocodeToColumns(query.adresse, query.codePostal);
+        geo = { ...geo, ...columns };
+      }
+    }
+  }
+
+  const [{ data: contactRows }, { data: bienRows }] = await Promise.all([
+    withContactsSelect((sel) =>
+      args.admin.from('contacts').select(sel).eq('agency_id', args.agencyId).limit(400),
+    ),
+    args.admin
+      .from('biens')
+      .select('id, address, city')
+      .eq('agency_id', args.agencyId)
+      .limit(400),
+  ]);
 
   const contacts = ((contactRows ?? []) as unknown as ContactRow[]).map(mapDbContactToContact);
+  const biensAgence = ((bienRows ?? []) as { id: string; address: string; city: string | null }[]).map(
+    (b) => ({ id: b.id, address: b.address, city: b.city }),
+  );
 
   return buildReviewPayload({
     voiceNoteId: args.voiceNoteId,
@@ -129,5 +152,6 @@ export async function extractAndBuildReview(args: {
     contacts,
     agencyId: args.agencyId,
     geo,
+    biensAgence,
   });
 }

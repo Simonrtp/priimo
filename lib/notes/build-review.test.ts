@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildReviewPayload } from './build-review';
+import { actionsDepuisReview, buildReviewPayload } from './build-review';
 import type { Contact } from '@/types/contact';
 
 const simon = {
@@ -110,5 +110,23 @@ describe('buildReviewPayload — fallback dictée', () => {
     assert.equal(review.personnes[0]?.personne.phone, '0687712842');
     assert.equal(review.prix, 1_200_000);
     assert.equal(review.secteur, 'le Marais');
+  });
+
+  it('propose une adresse lue dans la dictée, même sans extraction', () => {
+    const review = buildReviewPayload({
+      voiceNoteId: 'n4',
+      transcript: 'j’ai vu monsieur martin durand au 12 rue de la paix',
+      visibilite: 'agence',
+      extraction: null,
+      extractFailed: true,
+      contacts: [],
+      agencyId: 'a1',
+      geo: { ban_id: null, adresse_normalisee: null, geocode_score: null },
+    });
+    assert.equal(review.personnes[0]?.personne.lastName, 'Durand');
+    assert.ok(review.immeuble?.address.toLowerCase().includes('12 rue de la paix'));
+    const actions = actionsDepuisReview(review);
+    assert.ok(actions.some((a) => a.titre.includes('Martin Durand')));
+    assert.ok(actions.some((a) => a.id === 'immeuble'));
   });
 });

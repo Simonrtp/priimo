@@ -4,6 +4,7 @@ import { normalizeName } from '@/lib/import/normalize';
 import { confianceImmeuble, matchContacts, type ContactMatch } from '@/lib/notes/match';
 import {
   extraireTelephones,
+  guessAdresseFromTranscript,
   guessPersonnesFromTranscript,
   matchContactsInTranscript,
   personneFromMatch,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/notes/from-transcript';
 import type { ExtractedPersonne, ExtractedRelance, ExtractedPromesse, ExtractedRendezVous, ExtractedVisite, NoteExtraction } from '@/lib/notes/propositions';
 import { lignesFicheNote, relanceAtFromJours } from '@/lib/notes/propositions';
+import { biensCitesDansTexte } from '@/lib/notes/rattacher-catalogue';
 
 export type PersonneProposal = {
   id: string;
@@ -37,6 +39,17 @@ export type PromesseProposal = ExtractedPromesse & { accepted: boolean };
 export type RendezVousProposal = ExtractedRendezVous & { accepted: boolean };
 export type VisiteProposal = ExtractedVisite & { accepted: boolean };
 
+export type BienProposal = {
+  id: string;
+  label: string;
+};
+
+export type ActionProposee = {
+  id: string;
+  titre: string;
+  detail: string | null;
+};
+
 export type NoteReviewPayload = {
   voiceNoteId: string;
   transcript: string | null;
@@ -45,6 +58,7 @@ export type NoteReviewPayload = {
   extractFailed: boolean;
   personnes: PersonneProposal[];
   immeuble: ImmeubleProposal | null;
+  biens: BienProposal[];
   relance: RelanceProposal | null;
   promesse: PromesseProposal | null;
   rendezVous: RendezVousProposal | null;
@@ -69,6 +83,7 @@ export function emptyReviewPayload(
     extractFailed: false,
     personnes: [],
     immeuble: null,
+    biens: [],
     relance: null,
     promesse: null,
     rendezVous: null,
@@ -97,6 +112,7 @@ export function buildReviewPayload(args: {
     adresse_normalisee: string | null;
     geocode_score: number | null;
   };
+  biensAgence?: readonly { id: string; address: string; city?: string | null }[];
 }): NoteReviewPayload {
   const extraction = args.extraction;
   const cited = args.transcript?.trim() ?? '';
@@ -141,10 +157,23 @@ export function buildReviewPayload(args: {
     for (const p of personnes) {
       p.personne = rattacherTelephonePersonne(p.personne, telephones);
     }
+    if (telephones[0] && personnes.length === 0) {
+      const phone = telephones[0];
+      personnes.push({
+        id: 'p-tel',
+        personne: { firstName: '', lastName: '', phone, email: null, type: 'autre' },
+        matches: matchContacts(
+          { firstName: '', lastName: '', phone, email: null },
+          args.contacts,
+          args.agencyId,
+        ),
+      });
+    }
   }
 
   let immeuble: ImmeubleProposal | null = null;
-  const address = extraction?.address ?? args.geo.adresse_normalisee;
+  const address =
+    extraction?.address ?? guessAdresseFromTranscript(cited) ?? args.geo.adresse_normalisee;
   if (address) {
     const score = args.geo.geocode_score;
     immeuble = {
@@ -179,6 +208,7 @@ export function buildReviewPayload(args: {
     extractFailed: args.extractFailed,
     personnes,
     immeuble,
+    biens: cited ? biensCitesDansTexte(cited, args.biensAgence ?? []) : [],
     relance,
     promesse: extraction?.promesse ? { ...extraction.promesse, accepted: true } : null,
     rendezVous: extraction?.rendezVous ? { ...extraction.rendezVous, accepted: true } : null,
@@ -189,4 +219,56 @@ export function buildReviewPayload(args: {
     surface,
     secteur,
   };
+}
+
+export function actionsDepuisReview(review: NoteReviewPayload): ActionProposee[] {
+  const out: ActionProposee[] = [];
+  for (const p of review.personnes) {
+    const match = p.matches[0];
+    const nom =
+      match?.label ||
+      [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
+      p.personne.phone ||
+      'Contact';
+    if (match) {
+      out.push({
+        id: `relier-${match.contactId}`,
+        titre: `Rattacher à ${nom}`,
+        detail: 'Déjà dans l’agence',
+      });
+    } else {
+      out.push({
+        id: `creer-${p.id}`,
+        titre: `Créer le contact ${nom}`,
+        detail: p.personne.phone,
+      });
+    }
+  }
+  for (const bien of review.biens) {
+    out.push({
+      id: `bien-${bien.id}`,
+      titre: 'Rattacher au bien',
+      detail: bien.label,
+    });
+  }
+  if (review.immeuble) {
+    out.push({
+      id: 'immeuble',
+      titre: 'Rattacher à l’adresse',
+      detail: review.immeuble.adresseNormalisee ?? review.immeuble.address,
+    });
+  }
+  if (review.relance) {
+    out.push({ id: 'relance', titre: review.relance.libelle, detail: null });
+  }
+  if (review.promesse?.accepted) {
+    out.push({ id: 'promesse', titre: `Promesse · ${review.promesse.intitule}`, detail: null });
+  }
+  if (review.rendezVous?.accepted) {
+    out.push({ id: 'rdv', titre: `Rendez-vous · ${review.rendezVous.type}`, detail: null });
+  }
+  if (review.visite?.accepted) {
+    out.push({ id: 'visite', titre: 'Visite effectuée', detail: review.visite.retour });
+  }
+  return out;
 }

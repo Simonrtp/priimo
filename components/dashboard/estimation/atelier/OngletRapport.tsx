@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, GripVertical, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, Trash2 } from 'lucide-react';
 import {
   DndContext,
   KeyboardSensor,
@@ -78,6 +78,8 @@ export default function OngletRapport({
   const [exportEnCours, setExportEnCours] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const feuillesRef = useRef<Map<string, HTMLElement>>(new Map());
   const couleursTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEtatChangeRef = useRef(onEtatChange);
   onEtatChangeRef.current = onEtatChange;
@@ -151,8 +153,33 @@ export default function OngletRapport({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const courante = pages[index] ?? null;
   const vide = pages.length === 0;
+
+  const allerALaPage = useCallback((i: number) => {
+    setIndex(i);
+    const id = pages[i]?.id;
+    const feuille = id ? feuillesRef.current.get(id) : null;
+    feuille?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [pages]);
+
+  useEffect(() => {
+    const racine = viewerRef.current;
+    if (!racine || pages.length === 0) return;
+    const obs = new IntersectionObserver(
+      (entrees) => {
+        const vue = entrees
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!vue) return;
+        const id = (vue.target as HTMLElement).dataset.pageId;
+        const i = pages.findIndex((p) => p.id === id);
+        if (i >= 0) setIndex(i);
+      },
+      { root: racine, threshold: 0.55 },
+    );
+    for (const el of feuillesRef.current.values()) obs.observe(el);
+    return () => obs.disconnect();
+  }, [pages]);
 
   function publierEtat(nextPages: PageRapportComposee[]) {
     onEtatChangeRef.current?.({
@@ -437,8 +464,8 @@ export default function OngletRapport({
         onChange={(e) => void importer(e.target.files?.[0])}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
-        <div className="rounded-clay border border-black/[0.06] bg-surface p-2">
+      <div className="grid gap-4 lg:grid-cols-[minmax(11.5rem,14rem)_minmax(0,1fr)]">
+        <div className="rounded-clay border border-black/[0.06] bg-surface p-2 lg:sticky lg:top-2 lg:max-h-[min(80dvh,56rem)] lg:overflow-y-auto">
           {chargement ? (
             <div className="h-40 animate-pulse rounded-clay bg-black/[0.04]" aria-hidden />
           ) : pages.length === 0 ? (
@@ -455,7 +482,7 @@ export default function OngletRapport({
                       page={p}
                       index={i}
                       active={i === index}
-                      onSelect={() => setIndex(i)}
+                      onSelect={() => allerALaPage(i)}
                       onDelete={() => setPending(p)}
                     />
                   ))}
@@ -465,52 +492,62 @@ export default function OngletRapport({
           )}
         </div>
 
-        <div>
+        <div className="min-w-0">
           {agence && agent ? (
-            <PageRapport
-              agence={agence}
-              agent={agent}
-              bien={bien}
-              dateIso={dateIso}
-              page={pages.length === 0 ? 1 : index + 1}
-              pages={Math.max(pages.length, 1)}
-              sansChrome={courante?.kind === 'generee'}
+            <div
+              ref={viewerRef}
+              className="max-h-[min(80dvh,56rem)] overflow-y-auto rounded-clay bg-[#E4E0D8] px-3 py-5 sm:px-5"
+              aria-label="Aperçu du rapport"
             >
-              <ApercuPageComposee
-                page={courante}
-                accent={normaliserCouleurPrincipale(agence.couleurPrincipale)}
-                dossier={dossier}
-              />
-            </PageRapport>
+              {vide ? (
+                <PageRapport
+                  agence={agence}
+                  agent={agent}
+                  bien={bien}
+                  dateIso={dateIso}
+                  page={1}
+                  pages={1}
+                >
+                  <ApercuPageComposee
+                    page={null}
+                    accent={normaliserCouleurPrincipale(agence.couleurPrincipale)}
+                    dossier={dossier}
+                  />
+                </PageRapport>
+              ) : (
+                <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+                  {pages.map((p, i) => (
+                    <div
+                      key={p.id}
+                      data-page-id={p.id}
+                      ref={(el) => {
+                        if (el) feuillesRef.current.set(p.id, el);
+                        else feuillesRef.current.delete(p.id);
+                      }}
+                    >
+                      <PageRapport
+                        agence={agence}
+                        agent={agent}
+                        bien={bien}
+                        dateIso={dateIso}
+                        page={i + 1}
+                        pages={pages.length}
+                        sansChrome={p.kind === 'generee'}
+                      >
+                        <ApercuPageComposee
+                          page={p}
+                          accent={normaliserCouleurPrincipale(agence.couleurPrincipale)}
+                          dossier={dossier}
+                        />
+                      </PageRapport>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="aspect-[297/210] animate-pulse rounded-clay bg-black/[0.04]" aria-hidden />
           )}
-
-          {pages.length > 1 ? (
-            <div className="mt-3 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                className="inline-flex size-11 items-center justify-center rounded-clay border border-black/[0.08] bg-surface text-text hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
-                aria-label="Page précédente"
-                disabled={index === 0}
-                onClick={() => setIndex((i) => Math.max(0, i - 1))}
-              >
-                <ChevronLeft size={18} strokeWidth={2} aria-hidden />
-              </button>
-              <p className="min-w-[4rem] text-center text-[13px] tabular-nums text-text-muted">
-                {index + 1} / {pages.length}
-              </p>
-              <button
-                type="button"
-                className="inline-flex size-11 items-center justify-center rounded-clay border border-black/[0.08] bg-surface text-text hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
-                aria-label="Page suivante"
-                disabled={index >= pages.length - 1}
-                onClick={() => setIndex((i) => Math.min(pages.length - 1, i + 1))}
-              >
-                <ChevronRight size={18} strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-          ) : null}
 
           <div className="mt-4 flex flex-col gap-3">
             <div>

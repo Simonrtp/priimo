@@ -66,7 +66,7 @@ export type NoteExtraction = {
   visite: ExtractedVisite | null;
 };
 
-const EMPTY: NoteExtraction = {
+export const EMPTY_NOTE_EXTRACTION: NoteExtraction = {
   personnes: [],
   address: null,
   secteur: null,
@@ -292,7 +292,7 @@ export function parseNoteExtraction(raw: string, refDate = new Date()): NoteExtr
   try {
     parsed = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    return { ...EMPTY, personnes: [] };
+    return { ...EMPTY_NOTE_EXTRACTION, personnes: [] };
   }
 
   const personnesRaw = Array.isArray(parsed.personnes)
@@ -421,7 +421,7 @@ export async function extractNotePropositions(
   noteDate = new Date(),
 ): Promise<NoteExtraction> {
   const trimmed = transcript.trim();
-  if (trimmed.length < MIN_TRANSCRIPT_CHARS) return { ...EMPTY, personnes: [] };
+  if (trimmed.length < MIN_TRANSCRIPT_CHARS) return { ...EMPTY_NOTE_EXTRACTION, personnes: [] };
 
   const capped =
     trimmed.length > MAX_TRANSCRIPT_CHARS ? trimmed.slice(0, MAX_TRANSCRIPT_CHARS) : trimmed;

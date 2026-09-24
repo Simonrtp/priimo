@@ -15,9 +15,16 @@ import { inferDernierEtage, numeroEtage, optionsEtage, optionsEtagesImmeuble } f
 import { optionsQualiteEmplacement } from '@/lib/estimation/qualite-emplacement';
 import { optionsNiveaux } from '@/lib/estimation/niveaux';
 import { optionsSousType } from '@/lib/estimation/sous-types';
-import { suggestionsPoints } from '@/lib/estimation/suggestions';
-import type { EstimationAnnexe, EstimationBien, EstimationObjet, EstimationPhoto } from '@/lib/estimation/objet';
-import { nombreSaisi, nombreStrictementPositif } from '@/lib/estimation/objet';
+import {
+  nombreSaisi,
+  nombreStrictementPositif,
+  pointsVersTexte,
+  texteVersPoints,
+  type EstimationAnnexe,
+  type EstimationBien,
+  type EstimationObjet,
+} from '@/lib/estimation/objet';
+import ZoneDepotPhotos from './ZoneDepotPhotos';
 import type { EstimationVoiceField } from '@/lib/estimation/voice-extract';
 
 const DPE = ['', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
@@ -133,23 +140,6 @@ export default function OngletBien({
     onClearPending('annexes');
     onPatch({ annexes: estimation.annexes.filter((a) => a.id !== id) });
   }
-
-  const suggestions = suggestionsPoints({
-    dpeClass: estimation.dpeClass,
-    occupation: estimation.occupation,
-    bien,
-    floor: estimation.floor,
-    hasParking: estimation.annexes.some((a) => /parking|garage|box/i.test(a.libelle)),
-  });
-  const textesSuggestions = new Set(suggestions.map((s) => s.texte));
-  const pointsHorsSuggestions = [
-    ...estimation.pointsForts
-      .filter((t) => !textesSuggestions.has(t))
-      .map((texte) => ({ texte, sens: 'fort' as const })),
-    ...estimation.pointsFaibles
-      .filter((t) => !textesSuggestions.has(t))
-      .map((texte) => ({ texte, sens: 'faible' as const })),
-  ];
 
   return (
     <div className="flex flex-col gap-3">
@@ -586,100 +576,38 @@ export default function OngletBien({
         </div>
       </SectionRepliable>
 
-      <SectionRepliable titre="Photos et plan">
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="text-[13px]"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const form = new FormData();
-            form.set('file', file);
-            const res = await fetch('/api/dashboard/biens/photos', { method: 'POST', body: form });
-            const data = (await res.json()) as { url?: string };
-            if (data.url) {
-              const photo: EstimationPhoto = { url: data.url, kind: 'photo' };
-              onPatch({ photos: [...estimation.photos, photo] });
-            }
-            e.target.value = '';
-          }}
+      <SectionRepliable titre="Photos et plan" ouvertDefaut>
+        <ZoneDepotPhotos
+          photos={estimation.photos}
+          onChange={(photos) => onPatch({ photos })}
         />
-        {estimation.photos.length > 0 ? (
-          <ul className="mt-3 grid grid-cols-3 gap-2">
-            {estimation.photos.map((p) => (
-              <li key={p.url} className="flex flex-col gap-1">
-                <img src={p.url} alt="" className="h-24 w-full rounded-clay object-cover" />
-                {p.kind === 'photo' ? (
-                  <button
-                    type="button"
-                    className="min-h-9 text-[12px] text-text-muted hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    onClick={() =>
-                      onPatch({
-                        photos: estimation.photos.map((x) => ({
-                          ...x,
-                          couverture: x.url === p.url,
-                        })),
-                      })
-                    }
-                  >
-                    {p.couverture ? 'Photo de couverture' : 'Choisir en couverture'}
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </SectionRepliable>
 
-      <SectionRepliable titre="Points forts et points faibles">
-        <ul className="flex flex-col gap-1.5">
-          {suggestions.map((s) => {
-            const liste = s.sens === 'fort' ? estimation.pointsForts : estimation.pointsFaibles;
-            const deja = liste.includes(s.texte);
-            const field = s.sens === 'fort' ? 'pointsForts' : 'pointsFaibles';
-            return (
-              <li key={s.id}>
-                <label className="flex min-h-11 items-center gap-2 text-[13.5px]">
-                  <input
-                    type="checkbox"
-                    checked={deja}
-                    onChange={() => {
-                      const next = deja ? liste.filter((x) => x !== s.texte) : [...liste, s.texte];
-                      edit(field, s.sens === 'fort' ? { pointsForts: next } : { pointsFaibles: next });
-                    }}
-                  />
-                  <span>{s.texte}</span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-        {pointsHorsSuggestions.length > 0 ? (
-          <ul className="mt-3 flex flex-col gap-1.5">
-            {pointsHorsSuggestions.map((s) => {
-              const field = s.sens === 'fort' ? 'pointsForts' : 'pointsFaibles';
-              const liste = s.sens === 'fort' ? estimation.pointsForts : estimation.pointsFaibles;
-              return (
-                <li key={`${s.sens}-${s.texte}`}>
-                  <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field={field}>
-                    <label className="flex min-h-11 items-center gap-2 text-[13.5px]">
-                      <input
-                        type="checkbox"
-                        checked
-                        onChange={() => {
-                          const next = liste.filter((x) => x !== s.texte);
-                          edit(field, s.sens === 'fort' ? { pointsForts: next } : { pointsFaibles: next });
-                        }}
-                      />
-                      <span>{s.texte}</span>
-                    </label>
-                  </Propose>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
+      <SectionRepliable titre="Positif et négatif">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="pointsForts">
+            <Field label="Positif" htmlFor="est-positif" hint="Un point par ligne">
+              <ZoneSaisie
+                id="est-positif"
+                rows={4}
+                placeholder="Lumineux, dernier étage…"
+                value={pointsVersTexte(estimation.pointsForts)}
+                onCommit={(raw) => edit('pointsForts', { pointsForts: texteVersPoints(raw) })}
+              />
+            </Field>
+          </Propose>
+          <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="pointsFaibles">
+            <Field label="Négatif" htmlFor="est-negatif" hint="Un point par ligne">
+              <ZoneSaisie
+                id="est-negatif"
+                rows={4}
+                placeholder="Rez-de-chaussée, travaux…"
+                value={pointsVersTexte(estimation.pointsFaibles)}
+                onCommit={(raw) => edit('pointsFaibles', { pointsFaibles: texteVersPoints(raw) })}
+              />
+            </Field>
+          </Propose>
+        </div>
       </SectionRepliable>
 
       <SectionRepliable titre="Commentaires confidentiels">

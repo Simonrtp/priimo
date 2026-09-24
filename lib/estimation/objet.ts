@@ -177,6 +177,17 @@ export function parseListe(raw: unknown): string[] {
   return raw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
 }
 
+export function texteVersPoints(raw: string): string[] {
+  return raw
+    .split(/\r?\n/)
+    .map((s) => s.replace(/^[\s]*[-•*]\s*/, '').trim())
+    .filter((s) => s.length > 0);
+}
+
+export function pointsVersTexte(points: string[]): string {
+  return points.join('\n');
+}
+
 export type EstimationObjet = {
   id: string;
   agencyId: string;

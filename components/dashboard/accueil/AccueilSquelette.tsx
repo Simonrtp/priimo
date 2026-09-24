@@ -260,7 +260,7 @@ export function EnteteSquelette({
         <p className="mt-0.5 text-[13px] text-text-muted">{intervalle}</p>
       </div>
       <div
-        className="order-2 w-full rounded-clay-lg px-3.5 py-2 shadow-clay-sm sm:order-none sm:w-[15.5rem] sm:shrink-0"
+        className="order-2 w-full rounded-clay-lg px-3.5 pb-3 pt-2 shadow-clay-sm sm:order-none sm:w-[15.5rem] sm:shrink-0"
         style={{ backgroundColor: ACCUEIL.creme }}
         aria-hidden
       >

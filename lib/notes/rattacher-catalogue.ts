@@ -34,6 +34,59 @@ export function normaliserRecherche(q: string): string {
     .trim();
 }
 
+const MOTS_VOIE = new Set([
+  'rue',
+  'avenue',
+  'av',
+  'boulevard',
+  'bd',
+  'impasse',
+  'place',
+  'allee',
+  'chemin',
+  'quai',
+  'cours',
+  'route',
+  'passage',
+  'de',
+  'du',
+  'des',
+  'la',
+  'le',
+  'les',
+]);
+
+export function biensCitesDansTexte(
+  transcript: string,
+  biens: readonly { id: string; address: string; city?: string | null }[],
+): { id: string; label: string }[] {
+  const texte = normaliserRecherche(transcript);
+  if (texte.length < 6) return [];
+  const out: { id: string; label: string }[] = [];
+  for (const bien of biens) {
+    const adr = normaliserRecherche(bien.address);
+    if (adr.length < 6) continue;
+    if (texte.includes(adr)) {
+      out.push({ id: bien.id, label: bien.address });
+      continue;
+    }
+    const num = adr.match(/^\d+/);
+    const ville = normaliserRecherche(bien.city ?? '');
+    const motsRue = adr
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((m) => m.length > 2 && !MOTS_VOIE.has(m) && m !== ville);
+    if (
+      num &&
+      motsRue.length >= 1 &&
+      texte.includes(num[0]) &&
+      motsRue.every((m) => texte.includes(m))
+    ) {
+      out.push({ id: bien.id, label: bien.address });
+    }
+  }
+  return out;
+}
+
 export function filtrerCatalogue(items: RattacherItem[], query: string): RattacherItem[] {
   const needle = normaliserRecherche(query);
   if (!needle) return items;

@@ -366,7 +366,11 @@ export default function VoiceCaptureDialog({
         setExtracting(true);
         void hydrateNoteReview(data.voiceNoteId, nextTranscript)
           .then((hydrated) => {
-            if (cancelledRef.current || !hydrated) return;
+            if (cancelledRef.current) return;
+            if (!hydrated) {
+              notifyError('La lecture n’a pas abouti. Touchez Mettre à jour.');
+              return;
+            }
             setReview(hydrated);
           })
           .finally(() => {

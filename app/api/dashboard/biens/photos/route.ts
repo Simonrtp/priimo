@@ -5,7 +5,9 @@ import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import {
   BIEN_PHOTOS_BUCKET,
   BIEN_PHOTO_MAX_BYTES,
+  estBlobRecu,
   extensionForBienPhoto,
+  resoudreMimePhoto,
 } from '@/lib/bien-photos';
 
 export const runtime = 'nodejs';
@@ -34,15 +36,19 @@ export async function POST(req: Request) {
   }
 
   const file = form.get('file');
-  if (!(file instanceof Blob) || file.size === 0) {
+  if (!estBlobRecu(file) || file.size === 0) {
     return NextResponse.json({ error: 'Aucune photo reçue' }, { status: 400 });
   }
   if (file.size > BIEN_PHOTO_MAX_BYTES) {
     return NextResponse.json({ error: 'Photo trop lourde (8 Mo maximum)' }, { status: 413 });
   }
 
-  const mime = (file.type || '').split(';')[0]?.trim() ?? '';
-  const ext = extensionForBienPhoto(mime);
+  const entete = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const resolu = resoudreMimePhoto(file.type || '', entete);
+  if ('error' in resolu) {
+    return NextResponse.json({ error: resolu.error }, { status: 415 });
+  }
+  const ext = extensionForBienPhoto(resolu.mime);
   if (!ext) {
     return NextResponse.json({ error: 'Formats acceptés : JPEG, PNG, WebP' }, { status: 415 });
   }
@@ -50,7 +56,7 @@ export async function POST(req: Request) {
   const path = `${agency.id}/${crypto.randomUUID()}.${ext}`;
   const admin = createSupabaseAdminClient();
   const { error: uploadError } = await admin.storage.from(BIEN_PHOTOS_BUCKET).upload(path, file, {
-    contentType: mime,
+    contentType: resolu.mime,
     upsert: false,
   });
 

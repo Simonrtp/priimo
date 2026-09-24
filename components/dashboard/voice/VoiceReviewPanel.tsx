@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
-import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
+import {
+  actionsDepuisReview,
+  type NoteReviewPayload,
+  type PersonneProposal,
+} from '@/lib/notes/build-review';
 import { formatPhoneOrNull, normalizeName, telHref } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
 import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
@@ -269,6 +273,22 @@ export default function VoiceReviewPanel({
     return review.personnes.filter((p) => !hiddenIds.includes(p.id) && !isConseillerPersonne(p));
   }
 
+  function personneVisible(p: PersonneProposal): boolean {
+    return Boolean(
+      p.matches.length > 0 ||
+        p.personne.firstName.trim() ||
+        p.personne.lastName.trim() ||
+        p.personne.phone,
+    );
+  }
+
+  const actions = actionsDepuisReview({
+    ...review,
+    personnes: visiblePersonnes().filter(personneVisible),
+    biens: review.biens.filter((b) => !hiddenIds.includes(`bien-${b.id}`)),
+    immeuble: hiddenIds.includes('immeuble') ? null : review.immeuble,
+  });
+
   function selectedMatchFor(p: PersonneProposal): ContactMatch | null {
     if (deselectedIds.includes(p.id)) return null;
     const chosen = chosenMatch[p.id];
@@ -438,7 +458,7 @@ export default function VoiceReviewPanel({
 
     if (p.matches.length > 0) return null;
 
-    if (hasName) return createContact(p, fiche, summary);
+    if (hasName || p.personne.phone) return createContact(p, fiche, summary);
     return null;
   }
 
@@ -493,6 +513,14 @@ export default function VoiceReviewPanel({
             // Le rattachement pourra être repris depuis la fiche note.
           }
         }
+        for (const bien of snap.biens ?? []) {
+          if (hiddenIds.includes(`bien-${bien.id}`)) continue;
+          try {
+            await addLien('bien', bien.id, 'probable');
+          } catch {
+            // Le bien pourra être rattaché depuis la fiche note.
+          }
+        }
       } catch (err) {
         console.error('[voice] contact', err);
         notifyError(
@@ -512,7 +540,7 @@ export default function VoiceReviewPanel({
             // Non bloquant.
           }
         }
-        if (snap.immeuble?.banId && snap.immeuble.confiance) {
+        if (snap.immeuble?.banId && snap.immeuble.confiance && !hiddenIds.includes('immeuble')) {
           try {
             await addLien('immeuble', snap.immeuble.banId, snap.immeuble.confiance);
           } catch {
@@ -667,7 +695,7 @@ export default function VoiceReviewPanel({
               className="font-semibold uppercase text-text-subtle"
               style={{ fontSize: 11, letterSpacing: '0.08em' }}
             >
-              Ce qui sera enregistré
+              À valider
             </h3>
             {/* Sans ce repère, l'agent croit le formulaire vide et ressaisit à
                 la main ce que la lecture est en train de remplir. */}
@@ -685,8 +713,58 @@ export default function VoiceReviewPanel({
           <div className="flex flex-col gap-5">
             <NoteAncrage parcelleId={parcelleId} adresse={adresse} />
 
+            {!extracting && actions.length > 0 ? (
+              <ol className="flex flex-col gap-2">
+                {actions.map((action) => (
+                  <li
+                    key={action.id}
+                    className="flex items-start justify-between gap-3 rounded-clay border border-black/[0.08] bg-surface px-3.5 py-3"
+                  >
+                    <span className="min-w-0">
+                      <p className="text-pretty text-[14px] font-semibold text-text-strong">{action.titre}</p>
+                      {action.detail ? (
+                        <p className="mt-0.5 text-pretty text-[12.5px] text-text-muted">{action.detail}</p>
+                      ) : null}
+                    </span>
+                    {action.id === 'immeuble' ||
+                    action.id.startsWith('bien-') ||
+                    action.id.startsWith('creer-') ||
+                    action.id.startsWith('relier-') ? (
+                      <button
+                        type="button"
+                        disabled={locked}
+                        aria-label={`Retirer : ${action.titre}`}
+                        onClick={() => {
+                          if (action.id.startsWith('creer-')) {
+                            dismissPersonne(action.id.slice('creer-'.length));
+                            return;
+                          }
+                          if (action.id.startsWith('relier-')) {
+                            const contactId = action.id.slice('relier-'.length);
+                            const p = visiblePersonnes().find((x) => x.matches[0]?.contactId === contactId);
+                            if (p) dismissPersonne(p.id);
+                            return;
+                          }
+                          dismissPersonne(action.id);
+                        }}
+                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+                      >
+                        <X size={16} strokeWidth={2} aria-hidden />
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+
+            {!extracting && actions.length === 0 ? (
+              <p className="text-pretty text-[13.5px] text-text-muted">
+                Aucune action détectée. Valider enregistrera la note seule.
+              </p>
+            ) : null}
+
             {visiblePersonnes()
-              .filter((p) => p.matches.length > 0 || p.personne.firstName.trim() || p.personne.lastName.trim())
+              .filter(personneVisible)
               .map((p) => (
                 <ContactFiche
                   key={p.id}
@@ -906,8 +984,8 @@ export default function VoiceReviewPanel({
       </div>
 
       <footer className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-black/[0.06] px-5 py-4 sm:px-6 lg:px-8 lg:py-5">
-        <WorkspaceButton type="button" onClick={terminer} disabled={locked}>
-          {terminating ? 'Validation…' : 'Terminer'}
+        <WorkspaceButton type="button" onClick={terminer} disabled={locked || extracting}>
+          {terminating ? 'Validation…' : extracting ? 'Lecture…' : 'Valider'}
         </WorkspaceButton>
       </footer>
     </>

@@ -70,7 +70,7 @@ export default function PenseBete({
     <div className={`min-w-0 ${className}`}>
       <div
         className={`flex h-full flex-col rounded-clay-lg shadow-clay-sm focus-within:ring-2 focus-within:ring-accent/20 ${
-          remplir ? 'px-4 py-4' : 'px-3.5 py-2 sm:px-4'
+          remplir ? 'px-4 py-4' : 'px-3.5 pt-2 pb-3 sm:px-4'
         }`}
         style={{ backgroundColor: ACCUEIL.creme }}
       >

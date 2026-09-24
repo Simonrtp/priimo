@@ -28,10 +28,12 @@ import type { PageBibliotheque } from '@/lib/rapport/pages';
 import {
   KINDS_GABARIT_V2,
   LIBELLE_KIND_GENEREE,
+  type KindGeneree,
   type SlotModele,
 } from '@/lib/rapport/modele-defaut';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import ApercuPageRapport from './ApercuPageRapport';
 
 type SlotVue = SlotModele & { nom: string; key: string };
 
@@ -337,39 +339,60 @@ function LigneSlot({
     transition: sortable.transition,
     opacity: sortable.isDragging ? 0.45 : 1,
   };
+  const kind: KindGeneree | 'bibliotheque' =
+    slot.source === 'generee' ? slot.kindGeneree : 'bibliotheque';
+  const ouvert = !sortable.isDragging;
   return (
     <li
       ref={sortable.setNodeRef}
       style={style}
-      className="flex items-center gap-2 rounded-lg border border-black/8 bg-white px-2 py-2"
+      className="group/page relative z-0 rounded-lg border border-black/8 bg-white transition-shadow duration-fluid-subtle hover:z-20 hover:shadow-clay-sm focus-within:z-20"
     >
-      {lectureSeule ? (
-        <span className="size-11 shrink-0" aria-hidden />
-      ) : (
-        <button
-          type="button"
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04]"
-          aria-label={`Déplacer ${slot.nom}`}
-          {...sortable.attributes}
-          {...sortable.listeners}
-        >
-          <GripVertical size={16} strokeWidth={2} aria-hidden />
-        </button>
-      )}
-      <span className="min-w-0 flex-1 truncate py-1 text-[13.5px] text-ink">
-        <span className="mr-1.5 tabular-nums text-mute">{index + 1}.</span>
-        {slot.nom}
-      </span>
-      {onDelete ? (
-        <button
-          type="button"
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-red-700"
-          aria-label={`Retirer ${slot.nom} du modèle`}
-          onClick={onDelete}
-        >
-          <X size={16} strokeWidth={2} aria-hidden />
-        </button>
-      ) : null}
+      <div className="flex items-center gap-2 px-2 py-2">
+        {lectureSeule ? (
+          <span className="size-11 shrink-0" aria-hidden />
+        ) : (
+          <button
+            type="button"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04]"
+            aria-label={`Déplacer ${slot.nom}`}
+            {...sortable.attributes}
+            {...sortable.listeners}
+          >
+            <GripVertical size={16} strokeWidth={2} aria-hidden />
+          </button>
+        )}
+        <span className="min-w-0 flex-1 truncate py-1 text-[13.5px] text-ink">
+          <span className="mr-1.5 tabular-nums text-mute">{index + 1}.</span>
+          {slot.nom}
+        </span>
+        {onDelete ? (
+          <button
+            type="button"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-mute hover:bg-black/[0.04] hover:text-red-700"
+            aria-label={`Retirer ${slot.nom} du modèle`}
+            onClick={onDelete}
+          >
+            <X size={16} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
+      </div>
+      <div
+        className={`fluid-collapse grid-rows-[0fr] ${
+          ouvert
+            ? 'group-hover/page:grid-rows-[1fr] group-focus-within/page:grid-rows-[1fr]'
+            : ''
+        }`}
+      >
+        <div>
+          <div className="flex items-start gap-4 px-3 pb-3 pt-0.5">
+            <ApercuPageRapport kind={kind} titre={slot.nom} />
+            <p className="min-w-0 flex-1 self-center text-pretty text-[12px] text-mute">
+              Aperçu de la page telle qu’elle apparaît dans l’avis.
+            </p>
+          </div>
+        </div>
+      </div>
     </li>
   );
 }

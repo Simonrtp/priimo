@@ -5,6 +5,7 @@ import {
   adressesProposeesPourContact,
   extraireCodePostal,
   fusionnerAdressesProposees,
+  biensCitesDansTexte,
   filtrerCatalogue,
   ligneRattachementContact,
   patchDepuisAdresseProposee,
@@ -24,6 +25,19 @@ describe('catalogue de rattachement', () => {
     const hits = filtrerCatalogue(items, 'durànd');
     assert.equal(hits.length, 1);
     assert.equal(hits[0]?.id, '1');
+  });
+});
+
+describe('biensCitesDansTexte', () => {
+  it('retrouve un bien dont l’adresse est dite', () => {
+    const hits = biensCitesDansTexte('passage au 12 rue de la paix ce matin', [
+      { id: 'b1', address: '12 rue de la Paix, Nantes', city: 'Nantes' },
+      { id: 'b2', address: '8 avenue Foch', city: 'Nantes' },
+    ]);
+    assert.deepEqual(
+      hits.map((h) => h.id),
+      ['b1'],
+    );
   });
 });
 

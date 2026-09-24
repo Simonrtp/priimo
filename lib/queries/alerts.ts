@@ -50,10 +50,7 @@ export async function fetchAgencyAlerts(
         kind: row.kind,
         createdByName: by,
         headline: AGENCY_ALERT_LABELS[row.kind],
-        context:
-          row.kind === 'chevauchement_zones' && row.body
-            ? row.body
-            : `Signalé par ${by}`,
+        context: `Signalé par ${by}`,
         contactId: row.contact_id,
         leadId: row.lead_id,
       });
