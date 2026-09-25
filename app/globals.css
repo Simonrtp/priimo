@@ -551,6 +551,70 @@ body {
   }
 }
 
+/* === HERO VIDEO — se redresse au scroll (transform only) === */
+.hero-video-stage {
+  perspective: 1400px;
+  perspective-origin: 50% 88%;
+}
+
+.hero-video-frame {
+  transform-origin: 50% 92%;
+  transform-style: preserve-3d;
+}
+
+@keyframes heroVideoStraighten {
+  from {
+    transform: rotateX(22deg) scale(0.92);
+  }
+  to {
+    transform: rotateX(0deg) scale(1);
+  }
+}
+
+@keyframes heroVideoStraightenMobile {
+  from {
+    transform: rotateX(14deg) scale(0.95);
+  }
+  to {
+    transform: rotateX(0deg) scale(1);
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .hero-video-frame {
+    transform: rotateX(22deg) scale(0.92);
+    animation: heroVideoStraighten linear both;
+    animation-timeline: scroll();
+    animation-range: 0px 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-video-stage {
+    perspective: 900px;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .hero-video-frame {
+      transform: rotateX(14deg) scale(0.95);
+      animation-name: heroVideoStraightenMobile;
+    }
+  }
+}
+
+@supports not (animation-timeline: scroll()) {
+  .hero-video-frame {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-video-frame {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
 /* === BUTTONS / CTA — 14px → 16px, semibold, tracking +0.01em === */
 .btn,
 .cta {
