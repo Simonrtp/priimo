@@ -81,6 +81,12 @@ const config: Config = {
           "system-ui",
           "sans-serif",
         ],
+        hero: [
+          "var(--font-hero)",
+          "var(--font-sans)",
+          "system-ui",
+          "sans-serif",
+        ],
         nunito: ["var(--font-nunito)", "Nunito", "ui-sans-serif", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
         brand: ["var(--font-brand)", "Georgia", "Times New Roman", "serif"],

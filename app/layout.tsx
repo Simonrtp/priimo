@@ -4,6 +4,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import CausioRouteGuard from "@/components/landing/CausioRouteGuard";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
+import { fontHero } from "@/lib/fonts-hero";
+import { fontNunito } from "@/lib/fonts-nunito";
 import "./globals.css";
 
 // Chromium n'émet `beforeinstallprompt` qu'une seule fois, et souvent avant que
@@ -133,7 +135,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${inter.variable} ${jakarta.variable} ${jetbrainsMono.variable} ${libreBaskerville.variable}`}
+      className={`${inter.variable} ${jakarta.variable} ${fontHero.variable} ${fontNunito.variable} ${jetbrainsMono.variable} ${libreBaskerville.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CAPTURE }} />

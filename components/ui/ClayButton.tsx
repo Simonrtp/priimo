@@ -14,7 +14,7 @@ interface ClayButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
  * et un focus clavier visible (§7.2, accessibilité).
  */
 const BASE =
-  'inline-flex items-center justify-center gap-2 rounded-clay px-5 py-3 font-semibold ' +
+  'inline-flex items-center justify-center gap-2 rounded-clay px-5 py-3 font-nunito font-semibold ' +
   'transition-[transform,box-shadow] duration-fluid-subtle ease-in-out ' +
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400 ' +
   'disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0';

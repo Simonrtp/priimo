@@ -18,7 +18,7 @@ function formatTime(seconds: number): string {
 }
 
 /** Vidéo hero : aperçu de la 1re frame, autoplay après 1,5s, contrôles manuels. */
-export default function HeroVideo({ fill = false }: { fill?: boolean }) {
+export default function HeroVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const buttonWrapRef = useRef<HTMLDivElement>(null);
@@ -391,7 +391,7 @@ export default function HeroVideo({ fill = false }: { fill?: boolean }) {
   }
 
   return (
-    <div className={fill ? "h-full w-full" : "w-full"}>
+    <div className="w-full">
       <div
         ref={containerRef}
         role="button"
@@ -401,15 +401,11 @@ export default function HeroVideo({ fill = false }: { fill?: boolean }) {
         onMouseEnter={handleContainerMouseEnter}
         onMouseLeave={handleContainerMouseLeave}
         aria-label={isPlaying ? "Mettre la démo en pause" : "Lire la démo Priimo"}
-        className={`relative w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-          fill ? "aspect-video h-full lg:aspect-auto" : "aspect-video"
-        }`}
+        className="relative aspect-video w-full cursor-pointer overflow-hidden bg-gradient-to-br from-[#f3f4fb] via-[#eef0f8] to-[#e8ebf6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <video
           ref={videoRef}
-          className={`pointer-events-none block h-full w-full transition-opacity duration-300 ${
-            fill ? "object-cover" : "object-contain"
-          } ${isReady ? "opacity-100" : "opacity-0"}`}
+          className={`pointer-events-none block h-full w-full object-contain transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
           src={VIDEO_SRC}
           width={1920}
           height={1080}

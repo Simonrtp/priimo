@@ -402,7 +402,7 @@ export default function MobileNav({ onDark = false }: { onDark?: boolean }) {
       <button
         ref={triggerRef}
         type="button"
-        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-[color,transform] duration-200 ease-out active:scale-95 lg:hidden ${NO_OUTLINE} ${
+        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-[color,transform] duration-fluid ease-soft active:scale-95 lg:hidden ${NO_OUTLINE} ${
           onDark ? "text-white hover:text-white" : "text-gray-700 hover:text-accent-dark"
         }`}
         aria-expanded={open}

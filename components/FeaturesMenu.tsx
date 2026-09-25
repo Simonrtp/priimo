@@ -59,7 +59,7 @@ export function FeaturesMenuTrigger({
     >
       <button
         type="button"
-        className={`group inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium transition-colors duration-200 hover:text-accent-dark sm:text-[15px] ${
+        className={`group inline-flex min-h-11 items-center gap-1.5 font-nunito text-[14px] font-bold transition-colors duration-fluid ease-soft hover:text-accent-dark sm:text-[15px] ${
           open ? 'text-accent-dark' : onDark ? 'text-white/90 hover:text-white' : 'text-gray-700'
         }`}
         aria-expanded={open}
