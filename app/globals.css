@@ -995,18 +995,122 @@ button {
 .landing-hero {
   background: linear-gradient(180deg, #1a2a56 0%, #1a2a56 55%, #162348 100%);
   border-bottom-right-radius: 3.25rem;
-  margin-bottom: 4rem;
+  margin-bottom: 0;
 }
 @media (min-width: 768px) {
   .landing-hero {
     border-bottom-right-radius: 4.5rem;
-    margin-bottom: 5.5rem;
   }
 }
 @media (min-width: 1024px) {
   .landing-hero {
     border-bottom-right-radius: 5.5rem;
-    margin-bottom: 7rem;
+  }
+}
+
+/* Agences clientes — grisés, couleurs au scroll */
+.agency-logos {
+  width: 100%;
+  padding: 2.25rem 1.25rem 3.25rem;
+}
+@media (min-width: 768px) {
+  .agency-logos {
+    padding: 2.75rem 2rem 4.25rem;
+  }
+}
+@media (min-width: 1024px) {
+  .agency-logos {
+    padding: 3.25rem 3rem 5.5rem;
+  }
+}
+.agency-logos-inner {
+  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  text-align: center;
+}
+.agency-logos-label {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-nunito), var(--font-body), system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1a2a56;
+}
+@media (min-width: 640px) {
+  .agency-logos-label {
+    font-size: 1rem;
+    margin-bottom: 1.75rem;
+  }
+}
+.agency-logos-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  justify-items: center;
+  gap: 1.75rem 1.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) {
+  .agency-logos-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2rem 2.5rem;
+  }
+}
+.agency-logo-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 2.75rem;
+  filter: grayscale(1) contrast(0.92);
+  opacity: 0.38;
+  transform: translateY(6px);
+  transition:
+    filter var(--dur-fluid) var(--ease-soft),
+    opacity var(--dur-fluid) var(--ease-soft),
+    transform var(--dur-fluid) var(--ease-soft);
+}
+@media (min-width: 640px) {
+  .agency-logo-item {
+    height: 3.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .agency-logo-item {
+    height: 4rem;
+  }
+}
+.agency-logos.is-revealed .agency-logo-item {
+  filter: grayscale(0) contrast(1);
+  opacity: 1;
+  transform: translateY(0);
+}
+.agency-logo-item.is-invert .agency-logo-img {
+  /* Blanc sur noir → écriture noire sur fond transparent/clair */
+  filter: invert(1);
+  border-radius: 0;
+}
+.agency-logo-img {
+  width: auto;
+  height: 100%;
+  max-width: min(100%, 14rem);
+  object-fit: contain;
+  border-radius: 0.45rem;
+}
+@media (min-width: 1024px) {
+  .agency-logo-img {
+    max-width: min(100%, 16rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agency-logo-item {
+    transition: none;
+    transform: none;
   }
 }
 .landing-hero-grid {
@@ -1052,6 +1156,47 @@ button {
 .landing-hero-media {
   border-radius: 1.5rem;
   background: #121c3a;
+}
+.landing-hero-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translate3d(6%, 0, 0) scale(1.02);
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+.landing-hero-slide.is-active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  z-index: 1;
+  pointer-events: auto;
+}
+.landing-hero-slide.is-leaving {
+  opacity: 0;
+  transform: translate3d(-5%, 0, 0) scale(0.985);
+  z-index: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .landing-hero-slide.is-active,
+  .landing-hero-slide.is-leaving {
+    transition:
+      opacity 780ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 780ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .landing-hero-slide:not(.is-active):not(.is-leaving) {
+    transition: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-slide {
+    transform: none;
+  }
+  .landing-hero-slide.is-active {
+    opacity: 1;
+  }
+  .landing-hero-slide.is-leaving {
+    opacity: 0;
+  }
 }
 @media (min-width: 640px) {
   .landing-hero-grid {

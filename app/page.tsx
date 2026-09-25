@@ -1,6 +1,7 @@
 import CausioScripts from "@/components/landing/CausioScripts";
 import SiteHeader from "@/components/SiteHeader";
 import HeroSection from "@/components/HeroSection";
+import AgencyLogos from "@/components/AgencyLogos";
 import ProblemTransformation from "@/components/ProblemTransformation";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
@@ -37,7 +38,10 @@ export default function Page() {
         {/* === B — HERO === */}
         <HeroSection />
 
-        {/* === C — PROBLEM / TRANSFORMATION === */}
+        {/* === B2 — AGENCES (preuve sociale) === */}
+        <AgencyLogos />
+
+        {/* === C — PROBLEM / TRANSFORM === */}
         <ProblemTransformation />
 
         {/* === D — HOW IT WORKS === */}

@@ -1,13 +1,12 @@
-import Image from "next/image";
 import Reveal from "./Reveal";
 import HeroPillRotator from "./HeroPillRotator";
+import HeroMediaRotator from "./HeroMediaRotator";
 import CtaButton from "./CtaButton";
 import { fontHero } from "@/lib/fonts-hero";
 
-const HERO_PHOTO = "/image carte hero.jpg";
-
 // === HERO SECTION ===
-// Mise en page type Tiime : promesse à gauche, photo produit à droite,
+// Mise en page type Tiime : promesse à gauche, photos produit à droite
+// (même cadre 3/2, rotation carte ↔ téléphone),
 // bloc sombre avec l’angle bas-droit arrondi.
 // Titre : Montserrat ExtraBold uppercase (réf. typo fournie), uniquement sur le h1.
 
@@ -62,16 +61,7 @@ export default function HeroSection() {
         </div>
 
         <Reveal direction="fade" delay={180} className="landing-hero-media-wrap min-w-0">
-          <div className="landing-hero-media relative aspect-[3/2] w-full min-w-0 overflow-hidden">
-            <Image
-              src={HERO_PHOTO}
-              alt="Aperçu de Priimo : carte de prospection sur ordinateur"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 48vw"
-              className="object-cover object-[72%_50%]"
-            />
-          </div>
+          <HeroMediaRotator />
         </Reveal>
       </div>
     </section>
