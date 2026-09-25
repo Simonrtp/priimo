@@ -253,7 +253,7 @@ function PanelLink({
   );
 }
 
-export default function MobileNav() {
+export default function MobileNav({ onDark = false }: { onDark?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<SectionKey | null>(null);
@@ -402,7 +402,9 @@ export default function MobileNav() {
       <button
         ref={triggerRef}
         type="button"
-        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-gray-700 transition-[color,transform] duration-200 ease-out hover:text-accent-dark active:scale-95 lg:hidden ${NO_OUTLINE}`}
+        className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-[color,transform] duration-200 ease-out active:scale-95 lg:hidden ${NO_OUTLINE} ${
+          onDark ? "text-white hover:text-white" : "text-gray-700 hover:text-accent-dark"
+        }`}
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}

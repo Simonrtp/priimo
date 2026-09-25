@@ -31,7 +31,7 @@ export default function Page() {
       </div>
 
       {/* === A — HEADER === */}
-      <SiteHeader />
+      <SiteHeader variant="landing" />
 
       <main className="relative z-10 min-w-0 overflow-x-clip">
         {/* === B — HERO === */}

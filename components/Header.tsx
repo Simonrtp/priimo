@@ -14,6 +14,7 @@ import type { BlogPostSummary } from "@/lib/blog/types";
 
 type HeaderProps = {
   latestPost?: BlogPostSummary | null;
+  variant?: "default" | "landing";
 };
 
 // === HEADER ===
@@ -21,7 +22,10 @@ type HeaderProps = {
 // Desktop : méga-menu au hover. Mobile : hamburger + menu déroulant plein largeur.
 type NavMenu = "features" | "resources" | null;
 
-export default function Header({ latestPost = null }: HeaderProps) {
+export default function Header({
+  latestPost = null,
+  variant = "default",
+}: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [activeNavMenu, setActiveNavMenu] = useState<NavMenu>(null);
   const headerRootRef = useRef<HTMLDivElement>(null);
@@ -45,68 +49,97 @@ export default function Header({ latestPost = null }: HeaderProps) {
     setActiveNavMenu(open ? "resources" : null);
   };
 
+  const isLanding = variant === "landing";
+  const onDark = isLanding && !scrolled;
+  const showUtilityBar = onDark;
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-5 sm:pt-4">
-      <div ref={headerRootRef} className="relative w-full max-w-6xl min-w-0">
-        <div
-          className={`relative z-10 flex w-full items-center justify-between gap-2 rounded-full px-3 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] min-w-0 sm:gap-4 sm:px-6 ${
-            scrolled
-              ? "h-14 border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl sm:h-[3.75rem]"
-              : "h-16 border border-transparent bg-transparent sm:h-[4.25rem]"
-          }`}
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
-            <Link href="/" className="group shrink-0 leading-none">
-              <PriimoLogo
-                priority
-                className="h-10 sm:h-11 md:h-12"
-                imageClassName="transition-opacity duration-200 group-hover:opacity-90"
-              />
-            </Link>
-
-            <nav className="hidden min-w-0 items-center gap-6 lg:flex" aria-label="Navigation principale">
-              <FeaturesMenuTrigger
-                open={featuresOpen}
-                onOpenChange={setFeaturesOpen}
-                panelId={featuresPanelId}
-              />
-              <ResourcesMenu
-                latestPost={latestPost}
-                open={resourcesOpen}
-                onOpenChange={setResourcesOpen}
-              />
-            </nav>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
+    <header
+      className={
+        onDark
+          ? "fixed inset-x-0 top-0 z-50"
+          : "fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-5 sm:pt-4"
+      }
+    >
+      {showUtilityBar ? (
+        <div className="landing-utility-bar">
+          <div className="mx-auto flex h-10 max-w-6xl items-center justify-end px-4 pt-[env(safe-area-inset-top)] sm:px-8">
             <Link
               href="/login"
-              className="group relative hidden min-h-11 items-center text-[13px] font-medium text-gray-700 transition-colors duration-200 hover:text-accent-dark sm:text-[15px] lg:inline-flex"
+              className="inline-flex min-h-10 items-center text-[13px] font-medium transition-colors sm:text-[14px]"
             >
               Se connecter
-              <span
-                className="absolute -bottom-0.5 left-0 h-px w-0 bg-accent transition-all duration-200 ease-out group-hover:w-full"
-                aria-hidden
-              />
             </Link>
-
-            <CtaButton className="min-h-11 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]">
-              <span className="sm:hidden">Démo</span>
-              <span className="hidden sm:inline">Réserver une démo</span>
-              <span data-arrow aria-hidden>
-                →
-              </span>
-            </CtaButton>
-
-            <MobileNav />
           </div>
         </div>
+      ) : null}
 
-        <FeaturesMegaPanel
-          open={featuresOpen}
-          onOpenChange={setFeaturesOpen}
-          panelId={featuresPanelId}
-        />
+      <div className={onDark ? "flex w-full justify-center px-3 sm:px-5" : "contents"}>
+        <div ref={headerRootRef} className="relative w-full max-w-6xl min-w-0">
+          <div
+            className={`relative z-10 flex w-full items-center justify-between gap-2 rounded-full px-3 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] min-w-0 sm:gap-4 sm:px-6 ${
+              scrolled
+                ? "h-14 border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl sm:h-[3.75rem]"
+                : "h-16 border border-transparent bg-transparent sm:h-[4.25rem]"
+            }`}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
+              <Link href="/" className="group shrink-0 leading-none">
+                <PriimoLogo
+                  priority
+                  className="h-10 sm:h-11 md:h-12"
+                  imageClassName="transition-opacity duration-200 group-hover:opacity-90"
+                />
+              </Link>
+
+              <nav className="hidden min-w-0 items-center gap-6 lg:flex" aria-label="Navigation principale">
+                <FeaturesMenuTrigger
+                  open={featuresOpen}
+                  onOpenChange={setFeaturesOpen}
+                  panelId={featuresPanelId}
+                  onDark={onDark}
+                />
+                <ResourcesMenu
+                  latestPost={latestPost}
+                  open={resourcesOpen}
+                  onOpenChange={setResourcesOpen}
+                  onDark={onDark}
+                />
+              </nav>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
+              {showUtilityBar ? null : (
+                <Link
+                  href="/login"
+                  className="group relative hidden min-h-11 items-center text-[13px] font-medium text-gray-700 transition-colors duration-200 hover:text-accent-dark sm:text-[15px] lg:inline-flex"
+                >
+                  Se connecter
+                  <span
+                    className="absolute -bottom-0.5 left-0 h-px w-0 bg-accent transition-all duration-200 ease-out group-hover:w-full"
+                    aria-hidden
+                  />
+                </Link>
+              )}
+
+              <CtaButton className="min-h-11 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]">
+                <span className="sm:hidden">Démo</span>
+                <span className="hidden sm:inline">Réserver une démo</span>
+                <span data-arrow aria-hidden>
+                  →
+                </span>
+              </CtaButton>
+
+              <MobileNav onDark={onDark} />
+            </div>
+          </div>
+
+          <FeaturesMegaPanel
+            open={featuresOpen}
+            onOpenChange={setFeaturesOpen}
+            panelId={featuresPanelId}
+          />
+        </div>
       </div>
     </header>
   );

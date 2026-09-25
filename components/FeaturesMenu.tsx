@@ -11,6 +11,7 @@ type FeaturesMenuProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   panelId: string;
+  onDark?: boolean;
 };
 
 function FeatureMenuItemLink({
@@ -45,7 +46,12 @@ function FeatureMenuItemLink({
   );
 }
 
-export function FeaturesMenuTrigger({ open, onOpenChange, panelId }: FeaturesMenuProps) {
+export function FeaturesMenuTrigger({
+  open,
+  onOpenChange,
+  panelId,
+  onDark = false,
+}: FeaturesMenuProps) {
   return (
     <div
       className="hidden lg:block"
@@ -54,7 +60,7 @@ export function FeaturesMenuTrigger({ open, onOpenChange, panelId }: FeaturesMen
       <button
         type="button"
         className={`group inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium transition-colors duration-200 hover:text-accent-dark sm:text-[15px] ${
-          open ? 'text-accent-dark' : 'text-gray-700'
+          open ? 'text-accent-dark' : onDark ? 'text-white/90 hover:text-white' : 'text-gray-700'
         }`}
         aria-expanded={open}
         aria-haspopup="true"

@@ -12,6 +12,7 @@ type ResourcesMenuProps = {
   latestPost: BlogPostSummary | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onDark?: boolean;
 };
 
 function authorInitials(name: string): string {
@@ -78,6 +79,7 @@ export default function ResourcesMenu({
   latestPost,
   open: controlledOpen,
   onOpenChange,
+  onDark = false,
 }: ResourcesMenuProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -144,7 +146,7 @@ export default function ResourcesMenu({
       <button
         type="button"
         className={`group inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium transition-colors duration-200 hover:text-accent-dark sm:text-[15px] ${
-          open ? 'text-accent-dark' : 'text-gray-700'
+          open ? 'text-accent-dark' : onDark ? 'text-white/90 hover:text-white' : 'text-gray-700'
         }`}
         aria-expanded={open}
         aria-haspopup="true"
