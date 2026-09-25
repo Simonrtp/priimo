@@ -202,7 +202,7 @@ export default function Sidebar() {
             rel="noopener noreferrer"
             aria-label="Nous écrire sur WhatsApp"
             data-tour="whatsapp"
-            className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors duration-fluid-subtle ease-in-out hover:text-white"
+            className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#4E5A82] transition-colors duration-fluid-subtle ease-in-out hover:text-white"
           >
             <WhatsAppIcon size={18} className="shrink-0 text-[#25D366] group-hover:text-[#25D366]" />
             Nous écrire
@@ -211,7 +211,7 @@ export default function Sidebar() {
             href="/politique-de-confidentialite"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-0.5 block rounded-lg px-2 py-1.5 text-[12px] font-medium text-[#7B9AC0] transition-colors duration-fluid-subtle ease-in-out hover:text-white"
+            className="mt-0.5 block rounded-lg px-2 py-1.5 text-[12px] font-medium text-[#4E5A82] transition-colors duration-fluid-subtle ease-in-out hover:text-white"
           >
             Confidentialité
           </a>

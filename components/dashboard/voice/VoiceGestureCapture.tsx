@@ -306,7 +306,7 @@ export default forwardRef<
   if (phase === 'saved') {
     return (
       <div
-        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] flex -translate-x-1/2 items-center gap-2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(15,23,34,0.14)]"
+        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] flex -translate-x-1/2 items-center gap-2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(26, 42, 86,0.14)]"
         style={{ bottom: CARD_BOTTOM, minWidth: 168 }}
         role="status"
         aria-live="polite"
@@ -346,7 +346,7 @@ export default forwardRef<
       ) : null}
 
       <div
-        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] -translate-x-1/2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(15,23,34,0.14)]"
+        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] -translate-x-1/2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(26, 42, 86,0.14)]"
         style={{ bottom: CARD_BOTTOM, width: 132 }}
       >
         {phase === 'processing' ? (

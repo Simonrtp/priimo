@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { actionsDepuisReview, buildReviewPayload } from './build-review';
+import {
+  actionsDepuisReview,
+  buildReviewPayload,
+  fusionnerPersonnesProches,
+  type PersonneProposal,
+} from './build-review';
 import type { Contact } from '@/types/contact';
 
 const simon = {
@@ -128,5 +133,23 @@ describe('buildReviewPayload — fallback dictée', () => {
     const actions = actionsDepuisReview(review);
     assert.ok(actions.some((a) => a.titre.includes('Martin Durand')));
     assert.ok(actions.some((a) => a.id === 'immeuble'));
+  });
+
+  it('fusionne Martyne et Martine en un seul contact', () => {
+    const vide = { phone: null, email: null, type: 'autre' as const };
+    const a: PersonneProposal = {
+      id: 'p0',
+      personne: { ...vide, firstName: 'Martine', lastName: '', type: 'vendeur' },
+      matches: [],
+    };
+    const b: PersonneProposal = {
+      id: 'p-guess-1',
+      personne: { ...vide, firstName: 'Martyne', lastName: '' },
+      matches: [],
+    };
+    const fusion = fusionnerPersonnesProches([a, b]);
+    assert.equal(fusion.length, 1);
+    assert.equal(fusion[0]?.personne.firstName, 'Martine');
+    assert.equal(fusion[0]?.personne.type, 'vendeur');
   });
 });

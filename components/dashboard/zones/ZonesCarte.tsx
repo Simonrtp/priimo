@@ -576,7 +576,7 @@ export default function ZonesCarte({
             source-layer={IGN_PCI_SOURCE_LAYER}
             minzoom={IGN_PCI_MINZOOM}
             paint={{
-              'fill-color': 'rgba(61, 90, 128, 0.05)',
+              'fill-color': 'rgba(26, 42, 86, 0.05)',
               'fill-opacity': dessinActif || ajustActif ? 1 : 0,
             }}
           />
@@ -586,7 +586,7 @@ export default function ZonesCarte({
             source-layer={IGN_PCI_SOURCE_LAYER}
             minzoom={IGN_PCI_MINZOOM}
             paint={{
-              'line-color': 'rgba(61, 90, 128, 0.42)',
+              'line-color': 'rgba(26, 42, 86, 0.42)',
               'line-width': 0.8,
               'line-opacity': dessinActif || ajustActif ? 1 : 0.35,
             }}

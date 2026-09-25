@@ -189,7 +189,7 @@ function ProprietairePreview({ contact }: { contact: Contact }) {
         <p className="min-w-0 break-words font-semibold text-ink" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
           {contact.fullName}
         </p>
-        <span className="shrink-0 rounded-full bg-[#EAEFF5] px-2 py-0.5 text-[11px] font-medium text-[#3D5A80]">
+        <span className="shrink-0 rounded-full bg-[#D5D8E4] px-2 py-0.5 text-[11px] font-medium text-[#1A2A56]">
           {CONTACT_TYPE_LABELS[contact.type]}
         </span>
       </div>
@@ -199,7 +199,7 @@ function ProprietairePreview({ contact }: { contact: Contact }) {
           {contact.phone?.trim() ? (
             <a
               href={telHref(contact.phone)}
-              className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline"
+              className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium tabular-nums text-[#1A2A56] underline-offset-2 hover:underline"
             >
               <Phone size={13} strokeWidth={2.2} aria-hidden />
               {formatPhoneDisplay(contact.phone)}
@@ -209,7 +209,7 @@ function ProprietairePreview({ contact }: { contact: Contact }) {
           {contact.email?.trim() ? (
             <a
               href={`mailto:${contact.email.trim()}`}
-              className="inline-flex w-fit max-w-full items-center gap-1.5 truncate text-[13px] font-medium text-[#3D5A80] underline-offset-2 hover:underline"
+              className="inline-flex w-fit max-w-full items-center gap-1.5 truncate text-[13px] font-medium text-[#1A2A56] underline-offset-2 hover:underline"
             >
               <Mail size={13} strokeWidth={2.2} aria-hidden />
               <span className="truncate">{contact.email.trim()}</span>
@@ -547,7 +547,7 @@ export default function BienFormDialog({
                       <button
                         type="button"
                         onClick={() => set('photos', form.photos.filter((p) => p !== url))}
-                        className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1E3148]/80 text-white hover:bg-[#1E3148] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-10"
+                        className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1A2A56]/80 text-white hover:bg-[#1A2A56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-10"
                         aria-label="Retirer cette photo"
                       >
                         <X size={14} strokeWidth={2.2} aria-hidden />

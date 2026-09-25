@@ -32,12 +32,12 @@ export default function FieldPlusSheet({
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Plus">
       <button
         type="button"
-        className="absolute inset-0 bg-[#15202F]/45"
+        className="absolute inset-0 bg-[#1A2A56]/45"
         aria-label="Fermer"
         onClick={onClose}
       />
       <div
-        className="absolute inset-x-0 bottom-0 max-h-[min(72dvh,480px)] overflow-y-auto rounded-t-[24px] bg-surface shadow-[0_-12px_40px_rgba(15,23,34,0.18)]"
+        className="absolute inset-x-0 bottom-0 max-h-[min(72dvh,480px)] overflow-y-auto rounded-t-[24px] bg-surface shadow-[0_-12px_40px_rgba(26, 42, 86,0.18)]"
         style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between px-5 pb-2 pt-4">

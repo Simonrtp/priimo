@@ -21,7 +21,7 @@ export default function InstallAppButton() {
         const outcome = await promptInstall();
         if (outcome === 'accepted') toast.success('Priimo est installé');
       }}
-      className="group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#7B9AC0] transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
+      className="group flex w-full items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-[#4E5A82] transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
     >
       <Download size={18} strokeWidth={2} className="flex-shrink-0" aria-hidden />
       Installer l&apos;application

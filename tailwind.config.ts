@@ -20,17 +20,17 @@ const config: Config = {
           glow: "#FFB585",
         },
         blue: {
-          DEFAULT: "#3D5A80",
-          dark: "#293F5C",
-          light: "#7B9AC0",
-          glow: "#B8CDE3",
+          DEFAULT: "#1A2A56",
+          dark: "#121C3A",
+          light: "#4E5A82",
+          glow: "#B4B9CC",
         },
         soft: {
           warm: "#FFF3EA",
           cool: "#EEF2F7",
           gray: "#F1F1EE",
           ink: "#15110F",
-          inkBlue: "#15202F",
+          inkBlue: "#1A2A56",
         },
 
         // === PRIIMO Design System — tokens clay (PRIIMO_DESIGN_SYSTEM.md §1.6) ===

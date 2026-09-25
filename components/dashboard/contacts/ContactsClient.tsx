@@ -41,7 +41,7 @@ import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeS
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
 
-const SLATE = '#3D5A80';
+const SLATE = '#1A2A56';
 const SELECTED = '#F1F2F4';
 
 type EtatFilter = 'tous' | 'relance' | 'incompletes' | 'doublons';
@@ -145,7 +145,7 @@ function ContactRow({
 
   return (
     <li
-      className="overflow-hidden border-b border-[#1E3148]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
+      className="overflow-hidden border-b border-[#1A2A56]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
       style={{
         background: selected ? SELECTED : '#FFFFFF',
         borderBottomWidth: 0.5,
@@ -158,7 +158,7 @@ function ContactRow({
       >
         <span
           className="flex size-10 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
-          style={{ background: '#EAEFF5', color: SLATE }}
+          style={{ background: '#D5D8E4', color: SLATE }}
         >
           {contactInitials(contact)}
         </span>
@@ -189,7 +189,7 @@ function ContactRow({
             ) : null}
             <span
               className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-              style={{ background: '#EAEFF5', color: SLATE }}
+              style={{ background: '#D5D8E4', color: SLATE }}
             >
               {CONTACT_TYPE_LABELS[contact.type]}
             </span>
@@ -201,7 +201,7 @@ function ContactRow({
                   onMerge();
                 }}
                 className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                style={{ background: '#EFEBE3', color: '#1E3148' }}
+                style={{ background: '#EFEBE3', color: '#1A2A56' }}
               >
                 Doublon possible
               </button>
@@ -245,7 +245,7 @@ function ContactRow({
                     onComplete();
                   }}
                   className="inline-flex h-8 items-center rounded-full px-2.5 text-[12px] font-semibold"
-                  style={{ background: '#EAEFF5', color: SLATE }}
+                  style={{ background: '#D5D8E4', color: SLATE }}
                 >
                   Compléter
                 </button>
@@ -628,7 +628,7 @@ export default function ContactsClient({
           </p>
         </WorkspaceCard>
       ) : (
-        <ul className="overflow-hidden rounded-[32px] border border-[#1E3148]/12 bg-white shadow-clay-sm">
+        <ul className="overflow-hidden rounded-[32px] border border-[#1A2A56]/12 bg-white shadow-clay-sm">
           {visible.map((contact) => (
             <ContactRow
               key={contact.id}

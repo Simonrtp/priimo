@@ -23,10 +23,10 @@ export const PARCELLE_FOCUS_ZOOM = 17;
 export const CADASTRE_OVERLAY_MIN_ZOOM = 12;
 /** Étiquette €/m² des ventes : invisible en dessous. */
 export const VENTE_PRICE_LABEL_MIN_ZOOM = 17;
-export const PARCELLE_SLATE = '#3D5A80';
-export const COPRO_PROCEDURE_FILL = '#1E3148';
+export const PARCELLE_SLATE = '#1A2A56';
+export const COPRO_PROCEDURE_FILL = '#1A2A56';
 export const COPRO_FILL = '#5B7C8A';
-export const VENTE_FILL = '#3D5A80';
+export const VENTE_FILL = '#1A2A56';
 export const VENTE_PRICE_HALO = '#FFFFFF';
 
 export type ParcelleVente = {

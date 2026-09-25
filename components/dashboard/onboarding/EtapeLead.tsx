@@ -163,7 +163,7 @@ export default function EtapeLead({
         </div>
 
         {courant.horsMarche ? (
-          <p className="mt-3 flex items-center gap-2 rounded-lg bg-[#EEF2F7] px-3 py-2 text-[12.5px] font-medium text-[#3D5A80]">
+          <p className="mt-3 flex items-center gap-2 rounded-lg bg-[#EEF2F7] px-3 py-2 text-[12.5px] font-medium text-[#1A2A56]">
             <Shield size={14} className="shrink-0" aria-hidden />
             Absent des portails de vente
           </p>

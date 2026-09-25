@@ -222,7 +222,7 @@ export default function AvatarChooser({
             className={`size-[72px] shrink-0 rounded-full ${icone ? 'object-contain' : 'object-cover'}`}
             style={
               icone
-                ? { backgroundColor: 'rgba(21, 32, 47, 0.06)', padding: 8 }
+                ? { backgroundColor: 'rgba(26, 42, 86, 0.06)', padding: 8 }
                 : undefined
             }
           />

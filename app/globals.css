@@ -31,8 +31,8 @@
   --gradient-brand: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
 
   /* Bleu shell dashboard (sidebar, header) */
-  --priimo-shell-top: #1e3148;
-  --priimo-shell-bottom: #15202f;
+  --priimo-shell-top: #1A2A56;
+  --priimo-shell-bottom: #1A2A56;
   --sidebar-width-expanded: 220px;
   --sidebar-width-collapsed: 68px;
   --sidebar-width: var(--sidebar-width-expanded);
@@ -125,8 +125,8 @@
 
   /* Barre de défilement clay (ardoise) */
   --scrollbar-size: 10px;
-  --scrollbar-thumb: rgba(30, 49, 72, 0.22);
-  --scrollbar-thumb-hover: rgba(30, 49, 72, 0.42);
+  --scrollbar-thumb: rgba(26, 42, 86, 0.22);
+  --scrollbar-thumb-hover: rgba(26, 42, 86, 0.42);
 }
 
 /* Bouton d’action des toasts Sonner — plus le noir par défaut. */
@@ -892,8 +892,8 @@ body {
   --l-accent-dark: #c25e2c;
   --l-accent-light: #f4a87a;
   --l-accent-glow: #ffb585;
-  --l-blue: #3d5a80;
-  --l-blue-light: #7b9ac0;
+  --l-blue: #1A2A56;
+  --l-blue-light: #4E5A82;
   /* Indigo secondaire (= --primary-500 de la charte clay) — accent « cool » :
      intelligence, données, confiance. Complète l'orange en duotone. */
   --l-indigo: #6366f1;
@@ -2200,7 +2200,7 @@ html:has(.feature-page) {
 /* Squelette de chargement : un voile clair traverse le bloc de droite à
    gauche. Un clignotement dit « ça charge » ; un balayage dit « ça arrive ». */
 .squelette {
-  background-color: rgba(21, 32, 47, 0.05);
+  background-color: rgba(26, 42, 86, 0.05);
   background-image: linear-gradient(
     100deg,
     transparent 28%,
@@ -2244,7 +2244,7 @@ html:has(.feature-page) {
   height: 14px;
   border-radius: 999px;
   border: 2px solid #ffffff;
-  box-shadow: 0 1px 2px rgba(21, 32, 47, 0.28);
+  box-shadow: 0 1px 2px rgba(26, 42, 86, 0.28);
 }
 
 .priimo-pin-field--score {
@@ -2271,7 +2271,7 @@ html:has(.feature-page) {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  background: #1e3148;
+  background: #1A2A56;
 }
 
 /* Page publique QR — entrée en cascade + marée de confirmation. Transform / opacity only. */

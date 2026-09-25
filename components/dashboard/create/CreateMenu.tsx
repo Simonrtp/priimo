@@ -199,7 +199,7 @@ export default function CreateMenu({
           <div className="fixed inset-0 z-[120]" role="presentation">
             <button
               type="button"
-              className="absolute inset-0 bg-[#15202F]/45"
+              className="absolute inset-0 bg-[#1A2A56]/45"
               aria-label="Fermer"
               onPointerDown={(e) => {
                 e.preventDefault();
@@ -212,7 +212,7 @@ export default function CreateMenu({
               id={menuId}
               role="menu"
               aria-label="Créer"
-              className="absolute inset-x-0 bottom-0 rounded-t-[24px] bg-surface shadow-[0_-12px_40px_rgba(15,23,34,0.18)]"
+              className="absolute inset-x-0 bottom-0 rounded-t-[24px] bg-surface shadow-[0_-12px_40px_rgba(26, 42, 86,0.18)]"
               style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
               onPointerDown={(e) => e.stopPropagation()}
             >

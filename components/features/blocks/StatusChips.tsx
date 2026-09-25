@@ -14,7 +14,7 @@ const STATUTS: Chip[] = [
 
 const RESULTATS: Chip[] = [
   { label: 'Mandat signé', dot: '#047857' },
-  { label: 'Vendeur perdu', dot: '#3D5A80' },
+  { label: 'Vendeur perdu', dot: '#1A2A56' },
   { label: 'Pas vendeur', dot: '#B91C1C' },
   { label: 'Injoignable', dot: '#6B7280' },
 ];

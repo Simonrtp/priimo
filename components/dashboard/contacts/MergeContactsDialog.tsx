@@ -164,7 +164,7 @@ export default function MergeContactsDialog({
           <button
             type="button"
             onClick={swap}
-            className="self-start text-[13px] font-medium text-[#3D5A80] underline-offset-2 hover:underline"
+            className="self-start text-[13px] font-medium text-[#1A2A56] underline-offset-2 hover:underline"
           >
             Inverser : conserver {right.fullName}
           </button>

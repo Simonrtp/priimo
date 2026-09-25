@@ -659,7 +659,7 @@ export default function AssistantPanel({
             type="button"
             aria-label="Fermer l'assistant"
             onClick={closePanel}
-            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(21,32,47,0.38)] backdrop-blur-[2px]"
+            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26, 42, 86,0.38)] backdrop-blur-[2px]"
           />
           <div
             className="animate-app-sheet fixed inset-x-0 bottom-0 z-[130] flex flex-col overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg"

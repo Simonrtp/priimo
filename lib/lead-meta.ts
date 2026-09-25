@@ -30,7 +30,7 @@ export const SIGNAL_META: Record<SignalType, { label: string; pts: number; Icon:
   detention_longue: { label: 'Détention longue durée', pts: 15, Icon: Pause, color: '#4B5563' },
   plus_value: { label: 'Plus-value estimée élevée', pts: 20, Icon: TrendingUp, color: '#047857' },
   travaux_recents: { label: 'Travaux récents (permis SITADEL)', pts: 18, Icon: Hammer, color: '#1F2937' },
-  zone_rotation: { label: 'Zone à forte rotation', pts: 12, Icon: Repeat, color: '#3D5A80' },
+  zone_rotation: { label: 'Zone à forte rotation', pts: 12, Icon: Repeat, color: '#1A2A56' },
 };
 
 export const STATUS_META: Record<LeadStatus, { label: string; chipClass: string; dotColor: string }> = {
@@ -82,7 +82,7 @@ export const ML_FEEDBACK_OPTIONS: {
   color: string;
 }[] = [
   { value: 'mandat_signe', label: 'Mandat signé', Icon: Check, color: '#047857' },
-  { value: 'vendeur_perdu', label: 'Vendeur mais perdu', Icon: Repeat, color: '#3D5A80' },
+  { value: 'vendeur_perdu', label: 'Vendeur mais perdu', Icon: Repeat, color: '#1A2A56' },
   { value: 'pas_vendeur', label: 'Pas vendeur', Icon: X, color: '#B91C1C' },
   { value: 'injoignable', label: 'Injoignable / mauvais contact', Icon: PhoneOff, color: '#6B7280' },
 ];

@@ -76,7 +76,7 @@ export default function NoteCreateChooser({
             <div className="fixed inset-0 z-[120]" role="presentation">
               <button
                 type="button"
-                className="absolute inset-0 bg-[#1E3148]/35"
+                className="absolute inset-0 bg-[#1A2A56]/35"
                 aria-label="Fermer le menu de note"
                 onPointerDown={(e) => {
                   e.preventDefault();
@@ -162,7 +162,7 @@ export default function NoteCreateChooser({
           id={menuId}
           role="menu"
           aria-label="Créer une note"
-          className={`absolute bottom-full z-10 mb-1.5 flex flex-col gap-0.5 rounded-[14px] bg-[#15202F]/95 p-1 ${
+          className={`absolute bottom-full z-10 mb-1.5 flex flex-col gap-0.5 rounded-[14px] bg-[#1A2A56]/95 p-1 ${
             collapsed ? 'left-1/2 w-max -translate-x-1/2 items-center' : 'w-full'
           }`}
         >

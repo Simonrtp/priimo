@@ -92,7 +92,7 @@ export default function ZoneDepotPhotos({
                 <button
                   type="button"
                   aria-label="Retirer cette photo"
-                  className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1E3148]/80 text-white hover:bg-[#1E3148] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1A2A56]/80 text-white hover:bg-[#1A2A56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   onClick={() => onChange(photos.filter((x) => x.url !== p.url))}
                 >
                   <X size={14} strokeWidth={2.2} aria-hidden />

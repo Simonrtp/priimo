@@ -53,7 +53,7 @@ export default function CarteTourneeStopsSheet({
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] px-3">
       <div
-        className="pointer-events-auto overflow-hidden rounded-[24px] bg-surface shadow-[0_-10px_36px_rgba(15,23,34,0.2)] ring-1 ring-black/[0.06]"
+        className="pointer-events-auto overflow-hidden rounded-[24px] bg-surface shadow-[0_-10px_36px_rgba(26, 42, 86,0.2)] ring-1 ring-black/[0.06]"
         style={{ marginBottom: 'calc(10px + var(--field-nav-height))' }}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">

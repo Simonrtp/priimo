@@ -22,9 +22,9 @@ export default function ProofBlock({ intro, items }: ProofBlockProps) {
           {items.map((item) => (
             <li
               key={item.source}
-              className="rounded-2xl border border-[#3D5A80]/15 bg-white px-5 py-4 sm:px-6 sm:py-5"
+              className="rounded-2xl border border-[#1A2A56]/15 bg-white px-5 py-4 sm:px-6 sm:py-5"
             >
-              <p className="text-[12px] font-semibold uppercase text-[#3D5A80]">
+              <p className="text-[12px] font-semibold uppercase text-[#1A2A56]">
                 {item.source}
               </p>
               <p className="mt-2 text-pretty text-[15px] leading-relaxed text-gray-700 sm:text-base">

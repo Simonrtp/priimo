@@ -146,7 +146,7 @@ function EchelleDpeGes({
         {DPE_LETTERS.map((l) => (
           <BarreLettre key={l} lettre={l} active={dpe === l} palette={DPE_BAR} haut={h} />
         ))}
-        <div style={{ fontSize: 10.5, color: '#3D5A80', marginTop: 6 }}>kWh/m²·an</div>
+        <div style={{ fontSize: 10.5, color: '#1A2A56', marginTop: 6 }}>kWh/m²·an</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)', marginBottom: 6 }}>
@@ -155,7 +155,7 @@ function EchelleDpeGes({
         {DPE_LETTERS.map((l) => (
           <BarreLettre key={l} lettre={l} active={ges === l} palette={GES_BAR} haut={h} />
         ))}
-        <div style={{ fontSize: 10.5, color: '#3D5A80', marginTop: 6 }}>kg CO₂/m²·an</div>
+        <div style={{ fontSize: 10.5, color: '#1A2A56', marginTop: 6 }}>kg CO₂/m²·an</div>
       </div>
     </>
   );
@@ -174,7 +174,7 @@ function Fiche({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {svg}
-      <div style={{ fontSize: 10.5, color: '#3D5A80' }}>{label}</div>
+      <div style={{ fontSize: 10.5, color: '#1A2A56' }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 600 }}>{valeur}</div>
     </div>
   );
@@ -190,7 +190,7 @@ function PhotoSlot({ src, label, span }: { src?: string; label: string; span?: b
     font: span ? '500 9.5px/1 ui-monospace, Menlo, monospace' : '500 9px/1 ui-monospace, Menlo, monospace',
     letterSpacing: '.1em',
     textTransform: 'uppercase',
-    color: '#3D5A80',
+    color: '#1A2A56',
     overflow: 'hidden',
     position: 'relative',
     gridColumn: span ? 'span 2' : undefined,
@@ -223,7 +223,7 @@ export function PageCouverture({ d, accent }: { d: DossierRapport; accent: strin
               <span style={{ fontWeight: 300, color: 'var(--accent-2)' }}>Avis de</span>
               <span style={{ fontWeight: 700, color: 'var(--accent)' }}>valeur</span>
             </div>
-            <div style={{ fontSize: 15, lineHeight: 1.5, color: '#3D5A80' }}>
+            <div style={{ fontSize: 15, lineHeight: 1.5, color: '#1A2A56' }}>
               {etabli}
               {etabli && sousTitre ? <br /> : null}
               {sousTitre}
@@ -268,7 +268,7 @@ export function PageCouverture({ d, accent }: { d: DossierRapport; accent: strin
           <span style={{ fontWeight: 700, color: 'var(--accent)' }}>valeur</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'right', paddingBottom: 16 }}>
-          {date ? <div style={{ fontSize: 15, color: '#3D5A80' }}>{date}</div> : null}
+          {date ? <div style={{ fontSize: 15, color: '#1A2A56' }}>{date}</div> : null}
           {rue ? <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: '#0A0D11' }}>{rue}</div> : null}
           {ville ? <div style={{ fontSize: 22, fontWeight: 300, color: '#0A0D11' }}>{ville}</div> : null}
         </div>
@@ -298,28 +298,28 @@ export function PageCouverture({ d, accent }: { d: DossierRapport; accent: strin
 }
 
 const SVG_SURF = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><rect x="3" y="3" width="14" height="14" rx="1.5" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><rect x="3" y="3" width="14" height="14" rx="1.5" /></svg>
 );
 const SVG_CARREZ = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><path d="M2 14h16M5 14v-4M9 14v-2.5M13 14v-4M16 14v-2.5" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><path d="M2 14h16M5 14v-4M9 14v-2.5M13 14v-4M16 14v-2.5" /></svg>
 );
 const SVG_PIECES = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><rect x="3" y="3" width="6" height="6" rx="1" /><rect x="11" y="3" width="6" height="6" rx="1" /><rect x="3" y="11" width="6" height="6" rx="1" /><rect x="11" y="11" width="6" height="6" rx="1" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><rect x="3" y="3" width="6" height="6" rx="1" /><rect x="11" y="3" width="6" height="6" rx="1" /><rect x="3" y="11" width="6" height="6" rx="1" /><rect x="11" y="11" width="6" height="6" rx="1" /></svg>
 );
 const SVG_ETAGE = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><path d="M2 17h4v-4h4v-4h4v-4h4" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><path d="M2 17h4v-4h4v-4h4v-4h4" /></svg>
 );
 const SVG_EXT = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><circle cx="10" cy="8" r="4" /><path d="M3 17h14" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><circle cx="10" cy="8" r="4" /><path d="M3 17h14" /></svg>
 );
 const SVG_ANNEXE = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><rect x="3" y="6" width="14" height="11" rx="1.5" /><path d="M3 10h14" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><rect x="3" y="6" width="14" height="11" rx="1.5" /><path d="M3 10h14" /></svg>
 );
 const SVG_ETAT = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><circle cx="10" cy="10" r="7" /><path d="M6.8 10.2l2.2 2.2 4.2-4.6" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><circle cx="10" cy="10" r="7" /><path d="M6.8 10.2l2.2 2.2 4.2-4.6" /></svg>
 );
 const SVG_OCC = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#3D5A80" style={{ strokeWidth: 1.5 }}><rect x="5" y="2.5" width="10" height="15" rx="1" /><circle cx="12" cy="10" r="0.8" /></svg>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1A2A56" style={{ strokeWidth: 1.5 }}><rect x="5" y="2.5" width="10" height="15" rx="1" /><circle cx="12" cy="10" r="0.8" /></svg>
 );
 
 function fichesBien(d: DossierRapport) {
@@ -387,7 +387,7 @@ export function PageVotreBien({ d, accent }: { d: DossierRapport; accent: string
                 {titre}
                 {titre && d.surfaceM2 != null ? ` — ${formatSurface(d.surfaceM2)}` : ''}
               </div>
-              <div style={{ fontSize: 13, color: '#3D5A80' }}>{ligne}</div>
+              <div style={{ fontSize: 13, color: '#1A2A56' }}>{ligne}</div>
             </div>
             {d.commentairesPublics ? (
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.62, color: '#0A0D11', textWrap: 'pretty' }}>{d.commentairesPublics}</p>
@@ -413,7 +413,7 @@ export function PageVotreBien({ d, accent }: { d: DossierRapport; accent: string
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ width: 40, height: 3, borderRadius: 2, background: 'var(--accent)' }} />
-            <div style={{ fontSize: 14, color: '#3D5A80' }}>{ligne}</div>
+            <div style={{ fontSize: 14, color: '#1A2A56' }}>{ligne}</div>
           </div>
           {d.commentairesPublics ? (
             <p style={{ margin: 'auto 0 0', fontSize: 15.5, lineHeight: 1.62, textWrap: 'pretty' }}>{d.commentairesPublics}</p>
@@ -461,7 +461,7 @@ export function PageImmeuble({ d, accent }: { d: DossierRapport; accent: string 
                 />
               ) : null}
             </div>
-            <div style={{ display: 'flex', gap: 18, fontSize: 11, color: '#3D5A80' }}>
+            <div style={{ display: 'flex', gap: 18, fontSize: 11, color: '#1A2A56' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 2, border: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 20%, #fff)' }} />
                 Parcelle de l&apos;immeuble
@@ -474,15 +474,15 @@ export function PageImmeuble({ d, accent }: { d: DossierRapport; accent: string 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-.02em' }}>{libelleEtagesImmeubleAffiche(d.etagesImmeuble) ?? ''}</div>
-                <div style={{ fontSize: 11.5, color: '#3D5A80' }}>étages</div>
+                <div style={{ fontSize: 11.5, color: '#1A2A56' }}>étages</div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderLeft: '1px solid rgba(61,90,128,.14)', paddingLeft: 18 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderLeft: '1px solid rgba(26, 42, 86,.14)', paddingLeft: 18 }}>
                 <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-.02em' }}>{d.anneeConstruction ?? ''}</div>
-                <div style={{ fontSize: 11.5, color: '#3D5A80' }}>année de construction</div>
+                <div style={{ fontSize: 11.5, color: '#1A2A56' }}>année de construction</div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderLeft: '1px solid rgba(61,90,128,.14)', paddingLeft: 18 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderLeft: '1px solid rgba(26, 42, 86,.14)', paddingLeft: 18 }}>
                 <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-.02em' }}>{libelleAscenseur(d.ascenseur) ?? ''}</div>
-                <div style={{ fontSize: 11.5, color: '#3D5A80' }}>ascenseur</div>
+                <div style={{ fontSize: 11.5, color: '#1A2A56' }}>ascenseur</div>
               </div>
             </div>
           </div>
@@ -492,16 +492,16 @@ export function PageImmeuble({ d, accent }: { d: DossierRapport; accent: string 
           <div style={{ flex: 1, minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>À proximité</div>
-              <div style={{ fontSize: 11, color: '#3D5A80' }}>Distances à pied</div>
+              <div style={{ fontSize: 11, color: '#1A2A56' }}>Distances à pied</div>
             </div>
             <div style={{ flex: 1, display: 'grid', gridTemplateColumns: proximite.length === 1 ? '1fr' : '1fr 1fr', columnGap: 22, rowGap: 10 }}>
               {proximite.map(({ c, items }, i) => (
-                <div key={c} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: proximite.length > 2 && i > 1 ? '1px solid rgba(61,90,128,.12)' : undefined, paddingTop: proximite.length > 2 && i > 1 ? 10 : undefined }}>
+                <div key={c} style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: proximite.length > 2 && i > 1 ? '1px solid rgba(26, 42, 86,.12)' : undefined, paddingTop: proximite.length > 2 && i > 1 ? 10 : undefined }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{lib[c]}</div>
                   {items.map((e) => (
                     <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, gap: 8 }}>
                       <span>{e.nom}</span>
-                      <span style={{ color: '#3D5A80', whiteSpace: 'nowrap' }}>{formatDistance(e.distanceM)}</span>
+                      <span style={{ color: '#1A2A56', whiteSpace: 'nowrap' }}>{formatDistance(e.distanceM)}</span>
                     </div>
                   ))}
                 </div>
@@ -546,37 +546,37 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
                 <img src={urlCarteIgn({ latitude: d.latitude, longitude: d.longitude, couche: 'plan' })} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               ) : null}
             </div>
-            <div style={{ display: 'flex', gap: 14, fontSize: 10.5, color: '#3D5A80', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 14, fontSize: 10.5, color: '#1A2A56', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />Votre bien</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent-2)' }} />Vente comparable</span>
               {rayon != null ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 14, height: 0, borderTop: '1.5px dashed #3D5A80' }} />Rayon de {rayon} m</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 14, height: 0, borderTop: '1.5px dashed #1A2A56' }} />Rayon de {rayon} m</span>
               ) : null}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.02em' }}>{mediane != null ? formatPrixM2(mediane).replace('/m²', '') : ''}</div>
-              <div style={{ fontSize: 10.5, color: '#3D5A80', lineHeight: 1.35 }}>prix médian au m²</div>
+              <div style={{ fontSize: 10.5, color: '#1A2A56', lineHeight: 1.35 }}>prix médian au m²</div>
             </div>
             <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.02em' }}>{d.comparables.length} vente{d.comparables.length > 1 ? 's' : ''}</div>
-              <div style={{ fontSize: 10.5, color: '#3D5A80', lineHeight: 1.35 }}>retenues pour la comparaison</div>
+              <div style={{ fontSize: 10.5, color: '#1A2A56', lineHeight: 1.35 }}>retenues pour la comparaison</div>
             </div>
             <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-.02em' }}>{rayon != null ? `${rayon} m` : ''}</div>
-              <div style={{ fontSize: 10.5, color: '#3D5A80', lineHeight: 1.35 }}>sur les 12 derniers mois</div>
+              <div style={{ fontSize: 10.5, color: '#1A2A56', lineHeight: 1.35 }}>sur les 12 derniers mois</div>
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
           <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px 12px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)', marginBottom: 10 }}>Détail des ventes</div>
-            <div style={{ ...row, fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#3D5A80', height: 'auto', padding: '0 8px 8px', borderBottom: '1px solid rgba(61,90,128,.16)' }}>
+            <div style={{ ...row, fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#1A2A56', height: 'auto', padding: '0 8px 8px', borderBottom: '1px solid rgba(26, 42, 86,.16)' }}>
               <span>N°</span><span>Type</span><span>Date</span><span style={{ textAlign: 'right' }}>Pièces</span><span style={{ textAlign: 'right' }}>Surface</span><span style={{ textAlign: 'right' }}>Prix</span><span style={{ textAlign: 'right' }}>Prix/m²</span>
             </div>
             {d.comparables.map((v, i) => (
-              <div key={v.id} style={{ ...row, borderRadius: 6, background: i % 2 === 0 ? 'rgba(61,90,128,.05)' : undefined }}>
+              <div key={v.id} style={{ ...row, borderRadius: 6, background: i % 2 === 0 ? 'rgba(26, 42, 86,.05)' : undefined }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-2)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
                 <span>{libelleTypeLocal(v.typeLocal) ?? ''}</span>
                 <span>{formatDateCourte(v.date)}</span>
@@ -600,7 +600,7 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
                         <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--accent-2)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
                         {libelleTypeLocal(v.typeLocal) ?? ''}
                       </div>
-                      <div style={{ height: 12, background: 'rgba(61,90,128,.07)', borderRadius: 3 }}>
+                      <div style={{ height: 12, background: 'rgba(26, 42, 86,.07)', borderRadius: 3 }}>
                         <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent-2)', borderRadius: 3 }} />
                       </div>
                       <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{v.prixM2 != null ? formatPrixM2(v.prixM2).replace('/m²', '') : ''}</div>
@@ -608,7 +608,7 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
                   );
                 })}
               </div>
-              <div style={{ marginTop: 'auto', fontSize: 10.5, color: '#3D5A80' }}>Source : ventes réelles publiées par l&apos;État (DVF)</div>
+              <div style={{ marginTop: 'auto', fontSize: 10.5, color: '#1A2A56' }}>Source : ventes réelles publiées par l&apos;État (DVF)</div>
             </div>
           ) : null}
         </div>
@@ -652,9 +652,9 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
               {d.pricePerM2 != null ? (
                 <div style={{ fontSize: 19, fontWeight: 600, color: '#0A0D11' }}>soit {formatPrixM2(d.pricePerM2)}</div>
               ) : null}
-              <div style={{ fontSize: 11.5, color: '#3D5A80' }}>Estimation établie pour un bien {libelleOccupation(d.occupation).toLowerCase()}</div>
+              <div style={{ fontSize: 11.5, color: '#1A2A56' }}>Estimation établie pour un bien {libelleOccupation(d.occupation).toLowerCase()}</div>
             </div>
-            <div style={{ height: 1, background: 'rgba(61,90,128,.16)' }} />
+            <div style={{ height: 1, background: 'rgba(26, 42, 86,.16)' }} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>Remarques de votre conseiller</div>
               {d.remarquesExpert ? (
@@ -670,7 +670,7 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
                 <div style={{ position: 'relative', paddingTop: 44 }}>
                   <div style={{ position: 'absolute', left: `${curseur}%`, top: 0, transform: 'translateX(-50%)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: 16, fontWeight: 700 }}>{formatEuro(mid)}</div>
-                    <div style={{ fontSize: 10.5, color: '#3D5A80' }}>Estimée</div>
+                    <div style={{ fontSize: 10.5, color: '#1A2A56' }}>Estimée</div>
                   </div>
                   <div style={{ position: 'relative', height: 16, borderRadius: 8, background: 'linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, #fff), color-mix(in srgb, var(--accent) 60%, #fff), color-mix(in srgb, var(--accent) 22%, #fff))' }}>
                     <div style={{ position: 'absolute', left: `${curseur}%`, top: '50%', width: 26, height: 26, margin: '-13px 0 0 -13px', borderRadius: '50%', background: 'var(--accent)', border: '4px solid #fff', boxSizing: 'border-box', boxShadow: '0 1px 5px rgba(10,13,17,.22)' }} />
@@ -678,34 +678,34 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: '#3D5A80' }}>Basse</div>
+                    <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: '#1A2A56' }}>Basse</div>
                     <div style={{ fontSize: 18, fontWeight: 700 }}>{formatEuro(low)}</div>
-                    {m2Low != null ? <div style={{ fontSize: 11, color: '#3D5A80' }}>{formatPrixM2(m2Low)}</div> : null}
+                    {m2Low != null ? <div style={{ fontSize: 11, color: '#1A2A56' }}>{formatPrixM2(m2Low)}</div> : null}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: '#3D5A80' }}>Haute</div>
+                    <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: '#1A2A56' }}>Haute</div>
                     <div style={{ fontSize: 18, fontWeight: 700 }}>{formatEuro(high)}</div>
-                    {m2High != null ? <div style={{ fontSize: 11, color: '#3D5A80' }}>{formatPrixM2(m2High)}</div> : null}
+                    {m2High != null ? <div style={{ fontSize: 11, color: '#1A2A56' }}>{formatPrixM2(m2High)}</div> : null}
                   </div>
                 </div>
               </div>
             ) : null}
             {d.pricePerM2 != null && mediane != null ? (
               <>
-                <div style={{ height: 1, background: 'rgba(61,90,128,.16)' }} />
+                <div style={{ height: 1, background: 'rgba(26, 42, 86,.16)' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>Prix au m² comparé</div>
                   <div style={{ position: 'relative', height: 96 }}>
-                    <div style={{ position: 'absolute', left: 0, right: 0, top: 46, height: 3, borderRadius: 2, background: 'rgba(61,90,128,.18)' }} />
+                    <div style={{ position: 'absolute', left: 0, right: 0, top: 46, height: 3, borderRadius: 2, background: 'rgba(26, 42, 86,.18)' }} />
                     <div style={{ position: 'absolute', left: pos(d.pricePerM2), top: 38, width: 19, height: 19, marginLeft: -9.5, borderRadius: '50%', background: 'var(--accent)', border: '3px solid #fff', boxSizing: 'border-box' }} />
                     <div style={{ position: 'absolute', left: pos(d.pricePerM2), top: 0, transform: 'translateX(-50%)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <div style={{ fontSize: 15, fontWeight: 700 }}>{formatPrixM2(d.pricePerM2).replace('/m²', '')}</div>
-                      <div style={{ fontSize: 10.5, color: '#3D5A80' }}>Votre bien</div>
+                      <div style={{ fontSize: 10.5, color: '#1A2A56' }}>Votre bien</div>
                     </div>
                     <div style={{ position: 'absolute', left: pos(mediane), top: 40, width: 15, height: 15, marginLeft: -7.5, borderRadius: '50%', background: 'var(--accent-2)', border: '2px solid #fff', boxSizing: 'border-box' }} />
                     <div style={{ position: 'absolute', left: pos(mediane), top: 62, transform: 'translateX(-50%)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{formatPrixM2(mediane).replace('/m²', '')}</div>
-                      <div style={{ fontSize: 10.5, color: '#3D5A80' }}>Médiane des comparables</div>
+                      <div style={{ fontSize: 10.5, color: '#1A2A56' }}>Médiane des comparables</div>
                     </div>
                   </div>
                 </div>
@@ -734,7 +734,7 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
             <LogoSlot url={d.agence.logoUrl} />
           </div>
         </div>
-        <div style={{ fontSize: 9, color: '#3D5A80' }}>Avis de valeur indicatif, ne constituant pas une expertise</div>
+        <div style={{ fontSize: 9, color: '#1A2A56' }}>Avis de valeur indicatif, ne constituant pas une expertise</div>
       </div>
     </GabaritPage>
   );
@@ -792,7 +792,7 @@ export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }
             ) : null}
           </div>
           {d.pricePerM2 != null ? (
-            <div style={{ fontSize: 10.5, color: '#3D5A80' }}>Votre bien · {formatPrixM2(d.pricePerM2)}</div>
+            <div style={{ fontSize: 10.5, color: '#1A2A56' }}>Votre bien · {formatPrixM2(d.pricePerM2)}</div>
           ) : null}
         </div>
         {profil ? (
@@ -934,17 +934,17 @@ export function PageConcurrentiel({ d, accent }: { d: DossierRapport; accent: st
           {cartes.map((a, i) => (
             <div key={a.id} style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 18px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid #3D5A80', color: '#3D5A80', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>{lettres[i]}</span>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid #1A2A56', color: '#1A2A56', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>{lettres[i]}</span>
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>{libelleTypeLocal(a.typeLocal) ?? ''}</div>
-                  <div style={{ fontSize: 11.5, color: '#3D5A80' }}>
+                  <div style={{ fontSize: 11.5, color: '#1A2A56' }}>
                     {joindreSansVide([a.pieces != null ? `${a.pieces} pièces` : null, a.surfaceM2 != null ? formatSurface(a.surfaceM2) : null], ' · ')}
                   </div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-.02em' }}>{a.prix != null ? formatEuro(a.prix) : ''}</div>
-                <div style={{ fontSize: 12, color: '#3D5A80' }}>{a.prixM2 != null ? formatPrixM2(a.prixM2) : ''}</div>
+                <div style={{ fontSize: 12, color: '#1A2A56' }}>{a.prixM2 != null ? formatPrixM2(a.prixM2) : ''}</div>
               </div>
             </div>
           ))}
@@ -962,7 +962,7 @@ export function PageConcurrentiel({ d, accent }: { d: DossierRapport; accent: st
         <div style={{ minHeight: 0, background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>Surface et prix au m²</div>
-            <div style={{ fontSize: 11, color: '#3D5A80' }}>{criteres}</div>
+            <div style={{ fontSize: 11, color: '#1A2A56' }}>{criteres}</div>
           </div>
           {d.latitude != null && d.longitude != null ? (
             // eslint-disable-next-line @next/next/no-img-element

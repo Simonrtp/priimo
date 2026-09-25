@@ -4,13 +4,13 @@ import { toGeoCoord } from '@/lib/carte/coords';
 /** Palette terrain — aucun violet. */
 export const FIELD = {
   orange: '#E8743C',
-  ardoise: '#3D5A80',
+  ardoise: '#1A2A56',
   vert: '#2E7D5B',
   rouge: '#C4483C',
   creme: '#FFF7F0',
   /** Pastels terrain (mobile, swipe…) — plus affirmés qu’avant. */
   orangePastel: '#F5D4C4',
-  ardoisePastel: '#D4DFF0',
+  ardoisePastel: '#D5D8E4',
   vertPastel: '#C9EEDA',
   rougePastel: '#F0C4BE',
 } as const;
@@ -22,7 +22,7 @@ export const ACCUEIL = {
   vert: '#C9EEDA',
   jaune: '#FFFAC2',
   creme: '#FFF9EB',
-  bleu: '#D4E8F5',
+  bleu: '#D5D8E4',
   orange: '#FFE0C4',
 } as const;
 
@@ -33,12 +33,12 @@ export const ACCUEIL_DARK: Record<AccueilAccent, string> = {
   vert: '#8CCFA8',
   jaune: '#EDE07A',
   creme: '#E5D9BC',
-  bleu: '#A8CCE6',
+  bleu: '#8A93C4',
   orange: '#E8BE98',
 };
 
 /** Fond shell dashboard (sidebar / header desktop). */
-export const SHELL_GRADIENT = 'linear-gradient(180deg, #1E3148 0%, #15202F 100%)';
+export const SHELL_GRADIENT = 'linear-gradient(180deg, #1A2A56 0%, #1A2A56 100%)';
 
 /** Classe CSS : dégradé bleu + grain discret (voir globals.css `.priimo-shell-bg`). */
 export const SHELL_BG_CLASS = 'priimo-shell-bg';

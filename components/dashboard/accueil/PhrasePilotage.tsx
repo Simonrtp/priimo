@@ -11,7 +11,7 @@ const ICONE: Record<TonPhrase, LucideIcon> = {
   incalculable: Info,
 };
 
-const TEINTE_NEUTRE = '#3D5A80';
+const TEINTE_NEUTRE = '#1A2A56';
 
 function teinteDuLevier(phrase: Phrase): string {
   if (phrase.ton === 'avance') return '#2F7A5A';

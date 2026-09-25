@@ -220,7 +220,7 @@ export default function ContactDetailPanel({
 
   return (
     <div
-      className="border-t border-[#1E3148]/10 px-4 pb-5 pt-5 sm:px-5"
+      className="border-t border-[#1A2A56]/10 px-4 pb-5 pt-5 sm:px-5"
       role="region"
       aria-busy={saving}
       aria-label={`Fiche de ${contact.fullName}`}

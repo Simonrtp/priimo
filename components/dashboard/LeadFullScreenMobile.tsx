@@ -78,7 +78,7 @@ export default function LeadFullScreenMobile({
         <button
           type="button"
           onClick={onClose}
-          className="app-press flex size-11 shrink-0 items-center justify-center rounded-full text-[#3D5A80] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className="app-press flex size-11 shrink-0 items-center justify-center rounded-full text-[#1A2A56] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
           aria-label="Retour"
         >
           <ArrowLeft size={22} strokeWidth={2.2} />

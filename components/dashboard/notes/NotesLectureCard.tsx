@@ -18,7 +18,7 @@ import {
 import type { NoteLecture } from '@/lib/notes/lecture';
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
 
-const ENCRE = '#15202F';
+const ENCRE = '#1A2A56';
 
 function IconeSource({ vocale, surSombre = false }: { vocale: boolean; surSombre?: boolean }) {
   const Icone = vocale ? Mic : NotebookPen;

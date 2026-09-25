@@ -84,7 +84,7 @@ function acquiredLine(lead: LeadDetailHeaderProps['lead']): string | null {
   return `Acquis ${price}`;
 }
 
-const SLATE = '#3D5A80';
+const SLATE = '#1A2A56';
 const CREAM = '#FFF7F0';
 
 /**
@@ -184,7 +184,7 @@ export default function LeadDetailHeader({
                     className="inline-flex w-fit max-w-full items-start gap-2 rounded-xl border px-2.5 py-2 text-left min-[400px]:items-center min-[400px]:px-3"
                     style={{
                       backgroundColor: CREAM,
-                      borderColor: 'rgba(61,90,128,0.28)',
+                      borderColor: 'rgba(26, 42, 86,0.28)',
                       color: SLATE,
                     }}
                   >

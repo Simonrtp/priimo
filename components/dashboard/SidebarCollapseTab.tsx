@@ -2,7 +2,7 @@
 
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
-const NAV_ICON = '#7B9AC0';
+const NAV_ICON = '#4E5A82';
 
 export default function SidebarCollapseTab({
   collapsed,

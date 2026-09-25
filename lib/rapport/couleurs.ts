@@ -20,7 +20,7 @@ export const NUANCIER_ACCENT = [
 export const NUANCIER_ACCENT2 = [
   { hex: '#1F6FB5', label: 'Bleu' },
   { hex: '#2A3F7A', label: 'Marine' },
-  { hex: '#3D5A80', label: 'Ardoise' },
+  { hex: '#1A2A56', label: 'Priimo' },
   { hex: '#0A0D11', label: 'Encre' },
   { hex: '#1A365D', label: 'Nuit' },
   { hex: '#134E4A', label: 'Sapin' },

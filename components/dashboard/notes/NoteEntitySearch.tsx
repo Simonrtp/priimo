@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useId, useMemo, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
 import type { NoteLienEntite } from '@/types/contact';
 import { banFeatureToSelectedAddress, searchBanAddresses } from '@/lib/ban';
 import {
@@ -10,6 +9,8 @@ import {
   type RattacherItem,
   type RattacherKind,
 } from '@/lib/notes/rattacher-catalogue';
+import Select from '@/components/ui/Select';
+import { Field, TextInput } from '@/components/dashboard/workspace/Field';
 
 export type NoteLinkPick = {
   entiteType: NoteLienEntite;
@@ -36,18 +37,11 @@ type BanHit = {
 
 const BAN_MIN_LEN = 3;
 
-const PLACEHOLDER: Record<RattacherKind, string> = {
-  contact: 'Rechercher un contact…',
-  bien: 'Rechercher un bien…',
-  lead: 'Rechercher un prospect…',
+const CHOISIR: Record<RattacherKind, string> = {
+  contact: 'Choisir un contact…',
+  bien: 'Choisir un bien…',
+  lead: 'Choisir un prospect…',
   immeuble: 'Rechercher une adresse…',
-};
-
-const LIBELLE_VIDE: Record<RattacherKind, string> = {
-  contact: 'Aucun contact',
-  bien: 'Aucun bien',
-  lead: 'Aucun prospect',
-  immeuble: 'Tapez une adresse pour rattacher un immeuble.',
 };
 
 export default function NoteEntitySearch({
@@ -56,7 +50,9 @@ export default function NoteEntitySearch({
   disabled = false,
   excludeIds,
   id,
-  className = 'w-full max-w-sm',
+  className = 'w-full',
+  label = 'Rattachement du contact',
+  hint = 'Rattacher avec un contact, un bien, un prospect ou un immeuble.',
 }: {
   onPick: (pick: NoteLinkPick) => void;
   onCreateContact?: () => void;
@@ -64,17 +60,21 @@ export default function NoteEntitySearch({
   excludeIds?: ReadonlySet<string>;
   id?: string;
   className?: string;
+  label?: string;
+  hint?: string;
 }) {
-  const listId = useId();
+  const generatedId = useId();
+  const kindId = id ?? `${generatedId}-kind`;
+  const cibleId = `${generatedId}-cible`;
   const [kind, setKind] = useState<RattacherKind>('contact');
+  const [cible, setCible] = useState('');
   const [catalogue, setCatalogue] = useState<Record<'contact' | 'bien' | 'lead', RattacherItem[]>>({
     contact: [],
     bien: [],
     lead: [],
   });
-  const [charge, setCharge] = useState(true);
-  const [query, setQuery] = useState('');
   const [banHits, setBanHits] = useState<BanHit[]>([]);
+  const [banQuery, setBanQuery] = useState('');
 
   useEffect(() => {
     let cancel = false;
@@ -88,10 +88,7 @@ export default function NoteEntitySearch({
           lead: data.lead ?? [],
         });
       })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancel) setCharge(false);
-      });
+      .catch(() => undefined);
     return () => {
       cancel = true;
     };
@@ -102,7 +99,7 @@ export default function NoteEntitySearch({
       setBanHits([]);
       return;
     }
-    const q = query.trim();
+    const q = banQuery.trim();
     if (q.length < BAN_MIN_LEN) {
       setBanHits([]);
       return;
@@ -134,179 +131,144 @@ export default function NoteEntitySearch({
       window.clearTimeout(t);
       ac.abort();
     };
-  }, [kind, query]);
+  }, [kind, banQuery]);
 
-  const tous = useMemo(() => {
+  const options = useMemo(() => {
+    const vide = [{ value: '', label: CHOISIR[kind] }];
     if (kind === 'immeuble') {
-      return banHits
-        .filter((b) => !excludeIds?.has(`immeuble:${b.id}`))
-        .map((b) => ({
-          id: b.id,
-          kind: 'immeuble' as const,
-          label: b.label,
-          subtitle: 'Immeuble',
-        }));
+      return [
+        ...vide,
+        ...banHits
+          .filter((b) => !excludeIds?.has(`immeuble:${b.id}`))
+          .map((b) => ({ value: b.id, label: b.label })),
+      ];
     }
-    return catalogue[kind].filter((item) => !excludeIds?.has(`${item.kind}:${item.id}`));
-  }, [banHits, catalogue, excludeIds, kind]);
+    const items = filtrerCatalogue(
+      catalogue[kind].filter((item) => !excludeIds?.has(`${item.kind}:${item.id}`)),
+      '',
+    );
+    const extra =
+      kind === 'contact' && onCreateContact
+        ? [{ value: '__create__', label: 'Rajouter un contact' }]
+        : [];
+    return [
+      ...vide,
+      ...extra,
+      ...items.map((item) => ({
+        value: item.id,
+        label: item.subtitle ? `${item.label} · ${item.subtitle}` : item.label,
+      })),
+    ];
+  }, [banHits, catalogue, excludeIds, kind, onCreateContact]);
 
-  const filtres = useMemo(() => filtrerCatalogue(tous, query), [tous, query]);
-
-  function pickItem(item: RattacherItem) {
+  function appliquer(value: string) {
+    setCible('');
+    if (!value) return;
+    if (value === '__create__') {
+      onCreateContact?.();
+      return;
+    }
     if (kind === 'immeuble') {
-      const ban = banHits.find((b) => b.id === item.id);
+      const ban = banHits.find((b) => b.id === value);
+      if (!ban) return;
       onPick({
         entiteType: 'immeuble',
-        entiteId: item.id,
-        label: item.label,
+        entiteId: ban.id,
+        label: ban.label,
         subtitle: 'Immeuble',
-        latitude: ban?.latitude,
-        longitude: ban?.longitude,
+        latitude: ban.latitude,
+        longitude: ban.longitude,
       });
-    } else {
-      const carte = RATTACHER_CARTES.find((c) => c.id === kind);
-      if (!carte) return;
-      onPick({
-        entiteType: carte.entite,
-        entiteId: item.id,
-        label: item.label,
-        subtitle: item.subtitle,
-        address: item.address ?? (item.kind === 'bien' ? item.label : null),
-        city: item.city,
-        postalCode: item.postalCode,
-        banId: item.banId,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        propertyType: item.propertyType,
-        surfaceM2: item.surfaceM2,
-        rooms: item.rooms,
-      });
+      setBanQuery('');
+      return;
     }
-    setQuery('');
+    const carte = RATTACHER_CARTES.find((c) => c.id === kind);
+    const item = catalogue[kind].find((i) => i.id === value);
+    if (!carte || !item) return;
+    onPick({
+      entiteType: carte.entite,
+      entiteId: item.id,
+      label: item.label,
+      subtitle: item.subtitle,
+      address: item.address ?? (item.kind === 'bien' ? item.label : null),
+      city: item.city,
+      postalCode: item.postalCode,
+      banId: item.banId,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      propertyType: item.propertyType,
+      surfaceM2: item.surfaceM2,
+      rooms: item.rooms,
+    });
   }
 
   return (
-    <div className={`rounded-clay border border-black/[0.06] bg-surface p-3 shadow-clay-sm ${className}`}>
-      <div className="flex min-h-11 items-center gap-2 rounded-full border border-black/[0.10] bg-surface px-4 max-md:min-h-12">
-        <Search size={15} strokeWidth={2} className="shrink-0 text-text-muted" aria-hidden />
-        <input
-          id={id}
-          type="search"
-          value={query}
-          disabled={disabled}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={PLACEHOLDER[kind]}
-          aria-label={PLACEHOLDER[kind]}
-          autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent py-2 text-[14px] text-text outline-none placeholder:text-text-subtle disabled:opacity-50"
-        />
-      </div>
-
-      <div
-        role="tablist"
-        aria-label="Type de fiche"
-        className="mt-2.5 flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-      >
-        {RATTACHER_CARTES.map((carte) => {
-          const actif = carte.id === kind;
-          return (
-            <button
-              key={carte.id}
-              type="button"
-              role="tab"
-              aria-selected={actif}
+    <div className={className}>
+      <Field label={label} htmlFor={kindId} hint={hint}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="sm:w-[11.5rem] sm:shrink-0">
+            <Select
+              id={kindId}
+              value={kind}
               disabled={disabled}
-              onClick={() => {
-                setKind(carte.id);
-                setQuery('');
+              onChange={(v) => {
+                setKind((v || 'contact') as RattacherKind);
+                setCible('');
+                setBanQuery('');
               }}
-              className={`min-h-9 flex-1 rounded-[12px] px-1.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                actif
-                  ? 'bg-surface text-text-strong shadow-clay-sm'
-                  : 'text-text-muted hover:text-text-strong'
-              }`}
-            >
-              {carte.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-2.5 overflow-hidden rounded-xl border border-black/[0.06] bg-surface">
-        {charge && kind !== 'immeuble' ? (
-          <div className="h-16 animate-pulse bg-black/[0.04]" aria-hidden />
-        ) : (
-          <ListeItems
-            id={listId}
-            items={query.trim() ? filtres : tous}
-            vide={LIBELLE_VIDE[kind]}
-            onPick={pickItem}
-            disabled={disabled}
-            onCreate={kind === 'contact' ? onCreateContact : undefined}
-          />
-        )}
-      </div>
+              options={RATTACHER_CARTES.map((carte) => ({
+                value: carte.id,
+                label: `Avec un ${carte.label.toLocaleLowerCase('fr')}`,
+              }))}
+              aria-label="Rattacher avec"
+            />
+          </div>
+          <div className="relative min-w-0 flex-1">
+            {kind === 'immeuble' ? (
+              <>
+                <TextInput
+                  id={cibleId}
+                  value={banQuery}
+                  disabled={disabled}
+                  placeholder="Rechercher une adresse…"
+                  aria-label="Rechercher une adresse"
+                  autoComplete="off"
+                  onChange={(e) => setBanQuery(e.target.value)}
+                />
+                {banHits.length > 0 ? (
+                  <ul className="absolute z-[230] mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-black/[0.10] bg-surface py-1 shadow-clay-lg">
+                    {banHits
+                      .filter((b) => !excludeIds?.has(`immeuble:${b.id}`))
+                      .map((b) => (
+                        <li key={b.id}>
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => appliquer(b.id)}
+                            className="flex w-full px-3 py-2.5 text-left text-[14px] text-text hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+                          >
+                            {b.label}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                ) : null}
+              </>
+            ) : (
+              <Select
+                id={cibleId}
+                value={cible}
+                disabled={disabled}
+                searchable
+                searchPlaceholder="Rechercher…"
+                onChange={appliquer}
+                options={options}
+                aria-label={CHOISIR[kind]}
+              />
+            )}
+          </div>
+        </div>
+      </Field>
     </div>
-  );
-}
-
-function ListeItems({
-  id,
-  items,
-  vide,
-  onPick,
-  disabled,
-  onCreate,
-}: {
-  id: string;
-  items: RattacherItem[];
-  vide: string;
-  onPick: (item: RattacherItem) => void;
-  disabled: boolean;
-  onCreate?: () => void;
-}) {
-  if (!onCreate && items.length === 0) {
-    return <p className="px-3 py-3 text-pretty text-[13.5px] text-text-muted">{vide}</p>;
-  }
-  return (
-    <ul id={id} role="listbox" aria-label="Fiches" className="max-h-40 overflow-y-auto p-1">
-      {onCreate ? (
-        <li>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onCreate}
-            className="flex w-full min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
-          >
-            <Plus size={15} strokeWidth={2.2} className="shrink-0 text-text-muted" aria-hidden />
-            <span className="text-[13.5px] font-medium text-text">Rajouter un contact</span>
-          </button>
-        </li>
-      ) : null}
-      {items.length === 0 ? (
-        <li className="px-3 py-2 text-pretty text-[13.5px] text-text-muted" role="presentation">
-          {vide}
-        </li>
-      ) : (
-        items.map((item) => (
-          <li key={`${item.kind}-${item.id}`} role="option">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onPick(item)}
-              title={item.subtitle ? `${item.label} · ${item.subtitle}` : item.label}
-              className="flex w-full min-w-0 items-baseline gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
-            >
-              <span className="shrink-0 text-[13.5px] font-medium text-text">{item.label}</span>
-              {item.subtitle ? (
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-text-muted">
-                  {item.subtitle}
-                </span>
-              ) : null}
-            </button>
-          </li>
-        ))
-      )}
-    </ul>
   );
 }

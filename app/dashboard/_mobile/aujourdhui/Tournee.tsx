@@ -39,7 +39,7 @@ export function TourneeCard({
   return (
     <button
       type="button"
-      className="relative isolate w-full overflow-hidden rounded-[24px] text-left shadow-[0_18px_50px_-12px_rgba(15,23,34,0.55)] ring-1 ring-white/20 transition-transform active:scale-[0.99]"
+      className="relative isolate w-full overflow-hidden rounded-[24px] text-left shadow-[0_18px_50px_-12px_rgba(26, 42, 86,0.55)] ring-1 ring-white/20 transition-transform active:scale-[0.99]"
       style={{ minHeight: mapUrl ? 280 : 168 }}
       aria-label={`Ouvrir l'itinéraire : ${title}`}
       {...tapProps(onStart)}
@@ -53,7 +53,7 @@ export function TourneeCard({
             className="absolute inset-0 size-full object-cover object-center brightness-[1.03] contrast-[1.06]"
           />
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-[#15202F]/85 via-[#15202F]/30 to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-[#1A2A56]/85 via-[#1A2A56]/30 to-transparent"
             aria-hidden
           />
         </>
@@ -61,7 +61,7 @@ export function TourneeCard({
         <div
           className="absolute inset-0"
           style={{
-            background: `linear-gradient(145deg, ${FIELD.ardoise} 0%, #24384F 55%, #1E3148 100%)`,
+            background: `linear-gradient(145deg, ${FIELD.ardoise} 0%, #121C3A 55%, #1A2A56 100%)`,
           }}
           aria-hidden
         />
@@ -72,7 +72,7 @@ export function TourneeCard({
         aria-hidden
       />
 
-      <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] border border-white/28 bg-[#1E3148]/40 px-3.5 py-2.5 shadow-[0_6px_24px_rgba(15,23,34,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-md supports-[backdrop-filter]:bg-[#1E3148]/28">
+      <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] border border-white/28 bg-[#1A2A56]/40 px-3.5 py-2.5 shadow-[0_6px_24px_rgba(26, 42, 86,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-md supports-[backdrop-filter]:bg-[#1A2A56]/28">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p
@@ -127,7 +127,7 @@ function TourProgressRing({ done, total }: { done: number; total: number }) {
   return (
     <div className="relative size-11 flex-shrink-0" aria-hidden>
       <svg viewBox="0 0 44 44" className="size-11 -rotate-90">
-        <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(61,90,128,0.18)" strokeWidth="4" />
+        <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(26, 42, 86,0.18)" strokeWidth="4" />
         <circle
           cx="22"
           cy="22"

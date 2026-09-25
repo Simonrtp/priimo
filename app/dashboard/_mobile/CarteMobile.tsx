@@ -628,7 +628,7 @@ export default function CarteMobile({
           className="pointer-events-none absolute inset-x-0 z-[72] px-4"
           style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
         >
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#15202F]/90 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-sm">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1A2A56]/90 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-sm">
             <p className="min-w-0 flex-1 text-[13.5px] font-medium text-white">
               Touchez la carte pour ajouter ce point
             </p>

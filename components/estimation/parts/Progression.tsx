@@ -24,7 +24,7 @@ export default function Progression({
   const safeTotal = Math.max(1, total);
   const safeIndex = Math.max(0, Math.min(index, safeTotal));
   const pct = Math.min(100, Math.round((safeIndex / safeTotal) * 100));
-  const barColor = tone === 'neutral' ? '#1E3148' : 'var(--est-accent)';
+  const barColor = tone === 'neutral' ? '#1A2A56' : 'var(--est-accent)';
 
   return (
     <div>

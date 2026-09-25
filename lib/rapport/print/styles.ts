@@ -75,7 +75,7 @@ export const AVIS_LAYOUT_CSS = `
   --c-green: #6BB02E;
   --c-purple: #4B2E83;
   --c-red: #F0445A;
-  --logo: repeating-linear-gradient(135deg, rgba(61,90,128,.16) 0 4px, rgba(61,90,128,.05) 4px 8px);
+  --logo: repeating-linear-gradient(135deg, rgba(26, 42, 86,.16) 0 4px, rgba(26, 42, 86,.05) 4px 8px);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -120,9 +120,9 @@ export const AVIS_LAYOUT_CSS = `
   padding: 16px 20px;
 }
 .avis-carte--flex { display: flex; flex: 1; min-height: 0; flex-direction: column; }
-.avis-label { margin: 0 0 0.2rem; font-size: 10.5px; color: #3D5A80; }
+.avis-label { margin: 0 0 0.2rem; font-size: 10.5px; color: #1A2A56; }
 .avis-valeur { margin: 0; font-weight: 600; }
-.avis-muted { color: #3D5A80; }
+.avis-muted { color: #1A2A56; }
 .avis-grille { display: grid; gap: 14px; }
 .avis-grille-2 { grid-template-columns: 1fr 1fr; }
 .avis-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -132,13 +132,13 @@ export const AVIS_LAYOUT_CSS = `
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #3D5A80;
+  color: #1A2A56;
   text-align: left;
-  border-bottom: 1px solid rgba(61, 90, 128, 0.16);
+  border-bottom: 1px solid rgba(26, 42, 86, 0.16);
 }
 .avis-table td {
   padding: 0.38rem 0.5rem;
-  border-bottom: 1px solid rgba(61, 90, 128, 0.08);
+  border-bottom: 1px solid rgba(26, 42, 86, 0.08);
 }
 .avis-table .num { text-align: right; }
 .avis-ligne {
@@ -146,7 +146,7 @@ export const AVIS_LAYOUT_CSS = `
   align-items: center;
   gap: 0.55rem;
   padding: 0.38rem 0;
-  border-bottom: 1px solid rgba(61, 90, 128, 0.12);
+  border-bottom: 1px solid rgba(26, 42, 86, 0.12);
 }
 .avis-ligne:last-child { border-bottom: 0; }
 .avis-cta { margin: 0; font-size: 21px; font-weight: 600; }

@@ -19,7 +19,7 @@ export default function MobileAccountMenu({
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Compte">
       <button
         type="button"
-        className="absolute inset-0 bg-[rgba(21,32,47,0.4)]"
+        className="absolute inset-0 bg-[rgba(26, 42, 86,0.4)]"
         aria-label="Fermer"
         onClick={onClose}
       />

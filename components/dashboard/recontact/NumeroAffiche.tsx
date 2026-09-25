@@ -3,7 +3,7 @@
 import type { MouseEvent } from 'react';
 import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 
-const NUMBER = 'tabular-nums font-medium text-[#3D5A80]';
+const NUMBER = 'tabular-nums font-medium text-[#1A2A56]';
 
 export function NumeroAffiche({
   phone,
@@ -41,7 +41,7 @@ export function EmailAffiche({
   return (
     <a
       href={`mailto:${email}`}
-      className={`inline-flex min-h-10 items-center font-medium text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ${className}`}
+      className={`inline-flex min-h-10 items-center font-medium text-[#1A2A56] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ${className}`}
       aria-label={label ? `Écrire à ${label}` : `Écrire à ${email}`}
     >
       {email}

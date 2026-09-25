@@ -42,7 +42,7 @@ export default function CarteTourneeDoneCard({
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] px-4">
         <div
-          className="tour-brief overflow-hidden rounded-[26px] bg-surface shadow-[0_-12px_44px_rgba(15,23,34,0.24)] ring-1 ring-black/[0.06]"
+          className="tour-brief overflow-hidden rounded-[26px] bg-surface shadow-[0_-12px_44px_rgba(26, 42, 86,0.24)] ring-1 ring-black/[0.06]"
           style={{ marginBottom: 'calc(12px + var(--field-nav-height))' }}
         >
           <div

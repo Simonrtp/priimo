@@ -171,6 +171,8 @@ export function buildReviewPayload(args: {
     }
   }
 
+  const personnesUniques = fusionnerPersonnesProches(personnes);
+
   let immeuble: ImmeubleProposal | null = null;
   const address =
     extraction?.address ?? guessAdresseFromTranscript(cited) ?? args.geo.adresse_normalisee;
@@ -206,7 +208,7 @@ export function buildReviewPayload(args: {
     visibilite: args.visibilite,
     sourceInfo: extraction?.sourceInfo ?? null,
     extractFailed: args.extractFailed,
-    personnes,
+    personnes: personnesUniques,
     immeuble,
     biens: cited ? biensCitesDansTexte(cited, args.biensAgence ?? []) : [],
     relance,
@@ -219,6 +221,80 @@ export function buildReviewPayload(args: {
     surface,
     secteur,
   };
+}
+
+function distanceLettres(a: string, b: string): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  const m = a.length;
+  const n = b.length;
+  const prev = Array.from({ length: n + 1 }, (_, j) => j);
+  const next = new Array<number>(n + 1);
+  for (let i = 1; i <= m; i++) {
+    next[0] = i;
+    for (let j = 1; j <= n; j++) {
+      next[j] = Math.min(
+        prev[j]! + 1,
+        next[j - 1]! + 1,
+        prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    for (let j = 0; j <= n; j++) prev[j] = next[j]!;
+  }
+  return prev[n]!;
+}
+
+function estIssueExtraction(id: string): boolean {
+  return /^p\d+$/.test(id);
+}
+
+export function personnesProches(a: PersonneProposal, b: PersonneProposal): boolean {
+  const matchA = a.matches[0]?.contactId;
+  const matchB = b.matches[0]?.contactId;
+  if (matchA && matchB && matchA === matchB) return true;
+  if (a.personne.phone && a.personne.phone === b.personne.phone) return true;
+  const af = normalizeName(a.personne.firstName);
+  const al = normalizeName(a.personne.lastName);
+  const bf = normalizeName(b.personne.firstName);
+  const bl = normalizeName(b.personne.lastName);
+  const aNom = `${af} ${al}`.trim();
+  const bNom = `${bf} ${bl}`.trim();
+  if (!aNom || !bNom) return false;
+  if (aNom === bNom) return true;
+  if (al && bl && al === bl && af && bf && distanceLettres(af, bf) <= 1) return true;
+  if (!al && !bl && af && bf && Math.min(af.length, bf.length) >= 5 && distanceLettres(af, bf) <= 1) {
+    return true;
+  }
+  if (!af && !bf && al && bl && Math.min(al.length, bl.length) >= 5 && distanceLettres(al, bl) <= 1) {
+    return true;
+  }
+  return false;
+}
+
+function fusionnerDeux(a: PersonneProposal, b: PersonneProposal): PersonneProposal {
+  const base = estIssueExtraction(a.id) ? a : estIssueExtraction(b.id) ? b : a;
+  const autre = base === a ? b : a;
+  return {
+    id: base.id,
+    personne: {
+      firstName: base.personne.firstName || autre.personne.firstName,
+      lastName: base.personne.lastName || autre.personne.lastName,
+      phone: base.personne.phone || autre.personne.phone,
+      email: base.personne.email || autre.personne.email,
+      type: base.personne.type !== 'autre' ? base.personne.type : autre.personne.type,
+    },
+    matches: base.matches.length >= autre.matches.length ? base.matches : autre.matches,
+  };
+}
+
+export function fusionnerPersonnesProches(personnes: PersonneProposal[]): PersonneProposal[] {
+  const out: PersonneProposal[] = [];
+  for (const p of personnes) {
+    const i = out.findIndex((o) => personnesProches(o, p));
+    if (i < 0) out.push(p);
+    else out[i] = fusionnerDeux(out[i]!, p);
+  }
+  return out;
 }
 
 export function actionsDepuisReview(review: NoteReviewPayload): ActionProposee[] {

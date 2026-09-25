@@ -4,11 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
-import {
-  actionsDepuisReview,
-  type NoteReviewPayload,
-  type PersonneProposal,
-} from '@/lib/notes/build-review';
+import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
+import { EMPTY_CONTACT_INPUT, type ContactInputFields } from '@/lib/contact-input';
 import { formatPhoneOrNull, normalizeName, telHref } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
 import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
@@ -19,6 +16,9 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { Field, TextArea } from '@/components/dashboard/workspace/Field';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import ContactFormFields, {
+  type ContactFormGeo,
+} from '@/components/dashboard/contacts/ContactFormFields';
 import NoteEntitySearch, {
   type NoteLinkPick,
 } from '@/components/dashboard/notes/NoteEntitySearch';
@@ -31,6 +31,8 @@ const SOURCE_OPTIONS = [
 ];
 
 type ManualLink = NoteLinkPick & { key: string };
+
+const LIENS_VIDES: readonly NoteLinkPick[] = [];
 
 function toManualLinks(picks: readonly NoteLinkPick[]): ManualLink[] {
   return picks.map((p) => ({ ...p, key: `${p.entiteType}:${p.entiteId}` }));
@@ -177,6 +179,40 @@ function ContactFiche({
   );
 }
 
+type ContactDraft = {
+  fields: ContactInputFields;
+  assignedTo: string | null;
+  geo: ContactFormGeo;
+};
+
+function draftDepuisProposition(
+  p: PersonneProposal,
+  review: NoteReviewPayload,
+  transcript: string,
+  assignee: string | null,
+): ContactDraft {
+  return {
+    fields: {
+      ...EMPTY_CONTACT_INPUT,
+      firstName: p.personne.firstName,
+      lastName: p.personne.lastName,
+      type: p.personne.type,
+      phone: p.personne.phone,
+      email: p.personne.email,
+      address: review.immeuble?.adresseNormalisee ?? review.immeuble?.address ?? null,
+      secteur: review.secteur,
+      summary: transcript.trim() || null,
+      recontacterLe: review.relance?.at ? review.relance.at.slice(0, 10) : null,
+    },
+    assignedTo: assignee,
+    geo: {
+      banId: review.immeuble?.banId ?? null,
+      latitude: null,
+      longitude: null,
+    },
+  };
+}
+
 export default function VoiceReviewPanel({
   review,
   transcript,
@@ -189,7 +225,7 @@ export default function VoiceReviewPanel({
   onDone,
   onDismiss,
   typed = false,
-  initialManualLinks = [],
+  initialManualLinks = LIENS_VIDES,
   extracting = false,
   parcelleId = null,
   adresse = null,
@@ -225,6 +261,9 @@ export default function VoiceReviewPanel({
   const [chosenMatch, setChosenMatch] = useState<Record<string, string>>({});
   const [manualLinks, setManualLinks] = useState<ManualLink[]>(() => toManualLinks(initialManualLinks));
   const [hiddenConseillers, setHiddenConseillers] = useState<string[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, ContactDraft>>({});
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
   const sourceChoisie = useRef(false);
   const lastExtracted = (review.transcript ?? '').trim();
   const dirty = transcript.trim() !== lastExtracted;
@@ -237,7 +276,8 @@ export default function VoiceReviewPanel({
     setChosenMatch({});
     setManualLinks(toManualLinks(initialManualLinks));
     setHiddenConseillers([]);
-  }, [review.voiceNoteId, initialManualLinks]);
+    setDrafts({});
+  }, [review.voiceNoteId]);
 
   // La lecture de la note se termine après l'ouverture du panneau : on adopte
   // la source qu'elle propose, sauf si l'agent a déjà choisi la sienne.
@@ -245,6 +285,24 @@ export default function VoiceReviewPanel({
     if (sourceChoisie.current) return;
     setSourceInfo(review.sourceInfo ?? '');
   }, [review.sourceInfo]);
+
+  useEffect(() => {
+    setDrafts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const p of review.personnes) {
+        if (next[p.id]) continue;
+        next[p.id] = draftDepuisProposition(
+          p,
+          review,
+          transcript,
+          suggestedAssigneeId ?? currentUserId ?? null,
+        );
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [review, transcript, suggestedAssigneeId, currentUserId]);
 
   const conseillers = useMemo(
     () => matchMembersInTranscript(transcript, members).filter((m) => !hiddenConseillers.includes(m.memberId)),
@@ -282,12 +340,17 @@ export default function VoiceReviewPanel({
     );
   }
 
-  const actions = actionsDepuisReview({
-    ...review,
-    personnes: visiblePersonnes().filter(personneVisible),
-    biens: review.biens.filter((b) => !hiddenIds.includes(`bien-${b.id}`)),
-    immeuble: hiddenIds.includes('immeuble') ? null : review.immeuble,
-  });
+  function draftPour(p: PersonneProposal): ContactDraft {
+    return (
+      drafts[p.id] ??
+      draftDepuisProposition(
+        p,
+        review,
+        transcript,
+        suggestedAssigneeId ?? currentUserId ?? null,
+      )
+    );
+  }
 
   function selectedMatchFor(p: PersonneProposal): ContactMatch | null {
     if (deselectedIds.includes(p.id)) return null;
@@ -346,6 +409,12 @@ export default function VoiceReviewPanel({
 
   function dismissPersonne(id: string) {
     setHiddenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    if (review.personnes.some((p) => p.id === id)) {
+      onReviewChange({
+        ...review,
+        personnes: review.personnes.filter((p) => p.id !== id),
+      });
+    }
   }
 
   async function addLien(entiteType: string, entiteId: string, confiance: string) {
@@ -393,25 +462,21 @@ export default function VoiceReviewPanel({
     summary: string,
     forceCreate = false,
   ): Promise<string> {
-    const address = fiche.immeuble?.adresseNormalisee ?? fiche.immeuble?.address ?? null;
-    const banId = fiche.immeuble?.banId ?? null;
+    const draft =
+      draftsRef.current[p.id] ??
+      draftDepuisProposition(p, fiche, summary, suggestedAssigneeId ?? currentUserId ?? null);
     const res = await fetch('/api/dashboard/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        firstName: p.personne.firstName,
-        lastName: p.personne.lastName,
-        type: p.personne.type,
-        phone: p.personne.phone,
-        email: p.personne.email,
-        address,
-        banId,
-        secteur: fiche.secteur,
-        summary: summary.trim() || null,
+        ...draft.fields,
+        assignedTo: draft.assignedTo ?? pickedAssignee(),
+        banId: draft.geo.banId,
+        latitude: draft.geo.latitude,
+        longitude: draft.geo.longitude,
         source: typed ? 'manuel' : 'vocal',
         voiceNoteId: fiche.voiceNoteId,
         forceCreate,
-        assignedTo: pickedAssignee(),
       }),
     });
     const data = (await res.json()) as {
@@ -444,7 +509,11 @@ export default function VoiceReviewPanel({
     fiche: NoteReviewPayload,
     summary: string,
   ): Promise<string | null> {
-    const hasName = Boolean(p.personne.firstName.trim() || p.personne.lastName.trim());
+    const draft = draftsRef.current[p.id];
+    const first = (draft?.fields.firstName ?? p.personne.firstName).trim();
+    const last = (draft?.fields.lastName ?? p.personne.lastName).trim();
+    const phone = draft?.fields.phone ?? p.personne.phone;
+    const hasName = Boolean(first || last);
     const match = selectedMatchFor(p);
 
     if (match) {
@@ -458,7 +527,7 @@ export default function VoiceReviewPanel({
 
     if (p.matches.length > 0) return null;
 
-    if (hasName || p.personne.phone) return createContact(p, fiche, summary);
+    if (hasName || phone) return createContact(p, fiche, summary);
     return null;
   }
 
@@ -475,6 +544,7 @@ export default function VoiceReviewPanel({
       if (!res.ok) throw new Error(data.error);
       onTranscript(data.transcript ?? transcript);
       onReviewChange(data);
+      setDrafts({});
       if (data.sourceInfo && !sourceChoisie.current) setSourceInfo(data.sourceInfo);
       notifySuccess('Propositions mises à jour');
     } catch {
@@ -713,66 +783,76 @@ export default function VoiceReviewPanel({
           <div className="flex flex-col gap-5">
             <NoteAncrage parcelleId={parcelleId} adresse={adresse} />
 
-            {!extracting && actions.length > 0 ? (
-              <ol className="flex flex-col gap-2">
-                {actions.map((action) => (
-                  <li
-                    key={action.id}
-                    className="flex items-start justify-between gap-3 rounded-clay border border-black/[0.08] bg-surface px-3.5 py-3"
-                  >
-                    <span className="min-w-0">
-                      <p className="text-pretty text-[14px] font-semibold text-text-strong">{action.titre}</p>
-                      {action.detail ? (
-                        <p className="mt-0.5 text-pretty text-[12.5px] text-text-muted">{action.detail}</p>
-                      ) : null}
-                    </span>
-                    {action.id === 'immeuble' ||
-                    action.id.startsWith('bien-') ||
-                    action.id.startsWith('creer-') ||
-                    action.id.startsWith('relier-') ? (
-                      <button
-                        type="button"
-                        disabled={locked}
-                        aria-label={`Retirer : ${action.titre}`}
-                        onClick={() => {
-                          if (action.id.startsWith('creer-')) {
-                            dismissPersonne(action.id.slice('creer-'.length));
-                            return;
-                          }
-                          if (action.id.startsWith('relier-')) {
-                            const contactId = action.id.slice('relier-'.length);
-                            const p = visiblePersonnes().find((x) => x.matches[0]?.contactId === contactId);
-                            if (p) dismissPersonne(p.id);
-                            return;
-                          }
-                          dismissPersonne(action.id);
-                        }}
-                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
-                      >
-                        <X size={16} strokeWidth={2} aria-hidden />
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-
-            {!extracting && actions.length === 0 ? (
+            {!extracting && visiblePersonnes().filter(personneVisible).length === 0 ? (
               <p className="text-pretty text-[13.5px] text-text-muted">
-                Aucune action détectée. Valider enregistrera la note seule.
+                Aucun contact détecté. Complétez les champs ou validez la note seule.
               </p>
             ) : null}
 
             {visiblePersonnes()
               .filter(personneVisible)
-              .map((p) => (
-                <ContactFiche
-                  key={p.id}
-                  fiche={ficheContact(p, selectedMatchFor(p), review)}
-                  onRemove={() => dismissPersonne(p.id)}
-                  disabled={locked}
-                />
-              ))}
+              .map((p) => {
+                const match = selectedMatchFor(p);
+                if (match) {
+                  return (
+                    <ContactFiche
+                      key={p.id}
+                      fiche={ficheContact(p, match, review)}
+                      onRemove={() => dismissPersonne(p.id)}
+                      disabled={locked}
+                    />
+                  );
+                }
+                const draft = draftPour(p);
+                return (
+                  <article
+                    key={p.id}
+                    className="rounded-clay border border-black/[0.08] bg-surface px-4 py-4 shadow-clay-sm"
+                  >
+                    <div className="mb-5 flex items-center justify-between gap-3">
+                      <h4 className="text-pretty font-semibold text-text-strong" style={{ fontSize: 16 }}>
+                        Nouveau contact
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => dismissPersonne(p.id)}
+                        disabled={locked}
+                        aria-label="Retirer ce contact"
+                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+                      >
+                        <X size={16} strokeWidth={2} aria-hidden />
+                      </button>
+                    </div>
+                    <ContactFormFields
+                      idPrefix={`voice-${p.id}`}
+                      fields={draft.fields}
+                      onFields={(fields) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [p.id]: { ...(prev[p.id] ?? draft), fields },
+                        }))
+                      }
+                      assignedTo={draft.assignedTo}
+                      onAssignedTo={(assignedTo) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [p.id]: { ...(prev[p.id] ?? draft), assignedTo },
+                        }))
+                      }
+                      geo={draft.geo}
+                      onGeo={(geo) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [p.id]: { ...(prev[p.id] ?? draft), geo },
+                        }))
+                      }
+                      members={members}
+                      currentUserId={currentUserId}
+                      disabled={locked}
+                    />
+                  </article>
+                );
+              })}
 
             <label className="flex min-h-[40px] cursor-pointer items-center gap-3">
               <input

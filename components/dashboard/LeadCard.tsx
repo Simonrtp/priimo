@@ -13,7 +13,7 @@ import { contactabiliteListLabel, hasDirectContactPhone } from '@/lib/lead-conta
 import { hasDisplayableAcquiredPrice } from '@/lib/lead-valorisation';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 
-const SLATE = '#3D5A80';
+const SLATE = '#1A2A56';
 
 function PropertyMetaLine({
   segments,

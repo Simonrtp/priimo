@@ -5,7 +5,7 @@ import type { LeadStage, LeadStatus } from '@/types/lead';
  * Pas de regroupement « tout le pipeline en bleu ».
  */
 export const COULEUR_ETAPE: Record<string, string> = {
-  pris: '#3D5A80',
+  pris: '#1A2A56',
   contacte: '#E8743C',
   rendez_vous: '#C9A227',
   estimation: '#1F8294',
@@ -14,7 +14,7 @@ export const COULEUR_ETAPE: Record<string, string> = {
 };
 
 export const COULEUR_STATUT: Record<LeadStatus, string> = {
-  nouveau: '#3D5A80',
+  nouveau: '#1A2A56',
   contacte: '#E8743C',
   interesse: '#1F8294',
   mandat_signe: '#2E7D5B',
@@ -22,7 +22,7 @@ export const COULEUR_STATUT: Record<LeadStatus, string> = {
   vendeur_ailleurs: '#9A3412',
 };
 
-const EXTRA = ['#7B9AC0', '#C25E2C', '#5B8A72', '#8B5E3C', '#4A7C8C', '#A65D57'] as const;
+const EXTRA = ['#4E5A82', '#C25E2C', '#5B8A72', '#8B5E3C', '#4A7C8C', '#A65D57'] as const;
 
 function hashCle(cle: string): number {
   let h = 0;

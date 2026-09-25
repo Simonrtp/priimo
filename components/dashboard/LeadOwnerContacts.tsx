@@ -87,7 +87,7 @@ function ImmeubleContactRow({
       ) : null}
       <a
         href={telHref(contact.phone)}
-        className="mt-1 inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+        className="mt-1 inline-flex min-h-10 items-center font-medium tabular-nums text-[#1A2A56] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
         style={{ fontSize: 13 }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -101,7 +101,7 @@ function ImmeubleContactRow({
             void promote();
           }}
           disabled={saving || promoted}
-          className="inline-flex min-h-10 items-center text-[12.5px] font-semibold text-[#3D5A80] underline-offset-2 hover:underline disabled:opacity-50"
+          className="inline-flex min-h-10 items-center text-[12.5px] font-semibold text-[#1A2A56] underline-offset-2 hover:underline disabled:opacity-50"
         >
           {promoted ? 'Dans les contacts' : saving ? 'Création…' : 'Créer un contact'}
         </button>
@@ -161,7 +161,7 @@ function OwnerPersonBlock({ lead }: { lead: Lead }) {
         <div className="mt-2">
           <a
             href={telHref(phone)}
-            className="inline-flex min-h-10 items-center font-medium tabular-nums text-[#3D5A80] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+            className="inline-flex min-h-10 items-center font-medium tabular-nums text-[#1A2A56] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
             style={{ fontSize: 13 }}
             onClick={(e) => e.stopPropagation()}
           >

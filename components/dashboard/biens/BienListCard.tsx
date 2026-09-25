@@ -160,7 +160,7 @@ export default function BienListCard({
                       >
                         <img src={url} alt="" className="size-full object-cover" />
                         {isLast ? (
-                          <span className="absolute inset-0 flex items-center justify-center bg-[#1E3148]/55 text-[12px] font-semibold text-white">
+                          <span className="absolute inset-0 flex items-center justify-center bg-[#1A2A56]/55 text-[12px] font-semibold text-white">
                             +{overflow}
                           </span>
                         ) : null}
@@ -200,7 +200,7 @@ export default function BienListCard({
                 {bien.proprietairePhone ? (
                   <a
                     href={telHref(bien.proprietairePhone)}
-                    className="inline-flex min-h-8 items-center gap-1 font-medium text-[#3D5A80] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="inline-flex min-h-8 items-center gap-1 font-medium text-[#1A2A56] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     aria-label={`Appeler ${bien.proprietaireName ?? 'le propriétaire'}`}
                   >
                     <Phone size={12} strokeWidth={2.2} aria-hidden />
@@ -210,7 +210,7 @@ export default function BienListCard({
                 {bien.proprietaireEmail ? (
                   <a
                     href={`mailto:${bien.proprietaireEmail}`}
-                    className="inline-flex min-h-8 max-w-full items-center gap-1 font-medium text-[#3D5A80] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="inline-flex min-h-8 max-w-full items-center gap-1 font-medium text-[#1A2A56] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     aria-label={`Écrire à ${bien.proprietaireName ?? 'le propriétaire'}`}
                   >
                     <Mail size={12} strokeWidth={2} className="flex-shrink-0" aria-hidden />
@@ -252,7 +252,7 @@ export default function BienListCard({
                 type="button"
                 disabled={photoBusy || bien.photos.length >= BIEN_PHOTO_MAX_COUNT}
                 onClick={() => fileRef.current?.click()}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-medium text-[#3D5A80] hover:bg-[#3D5A80]/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-medium text-[#1A2A56] hover:bg-[#1A2A56]/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
               >
                 <ImagePlus size={16} strokeWidth={2} aria-hidden />
                 {photoBusy ? 'Envoi…' : 'Photos'}

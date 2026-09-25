@@ -48,7 +48,7 @@ export function CarteAgent({ d }: { d: DossierRapport }) {
               borderRadius: '50%',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(61,90,128,0.1)',
+              background: 'rgba(26, 42, 86,0.1)',
               fontWeight: 700,
             }}
           >

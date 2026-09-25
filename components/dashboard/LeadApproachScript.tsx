@@ -21,7 +21,7 @@ export default function LeadApproachScript({ lead }: { lead: Lead }) {
       <DetailSectionLabel>Récap infos</DetailSectionLabel>
       <div
         className="rounded-[16px] px-4 py-3.5"
-        style={{ backgroundColor: '#EAEFF5' }}
+        style={{ backgroundColor: '#D5D8E4' }}
       >
         <p
           className="text-pretty font-semibold text-text-strong"

@@ -37,8 +37,8 @@ export const CADASTRE_VENTES_LAYER_ID = 'cadastre-ventes';
 export const CADASTRE_VENTES_POINT_LAYER_ID = 'cadastre-ventes-point';
 export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 
-const FILL = 'rgba(61, 90, 128, 0.14)';
-const LINE = 'rgba(61, 90, 128, 0.4)';
+const FILL = 'rgba(26, 42, 86, 0.14)';
+const LINE = 'rgba(26, 42, 86, 0.4)';
 const DPE_CIRCLE_COLOR: ExpressionSpecification = [
   'match',
   ['get', 'letter'],
@@ -391,7 +391,7 @@ export default function ParcellesLayer({
                 'case',
                 ['boolean', ['feature-state', 'active'], false],
                 FILL,
-                'rgba(61, 90, 128, 0)',
+                'rgba(26, 42, 86, 0)',
               ],
               'fill-opacity': 1,
             }}

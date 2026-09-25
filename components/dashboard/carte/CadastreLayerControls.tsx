@@ -23,7 +23,7 @@ import {
 } from '@/lib/carte/dpe-age';
 import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
 
-const SLATE = '#3D5A80';
+const SLATE = '#1A2A56';
 const THUMB_PAD = 14;
 
 function overlayKey(id: CadastreOverlayId): keyof Pick<

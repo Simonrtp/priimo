@@ -23,7 +23,7 @@ export const PLAN_LEADS_QUOTA: Record<PlanCode, number> = {
 
 export const PLAN_BADGE_CLASSES: Record<PlanCode, string> = {
   fondateur: 'bg-gray-100 text-gray-700',
-  standard: 'bg-[#3D5A80]/15 text-[#3D5A80]',
+  standard: 'bg-[#1A2A56]/15 text-[#1A2A56]',
   premium: 'bg-[#E8743C]/15 text-[#A8521F]',
   reseau: 'bg-purple-100 text-purple-700',
 };

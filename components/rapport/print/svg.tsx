@@ -28,16 +28,16 @@ export function BarreFourchette({
         strokeLinecap="round"
         opacity="0.35"
       />
-      <circle cx={x(low)} cy="28" r="5" fill="#3D5A80" />
-      <circle cx={x(high)} cy="28" r="5" fill="#3D5A80" />
+      <circle cx={x(low)} cy="28" r="5" fill="#1A2A56" />
+      <circle cx={x(high)} cy="28" r="5" fill="#1A2A56" />
       <circle cx={x(mid)} cy="28" r="7" fill={accent} />
-      <text x={x(low)} y="52" textAnchor="middle" fontSize="9" fill="#3D5A80" fontFamily="Inter, sans-serif">
+      <text x={x(low)} y="52" textAnchor="middle" fontSize="9" fill="#1A2A56" fontFamily="Inter, sans-serif">
         {formatEuro(low)}
       </text>
       <text x={x(mid)} y="12" textAnchor="middle" fontSize="9" fill="#0A0D11" fontFamily="Inter, sans-serif">
         {formatEuro(mid)}
       </text>
-      <text x={x(high)} y="52" textAnchor="middle" fontSize="9" fill="#3D5A80" fontFamily="Inter, sans-serif">
+      <text x={x(high)} y="52" textAnchor="middle" fontSize="9" fill="#1A2A56" fontFamily="Inter, sans-serif">
         {formatEuro(high)}
       </text>
     </svg>
@@ -124,13 +124,13 @@ export function NuageComparables({
           x2="278"
           y1={py(mediane)}
           y2={py(mediane)}
-          stroke="#3D5A80"
+          stroke="#1A2A56"
           strokeDasharray="4 4"
           strokeWidth="1"
         />
       ) : null}
       {points.map((p, i) => (
-        <circle key={i} cx={px(p.x)} cy={py(p.y)} r="3.5" fill="#3D5A80" />
+        <circle key={i} cx={px(p.x)} cy={py(p.y)} r="3.5" fill="#1A2A56" />
       ))}
       {bien ? <circle cx={px(bien.x)} cy={py(bien.y)} r="6" fill={accent} /> : null}
     </svg>

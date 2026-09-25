@@ -180,7 +180,7 @@ function Liste({
                     className="inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold"
                     style={
                       attached
-                        ? { backgroundColor: 'rgba(30, 49, 72, 0.1)', color: '#15202F' }
+                        ? { backgroundColor: 'rgba(26, 42, 86, 0.1)', color: '#1A2A56' }
                         : { backgroundColor: 'rgba(232, 116, 60, 0.16)', color: '#8A3D14' }
                     }
                   >

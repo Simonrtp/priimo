@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Priimo — Accueil (maquette 2026)</title>
+<meta name="description" content="Le CRM que vos agents remplissent depuis la rue.">
+<!--
+  ============================================================================
+  MAQUETTE ACCUEIL PRIIMO — ordinateur 1440 px / mobile 390 px
+  ----------------------------------------------------------------------------
+  Une <section> par futur composant React : le nom du composant cible est
+  indiqué dans chaque bandeau de commentaire, et le bloc CSS correspondant
+  porte le même nom dans accueil.css.
+  Chemins d'images : ../../public/xxx.png  ->  dans Next.js, remplacer par /xxx.png
+  Textes modifiables : attribut data-txt="Section / Champ" (panneau Réglages).
+  ============================================================================
+-->
+<link rel="stylesheet" href="accueil.css">
+</head>
+<body>
+
+<a class="saut-contenu" href="#contenu">Aller au contenu</a>
+
+<!-- =========================================================================
+     A — EN-TÊTE  (composant : AccueilEnTete)
+     ========================================================================= -->
+<header class="entete" id="entete">
+  <div class="wrap entete__barre">
+    <a class="entete__logo" href="/" aria-label="Priimo, accueil">
+      <img src="../../public/logoprii.png" alt="Priimo" width="2446" height="1153">
+    </a>
+
+    <nav class="entete__nav" aria-label="Sections du site">
+      <a href="#journee" data-txt="En-tête / Lien 1">Le produit</a>
+      <a href="#directeur" data-txt="En-tête / Lien 2">Pour le directeur</a>
+      <a href="#questions" data-txt="En-tête / Lien 3">Questions</a>
+    </nav>
+
+    <div class="entete__actions">
+      <a class="lien-sobre" href="/login" data-txt="En-tête / Connexion">Se connecter</a>
+      <a class="btn btn--primaire btn--compact" href="/rendez-vous" data-txt="En-tête / Bouton">Réserver une démo</a>
+    </div>
+  </div>
+</header>
+
+<main id="contenu">
+
+<!-- =========================================================================
+     B — HERO  (composant : AccueilHero)
+     ========================================================================= -->
+<section class="sct sct--creme hero" id="hero">
+  <div class="wrap">
+
+    <div class="hero__promesse">
+      <p class="etiquette" data-txt="Hero / Surtitre">Pour les agences immobilières indépendantes</p>
+
+      <h1 class="titre-hero" data-txt="Hero / Titre">Le CRM que vos agents remplissent depuis la rue.</h1>
+
+      <p class="chapo" data-txt="Hero / Sous-titre">Ils dictent ce qu'ils voient, Priimo range tout. Vous savez enfin ce que fait votre équipe, et votre secteur reste à l'agence quand un négociateur s'en va.</p>
+
+      <div class="rangee-cta">
+        <a class="btn btn--primaire" href="/rendez-vous" data-txt="Hero / Bouton principal">Réserver une démo de 20 min</a>
+
+        <button class="btn btn--secondaire" type="button" data-ouvre-video>
+          <span class="btn__lecture" aria-hidden="true">
+            <svg viewBox="0 0 12 14" width="12" height="14"><path d="M1 1.2v11.6a.6.6 0 0 0 .92.5l9.1-5.8a.6.6 0 0 0 0-1L1.92.7A.6.6 0 0 0 1 1.2Z" fill="currentColor"/></svg>
+          </span>
+          <span data-txt="Hero / Bouton secondaire">Voir Priimo en 60 secondes</span>
+        </button>
+      </div>
+
+      <p class="mention" data-txt="Hero / Mention">Sans engagement · Installé le jour même</p>
+    </div>
+
+    <!-- Visuel : ordinateur et téléphone côte à côte -->
+    <div class="hero__visuel">
+
+      <figure class="cadre cadre--ordi hero__ordi">
+        <div class="ecran ecran--16x9" data-ecran>
+          <video class="capture" data-video-hero muted loop playsinline preload="metadata"
+                 poster="../../public/captures/hero-ordinateur.png">
+            <source src="../../public/priimo-film-heros.mp4" type="video/mp4">
+          </video>
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span><span></span></div>
+            <p class="ecran__vide-titre">Vidéo de démonstration</p>
+            <code>public/priimo-film-heros.mp4</code>
+          </div>
+        </div>
+        <button class="lecture-flottante" type="button" data-ouvre-video aria-label="Lire la vidéo de démonstration">
+          <svg viewBox="0 0 12 14" width="14" height="16"><path d="M1 1.2v11.6a.6.6 0 0 0 .92.5l9.1-5.8a.6.6 0 0 0 0-1L1.92.7A.6.6 0 0 0 1 1.2Z" fill="currentColor"/></svg>
+        </button>
+      </figure>
+
+      <figure class="cadre cadre--tel hero__tel">
+        <div class="ecran ecran--tel" data-ecran>
+          <img class="capture" data-capture src="../../public/captures/hero-mobile.png"
+               alt="Écran mobile de Priimo : la journée du négociateur, données fictives.">
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span><span></span></div>
+            <p class="ecran__vide-titre">Capture à déposer</p>
+            <code>captures/hero-mobile.png</code>
+          </div>
+        </div>
+      </figure>
+
+      <img class="sticker sticker--hero" src="../../public/avatars/loup-1.png" alt="" aria-hidden="true">
+    </div>
+
+  </div>
+</section>
+
+<!-- =========================================================================
+     C — LE PROBLÈME  (composant : AccueilProbleme)
+     ========================================================================= -->
+<section class="sct sct--nuit probleme" id="probleme">
+  <div class="wrap">
+    <p class="etiquette etiquette--nuit" data-txt="Problème / Surtitre">Le problème</p>
+
+    <ul class="probleme__cartes">
+      <li class="carte-probleme">
+        <img class="sticker" src="../../public/info.png" alt="" aria-hidden="true">
+        <h2 class="titre-carte" data-txt="Problème / Titre 1">Le CRM reste vide.</h2>
+        <p data-txt="Problème / Texte 1">Vos négociateurs passent la moitié de la journée dehors. Ce qu'ils apprennent dans la rue finit sur un carnet, ou nulle part.</p>
+      </li>
+
+      <li class="carte-probleme">
+        <img class="sticker" src="../../public/avatars/bailler.png" alt="" aria-hidden="true">
+        <h2 class="titre-carte" data-txt="Problème / Titre 2">18h30, l'heure de tout ressaisir.</h2>
+        <p data-txt="Problème / Texte 2">La saisie se fait le soir, à moitié, quand elle se fait.</p>
+      </li>
+
+      <li class="carte-probleme">
+        <img class="sticker" src="../../public/porte-ouverte.png" alt="" aria-hidden="true">
+        <h2 class="titre-carte" data-txt="Problème / Titre 3">Un départ, et le secteur s'en va.</h2>
+        <p data-txt="Problème / Texte 3">Quand un négociateur part, son carnet d'adresses part avec lui.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- =========================================================================
+     D — UNE JOURNÉE AVEC PRIIMO  (composant : AccueilJournee)
+     ========================================================================= -->
+<section class="sct sct--creme journee" id="journee">
+  <div class="wrap">
+    <h2 class="titre-section" data-txt="Journée / Titre">Une journée avec Priimo</h2>
+
+    <ol class="journee__etapes">
+
+      <li class="etape">
+        <div class="etape__texte">
+          <p class="moment">
+            <img class="sticker sticker--moment" src="../../public/avatars/cafe.png" alt="" aria-hidden="true">
+            <span data-txt="Journée / Moment 1">Le matin</span>
+          </p>
+          <h3 class="titre-etape" data-txt="Journée / Titre 1">Chacun sait quoi faire.</h3>
+          <p class="texte-etape" data-txt="Journée / Texte 1">L'accueil affiche les relances, les visites et les adresses du jour.</p>
+        </div>
+        <div class="etape__visuel">
+          <figure class="cadre cadre--ordi">
+            <div class="ecran ecran--16x10" data-ecran>
+              <img class="capture" data-capture src="../../public/captures/journee-matin.png"
+                   alt="Accueil de Priimo sur ordinateur : relances, visites et adresses du jour. Données fictives.">
+              <div class="ecran__vide" aria-hidden="true">
+                <div class="squelette"><span></span><span></span><span></span></div>
+                <p class="ecran__vide-titre">Capture à déposer</p>
+                <code>captures/journee-matin.png</code>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </li>
+
+      <li class="etape">
+        <div class="etape__texte">
+          <p class="moment">
+            <img class="sticker sticker--moment" src="../../public/emplacement.png" alt="" aria-hidden="true">
+            <span data-txt="Journée / Moment 2">Dans la rue</span>
+          </p>
+          <h3 class="titre-etape" data-txt="Journée / Titre 2">On parle, Priimo range.</h3>
+          <p class="texte-etape" data-txt="Journée / Texte 2">Une note dictée devient une fiche : le contact, l'immeuble, la date de rappel. La carte du secteur et la tournée tiennent dans la poche.</p>
+        </div>
+        <div class="etape__visuel etape__visuel--duo">
+          <figure class="cadre cadre--tel">
+            <div class="ecran ecran--tel" data-ecran>
+              <img class="capture" data-capture src="../../public/captures/journee-rue-note.png"
+                   alt="Note dictée transformée en fiche contact dans Priimo. Données fictives.">
+              <div class="ecran__vide" aria-hidden="true">
+                <div class="squelette"><span></span><span></span><span></span></div>
+                <p class="ecran__vide-titre">Capture à déposer</p>
+                <code>captures/journee-rue-note.png</code>
+              </div>
+            </div>
+          </figure>
+          <figure class="cadre cadre--tel cadre--recule">
+            <div class="ecran ecran--tel" data-ecran>
+              <img class="capture" data-capture src="../../public/captures/journee-rue-carte.png"
+                   alt="Carte du secteur et tournée du jour sur téléphone. Données fictives.">
+              <div class="ecran__vide" aria-hidden="true">
+                <div class="squelette"><span></span><span></span><span></span></div>
+                <p class="ecran__vide-titre">Capture à déposer</p>
+                <code>captures/journee-rue-carte.png</code>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </li>
+
+      <li class="etape">
+        <div class="etape__texte">
+          <p class="moment">
+            <img class="sticker sticker--moment" src="../../public/mandat-darret.png" alt="" aria-hidden="true">
+            <span data-txt="Journée / Moment 3">Au bureau</span>
+          </p>
+          <h3 class="titre-etape" data-txt="Journée / Titre 3">Du premier contact au mandat.</h3>
+          <p class="texte-etape" data-txt="Journée / Texte 3">Chaque prospect avance dans un tableau simple, et l'avis de valeur se prépare à partir de ce qui a déjà été saisi.</p>
+        </div>
+        <div class="etape__visuel">
+          <figure class="cadre cadre--ordi">
+            <div class="ecran ecran--16x10" data-ecran>
+              <img class="capture" data-capture src="../../public/captures/journee-bureau.png"
+                   alt="Tableau des prospects de Priimo, du premier contact au mandat. Données fictives.">
+              <div class="ecran__vide" aria-hidden="true">
+                <div class="squelette"><span></span><span></span><span></span></div>
+                <p class="ecran__vide-titre">Capture à déposer</p>
+                <code>captures/journee-bureau.png</code>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </li>
+
+      <li class="etape">
+        <div class="etape__texte">
+          <p class="moment">
+            <img class="sticker sticker--moment" src="../../public/avatars/heure-du-coucher.png" alt="" aria-hidden="true">
+            <span data-txt="Journée / Moment 4">18h30</span>
+          </p>
+          <h3 class="titre-etape" data-txt="Journée / Titre 4">Rien à ressaisir.</h3>
+          <p class="texte-etape" data-txt="Journée / Texte 4">Tout a été noté dans la journée.</p>
+        </div>
+        <div class="etape__visuel">
+          <figure class="cadre cadre--tel">
+            <div class="ecran ecran--tel" data-ecran>
+              <img class="capture" data-capture src="../../public/captures/journee-soir.png"
+                   alt="Journée terminée dans Priimo : tout est déjà enregistré. Données fictives.">
+              <div class="ecran__vide" aria-hidden="true">
+                <div class="squelette"><span></span><span></span><span></span></div>
+                <p class="ecran__vide-titre">Capture à déposer</p>
+                <code>captures/journee-soir.png</code>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </li>
+
+    </ol>
+  </div>
+</section>
+
+<!-- =========================================================================
+     E — POUR LE DIRECTEUR  (composant : AccueilDirecteur)
+     ========================================================================= -->
+<section class="sct sct--nuit directeur" id="directeur">
+  <div class="wrap directeur__grille">
+
+    <div class="directeur__texte">
+      <p class="etiquette etiquette--nuit" data-txt="Directeur / Surtitre">Pour le directeur</p>
+      <h2 class="titre-section titre-section--nuit" data-txt="Directeur / Titre">Pilotez l'activité, pas les déclarations.</h2>
+
+      <ul class="liste-atouts">
+        <li>
+          <span class="puce" aria-hidden="true">
+            <svg viewBox="0 0 14 14" width="14" height="14"><path d="M2 7.4 5.3 10.7 12 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span data-txt="Directeur / Atout 1">Des objectifs par négociateur et un entonnoir clair : contacts, qualifiés, estimations, mandats.</span>
+        </li>
+        <li>
+          <span class="puce" aria-hidden="true">
+            <svg viewBox="0 0 14 14" width="14" height="14"><path d="M2 7.4 5.3 10.7 12 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span data-txt="Directeur / Atout 2">Combien de contacts font un mandat, calculé sur l'activité réelle de l'agence.</span>
+        </li>
+        <li>
+          <span class="puce" aria-hidden="true">
+            <svg viewBox="0 0 14 14" width="14" height="14"><path d="M2 7.4 5.3 10.7 12 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span data-txt="Directeur / Atout 3">Notes, immeubles, contacts : toute la mémoire du secteur appartient à l'agence.</span>
+        </li>
+      </ul>
+
+      <a class="btn btn--primaire" href="/rendez-vous" data-txt="Directeur / Bouton">Réserver une démo de 20 min</a>
+    </div>
+
+    <div class="directeur__visuel">
+      <figure class="cadre cadre--ordi cadre--sur-nuit">
+        <div class="ecran ecran--16x10" data-ecran>
+          <img class="capture" data-capture src="../../public/captures/directeur-entonnoir.png"
+               alt="Entonnoir de conversion de l'agence : contacts, qualifiés, estimations, mandats. Données fictives.">
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span><span></span></div>
+            <p class="ecran__vide-titre">Capture à déposer</p>
+            <code>captures/directeur-entonnoir.png</code>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="cadre cadre--carte cadre--sur-nuit directeur__objectifs">
+        <div class="ecran ecran--4x3" data-ecran>
+          <img class="capture" data-capture src="../../public/captures/directeur-objectifs.png"
+               alt="Cartes d'objectifs par négociateur dans Priimo. Données fictives.">
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span></div>
+            <p class="ecran__vide-titre">Capture à déposer</p>
+            <code>captures/directeur-objectifs.png</code>
+          </div>
+        </div>
+      </figure>
+
+      <img class="sticker sticker--directeur" src="../../public/cibles.png" alt="" aria-hidden="true">
+    </div>
+
+  </div>
+</section>
+
+<!-- =========================================================================
+     F — UN OUTIL QU'ON A ENVIE D'OUVRIR  (composant : AccueilPlaisir)
+     ========================================================================= -->
+<section class="sct sct--creme-2 plaisir" id="plaisir">
+  <div class="wrap">
+    <div class="plaisir__texte">
+      <h2 class="titre-section" data-txt="Plaisir / Titre">Un outil qu'on a envie d'ouvrir</h2>
+      <p class="chapo chapo--sobre" data-txt="Plaisir / Texte">Objectifs, progression, petites victoires : Priimo se joue comme un jeu et se lit comme un tableau de bord. Sur téléphone comme sur ordinateur.</p>
+    </div>
+
+    <div class="plaisir__ecrans">
+      <figure class="cadre cadre--tel plaisir__tel plaisir__tel--gauche">
+        <div class="ecran ecran--tel" data-ecran>
+          <img class="capture" data-capture src="../../public/captures/plaisir-objectifs.png"
+               alt="Carte d'objectifs avec stickers dans Priimo. Données fictives.">
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span><span></span></div>
+            <p class="ecran__vide-titre">Capture à déposer</p>
+            <code>captures/plaisir-objectifs.png</code>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="cadre cadre--tel plaisir__tel plaisir__tel--centre">
+        <div class="ecran ecran--tel" data-ecran>
+          <img class="capture" data-capture src="../../public/captures/plaisir-progression.png"
+               alt="Progression de la semaine et petites victoires dans Priimo. Données fictives.">
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span><span></span></div>
+            <p class="ecran__vide-titre">Capture à déposer</p>
+            <code>captures/plaisir-progression.png</code>
+          </div>
+        </div>
+      </figure>
+
+      <figure class="cadre cadre--tel plaisir__tel plaisir__tel--droite">
+        <div class="ecran ecran--tel" data-ecran>
+          <img class="capture" data-capture src="../../public/captures/plaisir-equipe.png"
+               alt="Cartes de l'équipe avec avatars dans Priimo. Données fictives.">
+          <div class="ecran__vide" aria-hidden="true">
+            <div class="squelette"><span></span><span></span><span></span></div>
+            <p class="ecran__vide-titre">Capture à déposer</p>
+            <code>captures/plaisir-equipe.png</code>
+          </div>
+        </div>
+      </figure>
+
+      <img class="sticker sticker--plaisir-1" src="../../public/avatars/cameleon-1.png" alt="" aria-hidden="true">
+      <img class="sticker sticker--plaisir-2" src="../../public/avatars/chat-1.png" alt="" aria-hidden="true">
+      <img class="sticker sticker--plaisir-3" src="../../public/validation.png" alt="" aria-hidden="true">
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     G — EMPLACEMENT TÉMOIGNAGE  (composant : AccueilTemoignage)
+     Masqué par défaut. Réglages > « Afficher l'emplacement témoignage ».
+     ========================================================================= -->
+<section class="sct sct--creme temoignage" id="temoignage" hidden>
+  <div class="wrap wrap--etroit">
+    <figure class="bloc-temoignage">
+      <p class="etiquette" data-txt="Témoignage / Surtitre">Emplacement témoignage</p>
+      <blockquote data-txt="Témoignage / Citation">Citation à venir. Aucun témoignage n'est affiché tant qu'une agence cliente n'a pas donné son accord écrit.</blockquote>
+      <figcaption>
+        <span class="temoignage__avatar" aria-hidden="true"></span>
+        <span data-txt="Témoignage / Signature">Prénom N., directeur d'agence, ville</span>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- =========================================================================
+     H — TARIFS  (composant : AccueilTarifs)
+     Masquable. Réglages > « Afficher la section Tarifs ».
+     ========================================================================= -->
+<section class="sct sct--nuit tarifs" id="tarifs">
+  <div class="wrap">
+    <h2 class="titre-section titre-section--nuit" data-txt="Tarifs / Titre">Tarifs</h2>
+
+    <div class="carte-tarif">
+      <p class="carte-tarif__offre" data-txt="Tarifs / Nom de l'offre">Offre Fondateur</p>
+
+      <p class="carte-tarif__prix">
+        <span class="carte-tarif__montant" data-txt="Tarifs / Montant">100 €</span>
+        <span class="carte-tarif__periode" data-txt="Tarifs / Période">par mois</span>
+      </p>
+
+      <ul class="carte-tarif__lignes">
+        <li data-txt="Tarifs / Ligne 1">Garantis 12 mois</li>
+        <li data-txt="Tarifs / Ligne 2">Pour les 10 premières agences, puis 199 € par mois</li>
+        <li data-txt="Tarifs / Ligne 3">Sans engagement</li>
+      </ul>
+
+      <a class="btn btn--primaire btn--large" href="/rendez-vous" data-txt="Tarifs / Bouton">Réserver une démo de 20 min</a>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     I — QUESTIONS FRÉQUENTES  (composant : AccueilQuestions)
+     ========================================================================= -->
+<section class="sct sct--creme questions" id="questions">
+  <div class="wrap wrap--etroit">
+    <h2 class="titre-section" data-txt="Questions / Titre">Questions fréquentes</h2>
+
+    <div class="accordeon">
+      <details class="question">
+        <summary><span data-txt="Questions / Question 1">Mes agents vont-ils vraiment l'utiliser ?</span><span class="question__signe" aria-hidden="true"></span></summary>
+        <div class="question__reponse"><p data-txt="Questions / Réponse 1">C'est pour eux qu'il a été conçu : la saisie se fait à la voix, en quelques secondes, depuis la rue.</p></div>
+      </details>
+
+      <details class="question">
+        <summary><span data-txt="Questions / Question 2">Et mes données actuelles ?</span><span class="question__signe" aria-hidden="true"></span></summary>
+        <div class="question__reponse"><p data-txt="Questions / Réponse 2">Vos contacts et vos biens s'importent depuis un fichier Excel ou CSV.</p></div>
+      </details>
+
+      <details class="question">
+        <summary><span data-txt="Questions / Question 3">À qui appartiennent les données ?</span><span class="question__signe" aria-hidden="true"></span></summary>
+        <div class="question__reponse"><p data-txt="Questions / Réponse 3">À l'agence. Si un négociateur part, tout reste. Vous pouvez tout exporter à tout moment.</p></div>
+      </details>
+
+      <details class="question">
+        <summary><span data-txt="Questions / Question 4">Faut-il une formation ?</span><span class="question__signe" aria-hidden="true"></span></summary>
+        <div class="question__reponse"><p data-txt="Questions / Réponse 4">Non, la démo suffit pour démarrer.</p></div>
+      </details>
+
+      <details class="question">
+        <summary><span data-txt="Questions / Question 5">Y a-t-il un engagement ?</span><span class="question__signe" aria-hidden="true"></span></summary>
+        <div class="question__reponse"><p data-txt="Questions / Réponse 5">Aucun.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     J — APPEL FINAL  (composant : AccueilAppelFinal)
+     ========================================================================= -->
+<section class="sct sct--nuit appel" id="appel">
+  <div class="wrap appel__bloc">
+    <img class="sticker sticker--appel" src="../../public/rendez-vous.png" alt="" aria-hidden="true">
+    <h2 class="titre-section titre-section--nuit" data-txt="Appel final / Titre">20 minutes pour voir si Priimo est fait pour votre agence.</h2>
+    <a class="btn btn--primaire btn--large" href="/rendez-vous" data-txt="Appel final / Bouton">Réserver une démo de 20 min</a>
+    <p class="mention mention--nuit" data-txt="Appel final / Mention">Sans engagement · Installé le jour même</p>
+  </div>
+</section>
+
+</main>
+
+<!-- =========================================================================
+     K — PIED DE PAGE  (composant : AccueilPied)
+     ========================================================================= -->
+<footer class="pied">
+  <div class="wrap pied__barre">
+    <a class="pied__logo" href="/" aria-label="Priimo, accueil">
+      <img src="../../public/logoprii.png" alt="Priimo" width="2446" height="1153">
+    </a>
+
+    <nav class="pied__liens" aria-label="Liens légaux">
+      <a href="/mentions-legales" data-txt="Pied / Lien 1">Mentions légales</a>
+      <a href="/politique-de-confidentialite" data-txt="Pied / Lien 2">Confidentialité</a>
+      <a href="/rendez-vous" data-txt="Pied / Lien 3">Contact</a>
+    </nav>
+
+    <p class="pied__mention" data-txt="Pied / Mention">© 2026 Priimo · Fait en France</p>
+  </div>
+</footer>
+
+<!-- =========================================================================
+     L — LECTEUR VIDÉO (modale)  (composant : AccueilVideoModale)
+     ========================================================================= -->
+<dialog class="modale-video" id="modale-video" aria-label="Vidéo de démonstration Priimo">
+  <button class="modale-video__fermer" type="button" data-ferme-video aria-label="Fermer la vidéo">
+    <svg viewBox="0 0 16 16" width="16" height="16"><path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <video data-video-modale controls playsinline preload="none" poster="../../public/captures/hero-ordinateur.png">
+    <source src="../../public/priimo-film-heros.mp4" type="video/mp4">
+  </video>
+</dialog>
+
+<!-- =========================================================================
+     M — PANNEAU DE RÉGLAGES — maquette uniquement, à ne pas porter dans Next.js
+     ========================================================================= -->
+<button class="reglages-bouton" type="button" data-ouvre-reglages aria-expanded="false" aria-controls="reglages">Réglages</button>
+
+<aside class="reglages" id="reglages" hidden aria-label="Réglages de la maquette">
+  <header class="reglages__entete">
+    <p class="reglages__titre">Réglages de la page</p>
+    <button class="reglages__fermer" type="button" data-ferme-reglages aria-label="Fermer les réglages">
+      <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <div class="reglages__corps">
+    <section class="reglages__groupe">
+      <h2 class="reglages__groupe-titre">Sections</h2>
+      <label class="bascule">
+        <input type="checkbox" data-bascule="tarifs" checked>
+        <span>Afficher la section Tarifs</span>
+      </label>
+      <label class="bascule">
+        <input type="checkbox" data-bascule="temoignage">
+        <span>Afficher l'emplacement témoignage</span>
+      </label>
+    </section>
+
+    <div id="reglages-textes"><!-- champs générés depuis les attributs data-txt --></div>
+  </div>
+
+  <footer class="reglages__pied">
+    <button class="btn-mini" type="button" data-copie-textes>Copier les textes</button>
+    <button class="btn-mini btn-mini--sobre" type="button" data-reinit>Réinitialiser</button>
+  </footer>
+</aside>
+
+<script src="accueil.js"></script>
+</body>
+</html>

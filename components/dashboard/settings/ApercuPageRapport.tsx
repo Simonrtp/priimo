@@ -1,7 +1,7 @@
 import type { KindGeneree } from '@/lib/rapport/modele-defaut';
 
 const ACCENT = '#E8743C';
-const ARDOISE = '#3D5A80';
+const ARDOISE = '#1A2A56';
 const CREME = '#FFF7F0';
 const PAPIER = '#F7F4EF';
 

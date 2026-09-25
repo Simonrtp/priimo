@@ -711,7 +711,7 @@ export default function VoiceCaptureDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(21,32,47,0.45)] p-4"
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(26, 42, 86,0.45)] p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}

@@ -54,8 +54,8 @@ export default async function InformationPage() {
   return (
     <main className="min-h-dvh bg-[#FFF7F0]">
       <article className="mx-auto max-w-xl px-5 py-12">
-        <p className="font-brand text-[15px] italic text-[#3D5A80]">Priimo</p>
-        <div className="mt-6 flex flex-col gap-5 text-[16px] leading-relaxed text-[#15202F]">
+        <p className="font-brand text-[15px] italic text-[#1A2A56]">Priimo</p>
+        <div className="mt-6 flex flex-col gap-5 text-[16px] leading-relaxed text-[#1A2A56]">
           {paragraphs(text).map((block) => {
             const heading = block.match(/^#{2,3}\s+(.*)$/);
             if (heading) {
@@ -84,7 +84,7 @@ export default async function InformationPage() {
         </div>
         <p className="mt-10 text-[13.5px] text-[#5A6573]">
           Politique complète :{' '}
-          <Link href="/politique-de-confidentialite" className="text-[#3D5A80] underline underline-offset-2">
+          <Link href="/politique-de-confidentialite" className="text-[#1A2A56] underline underline-offset-2">
             politique de confidentialité
           </Link>
           .

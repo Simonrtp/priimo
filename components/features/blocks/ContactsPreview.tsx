@@ -36,7 +36,7 @@ export default function ContactsPreview() {
 
         <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_10px_40px_-14px_rgba(17,24,39,0.18)] sm:p-5">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#3D5A80]/10 text-[#3D5A80]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1A2A56]/10 text-[#1A2A56]">
               <Store size={15} strokeWidth={2.2} aria-hidden />
             </span>
             <div className="min-w-0">
@@ -53,7 +53,7 @@ export default function ContactsPreview() {
               <span className="truncate text-[13px] font-medium text-gray-800">
                 Boulangerie Martin
               </span>
-              <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-[#3D5A80]">
+              <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-[#1A2A56]">
                 <Phone size={12} strokeWidth={2.2} aria-hidden />
                 01 48 ···
               </span>
@@ -62,7 +62,7 @@ export default function ContactsPreview() {
               <span className="truncate text-[13px] font-medium text-gray-800">
                 Cabinet Dupont
               </span>
-              <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-[#3D5A80]">
+              <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-[#1A2A56]">
                 <Phone size={12} strokeWidth={2.2} aria-hidden />
                 01 53 ···
               </span>

@@ -34,7 +34,7 @@ export default function ProfileAvatar({
         style={{
           width: size,
           height: size,
-          backgroundColor: icone ? 'rgba(21, 32, 47, 0.05)' : undefined,
+          backgroundColor: icone ? 'rgba(26, 42, 86, 0.05)' : undefined,
           padding: icone ? Math.max(3, Math.round(size * 0.08)) : undefined,
         }}
       />

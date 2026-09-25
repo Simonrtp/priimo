@@ -15,7 +15,7 @@ const LOGO_PLACEHOLDER: CSSProperties = {
   justifyContent: 'center',
   font: '500 8px/1 ui-monospace, Menlo, monospace',
   letterSpacing: '.12em',
-  color: '#3D5A80',
+  color: '#1A2A56',
   borderRadius: 4,
 };
 

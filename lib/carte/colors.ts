@@ -15,14 +15,14 @@ export const LEAD_FIELD_COLOR = '#E8743C';
 
 export const CONTACT_TYPE_COLORS: Record<ContactType, string> = {
   vendeur: '#C25E2C',
-  acquereur: '#3D5A80',
+  acquereur: '#1A2A56',
   locataire: '#0F766E',
   gardien: '#4C5D73',
   commercant: '#5A6F7A',
   autre: '#64748B',
 };
 
-export const BIEN_MARKER_COLOR = '#1E3148';
+export const BIEN_MARKER_COLOR = '#1A2A56';
 
 export function leadMarkerColor(score: number): string {
   return scoreColor(score);

@@ -54,7 +54,7 @@ export function ConfirmDoneSheet({
 
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Confirmer">
-      <button type="button" className="absolute inset-0 bg-[rgba(21,32,47,0.35)]" aria-label="Fermer" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-[rgba(26, 42, 86,0.35)]" aria-label="Fermer" onClick={onClose} />
       <div
         className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface px-4 pt-3"
         style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
@@ -125,7 +125,7 @@ export function SnoozeSheet({
 
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Reporter">
-      <button type="button" className="absolute inset-0 bg-[rgba(21,32,47,0.35)]" aria-label="Fermer" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-[rgba(26, 42, 86,0.35)]" aria-label="Fermer" onClick={onClose} />
       <div
         className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface px-4 pt-3"
         style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}

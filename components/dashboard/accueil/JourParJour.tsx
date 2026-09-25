@@ -162,7 +162,7 @@ export default function JourParJour({
                   <tr
                     key={j.jour}
                     className="border-t border-black/10"
-                    style={actif ? { backgroundColor: 'rgba(61, 90, 128, 0.1)' } : undefined}
+                    style={actif ? { backgroundColor: 'rgba(26, 42, 86, 0.1)' } : undefined}
                   >
                     <th scope="row" className="px-3 py-2.5 text-left font-semibold text-text-strong">
                       {onChoisirJour ? (
@@ -276,7 +276,7 @@ function CalendrierJour({
                     : actif
                       ? 'font-semibold text-white'
                       : auj
-                        ? 'font-semibold text-text-strong ring-1 ring-inset ring-[#3D5A80]/40'
+                        ? 'font-semibold text-text-strong ring-1 ring-inset ring-[#1A2A56]/40'
                         : 'font-medium text-text-strong hover:bg-[#FFF7F0]'
               }`}
               style={actif && inMonth && !futur ? { backgroundColor: FIELD.ardoise } : undefined}

@@ -49,7 +49,7 @@ export default function MobileSheet({
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title}>
       <button
         type="button"
-        className="absolute inset-0 bg-[rgba(21,32,47,0.28)]"
+        className="absolute inset-0 bg-[rgba(26, 42, 86,0.28)]"
         aria-label="Fermer"
         onPointerDown={(e) => {
           e.preventDefault();

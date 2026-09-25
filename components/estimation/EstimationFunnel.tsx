@@ -857,7 +857,7 @@ export default function EstimationFunnel() {
                   }}
                 />
               ) : (
-                <div className="rounded-2xl border border-[#3D5A80]/25 bg-white px-5 py-8 text-center">
+                <div className="rounded-2xl border border-[#1A2A56]/25 bg-white px-5 py-8 text-center">
                   <p className="text-[1.15rem] font-semibold leading-snug text-[#0A0D11]">
                     Un conseiller vous recontacte sous 24h avec votre estimation
                   </p>
@@ -867,7 +867,7 @@ export default function EstimationFunnel() {
               <SourceBadges sources={result.sources} />
               <Methode steps={result.steps} />
 
-              <div className="rounded-2xl border border-[#3D5A80]/20 bg-white px-4 py-4">
+              <div className="rounded-2xl border border-[#1A2A56]/20 bg-white px-4 py-4">
                 <p className="text-[14px] leading-relaxed text-gray-700">
                   Une estimation en ligne ne remplace pas une visite. L&apos;agence partenaire de
                   votre secteur peut affiner gratuitement cette estimation sur place.

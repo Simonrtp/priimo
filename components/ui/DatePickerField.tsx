@@ -12,7 +12,7 @@ import {
   startOfMonth,
 } from '@/lib/ui/date-picker';
 
-const SLATE = '#3D5A80';
+const SLATE = '#1A2A56';
 const MENU_GAP = 6;
 
 const WEEKDAYS = ['lu', 'ma', 'me', 'je', 've', 'sa', 'di'] as const;
@@ -216,7 +216,7 @@ export default function DatePickerField({
                       : isSelected
                         ? 'font-semibold text-white'
                         : isToday
-                          ? 'font-medium text-text ring-1 ring-inset ring-[#3D5A80]/35 hover:bg-[#FFF7F0]'
+                          ? 'font-medium text-text ring-1 ring-inset ring-[#1A2A56]/35 hover:bg-[#FFF7F0]'
                           : 'text-text hover:bg-[#FFF7F0]'
                   }`}
                   style={isSelected ? { background: SLATE } : undefined}

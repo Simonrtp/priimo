@@ -21,7 +21,7 @@ export default function ProductShot({ file, alt, shot }: FeatureCapture) {
             <p className="text-[11px] font-semibold uppercase text-[#E8743C]">
               Capture à poser
             </p>
-            <p className="max-w-[36rem] text-pretty text-[14px] font-medium leading-snug text-[#3D5A80] sm:text-[15px]">
+            <p className="max-w-[36rem] text-pretty text-[14px] font-medium leading-snug text-[#1A2A56] sm:text-[15px]">
               {shot}
             </p>
             <p className="font-mono text-[11px] text-gray-500">{file}</p>

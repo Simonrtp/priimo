@@ -56,7 +56,7 @@ export default function BienPhotoLightbox({
   if (!current) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-[#1E3148]/88 p-4" role="presentation">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-[#1A2A56]/88 p-4" role="presentation">
       <button
         type="button"
         className="absolute inset-0 cursor-zoom-out"

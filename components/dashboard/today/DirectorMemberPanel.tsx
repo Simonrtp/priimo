@@ -61,7 +61,7 @@ export default function DirectorMemberPanel({
       aria-modal="true"
       aria-labelledby="member-panel-title"
     >
-      <button type="button" className="absolute inset-0 z-0 bg-[#1E3148]/25" aria-label="Fermer" onClick={onClose} />
+      <button type="button" className="absolute inset-0 z-0 bg-[#1A2A56]/25" aria-label="Fermer" onClick={onClose} />
       <aside className="relative z-10 flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-black/[0.08] bg-surface p-5 shadow-clay-lg">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">

@@ -101,7 +101,7 @@ export default function NotificationsBell({
           >
             <button
               type="button"
-              className="absolute inset-0 bg-[rgba(21,32,47,0.28)]"
+              className="absolute inset-0 bg-[rgba(26, 42, 86,0.28)]"
               aria-label="Fermer les notifications"
               onPointerDown={(e) => {
                 e.preventDefault();
