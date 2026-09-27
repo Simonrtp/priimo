@@ -1363,11 +1363,19 @@ button {
   border-radius: 999px;
   background: #004af6;
   color: #fff;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   line-height: 1.2;
   white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .logiciel-onglet-badge {
+    font-size: 0.6875rem;
+  }
+}
+.logiciel-onglet-badge.is-bientot {
+  background: #1a2a56;
 }
 .logiciel-onglet-panel {
   width: 100%;
@@ -1377,34 +1385,65 @@ button {
 .logiciel-onglet-panel[hidden] {
   display: none;
 }
+
+/* Carte type Tiime : bloc clair, texte gauche, visuel droite */
 .logiciel-onglet-panel-inner {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 1.75rem 1.25rem;
-  border-radius: 1.25rem;
-  background: #ececec;
-  text-align: center;
+  padding: 1.5rem 1.15rem;
+  border-radius: 1.75rem;
+  background: #f3f3f3;
+  text-align: left;
   box-sizing: border-box;
 }
 @media (min-width: 768px) {
   .logiciel-onglet-panel-inner {
-    padding: 2.25rem 2rem;
+    padding: 2rem 2rem;
+    border-radius: 2rem;
+    overflow: visible;
   }
 }
-.landing h3.logiciel-onglet-panel-title,
-.logiciel-onglet-panel-title {
+@media (min-width: 1024px) {
+  .logiciel-onglet-panel-inner {
+    padding: 2.5rem 2.5rem;
+  }
+}
+.logiciel-carte {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+  min-width: 0;
+}
+.logiciel-carte-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.landing h3.logiciel-carte-title,
+.logiciel-carte-title {
   margin: 0;
+  max-width: 18ch;
   font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
+  font-size: clamp(1.45rem, 3.2vw, 2.35rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
+  text-wrap: balance;
   color: #1a2a56;
 }
-.logiciel-onglet-panel-text {
-  margin: 0.85rem 0 0;
+.logiciel-carte-body {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 36rem;
+}
+.logiciel-carte-p {
+  margin: 0;
   font-family: var(--font-nunito), Nunito, var(--font-sans), system-ui, sans-serif;
   font-size: 0.9375rem;
   font-weight: 400;
@@ -1412,24 +1451,121 @@ button {
   color: #1a2a56;
   text-wrap: pretty;
 }
-@media (min-width: 640px) {
-  .logiciel-onglet-panel-text {
-    font-size: 1.0625rem;
-  }
-}
-.logiciel-onglet-panel-accroche {
-  margin: 1.15rem 0 0;
-  font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
-  font-size: 1rem;
+.logiciel-carte-p strong {
   font-weight: 700;
-  line-height: 1.35;
-  color: var(--onglet-accent, #e8743c);
-  text-wrap: balance;
+}
+.logiciel-carte-inline-link {
+  color: #004af6;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: none;
+  transition: color 160ms ease;
+}
+.logiciel-carte-inline-link:hover {
+  color: #e8743c;
+}
+.logiciel-carte-inline-link:focus-visible {
+  outline: 2px solid #e8743c;
+  outline-offset: 2px;
+  border-radius: 0.15rem;
 }
 @media (min-width: 640px) {
-  .logiciel-onglet-panel-accroche {
-    font-size: 1.125rem;
+  .logiciel-carte-p {
+    font-size: 0.975rem;
+    line-height: 1.58;
   }
+}
+@media (min-width: 1024px) {
+  .logiciel-carte-p {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+}
+.logiciel-carte-cta {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+}
+.logiciel-carte-cta-secondary {
+  font-weight: 700;
+  color: #1a2a56 !important;
+  border: 1px solid rgba(26, 42, 86, 0.22) !important;
+  background-color: transparent !important;
+}
+.logiciel-carte-cta-secondary:hover {
+  color: #1a2a56 !important;
+  background-color: rgba(26, 42, 86, 0.06) !important;
+  border-color: rgba(26, 42, 86, 0.35) !important;
+  transform: translateY(-1px);
+}
+.logiciel-carte-media {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: 1.35rem;
+  overflow: hidden;
+  order: 1;
+}
+.logiciel-carte-media.is-mockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: auto;
+  min-height: 26rem;
+  height: min(72vw, 28rem);
+  padding: 0.75rem 0.5rem;
+  overflow: visible;
+  box-sizing: border-box;
+}
+.logiciel-carte-copy {
+  order: 0;
+}
+@media (min-width: 768px) {
+  .logiciel-carte {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .logiciel-carte-media {
+    order: 0;
+    aspect-ratio: 5 / 4;
+    border-radius: 1.5rem;
+    min-height: 18rem;
+  }
+  .logiciel-carte-media.is-mockup {
+    min-height: 34rem;
+    height: 34rem;
+    padding: 1rem 0.75rem;
+  }
+}
+@media (min-width: 1024px) {
+  .logiciel-carte-media.is-mockup {
+    min-height: 38rem;
+    height: 38rem;
+  }
+}
+.logiciel-carte-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.logiciel-carte-img.is-contain {
+  position: relative;
+  inset: auto;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center;
+  padding: 0;
+  transform: none;
+  filter: drop-shadow(0 18px 28px rgba(26, 42, 86, 0.22));
 }
 
 .agency-logos-inner {

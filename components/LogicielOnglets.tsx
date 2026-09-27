@@ -1,88 +1,94 @@
 "use client";
 
-import { useId, useState, type ComponentType, type CSSProperties } from "react";
+import Link from "next/link";
 import {
-  BarChart3,
-  FileText,
-  Megaphone,
-  Mic,
-  Radar,
-  type LucideProps,
-} from "lucide-react";
+  useId,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import CtaButton from "./CtaButton";
+import {
+  FONCTIONNALITES,
+  imageFonctionnalite,
+  type FonctionnaliteCarte,
+} from "@/lib/landing/fonctionnalites";
 
-type Onglet = {
-  id: string;
-  label: string;
-  Icon: ComponentType<LucideProps>;
-  /** Couleur active de l’icône (unique, pep) */
-  couleur: string;
-  badge?: string;
-  titre: string;
-  texte: string;
-  accroche: string;
-};
+/** Rend un paragraphe : **gras** et [libellé](/url). */
+function ParagrapheRiche({ texte }: { texte: string }) {
+  const nodes: ReactNode[] = [];
+  // Liens d’abord, puis gras dans chaque segment texte
+  const re = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
 
-const ONGLETS: Onglet[] = [
-  {
-    id: "prospection",
-    label: "Prospection intelligente",
-    Icon: Radar,
-    couleur: "#FFD400",
-    badge: "Le cœur",
-    titre: "Prospection intelligente",
-    texte:
-      "Ta carte de secteur découpée en zones, avec l’historique public de chaque immeuble (ventes passées, prix au m², copropriétés), les relances qui remontent toutes seules le bon jour, et le pipeline où l’agent prend ses prospects d’un geste.",
-    accroche: "Sachez où frapper avant de sortir.",
-  },
-  {
-    id: "dictee",
-    label: "Dictée terrain",
-    Icon: Mic,
-    couleur: "#FF2D6B",
-    titre: "Dictée terrain",
-    texte:
-      "L’agent parle en marchant, la note est rangée et rattachée au bon immeuble ou contact. Plus de compte rendu à 18h30.",
-    accroche: "Vous parlez, c’est rangé.",
-  },
-  {
-    id: "estimations",
-    label: "Estimations et avis de valeur",
-    Icon: FileText,
-    couleur: "#8B5CF6",
-    titre: "Estimations et avis de valeur",
-    texte:
-      "Formulaire rapide, résultat partageable au propriétaire, widget à poser sur le site de l’agence.",
-    accroche: "De la visite à l’avis de valeur, sans quitter l’appli.",
-  },
-  {
-    id: "diffusion",
-    label: "Diffusion des mandats",
-    Icon: Megaphone,
-    couleur: "#FF6A00",
-    titre: "Diffusion des mandats",
-    texte:
-      "Un mandat saisi une fois, publié sur les portails.",
-    accroche: "Un mandat, tous les portails.",
-  },
-  {
-    id: "pilotage",
-    label: "Pilotage commercial",
-    Icon: BarChart3,
-    couleur: "#12B76A",
-    titre: "Pilotage commercial",
-    texte:
-      "L’entonnoir contacts → estimations → mandats → ventes, avec les objectifs de chaque négociateur et leur progression en temps réel.",
-    accroche: "Vos objectifs, transformés en actions du jour.",
-  },
-];
+  const pushTexte = (chunk: string) => {
+    if (!chunk) return;
+    nodes.push(chunk);
+  };
+
+  while ((m = re.exec(texte)) !== null) {
+    if (m.index > last) {
+      pushTexte(texte.slice(last, m.index));
+    }
+    const token = m[0];
+    if (token.startsWith("**")) {
+      nodes.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
+    } else {
+      const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
+      if (linkMatch) {
+        nodes.push(
+          <Link key={key++} href={linkMatch[2]} className="logiciel-carte-inline-link">
+            {linkMatch[1]}
+          </Link>,
+        );
+      }
+    }
+    last = m.index + token.length;
+  }
+  if (last < texte.length) {
+    pushTexte(texte.slice(last));
+  }
+  return <p className="logiciel-carte-p">{nodes}</p>;
+}
+
+function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
+  const [ok, setOk] = useState(true);
+  const src = imageFonctionnalite(carte);
+
+  return (
+    <div
+      className={`logiciel-carte-media${carte.imageFit === "contain" ? " is-mockup" : ""}`}
+      style={{ background: carte.degrade }}
+    >
+      {ok ? (
+        // img natif : si le .webp n’existe pas encore → onError, fond dégradé seul
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={carte.imageAlt}
+          width={1024}
+          height={1536}
+          loading="lazy"
+          decoding="async"
+          className={`logiciel-carte-img${carte.imageFit === "contain" ? " is-contain" : ""}`}
+          onError={() => setOk(false)}
+        />
+      ) : (
+        <span className="sr-only">{carte.imageAlt}</span>
+      )}
+    </div>
+  );
+}
 
 export default function LogicielOnglets() {
   const baseId = useId();
-  const [actif, setActif] = useState(ONGLETS[0].id);
+  const [actif, setActif] = useState(FONCTIONNALITES[0].slug);
 
-  const focusTab = (id: string) => {
-    setActif(id);
-    document.getElementById(`${baseId}-tab-${id}`)?.focus();
+  const focusTab = (slug: string) => {
+    setActif(slug);
+    document.getElementById(`${baseId}-tab-${slug}`)?.focus();
   };
 
   return (
@@ -92,14 +98,14 @@ export default function LogicielOnglets() {
         role="tablist"
         aria-label="Fonctionnalités du logiciel"
       >
-        {ONGLETS.map((onglet) => {
-          const selected = onglet.id === actif;
-          const tabId = `${baseId}-tab-${onglet.id}`;
-          const panelId = `${baseId}-panel-${onglet.id}`;
-          const { Icon } = onglet;
+        {FONCTIONNALITES.map((carte) => {
+          const selected = carte.slug === actif;
+          const tabId = `${baseId}-tab-${carte.slug}`;
+          const panelId = `${baseId}-panel-${carte.slug}`;
+          const { Icon } = carte;
           return (
             <button
-              key={onglet.id}
+              key={carte.slug}
               type="button"
               role="tab"
               id={tabId}
@@ -107,44 +113,57 @@ export default function LogicielOnglets() {
               aria-controls={panelId}
               tabIndex={selected ? 0 : -1}
               className={`logiciel-onglet${selected ? " is-active" : ""}`}
-              style={{ "--onglet-accent": onglet.couleur } as CSSProperties}
-              onClick={() => setActif(onglet.id)}
+              style={
+                { "--onglet-accent": carte.couleurIcone } as CSSProperties
+              }
+              onClick={() => setActif(carte.slug)}
               onKeyDown={(e) => {
-                const i = ONGLETS.findIndex((o) => o.id === actif);
+                const i = FONCTIONNALITES.findIndex((c) => c.slug === actif);
                 if (e.key === "ArrowRight" || e.key === "ArrowDown") {
                   e.preventDefault();
-                  focusTab(ONGLETS[(i + 1) % ONGLETS.length].id);
+                  focusTab(
+                    FONCTIONNALITES[(i + 1) % FONCTIONNALITES.length].slug,
+                  );
                 } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
                   e.preventDefault();
-                  focusTab(ONGLETS[(i - 1 + ONGLETS.length) % ONGLETS.length].id);
+                  focusTab(
+                    FONCTIONNALITES[
+                      (i - 1 + FONCTIONNALITES.length) % FONCTIONNALITES.length
+                    ].slug,
+                  );
                 } else if (e.key === "Home") {
                   e.preventDefault();
-                  focusTab(ONGLETS[0].id);
+                  focusTab(FONCTIONNALITES[0].slug);
                 } else if (e.key === "End") {
                   e.preventDefault();
-                  focusTab(ONGLETS[ONGLETS.length - 1].id);
+                  focusTab(FONCTIONNALITES[FONCTIONNALITES.length - 1].slug);
                 }
               }}
             >
               <span className="logiciel-onglet-icon" aria-hidden>
                 <Icon strokeWidth={2.25} absoluteStrokeWidth={false} />
               </span>
-              <span className="logiciel-onglet-label">{onglet.label}</span>
-              {onglet.badge ? (
-                <span className="logiciel-onglet-badge">{onglet.badge}</span>
+              <span className="logiciel-onglet-label">{carte.onglet}</span>
+              {carte.badge ? (
+                <span className="logiciel-onglet-badge">{carte.badge}</span>
+              ) : null}
+              {carte.bientot ? (
+                <span className="logiciel-onglet-badge is-bientot">
+                  Bientôt
+                </span>
               ) : null}
             </button>
           );
         })}
       </div>
 
-      {ONGLETS.map((onglet) => {
-        const selected = onglet.id === actif;
-        const tabId = `${baseId}-tab-${onglet.id}`;
-        const panelId = `${baseId}-panel-${onglet.id}`;
+      {FONCTIONNALITES.map((carte) => {
+        const selected = carte.slug === actif;
+        const tabId = `${baseId}-tab-${carte.slug}`;
+        const panelId = `${baseId}-panel-${carte.slug}`;
         return (
           <div
-            key={onglet.id}
+            key={carte.slug}
             role="tabpanel"
             id={panelId}
             aria-labelledby={tabId}
@@ -152,13 +171,27 @@ export default function LogicielOnglets() {
             className="logiciel-onglet-panel"
           >
             {selected ? (
-              <div
-                className="logiciel-onglet-panel-inner"
-                style={{ "--onglet-accent": onglet.couleur } as CSSProperties}
-              >
-                <h3 className="logiciel-onglet-panel-title">{onglet.titre}</h3>
-                <p className="logiciel-onglet-panel-text">{onglet.texte}</p>
-                <p className="logiciel-onglet-panel-accroche">{onglet.accroche}</p>
+              <div className="logiciel-onglet-panel-inner">
+                <div className="logiciel-carte">
+                  <div className="logiciel-carte-copy">
+                    <h3 className="logiciel-carte-title">{carte.titre}</h3>
+                    <div className="logiciel-carte-body">
+                      {carte.paragraphes.map((p) => (
+                        <ParagrapheRiche key={p.slice(0, 40)} texte={p} />
+                      ))}
+                    </div>
+                    <div className="logiciel-carte-cta">
+                      <CtaButton>Essai gratuit 1 mois</CtaButton>
+                      <Link
+                        href={carte.enSavoirPlusHref}
+                        className="btn btn-ghost logiciel-carte-cta-secondary"
+                      >
+                        En savoir plus
+                      </Link>
+                    </div>
+                  </div>
+                  <VisuelCarte carte={carte} />
+                </div>
               </div>
             ) : null}
           </div>
