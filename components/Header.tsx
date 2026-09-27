@@ -18,44 +18,101 @@ type HeaderProps = {
 };
 
 // === HEADER ===
-// Landing : bandeau + nav plein écran → pilule verre au scroll (transition fluide).
+// Landing : morph continu bandeau → pilule verre (progress scroll 0→1).
 // Autres pages : barre flottante en verre.
 type NavMenu = "features" | "resources" | null;
+
+/** Distance de scroll pour atteindre la pilule complète (plus longue = plus doux). */
+const SCROLL_RANGE = 180;
+/** Lissage vers la cible (plus bas = plus moelleux). */
+const LERP = 0.085;
+
+function smoothstep(t: number) {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * (3 - 2 * x);
+}
 
 export default function Header({
   latestPost = null,
   variant = "default",
 }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [activeNavMenu, setActiveNavMenu] = useState<NavMenu>(null);
   const headerRootRef = useRef<HTMLDivElement>(null);
+  const targetProgressRef = useRef(0);
+  const currentProgressRef = useRef(0);
+  const rafRef = useRef(0);
 
   const featuresOpen = activeNavMenu === "features";
   const resourcesOpen = activeNavMenu === "resources";
   const featuresPanelId = "features-mega-menu";
   const isLanding = variant === "landing";
-  const onDark = isLanding && !scrolled;
+  const onDark = isLanding && progress < 0.58;
 
   useEffect(() => {
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        const y = window.scrollY;
-        // Hystérésis : évite le bascule-bascule autour du seuil.
-        setScrolled((prev) => {
-          if (!prev && y > 36) return true;
-          if (prev && y < 10) return false;
-          return prev;
+    if (!isLanding) {
+      let ticking = false;
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(() => {
+          const y = window.scrollY;
+          setScrolled((prev) => {
+            if (!prev && y > 36) return true;
+            if (prev && y < 10) return false;
+            return prev;
+          });
+          ticking = false;
         });
-        ticking = false;
-      });
+      };
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      return () => window.removeEventListener("scroll", onScroll);
+    }
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const applyProgress = (value: number) => {
+      currentProgressRef.current = value;
+      setProgress(value);
+      setScrolled(value >= 0.62);
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+
+    const tick = () => {
+      const target = targetProgressRef.current;
+      const current = currentProgressRef.current;
+      const diff = target - current;
+
+      if (reduceMotion.matches || Math.abs(diff) < 0.0008) {
+        applyProgress(target);
+        rafRef.current = 0;
+        return;
+      }
+
+      applyProgress(current + diff * LERP);
+      rafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    const syncFromScroll = () => {
+      const raw = Math.min(1, Math.max(0, window.scrollY / SCROLL_RANGE));
+      targetProgressRef.current = smoothstep(raw);
+      if (reduceMotion.matches) {
+        applyProgress(targetProgressRef.current);
+        return;
+      }
+      if (!rafRef.current) {
+        rafRef.current = window.requestAnimationFrame(tick);
+      }
+    };
+
+    syncFromScroll();
+    window.addEventListener("scroll", syncFromScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", syncFromScroll);
+      if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
+    };
+  }, [isLanding]);
 
   const setFeaturesOpen = (open: boolean) => {
     setActiveNavMenu(open ? "features" : null);
@@ -125,28 +182,28 @@ export default function Header({
     );
   }
 
+  const utilityGone = progress > 0.88;
+  const loginInPill = progress > 0.65;
+
   return (
     <header
-      className={`landing-site-header fixed inset-x-0 top-0 z-50 transition-[padding] duration-fluid ease-soft ${
-        scrolled ? "px-3 pt-3 sm:px-5 sm:pt-4" : "px-0 pt-0"
-      }`}
+      className="landing-site-header fixed inset-x-0 top-0 z-50"
       data-scrolled={scrolled ? "true" : "false"}
+      style={{ "--hdr": progress } as React.CSSProperties}
     >
       <div
-        className={`landing-utility-bar grid transition-[grid-template-rows,opacity] duration-fluid ease-soft ${
-          scrolled ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
-        }`}
-        aria-hidden={scrolled}
+        className="landing-utility-bar"
+        aria-hidden={utilityGone}
       >
-        <div className="min-h-0 overflow-hidden">
+        <div className="landing-utility-clip">
           <div className="landing-utility-inner flex h-9 w-full items-center justify-end gap-5 border-b border-white/[0.08] px-4 pt-[env(safe-area-inset-top)] sm:h-10 sm:px-6 lg:px-8">
             <Link
               href="/login"
-              tabIndex={scrolled ? -1 : undefined}
-              className="landing-utility-login group inline-flex min-h-9 items-center gap-2 font-nunito text-[13px] font-bold tracking-wide text-white transition-[opacity,transform] duration-fluid ease-soft sm:min-h-10 sm:text-[14px]"
+              tabIndex={utilityGone ? -1 : undefined}
+              className="landing-utility-login group inline-flex min-h-9 items-center gap-2 font-nunito text-[13px] font-bold tracking-wide text-white sm:min-h-10 sm:text-[14px]"
             >
               <span
-                className="flex size-6 items-center justify-center rounded-full bg-white/12 ring-1 ring-white/20 transition-colors duration-fluid ease-soft group-hover:bg-white/20"
+                className="flex size-6 items-center justify-center rounded-full bg-white/12 ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-soft group-hover:bg-white/20"
                 aria-hidden
               >
                 <svg
@@ -169,30 +226,15 @@ export default function Header({
         </div>
       </div>
 
-      <div
-        className={`mx-auto flex w-full justify-center transition-[padding] duration-fluid ease-soft ${
-          scrolled ? "px-0" : "px-4 sm:px-6 lg:px-8"
-        }`}
-      >
-        <div
-          ref={headerRootRef}
-          className={`relative min-w-0 transition-[max-width] duration-fluid ease-soft ${
-            scrolled ? "w-full max-w-6xl" : "w-full max-w-none"
-          }`}
-        >
-          <div
-            className={`landing-nav-shell relative z-10 flex w-full items-center justify-between gap-2 min-w-0 sm:gap-4 ${
-              scrolled
-                ? "h-14 rounded-full border border-white/70 bg-white/70 px-3 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl sm:h-[3.75rem] sm:px-6"
-                : "h-16 rounded-none border border-transparent bg-transparent px-0 sm:h-[4.25rem]"
-            }`}
-          >
+      <div className="landing-nav-outer">
+        <div ref={headerRootRef} className="landing-nav-frame relative min-w-0">
+          <div className="landing-nav-shell relative z-10 flex w-full items-center justify-between gap-2 min-w-0 sm:gap-4">
             <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
               <Link href="/" className="group shrink-0 leading-none">
                 <PriimoLogo
                   priority
                   className="h-10 sm:h-11 md:h-12"
-                  imageClassName="transition-opacity duration-fluid ease-soft group-hover:opacity-90"
+                  imageClassName="transition-opacity duration-fluid-subtle ease-soft group-hover:opacity-90"
                 />
               </Link>
 
@@ -215,13 +257,9 @@ export default function Header({
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
               <Link
                 href="/login"
-                className={`landing-nav-login group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold text-gray-700 sm:text-[15px] lg:inline-flex ${
-                  scrolled
-                    ? "pointer-events-auto translate-y-0 opacity-100 hover:text-accent-dark"
-                    : "pointer-events-none -translate-y-0.5 opacity-0"
-                }`}
-                tabIndex={scrolled ? undefined : -1}
-                aria-hidden={!scrolled}
+                className="landing-nav-login group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold text-gray-700 sm:text-[15px] lg:inline-flex"
+                tabIndex={loginInPill ? undefined : -1}
+                aria-hidden={!loginInPill}
               >
                 Se connecter
                 <span

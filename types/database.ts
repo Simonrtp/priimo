@@ -1539,6 +1539,7 @@ export type AgencyActivitySettingsRow = {
   physiques_par_qualifie: number | string | null;
   qualifies_par_estimation: number | string | null;
   estimations_par_mandat: number | string | null;
+  objectif_mandats_mois: number | null;
   updated_by: string | null;
   updated_at: string;
 };
@@ -1548,6 +1549,7 @@ export type AgencyActivitySettingsInsert = {
   physiques_par_qualifie?: number | null;
   qualifies_par_estimation?: number | null;
   estimations_par_mandat?: number | null;
+  objectif_mandats_mois?: number | null;
   updated_by?: string | null;
   updated_at?: string;
 };

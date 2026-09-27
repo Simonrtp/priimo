@@ -49,10 +49,21 @@ export default function HeroPillRotator() {
   }, []);
 
   useLayoutEffect(() => {
-    const el = pillRefs.current[index];
-    if (!el) return;
-    // Largeur naturelle de la capsule — jamais coupée (ex. « LA PROSPECTION »).
-    setWidthPx(el.offsetWidth);
+    const measure = () => {
+      // Largeur = max des capsules, plafonnée à la place dispo (évite le clip mobile).
+      let max = 0;
+      for (const el of pillRefs.current) {
+        if (!el) continue;
+        max = Math.max(max, el.scrollWidth, el.offsetWidth);
+      }
+      if (max <= 0) return;
+      const available = rootRef.current?.parentElement?.clientWidth;
+      setWidthPx(available != null ? Math.min(max, available) : max);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
   }, [index]);
 
   useEffect(() => {

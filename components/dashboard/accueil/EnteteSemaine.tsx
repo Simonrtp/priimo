@@ -55,6 +55,7 @@ export default function EnteteSemaine({
   estPeriodeCourante,
   enCours,
   onChanger,
+  debut,
   droite,
 }: {
   periode: Periode;
@@ -64,6 +65,8 @@ export default function EnteteSemaine({
   enCours: boolean;
   /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
   onChanger: (periode: Periode, ancre: string | null) => void;
+  /** Avant le titre (ex. Mon équipe / Ma semaine). */
+  debut?: ReactNode;
   /** Juste à droite du titre, avant le sélecteur de période. */
   droite?: ReactNode;
 }) {
@@ -71,7 +74,8 @@ export default function EnteteSemaine({
     onChanger(periode, intervalleDecale(periode, intervalle, delta).debut);
 
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+      {debut ? <div className="order-0 shrink-0">{debut}</div> : null}
       <div className="hidden shrink-0 sm:block">
         <h1 className="text-balance font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
           {TITRE_PERIODE[periode]}

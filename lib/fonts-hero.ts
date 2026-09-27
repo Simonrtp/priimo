@@ -1,9 +1,9 @@
 import { Montserrat } from "next/font/google";
 
-/** Titre hero landing uniquement — Montserrat ExtraBold (réf. typo). */
+/** Titres landing (hero + petits titres) — Montserrat. */
 export const fontHero = Montserrat({
   subsets: ["latin"],
-  weight: ["800"],
+  weight: ["600", "700", "800"],
   display: "swap",
   variable: "--font-hero",
 });

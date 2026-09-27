@@ -3,6 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import HeroSection from "@/components/HeroSection";
 import AgencyLogos from "@/components/AgencyLogos";
 import ProblemTransformation from "@/components/ProblemTransformation";
+import WhyPriimo from "@/components/WhyPriimo";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
 import DataReassurance from "@/components/DataReassurance";
@@ -40,6 +41,9 @@ export default function Page() {
 
         {/* === B2 — AGENCES (preuve sociale) === */}
         <AgencyLogos />
+
+        {/* === B3 — POURQUOI PRIIMO (3 piliers) === */}
+        <WhyPriimo />
 
         {/* === C — PROBLEM / TRANSFORM === */}
         <ProblemTransformation />

@@ -331,3 +331,67 @@ export async function fetchReferenceMetier(params: {
   }
   return referenceMetier((data as ReferenceRow | null) ?? null);
 }
+
+/**
+ * Objectif mensuel de mandats de l'agence, s'il a été posé par le directeur.
+ * `null` = pas encore posé : l'Accueil équipe retombe sur la somme des
+ * objectifs individuels.
+ */
+export async function fetchObjectifAgence(params: {
+  supabase: Client;
+  agencyId: string;
+}): Promise<number | null> {
+  const { data, error } = await params.supabase
+    .from('agency_activity_settings')
+    .select('objectif_mandats_mois')
+    .eq('agency_id', params.agencyId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[activite] objectif_mandats_mois', error.message);
+    return null;
+  }
+  const n = (data as { objectif_mandats_mois: number | null } | null)?.objectif_mandats_mois;
+  if (n == null || !Number.isFinite(n) || n < 0) return null;
+  return Math.min(10_000, Math.floor(n));
+}
+
+/** Pose (ou remplace) l'objectif mensuel de mandats de l'agence. */
+export async function enregistrerObjectifAgence(params: {
+  supabase: Client;
+  agencyId: string;
+  updatedBy: string;
+  objectifMandatsMois: number;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data: existing, error: lectureErr } = await params.supabase
+    .from('agency_activity_settings')
+    .select('agency_id')
+    .eq('agency_id', params.agencyId)
+    .maybeSingle();
+
+  if (lectureErr) {
+    console.error('[activite] lecture objectif_mandats_mois', lectureErr.message);
+    return { ok: false, message: lectureErr.message };
+  }
+
+  const payload = {
+    objectif_mandats_mois: params.objectifMandatsMois,
+    updated_by: params.updatedBy,
+  };
+
+  const { error } = existing
+    ? await params.supabase
+        .from('agency_activity_settings')
+        .update(payload)
+        .eq('agency_id', params.agencyId)
+    : await params.supabase.from('agency_activity_settings').insert({
+        agency_id: params.agencyId,
+        ...payload,
+      });
+
+  if (error) {
+    console.error('[activite] ecrire objectif_mandats_mois', error.message);
+    return { ok: false, message: error.message };
+  }
+  return { ok: true };
+}

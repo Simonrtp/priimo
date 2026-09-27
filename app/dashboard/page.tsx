@@ -28,8 +28,10 @@ import {
 import { fetchFieldWeek } from '@/lib/queries/field-week';
 import { buildTodayCards } from '@/lib/today/cards';
 import { buildPortfolioStats } from '@/lib/today/portfolio';
-import { buildDirectorExceptions } from '@/lib/today/director-exceptions';
-import { parseAccueilVue, ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
+import { ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
+import { resolveVueAccueilDirecteur, agencesDirecteur } from '@/lib/directeur/vue';
+import { chargerAccueilDirecteur } from '@/lib/directeur/charger-accueil';
+import AccueilDirecteur from '@/components/dashboard/directeur/AccueilDirecteur';
 import { homeNoteAttachment, homeNoteLieuKind, homeNoteTitre, recentNotesForHome } from '@/lib/notes/inbox';
 import { auteurNote, portraitsParId, portraitsParNom, portraitPourNom } from '@/lib/notes/auteur';
 import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
@@ -47,7 +49,6 @@ import AujourdhuiMobile from '@/app/dashboard/_mobile/AujourdhuiMobile';
 import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
-import { fetchAgencyOverview } from '@/lib/queries/agency-overview';
 import { buildSectorMapPoints } from '@/lib/carte/points';
 import { buildSortie } from '@/lib/today/sortie';
 import { groupEntitiesByBanId } from '@/lib/carte/buildings';
@@ -152,28 +153,33 @@ async function TodayContent({
   const agendaPromise = lireAgendaSemaine();
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
-  const previewingAgent =
-    profile.role === 'directeur' &&
-    parseAccueilVue(cookieStore.get(ACCUEIL_VUE_COOKIE)?.value) === 'agent';
+  const membersForVue = await timed('fetchMembersOfMyAgency(early)', () =>
+    fetchMembersOfMyAgency(agency.id, memberships),
+  );
+  const vueAccueil = resolveVueAccueilDirecteur({
+    cookie: cookieStore.get(ACCUEIL_VUE_COOKIE)?.value,
+    membresAgence: membersForVue.length,
+  });
+  const previewingAgent = profile.role === 'directeur' && vueAccueil === 'agent';
   const layoutDirector = profile.role === 'directeur' && !previewingAgent;
   const viewer = viewerFromProfile(
     previewingAgent ? { ...profile, role: 'collaborateur' } : profile,
   );
   const isDirector = profile.role === 'directeur';
 
-  const [leads, contacts, biens, dismissals, members, metier, notes, device, stages, pastRdv] =
+  const [leads, contacts, biens, dismissals, metier, notes, device, stages, pastRdv] =
     await Promise.all([
       timed('fetchLeads', () => fetchLeads(supabase)),
       timed('fetchContactsSafe', () => fetchContactsSafe(supabase)),
       timed('fetchBiensSafe', () => fetchBiensSafe(supabase)),
       timed('fetchTodayDismissals', () => fetchTodayDismissals(supabase, profile.id)),
-      timed('fetchMembersOfMyAgency', () => fetchMembersOfMyAgency(agency.id, memberships)),
       timed('fetchTodayMetierSafe', () => fetchTodayMetierSafe(supabase, profile.id)),
       timed('fetchVoiceNotesSafe', () => fetchVoiceNotesSafe(supabase)),
       timed('getDevice(page)', () => getDevice()),
       timed('fetchLeadStages', () => fetchLeadStages(supabase)),
       timed('fetchPastRendezVousSafe', () => fetchPastRendezVousSafe(supabase)),
     ]);
+  const members = membersForVue;
 
   const names = memberNamesById(members);
   const visibleContacts = visibleContactsFor(viewer, contacts);
@@ -417,6 +423,56 @@ async function TodayContent({
     timed('fetchPassagesObserves', () => fetchPassagesObserves({ supabase, stages })),
   ]);
 
+  if (layoutDirector) {
+    const periodeDirecteur =
+      periodeDemandee === 'mois' ? 'mois' : 'semaine';
+    const modeleDirecteur = await timed('chargerAccueilDirecteur', () =>
+      chargerAccueilDirecteur({
+        supabase,
+        agencyId: agency.id,
+        directeurProfileId: profile.id,
+        membres: members.map((m) => ({
+          id: m.id,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          fullName: m.fullName,
+          avatarUrl: m.avatarUrl,
+        })),
+        stages,
+        leads: visibleLeads.map((l) => ({
+          assignedTo: l.assignedTo,
+          deliveredAt: l.deliveredAt,
+          createdAt: l.createdAt,
+          stageId: l.stageId,
+        })),
+        biensMetier: metier.biens,
+        biens: visibleBiens.map((b) => ({
+          id: b.id,
+          assignedTo: b.assignedTo,
+          mandatStatut: b.mandatStatut,
+          mandatDate: b.mandatDate,
+          proprietaireContactId: b.proprietaireContactId,
+        })),
+        notes: visibleNotes.map((n) => ({
+          createdBy: n.createdBy,
+          createdAt: n.createdAt,
+        })),
+        periode: periodeDirecteur,
+      }),
+    );
+
+    markServerTimingReady();
+
+    return (
+      <AccueilDirecteur
+        modele={modeleDirecteur}
+        agences={agencesDirecteur(memberships)}
+        agenceActiveId={agency.id}
+        periode={periodeDirecteur}
+      />
+    );
+  }
+
   const cards = buildTodayCards({
     leads: visibleLeads,
     contacts: visibleContacts,
@@ -434,45 +490,8 @@ async function TodayContent({
     exclure: ['echeance_contractuelle'],
   });
 
-  let directorExceptions: ReturnType<typeof buildDirectorExceptions> = [];
-  if (layoutDirector) {
-    const overview = await timed('fetchAgencyOverview(interactions only)', () =>
-      fetchAgencyOverview({
-        supabase,
-        agencyId: agency.id,
-        memberships,
-        role: 'directeur',
-        agencyPostalCodes: agency.codes_postaux ?? [],
-        prefetched: {
-          members: members.map((m) => ({
-            id: m.id,
-            fullName: m.fullName,
-            firstName: m.firstName,
-            lastName: m.lastName,
-            avatarUrl: m.avatarUrl,
-          })),
-          leads,
-          contacts,
-          biens,
-          notes: visibleNotes,
-        },
-      }),
-    );
-    const volumeById: Record<string, number> = {};
-    for (const row of overview.activity) volumeById[row.memberId] = row.volume;
-    directorExceptions = buildDirectorExceptions({
-      members: members.map((m) => ({
-        id: m.id,
-        fullName: m.fullName,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        avatarUrl: m.avatarUrl,
-      })),
-      leads: visibleLeads.map((l) => ({ assignedTo: l.assignedTo, stageId: l.stageId })),
-      notes: visibleNotes.map((n) => ({ createdBy: n.createdBy, statut: n.statut })),
-      activityVolumeByMemberId: volumeById,
-    });
-  }
+  const directorExceptions: import('@/lib/today/director-exceptions').DirectorMemberExceptions[] = [];
+
 
   markServerTimingReady();
 
@@ -692,6 +711,7 @@ async function TodayContent({
     membreSelectionne: membreActivite,
     moi: profile.id,
     penseBete,
+    selecteurVueDirecteur: isDirector && previewingAgent,
     // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
     // sous son propre Suspense, sans retenir le reste de l'écran.
     emploiDuTemps: (

@@ -78,9 +78,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     ) : (
                       <div className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
                         <Sidebar />
-                        <div className={`${SHELL_BG_CLASS} relative flex min-w-0 flex-1 flex-col`}>
+                        <div className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
                           <TopBar />
-                          <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
+                          <main className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
                             {bandeau ? <div className="mb-3 shrink-0">{bandeau}</div> : null}
                             <WorkspacePanel>{children}</WorkspacePanel>
                           </main>

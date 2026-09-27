@@ -14,7 +14,7 @@ export default function HeroSection() {
   return (
     <section
       id="top"
-      className="landing-hero relative isolate overflow-hidden pt-[8.75rem] pb-14 sm:pt-40 sm:pb-16 lg:pt-44 lg:pb-20"
+      className="landing-hero relative isolate overflow-x-clip pt-[8.75rem] pb-14 sm:pt-40 sm:pb-16 lg:pt-44 lg:pb-20"
     >
       <div className="landing-hero-grid relative min-w-0">
         <div className="landing-hero-copy min-w-0 text-left lg:pt-2">
@@ -24,7 +24,7 @@ export default function HeroSection() {
             >
               <span className="block">Le CRM immobilier</span>
               <span className="mt-[0.22em] block">pensé pour</span>
-              <span className="mt-[0.28em] flex w-full max-w-none justify-start overflow-visible">
+              <span className="landing-hero-pill-row mt-[0.28em] flex w-full max-w-full justify-start overflow-visible">
                 <span className="sr-only">
                   la prospection, le terrain et la data
                 </span>

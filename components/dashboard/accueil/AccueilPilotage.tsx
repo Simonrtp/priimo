@@ -18,6 +18,7 @@ import JourParJour from './JourParJour';
 import NouvellesAdresses, { type AdresseLivree } from './NouvellesAdresses';
 import PhrasePilotageBloc from './PhrasePilotage';
 import SelecteurCollaborateur, { type MembreOption } from './SelecteurCollaborateur';
+import SelecteurVueAccueil from '@/components/dashboard/directeur/SelecteurVueAccueil';
 
 /** Une période déjà consultée est réaffichée telle quelle, sans nouvel appel. */
 type Cache = Map<string, Pilotage>;
@@ -51,6 +52,7 @@ export default function AccueilPilotage({
   emploiDuTemps,
   secteur,
   attenteInscription,
+  selecteurVueDirecteur = false,
 }: {
   /** Le bilan calculé par le serveur au premier rendu. */
   pilotage: Pilotage;
@@ -70,6 +72,8 @@ export default function AccueilPilotage({
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
   secteur?: ReactNode;
   attenteInscription?: ReactNode;
+  /** Affiche Mon équipe / Ma semaine (directeur en vue agent). */
+  selecteurVueDirecteur?: boolean;
 }) {
   const cleServeur = vueDuBilan(pilotage).cle;
   const cache = useRef<Cache>(new Map([[cleServeur, pilotage]]));
@@ -167,6 +171,9 @@ export default function AccueilPilotage({
           estPeriodeCourante={vue.estPeriodeCourante}
           enCours={enCours}
           onChanger={changer}
+          debut={
+            selecteurVueDirecteur ? <SelecteurVueAccueil vue="agent" /> : undefined
+          }
           droite={<PenseBete initial={penseBete} className="w-full sm:w-[15.5rem] sm:shrink-0" />}
         />
         {membres.length > 1 ? (

@@ -161,7 +161,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
                 </span>
               </div>
               <div>
-                <h4 className="font-sans text-[15px] sm:text-base font-semibold text-white">
+                <h4 className="text-[15px] sm:text-base font-semibold text-white">
                   {item.title}
                 </h4>
                 <p className={`mt-1 text-[14px] leading-relaxed ${tones.desc}`}>

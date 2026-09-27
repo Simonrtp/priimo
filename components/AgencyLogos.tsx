@@ -1,7 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
 
 type Agence = {
   name: string;
@@ -12,7 +9,7 @@ type Agence = {
   invert?: boolean;
 };
 
-/** Versions couleur — grisées en CSS, puis révélées au scroll. */
+/** Versions couleur — toujours en couleur. */
 const AGENCES: Agence[] = [
   { name: "Century 21", src: "/c21c.png", width: 148 },
   { name: "Swixim", src: "/swixx.png", width: 148 },
@@ -22,49 +19,18 @@ const AGENCES: Agence[] = [
 ];
 
 // === AGENCY LOGOS ===
-// Preuve sociale sous le hero : logos grisés → couleurs au scroll.
+// Preuve sociale sous le hero : logos en couleur.
 
 export default function AgencyLogos() {
-  const rootRef = useRef<HTMLElement>(null);
-  const [revealed, setRevealed] = useState(false);
-
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (mq.matches) {
-      setRevealed(true);
-      return;
-    }
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setRevealed(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.4, rootMargin: "0px 0px -8% 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
   return (
-    <section
-      ref={rootRef}
-      className={`agency-logos${revealed ? " is-revealed" : ""}`}
-      aria-label="Agences qui utilisent Priimo"
-    >
+    <section className="agency-logos" aria-label="Agences qui utilisent Priimo">
       <div className="agency-logos-inner">
-        <p className="agency-logos-label">Ils utilisent Priimo</p>
+        <p className="agency-logos-label">Ces agences adorent Priimo</p>
         <ul className="agency-logos-row">
-          {AGENCES.map((agence, i) => (
+          {AGENCES.map((agence) => (
             <li
               key={agence.name}
               className={`agency-logo-item${agence.invert ? " is-invert" : ""}`}
-              style={{ transitionDelay: revealed ? `${i * 90}ms` : "0ms" }}
             >
               <Image
                 src={agence.src}
