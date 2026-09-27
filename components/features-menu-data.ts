@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Compass,
-  Kanban,
-  LineChart,
-  MapPinned,
-  Ruler,
+  BarChart3,
+  FileText,
+  Megaphone,
+  Mic,
+  Radar,
 } from 'lucide-react';
 
 export type FeatureMenuItem = {
@@ -19,61 +19,61 @@ export type FeatureMenuGroup = {
   items: FeatureMenuItem[];
 };
 
-const DETECTION: FeatureMenuItem = {
-  title: 'Détection',
-  description: 'Les adresses encore libres',
+const PROSPECTION: FeatureMenuItem = {
+  title: 'Prospection intelligente',
+  description: 'Savoir où frapper avant de sortir',
   href: '/fonctionnalites/detection',
-  icon: Compass,
+  icon: Radar,
 };
 
-const TERRAIN: FeatureMenuItem = {
-  title: 'Terrain & IA',
-  description: 'Plus rien à ressaisir le soir',
+const DICTEE: FeatureMenuItem = {
+  title: 'Dictée terrain',
+  description: 'Vous parlez, c’est rangé',
   href: '/fonctionnalites/terrain',
-  icon: MapPinned,
+  icon: Mic,
+};
+
+const ESTIMATIONS: FeatureMenuItem = {
+  title: 'Estimations et avis de valeur',
+  description: 'De la visite à l’avis, sans quitter l’appli',
+  href: '/fonctionnalites/estimation',
+  icon: FileText,
+};
+
+const DIFFUSION: FeatureMenuItem = {
+  title: 'Diffusion des mandats',
+  description: 'Un mandat, tous les portails',
+  href: '/fonctionnalites/pipeline',
+  icon: Megaphone,
 };
 
 const PILOTAGE: FeatureMenuItem = {
   title: 'Pilotage commercial',
-  description: 'Des chiffres sans saisie',
+  description: 'Des chiffres mesurés, pas déclarés',
   href: '/fonctionnalites/pilotage',
-  icon: LineChart,
-};
-
-const PIPELINE: FeatureMenuItem = {
-  title: 'Pipeline & CRM',
-  description: 'Le mandat comme suite du terrain',
-  href: '/fonctionnalites/pipeline',
-  icon: Kanban,
-};
-
-const ESTIMATION: FeatureMenuItem = {
-  title: 'Estimation',
-  description: 'Le vendeur voit d’où vient le chiffre',
-  href: '/fonctionnalites/estimation',
-  icon: Ruler,
+  icon: BarChart3,
 };
 
 export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = [
   {
-    title: 'Détection',
-    items: [DETECTION],
+    title: 'Prospection',
+    items: [PROSPECTION],
   },
   {
-    title: 'Vos leads',
-    items: [PIPELINE, PILOTAGE],
+    title: 'Terrain',
+    items: [DICTEE, ESTIMATIONS],
   },
   {
-    title: 'Sur le terrain',
-    items: [TERRAIN, ESTIMATION],
+    title: 'Suite du mandat',
+    items: [DIFFUSION, PILOTAGE],
   },
 ];
 
-/** Ordre des 5 pages, pour footer et nav mobile. */
+/** Ordre des 5 pages (= onglets landing). */
 export const FEATURE_PAGES_NAV: FeatureMenuItem[] = [
-  DETECTION,
-  TERRAIN,
+  PROSPECTION,
+  DICTEE,
+  ESTIMATIONS,
+  DIFFUSION,
   PILOTAGE,
-  PIPELINE,
-  ESTIMATION,
 ];

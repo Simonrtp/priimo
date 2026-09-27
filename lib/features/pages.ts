@@ -42,12 +42,12 @@ export type FeaturePageContent = {
 export const DETECTION_PAGE: FeaturePageContent = {
   slug: 'detection',
   meta: {
-    title: 'Détection',
+    title: 'Prospection intelligente',
     description:
       'Priimo filtre les diagnostics déjà devenus des annonces, note chaque adresse de 0 à 100 et livre la liste à une seule agence par secteur.',
     path: '/fonctionnalites/detection',
   },
-  label: 'Détection',
+  label: 'Prospection intelligente',
   h1: 'Vous n’allez que là où le bien n’est pas encore en vente.',
   mecanisme: [
     'Priimo croise des bases publiques françaises : diagnostics ADEME, ventes DVF, registre des copropriétés, cadastre IGN, BODACC. Chaque adresse reçoit un score de 0 à 100, calculé sur la fraîcheur du diagnostic et cinq signaux annexes plafonnés.',
@@ -118,12 +118,12 @@ export const DETECTION_PAGE: FeaturePageContent = {
   related: [
     {
       href: '/fonctionnalites/terrain',
-      label: 'Terrain & IA',
+      label: 'Dictée terrain',
       blurb: 'La liste ne sert que si elle sort. Carte, dictée, tournée.',
     },
     {
       href: '/fonctionnalites/pipeline',
-      label: 'Pipeline & CRM',
+      label: 'Diffusion des mandats',
       blurb: 'Une adresse prise devient un dossier, pas une ligne oubliée.',
     },
   ],
@@ -132,12 +132,12 @@ export const DETECTION_PAGE: FeaturePageContent = {
 export const TERRAIN_PAGE: FeaturePageContent = {
   slug: 'terrain',
   meta: {
-    title: 'Terrain & IA',
+    title: 'Dictée terrain',
     description:
       'Carte cadastre, notes dictées en marchant, tournées depuis l’agence : Priimo range le terrain pendant que vous y êtes.',
     path: '/fonctionnalites/terrain',
   },
-  label: 'Terrain & IA',
+  label: 'Dictée terrain',
   h1: 'Plus rien à ressaisir le soir.',
   mecanisme: [
     'La carte pose le cadastre sous vos adresses. Un immeuble ouvre les ventes passées, la copropriété, les diagnostics — avant d’appuyer sur la sonnette.',
@@ -200,7 +200,7 @@ export const TERRAIN_PAGE: FeaturePageContent = {
   related: [
     {
       href: '/fonctionnalites/detection',
-      label: 'Détection',
+      label: 'Prospection intelligente',
       blurb: 'D’où viennent les adresses que vous allez frapper.',
     },
     {
@@ -282,12 +282,12 @@ export const PILOTAGE_PAGE: FeaturePageContent = {
   related: [
     {
       href: '/fonctionnalites/pipeline',
-      label: 'Pipeline & CRM',
+      label: 'Diffusion des mandats',
       blurb: 'Là où les dossiers avancent, colonne après colonne.',
     },
     {
       href: '/fonctionnalites/terrain',
-      label: 'Terrain & IA',
+      label: 'Dictée terrain',
       blurb: 'Les passages que le pilotage compte s’écrivent ici.',
     },
   ],
@@ -296,12 +296,12 @@ export const PILOTAGE_PAGE: FeaturePageContent = {
 export const PIPELINE_PAGE: FeaturePageContent = {
   slug: 'pipeline',
   meta: {
-    title: 'Pipeline & CRM',
+    title: 'Diffusion des mandats',
     description:
       'Pipeline par étapes, contacts typés, biens, rapprochement acquéreurs, recherche unifiée : Priimo est le dossier, pas un export vers un autre logiciel.',
     path: '/fonctionnalites/pipeline',
   },
-  label: 'Pipeline & CRM',
+  label: 'Diffusion des mandats',
   h1: 'Le mandat n’est plus le début du dossier. Il en est la suite.',
   mecanisme: [
     'Une adresse prise quitte le lot commun et entre dans un pipeline par étapes, jusqu’au mandat. Contacts, biens, notes, estimations : la même base que la carte et que l’accueil.',
@@ -369,7 +369,7 @@ export const PIPELINE_PAGE: FeaturePageContent = {
     },
     {
       href: '/fonctionnalites/estimation',
-      label: 'Estimation',
+      label: 'Estimations et avis de valeur',
       blurb: 'Le chiffre que vous défendez chez le vendeur.',
     },
   ],
@@ -378,12 +378,12 @@ export const PIPELINE_PAGE: FeaturePageContent = {
 export const ESTIMATION_PAGE: FeaturePageContent = {
   slug: 'estimation',
   meta: {
-    title: 'Estimation',
+    title: 'Estimations et avis de valeur',
     description:
       'Comparables DVF réactualisés à l’indice Notaires-INSEE, grille de caractéristiques et rapport partageable.',
     path: '/fonctionnalites/estimation',
   },
-  label: 'Estimation',
+  label: 'Estimations et avis de valeur',
   h1: 'Le vendeur voit d’où vient le chiffre.',
   mecanisme: [
     'Les comparables viennent des ventes DVF. Ils sont réactualisés avec l’indice Notaires-INSEE. La grille de caractéristiques compare le bien au secteur — pas à une moyenne nationale.',
@@ -437,12 +437,12 @@ export const ESTIMATION_PAGE: FeaturePageContent = {
   related: [
     {
       href: '/fonctionnalites/detection',
-      label: 'Détection',
+      label: 'Prospection intelligente',
       blurb: 'L’adresse estimée a souvent commencé ici, avant l’annonce.',
     },
     {
       href: '/fonctionnalites/pipeline',
-      label: 'Pipeline & CRM',
+      label: 'Diffusion des mandats',
       blurb: 'L’estimation rejoint le dossier, puis le mandat.',
     },
   ],
