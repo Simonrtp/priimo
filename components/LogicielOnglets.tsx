@@ -56,13 +56,28 @@ function ParagrapheRiche({ texte }: { texte: string }) {
 function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
   const [ok, setOk] = useState(true);
   const src = imageFonctionnalite(carte);
+  const videoSrcs = carte.videoSrcs;
 
   return (
     <div
-      className={`logiciel-carte-media${carte.imageFit === "contain" ? " is-mockup" : ""}`}
+      className={`logiciel-carte-media${carte.imageFit === "contain" ? " is-mockup" : ""}${videoSrcs?.length ? " is-video" : ""}`}
       style={{ background: carte.degrade }}
     >
-      {ok ? (
+      {videoSrcs?.length ? (
+        <video
+          className="logiciel-carte-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-label={carte.imageAlt}
+        >
+          {videoSrcs.map((s) => (
+            <source key={s.src} src={s.src} type={s.type} />
+          ))}
+        </video>
+      ) : ok ? (
         // img natif : si le .webp n’existe pas encore → onError, fond dégradé seul
         // eslint-disable-next-line @next/next/no-img-element
         <img

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Zap } from "lucide-react";
 import Reveal from "./Reveal";
 import LogicielOnglets from "./LogicielOnglets";
 
@@ -64,10 +65,19 @@ export default function WhyPriimo() {
 
       <Reveal direction="up" delay={120} className="why-priimo-outro">
         <h2 className="why-priimo-outro-title">
-          Un logiciel tout-en-un simplissime
+          <span className="why-priimo-outro-lead">Un logiciel tout-en-un</span>
+          <span className="why-priimo-capsule">
+            <Zap
+              aria-hidden
+              className="why-priimo-capsule-icon"
+              strokeWidth={2}
+              fill="currentColor"
+            />
+            simplissime
+          </span>
         </h2>
         <p className="why-priimo-outro-text">
-          Prospection prédictive - Données - Terrain
+          Prospection - Données - Terrain
         </p>
       </Reveal>
 

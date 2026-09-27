@@ -34,6 +34,10 @@ export type FonctionnaliteCarte = {
    * Ex. `.png` tant que le webp n’est pas prêt.
    */
   imageSrc?: string;
+  /**
+   * Sources vidéo (webm puis mp4). Si présent, remplace l’image dans le cadre.
+   */
+  videoSrcs?: { src: string; type: string }[];
   /** Affichage dans le cadre : cover (défaut) ou contain (mockup téléphone). */
   imageFit?: "cover" | "contain";
   /** Lien du bouton secondaire « En savoir plus » */
@@ -53,7 +57,7 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
     titre: "La pige est terminée. Le terrain reprend.",
     paragraphes: [
       "Depuis le 11 août 2026, appeler un particulier sans son accord est interdit. **La pige téléphonique, c’est fini**, et [voici ce qui change concrètement](/blog/fin-pige-telephonique). Ce qui reste, c’est le terrain : **savoir où frapper avant de sortir**.",
-      "**À la porte.** Sur la carte, votre secteur se découpe en zones de tournée. Chaque immeuble a sa fiche : **données publiques** (ventes, prix au m², copropriété, diagnostics) et **notes privées** de l’agence. C’est aussi le sens de [prospecter sans le téléphone](/blog/prospecter-sans-telephone).",
+      "**À la porte.** Votre secteur se découpe en zones de tournée. Chaque immeuble a sa fiche : **données publiques** et **notes privées** de l’agence. C’est le sens de [prospecter sans le téléphone](/blog/prospecter-sans-telephone).",
       "**Avant de sortir.** Priimo priorise les adresses à voir cette semaine, selon les signaux et ce que vous savez déjà du quartier. Moins de portes au hasard, **plus de visites utiles**.",
     ],
     imageAlt: "Téléphone Priimo : carte de secteur et contexte d’un immeuble",
@@ -75,8 +79,12 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
       "Chaque note reste sur l’immeuble, pas dans la tête d’un négociateur. Quand quelqu’un quitte l’agence, **le carnet du quartier reste**.",
     ],
     imageAlt: "Dictée terrain Priimo : note vocale rattachée à un immeuble",
+    videoSrcs: [
+      { src: "/priimo-dictee-terrain.webm", type: "video/webm" },
+      { src: "/priimo-dictee-terrain.mp4", type: "video/mp4" },
+    ],
     enSavoirPlusHref: "/fonctionnalites/terrain",
-    degrade: "linear-gradient(160deg, #e8743c 0%, #f4a259 45%, #ffe8d6 100%)",
+    degrade: "linear-gradient(160deg, #ffe0e8 0%, #f7c4d0 45%, #f07890 100%)",
   },
   {
     slug: "estimations",
@@ -89,7 +97,8 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
       "Un formulaire rapide, un calcul appuyé sur **les ventes réelles du quartier**, et un avis de valeur que vous présentez directement au propriétaire.",
       "Partagez le résultat par lien, ou posez le module d’estimation **sur le site de votre agence** pour recevoir des demandes de vendeurs, avec leur accord, sans pige.",
     ],
-    imageAlt: "Avis de valeur Priimo prêt à partager avec un propriétaire",
+    imageAlt: "Ordinateur Priimo : atelier d’estimation, fiche bien et couverture du rapport",
+    imageSrc: "/ordinateurgegggege.png",
     enSavoirPlusHref: "/fonctionnalites/estimation",
     degrade: "linear-gradient(160deg, #fff8f0 0%, #f5e6d3 55%, #e8d4b8 100%)",
   },
