@@ -1470,6 +1470,39 @@ button {
   flex-direction: column;
   align-items: flex-start;
 }
+.logiciel-carte-subtitle {
+  margin: 0.45rem 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-nunito), Nunito, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: #1a2a56;
+  text-decoration: none;
+  width: fit-content;
+  transition: opacity 0.18s ease;
+}
+a.logiciel-carte-subtitle:hover {
+  opacity: 0.82;
+}
+a.logiciel-carte-subtitle:focus-visible {
+  outline: 2px solid #004af6;
+  outline-offset: 3px;
+  border-radius: 0.35rem;
+}
+.logiciel-carte-subtitle-logo {
+  display: block;
+  height: 1.55rem;
+  width: auto;
+}
+@media (min-width: 768px) {
+  .logiciel-carte-subtitle-logo {
+    height: 1.75rem;
+  }
+}
 .landing h3.logiciel-carte-title,
 .logiciel-carte-title {
   margin: 0;
@@ -1618,6 +1651,18 @@ button {
 .logiciel-carte-media.is-video {
   overflow: hidden;
 }
+.logiciel-carte-media.is-custom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  min-height: 18rem;
+}
+@media (min-width: 768px) {
+  .logiciel-carte-media.is-custom {
+    min-height: 22rem;
+  }
+}
 .logiciel-carte-video {
   position: absolute;
   inset: 0;
@@ -1627,6 +1672,162 @@ button {
   object-position: center;
   display: block;
   border: 0;
+}
+
+/* --- Diffusion : orbite logos portails --- */
+.diffusion-orbit {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+.diffusion-orbit-scene {
+  --orbit-size: 17.5rem;
+  --orbit-radius: 6.35rem;
+  --logo-size: 3.4rem;
+  position: relative;
+  width: var(--orbit-size);
+  height: var(--orbit-size);
+  flex-shrink: 0;
+}
+.diffusion-orbit-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  animation: diffusion-orbit-spin 42s linear infinite;
+}
+.diffusion-orbit-slot {
+  --orbit-angle: calc((var(--orbit-i) * 360deg) / var(--orbit-n));
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--logo-size);
+  height: var(--logo-size);
+  margin: calc(var(--logo-size) / -2) 0 0 calc(var(--logo-size) / -2);
+  /* Place sur le cercle puis annule la rotation pour rester droit */
+  transform:
+    rotate(var(--orbit-angle))
+    translateY(calc(var(--orbit-radius) * -1))
+    rotate(calc(var(--orbit-angle) * -1));
+}
+.diffusion-orbit-logo {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid rgba(26, 42, 86, 0.1);
+  box-shadow:
+    0 8px 18px rgba(26, 42, 86, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  overflow: hidden;
+  /* Contre-rotation pour garder les logos droits */
+  animation: diffusion-orbit-counter 42s linear infinite;
+  transform-origin: center center;
+}
+.diffusion-orbit-img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  display: block;
+}
+.diffusion-orbit-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 7.4rem;
+  height: 7.4rem;
+  margin: -3.7rem 0 0 -3.7rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, #ffffff 0%, #f4f8ff 55%, #e4eeff 100%);
+  border: 1px solid rgba(0, 74, 246, 0.14);
+  box-shadow:
+    0 14px 32px rgba(26, 42, 86, 0.14),
+    0 0 0 8px rgba(0, 74, 246, 0.05);
+  animation: diffusion-orbit-pulse 3.6s ease-in-out infinite;
+}
+.diffusion-orbit-count {
+  font-family: var(--font-hero), Montserrat, ui-sans-serif, system-ui, sans-serif;
+  font-size: 2.15rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: #004af6;
+}
+.diffusion-orbit-label {
+  margin-top: 0.28rem;
+  font-family: var(--font-nunito), Nunito, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  color: #1a2a56;
+  max-width: 5.5rem;
+}
+@keyframes diffusion-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes diffusion-orbit-counter {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+@keyframes diffusion-orbit-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 14px 32px rgba(26, 42, 86, 0.14),
+      0 0 0 8px rgba(0, 74, 246, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 16px 36px rgba(26, 42, 86, 0.18),
+      0 0 0 12px rgba(0, 74, 246, 0.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .diffusion-orbit-ring,
+  .diffusion-orbit-logo,
+  .diffusion-orbit-center {
+    animation: none;
+  }
+}
+@media (min-width: 768px) {
+  .diffusion-orbit-scene {
+    --orbit-size: 20.5rem;
+    --orbit-radius: 7.45rem;
+    --logo-size: 3.75rem;
+  }
+  .diffusion-orbit-center {
+    width: 8.2rem;
+    height: 8.2rem;
+    margin: -4.1rem 0 0 -4.1rem;
+  }
+  .diffusion-orbit-count {
+    font-size: 2.4rem;
+  }
+  .diffusion-orbit-label {
+    font-size: 0.78rem;
+  }
 }
 
 .agency-logos-inner {

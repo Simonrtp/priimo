@@ -26,6 +26,12 @@ export type FonctionnaliteCarte = {
   /** Badge « Bientôt » sur l’onglet — off par défaut */
   bientot?: boolean;
   titre: string;
+  /** Ligne juste sous le titre (ex. partenaire) */
+  sousTitre?: string;
+  /** Logo optionnel à droite du sous-titre */
+  sousTitreLogo?: { src: string; alt: string; width: number; height: number };
+  /** Lien du sous-titre / logo (nouvel onglet) */
+  sousTitreHref?: string;
   /** Paragraphes ; **gras** et [lien](/url) */
   paragraphes: string[];
   imageAlt: string;
@@ -38,6 +44,8 @@ export type FonctionnaliteCarte = {
    * Sources vidéo (webm puis mp4). Si présent, remplace l’image dans le cadre.
    */
   videoSrcs?: { src: string; type: string }[];
+  /** Visuel React dédié (ex. orbite portails) — prioritaire sur image/vidéo. */
+  visuel?: "diffusion-orbit";
   /** Affichage dans le cadre : cover (défaut) ou contain (mockup téléphone). */
   imageFit?: "cover" | "contain";
   /** Lien du bouton secondaire « En savoir plus » */
@@ -109,13 +117,22 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
     couleurIcone: "#004AF6",
     bientot: false,
     titre: "Un mandat saisi une fois, publié partout",
+    sousTitre: "Propulsé par",
+    sousTitreHref: "https://www.ubiflow.net/",
+    sousTitreLogo: {
+      src: "/ubiflow.png",
+      alt: "Ubiflow",
+      width: 186,
+      height: 50,
+    },
     paragraphes: [
       "Saisissez le bien une seule fois dans Priimo, il part sur les portails immobiliers. **Pas d’export, pas de double saisie.**",
       "Les demandes des acheteurs reviennent directement dans Priimo, **rattachées au bon bien**, prêtes à être traitées.",
     ],
-    imageAlt: "Diffusion d’un mandat Priimo vers les portails immobiliers",
+    imageAlt: "400 portails de vente reliés à Priimo",
+    visuel: "diffusion-orbit",
     enSavoirPlusHref: "/fonctionnalites/pipeline",
-    degrade: "linear-gradient(160deg, #3d5a80 0%, #5c7fa3 48%, #b8d4ee 100%)",
+    degrade: "linear-gradient(165deg, #eef4ff 0%, #dce8ff 48%, #c8daf8 100%)",
   },
   {
     slug: "pilotage",

@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import CtaButton from "./CtaButton";
+import DiffusionPortailsOrbit from "./DiffusionPortailsOrbit";
 import {
   FONCTIONNALITES,
   imageFonctionnalite,
@@ -57,13 +58,19 @@ function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
   const [ok, setOk] = useState(true);
   const src = imageFonctionnalite(carte);
   const videoSrcs = carte.videoSrcs;
+  const custom =
+    carte.visuel === "diffusion-orbit" ? (
+      <DiffusionPortailsOrbit />
+    ) : null;
 
   return (
     <div
-      className={`logiciel-carte-media${carte.imageFit === "contain" ? " is-mockup" : ""}${videoSrcs?.length ? " is-video" : ""}`}
+      className={`logiciel-carte-media${carte.imageFit === "contain" ? " is-mockup" : ""}${videoSrcs?.length ? " is-video" : ""}${custom ? " is-custom" : ""}`}
       style={{ background: carte.degrade }}
     >
-      {videoSrcs?.length ? (
+      {custom ? (
+        custom
+      ) : videoSrcs?.length ? (
         <video
           className="logiciel-carte-video"
           autoPlay
@@ -190,6 +197,44 @@ export default function LogicielOnglets() {
                 <div className="logiciel-carte">
                   <div className="logiciel-carte-copy">
                     <h3 className="logiciel-carte-title">{carte.titre}</h3>
+                    {carte.sousTitre || carte.sousTitreLogo ? (
+                      carte.sousTitreHref ? (
+                        <a
+                          href={carte.sousTitreHref}
+                          className="logiciel-carte-subtitle"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {carte.sousTitre ? <span>{carte.sousTitre}</span> : null}
+                          {carte.sousTitreLogo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={carte.sousTitreLogo.src}
+                              alt={carte.sousTitreLogo.alt}
+                              width={carte.sousTitreLogo.width}
+                              height={carte.sousTitreLogo.height}
+                              className="logiciel-carte-subtitle-logo"
+                              decoding="async"
+                            />
+                          ) : null}
+                        </a>
+                      ) : (
+                        <p className="logiciel-carte-subtitle">
+                          {carte.sousTitre ? <span>{carte.sousTitre}</span> : null}
+                          {carte.sousTitreLogo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={carte.sousTitreLogo.src}
+                              alt={carte.sousTitreLogo.alt}
+                              width={carte.sousTitreLogo.width}
+                              height={carte.sousTitreLogo.height}
+                              className="logiciel-carte-subtitle-logo"
+                              decoding="async"
+                            />
+                          ) : null}
+                        </p>
+                      )
+                    ) : null}
                     <div className="logiciel-carte-body">
                       {carte.paragraphes.map((p) => (
                         <ParagrapheRiche key={p.slice(0, 40)} texte={p} />
