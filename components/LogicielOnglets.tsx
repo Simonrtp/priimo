@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import {
+  useEffect,
   useId,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -12,13 +14,13 @@ import DiffusionPortailsOrbit from "./DiffusionPortailsOrbit";
 import {
   FONCTIONNALITES,
   imageFonctionnalite,
+  mediasFonctionnalitesAPrecharger,
   type FonctionnaliteCarte,
 } from "@/lib/landing/fonctionnalites";
 
 /** Rend un paragraphe : **gras** et [libellé](/url). */
 function ParagrapheRiche({ texte }: { texte: string }) {
   const nodes: ReactNode[] = [];
-  // Liens d’abord, puis gras dans chaque segment texte
   const re = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*)/g;
   let last = 0;
   let m: RegExpExecArray | null;
@@ -54,14 +56,31 @@ function ParagrapheRiche({ texte }: { texte: string }) {
   return <p className="logiciel-carte-p">{nodes}</p>;
 }
 
-function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
+function VisuelCarte({
+  carte,
+  actif,
+}: {
+  carte: FonctionnaliteCarte;
+  actif: boolean;
+}) {
   const [ok, setOk] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const src = imageFonctionnalite(carte);
   const videoSrcs = carte.videoSrcs;
   const custom =
     carte.visuel === "diffusion-orbit" ? (
       <DiffusionPortailsOrbit />
     ) : null;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (actif) {
+      void video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [actif]);
 
   return (
     <div
@@ -72,12 +91,12 @@ function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
         custom
       ) : videoSrcs?.length ? (
         <video
+          ref={videoRef}
           className="logiciel-carte-video"
-          autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           aria-label={carte.imageAlt}
         >
           {videoSrcs.map((s) => (
@@ -85,15 +104,15 @@ function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
           ))}
         </video>
       ) : ok ? (
-        // img natif : si le .webp n’existe pas encore → onError, fond dégradé seul
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt={carte.imageAlt}
-          width={1024}
-          height={1536}
-          loading="lazy"
-          decoding="async"
+          width={carte.imageFit === "contain" ? 599 : 1100}
+          height={carte.imageFit === "contain" ? 900 : 733}
+          loading="eager"
+          decoding="sync"
+          fetchPriority="high"
           className={`logiciel-carte-img${carte.imageFit === "contain" ? " is-contain" : ""}`}
           onError={() => setOk(false)}
         />
@@ -102,6 +121,56 @@ function VisuelCarte({ carte }: { carte: FonctionnaliteCarte }) {
       )}
     </div>
   );
+}
+
+/** Charge et décode tous les médias dès le montage — zéro latence au clic. */
+function PrefetchMediasOnglets() {
+  useEffect(() => {
+    const urls = mediasFonctionnalitesAPrecharger();
+    const links: HTMLLinkElement[] = [];
+    const videos: HTMLVideoElement[] = [];
+
+    for (const url of urls) {
+      if (/\.(webm|mp4)(\?|$)/i.test(url)) {
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "video";
+        link.href = url;
+        document.head.appendChild(link);
+        links.push(link);
+
+        const video = document.createElement("video");
+        video.preload = "auto";
+        video.muted = true;
+        video.playsInline = true;
+        video.src = url;
+        video.load();
+        videos.push(video);
+        continue;
+      }
+
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = url;
+      document.head.appendChild(link);
+      links.push(link);
+
+      const img = new Image();
+      img.decoding = "sync";
+      img.src = url;
+      void img.decode?.().catch(() => {});
+    }
+
+    return () => {
+      for (const link of links) link.remove();
+      for (const video of videos) {
+        video.removeAttribute("src");
+        video.load();
+      }
+    };
+  }, []);
+  return null;
 }
 
 export default function LogicielOnglets() {
@@ -115,6 +184,7 @@ export default function LogicielOnglets() {
 
   return (
     <div className="logiciel-onglets">
+      <PrefetchMediasOnglets />
       <div
         className="logiciel-onglets-bar"
         role="tablist"
@@ -179,20 +249,21 @@ export default function LogicielOnglets() {
         })}
       </div>
 
-      {FONCTIONNALITES.map((carte) => {
-        const selected = carte.slug === actif;
-        const tabId = `${baseId}-tab-${carte.slug}`;
-        const panelId = `${baseId}-panel-${carte.slug}`;
-        return (
-          <div
-            key={carte.slug}
-            role="tabpanel"
-            id={panelId}
-            aria-labelledby={tabId}
-            hidden={!selected}
-            className="logiciel-onglet-panel"
-          >
-            {selected ? (
+      <div className="logiciel-onglets-panels">
+        {FONCTIONNALITES.map((carte) => {
+          const selected = carte.slug === actif;
+          const tabId = `${baseId}-tab-${carte.slug}`;
+          const panelId = `${baseId}-panel-${carte.slug}`;
+          return (
+            <div
+              key={carte.slug}
+              role="tabpanel"
+              id={panelId}
+              aria-labelledby={tabId}
+              aria-hidden={!selected}
+              inert={!selected ? true : undefined}
+              className={`logiciel-onglet-panel${selected ? " is-active" : ""}`}
+            >
               <div className="logiciel-onglet-panel-inner">
                 <div className="logiciel-carte">
                   <div className="logiciel-carte-copy">
@@ -204,6 +275,7 @@ export default function LogicielOnglets() {
                           className="logiciel-carte-subtitle"
                           target="_blank"
                           rel="noopener noreferrer"
+                          tabIndex={selected ? 0 : -1}
                         >
                           {carte.sousTitre ? <span>{carte.sousTitre}</span> : null}
                           {carte.sousTitreLogo ? (
@@ -214,7 +286,9 @@ export default function LogicielOnglets() {
                               width={carte.sousTitreLogo.width}
                               height={carte.sousTitreLogo.height}
                               className="logiciel-carte-subtitle-logo"
-                              decoding="async"
+                              loading="eager"
+                              decoding="sync"
+                              fetchPriority="high"
                             />
                           ) : null}
                         </a>
@@ -229,7 +303,9 @@ export default function LogicielOnglets() {
                               width={carte.sousTitreLogo.width}
                               height={carte.sousTitreLogo.height}
                               className="logiciel-carte-subtitle-logo"
-                              decoding="async"
+                              loading="eager"
+                              decoding="sync"
+                              fetchPriority="high"
                             />
                           ) : null}
                         </p>
@@ -245,18 +321,19 @@ export default function LogicielOnglets() {
                       <Link
                         href={carte.enSavoirPlusHref}
                         className="btn btn-ghost logiciel-carte-cta-secondary"
+                        tabIndex={selected ? 0 : -1}
                       >
                         En savoir plus
                       </Link>
                     </div>
                   </div>
-                  <VisuelCarte carte={carte} />
+                  <VisuelCarte carte={carte} actif={selected} />
                 </div>
               </div>
-            ) : null}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

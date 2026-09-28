@@ -69,7 +69,7 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
       "**Avant de sortir.** Priimo priorise les adresses à voir cette semaine, selon les signaux et ce que vous savez déjà du quartier. Moins de portes au hasard, **plus de visites utiles**.",
     ],
     imageAlt: "Téléphone Priimo : carte de secteur et contexte d’un immeuble",
-    imageSrc: "/téléphonoooo.png",
+    imageSrc: "/landing/fonctionnalites/prospection-phone.webp",
     imageFit: "contain",
     enSavoirPlusHref: "/fonctionnalites/detection",
     degrade: "linear-gradient(155deg, #ffd400 0%, #ffe566 38%, #fff6c8 72%, #fffceb 100%)",
@@ -106,7 +106,7 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
       "Partagez le résultat par lien, ou posez le module d’estimation **sur le site de votre agence** pour recevoir des demandes de vendeurs, avec leur accord, sans pige.",
     ],
     imageAlt: "Ordinateur Priimo : atelier d’estimation, fiche bien et couverture du rapport",
-    imageSrc: "/ordinateurgegggege.png",
+    imageSrc: "/landing/fonctionnalites/estimations-laptop.webp",
     enSavoirPlusHref: "/fonctionnalites/estimation",
     degrade: "linear-gradient(160deg, #fff8f0 0%, #f5e6d3 55%, #e8d4b8 100%)",
   },
@@ -120,7 +120,7 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
     sousTitre: "Propulsé par",
     sousTitreHref: "https://www.ubiflow.net/",
     sousTitreLogo: {
-      src: "/ubiflow.png",
+      src: "/landing/fonctionnalites/ubiflow.webp",
       alt: "Ubiflow",
       width: 186,
       height: 50,
@@ -129,10 +129,10 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
       "Saisissez le bien une seule fois dans Priimo, il part sur les portails immobiliers. **Pas d’export, pas de double saisie.**",
       "Les demandes des acheteurs reviennent directement dans Priimo, **rattachées au bon bien**, prêtes à être traitées.",
     ],
-    imageAlt: "400 portails de vente reliés à Priimo",
+    imageAlt: "+400 portails de vente reliés à Priimo",
     visuel: "diffusion-orbit",
     enSavoirPlusHref: "/fonctionnalites/pipeline",
-    degrade: "linear-gradient(165deg, #eef4ff 0%, #dce8ff 48%, #c8daf8 100%)",
+    degrade: "linear-gradient(165deg, #ffffff 0%, #f7f8fb 55%, #eef1f6 100%)",
   },
   {
     slug: "pilotage",
@@ -154,4 +154,36 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
 
 export function imageFonctionnalite(carte: Pick<FonctionnaliteCarte, "slug" | "imageSrc">): string {
   return carte.imageSrc ?? `/landing/fonctionnalites/${carte.slug}.webp`;
+}
+
+/** URLs à précharger pour des changements d’onglet instantanés. */
+export function mediasFonctionnalitesAPrecharger(): string[] {
+  const urls = new Set<string>();
+  for (const carte of FONCTIONNALITES) {
+    if (carte.imageSrc) urls.add(carte.imageSrc);
+    if (carte.sousTitreLogo?.src) urls.add(carte.sousTitreLogo.src);
+    for (const v of carte.videoSrcs ?? []) urls.add(v.src);
+  }
+  // Logos marquee diffusion — import dynamique évité ici pour garder ce module léger côté serveur
+  for (const id of [
+    "bienici",
+    "jinka",
+    "greenacres",
+    "logicimmo",
+    "meilleursagents",
+    "paruvendu",
+    "superimmo",
+    "superneuf",
+    "etreproprio",
+    "luxresidence",
+    "bellesdemeures",
+    "proprietesfigaro",
+    "properstar",
+    "seloger",
+    "leboncoin",
+    "figaroimmobilier",
+  ]) {
+    urls.add(`/landing/portails/marquee/${id}.webp`);
+  }
+  return [...urls];
 }
