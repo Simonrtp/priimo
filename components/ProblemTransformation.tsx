@@ -178,7 +178,7 @@ function ComparisonCard({ variant, label, tagline, items }: CardProps) {
 
 export default function ProblemTransformation() {
   return (
-    <section className="relative overflow-hidden py-14 sm:py-24 mx-2 sm:mx-0 rounded-[28px] sm:rounded-[40px] bg-gradient-to-br from-[#0A0D11] via-[#131A24] to-[#070A0E] text-white">
+    <section className="problem-transform relative overflow-hidden py-14 sm:py-24 mx-2 sm:mx-0 rounded-[28px] sm:rounded-[40px] bg-gradient-to-br from-[#0A0D11] via-[#131A24] to-[#070A0E] text-white">
       {/* Subtle dot pattern */}
       <div
         aria-hidden

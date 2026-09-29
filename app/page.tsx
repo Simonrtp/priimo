@@ -4,11 +4,14 @@ import HeroSection from "@/components/HeroSection";
 import AgencyLogos from "@/components/AgencyLogos";
 import ProblemTransformation from "@/components/ProblemTransformation";
 import WhyPriimo from "@/components/WhyPriimo";
+import OffresSimplesIntro from "@/components/OffresSimplesIntro";
+import LandingAmbianceBand from "@/components/LandingAmbianceBand";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
 import DataReassurance from "@/components/DataReassurance";
 import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
+import ScrollLine from "@/components/ScrollLine";
 
 // === LANDING PAGE ===
 // Objectif unique : convertir vers la réservation de démo (Calendly).
@@ -17,6 +20,7 @@ import FinalCTA from "@/components/FinalCTA";
 export default function Page() {
   return (
     <div className="landing">
+      <ScrollLine />
       <CausioScripts />
 
       {/*
@@ -42,11 +46,12 @@ export default function Page() {
         {/* === B2 — AGENCES (preuve sociale) === */}
         <AgencyLogos />
 
-        {/* === B3 — POURQUOI PRIIMO (3 piliers) === */}
-        <WhyPriimo />
-
-        {/* === C — PROBLEM / TRANSFORM === */}
-        <ProblemTransformation />
+        {/* Why + prix + section suivante : même ambiance, en même temps */}
+        <LandingAmbianceBand>
+          <WhyPriimo />
+          <OffresSimplesIntro />
+          <ProblemTransformation />
+        </LandingAmbianceBand>
 
         {/* === D — HOW IT WORKS === */}
         <HowItWorks />

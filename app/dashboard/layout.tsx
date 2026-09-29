@@ -21,8 +21,6 @@ import TourneeDictationProvider from '@/components/dashboard/field/TourneeDictat
 import MobileChrome, { MobileBackSwipe } from './_mobile/MobileChrome';
 import TouchScrollGuard from './_mobile/TouchScrollGuard';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
-import BandeauAbonnement from '@/components/dashboard/abonnement/BandeauAbonnement';
-import { motifRestriction } from '@/lib/billing/acces';
 
 /**
  * Pas de `force-dynamic` : ça cassait le cache de navigation client.
@@ -45,11 +43,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const notifications = await timed('fetchNotifications', () =>
     fetchNotificationsSafe(supabase, { profileId: profile.id, agencyId: agency.id }),
   );
-  const motif = motifRestriction(agency);
-  const bandeau =
-    motif === 'essai' || motif === 'impaye' || motif === 'resilie' ? (
-      <BandeauAbonnement motif={motif} directeur={profile.role === 'directeur'} />
-    ) : null;
 
   const tree = (
     <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
@@ -69,7 +62,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
                           className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"
                           style={{ paddingBottom: 'var(--field-nav-height)' }}
                         >
-                          {bandeau ? <div className="px-4 pt-3">{bandeau}</div> : null}
                           {children}
                         </main>
                         <MobileBottomNav />
@@ -81,7 +73,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         <div className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
                           <TopBar />
                           <main className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
-                            {bandeau ? <div className="mb-3 shrink-0">{bandeau}</div> : null}
                             <WorkspacePanel>{children}</WorkspacePanel>
                           </main>
                         </div>

@@ -38,6 +38,7 @@ export default function Header({
 }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [onDark, setOnDark] = useState(true);
   const [activeNavMenu, setActiveNavMenu] = useState<NavMenu>(null);
   const headerRootRef = useRef<HTMLDivElement>(null);
   const targetProgressRef = useRef(0);
@@ -48,7 +49,6 @@ export default function Header({
   const resourcesOpen = activeNavMenu === "resources";
   const featuresPanelId = "features-mega-menu";
   const isLanding = variant === "landing";
-  const onDark = isLanding && progress < 0.58;
 
   useEffect(() => {
     if (!isLanding) {
@@ -73,10 +73,18 @@ export default function Header({
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+    const isOverDarkSurface = () => {
+      if (document.documentElement.dataset.landingAmbiance === "dark") return true;
+      const hero = document.querySelector<HTMLElement>(".landing-hero");
+      if (hero && hero.getBoundingClientRect().bottom > 72) return true;
+      return false;
+    };
+
     const applyProgress = (value: number) => {
       currentProgressRef.current = value;
       setProgress(value);
       setScrolled(value >= 0.62);
+      setOnDark(isOverDarkSurface());
     };
 
     const tick = () => {
@@ -97,6 +105,8 @@ export default function Header({
     const syncFromScroll = () => {
       const raw = Math.min(1, Math.max(0, window.scrollY / SCROLL_RANGE));
       targetProgressRef.current = smoothstep(raw);
+      // Ambiance / hero : maj immédiate du contraste texte
+      setOnDark(isOverDarkSurface());
       if (reduceMotion.matches) {
         applyProgress(targetProgressRef.current);
         return;
@@ -189,6 +199,7 @@ export default function Header({
     <header
       className="landing-site-header fixed inset-x-0 top-0 z-50"
       data-scrolled={scrolled ? "true" : "false"}
+      data-on-dark={onDark ? "true" : "false"}
       style={{ "--hdr": progress } as React.CSSProperties}
     >
       <div
@@ -257,7 +268,9 @@ export default function Header({
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
               <Link
                 href="/login"
-                className="landing-nav-login group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold text-gray-700 sm:text-[15px] lg:inline-flex"
+                className={`landing-nav-login group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold sm:text-[15px] lg:inline-flex ${
+                  onDark ? "text-white/90 hover:text-white" : "text-gray-700"
+                }`}
                 tabIndex={loginInPill ? undefined : -1}
                 aria-hidden={!loginInPill}
               >

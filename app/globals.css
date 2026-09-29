@@ -123,10 +123,10 @@
   /* §2.1 Corps de texte par défaut (Inter, self-hosted via next/font) */
   --font-body: var(--font-sans);
 
-  /* Barre de défilement clay (ardoise) */
-  --scrollbar-size: 10px;
-  --scrollbar-thumb: rgba(26, 42, 86, 0.22);
-  --scrollbar-thumb-hover: rgba(26, 42, 86, 0.42);
+  /* Barre de défilement — fine, pilule, ardoise */
+  --scrollbar-size: 8px;
+  --scrollbar-thumb: rgba(14, 26, 61, 0.28);
+  --scrollbar-thumb-hover: rgba(14, 26, 61, 0.48);
 }
 
 /* Bouton d’action des toasts Sonner — plus le noir par défaut. */
@@ -289,10 +289,52 @@ body {
   overflow-x: clip;
 }
 
-/* Barre de défilement clay — ardoise, jamais orange. */
-* {
+/* Barre de défilement — pilule fine, piste invisible */
+html {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+html[data-landing-ambiance="dark"] {
+  --scrollbar-thumb: rgba(255, 255, 255, 0.32);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.55);
+}
+
+/* Landing : pas de barre native — capsule fine à droite */
+html:has(.landing) {
+  scrollbar-width: none;
+}
+html:has(.landing)::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+.scroll-line {
+  position: fixed;
+  top: 5.5rem;
+  bottom: 1.25rem;
+  right: 8px;
+  z-index: 60;
+  width: 3px;
+  pointer-events: none;
+}
+.scroll-line span {
+  position: absolute;
+  right: 0;
+  left: auto;
+  top: calc(var(--scroll-p, 0) * (100% - 2.75rem));
+  width: 3px;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: rgba(14, 26, 61, 0.78);
+  box-shadow: none;
+  opacity: 0;
+  transition: opacity 220ms ease, background-color 180ms ease;
+}
+.scroll-line[data-tone="light"] span {
+  background: rgba(255, 255, 255, 0.94);
+}
+.scroll-line[data-scrolling="true"] span {
+  opacity: 1;
 }
 
 *::-webkit-scrollbar {
@@ -308,12 +350,11 @@ body {
   background-color: var(--scrollbar-thumb);
   border-radius: 9999px;
   border: 2px solid transparent;
-  background-clip: content-box;
+  background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover);
-  background-clip: content-box;
 }
 
 *::-webkit-scrollbar-corner {
@@ -919,7 +960,7 @@ button {
   --l-accent-dark: #c25e2c;
   --l-accent-light: #f4a87a;
   --l-accent-glow: #ffb585;
-  --l-blue: #1A2A56;
+  --l-blue: #0e1a3d;
   --l-blue-light: #4E5A82;
   /* Indigo secondaire (= --primary-500 de la charte clay) — accent « cool » :
      intelligence, données, confiance. Complète l'orange en duotone. */
@@ -1037,10 +1078,18 @@ button {
 
 /* Hero landing — bloc sombre, angle bas-droit arrondi (Tiime) */
 .landing-hero {
-  background: linear-gradient(180deg, #1a2a56 0%, #1a2a56 55%, #162348 100%);
+  background: linear-gradient(
+    180deg,
+    #1a2d5c 0%,
+    #142449 42%,
+    #0e1a3d 72%,
+    #080f28 100%
+  );
   border-bottom-right-radius: clamp(3.5rem, 18vw, 6.5rem);
   margin-bottom: 0;
   min-width: 0;
+  min-height: 100dvh;
+  box-sizing: border-box;
 }
 @media (min-width: 768px) {
   .landing-hero {
@@ -1288,6 +1337,369 @@ button {
   }
 }
 
+/* Why + prix + section suivante : un seul fond, bascule ensemble */
+.landing-ambiance-band {
+  --offres-hero: #0e1a3d;
+  --offres-navy: #1a2a56;
+  --offres-muted: #7a86a8;
+  --offres-card: #f4f6fb;
+  --offres-card-featured: #ffffff;
+  --offres-card-border: rgba(26, 42, 86, 0.08);
+  --offres-badge-bg: #1a2a56;
+  --offres-badge-fg: #ffffff;
+  --offres-card-shadow: rgba(26, 42, 86, 0.18);
+  background-color: #ffffff;
+  transition: background-color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.landing-ambiance-band[data-ambiance="dark"] {
+  --offres-navy: #ffffff;
+  --offres-muted: #c5cce0;
+  --offres-card: rgba(255, 255, 255, 0.1);
+  --offres-card-featured: rgba(255, 255, 255, 0.16);
+  --offres-card-border: rgba(255, 255, 255, 0.22);
+  --offres-badge-bg: #ffffff;
+  --offres-badge-fg: #0e1a3d;
+  --offres-card-shadow: rgba(0, 0, 0, 0.35);
+  background-color: var(--offres-hero);
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-ambiance-band {
+    transition: none;
+  }
+}
+.landing .landing-ambiance-band[data-ambiance="dark"] .why-priimo-title,
+.landing .landing-ambiance-band[data-ambiance="dark"] .why-priimo-text,
+.landing .landing-ambiance-band[data-ambiance="dark"] .why-priimo-outro-lead,
+.landing .landing-ambiance-band[data-ambiance="dark"] .why-priimo-outro-title,
+.landing .landing-ambiance-band[data-ambiance="dark"] .why-priimo-outro-text,
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-onglet,
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-carte-title,
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-carte-p,
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-carte-subtitle {
+  color: #ffffff;
+}
+.landing .landing-ambiance-band[data-ambiance="dark"] .why-priimo-card,
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-onglet-panel-inner {
+  background: rgba(255, 255, 255, 0.1);
+}
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-onglets-bar {
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+}
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-onglet.is-active::after {
+  background: #ffffff;
+}
+.landing .landing-ambiance-band[data-ambiance="dark"] .logiciel-carte-inline-link {
+  color: #c5cce0;
+}
+.landing .landing-ambiance-band[data-ambiance="dark"] .btn-ghost {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.landing-ambiance-band[data-ambiance="dark"] .problem-transform {
+  background-color: #0e1a3d !important;
+  background-image: none !important;
+}
+
+/* --- Offres simples (intro sous WhyPriimo) --- */
+.offres-simples {
+  padding: 2.75rem 1.25rem 3.25rem;
+  background-color: transparent;
+  text-align: center;
+  overflow: visible;
+}
+@media (min-width: 768px) {
+  .offres-simples {
+    padding: 3.5rem 2rem 4rem;
+  }
+}
+@media (min-width: 1024px) {
+  .offres-simples {
+    padding: 3.75rem 3rem 4.25rem;
+  }
+}
+.offres-simples-inner {
+  max-width: 84rem;
+  margin: 0 auto;
+  width: 100%;
+}
+.landing h2.offres-simples-title,
+.offres-simples-title {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem 0.55rem;
+  font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
+  font-size: clamp(1.65rem, 4.2vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--offres-navy);
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-lead {
+  color: var(--offres-navy);
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  padding: 0.18em 0.62em 0.2em 0.48em;
+  border-radius: 999px;
+  background: #7075ff;
+  color: #fff;
+  vertical-align: middle;
+  white-space: nowrap;
+  line-height: 1.15;
+  box-shadow: none;
+}
+.offres-simples-capsule-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+  color: #fff;
+}
+.offres-simples-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin: 2rem auto 0;
+  width: 100%;
+  max-width: none;
+  align-items: stretch;
+}
+@media (min-width: 768px) {
+  .offres-simples-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    margin-top: 2.6rem;
+    align-items: center;
+  }
+}
+@media (min-width: 1024px) {
+  .offres-simples-grid {
+    gap: 1.85rem;
+  }
+}
+.offres-simples-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  padding: 1.55rem 1.4rem 1.35rem;
+  border-radius: 1.35rem;
+  background-color: var(--offres-card);
+  border: 1px solid var(--offres-card-border);
+  box-sizing: border-box;
+  box-shadow: 0 18px 40px -24px var(--offres-card-shadow);
+  backdrop-filter: none;
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: offres-card-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--offres-i, 0) * 70ms);
+}
+.landing-ambiance-band[data-ambiance="dark"] .offres-simples-card {
+  backdrop-filter: blur(10px);
+}
+@media (min-width: 768px) {
+  .offres-simples-card {
+    padding: 1.85rem 1.55rem 1.5rem;
+    border-radius: 1.45rem;
+    min-height: 100%;
+  }
+  .offres-simples-card.is-featured {
+    animation-name: offres-card-in-featured;
+    padding: 2.15rem 1.75rem 1.75rem;
+    border-radius: 1.55rem;
+    z-index: 1;
+  }
+  .offres-simples-card:hover {
+    transform: translateY(-0.35rem);
+  }
+  .offres-simples-card.is-featured:hover {
+    transform: translateY(-0.75rem) scale(1.02);
+  }
+}
+.offres-simples-card.is-featured {
+  background-color: var(--offres-card-featured);
+  border-color: var(--offres-card-border);
+  box-shadow:
+    0 22px 48px -20px var(--offres-card-shadow),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+@media (min-width: 768px) {
+  .offres-simples-card.is-featured .offres-simples-card-price-main {
+    font-size: clamp(2.85rem, 4.6vw, 3.55rem);
+  }
+  .offres-simples-card.is-featured .offres-simples-card-body {
+    font-size: 1.05rem;
+  }
+}
+.offres-simples-card-step {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+  font-family: var(--font-nunito), Nunito, var(--font-sans), system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--offres-muted);
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-card-step-num {
+  font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
+  font-weight: 800;
+  color: var(--offres-navy);
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-card-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 0.75rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: var(--offres-badge-bg);
+  color: var(--offres-badge-fg);
+  font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  transition:
+    background-color 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-card-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.35rem 0.45rem;
+  margin: 0.7rem 0 0;
+  color: var(--offres-navy);
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-card-price-main {
+  font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
+  font-size: clamp(2.35rem, 5vw, 3.15rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.offres-simples-card-price-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-bottom: 0.2rem;
+  font-family: var(--font-hero), "Montserrat", system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--offres-navy);
+  opacity: 0.85;
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-card-sub {
+  margin: 0.55rem 0 0;
+  font-family: var(--font-nunito), Nunito, var(--font-sans), system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--offres-muted);
+  text-wrap: balance;
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-card-body {
+  margin: 0.85rem 0 0;
+  flex: 1 1 auto;
+  font-family: var(--font-nunito), Nunito, var(--font-sans), system-ui, sans-serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--offres-navy);
+  text-wrap: pretty;
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.offres-simples-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 1.35rem;
+  padding: 2.1rem 2.75rem 0.35rem;
+  overflow: visible;
+}
+.offres-simples-actions .cta-spark-host {
+  overflow: visible;
+}
+.offres-simples-foot {
+  margin: 0;
+  font-family: var(--font-nunito), Nunito, var(--font-sans), system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--offres-muted);
+  transition: color 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes offres-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes offres-card-in-featured {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-0.55rem) scale(1.03);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .offres-simples-card,
+  .offres-simples-card-badge,
+  .offres-simples-card-step,
+  .offres-simples-card-step-num,
+  .offres-simples-card-price,
+  .offres-simples-card-price-meta,
+  .offres-simples-card-sub,
+  .offres-simples-card-body,
+  .offres-simples-foot,
+  .offres-simples-title,
+  .offres-simples-lead {
+    transition: none;
+  }
+  .offres-simples-card {
+    animation: none;
+  }
+  .offres-simples-card.is-featured,
+  .offres-simples-card:hover,
+  .offres-simples-card.is-featured:hover {
+    transform: none;
+  }
+}
+
 /* Onglets produit (sous « logiciel tout-en-un ») — terrain pour 5 sections */
 .logiciel-onglets {
   width: 100%;
@@ -1462,6 +1874,9 @@ button {
   background: #f3f3f3;
   text-align: left;
   box-sizing: border-box;
+  transition:
+    background-color 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 480ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 @media (min-width: 768px) {
   .logiciel-onglet-panel-inner {
@@ -1963,6 +2378,7 @@ a.logiciel-carte-subtitle:focus-visible {
   width: 100%;
   position: relative;
   z-index: 0;
+  margin-top: -1.25rem;
 }
 .landing-hero-media {
   border-radius: 1.5rem;
@@ -2028,6 +2444,7 @@ a.logiciel-carte-subtitle:focus-visible {
   .landing-hero-media-wrap {
     max-width: 46rem;
     margin-left: -0.5rem;
+    margin-top: -2rem;
   }
   .landing-hero-media {
     border-radius: 2rem;
@@ -2043,6 +2460,7 @@ a.logiciel-carte-subtitle:focus-visible {
   .landing-hero-media-wrap {
     max-width: 50rem;
     margin-left: -1rem;
+    margin-top: -2.25rem;
   }
 }
 
@@ -2108,18 +2526,29 @@ a.logiciel-carte-subtitle:focus-visible {
   margin-inline: auto;
 }
 .landing-nav-shell {
-  /* La pilule verre démarre plus tard (--pill) pour éviter le flash brutal */
-  --pill: max(0, calc((var(--hdr) - 0.22) / 0.78));
+  /* 0 en haut de page = zéro verre. Le morph pilule démarre au scroll. */
+  --pill: max(0, calc((var(--hdr) - 0.18) / 0.82));
   height: calc(4.15rem - var(--hdr) * 0.45rem);
   border-radius: calc(var(--pill) * 9999px);
-  border: 1px solid rgba(255, 255, 255, calc(var(--pill) * 0.7));
-  background-color: rgba(255, 255, 255, calc(var(--pill) * 0.7));
-  box-shadow: 0 10px 30px -12px rgba(60, 40, 20, calc(var(--pill) * 0.28));
-  -webkit-backdrop-filter: blur(calc(var(--pill) * 18px));
-  backdrop-filter: blur(calc(var(--pill) * 18px));
+  border-style: solid;
+  border-width: 1px;
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   padding-left: calc(var(--pill) * 0.75rem);
   padding-right: calc(var(--pill) * 0.75rem);
   will-change: height, border-radius, background-color, box-shadow, backdrop-filter;
+}
+.landing-site-header[data-scrolled="true"] .landing-nav-shell {
+  border-color: rgba(255, 255, 255, calc(var(--pill) * 0.22));
+  background-color: rgba(255, 255, 255, calc(var(--pill) * 0.12));
+  box-shadow:
+    0 10px 32px -14px rgba(8, 15, 40, calc(var(--pill) * 0.42)),
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--pill) * 0.16));
+  -webkit-backdrop-filter: blur(calc(var(--pill) * 26px)) saturate(1.35);
+  backdrop-filter: blur(calc(var(--pill) * 26px)) saturate(1.35);
 }
 @media (min-width: 640px) {
   .landing-nav-shell {
@@ -2133,12 +2562,19 @@ a.logiciel-carte-subtitle:focus-visible {
   transform: translateY(calc((1 - clamp(0, calc((var(--hdr) - 0.55) / 0.4), 1)) * 3px));
   pointer-events: none;
   color: #374151;
+  transition: color 280ms ease;
 }
 .landing-site-header[data-scrolled="true"] .landing-nav-login {
   pointer-events: auto;
 }
+.landing-site-header[data-on-dark="true"] .landing-nav-login {
+  color: rgba(255, 255, 255, 0.92);
+}
 .landing-nav-login:hover {
   color: var(--l-accent-dark, #c25e2c);
+}
+.landing-site-header[data-on-dark="true"] .landing-nav-login:hover {
+  color: #ffffff;
 }
 .landing-utility-login {
   color: #fff;
@@ -2604,12 +3040,20 @@ a.logiciel-carte-subtitle:focus-visible {
   display: inline-grid;
   vertical-align: middle;
   overflow: visible;
+  isolation: isolate;
 }
 .cta-cq {
   grid-area: 1 / 1;
   position: relative;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   container-type: size;
   pointer-events: none;
+  z-index: 2;
 }
 .cta-spark-host > .btn {
   grid-area: 1 / 1;

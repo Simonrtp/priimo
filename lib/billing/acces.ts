@@ -41,16 +41,16 @@ export function lectureOuverte(_agency: AgencyBilling | null | undefined): true 
 
 /**
  * Livraison du lundi, estimation, captation.
- * Fermé en attente, après essai sans paiement, impayé ou résilié.
+ * Fermé seulement tant que l’inscription n’est pas activée.
+ * Essai / impayé / résilié : pas de coupure produit — facturation hors app,
+ * l’accès est retiré en supprimant le compte si besoin.
  */
 export function productionOuverte(
   agency: AgencyBilling | null | undefined,
-  now = new Date(),
+  _now = new Date(),
 ): boolean {
-  const statut = statutAbonnementDe(agency);
-  if (statut === 'en_attente' || statut === 'impaye' || statut === 'resilie') return false;
-  if (statut === 'essai') return !essaiExpire(agency, now);
-  return statut === 'actif';
+  if (estEnAttente(agency)) return false;
+  return true;
 }
 
 export function peutLivrerLeads(agency: AgencyBilling | null | undefined, now = new Date()): boolean {
@@ -83,7 +83,5 @@ export function motifRestriction(
   if (estEnAttente(agency)) {
     return agency?.demande_decision === 'refusee' ? 'refusee' : 'en_attente';
   }
-  if (essaiExpire(agency, now) || statutAbonnementDe(agency) === 'essai') return 'essai';
-  if (statutAbonnementDe(agency) === 'resilie') return 'resilie';
-  return 'impaye';
+  return null;
 }

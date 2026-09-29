@@ -147,8 +147,9 @@ export const FONCTIONNALITES: FonctionnaliteCarte[] = [
       "Des chiffres mesurés, pas déclarés. Tout vient de ce que l’équipe fait dans l’appli : **rien n’est saisi à la main, donc rien n’est trafiqué**.",
     ],
     imageAlt: "Pilotage commercial Priimo : objectifs et actions du jour",
+    imageSrc: "/landing/fonctionnalites/pilotage-laptop.webp",
     enSavoirPlusHref: "/fonctionnalites/pilotage",
-    degrade: "linear-gradient(160deg, #1a2a56 0%, #2f3f6a 50%, #5a6b8c 100%)",
+    degrade: "linear-gradient(160deg, #f4f1ec 0%, #e8e2d8 55%, #d9d2c6 100%)",
   },
 ];
 

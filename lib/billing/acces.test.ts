@@ -40,15 +40,16 @@ describe('acces abonnement', () => {
     assert.equal(motifRestriction(a), 'refusee');
   });
 
-  it('ferme après la fin d’essai', () => {
+  it('laisse la production ouverte après la fin d’essai (facturation hors app)', () => {
     const now = new Date('2026-09-13T10:00:00.000Z');
     const a = agency({
       statut_abonnement: 'essai',
       essai_fin_le: '2026-09-01T00:00:00.000Z',
     });
     assert.equal(essaiExpire(a, now), true);
-    assert.equal(productionOuverte(a, now), false);
-    assert.equal(abonnementRestreint(a, now), true);
+    assert.equal(productionOuverte(a, now), true);
+    assert.equal(abonnementRestreint(a, now), false);
+    assert.equal(motifRestriction(a, now), null);
   });
 
   it('laisse un essai en cours ouvert', () => {
@@ -60,9 +61,9 @@ describe('acces abonnement', () => {
     assert.equal(productionOuverte(a, now), true);
   });
 
-  it('ferme impayé et résilié', () => {
-    assert.equal(productionOuverte(agency({ statut_abonnement: 'impaye' })), false);
-    assert.equal(productionOuverte(agency({ statut_abonnement: 'resilie' })), false);
+  it('laisse impayé et résilié ouverts (retrait = suppression de compte)', () => {
+    assert.equal(productionOuverte(agency({ statut_abonnement: 'impaye' })), true);
+    assert.equal(productionOuverte(agency({ statut_abonnement: 'resilie' })), true);
     assert.equal(productionOuverte(agency({ statut_abonnement: 'actif' })), true);
   });
 });
