@@ -184,7 +184,9 @@ export default function LogicielOnglets() {
 
     function relayerMolette(e: WheelEvent) {
       if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      const overflowX = getComputedStyle(bar).overflowX;
+      const cible = e.currentTarget;
+      if (!(cible instanceof Element)) return;
+      const overflowX = getComputedStyle(cible).overflowX;
       if (overflowX === "visible" || overflowX === "clip") return;
       e.preventDefault();
       window.scrollBy(0, e.deltaY);
