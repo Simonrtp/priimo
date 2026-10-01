@@ -9,6 +9,79 @@ export function pickAudioMimeType(): string | undefined {
   return candidates.find((type) => MediaRecorder.isTypeSupported(type));
 }
 
+/**
+ * Débit d'une voix : 32 kb/s en Opus suffit largement à la transcription.
+ * Au débit par défaut (jusqu'à 128 kb/s), une dictée de cinq minutes dépassait
+ * la taille qu'une fonction Vercel accepte (4,5 Mo) et se perdait à l'envoi.
+ */
+export const VOICE_BITS_PER_SECOND = 32_000;
+
+/**
+ * Au-delà, la prise est arrêtée et envoyée, et l'agent complète s'il le faut.
+ * Sous la limite Vercel, formulaire compris, même si le navigateur ignore le
+ * débit demandé (Safari).
+ */
+export const MAX_RECORD_BYTES = 3_800_000;
+
+export function createVoiceRecorder(stream: MediaStream): MediaRecorder {
+  const mimeType = pickAudioMimeType();
+  const options: MediaRecorderOptions = { audioBitsPerSecond: VOICE_BITS_PER_SECOND };
+  if (mimeType) options.mimeType = mimeType;
+  try {
+    return new MediaRecorder(stream, options);
+  } catch {
+    return new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  }
+}
+
+/**
+ * Garde l'écran allumé pendant la dictée : en marchant, le téléphone qui se
+ * verrouille coupe le micro sur iPhone. Sans Wake Lock (vieux navigateurs),
+ * rien ne se passe. Rend une fonction qui relâche le verrou.
+ */
+export function holdScreenAwake(): () => void {
+  type WakeLockLike = { release: () => Promise<void> };
+  if (typeof navigator === 'undefined' || typeof document === 'undefined') return () => undefined;
+  const wakeLock = (navigator as Navigator & {
+    wakeLock?: { request: (type: 'screen') => Promise<WakeLockLike> };
+  }).wakeLock;
+  if (!wakeLock) return () => undefined;
+
+  let sentinel: WakeLockLike | null = null;
+  let released = false;
+
+  const acquire = () => {
+    if (released || document.visibilityState !== 'visible') return;
+    wakeLock
+      .request('screen')
+      .then((s) => {
+        if (released) void s.release().catch(() => undefined);
+        else sentinel = s;
+      })
+      .catch(() => undefined);
+  };
+  // Le navigateur relâche le verrou quand l'onglet passe en arrière-plan.
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') acquire();
+  };
+
+  acquire();
+  document.addEventListener('visibilitychange', onVisible);
+  return () => {
+    released = true;
+    document.removeEventListener('visibilitychange', onVisible);
+    void sentinel?.release().catch(() => undefined);
+    sentinel = null;
+  };
+}
+
+/** Identifiant tiré par le téléphone : il rend l'envoi rejouable sans doublon. */
+export function newClientId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  const hex = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 export function micErrorMessage(error: unknown): string {
   if (error instanceof DOMException) {
     if (error.name === 'NotAllowedError') {

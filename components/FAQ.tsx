@@ -1,136 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import Reveal from "./Reveal";
-import CtaButton from "./CtaButton";
+import FaqAccordion from "./faq/FaqAccordion";
+import CapsuleGlyph from "@/components/landing/CapsuleGlyph";
+import { FAQ_HOME } from "@/lib/landing/faq";
 
-// === FAQ (Section I) ===
-// Refonte 2.0 : chaque question devient une carte verre ; la carte active
-// s'entoure d'un liseré accent, l'icône +/- pivote. Animation via CSS
-// max-height + opacity (globals.css). Textes inchangés.
-
-type Item = {
-  q: string;
-  a: string;
-};
-
-const FAQS: Item[] = [
-  {
-    q: "C'est quoi exactement, Priimo ?",
-    a: "Priimo est un logiciel de prospection prédictive pour agences immobilières. Il croise des bases de données françaises (DVF, DPE, BODACC, copropriétés, permis de construire, données privées) pour repérer les signaux qui précèdent une mise en vente : DPE refait, ventes en série dans un immeuble, copropriété fragilisée, SCI en dissolution, événements de vie. Chaque semaine, vous recevez une liste d'adresses scorées et priorisées sur votre secteur exclusif, avec le contexte pour agir.",
-  },
-  {
-    q: "Est-ce que ça fonctionne vraiment ?",
-    a: "Priimo ne promet pas des mandats par magie : il repère les événements de vie et signaux de marché qui précèdent une vente — DPE refait, ventes en série, copropriété fragilisée, SCI en dissolution. Chaque adresse est scorée et expliquée, pour que vous sachiez où frapper en priorité. Le mois d'essai gratuit, sans engagement, sert justement à le vérifier sur votre secteur, sur le terrain.",
-  },
-  {
-    q: "Comment essayer Priimo gratuitement ?",
-    a: "Chaque agence bénéficie d'un mois d'essai gratuit, sans engagement et sans carte bancaire — vous pouvez arrêter quand vous voulez. L'accès se fait sur invitation, après un échange de 20 minutes pour délimiter votre secteur et vérifier qu'il est disponible. En échange, nous vous demandons une chose : nous dire ce que donnent les adresses sur le terrain.",
-  },
-  {
-    q: "Est-ce conforme au RGPD ?",
-    a: "Pour un particulier, Priimo montre une adresse et un contexte — pas un téléphone personnel. Depuis le 11 août 2026, le démarchage téléphonique des consommateurs est interdit sans consentement : l’agence reste responsable de la façon dont elle contacte une adresse. Pour une société, des informations de dirigeants peuvent venir des registres officiels. Le détail est dans la politique de confidentialité et les CGU.",
-  },
-  {
-    q: "Combien de temps pour être opérationnel ?",
-    a: "Un appel de 20 minutes pour délimiter votre secteur, une invitation, et votre première liste vous attend à la connexion. Aucune installation, aucune formation : si vous savez lire une liste d'adresses, vous savez utiliser Priimo. Le tableau de bord fonctionne sur ordinateur comme sur mobile.",
-  },
-  {
-    q: "Je suis agent ou négociateur, pas directeur. Priimo me concerne ?",
-    a: "Oui — c'est même vous qui l'utilisez le plus. La liste du lundi, les signaux, les statuts : c'est l'outil de celui qui est sur le terrain. L'abonnement, lui, est pris par l'agence, car le secteur est exclusif. Si Priimo vous parle, montrez cette page à votre directeur — ou réservez une démo et venez à deux. Beaucoup d'outils entrent dans une agence parce qu'un agent les a repérés en premier.",
-  },
-];
-
-function FAQItem({
-  q,
-  a,
-  isOpen,
-  onToggle,
-  idx,
-}: Item & { isOpen: boolean; onToggle: () => void; idx: number }) {
-  const id = `faq-${idx}`;
+export default function FAQ({ className = "" }: { className?: string }) {
   return (
-    <div
-      className="glass overflow-hidden rounded-[20px] transition-all duration-300"
-      style={
-        isOpen
-          ? {
-              borderColor: "rgba(232,116,60,0.45)",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.9), 0 26px 50px -30px rgba(232,116,60,0.45)",
-            }
-          : undefined
-      }
+    <section
+      id="faq"
+      className={`faq-landing py-10 sm:py-16 ${className}`}
+      aria-labelledby="faq-home-title"
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        aria-controls={id}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left min-w-0 sm:px-6 sm:py-5"
-      >
-        <h3 className="text-h3 min-w-0 flex-1 pr-2 text-balance !text-[16px] sm:!text-[18px]">
-          {q}
-        </h3>
-        <span
-          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all duration-300 ${
-            isOpen
-              ? "rotate-180 bg-accent text-white"
-              : "bg-black/5 text-gray-500"
-          }`}
-          aria-hidden
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </span>
-      </button>
-      <div id={id} className={`faq-content ${isOpen ? "open" : ""}`}>
-        <p className="px-5 pb-5 pr-10 text-body sm:px-6">{a}</p>
-      </div>
-    </div>
-  );
-}
+      <Reveal direction="up" className="px-4 sm:px-8">
+        <h2 id="faq-home-title" className="faq-landing-title">
+          <span className="faq-landing-lead">Plus de questions sur notre</span>
+          <span className="faq-landing-capsule">
+            <CapsuleGlyph kind="chat" className="faq-landing-capsule-icon" />
+            logiciel
+          </span>
+        </h2>
+      </Reveal>
 
-export default function FAQ() {
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
+      <div className="mx-auto mt-8 max-w-6xl px-4 sm:mt-10 sm:px-8 min-w-0">
+        <FaqAccordion items={FAQ_HOME} idPrefix="home-faq" />
 
-  return (
-    <section className="py-16 sm:py-28">
-      <div className="mx-auto max-w-3xl px-4 sm:px-8 min-w-0">
-        <Reveal direction="up">
-          <div className="flex justify-center">
-            <span className="kicker mb-5">
-              <span className="kicker__dot" />
-              FAQ
-            </span>
-          </div>
-          <h2 className="text-h2 text-center text-gray-900 text-balance px-1">
-            Questions fréquentes
-          </h2>
-        </Reveal>
-
-        <div className="mt-8 space-y-3 sm:mt-10 sm:space-y-4">
-          {FAQS.map((item, i) => (
-            <Reveal key={item.q} direction="up" delay={i * 70}>
-              <FAQItem
-                idx={i}
-                q={item.q}
-                a={item.a}
-                isOpen={openIdx === i}
-                onToggle={() => setOpenIdx(openIdx === i ? null : i)}
-              />
-            </Reveal>
-          ))}
-        </div>
-
-        <Reveal direction="scale" delay={200} className="mt-10 flex justify-center">
-          <CtaButton>
-            Réserver une démo
+        <Reveal direction="scale" delay={200} className="mt-8 flex justify-center">
+          <Link href="/faq" className="btn btn-primary">
+            En savoir plus
             <span data-arrow aria-hidden>
               →
             </span>
-          </CtaButton>
+          </Link>
         </Reveal>
       </div>
     </section>

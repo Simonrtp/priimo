@@ -5,6 +5,7 @@ import {
   centrePolygone,
   chevauchements,
   collectionGeojsonDeZone,
+  collectionMasqueHorsZone,
   polygonesSeChevauchent,
 } from './geometrie';
 import type { RegleZone, ValeurPolygone, Zone } from './types';
@@ -64,6 +65,23 @@ describe('emprise et centre', () => {
       latitude: 48.9,
       longitude: 2.4,
     });
+  });
+});
+
+describe('masque hors secteur', () => {
+  it('perce le monde du contour du titulaire', () => {
+    const data = collectionMasqueHorsZone(zone('ouest', [rect(2.3, 48.8, 2.4, 48.9)]));
+    const poly = data.features[0]?.geometry;
+    assert.equal(poly?.type, 'Polygon');
+    if (poly?.type !== 'Polygon') return;
+    assert.equal(poly.coordinates.length, 2);
+    assert.equal(poly.coordinates[0]?.[0]?.[0], -180);
+    assert.equal(poly.coordinates[1]?.[0]?.[0], 2.3);
+  });
+
+  it('ne masque rien sans polygone', () => {
+    const data = collectionMasqueHorsZone(zone('vide', []));
+    assert.equal(data.features.length, 0);
   });
 });
 

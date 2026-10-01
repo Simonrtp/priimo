@@ -40,6 +40,11 @@ const CHAMPS = {
   surface: ['surface_habitable_logement', 'Surface_habitable_logement'],
   type: ['type_batiment', 'Type_bâtiment'],
   etage: ['numero_etage_appartement', 'etage'],
+  complementLogement: [
+    'complement_adresse_logement',
+    'Complement_adresse_logement',
+    'Complément_d_adresse_logement',
+  ],
   ban: ['identifiant_ban', 'ban_id'],
   latitude: ['latitude', '_geopoint'],
   longitude: ['longitude'],
@@ -66,6 +71,7 @@ const SELECT_ACTUEL = [
   'surface_habitable_logement',
   'type_batiment',
   'numero_etage_appartement',
+  'complement_adresse_logement',
   '_geopoint',
 ].join(',');
 
@@ -97,6 +103,69 @@ function nombre(ligne: Ligne, noms: readonly string[]): number | null {
   const v = premier(ligne, noms);
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.replace(',', '.')) : NaN;
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Le champ numérique ADEME vaut 0 dès que le diagnostiqueur n'a rien saisi.
+ * L'étage réel est presque toujours dans le complément (« Etage 4 ; Porte Gauche »).
+ */
+export function parseEtageDepuisComplement(raw: string | null | undefined): number | null {
+  if (!raw?.trim()) return null;
+  const n = raw
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/['’]/g, ' ');
+
+  if (/\b(rdc|rdj|rez[\s-]*de[\s-]*jardin|rez[\s-]*de[\s-]*chaussee)\b/.test(n)) return 0;
+
+  const mot = n.match(
+    /\b(premier|premiere|deuxieme|troisieme|quatrieme|cinquieme|sixieme|septieme|huitieme|neuvieme|dixieme)\s*etage\b/,
+  );
+  const MOTS: Record<string, number> = {
+    premier: 1,
+    premiere: 1,
+    deuxieme: 2,
+    troisieme: 3,
+    quatrieme: 4,
+    cinquieme: 5,
+    sixieme: 6,
+    septieme: 7,
+    huitieme: 8,
+    neuvieme: 9,
+    dixieme: 10,
+  };
+  if (mot) return MOTS[mot[1] ?? ''] ?? null;
+
+  const etageN = n.match(/\betage\s*(\d{1,2})\b/);
+  if (etageN) {
+    const v = Number(etageN[1]);
+    if (v >= 0 && v <= 40) return v;
+  }
+
+  const avantEtage = n.match(/\b(\d{1,2})\s*(?:er|e|eme)?\s*etage\b/);
+  if (avantEtage) {
+    const v = Number(avantEtage[1]);
+    if (v >= 0 && v <= 40) return v;
+  }
+
+  const face = n.match(/\b(\d{1,2})\s*(?:er|e|eme)?\s+face\b/);
+  if (face) {
+    const v = Number(face[1]);
+    if (v >= 1 && v <= 40) return v;
+  }
+
+  if (/\bsous[\s-]*sol\b/.test(n)) return -1;
+
+  return null;
+}
+
+function lireEtage(ligne: Ligne): number | null {
+  const duTexte = parseEtageDepuisComplement(texte(ligne, CHAMPS.complementLogement));
+  if (duTexte != null) return duTexte;
+  const numero = nombre(ligne, CHAMPS.etage);
+  if (numero != null && numero >= 1 && numero <= 40) return Math.round(numero);
+  return null;
 }
 
 function lettreDpe(ligne: Ligne): DpeLettre | null {
@@ -134,7 +203,7 @@ export function mapLigneDpe(ligne: Ligne): DpeRecent | null {
     identifiantBan: texte(ligne, CHAMPS.ban),
     lettre: lettreDpe(ligne),
     surfaceM2: nombre(ligne, CHAMPS.surface),
-    etage: nombre(ligne, CHAMPS.etage),
+    etage: lireEtage(ligne),
     typeBatiment: texte(ligne, CHAMPS.type),
     latitude: nombre(ligne, CHAMPS.latitude) ?? geo.lat,
     longitude: nombre(ligne, CHAMPS.longitude) ?? geo.lon,

@@ -135,3 +135,78 @@ describe('lignesFicheNote', () => {
     );
   });
 });
+
+describe('parseNoteExtraction v2 — actions multiples', () => {
+  const REF = new Date('2026-09-30T10:00:00Z'); // mercredi
+
+  it('garde chaque engagement, pas seulement le premier', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({
+        personnes: [],
+        actions: [
+          { type: 'rappel', intitule: 'Rappeler Janine', date_iso: '2026-10-02' },
+          { type: 'tache', intitule: 'Envoyer le mandat à M. Martin', date_iso: '2026-10-01' },
+          { type: 'rdv', intitule: 'Estimation chez les Petit', date_iso: '2026-10-06', heure: '14h30', rdv_type: 'estimation' },
+        ],
+      }),
+      REF,
+    );
+    assert.equal(parsed.actions?.length, 3);
+    assert.equal(parsed.actions?.[2]?.heure, '14:30');
+    // Compatibilité : les anciens champs restent remplis.
+    assert.equal(parsed.promesse?.intitule, 'Rappeler Janine');
+    assert.equal(parsed.rendezVous?.type, 'estimation');
+    assert.equal(parsed.rendezVous?.debut, '2026-10-06T12:30:00.000Z');
+  });
+
+  it('fait d’un RDV sans jour une tâche à caler', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({ actions: [{ type: 'rdv', intitule: 'Caler une visite', date_iso: null }] }),
+      REF,
+    );
+    assert.equal(parsed.actions?.[0]?.type, 'tache');
+  });
+
+  it('lit une baisse de prix dite en milliers', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({ mises_a_jour: [{ champ: 'prix', valeur: 450, bien: 'rue des Lilas' }] }),
+    );
+    assert.deepEqual(parsed.misesAJour, [{ champ: 'prix', valeur: 450000, bien: 'rue des Lilas' }]);
+  });
+
+  it('écarte un statut de mandat inconnu', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({ mises_a_jour: [{ champ: 'statut_mandat', valeur: 'presque signé' }] }),
+    );
+    assert.deepEqual(parsed.misesAJour, []);
+  });
+
+  it('lit la recherche d’un acquéreur et ignore une recherche vide', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({
+        recherche: { personne: 'M. Leroy', budget_max: 320, pieces_min: 'T3', codes_postaux: ['44000', 'Nantes'] },
+      }),
+    );
+    assert.equal(parsed.recherche?.budgetMax, 320000);
+    assert.equal(parsed.recherche?.roomsMin, 3);
+    assert.deepEqual(parsed.recherche?.codesPostaux, ['44000']);
+    assert.equal(parseNoteExtraction(JSON.stringify({ recherche: { villes: [] } })).recherche, null);
+  });
+
+  it('lit un prospect perdu avec son motif, et un e-mail complet', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({
+        intention: 'note',
+        prospect: { etape: 'perdu', motif: 'Pas vendeur avant 2028' },
+        email: { personne: 'Mme Durand', objet: 'Diagnostics', corps: 'Bonjour Madame, …' },
+      }),
+    );
+    assert.deepEqual(parsed.prospect, { etape: 'perdu', motif: 'Pas vendeur avant 2028' });
+    assert.equal(parsed.email?.objet, 'Diagnostics');
+  });
+
+  it('reconnaît une question à l’assistant', () => {
+    assert.equal(parseNoteExtraction(JSON.stringify({ intention: 'question' })).intention, 'question');
+    assert.equal(parseNoteExtraction(JSON.stringify({})).intention, 'note');
+  });
+});

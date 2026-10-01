@@ -134,6 +134,61 @@ export function formatPrixM2Court(value: number | null | undefined): string | nu
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(value))} €/m²`;
 }
 
+export function medianNumerique(values: readonly number[]): number | null {
+  const v = values.filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  if (v.length === 0) return null;
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 === 1 ? v[mid]! : Math.round((v[mid - 1]! + v[mid]!) / 2);
+}
+
+export type VenteParcelleAgg = {
+  parcelleId: string;
+  adresse: string | null;
+  nbTransactions: number;
+  prixM2: number | null;
+  dernierPrix: number | null;
+  derniereTransactionLe: string | null;
+};
+
+/** Une ligne par parcelle : le cadastre des ventes, pas le point immeuble. */
+export function ventesParParcelle(
+  rows: readonly CadastreImmeublePoint[],
+): Map<string, VenteParcelleAgg> {
+  const out = new Map<string, VenteParcelleAgg>();
+  const prix = new Map<string, number[]>();
+  for (const row of rows) {
+    const id = row.parcelleId;
+    if (!id || row.nbTransactions <= 0) continue;
+    const liste = prix.get(id) ?? [];
+    if (row.prixM2 != null) liste.push(row.prixM2);
+    prix.set(id, liste);
+    const prev = out.get(id);
+    if (!prev) {
+      out.set(id, {
+        parcelleId: id,
+        adresse: row.adresse,
+        nbTransactions: row.nbTransactions,
+        prixM2: row.prixM2,
+        dernierPrix: row.dernierPrix,
+        derniereTransactionLe: row.derniereTransactionLe,
+      });
+      continue;
+    }
+    prev.nbTransactions += row.nbTransactions;
+    if (!prev.adresse && row.adresse) prev.adresse = row.adresse;
+    const t = row.derniereTransactionLe ? Date.parse(row.derniereTransactionLe) : NaN;
+    const pt = prev.derniereTransactionLe ? Date.parse(prev.derniereTransactionLe) : NaN;
+    if (Number.isFinite(t) && (!Number.isFinite(pt) || t > pt)) {
+      prev.derniereTransactionLe = row.derniereTransactionLe;
+      prev.dernierPrix = row.dernierPrix;
+    }
+  }
+  for (const [id, agg] of out) {
+    agg.prixM2 = medianNumerique(prix.get(id) ?? []);
+  }
+  return out;
+}
+
 export function overlayRowsFromAdeme(
   rows: readonly {
     identifiantBan?: string | null;

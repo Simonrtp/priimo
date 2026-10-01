@@ -69,7 +69,7 @@ export default function EstimationListe({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <WorkspaceButton type="button" onClick={onNouvelle}>
+        <WorkspaceButton type="button" variant="create" onClick={onNouvelle}>
           Nouvelle estimation
         </WorkspaceButton>
       </div>

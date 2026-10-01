@@ -291,6 +291,7 @@ async function TodayContent({
     actionsAValider,
     pilotage,
     passages,
+    zones,
   ] = await Promise.all([
     timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
     isDirector
@@ -421,7 +422,73 @@ async function TodayContent({
       }),
     ),
     timed('fetchPassagesObserves', () => fetchPassagesObserves({ supabase, stages })),
+    timed('fetchZonesSafe', () => fetchZonesSafe(supabase)),
   ]);
+
+  // Ma semaine : uniquement le secteur du négociateur. L'agence : tout le
+  // découpage. Le rôle ne décide pas la carte — c'est la vue qui le fait.
+  const repliCycleJours = agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS;
+  const titulaires = Object.fromEntries(names);
+  const paramsApercu = {
+    leads: visibleLeads,
+    zones,
+    profileId: profile.id,
+    passages,
+    repliCycleJours,
+    titulaires,
+  };
+  const apercuAgent = apercuSecteur({ ...paramsApercu, estDirecteur: false });
+  const apercuAgence = apercuSecteur({ ...paramsApercu, estDirecteur: true });
+
+  const secteursData: SecteursData = {
+    zones,
+    membres: members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      avatarUrl: m.avatarUrl,
+    })),
+    leads: visibleLeads
+      .filter(
+        (l): l is typeof l & { latitude: number; longitude: number } =>
+          l.latitude !== null && l.longitude !== null,
+      )
+      .map((l) => ({
+        id: l.id,
+        address: l.address,
+        postalCode: l.postalCode,
+        latitude: l.latitude,
+        longitude: l.longitude,
+        assignedTo: l.assignedTo,
+        stageId: l.stageId,
+        pris: l.stageId != null,
+        deliveredAt: l.deliveredAt,
+        createdAt: l.createdAt,
+      })),
+    centre: { latitude: agency.latitude, longitude: agency.longitude },
+    profileId: profile.id,
+  };
+
+  const centreAgence = { latitude: agency.latitude, longitude: agency.longitude };
+  const secteurAgent = (
+    <SecteurAccueil
+      key="secteur-agent"
+      apercu={apercuAgent}
+      centre={centreAgence}
+      estDirecteur={false}
+      secteurs={secteursData}
+    />
+  );
+  const secteurAgence = (
+    <SecteurAccueil
+      key="secteur-agence"
+      apercu={apercuAgence}
+      centre={centreAgence}
+      estDirecteur
+      secteurs={secteursData}
+    />
+  );
 
   if (layoutDirector) {
     const periodeDirecteur =
@@ -469,6 +536,7 @@ async function TodayContent({
         agences={agencesDirecteur(memberships)}
         agenceActiveId={agency.id}
         periode={periodeDirecteur}
+        secteur={secteurAgence}
       />
     );
   }
@@ -484,10 +552,9 @@ async function TodayContent({
     demandesEstimation,
     estimationsVuees,
     ...metier,
-    // Les échéances de mandat et d'offre ne sont pas une tâche du jour : elles
-    // encombraient la pile avec des offres expirées sur lesquelles il n'y a
-    // plus rien à faire.
-    exclure: ['echeance_contractuelle'],
+    // Les relances contact (jamais recontacté, date due) n'ont plus leur
+    // place sur l'Accueil : trop de cartes, un CTA qui n'est plus la DA.
+    exclure: ['echeance_contractuelle', 'relance'],
   });
 
   const directorExceptions: import('@/lib/today/director-exceptions').DirectorMemberExceptions[] = [];
@@ -601,7 +668,6 @@ async function TodayContent({
   const penseBete = lirePenseBete(profile.preferences);
 
   const maintenant = new Date();
-  const repliCycleJours = agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS;
   const cycle = cycleObserveJours(passages, profile.id, repliCycleJours);
   const derniers = dernierPassageParAdresse(passages, profile.id);
   const leadsAnnotes = visibleLeads.map((l) => ({
@@ -638,69 +704,15 @@ async function TodayContent({
     </>
   );
 
-  // Le découpage de l'agence. Sans zones, la carte ne s'affiche pas du tout :
-  // un repère vide n'est pas un repère.
-  const zones = await fetchZonesSafe(supabase);
-  const apercu = apercuSecteur({
-    leads: visibleLeads,
-    zones,
-    profileId: profile.id,
-    estDirecteur: isDirector,
-    passages,
-    repliCycleJours,
-    titulaires: Object.fromEntries(names),
-  });
-  if (!isDirector && apercu.aRevoir > SEUIL_ADRESSES_A_REVOIR) {
+  if (!isDirector && apercuAgent.aRevoir > SEUIL_ADRESSES_A_REVOIR) {
     after(() =>
       notifierAdressesARevoir({
         agencyId: agency.id,
         destinataireId: profile.id,
-        aRevoir: apercu.aRevoir,
+        aRevoir: apercuAgent.aRevoir,
       }),
     );
   }
-
-  // L'atelier de découpage vit sur l'Accueil. Il se sert des leads et des
-  // membres déjà lus plus haut : aucune requête de plus pour ouvrir la carte.
-  const secteursData: SecteursData = {
-    zones,
-    membres: members.map((m) => ({
-      id: m.id,
-      fullName: m.fullName,
-      firstName: m.firstName,
-      lastName: m.lastName,
-      avatarUrl: m.avatarUrl,
-    })),
-    leads: visibleLeads
-      .filter(
-        (l): l is typeof l & { latitude: number; longitude: number } =>
-          l.latitude !== null && l.longitude !== null,
-      )
-      .map((l) => ({
-        id: l.id,
-        address: l.address,
-        postalCode: l.postalCode,
-        latitude: l.latitude,
-        longitude: l.longitude,
-        assignedTo: l.assignedTo,
-        stageId: l.stageId,
-        pris: l.stageId != null,
-        deliveredAt: l.deliveredAt,
-        createdAt: l.createdAt,
-      })),
-    centre: { latitude: agency.latitude, longitude: agency.longitude },
-    profileId: profile.id,
-  };
-
-  const secteurNode = (
-    <SecteurAccueil
-      key="secteur-accueil"
-      apercu={apercu}
-      centre={{ latitude: agency.latitude, longitude: agency.longitude }}
-      estDirecteur={isDirector}
-      secteurs={secteursData}
-    />
-  );
 
   const pilotageCommun = {
     pilotage,
@@ -719,7 +731,7 @@ async function TodayContent({
         <EmploiDuTempsServeur agenda={agendaPromise} />
       </Suspense>
     ),
-    secteur: cards.length > 0 ? secteurNode : null,
+    secteur: secteurAgent,
     attenteInscription: estEnAttente(agency) ? (
       <EcranAttenteInscription key="attente-inscription" refusee={agency.demande_decision === 'refusee'} />
     ) : null,
@@ -738,7 +750,6 @@ async function TodayContent({
               variant="pilotage"
               week={week}
               sectorRef={centroidFromCoords(visibleLeads)}
-              secteur={secteurNode}
             />
           }
         />
@@ -758,7 +769,6 @@ async function TodayContent({
             variant="pilotage"
             relancesProgrammees={week.relancesProgrammees}
             rapprochements={week.rapprochements}
-            secteur={secteurNode}
           />
         }
       />

@@ -72,7 +72,7 @@ export default function AccueilPilotage({
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
   secteur?: ReactNode;
   attenteInscription?: ReactNode;
-  /** Affiche Mon équipe / Ma semaine (directeur en vue agent). */
+  /** Affiche L'agence / Ma semaine pour le directeur. */
   selecteurVueDirecteur?: boolean;
 }) {
   const cleServeur = vueDuBilan(pilotage).cle;

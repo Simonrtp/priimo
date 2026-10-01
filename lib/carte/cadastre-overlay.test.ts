@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles, overlayRowsFromAdeme } from './cadastre-overlay';
+import { formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles, overlayRowsFromAdeme, ventesParParcelle } from './cadastre-overlay';
 import type { OverlayActivity, OverlayBuilding, OverlayDpeRow } from './cadastre-overlay';
 
 const building: OverlayBuilding = {
@@ -229,5 +229,59 @@ describe('overlayRowsFromAdeme', () => {
     assert.equal(rows[0]?.dateDpe, '2026-09-20');
     assert.equal(rows[0]?.etiquetteDpe, 'B');
     assert.equal(rows[0]?.etage, 2);
+  });
+});
+
+describe('ventesParParcelle', () => {
+  it('agrège les ventes d’une parcelle et prend le médian €/m²', () => {
+    const agg = ventesParParcelle([
+      {
+        banId: 'a',
+        parcelleId: '75120000EC0003',
+        longitude: 2.41,
+        latitude: 48.85,
+        adresse: '10 rue des Maraîchers',
+        etiquetteDpe: null,
+        dpeGrain: null,
+        dateDpe: null,
+        surfaceDpe: null,
+        etageDpe: null,
+        nbDpe: 0,
+        nbPassoires: 0,
+        nbTransactions: 2,
+        dernierPrix: 400000,
+        derniereTransactionLe: '2023-01-01',
+        prixM2: 8000,
+        nbLots: null,
+        procedureCopro: false,
+      },
+      {
+        banId: 'b',
+        parcelleId: '75120000EC0003',
+        longitude: 2.41,
+        latitude: 48.85,
+        adresse: null,
+        etiquetteDpe: null,
+        dpeGrain: null,
+        dateDpe: null,
+        surfaceDpe: null,
+        etageDpe: null,
+        nbDpe: 0,
+        nbPassoires: 0,
+        nbTransactions: 3,
+        dernierPrix: 520000,
+        derniereTransactionLe: '2024-06-01',
+        prixM2: 10000,
+        nbLots: null,
+        procedureCopro: false,
+      },
+    ]);
+    const row = agg.get('75120000EC0003');
+    assert.ok(row);
+    assert.equal(row.nbTransactions, 5);
+    assert.equal(row.prixM2, 9000);
+    assert.equal(row.dernierPrix, 520000);
+    assert.equal(row.derniereTransactionLe, '2024-06-01');
+    assert.equal(row.adresse, '10 rue des Maraîchers');
   });
 });

@@ -14,6 +14,24 @@ import {
 import type { ExtractedPersonne, ExtractedRelance, ExtractedPromesse, ExtractedRendezVous, ExtractedVisite, NoteExtraction } from '@/lib/notes/propositions';
 import { lignesFicheNote, relanceAtFromJours } from '@/lib/notes/propositions';
 import { biensCitesDansTexte } from '@/lib/notes/rattacher-catalogue';
+import {
+  actionsProposees,
+  emailPropose,
+  leadsALAdresse,
+  misesAJourProposees,
+  prospectPropose,
+  rechercheProposee,
+  type ActionProposal,
+  type BienContexte,
+  type EmailProposal,
+  type EtapeContexte,
+  type LeadContexte,
+  type LeadLie,
+  type MiseAJourProposal,
+  type ProspectProposal,
+  type RechercheProposal,
+} from '@/lib/notes/review-v2';
+import type { NoteIntention } from '@/lib/notes/propositions';
 
 export type PersonneProposal = {
   id: string;
@@ -68,6 +86,17 @@ export type NoteReviewPayload = {
   rooms: number | null;
   surface: number | null;
   secteur: string | null;
+  /** v2 — ce que la note fait bouger au-delà des contacts. */
+  titre: string | null;
+  resume: string | null;
+  intention: NoteIntention;
+  actions: ActionProposal[];
+  misesAJour: MiseAJourProposal[];
+  recherche: RechercheProposal | null;
+  prospect: ProspectProposal | null;
+  email: EmailProposal | null;
+  /** Prospects de l'agence à l'adresse de la note. */
+  leads: LeadLie[];
 };
 
 export function emptyReviewPayload(
@@ -93,6 +122,15 @@ export function emptyReviewPayload(
     rooms: null,
     surface: null,
     secteur: null,
+    titre: null,
+    resume: null,
+    intention: 'note',
+    actions: [],
+    misesAJour: [],
+    recherche: null,
+    prospect: null,
+    email: null,
+    leads: [],
   };
 }
 
@@ -112,8 +150,14 @@ export function buildReviewPayload(args: {
     adresse_normalisee: string | null;
     geocode_score: number | null;
   };
-  biensAgence?: readonly { id: string; address: string; city?: string | null }[];
+  biensAgence?: readonly BienContexte[];
+  /** Prospects de l'agence : ceux de l'adresse de la note peuvent avancer. */
+  leadsAgence?: readonly LeadContexte[];
+  etapes?: readonly EtapeContexte[];
+  /** Jour de la dictée : la relance « dans 3 jours » se compte depuis lui. */
+  noteDate?: Date;
 }): NoteReviewPayload {
+  const noteDate = args.noteDate ?? new Date();
   const extraction = args.extraction;
   const cited = args.transcript?.trim() ?? '';
   const extractedPersonnes = (extraction?.personnes ?? [])
@@ -190,13 +234,15 @@ export function buildReviewPayload(args: {
   const relanceRaw: ExtractedRelance | null = extraction?.relance ?? null;
   const relance = relanceRaw
     ? {
-        at: relanceAtFromJours(relanceRaw.jours),
+        at: relanceAtFromJours(relanceRaw.jours, noteDate),
         jours: relanceRaw.jours,
         libelle: relanceRaw.libelle,
       }
     : null;
 
   const displayAddress = immeuble?.adresseNormalisee ?? extraction?.address ?? null;
+  const biensAgence = args.biensAgence ?? [];
+  const banId = args.geo.ban_id;
   const secteur = extraction?.secteur ?? null;
   const prix = extraction?.prix ?? null;
   const rooms = extraction?.rooms ?? null;
@@ -210,7 +256,7 @@ export function buildReviewPayload(args: {
     extractFailed: args.extractFailed,
     personnes: personnesUniques,
     immeuble,
-    biens: cited ? biensCitesDansTexte(cited, args.biensAgence ?? []) : [],
+    biens: cited ? biensCitesDansTexte(cited, biensAgence) : [],
     relance,
     promesse: extraction?.promesse ? { ...extraction.promesse, accepted: true } : null,
     rendezVous: extraction?.rendezVous ? { ...extraction.rendezVous, accepted: true } : null,
@@ -220,6 +266,15 @@ export function buildReviewPayload(args: {
     rooms,
     surface,
     secteur,
+    titre: extraction?.titre ?? null,
+    resume: extraction?.resume ?? null,
+    intention: extraction?.intention ?? 'note',
+    actions: actionsProposees(extraction, personnesUniques, noteDate),
+    misesAJour: misesAJourProposees(extraction, cited, biensAgence, banId),
+    recherche: rechercheProposee(extraction, personnesUniques, biensAgence),
+    prospect: prospectPropose(extraction, banId, args.leadsAgence ?? [], args.etapes ?? []),
+    email: emailPropose(extraction, personnesUniques),
+    leads: leadsALAdresse(banId, args.leadsAgence ?? []),
   };
 }
 

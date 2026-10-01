@@ -15,6 +15,7 @@ import {
 import { LIBELLE_PERIODE } from '@/lib/activite/semaines';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE, type FamilleActivite } from '@/lib/activite/types';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
+import Pastilles from '@/components/ui/Pastilles';
 
 const ILLUSTRATION: Record<FamilleActivite, string> = {
   contacts_physiques: '/porte-ouverte.png',
@@ -173,27 +174,12 @@ export default function ObjectifsDialog({
         }}
         className="flex flex-col gap-4"
       >
-        <div
-          role="group"
-          aria-label="Cadence de lecture"
-          className="flex self-start rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-        >
-          {CADENCES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-pressed={c === cadence}
-              onClick={() => setCadence(c)}
-              className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                c === cadence
-                  ? 'bg-surface text-text-strong shadow-clay-sm'
-                  : 'text-text-muted hover:text-text-strong'
-              }`}
-            >
-              {LIBELLE_PERIODE[c]}
-            </button>
-          ))}
-        </div>
+        <Pastilles
+          label="Cadence de lecture"
+          value={cadence}
+          options={CADENCES.map((c) => ({ id: c, label: LIBELLE_PERIODE[c] }))}
+          onChange={setCadence}
+        />
 
         <div className="flex flex-col gap-3">
           {FAMILLES_ACTIVITE.map((famille) => (

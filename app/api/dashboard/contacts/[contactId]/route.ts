@@ -12,6 +12,8 @@ import {
   withContactsSelect,
 } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { effacerDicteesDuContact } from '@/lib/rgpd/effacement';
 import { notifierContactTransfere } from '@/lib/notifications/evenements';
 import type { ContactRow } from '@/types/database';
 
@@ -216,6 +218,17 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ contactId: 
     !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })
   ) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
+  }
+
+  // Avant la suppression : ensuite, plus rien ne dit quelles dictées le nommaient.
+  try {
+    await effacerDicteesDuContact(createSupabaseAdminClient(), agency.id, contactId);
+  } catch (err) {
+    console.error('[contacts] effacement des dictées', err);
+    return NextResponse.json(
+      { error: 'Les notes vocales de ce contact n’ont pas pu être effacées. Réessayez.' },
+      { status: 500 },
+    );
   }
 
   const { error } = await supabase

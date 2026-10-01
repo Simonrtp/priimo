@@ -22,6 +22,22 @@ function parseVisiteInteret(value: unknown): VisiteInteretDb | null {
     : null;
 }
 
+async function idDeLAgence(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  table: 'contacts' | 'biens',
+  raw: unknown,
+  agencyId: string,
+): Promise<string | null> {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const { data } = await admin
+    .from(table)
+    .select('id')
+    .eq('id', raw.trim())
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+  return (data as { id: string } | null)?.id ?? null;
+}
+
 /** Crée promesse / RDV / visite validés depuis une dictée. */
 export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: string }> }) {
   const { user, profile, agency, memberships } = await getServerUser();
@@ -51,8 +67,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
 
   const members = await fetchMembersOfMyAgency(agency.id, memberships);
   const memberIds = memberIdSet(members);
-  const contactId = typeof body.contactId === 'string' ? body.contactId : null;
-  const bienId = typeof body.bienId === 'string' ? body.bienId : null;
+  // Client admin : sans cette vérification, un identifiant d'une autre agence
+  // pouvait être accroché à une promesse ou un rendez-vous.
+  const [contactId, bienId] = await Promise.all([
+    idDeLAgence(admin, 'contacts', body.contactId, agency.id),
+    idDeLAgence(admin, 'biens', body.bienId, agency.id),
+  ]);
 
   const created: string[] = [];
 

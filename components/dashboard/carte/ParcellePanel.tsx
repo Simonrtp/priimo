@@ -9,6 +9,7 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { useUser } from '@/lib/hooks/useUser';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
+import { formatPrixM2Court } from '@/lib/carte/cadastre-overlay';
 import type { ParcelleAgencyItem, ParcelleFiche } from '@/lib/carte/parcelle';
 
 const KIND_LABEL: Record<ParcelleAgencyItem['kind'], string> = {
@@ -25,6 +26,16 @@ function euros(n: number | null): string {
 
 function formatDay(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
+}
+
+function m2(n: number | null | undefined): string | null {
+  if (n == null || !Number.isFinite(n)) return null;
+  return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} m²`;
+}
+
+function pieces(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return `${Math.round(n)} p.`;
 }
 
 function groupAgency(items: readonly ParcelleAgencyItem[]) {
@@ -55,10 +66,12 @@ export default function ParcellePanel({
   fiche,
   onClose,
   onNotesChanged,
+  surfaceCadastreM2,
 }: {
   fiche: ParcelleFiche;
   onClose: () => void;
   onNotesChanged?: () => void;
+  surfaceCadastreM2?: number | null;
 }) {
   const { openCapture, openCompose, captureSessionOpen } = useVoiceCapture();
   const { profile } = useUser();
@@ -86,6 +99,24 @@ export default function ParcellePanel({
     adresse: fiche.adresse ?? fiche.reference,
     parcelleId: fiche.parcelleId,
   };
+  const surface = surfaceCadastreM2 ?? fiche.surfaceCadastreM2;
+  const lots = fiche.coproprietes.reduce((n, c) => n + (c.lots != null ? c.lots : 0), 0);
+  const identite: { label: string; value: string }[] = [];
+  const surfaceLabel = m2(surface);
+  if (surfaceLabel) identite.push({ label: 'Surface', value: surfaceLabel });
+  if (fiche.nbAdresses > 0) {
+    identite.push({
+      label: fiche.nbAdresses > 1 ? 'Adresses' : 'Adresse',
+      value: String(fiche.nbAdresses),
+    });
+  }
+  const median = formatPrixM2Court(fiche.prixM2Median);
+  if (median) identite.push({ label: 'Prix médian', value: median });
+  if (fiche.coproprietes.some((c) => c.lots != null)) {
+    identite.push({ label: 'Lots', value: String(lots) });
+  }
+  const videPublic =
+    fiche.ventes.length === 0 && fiche.diagnostics.length === 0 && fiche.coproprietes.length === 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -112,10 +143,27 @@ export default function ParcellePanel({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
-        {fiche.videPublic ? (
-          <p className="text-pretty text-[14px] text-text-muted">
-            Aucune information publique sur cette parcelle
-          </p>
+        {identite.length > 0 ? (
+          <section className={videPublic ? '' : 'mb-6'}>
+            <h3 className="mb-2 font-semibold uppercase text-text-subtle" style={{ fontSize: 11 }}>
+              Parcelle
+            </h3>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13.5px]">
+              {identite.map((row) => (
+                <div key={row.label} className="contents">
+                  <dt className="text-text-muted">{row.label}</dt>
+                  <dd className="tabular-nums text-text">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
+        {videPublic ? (
+          identite.length === 0 ? (
+            <p className="text-pretty text-[14px] text-text-muted">
+              Aucune information publique sur cette parcelle
+            </p>
+          ) : null
         ) : (
           <div className="flex flex-col gap-6">
             {fiche.ventes.length > 0 ? (
@@ -129,6 +177,8 @@ export default function ParcellePanel({
                     <thead>
                       <tr className="text-text-subtle">
                         <th scope="col" className="py-1.5 pr-3 font-medium">Date</th>
+                        <th scope="col" className="py-1.5 pr-3 font-medium">Type</th>
+                        <th scope="col" className="py-1.5 pr-3 font-medium">Pièces</th>
                         <th scope="col" className="py-1.5 pr-3 font-medium">Prix</th>
                         <th scope="col" className="py-1.5 pr-3 font-medium">Surface</th>
                         <th scope="col" className="py-1.5 font-medium">€/m²</th>
@@ -138,6 +188,8 @@ export default function ParcellePanel({
                       {fiche.ventes.map((v, i) => (
                         <tr key={`${v.date}-${i}`} className="border-t border-black/[0.06] text-text">
                           <td className="py-2 pr-3 tabular-nums">{formatDay(v.date)}</td>
+                          <td className="py-2 pr-3 text-text-muted">{v.typeLocal ?? '—'}</td>
+                          <td className="py-2 pr-3 tabular-nums">{pieces(v.nombrePieces)}</td>
                           <td className="py-2 pr-3 tabular-nums">{euros(v.prix)}</td>
                           <td className="py-2 pr-3 tabular-nums">{v.surface !== null ? `${v.surface} m²` : '—'}</td>
                           <td className="py-2 tabular-nums">{euros(v.prixM2)}</td>

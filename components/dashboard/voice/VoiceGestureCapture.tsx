@@ -12,7 +12,17 @@ import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { playRecordStopSound } from '@/lib/voice/feedback-sound';
-import { micErrorMessage, pickAudioMimeType, requestMicStream, stopMicStream } from '@/lib/voice/mic';
+import {
+  createVoiceRecorder,
+  holdScreenAwake,
+  MAX_RECORD_BYTES,
+  micErrorMessage,
+  newClientId,
+  requestMicStream,
+  stopMicStream,
+} from '@/lib/voice/mic';
+import { isVoiceBlobTooSmall, MIN_VOICE_RECORD_MS } from '@/lib/voice/audio-blob';
+import type { DevicePosition } from '@/lib/voice/gps';
 import { readDevicePosition } from '@/lib/voice/gps';
 import { reverseGeocode } from '@/lib/geo/ban';
 import { shouldLockVoice, VOICE_LOCK_SWIPE_PX } from '@/lib/voice/gesture-lock';
@@ -20,6 +30,8 @@ import type { NoteReviewPayload } from '@/lib/notes/build-review';
 import { postFormOrQueue } from '@/lib/offline/queue';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceLockHint from './VoiceLockHint';
+import { TranscriptionTempsReel } from '@/lib/voice/temps-reel';
+import { finDeNoteDite, retirerFinDeNote } from '@/lib/voice/fin-de-note';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 
 export type VoiceGestureCaptureHandle = {
@@ -56,6 +68,7 @@ export default forwardRef<
   const [voiceNoteId, setVoiceNoteId] = useState<string | null>(null);
   const [gpsAddress, setGpsAddress] = useState<string | null>(adresse);
   const [discarding, setDiscarding] = useState(false);
+  const [texteDirect, setTexteDirect] = useState('');
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -65,6 +78,11 @@ export default forwardRef<
   const micReadyRef = useRef(false);
   const usedInitialStreamRef = useRef(false);
   const voiceNoteIdRef = useRef<string | null>(null);
+  const gpsRef = useRef<DevicePosition | null>(null);
+  const recordedAtRef = useRef(new Date().toISOString());
+  const tempsReelRef = useRef<TranscriptionTempsReel | null>(null);
+  const finTempsReelRef = useRef<Promise<string> | null>(null);
+  const texteDirectRef = useRef('');
 
   lockedRef.current = locked;
   micReadyRef.current = micReady;
@@ -77,6 +95,7 @@ export default forwardRef<
   useEffect(() => {
     if (adresse) setGpsAddress(adresse);
     void readDevicePosition().then(async (pos) => {
+      gpsRef.current = pos;
       if (!pos || adresse) return;
       const hit = await reverseGeocode(pos.latitude, pos.longitude);
       if (hit) setGpsAddress(hit.adresse_normalisee);
@@ -92,12 +111,17 @@ export default forwardRef<
   const finishRecording = useCallback(() => {
     const recorder = recorderRef.current;
     if (!recorder || recorder.state !== 'recording') return;
+    const session = tempsReelRef.current;
+    tempsReelRef.current = null;
+    finTempsReelRef.current = session ? session.arreter() : null;
     recorder.stop();
     playRecordStopSound();
   }, []);
 
   const cancelAll = useCallback(() => {
     cancelledRef.current = true;
+    tempsReelRef.current?.fermer();
+    tempsReelRef.current = null;
     if (recorderRef.current?.state === 'recording') {
       recorderRef.current.stop();
     }
@@ -106,7 +130,7 @@ export default forwardRef<
     onClose();
   }, [onClose, releaseMic]);
 
-  async function upload(blob: Blob, durationSeconds: number) {
+  async function upload(blob: Blob, durationMs: number) {
     setPhase('processing');
     releaseMic();
 
@@ -115,11 +139,27 @@ export default forwardRef<
       onClose();
       return;
     }
+    // Un effleurement n’est pas une dictée : pas de note vide dans l’accueil.
+    if (durationMs < MIN_VOICE_RECORD_MS || isVoiceBlobTooSmall(blob.size)) {
+      notifyError('Maintenez le bouton pendant que vous parlez.');
+      onClose();
+      return;
+    }
 
     const form = new FormData();
     form.append('audio', blob, 'dictee.webm');
-    form.append('durationSeconds', String(durationSeconds));
-    const gps = await readDevicePosition();
+    form.append('durationSeconds', String(Math.max(1, Math.round(durationMs / 1000))));
+    form.append('clientNoteId', newClientId());
+    form.append('recordedAt', recordedAtRef.current);
+    const fin = finTempsReelRef.current;
+    finTempsReelRef.current = null;
+    const direct = retirerFinDeNote((fin ? await fin.catch(() => texteDirectRef.current) : texteDirectRef.current) || '');
+    if (direct) form.append('liveTranscript', direct);
+    // Personne ne relit cette note à l’écran : le serveur la lit, même si
+    // l’agent a déjà rangé son téléphone.
+    form.append('extraireSurServeur', '1');
+    // Position prise à l’ouverture : ne pas faire attendre l’envoi du GPS.
+    const gps = gpsRef.current;
     if (gps) {
       form.append('latitude', String(gps.latitude));
       form.append('longitude', String(gps.longitude));
@@ -165,13 +205,6 @@ export default forwardRef<
 
       setVoiceNoteId(data.voiceNoteId);
       if (tourAdresse) noteDictee();
-      if (data.voiceNoteId && data.transcript) {
-        void fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}/rafraichir`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript: data.transcript }),
-        });
-      }
       try {
         await fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}`, {
           method: 'PATCH',
@@ -210,15 +243,24 @@ export default forwardRef<
           return;
         }
 
-        const mimeType = pickAudioMimeType();
-        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        const recorder = createVoiceRecorder(stream);
         chunksRef.current = [];
+        let bytes = 0;
+        const releaseWake = holdScreenAwake();
+        recordedAtRef.current = new Date().toISOString();
 
         recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunksRef.current.push(e.data);
+          if (e.data.size === 0) return;
+          chunksRef.current.push(e.data);
+          bytes += e.data.size;
+          if (bytes >= MAX_RECORD_BYTES && recorder.state === 'recording') {
+            recorder.stop();
+            playRecordStopSound();
+          }
         };
         recorder.onstop = () => {
-          const durationSeconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
+          releaseWake();
+          const durationMs = Date.now() - startedAtRef.current;
           stopMicStream(stream);
           setMicStream(null);
           if (cancelledRef.current) {
@@ -227,10 +269,10 @@ export default forwardRef<
             return;
           }
           const blob = new Blob(chunksRef.current, {
-            type: recorder.mimeType || mimeType || 'audio/webm',
+            type: recorder.mimeType || 'audio/webm',
           });
           recorderRef.current = null;
-          void uploadRef.current(blob, durationSeconds);
+          void uploadRef.current(blob, durationMs);
         };
 
         recorder.start(250);
@@ -238,6 +280,21 @@ export default forwardRef<
         startedAtRef.current = Date.now();
         setMicStream(stream);
         setMicReady(true);
+
+        // Le texte s'écrit au-dessus du pouce ; « fin de note » termine une dictée verrouillée.
+        void TranscriptionTempsReel.demarrer(stream, {
+          onTexte: (t) => {
+            texteDirectRef.current = t;
+            setTexteDirect(retirerFinDeNote(t));
+            if (finDeNoteDite(t) && lockedRef.current) finishRecording();
+          },
+        }).then((session) => {
+          if (recorderRef.current !== recorder || recorder.state !== 'recording' || cancelledRef.current) {
+            session?.fermer();
+            return;
+          }
+          tempsReelRef.current = session;
+        });
       } catch (error) {
         notifyError(micErrorMessage(error));
         onClose();
@@ -248,7 +305,7 @@ export default forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [onClose, streamPromise]);
+  }, [finishRecording, onClose, streamPromise]);
 
   useEffect(() => {
     if (phase !== 'saved') return;
@@ -311,7 +368,7 @@ export default forwardRef<
         role="status"
         aria-live="polite"
       >
-        <p className="min-w-0 flex-1 text-[12px] font-medium text-text-strong">Note enregistrée</p>
+        <p className="min-w-0 flex-1 text-[12px] font-medium text-text-strong">Note enregistrée — Priimo la range</p>
         <button
           type="button"
           onClick={() => void discardSaved()}
@@ -342,6 +399,21 @@ export default forwardRef<
           style={{ bottom: LOCK_HINT_BOTTOM }}
         >
           <VoiceLockHint locked compact />
+        </div>
+      ) : null}
+
+      {/* Ce qui vient d'être dit, au-dessus du pouce : les derniers mots seulement. */}
+      {texteDirect ? (
+        <div
+          className="absolute left-1/2 w-[min(calc(100vw-32px),22rem)] -translate-x-1/2 rounded-2xl bg-surface px-3.5 py-2.5 shadow-clay"
+          style={{ bottom: `calc(${LOCK_HINT_BOTTOM} + 52px)` }}
+        >
+          <p className="line-clamp-2 text-pretty text-[14px] font-medium leading-snug text-text-strong">
+            {texteDirect.length > 110 ? `…${texteDirect.slice(-110)}` : texteDirect}
+          </p>
+          {locked ? (
+            <p className="mt-1 text-[11px] text-text-subtle">Dites « fin de note » pour terminer.</p>
+          ) : null}
         </div>
       ) : null}
 

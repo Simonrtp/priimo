@@ -17,6 +17,7 @@ type SectionKey = 'features' | 'resources';
 
 const RESOURCE_LINKS = [
   { href: '/blog', title: 'Blog' },
+  { href: '/faq', title: 'Questions fréquentes' },
   { href: '/a-propos', title: 'À propos' },
 ] as const;
 

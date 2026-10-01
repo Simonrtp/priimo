@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { agencesDirecteur, resolveVueAccueilDirecteur } from './vue';
 
 describe('resolveVueAccueilDirecteur', () => {
-  it('seul → Mon équipe par défaut', () => {
+  it("seul → L'agence par défaut", () => {
     assert.equal(resolveVueAccueilDirecteur({ cookie: null, membresAgence: 1 }), 'directeur');
   });
 
@@ -14,7 +14,7 @@ describe('resolveVueAccueilDirecteur', () => {
     );
   });
 
-  it('équipe → Mon équipe par défaut', () => {
+  it("équipe → L'agence par défaut", () => {
     assert.equal(resolveVueAccueilDirecteur({ cookie: null, membresAgence: 3 }), 'directeur');
   });
 });

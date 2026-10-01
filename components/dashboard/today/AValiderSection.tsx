@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import type { AgencyAction } from '@/lib/automations/types';
@@ -9,9 +10,8 @@ import ActionsInbox from '@/components/dashboard/actions/ActionsInbox';
 const APERCU = 3;
 
 /**
- * Zone « À valider » de l'Accueil : la boîte de réception des veilles.
- * Elle garde sa place même vide — c'est ce qui la rend consultable d'un coup
- * d'œil chaque matin.
+ * File des veilles sur l'Accueil. Absente tant qu'il n'y a rien à faire :
+ * Ma semaine reste le secteur, pas une boîte vide.
  */
 export default function AValiderSection({
   actions,
@@ -20,8 +20,10 @@ export default function AValiderSection({
   actions: readonly AgencyAction[];
   className?: string;
 }) {
-  const total = actions.length;
-  const reste = Math.max(0, total - APERCU);
+  const [ouvertes, setOuvertes] = useState(actions.length);
+  const reste = Math.max(0, ouvertes - APERCU);
+
+  if (ouvertes === 0) return null;
 
   return (
     <section
@@ -35,14 +37,12 @@ export default function AValiderSection({
           <h2 id="accueil-a-valider" className="text-[15px] font-semibold tracking-tight">
             À valider
           </h2>
-          {total > 0 ? (
-            <span
-              className="inline-flex min-w-[22px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11.5px] font-semibold tabular-nums"
-              style={{ backgroundColor: ACCUEIL_DARK.creme }}
-            >
-              {total}
-            </span>
-          ) : null}
+          <span
+            className="inline-flex min-w-[22px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11.5px] font-semibold tabular-nums"
+            style={{ backgroundColor: ACCUEIL_DARK.creme }}
+          >
+            {ouvertes}
+          </span>
         </div>
 
         {reste > 0 ? (
@@ -62,7 +62,11 @@ export default function AValiderSection({
       </p>
 
       <div className="mt-3">
-        <ActionsInbox initial={actions} limit={APERCU} emptyVariant="slim" />
+        <ActionsInbox
+          initial={actions}
+          limit={APERCU}
+          onResolue={() => setOuvertes((n) => Math.max(0, n - 1))}
+        />
       </div>
     </section>
   );

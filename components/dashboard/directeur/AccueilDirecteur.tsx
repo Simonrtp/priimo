@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, Plus, SlidersHorizontal, X } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
   type StatutNegociateur,
 } from '@/lib/directeur/statut';
 import SelecteurVueAccueil from './SelecteurVueAccueil';
+import Pastilles from '@/components/ui/Pastilles';
 import ModeReunion from './ModeReunion';
 import ObjectifAgenceDialog from './ObjectifAgenceDialog';
 
@@ -340,11 +341,13 @@ export default function AccueilDirecteur({
   agences,
   agenceActiveId,
   periode,
+  secteur,
 }: {
   modele: AccueilDirecteurModele;
   agences: readonly { id: string; name: string }[];
   agenceActiveId: string;
   periode: 'semaine' | 'mois';
+  secteur?: ReactNode;
 }) {
   const router = useRouter();
   const [preparerId, setPreparerId] = useState<string | null>(null);
@@ -373,32 +376,17 @@ export default function AccueilDirecteur({
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
         <SelecteurVueAccueil vue="directeur" />
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto">
-          <div
-            role="group"
-            aria-label="Période"
-            className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-          >
-            {(
+          <Pastilles
+            label="Période"
+            value={periode}
+            options={
               [
                 { id: 'semaine' as const, label: 'Semaine' },
                 { id: 'mois' as const, label: 'Mois' },
               ] as const
-            ).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                aria-pressed={periode === p.id}
-                onClick={() => changerPeriode(p.id)}
-                className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                  periode === p.id
-                    ? 'bg-surface text-text-strong shadow-clay-sm'
-                    : 'text-text-muted hover:text-text-strong'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+            }
+            onChange={changerPeriode}
+          />
           {agences.length > 1 ? (
             <label className="inline-flex items-center gap-2 text-[13px] text-text-muted">
               <span className="sr-only">Agence</span>
@@ -472,6 +460,8 @@ export default function AccueilDirecteur({
           </div>
         )}
       </section>
+
+      {secteur ? <div className="min-w-0">{secteur}</div> : null}
 
       {/* Zones 2 + 3 — deux colonnes desktop */}
       <div className="grid gap-4 lg:grid-cols-5 lg:items-start">

@@ -1071,6 +1071,8 @@ export type VoiceNoteRow = {
   source_info?: NoteSourceInfoDb | null;
   statut?: VoiceNoteStatutDb;
   is_demo?: boolean;
+  /** Texte retiré au titre du droit à l'effacement (20260921). */
+  texte_efface_le?: string | null;
   created_at: string;
   updated_at: string;
 };

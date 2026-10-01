@@ -97,6 +97,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ noteId: string
       adresse_normalisee: note.adresseNormalisee,
       geocode_score: null,
     },
+    noteDate: noteRow.created_at ? new Date(noteRow.created_at) : undefined,
   });
   const proposals = proposalsFromReview(
     review,

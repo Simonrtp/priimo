@@ -239,16 +239,6 @@ export default function AujourdhuiMobile({
 
   return (
     <div className="field-page-enter relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base pb-4 pt-6">
-        {previewingAgent ? (
-          <p className="rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
-            Vue agent — ce que voit un collaborateur.{' '}
-            <a href="/dashboard/settings?tab=profile" className="font-medium text-text underline underline-offset-2">
-              Désactiver dans Paramètres
-            </a>
-            .
-          </p>
-        ) : null}
-
         {directorLayout ? null : (
           <div>
             {tournee ? (

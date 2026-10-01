@@ -680,7 +680,6 @@ export async function extractEstimationFields(
 
   const capped =
     trimmed.length > MAX_TRANSCRIPT_CHARS ? trimmed.slice(0, MAX_TRANSCRIPT_CHARS) : trimmed;
-  console.info('[estimation] dictée transcript', { chars: capped.length, text: capped });
 
   const res = await fetch(MISTRAL_API_URL, {
     method: 'POST',
@@ -710,11 +709,12 @@ export async function extractEstimationFields(
     choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }>;
   };
   const content = body.choices?.[0]?.message?.content;
-  console.info('[estimation] dictée extract brut', {
+  // La forme de la réponse, jamais son contenu : il décrit un bien et ses occupants.
+  console.info('[estimation] dictée extract', {
+    chars: capped.length,
     finish_reason: body.choices?.[0]?.finish_reason ?? null,
     content_typeof: typeof content,
     content_is_array: Array.isArray(content),
-    content,
   });
   const json = modelContentToJson(content);
   const model = json.trim() ? parseEstimationVoice(json) : { ...EMPTY_ESTIMATION_VOICE };

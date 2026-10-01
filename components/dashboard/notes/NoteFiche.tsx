@@ -44,7 +44,7 @@ export default function NoteFiche({
   const [proposals, setProposals] = useState<NoteAttachmentProposal[]>([]);
   const [isAuthor, setIsAuthor] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<string[]>([]);
   const [manualType, setManualType] = useState<NoteLienEntite>('contact');
   const [manualQ, setManualQ] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -76,15 +76,16 @@ export default function NoteFiche({
 
   useEffect(() => {
     if (!note?.hasAudio) {
-      setAudioUrl(null);
+      setAudioUrls([]);
       return;
     }
     let cancelled = false;
     void (async () => {
       try {
         const res = await fetch(`/api/dashboard/voice-notes/${note.id}/audio`);
-        const data = (await res.json()) as { url?: string };
-        if (!cancelled && res.ok && data.url) setAudioUrl(data.url);
+        const data = (await res.json()) as { url?: string; urls?: string[] };
+        const urls = data.urls ?? (data.url ? [data.url] : []);
+        if (!cancelled && res.ok) setAudioUrls(urls);
       } catch {
         /* lecture optionnelle */
       }
@@ -218,10 +219,19 @@ export default function NoteFiche({
   return (
     <Modal open onClose={onClose} title="Note" maxWidth="lg">
       <div className="flex flex-col gap-5">
-        {audioUrl ? (
-          <audio controls src={audioUrl} className="w-full" preload="metadata">
-            Lecture audio
-          </audio>
+        {audioUrls.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {audioUrls.map((url, i) => (
+              <div key={url} className="flex flex-col gap-1">
+                {audioUrls.length > 1 ? (
+                  <p className="text-[12px] font-medium text-text-muted">Prise {i + 1}</p>
+                ) : null}
+                <audio controls src={url} className="w-full" preload="metadata">
+                  Lecture audio
+                </audio>
+              </div>
+            ))}
+          </div>
         ) : null}
 
         <div>

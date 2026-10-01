@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { notifyError } from '@/lib/notify';
 import type { AssistantSource } from '@/lib/assistant/collecte';
+import { EVENEMENT_QUESTION_ASSISTANT, type QuestionAssistantDetail } from '@/lib/assistant/question-event';
 
 export type PanelTab = 'conversation' | 'historique';
 
@@ -275,6 +276,21 @@ export default function AssistantPanelProvider({ children }: { children: React.R
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
+
+  // Une question dictée au micro de la note : le panneau s'ouvre et répond.
+  const envoyerRef = useRef(envoyer);
+  envoyerRef.current = envoyer;
+  useEffect(() => {
+    const onQuestion = (e: Event) => {
+      const question = (e as CustomEvent<QuestionAssistantDetail>).detail?.question?.trim();
+      if (!question) return;
+      setOpen(true);
+      setTab('conversation');
+      void envoyerRef.current(question);
+    };
+    window.addEventListener(EVENEMENT_QUESTION_ASSISTANT, onQuestion);
+    return () => window.removeEventListener(EVENEMENT_QUESTION_ASSISTANT, onQuestion);
+  }, []);
 
   const value = useMemo(
     () => ({

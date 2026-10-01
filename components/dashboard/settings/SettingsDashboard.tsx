@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
-import { ACCUEIL_VUE_COOKIE, parseAccueilVue, type AccueilVue } from '@/lib/today/accueil-vue';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
@@ -454,19 +453,8 @@ function SectionAgency() {
   );
 }
 
-function readAccueilVueCookie(): AccueilVue {
-  if (typeof document === 'undefined') return 'directeur';
-  const match = document.cookie.match(new RegExp(`(?:^|; )${ACCUEIL_VUE_COOKIE}=([^;]*)`));
-  return parseAccueilVue(match?.[1] ? decodeURIComponent(match[1]) : null);
-}
-
-function writeAccueilVueCookie(vue: AccueilVue) {
-  const maxAge = 60 * 60 * 24 * 400;
-  document.cookie = `${ACCUEIL_VUE_COOKIE}=${encodeURIComponent(vue)}; path=/; max-age=${maxAge}; SameSite=Lax`;
-}
-
 function SectionProfile() {
-  const { user, profile, isDirector } = useUser();
+  const { user, profile } = useUser();
   const router = useRouter();
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
@@ -474,11 +462,6 @@ function SectionProfile() {
   const [emailPro, setEmailPro] = useState(profile.email_pro ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? null);
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
-  const [accueilVue, setAccueilVue] = useState<AccueilVue>('directeur');
-
-  useEffect(() => {
-    setAccueilVue(readAccueilVueCookie());
-  }, []);
 
   useEffect(() => {
     setAvatarUrl(profile.avatar_url ?? null);
@@ -634,36 +617,6 @@ function SectionProfile() {
             Changer mon mot de passe
           </button>
         </div>
-
-        {isDirector ? (
-          <div className="rounded-xl border border-black/8 bg-soft-gray/30 px-4 py-3.5">
-            <p className="font-medium text-ink" style={{ fontSize: 14 }}>
-              Prévisualiser la vue Accueil agent
-            </p>
-            <p className="mt-1 text-pretty text-mute" style={{ fontSize: 13, lineHeight: 1.45 }}>
-              Affiche l’Accueil comme un collaborateur : pile de tâches, pas le suivi d’équipe.
-            </p>
-            <label className="mt-3 flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                className="mt-1 size-4 rounded border-black/20 text-accent focus:ring-accent/30"
-                checked={accueilVue === 'agent'}
-                onChange={(e) => {
-                  const next: AccueilVue = e.target.checked ? 'agent' : 'directeur';
-                  setAccueilVue(next);
-                  writeAccueilVueCookie(next);
-                  toast.success(
-                    next === 'agent'
-                      ? 'Vue agent activée sur l’Accueil'
-                      : 'Vue directeur rétablie sur l’Accueil',
-                  );
-                  router.refresh();
-                }}
-              />
-              <span className="text-[13.5px] text-ink">Voir l’Accueil en tant qu’agent</span>
-            </label>
-          </div>
-        ) : null}
 
         <div className="border-t border-black/8 pt-5">
           <form action="/api/auth/signout" method="post">

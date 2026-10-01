@@ -204,7 +204,7 @@ export default function SectionBibliothequePages() {
     <div className="flex flex-col gap-8">
       {isDirector ? (
         <div>
-          <WorkspaceButton type="button" onClick={() => setEditeur('new')}>
+          <WorkspaceButton type="button" variant="create" onClick={() => setEditeur('new')}>
             Créer une page
           </WorkspaceButton>
         </div>

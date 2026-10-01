@@ -13,11 +13,12 @@ import {
 } from './fraicheur';
 
 /**
- * Ce que montre la carte « Mon secteur » de l'Accueil.
+ * Ce que montre la carte du secteur sur l'Accueil.
  *
- * Un repère, pas un jugement : le contour, les points colorés selon la
- * fraîcheur de passage, et une phrase factuelle. Rien sur la façon de
- * travailler.
+ * `estDirecteur` décrit la vue, pas le rôle : Ma semaine ne retient que les
+ * zones du négociateur ; L'agence montre tout le découpage. Un repère, pas un
+ * jugement : le contour, les points colorés selon la fraîcheur de passage, et
+ * une phrase factuelle.
  */
 
 export type PointSecteur = {

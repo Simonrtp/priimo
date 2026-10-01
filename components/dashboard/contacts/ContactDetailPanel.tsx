@@ -14,6 +14,7 @@ import ConsentementRappelField from '@/components/dashboard/contacts/Consentemen
 import { notifyError } from '@/lib/notify';
 import DatePickerField from '@/components/ui/DatePickerField';
 import { Trash2 } from 'lucide-react';
+import MemoireAgence from '@/components/dashboard/notes/MemoireAgence';
 
 function euros(v: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(v)} €`;
@@ -366,6 +367,10 @@ export default function ContactDetailPanel({
           </Block>
         </div>
       ) : null}
+
+      <div className="mt-5">
+        <MemoireAgence key={contact.id} contactId={contact.id} />
+      </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <WorkspaceButton type="button" variant="secondary" onClick={onEdit} className="!min-h-9 !py-1.5">

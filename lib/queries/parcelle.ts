@@ -14,7 +14,7 @@ import {
   toDateParam,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
-import { mergeCadastreImmeubles, overlayRowsFromAdeme } from '@/lib/carte/cadastre-overlay';
+import { mergeCadastreImmeubles, overlayRowsFromAdeme, medianNumerique } from '@/lib/carte/cadastre-overlay';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
 import type { DpeRecent } from '@/lib/automations/veille-dpe';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
@@ -33,8 +33,6 @@ const IN_CHUNK = 200;
 const MAP_POINT_CAP = 2500;
 const DPE_PAGE = 1000;
 const DPE_PAGE_CAP = 8000;
-/** Au-delà, building_dpe suffit : l’ADEME ne comble que le trou d’ingest. */
-const ADEME_MAP_LOOKBACK_DAYS = 62;
 
 /**
  * Colonnes réellement lues — à tenir alignées sur le schéma live.
@@ -398,6 +396,7 @@ export async function fetchParcelleFiche(args: {
         surface: num(row.surface_reelle_bati),
         prixM2: num(row.prix_m2),
         typeLocal: row.type_local,
+        nombrePieces: num(row.nombre_pieces),
       }))
     : [];
 
@@ -485,12 +484,18 @@ export async function fetchParcelleFiche(args: {
   }
 
   const videPublic = ventes.length === 0 && diagnostics.length === 0 && coproprietes.length === 0;
+  const prixM2Median = medianNumerique(
+    ventes.map((v) => v.prixM2).filter((n): n is number => n != null),
+  );
 
   return {
     parcelleId,
     reference: formatParcelleId(parcelleId),
     adresse: pickAdresse(buildings),
     videPublic,
+    surfaceCadastreM2: null,
+    nbAdresses: buildings.length,
+    prixM2Median,
     ventes,
     diagnostics,
     coproprietes,
@@ -596,13 +601,16 @@ export async function fetchParcelleOverlays(args: {
       nbLots: a.nb_lots ?? null,
       procedureCopro: Boolean(a.procedure_copro),
     })),
-    dpeRows: dpeRows.map((row) => ({
-      banId: row.ban_id,
-      dateDpe: row.date_dpe,
-      etiquetteDpe: row.etiquette_dpe,
-      surface: num(row.surface),
-      etage: num(row.etage),
-    })),
+    dpeRows: dpeRows.map((row) => {
+      const etage = num(row.etage);
+      return {
+        banId: row.ban_id,
+        dateDpe: row.date_dpe,
+        etiquetteDpe: row.etiquette_dpe,
+        surface: num(row.surface),
+        etage: etage != null && etage >= 1 ? etage : null,
+      };
+    }),
     ages,
   });
 
@@ -643,11 +651,7 @@ async function loadDetailDpe(
 
 function ademeLookbackDepuis(rangeFrom: Date | undefined): string | null {
   if (!rangeFrom) return null;
-  const now = new Date();
-  const floor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  floor.setDate(floor.getDate() - ADEME_MAP_LOOKBACK_DAYS);
-  const from = rangeFrom.getTime() > floor.getTime() ? rangeFrom : floor;
-  return toDateParam(from);
+  return toDateParam(rangeFrom);
 }
 
 async function selectDpeFrais(

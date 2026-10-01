@@ -1,29 +1,24 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import type { ApercuSecteur, RepartitionFraicheur } from '@/lib/zones/accueil';
 import {
   COULEUR_FRAICHEUR,
   LIBELLE_FRAICHEUR,
   NIVEAUX_FRAICHEUR,
-  type NiveauFraicheur,
 } from '@/lib/zones/fraicheur';
-import Select from '@/components/ui/Select';
+
 const ZonesCarte = dynamic(() => import('@/components/dashboard/zones/ZonesCarte'), {
   ssr: false,
   loading: () => (
-    <div className="h-full min-h-[280px] animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
+    <div className="h-full min-h-[420px] animate-pulse rounded-clay-lg bg-black/[0.04] sm:min-h-[520px]" aria-hidden />
   ),
 });
 
-function hrefFraicheur(niveau: NiveauFraicheur | 'a-revoir') {
-  return `/dashboard/prospection?vue=liste&fraicheur=${niveau}`;
-}
-
-function hrefCarteComplete(zoneId: string | null) {
+function hrefCarte(zoneId: string | null) {
   const base = '/dashboard/prospection?vue=carte';
   return zoneId ? `${base}&zone=${encodeURIComponent(zoneId)}` : base;
 }
@@ -51,11 +46,8 @@ function phraseFactuelle(aRevoir: number, cycleSemaines: number | null): string 
 }
 
 /**
- * « Mon secteur » sur l'Accueil.
- *
- * Un repère, pas un jugement : le contour, les points colorés selon la
- * fraîcheur, les compteurs cliquables et une phrase factuelle. Aucun conseil
- * sur la façon de travailler, aucun taux de couverture présenté comme une note.
+ * Repère sur l'Accueil : la carte d'abord, le détail en dessous, un seul
+ * « Modifier ». Un clic sur un secteur ouvre la carte complète.
  */
 export default function MonSecteur({
   apercu,
@@ -66,146 +58,98 @@ export default function MonSecteur({
   apercu: ApercuSecteur;
   centre: { latitude: number | null; longitude: number | null };
   estDirecteur: boolean;
-  /** Rouvre l'atelier de découpage sans quitter l'Accueil. */
   onAtelier: () => void;
 }) {
+  const router = useRouter();
   const { zones, points, cycleSemaines, zonesDirecteur } = apercu;
-  const [zoneId, setZoneId] = useState(zones[0]?.id ?? null);
-  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? zones[0] ?? null;
+  const zoneSeule = zones.length === 1 ? zones[0] : null;
 
-  const pointsFiltres = useMemo(
-    () => (zoneChoisie ? points.filter((p) => p.zoneId === zoneChoisie.id) : points),
-    [points, zoneChoisie],
-  );
-  const repartition = useMemo(() => compter(pointsFiltres), [pointsFiltres]);
+  const repartition = useMemo(() => compter(points), [points]);
   const aRevoir = repartition.revoir + repartition.jamais;
   const phrase = phraseFactuelle(aRevoir, cycleSemaines);
 
-  const titre = estDirecteur ? 'Les secteurs de l’agence' : 'Couverture de mon secteur';
+  const titre = estDirecteur ? 'Les secteurs de l’agence' : 'Mon secteur';
 
   if (zones.length === 0) return null;
 
-  const leads = pointsFiltres.map((p) => ({
+  const leads = points.map((p) => ({
     id: p.id,
     latitude: p.latitude,
     longitude: p.longitude,
     niveau: p.niveau,
   }));
 
+  const ouvrirCarte = (zoneId: string) => {
+    router.push(hrefCarte(zoneId));
+  };
+
   return (
-    <section className="flex h-full flex-col rounded-clay-lg bg-white p-4 shadow-clay">
+    <section className="flex flex-col rounded-clay-lg bg-white p-4 shadow-clay">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="min-w-0">
-            <h2 className="truncate text-balance font-semibold text-ink" style={{ fontSize: 16 }}>
-              {titre}
-            </h2>
-            {zones.length > 1 ? (
-              <label className="mt-1 block min-w-0 max-w-[16rem]">
-                <span className="sr-only">Secteur affiché</span>
-                <Select
-                  aria-label="Choisir un secteur"
-                  value={zoneChoisie?.id ?? ''}
-                  onChange={setZoneId}
-                  options={zones.map((z) => ({ value: z.id, label: z.nom }))}
-                  triggerClassName="flex w-full min-w-0 items-center justify-between gap-1 rounded-lg border border-black/[0.08] bg-white py-1 pl-2 pr-1.5 text-left text-[12px] font-medium text-mute outline-none hover:border-black/[0.14] focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 [&>svg]:size-3.5"
-                />
-              </label>
-            ) : zoneChoisie ? (
-              <span className="block truncate text-[12px] text-mute">{zoneChoisie.nom}</span>
-            ) : null}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={onAtelier}
-            className="inline-flex min-h-[32px] shrink-0 items-center rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
-          >
-            {estDirecteur ? 'Modifier le découpage' : 'Modifier mon secteur'}
-          </button>
-          <Link
-            href={hrefCarteComplete(zoneChoisie?.id ?? null)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
-          >
-            Voir la carte complète
-            <ArrowRight size={13} aria-hidden />
-          </Link>
-        </div>
+        <h2 className="min-w-0 truncate text-balance font-semibold text-ink" style={{ fontSize: 16 }}>
+          {titre}
+        </h2>
+        <button
+          type="button"
+          onClick={onAtelier}
+          className="inline-flex shrink-0 items-center rounded-clay bg-[#1a2a56] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[#152348] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a2a56]"
+        >
+          Modifier
+        </button>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1fr_270px] lg:items-stretch">
-        <div className="relative h-full min-h-[280px] min-w-0 overflow-hidden rounded-clay-lg">
-          <ZonesCarte
-            zones={zones}
-            zoneActive={zoneChoisie}
-            leads={leads}
-            centre={centre}
-            onChoisirZone={setZoneId}
-          />
-        </div>
-
-        <div className="flex min-w-0 flex-col">
-          {estDirecteur ? (
-            <ul className="flex flex-col">
-              {zonesDirecteur.map(({ zone, titulaire, aRevoir: n }) => {
-                const actif = zone.id === zoneChoisie?.id;
-                return (
-                  <li key={zone.id}>
-                    <button
-                      type="button"
-                      onClick={() => setZoneId(zone.id)}
-                      aria-pressed={actif}
-                      className={`flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] ${
-                        actif ? 'bg-black/[0.04]' : ''
-                      }`}
-                    >
-                      <span className="min-w-0 flex-1 truncate">
-                        <span className="text-ink">{zone.nom}</span>
-                        <span className="text-mute">
-                          {titulaire ? ` · ${titulaire}` : ' · sans titulaire'}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[12.5px] tabular-nums text-mute">
-                        {n} à revoir
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <ul className="flex flex-col">
-              {NIVEAUX_FRAICHEUR.map((niveau) => (
-                <li key={niveau}>
-                  <Link
-                    href={hrefFraicheur(niveau)}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03]"
-                  >
-                    <span
-                      aria-hidden
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: COULEUR_FRAICHEUR[niveau] }}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-ink">
-                      {LIBELLE_FRAICHEUR[niveau]}
-                    </span>
-                    <span className="shrink-0 text-[14px] font-semibold tabular-nums text-ink">
-                      {repartition[niveau]}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {phrase ? (
-            <p className="mt-auto rounded-clay bg-bg-subtle px-3 py-2.5 text-pretty text-[12.5px] text-mute">
-              {phrase}
-            </p>
-          ) : null}
-        </div>
+      <div className="relative h-[420px] min-h-[420px] overflow-hidden rounded-clay-lg sm:h-[520px] sm:min-h-[520px]">
+        <ZonesCarte
+          zones={zones}
+          zoneActive={estDirecteur ? null : zoneSeule}
+          leads={leads}
+          centre={centre}
+          onChoisirZone={ouvrirCarte}
+        />
       </div>
+
+      {estDirecteur ? (
+        <ul className="mt-3 grid gap-x-6 sm:grid-cols-2">
+          {zonesDirecteur.map(({ zone, titulaire, aRevoir: n }) => (
+            <li key={zone.id}>
+              <Link
+                href={hrefCarte(zone.id)}
+                className="flex w-full items-baseline justify-between gap-3 py-2 text-[13px] text-ink hover:text-primary-600"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {zone.nom}
+                  <span className="text-mute">
+                    {titulaire ? ` · ${titulaire}` : ' · sans titulaire'}
+                  </span>
+                </span>
+                <span className="shrink-0 tabular-nums text-mute">
+                  {n} à revoir
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {NIVEAUX_FRAICHEUR.map((niveau) => (
+            <li key={niveau} className="flex items-center gap-2 text-[13px]">
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: COULEUR_FRAICHEUR[niveau] }}
+              />
+              <span className="text-ink">{LIBELLE_FRAICHEUR[niveau]}</span>
+              <span className="font-semibold tabular-nums text-ink">
+                {repartition[niveau]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {phrase ? (
+        <p className="mt-2 text-pretty text-[12.5px] text-mute">{phrase}</p>
+      ) : null}
     </section>
   );
 }

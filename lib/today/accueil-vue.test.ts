@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { parseAccueilVue, phraseEquipe } from './accueil-vue';
 
 describe('parseAccueilVue', () => {
-  it('ne prévisualise l’agent que sur la valeur explicite', () => {
+  it('n’ouvre Ma semaine que sur le choix explicite', () => {
     assert.equal(parseAccueilVue('agent'), 'agent');
     assert.equal(parseAccueilVue('directeur'), 'directeur');
     assert.equal(parseAccueilVue(undefined), 'directeur');

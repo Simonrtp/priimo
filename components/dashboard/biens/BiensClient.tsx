@@ -126,6 +126,7 @@ export default function BiensClient({
         primaryAction={
           <WorkspaceButton
             type="button"
+            variant="create"
             onClick={() => {
               setEditing(undefined);
               setFormOpen(true);

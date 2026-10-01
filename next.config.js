@@ -44,10 +44,12 @@ const nextConfig = {
       { key: "X-Content-Type-Options", value: "nosniff" },
       // Disallow embedding in iframes (blocks clickjacking).
       { key: "X-Frame-Options", value: "DENY" },
-      // Micro autorisé sur l'origine (dictée vocale) ; caméra et géoloc restent désactivées.
+      // Micro et position autorisés sur l'origine : la dictée s'ancre là où l'agent
+      // se trouve, la tournée le suit sur la carte. `geolocation=()` bloquait tout
+      // appel GPS, sans message. Caméra toujours désactivée.
       {
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
+        value: "camera=(), microphone=(self), geolocation=(self), interest-cohort=()",
       },
       // Enforce HTTPS for 2 years; opt-in to preload list.
       {

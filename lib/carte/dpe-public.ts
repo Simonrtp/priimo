@@ -52,12 +52,14 @@ export function dpeFillColor(letter: string | null | undefined): string {
 }
 
 /**
- * Étage issu d'un DPE ADEME. Jamais « Rez-de-chaussée » : 0 / null
- * veulent dire que l'étage n'est pas confirmé.
+ * Étage issu d'un DPE ADEME. Absent → rien. 0 n'est affiché que s'il vient
+ * d'un complément (« RDC »), jamais du numéro ADEME par défaut.
  */
-export function formatDpeEtage(etage: number | null | undefined): string {
-  if (etage == null || !Number.isFinite(etage) || etage < 1) return 'étage non confirmé';
+export function formatDpeEtage(etage: number | null | undefined): string | null {
+  if (etage == null || !Number.isFinite(etage)) return null;
   const n = Math.round(etage);
+  if (n < 0) return 'Sous-sol';
+  if (n === 0) return 'Rez-de-chaussée';
   if (n === 1) return '1er étage';
   return `${n}e étage`;
 }

@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { jourSemaineParis, libelleJours, libelleModeDuJour, modeDuJour, zoneDuJour } from './jour';
+import {
+  jourSemaineParis,
+  libelleJours,
+  libelleModeDuJour,
+  modeDuJour,
+  zoneDuJour,
+  zoneProspectionParDefaut,
+} from './jour';
 import type { Zone } from './types';
 
 const MOI = 'moi';
@@ -105,5 +112,36 @@ describe('libellé des jours', () => {
 
   it('résume la semaine entière', () => {
     assert.equal(libelleJours([1, 2, 3, 4, 5]), 'Tous les jours');
+  });
+});
+
+describe('secteur par défaut en Prospection', () => {
+  it('prend le secteur du jour s’il y en a un', () => {
+    assert.equal(
+      zoneProspectionParDefaut([zone('lundi', 1), zone('mardi', 2)], MOI, MARDI),
+      'mardi',
+    );
+  });
+
+  it('prend le seul secteur du titulaire sans calendrier', () => {
+    assert.equal(zoneProspectionParDefaut([zone('ouest', null)], MOI, MARDI), 'ouest');
+  });
+
+  it('ignore les secteurs des collègues', () => {
+    assert.equal(
+      zoneProspectionParDefaut(
+        [zone('autre', null, 'thomas'), zone('mien', null)],
+        MOI,
+        MARDI,
+      ),
+      'mien',
+    );
+  });
+
+  it('ne force rien sans secteur à soi', () => {
+    assert.equal(
+      zoneProspectionParDefaut([zone('autre', 2, 'thomas')], MOI, MARDI),
+      null,
+    );
   });
 });

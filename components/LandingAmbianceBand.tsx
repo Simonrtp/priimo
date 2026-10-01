@@ -3,16 +3,17 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * Bleu tant que le milieu de la section prix est dans la zone centrale.
- * En sortant (haut ou bas), retour au blanc — au-dessus et en dessous ensemble.
+ * Bleu seulement tant que les cartes prix sont cadrées dans l’écran.
+ * Un petit scroll (le haut des cartes rejoint le header) → retour au blanc.
  */
 function shouldFlipDark(offres: HTMLElement): boolean {
-  const rect = offres.getBoundingClientRect();
+  const target = offres.querySelector<HTMLElement>(".offres-simples-grid") ?? offres;
+  const rect = target.getBoundingClientRect();
   const vh = window.innerHeight || 1;
-  const mid = rect.top + rect.height / 2;
-  const stillInPlay = rect.bottom > vh * 0.12 && rect.top < vh * 0.92;
-  if (!stillInPlay) return false;
-  return mid <= vh * 0.72;
+  const entered = rect.top < vh * 0.58;
+  const stillFramed = rect.top > vh * 0.22;
+  const stillAboveFold = rect.bottom > vh * 0.42;
+  return entered && stillFramed && stillAboveFold;
 }
 
 export default function LandingAmbianceBand({ children }: { children: ReactNode }) {

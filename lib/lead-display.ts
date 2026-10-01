@@ -120,13 +120,13 @@ function isEtageConfirmed(etage: string | null | undefined): boolean {
   return !Number.isNaN(n) && n >= 1;
 }
 
-/** Étage pour la liste leads : jamais « Rez-de-chaussée », RDC/absent → non confirmé. */
+/** Étage pour la liste leads : absent ou RDC non confirmé → rien. */
 export function formatEtageForList(
   etage: string | null | undefined,
   propertyType: string | null | undefined,
 ): string | null {
   if (propertyType === 'Maison') return null;
-  if (!isEtageConfirmed(etage)) return 'étage non confirmé';
+  if (!isEtageConfirmed(etage)) return null;
   const n = Number.parseInt((etage ?? '').trim(), 10);
   if (n === 1) return '1er étage';
   return `${n}e étage`;

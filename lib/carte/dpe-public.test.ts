@@ -51,10 +51,10 @@ describe('DPE fraîcheur publique', () => {
 });
 
 describe('formatDpeEtage', () => {
-  it('n’écrit jamais Rez-de-chaussée', () => {
-    assert.equal(formatDpeEtage(null), 'étage non confirmé');
-    assert.equal(formatDpeEtage(0), 'étage non confirmé');
-    assert.equal(formatDpeEtage(-1), 'étage non confirmé');
+  it('n’écrit rien si l’étage est inconnu', () => {
+    assert.equal(formatDpeEtage(null), null);
+    assert.equal(formatDpeEtage(-1), 'Sous-sol');
+    assert.equal(formatDpeEtage(0), 'Rez-de-chaussée');
     assert.equal(formatDpeEtage(1), '1er étage');
     assert.equal(formatDpeEtage(3), '3e étage');
   });

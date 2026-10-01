@@ -33,6 +33,7 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
     title: "Ressources",
     links: [
       { label: "Blog", href: "/blog" },
+      { label: "Questions fréquentes", href: "/faq" },
       { label: "À propos", href: "/a-propos" },
     ],
   },

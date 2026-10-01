@@ -116,14 +116,16 @@ export default function TodayCardView({
           {card.context ? (
             <p className="mt-0.5 truncate text-[13px] text-text-muted">{card.context}</p>
           ) : null}
-          <button
-            type="button"
-            onClick={runPrimary}
-            className="mt-2 font-semibold text-text-strong underline decoration-black/25 underline-offset-2"
-            style={{ fontSize: 13.5 }}
-          >
-            {ctaLink(card)}
-          </button>
+          {card.action.kind === 'appeler' ? null : (
+            <button
+              type="button"
+              onClick={runPrimary}
+              className="mt-2 font-semibold text-text-strong underline decoration-black/25 underline-offset-2"
+              style={{ fontSize: 13.5 }}
+            >
+              {ctaLink(card)}
+            </button>
+          )}
         </div>
       </article>
     );
@@ -170,21 +172,22 @@ export default function TodayCardView({
         />
       </div>
 
-      <div className="mt-4 sm:mt-5">
-        <WorkspaceButton type="button" onClick={runPrimary} className="max-sm:w-full">
-          {card.action.kind === 'appeler' ? <Phone size={16} strokeWidth={2} aria-hidden /> : null}
-          {ctaCourt(card)}
-          {isExpandable ? (
-            <ChevronDown
-              size={16}
-              strokeWidth={2}
-              aria-hidden
-              className="transition-transform duration-fluid-subtle ease-in-out motion-reduce:transition-none"
-              style={{ transform: expanded ? 'rotate(180deg)' : undefined }}
-            />
-          ) : null}
-        </WorkspaceButton>
-      </div>
+      {card.action.kind === 'appeler' ? null : (
+        <div className="mt-4 sm:mt-5">
+          <WorkspaceButton type="button" onClick={runPrimary} className="max-sm:w-full">
+            {ctaCourt(card)}
+            {isExpandable ? (
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
+                aria-hidden
+                className="transition-transform duration-fluid-subtle ease-in-out motion-reduce:transition-none"
+                style={{ transform: expanded ? 'rotate(180deg)' : undefined }}
+              />
+            ) : null}
+          </WorkspaceButton>
+        </div>
+      )}
 
       {expanded && card.matches ? (
         <ul className="mt-5 divide-y divide-black/[0.06] border-t border-black/[0.06]">

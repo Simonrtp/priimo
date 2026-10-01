@@ -48,7 +48,7 @@ export const DETECTION_PAGE: FeaturePageContent = {
     path: '/fonctionnalites/detection',
   },
   label: 'Prospection intelligente',
-  h1: 'Vous n’allez que là où le bien n’est pas encore en vente.',
+  h1: 'La pige est terminée, le terrain reprend.',
   mecanisme: [
     'Priimo croise des bases publiques françaises : diagnostics ADEME, ventes DVF, registre des copropriétés, cadastre IGN, BODACC. Chaque adresse reçoit un score de 0 à 100, calculé sur la fraîcheur du diagnostic et cinq signaux annexes plafonnés.',
     'Avant d’arriver dans votre tableau de bord, l’adresse est confrontée aux annonces des portails. Si le bien y figure, il sort de la liste. Ce qui reste, c’est un propriétaire qui a avancé — et un bien introuvable en ligne au jour de la vérification.',

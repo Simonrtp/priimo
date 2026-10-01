@@ -12,6 +12,7 @@ import EstimationListe, { type EstimationResume } from './atelier/EstimationList
 import EstimationAtelier from './atelier/EstimationAtelier';
 import EstimationAtelierSquelette from './atelier/EstimationAtelierSquelette';
 import SectionBibliothequePages from '@/components/dashboard/settings/SectionBibliothequePages';
+import Pastilles from '@/components/ui/Pastilles';
 
 type EstimationVue = 'estimer' | 'rapport';
 
@@ -178,38 +179,18 @@ export default function EstimationDashboardClient({
         }
         primaryAction={
           dansAtelier ? undefined : (
-            <div
-              className="flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset"
+            <Pastilles
               role="tablist"
-              aria-label="Vue estimations"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={vue === 'estimer'}
-                onClick={() => allerVue('estimer')}
-                className={`inline-flex min-h-[36px] items-center rounded-[10px] px-3 text-[12.5px] font-semibold transition-colors ${
-                  vue === 'estimer'
-                    ? 'bg-surface text-text-strong shadow-clay-sm'
-                    : 'text-text-muted hover:text-text'
-                }`}
-              >
-                Estimations
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={vue === 'rapport'}
-                onClick={() => allerVue('rapport')}
-                className={`inline-flex min-h-[36px] items-center rounded-[10px] px-3 text-[12.5px] font-semibold transition-colors ${
-                  vue === 'rapport'
-                    ? 'bg-surface text-text-strong shadow-clay-sm'
-                    : 'text-text-muted hover:text-text'
-                }`}
-              >
-                Modèle de rapport
-              </button>
-            </div>
+              label="Vue estimations"
+              value={vue}
+              options={
+                [
+                  { id: 'estimer' as const, label: 'Estimations' },
+                  { id: 'rapport' as const, label: 'Modèle de rapport' },
+                ] as const
+              }
+              onChange={allerVue}
+            />
           )
         }
       />

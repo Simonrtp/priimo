@@ -4,10 +4,10 @@ import { formatEtageForList, leadListAddressLine } from '../lead-display.js';
 import { parseFacadeFormat, parseFacadeGeoParams, streetViewStaticUrl } from './street-view.js';
 
 describe('formatEtageForList', () => {
-  it('affiche « étage non confirmé » si absent ou RDC', () => {
-    assert.equal(formatEtageForList(null, 'Appartement'), 'étage non confirmé');
-    assert.equal(formatEtageForList('RDC', 'Appartement'), 'étage non confirmé');
-    assert.equal(formatEtageForList('0', 'Appartement'), 'étage non confirmé');
+  it('masque l’étage s’il n’est pas confirmé', () => {
+    assert.equal(formatEtageForList(null, 'Appartement'), null);
+    assert.equal(formatEtageForList('RDC', 'Appartement'), null);
+    assert.equal(formatEtageForList('0', 'Appartement'), null);
   });
 
   it('formate les étages confirmés sans rez-de-chaussée', () => {

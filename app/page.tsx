@@ -5,11 +5,11 @@ import AgencyLogos from "@/components/AgencyLogos";
 import ProblemTransformation from "@/components/ProblemTransformation";
 import WhyPriimo from "@/components/WhyPriimo";
 import OffresSimplesIntro from "@/components/OffresSimplesIntro";
+import FAQ from "@/components/FAQ";
 import LandingAmbianceBand from "@/components/LandingAmbianceBand";
 import HowItWorks from "@/components/HowItWorks";
 import Features from "@/components/Features";
 import DataReassurance from "@/components/DataReassurance";
-import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 import ScrollLine from "@/components/ScrollLine";
 
@@ -46,10 +46,11 @@ export default function Page() {
         {/* === B2 — AGENCES (preuve sociale) === */}
         <AgencyLogos />
 
-        {/* Why + prix + section suivante : même ambiance, en même temps */}
+        {/* Why + prix + FAQ + constat : même ambiance, en même temps */}
         <LandingAmbianceBand>
           <WhyPriimo />
           <OffresSimplesIntro />
+          <FAQ />
           <ProblemTransformation />
         </LandingAmbianceBand>
 
@@ -61,9 +62,6 @@ export default function Page() {
 
         {/* === G — DATA REASSURANCE === */}
         <DataReassurance />
-
-        {/* === I — FAQ === */}
-        <FAQ />
 
         {/* === J — FINAL CTA === */}
         <FinalCTA />

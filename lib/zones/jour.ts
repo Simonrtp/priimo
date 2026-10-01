@@ -6,7 +6,7 @@ import type { Zone } from './types';
  * La zone du jour.
  *
  * Une agence qui découpe par jour de semaine travaille un secteur à la fois :
- * l'Accueil et la tournée doivent alors filtrer d'eux-mêmes, sinon l'agent
+ * l'Accueil, la tournée et la Prospection doivent alors filtrer d'eux-mêmes, sinon l'agent
  * refait le tri à la main chaque matin.
  *
  * Le vendredi sans secteur assigné n'est pas un oubli, c'est la méthode : on
@@ -80,6 +80,22 @@ export function zoneDuJour(
 ): Zone | null {
   const mode = modeDuJour(zones, profileId, maintenant);
   return mode.mode === 'secteur' ? mode.zone : null;
+}
+
+/**
+ * Secteur ouvert par défaut en Prospection, quand l'URL ne dit rien.
+ *
+ * Le jour prévu d'abord, sinon le seul secteur du titulaire, sinon le premier.
+ * Sans secteur à lui, la carte reste sans filtre.
+ */
+export function zoneProspectionParDefaut(
+  zones: readonly Zone[],
+  profileId: string,
+  maintenant: Date = new Date(),
+): string | null {
+  const siennes = zones.filter((z) => z.actif && z.assignedTo === profileId);
+  if (siennes.length === 0) return null;
+  return zoneDuJour(siennes, profileId, maintenant)?.id ?? siennes[0]!.id;
 }
 
 /**

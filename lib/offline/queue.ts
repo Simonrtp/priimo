@@ -22,7 +22,18 @@ export type OfflineQueueItem = {
   createdAt: string;
   attempts: number;
   lastError?: string;
+  /**
+   * Refus définitif du serveur (format, taille, dictée introuvable) : on ne
+   * réessaie plus, mais on garde l’envoi — c’est peut-être la seule copie
+   * d’une dictée.
+   */
+  bloque?: boolean;
 };
+
+/** Ces refus peuvent passer plus tard (session expirée, limite, délai). */
+function estRefusTemporaire(status: number): boolean {
+  return status === 401 || status === 403 || status === 408 || status === 425 || status === 429;
+}
 
 export type OfflineFormPart =
   | { type: 'text'; name: string; value: string }
@@ -154,7 +165,7 @@ export async function removeFromQueue(id: string): Promise<void> {
   await withStore('readwrite', (store) => store.delete(id));
 }
 
-export async function bumpAttempt(id: string, error: string): Promise<void> {
+export async function bumpAttempt(id: string, error: string, bloque = false): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
@@ -165,6 +176,7 @@ export async function bumpAttempt(id: string, error: string): Promise<void> {
       if (!row) return;
       row.attempts += 1;
       row.lastError = error.slice(0, 240);
+      if (bloque) row.bloque = true;
       store.put(row);
     };
     tx.oncomplete = () => {
@@ -198,6 +210,7 @@ export async function flushQueue(): Promise<{ sent: number; remaining: number }>
   const items = await listQueue();
   let sent = 0;
   for (const item of items) {
+    if (item.bloque) continue;
     try {
       let res: Response;
       if (item.kind === 'json') {
@@ -216,7 +229,8 @@ export async function flushQueue(): Promise<{ sent: number; remaining: number }>
         });
       }
       if (!res.ok && res.status !== 409) {
-        await bumpAttempt(item.id, `HTTP ${res.status}`);
+        const temporaire = res.status >= 500 || estRefusTemporaire(res.status);
+        await bumpAttempt(item.id, `HTTP ${res.status}`, !temporaire);
         continue;
       }
       await removeFromQueue(item.id);
@@ -257,27 +271,33 @@ export async function postJsonOrQueue(
   }
 }
 
-/** POST FormData (dictée) : jamais perdu hors ligne. */
+/**
+ * POST FormData (dictée) : jamais perdu hors ligne.
+ *
+ * `champsSiDifferee` s’ajoutent seulement à l’envoi mis en file : ils disent au
+ * serveur que personne n’attend la réponse à l’écran.
+ */
 export async function postFormOrQueue(
   url: string,
   form: FormData,
+  opts?: { champsSiDifferee?: Record<string, string> },
 ): Promise<{ queued: boolean; res: Response | null }> {
-  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-  if (offline) {
+  const mettreEnFile = async () => {
+    for (const [name, value] of Object.entries(opts?.champsSiDifferee ?? {})) {
+      form.set(name, value);
+    }
     await enqueueFormData({ url, form });
     return { queued: true, res: null };
-  }
+  };
+  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+  if (offline) return mettreEnFile();
   try {
     const res = await fetch(url, { method: 'POST', body: form });
     if (res.ok) return { queued: false, res };
     // 5xx / réseau intermittent : file pour ne pas perdre la dictée
-    if (res.status >= 500) {
-      await enqueueFormData({ url, form });
-      return { queued: true, res: null };
-    }
+    if (res.status >= 500) return mettreEnFile();
     return { queued: false, res };
   } catch {
-    await enqueueFormData({ url, form });
-    return { queued: true, res: null };
+    return mettreEnFile();
   }
 }

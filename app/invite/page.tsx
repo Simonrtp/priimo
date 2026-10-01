@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { isValidFrenchPhone } from '@/lib/phone';
 import PhoneInput from '@/components/ui/PhoneInput';
+import AuthWait from '@/components/AuthWait';
 
 type Invitation = {
   role: 'directeur' | 'collaborateur';
@@ -242,7 +243,11 @@ function InvitePageContent() {
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          aria-busy={submitting}
+          className={`space-y-5${submitting ? ' is-waiting' : ''}`}
+        >
               {isDirector && (
                 <div>
                   <label htmlFor="agency-name" className={labelClass}>
@@ -402,16 +407,11 @@ function InvitePageContent() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+                aria-busy={submitting}
+                aria-label={submitting ? 'Création du compte en cours' : undefined}
+                className={submitting ? 'auth-wait-btn' : 'btn btn-primary w-full'}
               >
-                {submitting ? (
-                  <>
-                    <span className="spinner" aria-hidden />
-                    <span>Création en cours…</span>
-                  </>
-                ) : (
-                  <span>Créer mon compte</span>
-                )}
+                {submitting ? <AuthWait label="Un instant." /> : <span>Créer mon compte</span>}
               </button>
         </form>
       </div>

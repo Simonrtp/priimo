@@ -35,6 +35,7 @@ export type ParcelleVente = {
   surface: number | null;
   prixM2: number | null;
   typeLocal: string | null;
+  nombrePieces: number | null;
 };
 
 export type ParcelleCopro = {
@@ -57,10 +58,17 @@ export type ParcelleFiche = {
   reference: string;
   adresse: string | null;
   videPublic: boolean;
+  surfaceCadastreM2: number | null;
+  nbAdresses: number;
+  prixM2Median: number | null;
   ventes: ParcelleVente[];
   diagnostics: PublicDiagnostic[];
   coproprietes: ParcelleCopro[];
   surCetteParcelle: ParcelleAgencyItem[];
+};
+
+export type ParcellePickExtra = {
+  surfaceM2?: number | null;
 };
 
 export type ParcelleNoteMarker = {
@@ -132,6 +140,34 @@ export function centroidLngLat(geometry: unknown): { longitude: number; latitude
   return { longitude: sx / n, latitude: sy / n };
 }
 
+/** Contenance cadastrale en m², d’après l’anneau PCI (approx. locale). */
+export function surfaceCadastreM2(geometry: unknown): number | null {
+  const ring = firstRing(geometry);
+  if (!ring || ring.length < 4) return null;
+  const lat0 = ((ring[0]![1] ?? 0) * Math.PI) / 180;
+  const kx = 111_320 * Math.cos(lat0);
+  const ky = 110_540;
+  let s = 0;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const x1 = (ring[i]![0] ?? 0) * kx;
+    const y1 = (ring[i]![1] ?? 0) * ky;
+    const x2 = (ring[i + 1]![0] ?? 0) * kx;
+    const y2 = (ring[i + 1]![1] ?? 0) * ky;
+    s += x1 * y2 - x2 * y1;
+  }
+  const a = Math.abs(s) / 2;
+  if (a < 2) return null;
+  return Math.round(a);
+}
+
+export function contenanceDepuisProps(
+  props: Record<string, unknown> | null | undefined,
+): number | null {
+  const raw = props?.contenance ?? props?.area ?? props?.superficie;
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(String(raw).replace(',', '.')) : NaN;
+  return Number.isFinite(n) && n > 1 ? Math.round(n) : null;
+}
+
 export function emptyParcelleFiche(raw: string): ParcelleFiche {
   const parcelleId = normalizeParcelleId(raw) ?? (raw ?? '').trim().toUpperCase();
   return {
@@ -139,6 +175,9 @@ export function emptyParcelleFiche(raw: string): ParcelleFiche {
     reference: formatParcelleId(parcelleId),
     adresse: null,
     videPublic: true,
+    surfaceCadastreM2: null,
+    nbAdresses: 0,
+    prixM2Median: null,
     ventes: [],
     diagnostics: [],
     coproprietes: [],

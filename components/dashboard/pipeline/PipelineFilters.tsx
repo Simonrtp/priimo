@@ -3,6 +3,7 @@
 import type { TeamMember } from '@/types/lead';
 import Select from '@/components/ui/Select';
 import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
+import Pastilles from '@/components/ui/Pastilles';
 
 export default function PipelineFilters({
   scope,
@@ -24,30 +25,17 @@ export default function PipelineFilters({
   return (
     <div className="mb-4 flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div
-          className="flex rounded-xl bg-black/[0.05] p-0.5"
-          role="group"
-          aria-label="Périmètre des leads"
-        >
-          <button
-            type="button"
-            onClick={() => onScope('mine')}
-            className={`min-h-[36px] rounded-[10px] px-3 text-[12.5px] font-semibold ${
-              scope === 'mine' ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted'
-            }`}
-          >
-            Mes leads
-          </button>
-          <button
-            type="button"
-            onClick={() => onScope('agency')}
-            className={`min-h-[36px] rounded-[10px] px-3 text-[12.5px] font-semibold ${
-              scope === 'agency' ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted'
-            }`}
-          >
-            Toute l&apos;agence
-          </button>
-        </div>
+        <Pastilles
+          label="Périmètre des leads"
+          value={scope}
+          options={
+            [
+              { id: 'mine' as const, label: 'Mes leads' },
+              { id: 'agency' as const, label: "Toute l'agence" },
+            ] as const
+          }
+          onChange={onScope}
+        />
         {showNegotiator ? (
           <Select
             aria-label="Négociateur"

@@ -4,7 +4,7 @@ import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 
 /**
  * Vue Accueil pour un directeur.
- * À la connexion → « Mon équipe » (sauf choix explicite « Ma semaine »).
+ * À la connexion → « L'agence » (sauf choix explicite « Ma semaine »).
  */
 export function resolveVueAccueilDirecteur(input: {
   cookie: string | undefined | null;

@@ -1,7 +1,7 @@
 import Image from "next/image";
-import { Zap } from "lucide-react";
 import Reveal from "./Reveal";
 import LogicielOnglets from "./LogicielOnglets";
+import CapsuleGlyph from "@/components/landing/CapsuleGlyph";
 
 /**
  * Pourquoi les agences adorent Priimo — 3 piliers (style Tiime).
@@ -67,18 +67,10 @@ export default function WhyPriimo() {
         <h2 className="why-priimo-outro-title">
           <span className="why-priimo-outro-lead">Un logiciel tout-en-un</span>
           <span className="why-priimo-capsule">
-            <Zap
-              aria-hidden
-              className="why-priimo-capsule-icon"
-              strokeWidth={2}
-              fill="currentColor"
-            />
+            <CapsuleGlyph kind="bolt" className="why-priimo-capsule-icon" />
             simplissime
           </span>
         </h2>
-        <p className="why-priimo-outro-text">
-          Prospection - Données - Terrain
-        </p>
       </Reveal>
 
       <LogicielOnglets />

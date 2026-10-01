@@ -34,7 +34,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const { data: note } = await admin
     .from('voice_notes')
     .select(
-      'id, agency_id, created_by, visibilite, source_info, latitude, longitude, ban_id, adresse_normalisee, geocode_score, geocode_le, storage_path',
+      'id, agency_id, created_by, visibilite, source_info, latitude, longitude, ban_id, adresse_normalisee, geocode_score, geocode_le, storage_path, created_at',
     )
     .eq('id', voiceNoteId)
     .eq('agency_id', agency.id)
@@ -59,6 +59,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     keepGps,
     keepAdresse,
     keepSourceInfo,
+    noteDate: note.created_at ? new Date(note.created_at) : undefined,
+    agentPrenom: profile.first_name ?? null,
+    lieuConnu: {
+      banId: note.ban_id ?? null,
+      adresse: note.adresse_normalisee ?? null,
+      latitude: note.latitude ?? null,
+      longitude: note.longitude ?? null,
+    },
     initialGeo: keepAdresse
       ? {
           ban_id: note.ban_id ?? null,

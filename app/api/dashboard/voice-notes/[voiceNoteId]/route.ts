@@ -7,13 +7,13 @@ import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-member
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import type { VoiceNoteRow } from '@/types/database';
 import { withRejectedKey } from '@/lib/notes/attachment-proposals';
+import { supprimerAudioNote } from '@/lib/voice/storage';
 
 export const runtime = 'nodejs';
 
 const VIS: readonly VoiceNoteVisibilite[] = ['agence', 'privee'];
 const SOURCES: readonly NoteSourceInfo[] = ['proprietaire', 'gardien', 'voisin', 'tiers', 'agent'];
 
-const BUCKET = 'voice-notes';
 
 /**
  * Bascule visibilité, source, relance, ou clôture de revue.
@@ -170,10 +170,8 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ voiceNoteId
     return NextResponse.json({ error: 'Dictée introuvable' }, { status: 404 });
   }
 
-  if (note.storage_path && !note.storage_path.endsWith('.typed')) {
-    const { error: storageError } = await admin.storage.from(BUCKET).remove([note.storage_path]);
-    if (storageError) console.error('[voice] suppression audio', storageError);
-  }
+  // Toutes les prises, pas seulement la première.
+  await supprimerAudioNote(admin, agency.id, voiceNoteId, note.storage_path);
 
   const { error } = await admin
     .from('voice_notes')

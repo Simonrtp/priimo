@@ -49,7 +49,7 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
  * a pas de survol (doigt, stylet).
  */
 const PILULE =
-  'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold text-text-strong shadow-clay-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
+  'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold shadow-clay-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
 
 /**
  * Le volet du bouton. Au repos il est fermé : la carte reste courte. Au survol
@@ -152,7 +152,7 @@ function BoutonNote({
             aria-expanded={ouvert}
             aria-controls={ouvert ? menuId : undefined}
             onClick={() => setOuvert((prev) => !prev)}
-            className={`${PILULE} shrink-0 whitespace-nowrap`}
+            className={`${PILULE} shrink-0 whitespace-nowrap text-text-strong focus-visible:outline-primary-600`}
             style={{ backgroundColor: fond }}
           >
             {libelle}
@@ -307,7 +307,7 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
                   e.stopPropagation();
                   ouvrir();
                 }}
-                className={`${PILULE} shrink-0 whitespace-nowrap`}
+                className={`${PILULE} shrink-0 whitespace-nowrap text-text-strong focus-visible:outline-primary-600`}
                 style={{ backgroundColor: pastelFort }}
               >
                 Mes notes
@@ -318,8 +318,12 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
           <Volet>
             <Link
               href={action.href}
-              className={PILULE}
-              style={{ backgroundColor: pastelFort }}
+              className={
+                famille === 'estimations'
+                  ? `${PILULE} bg-accent text-white hover:bg-accent-dark focus-visible:outline-accent`
+                  : `${PILULE} text-text-strong focus-visible:outline-primary-600`
+              }
+              style={famille === 'estimations' ? undefined : { backgroundColor: pastelFort }}
             >
               {action.libelle}
               <ArrowRight size={12} strokeWidth={2.6} />

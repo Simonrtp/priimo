@@ -21,7 +21,7 @@ import {
   dpeAgeSpan,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
-import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
+import { CADASTRE_OVERLAY_MIN_ZOOM, PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
 
 const SLATE = '#1A2A56';
 const THUMB_PAD = 14;
@@ -231,24 +231,25 @@ export default function CadastreLayerControls({
 }) {
   const open = layers.cadastreMenuOpen;
   const tooFarPoints = mapZoom !== null && mapZoom < CADASTRE_OVERLAY_MIN_ZOOM;
+  const tooFarParcelles = mapZoom !== null && mapZoom < PARCELLE_MIN_ZOOM;
   const row = compact ? 'min-h-[44px]' : 'min-h-[40px]';
   const pad = compact ? 'px-1' : 'px-2.5 py-1.5';
   const folderOn = anyCadastreLayer(layers);
 
   return (
-    <li>
+    <li className="rounded-[14px] bg-[#E6E8EB]/90">
       <button
         type="button"
         aria-expanded={open}
         aria-label={open ? 'Replier Cadastre' : 'Déplier Cadastre'}
         onClick={onToggleMenu}
-        className={`flex w-full ${row} items-center gap-3 rounded-xl ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#E8EBEF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-          folderOn ? 'bg-[#EEF0F3]' : 'bg-[#F5F6F8]'
+        className={`flex w-full ${row} items-center gap-3 rounded-[14px] ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#DDE0E4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]/40 ${
+          folderOn ? 'text-text' : 'text-text-muted'
         }`}
       >
         <span
           className={`min-w-0 flex-1 text-[13.5px] font-medium ${
-            folderOn ? 'text-text-strong' : 'text-text-muted'
+            folderOn ? 'text-[#4A5560]' : 'text-text-muted'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -282,7 +283,7 @@ export default function CadastreLayerControls({
         className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
         aria-hidden={!open}
       >
-        <ul className={`mt-1 flex flex-col gap-0.5 ${compact ? 'pl-4' : 'pl-7'}`}>
+        <ul className={`mt-0.5 flex flex-col gap-0.5 pb-1 ${compact ? 'pl-3' : 'pl-6'}`}>
           {CADASTRE_OVERLAY_IDS.map((id) => {
             const key = overlayKey(id);
             const active = layers[key];
@@ -309,6 +310,10 @@ export default function CadastreLayerControls({
                     {tooFarPoints ? (
                       <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
                         Zoomez pour afficher
+                      </span>
+                    ) : id === 'ventes' && tooFarParcelles && layers.cadastreVentes ? (
+                      <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
+                        Zoomez pour les parcelles
                       </span>
                     ) : null}
                   </span>

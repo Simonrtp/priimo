@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   hoverPreviewFromCadastre,
   hoverPreviewFromPoint,
+  hoverPreviewFromVenteParcelle,
 } from './hover-preview';
 import type { MapPoint } from './points';
 import type { CadastreImmeublePoint } from './parcelle';
@@ -110,14 +111,13 @@ describe('hoverPreviewFromCadastre', () => {
     assert.ok(preview.lines.includes('3e étage'));
   });
 
-  it('écrit étage non confirmé, jamais Rez-de-chaussée', () => {
+  it('n’écrit pas l’étage s’il est inconnu', () => {
     const preview = hoverPreviewFromCadastre(
       { ...immeuble, etageDpe: null, dpeGrain: 'immeuble' },
       'dpe',
     );
-    assert.ok(preview.lines.includes('étage non confirmé'));
     assert.equal(
-      preview.lines.some((l) => /rez-de-chaussée/i.test(l)),
+      preview.lines.some((l) => /étage|rez-de-chaussée|sous-sol/i.test(l)),
       false,
     );
   });
@@ -139,5 +139,22 @@ describe('hoverPreviewFromCadastre', () => {
     assert.equal(preview.kindLabel, 'Copropriété');
     assert.equal(preview.title, '20 lots');
     assert.ok(preview.lines.includes('Procédure en cours'));
+  });
+});
+
+describe('hoverPreviewFromVenteParcelle', () => {
+  it('montre le médian de la parcelle, pas d’un immeuble', () => {
+    const preview = hoverPreviewFromVenteParcelle({
+      parcelleId: '75120000EC0003',
+      adresse: '10 rue des Maraîchers',
+      nbTransactions: 5,
+      prixM2: 9000,
+      dernierPrix: 520000,
+      derniereTransactionLe: '2024-06-01',
+    });
+    assert.equal(preview.kindLabel, 'Vente');
+    assert.equal(preview.title, '10 rue des Maraîchers');
+    assert.ok(preview.lines.some((l) => l.includes('9') && l.includes('€/m²') && l.includes('médian')));
+    assert.ok(preview.lines.includes('5 ventes connues'));
   });
 });

@@ -176,6 +176,23 @@ function PrefetchMediasOnglets() {
 export default function LogicielOnglets() {
   const baseId = useId();
   const [actif, setActif] = useState(FONCTIONNALITES[0].slug);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+
+    function relayerMolette(e: WheelEvent) {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const overflowX = getComputedStyle(bar).overflowX;
+      if (overflowX === "visible" || overflowX === "clip") return;
+      e.preventDefault();
+      window.scrollBy(0, e.deltaY);
+    }
+
+    bar.addEventListener("wheel", relayerMolette, { passive: false });
+    return () => bar.removeEventListener("wheel", relayerMolette);
+  }, []);
 
   const focusTab = (slug: string) => {
     setActif(slug);
@@ -186,6 +203,7 @@ export default function LogicielOnglets() {
     <div className="logiciel-onglets">
       <PrefetchMediasOnglets />
       <div
+        ref={barRef}
         className="logiciel-onglets-bar"
         role="tablist"
         aria-label="Fonctionnalités du logiciel"

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
+import { rateLimit } from '@/lib/rate-limit';
 import { MistralKeyMissingError, requireMistralKey, transcribeAudio } from '@/lib/voice/transcribe';
 
 export const runtime = 'nodejs';
@@ -28,15 +28,16 @@ function extensionFor(mime: string): string {
  * Pas de stockage, pas d’extraction : le texte arrive avant l’arrêt.
  */
 export async function POST(req: Request) {
-  const ip = clientIpFromRequest(req);
-  const limit = rateLimit(`voice-stt:${ip}`, { limit: 80, windowMs: 10 * 60 * 1000 });
-  if (!limit.ok) {
-    return NextResponse.json({ error: 'Trop de transcriptions' }, { status: 429 });
-  }
-
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  // Par agent : derrière le wifi de l’agence ou un réseau mobile, plusieurs
+  // agents partagent la même IP et se coupaient la pré-transcription.
+  const limit = rateLimit(`voice-stt:${profile.id}`, { limit: 120, windowMs: 10 * 60 * 1000 });
+  if (!limit.ok) {
+    return NextResponse.json({ error: 'Trop de transcriptions' }, { status: 429 });
   }
 
   let form: FormData;
@@ -63,12 +64,8 @@ export async function POST(req: Request) {
     const apiKey = requireMistralKey();
     const outcome = await transcribeAudio(audio, `live.${extensionFor(mime)}`, apiKey);
     const text = outcome.ok ? outcome.text : '';
-    console.info('[voice] stt brut', {
-      ok: outcome.ok,
-      kind: outcome.ok ? 'ok' : outcome.kind,
-      chars: text.length,
-      text,
-    });
+    // Jamais le texte : une dictée nomme des personnes, les logs ne l’effacent pas.
+    if (!outcome.ok) console.info('[voice] stt', { kind: outcome.kind, status: outcome.status ?? null });
     return NextResponse.json({ text });
   } catch (err) {
     if (err instanceof MistralKeyMissingError) {

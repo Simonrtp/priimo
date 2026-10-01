@@ -166,15 +166,6 @@ export default function TodayClient({
 
   return (
     <div className={pilotage ? 'w-full min-w-0' : 'w-full min-w-0 pt-2'}>
-      {previewingAgent ? (
-        <p className="mb-4 rounded-clay border border-black/[0.06] bg-white px-4 py-2.5 text-[13px] text-text-muted">
-          Vue agent — ce que voit un collaborateur.{' '}
-          <a href="/dashboard/settings?tab=profile" className="font-medium text-text underline underline-offset-2">
-            Désactiver dans Paramètres
-          </a>
-          .
-        </p>
-      ) : null}
       {pilotage ? null : (
         <>
           <TodayStatusBand

@@ -28,7 +28,7 @@ export function DessinerMonSecteur({
 }) {
   return (
     <CarteVideAccueil
-      titre={estDirecteur ? 'Les secteurs de l’agence' : 'Couverture de mon secteur'}
+      titre={estDirecteur ? 'Les secteurs de l’agence' : 'Mon secteur'}
       accroche="Deux minutes pour définir son terrain, montre en main."
       etapes={estDirecteur ? ETAPES_DIRECTION : ETAPES}
       icone="/emplacement.png"

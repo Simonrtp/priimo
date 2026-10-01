@@ -3,6 +3,7 @@ import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
 import { ACCUEIL, FIELD } from '@/lib/today/field';
 import { EmploiDuTempsSquelette } from './EmploiDuTemps';
+import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 
 const OBJECTIF = {
   teinte: '#7C4DD3',
@@ -268,16 +269,9 @@ export function EnteteSquelette({
         <Trait className="mt-1.5 h-4 w-4/5 rounded" />
       </div>
       <div className="order-1 flex items-center justify-end gap-2 sm:order-none sm:ml-auto">
-        <div className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset">
+        <div className={PASTILLE_TRACK}>
           {periodes.map(([id, libelle]) => (
-            <span
-              key={id}
-              className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold ${
-                id === periodeActive
-                  ? 'bg-surface text-text-strong shadow-clay-sm'
-                  : 'text-text-muted'
-              }`}
-            >
+            <span key={id} className={pastilleClass(id === periodeActive)}>
               {libelle}
             </span>
           ))}

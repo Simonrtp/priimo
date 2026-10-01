@@ -2,6 +2,7 @@
 
 import { LayoutList, Columns3, Map } from 'lucide-react';
 import type { ProspectionVue } from '@/lib/prospection/vue';
+import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 
 export type { ProspectionVue } from '@/lib/prospection/vue';
 export { parseProspectionVue, prospectionHref, carteVersProspectionHref } from '@/lib/prospection/vue';
@@ -32,7 +33,7 @@ export default function ProspectsViewSwitch({
       ? 'flex rounded-clay border border-black/[0.08] bg-surface/95 p-0.5 shadow-clay-sm backdrop-blur-sm'
       : bar
         ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-sm'
-        : 'flex rounded-xl bg-black/[0.05] p-0.5 shadow-clay-inset';
+        : PASTILLE_TRACK;
 
   return (
     <div className={`${shellClass} overflow-visible`} role="tablist" aria-label="Vue prospection">
@@ -50,10 +51,10 @@ export default function ProspectsViewSwitch({
             onClick={() => onChange(id)}
             className={`inline-flex items-center justify-center font-semibold transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
               bar
-                ? 'size-9 rounded-full'
-                : 'min-h-[36px] gap-1 rounded-[10px] px-2 text-[12px] sm:gap-1.5 sm:px-2.5 sm:text-[12.5px] md:px-3'
-            } ${
-              active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
+                ? `size-9 rounded-full ${
+                    active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
+                  }`
+                : `gap-1 sm:gap-1.5 ${pastilleClass(active)}`
             }`}
           >
             <Icon size={bar ? 16 : 14} strokeWidth={2.2} aria-hidden />

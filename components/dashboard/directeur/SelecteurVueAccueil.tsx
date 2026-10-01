@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Pastilles from '@/components/ui/Pastilles';
 import { ACCUEIL_VUE_COOKIE, type AccueilVue } from '@/lib/today/accueil-vue';
 
 function writeCookie(vue: AccueilVue) {
@@ -8,7 +9,12 @@ function writeCookie(vue: AccueilVue) {
   document.cookie = `${ACCUEIL_VUE_COOKIE}=${encodeURIComponent(vue)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 }
 
-/** Sélecteur Mon équipe / Ma semaine — seul écart d'écran lié au rôle directeur. */
+const OPTIONS = [
+  { id: 'directeur' as const, label: "L'agence" },
+  { id: 'agent' as const, label: 'Ma semaine' },
+] as const;
+
+/** Sélecteur L'agence / Ma semaine — seul écart d'écran lié au rôle directeur. */
 export default function SelecteurVueAccueil({
   vue,
 }: {
@@ -23,35 +29,12 @@ export default function SelecteurVueAccueil({
   }
 
   return (
-    <div
-      className="inline-flex w-fit shrink-0 rounded-full border border-black/[0.08] bg-white p-1 shadow-clay-sm"
+    <Pastilles
       role="tablist"
-      aria-label="Vue d'accueil"
-    >
-      {(
-        [
-          { id: 'directeur' as const, label: 'Mon équipe' },
-          { id: 'agent' as const, label: 'Ma semaine' },
-        ] as const
-      ).map((opt) => {
-        const actif = vue === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            role="tab"
-            aria-selected={actif}
-            onClick={() => choisir(opt.id)}
-            className={`min-h-9 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
-              actif
-                ? 'bg-[#1a2a56] text-white'
-                : 'text-text-muted hover:text-text'
-            }`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
+      label="Vue d'accueil"
+      value={vue}
+      options={OPTIONS}
+      onChange={choisir}
+    />
   );
 }

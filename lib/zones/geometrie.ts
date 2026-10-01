@@ -199,3 +199,39 @@ export function collectionGeojsonDeZone(zone: Zone): GeoJSON.FeatureCollection {
     })),
   };
 }
+
+const ANNEAU_MONDE: [number, number][] = [
+  [-180, -85],
+  [180, -85],
+  [180, 85],
+  [-180, 85],
+  [-180, -85],
+];
+
+/**
+ * Voile hors du secteur : un polygone-monde percé des contours du titulaire.
+ * Les clics passent dans les trous ; le voile n’est que visuel.
+ */
+export function collectionMasqueHorsZone(zone: Zone): GeoJSON.FeatureCollection {
+  const trous = polygonesDeZone(zone)
+    .map((p) => p.coordinates[0])
+    .filter((anneau): anneau is readonly (readonly [number, number])[] =>
+      Boolean(anneau && anneau.length >= 4),
+    )
+    .map((anneau) => anneau.map(([lng, lat]) => [lng, lat] as [number, number]));
+  if (trous.length === 0) return { type: 'FeatureCollection', features: [] };
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { kind: 'masque' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [ANNEAU_MONDE, ...trous],
+        },
+      },
+    ],
+  };
+}
+

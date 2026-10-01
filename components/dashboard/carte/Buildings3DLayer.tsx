@@ -17,6 +17,20 @@ const MIN_ZOOM = 14;
 const WALL = '#E3D9CC';
 const WALL_TALL = '#D2C6B6';
 
+/** Extrusions du fond de plan : coupées. Seul `priimo-buildings-3d` (mobile) les pose. */
+function hideStyleExtrusions(map: MapboxMap): void {
+  const layers = map.getStyle()?.layers;
+  if (!layers) return;
+  for (const layer of layers) {
+    if (layer.type !== 'fill-extrusion' || layer.id === BUILDINGS_3D_LAYER_ID) continue;
+    try {
+      map.setLayoutProperty(layer.id, 'visibility', 'none');
+    } catch {
+      /* couche absente ou propriété illégale */
+    }
+  }
+}
+
 /**
  * Insère les extrusions *sous* les libellés du fond de plan : les pastilles
  * DPE, les prix de vente et les copropriétés restent lisibles par-dessus.
@@ -32,6 +46,11 @@ function firstLabelLayerId(map: MapboxMap): string | undefined {
   return undefined;
 }
 
+/**
+ * Relief des immeubles : **mobile uniquement**.
+ * Sur le bureau, `enabled` reste faux — le plan s'incline (pitch),
+ * les toits ne se lèvent pas.
+ */
 export default function Buildings3DLayer({
   mapRef,
   enabled,
@@ -55,6 +74,7 @@ export default function Buildings3DLayer({
         return;
       }
 
+      hideStyleExtrusions(map);
       if (!enabled) {
         if (present) map.removeLayer(BUILDINGS_3D_LAYER_ID);
         return;

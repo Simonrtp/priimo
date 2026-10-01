@@ -231,14 +231,16 @@ export default function TaskCard({
             ) : null}
           </div>
         </div>
-        <button
-          type="button"
-          className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[12px] font-semibold text-white"
-          style={{ backgroundColor: isBurn ? FIELD.orange : FIELD.orange, fontSize: 14.5 }}
-          {...tapProps(onAction)}
-        >
-          {ctaCourt(card)}
-        </button>
+        {card.action.kind === 'appeler' ? null : (
+          <button
+            type="button"
+            className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[12px] font-semibold text-white"
+            style={{ backgroundColor: FIELD.ardoise, fontSize: 14.5 }}
+            {...tapProps(onAction)}
+          >
+            {ctaCourt(card)}
+          </button>
+        )}
       </article>
     </div>
   );

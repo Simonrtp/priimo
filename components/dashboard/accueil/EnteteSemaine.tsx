@@ -8,6 +8,7 @@ import {
   type Intervalle,
   type Periode,
 } from '@/lib/activite/semaines';
+import Pastilles from '@/components/ui/Pastilles';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois', 'annee'];
 
@@ -65,7 +66,7 @@ export default function EnteteSemaine({
   enCours: boolean;
   /** Change la granularité ou l'ancre. `null` en ancre = période en cours. */
   onChanger: (periode: Periode, ancre: string | null) => void;
-  /** Avant le titre (ex. Mon équipe / Ma semaine). */
+  /** Avant le titre (ex. L'agence / Ma semaine). */
   debut?: ReactNode;
   /** Juste à droite du titre, avant le sélecteur de période. */
   droite?: ReactNode;
@@ -86,27 +87,12 @@ export default function EnteteSemaine({
       <h1 className="sr-only sm:hidden">{TITRE_PERIODE[periode]}</h1>
 
       <div className="order-1 flex items-center justify-end gap-2 sm:order-none sm:ml-auto" aria-busy={enCours}>
-        <div
-          role="group"
-          aria-label="Granularité"
-          className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-        >
-          {PERIODES.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={p === periode}
-              onClick={() => onChanger(p, null)}
-              className={`rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-                p === periode
-                  ? 'bg-surface text-text-strong shadow-clay-sm'
-                  : 'text-text-muted hover:text-text-strong'
-              }`}
-            >
-              {LIBELLE_PERIODE[p]}
-            </button>
-          ))}
-        </div>
+        <Pastilles
+          label="Granularité"
+          value={periode}
+          options={PERIODES.map((p) => ({ id: p, label: LIBELLE_PERIODE[p] }))}
+          onChange={(p) => onChanger(p, null)}
+        />
         <div className="flex items-center gap-1">
           <button
             type="button"

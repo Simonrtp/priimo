@@ -9,12 +9,12 @@ import ActionCard from './ActionCard';
 export default function ActionsInbox({
   initial,
   limit,
-  emptyVariant = 'full',
+  onResolue,
 }: {
   initial: readonly AgencyAction[];
   /** Accueil : on ne montre que le haut de la pile, le reste vit sur sa page. */
   limit?: number;
-  emptyVariant?: 'full' | 'slim';
+  onResolue?: (id: string) => void;
 }) {
   const [resolues, setResolues] = useState<Set<string>>(() => new Set());
 
@@ -25,17 +25,10 @@ export default function ActionsInbox({
 
   function marquerResolue(id: string) {
     setResolues((prev) => new Set(prev).add(id));
+    onResolue?.(id);
   }
 
   if (visibles.length === 0) {
-    if (emptyVariant === 'slim') {
-      return (
-        <p className="text-[13.5px] leading-relaxed text-text-subtle">
-          Rien à valider. Les veilles tournent chaque matin — dès qu&apos;un signal mérite votre
-          attention, il apparaît ici.
-        </p>
-      );
-    }
     return (
       <WorkspaceCard className="flex flex-col items-center py-14 text-center">
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-clay bg-black/[0.04]">

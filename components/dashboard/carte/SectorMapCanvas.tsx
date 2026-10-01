@@ -24,14 +24,16 @@ import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
+  CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
   CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import type { ItineraireStop } from '@/lib/today/directions';
-import type { CadastreImmeublePoint, ParcelleNoteMarker } from '@/lib/carte/parcelle';
+import type { CadastreImmeublePoint, ParcelleNoteMarker, ParcellePickExtra } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
+import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
 import type { Zone } from '@/lib/zones/types';
 
 function boundsToViewport(map: MapRef): MapViewport | null {
@@ -72,6 +74,7 @@ export default function SectorMapCanvas({
   focusBounds = null,
   zones = [],
   highlightedZoneId = null,
+  clipZone = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -87,7 +90,7 @@ export default function SectorMapCanvas({
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
   cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
-  onSelectParcelle?: (parcelleId: string) => void;
+  onSelectParcelle?: (parcelleId: string, extra?: ParcellePickExtra) => void;
   /** sector = vue d’ensemble ; parcelles = zoom serré sur l’agence pour cliquer le cadastre. */
   zoomPreset?: 'sector' | 'parcelles';
   showBuildingMarkers?: boolean;
@@ -95,6 +98,7 @@ export default function SectorMapCanvas({
   focusBounds?: LngLatBoundsTuple | null;
   zones?: readonly Zone[];
   highlightedZoneId?: string | null;
+  clipZone?: Zone | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -153,17 +157,22 @@ export default function SectorMapCanvas({
             duration,
             ...tiltFromMap(map),
           });
-        } else {
+        }
+        return;
+      }
+      const [[west, south], [east, north]] = bounds;
+      const span = Math.max(east - west, north - south);
+      if (span > 2) {
+        if (fallback) {
           map.easeTo({
-            center: [FRANCE_MAP_VIEW.longitude, FRANCE_MAP_VIEW.latitude],
-            zoom: FRANCE_MAP_VIEW.zoom,
+            center: [fallback.longitude, fallback.latitude],
+            zoom: 13,
             duration,
             ...tiltFromMap(map),
           });
         }
         return;
       }
-      const [[west, south], [east, north]] = bounds;
       if (west === east && south === north) {
         map.easeTo({
           center: [west, south],
@@ -232,7 +241,11 @@ export default function SectorMapCanvas({
           ...(parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
           ...(cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
           ...(cadastreLayers.cadastreVentes
-            ? [CADASTRE_VENTES_POINT_LAYER_ID, CADASTRE_VENTES_LAYER_ID]
+            ? [
+                CADASTRE_VENTES_POINT_LAYER_ID,
+                CADASTRE_VENTES_LAYER_ID,
+                CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
+              ]
             : []),
           ...(cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
         ]}
@@ -265,7 +278,7 @@ export default function SectorMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        <Buildings3DLayer mapRef={mapRef} enabled ready={styleReady} />
+        <Buildings3DLayer mapRef={mapRef} enabled={false} ready={styleReady} />
         <ParcellesLayer
           mapRef={mapRef}
           enabled={parcellesEnabled}
@@ -274,8 +287,10 @@ export default function SectorMapCanvas({
           selectedParcelleId={selectedParcelleId}
           immeubles={cadastreImmeubles}
           layers={cadastreLayers}
-          onPick={(parcelleId) => onSelectParcelle?.(parcelleId)}
+          clipZone={clipZone}
+          onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
         />
+        <SecteurMasqueLayer zone={clipZone} />
         <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer

@@ -1,29 +1,41 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  Lock,
+  Pencil,
+  RefreshCw,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import type { NoteSourceInfo, VoiceNoteVisibilite } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
+import type { ActionProposal } from '@/lib/notes/review-v2';
+import { libelleMiseAJour, lignesRecherche, mailtoBrouillon } from '@/lib/notes/review-v2';
 import { EMPTY_CONTACT_INPUT, type ContactInputFields } from '@/lib/contact-input';
 import { formatPhoneOrNull, normalizeName, telHref } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
 import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
+import { dateParisIso } from '@/lib/notes/date-relative';
+import { jourLisible, type CarteKind } from '@/lib/voice/cartes';
+import { formatMinutes } from '@/lib/notes/temps-gagne';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import Select from '@/components/ui/Select';
-import type { SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { Field, TextArea } from '@/components/dashboard/workspace/Field';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
-import ContactFormFields, {
-  type ContactFormGeo,
-} from '@/components/dashboard/contacts/ContactFormFields';
-import NoteEntitySearch, {
-  type NoteLinkPick,
-} from '@/components/dashboard/notes/NoteEntitySearch';
+import ContactFormFields, { type ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
+import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import NoteAncrage from '@/components/dashboard/notes/NoteAncrage';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
+import IconeCarte from './live/IconeCarte';
+import styles from './live/dictee.module.css';
 
 const SOURCE_OPTIONS = [
   { value: '', label: 'Non précisé' },
@@ -31,152 +43,14 @@ const SOURCE_OPTIONS = [
 ];
 
 type ManualLink = NoteLinkPick & { key: string };
-
 const LIENS_VIDES: readonly NoteLinkPick[] = [];
 
 function toManualLinks(picks: readonly NoteLinkPick[]): ManualLink[] {
   return picks.map((p) => ({ ...p, key: `${p.entiteType}:${p.entiteId}` }));
 }
 
-function LinkChip({
-  label,
-  subtitle,
-  onRemove,
-  disabled = false,
-  avatar,
-}: {
-  label: string;
-  subtitle: string;
-  onRemove: () => void;
-  disabled?: boolean;
-  avatar?: { firstName: string; lastName: string; avatarUrl?: string | null };
-}) {
-  return (
-    <li className="flex items-center justify-between gap-3 rounded-xl border border-black/[0.08] px-3 py-2.5">
-      <span className="flex min-w-0 items-center gap-3">
-        {avatar ? (
-          <ProfileAvatar
-            firstName={avatar.firstName}
-            lastName={avatar.lastName}
-            avatarUrl={avatar.avatarUrl}
-            size={32}
-            className="shrink-0"
-          />
-        ) : null}
-        <span className="min-w-0">
-          <span className="block truncate text-[13.5px] font-medium text-text-strong">{label}</span>
-          <span className="block text-[12px] text-text-muted">{subtitle}</span>
-        </span>
-      </span>
-      <button
-        type="button"
-        onClick={onRemove}
-        disabled={disabled}
-        aria-label={`Retirer ${label}`}
-        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
-      >
-        <X size={16} strokeWidth={2} aria-hidden />
-      </button>
-    </li>
-  );
-}
-
 function pickMatch(matches: readonly ContactMatch[]): ContactMatch | null {
-  const certain = matches.find((m) => m.confiance === 'certain');
-  if (certain) return certain;
-  return matches[0] ?? null;
-}
-
-function formatPrix(n: number): string {
-  return `${new Intl.NumberFormat('fr-FR').format(n)} €`;
-}
-
-function ficheContact(
-  p: PersonneProposal,
-  match: ContactMatch | null,
-  review: NoteReviewPayload,
-) {
-  const nom =
-    match?.label ||
-    [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
-    'Contact';
-  const phone = formatPhoneOrNull(match?.phone ?? p.personne.phone);
-  const email = (match?.email ?? p.personne.email)?.trim() || null;
-  const adresse = match?.address?.trim() || null;
-  const type = p.personne.type !== 'autre' ? CONTACT_TYPE_LABELS[p.personne.type] : null;
-  const faits = [
-    review.secteur,
-    review.prix != null ? formatPrix(review.prix) : null,
-  ].filter((v): v is string => Boolean(v));
-  return { nom, phone, email, adresse, type, faits, nouveau: !match };
-}
-
-function ContactFiche({
-  fiche,
-  onRemove,
-  disabled = false,
-}: {
-  fiche: ReturnType<typeof ficheContact>;
-  onRemove: () => void;
-  disabled?: boolean;
-}) {
-  const names = fiche.nom.trim().split(/\s+/);
-  const firstName = names[0] ?? '';
-  const lastName = names.slice(1).join(' ');
-
-  return (
-    <article className="rounded-clay border border-black/[0.08] bg-surface px-4 py-4 shadow-clay-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <ProfileAvatar
-            firstName={firstName}
-            lastName={lastName || firstName}
-            size={44}
-            className="shrink-0"
-          />
-          <div className="min-w-0">
-            <p className="truncate text-[16px] font-semibold text-text-strong">{fiche.nom}</p>
-            <p className="mt-0.5 text-[12.5px] text-text-muted">
-              {fiche.nouveau ? 'Nouveau contact' : 'Déjà dans l’agence'}
-              {fiche.type ? ` · ${fiche.type}` : ''}
-            </p>
-            {fiche.phone || fiche.email || fiche.adresse ? (
-              <ul className="mt-2.5 flex flex-col gap-1">
-                {fiche.phone ? (
-                  <li>
-                    <a
-                      href={telHref(fiche.phone)}
-                      className="text-[13.5px] tabular-nums text-text-strong hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      {fiche.phone}
-                    </a>
-                  </li>
-                ) : null}
-                {fiche.email ? (
-                  <li className="truncate text-[13.5px] text-text">{fiche.email}</li>
-                ) : null}
-                {fiche.adresse ? (
-                  <li className="text-pretty text-[13.5px] text-text">{fiche.adresse}</li>
-                ) : null}
-              </ul>
-            ) : null}
-            {fiche.faits.length > 0 ? (
-              <p className="mt-2 text-[12.5px] text-text-subtle">{fiche.faits.join(' · ')}</p>
-            ) : null}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={disabled}
-          aria-label={`Retirer ${fiche.nom}`}
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
-        >
-          <X size={16} strokeWidth={2} aria-hidden />
-        </button>
-      </div>
-    </article>
-  );
+  return matches.find((m) => m.confiance === 'certain') ?? matches[0] ?? null;
 }
 
 type ContactDraft = {
@@ -205,13 +79,148 @@ function draftDepuisProposition(
       recontacterLe: review.relance?.at ? review.relance.at.slice(0, 10) : null,
     },
     assignedTo: assignee,
-    geo: {
-      banId: review.immeuble?.banId ?? null,
-      latitude: null,
-      longitude: null,
-    },
+    geo: { banId: review.immeuble?.banId ?? null, latitude: null, longitude: null },
   };
 }
+
+/** Les critères dictés remplissent la fiche d'un nouvel acquéreur, sans écraser ce que l'agent a saisi. */
+function avecRecherche(fields: ContactInputFields, r: NoteReviewPayload['recherche']): ContactInputFields {
+  if (!r) return fields;
+  return {
+    ...fields,
+    type: fields.type === 'autre' ? 'acquereur' : fields.type,
+    budgetMin: fields.budgetMin ?? r.budgetMin,
+    budgetMax: fields.budgetMax ?? r.budgetMax,
+    surfaceMin: fields.surfaceMin ?? r.surfaceMin,
+    roomsMin: fields.roomsMin ?? r.roomsMin,
+    postalCodes: fields.postalCodes.length ? fields.postalCodes : r.codesPostaux,
+  };
+}
+
+function kindAction(a: ActionProposal): CarteKind {
+  return a.type === 'rdv' ? 'rdv' : a.type === 'visite_faite' ? 'visite' : a.type === 'rappel' ? 'rappel' : 'tache';
+}
+
+/* -------------------------------------------------------------------------- */
+/* Petits blocs                                                                */
+/* -------------------------------------------------------------------------- */
+
+function Groupe({ titre, children, compte }: { titre: string; children: React.ReactNode; compte?: number }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h3
+        className="flex items-center gap-2 font-semibold uppercase text-text-subtle"
+        style={{ fontSize: 10.5, letterSpacing: '0.08em' }}
+      >
+        {titre}
+        {compte ? (
+          <span className="rounded-full bg-black/[0.05] px-1.5 py-px text-[10px] tabular-nums text-text-muted">
+            {compte}
+          </span>
+        ) : null}
+      </h3>
+      <div className="flex flex-col gap-2">{children}</div>
+    </section>
+  );
+}
+
+function Case({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <input
+      type="checkbox"
+      aria-label={label}
+      className="mt-1.5 size-[18px] shrink-0 cursor-pointer rounded-md border-black/20"
+      style={{ accentColor: 'var(--primary-500)' }}
+      checked={checked}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+  );
+}
+
+function Carte({
+  children,
+  inactive = false,
+  className = '',
+}: {
+  children: React.ReactNode;
+  inactive?: boolean;
+  className?: string;
+}) {
+  return (
+    <article
+      className={`rounded-2xl border border-black/[0.07] bg-surface px-3.5 py-3 shadow-clay-sm transition-opacity ${
+        inactive ? 'opacity-55' : ''
+      } ${className}`}
+    >
+      {children}
+    </article>
+  );
+}
+
+function Puce({
+  label,
+  sous,
+  onRemove,
+  href,
+  disabled,
+  avatar,
+}: {
+  label: string;
+  sous?: string | null;
+  onRemove?: () => void;
+  href?: string;
+  disabled?: boolean;
+  avatar?: { firstName: string; lastName: string; avatarUrl?: string | null };
+}) {
+  return (
+    <li className="flex items-center gap-2.5 rounded-xl border border-black/[0.07] bg-surface py-1.5 pl-2.5 pr-1.5">
+      {avatar ? (
+        <ProfileAvatar firstName={avatar.firstName} lastName={avatar.lastName} avatarUrl={avatar.avatarUrl} size={26} />
+      ) : null}
+      <span className="min-w-0 flex-1">
+        {href ? (
+          <Link href={href} className="block truncate text-[13px] font-medium text-text-strong hover:text-primary-600">
+            {label}
+          </Link>
+        ) : (
+          <span className="block truncate text-[13px] font-medium text-text-strong">{label}</span>
+        )}
+        {sous ? <span className="block truncate text-[11.5px] text-text-muted">{sous}</span> : null}
+      </span>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          aria-label={`Retirer ${label}`}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.04] hover:text-text-strong disabled:opacity-50"
+        >
+          <X size={15} strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
+    </li>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Panneau                                                                     */
+/* -------------------------------------------------------------------------- */
+
+type Bilan = {
+  lignes: string[];
+  minutes: number;
+};
 
 export default function VoiceReviewPanel({
   review,
@@ -224,6 +233,7 @@ export default function VoiceReviewPanel({
   onContinue,
   onDone,
   onDismiss,
+  onQuestion,
   typed = false,
   initialManualLinks = LIENS_VIDES,
   extracting = false,
@@ -240,28 +250,27 @@ export default function VoiceReviewPanel({
   onContinue?: () => void;
   onDone: (contactId?: string | null) => void;
   onDismiss: () => void;
-  /** Note tapée : pas de « compléter la dictée ». */
+  /** La dictée était une question : on la passe à Mon assistant. */
+  onQuestion?: (question: string) => void;
   typed?: boolean;
-  /** Rattachements déjà choisis à l’écriture de la note. */
   initialManualLinks?: readonly NoteLinkPick[];
-  /** La note est encore en cours de lecture : les champs vont se remplir. */
   extracting?: boolean;
-  /** Parcelle d'origine : déjà liée, à afficher, pas à redemander. */
   parcelleId?: string | null;
   adresse?: string | null;
 }) {
   const [visibilite, setVisibilite] = useState<VoiceNoteVisibilite>(review.visibilite);
   const [sourceInfo, setSourceInfo] = useState<NoteSourceInfo | ''>(review.sourceInfo ?? '');
-  const [relanceAssignee, setRelanceAssignee] = useState<string | null>(suggestedAssigneeId);
-  const [promesseAssignee, setPromesseAssignee] = useState<string | null>(suggestedAssigneeId);
   const [refreshing, setRefreshing] = useState(false);
   const [terminating, setTerminating] = useState(false);
+  const [bilan, setBilan] = useState<Bilan | null>(null);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
-  const [deselectedIds, setDeselectedIds] = useState<string[]>([]);
-  const [chosenMatch, setChosenMatch] = useState<Record<string, string>>({});
   const [manualLinks, setManualLinks] = useState<ManualLink[]>(() => toManualLinks(initialManualLinks));
   const [hiddenConseillers, setHiddenConseillers] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ContactDraft>>({});
+  const [ouverts, setOuverts] = useState<string[]>([]);
+  const [emailOuvert, setEmailOuvert] = useState(false);
+  const [plusOuvert, setPlusOuvert] = useState(false);
+  const [leadsRetires, setLeadsRetires] = useState<string[]>([]);
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
   const sourceChoisie = useRef(false);
@@ -272,37 +281,42 @@ export default function VoiceReviewPanel({
 
   useEffect(() => {
     setHiddenIds([]);
-    setDeselectedIds([]);
-    setChosenMatch({});
     setManualLinks(toManualLinks(initialManualLinks));
     setHiddenConseillers([]);
     setDrafts({});
+    setOuverts([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [review.voiceNoteId]);
 
-  // La lecture de la note se termine après l'ouverture du panneau : on adopte
-  // la source qu'elle propose, sauf si l'agent a déjà choisi la sienne.
+  // Les prospects trouvés à l'adresse sont retenus d'office : c'est là que l'agent se tient.
+  const leadsRetenus = review.leads.map((l) => l.id).filter((id) => !leadsRetires.includes(id));
+
   useEffect(() => {
     if (sourceChoisie.current) return;
     setSourceInfo(review.sourceInfo ?? '');
   }, [review.sourceInfo]);
 
-  useEffect(() => {
-    setDrafts((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const p of review.personnes) {
-        if (next[p.id]) continue;
-        next[p.id] = draftDepuisProposition(
-          p,
-          review,
-          transcript,
-          suggestedAssigneeId ?? currentUserId ?? null,
-        );
-        changed = true;
-      }
-      return changed ? next : prev;
-    });
-  }, [review, transcript, suggestedAssigneeId, currentUserId]);
+  // Une note analysée avant les actions multiples porte parfois une relance :
+  // elle devient une action comme les autres, et donc une carte sur l'accueil.
+  const actions = useMemo<ActionProposal[]>(() => {
+    if (review.actions.length > 0 || !review.relance) return review.actions;
+    return [
+      {
+        id: 'a-relance',
+        type: 'rappel',
+        intitule: review.relance.libelle,
+        date: dateParisIso(new Date(review.relance.at)),
+        dateDeduite: false,
+        heure: null,
+        personne: null,
+        personneRef: review.personnes[0]?.id ?? null,
+        lieu: null,
+        rdvType: null,
+        interet: null,
+        accepted: true,
+      },
+    ];
+  }, [review.actions, review.relance, review.personnes]);
 
   const conseillers = useMemo(
     () => matchMembersInTranscript(transcript, members).filter((m) => !hiddenConseillers.includes(m.memberId)),
@@ -314,64 +328,28 @@ export default function VoiceReviewPanel({
   );
 
   function isConseillerPersonne(p: PersonneProposal): boolean {
-    return conseillerNameKeys.has(
-      normalizeName(`${p.personne.firstName} ${p.personne.lastName}`.trim()),
-    );
+    return conseillerNameKeys.has(normalizeName(`${p.personne.firstName} ${p.personne.lastName}`.trim()));
   }
 
   function pickedAssignee(): string | null {
-    return (
-      conseillers.find((c) => c.memberId !== currentUserId)?.memberId ??
-      conseillers[0]?.memberId ??
-      null
-    );
+    return conseillers.find((c) => c.memberId !== currentUserId)?.memberId ?? conseillers[0]?.memberId ?? null;
   }
 
-  function visiblePersonnes(): PersonneProposal[] {
-    return review.personnes.filter((p) => !hiddenIds.includes(p.id) && !isConseillerPersonne(p));
-  }
-
-  function personneVisible(p: PersonneProposal): boolean {
-    return Boolean(
-      p.matches.length > 0 ||
-        p.personne.firstName.trim() ||
-        p.personne.lastName.trim() ||
-        p.personne.phone,
-    );
-  }
+  const personnes = review.personnes.filter(
+    (p) =>
+      !hiddenIds.includes(p.id) &&
+      !isConseillerPersonne(p) &&
+      Boolean(p.matches.length || p.personne.firstName.trim() || p.personne.lastName.trim() || p.personne.phone),
+  );
 
   function draftPour(p: PersonneProposal): ContactDraft {
-    return (
-      drafts[p.id] ??
-      draftDepuisProposition(
-        p,
-        review,
-        transcript,
-        suggestedAssigneeId ?? currentUserId ?? null,
-      )
-    );
+    return drafts[p.id] ?? draftDepuisProposition(p, review, transcript, suggestedAssigneeId ?? currentUserId ?? null);
   }
 
-  function selectedMatchFor(p: PersonneProposal): ContactMatch | null {
-    if (deselectedIds.includes(p.id)) return null;
-    const chosen = chosenMatch[p.id];
-    if (chosen) return p.matches.find((m) => m.contactId === chosen) ?? null;
-    return pickMatch(p.matches);
-  }
-
-  function patchAdresse(address: string, selected?: SelectedAddress | null) {
-    const trimmed = (selected?.label ?? address).trim();
+  function setAction(id: string, patch: Partial<ActionProposal>) {
     onReviewChange({
       ...review,
-      immeuble: trimmed
-        ? {
-            address: trimmed,
-            adresseNormalisee: selected?.label ?? review.immeuble?.adresseNormalisee ?? trimmed,
-            banId: selected?.id ?? review.immeuble?.banId ?? null,
-            score: review.immeuble?.score ?? null,
-            confiance: selected?.id ? 'certain' : review.immeuble?.confiance ?? null,
-          }
-        : null,
+      actions: actions.map((a) => (a.id === id ? { ...a, ...patch } : a)),
     });
   }
 
@@ -385,150 +363,23 @@ export default function VoiceReviewPanel({
     if (!res.ok) throw new Error(data.error ?? 'patch');
   }
 
+  async function togglePrivee(next: boolean) {
+    const value: VoiceNoteVisibilite = next ? 'privee' : 'agence';
+    setVisibilite(value);
+    try {
+      await patchNote({ visibilite: value });
+    } catch {
+      setVisibilite(visibilite);
+      notifyError("La visibilité n'a pas pu être enregistrée");
+    }
+  }
+
   function addManualLink(pick: NoteLinkPick) {
     const key = `${pick.entiteType}:${pick.entiteId}`;
     setManualLinks((prev) => {
       const base = pick.entiteType === 'immeuble' ? prev.filter((l) => l.entiteType !== 'immeuble') : prev;
       return base.some((l) => l.key === key) ? base : [...base, { ...pick, key }];
     });
-    if (pick.entiteType === 'immeuble') {
-      patchAdresse(pick.label, {
-        label: pick.label,
-        latitude: pick.latitude ?? 0,
-        longitude: pick.longitude ?? 0,
-        city: '',
-        postcode: '',
-        id: pick.entiteId,
-      });
-    }
-  }
-
-  function removeManualLink(key: string) {
-    setManualLinks((prev) => prev.filter((l) => l.key !== key));
-  }
-
-  function dismissPersonne(id: string) {
-    setHiddenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    if (review.personnes.some((p) => p.id === id)) {
-      onReviewChange({
-        ...review,
-        personnes: review.personnes.filter((p) => p.id !== id),
-      });
-    }
-  }
-
-  async function addLien(entiteType: string, entiteId: string, confiance: string) {
-    const res = await fetch(`/api/dashboard/voice-notes/${review.voiceNoteId}/liens`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entiteType, entiteId, confiance, creePar: 'agent' }),
-    });
-    if (!res.ok) throw new Error('lien');
-  }
-
-  async function togglePrivee(next: boolean) {
-    const value: VoiceNoteVisibilite = next ? 'privee' : 'agence';
-    setVisibilite(value);
-    try {
-      await patchNote({ visibilite: value });
-    } catch (err) {
-      setVisibilite(visibilite);
-      notifyError(
-        err instanceof Error && err.message && err.message !== 'patch'
-          ? err.message
-          : "La visibilité n'a pas pu être enregistrée",
-      );
-    }
-  }
-
-  async function onSource(v: string) {
-    const value = (v || '') as NoteSourceInfo | '';
-    sourceChoisie.current = true;
-    setSourceInfo(value);
-    try {
-      await patchNote({ sourceInfo: value || null });
-    } catch (err) {
-      notifyError(
-        err instanceof Error && err.message && err.message !== 'patch'
-          ? err.message
-          : "La source n'a pas pu être enregistrée",
-      );
-    }
-  }
-
-  async function createContact(
-    p: PersonneProposal,
-    fiche: NoteReviewPayload,
-    summary: string,
-    forceCreate = false,
-  ): Promise<string> {
-    const draft =
-      draftsRef.current[p.id] ??
-      draftDepuisProposition(p, fiche, summary, suggestedAssigneeId ?? currentUserId ?? null);
-    const res = await fetch('/api/dashboard/contacts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...draft.fields,
-        assignedTo: draft.assignedTo ?? pickedAssignee(),
-        banId: draft.geo.banId,
-        latitude: draft.geo.latitude,
-        longitude: draft.geo.longitude,
-        source: typed ? 'manuel' : 'vocal',
-        voiceNoteId: fiche.voiceNoteId,
-        forceCreate,
-      }),
-    });
-    const data = (await res.json()) as {
-      error?: string;
-      contact?: { id: string };
-      matches?: { contact: { id: string } }[];
-    };
-
-    // Doublon détecté côté API : rattacher plutôt qu’afficher une erreur.
-    if (res.status === 409) {
-      const existingId = data.matches?.[0]?.contact?.id;
-      if (existingId) {
-        try {
-          await addLien('contact', existingId, 'probable');
-        } catch {
-          // Le contact existe ; le lien pourra être repris à la réconciliation.
-        }
-        return existingId;
-      }
-    }
-
-    if (!res.ok || !data.contact?.id) {
-      throw new Error(data.error ?? 'contact');
-    }
-    return data.contact.id;
-  }
-
-  async function resolveContactId(
-    p: PersonneProposal,
-    fiche: NoteReviewPayload,
-    summary: string,
-  ): Promise<string | null> {
-    const draft = draftsRef.current[p.id];
-    const first = (draft?.fields.firstName ?? p.personne.firstName).trim();
-    const last = (draft?.fields.lastName ?? p.personne.lastName).trim();
-    const phone = draft?.fields.phone ?? p.personne.phone;
-    const hasName = Boolean(first || last);
-    const match = selectedMatchFor(p);
-
-    if (match) {
-      try {
-        await addLien('contact', match.contactId, match.confiance);
-      } catch {
-        // Le rattachement se fera à la réconciliation.
-      }
-      return match.contactId;
-    }
-
-    if (p.matches.length > 0) return null;
-
-    if (hasName || phone) return createContact(p, fiche, summary);
-    return null;
   }
 
   async function rafraichir() {
@@ -546,212 +397,285 @@ export default function VoiceReviewPanel({
       onReviewChange(data);
       setDrafts({});
       if (data.sourceInfo && !sourceChoisie.current) setSourceInfo(data.sourceInfo);
-      notifySuccess('Propositions mises à jour');
     } catch {
-      notifyError("Les propositions n'ont pas pu être mises à jour");
+      notifyError("La note n'a pas pu être relue");
     } finally {
       setRefreshing(false);
     }
   }
 
+  /* ------------------------------------------------------------ Validation */
+
+  async function creerContact(p: PersonneProposal): Promise<string> {
+    const draft = draftsRef.current[p.id] ?? draftPour(p);
+    const recherche = review.recherche?.accepted && review.recherche.personneRef === p.id ? review.recherche : null;
+    const res = await fetch('/api/dashboard/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...avecRecherche(draft.fields, recherche),
+        assignedTo: draft.assignedTo ?? pickedAssignee(),
+        banId: draft.geo.banId,
+        latitude: draft.geo.latitude,
+        longitude: draft.geo.longitude,
+        source: typed ? 'manuel' : 'vocal',
+        voiceNoteId: review.voiceNoteId,
+      }),
+    });
+    const data = (await res.json()) as { error?: string; contact?: { id: string }; matches?: { contact: { id: string } }[] };
+    // Doublon détecté : la fiche existe déjà, la note s'y rattache.
+    if (res.status === 409 && data.matches?.[0]?.contact?.id) return data.matches[0].contact.id;
+    if (!res.ok || !data.contact?.id) throw new Error(data.error ?? 'contact');
+    return data.contact.id;
+  }
+
   function terminer() {
     if (locked) return;
     const snap = review;
-    const text = transcript.trim();
-    const relanceTo = relanceAssignee;
-    const promesseTo = promesseAssignee;
+    const texte = transcript.trim();
     const assigneeId = pickedAssignee();
-
     setTerminating(true);
+
     void (async () => {
-      let contactId: string | null = null;
-      let createdContact = false;
+      const contactParRef = new Map<string, string>();
+      const liens: { entiteType: string; entiteId: string; confiance: string }[] = [];
+      let contactsCrees = 0;
+      let premierContact: string | null = null;
+      let rechercheContact: string | null = null;
+
       try {
-        for (const p of visiblePersonnes()) {
-          const before = contactId;
-          const resolved = await resolveContactId(p, snap, text);
-          contactId = contactId ?? resolved;
-          if (resolved && resolved !== before && !selectedMatchFor(p) && p.matches.length === 0) {
-            createdContact = true;
+        for (const p of personnes) {
+          const match = pickMatch(p.matches);
+          const draft = draftsRef.current[p.id];
+          const aUnNom = Boolean(
+            (draft?.fields.firstName ?? p.personne.firstName).trim() ||
+              (draft?.fields.lastName ?? p.personne.lastName).trim() ||
+              (draft?.fields.phone ?? p.personne.phone),
+          );
+          if (match) {
+            contactParRef.set(p.id, match.contactId);
+            liens.push({ entiteType: 'contact', entiteId: match.contactId, confiance: match.confiance });
+            if (snap.recherche?.personneRef === p.id) rechercheContact = match.contactId;
+          } else if (aUnNom) {
+            const id = await creerContact(p);
+            contactParRef.set(p.id, id);
+            contactsCrees += 1;
           }
-        }
-        for (const link of manualLinks) {
-          try {
-            await addLien(link.entiteType, link.entiteId, 'certain');
-            if (link.entiteType === 'contact' && !contactId) contactId = link.entiteId;
-          } catch {
-            // Le rattachement pourra être repris depuis la fiche note.
-          }
-        }
-        for (const bien of snap.biens ?? []) {
-          if (hiddenIds.includes(`bien-${bien.id}`)) continue;
-          try {
-            await addLien('bien', bien.id, 'probable');
-          } catch {
-            // Le bien pourra être rattaché depuis la fiche note.
-          }
+          premierContact = premierContact ?? contactParRef.get(p.id) ?? null;
         }
       } catch (err) {
-        console.error('[voice] contact', err);
-        notifyError(
-          err instanceof Error && err.message && err.message !== 'contact'
-            ? err.message
-            : "Le contact n'a pas pu être créé",
-        );
+        notifyError(err instanceof Error && err.message !== 'contact' ? err.message : "Le contact n'a pas pu être créé");
         setTerminating(false);
         return;
       }
 
+      for (const link of manualLinks) {
+        liens.push({ entiteType: link.entiteType, entiteId: link.entiteId, confiance: 'certain' });
+        if (link.entiteType === 'contact') premierContact = premierContact ?? link.entiteId;
+      }
+      for (const bien of snap.biens) {
+        if (!hiddenIds.includes(`bien-${bien.id}`)) liens.push({ entiteType: 'bien', entiteId: bien.id, confiance: 'probable' });
+      }
+      for (const leadId of leadsRetenus) liens.push({ entiteType: 'lead', entiteId: leadId, confiance: 'certain' });
+      if (snap.immeuble?.banId && snap.immeuble.confiance && !hiddenIds.includes('immeuble')) {
+        liens.push({ entiteType: 'immeuble', entiteId: snap.immeuble.banId, confiance: snap.immeuble.confiance });
+      }
+
+      const bienUnique = snap.biens.length === 1 ? snap.biens[0]!.id : null;
+      const payload = {
+        transcript: texte,
+        visibilite,
+        sourceInfo: sourceInfo || null,
+        assignedTo: assigneeId,
+        contactsCrees,
+        liens,
+        actions: actions
+          .filter((a) => a.accepted)
+          .map((a) => ({
+            type: a.type,
+            intitule: a.intitule,
+            date: a.date,
+            heure: a.heure,
+            lieu: a.lieu,
+            rdvType: a.rdvType,
+            interet: a.interet,
+            contactId: (a.personneRef && contactParRef.get(a.personneRef)) || premierContact,
+            bienId: bienUnique,
+            assignedTo: a.type === 'rdv' ? currentUserId : assigneeId ?? currentUserId,
+          })),
+        misesAJour: snap.misesAJour
+          .filter((m) => m.accepted)
+          .map((m) => ({ bienId: m.bienId, champ: m.champ, valeur: m.apres })),
+        recherche:
+          snap.recherche?.accepted && rechercheContact
+            ? {
+                contactId: rechercheContact,
+                budgetMin: snap.recherche.budgetMin,
+                budgetMax: snap.recherche.budgetMax,
+                surfaceMin: snap.recherche.surfaceMin,
+                roomsMin: snap.recherche.roomsMin,
+                codesPostaux: snap.recherche.codesPostaux,
+              }
+            : null,
+        prospect: snap.prospect?.accepted
+          ? { leadId: snap.prospect.leadId, stageId: snap.prospect.stageId, motif: snap.prospect.motif }
+          : null,
+      };
+
       try {
-        if (text && text !== (snap.transcript ?? '').trim()) {
-          try {
-            await patchNote({ transcript: text });
-          } catch {
-            // Non bloquant.
-          }
-        }
-        if (snap.immeuble?.banId && snap.immeuble.confiance && !hiddenIds.includes('immeuble')) {
-          try {
-            await addLien('immeuble', snap.immeuble.banId, snap.immeuble.confiance);
-          } catch {
-            // La note reste, l’immeuble pourra être rattaché plus tard.
-          }
-        }
-        if (assigneeId) {
-          try {
-            await patchNote({ assignedTo: assigneeId });
-          } catch {
-            // L’accueil du conseiller pourra être repris à la main.
-          }
-          if (contactId && !createdContact && text) {
-            try {
-              await fetch(`/api/dashboard/contacts/${contactId}/interactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  body: text,
-                  kind: typed ? 'note' : 'vocal',
-                  assignedTo: assigneeId,
-                }),
-              });
-            } catch {
-              // La note reste assignée même si l’échange n’est pas recopié.
-            }
-          }
-        }
-        if (snap.relance) {
-          try {
-            await patchNote({
-              relance: { at: snap.relance.at, assignedTo: relanceTo },
-            });
-          } catch {
-            // La relance n’est pas bloquante.
-          }
-        }
-        const metierPayload: Record<string, unknown> = { contactId };
-        if (snap.promesse?.accepted) {
-          metierPayload.promesse = {
-            accepted: true,
-            intitule: snap.promesse.intitule,
-            echeance: snap.promesse.echeance,
-            assignedTo: promesseTo,
-          };
-        }
-        if (snap.rendezVous?.accepted) {
-          metierPayload.rendezVous = { ...snap.rendezVous, accepted: true };
-        }
-        if (snap.visite?.accepted) {
-          metierPayload.visite = { ...snap.visite, accepted: true };
-        }
-        if (snap.promesse?.accepted || snap.rendezVous?.accepted || snap.visite?.accepted) {
-          try {
-            const res = await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}/metier`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(metierPayload),
-            });
-            if (!res.ok) throw new Error('metier');
-          } catch {
-            notifyError('Engagement ou rendez-vous non enregistré');
-          }
-        }
-        const closeRes = await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}`, {
-          method: 'PATCH',
+        const res = await fetch(`/api/dashboard/voice-notes/${snap.voiceNoteId}/valider`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            terminer: true,
-            visibilite,
-            sourceInfo: sourceInfo || null,
-          }),
+          body: JSON.stringify(payload),
         });
-        if (!closeRes.ok) {
-          if (contactId) {
-            notifySuccess('Contact enregistré. La note reste à finaliser depuis l’accueil.', {
-              id: `voice-contact-${snap.voiceNoteId}`,
-            });
-            onDismiss();
-            onDone(contactId);
-            return;
-          }
-          notifyError("La note n'a pas pu être clôturée");
-          setTerminating(false);
-          return;
+        const data = (await res.json()) as {
+          error?: string;
+          echecs?: string[];
+          minutesEvitees?: number;
+          bilan?: { promesses: number; rendezVous: number; visites: number; misesAJour: number; recherche: boolean; prospect: boolean };
+        };
+        if (!res.ok) throw new Error(data.error ?? 'valider');
+        if (data.echecs?.length) notifyError(`Rangée, sauf : ${[...new Set(data.echecs)].join(', ')}`);
+
+        // Recopie dans l'historique du contact quand un collègue reprend la main.
+        if (assigneeId && premierContact && contactsCrees === 0 && texte) {
+          void fetch(`/api/dashboard/contacts/${premierContact}/interactions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ body: texte, kind: typed ? 'note' : 'vocal', assignedTo: assigneeId }),
+          }).catch(() => undefined);
         }
-        notifySuccess('Votre note a bien été enregistrée', {
-          id: `voice-saved-${snap.voiceNoteId}`,
-        });
-        onDismiss();
-        onDone(contactId);
-      } catch (err) {
-        console.error('[voice] terminer', err);
-        notifyError("La note n'a pas pu être enregistrée");
+
+        const b = data.bilan;
+        const lignes: string[] = [];
+        if (contactsCrees) lignes.push(`${contactsCrees} contact${contactsCrees > 1 ? 's' : ''} créé${contactsCrees > 1 ? 's' : ''}`);
+        const aFaire = (b?.promesses ?? 0) + (b?.rendezVous ?? 0);
+        if (b?.promesses) lignes.push(`${b.promesses} rappel${b.promesses > 1 ? 's' : ''} sur votre accueil`);
+        if (b?.rendezVous) lignes.push(`${b.rendezVous} rendez-vous planifié${b.rendezVous > 1 ? 's' : ''}`);
+        if (b?.visites) lignes.push('Visite enregistrée');
+        if (b?.misesAJour) lignes.push(`${b.misesAJour} fiche${b.misesAJour > 1 ? 's' : ''} mise${b.misesAJour > 1 ? 's' : ''} à jour`);
+        if (b?.recherche) lignes.push('Recherche acquéreur enregistrée');
+        if (b?.prospect) lignes.push('Prospect avancé dans le pipeline');
+        if (lignes.length === 0) lignes.push(aFaire ? 'Note rangée' : 'Note rangée dans vos notes');
+        setBilan({ lignes, minutes: data.minutesEvitees ?? 0 });
+        notifySuccess(
+          data.minutesEvitees
+            ? `Note rangée · ≈ ${formatMinutes(data.minutesEvitees)} de saisie évitées`
+            : 'Note rangée',
+          { id: `voice-saved-${snap.voiceNoteId}` },
+        );
+        window.setTimeout(() => {
+          onDismiss();
+          onDone(premierContact);
+        }, 1_900);
+      } catch {
+        notifyError("La note n'a pas pu être rangée. Réessayez.");
         setTerminating(false);
       }
     })();
   }
 
+  /* ---------------------------------------------------------------- Rendu */
+
+  if (bilan) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-12 text-center" role="status">
+        <span className="flex size-16 items-center justify-center rounded-full bg-primary-50">
+          <svg viewBox="0 0 24 24" className="size-8 text-primary-600" fill="none" aria-hidden>
+            <path
+              d="M5 12.5l4.2 4.2L19 7"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={styles.cocheTrace}
+            />
+          </svg>
+        </span>
+        <div>
+          <p className="font-display text-[20px] font-semibold text-text-strong">C’est rangé.</p>
+          {bilan.minutes >= 1 ? (
+            <p className="mt-1 text-[13.5px] text-text-muted">
+              ≈ {formatMinutes(bilan.minutes)} de saisie évitées
+            </p>
+          ) : null}
+        </div>
+        <ul className="flex flex-col gap-1.5">
+          {bilan.lignes.map((l, i) => (
+            <li
+              key={l}
+              className={`text-[14px] font-medium text-text-strong ${styles.carteEntree}`}
+              style={{ animationDelay: `${160 + i * 90}ms` }}
+            >
+              {l}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  const actionsRetenues = actions.filter((a) => a.accepted).length;
+  const majRetenues = review.misesAJour.filter((m) => m.accepted).length + (review.prospect?.accepted ? 1 : 0);
+  const resumePied = [
+    personnes.length ? `${personnes.length} contact${personnes.length > 1 ? 's' : ''}` : null,
+    actionsRetenues ? `${actionsRetenues} action${actionsRetenues > 1 ? 's' : ''}` : null,
+    majRetenues ? `${majRetenues} mise${majRetenues > 1 ? 's' : ''} à jour` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const rien =
+    !extracting &&
+    personnes.length === 0 &&
+    actions.length === 0 &&
+    review.misesAJour.length === 0 &&
+    !review.recherche &&
+    !review.prospect &&
+    !review.email;
+
   return (
     <>
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
-        <section className="flex min-h-0 flex-col overflow-y-auto border-b border-black/[0.06] bg-bg-subtle px-5 py-5 sm:px-6 lg:border-b-0 lg:border-r lg:px-8 lg:py-6">
-          <h3
-            className="mb-4 font-semibold uppercase text-text-subtle"
-            style={{ fontSize: 11, letterSpacing: '0.08em' }}
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:overflow-hidden">
+        {/* ---------------------------------------------------- Ce qui a été dit */}
+        <section className="flex flex-col border-b border-black/[0.06] bg-bg-subtle px-5 py-5 sm:px-6 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-7 lg:py-6">
+          {review.titre ? (
+            <div className="mb-4">
+              <p className="font-display text-[18px] font-semibold leading-snug text-text-strong">{review.titre}</p>
+              {review.resume ? <p className="mt-1 text-pretty text-[13.5px] text-text-muted">{review.resume}</p> : null}
+            </div>
+          ) : null}
+          <label
+            htmlFor="voice-transcript"
+            className="mb-2 font-semibold uppercase text-text-subtle"
+            style={{ fontSize: 10.5, letterSpacing: '0.08em' }}
           >
             {typed ? 'Votre note' : 'Ce que vous avez dit'}
-          </h3>
-          <label htmlFor="voice-transcript" className="sr-only">
-            {typed ? 'Texte de la note' : 'Transcription de la dictée'}
           </label>
           <TextArea
             id="voice-transcript"
             value={transcript}
             onChange={(e) => onTranscript(e.target.value)}
-            rows={8}
+            rows={7}
             placeholder={
-              typed
-                ? 'Corrigez le texte si besoin.'
-                : "La transcription n'a rien donné. Écrivez ici ce que vous vouliez noter."
+              typed ? 'Corrigez le texte si besoin.' : "La transcription n'a rien donné. Écrivez ici ce que vous vouliez noter."
             }
-            className="flex-1 lg:min-h-[280px]"
+            className="lg:min-h-[240px] lg:flex-1"
           />
           <NoteMentionSensible />
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <WorkspaceButton
-              type="button"
-              variant="secondary"
-              onClick={() => void rafraichir()}
-              disabled={locked || !canRefresh}
-            >
-              <RefreshCw size={15} strokeWidth={2} aria-hidden className={refreshing ? 'animate-spin' : undefined} />
-              {refreshing ? 'Mise à jour…' : 'Mettre à jour'}
-            </WorkspaceButton>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            {canRefresh ? (
+              <WorkspaceButton type="button" variant="secondary" onClick={() => void rafraichir()} disabled={locked}>
+                <RefreshCw size={15} strokeWidth={2} aria-hidden className={refreshing ? 'animate-spin' : undefined} />
+                {refreshing ? 'Relecture…' : 'Relire le texte corrigé'}
+              </WorkspaceButton>
+            ) : null}
             {onContinue ? (
               <button
                 type="button"
                 onClick={onContinue}
                 disabled={locked}
-                className="min-h-[40px] text-[13.5px] font-medium text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-10 rounded-xl px-2 text-[13.5px] font-medium text-primary-600 transition-colors hover:bg-primary-50 disabled:opacity-50"
               >
                 Compléter la dictée
               </button>
@@ -759,313 +683,472 @@ export default function VoiceReviewPanel({
           </div>
         </section>
 
-        <section className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6 lg:px-8 lg:py-6">
-          <div className="mb-5 flex items-baseline justify-between gap-3">
-            <h3
-              className="font-semibold uppercase text-text-subtle"
-              style={{ fontSize: 11, letterSpacing: '0.08em' }}
-            >
-              À valider
-            </h3>
-            {/* Sans ce repère, l'agent croit le formulaire vide et ressaisit à
-                la main ce que la lecture est en train de remplir. */}
-            {extracting ? (
-              <p
-                aria-live="polite"
-                className="flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-text-subtle"
-              >
-                <RefreshCw size={13} strokeWidth={2} aria-hidden className="animate-spin" />
-                Lecture de la note…
+        {/* ------------------------------------------------------------- À ranger */}
+        <section className="flex flex-col gap-5 px-5 py-5 sm:px-6 lg:min-h-0 lg:overflow-y-auto lg:px-7 lg:py-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-[16px] font-semibold text-text-strong">Ce que Priimo va ranger</h2>
+            {extracting || refreshing ? (
+              <p aria-live="polite" className="flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-primary-600">
+                <Sparkles size={13} strokeWidth={2} aria-hidden className="motion-safe:animate-pulse" />
+                Lecture approfondie…
               </p>
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-5">
-            <NoteAncrage parcelleId={parcelleId} adresse={adresse} />
+          {review.intention === 'question' && onQuestion ? (
+            <Carte className="border-primary-200 bg-primary-50">
+              <div className="flex items-start gap-3">
+                <IconeCarte kind="question" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-text-strong">C’est une question ?</p>
+                  <p className="mt-0.5 text-[12.5px] text-text-muted">Mon assistant cherche la réponse dans vos fiches.</p>
+                </div>
+                <WorkspaceButton type="button" onClick={() => onQuestion(transcript.trim())} disabled={locked}>
+                  Demander
+                </WorkspaceButton>
+              </div>
+            </Carte>
+          ) : null}
 
-            {!extracting && visiblePersonnes().filter(personneVisible).length === 0 ? (
-              <p className="text-pretty text-[13.5px] text-text-muted">
-                Aucun contact détecté. Complétez les champs ou validez la note seule.
-              </p>
-            ) : null}
+          <NoteAncrage parcelleId={parcelleId} adresse={adresse} />
 
-            {visiblePersonnes()
-              .filter(personneVisible)
-              .map((p) => {
-                const match = selectedMatchFor(p);
-                if (match) {
-                  return (
-                    <ContactFiche
-                      key={p.id}
-                      fiche={ficheContact(p, match, review)}
-                      onRemove={() => dismissPersonne(p.id)}
-                      disabled={locked}
-                    />
-                  );
-                }
+          {rien ? (
+            <p className="text-pretty text-[13.5px] text-text-muted">
+              Rien à ranger au-delà de la note elle-même. Elle reste dans vos notes, rattachez-la si besoin.
+            </p>
+          ) : null}
+
+          {/* ---- Personnes */}
+          {personnes.length > 0 ? (
+            <Groupe titre="Personnes" compte={personnes.length}>
+              {personnes.map((p) => {
+                const match = pickMatch(p.matches);
                 const draft = draftPour(p);
+                const ouvert = ouverts.includes(p.id);
+                const nom =
+                  match?.label ||
+                  [draft.fields.firstName, draft.fields.lastName].filter(Boolean).join(' ') ||
+                  draft.fields.phone ||
+                  'Contact';
+                const [prenom, ...reste] = nom.split(/\s+/);
+                const phone = formatPhoneOrNull(match?.phone ?? draft.fields.phone);
+                const type = p.personne.type !== 'autre' ? CONTACT_TYPE_LABELS[p.personne.type] : null;
+                const recherche = review.recherche && review.recherche.personneRef === p.id ? review.recherche : null;
                 return (
-                  <article
-                    key={p.id}
-                    className="rounded-clay border border-black/[0.08] bg-surface px-4 py-4 shadow-clay-sm"
-                  >
-                    <div className="mb-5 flex items-center justify-between gap-3">
-                      <h4 className="text-pretty font-semibold text-text-strong" style={{ fontSize: 16 }}>
-                        Nouveau contact
-                      </h4>
+                  <Carte key={p.id}>
+                    <div className="flex items-start gap-3">
+                      <ProfileAvatar firstName={prenom ?? ''} lastName={reste.join(' ') || prenom || ''} size={38} className="shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-semibold text-text-strong">{nom}</p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] text-text-muted">
+                          <span
+                            className={`rounded-full px-1.5 py-px text-[11px] font-semibold ${
+                              match ? 'bg-black/[0.05] text-text-muted' : 'bg-primary-50 text-primary-600'
+                            }`}
+                          >
+                            {match ? 'Déjà dans vos contacts' : 'Nouveau contact'}
+                          </span>
+                          {type ? <span>{type}</span> : null}
+                          {phone ? (
+                            <a href={telHref(phone)} className="tabular-nums hover:text-primary-600">
+                              {phone}
+                            </a>
+                          ) : null}
+                        </p>
+                      </div>
+                      {!match ? (
+                        <button
+                          type="button"
+                          onClick={() => setOuverts((o) => (o.includes(p.id) ? o.filter((x) => x !== p.id) : [...o, p.id]))}
+                          aria-expanded={ouvert}
+                          aria-label={ouvert ? 'Replier la fiche' : 'Compléter la fiche'}
+                          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.04] hover:text-text-strong"
+                        >
+                          <Pencil size={15} strokeWidth={2} aria-hidden />
+                        </button>
+                      ) : null}
                       <button
                         type="button"
-                        onClick={() => dismissPersonne(p.id)}
+                        onClick={() => setHiddenIds((h) => [...h, p.id])}
                         disabled={locked}
-                        aria-label="Retirer ce contact"
-                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+                        aria-label={`Retirer ${nom}`}
+                        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.04] hover:text-text-strong disabled:opacity-50"
                       >
-                        <X size={16} strokeWidth={2} aria-hidden />
+                        <X size={15} strokeWidth={2} aria-hidden />
                       </button>
                     </div>
-                    <ContactFormFields
-                      idPrefix={`voice-${p.id}`}
-                      fields={draft.fields}
-                      onFields={(fields) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [p.id]: { ...(prev[p.id] ?? draft), fields },
-                        }))
-                      }
-                      assignedTo={draft.assignedTo}
-                      onAssignedTo={(assignedTo) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [p.id]: { ...(prev[p.id] ?? draft), assignedTo },
-                        }))
-                      }
-                      geo={draft.geo}
-                      onGeo={(geo) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [p.id]: { ...(prev[p.id] ?? draft), geo },
-                        }))
-                      }
-                      members={members}
-                      currentUserId={currentUserId}
-                      disabled={locked}
-                    />
-                  </article>
+
+                    {recherche ? (
+                      <div className="mt-3 rounded-xl bg-bg-base px-3 py-2.5">
+                        <label className="flex cursor-pointer items-start gap-2.5">
+                          <Case
+                            checked={recherche.accepted}
+                            onChange={(v) => onReviewChange({ ...review, recherche: { ...recherche, accepted: v } })}
+                            label="Enregistrer la recherche"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-[13px] font-semibold text-text-strong">Recherche</span>
+                            <span className="block text-[12.5px] text-text-muted">{lignesRecherche(recherche).join(' · ')}</span>
+                          </span>
+                        </label>
+                        {recherche.correspondances.length > 0 ? (
+                          <ul className="mt-2 flex flex-col gap-1 pl-7">
+                            {recherche.correspondances.map((b) => (
+                              <li key={b.id}>
+                                <Link
+                                  href={`/dashboard/biens?fiche=${b.id}`}
+                                  className="group inline-flex max-w-full items-center gap-1.5 text-[12.5px] font-medium text-primary-600 hover:underline"
+                                >
+                                  <span className="truncate">{b.label}</span>
+                                  <span className="shrink-0 tabular-nums text-text-subtle">{b.score}%</span>
+                                  <ExternalLink size={12} strokeWidth={2} aria-hidden className="shrink-0 opacity-60" />
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-1 pl-7 text-[12px] text-text-subtle">Aucun bien de l’agence ne correspond pour l’instant.</p>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {!match && ouvert ? (
+                      <div className="mt-4 border-t border-black/[0.06] pt-4">
+                        <ContactFormFields
+                          idPrefix={`voice-${p.id}`}
+                          fields={draft.fields}
+                          onFields={(fields) => setDrafts((prev) => ({ ...prev, [p.id]: { ...(prev[p.id] ?? draft), fields } }))}
+                          assignedTo={draft.assignedTo}
+                          onAssignedTo={(assignedTo) =>
+                            setDrafts((prev) => ({ ...prev, [p.id]: { ...(prev[p.id] ?? draft), assignedTo } }))
+                          }
+                          geo={draft.geo}
+                          onGeo={(geo) => setDrafts((prev) => ({ ...prev, [p.id]: { ...(prev[p.id] ?? draft), geo } }))}
+                          members={members}
+                          currentUserId={currentUserId}
+                          disabled={locked}
+                        />
+                      </div>
+                    ) : null}
+                  </Carte>
                 );
               })}
+            </Groupe>
+          ) : null}
 
-            <label className="flex min-h-[40px] cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                className="size-4 rounded border-black/20 text-accent focus:ring-accent/30"
-                style={{ accentColor: '#E8743C' }}
-                checked={visibilite === 'privee'}
-                onChange={(e) => void togglePrivee(e.target.checked)}
-              />
-              <span className="text-[13.5px] font-medium text-text-strong">Garder pour moi</span>
-            </label>
+          {/* Recherche sans personne identifiée */}
+          {review.recherche && !personnes.some((p) => p.id === review.recherche?.personneRef) ? (
+            <Carte inactive>
+              <div className="flex items-start gap-3">
+                <IconeCarte kind="recherche" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-text-strong">Recherche acquéreur</p>
+                  <p className="text-[12.5px] text-text-muted">{lignesRecherche(review.recherche).join(' · ')}</p>
+                  <p className="mt-1 text-[12px] text-text-subtle">Nommez l’acquéreur pour l’enregistrer sur sa fiche.</p>
+                </div>
+              </div>
+            </Carte>
+          ) : null}
 
-            <Field label="Source de l’information" htmlFor="voice-source">
-              <Select
-                id="voice-source"
-                value={sourceInfo}
-                onChange={onSource}
-                options={SOURCE_OPTIONS}
-                aria-label="Source de l’information"
-              />
-            </Field>
+          {/* ---- À faire */}
+          {actions.length > 0 ? (
+            <Groupe titre="À faire" compte={actionsRetenues}>
+              {actions.map((a) => (
+                <Carte key={a.id} inactive={!a.accepted}>
+                  <div className="flex items-start gap-3">
+                    <Case checked={a.accepted} onChange={(v) => setAction(a.id, { accepted: v })} label={`Garder : ${a.intitule}`} />
+                    <IconeCarte kind={kindAction(a)} size={30} />
+                    <div className="min-w-0 flex-1">
+                      <input
+                        value={a.intitule}
+                        onChange={(e) => setAction(a.id, { intitule: e.target.value })}
+                        aria-label="Intitulé"
+                        className="w-full rounded-lg border border-transparent bg-transparent px-1 py-0.5 -ml-1 text-[14px] font-semibold text-text-strong outline-none transition-colors hover:border-black/10 focus:border-primary-400 focus:bg-surface"
+                      />
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] text-text-muted">
+                        <input
+                          type="date"
+                          value={a.date}
+                          onChange={(e) => e.target.value && setAction(a.id, { date: e.target.value, dateDeduite: false })}
+                          aria-label="Date"
+                          className="rounded-lg border border-black/10 bg-surface px-2 py-1 text-[12.5px] text-text-strong"
+                        />
+                        {a.type === 'rdv' || a.heure ? (
+                          <input
+                            type="time"
+                            value={a.heure ?? ''}
+                            onChange={(e) => setAction(a.id, { heure: e.target.value || null })}
+                            aria-label="Heure"
+                            className="rounded-lg border border-black/10 bg-surface px-2 py-1 text-[12.5px] text-text-strong"
+                          />
+                        ) : null}
+                        <span className={a.dateDeduite ? 'font-medium text-warning' : ''}>
+                          {a.dateDeduite ? 'Date à confirmer' : jourLisible(a.date)}
+                        </span>
+                        {a.type === 'rappel' || a.type === 'tache' ? (
+                          <span className="rounded-full bg-primary-50 px-1.5 py-px text-[11px] font-semibold text-primary-600">
+                            Sur votre accueil
+                          </span>
+                        ) : null}
+                        {a.type === 'visite_faite' && review.biens.length !== 1 ? (
+                          <span className="text-text-subtle">Reste dans la note (aucun bien identifié)</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </Carte>
+              ))}
+            </Groupe>
+          ) : null}
 
-            {manualLinks.length > 0 || conseillers.length > 0 ? (
-              <ul className="flex flex-col gap-2">
-                {manualLinks.map((link) => (
-                  <LinkChip
-                    key={link.key}
-                    label={link.label}
-                    subtitle={link.subtitle ?? 'Contact'}
-                    onRemove={() => removeManualLink(link.key)}
+          {/* ---- Mises à jour */}
+          {review.misesAJour.length > 0 || review.prospect ? (
+            <Groupe titre="Mises à jour">
+              {review.misesAJour.map((m) => {
+                const l = libelleMiseAJour(m);
+                return (
+                  <Carte key={m.id} inactive={!m.accepted}>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <Case
+                        checked={m.accepted}
+                        onChange={(v) =>
+                          onReviewChange({
+                            ...review,
+                            misesAJour: review.misesAJour.map((x) => (x.id === m.id ? { ...x, accepted: v } : x)),
+                          })
+                        }
+                        label={`Appliquer : ${l.quoi}`}
+                      />
+                      <IconeCarte kind="mise_a_jour" size={30} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold text-text-strong">
+                          {l.quoi} <span className="font-normal text-text-subtle line-through">{l.avant}</span>{' '}
+                          <span aria-hidden>→</span> {l.apres}
+                        </span>
+                        <Link href={`/dashboard/biens?fiche=${m.bienId}`} className="block truncate text-[12.5px] text-text-muted hover:text-primary-600">
+                          {m.bienLabel}
+                        </Link>
+                      </span>
+                    </label>
+                  </Carte>
+                );
+              })}
+              {review.prospect ? (
+                <Carte inactive={!review.prospect.accepted}>
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <Case
+                      checked={review.prospect.accepted}
+                      onChange={(v) => onReviewChange({ ...review, prospect: { ...review.prospect!, accepted: v } })}
+                      label="Faire avancer le prospect"
+                    />
+                    <IconeCarte kind="prospect" size={30} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold text-text-strong">
+                        Prospect{' '}
+                        {review.prospect.etapeActuelle ? (
+                          <span className="font-normal text-text-subtle">{review.prospect.etapeActuelle} → </span>
+                        ) : (
+                          '→ '
+                        )}
+                        {review.prospect.stageLibelle}
+                      </span>
+                      <Link
+                        href={`/dashboard/prospection?lead=${review.prospect.leadId}`}
+                        className="block truncate text-[12.5px] text-text-muted hover:text-primary-600"
+                      >
+                        {review.prospect.adresse}
+                        {review.prospect.motif ? ` · ${review.prospect.motif}` : ''}
+                      </Link>
+                    </span>
+                  </label>
+                </Carte>
+              ) : null}
+            </Groupe>
+          ) : null}
+
+          {/* ---- E-mail */}
+          {review.email ? (
+            <Groupe titre="E-mail à envoyer">
+              <Carte>
+                <div className="flex items-start gap-3">
+                  <IconeCarte kind="email" size={30} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-semibold text-text-strong">
+                      {review.email.destinataire ? `À ${review.email.destinataire}` : 'Brouillon prêt'}
+                      {review.email.email ? (
+                        <span className="ml-1.5 font-normal text-text-muted">{review.email.email}</span>
+                      ) : null}
+                    </p>
+                    <input
+                      value={review.email.objet}
+                      onChange={(e) => onReviewChange({ ...review, email: { ...review.email!, objet: e.target.value } })}
+                      aria-label="Objet"
+                      className="mt-1 w-full rounded-lg border border-black/10 bg-surface px-2 py-1.5 text-[13px] text-text-strong focus:border-primary-400 focus:outline-none"
+                    />
+                    {emailOuvert ? (
+                      <textarea
+                        value={review.email.corps}
+                        onChange={(e) => onReviewChange({ ...review, email: { ...review.email!, corps: e.target.value } })}
+                        aria-label="Message"
+                        rows={7}
+                        className="mt-2 w-full rounded-lg border border-black/10 bg-surface px-2 py-1.5 text-[13px] leading-relaxed text-text focus:border-primary-400 focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEmailOuvert(true)}
+                        className="mt-2 line-clamp-3 w-full whitespace-pre-line text-left text-[13px] leading-relaxed text-text-muted hover:text-text"
+                      >
+                        {review.email.corps}
+                      </button>
+                    )}
+                    <div className="mt-2.5 flex flex-wrap gap-2">
+                      <a
+                        href={mailtoBrouillon(review.email)}
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary-500 px-3 text-[13px] font-semibold text-white shadow-clay-primary hover:bg-primary-600"
+                      >
+                        Ouvrir dans ma messagerie
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard
+                            ?.writeText(`${review.email!.objet}\n\n${review.email!.corps}`)
+                            .then(() => notifySuccess('E-mail copié'))
+                            .catch(() => notifyError('Copie impossible'));
+                        }}
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-black/10 px-3 text-[13px] font-medium text-text-strong hover:bg-black/[0.03]"
+                      >
+                        <Copy size={14} strokeWidth={2} aria-hidden />
+                        Copier
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Carte>
+            </Groupe>
+          ) : null}
+
+          {/* ---- Rattachements */}
+          <Groupe titre="Rattachée à">
+            <ul className="flex flex-col gap-1.5">
+              {review.immeuble && !hiddenIds.includes('immeuble') ? (
+                <Puce
+                  label={review.immeuble.adresseNormalisee ?? review.immeuble.address}
+                  sous={review.immeuble.banId ? 'Immeuble' : 'Adresse citée'}
+                  onRemove={() => setHiddenIds((h) => [...h, 'immeuble'])}
+                  disabled={locked}
+                />
+              ) : null}
+              {review.biens
+                .filter((b) => !hiddenIds.includes(`bien-${b.id}`))
+                .map((b) => (
+                  <Puce
+                    key={b.id}
+                    label={b.label}
+                    sous="Bien de l’agence"
+                    href={`/dashboard/biens?fiche=${b.id}`}
+                    onRemove={() => setHiddenIds((h) => [...h, `bien-${b.id}`])}
                     disabled={locked}
                   />
                 ))}
-                {conseillers.map((c) => {
-                  const member = members.find((m) => m.id === c.memberId);
-                  const names = member?.fullName.trim().split(/\s+/) ?? [];
-                  const firstName = member?.firstName?.trim() || names[0] || '';
-                  const lastName = member?.lastName?.trim() || names.slice(1).join(' ') || '';
-                  return (
-                    <LinkChip
-                      key={`conseiller:${c.memberId}`}
-                      label={c.label}
-                      subtitle="Conseiller"
-                      avatar={{
-                        firstName,
-                        lastName,
-                        avatarUrl: member?.avatarUrl,
-                      }}
-                      onRemove={() =>
-                        setHiddenConseillers((prev) =>
-                          prev.includes(c.memberId) ? prev : [...prev, c.memberId],
-                        )
-                      }
-                      disabled={locked}
-                    />
-                  );
-                })}
-              </ul>
-            ) : null}
-
+              {review.leads
+                .filter((l) => leadsRetenus.includes(l.id))
+                .map((l) => (
+                  <Puce
+                    key={l.id}
+                    label={l.label}
+                    sous="Prospect DPE à cette adresse"
+                    href={`/dashboard/prospection?lead=${l.id}`}
+                    onRemove={() => setLeadsRetires((r) => [...r, l.id])}
+                    disabled={locked}
+                  />
+                ))}
+              {manualLinks.map((link) => (
+                <Puce
+                  key={link.key}
+                  label={link.label}
+                  sous={link.subtitle ?? 'Contact'}
+                  onRemove={() => setManualLinks((prev) => prev.filter((l) => l.key !== link.key))}
+                  disabled={locked}
+                />
+              ))}
+              {conseillers.map((c) => {
+                const member = members.find((m) => m.id === c.memberId);
+                const names = member?.fullName.trim().split(/\s+/) ?? [];
+                return (
+                  <Puce
+                    key={`conseiller:${c.memberId}`}
+                    label={c.label}
+                    sous="Conseiller — la note lui est confiée"
+                    avatar={{
+                      firstName: member?.firstName?.trim() || names[0] || '',
+                      lastName: member?.lastName?.trim() || names.slice(1).join(' ') || '',
+                      avatarUrl: member?.avatarUrl,
+                    }}
+                    onRemove={() => setHiddenConseillers((prev) => [...prev, c.memberId])}
+                    disabled={locked}
+                  />
+                );
+              })}
+            </ul>
             <NoteEntitySearch
               onPick={addManualLink}
               disabled={locked}
               excludeIds={
                 new Set([
                   ...manualLinks.map((l) => l.key),
-                  ...visiblePersonnes().flatMap((p) =>
-                    p.matches.map((m) => `contact:${m.contactId}`),
-                  ),
+                  ...personnes.flatMap((p) => p.matches.map((m) => `contact:${m.contactId}`)),
                 ])
               }
             />
+          </Groupe>
 
-            {review.relance ? (
-              <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">
-                <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                  {review.relance.libelle}
-                </p>
-                <p className="mt-1 text-[12.5px] text-text-subtle">
-                  {new Intl.DateTimeFormat('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                  }).format(new Date(review.relance.at))}
-                </p>
-                {members.length > 1 ? (
-                  <div className="mt-3">
-                    <Field label="Assigner à" htmlFor="voice-relance-assignee">
-                      <AssigneeSelect
-                        id="voice-relance-assignee"
-                        value={relanceAssignee}
-                        members={members}
-                        currentUserId={currentUserId}
-                        includeUnassigned
-                        unassignedLabel="Moi"
-                        onChange={setRelanceAssignee}
-                      />
-                    </Field>
-                  </div>
-                ) : null}
-              </article>
-            ) : null}
-
-            {review.promesse ? (
-              <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-1 size-4 rounded border-black/20"
-                    style={{ accentColor: '#E8743C' }}
-                    checked={review.promesse.accepted}
-                    onChange={(e) =>
-                      onReviewChange({
-                        ...review,
-                        promesse: { ...review.promesse!, accepted: e.target.checked },
-                      })
-                    }
-                  />
-                  <span>
-                    <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                      Promesse · {review.promesse.intitule}
-                    </p>
-                    <p className="mt-1 text-[12.5px] text-text-subtle">
-                      {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(
-                        new Date(`${review.promesse.echeance}T12:00:00`),
-                      )}
-                    </p>
-                  </span>
-                </label>
-                {members.length > 1 ? (
-                  <div className="mt-3">
-                    <Field label="Assigner à" htmlFor="voice-promesse-assignee">
-                      <AssigneeSelect
-                        id="voice-promesse-assignee"
-                        value={promesseAssignee}
-                        members={members}
-                        currentUserId={currentUserId}
-                        includeUnassigned
-                        unassignedLabel="Moi"
-                        onChange={setPromesseAssignee}
-                      />
-                    </Field>
-                  </div>
-                ) : null}
-              </article>
-            ) : null}
-
-            {review.rendezVous ? (
-              <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-1 size-4 rounded border-black/20"
-                    style={{ accentColor: '#E8743C' }}
-                    checked={review.rendezVous.accepted}
-                    onChange={(e) =>
-                      onReviewChange({
-                        ...review,
-                        rendezVous: { ...review.rendezVous!, accepted: e.target.checked },
-                      })
-                    }
-                  />
-                  <span>
-                    <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                      Rendez-vous · {review.rendezVous.type}
-                    </p>
-                    <p className="mt-1 text-[12.5px] text-text-subtle">
-                      {new Intl.DateTimeFormat('fr-FR', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }).format(new Date(review.rendezVous.debut))}
-                      {review.rendezVous.lieu ? ` · ${review.rendezVous.lieu}` : ''}
-                    </p>
-                  </span>
-                </label>
-              </article>
-            ) : null}
-
-            {review.visite ? (
-              <article className="rounded-xl border border-black/[0.08] px-4 py-3.5">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-1 size-4 rounded border-black/20"
-                    style={{ accentColor: '#E8743C' }}
-                    checked={review.visite.accepted}
-                    onChange={(e) =>
-                      onReviewChange({
-                        ...review,
-                        visite: { ...review.visite!, accepted: e.target.checked },
-                      })
-                    }
-                  />
-                  <span>
-                    <p className="font-medium text-text-strong" style={{ fontSize: 14.5 }}>
-                      Visite effectuée
-                    </p>
-                    {review.visite.retour ? (
-                      <p className="mt-1 text-[13px] text-text-muted">{review.visite.retour}</p>
-                    ) : null}
-                  </span>
-                </label>
-              </article>
+          {/* ---- Options */}
+          <div className="flex flex-col gap-3 border-t border-black/[0.06] pt-4">
+            <label className="flex min-h-10 cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                className="size-[18px] rounded-md border-black/20"
+                style={{ accentColor: 'var(--primary-500)' }}
+                checked={visibilite === 'privee'}
+                onChange={(e) => void togglePrivee(e.target.checked)}
+              />
+              <Lock size={14} strokeWidth={2} aria-hidden className="text-text-subtle" />
+              <span className="text-[13.5px] font-medium text-text-strong">Garder pour moi</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setPlusOuvert((v) => !v)}
+              aria-expanded={plusOuvert}
+              className="inline-flex w-fit items-center gap-1 text-[12.5px] font-medium text-text-muted hover:text-text-strong"
+            >
+              <ChevronDown size={14} strokeWidth={2} aria-hidden className={plusOuvert ? 'rotate-180' : ''} />
+              Source de l’information
+              {sourceInfo ? ` · ${NOTE_SOURCE_LABELS[sourceInfo]}` : ''}
+            </button>
+            {plusOuvert ? (
+              <Field label="Qui a donné l’information" htmlFor="voice-source">
+                <Select
+                  id="voice-source"
+                  value={sourceInfo}
+                  onChange={(v) => {
+                    sourceChoisie.current = true;
+                    setSourceInfo((v || '') as NoteSourceInfo | '');
+                  }}
+                  options={SOURCE_OPTIONS}
+                  aria-label="Source de l’information"
+                />
+              </Field>
             ) : null}
           </div>
         </section>
       </div>
 
-      <footer className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-black/[0.06] px-5 py-4 sm:px-6 lg:px-8 lg:py-5">
+      <footer className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-black/[0.06] px-5 py-3.5 sm:px-6 lg:px-7">
+        <p className="min-w-0 truncate text-[12.5px] text-text-muted">{resumePied || 'La note seule'}</p>
         <WorkspaceButton type="button" onClick={terminer} disabled={locked || extracting}>
-          {terminating ? 'Validation…' : extracting ? 'Lecture…' : 'Valider'}
+          {terminating ? 'Rangement…' : extracting ? 'Lecture…' : 'Tout ranger'}
         </WorkspaceButton>
       </footer>
     </>

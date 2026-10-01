@@ -1,9 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Circle, Loader2, Lock, Pencil, Plus, Spline, Square, Trash2, Triangle, X } from 'lucide-react';
+import { ChevronDown, Loader2, Pencil, Plus, Spline, Trash2, X } from 'lucide-react';
 import {
   canCreateZone,
   canDeleteZone,
@@ -17,12 +17,9 @@ import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeS
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import StatistiquesSecteur from './StatistiquesSecteur';
-import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import { COULEURS_ZONE, couleurZoneLibre } from '@/lib/zones/palette';
+import { couleurZoneLibre } from '@/lib/zones/palette';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
-import { JOURS_TOURNEE, libelleJours } from '@/lib/zones/jour';
-import { decouperAdresse } from '@/lib/zones/adresse';
-import type { PariteVoie, RegleZone, ValeurPolygone, ValeurRegleZone, Zone } from '@/lib/zones/types';
+import type { RegleZone, ValeurPolygone, ValeurRegleZone, Zone } from '@/lib/zones/types';
 import type { LeadPoint, ModeCarte } from './ZonesCarte';
 
 const ZonesCarte = dynamic(() => import('./ZonesCarte'), {
@@ -58,12 +55,6 @@ type Membre = {
   avatarUrl?: string | null;
 };
 
-const PARITES: { valeur: PariteVoie; label: string }[] = [
-  { valeur: 'toutes', label: 'Tous les numéros' },
-  { valeur: 'paires', label: 'Numéros pairs' },
-  { valeur: 'impaires', label: 'Numéros impairs' },
-];
-
 const champClass =
   'w-full rounded-lg border border-black/10 px-3 py-2 text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
@@ -71,6 +62,14 @@ const labelClass = 'mb-1 block text-[12px] font-medium text-mute';
 
 /** Déclencheur de menu : la même boîte que les champs texte du panneau. */
 const declencheurClass = `${champClass} flex items-center justify-between gap-2 text-left`;
+
+const boutonAtelier =
+  'inline-flex w-full items-center justify-center gap-2 rounded-[9999px] px-3 py-2.5 text-[13px] font-semibold transition-colors duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8743C] disabled:cursor-not-allowed disabled:opacity-60';
+
+const boutonNuit = `${boutonAtelier} bg-[#1a2a56] text-white hover:bg-[#152348]`;
+const boutonClair = `${boutonAtelier} bg-white text-ink shadow-clay-sm hover:bg-black/[0.03]`;
+const boutonValiderInerte =
+  `${boutonAtelier} cursor-not-allowed bg-[#D5D8E4] text-[#4E5A82] disabled:opacity-100`;
 
 function appliquerPatch(zone: Zone, patch: Record<string, unknown>): Zone {
   return {
@@ -130,7 +129,7 @@ export default function SecteursClient({
   centre: { latitude: number | null; longitude: number | null };
   estDirecteur: boolean;
   profileId: string;
-  /** Ferme l’atelier : le secteur est déjà enregistré au fil de l’eau. */
+  /** Ferme l’atelier une fois qu’un changement a été fait dans cette session. */
   onValider?: () => void;
 }) {
   const router = useRouter();
@@ -145,22 +144,17 @@ export default function SecteursClient({
     zonesRef.current = zonesLocales;
   }, [zonesLocales]);
 
-  // Un négociateur ouvre sur SA zone. À défaut, sur rien : lui poser d'office
-  // le secteur d'un collègue, qu'il ne peut que lire, ferait croire à un bug.
-  const [zoneActiveId, setZoneActiveId] = useState<string | null>(
-    zones.find((z) => z.assignedTo === profileId)?.id ??
-      (estDirecteur ? (zones[0]?.id ?? null) : null),
-  );
+  // Fermé d'office : le menu d'un secteur ne s'ouvre que si on le choisit.
+  const [zoneActiveId, setZoneActiveId] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [modeDessin, setModeDessin] = useState<ModeCarte>('inactif');
   const [survol, setSurvol] = useState<string | null>(null);
   const [nbZonesProposees, setNbZonesProposees] = useState(4);
   /** Premier secteur : d’abord le bouton, ensuite le nom, ensuite le panneau. */
   const [nommerPremier, setNommerPremier] = useState(false);
-  /** Repère posé sur la voie choisie dans la BAN, pour vérifier avant d'ajouter. */
-  const [voieSurlignee, setVoieSurlignee] = useState<{ latitude: number; longitude: number } | null>(
-    null,
-  );
+  /** Valider n’est actif que s’il y a eu un vrai changement dans l’atelier. */
+  const [aValider, setAValider] = useState(false);
+  const marquerAValider = useCallback(() => setAValider(true), []);
 
   const zoneActive = useMemo(
     () => zonesLocales.find((z) => z.id === zoneActiveId) ?? null,
@@ -224,6 +218,7 @@ export default function SecteursClient({
         if (id) {
           setZoneActiveId(id);
           setNommerPremier(false);
+          marquerAValider();
           const nouvelle: Zone = {
             id,
             agencyId: '',
@@ -244,7 +239,7 @@ export default function SecteursClient({
         return null;
       }
     },
-    [appeler, estDirecteur, profileId, rafraichir],
+    [appeler, estDirecteur, marquerAValider, profileId, rafraichir],
   );
 
   const modifierZone = useCallback(
@@ -258,6 +253,7 @@ export default function SecteursClient({
       const suivante = appliquerPatch(actuelle, corps);
       zonesRef.current = zonesRef.current.map((z) => (z.id === zoneId ? suivante : z));
       setZonesLocales(zonesRef.current);
+      marquerAValider();
       void (async () => {
         try {
           await appeler(`/api/dashboard/zones/${zoneId}`, 'PATCH', corps, { silencieux: true });
@@ -268,7 +264,7 @@ export default function SecteursClient({
         }
       })();
     },
-    [appeler],
+    [appeler, marquerAValider],
   );
 
   const poserZones = useCallback((liste: Zone[]) => {
@@ -283,11 +279,12 @@ export default function SecteursClient({
         setZoneActiveId((id) => (id === zoneId ? null : id));
         setNommerPremier(false);
         poserZones(zonesRef.current.filter((z) => z.id !== zoneId));
+        marquerAValider();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Suppression impossible');
       }
     },
-    [appeler, poserZones],
+    [appeler, marquerAValider, poserZones],
   );
 
   const ajouterRegle = useCallback(
@@ -309,6 +306,7 @@ export default function SecteursClient({
           z.id === zoneId ? { ...z, regles: [...z.regles, regle] } : z,
         ),
       );
+      marquerAValider();
       void (async () => {
         try {
           const { id } = (await appeler(
@@ -335,7 +333,7 @@ export default function SecteursClient({
         }
       })();
     },
-    [appeler, poserZones, zoneActiveId],
+    [appeler, marquerAValider, poserZones, zoneActiveId],
   );
 
   const supprimerRegle = useCallback(
@@ -350,6 +348,7 @@ export default function SecteursClient({
             : z,
         ),
       );
+      marquerAValider();
       void (async () => {
         try {
           await appeler(`/api/dashboard/zones/${zone.id}/regles/${regleId}`, 'DELETE', undefined, {
@@ -361,7 +360,7 @@ export default function SecteursClient({
         }
       })();
     },
-    [appeler, poserZones],
+    [appeler, marquerAValider, poserZones],
   );
 
   /** Déplacement d'un sommet : le trait bouge tout de suite, le serveur suit. */
@@ -392,6 +391,7 @@ export default function SecteursClient({
             : z,
         ),
       );
+      marquerAValider();
       void (async () => {
         try {
           await appeler(
@@ -406,7 +406,7 @@ export default function SecteursClient({
         }
       })();
     },
-    [appeler, poserZones],
+    [appeler, marquerAValider, poserZones],
   );
 
   const proposer = useCallback(async () => {
@@ -443,9 +443,12 @@ export default function SecteursClient({
             leads={pointsLeads}
             centre={centre}
             hauteur={520}
-            voieSurlignee={voieSurlignee}
             modeDessin={modeDessin}
             onSurvolZone={setSurvol}
+            onChoisirZone={(id) => {
+              setZoneActiveId(id);
+              setModeDessin('inactif');
+            }}
             onPolygoneDessine={
               peutEditer
                 ? (polygone) => {
@@ -485,9 +488,9 @@ export default function SecteursClient({
                   onAnnuler={() => setNommerPremier(false)}
                 />
               ) : (
-                <ClayButton type="button" className="w-full" onClick={() => setNommerPremier(true)}>
+                <button type="button" className={`${boutonNuit}`} onClick={() => setNommerPremier(true)}>
                   Créer mon premier secteur
-                </ClayButton>
+                </button>
               )
             ) : (
               <p className="text-pretty text-[13px] text-mute">Aucun secteur pour l’instant.</p>
@@ -499,10 +502,29 @@ export default function SecteursClient({
                 membres={membres}
                 zoneActiveId={zoneActiveId}
                 onChoisir={(id) => {
-                  setZoneActiveId(id);
+                  setZoneActiveId((actuel) => (actuel === id ? null : id));
                   setModeDessin('inactif');
                 }}
                 profileId={profileId}
+                panneau={
+                  zoneActive
+                    ? (zone) => (
+                        <PanneauZone
+                          zone={zone}
+                          membres={membres}
+                          peutEditer={peutEditer}
+                          peutGerer={peutGerer}
+                          peutSupprimer={peutSupprimer}
+                          enCours={enCours}
+                          modeDessin={modeDessin}
+                          onModeDessin={setModeDessin}
+                          onModifier={(patch) => modifierZone(zone.id, patch)}
+                          onSupprimer={() => void supprimerZone(zone.id)}
+                          onSupprimerRegle={(regleId) => supprimerRegle(regleId)}
+                        />
+                      )
+                    : undefined
+                }
               />
 
               {peutCreer ? (
@@ -516,30 +538,19 @@ export default function SecteursClient({
                 />
               ) : null}
 
-              {zoneActive ? (
-                <PanneauZone
-                  zone={zoneActive}
-                  membres={membres}
-                  peutEditer={peutEditer}
-                  peutGerer={peutGerer}
-                  peutSupprimer={peutSupprimer}
-                  enCours={enCours}
-                  modeDessin={modeDessin}
-                  onModeDessin={setModeDessin}
-                  onModifier={(patch) => modifierZone(zoneActive.id, patch)}
-                  onSupprimer={() => void supprimerZone(zoneActive.id)}
-                  onAjouterRegle={(type, valeur, inclusion) => ajouterRegle(type, valeur, inclusion)}
-                  onSupprimerRegle={(regleId) => supprimerRegle(regleId)}
-                  onSurlignerVoie={setVoieSurlignee}
-                  onValider={
-                    onValider
-                      ? () => {
-                          setModeDessin('inactif');
-                          onValider();
-                        }
-                      : undefined
-                  }
-                />
+              {onValider ? (
+                <button
+                  type="button"
+                  disabled={!aValider}
+                  className={`${aValider ? boutonNuit : boutonValiderInerte} py-2.5`}
+                  onClick={() => {
+                    if (!aValider) return;
+                    setModeDessin('inactif');
+                    onValider();
+                  }}
+                >
+                  Valider
+                </button>
               ) : null}
             </>
           )}
@@ -555,12 +566,14 @@ function ListeZones({
   zoneActiveId,
   onChoisir,
   profileId,
+  panneau,
 }: {
   zones: readonly Zone[];
   membres: readonly Membre[];
   zoneActiveId: string | null;
   onChoisir: (id: string) => void;
   profileId: string;
+  panneau?: (zone: Zone) => ReactNode;
 }) {
   if (zones.length === 0) return null;
 
@@ -568,22 +581,21 @@ function ListeZones({
     <ul className="flex flex-col gap-1.5">
       {zones.map((zone) => {
         const titulaire = membres.find((m) => m.id === zone.assignedTo);
-        const actif = zone.id === zoneActiveId;
-        const jours = libelleJours(zone.joursSemaine);
+        const ouvert = zone.id === zoneActiveId;
+        const panneauId = `secteur-panneau-${zone.id}`;
         return (
-          <li key={zone.id}>
+          <li key={zone.id} className="rounded-clay bg-white shadow-clay-sm">
             <button
               type="button"
               onClick={() => onChoisir(zone.id)}
-              aria-current={actif}
-              className={`flex w-full items-center gap-2.5 rounded-clay px-3 py-2.5 text-left transition-[box-shadow,background-color] duration-fluid-subtle ease-in-out ${
-                actif ? 'bg-white shadow-clay-sm ring-1 ring-black/[0.06]' : 'hover:bg-white/70'
-              }`}
+              aria-expanded={ouvert}
+              aria-controls={panneauId}
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-black/[0.02]"
             >
               <span
                 aria-hidden
                 className="size-3.5 shrink-0 rounded-[4px]"
-                style={{ backgroundColor: zone.couleur, opacity: zone.actif ? 1 : 0.35 }}
+                style={{ backgroundColor: zone.couleur }}
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13.5px] font-medium text-ink">{zone.nom}</span>
@@ -599,15 +611,21 @@ function ListeZones({
                           />
                         )
                     : 'Sans titulaire'}
-                  {jours ? ` · ${jours}` : ''}
-                  {zone.verrouillee ? ' · direction' : ''}
-                  {zone.actif ? '' : ' · désactivé'}
                 </span>
               </span>
-              {zone.verrouillee ? (
-                <Lock size={12} className="shrink-0 text-mute" aria-label="Verrouillé" />
-              ) : null}
+              <ChevronDown
+                size={16}
+                aria-hidden
+                className={`shrink-0 text-mute transition-transform duration-200 ease-out ${
+                  ouvert ? 'rotate-180' : ''
+                }`}
+              />
             </button>
+            <div id={panneauId} hidden={!ouvert}>
+              {ouvert && panneau ? (
+                <div className="border-t border-black/[0.06] px-3 pb-3.5 pt-3">{panneau(zone)}</div>
+              ) : null}
+            </div>
           </li>
         );
       })}
@@ -704,7 +722,12 @@ function CreerZone({
             maxLength={60}
           />
         </span>
-        <ClayButton type="submit" className="px-3 py-2 text-[13px]" disabled={enCours || nom.trim() === ''}>
+        <ClayButton
+          type="submit"
+          variant="secondary"
+          className="px-3 py-2 text-[13px]"
+          disabled={enCours || nom.trim() === ''}
+        >
           <Plus size={14} aria-hidden />
           Créer
         </ClayButton>
@@ -755,10 +778,7 @@ function PanneauZone({
   onModeDessin,
   onModifier,
   onSupprimer,
-  onAjouterRegle,
   onSupprimerRegle,
-  onSurlignerVoie,
-  onValider,
 }: {
   zone: Zone;
   membres: readonly Membre[];
@@ -772,72 +792,58 @@ function PanneauZone({
     patch: Record<string, unknown> | ((zone: Zone) => Record<string, unknown>),
   ) => void;
   onSupprimer: () => void;
-  onAjouterRegle: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
   onSupprimerRegle: (regleId: string) => void;
-  onSurlignerVoie: (coord: { latitude: number; longitude: number } | null) => void;
-  onValider?: () => void;
 }) {
   const [renommage, setRenommage] = useState<string | null>(null);
-  // Supprimer se demande deux fois : un secteur, c'est une demi-heure de tracé.
   const [confirmeSuppression, setConfirmeSuppression] = useState(false);
-  // Sans contour, il n'y a rien à reprendre : le bouton mentirait.
   const aUnContour = zone.regles.some((r) => r.type === 'polygone' && r.inclusion);
 
   return (
-    <div className="flex flex-col gap-3 rounded-clay bg-white px-4 py-3.5 shadow-clay-sm">
-      <div className="flex items-start gap-2">
-        {renommage === null ? (
-          <>
-            <h3 className="min-w-0 flex-1 truncate font-semibold text-ink" style={{ fontSize: 15 }}>
-              {zone.nom}
-            </h3>
-            {peutEditer ? (
-              <button
-                type="button"
-                aria-label="Renommer le secteur"
-                onClick={() => setRenommage(zone.nom)}
-                className="rounded-lg p-1.5 text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
-              >
-                <Pencil size={14} aria-hidden />
-              </button>
-            ) : null}
-          </>
-        ) : (
-          <form
-            className="flex flex-1 items-center gap-1.5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const nom = renommage.trim();
-              if (nom !== '' && nom !== zone.nom) onModifier({ nom });
-              setRenommage(null);
-            }}
+    <div className="flex flex-col gap-3">
+      {renommage === null ? (
+        peutEditer ? (
+          <button
+            type="button"
+            onClick={() => setRenommage(zone.nom)}
+            className="self-start text-[12.5px] font-medium text-mute hover:text-ink"
           >
-            <input
-              autoFocus
-              className={champClass}
-              value={renommage}
-              onChange={(e) => setRenommage(e.target.value)}
-              maxLength={60}
-              aria-label="Nom du secteur"
-            />
-            <ClayButton type="submit" className="px-2.5 py-1.5 text-[12px]">
-              OK
-            </ClayButton>
-            <button
-              type="button"
-              aria-label="Annuler"
-              onClick={() => setRenommage(null)}
-              className="rounded-lg p-1.5 text-mute hover:bg-black/[0.04]"
-            >
-              <X size={14} aria-hidden />
-            </button>
-          </form>
-        )}
-      </div>
-
-      {zone.verrouillee ? (
-        <p className="text-pretty text-[12.5px] text-mute">Secteur défini par la direction</p>
-      ) : null}
+            <span className="inline-flex items-center gap-1.5">
+              <Pencil size={13} aria-hidden />
+              Renommer
+            </span>
+          </button>
+        ) : null
+      ) : (
+        <form
+          className="flex items-center gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const nom = renommage.trim();
+            if (nom !== '' && nom !== zone.nom) onModifier({ nom });
+            setRenommage(null);
+          }}
+        >
+          <input
+            autoFocus
+            className={champClass}
+            value={renommage}
+            onChange={(e) => setRenommage(e.target.value)}
+            maxLength={60}
+            aria-label="Nom du secteur"
+          />
+          <button type="submit" className={`${boutonNuit} w-auto px-3 py-2 text-[12px]`}>
+            OK
+          </button>
+          <button
+            type="button"
+            aria-label="Annuler"
+            onClick={() => setRenommage(null)}
+            className="rounded-lg p-1.5 text-mute hover:bg-black/[0.04]"
+          >
+            <X size={14} aria-hidden />
+          </button>
+        </form>
+      )}
 
       {zone.regles.length > 0 ? <StatistiquesSecteur zone={zone} /> : null}
 
@@ -871,345 +877,107 @@ function PanneauZone({
       ) : null}
 
       {peutEditer ? (
-        <>
-          <div>
-            <span className={labelClass}>Jours de tournée</span>
-            <div className="flex gap-1.5" role="group" aria-label="Jours de tournée">
-              {JOURS_TOURNEE.map((jour) => {
-                const retenu = zone.joursSemaine.includes(jour.valeur);
-                return (
-                  <button
-                    key={jour.valeur}
-                    type="button"
-                    aria-pressed={retenu}
-                    aria-label={jour.label}
-                    title={jour.label}
-                    onClick={() =>
-                      onModifier((actuelle) => ({
-                        joursSemaine: actuelle.joursSemaine.includes(jour.valeur)
-                          ? actuelle.joursSemaine.filter((j) => j !== jour.valeur)
-                          : [...actuelle.joursSemaine, jour.valeur],
-                      }))
-                    }
-                    className={`flex h-9 flex-1 items-center justify-center rounded-clay text-[13px] font-semibold transition-[background-color,box-shadow,color] duration-fluid-subtle ease-in-out disabled:opacity-50 ${
-                      retenu
-                        ? 'bg-[#D4E8F5] text-ink shadow-clay-sm'
-                        : 'bg-black/[0.04] text-mute hover:bg-black/[0.07] hover:text-ink'
-                    }`}
-                  >
-                    {jour.initiale}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-1.5 text-[11px] text-mute">
-              {libelleJours(zone.joursSemaine) ??
-                'Aucun jour : la tournée ne se filtre pas sur ce secteur.'}
-            </p>
-          </div>
-
-          <div>
-            <span className={labelClass}>Couleur</span>
-            <div className="flex flex-wrap gap-1.5">
-              {COULEURS_ZONE.map((couleur) => (
-                <button
-                  key={couleur}
-                  type="button"
-                  aria-label={`Couleur ${couleur}`}
-                  aria-pressed={zone.couleur.toUpperCase() === couleur.toUpperCase()}
-                  onClick={() => onModifier({ couleur })}
-                  className={`size-6 rounded-[7px] transition-transform duration-fluid-subtle ease-in-out hover:scale-110 ${
-                    zone.couleur.toUpperCase() === couleur.toUpperCase()
-                      ? 'ring-2 ring-offset-2 ring-black/25'
-                      : ''
-                  }`}
-                  style={{ backgroundColor: couleur }}
-                />
-              ))}
-            </div>
-          </div>
-        </>
-      ) : !zone.verrouillee ? (
-        <p className="text-pretty text-[12.5px] text-mute">Consultation seule.</p>
-      ) : null}
-
-      {peutGerer ? (
-        <button
-          type="button"
-          onClick={() => onModifier({ verrouillee: !zone.verrouillee })}
-          className="rounded-lg px-2 py-1.5 text-left text-[12.5px] font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
-        >
-          {zone.verrouillee ? 'Déverrouiller le secteur' : 'Verrouiller le secteur'}
-        </button>
-      ) : null}
-
-      <div className="border-t border-black/[0.06] pt-3">
-        <span className={labelClass}>Règles du secteur</span>
-        {zone.regles.length === 0 ? (
-          <p className="text-[12.5px] text-mute">
-            Aucune règle : ce secteur ne capte encore aucune adresse.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {zone.regles.map((regle) => (
-              <li
-                key={regle.id}
-                className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] ${
-                  regle.inclusion ? 'bg-black/[0.02] text-ink' : 'bg-rose-50 text-rose-900'
-                }`}
-              >
-                <span className="min-w-0 flex-1 truncate">{resumerRegle(regle)}</span>
-                {peutEditer ? (
-                  <button
-                    type="button"
-                    aria-label="Supprimer la règle"
-                    disabled={enCours}
-                    onClick={() => onSupprimerRegle(regle.id)}
-                    className="rounded p-1 text-mute transition-colors hover:bg-black/[0.05] hover:text-rose-700"
-                  >
-                    <Trash2 size={13} aria-hidden />
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {peutEditer ? (
-        <>
-          <div className="flex flex-col gap-1.5">
-            <ClayButton
-              variant={modeDessin === 'polygone' ? 'primary' : 'secondary'}
-              className="px-3 py-2 text-[13px]"
-              onClick={() => onModeDessin(modeDessin === 'polygone' ? 'inactif' : 'polygone')}
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            className={modeDessin === 'polygone' ? boutonNuit : boutonClair}
+            onClick={() => onModeDessin(modeDessin === 'polygone' ? 'inactif' : 'polygone')}
+          >
+            {modeDessin === 'polygone' ? 'Annuler le tracé' : 'Dessiner le contour'}
+          </button>
+          {aUnContour ? (
+            <button
+              type="button"
+              className={modeDessin === 'ajuster' ? boutonNuit : boutonClair}
+              onClick={() => onModeDessin(modeDessin === 'ajuster' ? 'inactif' : 'ajuster')}
             >
-              {modeDessin === 'polygone' ? 'Annuler le tracé' : 'Dessiner un contour'}
-            </ClayButton>
-            <div className="grid grid-cols-3 gap-1.5">
-              <ClayButton
-                variant={modeDessin === 'carre' ? 'primary' : 'secondary'}
-                className="px-2 py-2 text-[12px]"
-                onClick={() => onModeDessin(modeDessin === 'carre' ? 'inactif' : 'carre')}
-              >
-                <Square size={13} aria-hidden />
-                Carré
-              </ClayButton>
-              <ClayButton
-                variant={modeDessin === 'rond' ? 'primary' : 'secondary'}
-                className="px-2 py-2 text-[12px]"
-                onClick={() => onModeDessin(modeDessin === 'rond' ? 'inactif' : 'rond')}
-              >
-                <Circle size={13} aria-hidden />
-                Rond
-              </ClayButton>
-              <ClayButton
-                variant={modeDessin === 'triangle' ? 'primary' : 'secondary'}
-                className="px-2 py-2 text-[12px]"
-                onClick={() => onModeDessin(modeDessin === 'triangle' ? 'inactif' : 'triangle')}
-              >
-                <Triangle size={13} aria-hidden />
-                Triangle
-              </ClayButton>
-            </div>
-            {aUnContour ? (
-              <ClayButton
-                variant={modeDessin === 'ajuster' ? 'primary' : 'secondary'}
-                className="px-3 py-2 text-[13px]"
-                onClick={() => onModeDessin(modeDessin === 'ajuster' ? 'inactif' : 'ajuster')}
-              >
-                <Spline size={14} aria-hidden />
-                {modeDessin === 'ajuster' ? 'Terminer l’ajustement' : 'Ajuster le contour'}
-              </ClayButton>
-            ) : null}
-            {modeDessin === 'polygone' ? (
-              <p className="text-pretty text-[11.5px] text-mute">
-                Maintenez le clic et suivez vos rues : le trait se colle aux parcelles. Le
-                contour s’enregistre dès que vous relâchez.
-              </p>
-            ) : null}
-            {modeDessin === 'carre' || modeDessin === 'rond' || modeDessin === 'triangle' ? (
-              <p className="text-pretty text-[11.5px] text-mute">
-                Cliquez et glissez pour dimensionner. La forme s’enregistre au relâchement.
-              </p>
-            ) : null}
-            {modeDessin === 'ajuster' ? (
-              <p className="text-pretty text-[11.5px] text-mute">
-                Tirez un rond plein pour déplacer un angle, un rond creux pour étirer le trait
-                entre deux angles. Double-cliquez un rond plein pour le retirer.
-              </p>
-            ) : null}
-          </div>
+              <Spline size={14} aria-hidden />
+              {modeDessin === 'ajuster' ? 'Terminer l’ajustement' : 'Ajuster le contour'}
+            </button>
+          ) : null}
+          {modeDessin === 'polygone' ? (
+            <p className="text-pretty text-[11.5px] text-mute">
+              Maintenez le clic et suivez vos rues. Le contour s’enregistre au relâchement.
+            </p>
+          ) : null}
+          {modeDessin === 'ajuster' ? (
+            <p className="text-pretty text-[11.5px] text-mute">
+              Tirez un rond pour déplacer un angle. Double-cliquez pour le retirer.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-pretty text-[12.5px] text-mute">Consultation seule.</p>
+      )}
 
-          <RegleVoie onAjouter={onAjouterRegle} enCours={enCours} onSurligner={onSurlignerVoie} />
-        </>
-      ) : null}
+      {zone.regles.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {zone.regles.map((regle) => (
+            <li
+              key={regle.id}
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] text-ink"
+            >
+              <span className="min-w-0 flex-1 truncate">{resumerRegle(regle)}</span>
+              {peutEditer ? (
+                <button
+                  type="button"
+                  aria-label="Retirer cette règle"
+                  disabled={enCours}
+                  onClick={() => onSupprimerRegle(regle.id)}
+                  className="rounded p-1 text-mute transition-colors hover:bg-black/[0.05] hover:text-rose-700"
+                >
+                  <Trash2 size={13} aria-hidden />
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-pretty text-[12.5px] text-mute">
+          Aucun contour pour l’instant. Dessinez-le sur la carte.
+        </p>
+      )}
 
-      {onValider ? (
-        <ClayButton className="w-full px-3 py-2.5 text-[14px]" onClick={onValider}>
-          Valider
-        </ClayButton>
-      ) : null}
-
-      {peutGerer || peutSupprimer ? (
-        <div className="flex flex-col gap-2 border-t border-black/[0.06] pt-3">
-          <div className="flex items-center gap-2">
-            {peutGerer ? (
-              <button
-                type="button"
-                onClick={() => onModifier({ actif: !zone.actif })}
-                className="flex-1 rounded-lg px-2 py-1.5 text-left text-[12.5px] font-medium text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
-              >
-                {zone.actif ? 'Désactiver' : 'Réactiver'}
-              </button>
-            ) : (
-              <span className="flex-1" />
-            )}
-            {peutSupprimer ? (
+      {peutSupprimer ? (
+        confirmeSuppression ? (
+          <div className="flex flex-col gap-2 rounded-clay bg-rose-50 px-3 py-2.5">
+            <p className="text-pretty text-[12.5px] text-rose-900">
+              Supprimer « {zone.nom} » ? Les adresses restent, elles ne seront plus rattachées à
+              un secteur.
+            </p>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 disabled={enCours}
-                onClick={() => setConfirmeSuppression((v) => !v)}
-                aria-expanded={confirmeSuppression}
-                className="rounded-lg px-2 py-1.5 text-[12.5px] font-medium text-rose-700 transition-colors hover:bg-rose-50"
-              >
-                {confirmeSuppression ? 'Annuler' : 'Supprimer le secteur'}
-              </button>
-            ) : null}
-          </div>
-
-          {peutSupprimer && confirmeSuppression ? (
-            <div className="flex flex-col gap-2 rounded-clay bg-rose-50 px-3 py-2.5">
-              <p className="text-pretty text-[12.5px] text-rose-900">
-                Supprimer « {zone.nom} » et toutes ses règles. Les adresses ne bougent pas,
-                elles ne seront plus rattachées à un secteur.
-              </p>
-              <ClayButton
-                variant="secondary"
-                className="self-start px-3 py-1.5 text-[12.5px] text-rose-700"
-                disabled={enCours}
+                className="rounded-[9999px] bg-rose-700 px-3 py-1.5 text-[12.5px] font-semibold text-white hover:bg-rose-800"
                 onClick={() => {
                   setConfirmeSuppression(false);
                   onSupprimer();
                 }}
               >
-                <Trash2 size={13} aria-hidden />
                 Oui, supprimer
-              </ClayButton>
+              </button>
+              <button
+                type="button"
+                className="text-[12.5px] font-medium text-mute hover:text-ink"
+                onClick={() => setConfirmeSuppression(false)}
+              >
+                Annuler
+              </button>
             </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Règle de voie : le seul moyen de séparer deux côtés d'une rue distants de
- * trois mètres. L'autocomplétion BAN évite les fautes de frappe, qui rendraient
- * la règle muette sans jamais prévenir.
- */
-function RegleVoie({
-  onAjouter,
-  enCours,
-  onSurligner,
-}: {
-  onAjouter: (type: RegleZone['type'], valeur: unknown, inclusion: boolean) => void;
-  enCours: boolean;
-  onSurligner: (coord: { latitude: number; longitude: number } | null) => void;
-}) {
-  const [choix, setChoix] = useState<SelectedAddress | null>(null);
-  const [parite, setParite] = useState<PariteVoie>('toutes');
-  const [min, setMin] = useState('');
-  const [max, setMax] = useState('');
-  const [inclusion, setInclusion] = useState(true);
-
-  const voie = choix ? decouperAdresse(choix.label).nomVoie : null;
-
-  return (
-    <div className="flex flex-col gap-2 border-t border-black/[0.06] pt-3">
-      <span className={labelClass}>Ajouter une voie</span>
-      <AddressAutocomplete
-        value={choix?.label ?? ''}
-        onChange={(adresse) => {
-          setChoix(adresse);
-          // Le repère apparaît sur la carte avant l'ajout : on vérifie d'abord
-          // qu'on parle bien de la même rue.
-          onSurligner(
-            adresse ? { latitude: adresse.latitude, longitude: adresse.longitude } : null,
-          );
-        }}
-        placeholder="Ex : rue des Maraîchers"
-        inputClassName={`${champClass} pl-9`}
-        aria-label="Rechercher une voie"
-      />
-      {choix ? (
-        <>
-          <p className="text-[11.5px] text-mute">
-            {voie ?? choix.label} · {choix.postcode}
-          </p>
-          <Select
-            value={parite}
-            onChange={(valeur) => setParite(valeur as PariteVoie)}
-            options={PARITES.map((p) => ({ value: p.valeur, label: p.label }))}
-            aria-label="Parité des numéros"
-            triggerClassName={declencheurClass}
-          />
-          <div className="flex items-center gap-2">
-            <input
-              className={champClass}
-              inputMode="numeric"
-              placeholder="Du n°"
-              value={min}
-              onChange={(e) => setMin(e.target.value)}
-              aria-label="Numéro minimum"
-            />
-            <input
-              className={champClass}
-              inputMode="numeric"
-              placeholder="Au n°"
-              value={max}
-              onChange={(e) => setMax(e.target.value)}
-              aria-label="Numéro maximum"
-            />
           </div>
-          <label className="flex items-center gap-2 text-[12.5px] text-ink">
-            <input
-              type="checkbox"
-              checked={!inclusion}
-              onChange={(e) => setInclusion(!e.target.checked)}
-              className="size-3.5 rounded border-black/20"
-            />
-            Retirer cette voie du secteur
-          </label>
-          <ClayButton
-            className="px-3 py-2 text-[13px]"
-            disabled={enCours || !choix.postcode}
-            onClick={() => {
-              if (!choix.postcode) return;
-              onAjouter(
-                'voie',
-                {
-                  nom_voie: voie ?? choix.label,
-                  code_postal: choix.postcode,
-                  parite,
-                  numero_min: min === '' ? null : Number.parseInt(min, 10),
-                  numero_max: max === '' ? null : Number.parseInt(max, 10),
-                },
-                inclusion,
-              );
-              setChoix(null);
-              onSurligner(null);
-              setMin('');
-              setMax('');
-              setParite('toutes');
-              setInclusion(true);
-            }}
+        ) : (
+          <button
+            type="button"
+            disabled={enCours}
+            onClick={() => setConfirmeSuppression(true)}
+            className="self-start text-[12.5px] font-medium text-rose-700 hover:text-rose-800"
           >
-            {inclusion ? 'Ajouter la voie' : 'Retirer la voie'}
-          </ClayButton>
-        </>
+            Supprimer le secteur
+          </button>
+        )
       ) : null}
     </div>
   );
 }
+

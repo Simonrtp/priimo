@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import Pastilles from '@/components/ui/Pastilles';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { grouperParJour, joursDeLaSemaine } from '@/lib/agenda/semaine';
 import {
@@ -231,28 +232,12 @@ function BarreVues({
 }) {
   return (
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-      <div
-        role="group"
-        aria-label="Vue de l’agenda"
-        className="flex rounded-clay bg-surface-2 p-1 shadow-clay-inset"
-      >
-        {VUES.map((v) => (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={v === vue}
-            disabled={!onVue}
-            onClick={() => onVue?.(v)}
-            className={`rounded-[12px] px-2.5 py-1 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-              v === vue
-                ? 'bg-surface text-text-strong shadow-clay-sm'
-                : 'text-text-muted hover:text-text-strong'
-            }`}
-          >
-            {LIBELLE_VUE[v]}
-          </button>
-        ))}
-      </div>
+      <Pastilles
+        label="Vue de l’agenda"
+        value={vue}
+        options={VUES.map((v) => ({ id: v, label: LIBELLE_VUE[v] }))}
+        onChange={onVue}
+      />
 
       <div className="flex items-center gap-1">
         <button

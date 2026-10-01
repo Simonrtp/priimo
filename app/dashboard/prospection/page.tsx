@@ -34,6 +34,7 @@ import {
   dernierPassageParAdresse,
   parseNiveauFraicheur,
 } from '@/lib/zones/fraicheur';
+import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 
 export const metadata = {
   title: 'Prospection',
@@ -153,7 +154,7 @@ export default async function ProspectionPage({
         showItineraire={params.itineraire === '1'}
         autoTournee={params.tournee === '1' && profile.role !== 'directeur'}
         zones={zones}
-        initialZoneId={params.zone ?? null}
+        initialZoneId={params.zone ?? zoneProspectionParDefaut(zones, profile.id)}
       />
     );
   }

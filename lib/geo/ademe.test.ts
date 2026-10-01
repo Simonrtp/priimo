@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mapLigneDpe, ademeLinesUrl } from './ademe';
+import { mapLigneDpe, ademeLinesUrl, parseEtageDepuisComplement } from './ademe';
 
 describe('mapLigneDpe', () => {
   it('lit le millésime aux noms de colonnes accentués', () => {
@@ -44,6 +44,48 @@ describe('mapLigneDpe', () => {
     assert.equal(dpe?.etage, 3);
   });
 
+  it('lit l’étage dans le complément quand le numéro ADEME vaut 0', () => {
+    const dpe = mapLigneDpe({
+      numero_dpe: '2675E0044676K',
+      adresse_ban: '1 Avenue Taillade 75020 Paris',
+      date_etablissement_dpe: '2026-01-08',
+      identifiant_ban: '75120_9146_00001',
+      numero_etage_appartement: 0,
+      complement_adresse_logement: 'Etage 4; Porte Gauche',
+      etiquette_dpe: 'E',
+    });
+    assert.equal(dpe?.etage, 4);
+  });
+
+  it('ignore un numéro d’étage à 0 sans complément', () => {
+    const dpe = mapLigneDpe({
+      numero_dpe: 'ABC',
+      adresse_ban: '12 rue X',
+      date_etablissement_dpe: '2026-01-08',
+      numero_etage_appartement: 0,
+    });
+    assert.equal(dpe?.etage, null);
+  });
+});
+
+describe('parseEtageDepuisComplement', () => {
+  it('extrait les formulations ADEME courantes', () => {
+    assert.equal(parseEtageDepuisComplement('Etage 4; Porte Gauche'), 4);
+    assert.equal(parseEtageDepuisComplement('1er étage'), 1);
+    assert.equal(parseEtageDepuisComplement('Etage 1'), 1);
+    assert.equal(parseEtageDepuisComplement('2e face gauche'), 2);
+    assert.equal(parseEtageDepuisComplement('Appartement au 5e étage'), 5);
+    assert.equal(parseEtageDepuisComplement('ETAGE 5'), 5);
+    assert.equal(parseEtageDepuisComplement('Etage 1 Porte GAUCHE'), 1);
+    assert.equal(parseEtageDepuisComplement('RDC'), 0);
+    assert.equal(parseEtageDepuisComplement('Etage RDJ; Porte Gauche'), 0);
+    assert.equal(parseEtageDepuisComplement('1er étage + S/S (Cave + Box)'), 1);
+    assert.equal(parseEtageDepuisComplement('F'), null);
+    assert.equal(parseEtageDepuisComplement(null), null);
+  });
+});
+
+describe('mapLigneDpe — cas limites', () => {
   it('rejette une ligne sans identifiant, adresse ou date', () => {
     assert.equal(mapLigneDpe({ 'Adresse_(BAN)': '12 rue X', 'Date_établissement_DPE': '2026-08-01' }), null);
     assert.equal(mapLigneDpe({ 'N°DPE': 'A', 'Date_établissement_DPE': '2026-08-01' }), null);

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Footer from '@/components/Footer';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
 import { CALENDLY_URL } from '@/lib/calendly';
+import AuthWait from '@/components/AuthWait';
 import { loginAction } from './actions';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -102,7 +103,13 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
             </p>
           </div>
 
-          <form action={loginAction} onSubmit={handleSubmit} noValidate className="space-y-4">
+          <form
+            action={loginAction}
+            onSubmit={handleSubmit}
+            noValidate
+            aria-busy={isSubmitting}
+            className={`space-y-4${isSubmitting ? ' is-waiting' : ''}`}
+          >
             <div>
               <label
                 htmlFor="email"
@@ -169,6 +176,7 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
+                  disabled={isSubmitting}
                   className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:text-gray-900 hover:bg-soft-gray transition"
                   aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 >
@@ -193,16 +201,11 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
             <button
               type="submit"
               disabled={isSubmitting}
-              className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-90"
+              aria-busy={isSubmitting}
+              aria-label={isSubmitting ? 'Connexion en cours' : undefined}
+              className={isSubmitting ? 'auth-wait-btn' : 'btn btn-primary w-full'}
             >
-              {isSubmitting ? (
-                <>
-                  <span className="spinner" aria-hidden />
-                  <span>Connexion en cours…</span>
-                </>
-              ) : (
-                <span>Se connecter</span>
-              )}
+              {isSubmitting ? <AuthWait label="Un instant." /> : <span>Se connecter</span>}
             </button>
           </form>
         </div>

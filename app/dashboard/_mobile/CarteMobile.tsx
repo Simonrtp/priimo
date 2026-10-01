@@ -28,7 +28,10 @@ import {
   type MapLayerState,
 } from '@/lib/carte/layers';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
+import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
+import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
+import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import {
   withoutPositionTotal,
   type MapPoint,
@@ -92,7 +95,6 @@ import { vibrateBrief } from './aujourdhui/tap';
 import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
 import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
-import Select from '@/components/ui/Select';
 
 /**
  * `brief` = séquence d'ouverture, `route` = chemin tracé + retouche des
@@ -292,6 +294,11 @@ export default function CarteMobile({
   });
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
+  const monSecteurId = useMemo(
+    () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
+    [profileId, zones],
+  );
+  const emprise = empriseDepuisZoneId(zoneId);
   const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
   const pointsDuSecteur = useMemo(
     () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
@@ -326,6 +333,23 @@ export default function CarteMobile({
   const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
   const counts = useMemo(() => countKindsInViewport(filteredAllKinds, null), [filteredAllKinds]);
   const missingTotal = withoutPositionTotal(withoutPosition);
+
+  function choisirEmprise(next: MapEmprise) {
+    if (next === 'code_postal') {
+      setZoneId('aucun');
+      return;
+    }
+    if (monSecteurId) setZoneId(monSecteurId);
+  }
+
+  const cadastreImmeubles = useMemo(
+    () => parcelle.immeubles.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
+    [parcelle.immeubles, zoneChoisie],
+  );
+  const parcelleNoteMarkers = useMemo(
+    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
+    [parcelle.noteMarkers, zoneChoisie],
+  );
 
   useEffect(() => {
     persistMapLayers(layers);
@@ -583,6 +607,7 @@ export default function CarteMobile({
         focusBounds={focusBounds}
         zones={zoneId === 'aucun' ? [] : zones}
         highlightedZoneId={zoneChoisie?.id ?? null}
+        clipZone={zoneChoisie}
         dimension={dimension}
         selectedBanId={selectedBanId}
         mapRef={mapApi}
@@ -596,25 +621,25 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        parcellesEnabled={false}
-        activeParcelleIds={parcelle.immeubles
+        parcellesEnabled={cadastreOn}
+        activeParcelleIds={cadastreImmeubles
           .map((row) => row.parcelleId)
           .filter((id): id is string => Boolean(id))}
-        parcelleNoteMarkers={parcelle.noteMarkers}
+        parcelleNoteMarkers={parcelleNoteMarkers}
         selectedParcelleId={parcelle.selectedParcelleId}
-        cadastreImmeubles={parcelle.immeubles}
+        cadastreImmeubles={cadastreImmeubles}
         cadastreLayers={{
           cadastreDpe: layers.cadastreDpe,
           cadastreVentes: layers.cadastreVentes,
           cadastreCopro: layers.cadastreCopro,
           cadastreDpeAges: layers.cadastreDpeAges,
         }}
-        onSelectParcelle={(parcelleId) => {
+        onSelectParcelle={(parcelleId, extra) => {
           if (tourActive) return;
           setSelectedBanId(null);
           setLayersOpen(false);
           setMissingOpen(false);
-          parcelle.openParcelle(parcelleId);
+          parcelle.openParcelle(parcelleId, extra);
         }}
         agentPosition={agentPosition}
         highlightBanIds={highlightBanIds}
@@ -763,21 +788,11 @@ export default function CarteMobile({
         title="Couches"
         initialSnap={2}
       >
-        {zones.length > 0 ? (
-          <div className="mb-4">
-            <p className="mb-1.5 text-[12px] font-medium text-text-subtle">Secteur</p>
-            <Select
-              aria-label="Filtrer par secteur"
-              value={zoneId}
-              onChange={setZoneId}
-              options={[
-                { value: 'aucun', label: 'Aucun secteur' },
-                { value: 'tous', label: 'Tous les secteurs' },
-                ...zones.map((z) => ({ value: z.id, label: z.nom })),
-              ]}
-            />
-          </div>
-        ) : null}
+        <EmpriseCapsules
+          value={emprise}
+          onChange={choisirEmprise}
+          hasSecteur={Boolean(monSecteurId)}
+        />
         <ul className="flex flex-col gap-1">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -787,7 +802,7 @@ export default function CarteMobile({
                   <input
                     type="checkbox"
                     className="size-4 rounded border-black/20"
-                    style={{ accentColor: '#E8743C' }}
+                    style={{ accentColor: '#1A2A56' }}
                     checked={active}
                     onChange={() => setLayers((prev) => ({ ...prev, [kind]: !prev[kind] }))}
                   />

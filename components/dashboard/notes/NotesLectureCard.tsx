@@ -17,6 +17,7 @@ import {
 } from '@/lib/notes/rattachement';
 import type { NoteLecture } from '@/lib/notes/lecture';
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import { bilanDuMois } from '@/lib/notes/temps-gagne';
 
 const ENCRE = '#1A2A56';
 
@@ -121,6 +122,7 @@ export default function NotesLectureCard({
   const choisie = liste.find((n) => n.id === choisieId) ?? null;
   const miennes = liste.filter((n) => n.createdBy === profile.id);
   const publiees = liste.filter((n) => n.createdBy !== profile.id);
+  const mois = bilanDuMois(miennes.filter((n) => n.hasAudio));
 
   function choisir(id: string) {
     setChoisieId(id);
@@ -156,6 +158,12 @@ export default function NotesLectureCard({
             </p>
           ) : (
             <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+              {mois.notes > 0 ? (
+                <p className="rounded-xl bg-primary-50 px-3 py-2 text-[12.5px] font-medium text-primary-700">
+                  Ce mois-ci : {mois.notes} note{mois.notes > 1 ? 's' : ''} dictée{mois.notes > 1 ? 's' : ''}
+                  {mois.minutes >= 1 ? ` · ≈ ${mois.libelle} de saisie évitées` : ''}
+                </p>
+              ) : null}
               {miennes.length > 0 ? (
                 <section>
                   {publiees.length > 0 ? (

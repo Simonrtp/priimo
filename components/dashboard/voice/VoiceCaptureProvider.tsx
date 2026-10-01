@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { playRecordStartSound } from '@/lib/voice/feedback-sound';
 import { requestMicStream, stopMicStream } from '@/lib/voice/mic';
+import { prechaufferTempsReel } from '@/lib/voice/temps-reel';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import DicterMobile from '@/app/dashboard/_mobile/DicterMobile';
 import VoiceCaptureDialog from './VoiceCaptureDialog';
@@ -77,6 +78,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     if (!streamPromiseRef.current) {
       streamPromiseRef.current = requestMicStream();
     }
+    // Le jeton du direct arrive pendant que le navigateur ouvre le micro.
+    void prechaufferTempsReel();
     if (device === 'mobile' && typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -109,6 +112,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     if (!streamPromiseRef.current) {
       streamPromiseRef.current = requestMicStream();
     }
+    // Le jeton du direct arrive pendant que le navigateur ouvre le micro.
+    void prechaufferTempsReel();
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }

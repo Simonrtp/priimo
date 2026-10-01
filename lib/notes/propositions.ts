@@ -3,22 +3,26 @@
  * Rien n'est créé ici.
  */
 
-import { parseIsoDateOnly, parseIsoDateTime, resolvePromesseEcheance, resolveRendezVous } from '@/lib/notes/date-relative';
+import {
+  dateParisIso,
+  heureParisVersUtc,
+  parseIsoDateOnly,
+  parseIsoDateTime,
+  resolvePromesseEcheance,
+  resoudreQuand,
+} from '@/lib/notes/date-relative';
 
 import type { ContactType, NoteSourceInfo } from '@/types/contact';
+import { chaineModeles, ecarterModele, MODELES_PROFONDS, MODELES_RAPIDES } from '@/lib/mistral/modeles';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-/**
- * Modèles essayés dans l'ordre. `ministral-8b` lit une dictée d'agent aussi
- * bien que `mistral-small` pour une fraction du prix, et reste disponible quand
- * les modèles plus gros rendent 429 sur les petits forfaits. Le repli 3b est
- * moins fidèle — il complète parfois un prénom absent — mais un champ proposé
- * puis corrigé vaut mieux qu'un formulaire vide.
- */
-const MODELES = ['ministral-8b-latest', 'ministral-3b-latest'] as const;
-const MAX_TRANSCRIPT_CHARS = 2200;
+const DELAI_MODELE_RAPIDE_MS = 8_000;
+/** Environ dix minutes de parole. Au-delà, on garde le début et la fin. */
+const MAX_TRANSCRIPT_CHARS = 12_000;
 const MIN_TRANSCRIPT_CHARS = 12;
-const MAX_OUTPUT_TOKENS = 600;
+const MAX_OUTPUT_TOKENS = 1_200;
+/** Un modèle qui ne répond pas passe la main au suivant. */
+const DELAI_MODELE_MS = 25_000;
 
 export type ExtractedPersonne = {
   firstName: string;
@@ -52,6 +56,59 @@ export type ExtractedVisite = {
   contactHint: string | null;
 };
 
+export type ActionType = 'rappel' | 'tache' | 'rdv' | 'visite_faite';
+
+/** Un engagement pris dans la dictée. Une note peut en porter plusieurs. */
+export type ExtractedAction = {
+  type: ActionType;
+  intitule: string;
+  /** Jour, « AAAA-MM-JJ », à l'heure de Paris. Null si rien n'a été dit. */
+  date: string | null;
+  /** « HH:MM » si une heure a été dite. */
+  heure: string | null;
+  /** Nom de la personne concernée, tel qu'il est dit. */
+  personne: string | null;
+  lieu: string | null;
+  rdvType: ExtractedRendezVous['type'] | null;
+  interet: ExtractedVisite['interet'];
+};
+
+export type StatutMandatDicte = 'mandat_simple' | 'mandat_exclusif' | 'compromis' | 'vendu';
+
+/** Une fiche existante qui change : « il baisse à 450 », « mandat signé ». */
+export type ExtractedMiseAJour =
+  | { champ: 'prix'; valeur: number; bien: string | null }
+  | { champ: 'statut_mandat'; valeur: StatutMandatDicte; bien: string | null };
+
+/** Ce que cherche un acquéreur : alimente sa fiche et le rapprochement. */
+export type ExtractedRecherche = {
+  personne: string | null;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  surfaceMin: number | null;
+  roomsMin: number | null;
+  villes: string[];
+  codesPostaux: string[];
+  typeBien: string | null;
+};
+
+export type EtapeProspectDictee = 'contacte' | 'rendez_vous' | 'mandat' | 'perdu';
+
+/** Ce que la dictée dit d'un propriétaire prospecté (lead DPE). */
+export type ExtractedProspect = {
+  etape: EtapeProspectDictee;
+  motif: string | null;
+};
+
+/** Brouillon d'e-mail : l'agent le relit et l'envoie de sa propre messagerie. */
+export type ExtractedEmail = {
+  personne: string | null;
+  objet: string;
+  corps: string;
+};
+
+export type NoteIntention = 'note' | 'question';
+
 export type NoteExtraction = {
   personnes: ExtractedPersonne[];
   address: string | null;
@@ -61,9 +118,19 @@ export type NoteExtraction = {
   surface: number | null;
   sourceInfo: NoteSourceInfo | null;
   relance: ExtractedRelance | null;
+  /** Premier rappel/tâche daté — lu par les écrans d'avant les actions multiples. */
   promesse: ExtractedPromesse | null;
   rendezVous: ExtractedRendezVous | null;
   visite: ExtractedVisite | null;
+  /** v2 — facultatifs : les notes analysées avant eux se relisent encore. */
+  titre?: string | null;
+  resume?: string | null;
+  intention?: NoteIntention;
+  actions?: ExtractedAction[];
+  misesAJour?: ExtractedMiseAJour[];
+  recherche?: ExtractedRecherche | null;
+  prospect?: ExtractedProspect | null;
+  email?: ExtractedEmail | null;
 };
 
 export const EMPTY_NOTE_EXTRACTION: NoteExtraction = {
@@ -78,34 +145,55 @@ export const EMPTY_NOTE_EXTRACTION: NoteExtraction = {
   promesse: null,
   rendezVous: null,
   visite: null,
+  titre: null,
+  resume: null,
+  intention: 'note',
+  actions: [],
+  misesAJour: [],
+  recherche: null,
+  prospect: null,
+  email: null,
 };
 
 /**
- * Aucun nom propre en exemple dans la consigne : un petit modèle recopie les
+ * Aucun nom propre en exemple dans la consigne : un modèle recopie les
  * exemples qu'on lui montre, et un nom inventé dans une fiche contact coûte
  * plus cher en confiance que dix champs laissés vides.
  */
 const SYSTEM_PROMPT = [
-  "Tu structures la note dictée d'un agent immobilier français. Tu réponds uniquement en JSON.",
-  'Ne devine jamais, n’invente aucun nom, aucun chiffre, aucune date.',
-  'Tout champ qui n’est pas dit explicitement vaut null. Ne recopie aucun exemple de la consigne.',
+  "Tu es l'assistant d'un agent immobilier français. Il dicte une note en marchant, souvent décousue, avec des reprises.",
+  'Tu la transformes en données structurées pour son CRM. Tu réponds uniquement en JSON.',
+  'Ne devine jamais : n’invente aucun nom, aucun chiffre, aucune date, aucun fait.',
+  'Tout ce qui n’est pas dit explicitement vaut null ou une liste vide. Ne recopie aucun exemple de la consigne.',
+  'Si l’agent se reprend (« non, pardon, 450 »), seule la dernière version compte.',
   'Les valeurs d’énumération s’écrivent exactement comme listées, en minuscules et sans accent.',
 ].join(' ');
 
-function buildPrompt(transcript: string, noteDate = new Date()): string {
-  const ref = noteDate.toISOString().slice(0, 10);
-  // Le jour de la semaine coûte trois jetons et évite de compter « jeudi » de
-  // travers : sans lui, le modèle place la relance à peu près n'importe quand.
+export type PromptOptions = {
+  /** Prénom de l'agent, pour signer un brouillon d'e-mail. */
+  agentPrenom?: string | null;
+};
+
+function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOptions = {}): string {
+  // Le jour de Paris : à 0h30 en France, la date UTC est encore la veille.
+  const ref = dateParisIso(noteDate);
+  // Le jour de la semaine évite de compter « jeudi » de travers.
   const jour = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
     timeZone: 'Europe/Paris',
   }).format(noteDate);
+  const signature = opts.agentPrenom?.trim() || null;
   return [
     `Note dictée le ${ref} (${jour}) :`,
+    '"""',
     transcript,
+    '"""',
     '',
     'Renvoie ce JSON, mêmes clés, mêmes formes :',
     '{',
+    '  "titre": string|null,',
+    '  "resume": string|null,',
+    '  "intention": "note"|"question",',
     '  "personnes": [{"firstName": string|null, "lastName": string|null, "phone": string|null, "email": string|null, "type": "vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"|"autre"}],',
     '  "address": string|null,',
     '  "secteur": string|null,',
@@ -113,20 +201,27 @@ function buildPrompt(transcript: string, noteDate = new Date()): string {
     '  "rooms": number|null,',
     '  "surface": number|null,',
     '  "source_info": "proprietaire"|"gardien"|"voisin"|"tiers"|"agent"|null,',
-    '  "relance_jours": number|null,',
-    '  "relance_libelle": string|null,',
-    '  "promesse": {"intitule": string, "echeance_iso": "AAAA-MM-JJ"}|null,',
-    '  "rendez_vous": {"debut_iso": "AAAA-MM-JJTHH:MM", "fin_iso": "AAAA-MM-JJTHH:MM", "type": "visite"|"estimation"|"signature"|"autre", "lieu": string|null}|null,',
-    '  "visite": {"date_iso": "AAAA-MM-JJTHH:MM", "interet": "aucun"|"tiede"|"chaud"|"offre"|null, "retour": string|null, "contact_hint": string|null}|null',
+    '  "actions": [{"type": "rappel"|"tache"|"rdv"|"visite_faite", "intitule": string, "quand": string|null, "date_iso": "AAAA-MM-JJ"|null, "heure": "HH:MM"|null, "personne": string|null, "lieu": string|null, "rdv_type": "visite"|"estimation"|"signature"|"autre"|null, "interet": "aucun"|"tiede"|"chaud"|"offre"|null}],',
+    '  "mises_a_jour": [{"champ": "prix"|"statut_mandat", "valeur": number|"mandat_simple"|"mandat_exclusif"|"compromis"|"vendu", "bien": string|null}],',
+    '  "recherche": {"personne": string|null, "budget_min": number|null, "budget_max": number|null, "surface_min": number|null, "pieces_min": number|null, "villes": [string], "codes_postaux": [string], "type_bien": string|null}|null,',
+    '  "prospect": {"etape": "contacte"|"rendez_vous"|"mandat"|"perdu", "motif": string|null}|null,',
+    '  "email": {"personne": string|null, "objet": string, "corps": string}|null',
     '}',
     '',
-    'Précisions :',
-    '- "address" est UNE chaîne, l’adresse telle qu’elle est dite, jamais un objet.',
-    '- "secteur" est le quartier ou l’arrondissement seul.',
-    '- "personnes" est toujours un tableau, vide s’il n’y a aucun nom. Une personne sans nom ni téléphone ne compte pas.',
-    '- "rendez_vous" et "visite" sont des objets uniques ou null, jamais des tableaux.',
-    `- Dates relatives (jeudi, mardi 15h, dans deux semaines) → date absolue calculée depuis le ${ref}, qui est un ${jour}. « Jeudi » sans autre précision désigne le prochain jeudi.`,
-    '- "prix" en euros, nombre entier. "rooms" = nombre de pièces (T2 = 2). "surface" en m².',
+    'Règles :',
+    '- "titre" : 3 à 8 mots qui résument la note (qui, quoi, où). "resume" : une phrase factuelle.',
+    '- "intention" = "question" seulement si l’agent pose une question à son assistant (« qu’est-ce qu’on sait sur… », « quand est-ce que… ») au lieu de noter quelque chose.',
+    '- "personnes" : tableau, vide s’il n’y a aucun nom. Une personne sans nom ni téléphone ne compte pas. Un rôle seul (« le gardien ») n’est pas un nom.',
+    '- "actions" : une entrée par engagement distinct. « rappeler X », « relancer X », « le recontacter » → "rappel". « envoyer… », « préparer… », « vérifier… » → "tache". Un rendez-vous futur → "rdv". Une visite qui vient d’avoir lieu → "visite_faite" (date du jour sauf si autre chose est dit).',
+    '- "intitule" : court, à l’infinitif, avec le nom de la personne quand il est dit (« Rappeler Mme Martin », « Envoyer les diagnostics à M. Petit »).',
+    '- "quand" : les mots exacts dits pour le moment (« jeudi à 14h », « demain matin », « dans deux jours »), ou null.',
+    `- Dates relatives (demain, jeudi, dans deux jours, mardi 15h, la semaine prochaine) → date absolue calculée depuis le ${ref}, qui est un ${jour}. « Jeudi » seul désigne le prochain jeudi. « La semaine prochaine » sans jour → le lundi suivant. Pas de date dite → null.`,
+    '- "mises_a_jour" : seulement pour un bien déjà suivi dont le prix change (« il baisse à 450 » → prix 450000) ou dont le mandat avance (« mandat exclusif signé », « compromis signé », « c’est vendu »). "bien" = l’adresse ou la description du bien telle qu’elle est dite.',
+    '- "recherche" : seulement pour quelqu’un qui cherche à acheter. Montants en euros entiers (« 300 k » = 300000).',
+    '- "prospect" : seulement sur un propriétaire démarché. « pas vendeur », « ne vend pas », « déjà vendu avec une autre agence » → "perdu" avec le motif en quelques mots ; « je l’ai eu », « il réfléchit » → "contacte" ; RDV d’estimation obtenu → "rendez_vous" ; mandat obtenu → "mandat".',
+    `- "email" : seulement si l’agent dit d’envoyer un e-mail, un mail, des documents ou un récapitulatif. "personne" = à qui l’envoyer, tel que dit (un nom, ou un rôle comme « la vendeuse »). Rédige-le en français, vouvoiement, cinq phrases au plus, sans fait inventé${signature ? `, signé « ${signature} »` : ''}.`,
+    '- "address" : UNE chaîne, l’adresse telle qu’elle est dite. "secteur" : le quartier ou l’arrondissement seul.',
+    '- "prix" en euros, entier. "rooms" = nombre de pièces (T2 = 2). "surface" en m².',
     '- "source_info" = qui a donné l’information.',
   ].join('\n');
 }
@@ -355,6 +450,30 @@ export function parseNoteExtraction(raw: string, refDate = new Date()): NoteExtr
     if (dateVisite) visite = { dateVisite, interet, retour, contactHint };
   }
 
+  const actions = parseActions(parsed.actions, refDate);
+  // Les écrans d'avant les actions multiples lisent encore ces trois champs.
+  if (!promesse) {
+    const premiere = actions.find((a) => (a.type === 'rappel' || a.type === 'tache') && a.date);
+    if (premiere?.date) promesse = { intitule: premiere.intitule, echeance: premiere.date };
+  }
+  if (!rendezVous) {
+    const rdv = actions.find((a) => a.type === 'rdv' && a.date);
+    if (rdv?.date) rendezVous = { ...creneauAction(rdv), type: rdv.rdvType ?? 'autre', lieu: rdv.lieu };
+  }
+  if (!visite) {
+    const faite = actions.find((a) => a.type === 'visite_faite');
+    if (faite) {
+      visite = {
+        dateVisite: creneauAction({ ...faite, date: faite.date ?? dateParisIso(refDate) }).debut,
+        interet: faite.interet,
+        retour: null,
+        contactHint: faite.personne,
+      };
+    }
+  }
+
+  const intentionRaw = sansAccent(parsed.intention);
+
   return {
     personnes,
     address: asAdresse(parsed.address),
@@ -367,14 +486,189 @@ export function parseNoteExtraction(raw: string, refDate = new Date()): NoteExtr
     promesse,
     rendezVous,
     visite,
+    titre: majuscule(asString(parsed.titre, 90)),
+    resume: asString(parsed.resume, 300),
+    intention: intentionRaw === 'question' ? 'question' : 'note',
+    actions,
+    misesAJour: parseMisesAJour(parsed.mises_a_jour),
+    recherche: parseRecherche(parsed.recherche),
+    prospect: parseProspect(parsed.prospect),
+    email: parseEmail(parsed.email),
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* v2 : actions multiples, mises à jour, recherche, prospect, e-mail           */
+/* -------------------------------------------------------------------------- */
+
+const ACTION_TYPES: readonly ActionType[] = ['rappel', 'tache', 'rdv', 'visite_faite'];
+const RDV_TYPES: readonly ExtractedRendezVous['type'][] = ['visite', 'estimation', 'signature', 'autre'];
+const INTERETS = ['aucun', 'tiede', 'chaud', 'offre'] as const;
+const STATUTS_MANDAT: readonly StatutMandatDicte[] = ['mandat_simple', 'mandat_exclusif', 'compromis', 'vendu'];
+const ETAPES_PROSPECT: readonly EtapeProspectDictee[] = ['contacte', 'rendez_vous', 'mandat', 'perdu'];
+const MAX_ACTIONS = 8;
+
+function tableau(v: unknown): unknown[] {
+  if (Array.isArray(v)) return v;
+  return v && typeof v === 'object' ? [v] : [];
+}
+
+/** « 14h30 », « 14:30 », « 9h » → « 14:30 », « 09:00 ». */
+export function asHeure(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const m = v.trim().match(/^(\d{1,2})\s*[:h]\s*(\d{2})?$/i);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+/** Début et fin d'une action datée, à l'heure de Paris. Une heure absente → 10h. */
+export function creneauAction(a: Pick<ExtractedAction, 'date' | 'heure'>): { debut: string; fin: string } {
+  const [y, mo, d] = (a.date ?? '').split('-').map(Number);
+  const [h, mi] = (a.heure ?? '10:00').split(':').map(Number);
+  const debut = heureParisVersUtc(y!, mo!, d!, h!, mi!);
+  return { debut: debut.toISOString(), fin: new Date(debut.getTime() + 3_600_000).toISOString() };
+}
+
+function parseActions(v: unknown, refDate: Date): ExtractedAction[] {
+  const out: ExtractedAction[] = [];
+  for (const raw of tableau(v)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const type = sansAccent(r.type) as ActionType | null;
+    const intitule = majuscule(asString(r.intitule, 200));
+    if (!type || !(ACTION_TYPES as readonly string[]).includes(type) || !intitule) continue;
+    // Le jour dit (« jeudi ») se calcule ici : le modèle se trompe de jour.
+    const dit = resoudreQuand(asString(r.quand, 80), refDate);
+    const date = dit?.date ?? parseIsoDateOnly(r.date_iso) ?? parseIsoDateOnly(r.date);
+    const heureDite = dit?.heure ?? null;
+    // Un RDV sans jour n'est pas un RDV : on le garde comme tâche à caler.
+    const typeFinal: ActionType = type === 'rdv' && !date ? 'tache' : type;
+    const rdvRaw = sansAccent(r.rdv_type);
+    const interetRaw = sansAccent(r.interet);
+    out.push({
+      type: typeFinal,
+      intitule,
+      date,
+      heure: heureDite ?? asHeure(r.heure),
+      personne: asString(r.personne, 120),
+      lieu: asString(r.lieu, 200),
+      rdvType:
+        typeFinal === 'rdv'
+          ? rdvRaw && (RDV_TYPES as readonly string[]).includes(rdvRaw)
+            ? (rdvRaw as ExtractedRendezVous['type'])
+            : 'autre'
+          : null,
+      interet:
+        interetRaw && (INTERETS as readonly string[]).includes(interetRaw)
+          ? (interetRaw as ExtractedVisite['interet'])
+          : null,
+    });
+    if (out.length >= MAX_ACTIONS) break;
+  }
+  return out;
+}
+
+function parseMisesAJour(v: unknown): ExtractedMiseAJour[] {
+  const out: ExtractedMiseAJour[] = [];
+  for (const raw of tableau(v)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const champ = sansAccent(r.champ);
+    const bien = asString(r.bien, 200);
+    if (champ === 'prix') {
+      const valeur = asInt(r.valeur, 100_000_000);
+      // Sous 10 000 €, c'est un « 450 » dit pour 450 000 que le modèle n'a pas converti.
+      if (valeur) out.push({ champ: 'prix', valeur: valeur < 10_000 ? valeur * 1000 : valeur, bien });
+    } else if (champ === 'statut_mandat') {
+      const valeur = sansAccent(r.valeur)?.replace(/\s+/g, '_');
+      if (valeur && (STATUTS_MANDAT as readonly string[]).includes(valeur)) {
+        out.push({ champ: 'statut_mandat', valeur: valeur as StatutMandatDicte, bien });
+      }
+    }
+  }
+  return out.slice(0, 4);
+}
+
+function listeCourte(v: unknown, max: number, motif?: RegExp): string[] {
+  return tableau(v)
+    .map((x) => (typeof x === 'number' ? String(x) : asString(x, 80)))
+    .filter((x): x is string => Boolean(x) && (!motif || motif.test(x!)))
+    .slice(0, max);
+}
+
+function parseRecherche(v: unknown): ExtractedRecherche | null {
+  const r = objetUnique(v);
+  if (!r) return null;
+  const montant = (x: unknown) => {
+    const n = asInt(x, 100_000_000);
+    return n && n < 10_000 ? n * 1000 : n;
+  };
+  const recherche: ExtractedRecherche = {
+    personne: asString(r.personne, 120),
+    budgetMin: montant(r.budget_min),
+    budgetMax: montant(r.budget_max),
+    surfaceMin: asInt(r.surface_min, 100_000),
+    roomsMin: asRooms(r.pieces_min),
+    villes: listeCourte(r.villes, 6).map((v) => majuscule(v) ?? v),
+    codesPostaux: listeCourte(r.codes_postaux, 8, /^\d{5}$/),
+    typeBien: asString(r.type_bien, 60),
+  };
+  const utile =
+    recherche.budgetMin ||
+    recherche.budgetMax ||
+    recherche.surfaceMin ||
+    recherche.roomsMin ||
+    recherche.villes.length ||
+    recherche.codesPostaux.length ||
+    recherche.typeBien;
+  return utile ? recherche : null;
+}
+
+function parseProspect(v: unknown): ExtractedProspect | null {
+  const r = objetUnique(v);
+  if (!r) return null;
+  const etape = sansAccent(r.etape)?.replace(/[\s-]+/g, '_');
+  if (!etape || !(ETAPES_PROSPECT as readonly string[]).includes(etape)) return null;
+  return { etape: etape as EtapeProspectDictee, motif: asString(r.motif, 160) };
+}
+
+function parseEmail(v: unknown): ExtractedEmail | null {
+  const r = objetUnique(v);
+  if (!r) return null;
+  const objet = asString(r.objet, 140);
+  const corps = typeof r.corps === 'string' ? r.corps.trim().slice(0, 3000) : null;
+  if (!objet || !corps) return null;
+  return { personne: asString(r.personne, 120), objet, corps };
+}
+
+/** « vente t3 nantes » → « Vente t3 nantes » : un titre commence par une capitale. */
+function majuscule(v: string | null): string | null {
+  if (!v) return v;
+  return v.charAt(0).toLocaleUpperCase('fr') + v.slice(1);
+}
+
+/** Un modèle rend parfois son JSON entre balises Markdown. */
+function extraireJson(content: string): string {
+  const t = content.trim();
+  const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return fence ? fence[1]! : t;
+}
+
+/**
+ * « profond » : la lecture qui fait foi, après la dictée — le modèle le plus fin.
+ * « rapide » : les cartes qui apparaissent pendant que l'agent parle — il faut
+ * répondre en une ou deux secondes, la lecture profonde corrigera ensuite.
+ */
+export type ModeLecture = 'profond' | 'rapide';
+
 /** Modèles à essayer : celui imposé par l'environnement, puis la liste par défaut. */
-function modelesAEssayer(): readonly string[] {
-  const impose = process.env.MISTRAL_MODEL_NOTE?.trim();
-  if (!impose) return MODELES;
-  return [impose, ...MODELES.filter((m) => m !== impose)];
+function modelesAEssayer(mode: ModeLecture): readonly string[] {
+  return mode === 'rapide'
+    ? chaineModeles(MODELES_RAPIDES, process.env.MISTRAL_MODEL_NOTE_LIVE)
+    : chaineModeles(MODELES_PROFONDS, process.env.MISTRAL_MODEL_NOTE);
 }
 
 async function demander(
@@ -382,33 +676,42 @@ async function demander(
   apiKey: string,
   transcript: string,
   noteDate: Date,
+  opts: PromptOptions & { delaiMs: number },
 ): Promise<string | null> {
-  const res = await fetch(MISTRAL_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildPrompt(transcript, noteDate) },
-      ],
-    }),
-  });
-
-  if (res.status === 429 || res.status >= 500) {
-    // Quota ou incident : le modèle suivant de la liste prend le relais.
-    console.error('[voice] propositions', model, res.status);
+  let res: Response;
+  try {
+    res = await fetch(MISTRAL_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(opts.delaiMs),
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildPrompt(transcript, noteDate, opts) },
+        ],
+      }),
+    });
+  } catch (err) {
+    // Délai dépassé ou réseau : le modèle suivant prend le relais.
+    console.error('[voice] propositions', model, err instanceof Error ? err.name : 'réseau');
     return null;
   }
+
   if (!res.ok) {
-    console.error('[voice] propositions HTTP', res.status, await res.text().catch(() => ''));
-    throw new Error('extraction_failed');
+    // Modèle hors forfait (403 « tier_not_allowed »), inconnu, quota, incident :
+    // le suivant de la liste prend le relais. Constaté en test : un forfait sans
+    // `mistral-large` rendait 403, et la note entière restait sans lecture.
+    const detail = await res.text().catch(() => '');
+    console.error('[voice] propositions', model, res.status, detail.slice(0, 160));
+    ecarterModele(model, res.status);
+    return null;
   }
 
   const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -419,21 +722,36 @@ export async function extractNotePropositions(
   transcript: string,
   apiKey: string,
   noteDate = new Date(),
+  opts: PromptOptions & { mode?: ModeLecture } = {},
 ): Promise<NoteExtraction> {
   const trimmed = transcript.trim();
   if (trimmed.length < MIN_TRANSCRIPT_CHARS) return { ...EMPTY_NOTE_EXTRACTION, personnes: [] };
 
-  const capped =
-    trimmed.length > MAX_TRANSCRIPT_CHARS ? trimmed.slice(0, MAX_TRANSCRIPT_CHARS) : trimmed;
+  const capped = borner(trimmed);
+  const mode = opts.mode ?? 'profond';
+  const delaiMs = mode === 'rapide' ? DELAI_MODELE_RAPIDE_MS : DELAI_MODELE_MS;
 
-  for (const model of modelesAEssayer()) {
-    const content = await demander(model, apiKey, capped, noteDate);
-    if (content) return parseNoteExtraction(content, noteDate);
+  for (const model of modelesAEssayer(mode)) {
+    const content = await demander(model, apiKey, capped, noteDate, { ...opts, delaiMs });
+    if (content) return parseNoteExtraction(extraireJson(content), noteDate);
   }
   throw new Error('extraction_empty');
 }
 
-export function relanceAtFromJours(jours: number, now = new Date()): string {
-  const at = new Date(now.getTime() + jours * 86_400_000);
+/**
+ * Une note très longue garde son début (qui, où) et sa fin (ce qu'on a
+ * convenu) : c'est en fin de dictée qu'on dit « je le rappelle jeudi ».
+ */
+function borner(transcript: string): string {
+  if (transcript.length <= MAX_TRANSCRIPT_CHARS) return transcript;
+  const moitie = Math.floor(MAX_TRANSCRIPT_CHARS / 2);
+  return `${transcript.slice(0, moitie)}
+[…]
+${transcript.slice(-moitie)}`;
+}
+
+/** La relance se compte depuis le jour de la note, pas depuis sa relecture. */
+export function relanceAtFromJours(jours: number, noteDate = new Date()): string {
+  const at = new Date(noteDate.getTime() + jours * 86_400_000);
   return at.toISOString();
 }

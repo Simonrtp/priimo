@@ -6,6 +6,7 @@ import {
   type CadastreImmeublePoint,
   type ParcelleFiche,
   type ParcelleNoteMarker,
+  type ParcellePickExtra,
 } from '@/lib/carte/parcelle';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import { serializeDpeAgeBuckets, type DpeAgeBucket } from '@/lib/carte/dpe-age';
@@ -37,6 +38,7 @@ export function useParcelleMap(
   const cache = useRef<Map<string, ParcelleFiche>>(new Map());
   const demande = useRef<string | null>(null);
   const seq = useRef(0);
+  const surfaceCliquee = useRef<number | null>(null);
   const agesProvided = options?.dpeAges != null;
   const agesKey = serializeDpeAgeBuckets(options?.dpeAges ?? []);
   const includeDpe = options?.includeDpeDetail === true;
@@ -90,9 +92,13 @@ export function useParcelleMap(
       const res = await fetch(`/api/carte/parcelle/${encodeURIComponent(parcelleId)}`);
       const data = (await res.json()) as ParcelleFiche & { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'parcelle');
-      memoriser(cache.current, parcelleId, data);
+      const fiche = {
+        ...data,
+        surfaceCadastreM2: data.surfaceCadastreM2 ?? surfaceCliquee.current,
+      };
+      memoriser(cache.current, parcelleId, fiche);
       if (demande.current !== parcelleId) return;
-      setFiche(data);
+      setFiche(fiche);
     } catch {
       if (demande.current !== parcelleId) return;
       setFiche((prev) => prev ?? emptyParcelleFiche(parcelleId));
@@ -102,11 +108,17 @@ export function useParcelleMap(
   }, []);
 
   const openParcelle = useCallback(
-    (parcelleId: string) => {
+    (parcelleId: string, extra?: ParcellePickExtra) => {
       demande.current = parcelleId;
+      surfaceCliquee.current = extra?.surfaceM2 ?? null;
       setSelectedParcelleId(parcelleId);
       const connue = cache.current.get(parcelleId);
-      setFiche(connue ?? null);
+      const surface = extra?.surfaceM2 ?? connue?.surfaceCadastreM2 ?? null;
+      setFiche(
+        connue
+          ? { ...connue, surfaceCadastreM2: surface }
+          : { ...emptyParcelleFiche(parcelleId), surfaceCadastreM2: surface },
+      );
       setLoading(!connue);
       void charger(parcelleId);
     },
@@ -115,6 +127,7 @@ export function useParcelleMap(
 
   const closeParcelle = useCallback(() => {
     demande.current = null;
+    surfaceCliquee.current = null;
     setSelectedParcelleId(null);
     setFiche(null);
     setLoading(false);

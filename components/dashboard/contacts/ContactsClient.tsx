@@ -487,6 +487,7 @@ export default function ContactsClient({
         primaryAction={
           <WorkspaceButton
             type="button"
+            variant="create"
             onClick={() => {
               setEditing(undefined);
               setFormOpen(true);

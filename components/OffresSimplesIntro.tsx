@@ -1,6 +1,6 @@
-import { Tag } from "lucide-react";
 import Reveal from "./Reveal";
 import CtaButton from "./CtaButton";
+import CapsuleGlyph from "@/components/landing/CapsuleGlyph";
 
 const OFFRES = [
   {
@@ -44,11 +44,7 @@ export default function OffresSimplesIntro() {
         <h2 id="offres-simples-title" className="offres-simples-title">
           <span className="offres-simples-lead">Une</span>
           <span className="offres-simples-capsule">
-            <Tag
-              aria-hidden
-              className="offres-simples-capsule-icon"
-              strokeWidth={2.25}
-            />
+            <CapsuleGlyph kind="ticket" className="offres-simples-capsule-icon" />
             offre simple
           </span>
         </h2>

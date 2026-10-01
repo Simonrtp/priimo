@@ -2,15 +2,16 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { prisesAudio, VOICE_BUCKET } from '@/lib/voice/storage';
 
 export const runtime = 'nodejs';
 
-const BUCKET = 'voice-notes';
 /** Assez pour réécouter, trop court pour être partagé utilement. */
 const SIGNED_URL_TTL_SECONDS = 120;
 
 /**
- * Rend une URL signée à durée limitée pour réécouter une dictée.
+ * Rend des URL signées à durée limitée pour réécouter une dictée, une par prise
+ * (« Compléter la dictée » ajoute des prises).
  *
  * Trois verrous : la session doit être valide, la lecture de la ligne passe par
  * RLS (donc l'agence active), et l'URL expire au bout de deux minutes. Le
@@ -46,17 +47,26 @@ export async function GET(_req: Request, ctx: { params: Promise<{ voiceNoteId: s
   }
 
   const admin = createSupabaseAdminClient();
-  const { data: signed, error: signError } = await admin.storage
-    .from(BUCKET)
-    .createSignedUrl(note.storage_path, SIGNED_URL_TTL_SECONDS);
+  const prises = await prisesAudio(admin, agency.id, note.id, note.storage_path);
+  if (prises.length === 0) {
+    return NextResponse.json({ error: 'Aucun audio' }, { status: 404 });
+  }
 
-  if (signError || !signed?.signedUrl) {
-    console.error('[voice] signature', signError);
+  const { data: signed, error: signError } = await admin.storage
+    .from(VOICE_BUCKET)
+    .createSignedUrls(
+      prises.map((p) => p.path),
+      SIGNED_URL_TTL_SECONDS,
+    );
+  const urls = (signed ?? []).map((s) => s.signedUrl).filter((u): u is string => Boolean(u));
+
+  if (signError || urls.length === 0) {
+    console.error('[voice] signature', signError?.message);
     return NextResponse.json({ error: 'Lecture indisponible' }, { status: 500 });
   }
 
   return NextResponse.json(
-    { url: signed.signedUrl, expiresInSeconds: SIGNED_URL_TTL_SECONDS },
+    { url: urls[0], urls, expiresInSeconds: SIGNED_URL_TTL_SECONDS },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

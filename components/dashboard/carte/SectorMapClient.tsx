@@ -30,7 +30,11 @@ import {
   type MapLayerState,
 } from '@/lib/carte/layers';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
+import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
+import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
+import { useUser } from '@/lib/hooks/useUser';
+import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import {
   withoutPositionTotal,
@@ -92,9 +96,6 @@ function LayersPanel({
   onToggleCadastreMenu,
   mapZoom,
   counts,
-  zoneId,
-  onZone,
-  zones,
   assignedTo,
   onAssigned,
   members,
@@ -103,6 +104,9 @@ function LayersPanel({
   onPeriod,
   onCollapse,
   className = '',
+  emprise,
+  onEmprise,
+  hasSecteur,
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
@@ -111,9 +115,6 @@ function LayersPanel({
   onToggleCadastreMenu: () => void;
   mapZoom: number | null;
   counts: Record<MapPointKind, number>;
-  zoneId: string;
-  onZone: (v: string) => void;
-  zones: readonly { id: string; nom: string }[];
   assignedTo: string;
   onAssigned: (v: string) => void;
   members: readonly AssigneeOption[];
@@ -122,6 +123,9 @@ function LayersPanel({
   onPeriod: (v: MapPeriod) => void;
   onCollapse?: () => void;
   className?: string;
+  emprise: MapEmprise;
+  onEmprise: (next: MapEmprise) => void;
+  hasSecteur: boolean;
 }) {
   return (
     <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden ${className}`}>
@@ -142,6 +146,7 @@ function LayersPanel({
         ) : null}
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <EmpriseCapsules value={emprise} onChange={onEmprise} hasSecteur={hasSecteur} />
         <ul className="flex flex-col gap-1.5">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -149,13 +154,13 @@ function LayersPanel({
               <li key={kind}>
                 <label
                   className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors duration-fluid-subtle ease-in-out ${
-                    active ? 'bg-accent/10' : 'hover:bg-black/[0.03]'
+                    active ? 'bg-blue/10' : 'hover:bg-black/[0.03]'
                   }`}
                 >
                   <input
                     type="checkbox"
-                    className="size-4 rounded border-black/20 text-accent focus:ring-accent/30"
-                    style={{ accentColor: '#E8743C' }}
+                    className="size-4 rounded border-black/20"
+                    style={{ accentColor: '#1A2A56' }}
                     checked={active}
                     onChange={() => onToggle(kind)}
                   />
@@ -179,22 +184,6 @@ function LayersPanel({
         </ul>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
-          {zones.length > 0 ? (
-            <Field label="Secteur" htmlFor="carte-secteur">
-              <Select
-                id="carte-secteur"
-                aria-label="Filtrer par secteur"
-                value={zoneId}
-                onChange={onZone}
-                options={[
-                  { value: 'aucun', label: 'Aucun secteur' },
-                  { value: 'tous', label: 'Tous les secteurs' },
-                  ...zones.map((z) => ({ value: z.id, label: z.nom })),
-                ]}
-              />
-            </Field>
-          ) : null}
-
           {showAssignee ? (
             <Field label="Assigné à" htmlFor="carte-assigne">
               <Select
@@ -261,6 +250,8 @@ export default function SectorMapClient({
   initialZoneId?: string | null;
 }) {
   const router = useRouter();
+  const { profile } = useUser();
+  const profileId = profile?.id ?? '';
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
   const [zoneId, setZoneId] = useState(
@@ -290,6 +281,11 @@ export default function SectorMapClient({
     includeDpeDetail: layers.cadastreDpe,
   });
   const mapZoom = viewport?.zoom ?? null;
+  const monSecteurId = useMemo(
+    () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
+    [profileId, zones],
+  );
+  const emprise = empriseDepuisZoneId(zoneId);
   const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
   const pointsDuSecteur = useMemo(
     () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
@@ -410,6 +406,23 @@ export default function SectorMapClient({
     setLayers((prev) => withCadastreMenuToggled(prev));
   }
 
+  function choisirEmprise(next: MapEmprise) {
+    if (next === 'code_postal') {
+      setZoneId('aucun');
+      return;
+    }
+    if (monSecteurId) setZoneId(monSecteurId);
+  }
+
+  const cadastreImmeubles = useMemo(
+    () => parcelle.immeubles.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
+    [parcelle.immeubles, zoneChoisie],
+  );
+  const parcelleNoteMarkers = useMemo(
+    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
+    [parcelle.noteMarkers, zoneChoisie],
+  );
+
   const cadastreLayerFlags = {
     cadastreDpe: layers.cadastreDpe,
     cadastreVentes: layers.cadastreVentes,
@@ -426,15 +439,15 @@ export default function SectorMapClient({
       onToggleCadastreMenu={toggleCadastreMenu}
       mapZoom={mapZoom}
       counts={counts}
-      zoneId={zoneId}
-      onZone={setZoneId}
-      zones={zones}
       assignedTo={assignedTo}
       onAssigned={setAssignedTo}
       members={members}
       showAssignee={isDirector}
       period={period}
       onPeriod={setPeriod}
+      emprise={emprise}
+      onEmprise={choisirEmprise}
+      hasSecteur={Boolean(monSecteurId)}
     />
   );
 
@@ -464,22 +477,23 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled={false}
-          activeParcelleIds={parcelle.immeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
-          parcelleNoteMarkers={parcelle.noteMarkers}
+          parcellesEnabled={cadastreOn}
+          activeParcelleIds={cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
+          parcelleNoteMarkers={parcelleNoteMarkers}
           selectedParcelleId={parcelle.selectedParcelleId}
-          cadastreImmeubles={parcelle.immeubles}
+          cadastreImmeubles={cadastreImmeubles}
           cadastreLayers={cadastreLayerFlags}
           showBuildingMarkers={!cadastreOn}
-          onSelectParcelle={(parcelleId) => {
+          onSelectParcelle={(parcelleId, extra) => {
             setSelectedBanId(null);
             setSheetOpen(false);
             setMissingOpen(false);
-            parcelle.openParcelle(parcelleId);
+            parcelle.openParcelle(parcelleId, extra);
           }}
           focusBounds={focusBounds}
           zones={zoneId === 'aucun' ? [] : zones}
           highlightedZoneId={zoneChoisie?.id ?? null}
+          clipZone={zoneChoisie}
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
@@ -505,15 +519,15 @@ export default function SectorMapClient({
                 onToggleCadastreMenu={toggleCadastreMenu}
                 mapZoom={mapZoom}
                 counts={counts}
-                zoneId={zoneId}
-                onZone={setZoneId}
-                zones={zones}
                 assignedTo={assignedTo}
                 onAssigned={setAssignedTo}
                 members={members}
                 showAssignee={isDirector}
                 period={period}
                 onPeriod={setPeriod}
+                emprise={emprise}
+                onEmprise={choisirEmprise}
+                hasSecteur={Boolean(monSecteurId)}
                 onCollapse={() => setLayersPanelOpen(false)}
               />
             ) : (

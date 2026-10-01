@@ -57,7 +57,44 @@ export default function CreateMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
-  const close = useCallback(() => setOpen(false), []);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const close = useCallback(() => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setOpen(false);
+  }, []);
+
+  const sourisFine = useCallback(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+    [],
+  );
+
+  const ouvrirAuSurvol = useCallback(() => {
+    if (isCompact || !sourisFine()) return;
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setOpen(true);
+  }, [isCompact, sourisFine]);
+
+  const fermerAuSurvol = useCallback(() => {
+    if (isCompact || !sourisFine()) return;
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = null;
+      setOpen(false);
+    }, 140);
+  }, [isCompact, sourisFine]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!open || isCompact) return;
@@ -249,6 +286,8 @@ export default function CreateMenu({
             aria-label="Créer"
             className="fixed z-[120] w-max min-w-[13.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1.5 shadow-clay-lg"
             style={{ top: menuPos.top, right: menuPos.right }}
+            onMouseEnter={ouvrirAuSurvol}
+            onMouseLeave={fermerAuSurvol}
           >
             {menuItems}
           </div>,
@@ -258,7 +297,12 @@ export default function CreateMenu({
 
   return (
     <>
-      <div ref={rootRef} className={`relative flex items-center gap-1.5 ${className}`}>
+      <div
+        ref={rootRef}
+        className={`relative flex items-center gap-1.5 ${className}`}
+        onMouseEnter={ouvrirAuSurvol}
+        onMouseLeave={fermerAuSurvol}
+      >
         <button
           ref={triggerRef}
           type="button"

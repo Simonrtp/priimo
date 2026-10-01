@@ -1,5 +1,5 @@
 import { DPE_PALETTE, formatDpeEtage, parseDpeLetter } from '@/lib/carte/dpe-public';
-import { formatPrixM2Court } from '@/lib/carte/cadastre-overlay';
+import { formatPrixM2Court, type VenteParcelleAgg } from '@/lib/carte/cadastre-overlay';
 import type { CadastreOverlayId } from '@/lib/carte/layers';
 import type { CadastreImmeublePoint } from '@/lib/carte/parcelle';
 import type { MapPoint, MapPointKind } from '@/lib/carte/points';
@@ -75,7 +75,8 @@ export function hoverPreviewFromCadastre(
     if (row.surfaceDpe != null && Number.isFinite(row.surfaceDpe)) {
       lines.push(`${Math.round(row.surfaceDpe)} m²`);
     }
-    lines.push(formatDpeEtage(row.etageDpe));
+    const etage = formatDpeEtage(row.etageDpe);
+    if (etage) lines.push(etage);
     return {
       kindLabel: 'DPE',
       title: letter ? `Classe ${letter}` : 'Diagnostics',
@@ -111,4 +112,23 @@ export function hoverPreviewFromCadastre(
     title: row.nbLots != null ? `${row.nbLots} lot${row.nbLots > 1 ? 's' : ''}` : 'Copropriété',
     lines: lines.slice(0, 3),
   };
+}
+
+/** Survol d’une parcelle (agrégat des ventes), pas d’un point immeuble. */
+export function hoverPreviewFromVenteParcelle(agg: VenteParcelleAgg): HoverPreview {
+  const adresse = (agg.adresse ?? '').trim() || 'Parcelle';
+  const lines: string[] = [];
+  const date = formatHoverDay(agg.derniereTransactionLe);
+  const prix = formatHoverEuros(agg.dernierPrix);
+  if (date && prix) lines.push(`${date} · ${prix}`);
+  else if (prix) lines.push(prix);
+  else if (date) lines.push(date);
+  const median = formatPrixM2Court(agg.prixM2);
+  if (median) lines.push(`${median} médian`);
+  if (agg.nbTransactions > 0) {
+    lines.push(
+      `${agg.nbTransactions} vente${agg.nbTransactions > 1 ? 's' : ''} connue${agg.nbTransactions > 1 ? 's' : ''}`,
+    );
+  }
+  return { kindLabel: 'Vente', title: adresse, lines };
 }

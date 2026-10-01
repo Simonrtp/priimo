@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useId, useRef, useState } from 'react';
-import { ChevronDown, Newspaper, Users } from 'lucide-react';
+import { ChevronDown, CircleHelp, Newspaper, Users } from 'lucide-react';
 import { formatBlogDate } from '@/lib/blog/format';
 import type { BlogPostSummary } from '@/lib/blog/types';
 import { MenuIconBox } from '@/components/MenuIconBox';
@@ -231,6 +231,23 @@ export default function ResourcesMenu({
                     </span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-gray-500 text-pretty">
                       Articles, conseil, formations
+                    </span>
+                  </span>
+                </Link>
+
+                <Link
+                  href="/faq"
+                  className="group flex items-start gap-3 rounded-2xl px-2.5 py-2.5 transition-all duration-200 hover:bg-[#FFF7F0]"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  <MenuIconBox icon={CircleHelp} />
+                  <span className="min-w-0 pt-0.5">
+                    <span className="block text-[13px] font-semibold leading-snug text-gray-900">
+                      Questions fréquentes
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500 text-pretty">
+                      Prix, données, adoption
                     </span>
                   </span>
                 </Link>

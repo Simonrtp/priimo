@@ -171,7 +171,7 @@ export default function EquipeClient({
               {memberSubtitle}
             </p>
           </div>
-          <WorkspaceButton type="button" onClick={() => setInviteOpen(true)} className="shrink-0">
+          <WorkspaceButton type="button" variant="create" onClick={() => setInviteOpen(true)} className="shrink-0">
             <UserPlus size={16} strokeWidth={2} aria-hidden />
             Inviter un collaborateur
           </WorkspaceButton>
@@ -181,7 +181,7 @@ export default function EquipeClient({
           title="Mon équipe"
           subtitle={memberSubtitle}
           primaryAction={
-            <WorkspaceButton type="button" onClick={() => setInviteOpen(true)}>
+            <WorkspaceButton type="button" variant="create" onClick={() => setInviteOpen(true)}>
               <UserPlus size={16} strokeWidth={2} aria-hidden />
               Inviter un collaborateur
             </WorkspaceButton>
