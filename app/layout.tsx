@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Libre_Baskerville } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Libre_Baskerville } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import CausioRouteGuard from "@/components/landing/CausioRouteGuard";
 import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import { fontHero } from "@/lib/fonts-hero";
 import { fontNunito } from "@/lib/fonts-nunito";
+import { fontMono } from "./fonts/mono";
 import "./globals.css";
 
 // Chromium n'émet `beforeinstallprompt` qu'une seule fois, et souvent avant que
@@ -36,14 +37,6 @@ const libreBaskerville = Libre_Baskerville({
   weight: ["400", "700"],
   style: ["normal", "italic"],
   variable: "--font-brand",
-  display: "swap",
-});
-
-// Chiffres techniques / IDs : JetBrains Mono → --font-mono
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-mono",
   display: "swap",
 });
 
@@ -135,7 +128,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${inter.variable} ${jakarta.variable} ${fontHero.variable} ${fontNunito.variable} ${jetbrainsMono.variable} ${libreBaskerville.variable}`}
+      className={`${inter.variable} ${jakarta.variable} ${fontHero.variable} ${fontNunito.variable} ${fontMono.variable} ${libreBaskerville.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CAPTURE }} />
