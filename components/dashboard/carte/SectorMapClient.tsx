@@ -537,7 +537,7 @@ export default function SectorMapClient({
                 aria-label="Afficher les couches"
                 aria-expanded={false}
                 title="Couches"
-                className="flex size-10 self-end items-center justify-center rounded-clay border border-black/[0.08] bg-surface/95 text-text shadow-clay-sm backdrop-blur-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="flex size-10 self-end items-center justify-center rounded-clay border border-black/[0.08] bg-[color:color-mix(in_srgb,var(--surface)_95%,transparent)] text-text shadow-clay-sm backdrop-blur-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <Layers size={18} strokeWidth={2} aria-hidden />
               </button>
@@ -552,7 +552,7 @@ export default function SectorMapClient({
               setMissingOpen(true);
               setSelectedBanId(null);
             }}
-            className="absolute left-3 top-3 z-20 rounded-clay border border-black/[0.08] bg-surface/95 px-3 py-2 text-left text-[12.5px] font-medium text-text shadow-clay-sm backdrop-blur-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="absolute left-3 top-3 z-20 rounded-clay border border-black/[0.08] bg-[color:color-mix(in_srgb,var(--surface)_95%,transparent)] px-3 py-2 text-left text-[12.5px] font-medium text-text shadow-clay-sm backdrop-blur-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <span className="tabular-nums text-accent">{missingTotal}</span>
             {missingTotal > 1 ? ' fiches sans position' : ' fiche sans position'}

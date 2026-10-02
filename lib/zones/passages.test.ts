@@ -14,6 +14,7 @@ describe('passages observés', () => {
           createdAt: '2026-09-01T10:00:00Z',
           banId: 'ban-1',
           rattacheeTerrain: false,
+          echange: false,
         },
       ],
     });
@@ -31,6 +32,7 @@ describe('passages observés', () => {
           createdAt: '2026-09-02T12:00:00Z',
           banId: 'b',
           rattacheeTerrain: true,
+          echange: false,
         },
       ],
       transitions: [

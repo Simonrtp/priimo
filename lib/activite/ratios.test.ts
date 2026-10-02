@@ -17,14 +17,13 @@ import {
   cascadeRatios,
   formateRatio,
   MANDATS_MINIMUM,
-  physiquesParMandatDepuis,
+  qualifiesParMandatDepuis,
   positionVsMoyenne,
   type EtapesConversion,
 } from './ratios';
 
 function etapes(partiel: Partial<EtapesConversion>): EtapesConversion {
   return {
-    contacts_physiques: 0,
     contacts_qualifies: 0,
     estimations: 0,
     mandats: 0,
@@ -38,7 +37,6 @@ describe('cascadeRatios — choix du niveau', () => {
   it('prend le ratio personnel dès trois mandats', () => {
     const r = cascadeRatios({
       personnel: etapes({
-        contacts_physiques: 120,
         contacts_qualifies: 24,
         estimations: 9,
         mandats: MANDATS_MINIMUM,
@@ -50,17 +48,15 @@ describe('cascadeRatios — choix du niveau', () => {
 
     assert.equal(r.niveau, 'personnel');
     assert.equal(r.provisoire, false);
-    assert.equal(r.physiquesParQualifie, 5);
     assert.equal(r.qualifiesParEstimation, 2.7);
     assert.equal(r.estimationsParMandat, 3);
-    assert.equal(r.physiquesParMandat, 40);
+    assert.equal(r.qualifiesParMandat, 8);
   });
 
   it('retombe sur l’agence sous trois mandats personnels', () => {
     const r = cascadeRatios({
-      personnel: etapes({ contacts_physiques: 90, contacts_qualifies: 10, mandats: 2 }),
+      personnel: etapes({ contacts_qualifies: 10, mandats: 2 }),
       agence: etapes({
-        contacts_physiques: 400,
         contacts_qualifies: 50,
         estimations: 20,
         mandats: 5,
@@ -71,7 +67,7 @@ describe('cascadeRatios — choix du niveau', () => {
 
     assert.equal(r.niveau, 'agence');
     assert.equal(r.mandatsRetenus, 5);
-    assert.equal(r.physiquesParQualifie, 8);
+    assert.equal(r.qualifiesParEstimation, 2.5);
   });
 
   it('retombe sur la référence quand l’agence non plus n’a pas trois mandats', () => {
@@ -79,7 +75,6 @@ describe('cascadeRatios — choix du niveau', () => {
       personnel: AUCUNE_ACTIVITE,
       agence: etapes({ mandats: 2 }),
       reference: {
-        physiquesParQualifie: 11,
         qualifiesParEstimation: 4,
         estimationsParMandat: 2.5,
       },
@@ -88,7 +83,7 @@ describe('cascadeRatios — choix du niveau', () => {
 
     assert.equal(r.niveau, 'reference');
     assert.equal(r.provisoire, false);
-    assert.equal(r.physiquesParQualifie, 11);
+    assert.equal(r.qualifiesParEstimation, 4);
   });
 
   it('signale « provisoire » tant que le réseau n’a pas fourni ses chiffres', () => {
@@ -105,14 +100,14 @@ describe('cascadeRatios — choix du niveau', () => {
 
   it('ne fabrique pas un ratio à partir d’un dénominateur nul', () => {
     const r = cascadeRatios({
-      personnel: etapes({ contacts_physiques: 50, contacts_qualifies: 0, mandats: 4 }),
+      personnel: etapes({ contacts_qualifies: 0, estimations: 0, mandats: 4 }),
       agence: AUCUNE_ACTIVITE,
       reference: REFERENCE_METIER_PROVISOIRE,
       referenceFournie: true,
     });
 
     assert.equal(r.niveau, 'personnel');
-    assert.equal(r.physiquesParQualifie, null);
+    assert.equal(r.qualifiesParEstimation, null);
     assert.equal(r.estimationsParMandat, 0);
   });
 
@@ -126,19 +121,18 @@ describe('cascadeRatios — choix du niveau', () => {
 
     assert.equal(r.mandatsRetenus, 0);
     assert.equal(r.provisoire, true);
-    assert.notEqual(r.physiquesParQualifie, null);
+    assert.notEqual(r.qualifiesParEstimation, null);
   });
 });
 
-describe('physiquesParMandatDepuis', () => {
-  it('multiplie les trois paliers : 5 × 3 × 3,6 = 54', () => {
+describe('qualifiesParMandatDepuis', () => {
+  it('multiplie les deux paliers : 3 × 3,6 = 10,8', () => {
     assert.equal(
-      physiquesParMandatDepuis({
-        physiquesParQualifie: 5,
+      qualifiesParMandatDepuis({
         qualifiesParEstimation: 3,
         estimationsParMandat: 3.6,
       }),
-      54,
+      10.8,
     );
   });
 });
@@ -170,11 +164,11 @@ describe('objectifsEffectifs', () => {
 
   it('remplace uniquement les objectifs posés', () => {
     const o = objectifsEffectifs([
-      { activite: 'contacts_physiques', periode: 'hebdo', cible: 70 },
+      { activite: 'immeubles_prospectes', periode: 'hebdo', cible: 70 },
       { activite: 'mandats', periode: 'mensuel', cible: 5 },
     ]);
 
-    assert.equal(o.hebdo.contacts_physiques, 70);
+    assert.equal(o.hebdo.immeubles_prospectes, 70);
     assert.equal(o.hebdo.estimations, OBJECTIFS_HEBDO_PAR_DEFAUT.estimations);
     assert.equal(o.mandatsMensuel, 5);
     assert.equal(o.parDefaut, false);
@@ -202,7 +196,6 @@ describe('objectifsEffectifs', () => {
 describe('objectifs saisis à l’écran', () => {
   const saisie = {
     hebdo: {
-      contacts_physiques: 40,
       immeubles_prospectes: 25,
       contacts_qualifies: 8,
       estimations: 2,
@@ -235,13 +228,13 @@ describe('objectifs saisis à l’écran', () => {
       parseObjectifsSaisis({ ...saisie, hebdo: { ...saisie.hebdo, estimations: 2.5 } }),
       null,
     );
-    assert.equal(parseObjectifsSaisis({ ...saisie, hebdo: { contacts_physiques: 40 } }), null);
+    assert.equal(parseObjectifsSaisis({ ...saisie, hebdo: { immeubles_prospectes: 40 } }), null);
     assert.equal(parseObjectifsSaisis(null), null);
   });
 
-  it('écrit six lignes, et jamais l’objectif hebdomadaire de mandats', () => {
+  it('écrit cinq lignes, et jamais l’objectif hebdomadaire de mandats', () => {
     const lignes = lignesObjectifs(saisie);
-    assert.equal(lignes.length, 6);
+    assert.equal(lignes.length, 5);
     assert.equal(
       lignes.some((l) => l.activite === 'mandats' && l.periode === 'hebdo'),
       false,
@@ -307,7 +300,6 @@ describe('referenceMetier', () => {
     });
 
     assert.equal(fournie, true);
-    assert.equal(reference.physiquesParQualifie, 12.5);
     assert.equal(reference.estimationsParMandat, 2);
     // Le trou est comblé par le provisoire, pas laissé à null.
     assert.equal(

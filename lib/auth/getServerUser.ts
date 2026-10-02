@@ -44,12 +44,17 @@ const PROFILE_SELECT_EXTRAS =
 async function getServerUserUncached(): Promise<ServerUser> {
   return timed('getServerUser', async () => {
   const supabase = await timed('createSupabaseServerClient', () => createSupabaseServerClient());
-  const {
-    data: { user },
-  } = await timed('auth.getUser', () => supabase.auth.getUser());
-  if (!user) return { user: null, profile: null, agency: null, memberships: [] };
+  // Jeton vérifié en local (clés ES256 en cache) : pas d'aller-retour vers le
+  // serveur d'auth. Le middleware a déjà rafraîchi la session.
+  const { data: claimsData } = await timed('auth.getClaims', () => supabase.auth.getClaims());
+  const claims = claimsData?.claims;
+  if (!claims?.sub) return { user: null, profile: null, agency: null, memberships: [] };
+  const user = { id: claims.sub, email: typeof claims.email === 'string' ? claims.email : '' };
 
-  const [profileRes, membershipRes] = await Promise.all([
+  // Les trois lectures partent ensemble. Les agences ne sont pas filtrées par
+  // identifiant : la RLS ne rend que celles dont l'utilisateur est membre, et
+  // seules les agences des rattachements sont retenues ensuite.
+  const [profileRes, membershipRes, { data: agencies }] = await Promise.all([
     timed('profiles.select', async () => {
       const withExtras = await supabase
         .from('profiles')
@@ -69,62 +74,47 @@ async function getServerUserUncached(): Promise<ServerUser> {
     timed('profile_agencies.select', async () =>
       supabase.from('profile_agencies').select('agency_id, role').eq('profile_id', user.id),
     ),
+    timed('agencies.select', async () => {
+      const withBilling = await supabase
+        .from('agencies')
+        .select(
+          (agenciesSelectAvecSecondaire
+            ? AGENCIES_SELECT
+            : AGENCIES_SELECT_SANS_SECONDAIRE) as typeof AGENCIES_SELECT_SANS_SECONDAIRE,
+        );
+      if (withBilling.error) {
+        if (/couleur_secondaire/.test(withBilling.error.message)) {
+          agenciesSelectAvecSecondaire = false;
+          const sansSecondaire = await supabase.from('agencies').select(AGENCIES_SELECT_SANS_SECONDAIRE);
+          if (!sansSecondaire.error) return sansSecondaire;
+        }
+        console.error('[getServerUser] agencies.select', withBilling.error.message);
+        const sansCouleur = await supabase
+          .from('agencies')
+          .select(`${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}`);
+        if (!sansCouleur.error) return sansCouleur;
+        const sansRapport = await supabase.from('agencies').select(AGENCIES_SELECT_BASE);
+        if (!sansRapport.error) return sansRapport;
+        return supabase
+          .from('agencies')
+          .select(
+            'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, created_at, updated_at',
+          );
+      }
+      return withBilling;
+    }),
   ]);
 
   const profile = profileRes.data;
   if (!profile) {
-    return { user: { id: user.id, email: user.email ?? '' }, profile: null, agency: null, memberships: [] };
+    return { user, profile: null, agency: null, memberships: [] };
   }
 
   const rows = membershipRes.data ?? [];
   if (rows.length === 0) {
-    return {
-      user: { id: user.id, email: user.email ?? '' },
-      profile: null,
-      agency: null,
-      memberships: [],
-    };
+    return { user, profile: null, agency: null, memberships: [] };
   }
 
-  const agencyIds = rows.map((r) => r.agency_id);
-  const { data: agencies } = await timed('agencies.select', async () => {
-    const withBilling = await supabase
-      .from('agencies')
-      .select(
-        (agenciesSelectAvecSecondaire
-          ? AGENCIES_SELECT
-          : AGENCIES_SELECT_SANS_SECONDAIRE) as typeof AGENCIES_SELECT_SANS_SECONDAIRE,
-      )
-      .in('id', agencyIds);
-    if (withBilling.error) {
-      if (/couleur_secondaire/.test(withBilling.error.message)) {
-        agenciesSelectAvecSecondaire = false;
-        const sansSecondaire = await supabase
-          .from('agencies')
-          .select(AGENCIES_SELECT_SANS_SECONDAIRE)
-          .in('id', agencyIds);
-        if (!sansSecondaire.error) return sansSecondaire;
-      }
-      console.error('[getServerUser] agencies.select', withBilling.error.message);
-      const sansCouleur = await supabase
-        .from('agencies')
-        .select(`${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}`)
-        .in('id', agencyIds);
-      if (!sansCouleur.error) return sansCouleur;
-      const sansRapport = await supabase
-        .from('agencies')
-        .select(AGENCIES_SELECT_BASE)
-        .in('id', agencyIds);
-      if (!sansRapport.error) return sansRapport;
-      return supabase
-        .from('agencies')
-        .select(
-          'id, name, address, phone, email, plan, codes_postaux, latitude, longitude, stripe_customer_id, created_at, updated_at',
-        )
-        .in('id', agencyIds);
-    }
-    return withBilling;
-  });
   const agencyList = (agencies ?? []) as AgencyRow[];
 
   const memberships = buildAgencyMemberships(rows, agencyList);
@@ -133,7 +123,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
 
   if (!activeAgencyId || !activeRole) {
     return {
-      user: { id: user.id, email: user.email ?? '' },
+      user,
       profile: null,
       agency: null,
       memberships,
@@ -147,7 +137,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
   };
 
   return {
-    user: { id: user.id, email: user.email ?? '' },
+    user,
     profile: contextualProfile,
     agency,
     memberships,

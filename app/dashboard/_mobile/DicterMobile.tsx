@@ -2,11 +2,14 @@
 
 import VoiceCaptureDialog from '@/components/dashboard/voice/VoiceCaptureDialog';
 import type { VoiceCapturePurpose } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import type { PreparationTempsReel } from '@/lib/voice/temps-reel';
 import type { EstimationVoiceApplyOpts, EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
 
 export default function DicterMobile({
   onClose,
   streamPromise,
+  preparation,
+  modeInitial,
   adresse,
   parcelleId,
   banId,
@@ -16,6 +19,8 @@ export default function DicterMobile({
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
+  preparation?: PreparationTempsReel | null;
+  modeInitial?: 'voix' | 'ecrit';
   adresse?: string | null;
   parcelleId?: string | null;
   banId?: string | null;
@@ -27,6 +32,8 @@ export default function DicterMobile({
     <VoiceCaptureDialog
       onClose={onClose}
       streamPromise={streamPromise}
+      preparation={preparation}
+      modeInitial={modeInitial}
       variant="mobile"
       adresse={adresse}
       parcelleId={parcelleId}

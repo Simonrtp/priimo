@@ -29,10 +29,9 @@ const RATIOS: Ratios = {
   niveau: 'personnel',
   provisoire: false,
   mandatsRetenus: 5,
-  physiquesParQualifie: 8,
   qualifiesParEstimation: 3,
   estimationsParMandat: 2,
-  physiquesParMandat: 48,
+  qualifiesParMandat: 6,
   positionMoyenne: 'dans',
 };
 
@@ -45,7 +44,7 @@ function entree(partiel: Partial<EntreePhrase>): EntreePhrase {
     compteurs: compteurVide(),
     objectifMandatsMois: 2,
     ratios: RATIOS,
-    periode: 'semaine',
+    periode: '7j',
     intervalle: SEMAINE,
     semaine1: false,
     etatsSource: sourcesVivantes(),
@@ -85,7 +84,7 @@ describe('rythmeRequis', () => {
     assert.ok(Math.abs(r.mandats - 2 / SEMAINES_PAR_MOIS) < 1e-9);
     assert.ok(Math.abs(r.estimations - r.mandats * 2) < 1e-9);
     assert.ok(Math.abs(r.contacts_qualifies - r.estimations * 3) < 1e-9);
-    assert.ok(Math.abs(r.contacts_physiques - r.contacts_qualifies * 8) < 1e-9);
+    assert.equal('immeubles_prospectes' in r, false);
   });
 
   it('ne calcule rien s’il manque un ratio', () => {
@@ -103,16 +102,16 @@ describe('phrasePilotage', () => {
   it('vise le premier étage en retard en partant du haut', () => {
     // Une sortie déclarée, mais loin du compte : c'est le porte-à-porte qui
     // manque, pas le mandat.
-    const p = phrasePilotage(entree({ compteurs: compteurs({ contacts_physiques: 3 }) }));
+    const p = phrasePilotage(entree({ compteurs: compteurs({ informations_terrain: 3 }) }));
     assert.equal(p.ton, 'retard');
-    assert.equal(p.levier, 'contacts_physiques');
-    assert.match(p.texte, /portes/);
-    assert.match(p.texte, /cette semaine/);
+    assert.equal(p.levier, 'contacts_qualifies');
+    assert.match(p.texte, /rappels/);
+    assert.match(p.texte, /sur 7 jours/);
   });
 
   it('ne reproche jamais un mandat manquant quand le haut de l’entonnoir tient', () => {
     // Volume de contacts largement suffisant, mais aucune qualification.
-    const p = phrasePilotage(entree({ compteurs: compteurs({ contacts_physiques: 500 }) }));
+    const p = phrasePilotage(entree({ compteurs: compteurs({ immeubles_prospectes: 500 }) }));
     assert.equal(p.levier, 'contacts_qualifies');
     assert.notEqual(p.levier, 'mandats');
   });
@@ -124,7 +123,7 @@ describe('phrasePilotage', () => {
         // s'y voie, là où un rythme d'un demi-mandat par semaine ne dit rien.
         objectifMandatsMois: 8,
         compteurs: compteurs({
-          contacts_physiques: 500,
+          immeubles_prospectes: 500,
           contacts_qualifies: 100,
           estimations: 50,
         }),
@@ -138,7 +137,7 @@ describe('phrasePilotage', () => {
     const p = phrasePilotage(
       entree({
         compteurs: compteurs({
-          contacts_physiques: 500,
+          immeubles_prospectes: 500,
           contacts_qualifies: 100,
           estimations: 50,
           mandats: 10,
@@ -150,7 +149,7 @@ describe('phrasePilotage', () => {
   });
 
   it('proratise : un lundi matin ne déclare pas l’agent en retard d’une semaine entière', () => {
-    const commun = compteurs({ contacts_physiques: 4 });
+    const commun = compteurs({ immeubles_prospectes: 4 });
     const lundi = phrasePilotage(entree({ compteurs: commun, jourCourant: '2026-08-31' }));
     const dimanche = phrasePilotage(entree({ compteurs: commun, jourCourant: '2026-09-06' }));
     assert.ok(
@@ -164,12 +163,12 @@ describe('phrasePilotage', () => {
     // rythme vaut un quart de mandat et il n'y a rien à annoncer.
     const p = phrasePilotage(
       entree({
-        periode: 'mois',
-        intervalle: intervalleDe('mois', new Date('2026-09-15T12:00:00Z')),
+        periode: '30j',
+        intervalle: intervalleDe('30j', new Date('2026-09-15T12:00:00Z')),
         jourCourant: '2026-09-30',
         objectifMandatsMois: 1,
         compteurs: compteurs({
-          contacts_physiques: 500,
+          immeubles_prospectes: 500,
           contacts_qualifies: 100,
           estimations: 50,
           mandats: 0,
@@ -177,7 +176,7 @@ describe('phrasePilotage', () => {
       }),
     );
     assert.match(p.texte, /1 mandat /);
-    assert.match(p.texte, /ce mois-ci/);
+    assert.match(p.texte, /sur 30 jours/);
   });
 
   it('dit qu’il ne sait pas calculer plutôt que d’inventer un rythme', () => {
@@ -186,7 +185,7 @@ describe('phrasePilotage', () => {
     );
     assert.equal(p.ton, 'incalculable');
     assert.equal(p.levier, null);
-    assert.match(p.texte, /semaines/);
+    assert.match(p.texte, /recul/);
   });
 
   it('a sa propre phrase en semaine 1, sans chiffre de retard', () => {
@@ -201,21 +200,21 @@ describe('phrasePilotage — une période sans rien de compté', () => {
   it('ne chiffre aucun manque quand tous les compteurs sont à zéro', () => {
     // Le défaut que corrige ce cas : le porte-à-porte muet écartait le premier
     // étage, l'étage suivant ne manquait que d'une unité, et l'écran annonçait
-    // « il me manque 1 contact qualifié » au-dessus de cinq compteurs à zéro.
+    // « il manque 1 contact qualifié » au-dessus de cinq compteurs à zéro.
     const p = phrasePilotage(
       entree({
-        periode: 'jour',
+        periode: 'custom',
         intervalle: { debut: '2026-09-02', fin: '2026-09-02' },
-        etatsSource: sourcesVivantes(['contacts_physiques']),
+        etatsSource: sourcesVivantes(['immeubles_prospectes']),
         jourCourant: '2026-09-02',
       }),
     );
 
-    assert.doesNotMatch(p.texte, /il me manque/i);
+    assert.doesNotMatch(p.texte, /il manque/i);
     assert.match(p.texte, /Rien de noté aujourd’hui/);
     assert.doesNotMatch(p.texte, /terrain/);
     // Le geste passe avant la règle du levier muet : c'est par là qu'on repart.
-    assert.equal(p.levier, 'contacts_physiques');
+    assert.equal(p.levier, 'immeubles_prospectes');
   });
 
   it('montre la direction plutôt que le reproche', () => {
@@ -233,24 +232,23 @@ describe('phrasePilotage — une période sans rien de compté', () => {
 });
 
 describe('phrasePilotage — plusieurs étages en retard', () => {
-  it('annonce l’ampleur avant de nommer le geste', () => {
-    // Le porte-à-porte tient, mais rien n'est qualifié ni estimé derrière :
-    // deux étages décrochent, et n'en nommer qu'un ferait passer le rattrapage
-    // pour une formalité.
-    const p = phrasePilotage(entree({ compteurs: compteurs({ contacts_physiques: 500 }) }));
+  it('nomme seulement le premier levier, le reste se lit sur les cartes', () => {
+    // Le porte-à-porte tient, mais rien n'est qualifié ni estimé derrière.
+    // La phrase reste une ligne : un étage, un geste.
+    const p = phrasePilotage(entree({ compteurs: compteurs({ immeubles_prospectes: 500 }) }));
 
     assert.equal(p.ton, 'retard');
     assert.equal(p.levier, 'contacts_qualifies');
-    assert.match(p.texte, /des rappels et des estimations/);
-    assert.match(p.texte, /Je commence par/);
-    assert.match(p.texte, /rappels/);
+    assert.match(p.texte, /^Il manque \d+ rappels sur 7 jours\.$/);
+    assert.doesNotMatch(p.texte, /estimations/);
+    assert.doesNotMatch(p.texte, /Je commence par/);
   });
 
   it('garde la phrase simple quand un seul étage décroche', () => {
     const p = phrasePilotage(
-      entree({ compteurs: compteurs({ contacts_physiques: 500, estimations: 50 }) }),
+      entree({ compteurs: compteurs({ immeubles_prospectes: 500, estimations: 50 }) }),
     );
-    assert.match(p.texte, /^Il me manque /);
+    assert.match(p.texte, /^Il manque /);
     assert.doesNotMatch(p.texte, /étages/);
   });
 
@@ -259,10 +257,10 @@ describe('phrasePilotage — plusieurs étages en retard', () => {
     // carte affiche « 0 / 0 », donc la phrase ne peut pas en réclamer une.
     const p = phrasePilotage(
       entree({
-        periode: 'jour',
+        periode: 'custom',
         intervalle: { debut: '2026-09-02', fin: '2026-09-02' },
         jourCourant: '2026-09-02',
-        compteurs: compteurs({ contacts_physiques: 1 }),
+        compteurs: compteurs({ immeubles_prospectes: 1 }),
       }),
     );
     assert.doesNotMatch(p.texte, /estimation/);
@@ -377,18 +375,18 @@ describe('phrasePilotage — sources muettes', () => {
     // Le levier doit malgré tout descendre à l'étage suivant.
     const p = phrasePilotage(
       entree({
-        etatsSource: sourcesVivantes(['contacts_physiques']),
+        etatsSource: sourcesVivantes(['immeubles_prospectes']),
         compteurs: compteurs({ informations_terrain: 3 }),
       }),
     );
-    assert.notEqual(p.levier, 'contacts_physiques');
+    assert.notEqual(p.levier, 'immeubles_prospectes');
     assert.equal(p.levier, 'contacts_qualifies');
   });
 
   it('descend jusqu’au premier étage réellement mesuré', () => {
     const p = phrasePilotage(
       entree({
-        etatsSource: sourcesVivantes(['contacts_physiques', 'contacts_qualifies', 'estimations']),
+        etatsSource: sourcesVivantes(['immeubles_prospectes', 'contacts_qualifies', 'estimations']),
         compteurs: compteurs({ informations_terrain: 3 }),
         objectifMandatsMois: 8,
       }),
@@ -400,7 +398,7 @@ describe('phrasePilotage — sources muettes', () => {
     const p = phrasePilotage(
       entree({
         etatsSource: sourcesVivantes([
-          'contacts_physiques',
+          'immeubles_prospectes',
           'contacts_qualifies',
           'estimations',
           'mandats',
@@ -415,7 +413,7 @@ describe('phrasePilotage — sources muettes', () => {
   it('mesure l’avance sur le premier étage vivant, pas sur un étage muet', () => {
     const p = phrasePilotage(
       entree({
-        etatsSource: sourcesVivantes(['contacts_physiques']),
+        etatsSource: sourcesVivantes(['immeubles_prospectes']),
         compteurs: compteurs({
           contacts_qualifies: 500,
           estimations: 200,
@@ -431,9 +429,9 @@ describe('phrasePilotage — sources muettes', () => {
 
 describe('phrasePilotage — mise à l’échelle de la période', () => {
   it('exige davantage sur un mois que sur une semaine', () => {
-    const septembre = intervalleDe('mois', new Date('2026-09-15T12:00:00Z'));
+    const septembre = intervalleDe('30j', new Date('2026-09-15T12:00:00Z'));
     const surLeMois = phrasePilotage(
-      entree({ periode: 'mois', intervalle: septembre, jourCourant: '2026-09-30' }),
+      entree({ periode: '30j', intervalle: septembre, jourCourant: '2026-09-30' }),
     );
     const surLaSemaine = phrasePilotage(entree({}));
 
@@ -445,29 +443,31 @@ describe('phrasePilotage — mise à l’échelle de la période', () => {
   });
 
   it('nomme la période dans la phrase', () => {
-    const septembre = intervalleDe('mois', new Date('2026-09-15T12:00:00Z'));
+    const septembre = intervalleDe('30j', new Date('2026-09-15T12:00:00Z'));
     assert.match(
-      phrasePilotage(entree({ periode: 'mois', intervalle: septembre })).texte,
-      /ce mois-ci/,
+      phrasePilotage(entree({ periode: '30j', intervalle: septembre })).texte,
+      /sur 30 jours/,
     );
     assert.match(
       phrasePilotage(
-        entree({ periode: 'jour', intervalle: { debut: '2026-09-02', fin: '2026-09-02' } }),
+        entree({
+          periode: 'custom',
+          intervalle: { debut: '2026-09-02', fin: '2026-09-02' },
+          jourCourant: '2026-09-02',
+        }),
       ).texte,
       /aujourd’hui/,
     );
-    assert.match(phrasePilotage(entree({})).texte, /cette semaine/);
+    assert.match(phrasePilotage(entree({})).texte, /sur 7 jours/);
   });
 
-  it('ne déclare pas un agent brillant parce qu’il regarde l’année', () => {
-    // Un cumul annuel confortable reste insuffisant face à un objectif annuel.
-    const annee = intervalleDe('annee', new Date('2026-06-15T12:00:00Z'));
+  it('ne déclare pas un agent brillant parce qu’il regarde 90 jours', () => {
     const p = phrasePilotage(
       entree({
-        periode: 'annee',
-        intervalle: annee,
+        periode: '90j',
+        intervalle: intervalleDe('90j', new Date('2026-12-31T12:00:00Z')),
         jourCourant: '2026-12-31',
-        compteurs: { ...compteurVide(), contacts_physiques: 200 },
+        compteurs: { ...compteurVide(), immeubles_prospectes: 200 },
       }),
     );
     assert.equal(p.ton, 'retard');

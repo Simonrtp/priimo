@@ -14,7 +14,7 @@ export type MembreOption = {
 
 /** Même langage que les cartes de l'accueil : clay, ombre légère, pas de menu OS. */
 const DECLENCHEUR =
-  'flex min-w-[11rem] items-center justify-between gap-2 rounded-clay border border-black/[0.08] bg-surface px-3 py-2 text-left text-[12px] font-semibold text-text-strong shadow-clay-sm outline-none transition-[color,background-color,border-color,box-shadow] duration-fluid-subtle ease-in-out hover:border-black/[0.12] focus-visible:border-primary-400/50 focus-visible:ring-2 focus-visible:ring-primary-400/25 disabled:cursor-not-allowed disabled:opacity-50';
+  'flex min-w-[11rem] items-center justify-between gap-2 rounded-clay border border-black/[0.08] bg-surface px-3 py-2 text-left text-[12px] font-semibold text-text-strong shadow-clay-sm outline-none transition-[color,background-color,border-color,box-shadow] duration-fluid-subtle ease-in-out hover:border-black/[0.12] focus-visible:border-[color:color-mix(in_srgb,var(--primary-400)_50%,transparent)] focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--primary-400)_25%,transparent)] disabled:cursor-not-allowed disabled:opacity-50';
 
 /**
  * Réservé au directeur — la page ne le rend jamais pour un collaborateur, et

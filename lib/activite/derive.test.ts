@@ -67,12 +67,14 @@ describe('compteursSemaine — compteurs dérivés', () => {
             createdAt: '2026-09-03T09:00:00Z',
             banId: 'imm-1',
             rattacheeTerrain: true,
+            echange: false,
           },
           {
             auteurId: MOI,
             createdAt: '2026-09-03T10:00:00Z',
             banId: 'imm-2',
             rattacheeTerrain: true,
+            echange: false,
           },
         ],
         contactsPhysiques: [{ profileId: MOI, jour: '2026-09-04', banId: 'imm-3' }],
@@ -83,7 +85,7 @@ describe('compteursSemaine — compteurs dérivés', () => {
     assert.equal(c.immeubles_prospectes, 3);
   });
 
-  it('ne compte en information terrain que les notes rattachées', () => {
+  it('ne compte en notes que les notes rattachées, hors échanges', () => {
     const c = compteursSemaine({
       profileId: MOI,
       semaine: SEMAINE,
@@ -94,12 +96,14 @@ describe('compteursSemaine — compteurs dérivés', () => {
             createdAt: '2026-09-02T09:00:00Z',
             banId: 'imm-1',
             rattacheeTerrain: true,
+            echange: false,
           },
           {
             auteurId: MOI,
             createdAt: '2026-09-02T10:00:00Z',
             banId: null,
             rattacheeTerrain: false,
+            echange: false,
           },
         ],
       }),
@@ -109,7 +113,62 @@ describe('compteursSemaine — compteurs dérivés', () => {
     assert.equal(c.immeubles_prospectes, 1);
   });
 
-  it('compte les contacts physiques déclarés, un par ligne', () => {
+  it('compte une note d’échange en notes terrain, même rattachée à l’adresse', () => {
+    const c = compteursSemaine({
+      profileId: MOI,
+      semaine: SEMAINE,
+      journal: journal({
+        notes: [
+          {
+            auteurId: MOI,
+            createdAt: '2026-09-02T09:00:00Z',
+            banId: 'imm-1',
+            rattacheeTerrain: true,
+            echange: true,
+          },
+        ],
+      }),
+    });
+
+    assert.equal(c.informations_terrain, 1);
+    assert.equal(c.immeubles_prospectes, 1);
+  });
+
+  it('compte toute sortie (passer ou rencontre) en immeuble', () => {
+    const silencieux = compteursSemaine({
+      profileId: MOI,
+      semaine: SEMAINE,
+      journal: journal({
+        contactsPhysiques: [{ profileId: MOI, jour: '2026-09-02', banId: 'imm-1', kind: 'passer' }],
+      }),
+    });
+    assert.equal(silencieux.immeubles_prospectes, 1);
+
+    const rencontre = compteursSemaine({
+      profileId: MOI,
+      semaine: SEMAINE,
+      journal: journal({
+        contactsPhysiques: [{ profileId: MOI, jour: '2026-09-02', banId: 'imm-1', kind: 'rencontre' }],
+      }),
+    });
+    assert.equal(rencontre.immeubles_prospectes, 1);
+  });
+
+  it('ne fait pas d’un déplacement de pipeline un immeuble travaillé', () => {
+    const c = compteursSemaine({
+      profileId: MOI,
+      semaine: SEMAINE,
+      journal: journal({
+        transitions: [
+          { leadId: 'lead-a', profileId: MOI, depuisCle: null, versCle: 'contacte', createdAt: '2026-09-02T09:00:00Z', banId: 'imm-1' },
+        ],
+      }),
+    });
+    assert.equal(c.contacts_qualifies, 1);
+    assert.equal(c.immeubles_prospectes, 0);
+  });
+
+  it('déduplique les sorties au même immeuble', () => {
     const c = compteursSemaine({
       profileId: MOI,
       semaine: SEMAINE,
@@ -122,8 +181,6 @@ describe('compteursSemaine — compteurs dérivés', () => {
       }),
     });
 
-    // Deux rencontres au même immeuble : deux contacts, un immeuble.
-    assert.equal(c.contacts_physiques, 2);
     assert.equal(c.immeubles_prospectes, 1);
   });
 });

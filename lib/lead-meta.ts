@@ -61,7 +61,7 @@ export const STATUS_META: Record<LeadStatus, { label: string; chipClass: string;
   },
   vendeur_ailleurs: {
     label: 'Vendeur ailleurs',
-    chipClass: 'bg-violet-500/10 text-violet-800',
+    chipClass: 'bg-[color:color-mix(in_srgb,var(--violet-500)_10%,transparent)] text-violet-800',
     dotColor: COULEUR_STATUT.vendeur_ailleurs,
   },
 };

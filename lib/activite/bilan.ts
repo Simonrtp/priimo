@@ -20,14 +20,12 @@ import {
   type ReferenceMetier,
 } from './ratios';
 import {
-  dateDebut,
   fenetreSemaines,
   intervalleDecale,
   moisDe,
   intervalleSeptJours,
   nombreDeJours,
   semaineDe,
-  semainePrecedente,
   type Intervalle,
   type Periode,
   type Semaine,
@@ -70,7 +68,7 @@ export type BilanSemaine = {
   semaine: Semaine;
   /** Les six compteurs, dans l'ordre de `ACTIVITES`. */
   compteurs: Compteur[];
-  /** Les cinq familles affichées en cartes sur l'Accueil. */
+  /** Les quatre familles affichées en cartes sur l'Accueil. */
   familles: Compteur[];
   /** Progression pondérée de la semaine, 0 à 100. */
   progressionHebdo: number;
@@ -101,7 +99,7 @@ export type BilanSemaine = {
   /** Aucune activité avant cette semaine : l'écran « semaine 1 » s'impose. */
   semaine1: boolean;
   /**
-   * Les objectifs à leur cadence de référence — cinq familles à la semaine, les
+   * Les objectifs à leur cadence de référence — quatre familles à la semaine, les
    * mandats au mois. Distincts de `compteurs[].objectif`, qui est proratisé sur
    * la période affichée : c'est ce chiffre-ci qu'on règle, pas celui-là.
    */
@@ -115,14 +113,19 @@ function pourcentage(valeur: number, objectif: number): number {
   return Math.min(100, (valeur / objectif) * 100);
 }
 
+/** Taux de passage d'une carte vers la suivante, une décimale. */
+function tauxPassage(depuis: number, vers: number): number | null {
+  if (depuis <= 0) return null;
+  return Math.round((vers / depuis) * 1000) / 10;
+}
+
 /**
  * Quelle lecture alimente quel compteur.
- * Les immeubles se nourrissent des trois : ils ne sont indisponibles que si
- * tout est tombé, sinon le chiffre reste partiellement vrai.
+ * Immeubles se nourrissent des sorties et des notes :
+ * ils ne sont indisponibles que si les deux journaux sont tombés.
  */
 const LECTURES_PAR_ACTIVITE: Record<Activite, (keyof LecturesJournal)[]> = {
-  contacts_physiques: ['contactsPhysiques'],
-  immeubles_prospectes: ['transitions', 'notes', 'contactsPhysiques'],
+  immeubles_prospectes: ['notes', 'contactsPhysiques'],
   contacts_qualifies: ['transitions'],
   estimations: ['transitions'],
   informations_terrain: ['notes'],
@@ -167,7 +170,6 @@ function semainesEquivalentes(intervalle: Intervalle): number {
 
 function versEtapes(compteurs: Record<Activite, number>): EtapesConversion {
   return {
-    contacts_physiques: compteurs.contacts_physiques,
     contacts_qualifies: compteurs.contacts_qualifies,
     estimations: compteurs.estimations,
     mandats: compteurs.mandats,
@@ -214,8 +216,8 @@ export function bilanPeriode(
   const courante = compteursFenetre({ journal, profileId, fenetre: intervalle });
   const precedente = compteursFenetre({ journal, profileId, fenetre: precedent });
 
-  // Douze semaines glissantes finissant sur la semaine du début de période.
-  const semaine = semaineDe(dateDebut(intervalle));
+  // Douze semaines glissantes finissant sur la semaine de la fin de période.
+  const semaine = semaineDe(new Date(`${intervalle.fin}T12:00:00Z`));
   const fenetre = fenetreSemaines(semaine, FENETRE_SEMAINES);
   const personnel = compteursFenetre({ journal, profileId, fenetre });
   const agence = compteursAgence({ journal, profileIds: profileIdsAgence, fenetre });
@@ -244,12 +246,26 @@ export function bilanPeriode(
       provenance: PROVENANCE_ACTIVITE[activite],
       etatSource: etatsSource[activite],
       ecartSemainePrecedente: semaine1 ? null : courante[activite] - precedente[activite],
+      tauxPassage: null,
+      libelleSuivant: null,
     };
   });
 
-  const familles = compteurs.filter((c) =>
-    (FAMILLES_ACTIVITE as readonly string[]).includes(c.activite),
-  );
+  const parActivite = new Map(compteurs.map((c) => [c.activite, c]));
+  const familles = FAMILLES_ACTIVITE.map((activite, i, liste) => {
+    const c = parActivite.get(activite)!;
+    const suivanteCle = liste[i + 1];
+    // Notes n'est pas une étape de cascade : pas de taux vers elle, ni depuis elle.
+    const suivante =
+      suivanteCle && suivanteCle !== 'informations_terrain'
+        ? parActivite.get(suivanteCle)
+        : undefined;
+    return {
+      ...c,
+      tauxPassage: suivante ? tauxPassage(c.valeur, suivante.valeur) : null,
+      libelleSuivant: suivante ? suivante.libelle : null,
+    };
+  });
 
   // Chaque famille est plafonnée à 100 % avant la moyenne : sans ça, un seul
   // compteur qui explose masquerait quatre familles à zéro.
@@ -261,7 +277,7 @@ export function bilanPeriode(
             familles.length,
         );
 
-  const mois = moisDe(dateDebut(intervalle));
+  const mois = moisDe(new Date(`${intervalle.fin}T12:00:00Z`));
   const compteursMois = compteursFenetre({ journal, profileId, fenetre: mois });
 
   const ratios = cascadeRatios({
@@ -278,7 +294,7 @@ export function bilanPeriode(
     }));
 
   const aujourdhui = ymdKey(parisYmd(new Date()));
-  const finGlissant = periode === 'jour' ? intervalle.fin : aujourdhui;
+  const finGlissant = intervalle.debut === intervalle.fin ? intervalle.fin : aujourdhui;
   const jours: JourActivite[] =
     nombreDeJours(intervalle) > MAX_JOURS_DETAILLES ? [] : detail(intervalle);
   const joursGlissants = detail(intervalleSeptJours(finGlissant));
@@ -316,7 +332,7 @@ export function bilanPeriode(
 
 /** Cas hebdomadaire — l'entrée historique, conservée telle quelle. */
 export function bilanSemaine(params: ParamsBilan & { semaine: Semaine }): BilanSemaine {
-  return bilanPeriode({ ...params, periode: 'semaine', intervalle: params.semaine });
+  return bilanPeriode({ ...params, periode: '7j', intervalle: params.semaine });
 }
 
 export type { Activite, Compteur };

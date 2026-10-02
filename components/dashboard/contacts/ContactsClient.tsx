@@ -163,78 +163,80 @@ function ContactRow({
           {contactInitials(contact)}
         </span>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span
-              className="truncate font-semibold text-text-strong"
-              style={{ fontSize: 15, letterSpacing: '-0.01em' }}
-            >
-              {contact.fullName}
-            </span>
-            {rattache ? (
-              <span className="min-w-0 truncate text-[13px] text-text-muted">
-                rattaché à{' '}
-                {rattache.href ? (
-                  <Link
-                    href={rattache.href}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-text-strong underline decoration-black/20 underline-offset-2 hover:decoration-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  >
-                    {rattache.adresse}
-                  </Link>
-                ) : (
-                  rattache.adresse
-                )}
-              </span>
-            ) : null}
-            <span
-              className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-              style={{ background: '#D5D8E4', color: SLATE }}
-            >
-              {CONTACT_TYPE_LABELS[contact.type]}
-            </span>
-            {duplicateOf ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMerge();
-                }}
-                className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                style={{ background: '#EFEBE3', color: '#1A2A56' }}
+        {/* Téléphone : l'identité prend toute la ligne, le suivi passe dessous. */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span
+                className="min-w-0 max-w-full truncate font-semibold text-text-strong"
+                style={{ fontSize: 15, letterSpacing: '-0.01em' }}
               >
-                Doublon possible
-              </button>
-            ) : null}
+                {contact.fullName}
+              </span>
+              {rattache ? (
+                <span className="min-w-0 max-w-full truncate text-[13px] text-text-muted">
+                  rattaché à{' '}
+                  {rattache.href ? (
+                    <Link
+                      href={rattache.href}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-text-strong underline decoration-black/20 underline-offset-2 hover:decoration-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      {rattache.adresse}
+                    </Link>
+                  ) : (
+                    rattache.adresse
+                  )}
+                </span>
+              ) : null}
+              <span
+                className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                style={{ background: '#D5D8E4', color: SLATE }}
+              >
+                {CONTACT_TYPE_LABELS[contact.type]}
+              </span>
+              {duplicateOf ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMerge();
+                  }}
+                  className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  style={{ background: '#EFEBE3', color: '#1A2A56' }}
+                >
+                  Doublon possible
+                </button>
+              ) : null}
+            </div>
+            <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-text-muted">
+              {assigneePortrait ? (
+                <ProfileAvatar
+                  firstName={assigneePortrait.firstName}
+                  lastName={assigneePortrait.lastName}
+                  avatarUrl={assigneePortrait.avatarUrl}
+                  size={16}
+                  className="shrink-0"
+                />
+              ) : null}
+              <span className="min-w-0 truncate">{meta || '—'}</span>
+            </p>
           </div>
-          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-text-muted">
-            {assigneePortrait ? (
-              <ProfileAvatar
-                firstName={assigneePortrait.firstName}
-                lastName={assigneePortrait.lastName}
-                avatarUrl={assigneePortrait.avatarUrl}
-                size={16}
-                className="shrink-0"
-              />
-            ) : null}
-            <span className="min-w-0 truncate">{meta || '—'}</span>
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 sm:shrink-0 sm:flex-col sm:items-end">
             <p className="text-[12px] leading-none text-text-muted">{formatLastInteraction(last)}</p>
             <div className="flex items-center gap-2">
               {callableNow && contact.phone ? (
                 <a
                   href={telHref(contact.phone)}
-                  className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium tabular-nums hover:bg-white/80"
+                  className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium tabular-nums hover:bg-white/80 max-sm:bg-[#D5D8E4]/60"
                   style={{ color: SLATE }}
                   aria-label={`Appeler ${contact.fullName}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Phone size={12} strokeWidth={2.2} aria-hidden />
-                  {formatPhoneDisplay(contact.phone)}
+                  {/* Sur le téléphone, le bouton suffit : le numéro reste dans la fiche. */}
+                  <span className="max-sm:sr-only">{formatPhoneDisplay(contact.phone)}</span>
+                  <span className="sm:hidden">Appeler</span>
                   {contact.numeroCommuniqueParLaPersonne ? <CocheConsentementTel size={14} /> : null}
                 </a>
               ) : incomplete ? (
@@ -260,27 +262,27 @@ function ContactRow({
               />
             </div>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen();
-            }}
-            aria-expanded={selected}
-            aria-controls={`contact-fiche-${contact.id}`}
-            aria-label={selected ? `Fermer la fiche de ${contact.fullName}` : `Ouvrir la fiche de ${contact.fullName}`}
-            className="flex size-8 flex-shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <ChevronDown
-              size={16}
-              strokeWidth={2}
-              aria-hidden
-              className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
-                selected ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
         </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          aria-expanded={selected}
+          aria-controls={`contact-fiche-${contact.id}`}
+          aria-label={selected ? `Fermer la fiche de ${contact.fullName}` : `Ouvrir la fiche de ${contact.fullName}`}
+          className="flex size-8 flex-shrink-0 items-center justify-center self-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            aria-hidden
+            className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
+              selected ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
       </div>
 
       <div
@@ -498,24 +500,31 @@ export default function ContactsClient({
         }
         secondaryAction={
           <>
-            <WorkspaceButton type="button" variant="secondary" onClick={() => setImportOpen(true)}>
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              onClick={() => setImportOpen(true)}
+              className="max-sm:size-10 max-sm:px-0"
+            >
               <Upload size={16} strokeWidth={2} aria-hidden />
-              Importer
+              <span className="max-sm:sr-only">Importer</span>
             </WorkspaceButton>
             <WorkspaceButton
               type="button"
               variant="secondary"
               onClick={() => exportContactsCsv(contacts)}
+              className="max-sm:size-10 max-sm:px-0"
             >
               <Download size={16} strokeWidth={2} aria-hidden />
-              Exporter
+              <span className="max-sm:sr-only">Exporter</span>
             </WorkspaceButton>
           </>
         }
       />
 
-      <div className="mb-6 flex flex-wrap items-end gap-3 sm:gap-4 md:mb-8">
-        <div className="relative min-w-0 flex-[1.4] sm:min-w-[280px]">
+      {/* Téléphone : la recherche sur toute la largeur, les filtres deux par deux. */}
+      <div className="mb-6 grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap sm:gap-4 md:mb-8">
+        <div className="relative col-span-2 min-w-0 sm:min-w-[280px] sm:flex-[1.4]">
           <label htmlFor="contacts-search" className="sr-only">
             Rechercher un contact par nom, téléphone ou email
           </label>
@@ -536,7 +545,7 @@ export default function ContactsClient({
           />
         </div>
 
-        <div className="min-w-0 flex-1 sm:w-[180px] sm:flex-none">
+        <div className="min-w-0 sm:w-[180px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
           <label htmlFor="contacts-etat" className="mb-1.5 block text-[12.5px] font-medium text-text-muted">
             État
           </label>
@@ -554,7 +563,7 @@ export default function ContactsClient({
           />
         </div>
 
-        <div className="min-w-0 flex-1 sm:w-[180px] sm:flex-none">
+        <div className="min-w-0 sm:w-[180px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
           <label
             htmlFor="contacts-type"
             className="mb-1.5 block text-[12.5px] font-medium text-text-muted"
@@ -574,7 +583,7 @@ export default function ContactsClient({
         </div>
 
         {isDirector && members.length > 1 ? (
-          <div className="min-w-0 flex-1 sm:w-[200px] sm:flex-none">
+          <div className="min-w-0 sm:w-[200px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
             <label
               htmlFor="contacts-member"
               className="mb-1.5 block text-[12.5px] font-medium text-text-muted"
@@ -599,7 +608,7 @@ export default function ContactsClient({
         ) : null}
 
         {secteurs.length > 0 ? (
-          <div className="min-w-0 flex-1 sm:w-[200px] sm:flex-none">
+          <div className="min-w-0 sm:w-[200px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
             <label
               htmlFor="contacts-secteur"
               className="mb-1.5 block text-[12.5px] font-medium text-text-muted"

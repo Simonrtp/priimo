@@ -19,7 +19,6 @@ export const OBJECTIFS_PAR_DEFAUT_PROVISOIRES = true;
 
 /** Objectifs hebdomadaires proposés à la création d'un compte. */
 export const OBJECTIFS_HEBDO_PAR_DEFAUT: Record<Activite, number> = {
-  contacts_physiques: 50,
   immeubles_prospectes: 30,
   contacts_qualifies: 10,
   estimations: 3,
@@ -36,7 +35,6 @@ export const OBJECTIF_MANDATS_MENSUEL_PAR_DEFAUT = 3;
  * doit toujours s'accompagner du libellé « en attendant mes chiffres ».
  */
 export const REFERENCE_METIER_PROVISOIRE: ReferenceMetier = {
-  physiquesParQualifie: 8,
   qualifiesParEstimation: 3,
   estimationsParMandat: 3,
 };
@@ -93,7 +91,7 @@ export function objectifsEffectifs(rows: readonly ObjectifRow[]): Objectifs {
 export const OBJECTIF_MAX = 10_000;
 
 /**
- * Les objectifs tels qu'on les saisit à l'écran : les cinq familles à la
+ * Les objectifs tels qu'on les saisit à l'écran : les quatre familles à la
  * semaine, les mandats au mois. C'est exactement ce que la carte affiche.
  *
  * L'objectif hebdomadaire de mandats n'y est pas et ne doit pas y entrer : il
@@ -106,9 +104,9 @@ export type ObjectifsSaisis = {
 };
 
 /**
- * Les quatre cadences sous lesquelles un objectif hebdomadaire se lit. Mêmes
- * valeurs que la granularité du sélecteur de l'Accueil, pour que « 50 par
- * semaine » et la carte de la semaine parlent du même chiffre.
+ * Les quatre cadences sous lesquelles un objectif hebdomadaire se lit. Le
+ * sélecteur Accueil, lui, affiche 7j / 30j / 90j : la proratisation des cartes
+ * se fait sur le nombre de jours réel, pas sur ces cadences de saisie.
  */
 export type Cadence = 'jour' | 'semaine' | 'mois' | 'annee';
 
@@ -213,13 +211,9 @@ export function referenceMetier(row: ReferenceRow | null): {
   reference: ReferenceMetier;
   fournie: boolean;
 } {
-  const physiquesParQualifie = nombre(row?.physiques_par_qualifie ?? null);
   const qualifiesParEstimation = nombre(row?.qualifies_par_estimation ?? null);
   const estimationsParMandat = nombre(row?.estimations_par_mandat ?? null);
-  const fournie =
-    physiquesParQualifie !== null ||
-    qualifiesParEstimation !== null ||
-    estimationsParMandat !== null;
+  const fournie = qualifiesParEstimation !== null || estimationsParMandat !== null;
 
   if (!fournie) {
     return { reference: { ...REFERENCE_METIER_PROVISOIRE }, fournie: false };
@@ -227,8 +221,6 @@ export function referenceMetier(row: ReferenceRow | null): {
 
   return {
     reference: {
-      physiquesParQualifie:
-        physiquesParQualifie ?? REFERENCE_METIER_PROVISOIRE.physiquesParQualifie,
       qualifiesParEstimation:
         qualifiesParEstimation ?? REFERENCE_METIER_PROVISOIRE.qualifiesParEstimation,
       estimationsParMandat:

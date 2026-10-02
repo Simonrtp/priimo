@@ -249,7 +249,7 @@ export default function CreateMenu({
               id={menuId}
               role="menu"
               aria-label="Créer"
-              className="absolute inset-x-0 bottom-0 rounded-t-[24px] bg-surface shadow-[0_-12px_40px_rgba(26, 42, 86,0.18)]"
+              className="absolute inset-x-0 bottom-0 rounded-t-[24px] bg-surface shadow-[0_-12px_40px_rgba(26,42,86,0.18)]"
               style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
               onPointerDown={(e) => e.stopPropagation()}
             >

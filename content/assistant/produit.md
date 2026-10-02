@@ -149,7 +149,7 @@ signé.
 Mots-clés: note, dictee, vocal, dicter, terrain, micro
 
 Les notes de terrain se dictent ou s'écrivent depuis l'Accueil (carte
-Informations terrain). On les relit dans la carte « Mes notes », posée
+Notes terrain). On les relit dans la carte « Mes notes », posée
 par-dessus l'Accueil : les vôtres, et celles que l'équipe a publiées.
 Priimo les transcrit, les rattache à l'adresse ou au contact concerné et en
 extrait ce qui peut l'être. Une note privée n'est visible que de vous ; une

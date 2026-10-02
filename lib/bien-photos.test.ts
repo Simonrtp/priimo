@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   estBlobRecu,
   estFichierPhoto,
+  estUrlVideo,
   extensionForBienPhoto,
   isBienPhotoMime,
   mimeDepuisSignature,
@@ -10,11 +11,15 @@ import {
 } from './bien-photos';
 
 describe('bien photos', () => {
-  it('accepte jpeg png webp', () => {
+  it('accepte jpeg png webp et vidéos', () => {
     assert.equal(extensionForBienPhoto('image/jpeg'), 'jpg');
     assert.equal(extensionForBienPhoto('image/png; charset=binary'), 'png');
     assert.equal(extensionForBienPhoto('image/webp'), 'webp');
+    assert.equal(extensionForBienPhoto('video/mp4'), 'mp4');
+    assert.equal(extensionForBienPhoto('video/webm'), 'webm');
+    assert.equal(extensionForBienPhoto('video/quicktime'), 'mov');
     assert.equal(isBienPhotoMime('image/jpeg'), true);
+    assert.equal(isBienPhotoMime('video/mp4'), true);
   });
 
   it('refuse le reste', () => {
@@ -30,12 +35,21 @@ describe('bien photos', () => {
     assert.equal(estBlobRecu('x'), false);
   });
 
-  it('filtre vidéos et garde les photos galerie', () => {
+  it('filtre galerie : photos et vidéos acceptées', () => {
     assert.equal(estFichierPhoto({ name: 'salon.jpg', type: 'image/jpeg' }), true);
-    assert.equal(estFichierPhoto({ name: 'visite.mp4', type: 'video/mp4' }), false);
-    assert.equal(estFichierPhoto({ name: 'visite.MOV', type: '' }), false);
+    assert.equal(estFichierPhoto({ name: 'visite.mp4', type: 'video/mp4' }), true);
+    assert.equal(estFichierPhoto({ name: 'visite.MOV', type: '' }), true);
+    assert.equal(estFichierPhoto({ name: 'clip.webm', type: 'video/webm' }), true);
     assert.equal(estFichierPhoto({ name: 'IMG_0001', type: '' }), true);
     assert.equal(estFichierPhoto({ name: 'img', type: 'application/octet-stream' }), true);
+    assert.equal(estFichierPhoto({ name: 'x.gif', type: 'image/gif' }), false);
+    assert.equal(estFichierPhoto({ name: 'x.svg', type: 'image/svg+xml' }), false);
+  });
+
+  it('détecte une URL vidéo', () => {
+    assert.equal(estUrlVideo('https://x/a/b.mp4'), true);
+    assert.equal(estUrlVideo('https://x/a/b.MOV'), true);
+    assert.equal(estUrlVideo('https://x/a/b.jpg'), false);
   });
 
   it('lit les signatures jpeg png webp heic video', () => {
@@ -53,10 +67,12 @@ describe('bien photos', () => {
     assert.equal(mimeDepuisSignature(heic), 'heic');
     const mp4 = new Uint8Array(12);
     mp4.set([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
-    assert.equal(mimeDepuisSignature(mp4), 'video');
+    assert.equal(mimeDepuisSignature(mp4), 'video/mp4');
+    const webm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert.equal(mimeDepuisSignature(webm), 'video/webm');
   });
 
-  it('refuse HEIC et vidéo même si le navigateur ment sur le type', () => {
+  it('refuse HEIC et accepte MP4 même si le navigateur ment sur le type', () => {
     const heic = new Uint8Array(12);
     heic.set([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
     const refuse = resoudreMimePhoto('image/jpeg', heic);
@@ -65,5 +81,9 @@ describe('bien photos', () => {
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const ok = resoudreMimePhoto('', jpeg);
     assert.deepEqual(ok, { mime: 'image/jpeg' });
+
+    const mp4 = new Uint8Array(12);
+    mp4.set([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+    assert.deepEqual(resoudreMimePhoto('application/octet-stream', mp4), { mime: 'video/mp4' });
   });
 });

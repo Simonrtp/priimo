@@ -21,7 +21,7 @@ export async function lireImageModele(
   const bytes = new Uint8Array(await file.arrayBuffer());
   const detecte = detecterFichier({ type: file.type, name: nom }, bytes);
   if (!detecte || detecte.kind !== 'image' || !MIME_IMAGE_MODELE.has(detecte.mime)) {
-    return { ok: false, error: 'Image JPEG ou PNG', status: 415 };
+    return { ok: false, error: 'Image JPEG, PNG ou WebP', status: 415 };
   }
   return { ok: true, image: { bytes, mime: detecte.mime } };
 }

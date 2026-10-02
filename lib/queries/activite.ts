@@ -63,25 +63,29 @@ async function banIdsDesLeads(
   return parLead;
 }
 
-/** Notes rattachées à un immeuble ou à une parcelle, via `note_liens`. */
-async function notesRattacheesTerrain(
+/** Notes rattachées au terrain, et notes qui décrivent un échange (contact). */
+async function liensDesNotes(
   supabase: Client,
   noteIds: readonly string[],
-): Promise<Set<string>> {
+): Promise<{ rattachees: Set<string>; echanges: Set<string> }> {
   const rattachees = new Set<string>();
+  const echanges = new Set<string>();
   for (const lot of lots(noteIds)) {
     const { data, error } = await supabase
       .from('note_liens')
       .select('note_id, entite_type')
       .in('note_id', lot)
-      .in('entite_type', ['immeuble', 'parcelle']);
+      .in('entite_type', ['immeuble', 'parcelle', 'contact']);
     if (error) {
       console.error('[activite] note_liens', error.message);
       continue;
     }
-    for (const row of (data ?? []) as { note_id: string }[]) rattachees.add(row.note_id);
+    for (const row of (data ?? []) as { note_id: string; entite_type: string }[]) {
+      if (row.entite_type === 'contact') echanges.add(row.note_id);
+      else rattachees.add(row.note_id);
+    }
   }
-  return rattachees;
+  return { rattachees, echanges };
 }
 
 /**
@@ -153,7 +157,7 @@ export async function fetchJournalActivite(params: {
       const q = memeAgence(
         supabase
           .from('voice_notes')
-          .select('id, created_by, created_at, ban_id')
+          .select('id, created_by, created_at, ban_id, contact_id')
           .gte('created_at', depuis)
           .lt('created_at', jusqua),
       );
@@ -163,8 +167,8 @@ export async function fetchJournalActivite(params: {
       const q = memeAgence(
         supabase
           .from('sortie_events')
-          .select('profile_id, day, lead_id, ban_id')
-          .eq('kind', 'rencontre')
+          .select('profile_id, day, lead_id, ban_id, kind')
+          .in('kind', ['rencontre', 'absent', 'passer'])
           .gte('day', intervalle.debut)
           .lte('day', intervalle.fin),
       );
@@ -203,12 +207,14 @@ export async function fetchJournalActivite(params: {
     created_by: string | null;
     created_at: string;
     ban_id: string | null;
+    contact_id: string | null;
   }[];
   const rencontresBrutes = (rencontresRes.data ?? []) as {
     profile_id: string;
     day: string;
     lead_id: string | null;
     ban_id: string | null;
+    kind: string;
   }[];
 
   if (
@@ -227,9 +233,9 @@ export async function fetchJournalActivite(params: {
       ].filter(Boolean),
     ),
   ];
-  const [banParLead, rattachees] = await Promise.all([
+  const [banParLead, liens] = await Promise.all([
     banIdsDesLeads(supabase, leadIds),
-    notesRattacheesTerrain(
+    liensDesNotes(
       supabase,
       notesBrutes.map((n) => n.id),
     ),
@@ -248,13 +254,16 @@ export async function fetchJournalActivite(params: {
     auteurId: n.created_by,
     createdAt: n.created_at,
     banId: n.ban_id,
-    rattacheeTerrain: rattachees.has(n.id) || n.ban_id !== null,
+    rattacheeTerrain: liens.rattachees.has(n.id) || n.ban_id !== null,
+    echange: liens.echanges.has(n.id) || n.contact_id !== null,
   }));
 
   const contactsPhysiques: ContactPhysiqueRow[] = rencontresBrutes.map((r) => ({
     profileId: r.profile_id,
     jour: r.day,
     banId: r.ban_id ?? (r.lead_id ? (banParLead.get(r.lead_id) ?? null) : null),
+    kind:
+      r.kind === 'absent' || r.kind === 'passer' || r.kind === 'rencontre' ? r.kind : 'rencontre',
   }));
 
   return { transitions, notes, contactsPhysiques, lectures, rangParCle };

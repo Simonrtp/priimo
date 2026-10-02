@@ -9,6 +9,8 @@ import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvid
 import { useNotesLecture } from '@/components/dashboard/notes/NotesLectureProvider';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
+import { EVENEMENT_ENVOL_ARRIVE, type EnvolArrive } from '@/lib/ui/envol-note';
+import styles from './envol.module.css';
 
 /**
  * Le geste qui fait monter le chiffre, et rien d'autre. Chaque libellé nomme
@@ -18,23 +20,25 @@ import { armPointerShield } from '@/lib/ui/pointer-guard';
  * Une note de terrain ne renvoie sur aucune page : elle se prend sur place,
  * écrite ou dictée, sinon le compteur coûte une navigation pour trois mots.
  */
-type ActionCompteur = { libelle: string } & ({ href: string } | { note: true });
+type ActionCompteur = {
+  libelle: string;
+  /** Sur téléphone, deux cartes par ligne : le libellé doit tenir sur une. */
+  court?: string;
+} & ({ href: string } | { note: true });
 
 const ACTION: Record<FamilleActivite, ActionCompteur> = {
-  contacts_physiques: {
-    libelle: 'Lancer ma sortie',
-    href: '/dashboard/prospection?vue=carte&itineraire=1',
-  },
   immeubles_prospectes: {
     libelle: 'Ouvrir la carte',
     href: '/dashboard/prospection?vue=carte',
   },
   contacts_qualifies: {
     libelle: 'Qualifier un lead',
+    court: 'Qualifier',
     href: '/dashboard/prospection?vue=pipeline',
   },
   estimations: {
     libelle: 'Créer une estimation',
+    court: 'Estimer',
     href: '/dashboard/estimation?id=nouvelle',
   },
   informations_terrain: {
@@ -84,7 +88,6 @@ function Volet({
  * donc le fondu croisé ne donne pas l'impression de changer d'icône.
  */
 const ILLUSTRATION: Record<FamilleActivite, { repos: string; survol: string }> = {
-  contacts_physiques: { repos: '/porte-ouverte.png', survol: '/porte-ouverte-contour.png' },
   immeubles_prospectes: { repos: '/bureau.png', survol: '/bureau-contour.png' },
   contacts_qualifies: { repos: '/contact.png', survol: '/contact-contour.png' },
   estimations: { repos: '/calculatrice.png', survol: '/calculatrice-contour.png' },
@@ -137,7 +140,7 @@ function BoutonNote({
         <div
           id={menuId}
           role="menu"
-          aria-label="Ajouter une information terrain"
+          aria-label="Ajouter une note"
           className="absolute bottom-full left-0 z-20 mb-1.5 flex min-w-[8.5rem] flex-col overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay"
         >
           <ChoixNote icone={NotebookPen} libelle="Écrire" onClick={() => choisir(openCompose)} />
@@ -145,7 +148,7 @@ function BoutonNote({
         </div>
       ) : null}
       <Volet force={ouvert}>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             aria-haspopup="menu"
@@ -192,21 +195,96 @@ function ChoixNote({
   );
 }
 
-function ecartLisible(ecart: number): string {
-  if (ecart === 0) return 'stable';
-  return `${ecart > 0 ? '+' : '−'}${Math.abs(ecart)}`;
+/**
+ * Une note rangée arrive en vol sur Notes terrain : à l'impact, le chiffre
+ * monte d'un cran sans attendre le serveur. Dès que le bilan rafraîchi arrive,
+ * c'est lui qui fait foi.
+ */
+function useArriveeNote(
+  famille: FamilleActivite,
+  compteur: Compteur,
+  accueilleNotes: boolean,
+  periode: string,
+) {
+  const [bonus, setBonus] = useState(0);
+  const [impact, setImpact] = useState(0);
+  const [compte, setCompte] = useState(false);
+  const recuLe = useRef(0);
+  const affichee = useRef(compteur.valeur);
+  const periodeVue = useRef(periode);
+
+  // Nouveau bilan du serveur : le bonus s'efface dès qu'il a rattrapé le
+  // chiffre affiché — jamais de chiffre qui redescend sous les yeux de l'agent.
+  useEffect(() => {
+    recuLe.current = Date.now();
+    const avant = affichee.current;
+    const memePeriode = periodeVue.current === periode;
+    periodeVue.current = periode;
+    setBonus(!memePeriode || compteur.valeur >= avant ? 0 : avant - compteur.valeur);
+  }, [compteur, periode]);
+  useEffect(() => {
+    affichee.current = compteur.valeur + bonus;
+  });
+
+  useEffect(() => {
+    if (famille !== 'informations_terrain') return;
+    function onArrivee(e: Event) {
+      const d = (e as CustomEvent<EnvolArrive>).detail;
+      if (!d || d.cible !== famille) return;
+      const monte = d.compte && accueilleNotes && d.t0 > recuLe.current;
+      setCompte(monte);
+      if (monte) setBonus((b) => b + 1);
+      setImpact((i) => i + 1);
+    }
+    window.addEventListener(EVENEMENT_ENVOL_ARRIVE, onArrivee);
+    return () => window.removeEventListener(EVENEMENT_ENVOL_ARRIVE, onArrivee);
+  }, [famille, accueilleNotes]);
+
+  return { bonus, impact, compte };
 }
 
-function CarteCompteur({ compteur }: { compteur: Compteur }) {
+function CarteCompteur({
+  compteur,
+  accueilleNotes,
+  periode,
+}: {
+  compteur: Compteur;
+  accueilleNotes: boolean;
+  periode: string;
+}) {
   const famille = compteur.activite as FamilleActivite;
   const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[famille];
   const illustration = ILLUSTRATION[famille];
   const action = ACTION[famille];
   const { ouvrir } = useNotesLecture();
+  const { bonus, impact, compte } = useArriveeNote(famille, compteur, accueilleNotes, periode);
+  const valeur = compteur.valeur + bonus;
   const pct =
     compteur.objectif > 0
-      ? Math.min(100, Math.round((compteur.valeur / compteur.objectif) * 100))
+      ? Math.min(100, Math.round((valeur / compteur.objectif) * 100))
       : 0;
+  // Le chiffre que vise une note qui s'envole, et sa couleur.
+  const accueilleEnvol = famille === 'informations_terrain';
+  const cible = accueilleEnvol
+    ? { 'data-envol-cible': famille, 'data-envol-couleur': teinte }
+    : {};
+  const chiffre = (taille: string) => (
+    <span className="relative inline-flex">
+      <span
+        key={impact}
+        {...cible}
+        className={`font-display ${taille} font-bold leading-none tabular-nums ${impact ? styles.chiffreImpact : ''}`}
+        style={{ color: teinte }}
+      >
+        {valeur.toLocaleString('fr-FR')}
+      </span>
+      {impact && compte ? (
+        <span key={`plus-${impact}`} className={styles.plusUn} style={{ color: teinte }} aria-hidden>
+          +1
+        </span>
+      ) : null}
+    </span>
+  );
 
   return (
     <li className="relative min-w-0">
@@ -217,9 +295,6 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
         <p className="mt-3 text-[12px] font-semibold leading-tight">{compteur.libelle}</p>
         <p className="mt-1 font-display text-[28px] font-bold leading-none">0</p>
         <div className="mt-3 h-2.5" />
-        {compteur.ecartSemainePrecedente !== null ? (
-          <p className="mt-2 text-[11px] font-medium">.</p>
-        ) : null}
       </div>
       <div
         className="group/compteur flex h-full flex-col rounded-clay-lg p-4 shadow-clay-sm [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-x-0 [@media(hover:hover)]:top-0 [@media(hover:hover)]:h-auto [@media(hover:hover)]:min-h-full hover:z-30 focus-within:z-30"
@@ -231,6 +306,9 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
             className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px] transition-transform duration-fluid ease-soft group-hover/compteur:scale-105 motion-reduce:transition-none"
             style={{ backgroundColor: pastelFort }}
           >
+            {impact ? (
+              <span key={`onde-${impact}`} className={styles.onde} style={{ backgroundColor: teinte }} />
+            ) : null}
             <img
               src={illustration.repos}
               alt=""
@@ -247,13 +325,8 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
             />
           </span>
           <p className="flex min-w-0 items-baseline gap-1 tabular-nums lg:hidden">
-            <span
-              className="font-display text-[28px] font-bold leading-none"
-              style={{ color: teinte }}
-            >
-              {compteur.valeur.toLocaleString('fr-FR')}
-            </span>
-            <span className="text-[13px] font-semibold text-text-strong/55">
+            {chiffre('text-[28px]')}
+            <span className="text-[13px] font-semibold text-[color:color-mix(in_srgb,var(--text-strong)_55%,transparent)]">
               / {compteur.objectif.toLocaleString('fr-FR')}
             </span>
           </p>
@@ -264,13 +337,8 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
         </p>
 
         <p className="mt-1 hidden items-baseline gap-1.5 lg:flex">
-          <span
-            className="font-display text-[28px] font-bold leading-none tabular-nums"
-            style={{ color: teinte }}
-          >
-            {compteur.valeur.toLocaleString('fr-FR')}
-          </span>
-          <span className="text-[13px] font-semibold tabular-nums text-text-strong/55">
+          {chiffre('text-[28px]')}
+          <span className="text-[13px] font-semibold tabular-nums text-[color:color-mix(in_srgb,var(--text-strong)_55%,transparent)]">
             / {compteur.objectif.toLocaleString('fr-FR')}
           </span>
         </p>
@@ -285,16 +353,10 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
           aria-label={`${compteur.libelle} : ${pct} % de l’objectif`}
         >
           <span
-            className="block h-full rounded-full"
+            className="block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none"
             style={{ width: `${pct}%`, backgroundColor: teinte }}
           />
         </div>
-
-        {compteur.ecartSemainePrecedente !== null ? (
-          <p className="mt-2 text-[11px] font-medium text-text-strong/50">
-            {ecartLisible(compteur.ecartSemainePrecedente)} vs période précédente
-          </p>
-        ) : null}
 
         {'note' in action ? (
           <BoutonNote
@@ -318,14 +380,17 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
           <Volet>
             <Link
               href={action.href}
-              className={
-                famille === 'estimations'
-                  ? `${PILULE} bg-accent text-white hover:bg-accent-dark focus-visible:outline-accent`
-                  : `${PILULE} text-text-strong focus-visible:outline-primary-600`
-              }
-              style={famille === 'estimations' ? undefined : { backgroundColor: pastelFort }}
+              className={`${PILULE} text-text-strong focus-visible:outline-primary-600`}
+              style={{ backgroundColor: pastelFort }}
             >
-              {action.libelle}
+              {action.court ? (
+                <>
+                  <span className="sm:hidden">{action.court}</span>
+                  <span className="max-sm:hidden">{action.libelle}</span>
+                </>
+              ) : (
+                action.libelle
+              )}
               <ArrowRight size={12} strokeWidth={2.6} />
             </Link>
           </Volet>
@@ -335,16 +400,22 @@ function CarteCompteur({ compteur }: { compteur: Compteur }) {
   );
 }
 
-/** Les cinq familles d’activité. */
+/** Les quatre familles d’activité. */
 export default function CompteursActivite({
   familles,
+  accueilleNotes = false,
+  periode = '',
 }: {
   familles: readonly Compteur[];
+  /** Mes chiffres de la période en cours : une note rangée les fait monter. */
+  accueilleNotes?: boolean;
+  /** Clé de la période affichée : un +1 n'appartient qu'à elle. */
+  periode?: string;
 }) {
   return (
-    <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
+    <ul className="grid grid-cols-2 items-stretch gap-3 sm:gap-5 lg:grid-cols-4">
       {familles.map((c) => (
-        <CarteCompteur key={c.activite} compteur={c} />
+        <CarteCompteur key={c.activite} compteur={c} accueilleNotes={accueilleNotes} periode={periode} />
       ))}
     </ul>
   );

@@ -264,11 +264,12 @@ export async function extractAndBuildReview(args: {
     }
   }
 
+  // Le texte n'est jamais réécrit ici : il est déjà en base, et l'agent a pu le
+  // corriger et ranger la note pendant que cette lecture tournait.
   if (extraction) {
     await args.admin
       .from('voice_notes')
       .update({
-        transcript,
         structured: extraction,
         ...(args.keepSourceInfo ? {} : { source_info: extraction.sourceInfo }),
         ...(args.keepGps || geo.latitude == null
@@ -286,10 +287,10 @@ export async function extractAndBuildReview(args: {
       })
       .eq('id', args.voiceNoteId)
       .eq('agency_id', args.agencyId);
-  } else {
+  } else if (transcript) {
     await args.admin
       .from('voice_notes')
-      .update({ transcript: transcript || null, ...(transcript ? { status: 'transcrit' as const } : {}) })
+      .update({ status: 'transcrit' })
       .eq('id', args.voiceNoteId)
       .eq('agency_id', args.agencyId);
   }

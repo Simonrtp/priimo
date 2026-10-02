@@ -30,8 +30,9 @@ import type { NoteReviewPayload } from '@/lib/notes/build-review';
 import { postFormOrQueue } from '@/lib/offline/queue';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceLockHint from './VoiceLockHint';
-import { TranscriptionTempsReel } from '@/lib/voice/temps-reel';
+import { TranscriptionTempsReel, type PreparationTempsReel } from '@/lib/voice/temps-reel';
 import { finDeNoteDite, retirerFinDeNote } from '@/lib/voice/fin-de-note';
+import { cibleEnvolNote, envolerNote } from '@/lib/ui/envol-note';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 
 export type VoiceGestureCaptureHandle = {
@@ -53,10 +54,11 @@ export default forwardRef<
     parcelleId?: string | null;
     banId?: string | null;
     streamPromise?: Promise<MediaStream> | null;
+    preparation?: PreparationTempsReel | null;
     onLockedChange: (locked: boolean) => void;
     onClose: () => void;
   }
->(function VoiceGestureCapture({ adresse = null, parcelleId = null, banId = null, streamPromise, onLockedChange, onClose }, ref) {
+>(function VoiceGestureCapture({ adresse = null, parcelleId = null, banId = null, streamPromise, preparation = null, onLockedChange, onClose }, ref) {
   const router = useRouter();
   const { noteDictee, adresse: tourAdresse } = useTourneeDictation();
 
@@ -68,7 +70,6 @@ export default forwardRef<
   const [voiceNoteId, setVoiceNoteId] = useState<string | null>(null);
   const [gpsAddress, setGpsAddress] = useState<string | null>(adresse);
   const [discarding, setDiscarding] = useState(false);
-  const [texteDirect, setTexteDirect] = useState('');
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -83,6 +84,8 @@ export default forwardRef<
   const tempsReelRef = useRef<TranscriptionTempsReel | null>(null);
   const finTempsReelRef = useRef<Promise<string> | null>(null);
   const texteDirectRef = useRef('');
+  const horsLigneRef = useRef(false);
+  const pastilleRef = useRef<HTMLDivElement | null>(null);
 
   lockedRef.current = locked;
   micReadyRef.current = micReady;
@@ -177,6 +180,7 @@ export default forwardRef<
       if (queued) {
         if (tourAdresse) noteDictee();
         notifySuccess('Dictée enregistrée — envoi dès le retour du réseau');
+        horsLigneRef.current = true;
         setPhase('saved');
         window.setTimeout(() => onClose(), 900);
         return;
@@ -215,7 +219,8 @@ export default forwardRef<
         // La note reste en brouillon si la finalisation échoue.
       }
       setPhase('saved');
-      router.refresh();
+      // Après l’envol : le chiffre monte d’abord à l’écran, le serveur confirme ensuite.
+      window.setTimeout(() => router.refresh(), 1_400);
     } catch {
       if (!cancelledRef.current) notifyError("La dictée n'a pas pu être traitée");
       onClose();
@@ -240,6 +245,7 @@ export default forwardRef<
         }
         if (cancelled || cancelledRef.current) {
           stopMicStream(stream);
+          preparation?.abandonner();
           return;
         }
 
@@ -281,14 +287,17 @@ export default forwardRef<
         setMicStream(stream);
         setMicReady(true);
 
-        // Le texte s'écrit au-dessus du pouce ; « fin de note » termine une dictée verrouillée.
-        void TranscriptionTempsReel.demarrer(stream, {
-          onTexte: (t) => {
-            texteDirectRef.current = t;
-            setTexteDirect(retirerFinDeNote(t));
-            if (finDeNoteDite(t) && lockedRef.current) finishRecording();
+        // Le mot à mot reste hors écran ; « fin de note » termine une dictée verrouillée.
+        void TranscriptionTempsReel.demarrer(
+          stream,
+          {
+            onTexte: (t) => {
+              texteDirectRef.current = t;
+              if (finDeNoteDite(t) && lockedRef.current) finishRecording();
+            },
           },
-        }).then((session) => {
+          preparation,
+        ).then((session) => {
           if (recorderRef.current !== recorder || recorder.state !== 'recording' || cancelledRef.current) {
             session?.fermer();
             return;
@@ -296,6 +305,7 @@ export default forwardRef<
           tempsReelRef.current = session;
         });
       } catch (error) {
+        preparation?.abandonner();
         notifyError(micErrorMessage(error));
         onClose();
       }
@@ -305,13 +315,24 @@ export default forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [finishRecording, onClose, streamPromise]);
+  }, [finishRecording, onClose, preparation, streamPromise]);
 
   useEffect(() => {
     if (phase !== 'saved') return;
     const t = window.setTimeout(() => onClose(), 5000);
     return () => window.clearTimeout(t);
   }, [phase, onClose]);
+
+  // La note enregistrée part en vol de la pastille vers Notes terrain.
+  useEffect(() => {
+    if (phase !== 'saved') return;
+    const rattachee = Boolean(gpsRef.current || banId || parcelleId);
+    envolerNote({
+      depart: pastilleRef.current?.getBoundingClientRect() ?? null,
+      compte: !horsLigneRef.current && rattachee,
+      cible: cibleEnvolNote({ echange: false, rattachee }),
+    });
+  }, [phase, banId, parcelleId]);
 
   const tryLock = useCallback((deltaY: number, deltaX = 0) => {
     if (lockedRef.current) return;
@@ -363,7 +384,8 @@ export default forwardRef<
   if (phase === 'saved') {
     return (
       <div
-        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] flex -translate-x-1/2 items-center gap-2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(26, 42, 86,0.14)]"
+        ref={pastilleRef}
+        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] flex -translate-x-1/2 items-center gap-2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(26,42,86,0.14)]"
         style={{ bottom: CARD_BOTTOM, minWidth: 168 }}
         role="status"
         aria-live="polite"
@@ -402,23 +424,12 @@ export default forwardRef<
         </div>
       ) : null}
 
-      {/* Ce qui vient d'être dit, au-dessus du pouce : les derniers mots seulement. */}
-      {texteDirect ? (
-        <div
-          className="absolute left-1/2 w-[min(calc(100vw-32px),22rem)] -translate-x-1/2 rounded-2xl bg-surface px-3.5 py-2.5 shadow-clay"
-          style={{ bottom: `calc(${LOCK_HINT_BOTTOM} + 52px)` }}
-        >
-          <p className="line-clamp-2 text-pretty text-[14px] font-medium leading-snug text-text-strong">
-            {texteDirect.length > 110 ? `…${texteDirect.slice(-110)}` : texteDirect}
-          </p>
-          {locked ? (
-            <p className="mt-1 text-[11px] text-text-subtle">Dites « fin de note » pour terminer.</p>
-          ) : null}
-        </div>
+      {phase === 'recording' && locked ? (
+        <p className="sr-only">Dites « fin de note » pour terminer.</p>
       ) : null}
 
       <div
-        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] -translate-x-1/2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(26, 42, 86,0.14)]"
+        className="app-tabbar pointer-events-auto fixed left-1/2 z-[115] -translate-x-1/2 rounded-2xl px-3 py-2 shadow-[0_8px_28px_rgba(26,42,86,0.14)]"
         style={{ bottom: CARD_BOTTOM, width: 132 }}
       >
         {phase === 'processing' ? (

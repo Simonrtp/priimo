@@ -1,5 +1,5 @@
 import { ACCUEIL, FIELD } from '@/lib/today/field';
-import { COULEUR_FAMILLE, luminanceRelative } from '@/lib/activite/couleurs';
+import { COULEUR_FAMILLE, GRIS_NEUTRE, luminanceRelative, ROUGE_ALERTE } from '@/lib/activite/couleurs';
 import type { LeadStage } from '@/types/lead';
 
 export type StageColumnTheme = {
@@ -13,7 +13,7 @@ export type StageColumnTheme = {
  * Pas de violet (entonnoir), pas d'orange lead #E8743C.
  */
 export const COULEURS_COLONNE = [
-  COULEUR_FAMILLE.contacts_physiques.pastelFort,
+  GRIS_NEUTRE.pastelFort,
   ACCUEIL.bleu,
   FIELD.ardoisePastel,
   COULEUR_FAMILLE.estimations.pastelFort,
@@ -24,9 +24,9 @@ export const COULEURS_COLONNE = [
   ACCUEIL.jaune,
   ACCUEIL.orange,
   FIELD.orangePastel,
-  COULEUR_FAMILLE.informations_terrain.pastelFort,
+  ROUGE_ALERTE.pastelFort,
   FIELD.rougePastel,
-  COULEUR_FAMILLE.informations_terrain.pastille,
+  ROUGE_ALERTE.pastille,
   ACCUEIL.creme,
   '#E4DFD4',
 ] as const;

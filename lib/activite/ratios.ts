@@ -27,11 +27,10 @@ export const LIBELLE_NIVEAU: Record<NiveauRatio, string> = {
 /** Les compteurs qui entrent dans la conversion. */
 export type EtapesConversion = Pick<
   Record<Activite, number>,
-  'contacts_physiques' | 'contacts_qualifies' | 'estimations' | 'mandats'
+  'contacts_qualifies' | 'estimations' | 'mandats'
 >;
 
 export type ReferenceMetier = {
-  physiquesParQualifie: number | null;
   qualifiesParEstimation: number | null;
   estimationsParMandat: number | null;
 };
@@ -48,11 +47,10 @@ export type Ratios = {
   provisoire: boolean;
   /** Mandats retenus pour choisir le niveau — sert à expliquer le choix. */
   mandatsRetenus: number;
-  physiquesParQualifie: number | null;
   qualifiesParEstimation: number | null;
   estimationsParMandat: number | null;
-  /** Contacts physiques pour 1 mandat — le chiffre qui remet les pendules. */
-  physiquesParMandat: number | null;
+  /** Qualifiés pour 1 mandat — le chiffre qui remet les pendules. */
+  qualifiesParMandat: number | null;
   /** Par rapport à l’agence / la référence, si le niveau est personnel. */
   positionMoyenne: PositionMoyenne;
 };
@@ -65,32 +63,30 @@ function ratio(numerateur: number, denominateur: number): number | null {
 
 function ratiosDe(etapes: EtapesConversion): ReferenceMetier {
   return {
-    physiquesParQualifie: ratio(etapes.contacts_physiques, etapes.contacts_qualifies),
     qualifiesParEstimation: ratio(etapes.contacts_qualifies, etapes.estimations),
     estimationsParMandat: ratio(etapes.estimations, etapes.mandats),
   };
 }
 
-/** Produit des trois paliers — « 1 mandat pour N contacts ». */
-export function physiquesParMandatDepuis(paliers: ReferenceMetier): number | null {
-  const a = paliers.physiquesParQualifie;
-  const b = paliers.qualifiesParEstimation;
-  const c = paliers.estimationsParMandat;
-  if (a == null || b == null || c == null || a <= 0 || b <= 0 || c <= 0) return null;
-  return Math.round(a * b * c * 10) / 10;
+/** Produit des deux paliers — « 1 mandat pour N qualifiés ». */
+export function qualifiesParMandatDepuis(paliers: ReferenceMetier): number | null {
+  const a = paliers.qualifiesParEstimation;
+  const b = paliers.estimationsParMandat;
+  if (a == null || b == null || a <= 0 || b <= 0) return null;
+  return Math.round(a * b * 10) / 10;
 }
 
-export function physiquesParMandatDe(
+export function qualifiesParMandatDe(
   etapes: EtapesConversion | null,
   paliers: ReferenceMetier,
 ): number | null {
-  if (etapes && etapes.mandats > 0 && etapes.contacts_physiques > 0) {
-    return ratio(etapes.contacts_physiques, etapes.mandats);
+  if (etapes && etapes.mandats > 0 && etapes.contacts_qualifies > 0) {
+    return ratio(etapes.contacts_qualifies, etapes.mandats);
   }
-  return physiquesParMandatDepuis(paliers);
+  return qualifiesParMandatDepuis(paliers);
 }
 
-/** Moins de contacts pour un mandat = mieux. */
+/** Moins de qualifiés pour un mandat = mieux. */
 export function positionVsMoyenne(
   personnel: number | null,
   moyenne: number | null,
@@ -109,21 +105,20 @@ export function formateRatio(n: number | null): string {
 }
 
 function completer(
-  base: Omit<Ratios, 'physiquesParMandat' | 'positionMoyenne'>,
+  base: Omit<Ratios, 'qualifiesParMandat' | 'positionMoyenne'>,
   etapes: EtapesConversion | null,
   moyenne: number | null,
 ): Ratios {
   const paliers: ReferenceMetier = {
-    physiquesParQualifie: base.physiquesParQualifie,
     qualifiesParEstimation: base.qualifiesParEstimation,
     estimationsParMandat: base.estimationsParMandat,
   };
-  const physiquesParMandat = physiquesParMandatDe(etapes, paliers);
+  const qualifiesParMandat = qualifiesParMandatDe(etapes, paliers);
   return {
     ...base,
-    physiquesParMandat,
+    qualifiesParMandat,
     positionMoyenne:
-      base.niveau === 'personnel' ? positionVsMoyenne(physiquesParMandat, moyenne) : null,
+      base.niveau === 'personnel' ? positionVsMoyenne(qualifiesParMandat, moyenne) : null,
   };
 }
 
@@ -143,8 +138,8 @@ export function cascadeRatios(params: {
 
   const moyenneAgence =
     agence.mandats >= MANDATS_MINIMUM
-      ? physiquesParMandatDe(agence, ratiosDe(agence))
-      : physiquesParMandatDepuis(reference);
+      ? qualifiesParMandatDe(agence, ratiosDe(agence))
+      : qualifiesParMandatDepuis(reference);
 
   if (personnel.mandats >= MANDATS_MINIMUM) {
     return completer(
@@ -177,7 +172,6 @@ export function cascadeRatios(params: {
       niveau: 'reference',
       provisoire: !referenceFournie,
       mandatsRetenus: personnel.mandats,
-      physiquesParQualifie: reference.physiquesParQualifie,
       qualifiesParEstimation: reference.qualifiesParEstimation,
       estimationsParMandat: reference.estimationsParMandat,
     },

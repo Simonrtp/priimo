@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { PriimoLogo } from "@/components/brand/PriimoLogo";
 import ResourcesMenu from "@/components/ResourcesMenu";
 import {
@@ -17,268 +17,63 @@ type HeaderProps = {
   variant?: "default" | "landing";
 };
 
-// === HEADER ===
-// Landing : morph continu bandeau → pilule verre (progress scroll 0→1).
-// Autres pages : barre flottante en verre.
 type NavMenu = "features" | "resources" | null;
 
-/** Distance de scroll pour atteindre la pilule complète (plus longue = plus doux). */
-const SCROLL_RANGE = 180;
-/** Lissage vers la cible (plus bas = plus moelleux). */
-const LERP = 0.085;
-
-function smoothstep(t: number) {
-  const x = Math.min(1, Math.max(0, t));
-  return x * x * (3 - 2 * x);
-}
-
+/**
+ * Header marketing style Tiime : barre navy opaque, texte blanc, CTA orange.
+ * Pas de glassmorphism, pas de pilule au scroll.
+ */
 export default function Header({
   latestPost = null,
   variant = "default",
 }: HeaderProps) {
-  const [scrolled, setScrolled] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [onDark, setOnDark] = useState(true);
   const [activeNavMenu, setActiveNavMenu] = useState<NavMenu>(null);
-  const headerRootRef = useRef<HTMLDivElement>(null);
-  const targetProgressRef = useRef(0);
-  const currentProgressRef = useRef(0);
-  const rafRef = useRef(0);
-
   const featuresOpen = activeNavMenu === "features";
   const resourcesOpen = activeNavMenu === "resources";
   const featuresPanelId = "features-mega-menu";
-  const isLanding = variant === "landing";
-
-  useEffect(() => {
-    if (!isLanding) {
-      let ticking = false;
-      const onScroll = () => {
-        if (ticking) return;
-        ticking = true;
-        window.requestAnimationFrame(() => {
-          const y = window.scrollY;
-          setScrolled((prev) => {
-            if (!prev && y > 36) return true;
-            if (prev && y < 10) return false;
-            return prev;
-          });
-          ticking = false;
-        });
-      };
-      onScroll();
-      window.addEventListener("scroll", onScroll, { passive: true });
-      return () => window.removeEventListener("scroll", onScroll);
-    }
-
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    const isOverDarkSurface = () => {
-      if (document.documentElement.dataset.landingAmbiance === "dark") return true;
-      const hero = document.querySelector<HTMLElement>(".landing-hero");
-      if (hero && hero.getBoundingClientRect().bottom > 72) return true;
-      return false;
-    };
-
-    const applyProgress = (value: number) => {
-      currentProgressRef.current = value;
-      setProgress(value);
-      setScrolled(value >= 0.62);
-      setOnDark(isOverDarkSurface());
-    };
-
-    const tick = () => {
-      const target = targetProgressRef.current;
-      const current = currentProgressRef.current;
-      const diff = target - current;
-
-      if (reduceMotion.matches || Math.abs(diff) < 0.0008) {
-        applyProgress(target);
-        rafRef.current = 0;
-        return;
-      }
-
-      applyProgress(current + diff * LERP);
-      rafRef.current = window.requestAnimationFrame(tick);
-    };
-
-    const syncFromScroll = () => {
-      const raw = Math.min(1, Math.max(0, window.scrollY / SCROLL_RANGE));
-      targetProgressRef.current = smoothstep(raw);
-      // Ambiance / hero : maj immédiate du contraste texte
-      setOnDark(isOverDarkSurface());
-      if (reduceMotion.matches) {
-        applyProgress(targetProgressRef.current);
-        return;
-      }
-      if (!rafRef.current) {
-        rafRef.current = window.requestAnimationFrame(tick);
-      }
-    };
-
-    syncFromScroll();
-    window.addEventListener("scroll", syncFromScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", syncFromScroll);
-      if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
-    };
-  }, [isLanding]);
-
-  const setFeaturesOpen = (open: boolean) => {
-    setActiveNavMenu(open ? "features" : null);
-  };
-
-  const setResourcesOpen = (open: boolean) => {
-    setActiveNavMenu(open ? "resources" : null);
-  };
-
-  if (!isLanding) {
-    return (
-      <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-5 sm:pt-4">
-        <div ref={headerRootRef} className="relative w-full max-w-6xl min-w-0">
-          <div
-            className={`relative z-10 flex w-full items-center justify-between gap-2 rounded-full px-3 transition-all duration-fluid ease-soft min-w-0 sm:gap-4 sm:px-6 ${
-              scrolled
-                ? "h-14 border border-white/70 bg-white/70 shadow-[0_10px_30px_-12px_rgba(60,40,20,0.35)] backdrop-blur-xl sm:h-[3.75rem]"
-                : "h-16 border border-transparent bg-transparent sm:h-[4.25rem]"
-            }`}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
-              <Link href="/" className="group shrink-0 leading-none">
-                <PriimoLogo
-                  priority
-                  className="h-10 sm:h-11 md:h-12"
-                  imageClassName="transition-opacity duration-200 group-hover:opacity-90"
-                />
-              </Link>
-              <nav className="hidden min-w-0 items-center gap-6 lg:flex" aria-label="Navigation principale">
-                <FeaturesMenuTrigger
-                  open={featuresOpen}
-                  onOpenChange={setFeaturesOpen}
-                  panelId={featuresPanelId}
-                />
-                <ResourcesMenu
-                  latestPost={latestPost}
-                  open={resourcesOpen}
-                  onOpenChange={setResourcesOpen}
-                />
-              </nav>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
-              <Link
-                href="/login"
-                className="group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold text-gray-700 transition-colors duration-200 hover:text-accent-dark sm:text-[15px] lg:inline-flex"
-              >
-                Se connecter
-                <span
-                  className="absolute -bottom-0.5 left-0 h-px w-0 bg-accent transition-all duration-200 ease-out group-hover:w-full"
-                  aria-hidden
-                />
-              </Link>
-              <CtaButton className="min-h-11 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]">
-                <span className="sm:hidden">Démo</span>
-                <span className="hidden sm:inline">Réserver une démo</span>
-              </CtaButton>
-              <MobileNav />
-            </div>
-          </div>
-          <FeaturesMegaPanel
-            open={featuresOpen}
-            onOpenChange={setFeaturesOpen}
-            panelId={featuresPanelId}
-          />
-        </div>
-      </header>
-    );
-  }
-
-  const utilityGone = progress > 0.88;
-  const loginInPill = progress > 0.65;
 
   return (
     <header
       className="landing-site-header fixed inset-x-0 top-0 z-50"
-      data-scrolled={scrolled ? "true" : "false"}
-      data-on-dark={onDark ? "true" : "false"}
-      style={{ "--hdr": progress } as React.CSSProperties}
+      data-variant={variant}
     >
-      <div
-        className="landing-utility-bar"
-        aria-hidden={utilityGone}
-      >
-        <div className="landing-utility-clip">
-          <div className="landing-utility-inner flex h-9 w-full items-center justify-end gap-5 border-b border-white/[0.08] px-4 pt-[env(safe-area-inset-top)] sm:h-10 sm:px-6 lg:px-8">
-            <Link
-              href="/login"
-              tabIndex={utilityGone ? -1 : undefined}
-              className="landing-utility-login group inline-flex min-h-9 items-center gap-2 font-nunito text-[13px] font-bold tracking-wide text-white sm:min-h-10 sm:text-[14px]"
-            >
-              <span
-                className="flex size-6 items-center justify-center rounded-full bg-white/12 ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-soft group-hover:bg-white/20"
-                aria-hidden
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </span>
-              Se connecter
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="landing-nav-outer">
-        <div ref={headerRootRef} className="landing-nav-frame relative min-w-0">
-          <div className="landing-nav-shell relative z-10 flex w-full items-center justify-between gap-2 min-w-0 sm:gap-4">
-            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-8">
+      <div className="landing-nav-bar">
+        <div className="landing-nav-inner relative min-w-0">
+          <div className="relative z-10 flex h-[4.25rem] w-full min-w-0 items-center justify-between gap-2 sm:h-[4.5rem] sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6 lg:gap-10">
               <Link href="/" className="group shrink-0 leading-none">
                 <PriimoLogo
                   priority
-                  className="h-10 sm:h-11 md:h-12"
-                  imageClassName="transition-opacity duration-fluid-subtle ease-soft group-hover:opacity-90"
+                  className="h-9 sm:h-10 md:h-11"
+                  imageClassName="transition-opacity duration-200 group-hover:opacity-90"
                 />
               </Link>
 
-              <nav className="hidden min-w-0 items-center gap-6 lg:flex" aria-label="Navigation principale">
+              <nav
+                className="hidden min-w-0 items-center gap-6 lg:flex xl:gap-8"
+                aria-label="Navigation principale"
+              >
                 <FeaturesMenuTrigger
                   open={featuresOpen}
-                  onOpenChange={setFeaturesOpen}
+                  onOpenChange={(open) => setActiveNavMenu(open ? "features" : null)}
                   panelId={featuresPanelId}
-                  onDark={onDark}
+                  onDark
                 />
                 <ResourcesMenu
                   latestPost={latestPost}
                   open={resourcesOpen}
-                  onOpenChange={setResourcesOpen}
-                  onDark={onDark}
+                  onOpenChange={(open) => setActiveNavMenu(open ? "resources" : null)}
+                  onDark
                 />
               </nav>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-6">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:gap-5">
               <Link
                 href="/login"
-                className={`landing-nav-login group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold sm:text-[15px] lg:inline-flex ${
-                  onDark ? "text-white/90 hover:text-white" : "text-gray-700"
-                }`}
-                tabIndex={loginInPill ? undefined : -1}
-                aria-hidden={!loginInPill}
+                className="group relative hidden min-h-11 items-center font-nunito text-[13px] font-bold text-white/90 transition-colors duration-200 hover:text-white sm:text-[15px] lg:inline-flex"
               >
                 Se connecter
-                <span
-                  className="absolute -bottom-0.5 left-0 h-px w-0 bg-accent transition-all duration-fluid-subtle ease-soft group-hover:w-full"
-                  aria-hidden
-                />
               </Link>
 
               <CtaButton className="min-h-11 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]">
@@ -286,13 +81,13 @@ export default function Header({
                 <span className="hidden sm:inline">Réserver une démo</span>
               </CtaButton>
 
-              <MobileNav onDark={onDark} />
+              <MobileNav onDark />
             </div>
           </div>
 
           <FeaturesMegaPanel
             open={featuresOpen}
-            onOpenChange={setFeaturesOpen}
+            onOpenChange={(open) => setActiveNavMenu(open ? "features" : null)}
             panelId={featuresPanelId}
           />
         </div>

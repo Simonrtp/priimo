@@ -4,6 +4,9 @@ const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    // Des classes vivent dans lib/ (pastilles de statut, badges de plan) :
+    // hors de cette liste, Tailwind ne les génère pas.
+    "./lib/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {

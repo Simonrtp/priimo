@@ -30,20 +30,16 @@
   }
 }
 
-/* Les derniers mots dictés apparaissent en fondu, teintés, puis rejoignent le texte. */
+/* Les derniers mots dictés apparaissent teintés et rejoignent le texte : un
+   fondu bref, pour ne jamais retarder la lecture de ce qui vient d'être dit. */
 .motNeuf {
-  animation: mot-neuf 900ms ease-out both;
+  animation: mot-neuf 260ms ease-out both;
 }
 
 @keyframes mot-neuf {
   0% {
-    opacity: 0;
+    opacity: 0.35;
     color: var(--primary-500);
-    filter: blur(2px);
-  }
-  35% {
-    opacity: 1;
-    filter: blur(0);
   }
   100% {
     opacity: 1;

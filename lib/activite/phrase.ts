@@ -34,13 +34,12 @@ import { ACTIVITES, type Activite, type EtatSource } from './types';
  * 5. La phrase ne doit jamais contredire les cartes posées juste en dessous.
  *    Deux règles en découlent :
  *
- *    - Une période où RIEN n'a été compté ne se chiffre pas. Annoncer « il me
- *      manque 1 contact qualifié » au-dessus de cinq compteurs à zéro fait
+ *    - Une période où RIEN n'a été compté ne se chiffre pas. Annoncer « il
+ *      manque 1 contact qualifié » au-dessus de quatre compteurs à zéro fait
  *      passer une journée vide pour un détail à rattraper. On dit alors ce
  *      qu'on voit : rien de compté, rien qui rapproche de l'objectif.
  *
- *    - Un seul étage nommé quand trois décrochent est un demi-mensonge. On
- *      annonce l'ampleur, puis le geste par lequel commencer.
+ *    - Un seul étage nommé : le premier où agir. Le reste se lit sur les cartes.
  */
 
 export type TonPhrase = 'demarrage' | 'retard' | 'avance' | 'incalculable';
@@ -86,13 +85,11 @@ export function fractionEcoulee(intervalle: Intervalle, jourCourant: string): nu
 }
 
 export type EtageConversion =
-  | 'contacts_physiques'
   | 'contacts_qualifies'
   | 'estimations'
   | 'mandats';
 
 const ETAGES: readonly EtageConversion[] = [
-  'contacts_physiques',
   'contacts_qualifies',
   'estimations',
   'mandats',
@@ -110,55 +107,40 @@ export function rythmeRequis(params: {
   ratios: Ratios;
 }): Record<EtageConversion, number> | null {
   const { objectifMandatsMois, ratios } = params;
-  const { estimationsParMandat, qualifiesParEstimation, physiquesParQualifie } = ratios;
-  if (
-    estimationsParMandat === null ||
-    qualifiesParEstimation === null ||
-    physiquesParQualifie === null
-  ) {
+  const { estimationsParMandat, qualifiesParEstimation } = ratios;
+  if (estimationsParMandat === null || qualifiesParEstimation === null) {
     return null;
   }
 
   const mandats = objectifMandatsMois / SEMAINES_PAR_MOIS;
   const estimations = mandats * estimationsParMandat;
   const contacts_qualifies = estimations * qualifiesParEstimation;
-  const contacts_physiques = contacts_qualifies * physiquesParQualifie;
-  return { mandats, estimations, contacts_qualifies, contacts_physiques };
+  return { mandats, estimations, contacts_qualifies };
 }
 
 /** Les mots d'une agence, pas ceux du logiciel. */
 const NOM_ACTION: Record<EtageConversion, { singulier: string; pluriel: string }> = {
-  contacts_physiques: { singulier: 'porte', pluriel: 'portes' },
   contacts_qualifies: { singulier: 'rappel', pluriel: 'rappels' },
   estimations: { singulier: 'estimation', pluriel: 'estimations' },
   mandats: { singulier: 'mandat', pluriel: 'mandats' },
 };
 
-const NOM_FAMILLE: Record<EtageConversion, string> = {
-  contacts_physiques: 'des portes',
-  contacts_qualifies: 'des rappels',
-  estimations: 'des estimations',
-  mandats: 'des mandats',
-};
-
-/** « cette semaine », « ce mois-ci »… La phrase doit nommer ce qu'elle mesure. */
-const QUAND: Record<Periode, string> = {
-  jour: 'aujourd’hui',
-  semaine: 'cette semaine',
-  mois: 'ce mois-ci',
-  annee: 'cette année',
-};
+/** « sur 7 jours », « aujourd’hui »… La phrase doit nommer ce qu'elle mesure. */
+function quandPhrase(periode: Periode, intervalle: Intervalle, jourCourant: string): string {
+  if (periode === 'custom') {
+    if (intervalle.debut === intervalle.fin) {
+      return intervalle.debut === jourCourant ? 'aujourd’hui' : 'ce jour-là';
+    }
+    return 'sur cette période';
+  }
+  if (periode === '30j') return 'sur 30 jours';
+  if (periode === '90j') return 'sur 90 jours';
+  return 'sur 7 jours';
+}
 
 function accorde(n: number, etage: EtageConversion): string {
   const { singulier, pluriel } = NOM_ACTION[etage];
   return `${n} ${n > 1 ? pluriel : singulier}`;
-}
-
-function listeFamilles(etages: readonly EtageConversion[]): string {
-  const noms = etages.map((e) => NOM_FAMILLE[e]);
-  if (noms.length <= 1) return noms[0] ?? '';
-  if (noms.length === 2) return `${noms[0]} et ${noms[1]}`;
-  return `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`;
 }
 
 export type EntreePhrase = {
@@ -179,7 +161,7 @@ export type EntreePhrase = {
   jourCourant: string;
 };
 
-const PHRASE_DEMARRAGE = 'C’est ma première semaine. Je sors voir des adresses.';
+const PHRASE_DEMARRAGE = 'Je sors voir des adresses.';
 
 export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   const {
@@ -194,19 +176,19 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   } = entree;
 
   if (semaine1) {
-    return { texte: PHRASE_DEMARRAGE, ton: 'demarrage', levier: 'contacts_physiques', manque: 0 };
+    return { texte: PHRASE_DEMARRAGE, ton: 'demarrage', levier: 'immeubles_prospectes', manque: 0 };
   }
 
   // Aucune source vivante : il n'y a rien à rattraper, il y a tout à commencer.
   const etagesMesures = ETAGES.filter((e) => etatsSource[e] === 'ok');
   if (etagesMesures.length === 0) {
-    return { texte: PHRASE_DEMARRAGE, ton: 'demarrage', levier: 'contacts_physiques', manque: 0 };
+    return { texte: PHRASE_DEMARRAGE, ton: 'demarrage', levier: 'immeubles_prospectes', manque: 0 };
   }
 
   const hebdo = rythmeRequis({ objectifMandatsMois, ratios });
   if (!hebdo) {
     return {
-      texte: 'Pas encore assez de semaines pour savoir où j’en suis.',
+      texte: 'Pas assez de recul encore.',
       ton: 'incalculable',
       levier: null,
       manque: 0,
@@ -216,7 +198,7 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
   // Le besoin hebdomadaire, ramené à la durée de la période affichée.
   const semainesDeLaPeriode = nombreDeJours(intervalle) / 7;
   const fraction = fractionEcoulee(intervalle, jourCourant);
-  const quand = QUAND[periode];
+  const quand = quandPhrase(periode, intervalle, jourCourant);
 
   /** Le volume attendu à cette heure-ci, arrondi comme l'objectif des cartes. */
   const attendu = (etage: EtageConversion) =>
@@ -234,8 +216,8 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
     return {
       texte: `Rien de noté ${quand}.`,
       ton: 'demarrage',
-      levier: 'contacts_physiques',
-      manque: attendu('contacts_physiques'),
+      levier: 'immeubles_prospectes',
+      manque: attendu('contacts_qualifies'),
     };
   }
 
@@ -247,12 +229,8 @@ export function phrasePilotage(entree: EntreePhrase): PhrasePilotage {
 
   const premier = retards[0];
   if (premier) {
-    const geste = `${accorde(premier.manque, premier.etage)} ${quand}`;
     return {
-      texte:
-        retards.length > 1
-          ? `Il me manque encore ${listeFamilles(retards.map((r) => r.etage))}. Je commence par ${geste}.`
-          : `Il me manque ${geste}.`,
+      texte: `Il manque ${accorde(premier.manque, premier.etage)} ${quand}.`,
       ton: 'retard',
       levier: premier.etage,
       manque: premier.manque,

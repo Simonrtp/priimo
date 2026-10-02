@@ -54,6 +54,7 @@ function journalDeDemo(): JournalActivite {
       createdAt: n.quand,
       banId: n.banId,
       rattacheeTerrain: true,
+      echange: false,
     })),
     contactsPhysiques: a.sorties.map((s) => ({
       profileId: CAMILLE,
@@ -63,7 +64,7 @@ function journalDeDemo(): JournalActivite {
   };
 }
 
-function bilanDeDemo(periode: 'semaine' | 'mois' = 'semaine') {
+function bilanDeDemo(periode: '7j' | '30j' = '7j') {
   return bilanPeriode({
     journal: journalDeDemo(),
     profileId: CAMILLE,
@@ -188,7 +189,7 @@ describe('scénario de démo — ce que l’écran raconte', () => {
       compteurs: valeursDe(b),
       objectifMandatsMois: b.mandatsDuMois.objectif,
       ratios: b.ratios,
-      periode: 'semaine',
+      periode: '7j',
       intervalle: b.intervalle,
       semaine1: b.semaine1,
       etatsSource: b.etatsSource,
@@ -203,11 +204,11 @@ describe('scénario de démo — ce que l’écran raconte', () => {
     assert.ok(p.manque < 60, `retard invraisemblable : ${p.manque}`);
   });
 
-  it('garde des ratios plausibles pour du porte-à-porte', () => {
+  it('garde des ratios plausibles pour le pipeline', () => {
     const { ratios } = bilanDeDemo();
     assert.ok(
-      ratios.physiquesParQualifie! >= 5 && ratios.physiquesParQualifie! <= 20,
-      `ratio contacts/qualifié hors du plausible : ${ratios.physiquesParQualifie}`,
+      ratios.qualifiesParEstimation! >= 1 && ratios.qualifiesParEstimation! <= 10,
+      `ratio qualifiés/estimation hors du plausible : ${ratios.qualifiesParEstimation}`,
     );
     assert.ok(ratios.estimationsParMandat! >= 1 && ratios.estimationsParMandat! <= 5);
   });
@@ -225,7 +226,7 @@ describe('scénario de démo — ce que l’écran raconte', () => {
   });
 
   it('reste cohérent sur la vue mensuelle', () => {
-    const mois = bilanDeDemo('mois');
+    const mois = bilanDeDemo('30j');
     assert.equal(mois.semaine1, false);
     assert.equal(mois.ratios.niveau, 'personnel');
     const valeurs = mois.entonnoir.map((e) => e.valeur);

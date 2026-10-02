@@ -5,7 +5,7 @@ import { canSeeActivityOf, viewerFromProfile } from '@/lib/agency/visibility';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { fetchLeadStages } from '@/lib/queries/lead-stages';
 import { calculerPilotage } from '@/lib/activite/pilotage';
-import { estPeriode } from '@/lib/activite/semaines';
+import { estPeriodeUrl, normaliserPeriode } from '@/lib/activite/semaines';
 
 export const runtime = 'nodejs';
 
@@ -25,9 +25,10 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const periodeBrute = url.searchParams.get('periode');
-  if (!estPeriode(periodeBrute)) {
+  if (!estPeriodeUrl(periodeBrute)) {
     return NextResponse.json({ error: 'Période inconnue' }, { status: 400 });
   }
+  const periode = normaliserPeriode(periodeBrute);
 
   const supabase = await createSupabaseServerClient();
   const viewer = viewerFromProfile(profile);
@@ -48,8 +49,9 @@ export async function GET(req: Request) {
     membreActivite,
     profileIdsAgence: members.map((m) => m.id),
     stages,
-    periode: periodeBrute,
+    periode,
     ancre: url.searchParams.get('le'),
+    fin: url.searchParams.get('a'),
   });
 
   return NextResponse.json(pilotage);

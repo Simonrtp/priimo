@@ -112,9 +112,11 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims vérifie la signature du jeton en local (clés ES256 en cache) et
+  // ne rafraîchit la session qu'à son expiration. getUser interrogeait le
+  // serveur d'auth à chaque requête, préchargements compris.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims.sub ? { id: claimsData.claims.sub } : null;
 
   if (
     !user &&
@@ -127,31 +129,26 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user) {
+    // Le dashboard n'est pas contrôlé ici : son layout renvoie déjà le
+    // directeur sans zone vers l'onboarding, avec le profil qu'il charge de
+    // toute façon. Le refaire ici coûtait deux allers-retours de plus à chaque
+    // navigation et à chaque préchargement.
     const needsOnboardingCheck =
-      pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/onboarding') ||
-      pathname === '/login' ||
-      pathname === '/signup';
+      pathname.startsWith('/onboarding') || pathname === '/login' || pathname === '/signup';
 
     const onboardingState = needsOnboardingCheck
       ? await getDirectorOnboardingState(supabase, user.id)
       : { isDirector: false, needsOnboarding: false, canEnterDashboard: true };
 
-    if (onboardingState.isDirector && onboardingState.needsOnboarding) {
-      if (pathname.startsWith('/dashboard')) {
-        return NextResponse.redirect(new URL('/onboarding', request.url));
-      }
-    } else if (pathname.startsWith('/onboarding') && onboardingState.canEnterDashboard) {
+    const resteEnOnboarding = onboardingState.isDirector && onboardingState.needsOnboarding;
+    if (pathname.startsWith('/onboarding') && onboardingState.canEnterDashboard && !resteEnOnboarding) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
     // Uniquement si le profil est chargeable — sinon on laisse /login afficher
     // le formulaire (évite l’écran blanc login ↔ dashboard).
     if ((pathname === '/login' || pathname === '/signup') && onboardingState.canEnterDashboard) {
-      const target =
-        onboardingState.isDirector && onboardingState.needsOnboarding
-          ? '/onboarding'
-          : '/dashboard';
+      const target = resteEnOnboarding ? '/onboarding' : '/dashboard';
       return NextResponse.redirect(new URL(target, request.url));
     }
   }

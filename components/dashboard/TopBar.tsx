@@ -226,8 +226,8 @@ export default function TopBar() {
               rel="noopener noreferrer"
               data-tour="whatsapp-mobile"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] md:h-9 md:w-9"
-              aria-label="Nous écrire sur WhatsApp"
-              title="Nous écrire"
+              aria-label="Une question ? Nous écrire sur WhatsApp"
+              title="Une question ? Nous écrire"
             >
               <WhatsAppIcon size={20} className="text-[#25D366]" />
             </a>

@@ -16,11 +16,10 @@ import {
 } from '@/lib/ui/date-picker';
 
 const COURT: Record<(typeof FAMILLES_ACTIVITE)[number], string> = {
-  contacts_physiques: 'Contacts',
   immeubles_prospectes: 'Immeubles',
   contacts_qualifies: 'Qualifiés',
   estimations: 'Estim.',
-  informations_terrain: 'Infos',
+  informations_terrain: 'Notes',
 };
 
 const JOURS_CAL = ['lu', 'ma', 'me', 'je', 've', 'sa', 'di'] as const;

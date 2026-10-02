@@ -306,7 +306,7 @@ export default function EditeurPageAgence({
                   id={fileId}
                   ref={fileRef}
                   type="file"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                   className="sr-only"
                   onChange={(e) => {
                     setImageFichier(e.target.files?.[0] ?? null);

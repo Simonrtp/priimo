@@ -599,7 +599,7 @@ export default function AssistantPanel({
       {/* Halo : une réponse arrive alors que le panneau est fermé. */}
       {streaming && !open ? (
         <span
-          className="assistant-halo pointer-events-none absolute -inset-1 rounded-[18px] bg-primary-200/80"
+          className="assistant-halo pointer-events-none absolute -inset-1 rounded-[18px] bg-[color:color-mix(in_srgb,var(--primary-200)_80%,transparent)]"
           aria-hidden
         />
       ) : null}
@@ -612,10 +612,10 @@ export default function AssistantPanel({
         title="Mon assistant"
         className={
           variant === 'desktop'
-            ? `assistant-trigger-btn group group/assistant relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-text-strong transition-[max-width,box-shadow,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 active:translate-y-0 ${
+            ? `assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white transition-[max-width,background,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 active:translate-y-0 ${
                 open ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
               }`
-            : 'assistant-trigger-btn group/assistant relative flex size-11 items-center justify-center rounded-[14px] text-text-strong transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
+            : 'assistant-trigger-btn relative flex size-11 items-center justify-center rounded-[14px] text-white transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
         }
       >
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
@@ -630,7 +630,7 @@ export default function AssistantPanel({
             }`}
           >
             <span
-              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-text-strong transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
+              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-white transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
                 open
                   ? 'opacity-100'
                   : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
@@ -659,7 +659,7 @@ export default function AssistantPanel({
             type="button"
             aria-label="Fermer l'assistant"
             onClick={closePanel}
-            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26, 42, 86,0.38)] backdrop-blur-[2px]"
+            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26,42,86,0.38)] backdrop-blur-[2px]"
           />
           <div
             className="animate-app-sheet fixed inset-x-0 bottom-0 z-[130] flex flex-col overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg"

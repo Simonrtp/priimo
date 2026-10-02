@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { AVATAR_PERSONNAGES, AVATAR_PRESETS } from '@/lib/onboarding/avatars';
+import { notifyError } from '@/lib/notify';
 
 const ACCENT = '#E8743C';
 
@@ -74,7 +75,16 @@ export default function AvatarChooser({
   }, [ouvert]);
 
   async function onFile(file: File | undefined) {
-    if (!file || !file.type.startsWith('image/')) return;
+    if (!file) return;
+    const type = file.type.split(';')[0]?.trim().toLowerCase() ?? '';
+    if (type.includes('heic') || type.includes('heif') || /\.(heic|heif)$/i.test(file.name)) {
+      notifyError('Les photos HEIC ne sont pas acceptées. Choisissez JPEG ou PNG.');
+      return;
+    }
+    if (!type.startsWith('image/') && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      notifyError('Formats acceptés : JPEG, PNG ou WebP');
+      return;
+    }
     setUploading(true);
     onBusy?.(true);
     try {
@@ -86,8 +96,8 @@ export default function AvatarChooser({
       if (!res.ok || !data.url) throw new Error(data.error ?? 'Envoi impossible');
       onChange(data.url, { dejaEnregistre: true });
       setOuvert(false);
-    } catch {
-      /* le parent annonce l’échec s’il le souhaite */
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Photo non enregistrée');
     } finally {
       setUploading(false);
       onBusy?.(false);

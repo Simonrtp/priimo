@@ -137,13 +137,23 @@ export default function BiensClient({
         }
         secondaryAction={
           <>
-            <WorkspaceButton type="button" variant="secondary" onClick={() => setImportOpen(true)}>
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              onClick={() => setImportOpen(true)}
+              className="max-sm:size-10 max-sm:px-0"
+            >
               <Upload size={16} strokeWidth={2} aria-hidden />
-              Importer
+              <span className="max-sm:sr-only">Importer</span>
             </WorkspaceButton>
-            <WorkspaceButton type="button" variant="secondary" onClick={() => exportBiensCsv(visibleBiens)}>
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              onClick={() => exportBiensCsv(visibleBiens)}
+              className="max-sm:size-10 max-sm:px-0"
+            >
               <Download size={16} strokeWidth={2} aria-hidden />
-              Exporter
+              <span className="max-sm:sr-only">Exporter</span>
             </WorkspaceButton>
           </>
         }

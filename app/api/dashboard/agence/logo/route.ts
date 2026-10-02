@@ -3,7 +3,11 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { cheminLogo, deposerRapport, signerCheminRapport, supprimerRapport } from '@/lib/rapport/storage';
-import { extensionMime, MAX_RAPPORT_UPLOAD_BYTES, MIME_PAGES } from '@/lib/rapport/pages';
+import {
+  detecterFichier,
+  extensionMime,
+  MAX_RAPPORT_UPLOAD_BYTES,
+} from '@/lib/rapport/pages';
 
 export const runtime = 'nodejs';
 
@@ -39,15 +43,17 @@ export async function POST(req: Request) {
   if (file.size > MAX_RAPPORT_UPLOAD_BYTES) {
     return NextResponse.json({ error: 'Fichier trop lourd' }, { status: 413 });
   }
-  const mime = (file.type || '').split(';')[0];
-  if (!MIME_PAGES.has(mime) || mime === 'application/pdf') {
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const detecte = detecterFichier({ type: file.type, name: file.name }, bytes);
+  if (!detecte || detecte.kind !== 'image') {
     return NextResponse.json({ error: 'Image JPEG, PNG ou WebP uniquement' }, { status: 415 });
   }
 
-  const ext = extensionMime(mime);
+  const ext = extensionMime(detecte.mime);
   const path = cheminLogo(agency.id, ext);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error: upErr } = await deposerRapport(path, buffer, mime);
+  const buffer = Buffer.from(bytes);
+  const { error: upErr } = await deposerRapport(path, buffer, detecte.mime);
   if (upErr) {
     console.error('[rapport] logo', upErr);
     return NextResponse.json({ error: 'Envoi impossible' }, { status: 500 });

@@ -462,7 +462,7 @@ export default function EstimationAtelier({
           ) : null}
           {!estDerniere ? (
             <div
-              className="sticky bottom-0 z-10 mt-4 flex justify-end border-t border-black/[0.06] bg-bg-base/95 py-3"
+              className="sticky bottom-0 z-10 mt-4 flex justify-end border-t border-black/[0.06] bg-bg-base py-3"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
             >
               <button

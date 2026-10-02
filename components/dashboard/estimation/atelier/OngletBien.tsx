@@ -450,67 +450,70 @@ export default function OngletBien({
 
       <SectionRepliable titre="Annexes">
         <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="annexes">
-          <table className="w-full text-left text-[13.5px]">
-            <thead>
-              <tr className="text-[12px] text-text-muted">
-                <th className="pb-2 font-medium">Libellé</th>
-                <th className="pb-2 font-medium">Surface</th>
-                <th className="pb-2 font-medium">Valorisation €</th>
-                <th className="pb-2 w-8" aria-hidden />
-              </tr>
-            </thead>
-            <tbody>
-              {estimation.annexes.map((a, i) => (
-                <tr key={a.id}>
-                  <td className="py-1 pr-2">
-                    <ChampSaisi
-                      value={a.libelle}
-                      onCommit={(raw) => {
-                        const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, libelle: raw } : x,
-                        );
-                        edit('annexes', { annexes: next });
-                      }}
-                    />
-                  </td>
-                  <td className="py-1 pr-2">
-                    <ChampSaisi
-                      inputMode="numeric"
-                      value={texteNombre(a.surfaceM2)}
-                      onCommit={(raw) => {
-                        const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, surfaceM2: nombreSaisi(raw) } : x,
-                        );
-                        edit('annexes', { annexes: next });
-                      }}
-                    />
-                  </td>
-                  <td className="py-1 pr-2">
-                    <ChampSaisi
-                      inputMode="numeric"
-                      value={texteEuro(a.valorisationEur)}
-                      onCommit={(raw) => {
-                        const next = estimation.annexes.map((x, j) =>
-                          j === i ? { ...x, valorisationEur: nombreSaisi(raw) } : x,
-                        );
-                        edit('annexes', { annexes: next });
-                      }}
-                    />
-                  </td>
-                  <td className="py-1">
-                    <button
-                      type="button"
-                      onClick={() => removeAnnexe(a.id)}
-                      aria-label={`Supprimer ${a.libelle || 'annexe'}`}
-                      className="flex size-11 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      <Trash2 size={15} strokeWidth={2} aria-hidden />
-                    </button>
-                  </td>
+          {/* Trois champs côte à côte : sur téléphone, le tableau défile au lieu d'écraser. */}
+          <div className="-mx-1 overflow-x-auto px-1">
+            <table className="w-full min-w-[24rem] text-left text-[13.5px]">
+              <thead>
+                <tr className="text-[12px] text-text-muted">
+                  <th className="pb-2 font-medium">Libellé</th>
+                  <th className="pb-2 font-medium">Surface</th>
+                  <th className="pb-2 font-medium">Valorisation €</th>
+                  <th className="pb-2 w-8" aria-hidden />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {estimation.annexes.map((a, i) => (
+                  <tr key={a.id}>
+                    <td className="py-1 pr-2">
+                      <ChampSaisi
+                        value={a.libelle}
+                        onCommit={(raw) => {
+                          const next = estimation.annexes.map((x, j) =>
+                            j === i ? { ...x, libelle: raw } : x,
+                          );
+                          edit('annexes', { annexes: next });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <ChampSaisi
+                        inputMode="numeric"
+                        value={texteNombre(a.surfaceM2)}
+                        onCommit={(raw) => {
+                          const next = estimation.annexes.map((x, j) =>
+                            j === i ? { ...x, surfaceM2: nombreSaisi(raw) } : x,
+                          );
+                          edit('annexes', { annexes: next });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <ChampSaisi
+                        inputMode="numeric"
+                        value={texteEuro(a.valorisationEur)}
+                        onCommit={(raw) => {
+                          const next = estimation.annexes.map((x, j) =>
+                            j === i ? { ...x, valorisationEur: nombreSaisi(raw) } : x,
+                          );
+                          edit('annexes', { annexes: next });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => removeAnnexe(a.id)}
+                        aria-label={`Supprimer ${a.libelle || 'annexe'}`}
+                        className="flex size-11 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <Trash2 size={15} strokeWidth={2} aria-hidden />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Propose>
         <div className="mt-3 flex flex-wrap gap-2">
           <WorkspaceButton type="button" variant="secondary" onClick={() => addAnnexe('Cave')}>
@@ -576,7 +579,7 @@ export default function OngletBien({
         </div>
       </SectionRepliable>
 
-      <SectionRepliable titre="Photos et plan" ouvertDefaut>
+      <SectionRepliable titre="Photos et vidéos" ouvertDefaut>
         <ZoneDepotPhotos
           photos={estimation.photos}
           onChange={(photos) => onPatch({ photos })}

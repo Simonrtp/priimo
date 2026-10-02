@@ -18,7 +18,8 @@ import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import { normalizePhotoUrls } from '@/lib/bien-input';
-import { BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
+import { BIEN_MEDIA_ACCEPT, BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
+import BienMediaThumb from '@/components/dashboard/biens/BienMediaThumb';
 import { useUser } from '@/lib/hooks/useUser';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
@@ -528,9 +529,9 @@ export default function BienFormDialog({
               />
             </Field>
             <Field
-              label="Photos"
+              label="Photos et vidéos"
               htmlFor="bien-photo-files"
-              hint="JPEG, PNG ou WebP, 8 Mo maximum. 20 photos par bien."
+              hint="JPEG, PNG, WebP (8 Mo) · MP4, WebM, MOV (50 Mo). 20 médias par bien."
             >
               {form.photos.length > 0 ? (
                 <ul className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -540,15 +541,15 @@ export default function BienFormDialog({
                         type="button"
                         onClick={() => setPhotoView(i)}
                         className="size-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                        aria-label={`Voir la photo ${i + 1}`}
+                        aria-label={`Voir le média ${i + 1}`}
                       >
-                        <img src={url} alt="" className="size-full object-cover" />
+                        <BienMediaThumb url={url} className="size-full object-cover" />
                       </button>
                       <button
                         type="button"
                         onClick={() => set('photos', form.photos.filter((p) => p !== url))}
                         className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1A2A56]/80 text-white hover:bg-[#1A2A56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-10"
-                        aria-label="Retirer cette photo"
+                        aria-label="Retirer ce média"
                       >
                         <X size={14} strokeWidth={2.2} aria-hidden />
                       </button>
@@ -560,7 +561,7 @@ export default function BienFormDialog({
                 ref={photoInputRef}
                 id="bien-photo-files"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept={BIEN_MEDIA_ACCEPT}
                 multiple
                 tabIndex={-1}
                 className="sr-only"
@@ -574,7 +575,7 @@ export default function BienFormDialog({
                   onClick={() => photoInputRef.current?.click()}
                 >
                   <ImagePlus size={16} strokeWidth={2} aria-hidden />
-                  {photoBusy ? 'Envoi…' : 'Ajouter des photos'}
+                  {photoBusy ? 'Envoi…' : 'Ajouter photos ou vidéos'}
                 </WorkspaceButton>
               </div>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">

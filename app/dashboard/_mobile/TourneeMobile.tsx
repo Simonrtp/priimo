@@ -500,7 +500,7 @@ export default function TourneeMobile({
           </button>
 
           <div
-            className="absolute inset-x-0 bottom-0 z-20 rounded-t-[24px] bg-surface shadow-[0_-8px_32px_rgba(26, 42, 86,0.2)]"
+            className="absolute inset-x-0 bottom-0 z-20 rounded-t-[24px] bg-surface shadow-[0_-8px_32px_rgba(26,42,86,0.2)]"
             style={{ paddingBottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="px-4 pt-3">

@@ -518,7 +518,7 @@ async function seedActiviteTerrain(
   // Objectifs alignés sur les ratios réels de la négociatrice : avec les
   // défauts, l'écran afficherait 7/50 pendant que la phrase réclame 9 contacts.
   const objectifs = [
-    { activite: 'contacts_physiques', periode: 'hebdo', cible: 32 },
+    { activite: 'immeubles_prospectes', periode: 'hebdo', cible: 32 },
     { activite: 'immeubles_prospectes', periode: 'hebdo', cible: 20 },
     { activite: 'contacts_qualifies', periode: 'hebdo', cible: 3 },
     { activite: 'estimations', periode: 'hebdo', cible: 2 },

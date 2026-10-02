@@ -2712,143 +2712,38 @@ a.logiciel-carte-subtitle:focus-visible {
   }
 }
 
-@property --hdr {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 0;
-}
-
-.landing-utility-bar {
-  background: #0e1733;
-  /* Se replie tôt, mais sans disparaître d’un coup */
-  max-height: calc((1 - min(1, var(--hdr) * 1.05)) * 2.75rem);
-  opacity: calc(1 - min(1, var(--hdr) * 0.95));
-  overflow: hidden;
-  pointer-events: none;
-  will-change: max-height, opacity;
-}
-.landing-utility-bar .landing-utility-login {
-  pointer-events: auto;
-}
-.landing-site-header[data-scrolled="true"] .landing-utility-bar .landing-utility-login {
-  pointer-events: none;
-}
-.landing-utility-clip {
-  overflow: hidden;
-}
+/* Header marketing — barre navy opaque (réf. Tiime), sans verre / morph */
 .landing-site-header {
-  padding-top: calc(var(--hdr) * 0.85rem);
-  padding-left: calc(var(--hdr) * 0.85rem);
-  padding-right: calc(var(--hdr) * 0.85rem);
-  will-change: padding;
+  background: #0e1733;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: env(safe-area-inset-top);
 }
-@media (min-width: 640px) {
-  .landing-site-header {
-    padding-top: calc(var(--hdr) * 1rem);
-    padding-left: calc(var(--hdr) * 1.25rem);
-    padding-right: calc(var(--hdr) * 1.25rem);
-  }
-}
-.landing-nav-outer {
-  display: flex;
-  justify-content: center;
+.landing-nav-bar {
   width: 100%;
-  padding-left: calc((1 - var(--hdr)) * 1rem);
-  padding-right: calc((1 - var(--hdr)) * 1rem);
+}
+.landing-nav-inner {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 @media (min-width: 640px) {
-  .landing-nav-outer {
-    padding-left: calc((1 - var(--hdr)) * 1.5rem);
-    padding-right: calc((1 - var(--hdr)) * 1.5rem);
+  .landing-nav-inner {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 }
 @media (min-width: 1024px) {
-  .landing-nav-outer {
-    padding-left: calc((1 - var(--hdr)) * 2rem);
-    padding-right: calc((1 - var(--hdr)) * 2rem);
+  .landing-nav-inner {
+    padding-left: 2rem;
+    padding-right: 2rem;
   }
 }
-.landing-nav-frame {
-  width: 100%;
-  max-width: calc(72rem + (1 - var(--hdr)) * 100vw);
-  margin-inline: auto;
-}
-.landing-nav-shell {
-  /* 0 en haut de page = zéro verre. Le morph pilule démarre au scroll. */
-  --pill: max(0, calc((var(--hdr) - 0.18) / 0.82));
-  height: calc(4.15rem - var(--hdr) * 0.45rem);
-  border-radius: calc(var(--pill) * 9999px);
-  border-style: solid;
-  border-width: 1px;
-  border-color: transparent;
-  background-color: transparent;
-  box-shadow: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  padding-left: calc(var(--pill) * 0.75rem);
-  padding-right: calc(var(--pill) * 0.75rem);
-  will-change: height, border-radius, background-color, box-shadow, backdrop-filter;
-}
-.landing-site-header[data-scrolled="true"] .landing-nav-shell {
-  border-color: rgba(255, 255, 255, calc(var(--pill) * 0.22));
-  background-color: rgba(255, 255, 255, calc(var(--pill) * 0.12));
-  box-shadow:
-    0 10px 32px -14px rgba(8, 15, 40, calc(var(--pill) * 0.42)),
-    inset 0 1px 0 rgba(255, 255, 255, calc(var(--pill) * 0.16));
-  -webkit-backdrop-filter: blur(calc(var(--pill) * 26px)) saturate(1.35);
-  backdrop-filter: blur(calc(var(--pill) * 26px)) saturate(1.35);
-}
-@media (min-width: 640px) {
-  .landing-nav-shell {
-    height: calc(4.25rem - var(--hdr) * 0.4rem);
-    padding-left: calc(var(--pill) * 1.5rem);
-    padding-right: calc(var(--pill) * 1.5rem);
-  }
-}
-.landing-nav-login {
-  opacity: clamp(0, calc((var(--hdr) - 0.55) / 0.4), 1);
-  transform: translateY(calc((1 - clamp(0, calc((var(--hdr) - 0.55) / 0.4), 1)) * 3px));
-  pointer-events: none;
-  color: #374151;
-  transition: color 280ms ease;
-}
-.landing-site-header[data-scrolled="true"] .landing-nav-login {
-  pointer-events: auto;
-}
-.landing-site-header[data-on-dark="true"] .landing-nav-login {
-  color: rgba(255, 255, 255, 0.92);
-}
-.landing-nav-login:hover {
-  color: var(--l-accent-dark, #c25e2c);
-}
-.landing-site-header[data-on-dark="true"] .landing-nav-login:hover {
-  color: #ffffff;
-}
-.landing-utility-login {
-  color: #fff;
-  opacity: calc(1 - min(1, var(--hdr) * 1.1));
-  transform: translateY(calc(var(--hdr) * -4px));
-}
-.landing-utility-login:hover {
-  opacity: calc((1 - min(1, var(--hdr) * 1.1)) * 0.88);
-}
-.landing-utility-login:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 3px;
-  border-radius: 0.35rem;
-}
-.landing-utility-inner {
-  max-width: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .landing-utility-bar,
-  .landing-site-header,
-  .landing-nav-outer,
-  .landing-nav-frame,
-  .landing-nav-shell,
-  .landing-nav-login,
-  .landing-utility-login {
-    transition: none !important;
+@media (min-width: 1280px) {
+  .landing-nav-inner {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
   }
 }
 
@@ -4104,20 +3999,14 @@ html:has(.feature-page) {
   32% { opacity: 1; transform: translateY(-2px); }
 }
 
-/* Bouton « Mon assistant » — bleu pâle uni, distinct du bouton orange « Nouveau ».
-   Un aplat, pas un dégradé : le robot posé dessus porte déjà ses propres
-   nuances, et un fond qui varie sous un dessin qui varie ne tient pas. */
+/* Bouton « Mon assistant » — même navy que le bandeau, distinct de « Nouveau ». */
 .assistant-trigger-btn {
-  background: #dcebff;
-  box-shadow:
-    0 4px 14px -6px rgba(99, 102, 241, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: var(--priimo-shell-bottom);
+  color: #fff;
 }
 
 .assistant-trigger-btn:hover {
-  box-shadow:
-    0 6px 20px -4px rgba(99, 102, 241, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: color-mix(in srgb, var(--priimo-shell-bottom) 88%, #fff);
 }
 
 /* Le bouton signale une réponse qui arrive alors que le panneau est fermé. */

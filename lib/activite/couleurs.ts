@@ -22,13 +22,15 @@ export type CouleurFamille = {
   voile: string;
 };
 
+/** Gris neutre — pastilles hors familles (pipeline, alertes directeur). */
+export const GRIS_NEUTRE: CouleurFamille = {
+  teinte: '#3F3F46',
+  pastelFort: '#D4D4D8',
+  pastille: '#E4E4E7',
+  voile: '#F4F4F5',
+};
+
 export const COULEUR_FAMILLE: Record<FamilleActivite, CouleurFamille> = {
-  contacts_physiques: {
-    teinte: '#3F3F46',
-    pastelFort: '#D4D4D8',
-    pastille: '#E4E4E7',
-    voile: '#F4F4F5',
-  },
   immeubles_prospectes: {
     teinte: '#B07700',
     pastelFort: '#FFE08C',
@@ -53,6 +55,14 @@ export const COULEUR_FAMILLE: Record<FamilleActivite, CouleurFamille> = {
     pastille: '#FFD0D6',
     voile: '#FCEDEF',
   },
+};
+
+/** Alerte mandat / pipeline — n'est plus une famille de l'entonnoir. */
+export const ROUGE_ALERTE: CouleurFamille = {
+  teinte: '#D61F3A',
+  pastelFort: '#FFB6C0',
+  pastille: '#FFD0D6',
+  voile: '#FCEDEF',
 };
 
 /** L'orange produit reste aux leads. Aucune famille ne doit s'en approcher. */

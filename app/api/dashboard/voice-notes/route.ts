@@ -21,6 +21,7 @@ import { enregistrerRappel } from '@/lib/notes/rappels';
 import { notifierNoteTranscrite } from '@/lib/notifications/evenements';
 import { cheminPrise, extensionAudio, nettoyerIdPrise, VOICE_BUCKET } from '@/lib/voice/storage';
 import { retirerFinDeNote } from '@/lib/voice/fin-de-note';
+import { reverseGeocode, type BanGeocodeHit } from '@/lib/geo/ban';
 import { vocabulaireAgence } from '@/lib/voice/vocabulaire';
 
 export const runtime = 'nodejs';
@@ -185,12 +186,23 @@ export async function POST(req: Request) {
   let dureeTotale = durationSeconds;
   let visibiliteExistante: 'agence' | 'privee' = 'agence';
 
+  // Dictée sur le terrain sans immeuble choisi : le GPS donne l'immeuble dès
+  // l'enregistrement. La note compte tout de suite dans « Informations
+  // terrain », sans attendre la lecture complète.
+  const immeubleGpsPromise: Promise<BanGeocodeHit | null> =
+    !continueNoteId && !banId && gpsLat !== null && gpsLng !== null
+      ? reverseGeocode(gpsLat, gpsLng).catch(() => null)
+      : Promise.resolve(null);
+  let immeubleGps: BanGeocodeHit | null = null;
+
   if (!continueNoteId) {
-    const [{ error: uploadError }, texte] = await Promise.all([
+    const [{ error: uploadError }, texte, immeuble] = await Promise.all([
       admin.storage.from(BUCKET).upload(storagePath, audio, { contentType: mime, upsert: false }),
       transcribePromise,
+      immeubleGpsPromise,
     ]);
     transcribed = texte;
+    immeubleGps = immeuble;
     if (uploadError) {
       console.error('[voice] upload', uploadError.message);
       return NextResponse.json({ error: "L'enregistrement n'a pas pu être conservé" }, { status: 500 });
@@ -282,7 +294,16 @@ export async function POST(req: Request) {
           ...(typeof form.get('adresse') === 'string' && String(form.get('adresse')).trim()
             ? { adresse_normalisee: String(form.get('adresse')).trim().slice(0, 240) }
             : {}),
-          ...(banId ? { ban_id: banId } : {}),
+          ...(banId
+            ? { ban_id: banId }
+            : immeubleGps
+              ? {
+                  ban_id: immeubleGps.ban_id,
+                  adresse_normalisee: immeubleGps.adresse_normalisee,
+                  geocode_score: immeubleGps.score,
+                  geocode_le: new Date().toISOString(),
+                }
+              : {}),
         });
         if (error) throw error;
         return { id: voiceNoteId };

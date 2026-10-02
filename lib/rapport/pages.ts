@@ -14,7 +14,7 @@ export const MAX_RAPPORT_UPLOAD_BYTES = 15 * 1024 * 1024;
 export const MAX_PAGES_PDF = 40;
 
 export const MIME_PAGES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
-export const MIME_IMAGE_MODELE = new Set(['image/jpeg', 'image/png']);
+export const MIME_IMAGE_MODELE = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const MIME_ALIAS: Record<string, string> = {
   'application/pdf': 'application/pdf',

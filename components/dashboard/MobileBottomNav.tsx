@@ -4,7 +4,7 @@ import { useState, type ComponentType } from 'react';
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { Ellipsis } from 'lucide-react';
-import CreateMenu from '@/components/dashboard/create/CreateMenu';
+import BoutonNoteMobile from '@/components/dashboard/voice/BoutonNoteMobile';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import FieldPlusSheet from '@/components/dashboard/field/FieldPlusSheet';
 import { useOfflineQueue } from '@/components/dashboard/field/OfflineQueueProvider';
@@ -161,7 +161,7 @@ function FieldBottomNav() {
                   className="absolute left-1/2 z-10 -translate-x-1/2"
                   style={{ top: -12 }}
                 >
-                  <CreateMenu variant="fab" />
+                  <BoutonNoteMobile />
                 </div>
               </div>
               <div className="flex-1" aria-hidden />
@@ -174,7 +174,7 @@ function FieldBottomNav() {
                   className="absolute left-1/2 z-10 -translate-x-1/2"
                   style={{ top: -12 }}
                 >
-                  <CreateMenu variant="fab" />
+                  <BoutonNoteMobile />
                 </div>
               </div>
               <FieldTab

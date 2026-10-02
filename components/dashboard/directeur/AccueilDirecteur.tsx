@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Check, Plus, SlidersHorizontal, X } from 'lucide-react';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import InviteCollaboratorDialog from '@/components/dashboard/equipe/InviteCollaboratorDialog';
-import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
+import { COULEUR_FAMILLE, GRIS_NEUTRE, ROUGE_ALERTE } from '@/lib/activite/couleurs';
 import { FIELD } from '@/lib/today/field';
 import type { AccueilDirecteurModele, CarteNegociateur } from '@/lib/directeur/assembler';
 import type { DirecteurCarte, DirecteurCarteType } from '@/lib/directeur/cartes';
@@ -44,9 +44,9 @@ const ALERTE_STYLE: Record<
 > = {
   mandat_fin_validite: {
     label: 'Fin de mandat',
-    teinte: COULEUR_FAMILLE.informations_terrain.teinte,
-    pastel: COULEUR_FAMILLE.informations_terrain.pastelFort,
-    voile: COULEUR_FAMILLE.informations_terrain.voile,
+    teinte: ROUGE_ALERTE.teinte,
+    pastel: ROUGE_ALERTE.pastelFort,
+    voile: ROUGE_ALERTE.voile,
   },
   decrochage: {
     label: 'Décrochage',
@@ -68,9 +68,9 @@ const ALERTE_STYLE: Record<
   },
   prospects_sans_negociateur: {
     label: 'Prospection',
-    teinte: COULEUR_FAMILLE.contacts_physiques.teinte,
-    pastel: COULEUR_FAMILLE.contacts_physiques.pastelFort,
-    voile: COULEUR_FAMILLE.contacts_physiques.voile,
+    teinte: GRIS_NEUTRE.teinte,
+    pastel: GRIS_NEUTRE.pastelFort,
+    voile: GRIS_NEUTRE.voile,
   },
 };
 
@@ -292,11 +292,11 @@ function PanneauPreparer({
           <ul className="grid gap-3">
             <li className="rounded-xl border border-black/[0.06] px-3 py-2.5">
               <CompteurMini
-                label="contacts"
+                label="immeubles"
                 valeur={negociateur.contacts.valeur}
                 objectif={negociateur.contacts.objectif}
-                famille="contacts_physiques"
-                icon="/porte-ouverte.png"
+                famille="immeubles_prospectes"
+                icon="/bureau.png"
               />
             </li>
             <li className="rounded-xl border border-black/[0.06] px-3 py-2.5">
@@ -363,7 +363,7 @@ export default function AccueilDirecteur({
 
   function changerPeriode(next: 'semaine' | 'mois') {
     const q = new URLSearchParams(window.location.search);
-    q.set('periode', next);
+    q.set('periode', next === 'mois' ? '30j' : '7j');
     router.push(`/dashboard?${q.toString()}`);
   }
 
@@ -381,8 +381,8 @@ export default function AccueilDirecteur({
             value={periode}
             options={
               [
-                { id: 'semaine' as const, label: 'Semaine' },
-                { id: 'mois' as const, label: 'Mois' },
+                { id: 'semaine' as const, label: '7j' },
+                { id: 'mois' as const, label: '30j' },
               ] as const
             }
             onChange={changerPeriode}

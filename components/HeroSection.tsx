@@ -14,10 +14,10 @@ export default function HeroSection() {
   return (
     <section
       id="top"
-      className="landing-hero relative isolate overflow-x-clip pt-[8.75rem] pb-14 sm:pt-40 sm:pb-16 lg:pt-44 lg:pb-20"
+      className="landing-hero relative isolate overflow-x-clip pt-[6.75rem] pb-14 sm:pt-32 sm:pb-16 lg:pt-36 lg:pb-20"
     >
       <div className="landing-hero-grid relative min-w-0">
-        <div className="landing-hero-copy min-w-0 text-left lg:pt-2">
+        <div className="landing-hero-copy flex min-w-0 flex-col text-left lg:min-h-[28rem] lg:justify-between lg:pt-2 xl:min-h-[30rem]">
           <Reveal direction="up">
             <h1
               className={`${fontHero.className} landing-hero-title mb-4 flex flex-col items-start text-left`}
@@ -32,7 +32,7 @@ export default function HeroSection() {
               </span>
             </h1>
 
-            <ul className="landing-hero-points mt-1 max-w-md space-y-2.5">
+            <ul className="landing-hero-points mt-8 max-w-md space-y-3.5 sm:mt-10 sm:space-y-4 lg:mt-12">
               <li>
                 Dictez vos notes à l&apos;<span className="font-bold">IA</span>
               </li>
@@ -47,7 +47,7 @@ export default function HeroSection() {
             </ul>
           </Reveal>
 
-          <Reveal direction="up" delay={120} className="mt-5">
+          <Reveal direction="up" delay={120} className="mt-10 sm:mt-12 lg:mt-0 lg:pt-10 xl:pt-14">
             <div className="flex flex-col items-start pb-1">
               <CtaButton className="shrink-0 px-4 py-2.5 text-[13.5px] sm:px-7 sm:py-3.5 sm:text-[15px]">
                 Réserver une démo

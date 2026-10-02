@@ -3,10 +3,12 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 import {
+  BIEN_MEDIA_ACCEPT,
   BIEN_PHOTO_MAX_COUNT,
   estFichierPhoto,
   uploadBienPhotoFile,
 } from '@/lib/bien-photos';
+import BienMediaThumb from '@/components/dashboard/biens/BienMediaThumb';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { EstimationPhoto } from '@/lib/estimation/objet';
 
@@ -31,29 +33,29 @@ export default function ZoneDepotPhotos({
     const photosActuelles = photosRef.current;
     const place = BIEN_PHOTO_MAX_COUNT - photosActuelles.length;
     if (place <= 0) {
-      const msg = '20 photos maximum';
+      const msg = '20 médias maximum';
       setErreur(msg);
       notifyError(msg);
       return;
     }
 
-    const photosSeules = candidats.filter(estFichierPhoto);
-    const refuses = candidats.length - photosSeules.length;
-    if (photosSeules.length === 0) {
-      const msg = 'Seules les photos sont acceptées, pas les vidéos.';
+    const medias = candidats.filter(estFichierPhoto);
+    const refuses = candidats.length - medias.length;
+    if (medias.length === 0) {
+      const msg = 'Formats acceptés : JPEG, PNG, WebP, MP4, WebM, MOV';
       setErreur(msg);
       notifyError(msg);
       return;
     }
 
     setErreur(null);
-    setEnvoi(photosSeules.slice(0, place).length);
+    setEnvoi(medias.slice(0, place).length);
     const ajoutees: EstimationPhoto[] = [];
     try {
-      for (const file of photosSeules.slice(0, place)) {
+      for (const file of medias.slice(0, place)) {
         const result = await uploadBienPhotoFile(file);
         if (result.error || !result.url) {
-          const msg = result.error ?? "La photo n'a pas pu être enregistrée";
+          const msg = result.error ?? "Le média n'a pas pu être enregistré";
           setErreur(msg);
           notifyError(msg);
           break;
@@ -62,14 +64,16 @@ export default function ZoneDepotPhotos({
       }
       if (ajoutees.length > 0) {
         onChange([...photosRef.current, ...ajoutees]);
-        notifySuccess(ajoutees.length > 1 ? `${ajoutees.length} photos enregistrées` : 'Photo enregistrée');
+        notifySuccess(
+          ajoutees.length > 1 ? `${ajoutees.length} médias enregistrés` : 'Média enregistré',
+        );
       }
-      if (photosSeules.length > place) {
-        const msg = '20 photos maximum';
+      if (medias.length > place) {
+        const msg = '20 médias maximum';
         setErreur(msg);
         notifyError(msg);
       } else if (refuses > 0 && ajoutees.length > 0) {
-        setErreur('Les vidéos ont été ignorées.');
+        setErreur('Certains fichiers non supportés ont été ignorés.');
       }
     } finally {
       setEnvoi(0);
@@ -87,11 +91,10 @@ export default function ZoneDepotPhotos({
           {photos.map((p) => (
             <li key={p.url} className="relative flex flex-col gap-1">
               <div className="relative overflow-hidden rounded-clay bg-black/[0.04]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className="h-24 w-full object-cover" />
+                <BienMediaThumb url={p.url} className="h-24 w-full object-cover" />
                 <button
                   type="button"
-                  aria-label="Retirer cette photo"
+                  aria-label="Retirer ce média"
                   className="absolute right-1 top-1 flex size-9 items-center justify-center rounded-full bg-[#1A2A56]/80 text-white hover:bg-[#1A2A56] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   onClick={() => onChange(photos.filter((x) => x.url !== p.url))}
                 >
@@ -122,7 +125,7 @@ export default function ZoneDepotPhotos({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={BIEN_MEDIA_ACCEPT}
         multiple
         tabIndex={-1}
         className="sr-only"
@@ -132,7 +135,7 @@ export default function ZoneDepotPhotos({
       <button
         type="button"
         disabled={occupé || plein}
-        aria-label="Déposer des photos ou ouvrir la galerie"
+        aria-label="Déposer des photos ou vidéos, ou ouvrir la galerie"
         aria-describedby="zone-photos-aide"
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
@@ -153,14 +156,16 @@ export default function ZoneDepotPhotos({
         <p className="mt-3 text-pretty text-[14px] font-medium text-text-strong">
           {occupé
             ? envoi > 1
-              ? `Enregistrement de ${envoi} photos…`
+              ? `Enregistrement de ${envoi} médias…`
               : 'Enregistrement…'
             : plein
-              ? '20 photos atteintes'
-              : 'Déposez vos photos ici'}
+              ? '20 médias atteints'
+              : 'Déposez photos ou vidéos ici'}
         </p>
         <p id="zone-photos-aide" className="mt-1 text-pretty text-[12.5px] text-text-muted">
-          {plein ? 'Retirez une photo pour en ajouter.' : 'Ou touchez pour ouvrir la galerie. Photos seulement, 8 Mo.'}
+          {plein
+            ? 'Retirez un fichier pour en ajouter.'
+            : 'JPEG, PNG, WebP (8 Mo) · MP4, WebM, MOV (50 Mo).'}
         </p>
       </button>
 

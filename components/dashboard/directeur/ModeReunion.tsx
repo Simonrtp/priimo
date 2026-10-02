@@ -374,11 +374,11 @@ function SlideNegociateur({ nego }: { nego: CarteNegociateur }) {
 
       <ul className="mt-10 grid gap-3 sm:grid-cols-3 sm:gap-4">
         <CompteurProjection
-          label="Contacts"
+          label="Immeubles"
           valeur={nego.contacts.valeur}
           objectif={nego.contacts.objectif}
           icone="/porte-ouverte.png"
-          fond={COULEUR_FAMILLE.contacts_physiques.pastelFort}
+          fond={COULEUR_FAMILLE.immeubles_prospectes.pastelFort}
         />
         <CompteurProjection
           label="Estimations"

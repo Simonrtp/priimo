@@ -39,7 +39,7 @@ function noteActivite(ratios: Ratios): { titre: string; texte: string } {
   }
   return {
     titre: 'Voilà ce qu’il me faut.',
-    texte: 'C’est ma moyenne : tant de contacts pour un mandat.',
+    texte: 'C’est ma moyenne : tant de qualifiés pour un mandat.',
   };
 }
 
@@ -73,16 +73,16 @@ export default function RatiosMoyens({ ratios }: { ratios: Ratios }) {
         </p>
 
         <div className="mt-4 flex flex-col gap-1.5">
-          <Ligne un="qualifié" n={ratios.physiquesParQualifie} plusieurs="contacts" />
           <Ligne un="estimation" n={ratios.qualifiesParEstimation} plusieurs="qualifiés" />
+          <Ligne un="mandat" n={ratios.estimationsParMandat} plusieurs="estimations" />
         </div>
 
         <p className="mt-4 text-pretty text-[13.5px] leading-snug text-text-strong">
           Pour un mandat, {aSoi ? 'il me faut en moyenne' : 'compter pour l’instant'}
         </p>
         <p className="mt-1 font-display text-[28px] font-bold leading-none tabular-nums text-blue-dark">
-          {formateRatio(ratios.physiquesParMandat)}
-          <span className="ml-1.5 text-[15px] font-semibold text-text">contacts</span>
+          {formateRatio(ratios.qualifiesParMandat)}
+          <span className="ml-1.5 text-[15px] font-semibold text-text">qualifiés</span>
         </p>
 
         <p

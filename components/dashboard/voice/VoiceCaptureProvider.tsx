@@ -1,15 +1,24 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { playRecordStartSound } from '@/lib/voice/feedback-sound';
 import { requestMicStream, stopMicStream } from '@/lib/voice/mic';
-import { prechaufferTempsReel } from '@/lib/voice/temps-reel';
+import { prechaufferTempsReel, preparerTempsReel, type PreparationTempsReel } from '@/lib/voice/temps-reel';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
-import DicterMobile from '@/app/dashboard/_mobile/DicterMobile';
-import VoiceCaptureDialog from './VoiceCaptureDialog';
+// Le geste reste chargé d'office : il doit suivre le doigt dès le premier appui.
 import VoiceGestureCapture, { type VoiceGestureCaptureHandle } from './VoiceGestureCapture';
-import TypedNoteDialog from '@/components/dashboard/notes/TypedNoteDialog';
 import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+
+// Les feuilles de dictée et de note écrite pèsent plus de 100 ko : elles ne
+// partent plus avec chaque écran du dashboard. Elles se chargent au repos,
+// après l'affichage, et sont prêtes avant le premier toucher du micro.
+const chargerDicterMobile = () => import('@/app/dashboard/_mobile/DicterMobile');
+const chargerVoiceCaptureDialog = () => import('./VoiceCaptureDialog');
+const chargerTypedNoteDialog = () => import('@/components/dashboard/notes/TypedNoteDialog');
+const DicterMobile = dynamic(chargerDicterMobile, { ssr: false });
+const VoiceCaptureDialog = dynamic(chargerVoiceCaptureDialog, { ssr: false });
+const TypedNoteDialog = dynamic(chargerTypedNoteDialog, { ssr: false });
 
 export type VoiceCapturePurpose = 'note' | 'estimation';
 
@@ -28,8 +37,12 @@ export type VoiceCaptureOptions = {
   ) => void;
 };
 
+export type ModeCapture = 'voix' | 'ecrit';
+
 interface VoiceCaptureContextValue {
   openCapture: (opts?: VoiceCaptureOptions) => void;
+  /** La même feuille que la dictée, au clavier : même lecture, mêmes cartes. */
+  openEcrire: (opts?: VoiceCaptureOptions) => void;
   openCompose: (opts?: VoiceCaptureOptions) => void;
   beginGestureCapture: (opts?: VoiceCaptureOptions) => void;
   gestureActive: boolean;
@@ -58,6 +71,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [banId, setBanId] = useState<string | null>(null);
   const [resterSurPage, setResterSurPage] = useState(false);
   const [purpose, setPurpose] = useState<VoiceCapturePurpose>('note');
+  const [modeInitial, setModeInitial] = useState<ModeCapture>('voix');
   const estimationDraftRef = useRef<
     | ((
         draft: EstimationVoiceDraft,
@@ -68,6 +82,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [gestureSession, setGestureSession] = useState<{ adresse: string | null } | null>(null);
   const [gestureLocked, setGestureLocked] = useState(false);
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
+  /** Direct préparé dans le geste qui ouvre la dictée. */
+  const [preparation, setPreparation] = useState<PreparationTempsReel | null>(null);
   const gestureRef = useRef<VoiceGestureCaptureHandle | null>(null);
   const device = useDevice();
 
@@ -78,8 +94,12 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     if (!streamPromiseRef.current) {
       streamPromiseRef.current = requestMicStream();
     }
-    // Le jeton du direct arrive pendant que le navigateur ouvre le micro.
-    void prechaufferTempsReel();
+    // Dans le geste : moteur audio, jeton et connexion du direct se préparent
+    // pendant que le navigateur ouvre le micro.
+    setPreparation((ancienne) => {
+      ancienne?.abandonner();
+      return preparerTempsReel();
+    });
     if (device === 'mobile' && typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -90,6 +110,31 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setResterSurPage(opts?.resterSurPage === true);
     setPurpose(opts?.purpose ?? 'note');
     estimationDraftRef.current = opts?.onEstimationDraft ?? null;
+    setModeInitial('voix');
+    setOpen(true);
+  }, [device, gestureSession]);
+
+  const openEcrire = useCallback((opts?: VoiceCaptureOptions) => {
+    if (gestureSession) return;
+    setComposeOpen(false);
+    // Pas de micro : l'agent écrit. Rien à préparer, rien à demander.
+    const pending = streamPromiseRef.current;
+    streamPromiseRef.current = null;
+    if (pending) void pending.then(stopMicStream).catch(() => undefined);
+    setPreparation((ancienne) => {
+      ancienne?.abandonner();
+      return null;
+    });
+    if (device === 'mobile' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([12, 40, 12]);
+    }
+    setAdresse(opts?.adresse?.trim() || null);
+    setParcelleId(opts?.parcelleId?.trim() || null);
+    setBanId(opts?.banId?.trim() || null);
+    setResterSurPage(opts?.resterSurPage === true);
+    setPurpose('note');
+    estimationDraftRef.current = null;
+    setModeInitial('ecrit');
     setOpen(true);
   }, [device, gestureSession]);
 
@@ -112,8 +157,12 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     if (!streamPromiseRef.current) {
       streamPromiseRef.current = requestMicStream();
     }
-    // Le jeton du direct arrive pendant que le navigateur ouvre le micro.
-    void prechaufferTempsReel();
+    // Dans le geste : moteur audio, jeton et connexion du direct se préparent
+    // pendant que le navigateur ouvre le micro.
+    setPreparation((ancienne) => {
+      ancienne?.abandonner();
+      return preparerTempsReel();
+    });
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -128,6 +177,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setGestureSession(null);
     setGestureLocked(false);
     streamPromiseRef.current = null;
+    // La dictée a consommé (ou libéré) la préparation du direct.
+    setPreparation(null);
   }, []);
 
   const handleComposeClose = useCallback(() => {
@@ -143,6 +194,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const handleClose = useCallback(() => {
     const pending = streamPromiseRef.current;
     streamPromiseRef.current = null;
+    setPreparation(null);
     setAdresse(null);
     setParcelleId(null);
     setBanId(null);
@@ -161,6 +213,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const value = useMemo(
     () => ({
       openCapture,
+      openEcrire,
       openCompose,
       beginGestureCapture,
       gestureActive: gestureSession != null,
@@ -173,8 +226,35 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
       gesturePointerCancel: () => gestureRef.current?.pointerCancel(),
       stopLockedGesture: () => gestureRef.current?.stopLocked(),
     }),
-    [beginGestureCapture, capturePurpose, captureSessionOpen, gestureLocked, gestureSession, openCapture, openCompose],
+    [
+      beginGestureCapture,
+      capturePurpose,
+      captureSessionOpen,
+      gestureLocked,
+      gestureSession,
+      openCapture,
+      openCompose,
+      openEcrire,
+    ],
   );
+
+  // Le jeton du direct et le code des feuilles se prennent au repos : le
+  // premier toucher du micro n'attend ni notre serveur ni un téléchargement.
+  // Le jeton vaut quinze minutes et se renouvelle à l'usage.
+  useEffect(() => {
+    const prendre = () => {
+      void prechaufferTempsReel();
+      void (device === 'mobile' ? chargerDicterMobile() : chargerVoiceCaptureDialog()).catch(() => undefined);
+      void chargerTypedNoteDialog().catch(() => undefined);
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) {
+      w.requestIdleCallback(prendre);
+      return;
+    }
+    const t = window.setTimeout(prendre, 2_000);
+    return () => window.clearTimeout(t);
+  }, [device]);
 
   useEffect(() => {
     return () => {
@@ -194,6 +274,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
           parcelleId={parcelleId}
           banId={banId}
           streamPromise={streamPromiseRef.current}
+            preparation={preparation}
           onLockedChange={setGestureLocked}
           onClose={endGestureSession}
         />
@@ -203,6 +284,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
           <DicterMobile
             onClose={handleClose}
             streamPromise={streamPromiseRef.current}
+            preparation={preparation}
+            modeInitial={modeInitial}
             adresse={adresse}
             parcelleId={parcelleId}
             banId={banId}
@@ -214,6 +297,8 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
           <VoiceCaptureDialog
             onClose={handleClose}
             streamPromise={streamPromiseRef.current}
+            preparation={preparation}
+            modeInitial={modeInitial}
             adresse={adresse}
             parcelleId={parcelleId}
             banId={banId}

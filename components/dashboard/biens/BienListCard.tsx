@@ -7,7 +7,8 @@ import { MANDAT_STATUT_LABELS } from '@/types/bien';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { normalizePhotoUrls } from '@/lib/bien-input';
 import { bienToInput } from '@/lib/import/biens';
-import { BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
+import { BIEN_MEDIA_ACCEPT, BIEN_PHOTO_MAX_COUNT, uploadBienPhotoFile } from '@/lib/bien-photos';
+import BienMediaThumb from '@/components/dashboard/biens/BienMediaThumb';
 import { FacadeStreetView } from '@/components/dashboard/FacadeLead';
 import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
@@ -20,15 +21,7 @@ function euros(v: number | null): string | null {
 function Cover({ bien }: { bien: Bien }) {
   const cover = bien.photos[0];
   if (cover) {
-    return (
-      <img
-        src={cover}
-        alt=""
-        className="size-full object-cover"
-        loading="lazy"
-        decoding="async"
-      />
-    );
+    return <BienMediaThumb url={cover} className="size-full object-cover" />;
   }
   if (bien.latitude != null && bien.longitude != null) {
     return (
@@ -158,7 +151,7 @@ export default function BienListCard({
                             : `Voir la photo ${photoIndex + 1}`
                         }
                       >
-                        <img src={url} alt="" className="size-full object-cover" />
+                        <BienMediaThumb url={url} className="size-full object-cover" />
                         {isLast ? (
                           <span className="absolute inset-0 flex items-center justify-center bg-[#1A2A56]/55 text-[12px] font-semibold text-white">
                             +{overflow}
@@ -172,7 +165,8 @@ export default function BienListCard({
             ) : null}
           </div>
 
-          <div className="flex min-w-0 flex-1 items-start gap-2">
+          {/* Téléphone : l'adresse garde toute la largeur, statut et photos passent dessous. */}
+          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-start">
             <div className="min-w-0 flex-1">
               <button
                 type="button"
@@ -185,7 +179,7 @@ export default function BienListCard({
                 >
                   {bien.address}
                 </span>
-                <p className="mt-1.5 truncate text-[13px] text-text-muted sm:text-[13.5px]">
+                <p className="mt-1.5 line-clamp-2 text-[13px] text-text-muted sm:text-[13.5px]">
                   {[bien.postalCode, bien.city].filter(Boolean).join(' ') ||
                     'Localisation à compléter'}
                   {details.length > 0 ? ` · ${details.join(' · ')}` : ''}
@@ -224,7 +218,7 @@ export default function BienListCard({
                 ) : null}
               </p>
             </div>
-            <div className="flex flex-shrink-0 flex-col items-end gap-2">
+            <div className="flex flex-shrink-0 items-center justify-between gap-2 border-t border-black/[0.06] pt-1 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
               <div className="flex items-center gap-1">
                 <span className="text-[12px] text-text-subtle sm:text-[12.5px]">
                   {MANDAT_STATUT_LABELS[bien.mandatStatut]}
@@ -241,11 +235,11 @@ export default function BienListCard({
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept={BIEN_MEDIA_ACCEPT}
                 multiple
                 tabIndex={-1}
                 className="sr-only"
-                aria-label={`Ajouter des photos à ${bien.address}`}
+                aria-label={`Ajouter des photos ou vidéos à ${bien.address}`}
                 onChange={(e) => void addPhotoFiles(e.target.files)}
               />
               <button
@@ -255,7 +249,7 @@ export default function BienListCard({
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-medium text-[#1A2A56] hover:bg-[#1A2A56]/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
               >
                 <ImagePlus size={16} strokeWidth={2} aria-hidden />
-                {photoBusy ? 'Envoi…' : 'Photos'}
+                {photoBusy ? 'Envoi…' : 'Médias'}
               </button>
             </div>
           </div>

@@ -154,7 +154,7 @@ export default function NotesLectureCard({
             </p>
           ) : notes.length === 0 ? (
             <p className="text-pretty py-8 text-[13.5px] font-medium text-text-strong">
-              Aucune note pour l’instant. Ajoutez-en depuis la carte Informations terrain.
+              Aucune note pour l’instant. Ajoutez-en depuis la carte Notes terrain.
             </p>
           ) : (
             <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">

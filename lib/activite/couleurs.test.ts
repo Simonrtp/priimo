@@ -14,7 +14,7 @@ import { FAMILLES_ACTIVITE } from './types';
 const FAMILLES = [...FAMILLES_ACTIVITE];
 
 describe('couleurs de famille — règles non négociables', () => {
-  it('couvre les cinq familles, et seulement elles', () => {
+  it('couvre les quatre familles, et seulement elles', () => {
     assert.deepEqual(Object.keys(COULEUR_FAMILLE).sort(), FAMILLES.slice().sort());
   });
 
@@ -112,7 +112,7 @@ describe('couleurs de famille — lisibilité à 32 px', () => {
 });
 
 describe('couleurs de famille — secteurs', () => {
-  it('range les cinq teintes sur des secteurs distincts du cercle', () => {
+  it('range les quatre teintes sur des secteurs distincts du cercle', () => {
     const teintes = FAMILLES.map((f) => Math.round(teinteDegres(COULEUR_FAMILLE[f].teinte)));
     assert.equal(new Set(teintes).size, FAMILLES.length);
   });

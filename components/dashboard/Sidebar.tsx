@@ -200,12 +200,15 @@ export default function Sidebar() {
             href={FOUNDER_WHATSAPP_HREF}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Nous écrire sur WhatsApp"
+            aria-label="Une question ? Nous écrire sur WhatsApp"
             data-tour="whatsapp"
             className="group flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-white transition-opacity duration-fluid-subtle ease-in-out hover:opacity-85"
           >
             <WhatsAppIcon size={18} className="shrink-0 text-[#25D366]" />
-            Nous écrire
+            <span className="leading-tight">
+              Une question ?<br />
+              Nous écrire
+            </span>
           </a>
         </div>
       </div>

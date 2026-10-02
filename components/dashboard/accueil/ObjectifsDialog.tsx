@@ -12,13 +12,11 @@ import {
   type Cadence,
   type ObjectifsSaisis,
 } from '@/lib/activite/objectifs';
-import { LIBELLE_PERIODE } from '@/lib/activite/semaines';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE, type FamilleActivite } from '@/lib/activite/types';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import Pastilles from '@/components/ui/Pastilles';
 
 const ILLUSTRATION: Record<FamilleActivite, string> = {
-  contacts_physiques: '/porte-ouverte.png',
   immeubles_prospectes: '/bureau.png',
   contacts_qualifies: '/contact.png',
   estimations: '/calculatrice.png',
@@ -26,6 +24,12 @@ const ILLUSTRATION: Record<FamilleActivite, string> = {
 };
 
 const CADENCES: readonly Cadence[] = ['jour', 'semaine', 'mois', 'annee'];
+const LIBELLE_CADENCE: Record<Cadence, string> = {
+  jour: 'Jour',
+  semaine: 'Semaine',
+  mois: 'Mois',
+  annee: 'Année',
+};
 
 /** Les objectifs conseillés, ceux qui s'appliquent tant que personne n'a rien posé. */
 const CONSEILLES: ObjectifsSaisis = {
@@ -95,7 +99,7 @@ function Ligne({
  * les chiffres, sans écran d'attente. Aller les redemander au serveur ferait
  * clignoter des nombres qui sont sous les yeux de l'agent depuis son arrivée.
  *
- * Les cinq gestes se posent à la semaine et les mandats au mois — c'est la
+ * Les cinq cartes se posent à la semaine et les mandats au mois — c'est la
  * cadence de la base. Le sélecteur ne change que la lunette : saisir « 7 par
  * jour » enregistre 49 par semaine, et l'équivalent hebdomadaire reste écrit
  * sous chaque ligne pour qu'aucune conversion ne se fasse dans le dos.
@@ -164,7 +168,7 @@ export default function ObjectifsDialog({
       open
       onClose={onClose}
       title={membreNom ? `Objectifs de ${membreNom}` : 'Mes objectifs'}
-      description="Cinq gestes de terrain, plus les mandats. Les chiffres proposés sont des repères de réseau : posez les vôtres."
+      description="Cinq cartes de terrain, plus les mandats. Les chiffres proposés sont des repères de réseau : posez les vôtres."
       maxWidth="md"
     >
       <form
@@ -177,7 +181,7 @@ export default function ObjectifsDialog({
         <Pastilles
           label="Cadence de lecture"
           value={cadence}
-          options={CADENCES.map((c) => ({ id: c, label: LIBELLE_PERIODE[c] }))}
+          options={CADENCES.map((c) => ({ id: c, label: LIBELLE_CADENCE[c] }))}
           onChange={setCadence}
         />
 

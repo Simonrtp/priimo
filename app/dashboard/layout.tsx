@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchNotificationsSafe } from '@/lib/queries/notifications';
 import DeviceProvider from '@/components/dashboard/device/DeviceProvider';
 import DeviceSync from '@/components/dashboard/device/DeviceSync';
+import SansZoomSaisie from '@/components/dashboard/device/SansZoomSaisie';
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
 import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
@@ -57,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     {isMobile ? (
                       <div className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <TouchScrollGuard />
+                        <SansZoomSaisie />
                         <MobileChrome />
                         <main
                           className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"

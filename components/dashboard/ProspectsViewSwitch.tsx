@@ -30,7 +30,7 @@ export default function ProspectsViewSwitch({
   const bar = variant === 'bar';
   const shellClass =
     variant === 'floating'
-      ? 'flex rounded-clay border border-black/[0.08] bg-surface/95 p-0.5 shadow-clay-sm backdrop-blur-sm'
+      ? 'flex rounded-clay border border-black/[0.08] bg-[color:color-mix(in_srgb,var(--surface)_95%,transparent)] p-0.5 shadow-clay-sm backdrop-blur-sm'
       : bar
         ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-sm'
         : PASTILLE_TRACK;

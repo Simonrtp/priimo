@@ -26,7 +26,7 @@ function bilan(partiel: Partial<JournalActivite>, objectifs: Parameters<typeof b
 }
 
 describe('bilanSemaine — forme du retour', () => {
-  it('retourne les six compteurs, leur objectif et leur source', () => {
+  it('retourne les cinq compteurs, leur objectif et leur source', () => {
     const b = bilan({});
 
     assert.equal(b.compteurs.length, ACTIVITES.length);
@@ -36,17 +36,38 @@ describe('bilanSemaine — forme du retour', () => {
     }
 
     const declares = b.compteurs.filter((c) => c.source === 'declare');
-    assert.deepEqual(
-      declares.map((c) => c.activite),
-      ['contacts_physiques'],
-      'un seul compteur doit demander un geste à l’agent',
-    );
+    assert.deepEqual(declares.map((c) => c.activite), []);
   });
 
-  it('n’affiche en cartes que les cinq familles, mandats exclus', () => {
+  it('n’affiche en cartes que les quatre familles, mandats exclus', () => {
     const b = bilan({});
     assert.equal(b.familles.length, FAMILLES_ACTIVITE.length);
+    assert.deepEqual(
+      b.familles.map((c) => c.activite),
+      [...FAMILLES_ACTIVITE],
+    );
     assert.ok(!b.familles.some((c) => c.activite === 'mandats'));
+    assert.ok(b.familles.some((c) => c.activite === 'informations_terrain'));
+  });
+
+  it('pose le taux de passage vers la carte suivante', () => {
+    const b = bilan({
+      contactsPhysiques: [
+        { profileId: MOI, jour: '2026-09-02', banId: 'a', kind: 'passer' },
+        { profileId: MOI, jour: '2026-09-02', banId: 'b', kind: 'passer' },
+        { profileId: MOI, jour: '2026-09-03', banId: 'c', kind: 'rencontre' },
+        { profileId: MOI, jour: '2026-09-03', banId: 'd', kind: 'rencontre' },
+      ],
+    });
+    const immeubles = b.familles.find((c) => c.activite === 'immeubles_prospectes');
+    const qualifies = b.familles.find((c) => c.activite === 'contacts_qualifies');
+    const estimations = b.familles.find((c) => c.activite === 'estimations');
+    assert.equal(immeubles?.valeur, 4);
+    assert.equal(qualifies?.valeur, 0);
+    assert.equal(immeubles?.tauxPassage, 0);
+    assert.equal(immeubles?.libelleSuivant, 'Contacts qualifiés');
+    assert.equal(estimations?.tauxPassage, null);
+    assert.equal(estimations?.libelleSuivant, null);
   });
 });
 
@@ -82,8 +103,8 @@ describe('bilanSemaine — état semaine 1', () => {
 
 describe('bilanSemaine — progression et objectif mensuel', () => {
   it('plafonne chaque famille à 100 % avant la moyenne', () => {
-    // 500 contacts physiques pour un objectif de 50 ne doit pas compenser
-    // quatre familles à zéro : 100 % sur une famille sur cinq = 20 %.
+    // 500 immeubles pour un objectif de 30 ne doit pas compenser
+    // trois familles à zéro : 100 % sur une famille sur quatre = 25 %.
     const contactsPhysiques = Array.from({ length: 500 }, (_, i) => ({
       profileId: MOI,
       jour: '2026-09-02',
@@ -91,36 +112,33 @@ describe('bilanSemaine — progression et objectif mensuel', () => {
     }));
     const b = bilan({ contactsPhysiques });
 
-    // Les immeubles montent aussi puisque chaque rencontre porte un ban_id.
     const familles = Object.fromEntries(b.familles.map((c) => [c.activite, c.valeur]));
-    assert.equal(familles.contacts_physiques, 500);
     assert.equal(familles.immeubles_prospectes, 500);
-    assert.equal(b.progressionHebdo, 40); // deux familles pleines sur cinq
+    assert.equal(b.progressionHebdo, 25); // une famille pleine sur quatre
   });
 
-  it('compte les mandats sur le mois civil du lundi de la semaine', () => {
+  it('compte les mandats sur le mois civil de la fin de période', () => {
     const b = bilan({
       transitions: [
         { leadId: 'lead-a', profileId: MOI, depuisCle: null, versCle: 'mandat', createdAt: '2026-09-01T09:00:00Z', banId: 'a' },
         { leadId: 'lead-b', profileId: MOI, depuisCle: null, versCle: 'mandat', createdAt: '2026-09-20T09:00:00Z', banId: 'b' },
-        // Août : hors du mois retenu.
+        // Août : hors du mois retenu (la semaine finit en septembre).
         { leadId: 'lead-c', profileId: MOI, depuisCle: null, versCle: 'mandat', createdAt: '2026-08-31T09:00:00Z', banId: 'c' },
       ],
     });
 
-    // La semaine commence le 31 août : c'est donc le mois d'août qui est retenu.
-    assert.deepEqual(b.mandatsDuMois.mois, { debut: '2026-08-01', fin: '2026-08-31' });
-    assert.equal(b.mandatsDuMois.valeur, 1);
+    assert.deepEqual(b.mandatsDuMois.mois, { debut: '2026-09-01', fin: '2026-09-30' });
+    assert.equal(b.mandatsDuMois.valeur, 2);
   });
 
   it('reflète les objectifs posés par le directeur', () => {
     const b = bilan({ contactsPhysiques: [{ profileId: MOI, jour: '2026-09-02', banId: 'a' }] }, [
-      { activite: 'contacts_physiques', periode: 'hebdo', cible: 2 },
+      { activite: 'immeubles_prospectes', periode: 'hebdo', cible: 2 },
       { activite: 'mandats', periode: 'mensuel', cible: 4 },
     ]);
 
-    const physiques = b.compteurs.find((c) => c.activite === 'contacts_physiques');
-    assert.equal(physiques?.objectif, 2);
+    const immeubles = b.compteurs.find((c) => c.activite === 'immeubles_prospectes');
+    assert.equal(immeubles?.objectif, 2);
     assert.equal(b.mandatsDuMois.objectif, 4);
     assert.equal(b.objectifsParDefaut, false);
   });
@@ -129,16 +147,16 @@ describe('bilanSemaine — progression et objectif mensuel', () => {
 describe('bilanSemaine — un zéro et une source cassée ne se ressemblent pas', () => {
   it('déclare la source muette quand elle n’a jamais rien produit', () => {
     const b = bilan({});
-    const physiques = b.compteurs.find((c) => c.activite === 'contacts_physiques');
-    assert.equal(physiques?.valeur, 0);
-    assert.equal(physiques?.etatSource, 'muette');
+    const immeubles = b.compteurs.find((c) => c.activite === 'immeubles_prospectes');
+    assert.equal(immeubles?.valeur, 0);
+    assert.equal(immeubles?.etatSource, 'muette');
   });
 
   it('déclare la source indisponible quand la lecture a échoué', () => {
     const b = bilanSemaine({
       journal: {
         ...journal({}),
-        lectures: { transitions: 'ok', notes: 'ok', contactsPhysiques: 'erreur' },
+        lectures: { transitions: 'ok', notes: 'erreur', contactsPhysiques: 'erreur' },
       },
       profileId: MOI,
       profileIdsAgence: [MOI],
@@ -148,8 +166,8 @@ describe('bilanSemaine — un zéro et une source cassée ne se ressemblent pas'
       referenceFournie: false,
     });
 
-    const physiques = b.compteurs.find((c) => c.activite === 'contacts_physiques');
-    assert.equal(physiques?.etatSource, 'indisponible');
+    const immeubles = b.compteurs.find((c) => c.activite === 'immeubles_prospectes');
+    assert.equal(immeubles?.etatSource, 'indisponible');
     // Les compteurs servis par une autre source restent lisibles.
     assert.equal(
       b.compteurs.find((c) => c.activite === 'contacts_qualifies')?.etatSource,
@@ -157,11 +175,11 @@ describe('bilanSemaine — un zéro et une source cassée ne se ressemblent pas'
     );
   });
 
-  it('ne rend les immeubles indisponibles que si les trois sources sont tombées', () => {
+  it('ne rend les immeubles indisponibles que si sorties et notes sont tombées', () => {
     const avecUneSourceDebout = bilanSemaine({
       journal: {
         ...journal({}),
-        lectures: { transitions: 'ok', notes: 'erreur', contactsPhysiques: 'erreur' },
+        lectures: { transitions: 'erreur', notes: 'ok', contactsPhysiques: 'erreur' },
       },
       profileId: MOI,
       profileIdsAgence: [MOI],
@@ -220,7 +238,6 @@ describe('bilanSemaine — entonnoir et jour par jour', () => {
     assert.equal(qualifies?.valeur, 1, 'l’entonnoir doit voir au-delà de la semaine');
     assert.equal(b.compteurs.find((c) => c.activite === 'contacts_qualifies')?.valeur, 0);
     assert.deepEqual(b.fenetrePersonnelle, {
-      contacts_physiques: 0,
       contacts_qualifies: 1,
       estimations: 0,
       mandats: 1,
@@ -250,13 +267,13 @@ describe('bilanSemaine — entonnoir et jour par jour', () => {
     });
 
     const parJour = Object.fromEntries(
-      b.jours.map((j) => [j.jour, j.compteurs.contacts_physiques]),
+      b.jours.map((j) => [j.jour, j.compteurs.immeubles_prospectes]),
     );
     assert.equal(parJour['2026-09-02'], 2);
     assert.equal(parJour['2026-09-04'], 1);
     assert.equal(parJour['2026-09-03'], 0);
     // La somme des jours redonne le compteur de la semaine.
-    const total = b.jours.reduce((s, j) => s + j.compteurs.contacts_physiques, 0);
-    assert.equal(total, b.compteurs.find((c) => c.activite === 'contacts_physiques')?.valeur);
+    const total = b.jours.reduce((s, j) => s + j.compteurs.immeubles_prospectes, 0);
+    assert.equal(total, b.compteurs.find((c) => c.activite === 'immeubles_prospectes')?.valeur);
   });
 });

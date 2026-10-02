@@ -1,7 +1,7 @@
 /**
  * Le pilotage d'une période : le bilan chiffré et la phrase qui le résume.
  *
- * Ce calcul est le seul que le sélecteur jour / semaine / mois / année fait
+ * Ce calcul est le seul que le sélecteur 7j / 30j / 90j / calendrier fait
  * bouger. Il vit à part pour que changer de période n'oblige pas à refaire tout
  * l'écran Accueil — la page l'appelle au premier rendu, la route
  * `/api/dashboard/activite` le rappelle ensuite, et personne ne recharge les
@@ -15,9 +15,8 @@ import { bilanPeriode, valeursDe, type BilanSemaine } from '@/lib/activite/bilan
 import { phrasePilotage, type PhrasePilotage } from '@/lib/activite/phrase';
 import { FENETRE_SEMAINES } from '@/lib/activite/ratios';
 import {
-  dateDebut,
   fenetreSemaines,
-  intervalleDe,
+  intervalleDepuis,
   intervalleDecale,
   intervalleSeptJours,
   moisDe,
@@ -46,9 +45,12 @@ export function ancreValide(brut: string | null | undefined): string | null {
 }
 
 /** L'intervalle affiché pour une période et une ancre éventuelle. */
-export function intervalleAffiche(periode: Periode, ancre: string | null): Intervalle {
-  const valide = ancreValide(ancre);
-  return intervalleDe(periode, valide ? new Date(`${valide}T12:00:00Z`) : new Date());
+export function intervalleAffiche(
+  periode: Periode,
+  ancre: string | null,
+  fin: string | null = null,
+): Intervalle {
+  return intervalleDepuis(periode, ancreValide(ancre), ancreValide(fin));
 }
 
 /**
@@ -56,12 +58,15 @@ export function intervalleAffiche(periode: Periode, ancre: string | null): Inter
  * mois civil (objectif de mandats) et la fenêtre glissante des ratios.
  */
 function couvertureJournal(periode: Periode, intervalle: Intervalle): Intervalle {
-  const fenetreRatios = fenetreSemaines(semaineDe(dateDebut(intervalle)), FENETRE_SEMAINES);
-  const mois = moisDe(dateDebut(intervalle));
+  const fenetreRatios = fenetreSemaines(semaineDe(new Date(`${intervalle.fin}T12:00:00Z`)), FENETRE_SEMAINES);
+  const mois = moisDe(new Date(`${intervalle.fin}T12:00:00Z`));
   const precedente = intervalleDecale(periode, intervalle, -1);
   const aujourdhui = ymdKey(parisYmd(new Date()));
   const septJours = intervalleSeptJours(aujourdhui);
-  const septChoisi = periode === 'jour' ? intervalleSeptJours(intervalle.fin) : null;
+  const septChoisi =
+    periode === 'custom' && intervalle.debut === intervalle.fin
+      ? intervalleSeptJours(intervalle.fin)
+      : null;
   return {
     debut: [
       fenetreRatios.debut,
@@ -90,8 +95,10 @@ export async function calculerPilotage(args: {
   stages: readonly LeadStage[];
   periode: Periode;
   ancre: string | null;
+  /** Fin de plage, uniquement pour `custom`. */
+  fin?: string | null;
 }): Promise<Pilotage> {
-  const intervalle = intervalleAffiche(args.periode, args.ancre);
+  const intervalle = intervalleAffiche(args.periode, args.ancre, args.fin ?? null);
 
   const [journal, objectifs, reference] = await Promise.all([
     fetchJournalActivite({

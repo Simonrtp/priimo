@@ -246,7 +246,7 @@ export const PILOTAGE_PAGE: FeaturePageContent = {
     },
     {
       title: 'L’activité d’un négociateur se lit sur ses dossiers et ses passages.',
-      body: 'Contacts physiques, immeubles prospectés, notes, estimations : les compteurs partent des objets créés et des tournées faites. Le directeur peut afficher un collaborateur. Personne n’auto-évalue sa journée.',
+      body: 'Immeubles travaillés, contacts qualifiés, estimations, notes : les compteurs partent des sorties, des notes et des étapes du pipeline. Le directeur peut afficher un collaborateur. Personne n’auto-évalue sa journée.',
       capture: {
         file: 'pilotage-activite-negociateur.png',
         alt: 'Accueil filtré sur un négociateur, compteurs et cartes du jour.',

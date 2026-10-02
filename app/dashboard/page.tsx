@@ -72,7 +72,7 @@ import BirthdayCard from '@/components/dashboard/onboarding/BirthdayCard';
 import { fetchAnniversairesDuJour } from '@/lib/queries/birthdays';
 import { lirePenseBete } from '@/lib/activite/pense-bete';
 import { calculerPilotage } from '@/lib/activite/pilotage';
-import { estPeriode } from '@/lib/activite/semaines';
+import { normaliserPeriode } from '@/lib/activite/semaines';
 import { canSeeActivityOf } from '@/lib/agency/visibility';
 import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
 import EcranAttenteInscription from '@/components/dashboard/abonnement/EcranAttenteInscription';
@@ -102,6 +102,7 @@ export default async function TodayPage({
     'prise-en-main'?: string;
     periode?: string;
     le?: string;
+    a?: string;
     membre?: string;
   }>;
 }) {
@@ -116,6 +117,8 @@ export default async function TodayPage({
       fallback={
         <AccueilAmorce
           periodeDemandee={sp.periode ?? null}
+          ancreDemandee={sp.le ?? null}
+          finDemandee={sp.a ?? null}
           mobile={device === 'mobile'}
         />
       }
@@ -127,6 +130,7 @@ export default async function TodayPage({
         repriseDemandee={sp['prise-en-main'] === '1'}
         periodeDemandee={sp.periode ?? null}
         ancreDemandee={sp.le ?? null}
+        finDemandee={sp.a ?? null}
         membreDemande={sp.membre ?? null}
       />
     </Suspense>
@@ -140,6 +144,7 @@ async function TodayContent({
   repriseDemandee,
   periodeDemandee,
   ancreDemandee,
+  finDemandee,
   membreDemande,
 }: {
   profile: ContextualProfile;
@@ -148,17 +153,16 @@ async function TodayContent({
   repriseDemandee: boolean;
   periodeDemandee: string | null;
   ancreDemandee: string | null;
+  finDemandee: string | null;
   membreDemande: string | null;
 }) {
   const agendaPromise = lireAgendaSemaine();
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
-  const membersForVue = await timed('fetchMembersOfMyAgency(early)', () =>
-    fetchMembersOfMyAgency(agency.id, memberships),
-  );
+  // La vue se lit dans le cookie : connue avant la moindre lecture, elle
+  // décide de ce qu'on charge. Le directeur ne paie pas l'écran agent.
   const vueAccueil = resolveVueAccueilDirecteur({
     cookie: cookieStore.get(ACCUEIL_VUE_COOKIE)?.value,
-    membresAgence: membersForVue.length,
   });
   const previewingAgent = profile.role === 'directeur' && vueAccueil === 'agent';
   const layoutDirector = profile.role === 'directeur' && !previewingAgent;
@@ -167,49 +171,181 @@ async function TodayContent({
   );
   const isDirector = profile.role === 'directeur';
 
-  const [leads, contacts, biens, dismissals, metier, notes, device, stages, pastRdv] =
-    await Promise.all([
-      timed('fetchLeads', () => fetchLeads(supabase)),
-      timed('fetchContactsSafe', () => fetchContactsSafe(supabase)),
-      timed('fetchBiensSafe', () => fetchBiensSafe(supabase)),
-      timed('fetchTodayDismissals', () => fetchTodayDismissals(supabase, profile.id)),
-      timed('fetchTodayMetierSafe', () => fetchTodayMetierSafe(supabase, profile.id)),
-      timed('fetchVoiceNotesSafe', () => fetchVoiceNotesSafe(supabase)),
-      timed('getDevice(page)', () => getDevice()),
-      timed('fetchLeadStages', () => fetchLeadStages(supabase)),
-      timed('fetchPastRendezVousSafe', () => fetchPastRendezVousSafe(supabase)),
-    ]);
-  const members = membersForVue;
+  // Période affichée : la semaine en cours par défaut, sinon ce que dit l'URL.
+  // Passer par l'URL garde l'écran rendu côté serveur et rend une semaine
+  // consultée partageable par simple copier-coller. Le changement de période,
+  // lui, ne repasse plus par ici : il appelle /api/dashboard/activite.
+  const periode = normaliserPeriode(periodeDemandee);
 
-  const names = memberNamesById(members);
-  const visibleContacts = visibleContactsFor(viewer, contacts);
-  const visibleLeads = visibleLeadsFor(viewer, leads);
-  const visibleBiens = visibleBiensFor(viewer, biens);
-  const visibleNotes = visibleVoiceNotesFor(viewer, notes);
+  // Le sélecteur du directeur ne décide rien : l'autorisation se rejoue ici.
+  const membreActivite =
+    membreDemande && canSeeActivityOf(viewer, membreDemande) ? membreDemande : profile.id;
 
-  const lastInteractionByContactId: Record<string, string | null> = {};
-  for (const c of visibleContacts) {
-    lastInteractionByContactId[c.id] = c.lastInteractionAt;
-  }
-  const rendezVousSansSuite = countSansSuite(pastRdv, lastInteractionByContactId);
-  const estimationStageId = stages.find((s) => s.cle === 'estimation')?.id ?? null;
+  /* ------------------------------------------------------------- lectures */
+  // Tout part en même temps et chaque lecture n'attend que ce dont elle
+  // dépend. L'accueil enchaînait jusqu'ici huit vagues d'allers-retours.
+  // Aucun `await` entre ces promesses et le Promise.all de chaque écran :
+  // un échec est toujours rattrapé, jamais laissé sans gestionnaire.
+  const membersP = timed('fetchMembersOfMyAgency', () =>
+    fetchMembersOfMyAgency(agency.id, memberships),
+  );
+  const stagesP = timed('fetchLeadStages', () => fetchLeadStages(supabase));
+  const leadsP = timed('fetchLeads', () => fetchLeads(supabase));
+  const contactsP = timed('fetchContactsSafe', () => fetchContactsSafe(supabase));
+  const biensP = timed('fetchBiensSafe', () => fetchBiensSafe(supabase));
+  const notesP = timed('fetchVoiceNotesSafe', () => fetchVoiceNotesSafe(supabase));
+  const metierP = timed('fetchTodayMetierSafe', () => fetchTodayMetierSafe(supabase, profile.id));
 
-  const prevSnap = await fetchWeeklySnapshot(supabase, agency.id, previousMonday());
-  const portfolio = buildPortfolioStats({
-    biens: visibleBiens.map((b) => ({
-      id: b.id,
-      mandatStatut: b.mandatStatut,
-      mandatDate: b.mandatDate,
-      createdAt: b.createdAt,
-    })),
-    leads: visibleLeads.map((l) => ({ stageId: l.stageId })),
-    estimationStageId,
-    rendezVousSansSuite,
-    previousWeek: toPreviousWeek(prevSnap),
+  // Ce que les deux écrans partagent : visibilité, portefeuille, secteur.
+  const socleP = Promise.all([
+    membersP,
+    stagesP,
+    leadsP,
+    contactsP,
+    biensP,
+    notesP,
+    timed('fetchPastRendezVousSafe', () => fetchPastRendezVousSafe(supabase)),
+    timed('fetchWeeklySnapshot', () => fetchWeeklySnapshot(supabase, agency.id, previousMonday())),
+    stagesP.then((stages) =>
+      timed('fetchPassagesObserves', () => fetchPassagesObserves({ supabase, stages })),
+    ),
+    timed('fetchZonesSafe', () => fetchZonesSafe(supabase)),
+  ]).then(([members, stages, leads, contacts, biens, notes, pastRdv, prevSnap, passages, zones]) => {
+    const names = memberNamesById(members);
+    const visibleContacts = visibleContactsFor(viewer, contacts);
+    const visibleLeads = visibleLeadsFor(viewer, leads);
+    const visibleBiens = visibleBiensFor(viewer, biens);
+    const visibleNotes = visibleVoiceNotesFor(viewer, notes);
+
+    const lastInteractionByContactId: Record<string, string | null> = {};
+    for (const c of visibleContacts) {
+      lastInteractionByContactId[c.id] = c.lastInteractionAt;
+    }
+    const rendezVousSansSuite = countSansSuite(pastRdv, lastInteractionByContactId);
+    const estimationStageId = stages.find((s) => s.cle === 'estimation')?.id ?? null;
+
+    const portfolio = buildPortfolioStats({
+      biens: visibleBiens.map((b) => ({
+        id: b.id,
+        mandatStatut: b.mandatStatut,
+        mandatDate: b.mandatDate,
+        createdAt: b.createdAt,
+      })),
+      leads: visibleLeads.map((l) => ({ stageId: l.stageId })),
+      estimationStageId,
+      rendezVousSansSuite,
+      previousWeek: toPreviousWeek(prevSnap),
+    });
+
+    // Ma semaine : uniquement le secteur du négociateur. L'agence : tout le
+    // découpage. Le rôle ne décide pas la carte — c'est la vue qui le fait.
+    const repliCycleJours = agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS;
+    const titulaires = Object.fromEntries(names);
+    const paramsApercu = {
+      leads: visibleLeads,
+      zones,
+      profileId: profile.id,
+      passages,
+      repliCycleJours,
+      titulaires,
+    };
+    const apercuAgent = apercuSecteur({ ...paramsApercu, estDirecteur: false });
+    const apercuAgence = apercuSecteur({ ...paramsApercu, estDirecteur: true });
+
+    const secteursData: SecteursData = {
+      zones,
+      membres: members.map((m) => ({
+        id: m.id,
+        fullName: m.fullName,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        avatarUrl: m.avatarUrl,
+      })),
+      leads: visibleLeads
+        .filter(
+          (l): l is typeof l & { latitude: number; longitude: number } =>
+            l.latitude !== null && l.longitude !== null,
+        )
+        .map((l) => ({
+          id: l.id,
+          address: l.address,
+          postalCode: l.postalCode,
+          latitude: l.latitude,
+          longitude: l.longitude,
+          assignedTo: l.assignedTo,
+          stageId: l.stageId,
+          pris: l.stageId != null,
+          deliveredAt: l.deliveredAt,
+          createdAt: l.createdAt,
+        })),
+      centre: { latitude: agency.latitude, longitude: agency.longitude },
+      profileId: profile.id,
+    };
+
+    return {
+      members,
+      stages,
+      visibleContacts,
+      visibleLeads,
+      visibleBiens,
+      visibleNotes,
+      portfolio,
+      passages,
+      repliCycleJours,
+      apercuAgent,
+      apercuAgence,
+      secteursData,
+    };
   });
 
-  if (isDirector && !previewingAgent) {
-    const byKind = Object.fromEntries(portfolio.counters.map((c) => [c.kind, c]));
+  const centreAgence = { latitude: agency.latitude, longitude: agency.longitude };
+
+  /* ------------------------------------------------------------ directeur */
+  if (layoutDirector) {
+    const periodeDirecteur =
+      periode === '30j' || periode === '90j' ? 'mois' : 'semaine';
+    const [socle, modeleDirecteur] = await Promise.all([
+      socleP,
+      Promise.all([membersP, stagesP, leadsP, biensP, notesP, metierP]).then(
+        ([members, stages, leads, biens, notes, metier]) =>
+          timed('chargerAccueilDirecteur', () =>
+            chargerAccueilDirecteur({
+              supabase,
+              agencyId: agency.id,
+              directeurProfileId: profile.id,
+              membres: members.map((m) => ({
+                id: m.id,
+                firstName: m.firstName,
+                lastName: m.lastName,
+                fullName: m.fullName,
+                avatarUrl: m.avatarUrl,
+              })),
+              stages,
+              leads: visibleLeadsFor(viewer, leads).map((l) => ({
+                assignedTo: l.assignedTo,
+                deliveredAt: l.deliveredAt,
+                createdAt: l.createdAt,
+                stageId: l.stageId,
+              })),
+              biensMetier: metier.biens,
+              biens: visibleBiensFor(viewer, biens).map((b) => ({
+                id: b.id,
+                assignedTo: b.assignedTo,
+                mandatStatut: b.mandatStatut,
+                mandatDate: b.mandatDate,
+                proprietaireContactId: b.proprietaireContactId,
+              })),
+              notes: visibleVoiceNotesFor(viewer, notes).map((n) => ({
+                createdBy: n.createdBy,
+                createdAt: n.createdAt,
+              })),
+              periode: periodeDirecteur,
+            }),
+          ),
+      ),
+    ]);
+
+    const byKind = Object.fromEntries(socle.portfolio.counters.map((c) => [c.kind, c]));
     void upsertWeeklySnapshot(supabase, agency.id, {
       weekStart: mondayOf(),
       mandatsActifs: byKind['mandats-actifs']?.value ?? 0,
@@ -217,23 +353,130 @@ async function TodayContent({
       rdvSansSuite: byKind['rdv-sans-suite']?.value ?? byKind['estimations']?.value ?? 0,
       mandats60j: byKind['mandats-60j']?.value ?? 0,
     });
+
+    markServerTimingReady();
+
+    return (
+      <AccueilDirecteur
+        modele={modeleDirecteur}
+        agences={agencesDirecteur(memberships)}
+        agenceActiveId={agency.id}
+        periode={periodeDirecteur}
+        secteur={
+          <SecteurAccueil
+            key="secteur-agence"
+            apercu={socle.apercuAgence}
+            centre={centreAgence}
+            estDirecteur
+            secteurs={socle.secteursData}
+          />
+        }
+      />
+    );
   }
+
+  /* ---------------------------------------------------------------- agent */
+  const [
+    socle,
+    metier,
+    dismissals,
+    assignments,
+    alerts,
+    week,
+    demandesPortail,
+    demandesEstimation,
+    estimationsVuees,
+    actionsAValider,
+    pilotage,
+    notesDuJour,
+    priseEnMain,
+    anniversaires,
+  ] = await Promise.all([
+    socleP,
+    metierP,
+    timed('fetchTodayDismissals', () => fetchTodayDismissals(supabase, profile.id)),
+    membersP.then((members) =>
+      timed('fetchAssignmentsToMe', () =>
+        fetchAssignmentsToMe(supabase, profile.id, memberNamesById(members)),
+      ),
+    ),
+    isDirector
+      ? membersP.then((members) =>
+          timed('fetchAgencyAlerts', () => fetchAgencyAlerts(supabase, memberNamesById(members))),
+        )
+      : Promise.resolve([]),
+    Promise.all([leadsP, contactsP]).then(([leads, contacts]) =>
+      timed('fetchFieldWeek', () =>
+        fetchFieldWeek({
+          supabase,
+          profileId: profile.id,
+          contacts: visibleContactsFor(viewer, contacts),
+          leads: visibleLeadsFor(viewer, leads),
+        }),
+      ),
+    ),
+    timed('fetchDemandesPortail', () => lireDemandesPortail(supabase, agency.id)),
+    timed('fetchDemandesEstimation', () =>
+      lireDemandesEstimation(supabase, agency.id, { isDirector, profileId: profile.id }),
+    ),
+    timed('fetchEstimationsVuees', () => lireEstimationsVuees(supabase, agency.id)),
+    timed('listerActionsOuvertes', () =>
+      listerActionsOuvertes(supabase, agency.id, {
+        profileId: profile.id,
+        estDirecteur: false,
+      }),
+    ),
+    Promise.all([membersP, stagesP]).then(([members, stages]) =>
+      timed('calculerPilotage', () =>
+        calculerPilotage({
+          supabase,
+          agencyId: agency.id,
+          membreActivite,
+          profileIdsAgence: members.map((m) => m.id),
+          stages,
+          periode,
+          ancre: ancreDemandee,
+          fin: finDemandee,
+        }),
+      ),
+    ),
+    notesP.then(async (notes) => {
+      const notesAccueil = recentNotesForHome(visibleVoiceNotesFor(viewer, notes), {
+        viewerId: profile.id,
+        isDirector: false,
+        limit: 5,
+        weekStartKey: ymdKey(startOfWeekYmd(new Date())),
+      });
+      const rattachements = await timed('rattachementsDesNotes', () =>
+        rattachementsDesNotes({ supabase, notes: notesAccueil }),
+      );
+      return { notesAccueil, rattachements };
+    }),
+    // Réservée au négociateur : le directeur a eu la visio et créé le compte.
+    profile.role === 'collaborateur'
+      ? timed('fetchAgentOnboarding', () => fetchAgentOnboarding(supabase, profile.id))
+      : Promise.resolve(null),
+    timed('fetchAnniversairesDuJour', () => fetchAnniversairesDuJour(supabase, agency.id)),
+  ]);
+
+  const {
+    members,
+    stages,
+    visibleContacts,
+    visibleLeads,
+    visibleBiens,
+    visibleNotes,
+    portfolio,
+    passages,
+    repliCycleJours,
+    apercuAgent,
+  } = socle;
 
   const contactsById = new Map(visibleContacts.map((c) => [c.id, c.fullName]));
   const auteursParId = portraitsParId(members);
   const auteursParNom = portraitsParNom(members);
-  const notesAccueil = recentNotesForHome(visibleNotes, {
-    viewerId: profile.id,
-    isDirector: layoutDirector,
-    limit: 5,
-    weekStartKey: ymdKey(startOfWeekYmd(new Date())),
-  });
-  const rattachementsAccueil = await rattachementsDesNotes({
-    supabase,
-    notes: notesAccueil,
-  });
-  const recentNotes = notesAccueil.map((note) => {
-    const rattachements = rattachementsAccueil.get(note.id) ?? [];
+  const recentNotes = notesDuJour.notesAccueil.map((note) => {
+    const rattachements = notesDuJour.rattachements.get(note.id) ?? [];
     const attachmentLabel = homeNoteAttachment(
       note,
       note.contactId ? contactsById.get(note.contactId) ?? null : null,
@@ -270,276 +513,15 @@ async function TodayContent({
     ),
   );
 
-  /* --------------------------- activité terrain --------------------------- */
-  // Période affichée : la semaine en cours par défaut, sinon ce que dit l'URL.
-  // Passer par l'URL garde l'écran rendu côté serveur et rend une semaine
-  // consultée partageable par simple copier-coller. Le changement de période,
-  // lui, ne repasse plus par ici : il appelle /api/dashboard/activite.
-  const periode = estPeriode(periodeDemandee) ? periodeDemandee : 'semaine';
-
-  // Le sélecteur du directeur ne décide rien : l'autorisation se rejoue ici.
-  const membreActivite =
-    membreDemande && canSeeActivityOf(viewer, membreDemande) ? membreDemande : profile.id;
-
-  const [
-    assignments,
-    alerts,
-    week,
-    demandesPortail,
-    demandesEstimation,
-    estimationsVuees,
-    actionsAValider,
-    pilotage,
-    passages,
-    zones,
-  ] = await Promise.all([
-    timed('fetchAssignmentsToMe', () => fetchAssignmentsToMe(supabase, profile.id, names)),
-    isDirector
-      ? timed('fetchAgencyAlerts', () => fetchAgencyAlerts(supabase, names))
-      : Promise.resolve([]),
-    timed('fetchFieldWeek', () =>
-      fetchFieldWeek({
-        supabase,
-        profileId: profile.id,
-        contacts: visibleContacts,
-        leads: visibleLeads,
-      }),
-    ),
-    timed('fetchDemandesPortail', async () => {
-      try {
-        const since = new Date();
-        since.setDate(since.getDate() - 3);
-        const { data } = await supabase
-          .from('leads_portail')
-          .select('id, nom, telephone, contact_id, bien_id, portail, created_at, biens(address)')
-          .eq('agency_id', agency.id)
-          .gte('created_at', since.toISOString())
-          .in('statut', ['importe', 'a_traiter_main'])
-          .order('created_at', { ascending: false })
-          .limit(20);
-        return (data ?? []).map((row) => {
-          const bien = row.biens as { address?: string } | { address?: string }[] | null;
-          const adresse = Array.isArray(bien) ? bien[0]?.address : bien?.address;
-          return {
-            id: row.id as string,
-            nom: (row.nom as string | null) ?? null,
-            telephone: formatPhoneOrNull(row.telephone as string | null),
-            contactId: (row.contact_id as string | null) ?? null,
-            bienId: (row.bien_id as string | null) ?? null,
-            bienAdresse: adresse ?? null,
-            portail: (row.portail as string) ?? 'portail',
-            createdAt: row.created_at as string,
-          };
-        });
-      } catch {
-        return [];
-      }
-    }),
-    timed('fetchDemandesEstimation', async () => {
-      // Demandes d'estimation abouties. Sept jours : au-delà, le rappel
-      // n'est plus une urgence du jour mais une relance ordinaire.
-      try {
-        const since = new Date();
-        since.setDate(since.getDate() - 7);
-        const { data } = await supabase
-          .from('estimation_requests')
-          .select(
-            'id, first_name, last_name, phone, contact_id, address, estimation_value, estimation_low, estimation_high, created_at, assigned_to',
-          )
-          .eq('agency_id', agency.id)
-          .eq('consent_given', true)
-          .eq('status', 'nouveau')
-          .gte('created_at', since.toISOString())
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        return (data ?? [])
-          .filter((row) => {
-            // Un collaborateur ne voit que ce qui lui revient ; le directeur voit tout.
-            const assignedTo = row.assigned_to as string | null;
-            return isDirector || !assignedTo || assignedTo === profile.id;
-          })
-          .map((row) => ({
-            id: row.id as string,
-            nom:
-              [row.first_name as string | null, row.last_name as string | null]
-                .filter(Boolean)
-                .join(' ')
-                .trim() || 'Demande d’estimation',
-            telephone: formatPhoneOrNull(row.phone as string | null),
-            contactId: (row.contact_id as string | null) ?? null,
-            address: (row.address as string | null) ?? '',
-            valeur: (row.estimation_value as number | null) ?? null,
-            low: (row.estimation_low as number | null) ?? null,
-            high: (row.estimation_high as number | null) ?? null,
-            createdAt: row.created_at as string,
-          }));
-      } catch {
-        return [];
-      }
-    }),
-    timed('fetchEstimationsVuees', async () => {
-      try {
-        const since = new Date();
-        since.setDate(since.getDate() - 14);
-        const { data } = await supabase
-          .from('agency_estimations')
-          .select('id, address, view_count, last_viewed_at, price_low, price_high')
-          .eq('agency_id', agency.id)
-          .gt('view_count', 0)
-          .not('last_viewed_at', 'is', null)
-          .gte('last_viewed_at', since.toISOString())
-          .is('share_revoked_at', null)
-          .order('last_viewed_at', { ascending: false })
-          .limit(15);
-        return (data ?? []).map((row) => ({
-          id: row.id as string,
-          address: (row.address as string) ?? '',
-          viewCount: (row.view_count as number) ?? 0,
-          lastViewedAt: (row.last_viewed_at as string) ?? '',
-          priceLow: (row.price_low as number | null) ?? null,
-          priceHigh: (row.price_high as number | null) ?? null,
-        }));
-      } catch {
-        return [];
-      }
-    }),
-    timed('listerActionsOuvertes', () =>
-      listerActionsOuvertes(supabase, agency.id, {
-        profileId: profile.id,
-        estDirecteur: layoutDirector,
-      }),
-    ),
-    timed('calculerPilotage', () =>
-      calculerPilotage({
-        supabase,
-        agencyId: agency.id,
-        membreActivite,
-        profileIdsAgence: members.map((m) => m.id),
-        stages,
-        periode,
-        ancre: ancreDemandee,
-      }),
-    ),
-    timed('fetchPassagesObserves', () => fetchPassagesObserves({ supabase, stages })),
-    timed('fetchZonesSafe', () => fetchZonesSafe(supabase)),
-  ]);
-
-  // Ma semaine : uniquement le secteur du négociateur. L'agence : tout le
-  // découpage. Le rôle ne décide pas la carte — c'est la vue qui le fait.
-  const repliCycleJours = agency.frequence_passage_jours ?? CYCLE_DEFAUT_JOURS;
-  const titulaires = Object.fromEntries(names);
-  const paramsApercu = {
-    leads: visibleLeads,
-    zones,
-    profileId: profile.id,
-    passages,
-    repliCycleJours,
-    titulaires,
-  };
-  const apercuAgent = apercuSecteur({ ...paramsApercu, estDirecteur: false });
-  const apercuAgence = apercuSecteur({ ...paramsApercu, estDirecteur: true });
-
-  const secteursData: SecteursData = {
-    zones,
-    membres: members.map((m) => ({
-      id: m.id,
-      fullName: m.fullName,
-      firstName: m.firstName,
-      lastName: m.lastName,
-      avatarUrl: m.avatarUrl,
-    })),
-    leads: visibleLeads
-      .filter(
-        (l): l is typeof l & { latitude: number; longitude: number } =>
-          l.latitude !== null && l.longitude !== null,
-      )
-      .map((l) => ({
-        id: l.id,
-        address: l.address,
-        postalCode: l.postalCode,
-        latitude: l.latitude,
-        longitude: l.longitude,
-        assignedTo: l.assignedTo,
-        stageId: l.stageId,
-        pris: l.stageId != null,
-        deliveredAt: l.deliveredAt,
-        createdAt: l.createdAt,
-      })),
-    centre: { latitude: agency.latitude, longitude: agency.longitude },
-    profileId: profile.id,
-  };
-
-  const centreAgence = { latitude: agency.latitude, longitude: agency.longitude };
   const secteurAgent = (
     <SecteurAccueil
       key="secteur-agent"
       apercu={apercuAgent}
       centre={centreAgence}
       estDirecteur={false}
-      secteurs={secteursData}
+      secteurs={socle.secteursData}
     />
   );
-  const secteurAgence = (
-    <SecteurAccueil
-      key="secteur-agence"
-      apercu={apercuAgence}
-      centre={centreAgence}
-      estDirecteur
-      secteurs={secteursData}
-    />
-  );
-
-  if (layoutDirector) {
-    const periodeDirecteur =
-      periodeDemandee === 'mois' ? 'mois' : 'semaine';
-    const modeleDirecteur = await timed('chargerAccueilDirecteur', () =>
-      chargerAccueilDirecteur({
-        supabase,
-        agencyId: agency.id,
-        directeurProfileId: profile.id,
-        membres: members.map((m) => ({
-          id: m.id,
-          firstName: m.firstName,
-          lastName: m.lastName,
-          fullName: m.fullName,
-          avatarUrl: m.avatarUrl,
-        })),
-        stages,
-        leads: visibleLeads.map((l) => ({
-          assignedTo: l.assignedTo,
-          deliveredAt: l.deliveredAt,
-          createdAt: l.createdAt,
-          stageId: l.stageId,
-        })),
-        biensMetier: metier.biens,
-        biens: visibleBiens.map((b) => ({
-          id: b.id,
-          assignedTo: b.assignedTo,
-          mandatStatut: b.mandatStatut,
-          mandatDate: b.mandatDate,
-          proprietaireContactId: b.proprietaireContactId,
-        })),
-        notes: visibleNotes.map((n) => ({
-          createdBy: n.createdBy,
-          createdAt: n.createdAt,
-        })),
-        periode: periodeDirecteur,
-      }),
-    );
-
-    markServerTimingReady();
-
-    return (
-      <AccueilDirecteur
-        modele={modeleDirecteur}
-        agences={agencesDirecteur(memberships)}
-        agenceActiveId={agency.id}
-        periode={periodeDirecteur}
-        secteur={secteurAgence}
-      />
-    );
-  }
 
   const cards = buildTodayCards({
     leads: visibleLeads,
@@ -559,14 +541,11 @@ async function TodayContent({
 
   const directorExceptions: import('@/lib/today/director-exceptions').DirectorMemberExceptions[] = [];
 
-
   markServerTimingReady();
 
+  const device = await getDevice();
+
   /* ---------------------------- prise en main ---------------------------- */
-  // Réservée au négociateur : le directeur a eu la visio et créé le compte.
-  const priseEnMain = profile.role === 'collaborateur'
-    ? await timed('fetchAgentOnboarding', () => fetchAgentOnboarding(supabase, profile.id))
-    : null;
   const affichage =
     profile.role === 'collaborateur'
       ? decideAffichage(priseEnMain, { demandeExplicite: repriseDemandee })
@@ -616,10 +595,6 @@ async function TodayContent({
       </div>
     );
   }
-
-  const anniversaires = await timed('fetchAnniversairesDuJour', () =>
-    fetchAnniversairesDuJour(supabase, agency.id),
-  );
 
   const relance =
     profile.role === 'collaborateur' && doitProposerReprise(priseEnMain)
@@ -774,4 +749,116 @@ async function TodayContent({
       />
     </>
   );
+}
+
+type Db = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/** Demandes reçues des portails ces trois derniers jours, encore à traiter. */
+async function lireDemandesPortail(supabase: Db, agencyId: string) {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 3);
+    const { data } = await supabase
+      .from('leads_portail')
+      .select('id, nom, telephone, contact_id, bien_id, portail, created_at, biens(address)')
+      .eq('agency_id', agencyId)
+      .gte('created_at', since.toISOString())
+      .in('statut', ['importe', 'a_traiter_main'])
+      .order('created_at', { ascending: false })
+      .limit(20);
+    return (data ?? []).map((row) => {
+      const bien = row.biens as { address?: string } | { address?: string }[] | null;
+      const adresse = Array.isArray(bien) ? bien[0]?.address : bien?.address;
+      return {
+        id: row.id as string,
+        nom: (row.nom as string | null) ?? null,
+        telephone: formatPhoneOrNull(row.telephone as string | null),
+        contactId: (row.contact_id as string | null) ?? null,
+        bienId: (row.bien_id as string | null) ?? null,
+        bienAdresse: adresse ?? null,
+        portail: (row.portail as string) ?? 'portail',
+        createdAt: row.created_at as string,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Demandes d'estimation abouties. Sept jours : au-delà, le rappel n'est plus
+ * une urgence du jour mais une relance ordinaire.
+ */
+async function lireDemandesEstimation(
+  supabase: Db,
+  agencyId: string,
+  qui: { isDirector: boolean; profileId: string },
+) {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const { data } = await supabase
+      .from('estimation_requests')
+      .select(
+        'id, first_name, last_name, phone, contact_id, address, estimation_value, estimation_low, estimation_high, created_at, assigned_to',
+      )
+      .eq('agency_id', agencyId)
+      .eq('consent_given', true)
+      .eq('status', 'nouveau')
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    return (data ?? [])
+      .filter((row) => {
+        // Un collaborateur ne voit que ce qui lui revient ; le directeur voit tout.
+        const assignedTo = row.assigned_to as string | null;
+        return qui.isDirector || !assignedTo || assignedTo === qui.profileId;
+      })
+      .map((row) => ({
+        id: row.id as string,
+        nom:
+          [row.first_name as string | null, row.last_name as string | null]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || 'Demande d’estimation',
+        telephone: formatPhoneOrNull(row.phone as string | null),
+        contactId: (row.contact_id as string | null) ?? null,
+        address: (row.address as string | null) ?? '',
+        valeur: (row.estimation_value as number | null) ?? null,
+        low: (row.estimation_low as number | null) ?? null,
+        high: (row.estimation_high as number | null) ?? null,
+        createdAt: row.created_at as string,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Estimations partagées que le propriétaire a rouvertes ces deux dernières semaines. */
+async function lireEstimationsVuees(supabase: Db, agencyId: string) {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const { data } = await supabase
+      .from('agency_estimations')
+      .select('id, address, view_count, last_viewed_at, price_low, price_high')
+      .eq('agency_id', agencyId)
+      .gt('view_count', 0)
+      .not('last_viewed_at', 'is', null)
+      .gte('last_viewed_at', since.toISOString())
+      .is('share_revoked_at', null)
+      .order('last_viewed_at', { ascending: false })
+      .limit(15);
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      address: (row.address as string) ?? '',
+      viewCount: (row.view_count as number) ?? 0,
+      lastViewedAt: (row.last_viewed_at as string) ?? '',
+      priceLow: (row.price_low as number | null) ?? null,
+      priceHigh: (row.price_high as number | null) ?? null,
+    }));
+  } catch {
+    return [];
+  }
 }

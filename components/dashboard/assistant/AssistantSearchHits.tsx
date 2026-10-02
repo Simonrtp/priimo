@@ -28,7 +28,7 @@ export default function AssistantSearchHits({
           <button
             type="button"
             onClick={onAskAssistant}
-            className="group/assistant mt-2 inline-flex min-h-[36px] items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
+            className="mt-2 inline-flex min-h-[36px] items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-primary-600 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-50"
           >
             <AssistantIcon size={15} />
             Demander à mon assistant

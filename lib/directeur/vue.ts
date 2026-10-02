@@ -9,7 +9,7 @@ import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 export function resolveVueAccueilDirecteur(input: {
   cookie: string | undefined | null;
   /** Conservé pour compat ; n'influence plus le défaut. */
-  membresAgence: number;
+  membresAgence?: number;
 }): AccueilVue {
   void input.membresAgence;
   return parseAccueilVue(input.cookie);

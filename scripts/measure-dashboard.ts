@@ -224,10 +224,10 @@ async function main() {
 === Activité terrain (nouvel écran) ===`);
   const stages = await timed('fetchLeadStages', () => fetchLeadStages(supabase));
 
-  const intervalle = intervalleDe('semaine', new Date());
+  const intervalle = intervalleDe('7j', new Date());
   const fenetreRatios = fenetreSemaines(semaineDe(dateDebut(intervalle)), FENETRE_SEMAINES);
   const moisCourant = moisDe(dateDebut(intervalle));
-  const precedent = intervalleDecale('semaine', intervalle, -1);
+  const precedent = intervalleDecale('7j', intervalle, -1);
   const couverture = {
     debut: [fenetreRatios.debut, intervalle.debut, moisCourant.debut, precedent.debut].sort()[0]!,
     fin: [fenetreRatios.fin, intervalle.fin, moisCourant.fin].sort().at(-1)!,
@@ -253,7 +253,7 @@ async function main() {
       journal,
       profileId: m.id,
       profileIdsAgence: members.map((x) => x.id),
-      periode: 'semaine',
+      periode: '7j',
       intervalle,
       objectifs: objectifsActivite,
       reference: ref.reference,
@@ -272,7 +272,7 @@ async function main() {
       compteurs: valeursDe(dernier),
       objectifMandatsMois: dernier.mandatsDuMois.objectif,
       ratios: dernier.ratios,
-      periode: 'semaine',
+      periode: '7j',
       intervalle,
       semaine1: dernier.semaine1,
       etatsSource: dernier.etatsSource,

@@ -39,7 +39,7 @@ export function TourneeCard({
   return (
     <button
       type="button"
-      className="relative isolate w-full overflow-hidden rounded-[24px] text-left shadow-[0_18px_50px_-12px_rgba(26, 42, 86,0.55)] ring-1 ring-white/20 transition-transform active:scale-[0.99]"
+      className="relative isolate w-full overflow-hidden rounded-[24px] text-left shadow-[0_18px_50px_-12px_rgba(26,42,86,0.55)] ring-1 ring-white/20 transition-transform active:scale-[0.99]"
       style={{ minHeight: mapUrl ? 280 : 168 }}
       aria-label={`Ouvrir l'itinéraire : ${title}`}
       {...tapProps(onStart)}
@@ -72,7 +72,7 @@ export function TourneeCard({
         aria-hidden
       />
 
-      <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] border border-white/28 bg-[#1A2A56]/40 px-3.5 py-2.5 shadow-[0_6px_24px_rgba(26, 42, 86,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-md supports-[backdrop-filter]:bg-[#1A2A56]/28">
+      <div className="absolute inset-x-2.5 bottom-2.5 rounded-[16px] border border-white/28 bg-[#1A2A56]/40 px-3.5 py-2.5 shadow-[0_6px_24px_rgba(26,42,86,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-md supports-[backdrop-filter]:bg-[#1A2A56]/28">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p

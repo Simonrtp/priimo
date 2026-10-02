@@ -174,6 +174,28 @@ export type PromptOptions = {
   agentPrenom?: string | null;
 };
 
+/**
+ * Consigne de la lecture en direct : même JSON, mais le modèle n'écrit que ce
+ * qu'il a trouvé. Recopier tout le schéma, champs vides compris, coûtait trois
+ * à quatre secondes par lecture — c'est la longueur de la réponse qui fait le
+ * temps, pas celle de la question. Ni résumé, ni corps d'e-mail ici : la
+ * lecture complète s'en charge.
+ */
+function buildPromptRapide(transcript: string, noteDate = new Date()): string {
+  const ref = dateParisIso(noteDate);
+  const jour = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', timeZone: 'Europe/Paris' }).format(noteDate);
+  return [
+    `Note dictée le ${ref} (${jour}) :`,
+    '"""',
+    transcript,
+    '"""',
+    '',
+    'JSON, en omettant toute clé vide ou nulle :',
+    '{"titre","intention":"note"|"question","personnes":[{"firstName","lastName","phone","email","type":"vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"|"autre"}],"address","secteur","prix","rooms","surface","source_info":"proprietaire"|"gardien"|"voisin"|"tiers"|"agent","actions":[{"type":"rappel"|"tache"|"rdv"|"visite_faite","intitule","quand","rdv_type":"visite"|"estimation"|"signature"|"autre"}],"mises_a_jour":[{"champ":"prix"|"statut_mandat","valeur","bien"}],"recherche":{"personne","budget_min","budget_max","surface_min","pieces_min","villes":[],"codes_postaux":[]},"prospect":{"etape":"contacte"|"rendez_vous"|"mandat"|"perdu","motif"},"email":{"personne","objet"}}',
+    'Règles : rien d’inventé. Dernière version si l’agent se reprend. "intitule" court à l’infinitif avec le nom (« Rappeler Mme Martin »). "quand" = les mots dits (« jeudi à 14h »). "titre" : 3 à 6 mots. Montants en euros entiers (« 300 k » = 300000). "rooms" : T2 = 2. "email" seulement si l’agent dit d’envoyer un mail ou des documents.',
+  ].join('\n');
+}
+
 function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOptions = {}): string {
   // Le jour de Paris : à 0h30 en France, la date UTC est encore la veille.
   const ref = dateParisIso(noteDate);
@@ -189,7 +211,7 @@ function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOpti
     transcript,
     '"""',
     '',
-    'Renvoie ce JSON, mêmes clés, mêmes formes :',
+    'Renvoie ce JSON, mêmes clés, mêmes formes. Omets toute clé vide ou nulle : la réponse doit être courte.',
     '{',
     '  "titre": string|null,',
     '  "resume": string|null,',
@@ -676,7 +698,7 @@ async function demander(
   apiKey: string,
   transcript: string,
   noteDate: Date,
-  opts: PromptOptions & { delaiMs: number },
+  opts: PromptOptions & { delaiMs: number; rapide?: boolean },
 ): Promise<string | null> {
   let res: Response;
   try {
@@ -690,11 +712,14 @@ async function demander(
       body: JSON.stringify({
         model,
         temperature: 0,
-        max_tokens: MAX_OUTPUT_TOKENS,
+        max_tokens: opts.rapide ? 700 : MAX_OUTPUT_TOKENS,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildPrompt(transcript, noteDate, opts) },
+          {
+            role: 'user',
+            content: opts.rapide ? buildPromptRapide(transcript, noteDate) : buildPrompt(transcript, noteDate, opts),
+          },
         ],
       }),
     });
@@ -732,7 +757,7 @@ export async function extractNotePropositions(
   const delaiMs = mode === 'rapide' ? DELAI_MODELE_RAPIDE_MS : DELAI_MODELE_MS;
 
   for (const model of modelesAEssayer(mode)) {
-    const content = await demander(model, apiKey, capped, noteDate, { ...opts, delaiMs });
+    const content = await demander(model, apiKey, capped, noteDate, { ...opts, delaiMs, rapide: mode === 'rapide' });
     if (content) return parseNoteExtraction(extraireJson(content), noteDate);
   }
   throw new Error('extraction_empty');

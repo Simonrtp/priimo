@@ -105,12 +105,12 @@ export default function SettingsDashboard({
     <div className="relative w-full min-w-0 max-w-5xl max-md:pt-4">
       <header className="mb-4 md:mb-6">
         <h1
-          className="max-md:hidden font-semibold tracking-tight text-ink"
+          className="font-semibold tracking-tight text-ink"
           style={{ fontSize: 22, letterSpacing: '-0.02em' }}
         >
           Paramètres
         </h1>
-        <p className="text-pretty text-mute max-md:mt-0 md:mt-1" style={{ fontSize: 14 }}>
+        <p className="mt-1 text-pretty text-mute" style={{ fontSize: 14 }}>
           Gérez votre agence et vos préférences.
         </p>
       </header>
@@ -399,14 +399,16 @@ function SectionAgency() {
           />
         </div>
 
-        <p className="flex items-center gap-2 text-[13px] text-mute">
-          <label htmlFor="agency-frequence">Fréquence cible de passage</label>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] text-mute">
+          <label htmlFor="agency-frequence" className="w-full sm:w-auto">
+            Fréquence cible de passage
+          </label>
           <input
             id="agency-frequence"
             type="number"
             min={2}
             max={52}
-            className={`${inputClass} w-16 py-1.5`}
+            className={`${inputClass} max-w-[5rem] flex-none py-1.5`}
             value={frequenceSemaines}
             onChange={(e) =>
               setFrequenceSemaines(Number.parseInt(e.target.value, 10) || 12)

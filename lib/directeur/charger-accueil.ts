@@ -179,7 +179,7 @@ export async function chargerAccueilDirecteur(input: {
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0]
         ?.createdAt ?? null;
 
-    const contactsObj = obj.hebdo.contacts_physiques;
+    const contactsObj = obj.hebdo.immeubles_prospectes;
     const estObj = obj.hebdo.estimations;
     const mandatsObj =
       input.periode === 'mois' ? obj.mandatsMensuel : obj.hebdo.mandats;
@@ -189,7 +189,7 @@ export async function chargerAccueilDirecteur(input: {
         : compteurs.mandats;
 
     const progressionParts = [
-      contactsObj > 0 ? compteurs.contacts_physiques / contactsObj : 1,
+      contactsObj > 0 ? compteurs.immeubles_prospectes / contactsObj : 1,
       estObj > 0 ? compteurs.estimations / estObj : 1,
       mandatsObj > 0 ? mandatsValeur / mandatsObj : 1,
     ];
@@ -206,7 +206,7 @@ export async function chargerAccueilDirecteur(input: {
       derniereNoteAt: derniereNote,
       progression: Math.max(0, Math.min(100, progression)),
       contacts: {
-        valeur: compteurs.contacts_physiques,
+        valeur: compteurs.immeubles_prospectes,
         objectif: contactsObj,
       },
       estimations: { valeur: compteurs.estimations, objectif: estObj },
@@ -253,7 +253,7 @@ export async function chargerAccueilDirecteur(input: {
       profileId: membres[i]!.id,
       semaine,
     });
-    contactsFenetre += cSem.contacts_physiques;
+    contactsFenetre += cSem.immeubles_prospectes;
     mandatsFenetre += cSem.mandats;
   }
 

@@ -51,67 +51,114 @@ export function dansLaSemaine(jour: string, intervalle: Intervalle): boolean {
   return isKeyInRange(jour, intervalle.debut, intervalle.fin);
 }
 
-/** Granularité du sélecteur de l'écran Accueil. */
-export type Periode = 'jour' | 'semaine' | 'mois' | 'annee';
+/** Fenêtres du sélecteur Accueil : 7, 30 ou 90 jours, ou une plage choisie. */
+export type PeriodePreset = '7j' | '30j' | '90j';
+export type Periode = PeriodePreset | 'custom';
 
-export const LIBELLE_PERIODE: Record<Periode, string> = {
-  jour: 'Jour',
-  semaine: 'Semaine',
-  mois: 'Mois',
-  annee: 'Année',
+export const PRESETS_PERIODE: readonly PeriodePreset[] = ['7j', '30j', '90j'];
+
+export const JOURS_PRESET: Record<PeriodePreset, number> = {
+  '7j': 7,
+  '30j': 30,
+  '90j': 90,
 };
 
+export const LIBELLE_PERIODE: Record<PeriodePreset, string> = {
+  '7j': '7j',
+  '30j': '30j',
+  '90j': '90j',
+};
+
+export const TITRE_PERIODE: Record<Periode, string> = {
+  '7j': 'Ma semaine',
+  '30j': 'Mon mois',
+  '90j': 'Mes 90 jours',
+  custom: 'Ma période',
+};
+
+/** Anciennes clés d'URL encore acceptées, ramenées aux fenêtres glissantes. */
+export function normaliserPeriode(valeur: string | null | undefined): Periode {
+  if (valeur === '30j' || valeur === 'mois') return '30j';
+  if (valeur === '90j' || valeur === 'annee') return '90j';
+  if (valeur === 'custom' || valeur === 'jour') return 'custom';
+  return '7j';
+}
+
+export function estPeriodeUrl(valeur: string | null | undefined): boolean {
+  return (
+    valeur === '7j' ||
+    valeur === '30j' ||
+    valeur === '90j' ||
+    valeur === 'custom' ||
+    valeur === 'jour' ||
+    valeur === 'semaine' ||
+    valeur === 'mois' ||
+    valeur === 'annee'
+  );
+}
+
+/** @deprecated préférer `estPeriodeUrl` + `normaliserPeriode`. */
 export function estPeriode(valeur: string | null | undefined): valeur is Periode {
-  return valeur === 'jour' || valeur === 'semaine' || valeur === 'mois' || valeur === 'annee';
+  return valeur === '7j' || valeur === '30j' || valeur === '90j' || valeur === 'custom';
 }
 
 function cle(y: number, m: number, d: number): string {
   return ymdKey({ y, m, d, weekday: 0 });
 }
 
-/** L'intervalle civil parisien correspondant à la période contenant `date`. */
-export function intervalleDe(periode: Periode, date: Date): Intervalle {
+/** `nb` jours civils se terminant le jour de `date`, bornes incluses. */
+export function intervalleGlissant(nb: number, date: Date): Intervalle {
   const { y, m, d } = parisYmd(date);
-  if (periode === 'jour') return { debut: cle(y, m, d), fin: cle(y, m, d) };
-  if (periode === 'semaine') return semaineDe(date);
-  if (periode === 'mois') return moisDe(date);
-  return { debut: cle(y, 1, 1), fin: cle(y, 12, 31) };
+  const fin = cle(y, m, d);
+  return { debut: clePlusJours(fin, -(Math.max(1, nb) - 1)), fin };
 }
 
-/** Décale l'intervalle d'un cran de sa propre granularité. */
+function ordonner(a: string, b: string): Intervalle {
+  return a <= b ? { debut: a, fin: b } : { debut: b, fin: a };
+}
+
+/** L'intervalle affiché pour une période, ancré sur `date` (la fin, pour un preset). */
+export function intervalleDe(periode: Periode, date: Date): Intervalle {
+  if (periode === 'custom') {
+    const { y, m, d } = parisYmd(date);
+    const jour = cle(y, m, d);
+    return { debut: jour, fin: jour };
+  }
+  return intervalleGlissant(JOURS_PRESET[periode], date);
+}
+
+/** Décale l'intervalle d'un cran de sa propre durée. */
 export function intervalleDecale(
   periode: Periode,
   intervalle: Intervalle,
   delta: number,
 ): Intervalle {
-  const [y, m, d] = intervalle.debut.split('-').map(Number);
-  const an = y ?? 1970;
-  const mois = m ?? 1;
-  const jour = d ?? 1;
-
-  if (periode === 'jour') {
-    return intervalleDe('jour', new Date(Date.UTC(an, mois - 1, jour + delta, 12)));
+  const largeur = nombreDeJours(intervalle);
+  if (periode === 'custom') {
+    return {
+      debut: clePlusJours(intervalle.debut, delta * largeur),
+      fin: clePlusJours(intervalle.fin, delta * largeur),
+    };
   }
-  if (periode === 'semaine') return semaineDecalee(intervalle, delta);
-  if (periode === 'mois') {
-    return intervalleDe('mois', new Date(Date.UTC(an, mois - 1 + delta, 15, 12)));
-  }
-  return intervalleDe('annee', new Date(Date.UTC(an + delta, 6, 1, 12)));
+  return {
+    debut: clePlusJours(intervalle.debut, delta * JOURS_PRESET[periode]),
+    fin: clePlusJours(intervalle.fin, delta * JOURS_PRESET[periode]),
+  };
 }
 
 /**
- * Ce que le sélecteur de granularité affiche.
+ * Ce que le sélecteur affiche.
  *
  * Le découpage des périodes est un calcul pur : le client sait quel intervalle
  * il vient de demander avant que la réponse du serveur arrive, donc l'en-tête
- * et le bouton « suivant » n'ont jamais à attendre le réseau.
+ * n'a jamais à attendre le réseau.
  */
 export type VuePeriode = {
   periode: Periode;
   intervalle: Intervalle;
-  /** Décide du bouton « suivant » : on ne consulte pas l'avenir. */
+  /** Un preset qui se termine aujourd'hui — pas une plage choisie au calendrier. */
   estPeriodeCourante: boolean;
-  /** Identifie la période à une granularité près — sert de clé de cache. */
+  /** Identifie la période à une fenêtre près — sert de clé de cache. */
   cle: string;
 };
 
@@ -120,12 +167,38 @@ export function vueSurIntervalle(
   intervalle: Intervalle,
   maintenant: Date = new Date(),
 ): VuePeriode {
+  const courant = intervalleDe(periode === 'custom' ? '7j' : periode, maintenant);
+  const estPeriodeCourante =
+    periode !== 'custom' &&
+    intervalle.debut === courant.debut &&
+    intervalle.fin === courant.fin;
   return {
     periode,
     intervalle,
-    estPeriodeCourante: intervalle.debut === intervalleDe(periode, maintenant).debut,
-    cle: `${periode}|${intervalle.debut}`,
+    estPeriodeCourante,
+    cle: `${periode}|${intervalle.debut}|${intervalle.fin}`,
   };
+}
+
+function jourValide(brut: string | null | undefined): string | null {
+  return brut && /^\d{4}-\d{2}-\d{2}$/.test(brut) ? brut : null;
+}
+
+/** Intervalle d'un preset (fin = ancre) ou d'une plage `debut`→`fin`. */
+export function intervalleDepuis(
+  periode: Periode,
+  ancre: string | null,
+  fin: string | null = null,
+  maintenant: Date = new Date(),
+): Intervalle {
+  if (periode === 'custom') {
+    const debut = jourValide(ancre);
+    const bout = jourValide(fin) ?? debut;
+    if (!debut) return intervalleDe('7j', maintenant);
+    return ordonner(debut, bout ?? debut);
+  }
+  const date = jourValide(ancre) ? new Date(`${ancre}T12:00:00Z`) : maintenant;
+  return intervalleDe(periode, date);
 }
 
 /** La vue d'une période ancrée sur un jour civil — `null` pour celle en cours. */
@@ -133,9 +206,30 @@ export function vuePeriode(
   periode: Periode,
   ancre: string | null,
   maintenant: Date = new Date(),
+  fin: string | null = null,
 ): VuePeriode {
-  const date = ancre ? new Date(`${ancre}T12:00:00Z`) : maintenant;
-  return vueSurIntervalle(periode, intervalleDe(periode, date), maintenant);
+  return vueSurIntervalle(periode, intervalleDepuis(periode, ancre, fin, maintenant), maintenant);
+}
+
+function jourLisible(cleJour: string): string {
+  const [y, m, d] = cleJour.split('-').map(Number);
+  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12)).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+}
+
+/** « 28 septembre – 4 octobre 2026 », sans répéter le mois quand il est le même. */
+export function intervalleLisible(intervalle: Intervalle): string {
+  const [ay, am] = intervalle.debut.split('-').map(Number);
+  const [by] = intervalle.fin.split('-').map(Number);
+  if (intervalle.debut === intervalle.fin) return `${jourLisible(intervalle.debut)} ${ay}`;
+  const debut =
+    am === Number(intervalle.fin.slice(5, 7)) && ay === by
+      ? String(Number(intervalle.debut.slice(8)))
+      : jourLisible(intervalle.debut);
+  return `${debut} – ${jourLisible(intervalle.fin)} ${by}`;
 }
 
 /** Décale une clé `YYYY-MM-DD` de `delta` jours civils. */

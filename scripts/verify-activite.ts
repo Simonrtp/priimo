@@ -171,9 +171,9 @@ async function main() {
         `${b.ratios.provisoire ? ' [PROVISOIRE]' : ''} · ${b.ratios.mandatsRetenus} mandat(s) retenus`,
     );
     console.log(
-      `    physiques → qualifié : ${b.ratios.physiquesParQualifie ?? '—'} · ` +
-        `qualifiés → estimation : ${b.ratios.qualifiesParEstimation ?? '—'} · ` +
-        `estimations → mandat : ${b.ratios.estimationsParMandat ?? '—'}`,
+      `    qualifiés → estimation : ${b.ratios.qualifiesParEstimation ?? '—'} · ` +
+        `estimations → mandat : ${b.ratios.estimationsParMandat ?? '—'} · ` +
+        `qualifiés → mandat : ${b.ratios.qualifiesParMandat ?? '—'}`,
     );
 
     // La phrase du haut et l'entonnoir du bas, côte à côte : c'est leur
@@ -182,7 +182,7 @@ async function main() {
       compteurs: valeursDe(b),
       objectifMandatsMois: b.mandatsDuMois.objectif,
       ratios: b.ratios,
-      periode: 'semaine',
+      periode: '7j',
       intervalle: b.intervalle,
       semaine1: b.semaine1,
       etatsSource: b.etatsSource,

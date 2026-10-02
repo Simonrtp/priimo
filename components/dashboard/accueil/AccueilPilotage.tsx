@@ -16,9 +16,18 @@ import { NotesLectureProvider } from '@/components/dashboard/notes/NotesLectureP
 import Entonnoir3D from './Entonnoir3D';
 import JourParJour from './JourParJour';
 import NouvellesAdresses, { type AdresseLivree } from './NouvellesAdresses';
-import PhrasePilotageBloc from './PhrasePilotage';
 import SelecteurCollaborateur, { type MembreOption } from './SelecteurCollaborateur';
 import SelecteurVueAccueil from '@/components/dashboard/directeur/SelecteurVueAccueil';
+
+function queryPeriode(cible: VuePeriode, membre: string | null): URLSearchParams {
+  const q = new URLSearchParams({ periode: cible.periode });
+  if (cible.periode === 'custom') {
+    q.set('le', cible.intervalle.debut);
+    if (cible.intervalle.fin !== cible.intervalle.debut) q.set('a', cible.intervalle.fin);
+  }
+  if (membre) q.set('membre', membre);
+  return q;
+}
 
 /** Une période déjà consultée est réaffichée telle quelle, sans nouvel appel. */
 type Cache = Map<string, Pilotage>;
@@ -32,7 +41,7 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
  * L'écran de pilotage.
  *
  * L'ordre n'est pas décoratif : le titre, le pense-bête juste à sa
- * droite, le sélecteur de période au bout, la phrase ensuite, les cinq
+ * droite, le sélecteur de période au bout, puis les objectifs, les
  * cartes, les adresses à gauche de l'emploi du temps, puis l'entonnoir.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
@@ -81,6 +90,7 @@ export default function AccueilPilotage({
   const [vue, setVue] = useState<VuePeriode>(() => vueDuBilan(pilotage));
   const [affiche, setAffiche] = useState<Pilotage>(pilotage);
   const dernierServeur = useRef(cleServeur);
+  const dernierPilotage = useRef(pilotage);
   /** La dernière période demandée : une réponse doublée est jetée. */
   const demande = useRef(cleServeur);
 
@@ -88,18 +98,24 @@ export default function AccueilPilotage({
   // rechargement) : c'est lui qui a raison, on repart de sa réponse.
   if (dernierServeur.current !== cleServeur) {
     dernierServeur.current = cleServeur;
+    dernierPilotage.current = pilotage;
     demande.current = cleServeur;
     cache.current.set(cleServeur, pilotage);
     setVue(vueDuBilan(pilotage));
     setAffiche(pilotage);
+  } else if (dernierPilotage.current !== pilotage) {
+    // Même période, chiffres frais (une note vient d'être rangée, la page s'est
+    // rafraîchie) : on les adopte si c'est la période à l'écran. Sans cela le
+    // compteur ne bougeait qu'au rechargement complet.
+    dernierPilotage.current = pilotage;
+    cache.current.set(cleServeur, pilotage);
+    if (demande.current === cleServeur) setAffiche(pilotage);
   }
 
   /** Le bilan d'une période, demandé au serveur. */
   const charger = useCallback(
-    async (cible: VuePeriode, ancre: string | null) => {
-      const q = new URLSearchParams({ periode: cible.periode });
-      if (ancre) q.set('le', ancre);
-      if (membres.length > 1) q.set('membre', membreSelectionne);
+    async (cible: VuePeriode) => {
+      const q = queryPeriode(cible, membres.length > 1 ? membreSelectionne : null);
 
       try {
         const res = await fetch(`/api/dashboard/activite?${q.toString()}`);
@@ -119,17 +135,15 @@ export default function AccueilPilotage({
   );
 
   const changer = useCallback(
-    async (periode: Periode, ancre: string | null) => {
-      const suivante = vuePeriode(periode, ancre);
+    async (periode: Periode, ancre: string | null, fin: string | null = null) => {
+      const suivante = vuePeriode(periode, ancre, new Date(), fin);
       demande.current = suivante.cle;
       setVue(suivante);
 
-      const q = new URLSearchParams({ periode });
-      if (ancre) q.set('le', ancre);
-      if (membres.length > 1) q.set('membre', membreSelectionne);
+      const q = queryPeriode(suivante, membres.length > 1 ? membreSelectionne : null);
 
       // L'URL suit sans rendu serveur : la période reste partageable, et un
-      // rechargement retrouve la même granularité.
+      // rechargement retrouve la même fenêtre.
       window.history.replaceState(null, '', `/dashboard?${q.toString()}`);
 
       const connu = cache.current.get(suivante.cle);
@@ -138,21 +152,18 @@ export default function AccueilPilotage({
         return;
       }
 
-      await charger(suivante, ancre);
+      await charger(suivante);
     },
     [charger, membreSelectionne, membres.length],
   );
 
-  // Un objectif qui change périme tous les bilans déjà lus, pas seulement
-  // celui à l'écran : les cartes des autres périodes se comparent aux mêmes
-  // cibles. On vide le cache et on redemande la période affichée.
   const rafraichir = useCallback(() => {
     cache.current.clear();
     demande.current = vue.cle;
-    void charger(vue, vue.intervalle.debut);
+    void charger(vue);
   }, [charger, vue]);
 
-  const { bilan, phrase } = affiche;
+  const { bilan } = affiche;
   // Les chiffres à l'écran sont-ils ceux de la période demandée ?
   const enCours = vueDuBilan(affiche).cle !== vue.cle;
   // Mieux vaut un écran qui se dit en retard qu'un écran qui annonce une
@@ -174,7 +185,7 @@ export default function AccueilPilotage({
           debut={
             selecteurVueDirecteur ? <SelecteurVueAccueil vue="agent" /> : undefined
           }
-          droite={<PenseBete initial={penseBete} className="w-full sm:w-[15.5rem] sm:shrink-0" />}
+          droite={<PenseBete initial={penseBete} />}
         />
         {membres.length > 1 ? (
           <div className="flex justify-end">
@@ -188,7 +199,6 @@ export default function AccueilPilotage({
       ) : null}
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
-        <PhrasePilotageBloc phrase={phrase} />
         <BandeauObjectif
           bilan={bilan}
           membre={membreSelectionne}
@@ -199,7 +209,11 @@ export default function AccueilPilotage({
           }
           onObjectifsChanges={rafraichir}
         />
-        <CompteursActivite familles={bilan.familles} />
+        <CompteursActivite
+          familles={bilan.familles}
+          accueilleNotes={vue.estPeriodeCourante && membreSelectionne === moi}
+          periode={`${vueDuBilan(affiche).cle}:${membreSelectionne}`}
+        />
       </div>
 
       {/* Les deux cartes s'alignent par étirement : la plus haute donne le
@@ -221,8 +235,12 @@ export default function AccueilPilotage({
       <div aria-busy={enCours} className={estompe}>
         <JourParJour
           jours={bilan.joursGlissants}
-          jourActif={vue.periode === 'jour' ? vue.intervalle.debut : null}
-          onChoisirJour={(jour) => void changer('jour', jour)}
+          jourActif={
+            vue.periode === 'custom' && vue.intervalle.debut === vue.intervalle.fin
+              ? vue.intervalle.debut
+              : null
+          }
+          onChoisirJour={(jour) => void changer('custom', jour, jour)}
         />
       </div>
       {secteur ? <Fragment key="accueil-secteur">{secteur}</Fragment> : null}

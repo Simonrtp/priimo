@@ -6,14 +6,11 @@ import { compteurVide, type Activite } from './types';
  * Dérivation des compteurs d'activité.
  *
  * Fonction pure : mêmes lignes de journal + même semaine = mêmes chiffres.
- * C'est la propriété qui compte. Elle interdit de matérialiser les compteurs
- * dérivés dans une table — une ligne écrite une fois ne se recalcule plus, et
- * une semaine passée deviendrait une réconciliation au lieu d'une lecture.
- *
- * Réserve honnête : une transition porte le `ban_id` actuel du lead, pas celui
- * qu'il avait le jour de la transition. Si un lead est regéocodé, le compteur
- * « immeubles » d'une semaine passée peut bouger d'une unité. Le cas est rare
- * et le prix à payer pour ne pas figer une copie du journal.
+ * Chaque action tombe dans une seule carte :
+ *   - une note (échange ou rattachée) → Notes terrain ;
+ *   - une note rattachée à une adresse → aussi Immeubles ;
+ *   - une sortie (vu, absent, rencontré) → Immeubles seulement ;
+ *   - une transition de pipeline → l'étape visée, pas l'immeuble.
  */
 
 /** Une transition du journal `lead_stage_events`, aplatie. */
@@ -30,21 +27,25 @@ export type TransitionRow = {
   banId: string | null;
 };
 
-/** Une note vocale, avec son rattachement terrain. */
+/** Une note vocale, avec son rattachement terrain et si elle décrit un échange. */
 export type NoteRow = {
   auteurId: string | null;
   createdAt: string;
   banId: string | null;
   /** Note liée à un immeuble ou à une parcelle via `note_liens`. */
   rattacheeTerrain: boolean;
+  /** Note liée à un contact : c'est un échange, pas une simple info terrain. */
+  echange: boolean;
 };
 
-/** Un contact physique déclaré : `sortie_events` avec kind = `rencontre`. */
+/** Un arrêt de sortie observé : `sortie_events` (rencontre, absent, passer). */
 export type ContactPhysiqueRow = {
   profileId: string;
   /** Jour civil parisien déjà normalisé côté base (`sortie_events.day`). */
   jour: string;
   banId: string | null;
+  /** Absent de l'ancien journal : une rencontre est le défaut. */
+  kind?: 'rencontre' | 'absent' | 'passer';
 };
 
 /**
@@ -104,6 +105,10 @@ function jourDe(iso: string): string | null {
   return dateKeyParis(new Date(t));
 }
 
+function kindSortie(c: ContactPhysiqueRow): 'rencontre' | 'absent' | 'passer' {
+  return c.kind ?? 'rencontre';
+}
+
 /**
  * Les six compteurs d'un collaborateur sur une semaine.
  * Les lignes d'autres collaborateurs sont ignorées : on filtre ici plutôt
@@ -124,9 +129,8 @@ export function compteursSemaine(params: {
     const jour = jourDe(t.createdAt);
     if (!jour || !dansLaSemaine(jour, semaine)) continue;
 
-    // Toute transition signifie que l'agent a touché cet immeuble.
-    if (t.banId) immeubles.add(t.banId);
-
+    // La transition compte l'étape, pas l'immeuble : qualifier un lead
+    // n'alimente pas « Immeubles travaillés ».
     if (t.versCle === 'contacte') compteurs.contacts_qualifies += 1;
     else if (t.versCle === 'estimation') compteurs.estimations += 1;
     else if (t.versCle === 'mandat') compteurs.mandats += 1;
@@ -137,16 +141,17 @@ export function compteursSemaine(params: {
     const jour = jourDe(n.createdAt);
     if (!jour || !dansLaSemaine(jour, semaine)) continue;
 
-    if (n.banId) immeubles.add(n.banId);
-    if (n.rattacheeTerrain) compteurs.informations_terrain += 1;
+    if (n.echange || n.rattacheeTerrain) compteurs.informations_terrain += 1;
+    if (n.banId && n.rattacheeTerrain) immeubles.add(n.banId);
   }
 
   for (const c of journal.contactsPhysiques) {
     if (c.profileId !== profileId) continue;
     if (!dansLaSemaine(c.jour, semaine)) continue;
-
-    compteurs.contacts_physiques += 1;
-    if (c.banId) immeubles.add(c.banId);
+    const kind = kindSortie(c);
+    if (c.banId && (kind === 'rencontre' || kind === 'absent' || kind === 'passer')) {
+      immeubles.add(c.banId);
+    }
   }
 
   compteurs.immeubles_prospectes = immeubles.size;
@@ -188,7 +193,6 @@ export function compteursAgence(params: {
   const total = compteurVide();
   for (const profileId of params.profileIds) {
     const c = compteursFenetre({ journal: params.journal, profileId, fenetre: params.fenetre });
-    total.contacts_physiques += c.contacts_physiques;
     total.immeubles_prospectes += c.immeubles_prospectes;
     total.contacts_qualifies += c.contacts_qualifies;
     total.estimations += c.estimations;

@@ -1,38 +1,40 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
+import { StickyNote } from 'lucide-react';
 import { ACCUEIL } from '@/lib/today/field';
 import { PENSE_BETE_MAX } from '@/lib/activite/pense-bete';
 
 const DEBOUNCE_MS = 450;
-/** Deux lignes au repos. */
-const MIN_PX = 40;
-/** Six lignes, ensuite on défile — la carte ne s’allonge plus. */
+/** Une ligne au repos : le champ s'aligne sur le sélecteur de période. */
+const LIGNE_PX = 20;
+/** Six lignes en écrivant, ensuite on défile. */
 const MAX_PX = 120;
 
-function ajuster(el: HTMLTextAreaElement) {
-  el.style.height = '0px';
-  const suivante = Math.min(MAX_PX, Math.max(MIN_PX, el.scrollHeight));
-  el.style.height = `${suivante}px`;
-  el.style.overflowY = suivante >= MAX_PX ? 'auto' : 'hidden';
-}
-
+/**
+ * Le pense-bête de l'en-tête.
+ *
+ * Au repos, une seule ligne, à la hauteur du sélecteur de période : l'en-tête
+ * reste net. Quand l'agent écrit, le post-it se déplie par-dessus la page,
+ * sans pousser ce qui est dessous, et se replie quand il en sort.
+ */
 export default function PenseBete({
   initial,
   className = '',
-  remplir = false,
 }: {
   initial: string;
   className?: string;
-  /** Occupe toute la case de grille, à hauteur des cartes d’activité. */
-  remplir?: boolean;
 }) {
   const [texte, setTexte] = useState(initial);
+  const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dernierEnvoye = useRef(initial);
   const enVol = useRef<AbortController | null>(null);
+  const champ = useRef<HTMLTextAreaElement | null>(null);
   const erreurId = useId();
+  // Replié, on ne voit que la première ligne : on dit combien il en reste.
+  const autresLignes = texte.trim() ? texte.trim().split('\n').filter((l) => l.trim()).length - 1 : 0;
 
   const sauver = async (valeur: string) => {
     if (valeur === dernierEnvoye.current) return;
@@ -66,51 +68,81 @@ export default function PenseBete({
     }, DEBOUNCE_MS);
   };
 
+  /** Déplié : à la hauteur du texte. Replié : une ligne. */
+  const ajuster = (el: HTMLTextAreaElement | null, deplie: boolean) => {
+    if (!el) return;
+    if (!deplie) {
+      el.style.height = `${LIGNE_PX}px`;
+      el.style.overflowY = 'hidden';
+      el.scrollTop = 0;
+      return;
+    }
+    el.style.height = '0px';
+    const suivante = Math.min(MAX_PX, Math.max(LIGNE_PX, el.scrollHeight));
+    el.style.height = `${suivante}px`;
+    el.style.overflowY = suivante >= MAX_PX ? 'auto' : 'hidden';
+  };
+
   return (
-    <div className={`min-w-0 ${className}`}>
+    <div className={`relative h-9 min-w-0 ${className}`}>
       <div
-        className={`flex h-full flex-col rounded-clay-lg shadow-clay-sm focus-within:ring-2 focus-within:ring-accent/20 ${
-          remplir ? 'px-4 py-4' : 'px-3.5 pt-2 pb-3 sm:px-4'
+        className={`absolute inset-x-0 top-0 flex items-start gap-2 rounded-clay px-3 py-2 transition-shadow duration-fluid-subtle ${
+          ouvert ? 'z-30 shadow-clay ring-2 ring-accent/20' : 'shadow-clay-sm'
         }`}
         style={{ backgroundColor: ACCUEIL.creme }}
+        onClick={() => champ.current?.focus()}
       >
-        <label htmlFor="pense-bete" className="block text-[11px] font-semibold text-text-muted">
-          Pense-bête
-        </label>
+        <StickyNote size={15} strokeWidth={2.2} aria-hidden className="mt-[2px] shrink-0 text-accent" />
         <textarea
           id="pense-bete"
           ref={(el) => {
-            if (el && !remplir) ajuster(el);
+            champ.current = el;
+            ajuster(el, ouvert);
           }}
           value={texte}
           rows={1}
           maxLength={PENSE_BETE_MAX}
-          placeholder="note, essai, gribouillis"
+          placeholder="Pense-bête…"
+          aria-label="Pense-bête"
           aria-describedby={erreur ? erreurId : undefined}
           aria-invalid={erreur ? true : undefined}
-          className={
-            remplir
-              ? 'mt-1 min-h-0 w-full flex-1 resize-none overflow-y-auto bg-transparent text-[13.5px] leading-snug text-text-strong outline-none placeholder:text-text-muted'
-              : 'mt-1 block w-full resize-none overflow-hidden bg-transparent text-[13.5px] leading-snug text-text-strong outline-none [field-sizing:content] max-h-[7.5rem] placeholder:text-text-muted'
-          }
-          onInput={(e) => {
-            if (!remplir) ajuster(e.currentTarget);
+          className="block min-w-0 flex-1 resize-none bg-transparent text-[13.5px] leading-5 text-text-strong outline-none placeholder:text-text-muted"
+          onFocus={(e) => {
+            setOuvert(true);
+            ajuster(e.currentTarget, true);
           }}
           onChange={(e) => {
             const suivant = e.currentTarget.value.slice(0, PENSE_BETE_MAX);
             setTexte(suivant);
             setErreur(null);
             planifier(suivant);
-            if (!remplir) ajuster(e.currentTarget);
+            ajuster(e.currentTarget, true);
           }}
-          onBlur={() => {
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') e.currentTarget.blur();
+          }}
+          onBlur={(e) => {
+            setOuvert(false);
+            ajuster(e.currentTarget, false);
             if (timer.current) clearTimeout(timer.current);
             void sauver(texte);
           }}
         />
+        {!ouvert && autresLignes > 0 ? (
+          <span
+            aria-hidden
+            className="mt-px shrink-0 rounded-full bg-black/[0.06] px-1.5 text-[11px] font-semibold leading-[18px] text-text-muted"
+          >
+            +{autresLignes}
+          </span>
+        ) : null}
       </div>
       {erreur ? (
-        <p id={erreurId} role="alert" className="mt-1 px-1 text-[12.5px] font-medium text-[#B42318]">
+        <p
+          id={erreurId}
+          role="alert"
+          className="absolute left-1 top-full mt-1 whitespace-nowrap text-[12px] font-medium text-[#B42318]"
+        >
           {erreur}
         </p>
       ) : null}

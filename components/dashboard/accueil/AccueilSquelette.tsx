@@ -1,5 +1,6 @@
-import { ChevronDown, Filter } from 'lucide-react';
+import { CalendarDays, ChevronDown, Filter } from 'lucide-react';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
+import { LIBELLE_PERIODE, PRESETS_PERIODE, type Periode } from '@/lib/activite/semaines';
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
 import { ACCUEIL, FIELD } from '@/lib/today/field';
 import { EmploiDuTempsSquelette } from './EmploiDuTemps';
@@ -15,7 +16,6 @@ const OBJECTIF = {
 const MANDAT = { pastelFort: '#D5EADF' } as const;
 
 const ILLUSTRATION: Record<(typeof FAMILLES_ACTIVITE)[number], string> = {
-  contacts_physiques: '/porte-ouverte.png',
   immeubles_prospectes: '/bureau.png',
   contacts_qualifies: '/contact.png',
   estimations: '/calculatrice.png',
@@ -34,16 +34,6 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
   return (
     <div className="flex min-w-0 flex-col gap-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Chargement de l’accueil</span>
-
-      <section className="max-md:hidden rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6">
-        <div className="flex items-start gap-3.5">
-          <span className="squelette mt-0.5 size-9 shrink-0 rounded-full" />
-          <div className="min-w-0 flex-1 space-y-2.5 pt-0.5">
-            <Trait className="h-7 w-[min(100%,28rem)] rounded-md sm:h-8" />
-            <Trait className="h-7 w-[min(72%,18rem)] rounded-md sm:h-8" />
-          </div>
-        </div>
-      </section>
 
       <section
         className="flex flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8"
@@ -83,7 +73,7 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
         </div>
       </section>
 
-      <ul className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
+      <ul className="grid grid-cols-2 items-stretch gap-5 lg:grid-cols-4">
         {FAMILLES_ACTIVITE.map((famille) => {
           const couleur = COULEUR_FAMILLE[famille];
           return (
@@ -238,44 +228,38 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
 /** En-tête figé pendant le chargement : même rangée que `EnteteSemaine`. */
 export function EnteteSquelette({
   titre,
-  intervalle,
   periodeActive,
 }: {
   titre: string;
-  intervalle: string;
-  periodeActive: 'jour' | 'semaine' | 'mois' | 'annee';
+  periodeActive: Periode;
 }) {
-  const periodes = [
-    ['jour', 'Jour'],
-    ['semaine', 'Semaine'],
-    ['mois', 'Mois'],
-    ['annee', 'Année'],
-  ] as const;
-
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-      <div className="hidden shrink-0 sm:block">
-        <h1 className="text-balance font-display text-[17px] font-bold leading-tight text-text-strong sm:text-[19px]">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="min-w-0 max-sm:hidden">
+        <h1 className="font-display text-[24px] font-bold leading-none tracking-[-0.01em] text-text-strong">
           {titre}
         </h1>
-        <p className="mt-0.5 text-[13px] text-text-muted">{intervalle}</p>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:min-w-0 lg:flex-1 lg:justify-end">
+      <div className={`${PASTILLE_TRACK} max-sm:w-full sm:order-2`} aria-hidden>
+        <div className="flex flex-1 justify-between gap-0.5 sm:justify-start">
+          {PRESETS_PERIODE.map((id) => (
+            <span key={id} className={`${pastilleClass(id === periodeActive)} flex-1 text-center sm:flex-none`}>
+              {LIBELLE_PERIODE[id]}
+            </span>
+          ))}
+          <span className={`${pastilleClass(periodeActive === 'custom')} flex size-8 items-center justify-center px-0`}>
+            <CalendarDays size={14} strokeWidth={2.2} aria-hidden />
+          </span>
+        </div>
       </div>
       <div
-        className="order-2 w-full rounded-clay-lg px-3.5 pb-3 pt-2 shadow-clay-sm sm:order-none sm:w-[15.5rem] sm:shrink-0"
+        className="flex h-9 items-center gap-2 rounded-clay px-3 shadow-clay-sm sm:order-1 sm:w-[15rem] lg:w-[18rem]"
         style={{ backgroundColor: ACCUEIL.creme }}
         aria-hidden
       >
-        <p className="text-[11px] font-semibold text-text-muted">Pense-bête</p>
-        <Trait className="mt-1.5 h-4 w-4/5 rounded" />
+        <span className="text-[13.5px] text-text-muted">Pense-bête…</span>
       </div>
-      <div className="order-1 flex items-center justify-end gap-2 sm:order-none sm:ml-auto">
-        <div className={PASTILLE_TRACK}>
-          {periodes.map(([id, libelle]) => (
-            <span key={id} className={pastilleClass(id === periodeActive)}>
-              {libelle}
-            </span>
-          ))}
-        </div>
       </div>
     </header>
   );
