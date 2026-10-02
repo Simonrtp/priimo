@@ -3,6 +3,7 @@
 import { useRef, useState, type PointerEvent } from 'react';
 import './carte.css';
 import { ChevronDown } from 'lucide-react';
+import Switch from '@/components/ui/Switch';
 import {
   CADASTRE_LAYER_LABELS,
   CADASTRE_OVERLAY_IDS,
@@ -23,7 +24,6 @@ import {
 } from '@/lib/carte/dpe-age';
 import { CADASTRE_OVERLAY_MIN_ZOOM, PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
 
-const SLATE = '#1A2A56';
 const THUMB_PAD = 14;
 
 function overlayKey(id: CadastreOverlayId): keyof Pick<
@@ -289,18 +289,16 @@ export default function CadastreLayerControls({
             const active = layers[key];
             return (
               <li key={id} className={`rounded-xl ${pad}`}>
-                <label
-                  className={`flex ${row} cursor-pointer items-center gap-3 transition-colors duration-fluid-subtle ease-in-out ${
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={active}
+                  onClick={() => onToggleOverlay(id)}
+                  className={`flex w-full ${row} cursor-pointer items-center gap-3 text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
                     tooFarPoints ? 'opacity-55' : ''
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-black/20"
-                    style={{ accentColor: SLATE }}
-                    checked={active}
-                    onChange={() => onToggleOverlay(id)}
-                  />
+                  <Switch checked={active} />
                   <span
                     className={`min-w-0 flex-1 text-[13.5px] font-medium ${
                       active && !tooFarPoints ? 'text-text-strong' : 'text-text-muted'
@@ -317,7 +315,7 @@ export default function CadastreLayerControls({
                       </span>
                     ) : null}
                   </span>
-                </label>
+                </button>
                 {id === 'dpe' ? (
                   <div className="mt-1.5">
                     <DpeAgeSlider

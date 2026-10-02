@@ -17,7 +17,7 @@ import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { buildScoreHeatScale } from '@/lib/lead-geo';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
-import MapZoomControls from '@/components/dashboard/map/MapZoomControls';
+import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import ParcellesLayer, {
@@ -28,6 +28,7 @@ import ParcellesLayer, {
   CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
+import type { DevicePosition } from '@/lib/voice/gps';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker, ParcellePickExtra } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
@@ -69,12 +70,14 @@ export default function SectorMapCanvas({
     cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
   },
   onSelectParcelle,
+  onPrefetchParcelle,
   zoomPreset = 'sector',
   showBuildingMarkers = true,
   focusBounds = null,
   zones = [],
   highlightedZoneId = null,
   clipZone = null,
+  agentPosition = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -91,6 +94,7 @@ export default function SectorMapCanvas({
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
   cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onSelectParcelle?: (parcelleId: string, extra?: ParcellePickExtra) => void;
+  onPrefetchParcelle?: (parcelleId: string) => void;
   /** sector = vue d’ensemble ; parcelles = zoom serré sur l’agence pour cliquer le cadastre. */
   zoomPreset?: 'sector' | 'parcelles';
   showBuildingMarkers?: boolean;
@@ -99,6 +103,7 @@ export default function SectorMapCanvas({
   zones?: readonly Zone[];
   highlightedZoneId?: string | null;
   clipZone?: Zone | null;
+  agentPosition?: DevicePosition | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -289,6 +294,7 @@ export default function SectorMapCanvas({
           layers={cadastreLayers}
           clipZone={clipZone}
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
+          onPrefetch={onPrefetchParcelle}
         />
         <SecteurMasqueLayer zone={clipZone} />
         <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
@@ -382,14 +388,17 @@ export default function SectorMapCanvas({
           );
         })
           : null}
+        {agentPosition ? (
+          <Marker
+            longitude={agentPosition.longitude}
+            latitude={agentPosition.latitude}
+            anchor="center"
+            style={{ zIndex: 40 }}
+          >
+            <AgentLocationMarker position={agentPosition} />
+          </Marker>
+        ) : null}
       </Map>
-
-      <MapZoomControls
-        className="absolute bottom-3 right-3 z-30 flex flex-col gap-1.5"
-        onZoomIn={() => mapRef.current?.zoomIn({ duration: 300 })}
-        onZoomOut={() => mapRef.current?.zoomOut({ duration: 300 })}
-        onFit={() => fitToPoints(true)}
-      />
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
-import type { PublicDiagnostic } from '@/lib/carte/dpe-public';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 
 export { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
@@ -16,10 +15,10 @@ export {
 } from '@/lib/carte/dpe-public';
 export type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 
-export const PARCELLE_MIN_ZOOM = 16;
+export const PARCELLE_MIN_ZOOM = 14;
 /** Zoom initial quand on veut voir et cliquer les parcelles (prise en main, cadastre). */
-export const PARCELLE_FOCUS_ZOOM = 17;
-/** DPE / ventes / copro : visibles dès la vue secteur, sans polygones PCI. */
+export const PARCELLE_FOCUS_ZOOM = 16;
+/** DPE / ventes / copro : visibles dès la vue quartier. */
 export const CADASTRE_OVERLAY_MIN_ZOOM = 12;
 /** Étiquette €/m² des ventes : invisible en dessous. */
 export const VENTE_PRICE_LABEL_MIN_ZOOM = 17;
@@ -36,6 +35,19 @@ export type ParcelleVente = {
   prixM2: number | null;
   typeLocal: string | null;
   nombrePieces: number | null;
+  /** Adresse BAN de la vente, pour les parcelles à plusieurs entrées. */
+  banId: string | null;
+};
+
+/** Un diagnostic DPE : ce qu'il dit du logement, pas seulement sa lettre. */
+export type ParcelleLogement = {
+  banId: string | null;
+  date: string | null;
+  etiquette: string | null;
+  etiquetteGes: string | null;
+  consoKwhM2: number | null;
+  surface: number | null;
+  etage: number | null;
 };
 
 export type ParcelleCopro = {
@@ -45,26 +57,92 @@ export type ParcelleCopro = {
   numeroImmatriculation: string | null;
 };
 
-export type ParcelleAgencyItem = {
+export type ParcelleAdresse = {
+  banId: string;
+  libelle: string;
+};
+
+/** Prospect livré sur la parcelle, tel que l'agent le lit d'un coup d'œil. */
+export type ParcelleProspect = {
   id: string;
-  kind: 'lead' | 'contact' | 'bien' | 'note';
-  title: string;
-  subtitle: string | null;
   href: string;
+  adresse: string;
+  score: number;
+  dpe: string | null;
+  etage: number | null;
+  surface: number | null;
+  pieces: number | null;
+  /** Trois faits max, tirés de `display_signals`. */
+  signaux: string[];
+  /** Société propriétaire, quand le propriétaire est une entreprise. */
+  entreprise: string | null;
+  /** Étape du pipeline ; null tant que personne ne l'a pris. */
+  etape: string | null;
+  contactabilite: 'direct' | 'nominatif' | 'immeuble' | null;
+};
+
+export type ParcelleContactAgence = {
+  id: string;
+  href: string;
+  nom: string;
+  type: string | null;
+  telephone: string | null;
+};
+
+export type ParcelleBienAgence = {
+  id: string;
+  href: string;
+  adresse: string;
+  statut: string | null;
+  prix: number | null;
+  surface: number | null;
+  pieces: number | null;
+};
+
+/** Professionnel installé dans l'immeuble, repéré par le pipeline sur un lead. */
+export type ParcelleEntreprise = {
+  nom: string;
+  telephone: string;
+  activite: string | null;
+  categorie: 'commerce' | 'professionnel' | 'domicile_pro';
+  /** Lead d'origine : « Créer un contact » passe par lui. */
+  leadId: string;
+};
+
+export type ParcellePassage = {
+  jour: string;
+  kind: 'rencontre' | 'absent' | 'passer';
+  /** Prénom de l'agent ; null quand c'est le lecteur lui-même. */
+  auteur: string | null;
 };
 
 export type ParcelleFiche = {
   parcelleId: string;
   reference: string;
+  /** Voie lisible : « 10 rue des Maraichers ». */
   adresse: string | null;
+  /** « 75020 Paris ». */
+  localite: string | null;
+  /** Immeuble principal : la note dictée ici s'y rattache d'office. */
+  banId: string | null;
+  adresses: ParcelleAdresse[];
+  /** Point d'entrée de l'immeuble : façade et itinéraire. */
+  position: { latitude: number; longitude: number } | null;
+  /** Hors des codes postaux de l'agence : pas de données publiques. */
+  horsSecteur: boolean;
   videPublic: boolean;
   surfaceCadastreM2: number | null;
   nbAdresses: number;
-  prixM2Median: number | null;
+  /** Médiane €/m² de la commune sur trois ans, même type de bien. */
+  prixM2Secteur: number | null;
   ventes: ParcelleVente[];
-  diagnostics: PublicDiagnostic[];
+  logements: ParcelleLogement[];
   coproprietes: ParcelleCopro[];
-  surCetteParcelle: ParcelleAgencyItem[];
+  prospects: ParcelleProspect[];
+  contacts: ParcelleContactAgence[];
+  biens: ParcelleBienAgence[];
+  entreprises: ParcelleEntreprise[];
+  passages: ParcellePassage[];
 };
 
 export type ParcellePickExtra = {
@@ -174,13 +252,22 @@ export function emptyParcelleFiche(raw: string): ParcelleFiche {
     parcelleId,
     reference: formatParcelleId(parcelleId),
     adresse: null,
+    localite: null,
+    banId: null,
+    adresses: [],
+    position: null,
+    horsSecteur: false,
     videPublic: true,
     surfaceCadastreM2: null,
     nbAdresses: 0,
-    prixM2Median: null,
+    prixM2Secteur: null,
     ventes: [],
-    diagnostics: [],
+    logements: [],
     coproprietes: [],
-    surCetteParcelle: [],
+    prospects: [],
+    contacts: [],
+    biens: [],
+    entreprises: [],
+    passages: [],
   };
 }

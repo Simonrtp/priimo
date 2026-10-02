@@ -157,6 +157,7 @@ export async function creerContact(ctx: ContexteCreation, body: unknown): Promis
     first_name: f.firstName || null,
     last_name: f.lastName || null,
     contact_type: f.type,
+    autres_types: f.autresTypes,
     phone: f.phone,
     numero_communique_par_la_personne: f.numeroCommuniqueParLaPersonne,
     email: f.email,

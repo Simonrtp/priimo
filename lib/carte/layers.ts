@@ -47,7 +47,8 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
   contact: true,
   bien: true,
   note: true,
-  cadastre: false,
+  /** Plan PCI : toujours affiché côté carte ; ce flag reste pour compat stockage. */
+  cadastre: true,
   cadastreDpe: false,
   cadastreVentes: false,
   cadastreCopro: false,
@@ -57,8 +58,8 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
 
 export const MAP_LAYERS_STORAGE_KEY = 'priimo-carte-layers';
 export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
-/** Rev 3 : Cadastre est un dossier, plus un interrupteur maître. */
-export const MAP_LAYERS_STORAGE_REV = 3;
+/** Rev 5 : plan cadastral permanent ; pastilles DPE/ventes/copro éteintes jusqu’à clic Couches. */
+export const MAP_LAYERS_STORAGE_REV = 5;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
@@ -80,16 +81,22 @@ export function parseMapLayers(raw: unknown): MapLayerState {
   };
 }
 
-/** Rev 2 allumait DPE avec Cadastre. Rev 3 laisse chaque sous-couche indépendante. */
+/** Rev 2–3 allumaient DPE avec Cadastre. Rev 5 : plan always-on, pastilles off. */
 export function migrateStoredMapLayers(
   state: MapLayerState,
   rev: number,
 ): { state: MapLayerState; rev: number } {
   if (rev >= MAP_LAYERS_STORAGE_REV) return { state, rev };
-  if (rev < 2 && state.cadastre && !state.cadastreDpe) {
-    return { state: { ...state, cadastreDpe: true }, rev: MAP_LAYERS_STORAGE_REV };
-  }
-  return { state, rev: MAP_LAYERS_STORAGE_REV };
+  return {
+    state: {
+      ...state,
+      cadastre: true,
+      cadastreDpe: false,
+      cadastreVentes: false,
+      cadastreCopro: false,
+    },
+    rev: MAP_LAYERS_STORAGE_REV,
+  };
 }
 
 export function anyCadastreLayer(layers: MapLayerState): boolean {

@@ -2,13 +2,14 @@
 
 import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Copy, ExternalLink, Link2, Lock, Mic, Pencil, X } from 'lucide-react';
-import type { VoiceNoteVisibilite } from '@/types/contact';
-import { CONTACT_TYPE_LABELS } from '@/types/contact';
+import { Copy, ExternalLink, Eye, Link2, Lock, Mic, Pencil, X } from 'lucide-react';
+import type { Contact, ContactType, VoiceNoteVisibilite } from '@/types/contact';
+import { repartirRoles, rolesDuContact } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
 import type { ActionProposal } from '@/lib/notes/review-v2';
 import { libelleMiseAJour, lignesRecherche, mailtoBrouillon } from '@/lib/notes/review-v2';
 import { EMPTY_CONTACT_INPUT, type ContactInputFields } from '@/lib/contact-input';
+import { contactToInput } from '@/lib/import/contacts';
 import { formatPhoneOrNull, normalizeName } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
 import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
@@ -16,10 +17,11 @@ import { dateParisIso } from '@/lib/notes/date-relative';
 import { heureLisible, jourLisible, type CarteComprise, type CarteKind } from '@/lib/voice/cartes';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import ContactFormFields, { type ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
+import type { ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 import IconeCarte from './live/IconeCarte';
+import { CarteContactNote, EditeurFicheContact, type FicheEditee, type LienCarte } from './ContactDeLaNote';
 import styles from './live/dictee.module.css';
 
 type ManualLink = NoteLinkPick & { key: string };
@@ -42,6 +44,7 @@ function draftDepuisProposition(
       firstName: p.personne.firstName,
       lastName: p.personne.lastName,
       type: p.personne.type,
+      autresTypes: p.personne.autresTypes ?? [],
       phone: p.personne.phone,
       email: p.personne.email,
       address: review.immeuble?.adresseNormalisee ?? review.immeuble?.address ?? null,
@@ -58,7 +61,8 @@ function avecRecherche(fields: ContactInputFields, r: NoteReviewPayload['recherc
   if (!r) return fields;
   return {
     ...fields,
-    type: fields.type === 'autre' ? 'acquereur' : fields.type,
+    // Quelqu'un qui cherche est acquéreur, en plus de ce qu'il est déjà.
+    ...repartirRoles([...rolesDuContact(fields), 'acquereur']),
     budgetMin: fields.budgetMin ?? r.budgetMin,
     budgetMax: fields.budgetMax ?? r.budgetMax,
     surfaceMin: fields.surfaceMin ?? r.surfaceMin,
@@ -145,6 +149,63 @@ function Ligne({
   );
 }
 
+/** L'adresse de la note, avec ce que l'agent y a constaté juste dessous. */
+function LigneLieu({
+  kind,
+  titre,
+  detail,
+  onRetirer,
+  constats,
+  onRetirerConstat,
+}: {
+  kind: CarteKind;
+  titre: string;
+  detail: string | null;
+  onRetirer: () => void;
+  constats: readonly { id: string; texte: string }[];
+  onRetirerConstat: (id: string) => void;
+}) {
+  return (
+    <li className={`overflow-hidden rounded-2xl border border-black/[0.06] bg-surface shadow-clay-sm ${styles.carteEntree}`}>
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <IconeCarte kind={kind} size={32} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-semibold text-text-strong">{titre}</span>
+          {detail ? <span className="block truncate text-[12.5px] text-text-muted">{detail}</span> : null}
+        </span>
+        <button
+          type="button"
+          onClick={onRetirer}
+          aria-label={`Retirer : ${titre}`}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text"
+        >
+          <X size={16} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
+      {constats.length ? (
+        <ul className="border-t border-black/[0.06] bg-bg-subtle px-3 py-1.5">
+          {constats.map((o) => (
+            <li key={o.id} className="flex items-center gap-3 py-1">
+              <span className="flex size-8 shrink-0 items-center justify-center text-primary-600" aria-hidden>
+                <Eye size={15} strokeWidth={2.2} />
+              </span>
+              <span className="min-w-0 flex-1 text-[13.5px] font-medium text-text-strong">{o.texte}</span>
+              <button
+                type="button"
+                onClick={() => onRetirerConstat(o.id)}
+                aria-label={`Retirer le constat : ${o.texte}`}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text"
+              >
+                <X size={14} strokeWidth={2} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Panneau                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -197,6 +258,17 @@ export default function VoiceReviewPanel({
   const [manualLinks, setManualLinks] = useState<ManualLink[]>([]);
   const [hiddenConseillers, setHiddenConseillers] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ContactDraft>>({});
+  /** Fiches existantes corrigées depuis la note : enregistrées au rangement. */
+  const [majs, setMajs] = useState<Record<string, FicheEditee & { contactId: string }>>({});
+  /** Fiches existantes dont l'agent refuse l'adresse proposée par la note. */
+  const [adresseRetiree, setAdresseRetiree] = useState<string[]>([]);
+  const [editeur, setEditeur] = useState<{
+    id: string;
+    initial: FicheEditee | null;
+    chargement: boolean;
+    erreur: string | null;
+  } | null>(null);
+  const [lierPour, setLierPour] = useState<string | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [edition, setEdition] = useState(false);
   const [rattacher, setRattacher] = useState(false);
@@ -261,6 +333,225 @@ export default function VoiceReviewPanel({
     changer({ ...review, actions: actions.map((a) => (a.id === id ? { ...a, ...patch } : a)) });
   }
 
+  /* ------------------------------------------------- Les personnes de la note */
+
+  const personnesVisibles = personnes.filter((p) => !hiddenIds.includes(p.id));
+  const adresseNote =
+    review.immeuble && !hiddenIds.includes('immeuble')
+      ? review.immeuble.adresseNormalisee ?? review.immeuble.address
+      : null;
+  const biensVisibles = review.biens.filter((b) => !hiddenIds.includes(`bien-${b.id}`));
+  const leadsVisibles = review.leads.filter((l) => !hiddenIds.includes(`lead-${l.id}`));
+  const biensLies = [
+    ...biensVisibles.map((b) => b.id),
+    ...manualLinks.filter((l) => l.entiteType === 'bien').map((l) => l.entiteId),
+  ];
+
+  /** Un bien n'a qu'un propriétaire : le premier vendeur de la note. */
+  function estProprietaire(p: PersonneProposal): boolean {
+    const premier = personnesVisibles.find((x) => vueFiche(x).roles.includes('vendeur'));
+    return premier?.id === p.id;
+  }
+
+  /** « 30 avenue Le Drurolin, 75020 Paris » → « 30 avenue Le Drurolin » : la ville se devine. */
+  function adresseCourte(adresse: string): string {
+    return adresse.split(',')[0]?.trim() || adresse;
+  }
+
+  function nomDe(p: PersonneProposal): string {
+    const maj = majs[p.id];
+    if (maj) return [maj.fields.firstName, maj.fields.lastName].filter(Boolean).join(' ') || 'Contact';
+    const match = pickMatch(p.matches);
+    const draft = draftPour(p);
+    return (
+      match?.label ||
+      [draft.fields.firstName, draft.fields.lastName].filter(Boolean).join(' ') ||
+      formatPhoneOrNull(draft.fields.phone) ||
+      'Contact'
+    );
+  }
+
+  /**
+   * Ce que la carte montre d'une personne : la fiche telle qu'elle sera après
+   * le rangement. Pour une fiche existante, ce que la note y ajoute (un rôle,
+   * un téléphone qui manquait) est marqué « nouveau ».
+   */
+  function vueFiche(p: PersonneProposal) {
+    const match = pickMatch(p.matches);
+    if (!match) {
+      const draft = draftPour(p);
+      return {
+        existante: false,
+        probable: false,
+        roles: rolesDuContact(draft.fields),
+        rolesNouveaux: [] as ContactType[],
+        phone: draft.fields.phone,
+        phoneNouveau: false,
+        email: draft.fields.email,
+        emailNouveau: false,
+        adresse: draft.fields.address,
+        adresseNouvelle: false,
+      };
+    }
+    const connus = (match.roles ?? []).filter((r) => r !== 'autre');
+    const dits = rolesDuContact(p.personne).filter((r) => r !== 'autre');
+    const rolesNouveaux = dits.filter((r) => !connus.includes(r));
+    const maj = majs[p.id];
+    if (maj) {
+      const roles = rolesDuContact(maj.fields);
+      return {
+        existante: true,
+        probable: match.confiance === 'probable',
+        roles,
+        rolesNouveaux: rolesNouveaux.filter((r) => roles.includes(r)),
+        phone: maj.fields.phone,
+        phoneNouveau: false,
+        email: maj.fields.email,
+        emailNouveau: false,
+        adresse: maj.fields.address,
+        adresseNouvelle: false,
+      };
+    }
+    const phoneNouveau = !match.phone && Boolean(p.personne.phone);
+    const emailNouveau = !match.email && Boolean(p.personne.email);
+    const adresseNouvelle = !match.address && Boolean(adresseNote) && !adresseRetiree.includes(p.id);
+    return {
+      existante: true,
+      probable: match.confiance === 'probable',
+      roles: rolesDuContact(repartirRoles([...connus, ...rolesNouveaux])),
+      rolesNouveaux,
+      phone: match.phone ?? (phoneNouveau ? p.personne.phone : null),
+      phoneNouveau,
+      email: match.email ?? (emailNouveau ? p.personne.email : null),
+      emailNouveau,
+      adresse: match.address ?? (adresseNouvelle ? adresseNote : null),
+      adresseNouvelle,
+    };
+  }
+
+  /** Tout ce à quoi la personne sera rattachée une fois la note rangée. */
+  function liensDe(p: PersonneProposal, vue: ReturnType<typeof vueFiche>): LienCarte[] {
+    const vend = vue.roles.includes('vendeur') && estProprietaire(p);
+    const out: LienCarte[] = [{ key: 'note', kind: 'note', label: 'Cette note' }];
+    if (vue.adresse) {
+      out.push({
+        key: 'adresse',
+        kind: 'adresse',
+        label: adresseCourte(vue.adresse),
+        nouveau: vue.adresseNouvelle,
+        onRetirer: !vue.existante
+          ? () => retirerAdresseDraft(p)
+          : vue.adresseNouvelle
+            ? () => {
+                toucher();
+                setAdresseRetiree((r) => [...r, p.id]);
+              }
+            : undefined,
+      });
+    }
+    for (const b of biensVisibles) {
+      out.push({
+        key: `bien-${b.id}`,
+        kind: 'bien',
+        label: b.label,
+        prefixe: vend ? 'Propriétaire' : null,
+        onRetirer: () => cacher(`bien-${b.id}`, true),
+      });
+    }
+    for (const l of manualLinks) {
+      out.push({
+        key: l.key,
+        kind: l.entiteType === 'contact' ? 'personne' : l.entiteType === 'lead' ? 'prospect' : 'bien',
+        label: l.label,
+        prefixe: l.entiteType === 'bien' && vend ? 'Propriétaire' : null,
+        onRetirer: () => {
+          toucher();
+          setManualLinks((prev) => prev.filter((x) => x.key !== l.key));
+        },
+      });
+    }
+    for (const l of leadsVisibles) {
+      out.push({
+        key: `lead-${l.id}`,
+        kind: 'prospect',
+        label: l.label,
+        prefixe: 'Prospect',
+        onRetirer: () => cacher(`lead-${l.id}`, true),
+      });
+    }
+    for (const o of personnesVisibles) {
+      if (o.id !== p.id) out.push({ key: `avec-${o.id}`, kind: 'personne', label: nomDe(o), prefixe: 'Avec' });
+    }
+    return out;
+  }
+
+  function retirerAdresseDraft(p: PersonneProposal) {
+    toucher();
+    const draft = draftPour(p);
+    setDrafts((prev) => ({
+      ...prev,
+      [p.id]: {
+        ...draft,
+        fields: { ...draft.fields, address: null },
+        geo: { banId: null, latitude: null, longitude: null },
+      },
+    }));
+  }
+
+  /** La fiche entière : le brouillon pour un nouveau contact, la vraie fiche sinon. */
+  async function ouvrirEditeur(p: PersonneProposal) {
+    toucher();
+    const match = pickMatch(p.matches);
+    if (!match) {
+      const draft = draftPour(p);
+      const recherche =
+        review.recherche?.accepted && review.recherche.personneRef === p.id ? review.recherche : null;
+      setEditeur({
+        id: p.id,
+        initial: { ...draft, fields: avecRecherche(draft.fields, recherche) },
+        chargement: false,
+        erreur: null,
+      });
+      return;
+    }
+    const deja = majs[p.id];
+    if (deja) {
+      setEditeur({ id: p.id, initial: deja, chargement: false, erreur: null });
+      return;
+    }
+    setEditeur({ id: p.id, initial: null, chargement: true, erreur: null });
+    try {
+      const res = await fetch(`/api/dashboard/contacts/${match.contactId}`);
+      const body = (await res.json().catch(() => ({}))) as { contact?: Contact };
+      if (!res.ok || !body.contact) throw new Error('fiche');
+      const c = body.contact;
+      const vue = vueFiche(p);
+      const base = contactToInput(c);
+      // Ce que la note apporte est déjà posé dans les champs : l'agent le voit, le garde ou non.
+      const fields: ContactInputFields = {
+        ...base,
+        ...repartirRoles([...rolesDuContact(base), ...vue.rolesNouveaux]),
+        phone: base.phone ?? (vue.phoneNouveau ? p.personne.phone : null),
+        email: base.email ?? (vue.emailNouveau ? p.personne.email : null),
+        address: base.address ?? (vue.adresseNouvelle ? adresseNote : null),
+      };
+      const geo: ContactFormGeo = {
+        banId: c.banId ?? (vue.adresseNouvelle ? review.immeuble?.banId ?? null : null),
+        latitude: c.latitude,
+        longitude: c.longitude,
+      };
+      setEditeur((e) =>
+        e && e.id === p.id ? { ...e, initial: { fields, assignedTo: c.assignedTo, geo }, chargement: false } : e,
+      );
+    } catch {
+      setEditeur((e) =>
+        e && e.id === p.id
+          ? { ...e, chargement: false, erreur: 'La fiche n’a pas pu être ouverte. Vérifiez la connexion et réessayez.' }
+          : e,
+      );
+    }
+  }
+
   /* --------------------------------------------------------------- Rangement */
 
   function ranger(depart?: DOMRect) {
@@ -270,17 +561,53 @@ export default function VoiceReviewPanel({
     const bienUnique =
       review.biens.length === 1 && !hiddenIds.includes(`bien-${review.biens[0]!.id}`) ? review.biens[0]!.id : null;
 
-    const planPersonnes = personnes
-      .filter((p) => !hiddenIds.includes(p.id))
+    const planPersonnes = personnesVisibles
       .map((p) => {
         const match = pickMatch(p.matches);
-        if (match) return { ref: p.id, contactId: match.contactId, confiance: match.confiance };
+        const vue = vueFiche(p);
+        // Le premier vendeur de la note devient le propriétaire du bien cité.
+        const liensPropres = vue.roles.includes('vendeur') && estProprietaire(p)
+          ? {
+              ...(biensLies.length ? { proprietaireDe: biensLies } : {}),
+              ...(leadsVisibles.length === 1 ? { leadId: leadsVisibles[0]!.id } : {}),
+            }
+          : {};
+        if (match) {
+          const maj = majs[p.id];
+          return {
+            ref: p.id,
+            contactId: match.contactId,
+            confiance: match.confiance,
+            ...liensPropres,
+            ...(maj
+              ? {
+                  maj: {
+                    ...maj.fields,
+                    assignedTo: maj.assignedTo,
+                    banId: maj.geo.banId,
+                    latitude: maj.geo.latitude,
+                    longitude: maj.geo.longitude,
+                  },
+                }
+              : {
+                  ajouts: {
+                    roles: vue.rolesNouveaux,
+                    phone: vue.phoneNouveau ? p.personne.phone : null,
+                    email: vue.emailNouveau ? p.personne.email : null,
+                    address: vue.adresseNouvelle ? adresseNote : null,
+                    banId: vue.adresseNouvelle ? review.immeuble?.banId ?? null : null,
+                  },
+                }),
+          };
+        }
         const draft = draftPour(p);
         const nom = `${draft.fields.firstName}${draft.fields.lastName}${draft.fields.phone ?? ''}`.trim();
         if (!nom) return null;
-        const recherche = review.recherche?.accepted && review.recherche.personneRef === p.id ? review.recherche : null;
+        const recherche =
+          review.recherche?.accepted && review.recherche.personneRef === p.id ? review.recherche : null;
         return {
           ref: p.id,
+          ...liensPropres,
           creer: {
             ...avecRecherche(draft.fields, recherche),
             assignedTo: draft.assignedTo ?? conseiller ?? currentUserId ?? null,
@@ -341,6 +668,9 @@ export default function VoiceReviewPanel({
       prospect: review.prospect?.accepted
         ? { leadId: review.prospect.leadId, stageId: review.prospect.stageId, motif: review.prospect.motif }
         : null,
+      observations: review.observations
+        ? review.observations.filter((o) => o.accepted).map((o) => o.texte)
+        : undefined,
     }, depart);
   }
 
@@ -356,43 +686,40 @@ export default function VoiceReviewPanel({
 
   const lignes: React.ReactNode[] = [];
 
-  for (const p of personnes) {
-    const match = pickMatch(p.matches);
-    const draft = draftPour(p);
-    const nom =
-      match?.label ||
-      [draft.fields.firstName, draft.fields.lastName].filter(Boolean).join(' ') ||
-      formatPhoneOrNull(draft.fields.phone) ||
-      'Contact';
-    const type = p.personne.type !== 'autre' ? CONTACT_TYPE_LABELS[p.personne.type] : null;
-    lignes.push(
-      <Ligne
+  const recherchesLien = new Set(manualLinks.map((l) => l.key));
+  const cartesContacts = personnesVisibles.map((p) => {
+    const vue = vueFiche(p);
+    return (
+      <CarteContactNote
         key={`p-${p.id}`}
-        kind="personne"
-        titre={nom}
-        detail={[match ? 'Déjà dans vos contacts' : 'Nouveau contact', type].filter(Boolean).join(' · ')}
-        actif={!hiddenIds.includes(p.id)}
-        onActif={(v) => cacher(p.id, !v)}
-        ouvert={!match && ouvert === p.id}
-        onOuvrir={match ? undefined : () => basculer(p.id)}
-      >
-        <ContactFormFields
-          idPrefix={`voice-${p.id}`}
-          fields={draft.fields}
-          onFields={(fields) => {
-            toucher();
-            setDrafts((prev) => ({ ...prev, [p.id]: { ...(prev[p.id] ?? draft), fields } }));
-          }}
-          assignedTo={draft.assignedTo}
-          onAssignedTo={(assignedTo) => setDrafts((prev) => ({ ...prev, [p.id]: { ...(prev[p.id] ?? draft), assignedTo } }))}
-          geo={draft.geo}
-          onGeo={(geo) => setDrafts((prev) => ({ ...prev, [p.id]: { ...(prev[p.id] ?? draft), geo } }))}
-          members={members}
-          currentUserId={currentUserId}
-        />
-      </Ligne>,
+        nom={nomDe(p)}
+        existante={vue.existante}
+        probable={vue.probable}
+        roles={vue.roles}
+        rolesNouveaux={vue.rolesNouveaux}
+        phone={vue.phone}
+        phoneNouveau={vue.phoneNouveau}
+        email={vue.email}
+        emailNouveau={vue.emailNouveau}
+        liens={liensDe(p, vue)}
+        onModifier={() => void ouvrirEditeur(p)}
+        onRetirer={() => cacher(p.id, true)}
+        onLier={() => setLierPour((x) => (x === p.id ? null : p.id))}
+        lierOuvert={lierPour === p.id}
+        recherche={
+          <NoteEntitySearch
+            onPick={(pick) => {
+              toucher();
+              const key = `${pick.entiteType}:${pick.entiteId}`;
+              setManualLinks((prev) => (prev.some((l) => l.key === key) ? prev : [...prev, { ...pick, key }]));
+              setLierPour(null);
+            }}
+            excludeIds={recherchesLien}
+          />
+        }
+      />
     );
-  }
+  });
 
   if (review.recherche) {
     const r = review.recherche;
@@ -553,22 +880,42 @@ export default function VoiceReviewPanel({
     );
   }
 
-  if (review.immeuble) {
+  const observations = review.observations ?? [];
+  const constats = observations.filter((o) => o.accepted);
+  const retirerConstat = (id: string) =>
+    changer({ ...review, observations: observations.map((o) => (o.id === id ? { ...o, accepted: false } : o)) });
+
+  if (review.immeuble && !hiddenIds.includes('immeuble')) {
     lignes.push(
-      <Ligne
+      <LigneLieu
         key="immeuble"
         kind={caracteristiques ? 'bien' : 'lieu'}
         titre={review.immeuble.adresseNormalisee ?? review.immeuble.address}
         detail={caracteristiques || null}
-        actif={!hiddenIds.includes('immeuble')}
-        onActif={(v) => cacher('immeuble', !v)}
+        onRetirer={() => cacher('immeuble', true)}
+        constats={constats}
+        onRetirerConstat={retirerConstat}
       />,
     );
-  } else if (caracteristiques) {
-    lignes.push(<Ligne key="bien-infos" kind="bien" titre={caracteristiques} detail={review.secteur} />);
+  } else {
+    if (caracteristiques) {
+      lignes.push(<Ligne key="bien-infos" kind="bien" titre={caracteristiques} detail={review.secteur} />);
+    }
+    for (const o of constats) {
+      lignes.push(
+        <Ligne
+          key={`o-${o.id}`}
+          kind="observation"
+          titre={o.texte}
+          detail="Constaté sur place"
+          actif
+          onActif={() => retirerConstat(o.id)}
+        />,
+      );
+    }
   }
 
-  for (const b of review.biens) {
+  for (const b of cartesContacts.length ? [] : review.biens) {
     lignes.push(
       <Ligne
         key={`b-${b.id}`}
@@ -580,7 +927,7 @@ export default function VoiceReviewPanel({
       />,
     );
   }
-  for (const l of review.leads) {
+  for (const l of cartesContacts.length ? [] : review.leads) {
     lignes.push(
       <Ligne
         key={`l-${l.id}`}
@@ -607,7 +954,7 @@ export default function VoiceReviewPanel({
       />,
     );
   }
-  for (const link of manualLinks) {
+  for (const link of cartesContacts.length ? [] : manualLinks) {
     lignes.push(
       <Ligne
         key={link.key}
@@ -623,6 +970,9 @@ export default function VoiceReviewPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-1">
+        {/* La personne d'abord : c'est elle que l'agent vérifie avant de ranger. */}
+        {cartesContacts.length ? <ul className="mb-3 flex flex-col gap-2.5">{cartesContacts}</ul> : null}
+
         {/* Le texte dicté reste toujours sous les yeux : une note sur un
             appartement peut n'avoir ni contact ni action, et c'est alors tout
             ce qu'elle contient. Le toucher le corrige. */}
@@ -678,7 +1028,7 @@ export default function VoiceReviewPanel({
 
         <ul className={`mt-3 flex flex-col gap-2 ${lecture ? styles.lectureReflet : ''}`} aria-busy={lecture}>
           {lignes}
-          {lignes.length === 0
+          {lignes.length === 0 && cartesContacts.length === 0
             ? cartesEnAttente.map((c) => (
                 <li
                   key={c.key}
@@ -694,20 +1044,23 @@ export default function VoiceReviewPanel({
             : null}
         </ul>
 
-        {lignes.length === 0 && cartesEnAttente.length === 0 && !lecture ? (
+        {lignes.length === 0 && cartesContacts.length === 0 && cartesEnAttente.length === 0 && !lecture ? (
           <p className="mt-3 text-center text-[13px] text-text-subtle">La note sera gardée telle quelle.</p>
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setRattacher((v) => !v)}
-            aria-expanded={rattacher}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text"
-          >
-            <Link2 size={14} strokeWidth={2} aria-hidden />
-            Rattacher
-          </button>
+          {/* Avec une personne, on lie depuis sa carte. */}
+          {cartesContacts.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setRattacher((v) => !v)}
+              aria-expanded={rattacher}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text"
+            >
+              <Link2 size={14} strokeWidth={2} aria-hidden />
+              Rattacher
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {
@@ -723,7 +1076,7 @@ export default function VoiceReviewPanel({
             {visibilite === 'privee' ? 'Privée' : 'Visible par l’agence'}
           </button>
         </div>
-        {rattacher ? (
+        {rattacher && cartesContacts.length === 0 ? (
           <div className="mt-3">
             <NoteEntitySearch
               onPick={(pick) => {
@@ -761,6 +1114,35 @@ export default function VoiceReviewPanel({
           Ranger
         </button>
       </footer>
+
+      {editeur
+        ? (() => {
+            const p = personnes.find((x) => x.id === editeur.id);
+            if (!p) return null;
+            const match = pickMatch(p.matches);
+            return (
+              <EditeurFicheContact
+                key={editeur.id}
+                nom={nomDe(p)}
+                existante={Boolean(match)}
+                initial={editeur.initial}
+                chargement={editeur.chargement}
+                erreurChargement={editeur.erreur}
+                rolesNouveaux={vueFiche(p).rolesNouveaux}
+                members={members}
+                currentUserId={currentUserId}
+                idPrefix={`fiche-${p.id}`}
+                onFermer={() => setEditeur(null)}
+                onValider={(fiche) => {
+                  toucher();
+                  if (match) setMajs((prev) => ({ ...prev, [p.id]: { ...fiche, contactId: match.contactId } }));
+                  else setDrafts((prev) => ({ ...prev, [p.id]: fiche }));
+                  setEditeur(null);
+                }}
+              />
+            );
+          })()
+        : null}
     </div>
   );
 }

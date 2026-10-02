@@ -55,6 +55,8 @@ export async function GET(req: Request) {
         .eq('ban_id', entiteId);
       noteIds = (byBan ?? []).map((r) => (r as { id: string }).id);
     }
+  } else if (entiteType === 'parcelle') {
+    noteIds = await notesPoseesSurLaParcelle(supabase, agency.id, entiteId);
   }
 
   const { data: lienRows } = await supabase
@@ -115,6 +117,39 @@ export async function GET(req: Request) {
     .filter((n) => canSeeVoiceNote(viewer, { visibilite: n.visibilite, createdBy: n.createdBy }));
 
   return NextResponse.json({ notes });
+}
+
+/**
+ * Une note dictée devant l'immeuble porte son adresse (BAN), pas forcément
+ * un lien vers la parcelle. La fiche parcelle les montre avec les autres, en
+ * une seule liste : avant, elles n'apparaissaient qu'en extrait, à part.
+ */
+async function notesPoseesSurLaParcelle(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  agencyId: string,
+  parcelleId: string,
+): Promise<string[]> {
+  const admin = createSupabaseAdminClient();
+  // Admin : index BAN↔parcelle et référentiel BAN, open data sans donnée agence.
+  const [adresses, batiments] = await Promise.all([
+    admin.from('parcelle_adresses').select('ban_id').eq('parcelle_id', parcelleId),
+    admin.from('buildings').select('ban_id').eq('parcelle_id', parcelleId),
+  ]);
+  const bans = [
+    ...new Set(
+      [...(adresses.data ?? []), ...(batiments.data ?? [])]
+        .map((r) => (r as { ban_id: string | null }).ban_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ].slice(0, 200);
+  if (bans.length === 0) return [];
+
+  const { data } = await supabase
+    .from('voice_notes')
+    .select('id')
+    .eq('agency_id', agencyId)
+    .in('ban_id', bans);
+  return (data ?? []).map((r) => (r as { id: string }).id);
 }
 
 const MAX_TYPED_CHARS = 8000;

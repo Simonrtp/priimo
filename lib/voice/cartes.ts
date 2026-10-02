@@ -6,7 +6,7 @@
  */
 
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
-import { CONTACT_TYPE_LABELS } from '@/types/contact';
+import { CONTACT_TYPE_LABELS, rolesDuContact } from '@/types/contact';
 import { normalizeName } from '@/lib/import/normalize';
 import { libelleMiseAJour, lignesRecherche } from '@/lib/notes/review-v2';
 
@@ -22,7 +22,8 @@ export type CarteKind =
   | 'recherche'
   | 'prospect'
   | 'email'
-  | 'question';
+  | 'question'
+  | 'observation';
 
 export type CarteComprise = {
   key: string;
@@ -88,12 +89,15 @@ export function cartesDepuisReview(review: NoteReviewPayload | null, maintenant 
       [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
       p.personne.phone;
     if (!nom) continue;
-    const type = p.personne.type !== 'autre' ? CONTACT_TYPE_LABELS[p.personne.type] : null;
+    const roles = rolesDuContact(p.personne)
+      .filter((r) => r !== 'autre')
+      .map((r) => CONTACT_TYPE_LABELS[r])
+      .join(' et ');
     cartes.push({
       key: `personne:${match?.contactId ?? cle(p.personne.lastName || p.personne.firstName)}`,
       kind: 'personne',
       titre: nom,
-      detail: [type, p.personne.phone].filter(Boolean).join(' · ') || null,
+      detail: [roles, p.personne.phone].filter(Boolean).join(' · ') || null,
       badge: match ? 'Déjà dans vos contacts' : 'Nouveau contact',
     });
   }
@@ -127,6 +131,17 @@ export function cartesDepuisReview(review: NoteReviewPayload | null, maintenant 
       titre: adresse ?? caracteristiques,
       detail: adresse ? caracteristiques || null : null,
       badge: review.leads.length > 0 ? 'Prospect DPE ici' : null,
+    });
+  }
+
+  // Un constat appartient à l'adresse : il se lit avec elle, pas comme une tâche.
+  for (const o of review.observations ?? []) {
+    cartes.push({
+      key: `observation:${cle(o.texte).slice(0, 40)}`,
+      kind: 'observation',
+      titre: o.texte,
+      detail: adresse ? (/^\d/.test(adresse) ? `Au ${adresse}` : adresse) : 'Noté sur place',
+      badge: null,
     });
   }
 

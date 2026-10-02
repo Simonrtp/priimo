@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import {
+  canSeeActivityOf,
   canSeeLeadRecord,
   canSeeOwnedRecord,
   type RecordViewer,
@@ -14,18 +15,32 @@ import {
   toDateParam,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
-import { mergeCadastreImmeubles, overlayRowsFromAdeme, medianNumerique } from '@/lib/carte/cadastre-overlay';
+import { mergeCadastreImmeubles, overlayRowsFromAdeme, medianNumerique, hasCadastreOverlay } from '@/lib/carte/cadastre-overlay';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
 import type { DpeRecent } from '@/lib/automations/veille-dpe';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import { CADASTRE_OVERLAY_MIN_ZOOM, formatParcelleId } from '@/lib/carte/parcelle';
 import type {
-  ParcelleAgencyItem,
+  ParcelleAdresse,
+  ParcelleBienAgence,
+  ParcelleContactAgence,
   ParcelleCopro,
+  ParcelleEntreprise,
   ParcelleFiche,
+  ParcelleLogement,
   ParcelleNoteMarker,
   ParcelleOverlay,
+  ParcellePassage,
+  ParcelleProspect,
+  ParcelleVente,
 } from '@/lib/carte/parcelle';
+import { FENETRE_VENTES_ANS, typeDominant } from '@/lib/carte/parcelle-synthese';
+import { adresseLisible } from '@/lib/carte/adresse-lisible';
+import { parseDisplaySignals } from '@/lib/display-signals';
+import { signauxEssentiels } from '@/lib/lead-apercu';
+import { parseContactabilite, parseContactsImmeuble } from '@/lib/lead-contacts';
+import { formatPhoneOrNull } from '@/lib/import/normalize';
+import { fetchLeadStages } from '@/lib/queries/lead-stages';
 
 type Db = SupabaseClient<Database>;
 
@@ -82,6 +97,12 @@ export const PARCELLE_READ_QUERIES = {
     table: 'building_dpe',
     columns: ['ban_id', 'date_dpe', 'etiquette_dpe', 'surface', 'etage'] as const,
     when: 'couche-frais',
+  },
+  /** Médiane €/m² de la commune, pour situer l'immeuble. */
+  secteur: {
+    table: 'building_transactions',
+    columns: ['prix_m2'] as const,
+    when: 'fiche',
   },
   copro: {
     table: 'building_copro',
@@ -150,12 +171,6 @@ export function formatPeriodeConstruction(raw: string | null | undefined): strin
   return map[raw] ?? raw.replace(/_/g, ' ').toLowerCase();
 }
 
-function excerpt(text: string | null): string | null {
-  const t = (text ?? '').trim().replace(/\s+/g, ' ');
-  if (!t) return null;
-  return t.length > 90 ? `${t.slice(0, 89)}…` : t;
-}
-
 async function selectByBanIds<T>(
   /** Client admin uniquement — tables open data / agrégats listés ci-dessous. */
   openDataDb: Db,
@@ -164,16 +179,25 @@ async function selectByBanIds<T>(
   banIds: readonly string[],
 ): Promise<T[]> {
   if (banIds.length === 0) return [];
-  const rows: T[] = [];
+  const chunks: string[][] = [];
   for (let i = 0; i < banIds.length; i += IN_CHUNK) {
-    const chunk = banIds.slice(i, i + IN_CHUNK);
-    // Admin légitime : lecture batch open data / agrégat (pas de table agence).
-    const { data, error } = await openDataDb.from(table).select(columns).in('ban_id', chunk);
-    if (error) {
-      console.error(`[parcelle] ${table}`, error.message);
-      continue;
-    }
-    rows.push(...((data ?? []) as unknown as T[]));
+    chunks.push(banIds.slice(i, i + IN_CHUNK) as string[]);
+  }
+  const rows: T[] = [];
+  // Lots de 4 : assez rapide sans saturer PostgREST.
+  for (let i = 0; i < chunks.length; i += 4) {
+    const lot = chunks.slice(i, i + 4);
+    const pages = await Promise.all(
+      lot.map(async (chunk) => {
+        const { data, error } = await openDataDb.from(table).select(columns).in('ban_id', chunk);
+        if (error) {
+          console.error(`[parcelle] ${table}`, error.message);
+          return [] as T[];
+        }
+        return (data ?? []) as unknown as T[];
+      }),
+    );
+    for (const page of pages) rows.push(...page);
   }
   return rows;
 }
@@ -253,8 +277,11 @@ function toCopro(row: CoproRow): ParcelleCopro {
  * Deux clients, jamais mélangés :
  * - openDataDb (service_role) : UNIQUEMENT buildings, building_transactions,
  *   building_dpe, building_copro, building_activity, parcelle_adresses.
- * - sessionDb (utilisateur) : leads, contacts, biens, notes — RLS + helpers
- *   lib/agency/visibility.ts (et canSeeVoiceNote).
+ * - sessionDb (utilisateur) : leads, contacts, biens, passages, étapes — RLS
+ *   + helpers lib/agency/visibility.ts.
+ *
+ * Les notes ne passent plus par ici : la liste du volet les lit elle-même
+ * (/api/dashboard/notes), rattachées à la parcelle ou posées sur ses adresses.
  */
 export async function fetchParcelleFiche(args: {
   /** Admin — open data / agrégats Priimo uniquement. */
@@ -270,7 +297,7 @@ export async function fetchParcelleFiche(args: {
   const sessionDb = args.agencyDb;
   const { parcelleId, agencyId, viewer } = args;
 
-  const [adressesRes, buildingsRes, txRes, liensRes] = await Promise.all([
+  const [adressesRes, buildingsRes, txRes] = await Promise.all([
     // Admin : parcelle_adresses = index BAN↔parcelle (open data), pas de PII agence.
     openDataDb
       .from('parcelle_adresses')
@@ -287,13 +314,6 @@ export async function fetchParcelleFiche(args: {
       .select(cols(PARCELLE_READ_QUERIES.transactions.columns))
       .eq('parcelle_id', parcelleId)
       .order('date_mutation', { ascending: false }),
-    // Session : liens notes↔parcelle — isolés par agency_id + RLS.
-    sessionDb
-      .from('note_liens')
-      .select('note_id')
-      .eq('agency_id', agencyId)
-      .eq('entite_type', 'parcelle')
-      .eq('entite_id', parcelleId),
   ]);
 
   if (adressesRes.error) console.error('[parcelle] parcelle_adresses', adressesRes.error.message);
@@ -303,32 +323,48 @@ export async function fetchParcelleFiche(args: {
   const adresses = (adressesRes.data ?? []) as unknown as AdresseRow[];
   let buildings = (buildingsRes.data ?? []) as unknown as BuildingRow[];
   const txRows = (txRes.data ?? []) as unknown as TxRow[];
-  const noteIdsFromLiens = (liensRes.data ?? []).map((r) => r.note_id);
 
   const banFromAdresses = adresses.map((a) => a.ban_id).filter((id): id is string => Boolean(id));
   const missingBan = banFromAdresses.filter((id) => !buildings.some((b) => b.ban_id === id));
-  if (missingBan.length > 0) {
-    // Admin : complément buildings par ban_id (toujours open data).
-    const extra = await selectByBanIds<BuildingRow>(
-      openDataDb,
-      'buildings',
-      cols(PARCELLE_READ_QUERIES.buildings.columns),
-      missingBan,
-    );
-    buildings = [...buildings, ...extra];
-  }
+  // Complément d'adresses en parallèle du reste — ne bloque plus DPE / agence.
+  const extraBuildingsP =
+    missingBan.length > 0
+      ? selectByBanIds<BuildingRow>(
+          openDataDb,
+          'buildings',
+          cols(PARCELLE_READ_QUERIES.buildings.columns),
+          missingBan,
+        )
+      : Promise.resolve([] as BuildingRow[]);
 
   const banIds = [...new Set([...buildings.map((b) => b.ban_id), ...banFromAdresses])];
-  const inSector = inAgencySector(
-    [...buildings.map((b) => b.code_postal), ...adresses.map((a) => (a as AdresseRow & { code_postal?: string }).code_postal)],
-    args.postalCodes,
-  );
+  const codesConnus = [
+    ...buildings.map((b) => b.code_postal),
+    ...adresses.map((a) => (a as AdresseRow & { code_postal?: string }).code_postal),
+  ];
+  const inSector = inAgencySector(codesConnus, args.postalCodes);
+  const horsSecteur = !inSector && codesConnus.some((c) => Boolean(c && /^\d{5}$/.test(c)));
 
-  // Trois familles de lectures restent : l'open data rattaché aux BAN, les
-  // enregistrements de l'agence posés sur ces mêmes BAN, et les notes liées à
-  // la parcelle. Aucune ne lit le résultat d'une autre — les enchaîner coûtait
-  // deux allers-retours de plus à chaque ouverture du panneau.
+  const ventes: ParcelleVente[] = inSector
+    ? txRows.map((row) => ({
+        date: row.date_mutation,
+        prix: num(row.valeur_fonciere),
+        surface: num(row.surface_reelle_bati),
+        prixM2: num(row.prix_m2),
+        typeLocal: row.type_local,
+        nombrePieces: num(row.nombre_pieces),
+        banId: row.ban_id,
+      }))
+    : [];
+
+  // Trois familles de lectures restent : l'open data rattaché aux BAN, le
+  // prix du secteur et les enregistrements de l'agence posés sur ces mêmes
+  // BAN. Aucune ne lit le résultat d'une autre : elles partent ensemble.
   const bansAgence = banIds.slice(0, IN_CHUNK);
+  // Le code commune ouvre toute référence cadastrale : il est toujours là,
+  // quand le code postal manque à la plupart des ventes en base.
+  const codeCommune = /^\d[\dAB]\d{3}/.test(parcelleId) ? parcelleId.slice(0, 5) : null;
+  const typeVentes = typeDominant(ventes);
 
   const openDataParBan = inSector
     ? Promise.all([
@@ -339,168 +375,324 @@ export async function fetchParcelleFiche(args: {
       ])
     : Promise.resolve([[], []] as [DpeRow[], CoproRow[]]);
 
-  // --- Données agence : sessionDb uniquement + helpers visibility ---
-  const agenceParBan =
+  const secteurP =
+    inSector && codeCommune && typeVentes
+      ? prixM2DuSecteur(openDataDb, codeCommune, typeVentes)
+      : Promise.resolve(null);
+
+  const agenceP =
     bansAgence.length > 0
-      ? Promise.all([
-          sessionDb
-            .from('leads')
-            .select('id, address, city, postal_code, score, assigned_to, ban_id')
-            .eq('agency_id', agencyId)
-            .in('ban_id', bansAgence),
-          sessionDb
-            .from('contacts')
-            .select('id, first_name, last_name, contact_type, assigned_to, created_by, ban_id')
-            .eq('agency_id', agencyId)
-            .in('ban_id', bansAgence),
-          sessionDb
-            .from('biens')
-            .select('id, address, mandat_statut, created_by, ban_id')
-            .eq('agency_id', agencyId)
-            .in('ban_id', bansAgence),
-          sessionDb
-            .from('voice_notes')
-            .select('id, transcript, visibilite, created_by, assigned_to, ban_id')
-            .eq('agency_id', agencyId)
-            .in('ban_id', bansAgence),
-        ])
-      : null;
+      ? lireAgenceSurLaParcelle(sessionDb, agencyId, bansAgence, viewer)
+      : Promise.resolve(AGENCE_VIDE);
 
-  const notesLiees =
-    noteIdsFromLiens.length > 0
-      ? sessionDb
-          .from('voice_notes')
-          .select('id, transcript, visibilite, created_by')
-          .eq('agency_id', agencyId)
-          .in('id', noteIdsFromLiens)
-      : null;
-
-  const [[dpeRows, coproRows], parBan, liees] = await Promise.all([
+  const [[dpeRows, coproRows], prixM2Secteur, agence, extraBuildings] = await Promise.all([
     openDataParBan,
-    agenceParBan,
-    notesLiees,
+    secteurP,
+    agenceP,
+    extraBuildingsP,
   ]);
+  if (extraBuildings.length > 0) {
+    buildings = [...buildings, ...extraBuildings];
+  }
 
-  const diagnostics = inSector
-    ? dpeRows.map((row) => ({
-        date: row.date_dpe,
-        etiquette: parseDpeLetter(row.etiquette_dpe) ?? row.etiquette_dpe,
-        type: 'DPE',
-      }))
-    : [];
-
-  const ventes = inSector
-    ? txRows.map((row) => ({
-        date: row.date_mutation,
-        prix: num(row.valeur_fonciere),
-        surface: num(row.surface_reelle_bati),
-        prixM2: num(row.prix_m2),
-        typeLocal: row.type_local,
-        nombrePieces: num(row.nombre_pieces),
-      }))
-    : [];
+  const logements: ParcelleLogement[] = dpeRows.map((row) => {
+    const etage = num(row.etage);
+    return {
+      banId: row.ban_id,
+      date: row.date_dpe,
+      etiquette: parseDpeLetter(row.etiquette_dpe) ?? row.etiquette_dpe,
+      etiquetteGes: parseDpeLetter(row.etiquette_ges),
+      consoKwhM2: num(row.conso_kwh_m2_an),
+      surface: num(row.surface),
+      // L'étage 0 de l'ADEME est une valeur par défaut, pas un rez-de-chaussée.
+      etage: etage != null && etage >= 1 ? etage : null,
+    };
+  });
 
   const seenCopro = new Set<string>();
   const coproprietes: ParcelleCopro[] = [];
-  if (inSector) {
-    for (const row of coproRows) {
-      const key = row.numero_immatriculation ?? row.ban_id;
-      if (seenCopro.has(key)) continue;
-      seenCopro.add(key);
-      coproprietes.push(toCopro(row));
-    }
+  for (const row of coproRows) {
+    const key = row.numero_immatriculation ?? row.ban_id;
+    if (seenCopro.has(key)) continue;
+    seenCopro.add(key);
+    coproprietes.push(toCopro(row));
   }
 
-  const surCetteParcelle: ParcelleAgencyItem[] = [];
-  const seen = new Set<string>();
-  function push(item: ParcelleAgencyItem) {
-    const key = `${item.kind}:${item.id}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    surCetteParcelle.push(item);
+  const adressesFiche: ParcelleAdresse[] = [];
+  const vuesAdresses = new Set<string>();
+  for (const b of buildings) {
+    if (!b.adresse?.trim()) continue;
+    const { voie } = adresseLisible(b.adresse);
+    if (vuesAdresses.has(voie.toLowerCase())) continue;
+    vuesAdresses.add(voie.toLowerCase());
+    adressesFiche.push({ banId: b.ban_id, libelle: voie });
   }
 
-  if (parBan) {
-    const [leadsRes, contactsRes, biensRes, notesBanRes] = parBan;
+  const adresseBrute = pickAdresse(buildings);
+  const principal =
+    buildings.find((b) => b.adresse?.trim() === adresseBrute && b.lat != null && b.lng != null) ??
+    buildings.find((b) => b.lat != null && b.lng != null) ??
+    buildings.find((b) => b.adresse?.trim() === adresseBrute) ??
+    null;
+  const lisible = adresseBrute
+    ? adresseLisible(adresseBrute, { codePostal: principal?.code_postal, commune: principal?.commune })
+    : null;
 
-    for (const row of leadsRes.data ?? []) {
-      if (!canSeeLeadRecord(viewer, { assignedTo: row.assigned_to ?? null })) continue;
-      push({
-        id: row.id,
-        kind: 'lead',
-        title: row.address,
-        subtitle: [row.postal_code, row.city].filter(Boolean).join(' ') || null,
-        href: `/dashboard/prospection?lead=${row.id}`,
-      });
-    }
-    for (const row of contactsRes.data ?? []) {
-      if (!canSeeOwnedRecord(viewer, { assignedTo: row.assigned_to ?? null, createdBy: row.created_by ?? null })) continue;
-      const title = [row.first_name, row.last_name].map((s) => (s ?? '').trim()).filter(Boolean).join(' ') || 'Contact';
-      push({
-        id: row.id,
-        kind: 'contact',
-        title,
-        subtitle: row.contact_type ?? null,
-        href: `/dashboard/contacts?fiche=${row.id}`,
-      });
-    }
-    for (const row of biensRes.data ?? []) {
-      if (!canSeeOwnedRecord(viewer, { assignedTo: null, createdBy: row.created_by ?? null })) continue;
-      push({
-        id: row.id,
-        kind: 'bien',
-        title: row.address,
-        subtitle: row.mandat_statut ?? null,
-        href: `/dashboard/biens?fiche=${row.id}`,
-      });
-    }
-    for (const row of notesBanRes.data ?? []) {
-      if (!canSeeVoiceNote(viewer, { visibilite: row.visibilite === 'privee' ? 'privee' : 'agence', createdBy: row.created_by ?? null })) {
-        continue;
-      }
-      push({
-        id: row.id,
-        kind: 'note',
-        title: excerpt(row.transcript) ?? 'Note terrain',
-        subtitle: null,
-        href: '/dashboard',
-      });
-    }
-  }
-
-  if (liees) {
-    for (const row of liees.data ?? []) {
-      if (!canSeeVoiceNote(viewer, { visibilite: row.visibilite === 'privee' ? 'privee' : 'agence', createdBy: row.created_by ?? null })) {
-        continue;
-      }
-      push({
-        id: row.id,
-        kind: 'note',
-        title: excerpt(row.transcript) ?? 'Note terrain',
-        subtitle: null,
-        href: '/dashboard',
-      });
-    }
-  }
-
-  const videPublic = ventes.length === 0 && diagnostics.length === 0 && coproprietes.length === 0;
-  const prixM2Median = medianNumerique(
-    ventes.map((v) => v.prixM2).filter((n): n is number => n != null),
-  );
+  const videPublic = ventes.length === 0 && logements.length === 0 && coproprietes.length === 0;
 
   return {
     parcelleId,
     reference: formatParcelleId(parcelleId),
-    adresse: pickAdresse(buildings),
+    adresse: lisible?.voie ?? null,
+    localite: lisible?.localite ?? null,
+    banId: principal?.ban_id ?? null,
+    adresses: adressesFiche,
+    position:
+      principal && principal.lat != null && principal.lng != null
+        ? { latitude: principal.lat, longitude: principal.lng }
+        : null,
+    horsSecteur,
     videPublic,
     surfaceCadastreM2: null,
     nbAdresses: buildings.length,
-    prixM2Median,
+    prixM2Secteur,
     ventes,
-    diagnostics,
+    logements,
     coproprietes,
-    surCetteParcelle,
+    ...agence,
   };
+}
+
+type AgenceSurLaParcelle = Pick<
+  ParcelleFiche,
+  'prospects' | 'contacts' | 'biens' | 'entreprises' | 'passages'
+>;
+
+const AGENCE_VIDE: AgenceSurLaParcelle = {
+  prospects: [],
+  contacts: [],
+  biens: [],
+  entreprises: [],
+  passages: [],
+};
+
+const LEAD_PARCELLE_COLUMNS =
+  'id, address, score, assigned_to, ban_id, dpe_class, display_signals, owner_type, owner_company, company_name, contactabilite, contacts_immeuble, stage_id, etage, surface_m2, rooms';
+
+type LeadParcelleRow = {
+  id: string;
+  address: string;
+  score: number;
+  assigned_to: string | null;
+  dpe_class: string | null;
+  display_signals: unknown;
+  owner_type: string | null;
+  owner_company: string | null;
+  company_name: string | null;
+  contactabilite: string | null;
+  contacts_immeuble: unknown;
+  stage_id: string | null;
+  etage: number | null;
+  surface_m2: number | null;
+  rooms: number | null;
+};
+
+type ContactParcelleRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  contact_type: string | null;
+  phone: string | null;
+  assigned_to: string | null;
+  created_by: string | null;
+};
+
+type BienParcelleRow = {
+  id: string;
+  address: string;
+  mandat_statut: string | null;
+  price: number | null;
+  surface_m2: number | null;
+  rooms: number | null;
+  created_by: string | null;
+};
+
+type PassageRow = { day: string; kind: string; profile_id: string };
+
+const KINDS_PASSAGE = ['rencontre', 'absent', 'passer'] as const;
+
+/**
+ * Ce que l'agence sait déjà de ces adresses. Chaque ligne repasse par les
+ * helpers de visibilité, en plus de la RLS.
+ */
+async function lireAgenceSurLaParcelle(
+  sessionDb: Db,
+  agencyId: string,
+  bans: readonly string[],
+  viewer: RecordViewer,
+): Promise<AgenceSurLaParcelle> {
+  const [leadsRes, contactsRes, biensRes, passagesRes, stages] = await Promise.all([
+    sessionDb
+      .from('leads')
+      .select(LEAD_PARCELLE_COLUMNS)
+      .eq('agency_id', agencyId)
+      .in('ban_id', [...bans])
+      .order('score', { ascending: false }),
+    sessionDb
+      .from('contacts')
+      .select('id, first_name, last_name, contact_type, phone, assigned_to, created_by, ban_id')
+      .eq('agency_id', agencyId)
+      .in('ban_id', [...bans]),
+    sessionDb
+      .from('biens')
+      .select('id, address, mandat_statut, price, surface_m2, rooms, created_by, ban_id')
+      .eq('agency_id', agencyId)
+      .in('ban_id', [...bans]),
+    sessionDb
+      .from('sortie_events')
+      .select('day, kind, profile_id')
+      .eq('agency_id', agencyId)
+      .in('ban_id', [...bans])
+      .in('kind', [...KINDS_PASSAGE])
+      .order('day', { ascending: false })
+      .limit(20),
+    fetchLeadStages(sessionDb).catch(() => []),
+  ]);
+
+  if (leadsRes.error) console.error('[parcelle] leads', leadsRes.error.message);
+  if (passagesRes.error) console.error('[parcelle] passages', passagesRes.error.message);
+
+  const etapes = new Map(stages.map((s) => [s.id, s.libelle]));
+  const prospects: ParcelleProspect[] = [];
+  const entreprises: ParcelleEntreprise[] = [];
+  const numerosVus = new Set<string>();
+
+  for (const row of (leadsRes.data ?? []) as unknown as LeadParcelleRow[]) {
+    if (!canSeeLeadRecord(viewer, { assignedTo: row.assigned_to ?? null })) continue;
+    const contactabilite = parseContactabilite(row.contactabilite);
+    prospects.push({
+      id: row.id,
+      href: `/dashboard/prospection?lead=${row.id}`,
+      adresse: adresseLisible(row.address).voie,
+      score: row.score,
+      dpe: parseDpeLetter(row.dpe_class),
+      etage: num(row.etage),
+      surface: num(row.surface_m2),
+      pieces: num(row.rooms),
+      // La lettre a sa pastille : on ne la répète pas dans les signaux.
+      signaux: signauxEssentiels({ displaySignals: parseDisplaySignals(row.display_signals) }).filter(
+        (s) => !/^DPE [A-G]$/i.test(s),
+      ),
+      entreprise:
+        row.owner_type === 'entreprise'
+          ? (row.owner_company ?? row.company_name ?? '').trim() || null
+          : null,
+      etape: row.stage_id ? etapes.get(row.stage_id) ?? null : null,
+      contactabilite: contactabilite === 'aucun' ? null : contactabilite,
+    });
+
+    for (const contact of parseContactsImmeuble(row.contacts_immeuble)) {
+      const numero = contact.phone.replace(/\D/g, '');
+      if (!numero || numerosVus.has(numero)) continue;
+      numerosVus.add(numero);
+      entreprises.push({
+        nom: contact.companyName,
+        telephone: contact.phone,
+        activite: contact.nafLibelle,
+        categorie: contact.categorie,
+        leadId: row.id,
+      });
+    }
+  }
+
+  const contacts: ParcelleContactAgence[] = [];
+  for (const row of (contactsRes.data ?? []) as unknown as ContactParcelleRow[]) {
+    if (!canSeeOwnedRecord(viewer, { assignedTo: row.assigned_to ?? null, createdBy: row.created_by ?? null })) {
+      continue;
+    }
+    contacts.push({
+      id: row.id,
+      href: `/dashboard/contacts?fiche=${row.id}`,
+      nom: [row.first_name, row.last_name].map((s) => (s ?? '').trim()).filter(Boolean).join(' ') || 'Contact',
+      type: row.contact_type ?? null,
+      telephone: formatPhoneOrNull(row.phone),
+    });
+  }
+
+  const biens: ParcelleBienAgence[] = [];
+  for (const row of (biensRes.data ?? []) as unknown as BienParcelleRow[]) {
+    if (!canSeeOwnedRecord(viewer, { assignedTo: null, createdBy: row.created_by ?? null })) continue;
+    biens.push({
+      id: row.id,
+      href: `/dashboard/biens?fiche=${row.id}`,
+      adresse: adresseLisible(row.address).voie,
+      statut: row.mandat_statut ?? null,
+      prix: num(row.price),
+      surface: num(row.surface_m2),
+      pieces: num(row.rooms),
+    });
+  }
+
+  // Un collaborateur ne voit que ses propres passages ; le directeur, toute l'équipe.
+  const passagesVisibles = ((passagesRes.data ?? []) as unknown as PassageRow[])
+    .filter((p) => canSeeActivityOf(viewer, p.profile_id))
+    .filter((p): p is PassageRow & { kind: ParcellePassage['kind'] } =>
+      (KINDS_PASSAGE as readonly string[]).includes(p.kind),
+    )
+    .slice(0, 5);
+  const autres = [...new Set(passagesVisibles.map((p) => p.profile_id).filter((id) => id !== viewer.id))];
+  const prenoms = new Map<string, string>();
+  if (autres.length > 0) {
+    const { data } = await sessionDb.from('profiles').select('id, first_name').in('id', autres);
+    for (const p of (data ?? []) as { id: string; first_name: string | null }[]) {
+      if (p.first_name?.trim()) prenoms.set(p.id, p.first_name.trim());
+    }
+  }
+  const passages: ParcellePassage[] = passagesVisibles.map((p) => ({
+    jour: p.day,
+    kind: p.kind,
+    auteur: p.profile_id === viewer.id ? null : prenoms.get(p.profile_id) ?? 'Un collègue',
+  }));
+
+  return { prospects, contacts, biens, entreprises, passages };
+}
+
+/**
+ * Médiane €/m² de la commune (l'arrondissement à Paris, Lyon, Marseille) :
+ * open data partagé entre agences, gardé douze heures.
+ */
+const PRIX_SECTEUR_TTL_MS = 12 * 60 * 60 * 1000;
+const prixSecteurCache = new Map<string, { valeur: number | null; at: number }>();
+
+async function prixM2DuSecteur(openDataDb: Db, codeCommune: string, typeLocal: string): Promise<number | null> {
+  const cle = `${codeCommune}|${typeLocal}`;
+  const connu = prixSecteurCache.get(cle);
+  if (connu && Date.now() - connu.at < PRIX_SECTEUR_TTL_MS) return connu.valeur;
+
+  const depuis = new Date();
+  depuis.setFullYear(depuis.getFullYear() - FENETRE_VENTES_ANS);
+  // Admin : building_transactions = DVF open data. Les mille ventes les plus
+  // récentes de la commune suffisent à une médiane.
+  const { data, error } = await openDataDb
+    .from('building_transactions')
+    .select(cols(PARCELLE_READ_QUERIES.secteur.columns))
+    .like('parcelle_id', `${codeCommune}%`)
+    .eq('type_local', typeLocal)
+    .gte('date_mutation', toDateParam(depuis))
+    .not('prix_m2', 'is', null)
+    .order('date_mutation', { ascending: false })
+    .limit(1000);
+  if (error) {
+    console.error('[parcelle] prix du secteur', error.message);
+    return null;
+  }
+  const valeur = medianNumerique(
+    ((data ?? []) as unknown as { prix_m2: unknown }[])
+      .map((r) => num(r.prix_m2))
+      .filter((n): n is number => n != null && n >= 500 && n <= 40_000),
+  );
+  prixSecteurCache.set(cle, { valeur, at: Date.now() });
+  return valeur;
 }
 
 export type OverlayViewport = {
@@ -542,12 +734,6 @@ export async function fetchParcelleOverlays(args: {
     return { immeubles: [], notes, sources };
   }
 
-  const ademeDepuis = includeDpe ? ademeLookbackDepuis(dpeDetailQueryRange(ages)?.from) : null;
-  const ademePromise =
-    ademeDepuis && codes.length > 0
-      ? fetchDpeSecteur(codes, ademeDepuis, undefined, { taille: 4000, cached: true })
-      : Promise.resolve([]);
-
   const { west, south, east, north } = args.viewport;
   // Admin : buildings filtré au secteur agence (open data géolocalisé).
   const { data, error } = await openDataDb
@@ -569,6 +755,21 @@ export async function fetchParcelleOverlays(args: {
 
   const buildings = (data ?? []) as unknown as BuildingRow[];
   const banIds = buildings.map((b) => b.ban_id);
+
+  // ADEME seulement sur les CP réellement présents dans le viewport (pas toute l'agence).
+  const codesViewport = [
+    ...new Set(
+      buildings
+        .map((b) => b.code_postal)
+        .filter((c): c is string => typeof c === 'string' && /^\d{5}$/.test(c)),
+    ),
+  ];
+  const ademeDepuis = includeDpe ? ademeLookbackDepuis(dpeDetailQueryRange(ages)?.from) : null;
+  const ademePromise =
+    ademeDepuis && codesViewport.length > 0
+      ? fetchDpeSecteur(codesViewport, ademeDepuis, undefined, { taille: 4000, cached: true })
+      : Promise.resolve([]);
+
   // Admin : building_activity = agrégat Priimo (pas de table ventes/copro de détail).
   const activityPromise = selectByBanIds<ActivityRow>(
     openDataDb,
@@ -612,7 +813,7 @@ export async function fetchParcelleOverlays(args: {
       };
     }),
     ages,
-  });
+  }).filter(hasCadastreOverlay);
 
   return { immeubles, notes, sources };
 }
@@ -660,10 +861,14 @@ async function selectDpeFrais(
   range?: { from: Date; to: Date },
 ): Promise<DpeRow[]> {
   if (banIds.length === 0) return [];
-  const rows: DpeRow[] = [];
   const columns = cols(PARCELLE_READ_QUERIES.dpeFrais.columns);
+  const chunks: string[][] = [];
   for (let i = 0; i < banIds.length; i += IN_CHUNK) {
-    const chunk = banIds.slice(i, i + IN_CHUNK);
+    chunks.push(banIds.slice(i, i + IN_CHUNK) as string[]);
+  }
+
+  async function lireChunk(chunk: string[]): Promise<DpeRow[]> {
+    const rows: DpeRow[] = [];
     let from = 0;
     while (from < DPE_PAGE_CAP) {
       let query = openDataDb
@@ -685,12 +890,26 @@ async function selectDpeFrais(
       if (page.length < DPE_PAGE) break;
       from += DPE_PAGE;
     }
+    return rows;
+  }
+
+  const rows: DpeRow[] = [];
+  for (let i = 0; i < chunks.length; i += 4) {
+    const pages = await Promise.all(chunks.slice(i, i + 4).map(lireChunk));
+    for (const page of pages) rows.push(...page);
   }
   return rows;
 }
 
+const SOURCE_DATES_TTL_MS = 5 * 60 * 1000;
+const sourceDatesCache = new Map<string, { at: number; value: CadastreSourceDates }>();
+
 async function fetchCadastreSourceDates(openDataDb: Db, codes: readonly string[]): Promise<CadastreSourceDates> {
   if (codes.length === 0) return { diagnosticsAt: null, ventesAt: null };
+  const cle = [...codes].sort().join(',');
+  const hit = sourceDatesCache.get(cle);
+  if (hit && Date.now() - hit.at < SOURCE_DATES_TTL_MS) return hit.value;
+
   const dpeQuery = openDataDb
     .from('building_dpe')
     .select('created_at')
@@ -709,10 +928,12 @@ async function fetchCadastreSourceDates(openDataDb: Db, codes: readonly string[]
   if (ventesRes.error) console.error('[parcelle] fraîcheur ventes', ventesRes.error.message);
   const dpeRow = (dpeRes.data ?? [])[0] as { created_at?: string } | undefined;
   const venteRow = (ventesRes.data ?? [])[0] as { derniere_transaction_le?: string | null } | undefined;
-  return {
+  const value: CadastreSourceDates = {
     diagnosticsAt: dpeRow?.created_at ?? null,
     ventesAt: venteRow?.derniere_transaction_le ?? null,
   };
+  sourceDatesCache.set(cle, { at: Date.now(), value });
+  return value;
 }
 
 /** Notes liées à une parcelle — sessionDb + canSeeVoiceNote uniquement. */

@@ -2,6 +2,7 @@ import type { InteractionKind } from '@/types/contact';
 import type { MandatStatut } from '@/types/bien';
 import { MANDAT_STATUT_LABELS } from '@/types/bien';
 import type { Contact, SearchCriteria } from '@/types/contact';
+import { aLeRole } from '@/types/contact';
 
 export type LatestInteraction = {
   kind: InteractionKind;
@@ -115,20 +116,25 @@ export function formatContactMeta(
   },
 ): string {
   const bits: string[] = [];
-  if (contact.type === 'acquereur' || contact.type === 'locataire') {
-    const crit = formatAcquereurCriteria(contact.criteria);
-    if (crit) bits.push(crit);
-  } else if (contact.type === 'vendeur') {
+  // Une vendeuse qui achète aussi : son bien d'abord, ce qu'elle cherche ensuite.
+  const vend = aLeRole(contact, 'vendeur');
+  const cherche = aLeRole(contact, 'acquereur') || aLeRole(contact, 'locataire');
+  if (vend) {
     const vendeur = formatVendeurMeta({
       mandatStatut: ctx.mandatStatut,
       bienAddress: ctx.bienAddress,
       leadAddress: ctx.leadAddress,
     });
     if (vendeur) bits.push(vendeur);
-  } else if (contact.type === 'gardien' || contact.type === 'commercant') {
-    if (contact.address) bits.push(contact.address);
-  } else {
-    if (contact.secteur) bits.push(contact.secteur);
+  }
+  if (cherche) {
+    const crit = formatAcquereurCriteria(contact.criteria);
+    if (crit) bits.push(crit);
+  }
+  if (!vend && !cherche) {
+    if (contact.type !== 'gardien' && contact.type !== 'commercant' && contact.secteur) {
+      bits.push(contact.secteur);
+    }
     if (contact.address) bits.push(contact.address);
   }
   if (ctx.assigneeName) bits.push(`Fait par ${ctx.assigneeName}`);

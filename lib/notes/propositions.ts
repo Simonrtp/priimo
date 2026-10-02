@@ -13,6 +13,7 @@ import {
 } from '@/lib/notes/date-relative';
 
 import type { ContactType, NoteSourceInfo } from '@/types/contact';
+import { repartirRoles } from '@/types/contact';
 import { chaineModeles, ecarterModele, MODELES_PROFONDS, MODELES_RAPIDES } from '@/lib/mistral/modeles';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
@@ -29,7 +30,9 @@ export type ExtractedPersonne = {
   lastName: string;
   phone: string | null;
   email: string | null;
+  /** Rôle principal ; les autres casquettes dites vont dans `autresTypes`. */
   type: ContactType;
+  autresTypes?: ContactType[];
 };
 
 export type ExtractedRelance = {
@@ -131,6 +134,11 @@ export type NoteExtraction = {
   recherche?: ExtractedRecherche | null;
   prospect?: ExtractedProspect | null;
   email?: ExtractedEmail | null;
+  /**
+   * Ce que l'agent constate sur place (« ils font un ravalement ») : une
+   * information sur l'adresse, pas une chose à faire.
+   */
+  observations?: string[];
 };
 
 export const EMPTY_NOTE_EXTRACTION: NoteExtraction = {
@@ -153,6 +161,7 @@ export const EMPTY_NOTE_EXTRACTION: NoteExtraction = {
   recherche: null,
   prospect: null,
   email: null,
+  observations: [],
 };
 
 /**
@@ -191,8 +200,9 @@ function buildPromptRapide(transcript: string, noteDate = new Date()): string {
     '"""',
     '',
     'JSON, en omettant toute clé vide ou nulle :',
-    '{"titre","intention":"note"|"question","personnes":[{"firstName","lastName","phone","email","type":"vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"|"autre"}],"address","secteur","prix","rooms","surface","source_info":"proprietaire"|"gardien"|"voisin"|"tiers"|"agent","actions":[{"type":"rappel"|"tache"|"rdv"|"visite_faite","intitule","quand","rdv_type":"visite"|"estimation"|"signature"|"autre"}],"mises_a_jour":[{"champ":"prix"|"statut_mandat","valeur","bien"}],"recherche":{"personne","budget_min","budget_max","surface_min","pieces_min","villes":[],"codes_postaux":[]},"prospect":{"etape":"contacte"|"rendez_vous"|"mandat"|"perdu","motif"},"email":{"personne","objet"}}',
+    '{"titre","intention":"note"|"question","personnes":[{"firstName","lastName","phone","email","types":["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"]}],"address","secteur","observations":[],"prix","rooms","surface","source_info":"proprietaire"|"gardien"|"voisin"|"tiers"|"agent","actions":[{"type":"rappel"|"tache"|"rdv"|"visite_faite","intitule","quand","rdv_type":"visite"|"estimation"|"signature"|"autre"}],"mises_a_jour":[{"champ":"prix"|"statut_mandat","valeur","bien"}],"recherche":{"personne","budget_min","budget_max","surface_min","pieces_min","villes":[],"codes_postaux":[]},"prospect":{"etape":"contacte"|"rendez_vous"|"mandat"|"perdu","motif"},"email":{"personne","objet"}}',
     'Règles : rien d’inventé. Dernière version si l’agent se reprend. "intitule" court à l’infinitif avec le nom (« Rappeler Mme Martin »). "quand" = les mots dits (« jeudi à 14h »). "titre" : 3 à 6 mots. Montants en euros entiers (« 300 k » = 300000). "rooms" : T2 = 2. "email" seulement si l’agent dit d’envoyer un mail ou des documents.',
+    'Rôles : veut acheter / acquérir → "acquereur" ; veut vendre / vend son bien → "vendeur" ; les deux si elle fait les deux. "observations" : ce que l’agent constate sur place (travaux, ravalement, panneau à vendre, déménagement), en phrase courte — un constat n’est jamais une action.',
   ].join('\n');
 }
 
@@ -216,8 +226,9 @@ function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOpti
     '  "titre": string|null,',
     '  "resume": string|null,',
     '  "intention": "note"|"question",',
-    '  "personnes": [{"firstName": string|null, "lastName": string|null, "phone": string|null, "email": string|null, "type": "vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"|"autre"}],',
+    '  "personnes": [{"firstName": string|null, "lastName": string|null, "phone": string|null, "email": string|null, "types": ["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"]}],',
     '  "address": string|null,',
+    '  "observations": [string],',
     '  "secteur": string|null,',
     '  "prix": number|null,',
     '  "rooms": number|null,',
@@ -234,6 +245,9 @@ function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOpti
     '- "titre" : 3 à 8 mots qui résument la note (qui, quoi, où). "resume" : une phrase factuelle.',
     '- "intention" = "question" seulement si l’agent pose une question à son assistant (« qu’est-ce qu’on sait sur… », « quand est-ce que… ») au lieu de noter quelque chose.',
     '- "personnes" : tableau, vide s’il n’y a aucun nom. Une personne sans nom ni téléphone ne compte pas. Un rôle seul (« le gardien ») n’est pas un nom.',
+    '- "types" : toutes les casquettes de la personne, déduites de ce qu’elle veut faire. « veut acheter », « veut acquérir », « cherche un appartement » → "acquereur" ; « veut vendre », « met en vente », « vend son bien » → "vendeur" ; « cherche une location » → "locataire". Quelqu’un qui vend et achète porte les deux. Rien de dit → tableau vide.',
+    '- "observations" : les constats faits sur place ou rapportés, sur l’immeuble ou le lieu de la note — travaux, ravalement de façade, échafaudage, panneau « à vendre », déménagement, logement vide, nouveau commerce, changement de syndic. Une phrase courte et factuelle par constat, sans répéter l’adresse (« Ravalement de façade en cours »).',
+    '- Un constat n’est jamais une action : « ils font un ravalement » va dans "observations", pas dans "actions". Une action n’existe que si l’agent dit ce qu’il doit faire.',
     '- "actions" : une entrée par engagement distinct. « rappeler X », « relancer X », « le recontacter » → "rappel". « envoyer… », « préparer… », « vérifier… » → "tache". Un rendez-vous futur → "rdv". Une visite qui vient d’avoir lieu → "visite_faite" (date du jour sauf si autre chose est dit).',
     '- "intitule" : court, à l’infinitif, avec le nom de la personne quand il est dit (« Rappeler Mme Martin », « Envoyer les diagnostics à M. Petit »).',
     '- "quand" : les mots exacts dits pour le moment (« jeudi à 14h », « demain matin », « dans deux jours »), ou null.',
@@ -382,6 +396,11 @@ const TYPES: readonly ContactType[] = [
 ];
 const SOURCES: readonly NoteSourceInfo[] = ['proprietaire', 'gardien', 'voisin', 'tiers', 'agent'];
 
+/** Une valeur seule ou une liste → une liste. */
+function tableauBrut(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : v === undefined || v === null ? [] : [v];
+}
+
 function parsePersonne(raw: unknown): ExtractedPersonne | null {
   if (!raw || typeof raw !== 'object') return null;
   const row = raw as Record<string, unknown>;
@@ -393,14 +412,18 @@ function parsePersonne(raw: unknown): ExtractedPersonne | null {
   const firstName = estRole(brutPrenom) ? '' : brutPrenom;
   const lastName = estRole(brutNom) ? '' : brutNom;
   if (!firstName && !lastName && !phone) return null;
-  const typeRaw = sansAccent(row.type) ?? 'autre';
-  const type = (TYPES as readonly string[]).includes(typeRaw) ? (typeRaw as ContactType) : 'autre';
+  // « types » (liste) depuis les rôles multiples ; « type » seul reste compris.
+  const dits = [...tableauBrut(row.types), ...tableauBrut(row.type)]
+    .map((t) => sansAccent(t))
+    .filter((t): t is ContactType => Boolean(t) && (TYPES as readonly string[]).includes(t!));
+  const { type, autresTypes } = repartirRoles(dits.length ? dits : ['autre']);
   return {
     firstName: firstName ? capitaliserNom(firstName) : '',
     lastName: lastName ? capitaliserNom(lastName) : '',
     phone,
     email: asString(row.email, 160),
     type,
+    autresTypes,
   };
 }
 
@@ -516,7 +539,24 @@ export function parseNoteExtraction(raw: string, refDate = new Date()): NoteExtr
     recherche: parseRecherche(parsed.recherche),
     prospect: parseProspect(parsed.prospect),
     email: parseEmail(parsed.email),
+    observations: parseObservations(parsed.observations),
   };
+}
+
+/** Constats sur place : courts, sans doublon, six au plus. */
+function parseObservations(v: unknown): string[] {
+  const vus = new Set<string>();
+  const out: string[] = [];
+  const brut = Array.isArray(v) ? v : typeof v === 'string' ? [v] : [];
+  for (const raw of brut) {
+    const texte = majuscule(asString(raw, 140)?.replace(/[.\s]+$/, '') ?? null);
+    const cle = sansAccent(texte);
+    if (!texte || !cle || vus.has(cle)) continue;
+    vus.add(cle);
+    out.push(texte);
+    if (out.length >= 6) break;
+  }
+  return out;
 }
 
 /* -------------------------------------------------------------------------- */

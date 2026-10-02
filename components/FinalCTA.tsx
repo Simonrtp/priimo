@@ -79,8 +79,8 @@ export default function FinalCTA() {
           </ul>
         </Reveal>
 
-        <Reveal direction="scale" delay={250} className="mt-10">
-          <div className="relative inline-block">
+        <Reveal direction="scale" delay={250} className="mt-10 overflow-visible">
+          <div className="relative inline-block overflow-visible px-12 py-10">
             {/* Halo pulsant derrière le CTA */}
             <span
               aria-hidden

@@ -47,7 +47,13 @@ export interface Contact {
   lastName: string;
   /** Prénom + nom nettoyé, ou l'un des deux si l'autre manque. */
   fullName: string;
+  /** Rôle principal — celui des filtres et des couleurs. */
   type: ContactType;
+  /**
+   * Les autres casquettes de la même personne : une vendeuse qui cherche aussi
+   * à acheter est `vendeur` + `['acquereur']`. Vide pour la plupart des fiches.
+   */
+  autresTypes: ContactType[];
   phone: string | null;
   /** L'agent déclare que la personne lui a communiqué ce numéro. */
   numeroCommuniqueParLaPersonne?: boolean;
@@ -171,6 +177,44 @@ export const INTERACTION_KIND_LABELS: Record<InteractionKind, string> = {
 /** Vrai si le type de contact appelle des critères de recherche. */
 export function typeUsesCriteria(type: ContactType): boolean {
   return type === 'acquereur' || type === 'locataire';
+}
+
+/**
+ * Quand une personne a plusieurs rôles, le principal est le plus engageant
+ * pour l'agence : un vendeur apporte un mandat avant d'être un acquéreur.
+ */
+const PRIORITE_ROLES: readonly ContactType[] = [
+  'vendeur',
+  'acquereur',
+  'locataire',
+  'gardien',
+  'commercant',
+  'autre',
+];
+
+/** Tous les rôles d'une fiche, sans doublon ; « Autre » seulement s'il est seul. */
+export function rolesDuContact(c: { type: ContactType; autresTypes?: readonly ContactType[] | null }): ContactType[] {
+  const roles = [...new Set([c.type, ...(c.autresTypes ?? [])])].filter((r) => PRIORITE_ROLES.includes(r));
+  const utiles: ContactType[] = roles.filter((r) => r !== 'autre');
+  return utiles.length ? PRIORITE_ROLES.filter((r) => utiles.includes(r)) : ['autre'];
+}
+
+/** Rôles choisis → rôle principal + les autres, dans l'ordre de priorité. */
+export function repartirRoles(roles: readonly ContactType[]): { type: ContactType; autresTypes: ContactType[] } {
+  const tries = rolesDuContact({ type: roles[0] ?? 'autre', autresTypes: roles.slice(1) });
+  return { type: tries[0] ?? 'autre', autresTypes: tries.slice(1) };
+}
+
+export function aLeRole(
+  c: { type: ContactType; autresTypes?: readonly ContactType[] | null },
+  role: ContactType,
+): boolean {
+  return c.type === role || (c.autresTypes ?? []).includes(role);
+}
+
+/** Vrai si l'un des rôles appelle des critères de recherche. */
+export function rolesUsentCriteres(c: { type: ContactType; autresTypes?: readonly ContactType[] | null }): boolean {
+  return rolesDuContact(c).some(typeUsesCriteria);
 }
 
 /** Vrai si aucun critère n'est renseigné — sert à afficher « à compléter ». */

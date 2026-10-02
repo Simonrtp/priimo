@@ -15,9 +15,16 @@ export function useWalkingRoute(stops: readonly ItineraireStop[] | null) {
   const [origin, setOrigin] = useState<RoutePoint | null>(null);
   const [route, setRoute] = useState<WalkingRoute | null>(null);
 
+  // GPS seulement s'il y a un itinéraire à ancrer — sinon on demande la
+  // permission pour rien, sans jamais montrer le point sur la carte.
+  const needsOrigin = Boolean(stops && stops.length > 0);
   useEffect(() => {
+    if (!needsOrigin) {
+      setOrigin(null);
+      return;
+    }
     void readDevicePosition().then(setOrigin);
-  }, []);
+  }, [needsOrigin]);
 
   const waypoints = useMemo(
     () => (stops && stops.length > 0 ? routeWaypoints(stops, origin) : []),

@@ -56,5 +56,10 @@ export async function GET(req: Request) {
     includeDpeDetail: url.searchParams.get('dpe') === '1',
   });
 
-  return NextResponse.json(overlays);
+  return NextResponse.json(overlays, {
+    headers: {
+      // Auth obligatoire : cache navigateur privé, court, pour les replays de pan.
+      'Cache-Control': 'private, max-age=20, stale-while-revalidate=40',
+    },
+  });
 }

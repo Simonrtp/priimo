@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   emptyParcelleFiche,
   type CadastreImmeublePoint,
@@ -12,7 +12,16 @@ import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 import { serializeDpeAgeBuckets, type DpeAgeBucket } from '@/lib/carte/dpe-age';
 
 const FICHES_EN_MEMOIRE = 40;
+const OVERLAY_CACHE = 24;
 const EMPTY_SOURCES: CadastreSourceDates = { diagnosticsAt: null, ventesAt: null };
+
+type Viewport = { west: number; south: number; east: number; north: number; zoom: number };
+
+type OverlayPayload = {
+  immeubles: CadastreImmeublePoint[];
+  notes: ParcelleNoteMarker[];
+  sources: CadastreSourceDates;
+};
 
 function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche: ParcelleFiche) {
   cache.delete(parcelleId);
@@ -23,9 +32,37 @@ function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche:
   }
 }
 
+/** Arrondi bbox/zoom : évite un fetch à chaque pixel de pan. */
+function quantizeViewport(v: Viewport): Viewport {
+  const step = v.zoom >= 15 ? 0.001 : v.zoom >= 13 ? 0.002 : 0.004;
+  const q = (n: number) => Math.round(n / step) * step;
+  return {
+    west: q(v.west),
+    south: q(v.south),
+    east: q(v.east),
+    north: q(v.north),
+    zoom: Math.round(v.zoom * 2) / 2,
+  };
+}
+
+function overlayCacheKey(
+  viewport: Viewport | null,
+  includeDpe: boolean,
+  agesKey: string,
+): string {
+  if (!viewport) return `none|${includeDpe ? 1 : 0}|${agesKey}`;
+  const v = quantizeViewport(viewport);
+  return `${v.west},${v.south},${v.east},${v.north},${v.zoom}|${includeDpe ? 1 : 0}|${agesKey}`;
+}
+
+function appliquerSurface(fiche: ParcelleFiche, surface: number | null): ParcelleFiche {
+  if (surface == null) return fiche;
+  return { ...fiche, surfaceCadastreM2: surface };
+}
+
 export function useParcelleMap(
   enabled: boolean,
-  viewport: { west: number; south: number; east: number; north: number; zoom: number } | null,
+  viewport: Viewport | null,
   options?: { dpeAges?: readonly DpeAgeBucket[]; includeDpeDetail?: boolean },
 ) {
   const [immeubles, setImmeubles] = useState<CadastreImmeublePoint[]>([]);
@@ -34,8 +71,11 @@ export function useParcelleMap(
   const [selectedParcelleId, setSelectedParcelleId] = useState<string | null>(null);
   const [fiche, setFiche] = useState<ParcelleFiche | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const cache = useRef<Map<string, ParcelleFiche>>(new Map());
+  const inflight = useRef<Map<string, Promise<ParcelleFiche>>>(new Map());
+  const overlayCache = useRef<Map<string, OverlayPayload>>(new Map());
   const demande = useRef<string | null>(null);
   const seq = useRef(0);
   const surfaceCliquee = useRef<number | null>(null);
@@ -43,69 +83,140 @@ export function useParcelleMap(
   const agesKey = serializeDpeAgeBuckets(options?.dpeAges ?? []);
   const includeDpe = options?.includeDpeDetail === true;
 
-  const reloadOverlays = useCallback(() => {
-    const ticket = ++seq.current;
+  const viewportKey = useMemo(
+    () => overlayCacheKey(viewport, includeDpe, agesProvided ? agesKey : ''),
+    [viewport, includeDpe, agesProvided, agesKey],
+  );
+
+  useEffect(() => {
     if (!enabled) {
       setImmeubles([]);
       setNoteMarkers([]);
       return;
     }
-    const params = new URLSearchParams();
-    if (viewport) {
-      params.set('west', String(viewport.west));
-      params.set('south', String(viewport.south));
-      params.set('east', String(viewport.east));
-      params.set('north', String(viewport.north));
-      params.set('zoom', String(viewport.zoom));
+
+    const known = overlayCache.current.get(viewportKey);
+    if (known) {
+      setImmeubles(known.immeubles);
+      setNoteMarkers(known.notes);
+      setSources(known.sources);
     }
-    if (includeDpe) params.set('dpe', '1');
-    if (agesProvided) params.set('ages', agesKey);
-    const qs = params.toString();
-    void fetch(`/api/carte/parcelles${qs ? `?${qs}` : ''}`)
-      .then((res) => res.json())
-      .then(
-        (data: {
-          immeubles?: CadastreImmeublePoint[];
-          notes?: ParcelleNoteMarker[];
-          sources?: CadastreSourceDates;
-        }) => {
+
+    const ac = new AbortController();
+    const ticket = ++seq.current;
+    const debounceMs = known ? 320 : 140;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (viewport) {
+        const v = quantizeViewport(viewport);
+        params.set('west', String(v.west));
+        params.set('south', String(v.south));
+        params.set('east', String(v.east));
+        params.set('north', String(v.north));
+        params.set('zoom', String(v.zoom));
+      }
+      if (includeDpe) params.set('dpe', '1');
+      if (agesProvided) params.set('ages', agesKey);
+      const qs = params.toString();
+
+      void fetch(`/api/carte/parcelles${qs ? `?${qs}` : ''}`, { signal: ac.signal })
+        .then((res) => res.json())
+        .then(
+          (data: {
+            immeubles?: CadastreImmeublePoint[];
+            notes?: ParcelleNoteMarker[];
+            sources?: CadastreSourceDates;
+          }) => {
+            if (ticket !== seq.current) return;
+            const payload: OverlayPayload = {
+              immeubles: data.immeubles ?? [],
+              notes: data.notes ?? [],
+              sources: data.sources ?? EMPTY_SOURCES,
+            };
+            overlayCache.current.delete(viewportKey);
+            overlayCache.current.set(viewportKey, payload);
+            if (overlayCache.current.size > OVERLAY_CACHE) {
+              const oldest = overlayCache.current.keys().next().value;
+              if (oldest !== undefined) overlayCache.current.delete(oldest);
+            }
+            setImmeubles(payload.immeubles);
+            setNoteMarkers(payload.notes);
+            setSources(payload.sources);
+          },
+        )
+        .catch((err: unknown) => {
           if (ticket !== seq.current) return;
-          setImmeubles(data.immeubles ?? []);
-          setNoteMarkers(data.notes ?? []);
-          if (data.sources) setSources(data.sources);
-        },
-      )
-      .catch(() => {
-        if (ticket !== seq.current) return;
-        setImmeubles([]);
-        setNoteMarkers([]);
-      });
-  }, [enabled, includeDpe, agesProvided, agesKey, viewport?.west, viewport?.south, viewport?.east, viewport?.north, viewport?.zoom]);
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          if (!known) {
+            setImmeubles([]);
+            setNoteMarkers([]);
+          }
+        });
+    }, debounceMs);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => reloadOverlays(), 180);
-    return () => window.clearTimeout(t);
-  }, [reloadOverlays]);
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [enabled, viewportKey, viewport, includeDpe, agesProvided, agesKey, reloadToken]);
 
-  const charger = useCallback(async (parcelleId: string) => {
-    try {
+  const fetchFiche = useCallback((parcelleId: string, opts?: { bypassCache?: boolean }): Promise<ParcelleFiche> => {
+    if (!opts?.bypassCache) {
+      const known = cache.current.get(parcelleId);
+      if (known) return Promise.resolve(known);
+    }
+
+    const pending = inflight.current.get(parcelleId);
+    if (pending) return pending;
+
+    const request = (async () => {
       const res = await fetch(`/api/carte/parcelle/${encodeURIComponent(parcelleId)}`);
       const data = (await res.json()) as ParcelleFiche & { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'parcelle');
-      const fiche = {
+      const next = {
         ...data,
         surfaceCadastreM2: data.surfaceCadastreM2 ?? surfaceCliquee.current,
       };
-      memoriser(cache.current, parcelleId, fiche);
-      if (demande.current !== parcelleId) return;
-      setFiche(fiche);
-    } catch {
-      if (demande.current !== parcelleId) return;
-      setFiche((prev) => prev ?? emptyParcelleFiche(parcelleId));
-    } finally {
-      if (demande.current === parcelleId) setLoading(false);
-    }
+      memoriser(cache.current, parcelleId, next);
+      return next;
+    })().finally(() => {
+      inflight.current.delete(parcelleId);
+    });
+
+    inflight.current.set(parcelleId, request);
+    return request;
   }, []);
+
+  const appliquerSiOuverte = useCallback((parcelleId: string, next: ParcelleFiche) => {
+    if (demande.current !== parcelleId) return;
+    setFiche(appliquerSurface(next, surfaceCliquee.current));
+    setLoading(false);
+  }, []);
+
+  const charger = useCallback(
+    async (parcelleId: string, opts?: { bypassCache?: boolean }) => {
+      try {
+        const next = await fetchFiche(parcelleId, opts);
+        appliquerSiOuverte(parcelleId, next);
+      } catch {
+        if (demande.current !== parcelleId) return;
+        setFiche((prev) => prev ?? emptyParcelleFiche(parcelleId));
+        setLoading(false);
+      }
+    },
+    [appliquerSiOuverte, fetchFiche],
+  );
+
+  const prefetchParcelle = useCallback(
+    (parcelleId: string) => {
+      if (!parcelleId) return;
+      if (cache.current.has(parcelleId) || inflight.current.has(parcelleId)) return;
+      void fetchFiche(parcelleId).catch(() => {
+        // préchauffage silencieux
+      });
+    },
+    [fetchFiche],
+  );
 
   const openParcelle = useCallback(
     (parcelleId: string, extra?: ParcellePickExtra) => {
@@ -116,11 +227,12 @@ export function useParcelleMap(
       const surface = extra?.surfaceM2 ?? connue?.surfaceCadastreM2 ?? null;
       setFiche(
         connue
-          ? { ...connue, surfaceCadastreM2: surface }
+          ? appliquerSurface(connue, surface)
           : { ...emptyParcelleFiche(parcelleId), surfaceCadastreM2: surface },
       );
       setLoading(!connue);
-      void charger(parcelleId);
+      // Toujours revalider : le cache sert l’affichage immédiat, pas à figer les données.
+      void charger(parcelleId, { bypassCache: true });
     },
     [charger],
   );
@@ -133,9 +245,17 @@ export function useParcelleMap(
     setLoading(false);
   }, []);
 
+  const reloadOverlays = useCallback(() => {
+    overlayCache.current.clear();
+    setReloadToken((n) => n + 1);
+  }, []);
+
   const refreshAfterNotes = useCallback(() => {
     reloadOverlays();
     if (!selectedParcelleId) return;
+    cache.current.delete(selectedParcelleId);
+    inflight.current.delete(selectedParcelleId);
+    setLoading(true);
     void charger(selectedParcelleId);
   }, [charger, reloadOverlays, selectedParcelleId]);
 
@@ -147,6 +267,7 @@ export function useParcelleMap(
     fiche,
     loading,
     openParcelle,
+    prefetchParcelle,
     closeParcelle,
     reloadOverlays,
     refreshAfterNotes,

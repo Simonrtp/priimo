@@ -12,6 +12,10 @@ export type ImmeubleContact = {
   source: string | null;
 };
 
+/** Rappel affiché à côté de tout numéro professionnel trouvé par le pipeline. */
+export const CONTACTS_LEGAL_HINT =
+  "Contacts professionnels. L'échange doit porter sur la société et le bien qu'elle détient. Le démarchage téléphonique d'un particulier sans consentement préalable est interdit à compter du 11 août 2026.";
+
 const CATEGORIE_LABELS: Record<ImmeubleContactCategorie, string> = {
   commerce: 'Commerce',
   professionnel: 'Société',

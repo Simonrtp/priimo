@@ -21,6 +21,7 @@ function acquereur(
     lastName: '',
     fullName: name,
     type,
+    autresTypes: [],
     phone: null,
     email: null,
     secteur: null,

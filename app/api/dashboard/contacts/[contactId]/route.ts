@@ -3,14 +3,9 @@ import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
-import { contactGeocodeQuery, EMPTY_BAN_GEO, parseClientGeo, resolveGeoColumns } from '@/lib/geo/fields';
+import { colonnesDepuisChamps } from '@/lib/contacts/modification';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import {
-  fetchContactById,
-  isMissingContactsColumn,
-  mapDbContactToContact,
-  withContactsSelect,
-} from '@/lib/queries/contacts';
+import { fetchContactById, mapDbContactToContact, updateContactRow } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { effacerDicteesDuContact } from '@/lib/rgpd/effacement';
@@ -97,43 +92,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
 
   const update: Partial<ContactRow> = {};
   if (parsed?.ok) {
-    const f = parsed.fields;
-    const query = contactGeocodeQuery(f.address, f.secteur, f.postalCodes);
-    const addressUnchanged =
-      (f.address ?? null) === (existing.address ?? null) &&
-      existing.banId != null &&
-      existing.latitude != null &&
-      existing.longitude != null;
-    const geo = !query
-      ? { ...EMPTY_BAN_GEO }
-      : addressUnchanged && !parseClientGeo(raw)
-        ? {
-            ban_id: existing.banId,
-            latitude: existing.latitude,
-            longitude: existing.longitude,
-            adresse_normalisee: existing.address,
-            geocode_score: null,
-            geocode_le: null,
-          }
-        : await resolveGeoColumns(raw, query.adresse, query.codePostal);
-    Object.assign(update, {
-      first_name: f.firstName || null,
-      last_name: f.lastName || null,
-      contact_type: f.type,
-      phone: f.phone,
-      email: f.email,
-      secteur: f.secteur,
-      address: f.address,
-      postal_codes: f.postalCodes,
-      budget_min: f.budgetMin,
-      budget_max: f.budgetMax,
-      surface_min: f.surfaceMin,
-      surface_max: f.surfaceMax,
-      rooms_min: f.roomsMin,
-      summary: f.summary,
-      recontacter_le: f.recontacterLe,
-      ...(geo ?? {}),
-    });
+    Object.assign(update, await colonnesDepuisChamps(parsed.fields, raw, existing));
   }
   if (Object.prototype.hasOwnProperty.call(raw, 'numeroCommuniqueParLaPersonne')) {
     update.numero_communique_par_la_personne = raw.numeroCommuniqueParLaPersonne === true;
@@ -154,31 +113,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     Object.assign(update, assignmentMeta(assigned.id, profile.id));
   }
 
-  let { data, error } = await withContactsSelect((sel) =>
-    supabase
-      .from('contacts')
-      .update(update)
-      .eq('id', contactId)
-      .eq('agency_id', agency.id)
-      .select(sel)
-      .single(),
-  );
-
-  if (isMissingContactsColumn(error, 'numero_communique_par_la_personne')) {
-    const { numero_communique_par_la_personne: _c, ...without } = update;
-    void _c;
-    const retry = await withContactsSelect((sel) =>
-      supabase
-        .from('contacts')
-        .update(without)
-        .eq('id', contactId)
-        .eq('agency_id', agency.id)
-        .select(sel)
-        .single(),
-    );
-    data = retry.data;
-    error = retry.error;
-  }
+  // Une colonne récente (rôles, numéro communiqué) absente de la base est
+  // écartée de l'écriture : le reste de la fiche s'enregistre quand même.
+  const { data, error } = await updateContactRow(supabase, { contactId, agencyId: agency.id }, update);
 
   if (error || !data) {
     console.error('[contacts] mise à jour', error);

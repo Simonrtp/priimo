@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronUp, Layers, X } from 'lucide-react';
+import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
@@ -57,6 +58,7 @@ import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
+import { watchDevicePosition, type DevicePosition } from '@/lib/voice/gps';
 import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
 import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
@@ -152,25 +154,23 @@ function LayersPanel({
             const active = layers[kind];
             return (
               <li key={kind}>
-                <label
-                  className={`flex min-h-[40px] cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors duration-fluid-subtle ease-in-out ${
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={active}
+                  onClick={() => onToggle(kind)}
+                  className={`flex min-h-[40px] w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
                     active ? 'bg-blue/10' : 'hover:bg-black/[0.03]'
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-black/20"
-                    style={{ accentColor: '#1A2A56' }}
-                    checked={active}
-                    onChange={() => onToggle(kind)}
-                  />
+                  <Switch checked={active} />
                   <span
                     className={`min-w-0 flex-1 text-[13.5px] font-medium ${active ? 'text-text-strong' : 'text-text-muted'}`}
                   >
                     {MAP_LAYER_LABELS[kind]}
                   </span>
                   <span className="tabular-nums text-[12.5px] text-text-subtle">{counts[kind]}</span>
-                </label>
+                </button>
               </li>
             );
           })}
@@ -266,17 +266,29 @@ export default function SectorMapClient({
   const panelTitleRef = useRef<HTMLHeadingElement>(null);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
+  const [agentPosition, setAgentPosition] = useState<DevicePosition | null>(null);
 
   useEffect(() => {
     setStoredStops(readItineraireStops());
+  }, []);
+
+  useEffect(() => {
+    return watchDevicePosition(setAgentPosition, {
+      pauseWhenHidden: true,
+      highAccuracy: false,
+      minUpdateM: 8,
+      maximumAge: 4_000,
+    });
   }, []);
 
   const itineraryStops = showItineraire ? (storedStops ?? itineraryStopsProp) : null;
   const { route, waypoints } = useWalkingRoute(itineraryStops);
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
-  const cadastreOn = anyCadastreLayer(layers);
-  const parcelle = useParcelleMap(cadastreOn, viewport, {
+  // Pastilles DPE/ventes/copro : fetch seulement si une couche est cochée.
+  // Le plan PCI + clic parcelle → volet marche sans elles.
+  const overlaysCadastre = anyCadastreLayer(layers);
+  const parcelle = useParcelleMap(overlaysCadastre, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
   });
@@ -459,7 +471,7 @@ export default function SectorMapClient({
           : 'relative -mx-4 flex h-[calc(100dvh-5rem-env(safe-area-inset-top,0px)-7.5rem-env(safe-area-inset-bottom,0px))] flex-col md:-m-6 md:h-[calc(100dvh-5rem)] lg:-m-8'
       }
     >
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[32px]">
         <SectorMapCanvas
           buildings={buildings}
           center={center}
@@ -477,23 +489,25 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled={cadastreOn}
+          parcellesEnabled
           activeParcelleIds={cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
           parcelleNoteMarkers={parcelleNoteMarkers}
           selectedParcelleId={parcelle.selectedParcelleId}
           cadastreImmeubles={cadastreImmeubles}
           cadastreLayers={cadastreLayerFlags}
-          showBuildingMarkers={!cadastreOn}
+          showBuildingMarkers={!overlaysCadastre}
           onSelectParcelle={(parcelleId, extra) => {
             setSelectedBanId(null);
             setSheetOpen(false);
             setMissingOpen(false);
             parcelle.openParcelle(parcelleId, extra);
           }}
+          onPrefetchParcelle={parcelle.prefetchParcelle}
           focusBounds={focusBounds}
           zones={zoneId === 'aucun' ? [] : zones}
           highlightedZoneId={zoneChoisie?.id ?? null}
           clipZone={zoneChoisie}
+          agentPosition={agentPosition}
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
@@ -504,10 +518,17 @@ export default function SectorMapClient({
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute inset-y-3 right-3 z-20 hidden w-[min(100%-1.5rem,320px)] md:flex md:flex-col md:items-stretch md:gap-2">
-          {viewSwitcher ? (
-            <div className="pointer-events-auto shrink-0 self-end">{viewSwitcher}</div>
-          ) : null}
+        {viewSwitcher ? (
+          <div className="pointer-events-auto absolute top-0 right-0 z-30 hidden md:block">
+            {viewSwitcher}
+          </div>
+        ) : null}
+
+        <div
+          className={`pointer-events-none absolute bottom-3 right-3 z-20 hidden w-[min(100%-1.5rem,320px)] md:flex md:flex-col md:items-stretch md:gap-2 ${
+            viewSwitcher ? 'top-[3.25rem]' : 'top-3'
+          }`}
+        >
           <div className="pointer-events-auto flex min-h-0 flex-1 flex-col">
             {layersPanelOpen ? (
               <LayersPanel
@@ -537,9 +558,9 @@ export default function SectorMapClient({
                 aria-label="Afficher les couches"
                 aria-expanded={false}
                 title="Couches"
-                className="flex size-10 self-end items-center justify-center rounded-clay border border-black/[0.08] bg-[color:color-mix(in_srgb,var(--surface)_95%,transparent)] text-text shadow-clay-sm backdrop-blur-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="flex size-11 self-end items-center justify-center rounded-clay bg-[#1A2A56] text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white transition-transform duration-fluid-subtle ease-in-out hover:scale-[1.04] hover:bg-[#243667] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                <Layers size={18} strokeWidth={2} aria-hidden />
+                <Layers size={19} strokeWidth={2.2} aria-hidden />
               </button>
             )}
           </div>
@@ -552,7 +573,7 @@ export default function SectorMapClient({
               setMissingOpen(true);
               setSelectedBanId(null);
             }}
-            className="absolute left-3 top-3 z-20 rounded-clay border border-black/[0.08] bg-[color:color-mix(in_srgb,var(--surface)_95%,transparent)] px-3 py-2 text-left text-[12.5px] font-medium text-text shadow-clay-sm backdrop-blur-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="absolute left-3 top-3 z-20 rounded-clay border border-black/[0.08] bg-surface px-3 py-2 text-left text-[12.5px] font-medium text-text shadow-clay-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <span className="tabular-nums text-accent">{missingTotal}</span>
             {missingTotal > 1 ? ' fiches sans position' : ' fiche sans position'}
@@ -720,13 +741,13 @@ export default function SectorMapClient({
             ) : null}
           </aside>
         ) : null}
+        <ParcelleDrawer
+          fiche={parcelle.fiche}
+          loading={parcelle.loading}
+          onClose={parcelle.closeParcelle}
+          onNotesChanged={parcelle.refreshAfterNotes}
+        />
       </div>
-      <ParcelleDrawer
-        fiche={parcelle.fiche}
-        loading={parcelle.loading}
-        onClose={parcelle.closeParcelle}
-        onNotesChanged={parcelle.refreshAfterNotes}
-      />
     </div>
   );
 }

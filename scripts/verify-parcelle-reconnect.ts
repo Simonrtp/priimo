@@ -44,12 +44,14 @@ async function main() {
     adresse: fiche.adresse,
     videPublic: fiche.videPublic,
     ventes: fiche.ventes.length,
-    diagnostics: fiche.diagnostics.length,
+    logements: fiche.logements.length,
     coproprietes: fiche.coproprietes.length,
-    surCetteParcelle: fiche.surCetteParcelle.length,
+    prospects: fiche.prospects.length,
+    entreprises: fiche.entreprises.length,
+    prixM2Secteur: fiche.prixM2Secteur,
   }, null, 2));
   console.log('ventes détail', fiche.ventes);
-  console.log('diagnostics', fiche.diagnostics.slice(0, 8), fiche.diagnostics.length > 8 ? `… +${fiche.diagnostics.length - 8}` : '');
+  console.log('logements', fiche.logements.slice(0, 8), fiche.logements.length > 8 ? `… +${fiche.logements.length - 8}` : '');
   console.log('coproprietes', fiche.coproprietes);
 
   const t1 = Date.now();

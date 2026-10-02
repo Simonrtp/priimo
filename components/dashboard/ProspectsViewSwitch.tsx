@@ -27,13 +27,14 @@ export default function ProspectsViewSwitch({
   /** Sur la carte : style glass comme le bouton Couches. */
   variant?: 'default' | 'floating' | 'bar';
 }) {
+  const floating = variant === 'floating';
   const bar = variant === 'bar';
-  const shellClass =
-    variant === 'floating'
-      ? 'flex rounded-clay border border-black/[0.08] bg-[color:color-mix(in_srgb,var(--surface)_95%,transparent)] p-0.5 shadow-clay-sm backdrop-blur-sm'
-      : bar
-        ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-sm'
-        : PASTILLE_TRACK;
+  const shellClass = floating
+    ? // Onglet collé coin haut-droit de la carte (pas de marge).
+      'flex rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-[0_8px_20px_-10px_rgba(26,42,86,0.28)]'
+    : bar
+      ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-sm'
+      : PASTILLE_TRACK;
 
   return (
     <div className={`${shellClass} overflow-visible`} role="tablist" aria-label="Vue prospection">
@@ -54,7 +55,13 @@ export default function ProspectsViewSwitch({
                 ? `size-9 rounded-full ${
                     active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
                   }`
-                : `gap-1 sm:gap-1.5 ${pastilleClass(active)}`
+                : floating
+                  ? `gap-1.5 rounded-full px-3 py-2 text-[13px] ${
+                      active
+                        ? 'bg-[#1A2A56] text-white shadow-sm'
+                        : 'text-text-muted hover:bg-black/[0.04] hover:text-text'
+                    }`
+                  : `gap-1 sm:gap-1.5 ${pastilleClass(active)}`
             }`}
           >
             <Icon size={bar ? 16 : 14} strokeWidth={2.2} aria-hidden />

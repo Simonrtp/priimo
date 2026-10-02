@@ -48,7 +48,7 @@ export default function EnteteSemaine({
 }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-      <div className="flex min-w-0 items-center gap-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
         {debut ? <div className="shrink-0">{debut}</div> : null}
         <div className="min-w-0 max-sm:hidden">
           <h1 className="font-display text-[24px] font-bold leading-none tracking-[-0.01em] text-text-strong">
@@ -67,15 +67,28 @@ export default function EnteteSemaine({
           ) : null}
         </div>
         <h1 className="sr-only sm:hidden">{titreDe(periode, intervalle)}</h1>
+        {debut ? (
+          <div className="ml-auto min-w-0 sm:hidden">
+            <SelecteurFenetre
+              periode={periode}
+              intervalle={intervalle}
+              enCours={enCours}
+              onChanger={onChanger}
+              etroit
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:min-w-0 lg:flex-1 lg:justify-end">
-        <SelecteurFenetre
-          periode={periode}
-          intervalle={intervalle}
-          enCours={enCours}
-          onChanger={onChanger}
-        />
+        <div className={debut ? 'hidden sm:block' : undefined}>
+          <SelecteurFenetre
+            periode={periode}
+            intervalle={intervalle}
+            enCours={enCours}
+            onChanger={onChanger}
+          />
+        </div>
         {droite ? <div className="min-w-0 sm:order-1 sm:w-[15rem] lg:w-[18rem]">{droite}</div> : null}
       </div>
 
@@ -97,11 +110,14 @@ function SelecteurFenetre({
   intervalle,
   enCours,
   onChanger,
+  etroit = false,
 }: {
   periode: Periode;
   intervalle: Intervalle;
   enCours: boolean;
   onChanger: (periode: Periode, ancre: string | null, fin?: string | null) => void;
+  /** À côté de L'agence / Ma semaine : pas pleine largeur. */
+  etroit?: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
@@ -161,8 +177,12 @@ function SelecteurFenetre({
 
   return (
     <div ref={racine} className="relative sm:order-2">
-      <nav aria-label="Période" aria-busy={enCours} className={`${PASTILLE_TRACK} max-sm:w-full`}>
-        <div className="flex flex-1 justify-between gap-0.5 sm:justify-start">
+      <nav
+        aria-label="Période"
+        aria-busy={enCours}
+        className={`${PASTILLE_TRACK}${etroit ? '' : ' max-sm:w-full'}`}
+      >
+        <div className={`flex gap-0.5 ${etroit ? 'justify-end' : 'flex-1 justify-between sm:justify-start'}`}>
           {PRESETS_PERIODE.map((p) => (
             <button
               key={p}
@@ -172,7 +192,7 @@ function SelecteurFenetre({
                 fermer();
                 onChanger(p, null);
               }}
-              className={`${pastilleClass(p === periode)} flex-1 sm:flex-none`}
+              className={`${pastilleClass(p === periode)}${etroit ? '' : ' flex-1 sm:flex-none'}`}
             >
               {LIBELLE_PERIODE[p]}
             </button>

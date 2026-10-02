@@ -10,6 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ContactRow, Database } from '@/types/database';
 import type { Contact } from '@/types/contact';
+import { aLeRole } from '@/types/contact';
 import { mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
 import { proposerComptesRendus, type ActiviteBien, type BienSousMandat } from './compte-rendu';
@@ -126,7 +127,7 @@ function adressesSuivies(
   }));
 
   const depuisContacts: AdresseSuivie[] = contacts
-    .filter((c) => c.address && c.type === 'vendeur')
+    .filter((c) => c.address && aLeRole(c, 'vendeur'))
     .map((c) => ({
       entite: 'contact',
       id: c.id,
@@ -448,7 +449,7 @@ export async function collecterPropositions(
 
   const index = indexContacts(contacts);
   const suivies = adressesSuivies(biens, contacts);
-  const acquereurs = contacts.filter((c) => c.type === 'acquereur');
+  const acquereurs = contacts.filter((c) => aLeRole(c, 'acquereur'));
 
   const lots = await Promise.all([
     isoler('rapprochement_inverse', echecs, async () =>

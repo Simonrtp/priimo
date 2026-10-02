@@ -194,7 +194,7 @@ export default function TopBar() {
 
   return (
     <header
-      className="relative flex min-h-[80px] flex-shrink-0 flex-col max-md:border-b max-md:border-black/[0.06] max-md:backdrop-blur-xl max-md:bg-[rgba(249,250,255,0.78)] md:min-h-[56px] md:bg-transparent"
+      className="relative flex min-h-[80px] flex-shrink-0 flex-col max-md:border-b max-md:border-black/[0.06] max-md:bg-[rgba(249,250,255,0.92)] md:min-h-[56px] md:bg-transparent"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       {/* Même gouttière que main (md:p-3 / lg:p-4) : la recherche s’aligne sur la carte workspace. */}

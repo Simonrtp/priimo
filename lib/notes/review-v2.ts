@@ -7,6 +7,7 @@
  */
 
 import type { Contact } from '@/types/contact';
+import { aLeRole } from '@/types/contact';
 import type { MandatStatut } from '@/types/bien';
 import { MANDAT_STATUT_LABELS, bienIsActive } from '@/types/bien';
 import { normalizeName } from '@/lib/import/normalize';
@@ -316,7 +317,7 @@ export function rechercheProposee(
   if (!r) return null;
   const personneRef =
     trouverPersonne(r.personne, personnes) ??
-    personnes.find((p) => p.personne.type === 'acquereur')?.id ??
+    personnes.find((p) => aLeRole(p.personne, 'acquereur'))?.id ??
     (personnes.length === 1 ? personnes[0]!.id : null);
 
   // Un contact fictif porte les critères dictés : le moteur de rapprochement

@@ -81,6 +81,7 @@ export default function MobileMapCanvas({
     cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
   },
   onSelectParcelle,
+  onPrefetchParcelle,
   agentPosition = null,
   highlightBanIds = null,
   suppressAutoFit = false,
@@ -112,6 +113,7 @@ export default function MobileMapCanvas({
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
   cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onSelectParcelle?: (parcelleId: string, extra?: ParcellePickExtra) => void;
+  onPrefetchParcelle?: (parcelleId: string) => void;
   agentPosition?: DevicePosition | null;
   highlightBanIds?: ReadonlySet<string> | null;
   suppressAutoFit?: boolean;
@@ -381,6 +383,7 @@ export default function MobileMapCanvas({
           layers={cadastreLayers}
           clipZone={clipZone}
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
+          onPrefetch={onPrefetchParcelle}
         />
         {navigation ? null : (
           <>

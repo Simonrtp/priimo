@@ -146,7 +146,7 @@ export default function Sidebar() {
         aria-label="Navigation principale"
       >
         {NAV_GROUPS.map((group, groupIndex) => (
-          <div key={groupIndex}>
+          <div key={groupIndex} className="flex w-full flex-col">
             {groupIndex > 0 ? <NavDivider collapsed={collapsed} /> : null}
             {group.map(({ href, label, Icon, match }) => {
               const active = match(pathname);
@@ -162,10 +162,10 @@ export default function Sidebar() {
                   onClick={(e) => {
                     if (navLocked) e.preventDefault();
                   }}
-                  className={`nav-link flex items-center border-l-[3px] py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
+                  className={`nav-link flex w-full items-center border-l-[3px] py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
                     collapsed
                       ? 'justify-center rounded-xl border-transparent px-0'
-                      : 'gap-3 md:justify-start md:pl-[9px] md:pr-3'
+                      : 'justify-start gap-3 pl-[9px] pr-3'
                   } ${
                     active
                       ? collapsed
@@ -175,8 +175,16 @@ export default function Sidebar() {
                   }`}
                   style={{ fontSize: 13.5 }}
                 >
-                  <Icon active={active} className="shrink-0" />
-                  <span className="sidebar-nav-label hidden overflow-hidden whitespace-nowrap md:inline">{label}</span>
+                  <span className="flex size-5 shrink-0 items-center justify-center" aria-hidden>
+                    <Icon active={active} className="size-5" />
+                  </span>
+                  <span
+                    className={`sidebar-nav-label overflow-hidden whitespace-nowrap ${
+                      collapsed ? 'hidden' : 'inline-block'
+                    }`}
+                  >
+                    {label}
+                  </span>
                 </NavPrefetchLink>
               );
             })}

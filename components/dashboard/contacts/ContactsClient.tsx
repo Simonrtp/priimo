@@ -6,7 +6,7 @@ import { ChevronDown, Download, Phone, Search, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
-import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER } from '@/types/contact';
+import { aLeRole, CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, rolesDuContact } from '@/types/contact';
 import {
   civilToday,
   duplicatePartnerMap,
@@ -189,12 +189,16 @@ function ContactRow({
                   )}
                 </span>
               ) : null}
-              <span
-                className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                style={{ background: '#D5D8E4', color: SLATE }}
-              >
-                {CONTACT_TYPE_LABELS[contact.type]}
-              </span>
+              {/* Une pastille par casquette : vendeuse et acquéreuse se lisent d'un coup d'œil. */}
+              {rolesDuContact(contact).map((role) => (
+                <span
+                  key={role}
+                  className="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  style={{ background: '#D5D8E4', color: SLATE }}
+                >
+                  {CONTACT_TYPE_LABELS[role]}
+                </span>
+              ))}
               {duplicateOf ? (
                 <button
                   type="button"
@@ -374,7 +378,7 @@ export default function ContactsClient({
   const visible = useMemo(() => {
     const q = normalize(query.trim());
     const filtered = contacts.filter((c) => {
-      if (typeFilter !== 'tous' && c.type !== typeFilter) return false;
+      if (typeFilter !== 'tous' && !aLeRole(c, typeFilter)) return false;
       if (secteurFilter !== 'tous' && c.secteur !== secteurFilter) return false;
       if (isDirector && memberFilter !== 'tous' && c.assignedTo !== memberFilter) return false;
       if (q && !contactMatchesQuery(c, q)) return false;

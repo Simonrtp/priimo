@@ -865,6 +865,8 @@ export type ContactRow = {
   first_name: string | null;
   last_name: string | null;
   contact_type: ContactTypeDb;
+  /** Rôles en plus du principal (20260944). Absent tant que la migration n'est pas passée. */
+  autres_types?: ContactTypeDb[];
   phone: string | null;
   email: string | null;
   secteur: string | null;
@@ -907,6 +909,7 @@ export type ContactInsert = {
   first_name?: string | null;
   last_name?: string | null;
   contact_type?: ContactTypeDb;
+  autres_types?: ContactTypeDb[];
   phone?: string | null;
   email?: string | null;
   secteur?: string | null;

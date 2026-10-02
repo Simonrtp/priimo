@@ -373,9 +373,9 @@ export default function AccueilDirecteur({
 
   return (
     <div data-accueil className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-label={modele.titre}>
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+      <header className="flex flex-row flex-wrap items-center gap-2 sm:gap-3">
         <SelecteurVueAccueil vue="directeur" />
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto">
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
           <Pastilles
             label="Période"
             value={periode}

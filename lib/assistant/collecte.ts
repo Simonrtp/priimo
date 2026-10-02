@@ -743,6 +743,7 @@ function collectAcquereurs(
     c.type === 'autre'
       ? c.type
       : 'autre'),
+    autresTypes: [],
     phone: c.phone,
     email: null,
     secteur: null,

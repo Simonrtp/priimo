@@ -4,7 +4,6 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { assignmentMeta } from '@/lib/agency/assignees';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import { fetchContactsDuplicateLite } from '@/lib/queries/contacts';
 import { invaliderAccueilEtProspection, invaliderNotesAccueil } from '@/lib/cache/dashboard';
 import { creneauAction } from '@/lib/notes/propositions';
 import { parseIsoDateOnly } from '@/lib/notes/date-relative';
@@ -12,6 +11,11 @@ import { retirerFinDeNote } from '@/lib/voice/fin-de-note';
 import { minutesEvitees } from '@/lib/notes/temps-gagne';
 import { enregistrerRappel } from '@/lib/notes/rappels';
 import { creerContact } from '@/lib/contacts/creation';
+import { colonnesDepuisChamps, completerContact } from '@/lib/contacts/modification';
+import { parseContactInput } from '@/lib/contact-input';
+import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { fetchContactById, fetchContactsDuplicateLite, updateContactRow } from '@/lib/queries/contacts';
+import type { ContactType } from '@/types/contact';
 import type {
   NoteLienConfianceDb,
   NoteLienEntiteDb,
@@ -39,6 +43,10 @@ const int = (v: unknown, max: number): number | null =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= max ? Math.round(v) : null;
 const liste = (v: unknown): Obj[] =>
   Array.isArray(v) ? v.filter((x): x is Obj => Boolean(x) && typeof x === 'object').slice(0, 20) : [];
+const objet = (v: unknown): Obj | null => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Obj) : null);
+const ids = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map((x) => str(x, 64)).filter((x): x is string => Boolean(x)).slice(0, 5) : [];
+const ROLES: readonly ContactType[] = ['vendeur', 'acquereur', 'locataire', 'gardien', 'commercant'];
 
 /**
  * Range une dictée en un seul appel : contacts (création ou rattachement),
@@ -69,7 +77,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const [{ data: note }, members, supabase] = await Promise.all([
     admin
       .from('voice_notes')
-      .select('id, agency_id, created_by, transcript')
+      .select('id, agency_id, created_by, transcript, structured')
       .eq('id', voiceNoteId)
       .eq('agency_id', agency.id)
       .maybeSingle(),
@@ -98,6 +106,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     if (r.ok) {
       if (ref) contactParRef.set(ref, r.contact.id);
       if (!r.reused) contactsCrees += 1;
+      else {
+        // Une fiche identique existait : elle reçoit ce que la note apprend.
+        const c = p.creer as Obj;
+        const roles = [c.type, ...(Array.isArray(c.autresTypes) ? c.autresTypes : [])].filter(
+          (x): x is ContactType => ROLES.includes(x as ContactType),
+        );
+        await completerContact(
+          supabase,
+          { contactId: r.contact.id, agencyId: agency.id },
+          { roles, phone: str(c.phone, 40), email: str(c.email, 160), address: str(c.address, 240), banId: str(c.banId, 120) },
+        ).catch(() => echecs.push('fiche'));
+      }
     } else {
       echecs.push('contact');
     }
@@ -138,10 +158,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
       ...liens.filter((l) => l.entiteType === 'bien').map((l) => str(l.entiteId)),
       ...actions.map((a) => str(a.bienId)),
       ...misesAJour.map((m) => str(m.bienId)),
+      ...personnes.flatMap((p) => ids(p.proprietaireDe)),
     ]),
     idsDe('leads', [
       ...liens.filter((l) => l.entiteType === 'lead').map((l) => str(l.entiteId)),
       prospect ? str(prospect.leadId) : null,
+      ...personnes.map((p) => str(p.leadId, 64)),
     ]),
   ]);
   const verifie = (type: NoteLienEntiteDb, id: string | null): string | null => {
@@ -203,6 +225,88 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
 
   /* ------------------------------------------------- Actions, fiches, prospect */
   const taches: Promise<void>[] = [];
+  const viewer = viewerFromProfile(profile);
+
+  // Les fiches que la note touche : corrigées par l'agent (maj) ou complétées
+  // de ce que la dictée a appris (ajouts), puis leurs liens propres.
+  for (const p of personnes) {
+    const ref = str(p.ref, 40);
+    const contactId = verifie('contact', (ref && contactParRef.get(ref)) || str(p.contactId, 64));
+    if (!contactId) continue;
+    const ficheIds = { contactId, agencyId: agency.id };
+    const maj = objet(p.maj);
+    const ajouts = objet(p.ajouts);
+
+    if (maj && str(p.contactId, 64)) {
+      taches.push(
+        (async () => {
+          const existing = await fetchContactById(supabase, contactId);
+          if (!existing || !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })) {
+            return;
+          }
+          const parsed = parseContactInput(maj);
+          if (!parsed.ok) {
+            echecs.push('fiche');
+            return;
+          }
+          const update = await colonnesDepuisChamps(parsed.fields, maj, existing);
+          update.numero_communique_par_la_personne = parsed.fields.numeroCommuniqueParLaPersonne;
+          const assigne = membre(maj.assignedTo);
+          if (assigne && assigne !== existing.assignedTo) Object.assign(update, assignmentMeta(assigne, profile.id));
+          const { error } = await updateContactRow(supabase, ficheIds, update);
+          if (error) echecs.push('fiche');
+        })(),
+      );
+    } else if (ajouts && str(p.contactId, 64)) {
+      const roles = Array.isArray(ajouts.roles)
+        ? ajouts.roles.filter((r): r is ContactType => ROLES.includes(r as ContactType))
+        : [];
+      taches.push(
+        completerContact(supabase, ficheIds, {
+          roles,
+          phone: str(ajouts.phone, 40),
+          email: str(ajouts.email, 160),
+          address: str(ajouts.address, 240),
+          banId: str(ajouts.banId, 120),
+        }).then(
+          () => undefined,
+          () => {
+            echecs.push('fiche');
+          },
+        ),
+      );
+    }
+
+    // Un vendeur et le bien de la note : il en devient le propriétaire, si
+    // personne ne l'est encore. On n'écrase jamais un propriétaire connu.
+    for (const bienId of ids(p.proprietaireDe).map((b) => verifie('bien', b)).filter((b): b is string => Boolean(b))) {
+      taches.push(
+        (async () => {
+          const { error } = await admin
+            .from('biens')
+            .update({ proprietaire_contact_id: contactId })
+            .eq('id', bienId)
+            .eq('agency_id', agency.id)
+            .is('proprietaire_contact_id', null);
+          if (error) echecs.push('proprietaire');
+        })(),
+      );
+    }
+    const leadId = verifie('lead', str(p.leadId, 64));
+    if (leadId) {
+      taches.push(
+        (async () => {
+          const { error } = await admin
+            .from('contacts')
+            .update({ lead_id: leadId })
+            .eq('id', contactId)
+            .eq('agency_id', agency.id)
+            .is('lead_id', null);
+          if (error) echecs.push('prospect');
+        })(),
+      );
+    }
+  }
 
   for (const a of actions) {
     const type = str(a.type, 20);
@@ -418,8 +522,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const texte = typeof body.transcript === 'string' ? retirerFinDeNote(body.transcript) : null;
   const actuel = typeof note.transcript === 'string' ? note.transcript : '';
   const assignee = membre(body.assignedTo);
+  // Les constats gardés par l'agent restent avec la note : ils décrivent l'adresse.
+  const observations = Array.isArray(body.observations)
+    ? body.observations.map((o) => str(o, 140)).filter((o): o is string => Boolean(o)).slice(0, 6)
+    : null;
+  const structured = objet(note.structured) ?? {};
   const cloture: Partial<VoiceNoteRow> = {
     statut: 'revue',
+    ...(observations ? { structured: { ...structured, observations } } : {}),
     ...(body.visibilite === 'privee' || body.visibilite === 'agence'
       ? { visibilite: body.visibilite as VoiceNoteVisibiliteDb }
       : {}),

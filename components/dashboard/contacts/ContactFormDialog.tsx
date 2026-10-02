@@ -16,6 +16,7 @@ function fromContact(contact: Contact): ContactInputFields {
     firstName: contact.firstName,
     lastName: contact.lastName,
     type: contact.type,
+    autresTypes: contact.autresTypes ?? [],
     phone: contact.phone,
     numeroCommuniqueParLaPersonne: contact.numeroCommuniqueParLaPersonne === true,
     email: contact.email,

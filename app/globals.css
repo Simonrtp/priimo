@@ -70,35 +70,27 @@
   --radius-xl: 32px;
   --radius-pill: 9999px;
 
-  /* §4.2 Ombres claymorphiques
-     Décalage vertical nul : l'ombre rayonne également sur les quatre bords.
-     Deux couches par niveau — un liseré serré qui détache la carte du fond,
-     un halo large qui donne la profondeur. */
+  /* Ombres clay — 2 couches (moins de paint), rendu quasi inchangé */
+  /* Ombres directionnelles (pas de glow 0 0 Xx) — même relief, paint bien moins cher. */
   --clay-sm:
-    0 0 4px rgba(79, 70, 229, 0.06),
-    0 0 18px rgba(79, 70, 229, 0.09),
-    inset 0 0 1px rgba(255, 255, 255, 0.9),
-    inset 0 0 8px rgba(79, 70, 229, 0.04);
+    0 1px 2px rgba(79, 70, 229, 0.06),
+    0 3px 8px -3px rgba(79, 70, 229, 0.12),
+    inset 0 0 1px rgba(255, 255, 255, 0.9);
   --clay:
-    0 0 7px rgba(79, 70, 229, 0.08),
-    0 0 32px rgba(79, 70, 229, 0.14),
-    inset 0 0 1px rgba(255, 255, 255, 0.9),
-    inset 0 0 12px rgba(79, 70, 229, 0.055);
+    0 2px 4px rgba(79, 70, 229, 0.07),
+    0 6px 14px -4px rgba(79, 70, 229, 0.14),
+    inset 0 0 1px rgba(255, 255, 255, 0.9);
   --clay-lg:
-    0 0 10px rgba(79, 70, 229, 0.09),
-    0 0 52px rgba(79, 70, 229, 0.17),
-    inset 0 0 2px rgba(255, 255, 255, 0.95),
-    inset 0 0 18px rgba(79, 70, 229, 0.065);
+    0 3px 6px rgba(79, 70, 229, 0.08),
+    0 10px 22px -6px rgba(79, 70, 229, 0.16),
+    inset 0 0 1px rgba(255, 255, 255, 0.95);
   --clay-pressed:
-    0 0 2px rgba(79, 70, 229, 0.05),
     inset 0 0 10px rgba(79, 70, 229, 0.14);
   --clay-inset: inset 0 0 8px rgba(79, 70, 229, 0.1);
   /* §4.4 Ombre sur surface colorée (bouton primaire) */
   --clay-primary:
-    0 0 6px rgba(99, 102, 241, 0.26),
-    0 0 20px rgba(99, 102, 241, 0.3),
-    inset 0 0 2px rgba(255, 255, 255, 0.4),
-    inset 0 0 10px rgba(49, 46, 129, 0.22);
+    0 0 14px rgba(99, 102, 241, 0.32),
+    inset 0 0 2px rgba(255, 255, 255, 0.4);
 
   /* §5 Espacement */
   --space-1: 4px;
@@ -114,8 +106,8 @@
   /* §7.1 Courbes & durées */
   --ease-clay: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-fluid: 420ms;
-  --dur-fluid-subtle: 380ms;
+  --dur-fluid: 280ms;
+  --dur-fluid-subtle: 200ms;
   --dur-fast: var(--dur-fluid-subtle);
   --dur: var(--dur-fluid);
   --dur-slow: var(--dur-fluid);
@@ -165,9 +157,10 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 140px 140px;
+  opacity: 0.045;
+  /* Grain bitmap (pas de feTurbulence SVG — trop cher au paint). */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23fff' fill-opacity='0'/%3E%3Ccircle cx='8' cy='12' r='0.7' fill='%23fff'/%3E%3Ccircle cx='22' cy='4' r='0.6' fill='%23fff'/%3E%3Ccircle cx='41' cy='18' r='0.8' fill='%23fff'/%3E%3Ccircle cx='55' cy='9' r='0.5' fill='%23fff'/%3E%3Ccircle cx='14' cy='31' r='0.6' fill='%23fff'/%3E%3Ccircle cx='33' cy='28' r='0.7' fill='%23fff'/%3E%3Ccircle cx='48' cy='38' r='0.55' fill='%23fff'/%3E%3Ccircle cx='6' cy='48' r='0.65' fill='%23fff'/%3E%3Ccircle cx='27' cy='52' r='0.5' fill='%23fff'/%3E%3Ccircle cx='52' cy='55' r='0.7' fill='%23fff'/%3E%3Ccircle cx='18' cy='41' r='0.45' fill='%23fff'/%3E%3Ccircle cx='39' cy='7' r='0.55' fill='%23fff'/%3E%3C/svg%3E");
+  background-size: 64px 64px;
   mix-blend-mode: soft-light;
 }
 
@@ -185,6 +178,7 @@
   width: var(--sidebar-width);
   transition: width var(--sidebar-dur) var(--sidebar-ease);
   overflow: visible;
+  contain: layout paint;
 }
 
 #dashboard-sidebar[data-collapsed='true'] {
@@ -193,23 +187,21 @@
 
 #dashboard-sidebar .sidebar-nav-label {
   max-width: 160px;
-  opacity: 1;
-  transition:
-    max-width var(--sidebar-dur) var(--sidebar-ease),
-    opacity calc(var(--sidebar-dur) * 0.85) var(--sidebar-ease);
 }
 
 #dashboard-sidebar[data-collapsed='true'] .sidebar-nav-label {
   max-width: 0;
   opacity: 0;
+  pointer-events: none;
+}
+
+#dashboard-sidebar nav a.nav-link {
+  width: 100%;
+  margin-inline: 0;
 }
 
 #dashboard-sidebar .sidebar-voice-copy {
   max-width: 140px;
-  opacity: 1;
-  transition:
-    max-width var(--sidebar-dur) var(--sidebar-ease),
-    opacity calc(var(--sidebar-dur) * 0.85) var(--sidebar-ease);
 }
 
 #dashboard-sidebar[data-collapsed='true'] .sidebar-voice-copy {
@@ -221,9 +213,7 @@
 #dashboard-sidebar .sidebar-footer-extra {
   max-height: 120px;
   opacity: 1;
-  transition:
-    max-height var(--sidebar-dur) var(--sidebar-ease),
-    opacity calc(var(--sidebar-dur) * 0.85) var(--sidebar-ease);
+  transition: opacity var(--sidebar-dur) var(--sidebar-ease);
 }
 
 #dashboard-sidebar[data-collapsed='true'] .sidebar-footer-extra {
@@ -231,13 +221,11 @@
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #dashboard-sidebar,
-  #dashboard-sidebar .sidebar-nav-label,
-  #dashboard-sidebar .sidebar-voice-copy,
-  #dashboard-sidebar .sidebar-footer-extra {
+  #dashboard-sidebar {
     transition-duration: 0ms;
   }
 }
@@ -282,6 +270,12 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: clip;
+}
+
+/* Nested scrollers du dashboard : smooth sur html = double animation = saccades. */
+html:has(.dashboard-fluid),
+html:has(.priimo-shell-bg) {
+  scroll-behavior: auto;
 }
 
 body {
@@ -684,8 +678,7 @@ button {
 }
 
 /* === FAQ ACCORDION === */
-/* Hauteur via grid (pas de max-height) pour ne pas couper une réponse longue.
-   Seule l'opacité est animée : 200 ms, propriété compositeur. */
+/* Ouverture fluide : grille (0fr → 1fr) + opacité, même courbe au survol et au clic. */
 .faq-list {
   display: flex;
   flex-direction: column;
@@ -698,14 +691,13 @@ button {
 }
 .faq-card {
   background: #ffffff;
-  border-radius: 9999px;
+  /* Rayon fixe : un 9999px (pilule) devient des demi-cercles dès que la carte s’ouvre. */
+  border-radius: 1.25rem;
   overflow: hidden;
   box-shadow:
     0 0 8px rgba(14, 26, 61, 0.08),
     0 0 28px rgba(14, 26, 61, 0.12);
-}
-.faq-card.is-open {
-  border-radius: 1.25rem;
+  transition: box-shadow 480ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .faq-card-trigger {
   display: flex;
@@ -748,7 +740,10 @@ button {
   border-radius: 9999px;
   background: rgba(26, 42, 86, 0.06);
   color: #1a2a56;
-  transition: transform 200ms ease-out, background-color 200ms ease-out, color 200ms ease-out;
+  transition:
+    transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .faq-card-chevron.is-open {
   transform: rotate(180deg);
@@ -774,7 +769,9 @@ button {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transition: opacity 200ms ease-out;
+  transition:
+    grid-template-rows 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .faq-content-inner {
@@ -789,7 +786,9 @@ button {
 
 @media (hover: hover) and (pointer: fine) {
   .faq-card:hover {
-    border-radius: 1.25rem;
+    box-shadow:
+      0 4px 14px rgba(14, 26, 61, 0.1),
+      0 12px 36px rgba(14, 26, 61, 0.14);
   }
   .faq-card:hover .faq-content {
     grid-template-rows: 1fr;
@@ -799,6 +798,14 @@ button {
     transform: rotate(180deg);
     background: #e8743c;
     color: #ffffff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-card,
+  .faq-card-chevron,
+  .faq-content {
+    transition: none;
   }
 }
 
@@ -996,27 +1003,6 @@ form.is-waiting button[type='button'] {
   filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
 
-/* Prospection plein cadre : le filtre des tuiles coupe net au bord du
-   canvas. Un flou qui s’évapore vers le centre, sans trait dur. */
-[data-prospection-carte] .priimo-map::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 58%, #000 100%);
-          mask-image: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 58%, #000 100%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-prospection-carte] .priimo-map::after {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
 /* Pas de mention Mapbox (logo / attribution) sur les cartes Priimo. */
 .priimo-map .mapboxgl-ctrl-logo,
 .priimo-map .mapboxgl-ctrl-attrib,
@@ -1145,16 +1131,17 @@ form.is-waiting button[type='button'] {
   background: #ffffff;
 }
 
-/* Grain fin (texture papier) sur toute la scène */
+/* Grain fin (bitmap — feTurbulence fixed plein écran était trop cher). */
 .landing::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.04;
+  opacity: 0.035;
   mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ccircle cx='8' cy='12' r='0.7' fill='%23000'/%3E%3Ccircle cx='22' cy='4' r='0.6' fill='%23000'/%3E%3Ccircle cx='41' cy='18' r='0.8' fill='%23000'/%3E%3Ccircle cx='55' cy='9' r='0.5' fill='%23000'/%3E%3Ccircle cx='14' cy='31' r='0.6' fill='%23000'/%3E%3Ccircle cx='33' cy='28' r='0.7' fill='%23000'/%3E%3Ccircle cx='48' cy='38' r='0.55' fill='%23000'/%3E%3Ccircle cx='6' cy='48' r='0.65' fill='%23000'/%3E%3Ccircle cx='27' cy='52' r='0.5' fill='%23000'/%3E%3Ccircle cx='52' cy='55' r='0.7' fill='%23000'/%3E%3Ccircle cx='18' cy='41' r='0.45' fill='%23000'/%3E%3Ccircle cx='39' cy='7' r='0.55' fill='%23000'/%3E%3C/svg%3E");
+  background-size: 64px 64px;
 }
 
 /* Nappes d'aurore — masquées (fond landing blanc) */
@@ -1651,7 +1638,7 @@ form.is-waiting button[type='button'] {
   gap: 0.28em;
   padding: 0.16em 0.55em 0.18em 0.42em;
   border-radius: 999px;
-  background: #8ee6a8;
+  background: #1fad5c;
   color: #fff;
   vertical-align: middle;
   white-space: nowrap;
@@ -2712,11 +2699,28 @@ a.logiciel-carte-subtitle:focus-visible {
   }
 }
 
-/* Header marketing — barre navy opaque (réf. Tiime), sans verre / morph */
+/* Header marketing — transparent au-dessus du hero landing, navy au scroll */
 .landing-site-header {
   background: #0e1733;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding-top: env(safe-area-inset-top);
+  box-shadow: none;
+  transition:
+    box-shadow 520ms ease,
+    border-color 520ms ease,
+    background-color 560ms ease;
+}
+.landing-site-header[data-variant="landing"] {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+.landing-site-header[data-scrolled="true"] {
+  background: #0e1733;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 28px -18px rgba(4, 10, 28, 0.55);
+}
+.landing-site-header[data-variant="landing"][data-scrolled="true"] {
+  background: #0e1733;
 }
 .landing-nav-bar {
   width: 100%;
@@ -2744,6 +2748,29 @@ a.logiciel-carte-subtitle:focus-visible {
   .landing-nav-inner {
     padding-left: 2.5rem;
     padding-right: 2.5rem;
+  }
+}
+.landing-nav-login:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 3px;
+  border-radius: 0.35rem;
+}
+.landing-site-header .landing-nav-cta {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease;
+}
+.landing-site-header .landing-nav-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -10px rgba(232, 116, 60, 0.65);
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-site-header,
+  .landing-site-header .landing-nav-cta {
+    transition: none;
+  }
+  .landing-site-header .landing-nav-cta:hover {
+    transform: none;
   }
 }
 
@@ -3207,9 +3234,9 @@ a.logiciel-carte-subtitle:focus-visible {
 .cta-sparkles {
   pointer-events: none;
   position: absolute;
-  inset: -36px;
+  inset: -48px;
   z-index: 2;
-  padding: 36px;
+  padding: 48px;
   -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
   -webkit-mask-clip: content-box, border-box;
   -webkit-mask-composite: xor;
@@ -3380,22 +3407,19 @@ a.logiciel-carte-subtitle:focus-visible {
    touché. Palette = clay indigo (charte) ; heat du score = chaud.
    ════════════════════════════════════════════════════════════ */
 
-/* Barre d'onglets flottante translucide (tab bar iOS-like) */
+/* Barre d'onglets flottante — opaque (pas de blur permanent au scroll). */
 .app-tabbar {
-  background: rgba(255, 255, 255, 0.96);
-  -webkit-backdrop-filter: blur(22px) saturate(1.5);
-  backdrop-filter: blur(22px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.98);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 10px 34px -10px rgba(49, 46, 129, 0.3),
-    0 2px 10px -3px rgba(49, 46, 129, 0.14);
+    0 8px 24px -10px rgba(49, 46, 129, 0.28),
+    0 2px 8px -3px rgba(49, 46, 129, 0.12);
 }
 
-/* App bar translucide (haut de l'app) */
+/* App bar haut — opaque, même lecture visuelle sans backdrop-filter. */
 .app-navbar {
-  background: rgba(249, 250, 255, 0.78);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  backdrop-filter: blur(18px) saturate(1.4);
+  background: rgba(249, 250, 255, 0.97);
+  box-shadow: 0 1px 0 rgba(30, 27, 75, 0.06);
 }
 
 /* Poignée de glissement (grabber) des feuilles */
@@ -3412,10 +3436,12 @@ a.logiciel-carte-subtitle:focus-visible {
   transition:
     background-color var(--dur-fluid-subtle) var(--ease-soft),
     color var(--dur-fluid-subtle) var(--ease-soft),
-    filter var(--dur-fluid-subtle) var(--ease-soft);
+    opacity var(--dur-fluid-subtle) var(--ease-soft),
+    transform var(--dur-fluid-subtle) var(--ease-soft);
 }
 .app-press:active {
-  filter: brightness(0.94);
+  opacity: 0.88;
+  transform: scale(0.98);
 }
 
 /* Rangée à défilement magnétique (carrousel KPI) */
@@ -3461,10 +3487,8 @@ a.logiciel-carte-subtitle:focus-visible {
 
 /* Barre d'action collante en bas d'une feuille/détail */
 .app-actionbar {
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  backdrop-filter: blur(16px) saturate(1.3);
-  box-shadow: 0 -1px 0 rgba(30, 27, 75, 0.06), 0 -12px 30px -18px rgba(49, 46, 129, 0.25);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 -1px 0 rgba(30, 27, 75, 0.06), 0 -8px 20px -16px rgba(49, 46, 129, 0.2);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3652,6 +3676,14 @@ html:has(.feature-page) {
   background-origin: border-box;
   background-clip: padding-box, border-box;
   box-shadow: 0 0 0 3px rgba(144, 124, 247, 0.12);
+}
+/* Croix native du navigateur (épaisse, bleue) — remplacée par CircleX. */
+.assistant-search-input[type='search']::-webkit-search-cancel-button,
+.assistant-search-input[type='search']::-webkit-search-decoration,
+.assistant-search-input[type='search']::-webkit-search-results-button,
+.assistant-search-input[type='search']::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* Terrain mobile — distinct du desktop, jamais un desktop rétréci. */
@@ -3936,6 +3968,8 @@ html:has(.feature-page) {
   [role='option']:not(.no-fluid),
   label:not(.no-fluid)
 ) {
+  /* Pas de `filter` / `box-shadow` en transition — trop cher au survol. */
+  transition-property: color, background-color, border-color, opacity, transform;
   transition-timing-function: var(--ease-soft);
   transition-duration: var(--dur-fluid-subtle);
 }
@@ -3955,15 +3989,22 @@ html:has(.feature-page) {
   }
 }
 
+/* Ouverture douce — durée courte (Tailwind fixe 0fr/1fr). */
 .fluid-collapse {
   display: grid;
   min-width: 0;
-  transition: grid-template-rows var(--dur-fluid) var(--ease-soft);
+  transition: grid-template-rows 200ms var(--ease-soft);
 }
 
 .fluid-collapse > * {
   min-height: 0;
   overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fluid-collapse {
+    transition: none;
+  }
 }
 
 @keyframes field-fade-in {

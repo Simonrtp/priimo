@@ -1,5 +1,6 @@
 import type { Contact } from '@/types/contact';
 import type { NoteSourceInfo } from '@/types/contact';
+import { repartirRoles, rolesDuContact } from '@/types/contact';
 import { normalizeName } from '@/lib/import/normalize';
 import { confianceImmeuble, matchContacts, type ContactMatch } from '@/lib/notes/match';
 import {
@@ -57,6 +58,13 @@ export type PromesseProposal = ExtractedPromesse & { accepted: boolean };
 export type RendezVousProposal = ExtractedRendezVous & { accepted: boolean };
 export type VisiteProposal = ExtractedVisite & { accepted: boolean };
 
+/** Un constat sur place, rattaché à l'adresse de la note. */
+export type ObservationProposal = {
+  id: string;
+  texte: string;
+  accepted: boolean;
+};
+
 export type BienProposal = {
   id: string;
   label: string;
@@ -97,6 +105,8 @@ export type NoteReviewPayload = {
   email: EmailProposal | null;
   /** Prospects de l'agence à l'adresse de la note. */
   leads: LeadLie[];
+  /** Ce que l'agent a vu sur place : ravalement, panneau, déménagement… */
+  observations: ObservationProposal[];
 };
 
 export function emptyReviewPayload(
@@ -131,6 +141,7 @@ export function emptyReviewPayload(
     prospect: null,
     email: null,
     leads: [],
+    observations: [],
   };
 }
 
@@ -140,10 +151,11 @@ export function buildReviewPayload(args: {
   visibilite: 'agence' | 'privee';
   extraction: NoteExtraction | null;
   extractFailed: boolean;
-  contacts: readonly Pick<
+  contacts: readonly (Pick<
     Contact,
     'id' | 'agencyId' | 'firstName' | 'lastName' | 'fullName' | 'phone' | 'email' | 'address' | 'banId'
-  >[];
+  > &
+    Partial<Pick<Contact, 'type' | 'autresTypes'>>)[];
   agencyId: string;
   geo: {
     ban_id: string | null;
@@ -275,6 +287,7 @@ export function buildReviewPayload(args: {
     prospect: prospectPropose(extraction, banId, args.leadsAgence ?? [], args.etapes ?? []),
     email: emailPropose(extraction, personnesUniques),
     leads: leadsALAdresse(banId, args.leadsAgence ?? []),
+    observations: (extraction?.observations ?? []).map((texte, i) => ({ id: `o${i}`, texte, accepted: true })),
   };
 }
 
@@ -317,6 +330,11 @@ export function personnesProches(a: PersonneProposal, b: PersonneProposal): bool
   if (!aNom || !bNom) return false;
   if (aNom === bNom) return true;
   if (al && bl && al === bl && af && bf && distanceLettres(af, bf) <= 1) return true;
+  // « Mme Bertin » repérée dans le texte et « Claire Bertin » lue par le modèle :
+  // la même personne. Deux personnes que le modèle a distinguées le restent.
+  if (al && bl && al === bl && (!af || !bf) && (!estIssueExtraction(a.id) || !estIssueExtraction(b.id))) {
+    return true;
+  }
   if (!al && !bl && af && bf && Math.min(af.length, bf.length) >= 5 && distanceLettres(af, bf) <= 1) {
     return true;
   }
@@ -336,7 +354,8 @@ function fusionnerDeux(a: PersonneProposal, b: PersonneProposal): PersonnePropos
       lastName: base.personne.lastName || autre.personne.lastName,
       phone: base.personne.phone || autre.personne.phone,
       email: base.personne.email || autre.personne.email,
-      type: base.personne.type !== 'autre' ? base.personne.type : autre.personne.type,
+      // Deux mentions de la même personne : ses rôles s'additionnent.
+      ...repartirRoles([...rolesDuContact(base.personne), ...rolesDuContact(autre.personne)]),
     },
     matches: base.matches.length >= autre.matches.length ? base.matches : autre.matches,
   };

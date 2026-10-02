@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { Mic, Search } from 'lucide-react';
+import { CircleX, Mic, Search } from 'lucide-react';
 import type { SearchHit } from '@/lib/assistant/search';
 import AssistantSearchHits from './AssistantSearchHits';
 import { useAssistant } from './AssistantProvider';
@@ -28,16 +28,11 @@ function SearchField({
 }) {
   const inputId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
-  const {
-    query,
-    setQuery,
-    panelOpen,
-    setPanelOpen,
-    registerInput,
-    closeResults,
-  } = useAssistant();
+  const { panelOpen, setPanelOpen, registerInput, closeResults } = useAssistant();
   const { openPanel } = useAssistantPanel();
   const { listening, transcribing, toggle: toggleVoiceSearch, voiceLabel } = useAssistantVoiceInput(
     (text) => {
@@ -49,6 +44,11 @@ function SearchField({
       transcribing: 'Mise en texte de la recherche',
     },
   );
+
+  function setInputRef(el: HTMLInputElement | null) {
+    inputRef.current = el;
+    registerInput(el);
+  }
 
   useEffect(() => {
     const onPointerDown = (e: MouseEvent) => {
@@ -127,7 +127,7 @@ function SearchField({
           Rechercher dans la base
         </label>
         <input
-          ref={registerInput}
+          ref={setInputRef}
           id={inputId}
           type="search"
           value={query}
@@ -140,8 +140,24 @@ function SearchField({
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="search"
-          className="min-w-0 flex-1 truncate bg-transparent text-[13px] text-ink outline-none placeholder:text-mute md:text-[14px]"
+          className="assistant-search-input min-w-0 flex-1 truncate bg-transparent text-[13px] text-ink outline-none placeholder:text-mute md:text-[14px]"
         />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setHits([]);
+              setPanelOpen(false);
+              inputRef.current?.focus();
+            }}
+            aria-label="Effacer la recherche"
+            title="Effacer"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.06] hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          >
+            <CircleX size={16} strokeWidth={1.75} aria-hidden />
+          </button>
+        ) : null}
         <span className="flex shrink-0 items-center justify-center text-mute" aria-hidden>
           <Search size={16} strokeWidth={2} />
         </span>

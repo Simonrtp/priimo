@@ -1,10 +1,9 @@
 'use client';
 
 import type { ContactType } from '@/types/contact';
-import { CONTACT_TYPE_LABELS, CONTACT_TYPE_ORDER, typeUsesCriteria } from '@/types/contact';
+import { rolesDuContact, rolesUsentCriteres } from '@/types/contact';
 import type { ContactFieldErrors, ContactInputFields } from '@/lib/contact-input';
 import { CONTACT_NOTE_HINT } from '@/lib/contact-input';
-import Select from '@/components/ui/Select';
 import DatePickerField from '@/components/ui/DatePickerField';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import { secteurFromSelectedAddress } from '@/lib/ban';
@@ -18,6 +17,7 @@ import {
 } from '@/components/dashboard/workspace/Field';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ConsentementRappelField from '@/components/dashboard/contacts/ConsentementRappelField';
+import ChoixRoles from '@/components/dashboard/contacts/ChoixRoles';
 
 export type ContactFormGeo = {
   banId: string | null;
@@ -37,6 +37,7 @@ export default function ContactFormFields({
   currentUserId,
   fieldErrors = {},
   disabled = false,
+  rolesNouveaux = [],
 }: {
   idPrefix: string;
   fields: ContactInputFields;
@@ -49,9 +50,13 @@ export default function ContactFormFields({
   currentUserId?: string;
   fieldErrors?: ContactFieldErrors;
   disabled?: boolean;
+  /** Rôles qu'une note vient d'ajouter : signalés dans le choix. */
+  rolesNouveaux?: readonly ContactType[];
 }) {
-  const showCriteria = typeUsesCriteria(fields.type);
-  const immeubleType = fields.type === 'gardien' || fields.type === 'commercant';
+  const showCriteria = rolesUsentCriteres(fields);
+  const roles = rolesDuContact(fields);
+  // Un gardien ou un commerçant se rattache à un immeuble, pas à un domicile.
+  const immeubleType = roles.every((r) => r === 'gardien' || r === 'commercant');
 
   function set<K extends keyof ContactInputFields>(key: K, value: ContactInputFields[K]) {
     onFields({ ...fields, [key]: value });
@@ -89,16 +94,14 @@ export default function ContactFormFields({
         </Field>
       </div>
 
-      <Field label="Type de personne" htmlFor={`${idPrefix}-type`}>
-        <Select
-          id={`${idPrefix}-type`}
-          value={fields.type}
-          disabled={disabled}
-          onChange={(v) => set('type', (v || 'autre') as ContactType)}
-          options={CONTACT_TYPE_ORDER.map((t) => ({ value: t, label: CONTACT_TYPE_LABELS[t] }))}
-          aria-label="Type de personne"
-        />
-      </Field>
+      <ChoixRoles
+        idPrefix={idPrefix}
+        type={fields.type}
+        autresTypes={fields.autresTypes}
+        nouveaux={rolesNouveaux}
+        disabled={disabled}
+        onChange={({ type, autresTypes }) => onFields({ ...fields, type, autresTypes })}
+      />
 
       <Field
         label={immeubleType ? 'Immeuble' : 'Adresse'}

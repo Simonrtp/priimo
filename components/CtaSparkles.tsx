@@ -1,26 +1,26 @@
 import type { CSSProperties } from "react";
 
-/** Juste à l’extérieur du cadre : haut-gauche, haut-droite, bas-droite. */
+/** Hors du bouton + marge pour la taille et le drift — jamais coupées par le masque. */
 const SPARKS = [
   {
-    dx: "calc(-50cqw - 10px)",
-    dy: "calc(-50cqh - 8px)",
+    dx: "calc(-50cqw - 22px)",
+    dy: "calc(-50cqh - 20px)",
     size: 22,
     delay: "0ms",
     drift: "spark-drift-a",
     color: "#9DD6C8",
   },
   {
-    dx: "calc(50cqw + 10px)",
-    dy: "calc(-50cqh - 10px)",
+    dx: "calc(50cqw + 22px)",
+    dy: "calc(-50cqh - 22px)",
     size: 24,
     delay: "70ms",
     drift: "spark-drift-b",
     color: "#B8B4E8",
   },
   {
-    dx: "calc(50cqw + 10px)",
-    dy: "calc(50cqh + 8px)",
+    dx: "calc(50cqw + 22px)",
+    dy: "calc(50cqh + 20px)",
     size: 20,
     delay: "120ms",
     drift: "spark-drift-c",

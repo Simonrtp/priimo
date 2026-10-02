@@ -11,14 +11,10 @@ import {
 } from 'react';
 
 /**
- * État de la barre de recherche. Recherche pure : mots-clés, base de
- * l'agence, aucun modèle. L'assistant vit à part, dans son propre panneau
- * (`AssistantPanelProvider`) — le seul pont est le lien « Demander à
- * l'assistant » proposé quand la recherche ne trouve rien.
+ * État chrome de la barre de recherche (pas la query : elle reste locale
+ * au champ pour éviter de re-rendre le shell à chaque frappe).
  */
 interface RechercheContextValue {
-  query: string;
-  setQuery: (q: string) => void;
   panelOpen: boolean;
   setPanelOpen: (open: boolean) => void;
   focusSearch: () => void;
@@ -44,7 +40,6 @@ export default function AssistantProvider({ children }: { children: React.ReactN
     inputRef.current = el;
   }, []);
 
-  const [query, setQuery] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
@@ -86,8 +81,6 @@ export default function AssistantProvider({ children }: { children: React.ReactN
 
   const value = useMemo(
     () => ({
-      query,
-      setQuery,
       panelOpen,
       setPanelOpen,
       focusSearch,
@@ -98,7 +91,6 @@ export default function AssistantProvider({ children }: { children: React.ReactN
       closeResults,
     }),
     [
-      query,
       panelOpen,
       focusSearch,
       registerInput,

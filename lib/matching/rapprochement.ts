@@ -8,6 +8,7 @@
  */
 
 import type { Contact } from '@/types/contact';
+import { aLeRole } from '@/types/contact';
 
 /* -------------------------------------------------------------------------- */
 /* Configuration — les seuls réglages à toucher                               */
@@ -156,7 +157,7 @@ export function evaluerCorrespondance(
   contact: Contact,
   config: RapprochementConfig = RAPPROCHEMENT_CONFIG,
 ): MatchAcquereur | null {
-  if (contact.type !== 'acquereur') return null;
+  if (!aLeRole(contact, 'acquereur')) return null;
 
   let total = 0;
   let poidsTotal = 0;

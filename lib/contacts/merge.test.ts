@@ -10,6 +10,7 @@ function contact(partial: Partial<Contact> & Pick<Contact, 'id' | 'fullName'>): 
     firstName: 'Marie',
     lastName: 'Dupont',
     type: 'vendeur',
+    autresTypes: [],
     phone: null,
     email: null,
     secteur: null,

@@ -316,7 +316,7 @@ export async function fetchDpeRecentsCached(params: FetchDpeParams): Promise<Dpe
   return rows;
 }
 
-/** Les DPE de tout un secteur, sans jamais paralléliser à outrance. */
+/** Les DPE de tout un secteur — quelques CP en parallèle, pas une tempête. */
 export async function fetchDpeSecteur(
   codesPostaux: readonly string[],
   depuis: string,
@@ -325,8 +325,15 @@ export async function fetchDpeSecteur(
 ): Promise<DpeRecent[]> {
   const out: DpeRecent[] = [];
   const fetchOne = opts?.cached ? fetchDpeRecentsCached : fetchDpeRecents;
-  for (const codePostal of codesPostaux) {
-    out.push(...(await fetchOne({ codePostal, depuis, signal, taille: opts?.taille })));
+  const codes = codesPostaux.filter(Boolean);
+  const PARALLEL = 3;
+  for (let i = 0; i < codes.length; i += PARALLEL) {
+    if (signal?.aborted) break;
+    const lot = codes.slice(i, i + PARALLEL);
+    const pages = await Promise.all(
+      lot.map((codePostal) => fetchOne({ codePostal, depuis, signal, taille: opts?.taille })),
+    );
+    for (const page of pages) out.push(...page);
   }
   return out;
 }

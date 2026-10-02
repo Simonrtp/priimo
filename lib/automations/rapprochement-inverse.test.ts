@@ -23,6 +23,7 @@ function acquereur(
     lastName: '',
     fullName: name,
     type,
+    autresTypes: [],
     phone: '0600000000',
     email: null,
     secteur: null,

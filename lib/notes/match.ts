@@ -1,5 +1,6 @@
 import { normalizeName, normalizePhone } from '@/lib/import/normalize';
-import type { NoteLienConfiance } from '@/types/contact';
+import type { ContactType, NoteLienConfiance } from '@/types/contact';
+import { rolesDuContact } from '@/types/contact';
 
 /** Score BAN au-delà duquel un rattachement immeuble est certain. */
 export const BAN_LIEN_CERTAIN = 0.7;
@@ -14,6 +15,9 @@ export type MatchableContact = {
   email: string | null;
   address: string | null;
   banId: string | null;
+  /** Rôles connus de la fiche : la revue montre ce que la note y ajoute. */
+  type?: ContactType;
+  autresTypes?: ContactType[];
 };
 
 export type DetectedPersonne = {
@@ -31,7 +35,19 @@ export type ContactMatch = {
   phone: string | null;
   email: string | null;
   address: string | null;
+  /** Rôles de la fiche existante. Absent si la fiche n'en dit rien. */
+  roles?: ContactType[];
 };
+
+/** Ce que la revue affiche d'une fiche reconnue. */
+export function ficheDuContact(contact: MatchableContact): Pick<ContactMatch, 'phone' | 'email' | 'address' | 'roles'> {
+  return {
+    phone: contact.phone,
+    email: contact.email,
+    address: contact.address,
+    ...(contact.type ? { roles: rolesDuContact({ type: contact.type, autresTypes: contact.autresTypes }) } : {}),
+  };
+}
 
 function phonesEqual(a: string | null, b: string | null): boolean {
   if (!a || !b) return false;
@@ -72,11 +88,7 @@ export function matchContacts(
   const hits: ContactMatch[] = [];
 
   for (const contact of pool) {
-    const fiche = {
-      phone: contact.phone,
-      email: contact.email,
-      address: contact.address,
-    };
+    const fiche = ficheDuContact(contact);
     if (phonesEqual(personne.phone, contact.phone)) {
       hits.push({
         contactId: contact.id,

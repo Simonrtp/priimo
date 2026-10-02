@@ -21,8 +21,8 @@ const OFFRES = [
     priceMain: "70",
     priceSide: "€ HT",
     priceUnit: "/ mois",
-    sub: "3 sièges inclus",
-    body: "Après l’essai : votre agence tourne à plein, jusqu’à trois négociateurs.",
+    sub: "5 sièges inclus",
+    body: "Après l’essai : votre agence tourne à plein, jusqu’à cinq négociateurs.",
   },
   {
     id: "siege",
@@ -32,7 +32,7 @@ const OFFRES = [
     priceSide: "€ HT",
     priceUnit: "/ mois",
     sub: "par siège supplémentaire",
-    body: "Au-delà des 3 sièges inclus : +50 € HT / mois pour chaque négociateur en plus.",
+    body: "Au-delà des 5 sièges inclus : +50 € HT / mois pour chaque négociateur en plus.",
   },
 ] as const;
 

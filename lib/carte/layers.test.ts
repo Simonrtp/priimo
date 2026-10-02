@@ -10,10 +10,12 @@ import {
 } from './layers';
 
 describe('parseMapLayers', () => {
-  it('laisse le cadastre éteint par défaut', () => {
-    assert.equal(parseMapLayers(null).cadastre, false);
-    assert.equal(DEFAULT_MAP_LAYERS.cadastre, false);
+  it('laisse le plan cadastral allumé et les pastilles éteintes par défaut', () => {
+    assert.equal(parseMapLayers(null).cadastre, true);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastre, true);
     assert.equal(DEFAULT_MAP_LAYERS.cadastreDpe, false);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastreVentes, false);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastreCopro, false);
   });
 
   it('n’active les biens par défaut', () => {
@@ -51,12 +53,15 @@ describe('parseMapLayers', () => {
     assert.equal(parseMapLayers({}).cadastreDpeAges.length, 7);
   });
 
-  it('ne réallume plus DPE sur une session Cadastre seule en rev 2+', () => {
+  it('rev 5 éteint les pastilles et garde le plan', () => {
     const migrated = migrateStoredMapLayers(
-      { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreDpe: false },
-      2,
+      { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreDpe: true, cadastreVentes: true },
+      3,
     );
+    assert.equal(migrated.state.cadastre, true);
     assert.equal(migrated.state.cadastreDpe, false);
+    assert.equal(migrated.state.cadastreVentes, false);
+    assert.equal(migrated.state.cadastreCopro, false);
     assert.equal(migrated.rev, MAP_LAYERS_STORAGE_REV);
   });
 });

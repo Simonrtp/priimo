@@ -119,13 +119,14 @@ export default function ModeReunion({
           'radial-gradient(120% 80% at 10% -10%, #2a3d72 0%, transparent 55%), radial-gradient(90% 70% at 100% 100%, #152248 0%, transparent 50%), #1a2a56',
       }}
     >
-      {/* Atmosphère — grain léger, sans décoration parasite */}
+      {/* Atmosphère — grain bitmap (évite feTurbulence plein écran). */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
         style={{
           backgroundImage:
-            'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ccircle cx='8' cy='12' r='0.7' fill='%23fff'/%3E%3Ccircle cx='22' cy='4' r='0.6' fill='%23fff'/%3E%3Ccircle cx='41' cy='18' r='0.8' fill='%23fff'/%3E%3Ccircle cx='55' cy='9' r='0.5' fill='%23fff'/%3E%3Ccircle cx='14' cy='31' r='0.6' fill='%23fff'/%3E%3Ccircle cx='33' cy='28' r='0.7' fill='%23fff'/%3E%3Ccircle cx='48' cy='38' r='0.55' fill='%23fff'/%3E%3Ccircle cx='6' cy='48' r='0.65' fill='%23fff'/%3E%3Ccircle cx='27' cy='52' r='0.5' fill='%23fff'/%3E%3Ccircle cx='52' cy='55' r='0.7' fill='%23fff'/%3E%3C/svg%3E\")",
+          backgroundSize: '64px 64px',
         }}
       />
 
@@ -209,7 +210,7 @@ export default function ModeReunion({
                     setSens(i >= index ? 1 : -1);
                     setIndex(i);
                   }}
-                  className={`block h-2 rounded-full transition-all duration-fluid ${
+                  className={`block h-2 rounded-full transition-[width,background-color] duration-fluid ${
                     i === index ? 'w-7 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'
                   }`}
                 />

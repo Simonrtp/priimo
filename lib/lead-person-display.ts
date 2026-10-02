@@ -23,6 +23,37 @@ export function toDisplayPersonName(raw: string): string {
     .join(' ');
 }
 
+const SIGLES_SOCIETE = new Set([
+  'sci', 'sas', 'sarl', 'sa', 'eurl', 'sasu', 'snc', 'sc', 'sccv', 'selarl', 'selas', 'scop', 'scm', 'scp', 'gie',
+]);
+const MOTS_LIAISON = new Set(['de', 'des', 'du', 'la', 'le', 'les', 'et', 'au', 'aux', 'en', 'sur', 'sous', 'à']);
+
+/**
+ * Raison sociale lisible : casse titre, sigles juridiques en capitales
+ * (« SCI », « SARL »), mots de liaison en minuscules hors tête.
+ * « SCI LES LILAS » → « SCI les Lilas » ; « BOULANGERIE DES LILAS » →
+ * « Boulangerie des Lilas ».
+ */
+export function toDisplayCompanyName(raw: string): string {
+  return raw
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((mot, i) => {
+      const bas = mot.toLocaleLowerCase('fr');
+      if (SIGLES_SOCIETE.has(bas.replace(/[.,]/g, ''))) return mot.toLocaleUpperCase('fr');
+      if (/\d/.test(mot)) return mot;
+      if (i > 0 && MOTS_LIAISON.has(bas)) return bas;
+      // « d'Artois », « l'Atelier » : l'élision reste en minuscule.
+      const elision = bas.match(/^([dl])['’](.+)$/);
+      if (elision && i > 0) {
+        return `${elision[1]}’${elision[2]!.charAt(0).toLocaleUpperCase('fr')}${elision[2]!.slice(1)}`;
+      }
+      return toDisplayPersonName(mot);
+    })
+    .join(' ');
+}
+
 /** Ensemble de tokens normalisés (accents, majuscules, formes juridiques retirées). */
 export function normalizeNameTokenSet(raw: string): Set<string> {
   const cleaned = raw

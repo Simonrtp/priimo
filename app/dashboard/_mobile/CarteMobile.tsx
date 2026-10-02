@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Box, Layers, MapPin, Navigation, Phone, Square } from 'lucide-react';
+import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
@@ -189,7 +190,6 @@ export default function CarteMobile({
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
   const [agentPosition, setAgentPosition] = useState<DevicePosition | null>(null);
-  const [tracking, setTracking] = useState(false);
 
   const [tourPhase, setTourPhase] = useState<CarteTourPhase>('off');
   const [tourStops, setTourStops] = useState<SortieStop[]>([]);
@@ -268,15 +268,16 @@ export default function CarteMobile({
     setStoredStops(readItineraireStops());
   }, []);
 
+  // Toujours suivre la position sur la carte terrain : si on demande le GPS,
+  // le point bleu doit apparaître, pas seulement pendant une tournée.
   useEffect(() => {
-    if (!tracking && !tourShown) return;
     return watchDevicePosition(setAgentPosition, {
       pauseWhenHidden: true,
       highAccuracy: true,
       minUpdateM: 4,
       maximumAge: 1_500,
     });
-  }, [tracking, tourShown]);
+  }, []);
 
   const itineraryStops = tourItineraryStops
     ? tourItineraryStops
@@ -287,8 +288,8 @@ export default function CarteMobile({
   const itineraryGeometry = tourShown ? tour.geometry : route?.geometry ?? null;
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
-  const cadastreOn = anyCadastreLayer(layers);
-  const parcelle = useParcelleMap(cadastreOn, viewport, {
+  const overlaysCadastre = anyCadastreLayer(layers);
+  const parcelle = useParcelleMap(overlaysCadastre, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
   });
@@ -457,7 +458,6 @@ export default function CarteMobile({
 
     setTourStops(kept);
     setTrip(null);
-    setTracking(true);
     setLayersOpen(false);
     setMissingOpen(false);
     setSelectedBanId(null);
@@ -621,7 +621,7 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        parcellesEnabled={cadastreOn}
+        parcellesEnabled={!tourShown}
         activeParcelleIds={cadastreImmeubles
           .map((row) => row.parcelleId)
           .filter((id): id is string => Boolean(id))}
@@ -641,6 +641,7 @@ export default function CarteMobile({
           setMissingOpen(false);
           parcelle.openParcelle(parcelleId, extra);
         }}
+        onPrefetchParcelle={parcelle.prefetchParcelle}
         agentPosition={agentPosition}
         highlightBanIds={highlightBanIds}
         suppressAutoFit={tourShown || tourFramed}
@@ -653,7 +654,7 @@ export default function CarteMobile({
           className="pointer-events-none absolute inset-x-0 z-[72] px-4"
           style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
         >
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1A2A56]/90 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-sm">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1A2A56] py-1.5 pl-4 pr-1.5 shadow-lg">
             <p className="min-w-0 flex-1 text-[13.5px] font-medium text-white">
               Touchez la carte pour ajouter ce point
             </p>
@@ -714,10 +715,10 @@ export default function CarteMobile({
               setSelectedBanId(null);
             }}
             aria-label="Couches"
-            className="app-press absolute left-4 z-20 flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
+            className="app-press absolute left-4 z-20 flex size-12 items-center justify-center rounded-full bg-[#1A2A56] text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
             style={{ bottom: floatBottom }}
           >
-            <Layers size={20} strokeWidth={2} aria-hidden />
+            <Layers size={20} strokeWidth={2.2} aria-hidden />
           </button>
 
           {!tourShown ? (
@@ -798,21 +799,21 @@ export default function CarteMobile({
             const active = layers[kind];
             return (
               <li key={kind}>
-                <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl px-1">
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-black/20"
-                    style={{ accentColor: '#1A2A56' }}
-                    checked={active}
-                    onChange={() => setLayers((prev) => ({ ...prev, [kind]: !prev[kind] }))}
-                  />
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={active}
+                  onClick={() => setLayers((prev) => ({ ...prev, [kind]: !prev[kind] }))}
+                  className="flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-xl px-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
+                >
+                  <Switch checked={active} />
                   <span
                     className={`flex-1 text-[14.5px] font-medium ${active ? 'text-text-strong' : 'text-text-muted'}`}
                   >
                     {MAP_LAYER_LABELS[kind]}
                   </span>
                   <span className="tabular-nums text-[13px] text-text-subtle">{counts[kind]}</span>
-                </label>
+                </button>
               </li>
             );
           })}

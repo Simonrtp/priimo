@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Pilotage } from '@/lib/activite/pilotage';
 import {
   vuePeriode,
@@ -163,6 +163,29 @@ export default function AccueilPilotage({
     void charger(vue);
   }, [charger, vue]);
 
+  // Après une qualification sur la prospection, l’Accueil peut rester sur un
+  // payload client périmé : on reprend les chiffres dès que l’écran revient.
+  useEffect(() => {
+    const surRetour = () => {
+      if (document.visibilityState !== 'visible') return;
+      rafraichir();
+    };
+    document.addEventListener('visibilitychange', surRetour);
+    window.addEventListener('pageshow', surRetour);
+    return () => {
+      document.removeEventListener('visibilitychange', surRetour);
+      window.removeEventListener('pageshow', surRetour);
+    };
+  }, [rafraichir]);
+
+  // Même cas en navigation soft Accueil ← Prospection (composant remounté
+  // avec un RSC encore en cache client) : un fetch au montage force le vrai score.
+  useEffect(() => {
+    rafraichir();
+    // Une seule fois au montage — rafraichir change à chaque période.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
+  }, []);
+
   const { bilan } = affiche;
   // Les chiffres à l'écran sont-ils ceux de la période demandée ?
   const enCours = vueDuBilan(affiche).cle !== vue.cle;
@@ -227,12 +250,12 @@ export default function AccueilPilotage({
         />
         {emploiDuTemps ? <Fragment key="accueil-emploi">{emploiDuTemps}</Fragment> : null}
       </div>
-      <div aria-busy={enCours} className={`max-md:hidden ${estompe}`}>
+      <div aria-busy={enCours} className={`max-md:hidden [content-visibility:auto] [contain-intrinsic-size:auto_280px] ${estompe}`}>
         <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} />
       </div>
 
       {aujourdhui ? <Fragment key="accueil-aujourdhui">{aujourdhui}</Fragment> : null}
-      <div aria-busy={enCours} className={estompe}>
+      <div aria-busy={enCours} className={`[content-visibility:auto] [contain-intrinsic-size:auto_200px] ${estompe}`}>
         <JourParJour
           jours={bilan.joursGlissants}
           jourActif={
@@ -243,7 +266,14 @@ export default function AccueilPilotage({
           onChoisirJour={(jour) => void changer('custom', jour, jour)}
         />
       </div>
-      {secteur ? <Fragment key="accueil-secteur">{secteur}</Fragment> : null}
+      {secteur ? (
+        <div
+          key="accueil-secteur"
+          className="[content-visibility:auto] [contain-intrinsic-size:auto_420px]"
+        >
+          {secteur}
+        </div>
+      ) : null}
     </div>
     </NotesLectureProvider>
   );

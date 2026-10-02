@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import {
   DndContext,
@@ -21,6 +22,7 @@ import type { Lead, LeadStage, TeamMember } from '@/types/lead';
 import { fractionalPosition, positionNeighbors } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
+import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import PipelineColumn from './PipelineColumn';
 import PipelineLeadCard from './PipelineLeadCard';
@@ -63,6 +65,7 @@ export default function PipelineBoard({
   canManageStages?: boolean;
   onStagesChange?: (next: LeadStage[] | ((prev: LeadStage[]) => LeadStage[])) => void;
 }) {
+  const router = useRouter();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const [columns, setColumns] = useState<Columns>(() => buildColumns(stages, leads));
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -159,6 +162,8 @@ export default function PipelineBoard({
       };
       try {
         await patchLeadPipeline(leadId, patch);
+        void invaliderNavigationApresLead();
+        router.refresh();
         const fromStage = previousLead.stageId ? stagesById.get(previousLead.stageId) : null;
         const victory = toStage ? pipelineVictoryKind(fromStage, toStage) : null;
         if (victory) {
@@ -170,7 +175,7 @@ export default function PipelineBoard({
         toast.error(e instanceof Error ? e.message : 'Le déplacement n’a pas pu être enregistré.');
       }
     },
-    [leadsById, onLeadsChange, stagesById],
+    [leadsById, onLeadsChange, router, stagesById],
   );
 
   function onDragStart(event: DragStartEvent) {

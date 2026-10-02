@@ -143,7 +143,7 @@ function Sources({
                 <Link
                   href={s.href}
                   onClick={onNavigate}
-                  className={`${base} transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px hover:shadow-clay-sm`}
+                  className={`${base} transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fluid-subtle ease-in-out hover:-translate-y-px hover:shadow-clay-sm`}
                 >
                   {inner}
                 </Link>
@@ -240,7 +240,7 @@ function Amorces({
                 <button
                   type="button"
                   onClick={() => onPick(a.question, a.envoi)}
-                  className="rounded-clay border border-primary-100 bg-surface px-2.5 py-1.5 text-[12px] font-medium text-text transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px hover:border-primary-200 hover:text-text-strong hover:shadow-clay-sm"
+                  className="rounded-clay border border-primary-100 bg-surface px-2.5 py-1.5 text-[12px] font-medium text-text transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fluid-subtle ease-in-out hover:-translate-y-px hover:border-primary-200 hover:text-text-strong hover:shadow-clay-sm"
                 >
                   {a.label}
                 </button>
@@ -375,7 +375,7 @@ function Conversation() {
             type="submit"
             disabled={inputDisabled || draft.trim().length === 0}
             aria-label="Envoyer"
-            className="flex size-8 shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white shadow-clay-primary transition-all duration-fluid-subtle ease-in-out enabled:hover:-translate-y-px disabled:bg-primary-200 disabled:shadow-none"
+            className="flex size-8 shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white shadow-clay-primary transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fluid-subtle ease-in-out enabled:hover:-translate-y-px disabled:bg-primary-200 disabled:shadow-none"
           >
             <ArrowUp size={16} strokeWidth={2.4} aria-hidden />
           </button>
@@ -479,7 +479,7 @@ function Onglets() {
             role="tab"
             aria-selected={actif}
             onClick={() => setTab(item.id)}
-            className={`min-h-[32px] flex-1 rounded-[12px] px-3 text-[12.5px] font-semibold transition-all duration-fluid-subtle ease-in-out ${
+            className={`min-h-[32px] flex-1 rounded-[12px] px-3 text-[12.5px] font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fluid-subtle ease-in-out ${
               actif
                 ? 'bg-surface text-text-strong shadow-clay-sm'
                 : 'text-text-muted hover:text-text-strong'
@@ -615,7 +615,7 @@ export default function AssistantPanel({
             ? `assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white transition-[max-width,background,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 active:translate-y-0 ${
                 open ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
               }`
-            : 'assistant-trigger-btn relative flex size-11 items-center justify-center rounded-[14px] text-white transition-all duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
+            : 'assistant-trigger-btn relative flex size-11 items-center justify-center rounded-[14px] text-white transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
         }
       >
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
@@ -659,7 +659,7 @@ export default function AssistantPanel({
             type="button"
             aria-label="Fermer l'assistant"
             onClick={closePanel}
-            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26,42,86,0.38)] backdrop-blur-[2px]"
+            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26,42,86,0.42)]"
           />
           <div
             className="animate-app-sheet fixed inset-x-0 bottom-0 z-[130] flex flex-col overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg"

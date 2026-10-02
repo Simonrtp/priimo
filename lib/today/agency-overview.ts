@@ -1,5 +1,6 @@
 import { bienIsActive, type Bien } from '@/types/bien';
 import type { Contact } from '@/types/contact';
+import { aLeRole } from '@/types/contact';
 import type { Lead } from '@/types/lead';
 
 export const AGENCY_OVERVIEW = {
@@ -161,7 +162,7 @@ export function countSleeping(
   }).length;
 
   const silentVendeurs = contacts.filter((contact) => {
-    if (contact.type !== 'vendeur') return false;
+    if (!aLeRole(contact, 'vendeur')) return false;
     const age = ageDays(contact.lastInteractionAt ?? contact.createdAt, now);
     return age !== null && age > AGENCY_OVERVIEW.silentVendeurDays;
   }).length;

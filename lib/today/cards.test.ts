@@ -24,6 +24,7 @@ function contact(name: string, overrides: Partial<Contact> = {}): Contact {
     lastName: '',
     fullName: name,
     type: 'acquereur',
+    autresTypes: [],
     phone: '0601020304',
     email: null,
     secteur: null,

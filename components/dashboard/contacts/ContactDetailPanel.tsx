@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact } from '@/types/contact';
-import { criteriaAreEmpty, typeUsesCriteria } from '@/types/contact';
+import { aLeRole, criteriaAreEmpty, rolesUsentCriteres } from '@/types/contact';
 import { CONTACT_NOTE_HINT } from '@/lib/contact-input';
 import { evaluerCorrespondance } from '@/lib/matching/rapprochement';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
@@ -70,6 +70,7 @@ function payloadFrom(contact: Contact, draft: ContactDraft) {
     firstName: contact.firstName,
     lastName: contact.lastName,
     type: contact.type,
+    autresTypes: contact.autresTypes,
     phone: draft.phone.trim() || null,
     email: draft.email.trim() || null,
     numeroCommuniqueParLaPersonne: draft.numeroCommuniqueParLaPersonne,
@@ -140,7 +141,7 @@ export default function ContactDetailPanel({
   }, [contact.id]);
 
   const rapprochements = useMemo(() => {
-    if (contact.type !== 'acquereur') return [];
+    if (!aLeRole(contact, 'acquereur')) return [];
     return biens
       .filter((b) => bienIsActive(b.mandatStatut))
       .map((bien) => ({
@@ -336,7 +337,7 @@ export default function ContactDetailPanel({
           />
         </Block>
 
-        {typeUsesCriteria(contact.type) ? (
+        {rolesUsentCriteres(contact) ? (
           <Block title="Ce qu'il recherche">
             {criteriaAreEmpty(contact.criteria) ? (
               <p className="text-[13.5px] text-text-subtle">Aucun critère renseigné.</p>
@@ -353,7 +354,7 @@ export default function ContactDetailPanel({
         ) : null}
       </div>
 
-      {contact.type === 'acquereur' && rapprochements.length > 0 ? (
+      {aLeRole(contact, 'acquereur') && rapprochements.length > 0 ? (
         <div className="mt-5">
           <Block title="Biens qui correspondent">
             <ul className="flex flex-col gap-2.5">

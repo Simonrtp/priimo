@@ -6,6 +6,7 @@ import type { Lead } from '@/types/lead';
 import type { Contact } from '@/types/contact';
 import { isSciDirectorPending } from '@/types/lead';
 import {
+  CONTACTS_LEGAL_HINT,
   hasAnyLeadPhone,
   hasOwnerBlock,
   immeubleCategorieLabel,
@@ -14,6 +15,7 @@ import {
 import {
   namesShareSameTokenSet,
   shortenOwnerRole,
+  toDisplayCompanyName,
   toDisplayPersonName,
 } from '@/lib/lead-person-display';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -21,9 +23,6 @@ import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import SciDirectorPendingNotice from './SciDirectorPendingNotice';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
-
-const CONTACTS_LEGAL_HINT =
-  "Contacts professionnels. L'échange doit porter sur la société et le bien qu'elle détient. Le démarchage téléphonique d'un particulier sans consentement préalable est interdit à compter du 11 août 2026.";
 
 function ImmeubleContactRow({
   leadId,
@@ -78,7 +77,7 @@ function ImmeubleContactRow({
   return (
     <li className="min-w-0 border-t border-black/[0.05] py-3 first:border-t-0 first:pt-0">
       <p className="min-w-0 break-words font-medium text-ink" style={{ fontSize: 13.5 }}>
-        {toDisplayPersonName(contact.companyName)}
+        {toDisplayCompanyName(contact.companyName)}
       </p>
       {metier ? (
         <p className="mt-0.5 text-pretty text-mute" style={{ fontSize: 12, lineHeight: 1.4 }}>
@@ -132,7 +131,7 @@ function OwnerPersonBlock({ lead }: { lead: Lead }) {
   const societyPart = companyRaw
     ? companyIsPersonDup
       ? 'bien détenu en société'
-      : toDisplayPersonName(companyRaw)
+      : toDisplayCompanyName(companyRaw)
     : null;
 
   const secondary = [role, societyPart].filter(Boolean).join(' · ');
@@ -205,7 +204,7 @@ function EnterpriseExtras({ lead }: { lead: Lead }) {
       )}
       {company && (
         <p className="text-mute" style={{ fontSize: 12.5 }}>
-          {toDisplayPersonName(company)}
+          {toDisplayCompanyName(company)}
         </p>
       )}
     </div>

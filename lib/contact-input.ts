@@ -7,12 +7,15 @@
  */
 
 import type { ContactType } from '@/types/contact';
+import { repartirRoles } from '@/types/contact';
 import { formatPhoneOrNull } from '@/lib/import/normalize';
 
 export interface ContactInputFields {
   firstName: string;
   lastName: string;
   type: ContactType;
+  /** Rôles en plus du principal (vendeuse qui achète aussi). */
+  autresTypes: ContactType[];
   phone: string | null;
   numeroCommuniqueParLaPersonne: boolean;
   email: string | null;
@@ -36,6 +39,7 @@ export const EMPTY_CONTACT_INPUT: ContactInputFields = {
   firstName: '',
   lastName: '',
   type: 'autre',
+  autresTypes: [],
   phone: null,
   numeroCommuniqueParLaPersonne: false,
   email: null,
@@ -191,9 +195,14 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
   }
 
   const typeRaw = typeof b.type === 'string' ? b.type : 'autre';
-  const type = (CONTACT_TYPES as readonly string[]).includes(typeRaw)
+  const typeDit = (CONTACT_TYPES as readonly string[]).includes(typeRaw)
     ? (typeRaw as ContactType)
     : 'autre';
+  const autresDits = Array.isArray(b.autresTypes)
+    ? b.autresTypes.filter((t): t is ContactType => (CONTACT_TYPES as readonly unknown[]).includes(t))
+    : [];
+  // Le rôle principal suit toujours la même priorité, d'où qu'on saisisse.
+  const { type, autresTypes } = repartirRoles([typeDit, ...autresDits]);
 
   const email = str(b.email, 160);
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -226,6 +235,7 @@ export function parseContactInput(raw: unknown): ParsedContactInput | ContactInp
       firstName,
       lastName,
       type,
+      autresTypes,
       phone: formatPhoneOrNull(str(b.phone, 40)),
       numeroCommuniqueParLaPersonne: b.numeroCommuniqueParLaPersonne === true,
       email,
@@ -253,6 +263,7 @@ export function contactFieldsToRow(
     first_name: f.firstName || null,
     last_name: f.lastName || null,
     contact_type: f.type,
+    autres_types: f.autresTypes,
     phone: f.phone,
     numero_communique_par_la_personne: f.numeroCommuniqueParLaPersonne,
     email: f.email,

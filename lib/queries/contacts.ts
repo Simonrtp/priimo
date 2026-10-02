@@ -25,8 +25,11 @@ const CONTACTS_SELECT_BASE = `
   assigned_to, assigned_by, assigned_at, created_at, updated_at
 `;
 
+/** Colonnes ajoutées après coup : une base qui ne les a pas encore reste lisible. */
+const COLONNES_RECENTES = ['autres_types', 'numero_communique_par_la_personne'] as const;
+
 export const CONTACTS_SELECT = `${CONTACTS_SELECT_BASE.trim()},
-  numero_communique_par_la_personne
+  ${COLONNES_RECENTES.join(', ')}
 `;
 
 export function isMissingContactsColumn(
@@ -38,13 +41,54 @@ export function isMissingContactsColumn(
   return msg.includes(column) && (error.code === 'PGRST204' || error.code === '42703');
 }
 
-/** Relit avec le SELECT sans la colonne récente si la migration n'est pas encore passée. */
+/** La colonne récente que l'erreur dit absente, s'il y en a une. */
+function colonneRecenteManquante(
+  error: { code?: string; message?: string } | null | undefined,
+  parmi: readonly string[],
+): string | null {
+  return parmi.find((c) => isMissingContactsColumn(error, c)) ?? null;
+}
+
+/** Relit sans les colonnes récentes que la base n'a pas encore, une à une. */
 export async function withContactsSelect<
   T extends { data: unknown; error: { message?: string; code?: string } | null },
 >(run: (select: string) => PromiseLike<T>): Promise<T> {
-  const full = await run(CONTACTS_SELECT);
-  if (!isMissingContactsColumn(full.error, 'numero_communique_par_la_personne')) return full;
-  return await run(CONTACTS_SELECT_BASE);
+  let colonnes: string[] = [...COLONNES_RECENTES];
+  for (;;) {
+    const res = await run([CONTACTS_SELECT_BASE.trim(), ...colonnes].join(', '));
+    const manquante = colonneRecenteManquante(res.error, colonnes);
+    if (!manquante) return res;
+    colonnes = colonnes.filter((c) => c !== manquante);
+  }
+}
+
+/**
+ * Mise à jour d'une fiche : une colonne récente absente de la base est retirée
+ * de l'écriture plutôt que de faire échouer tout l'enregistrement.
+ */
+export async function updateContactRow(
+  supabase: Client,
+  ids: { contactId: string; agencyId: string },
+  update: Partial<ContactRow>,
+) {
+  let payload: Partial<ContactRow> = { ...update };
+  let colonnes: string[] = [...COLONNES_RECENTES];
+  for (;;) {
+    const sel = [CONTACTS_SELECT_BASE.trim(), ...colonnes].join(', ');
+    const res = await supabase
+      .from('contacts')
+      .update(payload)
+      .eq('id', ids.contactId)
+      .eq('agency_id', ids.agencyId)
+      .select(sel)
+      .single();
+    const manquante = colonneRecenteManquante(res.error, colonnes);
+    if (!manquante) return res;
+    colonnes = colonnes.filter((c) => c !== manquante);
+    const { [manquante as keyof ContactRow]: _retire, ...reste } = payload;
+    void _retire;
+    payload = reste;
+  }
 }
 
 const CONTACTS_SELECT_MID = `
@@ -95,6 +139,9 @@ export function mapDbContactToContact(row: ContactRow): Contact {
     lastName,
     fullName: buildFullName(firstName, lastName) || 'Contact sans nom',
     type: row.contact_type,
+    autresTypes: Array.isArray(row.autres_types)
+      ? row.autres_types.filter((t) => t !== row.contact_type && t !== 'autre')
+      : [],
     phone: formatPhoneOrNull(row.phone),
     numeroCommuniqueParLaPersonne: row.numero_communique_par_la_personne === true,
     email: cleanText(row.email) || null,
@@ -203,13 +250,24 @@ export async function insertContactRow(
   row: ContactInsert,
 ): Promise<{ data: ContactRow | null; error: { message: string; code?: string } | null }> {
   let payload: ContactInsert = row;
+  let colonnes: string[] = [...COLONNES_RECENTES];
   let full = await supabase.from('contacts').insert(payload).select(CONTACTS_SELECT).single();
 
-  if (isMissingContactsColumn(full.error, 'numero_communique_par_la_personne')) {
-    const { numero_communique_par_la_personne: _c, ...withoutCommunique } = payload;
-    void _c;
-    payload = withoutCommunique as ContactInsert;
-    full = await supabase.from('contacts').insert(payload).select(CONTACTS_SELECT_BASE).single();
+  // Une colonne récente absente de la base : on l'écarte et on réessaie.
+  for (
+    let manquante = colonneRecenteManquante(full.error, colonnes);
+    manquante;
+    manquante = colonneRecenteManquante(full.error, colonnes)
+  ) {
+    colonnes = colonnes.filter((c) => c !== manquante);
+    const { [manquante as keyof ContactInsert]: _retire, ...reste } = payload;
+    void _retire;
+    payload = reste as ContactInsert;
+    full = await supabase
+      .from('contacts')
+      .insert(payload)
+      .select([CONTACTS_SELECT_BASE.trim(), ...colonnes].join(', '))
+      .single();
   }
 
   if (!full.error && full.data) {
@@ -217,6 +275,7 @@ export async function insertContactRow(
       data: {
         ...(full.data as unknown as ContactRow),
         numero_communique_par_la_personne: row.numero_communique_par_la_personne === true,
+        autres_types: (full.data as unknown as ContactRow).autres_types ?? [],
       },
       error: null,
     };

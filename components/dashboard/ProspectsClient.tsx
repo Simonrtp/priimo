@@ -337,6 +337,7 @@ export default function ProspectsClient({
           lostReason: stage.type === 'perdu' ? lostReasonValue ?? null : null,
         });
         void invaliderNavigationApresLead();
+        router.refresh();
         const fromStage = lead.stageId ? stageList.find((s) => s.id === lead.stageId) : null;
         const victory = pipelineVictoryKind(fromStage, stage);
         if (victory) celebratePipelineVictory(victory);
@@ -433,10 +434,12 @@ export default function ProspectsClient({
     void dismissPipelineBanner();
   }, [dismissPipelineBanner]);
 
-  const switcher = <ProspectsViewSwitch value={vue} onChange={setVue} />;
+  const switcher = (
+    <ProspectsViewSwitch variant="floating" value={vue} onChange={setVue} />
+  );
 
   return (
-    <div className="w-full min-w-0 pb-4 pt-2 md:pt-0">
+    <div className="relative w-full min-w-0 pb-4 pt-2 md:pt-0">
       <VolLeadPipeline vols={volsPipeline} onFini={onFiniVol} />
       {showPipelineBanner && initialNewBatchCount > 0 && vue === 'liste' && (
         <PipelineUpdateBanner
@@ -446,9 +449,12 @@ export default function ProspectsClient({
         />
       )}
 
-      <div className="sticky top-0 z-20 -mx-2 mb-4 hidden justify-end bg-[color:color-mix(in_srgb,var(--bg-base)_95%,transparent)] px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-[color:color-mix(in_srgb,var(--bg-base)_85%,transparent)] md:flex">
-        {switcher}
+      {/* Même onglet collé coin haut-droit que sur la Carte. */}
+      <div className="pointer-events-none absolute -right-6 -top-6 z-30 hidden md:block lg:-right-8 lg:-top-8">
+        <div className="pointer-events-auto">{switcher}</div>
       </div>
+      {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
+      <div className="mb-4 hidden h-12 md:block" aria-hidden />
 
       {vue === 'pipeline' ? (
         <>

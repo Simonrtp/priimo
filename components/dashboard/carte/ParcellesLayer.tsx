@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Layer, Marker, Popup, Source, type MapRef } from 'react-map-gl';
 import type { ExpressionSpecification, MapLayerMouseEvent } from 'mapbox-gl';
 import {
@@ -15,6 +15,7 @@ import { dpeVisibleOnMap, formatPrixM2Court, ventesParParcelle } from '@/lib/car
 import {
   COPRO_FILL,
   COPRO_PROCEDURE_FILL,
+  CADASTRE_OVERLAY_MIN_ZOOM,
   PARCELLE_MIN_ZOOM,
   PARCELLE_SLATE,
   VENTE_FILL,
@@ -118,6 +119,7 @@ export default function ParcellesLayer({
   layers,
   clipZone = null,
   onPick,
+  onPrefetch,
 }: {
   mapRef: React.RefObject<MapRef | null>;
   enabled: boolean;
@@ -128,6 +130,7 @@ export default function ParcellesLayer({
   layers: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
   clipZone?: Zone | null;
   onPick: (parcelleId: string, extra?: ParcellePickExtra) => void;
+  onPrefetch?: (parcelleId: string) => void;
 }) {
   const hoverId = useRef<string | null>(null);
   const painted = useRef<Set<string>>(new Set());
@@ -141,10 +144,27 @@ export default function ParcellesLayer({
   layersRef.current = layers;
   const clipZoneRef = useRef(clipZone);
   clipZoneRef.current = clipZone;
+  const onPrefetchRef = useRef(onPrefetch);
+  onPrefetchRef.current = onPrefetch;
+  const prefetchTimer = useRef<number | null>(null);
+  const lastPrefetchId = useRef<string | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
   const [venteLabels, setVenteLabels] = useState<Pin[]>([]);
   const [overlayHover, setOverlayHover] = useState<OverlayHover | null>(null);
   const showOverlays = layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+
+  const schedulePrefetch = useCallback((parcelleId: string | null) => {
+    if (prefetchTimer.current != null) {
+      window.clearTimeout(prefetchTimer.current);
+      prefetchTimer.current = null;
+    }
+    if (!parcelleId || parcelleId === lastPrefetchId.current) return;
+    prefetchTimer.current = window.setTimeout(() => {
+      prefetchTimer.current = null;
+      lastPrefetchId.current = parcelleId;
+      onPrefetchRef.current?.(parcelleId);
+    }, 70);
+  }, []);
 
   const venteAgg = useMemo(() => ventesParParcelle(immeubles), [immeubles]);
   const venteAggRef = useRef(venteAgg);
@@ -175,6 +195,7 @@ export default function ParcellesLayer({
           parcelleId: row.parcelleId,
           hasDpe: hasDpe ? '1' : '0',
           letter: letter ?? '',
+          dpeGrain: row.dpeGrain ?? '',
           hasVente: hasVente ? '1' : '0',
           hasCopro: hasCopro ? '1' : '0',
           procedure: row.procedureCopro ? '1' : '0',
@@ -339,6 +360,7 @@ export default function ParcellesLayer({
         return;
       }
       applyHover(parcelleId);
+      schedulePrefetch(parcelleId);
       if (!pointerCanHover() || !parcelleId || !f) return;
       const overlayHits = [
         CADASTRE_DPE_LAYER_ID,
@@ -366,6 +388,7 @@ export default function ParcellesLayer({
     };
     const onLeave = () => {
       applyHover(null);
+      schedulePrefetch(null);
       setOverlayHover(null);
     };
     const onClick = (e: MapLayerMouseEvent) => {
@@ -374,6 +397,9 @@ export default function ParcellesLayer({
       if (!parcelleId || !f) return;
       e.originalEvent.stopPropagation();
       setOverlayHover(null);
+      // Démarre le fetch avant le rendu du volet si le survol n’a pas eu le temps.
+      lastPrefetchId.current = parcelleId;
+      onPrefetchRef.current?.(parcelleId);
       const centre = centroidLngLat(f.geometry);
       if (
         !cadastreDansEmprise(
@@ -394,12 +420,16 @@ export default function ParcellesLayer({
 
     return () => {
       cancelled = true;
+      if (prefetchTimer.current != null) {
+        window.clearTimeout(prefetchTimer.current);
+        prefetchTimer.current = null;
+      }
       map.off('idle', paintStates);
       map.off('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
       map.off('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
       map.off('click', PARCELLES_FILL_LAYER_ID, onClick);
     };
-  }, [enabled, activeParcelleIds, mapRef, noteByParcelle, onPick, selectedParcelleId, layers.cadastreVentes, venteAgg, clipZone]);
+  }, [enabled, activeParcelleIds, mapRef, noteByParcelle, onPick, schedulePrefetch, selectedParcelleId, layers.cadastreVentes, venteAgg, clipZone]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
@@ -487,9 +517,15 @@ export default function ParcellesLayer({
         lat: row.latitude,
         preview: hoverPreviewFromCadastre(row, layer),
       });
-      if (row.parcelleId) applyHover(row.parcelleId);
+      if (row.parcelleId) {
+        applyHover(row.parcelleId);
+        schedulePrefetch(row.parcelleId);
+      }
     };
-    const onOverlayLeave = () => setOverlayHover(null);
+    const onOverlayLeave = () => {
+      setOverlayHover(null);
+      schedulePrefetch(null);
+    };
     const onOverlayClick = (e: MapLayerMouseEvent) => {
       const f = e.features?.[0];
       const raw = f?.properties?.parcelleId;
@@ -497,6 +533,8 @@ export default function ParcellesLayer({
       if (!parcelleId) return;
       e.originalEvent.stopPropagation();
       setOverlayHover(null);
+      lastPrefetchId.current = parcelleId;
+      onPrefetchRef.current?.(parcelleId);
       onPick(parcelleId, { surfaceM2: f ? surfaceDepuisFeature(f) : null });
     };
 
@@ -523,7 +561,7 @@ export default function ParcellesLayer({
       const canvas = mapCanvas(map);
       if (canvas && !enabled) canvas.style.cursor = '';
     };
-  }, [enabled, mapRef, onPick, showOverlays]);
+  }, [enabled, mapRef, onPick, schedulePrefetch, showOverlays]);
 
   if (!enabled && !showOverlays) return null;
 
@@ -571,7 +609,7 @@ export default function ParcellesLayer({
         </Source>
       ) : null}
       {showOverlays ? (
-        <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson}>
+        <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson} promoteId="banId">
           {layers.cadastreVentes ? (
             <Layer
               id={CADASTRE_VENTES_POINT_LAYER_ID}
@@ -641,12 +679,39 @@ export default function ParcellesLayer({
             <Layer
               id={CADASTRE_DPE_LAYER_ID}
               type="circle"
+              minzoom={CADASTRE_OVERLAY_MIN_ZOOM}
               filter={['==', ['get', 'hasDpe'], '1']}
               paint={{
-                'circle-radius': 8,
+                'circle-radius': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  12,
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 6.5, 5.5],
+                  14,
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 9, 7.5],
+                  16,
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 12, 10],
+                  18,
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 14, 12],
+                ],
                 'circle-color': DPE_CIRCLE_COLOR,
-                'circle-stroke-width': 1.2,
-                'circle-stroke-color': '#F4EFE8',
+                'circle-stroke-width': [
+                  'case',
+                  ['==', ['get', 'dpeGrain'], 'adresse'],
+                  2,
+                  [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    12,
+                    1,
+                    16,
+                    1.6,
+                  ],
+                ],
+                'circle-stroke-color': '#F8F5F0',
+                'circle-opacity': 0.96,
                 'circle-pitch-alignment': 'viewport',
                 'circle-pitch-scale': 'viewport',
               }}
@@ -656,13 +721,23 @@ export default function ParcellesLayer({
             <Layer
               id={CADASTRE_DPE_LABEL_LAYER_ID}
               type="symbol"
+              minzoom={14}
               filter={['==', ['get', 'hasDpe'], '1']}
               layout={{
                 'text-field': ['get', 'letter'],
-                'text-size': 10,
-                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
+                'text-size': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  14,
+                  9,
+                  16,
+                  12,
+                ],
+                'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+                'text-allow-overlap': false,
+                'text-ignore-placement': false,
+                'text-optional': true,
                 'text-pitch-alignment': 'viewport',
                 'text-rotation-alignment': 'viewport',
               }}
@@ -678,6 +753,18 @@ export default function ParcellesLayer({
                   '#1A1A1A',
                   '#ffffff',
                 ],
+                'text-halo-color': [
+                  'match',
+                  ['get', 'letter'],
+                  'C',
+                  'rgba(255,255,255,0.55)',
+                  'D',
+                  'rgba(255,255,255,0.55)',
+                  'E',
+                  'rgba(255,255,255,0.4)',
+                  'rgba(26,42,86,0.35)',
+                ],
+                'text-halo-width': 1.15,
               }}
             />
           ) : null}

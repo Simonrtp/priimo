@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -48,6 +48,7 @@ function phraseFactuelle(aRevoir: number, cycleSemaines: number | null): string 
 /**
  * Repère sur l'Accueil : la carte d'abord, le détail en dessous, un seul
  * « Modifier ». Un clic sur un secteur ouvre la carte complète.
+ * Mapbox ne charge qu'à l'approche du viewport (évite le jank au chargement).
  */
 export default function MonSecteur({
   apercu,
@@ -63,6 +64,27 @@ export default function MonSecteur({
   const router = useRouter();
   const { zones, points, cycleSemaines, zonesDirecteur } = apercu;
   const zoneSeule = zones.length === 1 ? zones[0] : null;
+  const [carteVisible, setCarteVisible] = useState(false);
+  const [cadre, setCadre] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!cadre || carteVisible) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setCarteVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setCarteVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '200px 0px', threshold: 0.01 },
+    );
+    io.observe(cadre);
+    return () => io.disconnect();
+  }, [cadre, carteVisible]);
 
   const repartition = useMemo(() => compter(points), [points]);
   const aRevoir = repartition.revoir + repartition.jamais;
@@ -98,14 +120,21 @@ export default function MonSecteur({
         </button>
       </div>
 
-      <div className="relative h-[420px] min-h-[420px] overflow-hidden rounded-clay-lg sm:h-[520px] sm:min-h-[520px]">
-        <ZonesCarte
-          zones={zones}
-          zoneActive={estDirecteur ? null : zoneSeule}
-          leads={leads}
-          centre={centre}
-          onChoisirZone={ouvrirCarte}
-        />
+      <div
+        ref={setCadre}
+        className="relative h-[420px] min-h-[420px] overflow-hidden rounded-clay-lg sm:h-[520px] sm:min-h-[520px]"
+      >
+        {carteVisible ? (
+          <ZonesCarte
+            zones={zones}
+            zoneActive={estDirecteur ? null : zoneSeule}
+            leads={leads}
+            centre={centre}
+            onChoisirZone={ouvrirCarte}
+          />
+        ) : (
+          <div className="h-full min-h-[420px] animate-pulse rounded-clay-lg bg-black/[0.04] sm:min-h-[520px]" aria-hidden />
+        )}
       </div>
 
       {estDirecteur ? (

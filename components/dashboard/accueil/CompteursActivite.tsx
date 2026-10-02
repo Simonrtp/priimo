@@ -32,7 +32,7 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
     href: '/dashboard/prospection?vue=carte',
   },
   contacts_qualifies: {
-    libelle: 'Qualifier un lead',
+    libelle: 'Passer en Contacté',
     court: 'Qualifier',
     href: '/dashboard/prospection?vue=pipeline',
   },
@@ -353,8 +353,8 @@ function CarteCompteur({
           aria-label={`${compteur.libelle} : ${pct} % de l’objectif`}
         >
           <span
-            className="block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none"
-            style={{ width: `${pct}%`, backgroundColor: teinte }}
+            className="block h-full w-full origin-left rounded-full transition-transform duration-500 ease-out motion-reduce:transition-none"
+            style={{ transform: `scaleX(${Math.max(0, Math.min(1, pct / 100))})`, backgroundColor: teinte }}
           />
         </div>
 

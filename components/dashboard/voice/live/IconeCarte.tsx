@@ -1,6 +1,7 @@
 import {
   CalendarClock,
   CheckSquare,
+  Eye,
   Footprints,
   HelpCircle,
   Home,
@@ -28,6 +29,7 @@ const ICONES: Record<CarteKind, LucideIcon> = {
   prospect: Target,
   email: Mail,
   question: HelpCircle,
+  observation: Eye,
 };
 
 /** Icône sobre sur fond teinté clair : jamais de pastille en dégradé. */

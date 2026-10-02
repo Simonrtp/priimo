@@ -34,5 +34,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ parcelleId: st
     viewer: viewerFromProfile(profile),
   });
 
-  return NextResponse.json(fiche);
+  return NextResponse.json(fiche, {
+    headers: {
+      // Fiche souvent rouverte en prospection : 2 min privée suffit.
+      'Cache-Control': 'private, max-age=120, stale-while-revalidate=300',
+    },
+  });
 }

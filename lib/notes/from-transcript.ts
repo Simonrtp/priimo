@@ -1,7 +1,7 @@
 import { normalizeName, normalizePhone } from '@/lib/import/normalize';
 import { nameTokens, scoreNom } from '@/lib/assistant/nom-match';
 import type { ExtractedPersonne } from '@/lib/notes/propositions';
-import { matchContacts, type ContactMatch, type MatchableContact } from '@/lib/notes/match';
+import { ficheDuContact, matchContacts, type ContactMatch, type MatchableContact } from '@/lib/notes/match';
 
 const VERB =
   "(?:contacter|appeler|joindre|relancer|rappeler|rencontrer|rencontré|voir(?:\\s+avec)?|chez|par|avec|pour|vu|c['’]est|s['’]appelle|nommé)";
@@ -108,6 +108,38 @@ const GUESS_STOPWORDS = new Set([
   'concernant',
   'puisqu',
   'puisque',
+  // Ce qui suit un nom dans une dictée en minuscules : « madame bertin veut ».
+  'et',
+  'ou',
+  'mais',
+  'donc',
+  'est',
+  'veut',
+  'voudrait',
+  'souhaite',
+  'aimerait',
+  'cherche',
+  'vend',
+  'vendre',
+  'achete',
+  'acheter',
+  'acquerir',
+  'habite',
+  'loue',
+  'part',
+  'demenage',
+  'dit',
+  'pense',
+  'attend',
+  'reste',
+  'vient',
+  'va',
+  'peut',
+  'doit',
+  'serait',
+  'sera',
+  'etait',
+  'avait',
 ]);
 
 function titleCaseNom(raw: string): string {
@@ -160,7 +192,11 @@ export function guessPersonnesFromTranscript(transcript: string): ExtractedPerso
     if (match[1] && match[2]) add(match[1], match[2], match.index ?? 0);
   }
   for (const match of text.matchAll(AFTER_CIVILITE)) {
-    if (match[1] && match[2]) add(match[1], match[2], match.index ?? 0);
+    // « Madame Bertin veut… » : un mot en minuscule derrière un nom capitalisé
+    // est la suite de la phrase, pas un nom de famille.
+    const suiteDePhrase =
+      Boolean(match[2]) && /^\p{Lu}/u.test(match[1] ?? '') && /^\p{Ll}/u.test(match[2] ?? '');
+    if (match[1] && match[2] && !suiteDePhrase && isNamePart(match[2])) add(match[1], match[2], match.index ?? 0);
     else if (match[1] && isNamePart(match[1])) {
       const last = titleCaseNom(match[1].trim());
       const key = `|${normalizeName(last)}`;
@@ -307,9 +343,7 @@ export function matchContactsInTranscript(
       label: contact.fullName,
       confiance: 'certain',
       raison: 'telephone',
-      phone: contact.phone,
-      email: contact.email,
-      address: contact.address,
+      ...ficheDuContact(contact),
     });
   }
 
@@ -326,9 +360,7 @@ export function matchContactsInTranscript(
       label: contact.fullName,
       confiance: 'certain',
       raison: 'nom',
-      phone: contact.phone,
-      email: contact.email,
-      address: contact.address,
+      ...ficheDuContact(contact),
     });
   }
 
@@ -384,7 +416,8 @@ export function personneFromMatch(
     lastName: contact?.lastName ?? match.label,
     phone: contact?.phone ?? null,
     email: contact?.email ?? null,
-    type: 'autre',
+    type: contact?.type ?? 'autre',
+    autresTypes: contact?.autresTypes ?? [],
   };
 }
 
