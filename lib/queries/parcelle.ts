@@ -36,6 +36,10 @@ import type {
 } from '@/lib/carte/parcelle';
 import { FENETRE_VENTES_ANS, typeDominant } from '@/lib/carte/parcelle-synthese';
 import { adresseLisible } from '@/lib/carte/adresse-lisible';
+import { lireBatimentsBdnb } from '@/lib/geo/bdnb';
+import { lireAuditsParBan } from '@/lib/geo/ademe-audits';
+import type { AuditEnergetique } from '@/lib/carte/audits';
+import { versProprietaires, type LotsProprietaire } from '@/lib/carte/proprietaires-lots';
 import { parseDisplaySignals } from '@/lib/display-signals';
 import { signauxEssentiels } from '@/lib/lead-apercu';
 import { parseContactabilite, parseContactsImmeuble } from '@/lib/lead-contacts';
@@ -56,7 +60,7 @@ const DPE_PAGE_CAP = 8000;
 export const PARCELLE_READ_QUERIES = {
   adresses: {
     table: 'parcelle_adresses',
-    columns: ['parcelle_id', 'ban_id', 'source', 'created_at'] as const,
+    columns: ['parcelle_id', 'ban_id', 'source', 'created_at', 'code_postal'] as const,
     when: 'fiche',
   },
   buildings: {
@@ -147,6 +151,28 @@ function num(v: unknown): number | null {
     return Number.isFinite(n) ? n : null;
   }
   return null;
+}
+
+/** Codes postaux d'une commune (geo.api.gouv.fr), gardés une journée. */
+const COMMUNES_TTL_MS = 24 * 60 * 60 * 1000;
+const codesPostauxCommune = new Map<string, { at: number; codes: string[] }>();
+
+async function communeDansSecteur(codeCommune: string, agencyCodes: readonly string[]): Promise<boolean> {
+  if (!/^\d[\dAB]\d{3}$/.test(codeCommune) || agencyCodes.length === 0) return false;
+  let connu = codesPostauxCommune.get(codeCommune);
+  if (!connu || Date.now() - connu.at > COMMUNES_TTL_MS) {
+    try {
+      const res = await fetch(`https://geo.api.gouv.fr/communes/${codeCommune}?fields=codesPostaux`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      const json = res.ok ? ((await res.json()) as { codesPostaux?: string[] }) : {};
+      connu = { at: Date.now(), codes: json.codesPostaux ?? [] };
+      codesPostauxCommune.set(codeCommune, connu);
+    } catch {
+      return false;
+    }
+  }
+  return inAgencySector(connu.codes, agencyCodes);
 }
 
 function inAgencySector(cps: readonly (string | null | undefined)[], agencyCodes: readonly string[]): boolean {
@@ -297,6 +323,12 @@ export async function fetchParcelleFiche(args: {
   const sessionDb = args.agencyDb;
   const { parcelleId, agencyId, viewer } = args;
 
+  // La BDNB ne dépend que de la référence : elle part avant tout le reste.
+  // Ne lève jamais (« indisponible » au pire).
+  const bdnbP = lireBatimentsBdnb(openDataDb, parcelleId);
+  // Propriétaires au lot près (fichier DGFiP importé) : même chose, ne lève jamais.
+  const lotsP = lireProprietairesLots(openDataDb, parcelleId);
+
   const [adressesRes, buildingsRes, txRes] = await Promise.all([
     // Admin : parcelle_adresses = index BAN↔parcelle (open data), pas de PII agence.
     openDataDb
@@ -342,8 +374,13 @@ export async function fetchParcelleFiche(args: {
     ...buildings.map((b) => b.code_postal),
     ...adresses.map((a) => (a as AdresseRow & { code_postal?: string }).code_postal),
   ];
-  const inSector = inAgencySector(codesConnus, args.postalCodes);
-  const horsSecteur = !inSector && codesConnus.some((c) => Boolean(c && /^\d{5}$/.test(c)));
+  const codePostalConnu = codesConnus.some((c) => Boolean(c && /^\d{5}$/.test(c)));
+  // Sans code postal (parcelle sans adresse en base : square, équipement,
+  // résidence sans vente), la commune de la référence cadastrale tranche.
+  const inSector = codePostalConnu
+    ? inAgencySector(codesConnus, args.postalCodes)
+    : await communeDansSecteur(parcelleId.slice(0, 5), args.postalCodes);
+  const horsSecteur = !inSector && (codePostalConnu || /^\d[\dAB]\d{3}/.test(parcelleId));
 
   const ventes: ParcelleVente[] = inSector
     ? txRows.map((row) => ({
@@ -375,6 +412,22 @@ export async function fetchParcelleFiche(args: {
       ])
     : Promise.resolve([[], []] as [DpeRow[], CoproRow[]]);
 
+  // Filet : les adresses que la BDNB rattache aux bâtiments de la parcelle et
+  // que l'index parcelle ↔ adresse ne connaît pas encore. Leurs DPE sont lus
+  // dès que la BDNB répond, sans retenir le reste.
+  const dpeFiletP = inSector
+    ? bdnbP.then((lecture) => {
+        const connues = new Set(banIds);
+        const absentes =
+          lecture.etat === 'connu' && lecture.batiment
+            ? lecture.batiment.adressesBan.filter((b) => !connues.has(b)).slice(0, IN_CHUNK)
+            : [];
+        return absentes.length > 0
+          ? selectByBanIds<DpeRow>(openDataDb, 'building_dpe', cols(PARCELLE_READ_QUERIES.dpe.columns), absentes)
+          : [];
+      })
+    : Promise.resolve([] as DpeRow[]);
+
   const secteurP =
     inSector && codeCommune && typeVentes
       ? prixM2DuSecteur(openDataDb, codeCommune, typeVentes)
@@ -385,15 +438,32 @@ export async function fetchParcelleFiche(args: {
       ? lireAgenceSurLaParcelle(sessionDb, agencyId, bansAgence, viewer)
       : Promise.resolve(AGENCE_VIDE);
 
-  const [[dpeRows, coproRows], prixM2Secteur, agence, extraBuildings] = await Promise.all([
-    openDataParBan,
-    secteurP,
-    agenceP,
-    extraBuildingsP,
-  ]);
+  // Audits énergétiques : toutes les adresses connues de la parcelle, celles
+  // de l'index comme celles que seule la BDNB rattache.
+  const auditsP = inSector
+    ? bdnbP.then((lecture) =>
+        lireAuditsParBan([
+          ...banIds,
+          ...(lecture.etat === 'connu' && lecture.batiment ? lecture.batiment.adressesBan : []),
+        ]),
+      )
+    : Promise.resolve([] as AuditEnergetique[]);
+
+  const [[dpeIndex, coproRows], prixM2Secteur, agence, extraBuildings, dpeFilet, bdnb, lots, audits] =
+    await Promise.all([
+      openDataParBan,
+      secteurP,
+      agenceP,
+      extraBuildingsP,
+      dpeFiletP,
+      bdnbP,
+      lotsP,
+      auditsP,
+    ]);
   if (extraBuildings.length > 0) {
     buildings = [...buildings, ...extraBuildings];
   }
+  const dpeRows = [...dpeIndex, ...dpeFilet];
 
   const logements: ParcelleLogement[] = dpeRows.map((row) => {
     const etage = num(row.etage);
@@ -434,9 +504,14 @@ export async function fetchParcelleFiche(args: {
     buildings.find((b) => b.lat != null && b.lng != null) ??
     buildings.find((b) => b.adresse?.trim() === adresseBrute) ??
     null;
+  // Aucune adresse en base (ni vente ni DPE à cette adresse) : la BDNB donne
+  // celle du bâtiment principal.
+  const adresseBdnb = inSector && bdnb.etat === 'connu' ? bdnb.batiment?.adressePrincipale ?? null : null;
   const lisible = adresseBrute
     ? adresseLisible(adresseBrute, { codePostal: principal?.code_postal, commune: principal?.commune })
-    : null;
+    : adresseBdnb
+      ? adresseLisible(adresseBdnb)
+      : null;
 
   const videPublic = ventes.length === 0 && logements.length === 0 && coproprietes.length === 0;
 
@@ -460,6 +535,19 @@ export async function fetchParcelleFiche(args: {
     logements,
     coproprietes,
     ...agence,
+    // Hors secteur, pas plus de BDNB que de DVF ou de DPE.
+    // Gérants / siège : enrichis côté client (Annuaire), pour ne pas retarder le volet.
+    batiment: inSector && bdnb.etat === 'connu' ? bdnb.batiment : null,
+    batimentConnu: inSector && bdnb.etat === 'connu',
+    proprietaires: !inSector
+      ? []
+      : lots.length > 0
+        ? versProprietaires(lots)
+        : bdnb.etat === 'connu'
+          ? bdnb.batiment?.proprietaires ?? []
+          : [],
+    audits: audits ?? [],
+    auditsConnus: inSector && audits !== null,
   };
 }
 
@@ -655,6 +743,26 @@ async function lireAgenceSurLaParcelle(
   }));
 
   return { prospects, contacts, biens, entreprises, passages };
+}
+
+/**
+ * Propriétaires personnes morales de la parcelle, au lot près. Table remplie
+ * par scripts/importer-proprietaires-lots.ts ; absente ou vide, on rend [] et
+ * la fiche retombe sur la liste de noms de la BDNB.
+ */
+async function lireProprietairesLots(openDataDb: Db, parcelleId: string): Promise<LotsProprietaire[]> {
+  try {
+    // Admin : fichier des locaux des personnes morales (DGFiP), donnée publique.
+    const { data, error } = await (openDataDb as unknown as SupabaseClient)
+      .from('parcelle_proprietaires')
+      .select('parcelle_id, siren, denomination, forme, groupe, droit, nb_lots, niveaux')
+      .eq('parcelle_id', parcelleId)
+      .limit(300);
+    if (error) return [];
+    return (data ?? []) as LotsProprietaire[];
+  } catch {
+    return [];
+  }
 }
 
 /**

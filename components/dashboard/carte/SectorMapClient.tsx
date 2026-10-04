@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCibleCarte } from '@/lib/carte/cible';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,11 +20,12 @@ import {
   MAP_LAYER_LABELS,
   MAP_LAYER_ORDER,
   activeKindSet,
-  anyCadastreLayer,
+  anyCadastreOverlay,
   persistMapLayers,
   persistLayersPanelOpen,
   readLayersPanelOpen,
   readStoredMapLayers,
+  showParcellesPlan,
   withCadastreLayerToggled,
   withCadastreMenuToggled,
   withDpeAgeSpan,
@@ -33,12 +35,12 @@ import {
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
+import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
 import { useUser } from '@/lib/hooks/useUser';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import {
-  withoutPositionTotal,
   type MapPoint,
   type MapPointKind,
   type UnplacedRecord,
@@ -58,7 +60,6 @@ import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
-import { watchDevicePosition, type DevicePosition } from '@/lib/voice/gps';
 import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
 import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
@@ -176,7 +177,7 @@ function LayersPanel({
           })}
           <CadastreLayerControls
             layers={layers}
-            onToggleOverlay={onToggleCadastreOverlay}
+            onToggleLayer={onToggleCadastreOverlay}
             onChangeDpeAge={onChangeDpeAge}
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
@@ -220,7 +221,7 @@ function LayersPanel({
 
 export default function SectorMapClient({
   points,
-  withoutPosition,
+  withoutPosition: _withoutPosition,
   unplaced,
   center,
   members,
@@ -260,25 +261,15 @@ export default function SectorMapClient({
   const [assignedTo, setAssignedTo] = useState('tous');
   const [period, setPeriod] = useState<MapPeriod>('all');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
+  const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [missingOpen, setMissingOpen] = useState(false);
   const panelTitleRef = useRef<HTMLHeadingElement>(null);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
-  const [agentPosition, setAgentPosition] = useState<DevicePosition | null>(null);
 
   useEffect(() => {
     setStoredStops(readItineraireStops());
-  }, []);
-
-  useEffect(() => {
-    return watchDevicePosition(setAgentPosition, {
-      pauseWhenHidden: true,
-      highAccuracy: false,
-      minUpdateM: 8,
-      maximumAge: 4_000,
-    });
   }, []);
 
   const itineraryStops = showItineraire ? (storedStops ?? itineraryStopsProp) : null;
@@ -287,11 +278,17 @@ export default function SectorMapClient({
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
   // Pastilles DPE/ventes/copro : fetch seulement si une couche est cochée.
   // Le plan PCI + clic parcelle → volet marche sans elles.
-  const overlaysCadastre = anyCadastreLayer(layers);
+  const overlaysCadastre = anyCadastreOverlay(layers);
+  const planParcelles = showParcellesPlan(layers);
   const parcelle = useParcelleMap(overlaysCadastre, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
   });
+  const { suivis: immeublesSuivis, recharger: rechargerSuivis } = useImmeublesSuivisCarte();
+  const suiviParcelleIds = useMemo(
+    () => immeublesSuivis.map((s) => s.parcelleId),
+    [immeublesSuivis],
+  );
   const mapZoom = viewport?.zoom ?? null;
   const monSecteurId = useMemo(
     () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
@@ -341,8 +338,6 @@ export default function SectorMapClient({
     [filteredAllKinds],
   );
 
-  const missingTotal = withoutPositionTotal(withoutPosition);
-
   useEffect(() => {
     persistMapLayers(layers);
   }, [layers]);
@@ -360,7 +355,6 @@ export default function SectorMapClient({
       if (e.key === 'Escape') {
         setSelectedBanId(null);
         setSheetOpen(false);
-        setMissingOpen(false);
         parcelle.closeParcelle();
       }
     }
@@ -430,6 +424,10 @@ export default function SectorMapClient({
     () => parcelle.immeubles.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
     [parcelle.immeubles, zoneChoisie],
   );
+  const activeParcelleIds = useMemo(
+    () => cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id)),
+    [cadastreImmeubles],
+  );
   const parcelleNoteMarkers = useMemo(
     () => parcelle.noteMarkers.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
     [parcelle.noteMarkers, zoneChoisie],
@@ -475,12 +473,12 @@ export default function SectorMapClient({
         <SectorMapCanvas
           buildings={buildings}
           center={center}
+          cible={cible}
           selectedBanId={selectedBanId}
           onSelect={(building) => {
             parcelle.closeParcelle();
             setSelectedBanId(building.banId);
             setSheetOpen(false);
-            setMissingOpen(false);
           }}
           onDeselect={() => {
             setSelectedBanId(null);
@@ -489,8 +487,9 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled
-          activeParcelleIds={cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id))}
+          parcellesEnabled={planParcelles}
+          activeParcelleIds={activeParcelleIds}
+          suiviParcelleIds={suiviParcelleIds}
           parcelleNoteMarkers={parcelleNoteMarkers}
           selectedParcelleId={parcelle.selectedParcelleId}
           cadastreImmeubles={cadastreImmeubles}
@@ -499,7 +498,6 @@ export default function SectorMapClient({
           onSelectParcelle={(parcelleId, extra) => {
             setSelectedBanId(null);
             setSheetOpen(false);
-            setMissingOpen(false);
             parcelle.openParcelle(parcelleId, extra);
           }}
           onPrefetchParcelle={parcelle.prefetchParcelle}
@@ -507,7 +505,6 @@ export default function SectorMapClient({
           zones={zoneId === 'aucun' ? [] : zones}
           highlightedZoneId={zoneChoisie?.id ?? null}
           clipZone={zoneChoisie}
-          agentPosition={agentPosition}
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
@@ -525,12 +522,18 @@ export default function SectorMapClient({
         ) : null}
 
         <div
-          className={`pointer-events-none absolute bottom-3 right-3 z-20 hidden w-[min(100%-1.5rem,320px)] md:flex md:flex-col md:items-stretch md:gap-2 ${
-            viewSwitcher ? 'top-[3.25rem]' : 'top-3'
-          }`}
+          className={
+            layersPanelOpen
+              ? `pointer-events-none absolute bottom-3 right-3 z-20 hidden w-[min(100%-1.5rem,320px)] md:block ${
+                  viewSwitcher ? 'top-[3.25rem]' : 'top-3'
+                }`
+              : `pointer-events-none absolute right-3 z-20 hidden md:block ${
+                  viewSwitcher ? 'top-[3.25rem]' : 'top-3'
+                }`
+          }
         >
-          <div className="pointer-events-auto flex min-h-0 flex-1 flex-col">
-            {layersPanelOpen ? (
+          {layersPanelOpen ? (
+            <div className="pointer-events-auto flex h-full min-h-0 flex-col">
               <LayersPanel
                 className="h-full shadow-clay-sm"
                 layers={layers}
@@ -551,34 +554,20 @@ export default function SectorMapClient({
                 hasSecteur={Boolean(monSecteurId)}
                 onCollapse={() => setLayersPanelOpen(false)}
               />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setLayersPanelOpen(true)}
-                aria-label="Afficher les couches"
-                aria-expanded={false}
-                title="Couches"
-                className="flex size-11 self-end items-center justify-center rounded-clay bg-[#1A2A56] text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white transition-transform duration-fluid-subtle ease-in-out hover:scale-[1.04] hover:bg-[#243667] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <Layers size={19} strokeWidth={2.2} aria-hidden />
-              </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLayersPanelOpen(true)}
+              aria-label="Afficher les couches"
+              aria-expanded={false}
+              title="Couches"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-clay bg-[#1A2A56] text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white transition-transform duration-fluid-subtle ease-in-out hover:scale-[1.04] hover:bg-[#243667] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Layers size={19} strokeWidth={2.2} aria-hidden />
+            </button>
+          )}
         </div>
-
-        {missingTotal > 0 ? (
-          <button
-            type="button"
-            onClick={() => {
-              setMissingOpen(true);
-              setSelectedBanId(null);
-            }}
-            className="absolute left-3 top-3 z-20 rounded-clay border border-black/[0.08] bg-surface px-3 py-2 text-left text-[12.5px] font-medium text-text shadow-clay-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <span className="tabular-nums text-accent">{missingTotal}</span>
-            {missingTotal > 1 ? ' fiches sans position' : ' fiche sans position'}
-          </button>
-        ) : null}
 
         <button
           type="button"
@@ -677,75 +666,12 @@ export default function SectorMapClient({
           </aside>
         ) : null}
 
-        {missingOpen ? (
-          <aside
-            className="absolute inset-x-3 bottom-3 z-20 max-h-[70%] overflow-y-auto rounded-clay border border-black/[0.08] bg-surface p-4 shadow-clay-lg sm:inset-x-auto sm:left-3 sm:top-3 sm:w-[min(100%-1.5rem,360px)]"
-            role="dialog"
-            aria-labelledby="carte-sans-position-title"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h2
-                id="carte-sans-position-title"
-                className="text-balance text-[16px] font-semibold text-text-strong"
-              >
-                Fiches sans position
-              </h2>
-              <button
-                type="button"
-                onClick={() => setMissingOpen(false)}
-                aria-label="Fermer"
-                className="flex size-9 items-center justify-center rounded-lg text-text-subtle hover:bg-black/[0.04]"
-              >
-                <X size={18} aria-hidden />
-              </button>
-            </div>
-            <p className="mt-1 text-pretty text-[13px] text-text-muted">
-              Corrigez l&apos;adresse pour les placer sur la carte.
-            </p>
-            <ul className="mt-4 flex flex-col gap-3">
-              {(
-                [
-                  ['lead', 'Prospects', '/dashboard/prospection?filtre=sans-position', withoutPosition.leads],
-                  ['contact', 'Contacts', '/dashboard/contacts?filtre=sans-position', withoutPosition.contacts],
-                  ['bien', 'Biens', '/dashboard/biens?filtre=sans-position', withoutPosition.biens],
-                  ['note', 'Notes terrain', '/dashboard', withoutPosition.notes],
-                ] as const
-              )
-                .filter((row) => row[3] > 0)
-                .map(([kind, label, href, count]) => (
-                  <li key={kind}>
-                    <Link
-                      href={href}
-                      className="flex items-center justify-between rounded-xl px-2.5 py-2 hover:bg-black/[0.04]"
-                    >
-                      <span className="text-[13.5px] font-medium text-text-strong">{label}</span>
-                      <span className="tabular-nums text-[13px] text-text-subtle">{count}</span>
-                    </Link>
-                  </li>
-                ))}
-            </ul>
-            {unplaced.length > 0 ? (
-              <ul className="mt-4 flex flex-col gap-1 border-t border-black/[0.06] pt-3">
-                {unplaced.slice(0, 12).map((row) => (
-                  <li key={`${row.kind}:${row.recordId}`}>
-                    <Link
-                      href={row.href}
-                      className="block rounded-xl px-2.5 py-2 hover:bg-black/[0.04]"
-                    >
-                      <p className="truncate text-[13px] font-medium text-text-strong">{row.title}</p>
-                      <p className="text-[11.5px] text-text-subtle">{MAP_LAYER_LABELS[row.kind]}</p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </aside>
-        ) : null}
         <ParcelleDrawer
           fiche={parcelle.fiche}
           loading={parcelle.loading}
           onClose={parcelle.closeParcelle}
           onNotesChanged={parcelle.refreshAfterNotes}
+          onSuiviChanged={rechargerSuivis}
         />
       </div>
     </div>

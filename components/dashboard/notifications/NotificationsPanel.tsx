@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRightLeft,
   AudioLines,
+  BellRing,
+  Building2,
   Cake,
   ChevronDown,
   Eye,
@@ -24,6 +26,36 @@ import type { Notification, NotificationType } from '@/lib/notifications/types';
 import { FIELD } from '@/lib/today/field';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 
+type FamilleCouleur = 'orange' | 'vert' | 'ardoise' | 'ambre' | 'neutre';
+
+const FAMILLE: Record<NotificationType, FamilleCouleur> = {
+  suivi_immeuble: 'orange',
+  immeuble_suivi: 'orange',
+  zone_modifiee: 'orange',
+  zone_non_travaillee: 'orange',
+  note_transcrite: 'vert',
+  invitation_acceptee: 'vert',
+  leads_livres: 'ardoise',
+  leads_assignes: 'ardoise',
+  contact_transfere: 'ardoise',
+  lead_portail: 'ardoise',
+  negociateur_sans_activite: 'ambre',
+  mandat_60_jours: 'ambre',
+  anniversaire: 'ambre',
+  estimation_consultee: 'neutre',
+  demande_estimation: 'neutre',
+  estimation_calculee: 'neutre',
+  import_termine: 'neutre',
+};
+
+const STYLE_FAMILLE: Record<FamilleCouleur, { bg: string; fg: string }> = {
+  orange: { bg: 'rgba(232, 116, 60, 0.14)', fg: FIELD.orange },
+  vert: { bg: 'rgba(46, 125, 91, 0.14)', fg: FIELD.vert },
+  ardoise: { bg: 'rgba(26, 42, 86, 0.10)', fg: FIELD.ardoise },
+  ambre: { bg: 'rgba(217, 119, 6, 0.14)', fg: '#B45309' },
+  neutre: { bg: 'rgba(0, 0, 0, 0.04)', fg: 'rgba(26, 42, 86, 0.55)' },
+};
+
 const ICONE: Record<NotificationType, LucideIcon> = {
   leads_livres: MapPin,
   leads_assignes: UserPlus,
@@ -40,6 +72,8 @@ const ICONE: Record<NotificationType, LucideIcon> = {
   negociateur_sans_activite: UserRoundX,
   zone_non_travaillee: MapPinned,
   mandat_60_jours: FileClock,
+  immeuble_suivi: BellRing,
+  suivi_immeuble: Building2,
 };
 
 type Onglet = 'non_lues' | 'tout';
@@ -56,6 +90,7 @@ function Ligne({
   onOpen: (items: Notification[]) => void;
 }) {
   const Icone = ICONE[groupe.type];
+  const style = STYLE_FAMILLE[FAMILLE[groupe.type]];
   const multiple = groupe.items.length > 1;
   const nonLue = !groupe.lue;
 
@@ -80,13 +115,17 @@ function Ligne({
           />
         ) : null}
         <span
-          className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-text-subtle"
+          className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: style.bg, color: style.fg }}
           aria-hidden
         >
           <Icone size={16} strokeWidth={1.75} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-text-strong" style={{ fontSize: 14 }}>
+          <span
+            className={`block truncate text-text-strong ${nonLue ? 'font-semibold' : 'font-medium'}`}
+            style={{ fontSize: 14 }}
+          >
             {groupe.titre}
           </span>
           <span className="mt-0.5 block truncate text-text-subtle" style={{ fontSize: 13 }}>

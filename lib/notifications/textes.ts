@@ -79,6 +79,25 @@ export function titreMandat60Jours(n: number): string {
     : `${n} mandats passent les 60 jours`;
 }
 
+export function titreImmeublesSuivis(n: number): string {
+  return n === 1
+    ? 'Un immeuble suivi a bougé'
+    : `${n} immeubles suivis ont bougé`;
+}
+
+export function corpsImmeublesSuivis(): string {
+  return 'À retrouver dans « À valider ».';
+}
+
+export function titreSuiviImmeuble(): string {
+  return 'Tu suis cet immeuble';
+}
+
+export function corpsSuiviImmeuble(libelle: string | null): string {
+  const lieu = libelle?.trim();
+  return lieu || 'Tu seras prévenu d’un nouveau DPE, d’une vente ou d’un audit.';
+}
+
 /** Titre d’une ligne regroupée. Une seule notification : on garde son titre. */
 export function titreGroupe(type: NotificationType, n: number, titreSeul: string): string {
   if (n <= 1) return titreSeul;
@@ -89,6 +108,10 @@ export function titreGroupe(type: NotificationType, n: number, titreSeul: string
       return titreLeadsAssignes(n);
     case 'contact_transfere':
       return titreContactTransfere(n);
+    case 'immeuble_suivi':
+      return titreImmeublesSuivis(n);
+    case 'suivi_immeuble':
+      return n === 1 ? titreSeul : `${n} immeubles suivis`;
     case 'leads_livres':
       return titreSeul;
     default:
@@ -105,6 +128,10 @@ export function corpsGroupe(type: NotificationType, n: number, corpsSeul: string
       return 'À retrouver dans la prospection.';
     case 'contact_transfere':
       return 'Fiches transmises par un collègue.';
+    case 'immeuble_suivi':
+      return corpsImmeublesSuivis();
+    case 'suivi_immeuble':
+      return 'Mémoire de tes suivis.';
     default:
       return corpsSeul;
   }

@@ -7,6 +7,7 @@ import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { rateLimit } from '@/lib/rate-limit';
 import { resumerMemoire, type SourceMemoire } from '@/lib/notes/memoire';
 import { MistralKeyMissingError, requireMistralKey } from '@/lib/voice/transcribe';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 45;
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
   }
   const limit = rateLimit(`memoire:${profile.id}`, { limit: 40, windowMs: 60 * 60 * 1000 });
   if (!limit.ok) return NextResponse.json({ error: 'Trop de demandes' }, { status: 429 });
+  if (!(await reserverIa('redaction'))) return reponseQuotaIa();
 
   let body: Record<string, unknown>;
   try {

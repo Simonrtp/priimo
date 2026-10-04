@@ -23,6 +23,7 @@ import { cheminPrise, extensionAudio, nettoyerIdPrise, VOICE_BUCKET } from '@/li
 import { retirerFinDeNote } from '@/lib/voice/fin-de-note';
 import { reverseGeocode, type BanGeocodeHit } from '@/lib/geo/ban';
 import { vocabulaireAgence } from '@/lib/voice/vocabulaire';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
       { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } },
     );
   }
+  if (!(await reserverIa('transcription'))) return reponseQuotaIa();
 
   let form: FormData;
   try {

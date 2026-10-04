@@ -3,19 +3,32 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronRight, Footprints, MapPin, Mic, Navigation, NotebookPen, Phone, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Bell,
+  BellRing,
+  ChevronDown,
+  ChevronRight,
+  Footprints,
+  Info,
+  Mic,
+  Navigation,
+  NotebookPen,
+  Phone,
+  X,
+} from 'lucide-react';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
-import { FacadeStreetView } from '@/components/dashboard/FacadeLead';
+import { FacadeStreetLook } from '@/components/dashboard/FacadeLead';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { useUser } from '@/lib/hooks/useUser';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { markerBadgeColor } from '@/lib/carte/colors';
-import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
+import { dpeFillColor, formatDpeEtage, parseDpeLetter } from '@/lib/carte/dpe-public';
 import { CONTACTS_LEGAL_HINT, immeubleCategorieLabel } from '@/lib/lead-contacts';
 import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
-import { toDisplayCompanyName } from '@/lib/lead-person-display';
+import { toDisplayCompanyName, toDisplayPersonName } from '@/lib/lead-person-display';
 import { CONTACT_TYPE_LABELS } from '@/types/contact';
 import { MANDAT_STATUT_LABELS } from '@/types/bien';
 import {
@@ -23,9 +36,13 @@ import {
   decrireVente,
   depuisQuand,
   estPassoire,
+  pastillesEnteteParcelle,
   syntheseParcelle,
   type PastilleParcelle,
 } from '@/lib/carte/parcelle-synthese';
+import type { GenreProprietaire, ProprietaireMorale } from '@/lib/carte/bdnb';
+import { decrireNiveaux } from '@/lib/carte/proprietaires-lots';
+import type { AuditEnergetique } from '@/lib/carte/audits';
 import type {
   ParcelleBienAgence,
   ParcelleContactAgence,
@@ -36,6 +53,9 @@ import type {
   ParcelleProspect,
   ParcelleVente,
 } from '@/lib/carte/parcelle';
+import { CIBLE_CLOCHE, envolerNote } from '@/lib/ui/envol-note';
+import type { Notification } from '@/lib/notifications/types';
+import { useNotifications } from '@/components/providers/NotificationsProvider';
 
 /** Au-delà, la liste se replie : « Voir les 23 ventes ». */
 const LIGNES_VISIBLES = 5;
@@ -316,6 +336,270 @@ function LigneBien({ b }: { b: ParcelleBienAgence }) {
   );
 }
 
+const DPE_2026_HINT =
+  "Étiquette du diagnostic tel qu'il a été établi. Depuis le 1er janvier 2026, l'électricité pèse moins dans le calcul : un logement chauffé à l'électricité classé F ou G avant 2026 peut avoir gagné une classe sans travaux. Le propriétaire peut télécharger sa nouvelle étiquette sur le site de l'ADEME.";
+
+const PROPRIETAIRES_HINT =
+  "Personnes morales propriétaires de lots, d'après les fichiers fonciers (DGFiP). Les particuliers n'y figurent jamais. Ouvre une ligne pour voir les dirigeants, le siège et la date de création.";
+
+const GENRE_LIBELLE: Record<GenreProprietaire, string> = {
+  sci: 'SCI',
+  societe: 'Société',
+  social: 'Bailleur social',
+  public: 'Propriétaire public',
+  copropriete: 'Syndicat de copropriété',
+};
+
+function anneeCreation(iso: string | null | undefined): string | null {
+  if (!iso || iso.length < 4) return null;
+  const y = Number(iso.slice(0, 4));
+  return Number.isFinite(y) ? String(y) : null;
+}
+
+type EnrichissementEntreprise = {
+  dirigeants: { nom: string; qualite: string | null }[];
+  siege: string | null;
+  dateCreation: string | null;
+  active: boolean | null;
+};
+
+/** Gérants / siège via l’Annuaire — après l’ouverture du volet, sans bloquer la fiche. */
+function useProprietairesEnrichis(
+  parcelleId: string,
+  base: ProprietaireMorale[],
+): { proprietaires: ProprietaireMorale[]; annuairePret: boolean } {
+  const [extra, setExtra] = useState<Record<string, EnrichissementEntreprise>>({});
+  const [annuairePret, setAnnuairePret] = useState(false);
+  const sirensKey = base
+    .filter((p) => p.siren && (p.genre === 'sci' || p.genre === 'societe'))
+    .map((p) => p.siren)
+    .join(',');
+
+  useEffect(() => {
+    setExtra({});
+    setAnnuairePret(!sirensKey);
+    if (!sirensKey) return;
+    const sirens = sirensKey.split(',');
+    const ac = new AbortController();
+    void fetch(`/api/carte/entreprises?sirens=${sirens.join(',')}`, { signal: ac.signal })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { entreprises?: Record<string, EnrichissementEntreprise> };
+        if (data.entreprises) setExtra(data.entreprises);
+      })
+      .catch(() => {
+        /* ignore abort / réseau */
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setAnnuairePret(true);
+      });
+    return () => ac.abort();
+  }, [parcelleId, sirensKey]);
+
+  const proprietaires =
+    Object.keys(extra).length === 0
+      ? base
+      : base.map((p) => {
+          if (!p.siren) return p;
+          const e = extra[p.siren];
+          if (!e) return p;
+          return {
+            ...p,
+            dirigeants: e.dirigeants,
+            siege: e.siege,
+            dateCreation: e.dateCreation,
+            active: e.active,
+          };
+        });
+
+  return { proprietaires, annuairePret };
+}
+
+const DROIT_LIBELLE: Record<string, string> = { U: 'usufruit', N: 'nue-propriété' };
+
+const AUDITS_HINT =
+  'Base publique de l’ADEME, depuis septembre 2023. Un audit est obligatoire pour vendre une maison ou un immeuble entier classé E, F ou G, et précède les rénovations aidées : le propriétaire prépare quelque chose.';
+
+/**
+ * « Suivre cet immeuble » : un nouveau DPE, une vente ou un audit sur la
+ * parcelle arrivera dans « À valider ». Invisible tant que le serveur ne
+ * l'offre pas (`disponible: false`).
+ */
+function useSuiviImmeuble(
+  parcelleId: string,
+  banId: string | null,
+  libelle: string | null,
+  onSuiviChanged?: () => void,
+) {
+  const { ajouterNotification } = useNotifications();
+  const [disponible, setDisponible] = useState(false);
+  const [actif, setActif] = useState(false);
+  const [enCours, setEnCours] = useState(false);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetch(`/api/dashboard/immeubles-suivis?parcelle=${encodeURIComponent(parcelleId)}`, { signal: ac.signal })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { disponible?: boolean; suivi?: boolean };
+        setDisponible(Boolean(data.disponible));
+        setActif(Boolean(data.suivi));
+      })
+      .catch(() => {
+        /* abandon ou réseau : le bouton reste caché */
+      });
+    return () => ac.abort();
+  }, [parcelleId]);
+
+  async function basculer(depart?: DOMRect | null) {
+    if (enCours) return;
+    const suivre = !actif;
+    setEnCours(true);
+    setActif(suivre);
+    try {
+      const res = suivre
+        ? await fetch('/api/dashboard/immeubles-suivis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parcelleId, banId, libelle }),
+          })
+        : await fetch(`/api/dashboard/immeubles-suivis?parcelle=${encodeURIComponent(parcelleId)}`, {
+            method: 'DELETE',
+          });
+      if (!res.ok) throw new Error('suivi');
+      onSuiviChanged?.();
+      if (suivre) {
+        const data = (await res.json()) as { notification?: Notification | null };
+        if (data.notification) ajouterNotification(data.notification);
+        // Même geste que la note vers l’Accueil : le bouton part vers la cloche.
+        envolerNote({ depart: depart ?? null, compte: false, cible: CIBLE_CLOCHE });
+      }
+      notifySuccess(
+        suivre
+          ? 'Immeuble suivi : un nouveau DPE, une vente ou un audit arrivera dans « À valider ».'
+          : 'Vous ne suivez plus cet immeuble.',
+      );
+    } catch {
+      setActif(!suivre);
+      notifyError('Le suivi n’a pas pu être modifié');
+    } finally {
+      setEnCours(false);
+    }
+  }
+
+  return { disponible, actif, enCours, basculer };
+}
+
+function statutProprietaire(p: ProprietaireMorale): string {
+  const bits = [GENRE_LIBELLE[p.genre]];
+  // Fichier DGFiP : « 1 lot · 3e étage » distingue la SCI d'un studio de celle de l'immeuble.
+  if (p.nbLots) bits.push(p.nbLots === 1 ? '1 lot' : `${p.nbLots} lots`);
+  const etages = decrireNiveaux(p.niveaux ?? []);
+  if (etages) bits.push(etages);
+  if (p.droit && DROIT_LIBELLE[p.droit]) bits.push(DROIT_LIBELLE[p.droit]!);
+  if (p.active === false) bits.push('Cessée');
+  else if (p.active === true) bits.push('Active');
+  return bits.join(' · ');
+}
+
+function LigneProprietaire({
+  p,
+  annuairePret,
+}: {
+  p: ProprietaireMorale;
+  annuairePret: boolean;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const dirigeants = p.dirigeants ?? [];
+  const annee = anneeCreation(p.dateCreation);
+  const estSociete = p.genre === 'sci' || p.genre === 'societe';
+  const aDetails = estSociete || dirigeants.length > 0 || Boolean(p.siege) || Boolean(annee);
+  const panelId = `prop-${(p.siren || p.nom).replace(/\W+/g, '').slice(0, 24)}`;
+
+  if (!aDetails) {
+    return (
+      <li className={`${LIGNE} py-2.5`}>
+        <span className="block truncate text-[14px] font-semibold text-text-strong">
+          {toDisplayCompanyName(p.nom)}
+        </span>
+        <span className="block truncate text-[12.5px] text-text-muted">{statutProprietaire(p)}</span>
+      </li>
+    );
+  }
+
+  return (
+    <li className={LIGNE}>
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        aria-controls={panelId}
+        onClick={() => setOuvert((v) => !v)}
+        className="flex w-full items-center gap-2 py-2.5 text-left transition-colors hover:bg-black/[0.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-semibold text-text-strong">
+            {toDisplayCompanyName(p.nom)}
+          </span>
+          <span className="block truncate text-[12.5px] text-text-muted">{statutProprietaire(p)}</span>
+        </span>
+        <ChevronDown
+          size={16}
+          strokeWidth={2.2}
+          aria-hidden
+          className={`shrink-0 text-text-subtle transition-transform duration-200 ${ouvert ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {ouvert ? (
+        <div id={panelId} className="pb-3">
+          {dirigeants.length > 0 ? (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                Dirigeants
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {dirigeants.map((d) => (
+                  <li key={`${d.nom}-${d.qualite ?? ''}`} className="flex items-baseline gap-2">
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-text-strong">
+                      {toDisplayPersonName(d.nom)}
+                    </span>
+                    {d.qualite ? (
+                      <span className="shrink-0 text-[12px] text-text-muted">{d.qualite}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : estSociete ? (
+            <p className="text-[12.5px] text-text-muted">
+              {annuairePret ? 'Aucun dirigeant public trouvé' : 'Chargement des dirigeants…'}
+            </p>
+          ) : null}
+          {(annee || p.siege) && (
+            <dl
+              className={`space-y-1.5 text-[12.5px] ${
+                dirigeants.length > 0 || estSociete ? 'mt-3 border-t border-black/[0.05] pt-2.5' : ''
+              }`}
+            >
+              {annee ? (
+                <div className="flex gap-2">
+                  <dt className="w-[4.5rem] shrink-0 text-text-subtle">Création</dt>
+                  <dd className="min-w-0 text-text-strong">{annee}</dd>
+                </div>
+              ) : null}
+              {p.siege ? (
+                <div className="flex gap-2">
+                  <dt className="w-[4.5rem] shrink-0 text-text-subtle">Siège</dt>
+                  <dd className="min-w-0 text-pretty text-text-strong">{p.siege}</dd>
+                </div>
+              ) : null}
+            </dl>
+          )}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 function LigneEntreprise({ e }: { e: ParcelleEntreprise }) {
   const router = useRouter();
   const [etat, setEtat] = useState<'idle' | 'envoi' | 'cree'>('idle');
@@ -399,6 +683,36 @@ function LigneLogement({ l }: { l: ParcelleLogement }) {
   );
 }
 
+/** Un audit : la classe d'aujourd'hui → la meilleure classe après travaux. */
+function LigneAudit({ a, adresse }: { a: AuditEnergetique; adresse: string | null }) {
+  const logement = [a.typologie, a.surface ? `${Math.round(a.surface)} m²` : null, formatDpeEtage(a.etage)]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <li className={`${LIGNE} flex items-center gap-3 py-2.5`}>
+      <span className="flex shrink-0 items-center gap-1" aria-label={
+        a.classeVisee ? `Classe ${a.classeActuelle ?? 'inconnue'}, ${a.classeVisee} après travaux` : undefined
+      }>
+        <DpeLettre lettre={a.classeActuelle} taille={24} />
+        {a.classeVisee ? (
+          <>
+            <ArrowRight size={12} className="text-text-subtle" aria-hidden />
+            <DpeLettre lettre={a.classeVisee} taille={24} />
+          </>
+        ) : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] text-text-strong">{logement || 'Logement'}</span>
+        <span className="block truncate text-[12.5px] text-text-muted">
+          {a.classeVisee ? 'Travaux chiffrés' : 'État des lieux énergétique'}
+          {adresse ? ` · ${adresse}` : ''}
+        </span>
+      </span>
+      <span className="shrink-0 text-[12.5px] tabular-nums text-text-subtle">{moisAnnee(a.date)}</span>
+    </li>
+  );
+}
+
 function LigneVente({ v, adresse }: { v: ParcelleVente; adresse: string | null }) {
   return (
     <li className={`${LIGNE} flex items-start gap-3 py-2.5`}>
@@ -427,11 +741,13 @@ export default function ParcellePanel({
   fiche,
   onClose,
   onNotesChanged,
+  onSuiviChanged,
   surfaceCadastreM2,
 }: {
   fiche: ParcelleFiche;
   onClose: () => void;
   onNotesChanged?: () => void;
+  onSuiviChanged?: () => void;
   surfaceCadastreM2?: number | null;
 }) {
   const { openCapture, openCompose, captureSessionOpen } = useVoiceCapture();
@@ -451,6 +767,7 @@ export default function ParcellePanel({
     onNotesChanged?.();
   }, [captureSessionOpen, onNotesChanged]);
 
+  const surface = surfaceCadastreM2 ?? fiche.surfaceCadastreM2;
   const synthese = useMemo(
     () =>
       syntheseParcelle({
@@ -458,8 +775,16 @@ export default function ParcellePanel({
         logements: fiche.logements,
         coproprietes: fiche.coproprietes,
         prixM2Secteur: fiche.prixM2Secteur,
+        batiment: fiche.batiment,
+        batimentConnu: fiche.batimentConnu,
+        // Une adresse connue de la seule BDNB reste une adresse.
+        adresses: Math.max(fiche.adresses.length, fiche.batiment?.adressesBan.length ?? 0),
+        surfaceM2: surface,
+        horsSecteur: fiche.horsSecteur,
+        proprietaires: fiche.proprietaires,
+        audits: fiche.audits,
       }),
-    [fiche.ventes, fiche.logements, fiche.coproprietes, fiche.prixM2Secteur],
+    [fiche, surface],
   );
 
   const title = fiche.adresse ?? fiche.reference;
@@ -470,23 +795,34 @@ export default function ParcellePanel({
     parcelleId: fiche.parcelleId,
     ...(fiche.banId ? { banId: fiche.banId } : {}),
   };
-  const surface = surfaceCadastreM2 ?? fiche.surfaceCadastreM2;
   const plusieursAdresses = fiche.adresses.length > 1;
   const adresseParBan = new Map(fiche.adresses.map((a) => [a.banId, a.libelle]));
 
-  const sousTitre = [
-    fiche.localite,
-    fiche.adresse ? `Parcelle ${fiche.reference}` : 'Parcelle sans adresse connue',
-    surface ? `${new Intl.NumberFormat('fr-FR').format(surface)} m² de terrain` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const pastillesEntete = useMemo(
+    () =>
+      pastillesEnteteParcelle({
+        localite: fiche.localite,
+        surfaceM2: surface ?? null,
+        batiment: fiche.batiment,
+      }),
+    [fiche.localite, fiche.batiment, surface],
+  );
+  const refParcelle = fiche.reference
+    ? `Parcelle ${fiche.reference}`
+    : 'Parcelle sans adresse connue';
 
   const chezNous =
     fiche.prospects.length + fiche.contacts.length + fiche.biens.length + fiche.passages.length > 0;
   const dernierPassage = fiche.passages[0] ?? null;
   const copro = fiche.coproprietes[0] ?? null;
   const procedure = fiche.coproprietes.some((c) => c.procedureEnCours);
+  // Le syndicat des copropriétaires n'est pas un vendeur : la copropriété a sa section.
+  const proprietairesBase = fiche.proprietaires.filter((p) => p.genre !== 'copropriete');
+  const suivi = useSuiviImmeuble(fiche.parcelleId, fiche.banId, fiche.adresse, onSuiviChanged);
+  const { proprietaires, annuairePret } = useProprietairesEnrichis(
+    fiche.parcelleId,
+    proprietairesBase,
+  );
   const itineraire = fiche.position
     ? `https://www.google.com/maps/dir/?api=1&destination=${fiche.position.latitude},${fiche.position.longitude}`
     : null;
@@ -495,26 +831,53 @@ export default function ParcellePanel({
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex flex-shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
         <div className="min-w-0">
-          <h2 id="parcelle-title" className="text-balance text-[19px] font-semibold leading-snug text-text-strong">
+          <h2
+            id="parcelle-title"
+            className="text-balance text-[19px] font-semibold leading-snug text-text-strong"
+            title={refParcelle}
+          >
             {title}
           </h2>
-          <p className="mt-1 text-pretty text-[12.5px] tabular-nums text-text-subtle">{sousTitre}</p>
-          {plusieursAdresses ? (
-            <button
-              type="button"
-              onClick={() => setAdressesOuvertes((v) => !v)}
-              aria-expanded={adressesOuvertes}
-              className="mt-2 inline-flex h-7 items-center gap-1 rounded-full bg-bg-subtle pl-2.5 pr-2 text-[12px] font-semibold text-text-muted transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          {pastillesEntete.length > 0 || plusieursAdresses ? (
+            <ul
+              className="mt-2 flex flex-wrap items-center gap-1.5"
+              title={refParcelle}
+              aria-label={[synthese.immeuble, refParcelle, surface ? `${surface} m² de terrain` : null]
+                .filter(Boolean)
+                .join('. ')}
             >
-              <MapPin size={12} aria-hidden />
-              {fiche.adresses.length} adresses sur la parcelle
-              <ChevronDown
-                size={13}
-                aria-hidden
-                className={`transition-transform ${adressesOuvertes ? 'rotate-180' : ''}`}
-              />
-            </button>
-          ) : null}
+              {pastillesEntete.map((p) => (
+                <li
+                  key={p.cle}
+                  className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted"
+                >
+                  {p.libelle}
+                </li>
+              ))}
+              {plusieursAdresses ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setAdressesOuvertes((v) => !v)}
+                    aria-expanded={adressesOuvertes}
+                    aria-label={`${fiche.adresses.length} adresses sur la parcelle`}
+                    className="inline-flex h-7 items-center gap-1 rounded-full bg-bg-subtle pl-2.5 pr-2 text-[12px] font-semibold text-text-muted transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    {fiche.adresses.length}&nbsp;adr.
+                    <ChevronDown
+                      size={13}
+                      aria-hidden
+                      className={`transition-transform ${adressesOuvertes ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          ) : (
+            <p className="mt-1 text-[12.5px] text-text-subtle" title={refParcelle}>
+              {refParcelle}
+            </p>
+          )}
           {adressesOuvertes ? (
             <ul className="mt-2 flex flex-col gap-1">
               {fiche.adresses.map((a) => (
@@ -525,30 +888,50 @@ export default function ParcellePanel({
             </ul>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <X size={18} strokeWidth={2} aria-hidden />
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {suivi.disponible ? (
+            <button
+              type="button"
+              onClick={(e) => void suivi.basculer(e.currentTarget.getBoundingClientRect())}
+              disabled={suivi.enCours}
+              aria-pressed={suivi.actif}
+              title={
+                suivi.actif
+                  ? 'Ne plus suivre cet immeuble'
+                  : 'Être prévenu d’un nouveau DPE, d’une vente ou d’un audit énergétique'
+              }
+              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${
+                suivi.actif ? 'bg-accent/10 text-accent-dark' : 'bg-bg-subtle text-text-strong hover:bg-black/[0.06]'
+              }`}
+            >
+              {suivi.actif ? <BellRing size={14} aria-hidden /> : <Bell size={14} aria-hidden />}
+              {suivi.actif ? 'Suivi' : 'Suivre'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <X size={18} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6">
         {fiche.position && fiche.adresse ? (
           <div className="relative mb-3">
-            <FacadeStreetView
+            <FacadeStreetLook
               latitude={fiche.position.latitude}
               longitude={fiche.position.longitude}
-              className="h-[150px] w-full !rounded-2xl bg-bg-subtle"
             />
             {itineraire ? (
               <a
                 href={itineraire}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="absolute bottom-2.5 right-2.5 inline-flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[12.5px] font-semibold text-text-strong shadow-[0_2px_10px_rgba(26,42,86,0.18)] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="absolute bottom-2.5 right-2.5 z-[1] inline-flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[12.5px] font-semibold text-text-strong shadow-[0_2px_10px_rgba(26,42,86,0.18)] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <Navigation size={13} strokeWidth={2.2} aria-hidden />
                 Itinéraire
@@ -576,10 +959,26 @@ export default function ParcellePanel({
             <p className="mt-4 rounded-2xl bg-bg-subtle px-4 py-3.5 text-pretty text-[13.5px] text-text-muted">
               Cette parcelle est hors de vos codes postaux : ventes et diagnostics ne sont pas affichés.
             </p>
-          ) : fiche.videPublic && !chezNous ? (
-            <p className="mt-4 rounded-2xl bg-bg-subtle px-4 py-3.5 text-pretty text-[13.5px] text-text-muted">
-              Aucune vente ni aucun diagnostic connu sur cette parcelle.
-            </p>
+          ) : null}
+
+          {synthese.pourquoi.length > 0 ? (
+            <div className="mt-3 rounded-2xl border border-black/[0.06] px-4 py-3.5">
+              <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+                <Info size={13} aria-hidden />
+                {fiche.ventes.length === 0 && fiche.logements.length === 0
+                  ? 'Pourquoi si peu de données ?'
+                  : fiche.ventes.length === 0
+                    ? 'Pourquoi aucune vente ?'
+                    : 'Pourquoi aucun DPE ?'}
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {synthese.pourquoi.map((raison) => (
+                  <li key={raison} className="text-pretty text-[13.5px] leading-snug text-text-muted">
+                    {raison}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </div>
 
@@ -608,6 +1007,25 @@ export default function ParcellePanel({
           </Section>
         ) : null}
 
+        {proprietaires.length > 0 ? (
+          <Section
+            titre="Propriétaires connus"
+            aside={<InfoTooltip content={PROPRIETAIRES_HINT} placement="top-end" iconSize={14} />}
+          >
+            <Depliable
+              lignes={proprietaires}
+              rendre={(p) => (
+                <LigneProprietaire
+                  key={`${p.nom}-${p.siren ?? ''}`}
+                  p={p}
+                  annuairePret={annuairePret}
+                />
+              )}
+              libellePlus={(n) => `Voir les ${n} propriétaires`}
+            />
+          </Section>
+        ) : null}
+
         {fiche.entreprises.length > 0 ? (
           <Section
             titre="Dans l’immeuble"
@@ -625,9 +1043,10 @@ export default function ParcellePanel({
           <Section
             titre="Logements connus"
             aside={
-              <span className="text-[12.5px] tabular-nums text-text-subtle">
+              <span className="flex items-center gap-1.5 text-[12.5px] tabular-nums text-text-subtle">
                 {synthese.logements.length} logement{synthese.logements.length > 1 ? 's' : ''}
                 {synthese.passoires.length > 0 ? ` · ${synthese.passoires.length} F/G` : ''}
+                <InfoTooltip content={DPE_2026_HINT} placement="top-end" iconSize={13} />
               </span>
             }
           >
@@ -636,6 +1055,25 @@ export default function ParcellePanel({
               lignes={synthese.logements}
               rendre={(l, i) => <LigneLogement key={`${l.banId}-${l.date}-${i}`} l={l} />}
               libellePlus={(n) => `Voir les ${n} logements`}
+            />
+          </Section>
+        ) : null}
+
+        {fiche.audits.length > 0 ? (
+          <Section
+            titre="Audits énergétiques"
+            aside={<InfoTooltip content={AUDITS_HINT} placement="top-end" iconSize={14} />}
+          >
+            <Depliable
+              lignes={fiche.audits}
+              rendre={(a) => (
+                <LigneAudit
+                  key={a.numero}
+                  a={a}
+                  adresse={plusieursAdresses && a.banId ? adresseCourte(adresseParBan.get(a.banId) ?? '') || null : null}
+                />
+              )}
+              libellePlus={(n) => `Voir les ${n} audits`}
             />
           </Section>
         ) : null}
@@ -701,7 +1139,9 @@ export default function ParcellePanel({
         </Section>
 
         <p className="border-t border-black/[0.06] pb-6 pt-4 text-pretty text-[11.5px] leading-relaxed text-text-subtle">
-          Sources : DVF (Etalab), DPE (ADEME), registre des copropriétés (ANAH). Plan cadastral indicatif, sans
+          Sources : DVF (Etalab, ventes depuis janvier 2021), DPE (ADEME, depuis juillet 2021), registre des
+          copropriétés (ANAH), base nationale des bâtiments (CSTB) et fichiers fonciers des personnes morales
+          (DGFiP). Plan cadastral indicatif, sans
           valeur juridique.
         </p>
       </div>
@@ -751,9 +1191,8 @@ function SqueletteParcelle({
   reference?: string | null;
   surfaceM2?: number | null;
 }) {
-  const sousTitre = surfaceM2 != null
-    ? `${new Intl.NumberFormat('fr-FR').format(surfaceM2)} m² de terrain`
-    : null;
+  const surfaceCourte =
+    surfaceM2 != null ? `${new Intl.NumberFormat('fr-FR').format(surfaceM2)} m²` : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -764,8 +1203,12 @@ function SqueletteParcelle({
               <h2 id="parcelle-title" className="text-balance text-[19px] font-semibold leading-snug text-text-strong">
                 {reference}
               </h2>
-              {sousTitre ? (
-                <p className="mt-1 text-pretty text-[12.5px] tabular-nums text-text-subtle">{sousTitre}</p>
+              {surfaceCourte ? (
+                <ul className="mt-2 flex flex-wrap gap-1.5" aria-hidden>
+                  <li className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted">
+                    {surfaceCourte}
+                  </li>
+                </ul>
               ) : null}
             </>
           ) : (
@@ -774,7 +1217,11 @@ function SqueletteParcelle({
                 Chargement de la parcelle
               </h2>
               <Barre className="h-[19px] w-3/5" />
-              <Barre className="mt-2.5 h-3 w-2/5" />
+              <div className="mt-2.5 flex gap-1.5">
+                <Barre className="h-6 w-16" />
+                <Barre className="h-6 w-14" />
+                <Barre className="h-6 w-12" />
+              </div>
             </div>
           )}
         </div>
@@ -828,6 +1275,7 @@ type ParcelleDrawerProps = {
   loading: boolean;
   onClose: () => void;
   onNotesChanged?: () => void;
+  onSuiviChanged?: () => void;
 };
 
 /**
@@ -840,7 +1288,7 @@ export function ParcelleDrawer(props: ParcelleDrawerProps) {
   return <VoletParcelle key={props.fiche?.parcelleId ?? 'parcelle'} {...props} />;
 }
 
-function VoletParcelle({ fiche, loading, onClose, onNotesChanged }: ParcelleDrawerProps) {
+function VoletParcelle({ fiche, loading, onClose, onNotesChanged, onSuiviChanged }: ParcelleDrawerProps) {
   const [entered, setEntered] = useState(false);
   const [settled, setSettled] = useState(false);
 
@@ -867,23 +1315,27 @@ function VoletParcelle({ fiche, loading, onClose, onNotesChanged }: ParcelleDraw
 
   return (
     <>
+      {/* Assombrit sans bloquer : la carte reste cliquable (y compris à droite hors volet). */}
       <div
         role="presentation"
-        className={`absolute inset-0 z-40 rounded-[32px] transition-opacity duration-fluid-subtle ease-in-out ${
-          entered ? 'opacity-100' : 'pointer-events-none opacity-0'
+        className={`pointer-events-none absolute inset-0 z-40 rounded-[32px] transition-opacity duration-fluid-subtle ease-in-out ${
+          entered ? 'opacity-100' : 'opacity-0'
         }`}
-        style={{ backgroundColor: 'rgba(26, 42, 86, 0.22)' }}
-        onClick={onClose}
+        style={{ backgroundColor: 'rgba(26, 42, 86, 0.14)' }}
         aria-hidden
       />
       <aside
-        className={`absolute inset-0 z-50 flex h-full max-h-full w-full flex-col overflow-hidden rounded-[32px] bg-white md:inset-y-0 md:left-auto md:right-0 md:max-w-[min(100%,500px)] ${
+        className={`absolute z-50 flex flex-col overflow-hidden bg-white inset-x-0 bottom-0 top-[28%] rounded-t-[28px] md:inset-y-0 md:left-0 md:right-auto md:top-0 md:max-w-[min(100%,420px)] md:rounded-[32px] ${
           settled
             ? ''
-            : `transition-transform duration-fluid ease-in-out ${entered ? 'translate-x-0' : 'translate-x-full'}`
+            : `transition-transform duration-fluid ease-in-out ${
+                entered
+                  ? 'translate-y-0 md:translate-x-0'
+                  : 'translate-y-full md:translate-y-0 md:-translate-x-full'
+              }`
         }`}
         style={{
-          boxShadow: '-8px 0 28px rgba(26, 42, 86, 0.14)',
+          boxShadow: '8px 0 28px rgba(26, 42, 86, 0.14)',
         }}
         role="dialog"
         aria-modal="true"
@@ -891,7 +1343,12 @@ function VoletParcelle({ fiche, loading, onClose, onNotesChanged }: ParcelleDraw
         onClick={(e) => e.stopPropagation()}
       >
         {prete ? (
-          <ParcellePanel fiche={fiche} onClose={onClose} onNotesChanged={onNotesChanged} />
+          <ParcellePanel
+            fiche={fiche}
+            onClose={onClose}
+            onNotesChanged={onNotesChanged}
+            onSuiviChanged={onSuiviChanged}
+          />
         ) : (
           <SqueletteParcelle
             onClose={onClose}

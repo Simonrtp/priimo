@@ -3,17 +3,21 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * Bleu seulement tant que les cartes prix sont cadrées dans l’écran.
- * Un petit scroll (le haut des cartes rejoint le header) → retour au blanc.
+ * Bleu sur le bloc prix : entre tôt, et reste longtemps pendant le scroll
+ * (cartes + CTA), avant de repasser au blanc.
  */
 function shouldFlipDark(offres: HTMLElement): boolean {
-  const target = offres.querySelector<HTMLElement>(".offres-simples-grid") ?? offres;
-  const rect = target.getBoundingClientRect();
+  const grid = offres.querySelector<HTMLElement>(".offres-simples-grid");
+  const rect = (grid ?? offres).getBoundingClientRect();
+  const section = offres.getBoundingClientRect();
   const vh = window.innerHeight || 1;
-  const entered = rect.top < vh * 0.58;
-  const stillFramed = rect.top > vh * 0.22;
-  const stillAboveFold = rect.bottom > vh * 0.42;
-  return entered && stillFramed && stillAboveFold;
+  // Les cartes approchent déjà du milieu de l’écran.
+  const entered = rect.top < vh * 0.78;
+  // Le haut des cartes peut monter presque sous le header sans couper le bleu.
+  const stillFramed = rect.top > vh * 0.04;
+  // Tant qu’une bonne part de la section prix (CTA compris) reste visible.
+  const stillInView = section.bottom > vh * 0.22;
+  return entered && stillFramed && stillInView;
 }
 
 export default function LandingAmbianceBand({ children }: { children: ReactNode }) {

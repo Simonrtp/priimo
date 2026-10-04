@@ -559,21 +559,55 @@ function PanelBody({ poignee = false }: { poignee?: boolean }) {
 }
 
 /**
- * Bouton Assistant + son panneau. Popover ancré sous le bouton sur desktop —
- * la page reste visible et utilisable derrière. Feuille remontant du bas sur
- * mobile.
+ * L'étincelle de « Mon assistant », posée dans la barre de recherche : il n'y
+ * a qu'un endroit où taper, l'assistant en est le prolongement.
  */
-export default function AssistantPanel({
-  variant = 'desktop',
-  className = '',
-}: {
-  /** Deux boutons dans la TopBar, une seule surface ouverte : celle du bon gabarit. */
-  variant?: 'desktop' | 'mobile';
-  className?: string;
-}) {
+export function BoutonAssistant({ className = '' }: { className?: string }) {
   const { open, openPanel, closePanel, streaming } = useAssistantPanel();
-  const rootRef = useRef<HTMLDivElement>(null);
+  return (
+    <button
+      type="button"
+      data-assistant-declencheur=""
+      onClick={() => (open ? closePanel() : openPanel())}
+      aria-expanded={open}
+      aria-label="Mon assistant"
+      title="Mon assistant"
+      className={`relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500 ${
+        open ? 'bg-primary-500 text-white' : 'text-primary-600 hover:bg-primary-50'
+      } ${className}`}
+    >
+      {/* Halo : une réponse arrive alors que le panneau est fermé. */}
+      {streaming && !open ? (
+        <span
+          className="assistant-halo pointer-events-none absolute -inset-0.5 rounded-full bg-[color:color-mix(in_srgb,var(--primary-200)_80%,transparent)]"
+          aria-hidden
+        />
+      ) : null}
+      <span className="relative">
+        <AssistantIcon size={17} />
+      </span>
+    </button>
+  );
+}
+
+/** Sous la barre de recherche quand elle est à l'écran ; en haut à droite sinon. */
+function positionSousLaBarre(): { left: number; top: number } | null {
+  const barre = document.querySelector<HTMLElement>('[data-barre-recherche]');
+  const r = barre?.getBoundingClientRect();
+  if (!r || r.width === 0) return null;
+  const left = Math.max(12, Math.min(r.left, window.innerWidth - PANEL_W - 12));
+  return { left, top: r.bottom + 10 };
+}
+
+/**
+ * Le panneau de l'assistant, monté une fois pour tout le tableau de bord :
+ * fenêtre sous la barre sur ordinateur, feuille remontant du bas sur téléphone.
+ */
+export default function SurfaceAssistant() {
+  const { open, closePanel } = useAssistantPanel();
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const [mobile, setMobile] = useState(false);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -583,95 +617,62 @@ export default function AssistantPanel({
     return () => mq.removeEventListener('change', sync);
   }, []);
 
-  const porteLaSurface = variant === (mobile ? 'mobile' : 'desktop');
-
   useEffect(() => {
-    if (!open || mobile || !porteLaSurface) return;
+    if (!open || mobile) return;
+    const placer = () => setPosition(positionSousLaBarre());
+    placer();
+    window.addEventListener('resize', placer);
     const onPointerDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) closePanel();
+      const cible = e.target as Element | null;
+      if (surfaceRef.current?.contains(cible)) return;
+      if (cible?.closest('[data-assistant-declencheur]')) return;
+      closePanel();
     };
     document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open, mobile, porteLaSurface, closePanel]);
+    return () => {
+      window.removeEventListener('resize', placer);
+      document.removeEventListener('mousedown', onPointerDown);
+    };
+  }, [open, mobile, closePanel]);
 
-  return (
-    <div ref={rootRef} className={`relative shrink-0 ${className}`}>
-      {/* Halo : une réponse arrive alors que le panneau est fermé. */}
-      {streaming && !open ? (
-        <span
-          className="assistant-halo pointer-events-none absolute -inset-1 rounded-[18px] bg-[color:color-mix(in_srgb,var(--primary-200)_80%,transparent)]"
-          aria-hidden
+  if (!open) return null;
+
+  if (mobile) {
+    return (
+      <>
+        <button
+          type="button"
+          aria-label="Fermer l'assistant"
+          onClick={closePanel}
+          className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26,42,86,0.42)]"
         />
-      ) : null}
-
-      <button
-        type="button"
-        onClick={() => (open ? closePanel() : openPanel())}
-        aria-expanded={open}
-        aria-label="Mon assistant"
-        title="Mon assistant"
-        className={
-          variant === 'desktop'
-            ? `assistant-trigger-btn group relative flex h-9 shrink-0 items-center justify-start overflow-hidden rounded-[13px] text-white transition-[max-width,background,transform] duration-fluid ease-in-out motion-reduce:transition-none hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 active:translate-y-0 ${
-                open ? 'max-w-[11.5rem]' : 'max-w-9 hover:max-w-[11.5rem] focus-visible:max-w-[11.5rem]'
-              }`
-            : 'assistant-trigger-btn relative flex size-11 items-center justify-center rounded-[14px] text-white transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fluid-subtle ease-in-out hover:-translate-y-px active:translate-y-0 md:size-9 md:rounded-[13px]'
-        }
-      >
-        <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden>
-          <AssistantIcon size={20} />
-        </span>
-        {variant === 'desktop' ? (
-          <span
-            className={`grid min-w-0 transition-[grid-template-columns] duration-fluid ease-in-out motion-reduce:transition-none ${
-              open
-                ? 'grid-cols-[1fr]'
-                : 'grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr]'
-            }`}
-          >
-            <span
-              className={`min-w-0 overflow-hidden whitespace-nowrap pr-2.5 font-display text-[13px] font-semibold tracking-[-0.02em] text-white transition-opacity duration-fluid-subtle ease-in-out motion-reduce:transition-none ${
-                open
-                  ? 'opacity-100'
-                  : 'opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-100 group-focus-visible:opacity-100 group-focus-visible:delay-100'
-              }`}
-            >
-              Mon assistant
-            </span>
-          </span>
-        ) : null}
-      </button>
-
-      {open && !mobile && porteLaSurface ? (
         <div
-          className="assistant-pop absolute right-0 top-[calc(100%+10px)] z-[130] flex flex-col overflow-hidden rounded-clay-lg border border-primary-100 bg-surface shadow-clay-lg"
-          style={{ width: PANEL_W, height: PANEL_H, maxHeight: 'calc(100dvh - 96px)' }}
+          className="animate-app-sheet fixed inset-x-0 bottom-0 z-[130] flex flex-col overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg"
+          style={{ height: '80dvh' }}
           role="dialog"
+          aria-modal="true"
           aria-label="Mon assistant"
         >
-          <PanelBody />
+          <PanelBody poignee />
         </div>
-      ) : null}
+      </>
+    );
+  }
 
-      {open && mobile && porteLaSurface ? (
-        <>
-          <button
-            type="button"
-            aria-label="Fermer l'assistant"
-            onClick={closePanel}
-            className="animate-app-scrim fixed inset-0 z-[125] bg-[rgba(26,42,86,0.42)]"
-          />
-          <div
-            className="animate-app-sheet fixed inset-x-0 bottom-0 z-[130] flex flex-col overflow-hidden rounded-t-clay-lg bg-surface shadow-clay-lg"
-            style={{ height: '80dvh' }}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Mon assistant"
-          >
-            <PanelBody poignee />
-          </div>
-        </>
-      ) : null}
+  return (
+    <div
+      ref={surfaceRef}
+      className="assistant-pop fixed z-[130] flex flex-col overflow-hidden rounded-clay-lg border border-primary-100 bg-surface shadow-clay-lg"
+      style={{
+        width: PANEL_W,
+        height: PANEL_H,
+        maxHeight: `calc(100dvh - ${(position?.top ?? 72) + 16}px)`,
+        ...(position ? { left: position.left, top: position.top } : { right: 16, top: 72 }),
+      }}
+      role="dialog"
+      aria-label="Mon assistant"
+    >
+      <PanelBody />
     </div>
   );
 }

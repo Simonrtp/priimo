@@ -22,6 +22,7 @@ import LogoAgenceChamp from '@/components/dashboard/settings/LogoAgenceChamp';
 import NuancierAvis from '@/components/dashboard/settings/NuancierAvis';
 import { ACCENT2_DEFAUT } from '@/lib/rapport/couleurs';
 import { formatPhoneDisplay } from '@/lib/import/normalize';
+import { messageErreurMotDePasse, verifierNouveauMotDePasse } from '@/lib/auth/mot-de-passe';
 
 const inputClass =
   'w-full rounded-lg border border-black/10 px-[14px] py-[10px] text-[14px] text-ink placeholder:text-mute/50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -652,12 +653,9 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
   }, [open]);
 
   const submit = async () => {
-    if (newPwd.length < 8) {
-      toast.error('Le mot de passe doit faire au moins 8 caractères.');
-      return;
-    }
-    if (newPwd !== confirm) {
-      toast.error('Les mots de passe ne correspondent pas.');
+    const invalide = verifierNouveauMotDePasse(newPwd, confirm);
+    if (invalide) {
+      toast.error(invalide);
       return;
     }
     setSaving(true);
@@ -665,7 +663,7 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
     const { error } = await supabase.auth.updateUser({ password: newPwd });
     setSaving(false);
     if (error) {
-      toast.error(`Erreur : ${error.message}`);
+      toast.error(messageErreurMotDePasse(error));
       return;
     }
     toast.success('Mot de passe mis à jour');

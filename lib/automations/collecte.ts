@@ -25,6 +25,15 @@ import {
 } from './rapprochement-inverse';
 import { proposerVeilleDpe, type AdresseSuivie } from './veille-dpe';
 import { proposerVeilleMutations, type MutationRecente } from './veille-mutation';
+import {
+  proposerImmeublesSuivis,
+  type DpeArrive,
+  type EvenementsImmeuble,
+  type ImmeubleSuivi,
+  type VenteArrivee,
+} from './immeubles-suivis';
+import { lireAuditsParBan } from '@/lib/geo/ademe-audits';
+import type { AuditEnergetique } from '@/lib/carte/audits';
 import type { AutomationKind, ProposedAction } from './types';
 
 type Client = SupabaseClient<Database>;
@@ -425,6 +434,135 @@ async function chargerMutations(
 /* Orchestration                                                              */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/* Immeubles suivis                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Au-delà, le passage quotidien deviendrait trop long pour une seule agence. */
+const IMMEUBLES_SUIVIS_MAX = 300;
+
+/**
+ * Suivis de l'agence. Table absente (migration pas encore passée) : aucun
+ * suivi, et surtout aucune proposition `immeuble_suivi` que la contrainte de
+ * `agency_actions` refuserait en emportant tout le lot du jour.
+ */
+async function chargerImmeublesSuivis(admin: Client, agencyId: string): Promise<ImmeubleSuivi[]> {
+  const { data, error } = await (admin as unknown as SupabaseClient)
+    .from('immeubles_suivis')
+    .select('parcelle_id, ban_id, libelle, profile_id, cree_le')
+    .eq('agency_id', agencyId)
+    .order('cree_le', { ascending: false })
+    .limit(IMMEUBLES_SUIVIS_MAX);
+  if (error) return [];
+  return ((data ?? []) as {
+    parcelle_id: string;
+    ban_id: string | null;
+    libelle: string | null;
+    profile_id: string;
+    cree_le: string;
+  }[]).map((r) => ({
+    parcelleId: r.parcelle_id,
+    banId: r.ban_id,
+    libelle: r.libelle,
+    profileId: r.profile_id,
+    creeLe: r.cree_le,
+  }));
+}
+
+/**
+ * Ce qui est entré dans nos données depuis le plus ancien suivi : DPE par les
+ * adresses de chaque parcelle, ventes par la parcelle, audits ADEME en direct.
+ */
+async function chargerEvenementsImmeubles(
+  admin: Client,
+  suivis: readonly ImmeubleSuivi[],
+): Promise<Map<string, EvenementsImmeuble>> {
+  const parcelles = [...new Set(suivis.map((s) => s.parcelleId))];
+  const depuis = suivis.reduce((min, s) => (s.creeLe < min ? s.creeLe : min), suivis[0]!.creeLe);
+  const libre = admin as unknown as SupabaseClient;
+
+  const [liens, batiments, ventes] = await Promise.all([
+    libre.from('parcelle_adresses').select('parcelle_id, ban_id').in('parcelle_id', parcelles),
+    libre.from('buildings').select('parcelle_id, ban_id').in('parcelle_id', parcelles),
+    libre
+      .from('building_transactions')
+      .select('parcelle_id, date_mutation, valeur_fonciere, type_local, surface_reelle_bati, nombre_pieces, created_at')
+      .in('parcelle_id', parcelles)
+      .gte('created_at', depuis),
+  ]);
+
+  const bansParParcelle = new Map<string, Set<string>>();
+  for (const r of [...(liens.data ?? []), ...(batiments.data ?? [])] as { parcelle_id: string; ban_id: string | null }[]) {
+    if (!r.ban_id) continue;
+    if (!bansParParcelle.has(r.parcelle_id)) bansParParcelle.set(r.parcelle_id, new Set());
+    bansParParcelle.get(r.parcelle_id)!.add(r.ban_id);
+  }
+  const tousLesBans = [...new Set([...bansParParcelle.values()].flatMap((s) => [...s]))];
+  const parcelleDuBan = new Map<string, string>();
+  for (const [p, bans] of bansParParcelle) for (const b of bans) parcelleDuBan.set(b, p);
+
+  const dpe: { ban_id: string; numero_dpe: string | null; date_dpe: string | null; etiquette_dpe: string | null; surface: number | null; etage: number | null; created_at: string }[] = [];
+  for (let i = 0; i < tousLesBans.length; i += 200) {
+    const { data } = await libre
+      .from('building_dpe')
+      .select('ban_id, numero_dpe, date_dpe, etiquette_dpe, surface, etage, created_at')
+      .in('ban_id', tousLesBans.slice(i, i + 200))
+      .gte('created_at', depuis);
+    dpe.push(...((data ?? []) as typeof dpe));
+  }
+
+  const evenements = new Map<string, EvenementsImmeuble>();
+  const pour = (p: string) => {
+    let e = evenements.get(p);
+    if (!e) {
+      e = { dpe: [], ventes: [], audits: [] };
+      evenements.set(p, e);
+    }
+    return e as { dpe: DpeArrive[]; ventes: VenteArrivee[]; audits: AuditEnergetique[] };
+  };
+
+  for (const d of dpe) {
+    const p = parcelleDuBan.get(d.ban_id);
+    if (!p) continue;
+    pour(p).dpe.push({
+      numero: d.numero_dpe,
+      date: d.date_dpe,
+      etiquette: d.etiquette_dpe,
+      surface: d.surface,
+      etage: d.etage,
+      creeLe: d.created_at,
+    });
+  }
+  for (const v of (ventes.data ?? []) as {
+    parcelle_id: string;
+    date_mutation: string;
+    valeur_fonciere: number | null;
+    type_local: string | null;
+    surface_reelle_bati: number | null;
+    nombre_pieces: number | null;
+    created_at: string;
+  }[]) {
+    pour(v.parcelle_id).ventes.push({
+      date: v.date_mutation,
+      prix: v.valeur_fonciere,
+      typeLocal: v.type_local,
+      surface: v.surface_reelle_bati,
+      pieces: v.nombre_pieces,
+      creeLe: v.created_at,
+    });
+  }
+
+  // Audits : un appel ADEME par parcelle suivie, en série pour rester poli.
+  for (const p of parcelles) {
+    const bans = [...(bansParParcelle.get(p) ?? [])];
+    if (bans.length === 0) continue;
+    const audits = await lireAuditsParBan(bans);
+    if (audits?.length) pour(p).audits.push(...audits);
+  }
+
+  return evenements;
+}
+
 export async function collecterPropositions(
   admin: Client,
   agence: AgenceCible,
@@ -520,6 +658,13 @@ export async function collecterPropositions(
         adressesSuivies: suivies,
         now,
       });
+    }),
+
+    isoler('immeuble_suivi', echecs, async () => {
+      const immeubles = await chargerImmeublesSuivis(admin, agence.id);
+      if (immeubles.length === 0) return [];
+      const evenements = await chargerEvenementsImmeubles(admin, immeubles);
+      return proposerImmeublesSuivis({ suivis: immeubles, evenements, now });
     }),
   ]);
 

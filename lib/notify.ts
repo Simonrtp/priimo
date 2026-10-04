@@ -1,8 +1,8 @@
 /**
  * Notifications standard Priimo.
  *
- * Pastille Sonner (`richColors`, top-right). Le bouton d’action est stylé
- * dans `app/layout.tsx` (pas le noir Sonner par défaut).
+ * Pastille Sonner (`richColors`, top-right, sous le header via
+ * `--toast-offset-top`). Le bouton d’action est stylé dans `app/layout.tsx`.
  */
 import { toast } from 'sonner';
 

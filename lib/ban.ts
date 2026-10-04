@@ -55,8 +55,9 @@ export async function searchBanAddresses(
   limit = 5,
   postcode?: string,
   signal?: AbortSignal,
+  proche?: { latitude: number; longitude: number } | null,
 ): Promise<BanFeature[]> {
-  const features = await searchBan(query, { limit, postcode, signal });
+  const features = await searchBan(query, { limit, postcode, signal, proche });
   return features.flatMap((feature) => {
     const mapped = asBanFeature(feature);
     return mapped ? [mapped] : [];

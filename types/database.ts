@@ -1163,7 +1163,8 @@ export type AgencyActionKindDb =
   | 'veille_mutation'
   | 'compte_rendu_mandat'
   | 'engagement_note'
-  | 'estimation_dormante';
+  | 'estimation_dormante'
+  | 'immeuble_suivi';
 
 export type AgencyActionStatutDb = 'proposee' | 'validee' | 'ignoree' | 'expiree';
 
@@ -1651,7 +1652,9 @@ export type NotificationTypeDb =
   | 'anniversaire'
   | 'negociateur_sans_activite'
   | 'zone_non_travaillee'
-  | 'mandat_60_jours';
+  | 'mandat_60_jours'
+  | 'immeuble_suivi'
+  | 'suivi_immeuble';
 
 export type NotificationRow = {
   id: string;

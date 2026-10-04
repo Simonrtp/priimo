@@ -8,6 +8,7 @@ import type { MapPoint, UnplacedRecord, WithoutPositionCount } from '@/lib/carte
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import SectorMapClient from '@/components/dashboard/carte/SectorMapClient';
+import RechercheAdresseCarte from '@/components/dashboard/carte/RechercheAdresseCarte';
 import CarteMobile from '@/app/dashboard/_mobile/CarteMobile';
 import ProspectsViewSwitch, { prospectionHref, type ProspectionVue } from './ProspectsViewSwitch';
 import type { Zone } from '@/lib/zones/types';
@@ -62,7 +63,10 @@ export default function ProspectionCarteView({
   );
 
   const switcherCarte = <ProspectsViewSwitch variant="bar" value="carte" onChange={setVue} />;
-  const switcherBureau = <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} />;
+  // Sur ordinateur, la loupe d'adresse vit dans l'onglet de la carte, juste avant « Carte ».
+  const switcherBureau = (
+    <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} debut={<RechercheAdresseCarte />} />
+  );
   const zonesVisibles = zones.filter(
     (z) => z.actif && (isDirector || z.assignedTo === profileId),
   );

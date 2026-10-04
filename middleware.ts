@@ -22,6 +22,8 @@ const SKIP_AUTH_PREFIXES = [
   '/information',
   '/api/c',
   '/api/rapport',
+  // Mot de passe oublié : la session se crée dans l'action, pas besoin de la lire avant.
+  '/mot-de-passe',
 ];
 
 const PUBLIC_EXACT = new Set(['/', '/login', '/invite', '/cgu', '/signup', '/inscription']);

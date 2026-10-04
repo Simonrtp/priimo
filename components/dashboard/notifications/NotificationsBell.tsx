@@ -7,6 +7,8 @@ import { useNotifications } from '@/components/providers/NotificationsProvider';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import { FIELD } from '@/lib/today/field';
+import { CIBLE_CLOCHE, EVENEMENT_ENVOL_ARRIVE, type EnvolArrive } from '@/lib/ui/envol-note';
+import styles from '@/components/dashboard/accueil/envol.module.css';
 import NotificationsPanel from './NotificationsPanel';
 
 function Pastille({ n }: { n: number }) {
@@ -29,15 +31,27 @@ export default function NotificationsBell({
 }) {
   const device = useDevice();
   const mobile = device === 'mobile';
-  const { nonLues } = useNotifications();
-  const [open, setOpen] = useState(false);
+  const { nonLues, clocheOuverte, ouvrirCloche, fermerCloche } = useNotifications();
+  const open = clocheOuverte;
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
-  const close = useCallback(() => setOpen(false), []);
+  const [impact, setImpact] = useState(0);
+  const close = useCallback(() => fermerCloche(), [fermerCloche]);
 
   useOutsideDismiss(open && !mobile, close, rootRef);
+
+  // « Suivre » a atterri : la cloche sonne un coup.
+  useEffect(() => {
+    function onArrive(e: Event) {
+      const detail = (e as CustomEvent<EnvolArrive>).detail;
+      if (detail?.cible !== CIBLE_CLOCHE) return;
+      setImpact((n) => n + 1);
+    }
+    window.addEventListener(EVENEMENT_ENVOL_ARRIVE, onArrive);
+    return () => window.removeEventListener(EVENEMENT_ENVOL_ARRIVE, onArrive);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -76,14 +90,24 @@ export default function NotificationsBell({
       aria-expanded={open}
       aria-controls={panelId}
       aria-haspopup="dialog"
-      onClick={() => setOpen((v) => !v)}
+      data-envol-cible={CIBLE_CLOCHE}
+      data-envol-couleur={FIELD.orange}
+      onClick={() => (open ? fermerCloche() : ouvrirCloche())}
       className={`relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out md:size-9 ${
         tone === 'shell'
           ? 'text-white/90 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70'
           : 'text-ink hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
       }`}
+      style={{ ['--envol-cloche' as string]: FIELD.orange }}
     >
-      <Bell size={20} strokeWidth={1.75} aria-hidden />
+      {impact ? <span key={`onde-${impact}`} className={styles.clocheOnde} aria-hidden /> : null}
+      <Bell
+        key={impact || 'idle'}
+        size={20}
+        strokeWidth={1.75}
+        aria-hidden
+        className={impact ? styles.clocheImpact : undefined}
+      />
       <Pastille n={nonLues} />
     </button>
   );

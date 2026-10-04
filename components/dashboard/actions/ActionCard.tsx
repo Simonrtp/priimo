@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
+  Building2,
   Calculator,
   Check,
   Copy,
@@ -29,6 +30,7 @@ const ICONS: Record<AutomationKind, LucideIcon> = {
   compte_rendu_mandat: Mail,
   engagement_note: Handshake,
   estimation_dormante: Calculator,
+  immeuble_suivi: Building2,
 };
 
 function texte(payload: Record<string, unknown>, cle: string): string | null {
@@ -82,6 +84,8 @@ export default function ActionCard({
   const telephone = texte(action.payload, 'proprietairePhone');
   const contactId = texte(action.payload, 'contactId');
   const bienId = texte(action.payload, 'bienId');
+  // Immeuble suivi : la carte s'ouvre sur l'adresse principale de la parcelle.
+  const banId = texte(action.payload, 'banId');
 
   async function resoudre(decision: 'valider' | 'ignorer') {
     setEnCours(true);
@@ -119,6 +123,7 @@ export default function ActionCard({
   function ouvrirFiche() {
     if (contactId) router.push(`/dashboard/contacts?fiche=${contactId}`);
     else if (bienId) router.push(`/dashboard/biens?fiche=${bienId}`);
+    else if (banId) router.push(`/dashboard/prospection?immeuble=${encodeURIComponent(banId)}`);
   }
 
   const estCompteRendu = action.kind === 'compte_rendu_mandat';
@@ -182,9 +187,9 @@ export default function ActionCard({
               </WorkspaceButton>
             )}
 
-            {!estCompteRendu && (contactId || bienId) ? (
+            {!estCompteRendu && (contactId || bienId || banId) ? (
               <WorkspaceButton variant="secondary" onClick={ouvrirFiche}>
-                Ouvrir la fiche
+                {contactId || bienId ? 'Ouvrir la fiche' : 'Voir l’immeuble'}
               </WorkspaceButton>
             ) : null}
 

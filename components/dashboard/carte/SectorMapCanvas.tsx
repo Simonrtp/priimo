@@ -17,7 +17,7 @@ import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { buildScoreHeatScale } from '@/lib/lead-geo';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
-import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
+import LiveAgentLocationMarker from '@/components/dashboard/field/LiveAgentLocationMarker';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import ParcellesLayer, {
@@ -28,13 +28,14 @@ import ParcellesLayer, {
   CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
-import type { DevicePosition } from '@/lib/voice/gps';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker, ParcellePickExtra } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
+import CibleRecherche from '@/components/dashboard/carte/CibleRecherche';
+import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
 function boundsToViewport(map: MapRef): MapViewport | null {
@@ -60,6 +61,7 @@ export default function SectorMapCanvas({
   itineraryGeometry = null,
   parcellesEnabled = false,
   activeParcelleIds = [],
+  suiviParcelleIds = [],
   parcelleNoteMarkers = [],
   selectedParcelleId = null,
   cadastreImmeubles = [],
@@ -77,7 +79,7 @@ export default function SectorMapCanvas({
   zones = [],
   highlightedZoneId = null,
   clipZone = null,
-  agentPosition = null,
+  cible = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -89,6 +91,7 @@ export default function SectorMapCanvas({
   itineraryGeometry?: GeoJSON.LineString | null;
   parcellesEnabled?: boolean;
   activeParcelleIds?: readonly string[];
+  suiviParcelleIds?: readonly string[];
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
@@ -103,12 +106,36 @@ export default function SectorMapCanvas({
   zones?: readonly Zone[];
   highlightedZoneId?: string | null;
   clipZone?: Zone | null;
-  agentPosition?: DevicePosition | null;
+  /** L'adresse demandée dans la barre de recherche. */
+  cible?: CibleCarte | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [hoveredBanId, setHoveredBanId] = useState<string | null>(null);
   const [styleReady, setStyleReady] = useState(false);
+  /** Pendant zoom/pan : on cache les pins HTML (coûteux à chaque frame Mapbox). */
+  const [mapGesturing, setMapGesturing] = useState(false);
+  const gestureTimer = useRef<number | null>(null);
+
+  const interactiveLayerIds = useMemo(() => {
+    const ids: string[] = [];
+    if (parcellesEnabled) ids.push(PARCELLES_FILL_LAYER_ID);
+    if (cadastreLayers.cadastreDpe) ids.push(CADASTRE_DPE_LAYER_ID);
+    if (cadastreLayers.cadastreVentes) {
+      ids.push(
+        CADASTRE_VENTES_POINT_LAYER_ID,
+        CADASTRE_VENTES_LAYER_ID,
+        CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
+      );
+    }
+    if (cadastreLayers.cadastreCopro) ids.push(CADASTRE_COPRO_LAYER_ID);
+    return ids;
+  }, [
+    parcellesEnabled,
+    cadastreLayers.cadastreDpe,
+    cadastreLayers.cadastreVentes,
+    cadastreLayers.cadastreCopro,
+  ]);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -201,10 +228,20 @@ export default function SectorMapCanvas({
     ? `${focusBounds[0][0]},${focusBounds[0][1]},${focusBounds[1][0]},${focusBounds[1][1]}`
     : '';
 
+  // Une adresse cherchée garde la main : la carte ne repart pas sur tout le secteur.
+  const cibleActive = Boolean(cible);
   useEffect(() => {
+    if (cibleActive) return;
     fitToPoints(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsSignature, itineraryBounds, focusSignature]);
+  }, [idsSignature, itineraryBounds, focusSignature, cibleActive]);
+
+  useEffect(
+    () => () => {
+      if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+    },
+    [],
+  );
 
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;
@@ -242,35 +279,37 @@ export default function SectorMapCanvas({
         pitchWithRotate
         touchPitch
         touchZoomRotate
-        interactiveLayerIds={[
-          ...(parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
-          ...(cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
-          ...(cadastreLayers.cadastreVentes
-            ? [
-                CADASTRE_VENTES_POINT_LAYER_ID,
-                CADASTRE_VENTES_LAYER_ID,
-                CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-              ]
-            : []),
-          ...(cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
-        ]}
+        interactiveLayerIds={interactiveLayerIds}
         onLoad={() => {
           setStyleReady(true);
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
           if (next) onViewport(next);
-          fitToPoints(false);
+          if (!cibleActive) fitToPoints(false);
+        }}
+        onMoveStart={() => {
+          if (gestureTimer.current != null) {
+            window.clearTimeout(gestureTimer.current);
+            gestureTimer.current = null;
+          }
+          setMapGesturing(true);
         }}
         onMoveEnd={(event) => {
           const b = event.target.getBounds();
-          if (!b) return;
-          onViewport({
-            west: b.getWest(),
-            south: b.getSouth(),
-            east: b.getEast(),
-            north: b.getNorth(),
-            zoom: event.target.getZoom(),
-          });
+          if (b) {
+            onViewport({
+              west: b.getWest(),
+              south: b.getSouth(),
+              east: b.getEast(),
+              north: b.getNorth(),
+              zoom: event.target.getZoom(),
+            });
+          }
+          if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+          gestureTimer.current = window.setTimeout(() => {
+            gestureTimer.current = null;
+            setMapGesturing(false);
+          }, 120);
         }}
         onClick={(event) => {
           if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
@@ -288,6 +327,7 @@ export default function SectorMapCanvas({
           mapRef={mapRef}
           enabled={parcellesEnabled}
           activeParcelleIds={activeParcelleIds}
+          suiviParcelleIds={suiviParcelleIds}
           noteMarkers={parcelleNoteMarkers}
           selectedParcelleId={selectedParcelleId}
           immeubles={cadastreImmeubles}
@@ -297,6 +337,15 @@ export default function SectorMapCanvas({
           onPrefetch={onPrefetchParcelle}
         />
         <SecteurMasqueLayer zone={clipZone} />
+        {cible ? (
+          <CibleRecherche
+            cible={cible}
+            buildings={buildings}
+            clipZone={clipZone}
+            onSelect={onSelect}
+            onSelectParcelle={onSelectParcelle}
+          />
+        ) : null}
         <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer
@@ -318,7 +367,7 @@ export default function SectorMapCanvas({
             <AgencyLocationMarker />
           </Marker>
         ) : null}
-        {showBuildingMarkers
+        {showBuildingMarkers && !mapGesturing
           ? buildings.map((building) => {
           const emphasized = building.banId === selectedBanId;
           const hovered = building.banId === hoveredBanId;
@@ -388,16 +437,7 @@ export default function SectorMapCanvas({
           );
         })
           : null}
-        {agentPosition ? (
-          <Marker
-            longitude={agentPosition.longitude}
-            latitude={agentPosition.latitude}
-            anchor="center"
-            style={{ zIndex: 40 }}
-          >
-            <AgentLocationMarker position={agentPosition} />
-          </Marker>
-        ) : null}
+        <LiveAgentLocationMarker />
       </Map>
     </div>
   );

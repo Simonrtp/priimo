@@ -1,37 +1,68 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
-import { destinataireValide, type NotificationInsert } from './types';
+import type { Database, NotificationRow } from '@/types/database';
+import {
+  destinataireValide,
+  estTypeNotification,
+  type Notification,
+  type NotificationInsert,
+} from './types';
 
 type Admin = SupabaseClient<Database>;
 
+function versNotification(row: NotificationRow): Notification | null {
+  if (!estTypeNotification(row.type)) return null;
+  return {
+    id: row.id,
+    agencyId: row.agency_id,
+    profileId: row.profile_id,
+    type: row.type,
+    titre: row.titre,
+    corps: row.corps,
+    lien: row.lien,
+    entiteType: (row.entite_type as Notification['entiteType']) ?? null,
+    entiteId: row.entite_id,
+    lueLe: row.lue_le,
+    groupeCle: row.groupe_cle,
+    createdAt: row.created_at,
+  };
+}
+
 /**
  * Écriture serveur uniquement. Le client n'insère jamais.
- * Si l'acteur est le destinataire, on se tait : il le sait.
+ * Si l'acteur est le destinataire, on se tait — sauf mémoire propre.
+ * Retourne la ligne créée, ou null si refus / erreur.
  */
 export async function ecrireNotification(
   admin: Admin,
   input: NotificationInsert,
-): Promise<boolean> {
-  if (!destinataireValide(input.profileId, input.actorId)) return false;
-  if (!input.agencyId || !input.titre.trim() || !input.lien.trim()) return false;
+): Promise<Notification | null> {
+  if (!destinataireValide(input.profileId, input.actorId, input.memoirePropre)) return null;
+  if (!input.agencyId || !input.titre.trim() || !input.lien.trim()) return null;
 
-  const { error } = await admin.from('notifications').insert({
-    agency_id: input.agencyId,
-    profile_id: input.profileId,
-    type: input.type,
-    titre: input.titre.trim(),
-    corps: input.corps.trim(),
-    lien: input.lien.trim(),
-    entite_type: input.entiteType ?? null,
-    entite_id: input.entiteId ?? null,
-    groupe_cle: input.groupeCle ?? null,
-  });
+  const { data, error } = await admin
+    .from('notifications')
+    .insert({
+      agency_id: input.agencyId,
+      profile_id: input.profileId,
+      type: input.type,
+      titre: input.titre.trim(),
+      corps: input.corps.trim(),
+      lien: input.lien.trim(),
+      entite_type: input.entiteType ?? null,
+      entite_id: input.entiteId ?? null,
+      groupe_cle: input.groupeCle ?? null,
+      ...(input.dejaLue ? { lue_le: new Date().toISOString() } : {}),
+    })
+    .select(
+      'id, agency_id, profile_id, type, titre, corps, lien, entite_type, entite_id, lue_le, groupe_cle, created_at',
+    )
+    .maybeSingle();
 
   if (error) {
     console.error('[notifications] écriture', error.message);
-    return false;
+    return null;
   }
-  return true;
+  return data ? versNotification(data as NotificationRow) : null;
 }
 
 export async function ecrireNotifications(

@@ -7,6 +7,7 @@ import {
 } from '@/lib/voice/audio-blob';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { MistralKeyMissingError, requireMistralKey, transcribeAudio } from '@/lib/voice/transcribe';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  if (!(await reserverIa('transcription'))) return reponseQuotaIa();
 
   let form: FormData;
   try {

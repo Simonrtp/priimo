@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { rateLimit } from '@/lib/rate-limit';
 import { MistralKeyMissingError, requireMistralKey, transcribeAudio } from '@/lib/voice/transcribe';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
   if (!limit.ok) {
     return NextResponse.json({ error: 'Trop de transcriptions' }, { status: 429 });
   }
+  if (!(await reserverIa('pre_transcription'))) return reponseQuotaIa();
 
   let form: FormData;
   try {

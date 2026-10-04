@@ -11,10 +11,11 @@ import {
   AssistantMobileSearchBar,
   AssistantSearchIconButton,
 } from '@/components/dashboard/assistant/AssistantSearchButton';
-import AssistantPanel from '@/components/dashboard/assistant/AssistantPanel';
+import { BoutonAssistant } from '@/components/dashboard/assistant/AssistantPanel';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
+import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import Select from '@/components/ui/Select';
 
@@ -209,17 +210,17 @@ export default function TopBar() {
         </div>
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex" {...chromeLockProps}>
+          {/* Une seule barre : chercher, aller à une adresse, demander à l'assistant. */}
           <div className="min-w-0 w-full max-w-md flex-1">
             <AssistantSearchBar tone="shell" />
           </div>
-          <AssistantPanel />
           <CreateMenu className="shrink-0" />
         </div>
 
         <div className="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2 md:gap-2">
           <div className="flex items-center gap-1 sm:gap-2 md:hidden" {...chromeLockProps}>
             <AssistantSearchIconButton className="text-mute" />
-            <AssistantPanel variant="mobile" />
+            <BoutonAssistant />
             <a
               href={FOUNDER_WHATSAPP_HREF}
               target="_blank"
@@ -234,6 +235,9 @@ export default function TopBar() {
           </div>
 
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="hidden md:block" {...chromeLockProps}>
+              <NotificationsBell tone="shell" />
+            </div>
             <div className="md:hidden" {...chromeLockProps}>
               <MobileAgencySwitcher />
             </div>

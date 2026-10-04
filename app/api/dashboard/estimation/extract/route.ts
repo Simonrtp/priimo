@@ -3,6 +3,7 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { extractEstimationFields } from '@/lib/estimation/voice-extract';
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { MistralKeyMissingError, requireMistralKey } from '@/lib/voice/transcribe';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
+  if (!(await reserverIa('redaction'))) return reponseQuotaIa();
   const { refuserSiEstimationFermee } = await import('@/lib/billing/exiger');
   const ferme = refuserSiEstimationFermee(agency);
   if (ferme) return ferme;

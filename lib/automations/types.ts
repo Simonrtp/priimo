@@ -16,7 +16,8 @@ export type AutomationKind =
   | 'veille_mutation'
   | 'compte_rendu_mandat'
   | 'engagement_note'
-  | 'estimation_dormante';
+  | 'estimation_dormante'
+  | 'immeuble_suivi';
 
 export const AUTOMATION_KINDS: readonly AutomationKind[] = [
   'rapprochement_inverse',
@@ -25,6 +26,7 @@ export const AUTOMATION_KINDS: readonly AutomationKind[] = [
   'compte_rendu_mandat',
   'engagement_note',
   'estimation_dormante',
+  'immeuble_suivi',
 ];
 
 export function isAutomationKind(value: unknown): value is AutomationKind {
@@ -39,6 +41,7 @@ export const AUTOMATION_LABELS: Record<AutomationKind, string> = {
   compte_rendu_mandat: 'Compte rendu',
   engagement_note: 'Promesse à tenir',
   estimation_dormante: 'Estimation à relancer',
+  immeuble_suivi: 'Immeuble suivi',
 };
 
 /**

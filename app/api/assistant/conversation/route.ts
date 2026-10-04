@@ -38,6 +38,7 @@ import { fetchMembersOfMyAgency, memberNamesById } from '@/lib/queries/agency-me
 import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { MistralKeyMissingError, requireMistralKey } from '@/lib/voice/transcribe';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
       { status: 200 },
     );
   }
+  if (!(await reserverIa('assistant'))) return reponseQuotaIa();
 
   // Fil existant, ou nouveau fil titré par la première question.
   const demandeId = lireConversationId(body);

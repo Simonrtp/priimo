@@ -46,5 +46,9 @@ export function lienNotification(
       return '/dashboard/prospection?vue=carte';
     case 'mandat_60_jours':
       return '/dashboard/biens?filtre=mandats-60j';
+    case 'immeuble_suivi':
+      return '/dashboard';
+    case 'suivi_immeuble':
+      return '/dashboard/prospection?vue=carte';
   }
 }

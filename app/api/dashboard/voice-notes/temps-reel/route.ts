@@ -3,6 +3,7 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { rateLimit } from '@/lib/rate-limit';
 import { MistralKeyMissingError, requireMistralKey } from '@/lib/voice/transcribe';
 import { MODELE_TEMPS_REEL } from '@/lib/voice/temps-reel-config';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +22,7 @@ export async function POST() {
   if (!limit.ok) {
     return NextResponse.json({ error: 'Trop de dictées' }, { status: 429 });
   }
+  if (!(await reserverIa('temps_reel'))) return reponseQuotaIa();
 
   let apiKey: string;
   try {

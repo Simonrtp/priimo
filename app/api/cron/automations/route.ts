@@ -8,6 +8,7 @@ import {
   expirerPropositions,
 } from '@/lib/queries/actions';
 import { genererNotificationsQuotidiennes } from '@/lib/notifications/generer';
+import { notifierImmeublesSuivisDeposes } from '@/lib/notifications/evenements';
 import { productionOuverte } from '@/lib/billing/acces';
 
 /**
@@ -68,7 +69,9 @@ export async function GET(req: Request) {
       { id: agencyId, codesPostaux },
       now,
     );
-    const nouvelles = await deposerPropositions(admin, agencyId, propositions);
+    const deposees = await deposerPropositions(admin, agencyId, propositions);
+    const nouvelles = deposees.length;
+    await notifierImmeublesSuivisDeposes({ agencyId, propositions: deposees });
 
     await ecrireCurseur(
       admin,

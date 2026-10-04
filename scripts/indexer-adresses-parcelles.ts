@@ -71,9 +71,9 @@ function requete(table: string, colonnes: string) {
 type AdresseBan = { cad: string[]; lon: number; lat: number; cp: string | null };
 
 async function adressesBan(dep: string, communes: Set<string>): Promise<Map<string, AdresseBan>> {
-  const res = await telecharger(`https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-${dep}.csv.gz`);
-  if (!res.ok) throw new Error(`BAN ${dep} : ${res.status}`);
-  const csv = gunzipSync(Buffer.from(await res.arrayBuffer())).toString('utf8');
+  const corps = await telecharger(`https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-${dep}.csv.gz`);
+  if (!corps) throw new Error(`BAN ${dep} : fichier indisponible`);
+  const csv = gunzipSync(corps).toString('utf8');
   const lignes = csv.split('\n');
   const entete = lignes[0]!.split(';');
   const col = (nom: string) => entete.indexOf(nom);
@@ -96,25 +96,32 @@ async function adressesBan(dep: string, communes: Set<string>): Promise<Map<stri
 const cadastres = new Map<string, IndexParcelles>();
 const indexParCode = new Map<string, Promise<IndexParcelles>>();
 
-/** Trois essais espacés : les serveurs publics coupent parfois une longue réponse. */
-async function telecharger(url: string): Promise<Response> {
+/**
+ * Quatre essais espacés, corps compris : les serveurs publics coupent parfois
+ * une longue réponse en cours de lecture. Rend null sur une réponse en erreur.
+ */
+async function telecharger(url: string): Promise<Buffer | null> {
   let derniere: unknown = null;
-  for (let essai = 0; essai < 3; essai += 1) {
+  for (let essai = 0; essai < 4; essai += 1) {
     try {
-      return await fetch(url, { headers: UA });
+      const res = await fetch(url, { headers: UA });
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
     } catch (e) {
       derniere = e;
-      await new Promise((r) => setTimeout(r, 1500 * (essai + 1)));
+      await new Promise((r) => setTimeout(r, 2000 * (essai + 1)));
     }
   }
   throw derniere;
 }
 
 async function parcellesDeLaCommune(insee: string) {
-  const res = await telecharger(
+  const corps = await telecharger(
     `https://cadastre.data.gouv.fr/bundler/cadastre-etalab/communes/${insee}/geojson/parcelles`,
   );
-  const json = res.ok ? ((await res.json()) as { features?: { properties?: { id?: string }; geometry?: unknown }[] }) : {};
+  const json = corps
+    ? (JSON.parse(corps.toString('utf8')) as { features?: { properties?: { id?: string }; geometry?: unknown }[] })
+    : {};
   return (json.features ?? [])
     .map((f) => (f.properties?.id ? lireParcelle(f.properties.id, f.geometry) : null))
     .filter((p): p is NonNullable<typeof p> => p !== null);
@@ -139,8 +146,8 @@ async function cadastre(insee: string, point: { lon: number; lat: number }): Pro
   if (connu) return connu;
   let index = await indexDeLaCommune(insee);
   if (index.taille === 0) {
-    const res = await telecharger(`https://geo.api.gouv.fr/communes?lat=${point.lat}&lon=${point.lon}&fields=code`);
-    const communes = res.ok ? ((await res.json()) as { code?: string }[]) : [];
+    const corps = await telecharger(`https://geo.api.gouv.fr/communes?lat=${point.lat}&lon=${point.lon}&fields=code`);
+    const communes = corps ? (JSON.parse(corps.toString('utf8')) as { code?: string }[]) : [];
     const actuelle = communes[0]?.code;
     if (actuelle && actuelle !== insee) {
       console.log(`  ${insee} : commune déléguée, cadastre de ${actuelle}`);
@@ -189,7 +196,7 @@ async function main() {
   }
 
   const nouveaux: Lien[] = [];
-  const bilan = { ban: 0, geo: 0, aucun: 0, lieAvant: 0, lieApres: 0 };
+  const bilan = { ban: 0, geo: 0, aucun: 0, lieAvant: 0, lieApres: 0, horsFormat: 0 };
   const parCommuneBilan: string[] = [];
 
   for (const [insee, liste] of [...parCommune].sort((a, b) => b[1].length - a[1].length)) {
@@ -219,7 +226,16 @@ async function main() {
       }
       bilan[source] += 1;
       apres += 1;
-      for (const parcelle_id of parcelles) {
+      for (const brut of parcelles) {
+        // Certaines communes publient « 74256    B0240 » : des espaces à la place
+        // des zéros de remplissage. Le reste (« 75 » seul…) est écarté : la
+        // table n'accepte que les 14 caractères du cadastre.
+        const parcelle_id = brut.toUpperCase().replace(/ /g, '0');
+        if (!/^[0-9A-Z]{14}$/.test(parcelle_id)) {
+          bilan.horsFormat += 1;
+          if (bilan.horsFormat <= 3) console.log(`  référence ignorée : « ${brut} »`);
+          continue;
+        }
         const cle = `${parcelle_id}|${b.ban_id}`;
         if (dejaLie.has(cle)) continue;
         dejaLie.add(cle);
@@ -241,7 +257,7 @@ async function main() {
     `\nAdresses rattachées à une parcelle : ${Math.round((100 * bilan.lieAvant) / total)} % → ${Math.round((100 * bilan.lieApres) / total)} %`,
   );
   console.log(`Par la BAN : ${bilan.ban} · par la géométrie : ${bilan.geo} · sans parcelle trouvée : ${bilan.aucun}`);
-  console.log(`Liens nouveaux à écrire : ${nouveaux.length}`);
+  console.log(`Liens nouveaux à écrire : ${nouveaux.length} · références hors format ignorées : ${bilan.horsFormat}`);
 
   if (!ecrire) {
     console.log('\nSimulation terminée. Relancer avec --ecrire pour enregistrer.');

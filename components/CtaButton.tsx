@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { CALENDLY_URL } from "@/lib/calendly";
 import CtaSparkles from "./CtaSparkles";
 
 // === CTA BUTTON ===
-// CTA centralisé. Tous les CTA de la landing pointent vers Calendly
-// (réservation de démo). Ouvre dans un nouvel onglet.
+// CTA centralisé marketing. Étoiles sur chaque instance.
+// Lien interne → Next Link ; sinon Calendly (nouvel onglet).
 
 type Props = {
   children: React.ReactNode;
@@ -12,6 +13,10 @@ type Props = {
   className?: string;
   href?: string;
 };
+
+function isInternalHref(href: string): boolean {
+  return href.startsWith("/") && !href.startsWith("//");
+}
 
 export default function CtaButton({
   children,
@@ -24,23 +29,30 @@ export default function CtaButton({
     variant === "invert"
       ? "btn-invert"
       : variant === "ghost"
-      ? "btn-ghost"
-      : "btn-primary";
+        ? "btn-ghost"
+        : "btn-primary";
   const sizeClass = size === "lg" ? "px-7 py-4 text-base" : "";
+  const btnClass = `btn ${variantClass} ${sizeClass} ${className}`.trim();
 
   return (
     <span className="cta-spark-host">
       <span className="cta-cq">
         <CtaSparkles />
       </span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`btn ${variantClass} ${sizeClass} ${className}`}
-      >
-        {children}
-      </a>
+      {isInternalHref(href) ? (
+        <Link href={href} className={btnClass}>
+          {children}
+        </Link>
+      ) : (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={btnClass}
+        >
+          {children}
+        </a>
+      )}
     </span>
   );
 }

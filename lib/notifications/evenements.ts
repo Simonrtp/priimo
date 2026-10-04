@@ -4,13 +4,16 @@ import { ecrireNotification, notificationDejaEmise } from './ecrire';
 import { LIEN_ADRESSES_A_REVOIR, lienNotification } from './liens';
 import {
   corpsAdressesARevoir,
+  corpsSuiviImmeuble,
   titreAdressesARevoir,
   titreInvitationAcceptee,
   titreLeadsAssignes,
   titreNotesTranscrites,
+  titreSuiviImmeuble,
   titreZoneAttribuee,
   titreZoneModifiee,
 } from './textes';
+import type { Notification } from './types';
 
 /** Au-delà, le bandeau Accueil devenait une corvée. Une ligne dans la cloche suffit. */
 export const SEUIL_ADRESSES_A_REVOIR = 10;
@@ -175,5 +178,74 @@ export async function notifierNoteTranscrite(params: {
     entiteType: 'note',
     entiteId: params.noteId,
     groupeCle: 'note_transcrite',
+  });
+}
+
+/**
+ * Mémoire cloche pour un immeuble suivi qui vient d’arriver en « À valider ».
+ * Dedup = dedup_key de l’action (une seule ligne cloche par signal).
+ */
+export async function notifierImmeublesSuivisDeposes(params: {
+  agencyId: string;
+  propositions: readonly {
+    kind: string;
+    assignedTo: string | null;
+    titre: string;
+    detail: string | null;
+    dedupKey: string;
+  }[];
+}): Promise<number> {
+  const adminClient = admin();
+  let n = 0;
+  for (const p of params.propositions) {
+    if (p.kind !== 'immeuble_suivi' || !p.assignedTo) continue;
+    const groupeCle = p.dedupKey;
+    if (
+      await notificationDejaEmise(adminClient, {
+        agencyId: params.agencyId,
+        profileId: p.assignedTo,
+        groupeCle,
+        depuisIso: '1970-01-01T00:00:00.000Z',
+      })
+    ) {
+      continue;
+    }
+    const ok = await ecrireNotification(adminClient, {
+      agencyId: params.agencyId,
+      profileId: p.assignedTo,
+      type: 'immeuble_suivi',
+      titre: p.titre,
+      corps: (p.detail ?? '').trim() || 'À retrouver dans « À valider ».',
+      lien: lienNotification('immeuble_suivi'),
+      groupeCle,
+    });
+    if (ok) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Mémoire cloche : l’agent vient de suivre un immeuble.
+ * Déjà lue — historique sans pastille.
+ */
+export async function notifierSuiviImmeuble(params: {
+  agencyId: string;
+  profileId: string;
+  parcelleId: string;
+  libelle: string | null;
+}): Promise<Notification | null> {
+  return ecrireNotification(admin(), {
+    agencyId: params.agencyId,
+    profileId: params.profileId,
+    actorId: params.profileId,
+    memoirePropre: true,
+    dejaLue: true,
+    type: 'suivi_immeuble',
+    titre: titreSuiviImmeuble(),
+    corps: corpsSuiviImmeuble(params.libelle),
+    lien: lienNotification('suivi_immeuble'),
+    entiteType: 'parcelle',
+    entiteId: null,
+    groupeCle: `suivi_immeuble:${params.parcelleId}`,
   });
 }

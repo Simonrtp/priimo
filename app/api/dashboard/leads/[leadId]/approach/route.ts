@@ -9,6 +9,7 @@ import {
 } from '@/lib/script-approche-generate';
 import { parseScriptApproche } from '@/lib/script-approche';
 import { clientIpFromRequest, pruneRateLimitBuckets, rateLimit } from '@/lib/rate-limit';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -110,6 +111,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     notes: (leadRow as { notes?: string | null }).notes ?? null,
   };
 
+  if (!(await reserverIa('script_approche'))) return reponseQuotaIa();
   let stored;
   try {
     stored = await generateScriptApprocheForLead(leadForGen);
@@ -155,6 +157,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         .from('leads')
         .select('script_approche')
         .eq('id', leadId)
+        .eq('agency_id', agency.id)
         .maybeSingle();
       const concurrent = parseScriptApproche(again?.script_approche);
       if (concurrent) {

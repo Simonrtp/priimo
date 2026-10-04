@@ -21,6 +21,8 @@ export const NOTIFICATION_TYPES = [
   'negociateur_sans_activite',
   'zone_non_travaillee',
   'mandat_60_jours',
+  'immeuble_suivi',
+  'suivi_immeuble',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -56,7 +58,8 @@ export type NotificationEntiteType =
   | 'estimation'
   | 'bien'
   | 'profil'
-  | 'agence';
+  | 'agence'
+  | 'parcelle';
 
 export type Notification = {
   id: string;
@@ -83,15 +86,23 @@ export type NotificationInsert = {
   entiteType?: NotificationEntiteType | null;
   entiteId?: string | null;
   groupeCle?: string | null;
-  /** Si égal au destinataire, on n'écrit rien : il le sait, il vient de le faire. */
+  /** Si égal au destinataire, on n'écrit rien — sauf mémoire propre. */
   actorId?: string | null;
+  /** Trace que l’agent vient de faire lui-même (historique cloche). */
+  memoirePropre?: boolean;
+  /** Déjà lue à l’écriture : pas de pastille ni popup. */
+  dejaLue?: boolean;
 };
 
 export const FENETRE_GROUPE_MS = 2 * 60 * 60 * 1000;
 export const RETENTION_LUES_JOURS = 30;
 
-export function destinataireValide(profileId: string, actorId?: string | null): boolean {
+export function destinataireValide(
+  profileId: string,
+  actorId?: string | null,
+  memoirePropre = false,
+): boolean {
   if (!profileId) return false;
-  if (actorId && actorId === profileId) return false;
+  if (actorId && actorId === profileId && !memoirePropre) return false;
   return true;
 }

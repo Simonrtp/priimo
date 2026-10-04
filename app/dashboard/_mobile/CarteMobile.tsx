@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Box, Layers, MapPin, Navigation, Phone, Square } from 'lucide-react';
@@ -19,9 +20,10 @@ import {
   MAP_LAYER_LABELS,
   MAP_LAYER_ORDER,
   activeKindSet,
-  anyCadastreLayer,
+  anyCadastreOverlay,
   persistMapLayers,
   readStoredMapLayers,
+  showParcellesPlan,
   withCadastreLayerToggled,
   withCadastreMenuToggled,
   withDpeAgeSpan,
@@ -31,10 +33,10 @@ import {
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
+import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import {
-  withoutPositionTotal,
   type MapPoint,
   type MapPointKind,
   type UnplacedRecord,
@@ -135,7 +137,7 @@ function firstPhone(entities: readonly MapPoint[]): string | null {
 
 export default function CarteMobile({
   points,
-  withoutPosition,
+  withoutPosition: _withoutPosition,
   unplaced,
   agencyPostalCodes = [],
   center,
@@ -183,9 +185,9 @@ export default function CarteMobile({
   );
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
+  const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
-  const [missingOpen, setMissingOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
@@ -268,16 +270,20 @@ export default function CarteMobile({
     setStoredStops(readItineraireStops());
   }, []);
 
-  // Toujours suivre la position sur la carte terrain : si on demande le GPS,
-  // le point bleu doit apparaître, pas seulement pendant une tournée.
+  // GPS parent seulement en tournée (progressPoint). Hors tournée, le point
+  // bleu vit dans LiveAgentLocationMarker pour ne pas re-render toute la carte.
   useEffect(() => {
+    if (!tourShown) {
+      setAgentPosition(null);
+      return;
+    }
     return watchDevicePosition(setAgentPosition, {
       pauseWhenHidden: true,
       highAccuracy: true,
-      minUpdateM: 4,
-      maximumAge: 1_500,
+      minUpdateM: 10,
+      maximumAge: 2_000,
     });
-  }, []);
+  }, [tourShown]);
 
   const itineraryStops = tourItineraryStops
     ? tourItineraryStops
@@ -288,11 +294,17 @@ export default function CarteMobile({
   const itineraryGeometry = tourShown ? tour.geometry : route?.geometry ?? null;
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
-  const overlaysCadastre = anyCadastreLayer(layers);
+  const overlaysCadastre = anyCadastreOverlay(layers);
+  const planParcelles = showParcellesPlan(layers);
   const parcelle = useParcelleMap(overlaysCadastre, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
   });
+  const { suivis: immeublesSuivis, recharger: rechargerSuivis } = useImmeublesSuivisCarte();
+  const suiviParcelleIds = useMemo(
+    () => immeublesSuivis.map((s) => s.parcelleId),
+    [immeublesSuivis],
+  );
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
   const monSecteurId = useMemo(
@@ -333,7 +345,6 @@ export default function CarteMobile({
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
   const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
   const counts = useMemo(() => countKindsInViewport(filteredAllKinds, null), [filteredAllKinds]);
-  const missingTotal = withoutPositionTotal(withoutPosition);
 
   function choisirEmprise(next: MapEmprise) {
     if (next === 'code_postal') {
@@ -346,6 +357,10 @@ export default function CarteMobile({
   const cadastreImmeubles = useMemo(
     () => parcelle.immeubles.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
     [parcelle.immeubles, zoneChoisie],
+  );
+  const activeParcelleIds = useMemo(
+    () => cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id)),
+    [cadastreImmeubles],
   );
   const parcelleNoteMarkers = useMemo(
     () => parcelle.noteMarkers.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
@@ -459,7 +474,6 @@ export default function CarteMobile({
     setTourStops(kept);
     setTrip(null);
     setLayersOpen(false);
-    setMissingOpen(false);
     setSelectedBanId(null);
     closeParcelle();
     setTourPhase(kept.length > 0 ? 'brief' : 'route');
@@ -572,7 +586,6 @@ export default function CarteMobile({
       closeParcelle();
       setSelectedBanId(building.banId);
       setLayersOpen(false);
-      setMissingOpen(false);
     },
     [tourActive, picking, tourKeys, addStop, removeStop, closeParcelle],
   );
@@ -604,6 +617,7 @@ export default function CarteMobile({
       <MobileMapCanvas
         buildings={buildings}
         center={center}
+        cible={cible}
         focusBounds={focusBounds}
         zones={zoneId === 'aucun' ? [] : zones}
         highlightedZoneId={zoneChoisie?.id ?? null}
@@ -621,10 +635,9 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        parcellesEnabled={!tourShown}
-        activeParcelleIds={cadastreImmeubles
-          .map((row) => row.parcelleId)
-          .filter((id): id is string => Boolean(id))}
+        parcellesEnabled={!tourShown && planParcelles}
+        activeParcelleIds={activeParcelleIds}
+        suiviParcelleIds={suiviParcelleIds}
         parcelleNoteMarkers={parcelleNoteMarkers}
         selectedParcelleId={parcelle.selectedParcelleId}
         cadastreImmeubles={cadastreImmeubles}
@@ -638,13 +651,13 @@ export default function CarteMobile({
           if (tourActive) return;
           setSelectedBanId(null);
           setLayersOpen(false);
-          setMissingOpen(false);
           parcelle.openParcelle(parcelleId, extra);
         }}
         onPrefetchParcelle={parcelle.prefetchParcelle}
         agentPosition={agentPosition}
         highlightBanIds={highlightBanIds}
-        suppressAutoFit={tourShown || tourFramed}
+        // Une adresse cherchée garde la main : la carte ne repart pas sur tout le secteur.
+        suppressAutoFit={tourShown || tourFramed || Boolean(cible)}
         navigation={tourShown}
         onMapPoint={picking ? addPointFromMap : undefined}
       />
@@ -819,7 +832,7 @@ export default function CarteMobile({
           })}
           <CadastreLayerControls
             layers={layers}
-            onToggleOverlay={(id: CadastreLayerId) =>
+            onToggleLayer={(id: CadastreLayerId) =>
               setLayers((prev) => {
                 const next = withCadastreLayerToggled(prev, id);
                 persistMapLayers(next);
@@ -844,20 +857,6 @@ export default function CarteMobile({
             compact
           />
         </ul>
-
-        {missingTotal > 0 ? (
-          <button
-            type="button"
-            onClick={() => {
-              setLayersOpen(false);
-              setMissingOpen(true);
-            }}
-            className="app-press mt-4 flex min-h-[44px] w-full items-center justify-between rounded-xl px-1 text-left"
-          >
-            <span className="text-[14.5px] font-medium text-text">Fiches sans position</span>
-            <span className="tabular-nums text-[13px] text-accent">{missingTotal}</span>
-          </button>
-        ) : null}
       </MobileSheet>
 
       <MobileSheet
@@ -929,54 +928,13 @@ export default function CarteMobile({
         ) : null}
       </MobileSheet>
 
-      <MobileSheet
-        open={missingOpen}
-        onClose={() => setMissingOpen(false)}
-        title="Fiches sans position"
-        initialSnap={1}
-      >
-        <p className="mb-3 text-pretty text-[13px] text-text-muted">
-          Corrigez l&apos;adresse pour les placer sur la carte.
-        </p>
-        <ul className="flex flex-col gap-1">
-          {(
-            [
-              ['lead', 'Prospects', '/dashboard/prospection?filtre=sans-position', withoutPosition.leads],
-              ['contact', 'Contacts', '/dashboard/contacts?filtre=sans-position', withoutPosition.contacts],
-              ['bien', 'Biens', '/dashboard/biens?filtre=sans-position', withoutPosition.biens],
-              ['note', 'Notes terrain', '/dashboard', withoutPosition.notes],
-            ] as const
-          )
-            .filter((row) => row[3] > 0)
-            .map(([kind, label, href, count]) => (
-              <li key={kind}>
-                <Link href={href} className="flex min-h-[44px] items-center justify-between rounded-xl px-1">
-                  <span className="text-[14.5px] font-medium text-text-strong">{label}</span>
-                  <span className="tabular-nums text-[13px] text-text-subtle">{count}</span>
-                </Link>
-              </li>
-            ))}
-        </ul>
-        {unplaced.length > 0 ? (
-          <ul className="mt-4 flex flex-col gap-1 border-t border-black/[0.06] pt-3">
-            {unplaced.slice(0, 12).map((row) => (
-              <li key={`${row.kind}:${row.recordId}`}>
-                <Link href={row.href} className="block rounded-xl px-1 py-2">
-                  <p className="truncate text-[13.5px] font-medium text-text-strong">{row.title}</p>
-                  <p className="text-[11.5px] text-text-subtle">{MAP_LAYER_LABELS[row.kind]}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </MobileSheet>
-
       <MobileAccountMenu open={accountOpen} onClose={() => setAccountOpen(false)} />
       <ParcelleDrawer
         fiche={parcelle.fiche}
         loading={parcelle.loading}
         onClose={parcelle.closeParcelle}
         onNotesChanged={parcelle.refreshAfterNotes}
+        onSuiviChanged={rechargerSuivis}
       />
     </div>
   );

@@ -138,10 +138,20 @@ export default function RootLayout({
         {children}
         <Toaster
           richColors
+          closeButton
           position="top-right"
+          offset={{
+            top: 'var(--toast-offset-top)',
+            right: 'var(--toast-offset-right)',
+          }}
+          mobileOffset={{
+            top: 'var(--toast-offset-top)',
+            right: 'var(--toast-offset-right)',
+          }}
           toastOptions={{
             classNames: {
               actionButton: 'priimo-toast-action',
+              closeButton: 'priimo-toast-close',
             },
           }}
         />

@@ -47,19 +47,28 @@ function mapRow(row: AgencyActionRow): AgencyAction {
 /* Écriture — réservée aux générateurs (clé service_role)                     */
 /* -------------------------------------------------------------------------- */
 
+export type PropositionDeposee = {
+  id: string;
+  kind: string;
+  assignedTo: string | null;
+  titre: string;
+  detail: string | null;
+  dedupKey: string;
+};
+
 /**
  * Dépose des propositions. Les doublons sont ignorés en base plutôt que
  * filtrés en amont : c'est la seule façon d'être juste quand deux passages du
  * cron se chevauchent.
  *
- * Rend le nombre de propositions réellement nouvelles.
+ * Rend les propositions réellement nouvelles.
  */
 export async function deposerPropositions(
   admin: Client,
   agencyId: string,
   propositions: readonly ProposedAction[],
-): Promise<number> {
-  if (propositions.length === 0) return 0;
+): Promise<PropositionDeposee[]> {
+  if (propositions.length === 0) return [];
 
   const lignes: AgencyActionInsert[] = propositions.map((p) => ({
     agency_id: agencyId,
@@ -79,13 +88,20 @@ export async function deposerPropositions(
   const { data, error } = await admin
     .from('agency_actions')
     .upsert(lignes, { onConflict: 'agency_id,dedup_key', ignoreDuplicates: true })
-    .select('id');
+    .select('id, kind, assigned_to, titre, detail, dedup_key');
 
   if (error) {
     console.error('[actions] dépôt', agencyId, error.message);
-    return 0;
+    return [];
   }
-  return data?.length ?? 0;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    assignedTo: row.assigned_to,
+    titre: row.titre,
+    detail: row.detail,
+    dedupKey: row.dedup_key,
+  }));
 }
 
 /** Efface les propositions dont le signal est devenu froid. */

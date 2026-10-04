@@ -5,6 +5,7 @@ import { getDevice } from '@/lib/device-server';
 import { beginDashboardTiming, markServerTimingReady, timed } from '@/lib/perf/timing';
 import { UserProvider } from '@/components/providers/UserProvider';
 import { NotificationsProvider } from '@/components/providers/NotificationsProvider';
+import NotificationsWelcomePopup from '@/components/dashboard/notifications/NotificationsWelcomePopup';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchNotificationsSafe } from '@/lib/queries/notifications';
 import DeviceProvider from '@/components/dashboard/device/DeviceProvider';
@@ -16,6 +17,7 @@ import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
 import VoiceCaptureProvider from '@/components/dashboard/voice/VoiceCaptureProvider';
 import AssistantProvider from '@/components/dashboard/assistant/AssistantProvider';
 import AssistantPanelProvider from '@/components/dashboard/assistant/AssistantPanelProvider';
+import SurfaceAssistant from '@/components/dashboard/assistant/AssistantPanel';
 import WorkspacePanel from '@/components/dashboard/workspace/WorkspacePanel';
 import OfflineQueueProvider from '@/components/dashboard/field/OfflineQueueProvider';
 import TourneeDictationProvider from '@/components/dashboard/field/TourneeDictationProvider';
@@ -48,13 +50,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const tree = (
     <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
       <NotificationsProvider key={agency.id} initial={notifications}>
-      <DeviceProvider device={device}>
-        <DeviceSync serverDevice={device} />
-        <OfflineQueueProvider>
-          <TourneeDictationProvider>
-            <VoiceCaptureProvider>
-              <AssistantProvider>
-                <AssistantPanelProvider>
+        <NotificationsWelcomePopup />
+        <DeviceProvider device={device}>
+          <DeviceSync serverDevice={device} />
+          <OfflineQueueProvider>
+            <TourneeDictationProvider>
+              <VoiceCaptureProvider>
+                <AssistantProvider>
+                  <AssistantPanelProvider>
                     {isMobile ? (
                       <div className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <TouchScrollGuard />
@@ -68,6 +71,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         </main>
                         <MobileBottomNav />
                         <MobileBackSwipe />
+                        <SurfaceAssistant />
                       </div>
                     ) : (
                       <div className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
@@ -79,6 +83,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                           </main>
                         </div>
                         <MobileBottomNav />
+                        <SurfaceAssistant />
                       </div>
                     )}
                   </AssistantPanelProvider>
@@ -86,7 +91,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </VoiceCaptureProvider>
             </TourneeDictationProvider>
           </OfflineQueueProvider>
-      </DeviceProvider>
+        </DeviceProvider>
       </NotificationsProvider>
     </UserProvider>
   );

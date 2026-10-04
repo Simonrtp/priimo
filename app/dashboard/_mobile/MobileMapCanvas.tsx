@@ -26,6 +26,7 @@ import ParcellesLayer, {
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
+import LiveAgentLocationMarker from '@/components/dashboard/field/LiveAgentLocationMarker';
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker, ParcellePickExtra } from '@/lib/carte/parcelle';
@@ -33,6 +34,8 @@ import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import type { DevicePosition } from '@/lib/voice/gps';
 import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
+import CibleRecherche from '@/components/dashboard/carte/CibleRecherche';
+import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
 export type MobileMapHandle = {
@@ -71,6 +74,7 @@ export default function MobileMapCanvas({
   itineraryGeometry = null,
   parcellesEnabled = false,
   activeParcelleIds = [],
+  suiviParcelleIds = [],
   parcelleNoteMarkers = [],
   selectedParcelleId = null,
   cadastreImmeubles = [],
@@ -95,6 +99,7 @@ export default function MobileMapCanvas({
   highlightedZoneId = null,
   clipZone = null,
   dimension = '2d',
+  cible = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -108,6 +113,7 @@ export default function MobileMapCanvas({
   itineraryGeometry?: GeoJSON.LineString | null;
   parcellesEnabled?: boolean;
   activeParcelleIds?: readonly string[];
+  suiviParcelleIds?: readonly string[];
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
@@ -128,6 +134,8 @@ export default function MobileMapCanvas({
   zones?: readonly Zone[];
   highlightedZoneId?: string | null;
   clipZone?: Zone | null;
+  /** L'adresse demandée dans la barre de recherche. */
+  cible?: CibleCarte | null;
   /** Plan à plat ou relief des immeubles. */
   dimension?: MapDimension;
 }) {
@@ -135,6 +143,8 @@ export default function MobileMapCanvas({
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [zoom, setZoom] = useState(13);
   const [styleReady, setStyleReady] = useState(false);
+  const [mapGesturing, setMapGesturing] = useState(false);
+  const gestureTimer = useRef<number | null>(null);
   const camera = cameraFor(dimension);
   const relief = !navigation && dimension === '3d';
 
@@ -154,6 +164,13 @@ export default function MobileMapCanvas({
     if (navigation) applyTourneeMapStyle(raw);
     else restoreTourneeMapStyle(raw);
   }, [navigation, styleReady]);
+
+  useEffect(
+    () => () => {
+      if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+    },
+    [],
+  );
 
   const itineraryBounds = useMemo(() => {
     if (itineraryGeometry?.coordinates?.length) {
@@ -328,7 +345,14 @@ export default function MobileMapCanvas({
             : []),
           ...(!navigation && cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
         ]}
-        onMoveStart={() => onUserInteract?.()}
+        onMoveStart={() => {
+          onUserInteract?.();
+          if (gestureTimer.current != null) {
+            window.clearTimeout(gestureTimer.current);
+            gestureTimer.current = null;
+          }
+          setMapGesturing(true);
+        }}
         onLoad={() => {
           const map = mapRef.current;
           const next = map ? boundsToViewport(map) : null;
@@ -338,7 +362,7 @@ export default function MobileMapCanvas({
             if (navigation) applyTourneeMapStyle(map.getMap());
           }
           setStyleReady(true);
-          fitToPoints(false);
+          if (!cible) fitToPoints(false);
         }}
         onMoveEnd={(event) => {
           const b = event.target.getBounds();
@@ -352,6 +376,11 @@ export default function MobileMapCanvas({
             });
           }
           setZoom(event.target.getZoom());
+          if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+          gestureTimer.current = window.setTimeout(() => {
+            gestureTimer.current = null;
+            setMapGesturing(false);
+          }, 120);
         }}
         onClick={(event) => {
           if (onMapPoint) {
@@ -377,6 +406,7 @@ export default function MobileMapCanvas({
           mapRef={mapRef}
           enabled={!navigation && parcellesEnabled}
           activeParcelleIds={activeParcelleIds}
+          suiviParcelleIds={suiviParcelleIds}
           noteMarkers={parcelleNoteMarkers}
           selectedParcelleId={selectedParcelleId}
           immeubles={cadastreImmeubles}
@@ -385,6 +415,15 @@ export default function MobileMapCanvas({
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
           onPrefetch={onPrefetchParcelle}
         />
+        {cible && !navigation ? (
+          <CibleRecherche
+            cible={cible}
+            buildings={buildings}
+            clipZone={clipZone}
+            onSelect={onSelect}
+            onSelectParcelle={onSelectParcelle}
+          />
+        ) : null}
         {navigation ? null : (
           <>
             <SecteurMasqueLayer zone={clipZone} />
@@ -404,7 +443,7 @@ export default function MobileMapCanvas({
             }}
           />
         ) : null}
-        {showCrmPins
+        {showCrmPins && !mapGesturing
           ? clustered.map((item) => {
           if (item.kind === 'cluster') {
             return (
@@ -487,7 +526,7 @@ export default function MobileMapCanvas({
             <AgencyLocationMarker />
           </Marker>
         ) : null}
-        {agentPosition ? (
+        {navigation && agentPosition ? (
           <Marker
             longitude={agentPosition.longitude}
             latitude={agentPosition.latitude}
@@ -497,6 +536,7 @@ export default function MobileMapCanvas({
             <AgentLocationMarker position={agentPosition} />
           </Marker>
         ) : null}
+        {!navigation ? <LiveAgentLocationMarker highAccuracy minUpdateM={10} /> : null}
       </Map>
     </div>
   );

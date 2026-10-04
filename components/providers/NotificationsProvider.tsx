@@ -8,6 +8,12 @@ type NotificationsContextValue = {
   nonLues: number;
   marquerLue: (ids: readonly string[]) => void;
   marquerToutesLues: () => void;
+  /** Préfixe une trace (mémoire propre) sans attendre le refresh layout. */
+  ajouterNotification: (n: Notification) => void;
+  /** Panneau cloche ouvert (header / popup « Du nouveau »). */
+  clocheOuverte: boolean;
+  ouvrirCloche: () => void;
+  fermerCloche: () => void;
 };
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -20,6 +26,7 @@ export function NotificationsProvider({
   children: React.ReactNode;
 }) {
   const [notifications, setNotifications] = useState(initial);
+  const [clocheOuverte, setClocheOuverte] = useState(false);
   useEffect(() => {
     setNotifications(initial);
   }, [initial]);
@@ -49,10 +56,34 @@ export function NotificationsProvider({
     }).catch(() => undefined);
   }, []);
 
+  const ajouterNotification = useCallback((n: Notification) => {
+    setNotifications((prev) => (prev.some((x) => x.id === n.id) ? prev : [n, ...prev]));
+  }, []);
+
+  const ouvrirCloche = useCallback(() => setClocheOuverte(true), []);
+  const fermerCloche = useCallback(() => setClocheOuverte(false), []);
+
   const value = useMemo<NotificationsContextValue>(() => {
     const nonLues = notifications.filter((n) => !n.lueLe).length;
-    return { notifications, nonLues, marquerLue, marquerToutesLues };
-  }, [notifications, marquerLue, marquerToutesLues]);
+    return {
+      notifications,
+      nonLues,
+      marquerLue,
+      marquerToutesLues,
+      ajouterNotification,
+      clocheOuverte,
+      ouvrirCloche,
+      fermerCloche,
+    };
+  }, [
+    notifications,
+    marquerLue,
+    marquerToutesLues,
+    ajouterNotification,
+    clocheOuverte,
+    ouvrirCloche,
+    fermerCloche,
+  ]);
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }

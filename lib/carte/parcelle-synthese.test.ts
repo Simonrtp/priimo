@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { ParcelleLogement, ParcelleVente } from './parcelle';
+import type { BatimentParcelle } from './bdnb';
 import {
   decrireLogement,
   decrireVente,
   depuisQuand,
   logementsDistincts,
+  decrireAudit,
+  faitSci,
+  pastillesEnteteParcelle,
+  pourquoiSiPeu,
   prixDeLImmeuble,
+  raccourcirUsage,
   syntheseParcelle,
   trierLogements,
 } from './parcelle-synthese';
@@ -172,7 +178,7 @@ describe('syntheseParcelle', () => {
       ['passoires', 'ventes', 'prix', 'procedure'],
     );
     assert.match(plat(s.faits[0]!.texte), /^2 logements classés F ou G : 4e étage · 62 m² \(G\)/);
-    assert.equal(s.faits[1]!.texte, '3 ventes en 3 ans pour 12 lots : un immeuble qui tourne');
+    assert.equal(plat(s.faits[1]!.texte), '3 ventes en 3 ans pour 12 lots : un immeuble qui tourne');
     assert.match(plat(s.faits[2]!.texte), /secteur 9\s900 €\/m² \(\+5 %\)/);
     assert.deepEqual(
       s.pastilles.map((p) => p.cle),
@@ -204,7 +210,7 @@ describe('syntheseParcelle', () => {
       },
       MAINTENANT,
     );
-    assert.equal(s.faits[0]!.texte, 'Aucune vente depuis 2019 : des propriétaires installés de longue date');
+    assert.equal(plat(s.faits[0]!.texte), 'Aucune vente depuis 2019 : des propriétaires installés de longue date');
   });
 
   it('ne dit rien quand il n’y a rien à dire', () => {
@@ -214,5 +220,261 @@ describe('syntheseParcelle', () => {
     );
     assert.equal(s.faits.length, 0);
     assert.equal(s.pastilles.length, 0);
+  });
+});
+
+describe('pourquoiSiPeu', () => {
+  const batiment = (partiel: Partial<BatimentParcelle>): BatimentParcelle => ({
+    nbBatiments: 1,
+    empriseM2: 800,
+    usage: 'Résidentiel collectif',
+    anneeConstruction: 1930,
+    niveaux: 6,
+    logements: 40,
+    materiaux: null,
+    proprietaires: [],
+    dpeRecents: 0,
+    dpeRecentsFG: 0,
+    dpeAnciens: 0,
+    dpeAnciensFG: 0,
+    dpeTertiaire: null,
+    monumentHistorique: null,
+    quartierPrioritaire: null,
+    adressesBan: [],
+    adressePrincipale: null,
+    ...partiel,
+  });
+  const base = { ventes: 0, logements: 0, adresses: 1, surfaceM2: 1000, batimentConnu: true };
+
+  it('ne dit rien quand ventes et DPE sont là', () => {
+    assert.deepEqual(pourquoiSiPeu({ ...base, ventes: 2, logements: 3, batiment: batiment({}) }), []);
+  });
+
+  it('reconnaît un square : presque pas de bâti sur une grande parcelle', () => {
+    const r = pourquoiSiPeu({ ...base, surfaceM2: 9874, batiment: batiment({ empriseM2: 95, logements: null, usage: null }) });
+    assert.match(plat(r[0]!), /^Presque pas de bâti : 95 m² construits sur 9\s874 m²/);
+  });
+
+  it('nomme le propriétaire public ou le bailleur social', () => {
+    const ville = pourquoiSiPeu({
+      ...base,
+      batiment: batiment({
+        proprietaires: [{ nom: 'VILLE DE PARIS', siren: null, genre: 'public' }],
+        usage: 'Tertiaire',
+        logements: null,
+      }),
+    });
+    assert.equal(ville[0], 'Propriété de Ville de Paris : bâtiment public, hors marché.');
+    assert.match(ville[1]!, /^Usage tertiaire : ni DPE de logement/);
+    const adoma = pourquoiSiPeu({
+      ...base,
+      batiment: batiment({ proprietaires: [{ nom: 'ADOMA', siren: null, genre: 'social' }] }),
+    });
+    assert.equal(adoma[0], 'Logements sociaux (Adoma) : ils ne se vendent presque jamais à l’unité.');
+  });
+
+  it('dit ce que couvrent les données pour un immeuble résidentiel calme', () => {
+    const r = pourquoiSiPeu({ ...base, batiment: batiment({}) });
+    assert.deepEqual(r, [
+      'Aucun DPE depuis juillet 2021 : il n’est exigé qu’à la vente ou à la mise en location.',
+      'Aucune vente d’appartement ni de maison depuis janvier 2021 : les données DVF couvrent cinq ans.',
+    ]);
+  });
+
+  it('distingue une parcelle sans bâtiment d’une BDNB muette', () => {
+    assert.match(pourquoiSiPeu({ ...base, adresses: 0, batiment: null })[0]!, /^Ni bâtiment ni adresse/);
+    const muette = pourquoiSiPeu({ ...base, batiment: null, batimentConnu: false });
+    assert.match(muette[0]!, /^Aucun DPE depuis juillet 2021/);
+  });
+});
+
+describe('syntheseParcelle avec la BDNB', () => {
+  it('ajoute SCI, anciennes passoires et ligne immeuble, sans pastille d’abords', () => {
+    const s = syntheseParcelle(
+      {
+        ventes: [],
+        logements: [],
+        coproprietes: [],
+        prixM2Secteur: null,
+        batiment: {
+          nbBatiments: 1,
+          empriseM2: 1640,
+          usage: 'Résidentiel collectif',
+          anneeConstruction: 1928,
+          niveaux: 8,
+          logements: 268,
+          materiaux: 'BETON',
+          proprietaires: [
+            { nom: 'SCI PREMIAN', siren: null, genre: 'sci' },
+            { nom: 'SCI CYJO', siren: null, genre: 'sci' },
+          ],
+          dpeRecents: 0,
+          dpeRecentsFG: 0,
+          dpeAnciens: 9,
+          dpeAnciensFG: 4,
+          dpeTertiaire: null,
+          monumentHistorique: { nom: 'palais de la femme', distanceM: 33 },
+          quartierPrioritaire: null,
+          adressesBan: [],
+          adressePrincipale: null,
+        },
+        batimentConnu: true,
+        adresses: 1,
+      },
+      MAINTENANT,
+    );
+    assert.equal(plat(s.immeuble!), 'Résidentiel collectif · construit en 1928 · 8 niveaux · 268 logements');
+    assert.deepEqual(
+      s.faits.map((f) => f.cle),
+      ['sci', 'passoires-anciennes'],
+    );
+    assert.equal(plat(s.faits[0]!.texte), '2 SCI détiennent des lots ici : des investisseurs, joignables par leur gérant');
+    assert.equal(s.pastilles.some((p) => p.cle === 'abf'), false);
+  });
+});
+
+describe('pastillesEnteteParcelle', () => {
+  it('raccourcit l’usage résidentiel', () => {
+    assert.equal(raccourcirUsage('Résidentiel collectif'), 'Collectif');
+    assert.equal(raccourcirUsage('Résidentiel individuel'), 'Individuel');
+    assert.equal(raccourcirUsage('Tertiaire'), 'Tertiaire');
+  });
+
+  it('assemble une ligne dense sans la référence cadastrale', () => {
+    const chips = pastillesEnteteParcelle({
+      localite: '75020 Paris',
+      surfaceM2: 442,
+      batiment: {
+        nbBatiments: 1,
+        empriseM2: 200,
+        usage: 'Résidentiel collectif',
+        anneeConstruction: 1914,
+        niveaux: 7,
+        logements: 13,
+        materiaux: null,
+        proprietaires: [],
+        dpeRecents: 0,
+        dpeRecentsFG: 0,
+        dpeAnciens: 0,
+        dpeAnciensFG: 0,
+        dpeTertiaire: null,
+        monumentHistorique: null,
+        quartierPrioritaire: null,
+        adressesBan: [],
+        adressePrincipale: null,
+      },
+    });
+    assert.deepEqual(
+      chips.map((c) => ({ cle: c.cle, libelle: plat(c.libelle) })),
+      [
+        { cle: 'localite', libelle: '75020 Paris' },
+        { cle: 'surface', libelle: '442 m²' },
+        { cle: 'usage', libelle: 'Collectif' },
+        { cle: 'annee', libelle: '1914' },
+        { cle: 'niveaux', libelle: '7 niv.' },
+        { cle: 'logements', libelle: '13 log.' },
+      ],
+    );
+  });
+});
+
+describe('pourquoiSiPeu, immeubles mixtes', () => {
+  it('ne dit pas « tertiaire » d’un immeuble qui a des logements ou des DPE', () => {
+    const b: BatimentParcelle = {
+      nbBatiments: 1,
+      empriseM2: 2000,
+      usage: 'Tertiaire',
+      anneeConstruction: 1993,
+      niveaux: 4,
+      logements: 168,
+      materiaux: null,
+      proprietaires: [],
+      dpeRecents: 0,
+      dpeRecentsFG: 0,
+      dpeAnciens: 0,
+      dpeAnciensFG: 0,
+      dpeTertiaire: null,
+      monumentHistorique: null,
+      quartierPrioritaire: null,
+      adressesBan: [],
+      adressePrincipale: null,
+    };
+    const r = pourquoiSiPeu({ ventes: 0, logements: 493, adresses: 1, surfaceM2: null, batiment: b, batimentConnu: true });
+    assert.ok(r.every((x) => !x.startsWith('Usage')));
+  });
+});
+
+describe('faitSci', () => {
+  const sci = (nom: string, nbLots: number, niveaux: number[] = []) => ({
+    nom,
+    siren: null,
+    genre: 'sci' as const,
+    nbLots,
+    niveaux,
+  });
+
+  it('dit qu’une SCI ne détient qu’un lot, avec son étage', () => {
+    assert.equal(
+      faitSci([sci('SCI A', 1, [3])], true),
+      'Une SCI détient un lot ici (3e étage) : un investisseur, joignable par son gérant',
+    );
+  });
+
+  it('repère une SCI seule propriétaire sans copropriété : l’immeuble entier', () => {
+    assert.match(
+      faitSci([sci('SCI LES LILAS', 12, [0, 1, 2, 3])], false)!,
+      /^SCI les Lilas est la seule propriétaire connue \(12 lots, aucune copropriété déclarée\)/,
+    );
+  });
+
+  it('additionne les lots de plusieurs SCI', () => {
+    assert.equal(
+      faitSci([sci('SCI A', 1), sci('SCI B', 4)], true),
+      '2 SCI détiennent 5 lots ici : des investisseurs, joignables par leur gérant',
+    );
+  });
+
+  it('tait une SCI qui n’a qu’un parking ou une cave', () => {
+    assert.equal(faitSci([sci('SCI PARKING', 1, [-1])], true), null);
+    assert.equal(
+      faitSci([sci('SCI PARKING', 2, [-1, -2]), sci('SCI B', 1, [4])], true),
+      'Une SCI détient un lot ici (4e étage) : un investisseur, joignable par son gérant',
+    );
+  });
+
+  it('ne dit pas « seule propriétaire » quand une autre SCI tient un parking', () => {
+    assert.match(
+      faitSci([sci('SCI LES LILAS', 12, [0, 1, 2]), sci('SCI PARKING', 1, [-1])], false)!,
+      /^Une SCI détient 12 lots ici/,
+    );
+  });
+
+  it('reste prudente sans le détail des lots (BDNB seule)', () => {
+    assert.equal(
+      faitSci([{ nom: 'SCI A', siren: null, genre: 'sci' }], true),
+      '1 SCI détient des lots ici : un investisseur, joignable par son gérant',
+    );
+  });
+});
+
+describe('decrireAudit', () => {
+  it('dit le logement, la classe et le gain possible', () => {
+    const texte = decrireAudit(
+      {
+        numero: 'A1',
+        date: '2026-07-01',
+        banId: null,
+        classeActuelle: 'F',
+        classeVisee: 'A',
+        typologie: 'T3',
+        surface: 62.4,
+        etage: 4,
+      },
+      MAINTENANT,
+    );
+    assert.equal(
+      plat(texte),
+      'Audit énergétique il y a 3 mois (T3 · 62 m² · 4e étage, F → A après travaux) : le propriétaire prépare une vente ou des travaux',
+    );
   });
 });

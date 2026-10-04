@@ -11,6 +11,12 @@ export async function GET(req: Request) {
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(1, limitRaw), 10) : 5;
   const postcode = url.searchParams.get('postcode')?.trim() ?? '';
   const autocomplete = url.searchParams.get('autocomplete') !== '0';
+  const lat = Number(url.searchParams.get('lat'));
+  const lon = Number(url.searchParams.get('lon'));
+  const proche =
+    url.searchParams.has('lat') && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+      ? { latitude: lat, longitude: lon }
+      : null;
 
   if (q.length < 3) {
     return NextResponse.json({ features: [] });
@@ -21,6 +27,7 @@ export async function GET(req: Request) {
       limit,
       postcode: /^\d{5}$/.test(postcode) ? postcode : undefined,
       autocomplete,
+      proche,
     });
     return NextResponse.json(
       { features },

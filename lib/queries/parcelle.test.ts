@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { PARCELLE_READ_QUERIES } from './parcelle';
 
 const LIVE_SCHEMA: Record<string, readonly string[]> = {
-  parcelle_adresses: ['parcelle_id', 'ban_id', 'source', 'created_at'],
+  parcelle_adresses: ['parcelle_id', 'ban_id', 'source', 'created_at', 'code_postal'],
   buildings: ['id', 'ban_id', 'adresse', 'adresse_normalisee', 'code_postal', 'commune', 'lat', 'lng', 'parcelle_id', 'updated_at'],
   building_transactions: [
     'id',

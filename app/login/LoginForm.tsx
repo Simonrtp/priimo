@@ -189,12 +189,16 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
                 </p>
               )}
               <div className="mt-2 text-right">
-                <a
-                  href="#"
+                <Link
+                  href={
+                    EMAIL_REGEX.test(email.trim())
+                      ? `/mot-de-passe/oublie?email=${encodeURIComponent(email.trim())}`
+                      : '/mot-de-passe/oublie'
+                  }
                   className="text-xs text-gray-600 hover:text-accent-dark transition"
                 >
                   Mot de passe oublié ?
-                </a>
+                </Link>
               </div>
             </div>
 

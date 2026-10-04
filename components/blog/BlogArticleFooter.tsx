@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { CALENDLY_URL } from '@/lib/calendly';
+import CtaButton from '@/components/CtaButton';
 
 export default function BlogArticleFooter() {
   return (
@@ -11,12 +12,12 @@ export default function BlogArticleFooter() {
           contacts professionnels lorsqu&apos;ils existent.
         </p>
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <Link href="/" className="btn btn-primary px-7 py-3.5 text-base">
+          <CtaButton href="/" className="px-7 py-3.5 text-base">
             Découvrir Priimo
             <span data-arrow aria-hidden>
               →
             </span>
-          </Link>
+          </CtaButton>
           <a
             href={CALENDLY_URL}
             target="_blank"

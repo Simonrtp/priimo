@@ -27,6 +27,8 @@ export type SearchHit = {
   subtitle: string;
   snippet: string | null;
   href: string;
+  /** Où se trouve la fiche : sur la carte, la choisir y amène. */
+  lieu?: { latitude: number; longitude: number; banId: string | null } | null;
 };
 
 export type SearchSuggestion = Pick<SearchHit, 'id' | 'kind' | 'label' | 'subtitle' | 'href'>;
@@ -131,6 +133,14 @@ function addressLabel(row: {
   return tail ? `${row.address}, ${tail}` : row.address;
 }
 
+type Geo = { latitude?: number | null; longitude?: number | null; ban_id?: string | null };
+
+function lieuDe(row: Geo): SearchHit['lieu'] {
+  return typeof row.latitude === 'number' && typeof row.longitude === 'number'
+    ? { latitude: row.latitude, longitude: row.longitude, banId: row.ban_id ?? null }
+    : null;
+}
+
 export type SearchRows = {
   leads: Array<{
     id: string;
@@ -142,7 +152,7 @@ export type SearchRows = {
     owner_name?: string | null;
     company_name?: string | null;
     assigned_to: string | null;
-  }>;
+  } & Geo>;
   contacts: Array<{
     id: string;
     first_name: string | null;
@@ -154,7 +164,7 @@ export type SearchRows = {
     contact_type: string;
     assigned_to?: string | null;
     created_by: string | null;
-  }>;
+  } & Geo>;
   biens: Array<{
     id: string;
     address: string;
@@ -166,7 +176,7 @@ export type SearchRows = {
     listing_description?: string | null;
     property_type?: string | null;
     created_by: string | null;
-  }>;
+  } & Geo>;
   notes: Array<{
     id: string;
     transcript: string | null;
@@ -213,7 +223,7 @@ export async function fetchSearchRows(
     supabase
       .from('leads')
       .select(
-        'id, address, city, postal_code, adresse_normalisee, notes, owner_name, company_name, assigned_to',
+        'id, address, city, postal_code, adresse_normalisee, notes, owner_name, company_name, assigned_to, latitude, longitude, ban_id',
       )
       .eq('agency_id', agencyId)
       .or(
@@ -227,7 +237,7 @@ export async function fetchSearchRows(
     supabase
       .from('contacts')
       .select(
-        'id, first_name, last_name, address, phone, email, summary, contact_type, assigned_to, created_by',
+        'id, first_name, last_name, address, phone, email, summary, contact_type, assigned_to, created_by, latitude, longitude, ban_id',
       )
       .eq('agency_id', agencyId)
       .or(contactOr)
@@ -236,7 +246,7 @@ export async function fetchSearchRows(
     supabase
       .from('biens')
       .select(
-        'id, address, city, postal_code, adresse_normalisee, notes, listing_title, listing_description, property_type, created_by',
+        'id, address, city, postal_code, adresse_normalisee, notes, listing_title, listing_description, property_type, created_by, latitude, longitude, ban_id',
       )
       .eq('agency_id', agencyId)
       .or(
@@ -323,6 +333,7 @@ export function buildSearchHits(
       subtitle: KIND_LABEL.lead,
       snippet: row.owner_name ?? row.company_name ?? null,
       href: hrefLead(row.id),
+      lieu: lieuDe(row),
       score: s + 1,
     });
   }
@@ -347,6 +358,7 @@ export function buildSearchHits(
       subtitle: row.contact_type === 'acquereur' ? 'Acquéreur' : KIND_LABEL.contact,
       snippet: row.phone ?? row.email ?? row.address ?? null,
       href: hrefContact(row.id),
+      lieu: lieuDe(row),
       score: s + 2,
     });
   }
@@ -374,6 +386,7 @@ export function buildSearchHits(
       subtitle: KIND_LABEL.bien,
       snippet: row.listing_title ?? null,
       href: hrefBien(row.id),
+      lieu: lieuDe(row),
       score: s,
     });
   }

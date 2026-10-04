@@ -47,6 +47,8 @@ export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 /** Plan cadastral : gris papier, toutes les parcelles. */
 const FILL = 'rgba(168, 174, 182, 0.34)';
 const FILL_VENTE = 'rgba(92, 100, 110, 0.46)';
+/** Immeuble suivi par l’agent — accent Priimo. */
+const FILL_SUIVI = 'rgba(232, 116, 60, 0.45)';
 const FILL_HOVER = 'rgba(26, 42, 86, 0.22)';
 const FILL_SELECTED = 'rgba(26, 42, 86, 0.28)';
 const LINE = 'rgba(110, 116, 124, 0.78)';
@@ -90,11 +92,11 @@ function pointerCanHover(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
 }
 
-function parcelleIdOf(feature: { properties?: Record<string, unknown> | null } | undefined): string | null {
+export function parcelleIdOf(feature: { properties?: Record<string, unknown> | null } | undefined): string | null {
   return normalizeParcelleId(typeof feature?.properties?.idu === 'string' ? feature.properties.idu : null);
 }
 
-function surfaceDepuisFeature(feature: {
+export function surfaceDepuisFeature(feature: {
   properties?: Record<string, unknown> | null;
   geometry?: unknown;
 }): number | null {
@@ -112,7 +114,8 @@ function mapCanvas(map: { getCanvas: () => HTMLCanvasElement | undefined }): HTM
 export default function ParcellesLayer({
   mapRef,
   enabled,
-  activeParcelleIds,
+  activeParcelleIds: _activeParcelleIds,
+  suiviParcelleIds = [],
   noteMarkers,
   selectedParcelleId,
   immeubles,
@@ -123,7 +126,10 @@ export default function ParcellesLayer({
 }: {
   mapRef: React.RefObject<MapRef | null>;
   enabled: boolean;
+  /** Conservé pour l’API parent — le fill n’utilise plus l’état « active ». */
   activeParcelleIds: readonly string[];
+  /** Parcelles que l’agent suit — peintes en orange. */
+  suiviParcelleIds?: readonly string[];
   noteMarkers: readonly ParcelleNoteMarker[];
   selectedParcelleId: string | null;
   immeubles: readonly CadastreImmeublePoint[];
@@ -134,8 +140,8 @@ export default function ParcellesLayer({
 }) {
   const hoverId = useRef<string | null>(null);
   const painted = useRef<Set<string>>(new Set());
-  const eventSet = useRef(new Set<string>());
-  eventSet.current = new Set(activeParcelleIds);
+  const suiviSet = useRef(new Set<string>());
+  suiviSet.current = new Set(suiviParcelleIds);
   const immeublesRef = useRef(immeubles);
   immeublesRef.current = immeubles;
   const selectedParcelleRef = useRef(selectedParcelleId);
@@ -163,7 +169,7 @@ export default function ParcellesLayer({
       prefetchTimer.current = null;
       lastPrefetchId.current = parcelleId;
       onPrefetchRef.current?.(parcelleId);
-    }, 70);
+    }, 220);
   }, []);
 
   const venteAgg = useMemo(() => ventesParParcelle(immeubles), [immeubles]);
@@ -225,18 +231,32 @@ export default function ParcellesLayer({
     setOverlayHover(null);
   }, [layers.cadastreDpeAges, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro]);
 
+  const noteByParcelleRef = useRef(noteByParcelle);
+  noteByParcelleRef.current = noteByParcelle;
+  const paintNowRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map || !enabled) {
       setPins([]);
       setVenteLabels([]);
+      paintNowRef.current = null;
       return;
     }
 
     let cancelled = false;
+    let paintRaf = 0;
+    let settleTimer = 0;
+    /** État sérialisé par parcelle — évite setFeatureState redondants. */
+    const stateCache = new Map<string, string>();
+
+    const featureKey = (parcelleId: string, featureId: string | number | undefined) =>
+      `${parcelleId}|${featureId ?? parcelleId}`;
 
     const paintStates = () => {
       if (cancelled) return;
+      // Pendant zoom/pan : ne pas bloquer le thread avec un scan PCI complet.
+      if (map.isMoving() || map.isZooming() || map.isRotating()) return;
       if (!map.getLayer(PARCELLES_FILL_LAYER_ID)) return;
       const canvas = mapCanvas(map);
       if (!canvas) return;
@@ -253,44 +273,51 @@ export default function ParcellesLayer({
       const pinSeen = new Set<string>();
       const venteSeen = new Set<string>();
       const ventesOn = layersRef.current.cadastreVentes;
+      const selectedId = selectedParcelleRef.current;
+      const notes = noteByParcelleRef.current;
 
       for (const f of feats) {
         const parcelleId = parcelleIdOf(f);
         if (!parcelleId) continue;
         next.add(parcelleId);
         const hasVente = ventesOn && venteAggRef.current.has(parcelleId);
+        const estSuivi = suiviSet.current.has(parcelleId);
         const centre = centroidLngLat(f.geometry);
         const hors = !cadastreDansEmprise(
           { latitude: centre?.latitude ?? null, longitude: centre?.longitude ?? null },
           clipZoneRef.current,
         );
-        map.setFeatureState(
-          { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: f.id ?? parcelleId },
-          {
-            active: eventSet.current.has(parcelleId),
-            selected: selectedParcelleId === parcelleId,
-            hover: hoverId.current === parcelleId,
-            vente: hasVente && !hors,
-            hors,
-          },
-        );
+        const state = {
+          selected: selectedId === parcelleId,
+          hover: hoverId.current === parcelleId,
+          suivi: estSuivi && !hors,
+          vente: hasVente && !hors,
+          hors,
+        };
+        const key = featureKey(parcelleId, f.id as string | number | undefined);
+        const serialized = `${state.selected ? 1 : 0}${state.hover ? 1 : 0}${state.suivi ? 1 : 0}${state.vente ? 1 : 0}${state.hors ? 1 : 0}`;
+        if (stateCache.get(key) !== serialized) {
+          stateCache.set(key, serialized);
+          map.setFeatureState(
+            { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: f.id ?? parcelleId },
+            state,
+          );
+        }
         if (hasVente && !hors && !venteSeen.has(parcelleId)) {
-          const c = centroidLngLat(f.geometry);
-          if (c) {
+          if (centre) {
             venteSeen.add(parcelleId);
-            nextVentes.push({ parcelleId, longitude: c.longitude, latitude: c.latitude });
+            nextVentes.push({ parcelleId, longitude: centre.longitude, latitude: centre.latitude });
           }
         }
-        if (noteByParcelle.has(parcelleId) && !hors && !pinSeen.has(parcelleId)) {
-          const c = centroidLngLat(f.geometry);
-          if (c) {
+        if (notes.has(parcelleId) && !hors && !pinSeen.has(parcelleId)) {
+          if (centre) {
             pinSeen.add(parcelleId);
-            nextPins.push({ parcelleId, longitude: c.longitude, latitude: c.latitude });
+            nextPins.push({ parcelleId, longitude: centre.longitude, latitude: centre.latitude });
           }
         }
       }
 
-      for (const [parcelleId, marker] of noteByParcelle) {
+      for (const [parcelleId, marker] of notes) {
         if (pinSeen.has(parcelleId)) continue;
         if (marker.latitude == null || marker.longitude == null) continue;
         if (!cadastreDansEmprise(marker, clipZoneRef.current)) continue;
@@ -301,20 +328,19 @@ export default function ParcellesLayer({
       for (const parcelleId of painted.current) {
         if (next.has(parcelleId)) continue;
         map.removeFeatureState({ source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: parcelleId });
+        for (const key of stateCache.keys()) {
+          if (key.startsWith(`${parcelleId}|`)) stateCache.delete(key);
+        }
       }
       painted.current = next;
       if (cancelled) return;
-      setPins((prev) => {
-        const key = (rows: Pin[]) =>
-          rows.map((p) => `${p.parcelleId}:${p.longitude.toFixed(5)}:${p.latitude.toFixed(5)}`).join('|');
-        return key(prev) === key(nextPins) ? prev : nextPins;
-      });
-      setVenteLabels((prev) => {
-        const key = (rows: Pin[]) =>
-          rows.map((p) => `${p.parcelleId}:${p.longitude.toFixed(5)}:${p.latitude.toFixed(5)}`).join('|');
-        return key(prev) === key(nextVentes) ? prev : nextVentes;
-      });
+      const pinKey = (rows: Pin[]) =>
+        rows.map((p) => `${p.parcelleId}:${p.longitude.toFixed(5)}:${p.latitude.toFixed(5)}`).join('|');
+      setPins((prev) => (pinKey(prev) === pinKey(nextPins) ? prev : nextPins));
+      setVenteLabels((prev) => (pinKey(prev) === pinKey(nextVentes) ? prev : nextVentes));
     };
+
+    paintNowRef.current = paintStates;
 
     const applyHover = (parcelleId: string | null) => {
       const canvas = mapCanvas(map);
@@ -324,28 +350,35 @@ export default function ParcellesLayer({
         map.setFeatureState(
           { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: hoverId.current },
           {
-            active: eventSet.current.has(hoverId.current),
-            selected: selectedParcelleId === hoverId.current,
+            selected: selectedParcelleRef.current === hoverId.current,
             hover: false,
+            suivi: suiviSet.current.has(hoverId.current),
             vente: layersRef.current.cadastreVentes && venteAggRef.current.has(hoverId.current),
           },
         );
+        for (const key of stateCache.keys()) {
+          if (key.startsWith(`${hoverId.current}|`)) stateCache.delete(key);
+        }
       }
       hoverId.current = parcelleId;
       if (parcelleId) {
         map.setFeatureState(
           { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: parcelleId },
           {
-            active: eventSet.current.has(parcelleId),
-            selected: selectedParcelleId === parcelleId,
+            selected: selectedParcelleRef.current === parcelleId,
             hover: true,
+            suivi: suiviSet.current.has(parcelleId),
             vente: layersRef.current.cadastreVentes && venteAggRef.current.has(parcelleId),
           },
         );
+        for (const key of stateCache.keys()) {
+          if (key.startsWith(`${parcelleId}|`)) stateCache.delete(key);
+        }
       }
     };
 
     const onMove = (e: MapLayerMouseEvent) => {
+      if (map.isMoving() || map.isZooming()) return;
       const f = e.features?.[0];
       const parcelleId = parcelleIdOf(f);
       const centre = f ? centroidLngLat(f.geometry) : null;
@@ -392,44 +425,85 @@ export default function ParcellesLayer({
       setOverlayHover(null);
     };
     const onClick = (e: MapLayerMouseEvent) => {
-      const f = e.features?.[0];
-      const parcelleId = parcelleIdOf(f);
-      if (!parcelleId || !f) return;
-      e.originalEvent.stopPropagation();
-      setOverlayHover(null);
-      // Démarre le fetch avant le rendu du volet si le survol n’a pas eu le temps.
-      lastPrefetchId.current = parcelleId;
-      onPrefetchRef.current?.(parcelleId);
-      const centre = centroidLngLat(f.geometry);
-      if (
-        !cadastreDansEmprise(
-          { latitude: centre?.latitude ?? e.lngLat.lat, longitude: centre?.longitude ?? e.lngLat.lng },
-          clipZoneRef.current,
-        )
-      ) {
+      // Toutes les parcelles sous le curseur (pas seulement la 1ʳᵉ) — évite les
+      // clics « morts » quand une feature hors emprise ou un overlay est au-dessus.
+      const hits =
+        e.features && e.features.length > 0
+          ? e.features
+          : map.queryRenderedFeatures(e.point, { layers: [PARCELLES_FILL_LAYER_ID] });
+      for (const f of hits) {
+        const parcelleId = parcelleIdOf(f);
+        if (!parcelleId) continue;
+        const centre = centroidLngLat(f.geometry);
+        const lat = centre?.latitude ?? e.lngLat.lat;
+        const lng = centre?.longitude ?? e.lngLat.lng;
+        if (!cadastreDansEmprise({ latitude: lat, longitude: lng }, clipZoneRef.current)) {
+          continue;
+        }
+        e.originalEvent.stopPropagation();
+        setOverlayHover(null);
+        lastPrefetchId.current = parcelleId;
+        onPrefetchRef.current?.(parcelleId);
+        onPick(parcelleId, {
+          surfaceM2: surfaceDepuisFeature(f),
+          longitude: lng,
+          latitude: lat,
+        });
         return;
       }
-      onPick(parcelleId, { surfaceM2: surfaceDepuisFeature(f) });
     };
 
-    map.on('idle', paintStates);
+    const schedulePaint = () => {
+      if (paintRaf) return;
+      paintRaf = window.requestAnimationFrame(() => {
+        paintRaf = 0;
+        paintStates();
+      });
+    };
+
+    /** Après un geste : 1 paint immédiat + 1 paint quand les tuiles PCI ont fini. */
+    const onMoveEnd = () => {
+      if (settleTimer) window.clearTimeout(settleTimer);
+      schedulePaint();
+      settleTimer = window.setTimeout(() => {
+        settleTimer = 0;
+        if (cancelled) return;
+        map.once('idle', schedulePaint);
+      }, 80);
+    };
+
+    map.on('moveend', onMoveEnd);
     map.on('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
     map.on('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
     map.on('click', PARCELLES_FILL_LAYER_ID, onClick);
-    paintStates();
+    schedulePaint();
 
     return () => {
       cancelled = true;
+      paintNowRef.current = null;
+      if (paintRaf) window.cancelAnimationFrame(paintRaf);
+      if (settleTimer) window.clearTimeout(settleTimer);
       if (prefetchTimer.current != null) {
         window.clearTimeout(prefetchTimer.current);
         prefetchTimer.current = null;
       }
-      map.off('idle', paintStates);
+      map.off('moveend', onMoveEnd);
       map.off('mousemove', PARCELLES_FILL_LAYER_ID, onMove);
       map.off('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
       map.off('click', PARCELLES_FILL_LAYER_ID, onClick);
     };
-  }, [enabled, activeParcelleIds, mapRef, noteByParcelle, onPick, schedulePrefetch, selectedParcelleId, layers.cadastreVentes, venteAgg, clipZone]);
+    // noteByParcelle / venteAgg / sélection / suivi : lus via refs
+    // pour ne pas ré-attacher les listeners à chaque pan ou fetch overlay.
+  }, [enabled, mapRef, onPick, schedulePrefetch, layers.cadastreVentes, clipZone]);
+
+  // Repaint ciblé (sans rejouer moveend → refetch viewport).
+  // activeParcelleIds n’influence plus le fill (état « active » retiré) :
+  // on ne repeint que suivi / sélection.
+  const suiviKey = suiviParcelleIds.join(',');
+  useEffect(() => {
+    if (!enabled) return;
+    paintNowRef.current?.();
+  }, [enabled, suiviKey, selectedParcelleId]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
@@ -447,9 +521,9 @@ export default function ParcellesLayer({
         map.setFeatureState(
           { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: hoverId.current },
           {
-            active: eventSet.current.has(hoverId.current),
             selected: selectedParcelleRef.current === hoverId.current,
             hover: false,
+            suivi: suiviSet.current.has(hoverId.current),
             vente: layersRef.current.cadastreVentes && venteAggRef.current.has(hoverId.current),
           },
         );
@@ -459,9 +533,9 @@ export default function ParcellesLayer({
         map.setFeatureState(
           { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: parcelleId },
           {
-            active: eventSet.current.has(parcelleId),
             selected: selectedParcelleRef.current === parcelleId,
             hover: true,
+            suivi: suiviSet.current.has(parcelleId),
             vente: layersRef.current.cadastreVentes && venteAggRef.current.has(parcelleId),
           },
         );
@@ -535,7 +609,12 @@ export default function ParcellesLayer({
       setOverlayHover(null);
       lastPrefetchId.current = parcelleId;
       onPrefetchRef.current?.(parcelleId);
-      onPick(parcelleId, { surfaceM2: f ? surfaceDepuisFeature(f) : null });
+      const centrePick = f ? centroidLngLat(f.geometry) : null;
+      onPick(parcelleId, {
+        surfaceM2: f ? surfaceDepuisFeature(f) : null,
+        longitude: centrePick?.longitude ?? e.lngLat.lng,
+        latitude: centrePick?.latitude ?? e.lngLat.lat,
+      });
     };
 
     const overlayLayers = [
@@ -581,6 +660,8 @@ export default function ParcellesLayer({
                 FILL_SELECTED,
                 ['boolean', ['feature-state', 'hover'], false],
                 FILL_HOVER,
+                ['boolean', ['feature-state', 'suivi'], false],
+                FILL_SUIVI,
                 ['boolean', ['feature-state', 'vente'], false],
                 FILL_VENTE,
                 FILL,
@@ -687,28 +768,24 @@ export default function ParcellesLayer({
                   ['linear'],
                   ['zoom'],
                   12,
-                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 6.5, 5.5],
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 5, 4],
                   14,
-                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 9, 7.5],
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 6.5, 5.5],
                   16,
-                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 12, 10],
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 8, 7],
                   18,
-                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 14, 12],
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 9, 8],
                 ],
                 'circle-color': DPE_CIRCLE_COLOR,
+                // zoom doit rester au top-level (Mapbox refuse zoom dans un case)
                 'circle-stroke-width': [
-                  'case',
-                  ['==', ['get', 'dpeGrain'], 'adresse'],
-                  2,
-                  [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    12,
-                    1,
-                    16,
-                    1.6,
-                  ],
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  12,
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 1.4, 1],
+                  16,
+                  ['case', ['==', ['get', 'dpeGrain'], 'adresse'], 1.6, 1.2],
                 ],
                 'circle-stroke-color': '#F8F5F0',
                 'circle-opacity': 0.96,
@@ -732,12 +809,12 @@ export default function ParcellesLayer({
                   14,
                   9,
                   16,
-                  12,
+                  11,
                 ],
                 'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-                'text-allow-overlap': false,
-                'text-ignore-placement': false,
-                'text-optional': true,
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+                'text-optional': false,
                 'text-pitch-alignment': 'viewport',
                 'text-rotation-alignment': 'viewport',
               }}
@@ -817,7 +894,10 @@ export default function ParcellesLayer({
           style={{ zIndex: 4 }}
           onClick={(event) => {
             event.originalEvent.stopPropagation();
-            onPick(m.parcelleId);
+            onPick(m.parcelleId, {
+              longitude: m.longitude,
+              latitude: m.latitude,
+            });
           }}
         >
           <button

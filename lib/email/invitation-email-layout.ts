@@ -20,18 +20,26 @@ type InvitationEmailContent = {
   title: string;
   bodyHtml: string;
   inviteUrl: string;
+  /** Texte du bouton ; « Créer mon compte » par défaut. */
+  ctaLabel?: string;
+  /** Petite ligne sous le bouton ; celle de l'invitation par défaut. */
+  footnote?: string;
 };
 
 export function renderInvitationEmailHtml(content: InvitationEmailContent): string {
   const safeTitle = escapeHtml(content.title);
   const safeUrl = escapeHtml(content.inviteUrl);
+  const safeCta = escapeHtml(content.ctaLabel ?? 'Créer mon compte');
+  const safeFootnote = escapeHtml(
+    content.footnote ?? "Ce lien expire dans 7 jours. Si vous n'avez pas demandé cette invitation, ignorez cet email.",
+  );
 
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Invitation Priimo</title>
+  <title>${safeTitle}</title>
 </head>
 <body style="margin:0;padding:0;background:#FAFAF9;font-family:'Inter','Helvetica Neue',Arial,sans-serif;color:${INK};">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#FAFAF9;padding:24px 0;">
@@ -53,13 +61,13 @@ export function renderInvitationEmailHtml(content: InvitationEmailContent): stri
                 <tr>
                   <td align="center" bgcolor="${ACCENT}" style="border-radius:10px;">
                     <a href="${safeUrl}" target="_blank" style="display:inline-block;padding:14px 24px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none;">
-                      Créer mon compte
+                      ${safeCta}
                     </a>
                   </td>
                 </tr>
               </table>
               <p style="margin:24px 0 0;font-size:12px;line-height:1.55;color:${MUTE};">
-                Ce lien expire dans 7 jours. Si vous n'avez pas demandé cette invitation, ignorez cet email.
+                ${safeFootnote}
               </p>
             </td>
           </tr>

@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
 import { comprendreEnDirect } from '@/lib/notes/extract-review';
 import { MistralKeyMissingError } from '@/lib/voice/transcribe';
+import { reponseQuotaIa, reserverIa } from '@/lib/ia/quota';
 
 export const runtime = 'nodejs';
 export const maxDuration = 20;
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   if (!limit.ok) {
     return NextResponse.json({ error: 'Trop de lectures' }, { status: 429 });
   }
+  if (!(await reserverIa('comprehension'))) return reponseQuotaIa();
 
   let body: Record<string, unknown>;
   try {

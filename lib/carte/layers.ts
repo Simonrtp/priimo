@@ -47,8 +47,8 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
   contact: true,
   bien: true,
   note: true,
-  /** Plan PCI : toujours affiché côté carte ; ce flag reste pour compat stockage. */
-  cadastre: true,
+  /** Plan PCI : off par défaut ; s’affiche aussi dès qu’un overlay (DPE/ventes/copro) est coché. */
+  cadastre: false,
   cadastreDpe: false,
   cadastreVentes: false,
   cadastreCopro: false,
@@ -58,8 +58,8 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
 
 export const MAP_LAYERS_STORAGE_KEY = 'priimo-carte-layers';
 export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
-/** Rev 5 : plan cadastral permanent ; pastilles DPE/ventes/copro éteintes jusqu’à clic Couches. */
-export const MAP_LAYERS_STORAGE_REV = 5;
+/** Rev 6 : plan parcellaire off par défaut (sauf si overlay cadastre actif). */
+export const MAP_LAYERS_STORAGE_REV = 6;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
@@ -81,7 +81,7 @@ export function parseMapLayers(raw: unknown): MapLayerState {
   };
 }
 
-/** Rev 2–3 allumaient DPE avec Cadastre. Rev 5 : plan always-on, pastilles off. */
+/** Rev 6 : plan off par défaut ; pastilles restent éteintes si on vient d’avant. */
 export function migrateStoredMapLayers(
   state: MapLayerState,
   rev: number,
@@ -90,21 +90,31 @@ export function migrateStoredMapLayers(
   return {
     state: {
       ...state,
-      cadastre: true,
-      cadastreDpe: false,
-      cadastreVentes: false,
-      cadastreCopro: false,
+      cadastre: false,
+      ...(rev < 5
+        ? {
+            cadastreDpe: false,
+            cadastreVentes: false,
+            cadastreCopro: false,
+          }
+        : {}),
     },
     rev: MAP_LAYERS_STORAGE_REV,
   };
 }
 
+/** Au moins une couche cadastre cochée (plan ou overlay). */
 export function anyCadastreLayer(layers: MapLayerState): boolean {
-  return layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+  return layers.cadastre || anyCadastreOverlay(layers);
 }
 
 export function anyCadastreOverlay(layers: MapLayerState): boolean {
   return layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+}
+
+/** Plan PCI visible : case Parcelles, ou un overlay qui en a besoin. */
+export function showParcellesPlan(layers: MapLayerState): boolean {
+  return layers.cadastre || anyCadastreOverlay(layers);
 }
 
 export function withCadastreLayerToggled(prev: MapLayerState, id: CadastreLayerId): MapLayerState {

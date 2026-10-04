@@ -19,6 +19,8 @@ export type EnvolArrive = {
 };
 
 const CIBLE_NOTES = 'informations_terrain';
+/** Cloche du header : « Suivre un immeuble » s’envole ici. */
+export const CIBLE_CLOCHE = 'cloche';
 
 function visible(el: Element): DOMRect | null {
   const r = el.getBoundingClientRect();
@@ -28,13 +30,16 @@ function visible(el: Element): DOMRect | null {
   return r;
 }
 
-/** Le chiffre de la carte, sinon l'entrée « Accueil » de la navigation. */
+/** L’élément marqué `data-envol-cible`, sinon (notes) l’entrée Accueil. */
 function trouverCible(nom: string): { el: HTMLElement; couleur: string | null; carte: boolean } | null {
   for (const el of document.querySelectorAll<HTMLElement>(`[data-envol-cible="${nom}"]`)) {
     if (visible(el)) return { el, couleur: el.dataset.envolCouleur ?? null, carte: true };
   }
-  for (const el of document.querySelectorAll<HTMLElement>('a[href="/dashboard"]')) {
-    if (/accueil/i.test(el.textContent ?? '') && visible(el)) return { el, couleur: null, carte: false };
+  // Repli notes : l’agent n’est pas sur l’Accueil, la nav suffit.
+  if (nom === CIBLE_NOTES) {
+    for (const el of document.querySelectorAll<HTMLElement>('a[href="/dashboard"]')) {
+      if (/accueil/i.test(el.textContent ?? '') && visible(el)) return { el, couleur: null, carte: false };
+    }
   }
   return null;
 }

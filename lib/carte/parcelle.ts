@@ -1,5 +1,7 @@
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
+import type { BatimentParcelle, ProprietaireMorale } from '@/lib/carte/bdnb';
+import type { AuditEnergetique } from '@/lib/carte/audits';
 
 export { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 export {
@@ -143,10 +145,26 @@ export type ParcelleFiche = {
   biens: ParcelleBienAgence[];
   entreprises: ParcelleEntreprise[];
   passages: ParcellePassage[];
+  /** Constructions de la parcelle selon la BDNB ; null quand il n'y en a pas. */
+  batiment: BatimentParcelle | null;
+  /** Faux quand la BDNB n'a pas répondu : on ne conclut alors à rien. */
+  batimentConnu: boolean;
+  /**
+   * Personnes morales propriétaires : au lot près (fichier DGFiP) quand il
+   * est importé, sinon la seule liste de noms de la BDNB.
+   */
+  proprietaires: ProprietaireMorale[];
+  /** Audits énergétiques des adresses de la parcelle, le plus récent en tête. */
+  audits: AuditEnergetique[];
+  /** Faux quand l'ADEME n'a pas répondu. */
+  auditsConnus: boolean;
 };
 
 export type ParcellePickExtra = {
   surfaceM2?: number | null;
+  /** Centroïde au clic — pour décaler la carte hors du volet. */
+  longitude?: number | null;
+  latitude?: number | null;
 };
 
 export type ParcelleNoteMarker = {
@@ -201,8 +219,18 @@ function firstRing(geometry: unknown): Ring | null {
   return null;
 }
 
-/** Centroïde visuel d’un polygone de tuile — la géométrie ne quitte pas le client. */
+/** Centroïde visuel d’un polygone / point de tuile — la géométrie ne quitte pas le client. */
 export function centroidLngLat(geometry: unknown): { longitude: number; latitude: number } | null {
+  if (geometry && typeof geometry === 'object') {
+    const g = geometry as { type?: string; coordinates?: unknown };
+    if (g.type === 'Point' && Array.isArray(g.coordinates)) {
+      const lng = g.coordinates[0];
+      const lat = g.coordinates[1];
+      if (typeof lng === 'number' && typeof lat === 'number') {
+        return { longitude: lng, latitude: lat };
+      }
+    }
+  }
   const ring = firstRing(geometry);
   if (!ring || ring.length === 0) return null;
   let sx = 0;
@@ -269,5 +297,10 @@ export function emptyParcelleFiche(raw: string): ParcelleFiche {
     biens: [],
     entreprises: [],
     passages: [],
+    batiment: null,
+    batimentConnu: false,
+    proprietaires: [],
+    audits: [],
+    auditsConnus: false,
   };
 }

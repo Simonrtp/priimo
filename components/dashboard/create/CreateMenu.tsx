@@ -52,7 +52,7 @@ export default function CreateMenu({
     { id: profile.id, fullName: `${profile.first_name} ${profile.last_name}`.trim() || 'Moi' },
   ]);
   const [vendeurs, setVendeurs] = useState<Contact[]>([]);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
@@ -131,15 +131,22 @@ export default function CreateMenu({
       const el = triggerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
+      const menuW = menuPanelRef.current?.offsetWidth ?? 200;
+      // Centré sous le bouton, rabattu dans l’écran si besoin.
+      const idealLeft = r.left + r.width / 2 - menuW / 2;
+      const left = Math.max(8, Math.min(idealLeft, window.innerWidth - menuW - 8));
       setMenuPos({
-        top: r.bottom + 6,
-        right: Math.max(8, window.innerWidth - r.right),
+        top: r.bottom + 8,
+        left,
       });
     }
     place();
+    // 2ᵉ passe une fois le menu mesuré (largeur réelle).
+    const raf = window.requestAnimationFrame(place);
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {
+      window.cancelAnimationFrame(raf);
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
@@ -201,7 +208,7 @@ export default function CreateMenu({
       className={
         isCompact
           ? 'app-press flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 text-left'
-          : 'flex min-h-10 w-full items-center gap-2.5 whitespace-nowrap px-3.5 text-left text-[13.5px] font-medium text-text hover:bg-black/[0.04]'
+          : 'flex min-h-9 w-full items-center gap-2.5 whitespace-nowrap px-3 text-left text-[13px] font-medium text-text hover:bg-black/[0.04]'
       }
     >
       {isCompact ? (
@@ -284,8 +291,8 @@ export default function CreateMenu({
             id={menuId}
             role="menu"
             aria-label="Créer"
-            className="fixed z-[120] w-max min-w-[13.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1.5 shadow-clay-lg"
-            style={{ top: menuPos.top, right: menuPos.right }}
+            className="fixed z-[120] w-max min-w-[11.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay-lg"
+            style={{ top: menuPos.top, left: menuPos.left }}
             onMouseEnter={ouvrirAuSurvol}
             onMouseLeave={fermerAuSurvol}
           >

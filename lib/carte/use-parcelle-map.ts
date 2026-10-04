@@ -32,16 +32,17 @@ function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche:
   }
 }
 
-/** Arrondi bbox/zoom : évite un fetch à chaque pixel de pan. */
+/** Arrondi bbox/zoom : évite un fetch à chaque cran de molette. */
 function quantizeViewport(v: Viewport): Viewport {
-  const step = v.zoom >= 15 ? 0.001 : v.zoom >= 13 ? 0.002 : 0.004;
+  // Plus large qu’avant : un zoom fluide ne doit pas invalider le cache à chaque frame.
+  const step = v.zoom >= 16 ? 0.002 : v.zoom >= 14 ? 0.003 : v.zoom >= 12 ? 0.006 : 0.01;
   const q = (n: number) => Math.round(n / step) * step;
   return {
     west: q(v.west),
     south: q(v.south),
     east: q(v.east),
     north: q(v.north),
-    zoom: Math.round(v.zoom * 2) / 2,
+    zoom: Math.round(v.zoom),
   };
 }
 
@@ -97,14 +98,17 @@ export function useParcelleMap(
 
     const known = overlayCache.current.get(viewportKey);
     if (known) {
-      setImmeubles(known.immeubles);
-      setNoteMarkers(known.notes);
-      setSources(known.sources);
+      setImmeubles((prev) => (prev === known.immeubles ? prev : known.immeubles));
+      setNoteMarkers((prev) => (prev === known.notes ? prev : known.notes));
+      setSources((prev) => (prev === known.sources ? prev : known.sources));
+      // Cache hit : pas de refetch immédiat — le pan/zoom reste fluide.
+      return;
     }
 
     const ac = new AbortController();
     const ticket = ++seq.current;
-    const debounceMs = known ? 320 : 140;
+    // Laisser le geste de zoom se terminer avant de charger les pastilles.
+    const debounceMs = 280;
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams();
       if (viewport) {
@@ -147,10 +151,7 @@ export function useParcelleMap(
         .catch((err: unknown) => {
           if (ticket !== seq.current) return;
           if (err instanceof DOMException && err.name === 'AbortError') return;
-          if (!known) {
-            setImmeubles([]);
-            setNoteMarkers([]);
-          }
+          // Garde les pastilles déjà affichées plutôt que de vider la carte.
         });
     }, debounceMs);
 
@@ -231,8 +232,9 @@ export function useParcelleMap(
           : { ...emptyParcelleFiche(parcelleId), surfaceCadastreM2: surface },
       );
       setLoading(!connue);
-      // Toujours revalider : le cache sert l’affichage immédiat, pas à figer les données.
-      void charger(parcelleId, { bypassCache: true });
+      // Cache = affichage immédiat. Revalidation sans bypass : évite un 2ᵉ fetch
+      // juste après le prefetch au survol.
+      void charger(parcelleId);
     },
     [charger],
   );
