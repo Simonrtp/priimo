@@ -3,7 +3,7 @@
 import { useState, type ComponentType } from 'react';
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import { usePathname } from 'next/navigation';
-import { Ellipsis } from 'lucide-react';
+import { Ellipsis, LogOut } from 'lucide-react';
 import BoutonNoteMobile from '@/components/dashboard/voice/BoutonNoteMobile';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import FieldPlusSheet from '@/components/dashboard/field/FieldPlusSheet';
@@ -93,6 +93,19 @@ function DesktopCompactNav() {
         Icon={IconParametres}
         active={activeSettings}
       />
+      <form action="/api/auth/signout" method="post" className="flex min-w-0 flex-1">
+        <button
+          type="submit"
+          className="app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5"
+        >
+          <span className="flex h-8 w-full max-w-[52px] items-center justify-center" aria-hidden>
+            <LogOut size={20} strokeWidth={2} color={INACTIVE} />
+          </span>
+          <span className="max-w-full truncate text-center font-semibold" style={{ fontSize: 10.5, color: INACTIVE }}>
+            Déconnexion
+          </span>
+        </button>
+      </form>
     </nav>
   );
 }

@@ -165,6 +165,14 @@ describe('export PDF rapport', () => {
         fluiditeJoursMedian: null,
         negotiationPctMedian: null,
         contradictions: [],
+        moteurValeur: null,
+        dateDerniereVente: null,
+        pointsForts: [],
+        pointsFaibles: [],
+        parcelles: [],
+        marcheEvolution: [],
+        marcheRepartition: [],
+        marchePosition: null,
       },
     });
     assert.ok(bytes.byteLength > 400);

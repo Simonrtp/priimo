@@ -20,14 +20,25 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import type { ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
+import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import IconeCarte from './live/IconeCarte';
 import { CarteContactNote, EditeurFicheContact, type FicheEditee, type LienCarte } from './ContactDeLaNote';
 import styles from './live/dictee.module.css';
 
 type ManualLink = NoteLinkPick & { key: string };
 
-function pickMatch(matches: readonly ContactMatch[]): ContactMatch | null {
-  return matches.find((m) => m.confiance === 'certain') ?? matches[0] ?? null;
+/** `undefined` = pas encore choisi (plusieurs candidats). `null` = nouveau contact. */
+type ChoixMatch = string | null | undefined;
+
+function pickMatch(matches: readonly ContactMatch[], choix: ChoixMatch): ContactMatch | null {
+  if (choix === null) return null;
+  if (typeof choix === 'string') return matches.find((m) => m.contactId === choix) ?? null;
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0] ?? null;
+  const certains = matches.filter((m) => m.confiance === 'certain');
+  if (certains.length === 1) return certains[0] ?? null;
+  // Plusieurs fiches : l’agent doit choisir.
+  return null;
 }
 
 type ContactDraft = { fields: ContactInputFields; assignedTo: string | null; geo: ContactFormGeo };
@@ -149,12 +160,15 @@ function Ligne({
   );
 }
 
-/** L'adresse de la note, avec ce que l'agent y a constaté juste dessous. */
+/** L'adresse de la note (sans contact), modifiable, avec constats dessous. */
 function LigneLieu({
   kind,
   titre,
   detail,
   onRetirer,
+  onEditer,
+  edition,
+  champEdition,
   constats,
   onRetirerConstat,
 }: {
@@ -162,26 +176,41 @@ function LigneLieu({
   titre: string;
   detail: string | null;
   onRetirer: () => void;
+  onEditer: () => void;
+  edition: boolean;
+  champEdition?: React.ReactNode;
   constats: readonly { id: string; texte: string }[];
   onRetirerConstat: (id: string) => void;
 }) {
   return (
     <li className={`overflow-hidden rounded-2xl border border-black/[0.06] bg-surface shadow-clay-sm ${styles.carteEntree}`}>
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <IconeCarte kind={kind} size={32} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-semibold text-text-strong">{titre}</span>
-          {detail ? <span className="block truncate text-[12.5px] text-text-muted">{detail}</span> : null}
-        </span>
-        <button
-          type="button"
-          onClick={onRetirer}
-          aria-label={`Retirer : ${titre}`}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text"
-        >
-          <X size={16} strokeWidth={2} aria-hidden />
-        </button>
-      </div>
+      {edition && champEdition ? (
+        <div className="px-3 py-2.5">{champEdition}</div>
+      ) : (
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <IconeCarte kind={kind} size={32} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] font-semibold text-text-strong">{titre}</span>
+            {detail ? <span className="block truncate text-[12.5px] text-text-muted">{detail}</span> : null}
+          </span>
+          <button
+            type="button"
+            onClick={onEditer}
+            aria-label="Modifier l’adresse"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-black/[0.04]"
+          >
+            <Pencil size={15} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={onRetirer}
+            aria-label={`Retirer : ${titre}`}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text"
+          >
+            <X size={16} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+      )}
       {constats.length ? (
         <ul className="border-t border-black/[0.06] bg-bg-subtle px-3 py-1.5">
           {constats.map((o) => (
@@ -262,6 +291,9 @@ export default function VoiceReviewPanel({
   const [majs, setMajs] = useState<Record<string, FicheEditee & { contactId: string }>>({});
   /** Fiches existantes dont l'agent refuse l'adresse proposée par la note. */
   const [adresseRetiree, setAdresseRetiree] = useState<string[]>([]);
+  /** Choix explicite quand plusieurs fiches matchent (Marina…). */
+  const [matchChoisi, setMatchChoisi] = useState<Record<string, string | null>>({});
+  const [editionAdresse, setEditionAdresse] = useState(false);
   const [editeur, setEditeur] = useState<{
     id: string;
     initial: FicheEditee | null;
@@ -358,10 +390,18 @@ export default function VoiceReviewPanel({
     return adresse.split(',')[0]?.trim() || adresse;
   }
 
+  function choixDe(p: PersonneProposal): ChoixMatch {
+    return Object.prototype.hasOwnProperty.call(matchChoisi, p.id) ? matchChoisi[p.id]! : undefined;
+  }
+
+  function matchDe(p: PersonneProposal): ContactMatch | null {
+    return pickMatch(p.matches, choixDe(p));
+  }
+
   function nomDe(p: PersonneProposal): string {
     const maj = majs[p.id];
     if (maj) return [maj.fields.firstName, maj.fields.lastName].filter(Boolean).join(' ') || 'Contact';
-    const match = pickMatch(p.matches);
+    const match = matchDe(p);
     const draft = draftPour(p);
     return (
       match?.label ||
@@ -371,13 +411,30 @@ export default function VoiceReviewPanel({
     );
   }
 
+  function appliquerAdresse(data: SelectedAddress) {
+    toucher();
+    if (!review.immeuble) return;
+    changer({
+      ...review,
+      immeuble: {
+        ...review.immeuble,
+        address: data.label,
+        adresseNormalisee: data.label,
+        banId: data.id ?? null,
+        score: 1,
+        confiance: 'certain',
+      },
+    });
+    setEditionAdresse(false);
+  }
+
   /**
    * Ce que la carte montre d'une personne : la fiche telle qu'elle sera après
    * le rangement. Pour une fiche existante, ce que la note y ajoute (un rôle,
    * un téléphone qui manquait) est marqué « nouveau ».
    */
   function vueFiche(p: PersonneProposal) {
-    const match = pickMatch(p.matches);
+    const match = matchDe(p);
     if (!match) {
       const draft = draftPour(p);
       return {
@@ -429,26 +486,10 @@ export default function VoiceReviewPanel({
     };
   }
 
-  /** Tout ce à quoi la personne sera rattachée une fois la note rangée. */
+  /** Liens hors adresse (l’adresse a son bloc raccordé sous la carte). */
   function liensDe(p: PersonneProposal, vue: ReturnType<typeof vueFiche>): LienCarte[] {
     const vend = vue.roles.includes('vendeur') && estProprietaire(p);
     const out: LienCarte[] = [{ key: 'note', kind: 'note', label: 'Cette note' }];
-    if (vue.adresse) {
-      out.push({
-        key: 'adresse',
-        kind: 'adresse',
-        label: adresseCourte(vue.adresse),
-        nouveau: vue.adresseNouvelle,
-        onRetirer: !vue.existante
-          ? () => retirerAdresseDraft(p)
-          : vue.adresseNouvelle
-            ? () => {
-                toucher();
-                setAdresseRetiree((r) => [...r, p.id]);
-              }
-            : undefined,
-      });
-    }
     for (const b of biensVisibles) {
       out.push({
         key: `bien-${b.id}`,
@@ -501,7 +542,7 @@ export default function VoiceReviewPanel({
   /** La fiche entière : le brouillon pour un nouveau contact, la vraie fiche sinon. */
   async function ouvrirEditeur(p: PersonneProposal) {
     toucher();
-    const match = pickMatch(p.matches);
+    const match = matchDe(p);
     if (!match) {
       const draft = draftPour(p);
       const recherche =
@@ -563,7 +604,7 @@ export default function VoiceReviewPanel({
 
     const planPersonnes = personnesVisibles
       .map((p) => {
-        const match = pickMatch(p.matches);
+        const match = matchDe(p);
         const vue = vueFiche(p);
         // Le premier vendeur de la note devient le propriétaire du bien cité.
         const liensPropres = vue.roles.includes('vendeur') && estProprietaire(p)
@@ -687,8 +728,36 @@ export default function VoiceReviewPanel({
   const lignes: React.ReactNode[] = [];
 
   const recherchesLien = new Set(manualLinks.map((l) => l.key));
+  const champAdresse = (
+    <AddressAutocomplete
+      value={adresseNote ?? ''}
+      aria-label="Adresse de la note"
+      placeholder="12 rue…, ville"
+      inputClassName="w-full rounded-xl border border-black/10 bg-white py-2.5 pl-10 pr-3 text-[14px] text-text-strong outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+      onChange={(data) => {
+        if (data) appliquerAdresse(data);
+      }}
+      onQueryChange={(q) => {
+        if (!review.immeuble) return;
+        toucher();
+        changer({
+          ...review,
+          immeuble: {
+            ...review.immeuble,
+            address: q.trim() || review.immeuble.address,
+            adresseNormalisee: q.trim() || null,
+            banId: null,
+            score: null,
+            confiance: null,
+          },
+        });
+      }}
+    />
+  );
+  const adresseSurContact = personnesVisibles.some((p) => Boolean(vueFiche(p).adresse));
   const cartesContacts = personnesVisibles.map((p) => {
     const vue = vueFiche(p);
+    const aChoisir = p.matches.length > 1;
     return (
       <CarteContactNote
         key={`p-${p.id}`}
@@ -702,6 +771,52 @@ export default function VoiceReviewPanel({
         email={vue.email}
         emailNouveau={vue.emailNouveau}
         liens={liensDe(p, vue)}
+        adresse={
+          vue.adresse
+            ? {
+                label: adresseCourte(vue.adresse),
+                nouveau: vue.adresseNouvelle,
+                edition: editionAdresse,
+                onEditer: () => {
+                  toucher();
+                  setEditionAdresse(true);
+                },
+                onRetirer: !vue.existante
+                  ? () => retirerAdresseDraft(p)
+                  : () => {
+                      toucher();
+                      setAdresseRetiree((r) => (r.includes(p.id) ? r : [...r, p.id]));
+                      if (personnesVisibles.length <= 1) cacher('immeuble', true);
+                    },
+                champ: champAdresse,
+              }
+            : null
+        }
+        candidats={
+          aChoisir
+            ? p.matches.map((m) => ({
+                id: m.contactId,
+                label: m.label,
+                detail: [formatPhoneOrNull(m.phone), m.address ? adresseCourte(m.address) : null]
+                  .filter(Boolean)
+                  .join(' · ') || null,
+              }))
+            : undefined
+        }
+        candidatId={aChoisir ? (choixDe(p) === undefined ? undefined : choixDe(p)) : undefined}
+        onChoisirCandidat={
+          aChoisir
+            ? (id) => {
+                toucher();
+                setMatchChoisi((prev) => ({ ...prev, [p.id]: id }));
+                if (id) setMajs((prev) => {
+                  const next = { ...prev };
+                  delete next[p.id];
+                  return next;
+                });
+              }
+            : undefined
+        }
         onModifier={() => void ouvrirEditeur(p)}
         onRetirer={() => cacher(p.id, true)}
         onLier={() => setLierPour((x) => (x === p.id ? null : p.id))}
@@ -885,7 +1000,8 @@ export default function VoiceReviewPanel({
   const retirerConstat = (id: string) =>
     changer({ ...review, observations: observations.map((o) => (o.id === id ? { ...o, accepted: false } : o)) });
 
-  if (review.immeuble && !hiddenIds.includes('immeuble')) {
+  // Adresse déjà raccordée au contact : pas de carte orpheline en dessous.
+  if (review.immeuble && !hiddenIds.includes('immeuble') && !adresseSurContact) {
     lignes.push(
       <LigneLieu
         key="immeuble"
@@ -893,25 +1009,34 @@ export default function VoiceReviewPanel({
         titre={review.immeuble.adresseNormalisee ?? review.immeuble.address}
         detail={caracteristiques || null}
         onRetirer={() => cacher('immeuble', true)}
+        onEditer={() => {
+          toucher();
+          setEditionAdresse(true);
+        }}
+        edition={editionAdresse}
+        champEdition={champAdresse}
         constats={constats}
         onRetirerConstat={retirerConstat}
       />,
     );
   } else {
-    if (caracteristiques) {
+    if (!adresseSurContact && caracteristiques) {
       lignes.push(<Ligne key="bien-infos" kind="bien" titre={caracteristiques} detail={review.secteur} />);
     }
-    for (const o of constats) {
-      lignes.push(
-        <Ligne
-          key={`o-${o.id}`}
-          kind="observation"
-          titre={o.texte}
-          detail="Constaté sur place"
-          actif
-          onActif={() => retirerConstat(o.id)}
-        />,
-      );
+    // Constats : sous l’adresse orpheline, ou en lignes si l’adresse est sur le contact.
+    if (adresseSurContact || !review.immeuble || hiddenIds.includes('immeuble')) {
+      for (const o of constats) {
+        lignes.push(
+          <Ligne
+            key={`o-${o.id}`}
+            kind="observation"
+            titre={o.texte}
+            detail="Constaté sur place"
+            actif
+            onActif={() => retirerConstat(o.id)}
+          />,
+        );
+      }
     }
   }
 
@@ -967,66 +1092,67 @@ export default function VoiceReviewPanel({
     );
   }
 
+  const blocTranscription = edition ? (
+    <div>
+      <textarea
+        value={transcript}
+        autoFocus
+        onChange={(e) => onTranscript(e.target.value)}
+        onBlur={() => {
+          setEdition(false);
+          if (transcript.trim() !== texteAvantEdition.current.trim()) onTexteCorrige?.();
+        }}
+        rows={6}
+        aria-label={typed ? 'Texte de la note' : 'Ce que vous avez dit'}
+        className="w-full rounded-2xl border border-primary-200 bg-surface px-4 py-3 text-[15px] leading-relaxed text-text-strong focus:outline-none"
+      />
+      <NoteMentionSensible />
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => {
+        texteAvantEdition.current = transcript;
+        setEdition(true);
+      }}
+      className="group flex w-full items-start gap-2 rounded-2xl bg-bg-subtle px-4 py-3 text-left"
+    >
+      <span
+        className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed ${
+          transcript.trim() ? 'text-text' : 'text-text-subtle'
+        }`}
+      >
+        {transcript.trim() ||
+          (transcriptionEnCours
+            ? 'Transcription en cours…'
+            : 'La transcription n’a rien donné. Touchez pour écrire la note.')}
+      </span>
+      <Pencil size={14} strokeWidth={2} aria-hidden className="mt-1 shrink-0 text-text-subtle" />
+    </button>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-1">
-        {/* La personne d'abord : c'est elle que l'agent vérifie avant de ranger. */}
-        {cartesContacts.length ? <ul className="mb-3 flex flex-col gap-2.5">{cartesContacts}</ul> : null}
+        {/* Cartes d’abord (contact + adresse liée), puis transcription sous chaque carte. */}
+        {cartesContacts.length ? (
+          <ul className="mb-3 flex flex-col gap-2.5">{cartesContacts}</ul>
+        ) : null}
 
-        {/* Le texte dicté reste toujours sous les yeux : une note sur un
-            appartement peut n'avoir ni contact ni action, et c'est alors tout
-            ce qu'elle contient. Le toucher le corrige. */}
-        {edition ? (
-          <div>
-            <textarea
-              value={transcript}
-              autoFocus
-              onChange={(e) => onTranscript(e.target.value)}
-              onBlur={() => {
-                setEdition(false);
-                if (transcript.trim() !== texteAvantEdition.current.trim()) onTexteCorrige?.();
-              }}
-              rows={6}
-              aria-label={typed ? 'Texte de la note' : 'Ce que vous avez dit'}
-              className="w-full rounded-2xl border border-primary-200 bg-surface px-4 py-3 text-[15px] leading-relaxed text-text-strong focus:outline-none"
-            />
-            <NoteMentionSensible />
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              texteAvantEdition.current = transcript;
-              setEdition(true);
-            }}
-            className="group flex w-full items-start gap-2 rounded-2xl bg-bg-subtle px-4 py-3 text-left"
-          >
-            <span
-              className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed ${
-                transcript.trim() ? 'text-text' : 'text-text-subtle'
-              }`}
-            >
-              {transcript.trim() ||
-                (transcriptionEnCours
-                  ? 'Transcription en cours…'
-                  : 'La transcription n’a rien donné. Touchez pour écrire la note.')}
-            </span>
-            <Pencil size={14} strokeWidth={2} aria-hidden className="mt-1 shrink-0 text-text-subtle" />
-          </button>
-        )}
+        {cartesContacts.length ? <div className="mb-3">{blocTranscription}</div> : null}
 
         {review.intention === 'question' && onQuestion ? (
           <button
             type="button"
             onClick={() => onQuestion(transcript.trim())}
-            className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-left"
+            className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-left"
           >
             <IconeCarte kind="question" />
             <span className="min-w-0 flex-1 text-[14px] font-semibold text-primary-700">Demander à Mon assistant</span>
           </button>
         ) : null}
 
-        <ul className={`mt-3 flex flex-col gap-2 ${lecture ? styles.lectureReflet : ''}`} aria-busy={lecture}>
+        <ul className={`flex flex-col gap-2 ${lecture ? styles.lectureReflet : ''}`} aria-busy={lecture}>
           {lignes}
           {lignes.length === 0 && cartesContacts.length === 0
             ? cartesEnAttente.map((c) => (
@@ -1043,6 +1169,15 @@ export default function VoiceReviewPanel({
               ))
             : null}
         </ul>
+
+        {/* Sans contact : transcription sous la première carte (adresse / actions). */}
+        {!cartesContacts.length && lignes.length > 0 ? (
+          <div className="mt-2.5">{blocTranscription}</div>
+        ) : null}
+
+        {!cartesContacts.length && lignes.length === 0 ? (
+          <div className="mt-1">{blocTranscription}</div>
+        ) : null}
 
         {lignes.length === 0 && cartesContacts.length === 0 && cartesEnAttente.length === 0 && !lecture ? (
           <p className="mt-3 text-center text-[13px] text-text-subtle">La note sera gardée telle quelle.</p>
@@ -1119,7 +1254,7 @@ export default function VoiceReviewPanel({
         ? (() => {
             const p = personnes.find((x) => x.id === editeur.id);
             if (!p) return null;
-            const match = pickMatch(p.matches);
+            const match = matchDe(p);
             return (
               <EditeurFicheContact
                 key={editeur.id}

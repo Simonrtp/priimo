@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   FileText,
   Home,
+  Link2,
   Mail,
   MapPin,
   Pencil,
@@ -96,6 +97,22 @@ function MarqueNouveau() {
   );
 }
 
+export type CandidatFiche = {
+  id: string;
+  label: string;
+  detail: string | null;
+};
+
+export type AdresseRaccordee = {
+  label: string;
+  nouveau?: boolean;
+  edition: boolean;
+  onEditer: () => void;
+  onRetirer: () => void;
+  /** Champ BAN quand `edition` est vrai. */
+  champ?: ReactNode;
+};
+
 /**
  * La personne dont parle la note, telle qu'elle sera rangée : ses rôles, ses
  * coordonnées, et tout ce à quoi elle se rattache. Le crayon ouvre la fiche
@@ -112,6 +129,10 @@ export function CarteContactNote({
   email,
   emailNouveau,
   liens,
+  adresse,
+  candidats,
+  candidatId,
+  onChoisirCandidat,
   onModifier,
   onRetirer,
   onLier,
@@ -128,6 +149,12 @@ export function CarteContactNote({
   email: string | null;
   emailNouveau?: boolean;
   liens: readonly LienCarte[];
+  /** Adresse de la note, rattachée visuellement (pas un simple chip). */
+  adresse?: AdresseRaccordee | null;
+  /** Plusieurs Marina possibles : l’agent choisit. */
+  candidats?: readonly CandidatFiche[];
+  candidatId?: string | null;
+  onChoisirCandidat?: (id: string | null) => void;
   onModifier: () => void;
   onRetirer: () => void;
   onLier: () => void;
@@ -136,6 +163,7 @@ export function CarteContactNote({
   recherche?: ReactNode;
 }) {
   const rolesUtiles = roles.filter((r) => r !== 'autre');
+  const aChoisir = Boolean(candidats && candidats.length > 1 && onChoisirCandidat);
   return (
     <li
       className={`overflow-hidden rounded-2xl border border-black/[0.06] bg-surface shadow-clay-sm ${styles.carteEntree}`}
@@ -150,8 +178,14 @@ export function CarteContactNote({
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15.5px] font-semibold leading-tight text-text-strong">{nom}</p>
-          <p className={`mt-0.5 text-[12px] ${probable ? 'text-warning' : 'text-text-muted'}`}>
-            {existante ? (probable ? 'Fiche existante, à vérifier' : 'Déjà dans vos contacts') : 'Nouveau contact'}
+          <p className={`mt-0.5 text-[12px] ${aChoisir && !candidatId ? 'text-warning' : probable ? 'text-warning' : 'text-text-muted'}`}>
+            {aChoisir && !candidatId
+              ? 'Plusieurs fiches possibles — choisissez'
+              : existante
+                ? probable
+                  ? 'Fiche existante, à vérifier'
+                  : 'Déjà dans vos contacts'
+                : 'Nouveau contact'}
           </p>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -219,9 +253,115 @@ export function CarteContactNote({
         </div>
       </div>
 
-      {/* Les liens : à quoi cette personne sera rattachée une fois rangée. */}
+      {aChoisir ? (
+        <div className="border-t border-black/[0.06] px-3.5 py-2.5" role="radiogroup" aria-label="Choisir la fiche">
+          <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+            Quelle fiche ?
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {candidats!.map((c) => {
+              const choisi = candidatId === c.id;
+              return (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={choisi}
+                    onClick={() => onChoisirCandidat!(c.id)}
+                    className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                      choisi
+                        ? 'bg-primary-50 ring-1 ring-primary-200'
+                        : 'bg-bg-subtle hover:bg-black/[0.04]'
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                        choisi ? 'border-primary-500 bg-primary-500' : 'border-black/20 bg-surface'
+                      }`}
+                    >
+                      {choisi ? <span className="size-1.5 rounded-full bg-white" /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-semibold text-text-strong">{c.label}</span>
+                      {c.detail ? (
+                        <span className="mt-0.5 block truncate text-[12px] text-text-muted">{c.detail}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            <li>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={candidatId === null}
+                onClick={() => onChoisirCandidat!(null)}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                  candidatId === null
+                    ? 'bg-primary-50 ring-1 ring-primary-200'
+                    : 'bg-bg-subtle hover:bg-black/[0.04]'
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                    candidatId === null ? 'border-primary-500 bg-primary-500' : 'border-black/20 bg-surface'
+                  }`}
+                >
+                  {candidatId === null ? <span className="size-1.5 rounded-full bg-white" /> : null}
+                </span>
+                <span className="text-[13.5px] font-semibold text-text-strong">Nouveau contact</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      ) : null}
+
+      {/* Adresse de la note : raccordée au contact, modifiable. */}
+      {adresse ? (
+        <div className="relative border-t border-black/[0.06] bg-[#F4F5FA] px-3.5 py-2.5">
+          <div className="pointer-events-none absolute left-[1.65rem] top-0 h-2.5 w-px bg-primary-300" aria-hidden />
+          <p className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-primary-700">
+            <Link2 size={11} strokeWidth={2.4} aria-hidden />
+            Liée à l’adresse
+          </p>
+          {adresse.edition && adresse.champ ? (
+            <div className="mt-1">{adresse.champ}</div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                <MapPin size={15} strokeWidth={2.2} aria-hidden />
+              </span>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[13.5px] font-semibold text-text-strong">
+                <span className="truncate">{adresse.label}</span>
+                {adresse.nouveau ? <MarqueNouveau /> : null}
+              </span>
+              <button
+                type="button"
+                onClick={adresse.onEditer}
+                aria-label="Modifier l’adresse"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-white"
+              >
+                <Pencil size={15} strokeWidth={2} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={adresse.onRetirer}
+                aria-label="Retirer l’adresse"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-white hover:text-text"
+              >
+                <X size={15} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Les autres liens (note, biens…). L’adresse a son bloc dédié. */}
       <div className="border-t border-black/[0.06] bg-bg-subtle px-3.5 py-2.5">
-        <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">Liée à</p>
+        <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">Aussi liée à</p>
         <ul className="flex flex-wrap gap-1.5">
           {liens.map((l) => {
             const Icone = ICONE_LIEN[l.kind];

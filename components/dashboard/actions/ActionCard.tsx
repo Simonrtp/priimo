@@ -159,7 +159,7 @@ export default function ActionCard({
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {estCompteRendu ? (
               confirmeEnvoi ? (
-                <WorkspaceButton disabled={enCours} onClick={() => resoudre('valider')}>
+                <WorkspaceButton busy={enCours} onClick={() => resoudre('valider')}>
                   <Mail size={15} aria-hidden />
                   Confirmer l’envoi
                 </WorkspaceButton>
@@ -175,13 +175,13 @@ export default function ActionCard({
                   window.location.href = `tel:${telephone.replace(/\s+/g, '')}`;
                   void resoudre('valider');
                 }}
-                disabled={enCours}
+                busy={enCours}
               >
                 <Phone size={15} aria-hidden />
                 Appeler
               </WorkspaceButton>
             ) : (
-              <WorkspaceButton disabled={enCours} onClick={() => resoudre('valider')}>
+              <WorkspaceButton busy={enCours} onClick={() => resoudre('valider')}>
                 <Check size={15} aria-hidden />
                 Je m’en occupe
               </WorkspaceButton>

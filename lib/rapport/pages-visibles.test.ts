@@ -14,11 +14,11 @@ describe('pages visibles du rapport', () => {
     ]);
     assert.deepEqual(
       gardees.map((p) => p.id),
-      ['1', '2'],
+      ['1', '2', '3'],
     );
     assert.deepEqual(
       retirees.map((p) => p.id),
-      ['3', '4', '5'],
+      ['4', '5'],
     );
   });
 

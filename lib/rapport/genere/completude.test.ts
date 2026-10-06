@@ -64,6 +64,20 @@ function dossier(over: Partial<DossierRapport> = {}): DossierRapport {
     fluiditeJoursMedian: null,
     negotiationPctMedian: null,
     contradictions: [],
+    moteurValeur: 300000,
+    dateDerniereVente: '2026-03-01',
+    pointsForts: ['Ascenseur'],
+    pointsFaibles: ['DPE D'],
+    parcelles: [{ id: '75011000AA0001', contenanceM2: 320 }],
+    marcheEvolution: [
+      { label: '2024-1', valeur: 7000 },
+      { label: '2025-1', valeur: 7400 },
+    ],
+    marcheRepartition: [
+      { label: '6k', valeur: 2 },
+      { label: '7k', valeur: 5 },
+    ],
+    marchePosition: 1,
     ...over,
   };
 }

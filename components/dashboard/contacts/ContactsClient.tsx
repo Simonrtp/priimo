@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Download, Phone, Search, Upload } from 'lucide-react';
+import { ChevronDown, Download, Phone, Search, Upload, Users } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
@@ -173,6 +173,16 @@ function ContactRow({
               >
                 {contact.fullName}
               </span>
+              {contact.visibilite === 'agence' ? (
+                <span
+                  role="img"
+                  aria-label="Fiche partagée avec l’agence"
+                  title="Fiche partagée avec l’agence"
+                  className="flex-shrink-0 text-text-subtle"
+                >
+                  <Users size={14} strokeWidth={2} aria-hidden />
+                </span>
+              ) : null}
               {rattache ? (
                 <span className="min-w-0 max-w-full truncate text-[13px] text-text-muted">
                   rattaché à{' '}

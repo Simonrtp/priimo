@@ -109,6 +109,11 @@ export const TITRES_AVIS: Record<string, { bold: string; light: string }> = {
   'Étude concurrentielle': { bold: 'Les biens en vente', light: 'autour de vous' },
   'Indices du marché': { bold: 'Les prix', light: 'dans votre quartier' },
   'Notre estimation': { bold: 'Notre', light: 'estimation' },
+  'Avis de valeur': { bold: 'Avis', light: 'de valeur' },
+  Cadastre: { bold: 'Cadastre', light: '' },
+  'Photos du bien': { bold: 'Photos', light: 'du bien' },
+  'DPE du bien': { bold: 'DPE', light: 'du bien' },
+  'Stratégie de prix': { bold: 'Stratégie', light: 'de prix' },
   'Prochaine étape': { bold: 'Prochaine', light: 'étape' },
 };
 

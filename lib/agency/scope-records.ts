@@ -1,6 +1,7 @@
 import type { Contact } from '@/types/contact';
 import type { Lead } from '@/types/lead';
 import {
+  canSeeContact,
   canSeeLeadRecord,
   canSeeOwnedRecord,
   type RecordViewer,
@@ -9,7 +10,11 @@ import { canSeeVoiceNote } from '@/lib/notes/visibility';
 
 export function visibleContactsFor(viewer: RecordViewer, contacts: readonly Contact[]): Contact[] {
   return contacts.filter((c) =>
-    canSeeOwnedRecord(viewer, { assignedTo: c.assignedTo, createdBy: c.createdBy }),
+    canSeeContact(viewer, {
+      assignedTo: c.assignedTo,
+      createdBy: c.createdBy,
+      visibilite: c.visibilite,
+    }),
   );
 }
 

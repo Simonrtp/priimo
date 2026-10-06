@@ -36,7 +36,11 @@ export function titreContactTransfere(n: number): string {
 }
 
 export function titreNotesTranscrites(n: number): string {
-  return n === 1 ? 'Une note prête à relire' : `${n} notes prêtes à relire`;
+  return n === 1 ? 'Ta dictée est transcrite' : `${n} dictées transcrites`;
+}
+
+export function corpsNotesTranscrites(n: number): string {
+  return n === 1 ? 'Ouvre-la pour la ranger.' : 'Ouvre-les pour les ranger.';
 }
 
 export function titreInvitationAcceptee(prenom: string): string {
@@ -123,7 +127,7 @@ export function corpsGroupe(type: NotificationType, n: number, corpsSeul: string
   if (n <= 1) return corpsSeul;
   switch (type) {
     case 'note_transcrite':
-      return 'Dictées prêtes à relire.';
+      return corpsNotesTranscrites(n);
     case 'leads_assignes':
       return 'À retrouver dans la prospection.';
     case 'contact_transfere':

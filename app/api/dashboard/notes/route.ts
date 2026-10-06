@@ -14,6 +14,7 @@ import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
+import { bansDeLaParcelle } from '@/lib/notes/parcelle-depuis-ban';
 import type { NoteLienEntite, NoteLien, TerrainNote } from '@/types/contact';
 import type { NoteLienRow, VoiceNoteRow } from '@/types/database';
 
@@ -120,9 +121,9 @@ export async function GET(req: Request) {
 }
 
 /**
- * Une note dictée devant l'immeuble porte son adresse (BAN), pas forcément
- * un lien vers la parcelle. La fiche parcelle les montre avec les autres, en
- * une seule liste : avant, elles n'apparaissaient qu'en extrait, à part.
+ * Notes visibles sur le volet parcelle : posées à l’adresse (BAN), liées à
+ * l’immeuble / la parcelle, ou rattachées à un bien de l’agence sur cette
+ * parcelle.
  */
 async function notesPoseesSurLaParcelle(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -130,26 +131,41 @@ async function notesPoseesSurLaParcelle(
   parcelleId: string,
 ): Promise<string[]> {
   const admin = createSupabaseAdminClient();
-  // Admin : index BAN↔parcelle et référentiel BAN, open data sans donnée agence.
-  const [adresses, batiments] = await Promise.all([
-    admin.from('parcelle_adresses').select('ban_id').eq('parcelle_id', parcelleId),
-    admin.from('buildings').select('ban_id').eq('parcelle_id', parcelleId),
-  ]);
-  const bans = [
-    ...new Set(
-      [...(adresses.data ?? []), ...(batiments.data ?? [])]
-        .map((r) => (r as { ban_id: string | null }).ban_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ].slice(0, 200);
-  if (bans.length === 0) return [];
+  const bans = await bansDeLaParcelle(admin, parcelleId);
+  const ids = new Set<string>();
 
-  const { data } = await supabase
-    .from('voice_notes')
-    .select('id')
-    .eq('agency_id', agencyId)
-    .in('ban_id', bans);
-  return (data ?? []).map((r) => (r as { id: string }).id);
+  if (bans.length > 0) {
+    const [{ data: parBan }, { data: liensImm }] = await Promise.all([
+      supabase.from('voice_notes').select('id').eq('agency_id', agencyId).in('ban_id', bans),
+      supabase
+        .from('note_liens')
+        .select('note_id')
+        .eq('agency_id', agencyId)
+        .eq('entite_type', 'immeuble')
+        .in('entite_id', bans),
+    ]);
+    for (const r of parBan ?? []) ids.add((r as { id: string }).id);
+    for (const r of liensImm ?? []) ids.add((r as { note_id: string }).note_id);
+
+    // Biens de l’agence géocodés sur ces BAN → leurs notes aussi.
+    const { data: biens } = await admin
+      .from('biens')
+      .select('id')
+      .eq('agency_id', agencyId)
+      .in('ban_id', bans);
+    const bienIds = (biens ?? []).map((b) => (b as { id: string }).id);
+    if (bienIds.length > 0) {
+      const { data: liensBien } = await supabase
+        .from('note_liens')
+        .select('note_id')
+        .eq('agency_id', agencyId)
+        .eq('entite_type', 'bien')
+        .in('entite_id', bienIds);
+      for (const r of liensBien ?? []) ids.add((r as { note_id: string }).note_id);
+    }
+  }
+
+  return [...ids];
 }
 
 const MAX_TYPED_CHARS = 8000;
@@ -258,7 +274,8 @@ export async function POST(req: Request) {
       source_info: extraction?.sourceInfo ?? null,
       status: 'transcrit',
       statut: 'revue',
-      visibilite: 'agence',
+      // L'auteur choisit en écrivant : privée = lui seul, direction comprise.
+      visibilite: body.visibilite === 'privee' ? 'privee' : 'agence',
       contact_id: contactId,
       adresse_normalisee: geo.adresse_normalisee,
       ban_id: geo.ban_id,

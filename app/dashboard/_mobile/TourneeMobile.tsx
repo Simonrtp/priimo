@@ -10,6 +10,7 @@ import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
 import { FIELD, formatDistance } from '@/lib/today/field';
 import { applyTourneeMapStyle } from '@/lib/map/tournee-style';
+import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import {
   fetchWalkingRoute,
   formatWalkingDuration,
@@ -116,6 +117,8 @@ export default function TourneeMobile({
   const [swipeKey, setSwipeKey] = useState<string | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const mapRef = useRef<MapRef | null>(null);
+  const [carteChargee, setCarteChargee] = useState(0);
+  useCanvasAJour(mapRef, carteChargee);
   const touchStartX = useRef(0);
 
   const basePlan = useMemo(
@@ -448,7 +451,10 @@ export default function TourneeMobile({
               }}
               attributionControl={false}
               dragRotate={false}
-              onLoad={(e) => applyTourneeMapStyle(e.target)}
+              onLoad={(e) => {
+                applyTourneeMapStyle(e.target);
+                setCarteChargee((n) => n + 1);
+              }}
               style={{ width: '100%', height: '100%' }}
             >
               {stops.length >= 2 ? (

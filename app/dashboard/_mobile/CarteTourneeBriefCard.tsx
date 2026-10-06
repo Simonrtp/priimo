@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Flame, Route, Sparkles } from 'lucide-react';
-import { FIELD, formatDistance } from '@/lib/today/field';
+import { formatDistance } from '@/lib/today/field';
 import { formatWalkingDuration } from '@/lib/today/directions';
 import { estimateWalkCalories, estimateWalkDurationS } from '@/lib/today/sortie-session';
 
@@ -25,11 +25,14 @@ export default function CarteTourneeBriefCard({
   stopCount,
   distanceM,
   durationS,
+  contexte = null,
   onDone,
 }: {
   stopCount: number;
   distanceM: number;
   durationS: number | null;
+  /** Temps prévu et vivier d'où viennent les adresses. */
+  contexte?: string | null;
   onDone: () => void;
 }) {
   const [revealed, setRevealed] = useState(1);
@@ -90,21 +93,17 @@ export default function CarteTourneeBriefCard({
         >
           <div
             className="px-5 pb-5 pt-5"
-            style={{ background: `linear-gradient(165deg, ${FIELD.orangePastel} 0%, #fff 46%)` }}
+            style={{ background: 'linear-gradient(165deg, var(--primary-100) 0%, #fff 46%)' }}
           >
             <div className="tour-brief__block flex items-start gap-3">
               <span
-                className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl"
-                style={{ backgroundColor: FIELD.orange, color: '#fff' }}
+                className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white"
                 aria-hidden
               >
                 <Sparkles size={22} strokeWidth={2.1} />
               </span>
               <div className="min-w-0 flex-1">
-                <p
-                  className="text-[12px] font-semibold uppercase tracking-wide"
-                  style={{ color: FIELD.orange }}
-                >
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-primary-600">
                   C&apos;est parti
                 </p>
                 <h2
@@ -114,6 +113,9 @@ export default function CarteTourneeBriefCard({
                   <span className="tabular-nums">{counted}</span> adresse
                   {stopCount > 1 ? 's' : ''} à prospecter
                 </h2>
+                {contexte ? (
+                  <p className="mt-1 text-pretty text-[13px] leading-snug text-text-muted">{contexte}</p>
+                ) : null}
               </div>
             </div>
 
@@ -154,11 +156,8 @@ export default function CarteTourneeBriefCard({
 
           <div className="h-[3px] w-full bg-black/[0.06]" aria-hidden>
             <div
-              className="h-full transition-[width] duration-700 ease-out"
-              style={{
-                width: `${(revealed / BLOCKS) * 100}%`,
-                backgroundColor: FIELD.orange,
-              }}
+              className="h-full bg-primary-600 transition-[width] duration-700 ease-out"
+              style={{ width: `${(revealed / BLOCKS) * 100}%` }}
             />
           </div>
         </div>

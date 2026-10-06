@@ -140,6 +140,14 @@ export type DossierRapport = {
   fluiditeJoursMedian: number | null;
   negotiationPctMedian: number | null;
   contradictions: ContradictionRapport[];
+  moteurValeur: number | null;
+  dateDerniereVente: string | null;
+  pointsForts: string[];
+  pointsFaibles: string[];
+  parcelles: Array<{ id: string; contenanceM2: number | null }>;
+  marcheEvolution: Array<{ label: string; valeur: number }>;
+  marcheRepartition: Array<{ label: string; valeur: number }>;
+  marchePosition: number | null;
 };
 
 export type CompletudePage = {

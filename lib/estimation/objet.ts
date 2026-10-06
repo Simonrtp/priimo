@@ -28,6 +28,7 @@ export type EstimationBien = {
   ges: string | null;
   consoKwh: number | null;
   facadeCouverture: boolean;
+  piscine: boolean | null;
 };
 
 export type EstimationAnnexe = {
@@ -63,6 +64,7 @@ export const BIEN_VIDE: EstimationBien = {
   ges: null,
   consoKwh: null,
   facadeCouverture: false,
+  piscine: null,
 };
 
 function asObject(raw: unknown): Record<string, unknown> {
@@ -124,6 +126,7 @@ export function parseBien(raw: unknown): EstimationBien {
     ges: asText(o.ges),
     consoKwh: asNum(o.consoKwh),
     facadeCouverture: o.facadeCouverture === true,
+    piscine: asBool(o.piscine),
   };
 }
 

@@ -5,7 +5,7 @@ import { Bell } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 import { regrouperNotifications } from '@/lib/notifications/regrouper';
-import { FIELD } from '@/lib/today/field';
+import { ACCUEIL_DARK, FIELD } from '@/lib/today/field';
 
 const STORAGE_PREFIX = 'priimo-notifs-welcome:';
 
@@ -73,8 +73,8 @@ export default function NotificationsWelcomePopup() {
       <div className="w-full max-w-[400px] overflow-hidden rounded-clay-lg border border-black/10 bg-surface shadow-clay-lg">
         <div className="flex items-start gap-3 px-5 pb-3 pt-5">
           <span
-            className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full text-white"
-            style={{ backgroundColor: FIELD.orange }}
+            className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-black/[0.06]"
+            style={{ color: ACCUEIL_DARK.bleu }}
             aria-hidden
           >
             <Bell size={18} strokeWidth={2} />
@@ -122,8 +122,8 @@ export default function NotificationsWelcomePopup() {
           <button
             type="button"
             onClick={voir}
-            className="min-h-[44px] flex-1 rounded-clay px-3 text-[14px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            style={{ backgroundColor: FIELD.orange }}
+            className="min-h-[44px] flex-1 rounded-clay px-3 text-[14px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            style={{ backgroundColor: FIELD.ardoise }}
           >
             Voir
           </button>

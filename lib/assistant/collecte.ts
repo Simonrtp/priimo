@@ -6,12 +6,13 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RecordViewer } from '@/lib/agency/visibility';
-import { canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
+import { canSeeContact, canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { geocodeAdresse, type BanGeocodeHit } from '@/lib/geo/ban';
 import { rapprocherAcquereurs, type RapprochableBien } from '@/lib/matching/rapprochement';
 import { mapDbBienToBien } from '@/lib/queries/biens';
 import {
+  fetchContactsPartagesIds,
   mapDbContactToContact,
   mapDbInteraction,
   mapDbVoiceNote,
@@ -121,6 +122,8 @@ export type CollecteContact = {
   createdBy: string | null;
   leadId: string | null;
   criteria: SearchCriteria;
+  /** Fiche partagée par son titulaire avec toute l'agence. */
+  visibilite?: 'privee' | 'agence';
 };
 
 export type CollecteInteraction = {
@@ -213,9 +216,7 @@ function visLeads(viewer: RecordViewer, rows: CollecteLead[]): CollecteLead[] {
 }
 
 function visContacts(viewer: RecordViewer, rows: CollecteContact[]): CollecteContact[] {
-  return rows.filter((c) =>
-    canSeeOwnedRecord(viewer, { assignedTo: c.assignedTo, createdBy: c.createdBy }),
-  );
+  return rows.filter((c) => canSeeContact(viewer, c));
 }
 
 function visBiens(viewer: RecordViewer, rows: CollecteBien[]): CollecteBien[] {
@@ -1085,14 +1086,19 @@ async function loadSnapshot(
     leadQ.gte('created_at', opts.since);
   }
 
-  const [leadRows, contactRows, bienRows, noteRows] = await Promise.all([
+  const [leadRows, contactRows, bienRows, noteRows, partagees] = await Promise.all([
     fetchLimited(leadQ),
     fetchLimited(contactQ),
     fetchLimited(bienQ),
     fetchLimited(noteQ),
+    fetchContactsPartagesIds(supabase, agencyId),
   ]);
+  const avecPartage = (c: CollecteContact): CollecteContact => ({
+    ...c,
+    visibilite: partagees.has(c.id) ? 'agence' : 'privee',
+  });
 
-  const contacts = (contactRows as unknown as ContactRow[]).map(mapContactRow);
+  const contacts = (contactRows as unknown as ContactRow[]).map(mapContactRow).map(avecPartage);
   const biens = (bienRows as unknown as BienRow[]).map(mapBienRow);
   const knownContactIds = new Set(contacts.map((c) => c.id));
   const missingOwnerIds = [
@@ -1112,7 +1118,7 @@ async function loadSnapshot(
         .eq('agency_id', agencyId)
         .in('id', missingOwnerIds),
     );
-    contacts.push(...(extraRows as unknown as ContactRow[]).map(mapContactRow));
+    contacts.push(...(extraRows as unknown as ContactRow[]).map(mapContactRow).map(avecPartage));
   }
   const contactIds = contacts.map((c) => c.id);
 

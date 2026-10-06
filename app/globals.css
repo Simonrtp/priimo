@@ -846,7 +846,78 @@ button {
   border-top-color: #E8743C;
 }
 
-/* Attente d’auth : plus un CTA, une navette dans la pilule. */
+/* Navette Priimo — attente bouton (auth + dashboard). */
+.priimo-wait-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 9999px;
+  background: #1a2a56;
+  color: #fff;
+  cursor: wait;
+  font-family: var(--font-nunito), Nunito, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.priimo-wait-btn:not(.priimo-wait-btn--compact) {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.875rem 1.5rem;
+  font-size: 0.875rem;
+}
+
+.priimo-wait-btn--compact {
+  min-height: 2.25rem;
+  min-width: 7.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 13px;
+  font-weight: 600;
+  /* Annule hover/opacity/cursor des skins workspace pendant l’attente. */
+  cursor: wait !important;
+  opacity: 1 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.priimo-wait-track {
+  position: absolute;
+  inset: 7px;
+  overflow: hidden;
+  border-radius: 9999px;
+}
+
+.priimo-wait-track--compact {
+  inset: 4px;
+}
+
+.priimo-wait-car {
+  display: block;
+  width: 34%;
+  height: 100%;
+  border-radius: inherit;
+  background: #e8743c;
+  animation: priimo-wait-car 1.35s ease-in-out infinite alternate;
+}
+
+.priimo-wait-copy {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes priimo-wait-car {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(194%);
+  }
+}
+
+/* Alias historique auth → même skin. */
 .auth-wait-btn {
   position: relative;
   display: inline-flex;
@@ -867,36 +938,6 @@ button {
   line-height: 1.5;
 }
 
-.auth-wait-track {
-  position: absolute;
-  inset: 7px;
-  overflow: hidden;
-  border-radius: 9999px;
-}
-
-.auth-wait-car {
-  display: block;
-  width: 34%;
-  height: 100%;
-  border-radius: inherit;
-  background: #e8743c;
-  animation: auth-wait-car 1.35s ease-in-out infinite alternate;
-}
-
-.auth-wait-copy {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes auth-wait-car {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(194%);
-  }
-}
-
 form.is-waiting input,
 form.is-waiting button[type='button'] {
   pointer-events: none;
@@ -904,7 +945,7 @@ form.is-waiting button[type='button'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-wait-car {
+  .priimo-wait-car {
     width: 40%;
     margin-inline: auto;
     animation: none;
@@ -912,6 +953,7 @@ form.is-waiting button[type='button'] {
 }
 
 @media (min-width: 640px) {
+  .priimo-wait-btn:not(.priimo-wait-btn--compact),
   .auth-wait-btn {
     font-size: 1rem;
   }

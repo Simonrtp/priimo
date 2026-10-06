@@ -208,8 +208,13 @@ export default function MergeContactsDialog({
             <WorkspaceButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
               Annuler
             </WorkspaceButton>
-            <WorkspaceButton type="button" onClick={() => void submit()} disabled={saving}>
-              {saving ? 'Fusion…' : `Conserver ${left.fullName}`}
+            <WorkspaceButton
+              type="button"
+              onClick={() => void submit()}
+              busy={saving}
+              busyLabel="Fusion…"
+            >
+              {`Conserver ${left.fullName}`}
             </WorkspaceButton>
           </div>
         </div>

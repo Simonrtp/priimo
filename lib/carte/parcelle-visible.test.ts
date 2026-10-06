@@ -41,8 +41,9 @@ describe('assurerPointVisible', () => {
     const restore = stubDesktop(true);
     try {
       assurerPointVisible(map, { longitude: 2.9, latitude: 48.8 });
-      assert.ok(eased);
-      assert.ok(eased!.center[0] > 2.4);
+      const vu = eased as { center: [number, number] } | null;
+      assert.ok(vu);
+      assert.ok(vu.center[0] > 2.4);
     } finally {
       restore();
     }

@@ -132,11 +132,11 @@ export default function ActivationNotifications() {
       </div>
 
       {etat === 'refuse' ? null : etat === 'actif' ? (
-        <WorkspaceButton variant="secondary" disabled={enCours} onClick={desactiver}>
+        <WorkspaceButton variant="secondary" busy={enCours} busyLabel="Un instant." onClick={desactiver}>
           Désactiver
         </WorkspaceButton>
       ) : (
-        <WorkspaceButton disabled={enCours} onClick={activer}>
+        <WorkspaceButton busy={enCours} onClick={activer}>
           Activer
         </WorkspaceButton>
       )}

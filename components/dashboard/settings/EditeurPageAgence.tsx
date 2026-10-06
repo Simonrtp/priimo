@@ -125,6 +125,7 @@ export default function EditeurPageAgence({
     logoUrl,
     couleurPrincipale: normaliserCouleurPrincipale(agency.couleur_principale),
     couleurSecondaire: agency.couleur_secondaire ?? undefined,
+    mentionLegale: agency.avis_mention_legale?.trim() || null,
   };
   const agent: IdentiteAgentRapport = {
     nom: nomAgentAffiche(profile.first_name, profile.last_name),
@@ -420,14 +421,14 @@ export default function EditeurPageAgence({
         ) : null}
 
         <div className="flex justify-end">
-          <button
+          <WorkspaceButton
             type="button"
-            disabled={busy}
+            busy={busy}
+            busyLabel="Validation…"
             onClick={() => void enregistrer()}
-            className="inline-flex min-h-9 items-center rounded-full bg-text-strong px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? 'Validation…' : 'Valider'}
-          </button>
+            Valider
+          </WorkspaceButton>
         </div>
 
         {montrerApercu ? (

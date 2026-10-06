@@ -14,6 +14,10 @@ export const MOTEUR_CONFIG = {
   SURFACE_TOLERANCE: 0.3,
   MIN_TRIMESTRES_INDICE: 4,
   MIN_VENTES_TRIMESTRE: 4,
+  /** Plafond de l’actualisation d’une vente ancienne (tendance locale). */
+  INDEX_CAP: 0.15,
+  /** Au-delà, la fourchette n’est plus un avis : trop peu de ventes homogènes. */
+  DISPERSION_MAX_RATIO: 0.45,
 
   ETAGE: {
     RDC_PCT: -0.06,
@@ -23,6 +27,9 @@ export const MOTEUR_CONFIG = {
     ELEVE_DES: 3,
   },
   BALCON_TERRASSE_PCT: 0.03,
+  PISCINE_PCT: 0.04,
+  TERRAIN_PCT_PAR_100M2: 0.01,
+  TERRAIN_CAP_PCT: 0.1,
   ETAT: {
     1: -0.12,
     2: -0.05,

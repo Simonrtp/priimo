@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
+import { parcelleIdDepuisBan } from '@/lib/notes/parcelle-depuis-ban';
 
 type Admin = SupabaseClient<Database>;
 
@@ -42,4 +43,63 @@ export async function linkNoteToImmeuble(
     { onConflict: 'note_id,entite_type,entite_id' },
   );
   if (error) console.error('[notes] lien immeuble', error);
+}
+
+/**
+ * Un bien / une adresse BAN rattache aussi la note à la parcelle du volet
+ * carte — sinon la note n’apparaît que sur la fiche bien.
+ */
+export async function propagerLienVersParcelle(
+  admin: Admin,
+  args: {
+    agencyId: string;
+    noteId: string;
+    entiteType: 'bien' | 'immeuble' | 'parcelle';
+    entiteId: string;
+  },
+): Promise<void> {
+  if (args.entiteType === 'parcelle') {
+    await linkNoteToParcelle(admin, {
+      agencyId: args.agencyId,
+      noteId: args.noteId,
+      parcelleId: args.entiteId,
+    });
+    return;
+  }
+
+  let banId: string | null = null;
+  if (args.entiteType === 'immeuble') {
+    banId = args.entiteId.trim() || null;
+  } else {
+    const { data: bien } = await admin
+      .from('biens')
+      .select('ban_id')
+      .eq('id', args.entiteId)
+      .eq('agency_id', args.agencyId)
+      .maybeSingle();
+    banId = typeof bien?.ban_id === 'string' ? bien.ban_id : null;
+    if (banId) {
+      await linkNoteToImmeuble(admin, {
+        agencyId: args.agencyId,
+        noteId: args.noteId,
+        banId,
+      });
+      // La note porte l’adresse : le volet parcelle la retrouve aussi via BAN.
+      await admin
+        .from('voice_notes')
+        .update({ ban_id: banId })
+        .eq('id', args.noteId)
+        .eq('agency_id', args.agencyId)
+        .is('ban_id', null);
+    }
+  }
+
+  const parcelleId = await parcelleIdDepuisBan(admin, banId);
+  if (parcelleId) {
+    await linkNoteToParcelle(admin, {
+      agencyId: args.agencyId,
+      noteId: args.noteId,
+      parcelleId,
+    });
+  }
 }

@@ -266,12 +266,11 @@ export default function AccueilPilotage({
           onChoisirJour={(jour) => void changer('custom', jour, jour)}
         />
       </div>
+      {/* Une demi-page, comme les cartes du dessus. Pas de content-visibility
+          ici : son confinement coupait l'ombre de la carte. */}
       {secteur ? (
-        <div
-          key="accueil-secteur"
-          className="[content-visibility:auto] [contain-intrinsic-size:auto_420px]"
-        >
-          {secteur}
+        <div key="accueil-secteur" className="grid gap-4 lg:grid-cols-2">
+          <div className="min-w-0">{secteur}</div>
         </div>
       ) : null}
     </div>

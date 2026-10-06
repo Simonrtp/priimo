@@ -83,7 +83,7 @@ describe('modèle de rapport', () => {
     assert.equal(lignes[1]?.nom, 'Présentation (2)');
     assert.equal(lignes[1]?.page_index, 1);
     assert.equal(lignes[2]?.source, 'generee');
-    assert.equal(lignes[2]?.nom, 'Les ventes comparables');
+    assert.equal(lignes[2]?.nom, 'Ventes comparables');
     assert.deepEqual(lignes[2]?.contenu, { kind: 'comparables' });
     assert.equal(lignes[3]?.nom, 'Mentions');
     assert.equal(lignes[3]?.disposition, 'texte');
@@ -94,7 +94,7 @@ describe('modèle de rapport', () => {
       nomSlotModele({ source: 'bibliotheque', bibliothequeId: 'x' }, new Map()),
       'Page retirée',
     );
-    assert.equal(nomSlotModele({ source: 'generee', kindGeneree: 'prix' }, new Map()), 'Notre estimation');
+    assert.equal(nomSlotModele({ source: 'generee', kindGeneree: 'prix' }, new Map()), 'Avis de valeur');
   });
 
   it('insère les pages générées autour de la bibliothèque', () => {
@@ -113,16 +113,19 @@ describe('modèle de rapport', () => {
     assert.deepEqual(kinds, [
       'couverture',
       'votre_bien',
-      'immeuble_appartement',
-      'secteur',
+      'description',
+      'cadastre',
+      'photos',
       'comparables',
-      'concurrentiel',
+      'secteur',
+      'dpe_bien',
+      'strategie',
       'prix',
     ]);
     const idxPrix = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prix');
     const idxBiblio = slots.findIndex((s) => s.source === 'bibliotheque');
     assert.ok(idxPrix < idxBiblio);
-    assert.equal(slots.some((s) => s.source === 'generee' && s.kindGeneree === 'description'), false);
+    assert.equal(slots.some((s) => s.source === 'generee' && s.kindGeneree === 'description'), true);
   });
 
   it('reprend le texte d’agence, sinon le texte Priimo', () => {

@@ -5,6 +5,7 @@ import {
   anneauxDepuisGeometrie,
   contourDepuisParcelles,
   piedSurSegment,
+  enveloppeFidele,
 } from './parcelles-contour';
 
 const carre = (x: number, y: number, cote = 1): [number, number][] => [
@@ -65,5 +66,20 @@ describe('lecture d’une géométrie PCI', () => {
     });
     assert.equal(anneaux.length, 1);
     assert.deepEqual(anneaux[0], carre(0, 0));
+  });
+});
+
+describe('enveloppe des parcelles ou geste', () => {
+  const carre = (x0: number, y0: number, cote: number): GeoJSON.Polygon => ({
+    type: 'Polygon',
+    coordinates: [[[x0, y0], [x0 + cote, y0], [x0 + cote, y0 + cote], [x0, y0 + cote], [x0, y0]]],
+  });
+
+  it('garde l’enveloppe quand elle couvre le geste', () => {
+    assert.equal(enveloppeFidele(carre(0, 0, 1), carre(0, 0, 1.05)), true);
+  });
+
+  it('rejette un îlot isolé à la place d’un grand contour', () => {
+    assert.equal(enveloppeFidele(carre(0, 0, 0.2), carre(0, 0, 1)), false);
   });
 });

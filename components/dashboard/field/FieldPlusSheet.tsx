@@ -3,6 +3,7 @@
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import {
   Building2,
+  LogOut,
   MessageCircle,
   Settings,
   Target,
@@ -90,6 +91,22 @@ export default function FieldPlusSheet({
               </span>
               Écrire à l&apos;équipe
             </a>
+          </li>
+          <li className="mt-1 border-t border-black/[0.06] pt-1">
+            <form action="/api/auth/signout" method="post">
+              <button
+                type="submit"
+                className="app-press flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 text-left text-[15.5px] font-medium text-text-strong"
+              >
+                <span
+                  className="flex size-10 items-center justify-center rounded-full bg-black/[0.05] text-text-muted"
+                  aria-hidden
+                >
+                  <LogOut size={18} strokeWidth={2.1} />
+                </span>
+                Se déconnecter
+              </button>
+            </form>
           </li>
         </ul>
       </div>

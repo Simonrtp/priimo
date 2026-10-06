@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAgencyAlertKind } from '@/lib/agency/alerts';
-import { canSeeLeadRecord, canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { canSeeContact, canSeeLeadRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { fetchContactById } from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const contact = await fetchContactById(supabase, contactId);
     if (
       !contact ||
-      !canSeeOwnedRecord(viewer, { assignedTo: contact.assignedTo, createdBy: contact.createdBy })
+      !canSeeContact(viewer, contact)
     ) {
       return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
     }

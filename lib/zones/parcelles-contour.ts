@@ -154,6 +154,20 @@ export function contourDepuisParcelles(anneaux: readonly Anneau[]): GeoJSON.Poly
   return { type: 'Polygon', coordinates: [ring.map((p) => [p[0], p[1]])] };
 }
 
+/**
+ * L’enveloppe des parcelles ne remplace le geste que si elle en garde la
+ * surface. Les rues ne sont pas des parcelles : dès que le geste couvre plus
+ * d’un pâté de maisons, l’assemblage se coupe en îlots et n’en rend qu’un —
+ * un grand contour devenait trois parcelles.
+ */
+export function enveloppeFidele(enveloppe: GeoJSON.Polygon, geste: GeoJSON.Polygon): boolean {
+  const aireEnveloppe = aireAbsolue((enveloppe.coordinates[0] ?? []) as unknown as Anneau);
+  const aireGeste = aireAbsolue((geste.coordinates[0] ?? []) as unknown as Anneau);
+  if (aireGeste <= 0) return false;
+  const rapport = aireEnveloppe / aireGeste;
+  return rapport >= 0.85 && rapport <= 1.2;
+}
+
 /** Centroïde d’un anneau fermé — pour savoir s’il est dans le geste. */
 export function centroideAnneau(anneau: Anneau): Point | null {
   if (anneau.length < 3) return null;

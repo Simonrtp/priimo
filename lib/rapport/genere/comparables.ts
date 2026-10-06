@@ -27,6 +27,7 @@ export type MutationBrute = {
   parcelleId: string | null;
   latitude: number | null;
   longitude: number | null;
+  adresse: string | null;
 };
 
 export type VenteComparable = {
@@ -41,6 +42,9 @@ export type VenteComparable = {
   distanceM: number | null;
   perimetre: 'rayon' | 'commune';
   horizonMois: 24 | 36;
+  adresse: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type CritereComparables = {
@@ -165,6 +169,9 @@ export function selectionnerComparables(
         distanceM: dist,
         perimetre: dansRayon ? 'rayon' : 'commune',
         horizonMois: mois <= COMPARABLES_MOIS_COURT ? 24 : 36,
+        adresse: row.adresse ?? null,
+        latitude: row.latitude,
+        longitude: row.longitude,
       };
       return vente;
     })

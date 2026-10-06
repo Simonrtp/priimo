@@ -18,6 +18,7 @@ import {
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ConsentementRappelField from '@/components/dashboard/contacts/ConsentementRappelField';
 import ChoixRoles from '@/components/dashboard/contacts/ChoixRoles';
+import ChoixVisibilite, { type Visibilite } from '@/components/dashboard/workspace/ChoixVisibilite';
 
 export type ContactFormGeo = {
   banId: string | null;
@@ -38,6 +39,9 @@ export default function ContactFormFields({
   fieldErrors = {},
   disabled = false,
   rolesNouveaux = [],
+  visibilite,
+  onVisibilite,
+  visibiliteFigee = false,
 }: {
   idPrefix: string;
   fields: ContactInputFields;
@@ -52,6 +56,11 @@ export default function ContactFormFields({
   disabled?: boolean;
   /** Rôles qu'une note vient d'ajouter : signalés dans le choix. */
   rolesNouveaux?: readonly ContactType[];
+  /** Fiche privée ou partagée avec l'agence. Absent : le choix n'est pas proposé. */
+  visibilite?: Visibilite;
+  onVisibilite?: (next: Visibilite) => void;
+  /** Fiche d'un collègue : on la complète, on ne change pas son partage. */
+  visibiliteFigee?: boolean;
 }) {
   const showCriteria = rolesUsentCriteres(fields);
   const roles = rolesDuContact(fields);
@@ -166,6 +175,22 @@ export default function ContactFormFields({
             currentUserId={currentUserId}
             includeUnassigned
             onChange={onAssignedTo}
+          />
+        </Field>
+      ) : null}
+
+      {visibilite && onVisibilite ? (
+        <Field label="Partage">
+          <ChoixVisibilite
+            objet="contact"
+            value={visibilite}
+            onChange={onVisibilite}
+            disabled={disabled || visibiliteFigee}
+            aideVerrou={
+              visibilite === 'agence'
+                ? 'Fiche partagée par un collègue : seul son titulaire choisit son partage.'
+                : undefined
+            }
           />
         </Field>
       ) : null}

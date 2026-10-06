@@ -53,6 +53,7 @@ const INPUT: MoteurInput = {
   conditionRating: null,
   dpeClass: null,
   balconTerrasse: false,
+  piscine: false,
   annexes: [],
   terrainM2: null,
 };

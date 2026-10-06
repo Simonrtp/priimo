@@ -2,6 +2,9 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Ruler } from 'lucide-react';
 import { formatDateRapport, joindreSansVide } from '@/lib/rapport/identite';
 import { ATTRIBUTION_IGN, urlCarteIgn } from '@/lib/rapport/genere/carte-ign';
+import { ATTRIBUTION_MAPBOX, MENTION_CADASTRE, urlCarteMapbox } from '@/lib/rapport/genere/carte-mapbox';
+import { svgEvolutionMediane, svgRepartition } from '@/lib/rapport/genere/graphiques-marche';
+import { formaterAdresseComparable } from '@/lib/estimation/adresse-comparable';
 import { COMPARABLES_RAYON_M } from '@/lib/rapport/genere/comparables';
 import { prixAuM2, surfacePourPrixM2 } from '@/lib/rapport/genere/fourchette';
 import { DPE_LETTERS, parseDpeLetter, type DpeLetter } from '@/lib/carte/dpe-public';
@@ -543,7 +546,24 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
             <div style={{ flex: 1, minHeight: 0, borderRadius: 10, overflow: 'hidden', background: '#F2EBE2' }}>
               {d.latitude != null && d.longitude != null ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={urlCarteIgn({ latitude: d.latitude, longitude: d.longitude, couche: 'plan' })} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <img
+                  src={
+                    urlCarteMapbox({
+                      latitude: d.latitude,
+                      longitude: d.longitude,
+                      zoom: 15,
+                      pins: [
+                        { lat: d.latitude, lng: d.longitude, label: 'a' },
+                        ...d.comparables
+                          .filter((c) => c.latitude != null && c.longitude != null)
+                          .slice(0, 8)
+                          .map((c, i) => ({ lat: c.latitude!, lng: c.longitude!, label: String(i + 1) })),
+                      ],
+                    }) ?? urlCarteIgn({ latitude: d.latitude, longitude: d.longitude, couche: 'plan' })
+                  }
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
               ) : null}
             </div>
             <div style={{ display: 'flex', gap: 14, fontSize: 10.5, color: '#1A2A56', flexWrap: 'wrap' }}>
@@ -573,12 +593,12 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
           <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '16px 20px 12px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)', marginBottom: 10 }}>Détail des ventes</div>
             <div style={{ ...row, fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: '#1A2A56', height: 'auto', padding: '0 8px 8px', borderBottom: '1px solid rgba(26, 42, 86,.16)' }}>
-              <span>N°</span><span>Type</span><span>Date</span><span style={{ textAlign: 'right' }}>Pièces</span><span style={{ textAlign: 'right' }}>Surface</span><span style={{ textAlign: 'right' }}>Prix</span><span style={{ textAlign: 'right' }}>Prix/m²</span>
+              <span>N°</span><span>Adresse</span><span>Date</span><span style={{ textAlign: 'right' }}>Pièces</span><span style={{ textAlign: 'right' }}>Surface</span><span style={{ textAlign: 'right' }}>Prix</span><span style={{ textAlign: 'right' }}>Prix/m²</span>
             </div>
             {d.comparables.map((v, i) => (
               <div key={v.id} style={{ ...row, borderRadius: 6, background: i % 2 === 0 ? 'rgba(26, 42, 86,.05)' : undefined }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-2)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
-                <span>{libelleTypeLocal(v.typeLocal) ?? ''}</span>
+                <span>{formaterAdresseComparable(v.adresse) ?? libelleTypeLocal(v.typeLocal) ?? ''}</span>
                 <span>{formatDateCourte(v.date)}</span>
                 <span style={{ textAlign: 'right' }}>{v.pieces != null ? String(v.pieces) : ''}</span>
                 <span style={{ textAlign: 'right' }}>{formatSurface(v.surfaceM2)}</span>
@@ -640,7 +660,7 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
   const pos = (n: number) => `${((n - minP) / (maxP - minP)) * 100}%`;
 
   return (
-    <GabaritPage d={d} titre="Notre estimation" accent={accent}>
+    <GabaritPage d={d} titre="Avis de valeur" accent={accent}>
       <div style={{ flex: 1, minHeight: 0, padding: '16px 40px 10px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '400px minmax(0, 1fr)', gap: 16 }}>
           <div style={{ background: '#F3F4F6', borderRadius: 16, boxShadow: '0 1px 2px rgba(10,13,17,.03)', padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -648,6 +668,11 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)' }}>Prix estimé</div>
               {d.priceValue != null ? (
                 <div style={{ fontSize: 68, fontWeight: 700, letterSpacing: '-.03em', lineHeight: 1, color: 'var(--accent)' }}>{formatEuro(d.priceValue)}</div>
+              ) : null}
+              {d.moteurValeur != null && d.priceValue != null && d.moteurValeur !== d.priceValue ? (
+                <div style={{ fontSize: 13, color: '#1A2A56' }}>
+                  Estimation Priimo : {formatEuro(d.moteurValeur)} — prix retenu par l’agent ci-dessus.
+                </div>
               ) : null}
               {d.pricePerM2 != null ? (
                 <div style={{ fontSize: 19, fontWeight: 600, color: '#0A0D11' }}>soit {formatPrixM2(d.pricePerM2)}</div>
@@ -734,7 +759,9 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
             <LogoSlot url={d.agence.logoUrl} />
           </div>
         </div>
-        <div style={{ fontSize: 9, color: '#1A2A56' }}>Avis de valeur indicatif, ne constituant pas une expertise</div>
+        <div style={{ fontSize: 9, color: '#1A2A56', minHeight: 12 }}>
+          {d.agence.mentionLegale?.trim() || ''}
+        </div>
       </div>
     </GabaritPage>
   );
@@ -793,6 +820,18 @@ export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }
           </div>
           {d.pricePerM2 != null ? (
             <div style={{ fontSize: 10.5, color: '#1A2A56' }}>Votre bien · {formatPrixM2(d.pricePerM2)}</div>
+          ) : null}
+          {d.marcheEvolution.length >= 2 ? (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)', marginBottom: 6 }}>Évolution du prix médian au m²</div>
+              <span dangerouslySetInnerHTML={{ __html: svgEvolutionMediane(d.marcheEvolution, accent) }} />
+            </div>
+          ) : null}
+          {d.marcheRepartition.length > 0 ? (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-2)', marginBottom: 6 }}>Répartition et position du bien</div>
+              <span dangerouslySetInnerHTML={{ __html: svgRepartition(d.marcheRepartition, d.marchePosition, accent) }} />
+            </div>
           ) : null}
         </div>
         {profil ? (
@@ -1001,6 +1040,98 @@ export function PageIndices({ d, accent }: { d: DossierRapport; accent: string }
         {d.fluiditeJoursMedian != null ? (
           <Fait label="Délai médian constaté" valeur={`${Math.round(d.fluiditeJoursMedian)}${'\u202f'}jours`} />
         ) : null}
+      </div>
+    </GabaritPage>
+  );
+}
+
+export function PageCadastre({ d, accent }: { d: DossierRapport; accent: string }) {
+  const carte =
+    d.latitude != null && d.longitude != null
+      ? urlCarteMapbox({ latitude: d.latitude, longitude: d.longitude, zoom: 17 }) ??
+        urlCarteIgn({ latitude: d.latitude, longitude: d.longitude, couche: 'cadastre' })
+      : null;
+  return (
+    <GabaritPage d={d} titre="Cadastre" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, borderRadius: 16, overflow: 'hidden', background: '#F3F4F6' }}>
+          {carte ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={carte} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : null}
+        </div>
+        {d.parcelles.length > 0 ? (
+          <table className="avis-table">
+            <tbody>
+              {d.parcelles.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.id}</td>
+                  <td className="num">{p.contenanceM2 != null ? formatSurface(p.contenanceM2) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+        <p className="avis-muted" style={{ margin: 0, fontSize: 11 }}>
+          {MENTION_CADASTRE} {ATTRIBUTION_MAPBOX}
+        </p>
+      </div>
+    </GabaritPage>
+  );
+}
+
+export function PagePhotos({ d, accent }: { d: DossierRapport; accent: string }) {
+  const photos = d.photos.filter((p) => p.kind === 'photo').slice(0, 6);
+  return (
+    <GabaritPage d={d} titre="Photos du bien" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        {photos.map((p, i) => (
+          <PhotoSlot key={`${p.url}-${i}`} src={p.url} label={`Photo ${i + 1}`} />
+        ))}
+      </div>
+    </GabaritPage>
+  );
+}
+
+export function PageDpeBien({ d, accent }: { d: DossierRapport; accent: string }) {
+  const dpe = parseDpeLetter(d.dpeClass);
+  const ges = parseDpeLetter(d.gesClass);
+  return (
+    <GabaritPage d={d} titre="DPE du bien" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <EchelleDpeGes dpe={dpe} ges={ges} />
+        <div>
+          {d.dpeClass ? (
+            <p style={{ fontSize: 16 }}>Étiquette saisie : DPE {d.dpeClass}{d.gesClass ? ` · GES ${d.gesClass}` : ''}</p>
+          ) : (
+            <p className="avis-muted">DPE non renseigné.</p>
+          )}
+        </div>
+      </div>
+    </GabaritPage>
+  );
+}
+
+export function PageStrategie({ d, accent }: { d: DossierRapport; accent: string }) {
+  return (
+    <GabaritPage d={d} titre="Stratégie de prix" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <Carte>
+          <p className="avis-kicker">Forces</p>
+          <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: 14, lineHeight: 1.5 }}>
+            {d.pointsForts.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </Carte>
+        <Carte>
+          <p className="avis-kicker">Faiblesses</p>
+          <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: 14, lineHeight: 1.5 }}>
+            {d.pointsFaibles.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </Carte>
       </div>
     </GabaritPage>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ImagePlus, Mail, Phone, Plus, X } from 'lucide-react';
 import type { Bien, HonorairesACharge, MandatStatut } from '@/types/bien';
 import {
@@ -25,6 +26,7 @@ import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import { creerAvisDepuis } from '@/lib/estimation/creer-depuis';
 import { ADDRESS_FIELD_INPUT_CLASS, Field, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog';
@@ -259,6 +261,8 @@ export default function BienFormDialog({
   const [members, setMembers] = useState<AssigneeOption[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { profile } = useUser();
+  const router = useRouter();
+  const [estimating, setEstimating] = useState(false);
 
   const selectedOwner =
     form.proprietaireContactId
@@ -802,6 +806,26 @@ export default function BienFormDialog({
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-3 border-t border-black/[0.06] pt-5">
+          {bien ? (
+            <WorkspaceButton
+              type="button"
+              variant="secondary"
+              disabled={estimating}
+              onClick={() => {
+                setEstimating(true);
+                void creerAvisDepuis({ bienId: bien.id }).then((r) => {
+                  setEstimating(false);
+                  if ('error' in r) {
+                    notifyError(r.error);
+                    return;
+                  }
+                  router.push(`/dashboard/estimation?id=${r.id}`);
+                });
+              }}
+            >
+              {estimating ? 'Ouverture…' : 'Estimer ce bien'}
+            </WorkspaceButton>
+          ) : null}
           <WorkspaceButton type="button" variant="secondary" onClick={onClose}>
             Annuler
           </WorkspaceButton>

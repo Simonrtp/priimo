@@ -60,6 +60,14 @@ export default function PageGeneree({
       return <Indices d={dossier} accent={accent} />;
     case 'prix':
       return <Estimation d={dossier} accent={accent} />;
+    case 'cadastre':
+      return <Cadastre d={dossier} accent={accent} />;
+    case 'photos':
+      return <Photos d={dossier} accent={accent} />;
+    case 'dpe_bien':
+      return <DpeBien d={dossier} accent={accent} />;
+    case 'strategie':
+      return <Strategie d={dossier} accent={accent} />;
     case 'prochaine_etape':
       return <ProchaineEtape d={dossier} accent={accent} />;
   }
@@ -551,10 +559,87 @@ function Indices({ d, accent }: { d: DossierRapport; accent: string }) {
   );
 }
 
+function Cadastre({ d, accent }: { d: DossierRapport; accent: string }) {
+  return (
+    <Cadre>
+      <TitrePage accent={accent}>Cadastre</TitrePage>
+      {d.latitude != null && d.longitude != null ? (
+        <CarteIgn latitude={d.latitude} longitude={d.longitude} spanM={280} couche="cadastre" />
+      ) : null}
+      {d.parcelles.length > 0 ? (
+        <ul className="text-[13px]">
+          {d.parcelles.map((p) => (
+            <li key={p.id}>
+              {p.id}
+              {p.contenanceM2 != null ? ` · ${formatSurface(p.contenanceM2)}` : ''}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="text-[12px] text-text-muted">Plan cadastral indicatif, sans valeur juridique.</p>
+    </Cadre>
+  );
+}
+
+function Photos({ d, accent }: { d: DossierRapport; accent: string }) {
+  const visuels = d.photos.filter((p) => p.kind === 'photo').slice(0, 6);
+  return (
+    <Cadre>
+      <TitrePage accent={accent}>Photos du bien</TitrePage>
+      {visuels.length > 0 ? (
+        <ul className="grid min-h-0 flex-1 grid-cols-3 gap-2">
+          {visuels.map((p) => (
+            <li key={p.url} className="min-h-0 overflow-hidden rounded-clay">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.url} alt="" className="h-full w-full object-cover" />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Cadre>
+  );
+}
+
+function DpeBien({ d, accent }: { d: DossierRapport; accent: string }) {
+  return (
+    <Cadre>
+      <TitrePage accent={accent}>DPE du bien</TitrePage>
+      {d.dpeClass ? <EtiquetteDpe lettre={d.dpeClass} /> : <p className="text-[13px] text-text-muted">DPE non renseigné.</p>}
+      {d.gesClass ? <p className="text-[13px]">GES {d.gesClass}</p> : null}
+    </Cadre>
+  );
+}
+
+function Strategie({ d, accent }: { d: DossierRapport; accent: string }) {
+  return (
+    <Cadre>
+      <TitrePage accent={accent}>Stratégie de prix</TitrePage>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase text-text-muted">Forces</p>
+          <ul className="list-disc pl-4 text-[13px]">
+            {d.pointsForts.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase text-text-muted">Faiblesses</p>
+          <ul className="list-disc pl-4 text-[13px]">
+            {d.pointsFaibles.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Cadre>
+  );
+}
+
 function Estimation({ d, accent }: { d: DossierRapport; accent: string }) {
   return (
     <Cadre>
-      <TitrePage accent={accent}>Notre estimation</TitrePage>
+      <TitrePage accent={accent}>Avis de valeur</TitrePage>
       {d.priceValue != null ? (
         <p className="font-display text-[40px] font-semibold tabular-nums text-text-strong">{formatEuro(d.priceValue)}</p>
       ) : null}

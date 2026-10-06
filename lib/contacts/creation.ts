@@ -172,6 +172,8 @@ export async function creerContact(ctx: ContexteCreation, body: unknown): Promis
     summary: f.summary,
     recontacter_le: f.recontacterLe,
     source,
+    // Privée tant que l'agent ne choisit pas de partager la fiche.
+    visibilite: raw.visibilite === 'agence' ? 'agence' : 'privee',
     ...meta,
     ...(geo ?? {}),
   });

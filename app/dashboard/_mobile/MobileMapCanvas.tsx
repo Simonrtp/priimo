@@ -9,6 +9,7 @@ import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style
 import { applyTourneeMapStyle, restoreTourneeMapStyle } from '@/lib/map/tournee-style';
 import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
+import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
@@ -147,6 +148,7 @@ export default function MobileMapCanvas({
   const gestureTimer = useRef<number | null>(null);
   const camera = cameraFor(dimension);
   const relief = !navigation && dimension === '3d';
+  useCanvasAJour(mapRef, styleReady);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -419,7 +421,6 @@ export default function MobileMapCanvas({
           <CibleRecherche
             cible={cible}
             buildings={buildings}
-            clipZone={clipZone}
             onSelect={onSelect}
             onSelectParcelle={onSelectParcelle}
           />

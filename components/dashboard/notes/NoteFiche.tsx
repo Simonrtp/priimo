@@ -14,6 +14,7 @@ import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { TextArea } from '@/components/dashboard/workspace/Field';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
+import ChoixVisibilite from '@/components/dashboard/workspace/ChoixVisibilite';
 
 const ENTITE_LABELS: Record<NoteLienEntite, string> = {
   contact: 'Contact',
@@ -379,17 +380,11 @@ export default function NoteFiche({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
           {isAuthor ? (
-            <label className="flex min-h-10 items-center gap-2 text-[13.5px] text-text">
-              <input
-                type="checkbox"
-                checked={note.visibilite === 'privee'}
-                onChange={() => {
-                  const next: VoiceNoteVisibilite = note.visibilite === 'privee' ? 'agence' : 'privee';
-                  void patch({ visibilite: next });
-                }}
-              />
-              Privée — invisible pour l&apos;agence
-            </label>
+            <ChoixVisibilite
+              objet="note"
+              value={note.visibilite}
+              onChange={(next: VoiceNoteVisibilite) => void patch({ visibilite: next })}
+            />
           ) : (
             <p className="text-[13px] text-text-muted">
               {note.visibilite === 'privee' ? 'Note privée' : 'Visible dans l’agence'}

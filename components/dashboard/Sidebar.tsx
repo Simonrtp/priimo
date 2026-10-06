@@ -221,6 +221,31 @@ export default function Sidebar() {
         </div>
       </div>
 
+      <form
+        action="/api/auth/signout"
+        method="post"
+        className={`hidden pb-4 md:block ${collapsed ? 'px-1.5' : 'px-3'}`}
+      >
+        <button
+          type="submit"
+          title="Se déconnecter"
+          aria-label={collapsed ? 'Se déconnecter' : undefined}
+          className={`flex w-full items-center rounded-xl py-2 font-medium text-[#B8CDE3] transition-colors duration-fluid-subtle ease-in-out hover:bg-white/[0.05] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
+            collapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'
+          }`}
+          style={{ fontSize: 13.5 }}
+        >
+          <LogOut size={18} strokeWidth={2} className="shrink-0" aria-hidden />
+          <span
+            className={`sidebar-nav-label overflow-hidden whitespace-nowrap ${
+              collapsed ? 'hidden' : 'inline-block'
+            }`}
+          >
+            Se déconnecter
+          </span>
+        </button>
+      </form>
+
       <div className="mb-4 flex flex-col items-center gap-1.5 px-1.5 md:hidden">
         <Link
           href="/dashboard/settings"
@@ -236,16 +261,6 @@ export default function Sidebar() {
             className="bg-white/10 text-white"
           />
         </Link>
-        <form action="/api/auth/signout" method="post">
-          <button
-            type="submit"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/10 hover:text-white"
-            aria-label="Se déconnecter"
-            title="Se déconnecter"
-          >
-            <LogOut size={16} strokeWidth={2} aria-hidden />
-          </button>
-        </form>
       </div>
     </aside>
   );

@@ -361,8 +361,13 @@ export default function ImportWizard({
             <WorkspaceButton type="button" variant="secondary" onClick={() => setStep('map')}>
               Revenir aux colonnes
             </WorkspaceButton>
-            <WorkspaceButton type="button" disabled={busy} onClick={() => void confirmImport()}>
-              {busy ? 'Import en cours…' : `Importer ${table.rows.length} ligne${table.rows.length > 1 ? 's' : ''}`}
+            <WorkspaceButton
+              type="button"
+              busy={busy}
+              busyLabel="Import en cours…"
+              onClick={() => void confirmImport()}
+            >
+              {`Importer ${table.rows.length} ligne${table.rows.length > 1 ? 's' : ''}`}
             </WorkspaceButton>
           </div>
         </div>

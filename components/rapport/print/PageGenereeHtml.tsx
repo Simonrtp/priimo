@@ -1,18 +1,22 @@
 import type { KindGeneree } from '@/lib/rapport/modele-defaut';
 import type { DossierRapport } from '@/lib/rapport/genere/types';
 import {
+  PageCadastre,
   PageComparables,
   PageConcurrentiel,
   PageConnectivite,
   PageCouverture,
   PageDescription,
+  PageDpeBien,
   PageEstimation,
   PageImmeuble,
   PageIndices,
   PagePermis,
+  PagePhotos,
   PagePointsInteret,
   PageProchaineEtape,
   PageSecteur,
+  PageStrategie,
   PageVotreBien,
 } from './PagesAvis';
 
@@ -50,6 +54,14 @@ export default function PageGenereeHtml({
       return <PageIndices d={dossier} accent={accent} />;
     case 'prix':
       return <PageEstimation d={dossier} accent={accent} />;
+    case 'cadastre':
+      return <PageCadastre d={dossier} accent={accent} />;
+    case 'photos':
+      return <PagePhotos d={dossier} accent={accent} />;
+    case 'dpe_bien':
+      return <PageDpeBien d={dossier} accent={accent} />;
+    case 'strategie':
+      return <PageStrategie d={dossier} accent={accent} />;
     case 'prochaine_etape':
       return <PageProchaineEtape d={dossier} accent={accent} />;
   }

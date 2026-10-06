@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
-import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { canManageContact, canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
 import { colonnesDepuisChamps } from '@/lib/contacts/modification';
@@ -26,10 +26,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ contactId: str
   const supabase = await createSupabaseServerClient();
   const existing = await fetchContactById(supabase, contactId);
   const viewer = viewerFromProfile(profile);
-  if (
-    !existing ||
-    !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })
-  ) {
+  if (!existing || !canSeeContact(viewer, existing)) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
   }
 
@@ -55,14 +52,24 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   const supabase = await createSupabaseServerClient();
   const existing = await fetchContactById(supabase, contactId);
   const viewer = viewerFromProfile(profile);
-  if (
-    !existing ||
-    !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })
-  ) {
+  if (!existing || !canSeeContact(viewer, existing)) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
   }
 
   const raw = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  const visibiliteDemandee =
+    raw.visibilite === 'privee' || raw.visibilite === 'agence' ? raw.visibilite : null;
+  const changeVisibilite = visibiliteDemandee !== null && visibiliteDemandee !== (existing.visibilite ?? 'privee');
+  const changeTitulaire =
+    Object.prototype.hasOwnProperty.call(raw, 'assignedTo') && (raw.assignedTo ?? null) !== existing.assignedTo;
+  // Un collègue complète une fiche partagée ; la rendre privée ou la confier
+  // à quelqu'un d'autre reste au titulaire et à la direction.
+  if ((changeVisibilite || changeTitulaire) && !canManageContact(viewer, existing)) {
+    return NextResponse.json(
+      { error: 'Seul le titulaire de la fiche ou la direction peut changer son partage ou son suivi.' },
+      { status: 403 },
+    );
+  }
   const hasCoreFields = 'firstName' in raw || 'lastName' in raw || 'type' in raw;
   const relanceProvided = Object.prototype.hasOwnProperty.call(raw, 'recontacterLe');
   const parsed = hasCoreFields ? parseContactInput(body) : null;
@@ -86,7 +93,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     );
   }
 
-  if (!parsed && !(assigned.provided && !('invalid' in assigned)) && !relanceProvided) {
+  if (
+    !parsed &&
+    !(assigned.provided && !('invalid' in assigned)) &&
+    !relanceProvided &&
+    visibiliteDemandee === null
+  ) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
@@ -109,11 +121,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
       return NextResponse.json({ error: "La date de relance n'est pas valide" }, { status: 400 });
     }
   }
-  if (assigned.provided && !('invalid' in assigned)) {
+  if (assigned.provided && !('invalid' in assigned) && changeTitulaire) {
     Object.assign(update, assignmentMeta(assigned.id, profile.id));
   }
+  if (visibiliteDemandee !== null) update.visibilite = visibiliteDemandee;
 
-  // Une colonne récente (rôles, numéro communiqué) absente de la base est
+  // Une colonne récente (rôles, numéro communiqué, partage) absente de la base est
   // écartée de l'écriture : le reste de la fiche s'enregistre quand même.
   const { data, error } = await updateContactRow(supabase, { contactId, agencyId: agency.id }, update);
 
@@ -150,11 +163,14 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ contactId: 
   const supabase = await createSupabaseServerClient();
   const existing = await fetchContactById(supabase, contactId);
   const viewer = viewerFromProfile(profile);
-  if (
-    !existing ||
-    !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })
-  ) {
+  if (!existing || !canSeeContact(viewer, existing)) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
+  }
+  if (!canManageContact(viewer, existing)) {
+    return NextResponse.json(
+      { error: 'Seul le titulaire de la fiche ou la direction peut la supprimer.' },
+      { status: 403 },
+    );
   }
 
   // Avant la suppression : ensuite, plus rien ne dit quelles dictées le nommaient.

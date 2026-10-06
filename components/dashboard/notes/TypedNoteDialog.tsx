@@ -68,6 +68,7 @@ export default function TypedNoteDialog({
       longitude: coords?.longitude,
       parcelleId: parcelleId || undefined,
       liens,
+      visibilite: payload.visibilite,
     });
     onClose();
     validerEnFond({

@@ -461,7 +461,11 @@ export default function AccueilDirecteur({
         )}
       </section>
 
-      {secteur ? <div className="min-w-0">{secteur}</div> : null}
+      {secteur ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="min-w-0">{secteur}</div>
+        </div>
+      ) : null}
 
       {/* Zones 2 + 3 — deux colonnes desktop */}
       <div className="grid gap-4 lg:grid-cols-5 lg:items-start">

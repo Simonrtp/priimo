@@ -1,14 +1,10 @@
+import ChargementBouton from '@/components/ui/ChargementBouton';
+
 type AuthWaitProps = {
   label: string;
 };
 
+/** Attente des formulaires auth — délègue à la navette design system. */
 export default function AuthWait({ label }: AuthWaitProps) {
-  return (
-    <>
-      <span className="auth-wait-track" aria-hidden>
-        <span className="auth-wait-car" />
-      </span>
-      <span className="auth-wait-copy">{label}</span>
-    </>
-  );
+  return <ChargementBouton label={label} size="auth" />;
 }

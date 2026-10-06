@@ -6,6 +6,7 @@ import { NOTE_CONFIANCE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { TerrainNote } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import ChoixVisibilite from '@/components/dashboard/workspace/ChoixVisibilite';
 import { formatParcelleId } from '@/lib/carte/parcelle-id';
 import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
 import { onNoteCreated } from '@/lib/notes/note-created-event';
@@ -172,18 +173,13 @@ export default function NotesTerrainList({
               </div>
             ) : null}
             {mine ? (
-              <label className="mt-3 flex min-h-[36px] cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-black/20"
-                  style={{ accentColor: '#E8743C' }}
-                  checked={note.visibilite === 'privee'}
-                  onChange={(e) =>
-                    void patchVisibilite(note.id, e.target.checked ? 'privee' : 'agence')
-                  }
+              <div className="mt-3">
+                <ChoixVisibilite
+                  objet="note"
+                  value={note.visibilite}
+                  onChange={(next) => void patchVisibilite(note.id, next)}
                 />
-                <span className="text-[12.5px] text-text-muted">Garder pour moi</span>
-              </label>
+              </div>
             ) : null}
           </li>
         );

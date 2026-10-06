@@ -28,6 +28,7 @@ describe('nuanciers de l’avis', () => {
   it('découpe les titres comme l’en-tête v2', () => {
     assert.deepEqual(decouperTitre('Votre bien'), { bold: 'Votre', light: 'bien' });
     assert.deepEqual(decouperTitre('Notre estimation'), { bold: 'Notre', light: 'estimation' });
+    assert.deepEqual(decouperTitre('Avis de valeur'), { bold: 'Avis', light: 'de valeur' });
     assert.deepEqual(decouperTitre('Ventes comparables'), { bold: 'Les ventes', light: 'comparables' });
   });
 });

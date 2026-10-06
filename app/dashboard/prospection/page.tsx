@@ -142,7 +142,6 @@ export default async function ProspectionPage({
         center={{ latitude: agency.latitude, longitude: agency.longitude }}
         members={membersUi}
         isDirector={profile.role === 'directeur'}
-        initialLeads={leadsAnnotes}
         profileId={profile.id}
         agencyOrigin={
           agency.latitude != null && agency.longitude != null

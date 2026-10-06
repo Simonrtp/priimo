@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -203,6 +203,7 @@ function SectionAgency() {
   const [frequenceSemaines, setFrequenceSemaines] = useState(
     Math.max(2, Math.round((agency.frequence_passage_jours ?? 84) / 7)),
   );
+  const [mentionLegale, setMentionLegale] = useState(agency.avis_mention_legale ?? '');
   const [addressError, setAddressError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -271,6 +272,7 @@ function SectionAgency() {
       latitude,
       longitude,
       frequence_passage_jours: Math.min(365, Math.max(14, frequenceSemaines * 7)),
+      avis_mention_legale: mentionLegale.trim() || null,
     };
 
     validerEnFond({
@@ -286,6 +288,10 @@ function SectionAgency() {
         if (error && /nom_commercial|site_web|couleur_principale/.test(error.message)) {
           const { nom_commercial: _n, site_web: _s, couleur_principale: _c, couleur_secondaire: _s2, ...sansIdentite } = payload;
           ({ error } = await supabase.from('agencies').update(sansIdentite).eq('id', agency.id));
+        }
+        if (error && /avis_mention_legale/.test(error.message)) {
+          const { avis_mention_legale: _m, ...sansMention } = payload;
+          ({ error } = await supabase.from('agencies').update(sansMention).eq('id', agency.id));
         }
         if (error && /frequence_passage/.test(error.message)) {
           const { frequence_passage_jours: _ignore, ...sansFrequence } = payload;
@@ -388,6 +394,19 @@ function SectionAgency() {
             value={siteWeb}
             onChange={(e) => setSiteWeb(e.target.value)}
             placeholder="https://www.agence.fr"
+          />
+        </div>
+        <div>
+          <label htmlFor="agency-mention-legale" className={labelClass}>
+            Mention légale de l’avis
+          </label>
+          <textarea
+            id="agency-mention-legale"
+            className={inputClass}
+            rows={4}
+            value={mentionLegale}
+            onChange={(e) => setMentionLegale(e.target.value)}
+            placeholder="Emplacement réservé. Le texte viendra de votre avocat."
           />
         </div>
         <div>
@@ -619,18 +638,6 @@ function SectionProfile() {
           >
             Changer mon mot de passe
           </button>
-        </div>
-
-        <div className="border-t border-black/8 pt-5">
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-4 py-2.5 text-[13.5px] font-medium text-ink transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] sm:w-auto"
-            >
-              <LogOut size={16} strokeWidth={2} aria-hidden />
-              Se déconnecter
-            </button>
-          </form>
         </div>
         </div>
       </div>

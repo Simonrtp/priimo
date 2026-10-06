@@ -12,6 +12,7 @@ import {
   selectionnerComparables,
   type MutationBrute,
 } from '@/lib/rapport/genere/comparables';
+import { binsPrixM2, indexBin } from '@/lib/rapport/genere/graphiques-marche';
 import { assurerFourchette, prixAuM2DepuisDossier } from '@/lib/rapport/genere/fourchette';
 import { libelleEtatBien } from '@/lib/rapport/genere/format';
 import type {
@@ -94,6 +95,11 @@ export async function chargerDossierRapport(
     })),
   ]);
 
+  const pm2Marche = comparables.retenues
+    .map((v) => v.prixM2)
+    .filter((n): n is number => n != null && n > 0);
+  const marcheRepartition = binsPrixM2(pm2Marche, 7);
+
   return {
     titreCouverture: titreCouvertureAgence(input.titreCouverture),
     ctaProchaineEtape: ctaProchaineEtape(input.cta),
@@ -154,7 +160,28 @@ export async function chargerDossierRapport(
       surfaceM2: e.surfaceM2,
       dpeClass: e.dpeClass,
     }),
+    moteurValeur: typeof e.context.moteurValeur === 'number' ? e.context.moteurValeur : null,
+    dateDerniereVente:
+      typeof e.context.dateDerniereVente === 'string' ? e.context.dateDerniereVente : null,
+    pointsForts: e.pointsForts,
+    pointsFaibles: e.pointsFaibles,
+    parcelles: e.parcelleId
+      ? [{ id: e.parcelleId, contenanceM2: e.bien.surfaceTerrain ?? null }]
+      : [],
+    marcheEvolution: serieIndice(e.context),
+    marcheRepartition,
+    marchePosition: pricePerM2 != null ? indexBin(pricePerM2, marcheRepartition, pm2Marche) : null,
   };
+}
+
+function serieIndice(context: Record<string, unknown>): Array<{ label: string; valeur: number }> {
+  const trace = context.moteurTrace;
+  if (!trace || typeof trace !== 'object') return [];
+  const indice = (trace as { indice?: { trimestres?: Array<{ cle: string; mediane: number }> } }).indice;
+  const tri = indice?.trimestres ?? [];
+  return tri
+    .filter((t) => Number.isFinite(t.mediane))
+    .map((t) => ({ label: t.cle, valeur: t.mediane }));
 }
 
 function premierePhoto(photos: EstimationObjet['photos']): number {
@@ -196,7 +223,7 @@ async function chargerComparables(
 
   const { data: near } = await session
     .from('buildings')
-    .select('ban_id, parcelle_id, lat, lng, code_postal')
+      .select('ban_id, parcelle_id, lat, lng, code_postal, adresse')
     .eq('code_postal', e.postalCode)
     .gte('lat', lat - latDelta)
     .lte('lat', lat + latDelta)
@@ -210,12 +237,13 @@ async function chargerComparables(
     lat: number | null;
     lng: number | null;
     code_postal: string | null;
+    adresse: string | null;
   }>;
 
   if (buildings.length < 8) {
     const { data: commune } = await session
       .from('buildings')
-      .select('ban_id, parcelle_id, lat, lng, code_postal')
+      .select('ban_id, parcelle_id, lat, lng, code_postal, adresse')
       .eq('code_postal', e.postalCode)
       .limit(500);
     buildings = (commune ?? []) as typeof buildings;
@@ -264,6 +292,7 @@ async function chargerComparables(
       parcelleId: texte(r.parcelle_id),
       latitude: geoRow?.lat ?? null,
       longitude: geoRow?.lng ?? null,
+      adresse: geoRow?.adresse ?? null,
     };
   });
 

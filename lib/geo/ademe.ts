@@ -282,7 +282,7 @@ function filtrePostalHonore(rows: readonly DpeRecent[], codePostal: string): boo
  * DPE d'un code postal établis depuis une date. Ne lève jamais : une veille
  * qui casse le cron ferait perdre les autres agences du passage.
  */
-export async function fetchDpeRecents(params: FetchDpeParams): Promise<DpeRecent[]> {
+async function lireDpeRecents(params: FetchDpeParams): Promise<{ rows: DpeRecent[]; ok: boolean }> {
   const plafond = params.taille ?? 200;
   try {
     for (const champs of QUERY_VARIANTS) {
@@ -298,21 +298,26 @@ export async function fetchDpeRecents(params: FetchDpeParams): Promise<DpeRecent
         next = page.next;
         if (page.rows.length === 0) break;
       }
-      return out.slice(0, plafond);
+      return { rows: out.slice(0, plafond), ok: true };
     }
-    return [];
+    return { rows: [], ok: false };
   } catch (err) {
     console.error('[ademe] échec', params.codePostal, err);
-    return [];
+    return { rows: [], ok: false };
   }
+}
+
+export async function fetchDpeRecents(params: FetchDpeParams): Promise<DpeRecent[]> {
+  return (await lireDpeRecents(params)).rows;
 }
 
 export async function fetchDpeRecentsCached(params: FetchDpeParams): Promise<DpeRecent[]> {
   const key = `${params.codePostal}|${params.depuis}|${params.taille ?? 200}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.rows;
-  const rows = await fetchDpeRecents(params);
-  cache.set(key, { at: Date.now(), rows });
+  const { rows, ok } = await lireDpeRecents(params);
+  // Une panne ou un délai dépassé ne doit pas vider le secteur pendant un quart d'heure.
+  if (ok) cache.set(key, { at: Date.now(), rows });
   return rows;
 }
 

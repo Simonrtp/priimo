@@ -232,7 +232,7 @@ export default function AujourdhuiMobile({
     );
   }
 
-  /** Même destination que le bouton « Tournée » de la carte : la séquence y démarre seule. */
+  /** Même destination que le bouton « Tournée » de la carte : la préparation s'y ouvre seule. */
   function startZone(_plan: SortiePlan) {
     router.push(CARTE_TOURNEE_HREF);
   }

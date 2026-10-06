@@ -14,8 +14,9 @@ import {
   parseAnnexes,
   parseBien,
 } from '@/lib/estimation/objet';
-import { parseGrille } from '@/lib/estimation/objet';
+import { parseGrille, parseListe } from '@/lib/estimation/objet';
 import { appliquerQualiteEtAgent, capitaliser, type AjustementAgent } from '@/lib/estimation/valeur';
+import { proposerStrategie } from '@/lib/estimation/strategie-mistral';
 import type { EstimationFeatureKey } from '@/lib/estimation';
 
 export const runtime = 'nodejs';
@@ -166,6 +167,7 @@ export async function POST(
         niveaux: bien.niveaux,
         balconM2: bien.balconTerrasse ? 12 : null,
         chargesMensuelles: bien.chargesAnnuelles != null ? Math.round(bien.chargesAnnuelles / 12) : null,
+        piscine: bien.piscine === true,
       },
       dernierEtage: bien.dernierEtage,
       etagesImmeuble: bien.etagesImmeuble,
@@ -225,6 +227,36 @@ export async function POST(
   const pricePerM2 =
     prixRetenu != null && surface != null && surface > 0 ? Math.round(prixRetenu / surface) : null;
 
+  const pointsFortsExistants = parseListe(row.points_forts);
+  const pointsFaiblesExistants = parseListe(row.points_faibles);
+  let pointsForts = pointsFortsExistants;
+  let pointsFaibles = pointsFaiblesExistants;
+  if (pointsForts.length === 0 && pointsFaibles.length === 0) {
+    const strat = await proposerStrategie({
+      propertyType,
+      surfaceM2: surface,
+      rooms,
+      floor: row.floor,
+      anneeConstruction: bien.anneeConstruction,
+      dpeClass: row.dpe_class,
+      conditionRating:
+        row.condition_rating === 1 ||
+        row.condition_rating === 2 ||
+        row.condition_rating === 3 ||
+        row.condition_rating === 4
+          ? row.condition_rating
+          : null,
+      ascenseur: bien.ascenseur,
+      balconTerrasse: bien.balconTerrasse,
+      piscine: bien.piscine,
+      terrainM2: bien.surfaceTerrain,
+      annexes,
+      commentairesPublics: row.commentaires_publics,
+    });
+    pointsForts = strat.forces;
+    pointsFaibles = strat.faiblesses;
+  }
+
   const context = {
     ...result.context,
     corrections: decomposition?.lignes ?? [],
@@ -251,6 +283,8 @@ export async function POST(
     parcelle_id: result.parcelleId ?? row.parcelle_id,
     share_token: shareToken,
     share_expires_at: expires.toISOString(),
+    points_forts: pointsForts,
+    points_faibles: pointsFaibles,
   };
   const patchTrace = {
     moteur_valeur: moteurValeur,

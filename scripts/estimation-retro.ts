@@ -1,17 +1,24 @@
 /**
- * Test rétrospectif du moteur : chaque vente est estimée sans elle-même
- * ni les ventes postérieures, puis comparée au prix réel.
+ * Évaluation leave-one-out sur ventes DVF réelles.
  *
  *   npx tsx scripts/estimation-retro.ts
- *   npx tsx scripts/estimation-retro.ts --cp 75020 --limite 80
+ *   npx tsx scripts/estimation-retro.ts --limite 200
  *
  * Variables : NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (.env.local)
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createSupabaseAdminClient } from '../lib/supabase/admin';
-import { runDvfEstimation } from '../lib/estimation/dvf-engine';
+import {
+  evaluerEchantillon,
+  synthetiser,
+  SEUILS_ACCEPTABLES,
+  type EchantillonEvaluation,
+} from '../lib/estimation/evaluation';
+import { assemblerEstimation, construireIndice, preparerLot } from '../lib/estimation/moteur';
+
+const PRIX_HUBBLE_ANGLET = 3_756_500;
 
 function loadEnvLocal() {
   try {
@@ -34,126 +41,237 @@ function arg(name: string, fallback: string): string {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1]! : fallback;
 }
 
-function mediane(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 === 0 ? (s[mid - 1]! + s[mid]!) / 2 : s[mid]!;
+function pct(n: number | null): string {
+  if (n == null) return '—';
+  return `${(n * 100).toFixed(1)} %`;
+}
+
+function euro(n: number | null): string {
+  if (n == null) return '—';
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 }
 
 loadEnvLocal();
 
 async function main() {
-  const cp = arg('--cp', '');
-  const limite = Number(arg('--limite', '60'));
+  const limite = Number(arg('--limite', '180'));
   const admin = createSupabaseAdminClient();
 
-  let q = admin
-    .from('building_transactions')
-    .select(
-      'id, id_mutation, ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, prix_m2, type_local, code_postal',
-    )
-    .not('valeur_fonciere', 'is', null)
-    .not('surface_reelle_bati', 'is', null)
-    .gt('valeur_fonciere', 0)
-    .gt('surface_reelle_bati', 15)
-    .order('date_mutation', { ascending: false })
-    .limit(Number.isFinite(limite) ? limite : 60);
-  if (cp) q = q.eq('code_postal', cp);
-  else q = q.in('code_postal', ['75020', '75011', '75019', '74000']);
+  const lots: Array<{
+    id: string;
+    id_mutation: string | null;
+    ban_id: string | null;
+    parcelle_id: string | null;
+    date_mutation: string;
+    valeur_fonciere: number | null;
+    surface_reelle_bati: number | null;
+    type_local: string | null;
+    code_postal: string | null;
+  }> = [];
+  const coordsPreload = new Map<string, { lat: number; lng: number; cp: string }>();
 
-  const { data, error } = await q;
-  if (error || !data) {
-    console.error(error?.message ?? 'Lecture des ventes impossible');
-    process.exit(1);
+  for (const prefix of ['75', '74', '64']) {
+    const { data: bats } = await admin
+      .from('buildings')
+      .select('ban_id, lat, lng, code_postal')
+      .like('code_postal', `${prefix}%`)
+      .not('lat', 'is', null)
+      .limit(500);
+    const ids = (bats ?? []).map((b) => b.ban_id).filter(Boolean) as string[];
+    for (const b of bats ?? []) {
+      if (b.ban_id && b.lat != null && b.lng != null && b.code_postal) {
+        coordsPreload.set(b.ban_id, { lat: b.lat, lng: b.lng, cp: b.code_postal });
+      }
+    }
+    if (ids.length === 0) continue;
+    const avant = lots.length;
+    for (let i = 0; i < ids.length && lots.length - avant < Math.ceil(limite / 3); i += 80) {
+      const slice = ids.slice(i, i + 80);
+      const { data: txs } = await admin
+        .from('building_transactions')
+        .select(
+          'id, id_mutation, ban_id, parcelle_id, date_mutation, valeur_fonciere, surface_reelle_bati, type_local, code_postal',
+        )
+        .in('ban_id', slice)
+        .gt('valeur_fonciere', 40000)
+        .gt('surface_reelle_bati', 20)
+        .order('date_mutation', { ascending: false })
+        .limit(40);
+      lots.push(...(txs ?? []));
+    }
   }
+  const data = lots.slice(0, limite);
 
-  const parCp = new Map<
-    string,
-    { erreurs: number[]; ok10: number; ok20: number; impossibles: number; n: number }
-  >();
+  const coords = new Map<string, { lat: number; lng: number }>();
+  for (const [id, v] of coordsPreload) coords.set(id, { lat: v.lat, lng: v.lng });
 
+  const echantillon: EchantillonEvaluation[] = [];
   for (const row of data) {
     const surface = Number(row.surface_reelle_bati);
     const prix = Number(row.valeur_fonciere);
-    const postal = row.code_postal;
+    if (!Number.isFinite(surface) || surface <= 0 || !Number.isFinite(prix) || prix <= 0) continue;
+    const c = row.ban_id ? coords.get(row.ban_id) : null;
+    if (!c) continue;
+    const postal = (row.ban_id ? coordsPreload.get(row.ban_id)?.cp : null) || row.code_postal;
+    if (!postal) continue;
     const type = /maison/i.test(row.type_local ?? '') ? 'maison' : 'appartement';
-    if (!postal || !Number.isFinite(surface) || surface <= 0 || !Number.isFinite(prix) || prix <= 0) {
-      continue;
-    }
+    echantillon.push({
+      id: String(row.id),
+      zone: postal,
+      type,
+      surfaceM2: surface,
+      prix,
+      date: row.date_mutation,
+      lat: c.lat,
+      lng: c.lng,
+      postalCode: postal,
+    });
+  }
 
-    let lat = 48.86;
-    let lng = 2.4;
-    if (row.ban_id) {
-      const { data: b } = await admin
-        .from('buildings')
-        .select('lat, lng')
-        .eq('ban_id', row.ban_id)
-        .limit(1)
-        .maybeSingle();
-      if (b?.lat != null && b.lng != null) {
-        lat = b.lat;
-        lng = b.lng;
-      }
-    }
+  const lignes = evaluerEchantillon(echantillon);
+  const rapport = synthetiser(lignes);
 
-    const result = await runDvfEstimation(
-      admin,
-      {
-        address: postal,
-        postalCode: postal,
-        city: null,
-        banId: row.ban_id,
-        latitude: lat,
-        longitude: lng,
-        propertyType: type,
-        surfaceM2: Math.round(surface),
-        rooms: 3,
+  const lignesTxt: string[] = [];
+  const log = (s: string) => {
+    console.log(s);
+    lignesTxt.push(s);
+  };
+
+  log('Évaluation leave-one-out — ventes DVF exploitables');
+  log(`n=${rapport.n} estimés=${rapport.nEstimes}`);
+  log(
+    `médiane |erreur|=${pct(rapport.medianePct)}  ±10%=${pct(rapport.part10)}  ±20%=${pct(rapport.part20)}`,
+  );
+  log(
+    `Seuils proposés : médiane ≤ ${pct(SEUILS_ACCEPTABLES.medianePctMax)}, ±10% ≥ ${pct(SEUILS_ACCEPTABLES.part10Min)}, ±20% ≥ ${pct(SEUILS_ACCEPTABLES.part20Min)}`,
+  );
+  log('');
+  log('Par zone (code postal)');
+  for (const [zone, r] of Object.entries(rapport.parZone).sort((a, b) => a[0].localeCompare(b[0]))) {
+    log(`${zone}\tn=${r.n}\testimés=${r.nEstimes}\tmédiane=${pct(r.medianePct)}\t±10%=${pct(r.part10)}\t±20%=${pct(r.part20)}`);
+  }
+  log('');
+  log('Par type');
+  for (const [type, r] of Object.entries(rapport.parType)) {
+    log(`${type}\tn=${r.n}\testimés=${r.nEstimes}\tmédiane=${pct(r.medianePct)}\t±10%=${pct(r.part10)}\t±20%=${pct(r.part20)}`);
+  }
+
+  const anglet = echantillon.filter((e) => e.postalCode.startsWith('64') && e.type === 'maison');
+  if (anglet.length > 0) {
+    const cible = [...anglet].sort(
+      (a, b) => Math.abs(a.prix - PRIX_HUBBLE_ANGLET) - Math.abs(b.prix - PRIX_HUBBLE_ANGLET),
+    )[0]!;
+    const r = assemblerEstimation({
+      input: {
+        surfaceM2: cible.surfaceM2,
+        propertyType: 'maison',
         floor: null,
         hasElevator: null,
+        dernierEtage: null,
         conditionRating: null,
         dpeClass: null,
-        features: [],
-        avant: row.date_mutation,
-        excludeMutationId: row.id_mutation,
-        maintenant: new Date(row.date_mutation),
+        balconTerrasse: false,
+        piscine: false,
+        annexes: [],
+        terrainM2: null,
       },
-      null,
-      async () => undefined,
-      { sansBienici: true },
-    );
-
-    const bucket = parCp.get(postal) ?? { erreurs: [], ok10: 0, ok20: 0, impossibles: 0, n: 0 };
-    bucket.n += 1;
-    if (!result.available || result.value == null || result.value <= 0) {
-      bucket.impossibles += 1;
-    } else {
-      const err = Math.abs(result.value - prix) / prix;
-      bucket.erreurs.push(err);
-      if (err <= 0.1) bucket.ok10 += 1;
-      if (err <= 0.2) bucket.ok20 += 1;
+      lot: preparerLot(
+        anglet.filter((v) => v.id !== cible.id).map((v) => ({
+          id: v.id,
+          idMutation: v.id,
+          dateMutation: v.date,
+          valeurFonciere: v.prix,
+          surfaceM2: v.surfaceM2,
+          prixM2: v.prix / v.surfaceM2,
+          typeLocal: 'Maison',
+          natureMutation: 'Vente',
+          banId: v.id,
+          parcelleId: v.id,
+          lat: v.lat,
+          lng: v.lng,
+          adresse: v.zone,
+          codePostal: v.postalCode,
+          surfaceTerrain: null,
+        })),
+        {
+          surfaceM2: cible.surfaceM2,
+          propertyType: 'maison',
+          floor: null,
+          hasElevator: null,
+          dernierEtage: null,
+          conditionRating: null,
+          dpeClass: null,
+          balconTerrasse: false,
+          piscine: false,
+          annexes: [],
+          terrainM2: null,
+        },
+        { lat: cible.lat, lng: cible.lng, banId: cible.id, parcelleId: cible.id, voie: null },
+        construireIndice(
+          anglet.map((v) => ({
+            id: v.id,
+            idMutation: v.id,
+            dateMutation: v.date,
+            valeurFonciere: v.prix,
+            surfaceM2: v.surfaceM2,
+            prixM2: v.prix / v.surfaceM2,
+            typeLocal: 'Maison',
+            natureMutation: 'Vente',
+            banId: v.id,
+            parcelleId: v.id,
+            lat: v.lat,
+            lng: v.lng,
+            adresse: v.zone,
+            codePostal: v.postalCode,
+            surfaceTerrain: null,
+          })),
+          new Date(),
+        ),
+        new Date(),
+      ),
+      indice: construireIndice(
+        anglet.map((v) => ({
+          id: v.id,
+          idMutation: v.id,
+          dateMutation: v.date,
+          valeurFonciere: v.prix,
+          surfaceM2: v.surfaceM2,
+          prixM2: v.prix / v.surfaceM2,
+          typeLocal: 'Maison',
+          natureMutation: 'Vente',
+          banId: v.id,
+          parcelleId: v.id,
+          lat: v.lat,
+          lng: v.lng,
+          adresse: v.zone,
+          codePostal: v.postalCode,
+          surfaceTerrain: null,
+        })),
+        new Date(),
+      ),
+      radiusM: 2000,
+      fenetreMois: 36,
+      exclues: [],
+      maintenant: new Date(),
+    });
+    log('');
+    log('Cohérence Anglet (contrôle, pas un objectif d’algo)');
+    log(`Vente DVF la plus proche de PriceHubble ${euro(PRIX_HUBBLE_ANGLET)} : ${euro(cible.prix)} · ${Math.round(cible.surfaceM2)} m² · ${cible.postalCode}`);
+    log(`Estimation Priimo (sans cette vente) : ${r.available ? euro(r.value) : 'pas assez de ventes comparables'}`);
+    if (r.available && r.value) {
+      log(`Écart vs PriceHubble : ${pct((r.value - PRIX_HUBBLE_ANGLET) / PRIX_HUBBLE_ANGLET)}`);
     }
-    parCp.set(postal, bucket);
+  } else {
+    log('');
+    log('Cohérence Anglet : pas assez de maisons 64 dans l’échantillon chargé.');
   }
 
-  console.log('code_postal\tn\terreur_mediane\t±10%\t±20%\timpossibles');
-  for (const [code, b] of [...parCp.entries()].sort((a, c) => a[0].localeCompare(c[0]))) {
-    const med = mediane(b.erreurs);
-    const possibles = b.n - b.impossibles;
-    console.log(
-      [
-        code,
-        b.n,
-        med != null ? `${(med * 100).toFixed(1)} %` : '—',
-        possibles ? `${((b.ok10 / possibles) * 100).toFixed(0)} %` : '—',
-        possibles ? `${((b.ok20 / possibles) * 100).toFixed(0)} %` : '—',
-        `${b.impossibles}/${b.n}`,
-      ].join('\t'),
-    );
-  }
+  const out = resolve(process.cwd(), 'scripts/evaluation-avis-rapport.txt');
+  writeFileSync(out, lignesTxt.join('\n'), 'utf8');
+  log(`Rapport écrit dans ${out}`);
 }
 
-void main().catch((err) => {
+main().catch((err) => {
   console.error(err);
   process.exit(1);
 });

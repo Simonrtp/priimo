@@ -14,6 +14,7 @@ import {
   PRIIMO_MAP_STYLE,
 } from '@/lib/map/style';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
+import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import { OPACITE_REMPLISSAGE_ZONE } from '@/lib/zones/palette';
 import { bbox, chevauchements, fusionnerBbox, polygonesDeZone } from '@/lib/zones/geometrie';
 import { COULEUR_FRAICHEUR, type NiveauFraicheur } from '@/lib/zones/fraicheur';
@@ -25,8 +26,9 @@ import {
   anneauxDepuisGeometrie,
   centroideAnneau,
   contourDepuisParcelles,
+  enveloppeFidele,
 } from '@/lib/zones/parcelles-contour';
-import type { Map as MapboxMap } from 'mapbox-gl';
+import type { ExpressionSpecification, Map as MapboxMap } from 'mapbox-gl';
 import {
   deplacerSommet,
   insererSommet,
@@ -35,7 +37,10 @@ import {
   sommetsManipulables,
   type Sommet,
 } from '@/lib/zones/contour';
-import type { Zone } from '@/lib/zones/types';
+import type { ValeurVoie, Zone } from '@/lib/zones/types';
+import { cotesDeLaVoie, numerosDeLaRegle } from '@/lib/zones/voie-trace';
+import { cleVoie, useNumerosVoies } from '@/lib/zones/use-numeros-voies';
+import { Check, RotateCcw } from 'lucide-react';
 
 /**
  * La carte des secteurs.
@@ -83,6 +88,10 @@ const LISSAGE_PX = 9;
 const MILIEUX_JUSQUA = 120;
 
 const ZONE_PCI_FILL = 'zone-parcelles-fill';
+/** En deçà, on ne lit pas les rues : le tracé rapproche la vue jusque-là. */
+const ZOOM_LECTURE_RUES = 13;
+/** Rouge des exclusions, le même que les erreurs de formulaire. */
+const ROUGE_EXCLUSION = '#B42318';
 const ZONE_PCI_LINE = 'zone-parcelles-line';
 /** Distance à laquelle le trait se colle à un bord de parcelle. */
 const SNAP_PX = 18;
@@ -144,14 +153,21 @@ type Props = {
   centre: { latitude: number | null; longitude: number | null };
   /** Hauteur fixe. Sans valeur, la carte remplit le parent. */
   hauteur?: number;
-  /** Voie surlignée après le choix dans l'autocomplétion BAN. */
-  voieSurlignee?: { latitude: number; longitude: number } | null;
+  /** Règle de rue en cours de saisie : dessinée en pointillés avant l'ajout. */
+  voieApercu?: { valeur: ValeurVoie; inclusion: boolean } | null;
+  /**
+   * Repère figé (Accueil) : ni glisser, ni zoomer. La carte cadre tous les
+   * secteurs et s'y tient ; un clic sur un secteur reste possible.
+   */
+  figee?: boolean;
   modeDessin?: ModeCarte;
   onPolygoneDessine?: (polygone: GeoJSON.Polygon) => void;
   onPolygoneModifie?: (regleId: string, polygone: GeoJSON.Polygon) => void;
   onSurvolZone?: (zoneId: string | null) => void;
   /** Lecture seule : un clic dans un contour choisit ce secteur. */
   onChoisirZone?: (zoneId: string) => void;
+  /** Téléphone : poignées à la taille du doigt. */
+  tactile?: boolean;
 };
 
 /** Retouche en cours de geste, pas encore envoyée au serveur. */
@@ -159,6 +175,22 @@ type Brouillon = { regleId: string; polygone: GeoJSON.Polygon };
 
 function polygoneDeRegle(coordinates: unknown): GeoJSON.Polygon {
   return { type: 'Polygon', coordinates: coordinates as number[][][] };
+}
+
+/** Le geste en cours : le trait, et la surface qu'il referme déjà. */
+function collectionDuTrace(trace: readonly PointTrace[]): GeoJSON.FeatureCollection {
+  const ligne = trace.map((p) => [p[0], p[1]]);
+  const features: GeoJSON.Feature[] = [
+    { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: ligne } },
+  ];
+  if (ligne.length >= 3) {
+    features.unshift({
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'Polygon', coordinates: [[...ligne, ligne[0]!]] },
+    });
+  }
+  return { type: 'FeatureCollection', features };
 }
 
 /** Contours d'une zone, avec la retouche en cours substituée à l'enregistré. */
@@ -184,12 +216,14 @@ export default function ZonesCarte({
   leads = [],
   centre,
   hauteur,
-  voieSurlignee = null,
+  voieApercu = null,
+  figee = false,
   modeDessin = 'inactif',
   onPolygoneDessine,
   onPolygoneModifie,
   onSurvolZone,
   onChoisirZone,
+  tactile = false,
 }: Props) {
   const mapRef = useRef<MapRef | null>(null);
   const boiteRef = useRef<HTMLDivElement | null>(null);
@@ -211,6 +245,21 @@ export default function ZonesCarte({
   const formeRef = useRef<{ origine: PointEcran; actuel: PointEcran } | null>(null);
   const [trace, setTrace] = useState<PointTrace[]>([]);
   const [formeApercu, setFormeApercu] = useState<GeoJSON.Polygon | null>(null);
+  /**
+   * Le contour tout juste tracé, montré avant d'être gardé : un geste raté se
+   * refait d'un nouveau geste, au lieu de s'enregistrer d'office.
+   */
+  const [propose, setPropose] = useState<GeoJSON.Polygon | null>(null);
+  const proposeRef = useRef(propose);
+  useEffect(() => {
+    proposeRef.current = propose;
+  }, [propose]);
+  // Changer de mode jette la proposition en attente.
+  const [modeVu, setModeVu] = useState(modeDessin);
+  if (modeVu !== modeDessin) {
+    setModeVu(modeDessin);
+    setPropose(null);
+  }
 
   /**
    * Retouche élastique. L'éditeur de mapbox-gl-draw déplace le secteur entier
@@ -244,6 +293,8 @@ export default function ZonesCarte({
       if (!dessinActif || formeActive) return;
       enTraceRef.current = true;
       parcellesRef.current = new globalThis.Map();
+      setPropose(null);
+      if (tactile) navigator.vibrate?.(8);
       const point = collerPoint(e);
       traceRef.current = [point];
       dernierPixelRef.current = { x: e.point.x, y: e.point.y };
@@ -295,17 +346,24 @@ export default function ZonesCarte({
         }
       }
     }
-    const colle = contourDepuisParcelles([...parcellesRef.current.values()]);
+    const enveloppe = contourDepuisParcelles([...parcellesRef.current.values()]);
     parcellesRef.current = new globalThis.Map();
-    const polygone = colle ?? libre;
-    if (polygone) onPolygoneDessine?.(polygone);
-  }, [onPolygoneDessine]);
+    // Le geste, déjà collé aux bords de parcelles point par point, fait foi ;
+    // l'enveloppe des parcelles ne le remplace que si elle en garde la surface.
+    const polygone = libre
+      ? enveloppe && enveloppeFidele(enveloppe, libre)
+        ? enveloppe
+        : libre
+      : enveloppe;
+    if (polygone) setPropose(polygone);
+  }, []);
 
   const debuterForme = useCallback(
     (e: GesteCarte) => {
       if (!formeActive) return;
       formeRef.current = { origine: e.point, actuel: e.point };
       setFormeApercu(null);
+      setPropose(null);
     },
     [formeActive],
   );
@@ -337,22 +395,67 @@ export default function ZonesCarte({
       const ll = map.unproject([p.x, p.y]);
       return [ll.lng, ll.lat];
     });
-    if (polygone) onPolygoneDessine?.(polygone);
-  }, [formeActive, modeDessin, onPolygoneDessine]);
+    if (polygone) setPropose(polygone);
+  }, [formeActive, modeDessin]);
 
   const relacherGeste = useCallback(() => {
     if (formeRef.current) terminerForme();
     else terminerTrace();
   }, [terminerForme, terminerTrace]);
 
+  /**
+   * Un deuxième doigt, c'est un zoom, pas un tracé : on abandonne le geste en
+   * cours et on laisse la carte zoomer, sans quitter le mode dessin.
+   */
+  const abandonnerGeste = useCallback(() => {
+    enTraceRef.current = false;
+    traceRef.current = [];
+    dernierPixelRef.current = null;
+    parcellesRef.current = new globalThis.Map();
+    setTrace([]);
+    formeRef.current = null;
+    setFormeApercu(null);
+  }, []);
+
+  /**
+   * On ne force plus le zoom des parcelles : à ce niveau, un secteur de
+   * quelques rues ne tenait plus à l'écran, et la carte ne bouge pas pendant
+   * le tracé. On rapproche seulement une vue trop lointaine pour lire les rues.
+   * Au zoom des parcelles, le contour s'y colle ; plus loin, il est lissé.
+   */
   useEffect(() => {
     if (!dessinActif || !pret) return;
     const map = mapRef.current?.getMap();
     if (!map) return;
-    if (map.getZoom() < IGN_PCI_MINZOOM) {
-      map.easeTo({ zoom: IGN_PCI_MINZOOM + 0.4, duration: 380 });
+    if (map.getZoom() < ZOOM_LECTURE_RUES) {
+      map.easeTo({ zoom: ZOOM_LECTURE_RUES + 0.5, duration: 380 });
     }
   }, [dessinActif, pret]);
+
+  // Échap : abandonne le geste en cours, puis la proposition.
+  useEffect(() => {
+    if (!dessinActif) return;
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (enTraceRef.current || formeRef.current) {
+        e.stopPropagation();
+        abandonnerGeste();
+        return;
+      }
+      if (proposeRef.current) {
+        e.stopPropagation();
+        setPropose(null);
+      }
+    };
+    window.addEventListener('keydown', surTouche, true);
+    return () => window.removeEventListener('keydown', surTouche, true);
+  }, [dessinActif, abandonnerGeste]);
+
+  const garderContour = useCallback(() => {
+    if (!propose) return;
+    onPolygoneDessine?.(propose);
+    setPropose(null);
+  }, [onPolygoneDessine, propose]);
 
   const commiter = useCallback(() => {
     sommetNeRef.current = null;
@@ -362,6 +465,106 @@ export default function ZonesCarte({
   }, [brouillon, onPolygoneModifie]);
 
   const actives = useMemo(() => zones.filter((z) => z.actif), [zones]);
+  const couleurTrace = zoneActive?.couleur ?? '#4C7A9E';
+
+  /**
+   * Un point par secteur pour son nom. Un libellé posé sur le polygone se
+   * répétait à chaque tuile que le contour traverse.
+   */
+  const nomsDesZones = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: actives.flatMap((zone) => {
+        const anneau = polygonesDeZone(zone)[0]?.coordinates[0];
+        const centre = anneau ? centroideAnneau(anneau as [number, number][]) : null;
+        if (!centre) return [];
+        return [
+          {
+            type: 'Feature' as const,
+            properties: { nom: zone.nom },
+            geometry: { type: 'Point' as const, coordinates: [centre[0], centre[1]] },
+          },
+        ];
+      }),
+    }),
+    [actives],
+  );
+
+  /**
+   * Les règles de rue, dessinées : un trait par côté retenu, un point par
+   * numéro, et les parcelles de ces numéros au zoom du cadastre. Une
+   * exclusion est en pointillés rouges ; la règle en cours de saisie, en
+   * pointillés de la couleur du secteur.
+   */
+  const reglesVoie = useMemo(
+    () =>
+      actives.flatMap((zone) =>
+        zone.regles.flatMap((regle) =>
+          regle.type === 'voie' ? [{ zone, valeur: regle.valeur, inclusion: regle.inclusion }] : [],
+        ),
+      ),
+    [actives],
+  );
+  const voiesDemandees = useMemo(
+    () => [...reglesVoie.map((r) => r.valeur), ...(voieApercu ? [voieApercu.valeur] : [])],
+    [reglesVoie, voieApercu],
+  );
+  const numerosParVoie = useNumerosVoies(voiesDemandees);
+  const dessinVoies = useMemo(() => {
+    const features: GeoJSON.Feature[] = [];
+    const parcelles = new globalThis.Map<string, string>();
+    const ajouter = (valeur: ValeurVoie, couleur: string, style: 'plein' | 'tirets') => {
+      const retenus = numerosDeLaRegle(numerosParVoie.get(cleVoie(valeur)) ?? [], valeur);
+      for (const cote of cotesDeLaVoie(retenus)) {
+        features.push({
+          type: 'Feature',
+          properties: { couleur, style },
+          geometry: { type: 'LineString', coordinates: cote },
+        });
+      }
+      for (const n of retenus) {
+        features.push({
+          type: 'Feature',
+          properties: { couleur, style },
+          geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] },
+        });
+        for (const id of n.parcelles) parcelles.set(id, couleur);
+      }
+    };
+    for (const r of reglesVoie) {
+      ajouter(r.valeur, r.inclusion ? r.zone.couleur : ROUGE_EXCLUSION, r.inclusion ? 'plein' : 'tirets');
+    }
+    if (voieApercu) {
+      ajouter(voieApercu.valeur, voieApercu.inclusion ? couleurTrace : ROUGE_EXCLUSION, 'tirets');
+    }
+    const parCouleur = new globalThis.Map<string, string[]>();
+    for (const [id, couleur] of parcelles) parCouleur.set(couleur, [...(parCouleur.get(couleur) ?? []), id]);
+    const couleurParcelle: unknown[] = ['match', ['get', 'idu']];
+    for (const [couleur, ids] of parCouleur) couleurParcelle.push(ids, couleur);
+    couleurParcelle.push('rgba(0, 0, 0, 0)');
+    return {
+      collection: { type: 'FeatureCollection', features } as GeoJSON.FeatureCollection,
+      parcelleIds: [...parcelles.keys()],
+      couleurParcelle: couleurParcelle as ExpressionSpecification,
+    };
+  }, [reglesVoie, voieApercu, numerosParVoie, couleurTrace]);
+
+  // Une rue choisie dans la saisie : la carte va la montrer.
+  const apercuCle = voieApercu ? cleVoie(voieApercu.valeur) : null;
+  const apercuNumeros = apercuCle ? numerosParVoie.get(apercuCle) : undefined;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!pret || !map || !apercuNumeros || apercuNumeros.length === 0) return;
+    const lons = apercuNumeros.map((n) => n.longitude);
+    const lats = apercuNumeros.map((n) => n.latitude);
+    map.fitBounds(
+      [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)],
+      ],
+      { padding: 56, maxZoom: 17, duration: 500 },
+    );
+  }, [pret, apercuCle, apercuNumeros]);
   const idsHachures = useMemo(() => {
     const ids = new Set<string>();
     for (const c of chevauchements(actives)) {
@@ -400,12 +603,12 @@ export default function ZonesCarte({
    * sans repère.
    */
   const cadre = useMemo(() => {
-    const cibles = onChoisirZone && zoneActive ? [zoneActive] : actives;
+    const cibles = !figee && onChoisirZone && zoneActive ? [zoneActive] : actives;
     const boites = cibles
       .flatMap((z) => polygonesDeZone(z).map(bbox))
       .filter((b): b is NonNullable<typeof b> => b !== null);
     return fusionnerBbox(boites);
-  }, [actives, zoneActive, onChoisirZone]);
+  }, [actives, zoneActive, onChoisirZone, figee]);
 
   /**
    * On recadre à l'arrivée et quand la liste des secteurs change, jamais quand
@@ -415,30 +618,27 @@ export default function ZonesCarte({
   const listeSecteurs = actives.map((z) => z.id).join(',');
   const cadreRef = useRef(cadre);
   cadreRef.current = cadre;
-  useEffect(() => {
+  const cadrer = useCallback((duree: number) => {
     const map = mapRef.current;
     const c = cadreRef.current;
-    if (!pret || !map || !c) return;
+    if (!map || !c) return;
     map.fitBounds(
       [
         [c.ouest, c.sud],
         [c.est, c.nord],
       ],
-      { padding: 48, maxZoom: 15, duration: zoneActive ? 400 : 0 },
+      { padding: 40, maxZoom: 15, duration: duree },
     );
+  }, []);
+  useEffect(() => {
+    if (!pret) return;
+    cadrer(zoneActive && !figee ? 400 : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recadrer seulement quand la liste ou le secteur choisi change
   }, [pret, listeSecteurs, zoneActive?.id]);
 
   // Un parent en flex change de taille après le premier rendu : sans ça,
   // Mapbox garde le canvas de 280 px dans une carte déjà plus haute.
-  useEffect(() => {
-    const el = boiteRef.current;
-    if (!pret || !el) return;
-    const ro = new ResizeObserver(() => {
-      mapRef.current?.getMap().resize();
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [pret]);
+  useCanvasAJour(mapRef, pret);
 
   if (!MAPBOX_TOKEN) return <MapTokenMissing />;
 
@@ -465,8 +665,18 @@ export default function ZonesCarte({
         initialViewState={depart}
         attributionControl={false}
         // Le geste appartient au tracé : la carte ne coulisse plus sous la main.
-        dragPan={!dessinActif}
-        doubleClickZoom={!dessinActif}
+        // Figée (Accueil), elle ne bouge jamais ; le clic sur un secteur reste.
+        dragPan={!dessinActif && !figee}
+        doubleClickZoom={!dessinActif && !figee}
+        scrollZoom={!figee}
+        touchZoomRotate={!figee}
+        dragRotate={false}
+        touchPitch={false}
+        keyboard={!figee}
+        boxZoom={!figee}
+        onResize={() => {
+          if (figee) cadrer(0);
+        }}
         cursor={dessinActif ? 'crosshair' : onChoisirZone ? 'pointer' : undefined}
         onMouseDown={(e) => {
           if (formeActive) debuterForme(e);
@@ -474,10 +684,15 @@ export default function ZonesCarte({
         }}
         onMouseUp={relacherGeste}
         onTouchStart={(e) => {
+          if (e.originalEvent.touches.length > 1) {
+            abandonnerGeste();
+            return;
+          }
           if (formeActive) debuterForme(e);
           else debuterTrace(e);
         }}
         onTouchMove={(e) => {
+          if (e.originalEvent.touches.length > 1) return;
           if (formeRef.current) etirerForme(e);
           else prolongerTrace(e);
         }}
@@ -550,23 +765,113 @@ export default function ZonesCarte({
           );
         })}
 
+        {/* Le nom sur la carte, un seul par secteur : on voit qui tient quoi. */}
+        {dessinActif || ajustActif ? null : (
+          <Source id="zones-noms" type="geojson" data={nomsDesZones}>
+            <Layer
+              id="zones-noms-texte"
+              type="symbol"
+              layout={{
+                'text-field': ['get', 'nom'],
+                'text-size': 12,
+                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+                'text-max-width': 9,
+              }}
+              paint={{
+                'text-color': '#1a2a56',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 1.6,
+              }}
+            />
+          </Source>
+        )}
+
+        {dessinVoies.collection.features.length > 0 ? (
+          <Source id="zone-voies" type="geojson" data={dessinVoies.collection}>
+            <Layer
+              id="zone-voies-fond"
+              type="line"
+              filter={['==', ['geometry-type'], 'LineString']}
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.85 }}
+            />
+            <Layer
+              id="zone-voies-ligne"
+              type="line"
+              filter={['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'style'], 'plein']]}
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': ['get', 'couleur'], 'line-width': 4 }}
+            />
+            <Layer
+              id="zone-voies-tirets"
+              type="line"
+              filter={['all', ['==', ['geometry-type'], 'LineString'], ['==', ['get', 'style'], 'tirets']]}
+              layout={{ 'line-join': 'round' }}
+              paint={{ 'line-color': ['get', 'couleur'], 'line-width': 4, 'line-dasharray': [1.4, 1.1] }}
+            />
+            <Layer
+              id="zone-voies-numeros"
+              type="circle"
+              filter={['==', ['geometry-type'], 'Point']}
+              paint={{
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 1.8, 16, 3.5, 18, 5],
+                'circle-color': ['get', 'couleur'],
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 1.2,
+              }}
+            />
+          </Source>
+        ) : null}
+
+        {propose ? (
+          <Source id="zone-propose" type="geojson" data={{ type: 'Feature', properties: {}, geometry: propose }}>
+            <Layer
+              id="zone-propose-fill"
+              type="fill"
+              paint={{ 'fill-color': couleurTrace, 'fill-opacity': 0.24 }}
+            />
+            <Layer
+              id="zone-propose-line"
+              type="line"
+              layout={{ 'line-join': 'round' }}
+              paint={{ 'line-color': couleurTrace, 'line-width': 3, 'line-dasharray': [2, 1.2] }}
+            />
+          </Source>
+        ) : null}
+
+        {/* Le geste en cours, déjà refermé : on voit la surface qu'on entoure. */}
         {trace.length >= 2 ? (
-          <Source
-            id="zone-trace"
-            type="geojson"
-            data={{
-              type: 'Feature',
-              properties: {},
-              geometry: { type: 'LineString', coordinates: trace.map((p) => [p[0], p[1]]) },
-            }}
-          >
+          <Source id="zone-trace" type="geojson" data={collectionDuTrace(trace)}>
+            <Layer
+              id="zone-trace-fill"
+              type="fill"
+              filter={['==', ['geometry-type'], 'Polygon']}
+              paint={{ 'fill-color': couleurTrace, 'fill-opacity': 0.14 }}
+            />
+            <Layer
+              id="zone-trace-fond"
+              type="line"
+              filter={['==', ['geometry-type'], 'LineString']}
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.9 }}
+            />
             <Layer
               id="zone-trace-line"
               type="line"
+              filter={['==', ['geometry-type'], 'LineString']}
               layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-              paint={{ 'line-color': zoneActive?.couleur ?? '#4C7A9E', 'line-width': 3 }}
+              paint={{ 'line-color': couleurTrace, 'line-width': 3.5 }}
             />
           </Source>
+        ) : null}
+        {trace.length >= 2 ? (
+          <Marker longitude={trace[0]![0]} latitude={trace[0]![1]}>
+            <span
+              aria-hidden
+              className="block rounded-full border-[2.5px] bg-white shadow-clay-sm"
+              style={{ width: 12, height: 12, borderColor: couleurTrace }}
+            />
+          </Marker>
         ) : null}
 
         <Source id={IGN_PCI_SOURCE_ID} {...IGN_PCI_VECTOR_SOURCE}>
@@ -591,6 +896,16 @@ export default function ZonesCarte({
               'line-opacity': dessinActif || ajustActif ? 1 : 0.35,
             }}
           />
+          {dessinVoies.parcelleIds.length > 0 ? (
+            <Layer
+              id="zone-voies-parcelles"
+              type="fill"
+              source-layer={IGN_PCI_SOURCE_LAYER}
+              minzoom={IGN_PCI_MINZOOM}
+              filter={['in', ['get', 'idu'], ['literal', dessinVoies.parcelleIds]]}
+              paint={{ 'fill-color': dessinVoies.couleurParcelle, 'fill-opacity': 0.3 }}
+            />
+          ) : null}
         </Source>
 
         {formeApercu ? (
@@ -634,6 +949,7 @@ export default function ZonesCarte({
             sommets={contour.sommets}
             milieux={contour.milieux}
             avecMilieux={!tropDeSommetsPourLesMilieux}
+            tactile={tactile}
             onDeplacerSommet={(index, vers) =>
               setBrouillon({
                 regleId: contour.regleId,
@@ -668,16 +984,34 @@ export default function ZonesCarte({
           />
         ))}
 
-        {voieSurlignee ? (
-          <Marker longitude={voieSurlignee.longitude} latitude={voieSurlignee.latitude}>
-            <span
-              aria-hidden
-              className="block animate-pulse rounded-full ring-2 ring-white"
-              style={{ width: 14, height: 14, backgroundColor: zoneActive?.couleur ?? '#4C7A9E' }}
-            />
-          </Marker>
-        ) : null}
       </Map>
+
+      {(dessinActif && !propose && trace.length === 0) || ajustActif ? (
+        <p className="pointer-events-none absolute inset-x-0 top-3 z-10 mx-auto w-fit max-w-[90%] rounded-full bg-[#1a2a56]/90 px-3.5 py-1.5 text-center text-[12.5px] font-medium text-white shadow-clay">
+          {ajustActif ? 'Glissez un point pour ajuster' : 'Tracez le contour d’un seul geste'}
+        </p>
+      ) : null}
+
+      {dessinActif && propose ? (
+        <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-2 px-3">
+          <button
+            type="button"
+            onClick={() => setPropose(null)}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-white px-4 text-[13px] font-semibold text-ink shadow-clay transition-colors hover:bg-[#F4F5F9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a2a56]"
+          >
+            <RotateCcw size={14} strokeWidth={2.2} aria-hidden />
+            Refaire
+          </button>
+          <button
+            type="button"
+            onClick={garderContour}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#1a2a56] px-4 text-[13px] font-semibold text-white shadow-clay transition-colors hover:bg-[#152348] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1a2a56]"
+          >
+            <Check size={14} strokeWidth={2.4} aria-hidden />
+            Garder ce contour
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -695,6 +1029,7 @@ function PoigneesContour({
   sommets,
   milieux,
   avecMilieux,
+  tactile,
   onDeplacerSommet,
   onTirerMilieu,
   onRetirerSommet,
@@ -704,6 +1039,7 @@ function PoigneesContour({
   sommets: readonly Sommet[];
   milieux: readonly { apres: number; point: Sommet }[];
   avecMilieux: boolean;
+  tactile: boolean;
   onDeplacerSommet: (index: number, vers: Sommet) => void;
   onTirerMilieu: (apres: number, vers: Sommet) => void;
   onRetirerSommet: (index: number) => void;
@@ -746,7 +1082,7 @@ function PoigneesContour({
                 onRetirerSommet(index);
               }}
               className="block cursor-grab rounded-full border-2 bg-white shadow-clay-sm active:cursor-grabbing"
-              style={{ width: 13, height: 13, borderColor: couleur }}
+              style={{ width: tactile ? 22 : 13, height: tactile ? 22 : 13, borderColor: couleur }}
             />
           </Marker>
         );
@@ -772,7 +1108,12 @@ function PoigneesContour({
                 <span
                   aria-hidden
                   className="block cursor-grab rounded-full border border-white/80 active:cursor-grabbing"
-                  style={{ width: 9, height: 9, backgroundColor: couleur, opacity: 0.55 }}
+                  style={{
+                    width: tactile ? 16 : 9,
+                    height: tactile ? 16 : 9,
+                    backgroundColor: couleur,
+                    opacity: 0.55,
+                  }}
                 />
               </Marker>
             );

@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Lead } from '@/types/lead';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { MapPoint, UnplacedRecord, WithoutPositionCount } from '@/lib/carte/points';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
@@ -24,7 +23,6 @@ export default function ProspectionCarteView({
   center,
   members,
   isDirector,
-  initialLeads,
   profileId,
   agencyOrigin,
   initialBanId,
@@ -41,7 +39,6 @@ export default function ProspectionCarteView({
   center: { latitude: number | null; longitude: number | null };
   members: readonly AssigneeOption[];
   isDirector: boolean;
-  initialLeads: Lead[];
   profileId: string;
   agencyOrigin: { latitude: number; longitude: number } | null;
   initialBanId: string | null;
@@ -86,7 +83,6 @@ export default function ProspectionCarteView({
             center={center}
             members={members}
             isDirector={isDirector}
-            initialLeads={initialLeads}
             profileId={profileId}
             agencyOrigin={agencyOrigin}
             initialBanId={initialBanId}

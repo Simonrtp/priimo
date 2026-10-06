@@ -10,6 +10,7 @@ import type {
   Contact,
   ContactInteraction,
   ContactType,
+  ContactVisibilite,
   SearchCriteria,
   VoiceNote,
 } from '@/types/contact';
@@ -26,7 +27,7 @@ const CONTACTS_SELECT_BASE = `
 `;
 
 /** Colonnes ajoutées après coup : une base qui ne les a pas encore reste lisible. */
-const COLONNES_RECENTES = ['autres_types', 'numero_communique_par_la_personne'] as const;
+const COLONNES_RECENTES = ['autres_types', 'numero_communique_par_la_personne', 'visibilite'] as const;
 
 export const CONTACTS_SELECT = `${CONTACTS_SELECT_BASE.trim()},
   ${COLONNES_RECENTES.join(', ')}
@@ -160,9 +161,45 @@ export function mapDbContactToContact(row: ContactRow): Contact {
     assignedTo: row.assigned_to ?? row.created_by ?? null,
     assignedBy: row.assigned_by ?? null,
     assignedAt: row.assigned_at ?? null,
+    visibilite: row.visibilite === 'agence' ? 'agence' : 'privee',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Lecture brute de contacts qui doit connaître `visibilite` (partage) : tant
+ * que la migration n'est pas passée, relit sans la colonne — tout est alors
+ * privé, comme avant.
+ */
+export async function avecVisibiliteContact<
+  T extends { data: unknown; error: { message?: string; code?: string } | null },
+>(run: (colonne: string) => PromiseLike<T>): Promise<T> {
+  const res = await run(', visibilite');
+  return isMissingContactsColumn(res.error, 'visibilite') ? run('') : res;
+}
+
+/**
+ * Les fiches qu'un titulaire a partagées avec l'agence. Pour les lectures qui
+ * ne passent pas par `withContactsSelect` : vide tant que la migration n'est
+ * pas passée (tout reste privé, comme avant).
+ */
+export async function fetchContactsPartagesIds(
+  supabase: Client,
+  agencyId: string,
+): Promise<ReadonlySet<string>> {
+  try {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('agency_id', agencyId)
+      .eq('visibilite', 'agence')
+      .limit(10_000);
+    if (error) return new Set();
+    return new Set((data ?? []).map((row) => (row as { id: string }).id));
+  } catch {
+    return new Set();
+  }
 }
 
 export async function fetchContacts(supabase: Client): Promise<Contact[]> {
@@ -212,6 +249,7 @@ export async function fetchContactsSafe(supabase: Client): Promise<Contact[]> {
 
 const DUP_SELECT =
   'id, agency_id, created_by, first_name, last_name, phone, email, doublon_de, assigned_to, contact_type';
+const DUP_SELECT_PARTAGE = `${DUP_SELECT}, visibilite`;
 const DUP_SELECT_LEGACY =
   'id, agency_id, created_by, first_name, last_name, phone, email, assigned_to, contact_type';
 
@@ -221,11 +259,19 @@ const DUP_SELECT_LEGACY =
  */
 export async function fetchContactsDuplicateLite(supabase: Client): Promise<Contact[]> {
   try {
-    const first = await supabase
+    // Une fiche partagée par un collègue compte aussi comme doublon possible.
+    const partage = await supabase
       .from('contacts')
-      .select(DUP_SELECT)
+      .select(DUP_SELECT_PARTAGE)
       .order('updated_at', { ascending: false })
       .limit(2500);
+    const first = partage.error
+      ? await supabase
+          .from('contacts')
+          .select(DUP_SELECT)
+          .order('updated_at', { ascending: false })
+          .limit(2500)
+      : partage;
     const result = first.error
       ? await supabase
           .from('contacts')
@@ -482,6 +528,7 @@ export interface ContactPatch {
   postalCodes?: string[];
   assignedTo?: string | null;
   recontacterLe?: string | null;
+  visibilite?: ContactVisibilite;
 }
 
 /** Traduit un patch domaine en colonnes DB. Les clés absentes ne sont pas touchées. */
@@ -503,6 +550,7 @@ export function contactPatchToRow(patch: ContactPatch): Partial<ContactRow> {
   if (patch.postalCodes !== undefined) row.postal_codes = patch.postalCodes;
   if (patch.assignedTo !== undefined) row.assigned_to = patch.assignedTo;
   if (patch.recontacterLe !== undefined) row.recontacter_le = patch.recontacterLe;
+  if (patch.visibilite !== undefined) row.visibilite = patch.visibilite;
   return row;
 }
 

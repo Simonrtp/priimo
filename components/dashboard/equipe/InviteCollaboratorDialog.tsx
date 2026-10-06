@@ -94,8 +94,13 @@ export default function InviteCollaboratorDialog({
           <WorkspaceButton type="button" variant="secondary" onClick={onClose}>
             Annuler
           </WorkspaceButton>
-          <WorkspaceButton type="submit" disabled={sending || !email.trim()}>
-            {sending ? 'Envoi…' : avertissement ? 'Confirmer et inviter' : "Envoyer l'invitation"}
+          <WorkspaceButton
+            type="submit"
+            busy={sending}
+            busyLabel="Envoi…"
+            disabled={!email.trim()}
+          >
+            {avertissement ? 'Confirmer et inviter' : "Envoyer l'invitation"}
           </WorkspaceButton>
         </div>
       </form>

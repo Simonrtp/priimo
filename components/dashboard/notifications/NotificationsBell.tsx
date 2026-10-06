@@ -6,17 +6,20 @@ import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
-import { FIELD } from '@/lib/today/field';
+import { ACCUEIL_DARK } from '@/lib/today/field';
 import { CIBLE_CLOCHE, EVENEMENT_ENVOL_ARRIVE, type EnvolArrive } from '@/lib/ui/envol-note';
 import styles from '@/components/dashboard/accueil/envol.module.css';
 import NotificationsPanel from './NotificationsPanel';
+
+/** Pastille + envol — bleu clair, pas l’orange terrain. */
+const CLOCHE_ACCENT = ACCUEIL_DARK.bleu;
 
 function Pastille({ n }: { n: number }) {
   if (n <= 0) return null;
   return (
     <span
       className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-semibold tabular-nums text-white"
-      style={{ backgroundColor: FIELD.orange, fontSize: 10 }}
+      style={{ backgroundColor: CLOCHE_ACCENT, fontSize: 10 }}
     >
       {n > 9 ? '9+' : n}
     </span>
@@ -91,14 +94,14 @@ export default function NotificationsBell({
       aria-controls={panelId}
       aria-haspopup="dialog"
       data-envol-cible={CIBLE_CLOCHE}
-      data-envol-couleur={FIELD.orange}
+      data-envol-couleur={CLOCHE_ACCENT}
       onClick={() => (open ? fermerCloche() : ouvrirCloche())}
       className={`relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out md:size-9 ${
         tone === 'shell'
           ? 'text-white/90 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70'
           : 'text-ink hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
       }`}
-      style={{ ['--envol-cloche' as string]: FIELD.orange }}
+      style={{ ['--envol-cloche' as string]: CLOCHE_ACCENT }}
     >
       {impact ? <span key={`onde-${impact}`} className={styles.clocheOnde} aria-hidden /> : null}
       <Bell

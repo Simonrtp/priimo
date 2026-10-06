@@ -137,6 +137,7 @@ export async function dessinerPageGeneree(
     case 'prix':
       if (dossier.priceValue != null) texte(ctx, ctx.zone.x, y0 - 10, formatEuro(dossier.priceValue), 28, true);
       lignes(ctx, y0 - 50, [
+        dossier.moteurValeur != null ? `Estimation Priimo ${formatEuro(dossier.moteurValeur)}` : null,
         dossier.pricePerM2 != null && dossier.surfacePrixLibelle
           ? `${formatPrixM2(dossier.pricePerM2)} (${dossier.surfacePrixLibelle})`
           : null,
@@ -144,7 +145,34 @@ export async function dessinerPageGeneree(
           ? `${formatEuro(dossier.priceLow)} – ${formatEuro(dossier.priceHigh)}`
           : null,
         libelleOccupation(dossier.occupation),
+        dossier.agence.mentionLegale,
         dossier.remarquesExpert,
+      ]);
+      break;
+    case 'cadastre':
+      lignes(ctx, y0, [
+        ...dossier.parcelles.map((p) =>
+          `${p.id}${p.contenanceM2 != null ? ` · ${formatSurface(p.contenanceM2)}` : ''}`,
+        ),
+        'Plan cadastral indicatif, sans valeur juridique.',
+      ]);
+      if (dossier.latitude != null && dossier.longitude != null) {
+        await carte(doc, ctx, dossier.latitude, dossier.longitude, ctx.zone.x + ctx.zone.w / 2, ctx.zone.y + 20);
+      }
+      break;
+    case 'photos':
+      lignes(ctx, y0, [`${dossier.photos.filter((p) => p.kind === 'photo').length} photo(s)`]);
+      break;
+    case 'dpe_bien':
+      lignes(ctx, y0, [
+        dossier.dpeClass ? `DPE ${dossier.dpeClass}` : 'DPE non renseigné',
+        dossier.gesClass ? `GES ${dossier.gesClass}` : null,
+      ]);
+      break;
+    case 'strategie':
+      lignes(ctx, y0, [
+        ...dossier.pointsForts.map((p) => `+ ${p}`),
+        ...dossier.pointsFaibles.map((p) => `- ${p}`),
       ]);
       break;
     case 'prochaine_etape':

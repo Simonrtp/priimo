@@ -207,7 +207,7 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
               disabled={isSubmitting}
               aria-busy={isSubmitting}
               aria-label={isSubmitting ? 'Connexion en cours' : undefined}
-              className={isSubmitting ? 'auth-wait-btn' : 'btn btn-primary w-full'}
+              className={isSubmitting ? 'priimo-wait-btn' : 'btn btn-primary w-full'}
             >
               {isSubmitting ? <AuthWait label="Un instant." /> : <span>Se connecter</span>}
             </button>

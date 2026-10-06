@@ -166,13 +166,21 @@ export default function ExportAnnonceDialog({
         <WorkspaceButton
           type="button"
           variant="secondary"
-          disabled={busy !== null}
+          busy={busy === 'csv'}
+          busyLabel="Préparation…"
+          disabled={busy === 'xml'}
           onClick={() => void exportFile('csv')}
         >
-          {busy === 'csv' ? 'Préparation…' : 'Télécharger le CSV'}
+          Télécharger le CSV
         </WorkspaceButton>
-        <WorkspaceButton type="button" disabled={busy !== null} onClick={() => void exportFile('xml')}>
-          {busy === 'xml' ? 'Préparation…' : 'Télécharger le XML'}
+        <WorkspaceButton
+          type="button"
+          busy={busy === 'xml'}
+          busyLabel="Préparation…"
+          disabled={busy === 'csv'}
+          onClick={() => void exportFile('xml')}
+        >
+          Télécharger le XML
         </WorkspaceButton>
       </div>
     </Modal>

@@ -32,7 +32,7 @@ function lead(overrides: Partial<Lead> = {}): Pick<
     rooms: 3,
     etage: '4',
     dpeClass: 'D',
-    dpeDate: '2026-08-01',
+    dpeDate: '2026-10-01',
     mainSignalLabel: null,
     displaySignals: {
       ...EMPTY_DISPLAY_SIGNALS,

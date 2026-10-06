@@ -2,10 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import {
   canSeeActivityOf,
+  canSeeContact,
   canSeeLeadRecord,
   canSeeOwnedRecord,
   type RecordViewer,
 } from '@/lib/agency/visibility';
+import { avecVisibiliteContact } from '@/lib/queries/contacts';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { parseDpeLetter } from '@/lib/carte/dpe-public';
 import {
@@ -593,6 +595,7 @@ type ContactParcelleRow = {
   phone: string | null;
   assigned_to: string | null;
   created_by: string | null;
+  visibilite?: 'privee' | 'agence' | null;
 };
 
 type BienParcelleRow = {
@@ -626,11 +629,13 @@ async function lireAgenceSurLaParcelle(
       .eq('agency_id', agencyId)
       .in('ban_id', [...bans])
       .order('score', { ascending: false }),
-    sessionDb
-      .from('contacts')
-      .select('id, first_name, last_name, contact_type, phone, assigned_to, created_by, ban_id')
-      .eq('agency_id', agencyId)
-      .in('ban_id', [...bans]),
+    avecVisibiliteContact((visibilite) =>
+      sessionDb
+        .from('contacts')
+        .select(`id, first_name, last_name, contact_type, phone, assigned_to, created_by, ban_id${visibilite}`)
+        .eq('agency_id', agencyId)
+        .in('ban_id', [...bans]),
+    ),
     sessionDb
       .from('biens')
       .select('id, address, mandat_statut, price, surface_m2, rooms, created_by, ban_id')
@@ -695,7 +700,13 @@ async function lireAgenceSurLaParcelle(
 
   const contacts: ParcelleContactAgence[] = [];
   for (const row of (contactsRes.data ?? []) as unknown as ContactParcelleRow[]) {
-    if (!canSeeOwnedRecord(viewer, { assignedTo: row.assigned_to ?? null, createdBy: row.created_by ?? null })) {
+    if (
+      !canSeeContact(viewer, {
+        assignedTo: row.assigned_to ?? null,
+        createdBy: row.created_by ?? null,
+        visibilite: row.visibilite,
+      })
+    ) {
       continue;
     }
     contacts.push({

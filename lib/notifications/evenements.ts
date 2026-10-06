@@ -4,6 +4,7 @@ import { ecrireNotification, notificationDejaEmise } from './ecrire';
 import { LIEN_ADRESSES_A_REVOIR, lienNotification } from './liens';
 import {
   corpsAdressesARevoir,
+  corpsNotesTranscrites,
   corpsSuiviImmeuble,
   titreAdressesARevoir,
   titreInvitationAcceptee,
@@ -173,7 +174,7 @@ export async function notifierNoteTranscrite(params: {
     profileId: params.auteurId,
     type: 'note_transcrite',
     titre: titreNotesTranscrites(1),
-    corps: 'Ta dictée est prête.',
+    corps: corpsNotesTranscrites(1),
     lien: lienNotification('note_transcrite', params.noteId),
     entiteType: 'note',
     entiteId: params.noteId,

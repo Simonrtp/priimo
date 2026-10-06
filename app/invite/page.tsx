@@ -409,7 +409,7 @@ function InvitePageContent() {
                 disabled={submitting}
                 aria-busy={submitting}
                 aria-label={submitting ? 'Création du compte en cours' : undefined}
-                className={submitting ? 'auth-wait-btn' : 'btn btn-primary w-full'}
+                className={submitting ? 'priimo-wait-btn' : 'btn btn-primary w-full'}
               >
                 {submitting ? <AuthWait label="Un instant." /> : <span>Créer mon compte</span>}
               </button>

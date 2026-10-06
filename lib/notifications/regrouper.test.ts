@@ -9,8 +9,8 @@ function notif(partial: Partial<Notification> & Pick<Notification, 'id' | 'creat
     agencyId: 'ag',
     profileId: 'moi',
     type: 'note_transcrite',
-    titre: 'Une note prête à relire',
-    corps: 'Ta dictée est prête.',
+    titre: 'Ta dictée est transcrite',
+    corps: 'Ouvre-la pour la ranger.',
     lien: '/dashboard?notes=1',
     entiteType: 'note',
     entiteId: partial.id,
@@ -48,7 +48,7 @@ describe('regrouperNotifications', () => {
     ]);
     assert.equal(groupes.length, 1);
     assert.equal(groupes[0]!.items.length, 3);
-    assert.equal(groupes[0]!.titre, '3 notes prêtes à relire');
+    assert.equal(groupes[0]!.titre, '3 dictées transcrites');
     assert.equal(groupes[0]!.nonLues, 3);
   });
 
@@ -81,7 +81,7 @@ describe('textes', () => {
   it('formule la livraison selon le rôle', () => {
     assert.equal(titreLeadsLivresNego(4), '4 adresses dans ton secteur');
     assert.equal(titreLeadsLivresDirecteur(25), '25 adresses livrées');
-    assert.equal(titreGroupe('note_transcrite', 3, 'Une note prête à relire'), '3 notes prêtes à relire');
+    assert.equal(titreGroupe('note_transcrite', 3, 'Ta dictée est transcrite'), '3 dictées transcrites');
     assert.equal(titreAdressesARevoir(1), '1 adresse n’a pas été passée');
     assert.equal(titreAdressesARevoir(27), '27 adresses n’ont pas été passées');
   });

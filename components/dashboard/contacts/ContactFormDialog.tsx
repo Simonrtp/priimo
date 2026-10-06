@@ -10,6 +10,9 @@ import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ContactFormFields from '@/components/dashboard/contacts/ContactFormFields';
+import type { Visibilite } from '@/components/dashboard/workspace/ChoixVisibilite';
+import { canManageContact } from '@/lib/agency/visibility';
+import { useUser } from '@/lib/hooks/useUser';
 
 function fromContact(contact: Contact): ContactInputFields {
   return {
@@ -99,6 +102,12 @@ export default function ContactFormDialog({
   const [assignedTo, setAssignedTo] = useState<string | null>(
     contact?.assignedTo ?? currentUserId,
   );
+  const [visibilite, setVisibilite] = useState<Visibilite>(contact?.visibilite ?? 'privee');
+  const { profile } = useUser();
+  // La fiche d'un collègue, partagée : on la complète sans changer son partage ni son suivi.
+  const ficheDUnCollegue = contact
+    ? !canManageContact({ id: profile.id, role: profile.role }, contact)
+    : false;
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -148,6 +157,7 @@ export default function ContactFormDialog({
       ...fields,
       postalCodes: fields.postalCodes,
       assignedTo,
+      visibilite,
       forceCreate: !contact && useForce ? true : undefined,
       banId: geo.banId,
       latitude: geo.latitude,
@@ -304,9 +314,12 @@ export default function ContactFormDialog({
           }}
           assignedTo={assignedTo}
           onAssignedTo={setAssignedTo}
+          visibilite={visibilite}
+          onVisibilite={setVisibilite}
+          visibiliteFigee={ficheDUnCollegue}
           geo={geo}
           onGeo={setGeo}
-          members={members}
+          members={ficheDUnCollegue ? [] : members}
           currentUserId={currentUserId}
           fieldErrors={fieldErrors}
         />
@@ -315,8 +328,8 @@ export default function ContactFormDialog({
           <WorkspaceButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
             Annuler
           </WorkspaceButton>
-          <WorkspaceButton type="submit" disabled={saving}>
-            {saving ? 'Validation…' : contact ? 'Valider' : 'Créer le contact'}
+          <WorkspaceButton type="submit" busy={saving} busyLabel="Validation…">
+            {contact ? 'Valider' : 'Créer le contact'}
           </WorkspaceButton>
         </div>
       </form>

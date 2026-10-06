@@ -9,6 +9,9 @@ import { CONTACT_NOTE_HINT } from '@/lib/contact-input';
 import { evaluerCorrespondance } from '@/lib/matching/rapprochement';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import ChoixVisibilite, { type Visibilite } from '@/components/dashboard/workspace/ChoixVisibilite';
+import { canManageContact } from '@/lib/agency/visibility';
+import { useUser } from '@/lib/hooks/useUser';
 import { Field, PhoneInput, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import ConsentementRappelField from '@/components/dashboard/contacts/ConsentementRappelField';
 import { notifyError } from '@/lib/notify';
@@ -128,6 +131,11 @@ export default function ContactDetailPanel({
   const [draft, setDraft] = useState(() => fieldSnapshot(contact));
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [partageEnCours, setPartageEnCours] = useState(false);
+  const { profile } = useUser();
+  // Fiche partagée par un collègue : on la complète, on n'en dispose pas.
+  const gerable = canManageContact({ id: profile.id, role: profile.role }, contact);
+  const titulaire = members.find((m) => m.id === contact.assignedTo)?.fullName ?? null;
   const draftRef = useRef(draft);
   const lastSavedRef = useRef(fieldSnapshot(contact));
   const savingRef = useRef(false);
@@ -217,6 +225,28 @@ export default function ContactDetailPanel({
     }
   }
 
+  async function changerPartage(next: Visibilite) {
+    if (partageEnCours || !gerable) return;
+    setPartageEnCours(true);
+    try {
+      const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibilite: next }),
+      });
+      const data = (await res.json()) as { contact?: Contact; error?: string };
+      if (!res.ok || !data.contact) {
+        notifyError(data.error ?? "Le partage n'a pas pu être enregistré");
+        return;
+      }
+      onAssigned(data.contact);
+    } catch {
+      notifyError("Le partage n'a pas pu être enregistré");
+    } finally {
+      setPartageEnCours(false);
+    }
+  }
+
   const criteria = criteriaLines(contact);
   const addressLabel = contact.type === 'gardien' || contact.type === 'commercant' ? 'Immeuble' : 'Adresse';
 
@@ -300,13 +330,27 @@ export default function ContactDetailPanel({
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2 sm:gap-x-8">
         <Block title="Assigner à">
-          <AssigneeSelect
-            id={`contact-detail-assignee-${contact.id}`}
-            value={contact.assignedTo}
-            members={members}
-            currentUserId={currentUserId}
-            includeUnassigned
-            onChange={(id) => void assignContact(id)}
+          {gerable ? (
+            <AssigneeSelect
+              id={`contact-detail-assignee-${contact.id}`}
+              value={contact.assignedTo}
+              members={members}
+              currentUserId={currentUserId}
+              includeUnassigned
+              onChange={(id) => void assignContact(id)}
+            />
+          ) : (
+            <p className="text-[14px] text-text">{titulaire ?? 'Un collègue'}</p>
+          )}
+        </Block>
+
+        <Block title="Partage">
+          <ChoixVisibilite
+            objet="contact"
+            value={contact.visibilite ?? 'privee'}
+            onChange={(next) => void changerPartage(next)}
+            disabled={!gerable || partageEnCours}
+            aideVerrou={`Partagée par ${titulaire ?? 'un collègue'} : seul son titulaire choisit son partage.`}
           />
         </Block>
 
@@ -377,14 +421,16 @@ export default function ContactDetailPanel({
         <WorkspaceButton type="button" variant="secondary" onClick={onEdit} className="!min-h-9 !py-1.5">
           Modifier
         </WorkspaceButton>
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label={`Supprimer ${contact.fullName}`}
-          className="flex size-9 items-center justify-center rounded-clay border border-black/[0.12] bg-surface text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <Trash2 size={16} strokeWidth={2} aria-hidden />
-        </button>
+        {gerable ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Supprimer ${contact.fullName}`}
+            className="flex size-9 items-center justify-center rounded-clay border border-black/[0.12] bg-surface text-text-muted transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.03] hover:text-danger focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <Trash2 size={16} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
       </div>
     </div>
   );

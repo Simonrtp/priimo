@@ -57,22 +57,6 @@ export function sortieSignature(stops: readonly Pick<LocatedTask, 'key'>[]): str
   return [...stops.map((s) => s.key)].sort().join('|');
 }
 
-/** Au-delà, l'agent est considéré déjà sur le terrain. */
-export const SORTIE_FIELD_ORIGIN_M = 500;
-
-export function resolveSortieOrigin(
-  agency: GeoCoord | null,
-  gps: GeoCoord | null,
-): { origin: GeoCoord | null; source: 'agency' | 'field' | 'none' } {
-  if (!agency && !gps) return { origin: null, source: 'none' };
-  if (!agency) return { origin: gps, source: 'field' };
-  if (!gps) return { origin: agency, source: 'agency' };
-  if (haversineM(agency, gps) > SORTIE_FIELD_ORIGIN_M) {
-    return { origin: gps, source: 'field' };
-  }
-  return { origin: agency, source: 'agency' };
-}
-
 function asCoord(t: LocatedTask): GeoCoord {
   return { latitude: t.latitude, longitude: t.longitude };
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Lead, TeamMember } from '@/types/lead';
 import { useUser } from '@/lib/hooks/useUser';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -17,6 +18,7 @@ import LeadStatusControl from './LeadStatusControl';
 import LeadApproachScript from './LeadApproachScript';
 import { DetailSection, DetailSectionLabel } from './LeadDetailSection';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
+import { creerAvisDepuis } from '@/lib/estimation/creer-depuis';
 
 const SUIVI_SELECT =
   'flex w-full items-center justify-between gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-left text-[12.5px] text-ink/85 transition-colors duration-fluid-subtle ease-in-out hover:border-black/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10';
@@ -117,9 +119,11 @@ export default function LeadDetailBody({
   headerTitleId,
 }: LeadDetailBodyProps) {
   const { profile } = useUser();
+  const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [note, setNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [estimating, setEstimating] = useState(false);
 
   const authorName = useMemo(
     () => resolveAuthorName(profile, currentUserId, teamMembers),
@@ -189,6 +193,27 @@ export default function LeadDetailBody({
           marketTourAnchor={isMobile ? 'drawer-market-mobile' : 'drawer-market'}
           padClassName={padX}
         />
+
+        <div className={`${padX} pt-3`}>
+          <button
+            type="button"
+            disabled={estimating}
+            onClick={() => {
+              setEstimating(true);
+              void creerAvisDepuis({ leadId: lead.id }).then((r) => {
+                setEstimating(false);
+                if ('error' in r) {
+                  notifyError(r.error);
+                  return;
+                }
+                router.push(`/dashboard/estimation?id=${r.id}`);
+              });
+            }}
+            className="min-h-11 w-full rounded-xl bg-accent px-4 py-2.5 text-[14px] font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50"
+          >
+            {estimating ? 'Ouverture…' : 'Estimer ce bien'}
+          </button>
+        </div>
 
         <div className={`min-w-0 ${padX} pb-6`}>
           <DetailSection>

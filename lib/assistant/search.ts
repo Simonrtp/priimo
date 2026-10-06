@@ -4,9 +4,9 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RecordViewer } from '@/lib/agency/visibility';
-import { canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
+import { canSeeContact, canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
-import { buildFullName } from '@/lib/queries/contacts';
+import { buildFullName, fetchContactsPartagesIds } from '@/lib/queries/contacts';
 import type { Database } from '@/types/database';
 import {
   digitsOnly,
@@ -164,6 +164,8 @@ export type SearchRows = {
     contact_type: string;
     assigned_to?: string | null;
     created_by: string | null;
+    /** Fiche partagée par son titulaire avec l'agence. */
+    visibilite?: 'privee' | 'agence' | null;
   } & Geo>;
   biens: Array<{
     id: string;
@@ -219,7 +221,7 @@ export async function fetchSearchRows(
     .filter(Boolean)
     .join(',');
 
-  const [leadsRes, contactsRes, biensRes, notesRes, interactionsRes] = await Promise.all([
+  const [leadsRes, contactsRes, biensRes, notesRes, interactionsRes, partagees] = await Promise.all([
     supabase
       .from('leads')
       .select(
@@ -282,11 +284,15 @@ export async function fetchSearchRows(
       .or(orIlike(['body'], patterns))
       .order('occurred_at', { ascending: false })
       .limit(SEARCH_ROW_LIMIT),
+    fetchContactsPartagesIds(supabase, agencyId),
   ]);
 
   return {
     leads: leadsRes.data ?? [],
-    contacts: contactsRes.data ?? [],
+    contacts: (contactsRes.data ?? []).map((row) => ({
+      ...row,
+      visibilite: partagees.has(row.id) ? ('agence' as const) : ('privee' as const),
+    })),
     biens: biensRes.data ?? [],
     notes: notesRes.data ?? [],
     interactions: interactionsRes.data ?? [],
@@ -339,7 +345,13 @@ export function buildSearchHits(
   }
 
   for (const row of rows.contacts) {
-    if (!canSeeOwnedRecord(viewer, { assignedTo: row.assigned_to ?? null, createdBy: row.created_by }))
+    if (
+      !canSeeContact(viewer, {
+        assignedTo: row.assigned_to ?? null,
+        createdBy: row.created_by,
+        visibilite: row.visibilite,
+      })
+    )
       continue;
     const name = buildFullName(row.first_name ?? '', row.last_name ?? '') || 'Contact sans nom';
     const nom = scoreNom(q, name, row.first_name, row.last_name);

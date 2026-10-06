@@ -95,9 +95,12 @@ export type MoteurInput = {
   conditionRating: 1 | 2 | 3 | 4 | null;
   dpeClass: string | null;
   balconTerrasse: boolean;
+  piscine: boolean;
   annexes: Array<{ libelle: string; valorisationEur: number | null }>;
   terrainM2: number | null;
   exclusIds?: readonly string[];
+  /** Surcharges agent, par id d’ajustement (pct). Jamais cachées. */
+  ajustementsAgent?: Readonly<Record<string, number>>;
 };
 
 export type MoteurResultat = {
@@ -115,6 +118,8 @@ export type MoteurResultat = {
   radiusM: number | null;
   fenetreMois: number | null;
   impossible: MotifImpossible | null;
+  /** Date ISO de la vente DVF retenue la plus récente (le millésime a ~6 mois de retard). */
+  dateDerniereVente: string | null;
 };
 
 export function impossible(
@@ -137,6 +142,7 @@ export function impossible(
     radiusM: null,
     fenetreMois: null,
     impossible: { code, motif, action },
+    dateDerniereVente: null,
   };
 }
 
@@ -375,7 +381,11 @@ export function actualiserPrixM2(prixM2: number, dateIso: string, indice: Indice
   const cle = trimestreCle(dateIso);
   const duTrimestre = cle ? indice.trimestres.find((t) => t.cle === cle)?.mediane : null;
   if (duTrimestre == null || duTrimestre <= 0) return prixM2;
-  return prixM2 * (indice.actuel / duTrimestre);
+  const facteur = indice.actuel / duTrimestre;
+  const cap = 1 + MOTEUR_CONFIG.INDEX_CAP;
+  const plancher = 1 - MOTEUR_CONFIG.INDEX_CAP;
+  const borne = Math.min(cap, Math.max(plancher, facteur));
+  return prixM2 * borne;
 }
 
 export function medianePonderee(pairs: readonly { valeur: number; poids: number }[]): number | null {
@@ -542,6 +552,28 @@ export function ajustementsMoteur(
       baseEur * MOTEUR_CONFIG.BALCON_TERRASSE_PCT,
     );
   }
+  if (input.piscine) {
+    add(
+      'piscine',
+      `Piscine : ${pctLabel(MOTEUR_CONFIG.PISCINE_PCT)}`,
+      MOTEUR_CONFIG.PISCINE_PCT,
+      baseEur * MOTEUR_CONFIG.PISCINE_PCT,
+    );
+  }
+  if (input.propertyType === 'maison' && input.terrainM2 != null && input.terrainM2 > 0) {
+    const pct = Math.min(
+      MOTEUR_CONFIG.TERRAIN_CAP_PCT,
+      (input.terrainM2 / 100) * MOTEUR_CONFIG.TERRAIN_PCT_PAR_100M2,
+    );
+    if (pct > 0) {
+      add(
+        'terrain',
+        `Terrain de ${Math.round(input.terrainM2).toLocaleString('fr-FR')} m² : ${pctLabel(pct)}`,
+        pct,
+        baseEur * pct,
+      );
+    }
+  }
   if (input.conditionRating != null) {
     const pct = MOTEUR_CONFIG.ETAT[input.conditionRating] ?? 0;
     const labels: Record<number, string> = {
@@ -572,6 +604,15 @@ export function ajustementsMoteur(
       : MOTEUR_CONFIG.ANNEXES_EUR[kind];
     const lib = kind === 'cave' ? 'Cave' : kind === 'box' ? 'Box' : 'Parking';
     add(`annexe_${kind}`, `${lib} : +${amount.toLocaleString('fr-FR')} €`, null, amount);
+  }
+  const overrides = input.ajustementsAgent;
+  if (overrides) {
+    for (const a of out) {
+      const next = overrides[a.id];
+      if (typeof next !== 'number' || !Number.isFinite(next)) continue;
+      a.pct = next;
+      a.amountEur = Math.round(baseEur * next);
+    }
   }
   return out;
 }
@@ -692,6 +733,28 @@ export function assemblerEstimation(args: {
     poids: l.poids,
   }));
   const { low, high } = fourchetteDepuisDispersion(prixVentes, value);
+  const bruts = prixVentes.map((p) => p.valeur).filter((n) => n > 0);
+  const medBrut = mediane(bruts);
+  const iqr =
+    bruts.length >= 4
+      ? [...bruts].sort((a, b) => a - b)[Math.floor(bruts.length * 0.75)]! -
+        [...bruts].sort((a, b) => a - b)[Math.floor(bruts.length * 0.25)]!
+      : null;
+  const ratioDisp = medBrut && medBrut > 0 && iqr != null ? iqr / medBrut : 0;
+  if (lot.length < MOTEUR_CONFIG.CIBLE_VENTES && ratioDisp > MOTEUR_CONFIG.DISPERSION_MAX_RATIO) {
+    return {
+      ...impossible(
+        'pas_assez_comparables',
+        'Pas assez de ventes comparables : les ventes retenues sont trop dispersées pour former un avis.',
+        'Saisissez le prix à la main. L’estimation Priimo reste indicative.',
+      ),
+      exclues,
+      radiusM,
+      fenetreMois,
+      indice,
+      ajustements,
+    };
+  }
 
   const maintenant = args.maintenant ?? new Date();
   const fiab = scorerFiabilite({
@@ -722,6 +785,9 @@ export function assemblerEstimation(args: {
       voie: voieNormalisee(l.vente.adresse),
     }));
 
+  const dates = retenues.map((r) => r.date).filter(Boolean).sort();
+  const dateDerniereVente = dates.length > 0 ? dates[dates.length - 1]! : null;
+
   return {
     available: true,
     value,
@@ -737,6 +803,7 @@ export function assemblerEstimation(args: {
     radiusM,
     fenetreMois,
     impossible: null,
+    dateDerniereVente,
   };
 }
 

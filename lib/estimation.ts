@@ -57,6 +57,8 @@ export const CONFIG_ESTIMATION = {
     GARAGE_CAP_PCT: 0.06,
     /** Dépendances (atelier, grange, abri). */
     DEPENDANCES_PCT: 0.02,
+    /** Piscine — forfaitaire, jamais présenté comme mesuré. */
+    PISCINE_PCT: 0.04,
   },
   VIEW: {
     vis_a_vis: 0,

@@ -63,6 +63,8 @@ export type AgencyRow = {
   rapport_email_modele?: string | null;
   rapport_titre_couverture?: string | null;
   rapport_cta_prochaine_etape?: string | null;
+  /** Mention légale de l’avis. NULL = emplacement vide (texte avocat à venir). */
+  avis_mention_legale?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -251,6 +253,7 @@ export type AgencyInsert = {
   demande_decision?: DemandeDecision | null;
   couleur_principale?: string | null;
   couleur_secondaire?: string | null;
+  avis_mention_legale?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -673,6 +676,26 @@ export type AgencyEstimationInsert = {
   updated_at?: string;
 };
 
+export type EstimationEventKindDb = 'created' | 'shared' | 'revoked';
+
+export type EstimationEventRow = {
+  id: string;
+  agency_id: string;
+  estimation_id: string;
+  profile_id: string | null;
+  kind: EstimationEventKindDb;
+  created_at: string;
+};
+
+export type EstimationEventInsert = {
+  id?: string;
+  agency_id: string;
+  estimation_id: string;
+  profile_id?: string | null;
+  kind: EstimationEventKindDb;
+  created_at?: string;
+};
+
 export type AgencyRapportPageKind = 'pdf' | 'image' | 'modele';
 export type EstimationRapportPageSource = 'bibliotheque' | 'import' | 'generee';
 export type EstimationRapportPageKind = 'pdf' | 'image' | 'generee' | 'modele';
@@ -760,7 +783,11 @@ export type AgencyRapportModeleKindGeneree =
   | 'concurrentiel'
   | 'indices'
   | 'prix'
-  | 'prochaine_etape';
+  | 'prochaine_etape'
+  | 'cadastre'
+  | 'photos'
+  | 'dpe_bien'
+  | 'strategie';
 
 export type AgencyRapportModeleRow = {
   id: string;
@@ -821,6 +848,7 @@ export type EstimationRapportEnvoiInsert = {
 /* -------------------------------------------------------------------------- */
 
 export type ContactTypeDb = 'vendeur' | 'acquereur' | 'locataire' | 'gardien' | 'commercant' | 'autre';
+export type ContactVisibiliteDb = 'privee' | 'agence';
 export type ContactSourceDb =
   | 'manuel'
   | 'vocal'
@@ -898,6 +926,8 @@ export type ContactRow = {
   is_demo?: boolean;
   telephone_consenti_le?: string | null;
   numero_communique_par_la_personne?: boolean;
+  /** privee = titulaire + direction ; agence = toute l'agence (20260954). */
+  visibilite?: ContactVisibiliteDb;
   created_at: string;
   updated_at: string;
 };
@@ -941,6 +971,7 @@ export type ContactInsert = {
   is_demo?: boolean;
   telephone_consenti_le?: string | null;
   numero_communique_par_la_personne?: boolean;
+  visibilite?: ContactVisibiliteDb;
   created_at?: string;
   updated_at?: string;
 };
@@ -2292,6 +2323,12 @@ export type Database = {
         Row: AgencyEstimationRow;
         Insert: AgencyEstimationInsert;
         Update: Partial<AgencyEstimationRow>;
+        Relationships: [];
+      };
+      estimation_events: {
+        Row: EstimationEventRow;
+        Insert: EstimationEventInsert;
+        Update: never;
         Relationships: [];
       };
       agency_rapport_pages: {

@@ -268,6 +268,20 @@ export default function OngletBien({
               />
             </Field>
           </Propose>
+          <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="piscine">
+            <Field label="Piscine" htmlFor="est-piscine">
+              <Select
+                id="est-piscine"
+                value={bien.piscine == null ? '' : bien.piscine ? 'oui' : 'non'}
+                options={[
+                  { value: '', label: 'Non renseigné' },
+                  { value: 'oui', label: 'Oui' },
+                  { value: 'non', label: 'Non' },
+                ]}
+                onChange={(v) => editBien('piscine', { piscine: v === '' ? null : v === 'oui' })}
+              />
+            </Field>
+          </Propose>
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="niveaux">
             <Field label="Niveaux" htmlFor="est-niveaux">
               <Select

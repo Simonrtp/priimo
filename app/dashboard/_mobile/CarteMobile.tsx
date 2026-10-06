@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, MapPin, Navigation, Phone, Square } from 'lucide-react';
+import { Box, Layers, Locate, MapPin, Navigation, Phone, Square } from 'lucide-react';
+import { toast } from 'sonner';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
 import {
@@ -43,7 +44,12 @@ import {
   type WithoutPositionCount,
 } from '@/lib/carte/points';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { requestDevicePosition, watchDevicePosition, type DevicePosition } from '@/lib/voice/gps';
+import {
+  readDevicePosition,
+  requestDevicePosition,
+  watchDevicePosition,
+  type DevicePosition,
+} from '@/lib/voice/gps';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
@@ -55,24 +61,25 @@ import MobileSheet from './MobileSheet';
 import MobileAccountMenu from './MobileAccountMenu';
 import MobileSearchCapsule from './MobileSearchCapsule';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
+import type { SelectedAddress } from '@/components/AddressAutocomplete';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
-import {
-  buildingToManualStop,
-  latestBatchCandidates,
-  searchResultToManualStop,
-  suggestedSortiePlan,
-} from '@/lib/carte/carte-tournee';
+import { buildingToManualStop, searchResultToManualStop } from '@/lib/carte/carte-tournee';
 import type { GeoCoord } from '@/lib/carte/coords';
-import type { Lead } from '@/types/lead';
+import { haversineM } from '@/lib/geo/distance';
+import { newOfflineId, postJsonOrQueue } from '@/lib/offline/queue';
 import CarteTourneeBriefCard from './CarteTourneeBriefCard';
 import CarteTourneeDoneCard from './CarteTourneeDoneCard';
+import CarteTourneeSetupSheet from './CarteTourneeSetupSheet';
 import CarteTourneeStopsSheet from './CarteTourneeStopsSheet';
+import type { SortieStop } from '@/lib/today/sortie';
+import { rebuildPlanFromStops, todaySortieDay } from '@/lib/today/sortie-session';
 import {
-  MAX_SORTIE_STOPS,
-  resolveSortieOrigin,
-  type SortieStop,
-} from '@/lib/today/sortie';
-import { rebuildPlanFromStops } from '@/lib/today/sortie-session';
+  DUREE_TOURNEE_DEFAUT,
+  DUREES_TOURNEE,
+  MAX_ARRETS_TOURNEE,
+  libelleDuree,
+  type TourneeReponse,
+} from '@/lib/tournee/reglages';
 import { loopWaypoints } from '@/lib/today/route-optimize';
 import {
   applyTripOrder,
@@ -100,10 +107,35 @@ import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
 
 /**
- * `brief` = séquence d'ouverture, `route` = chemin tracé + retouche des
- * adresses, `bilan` = bravo de fin.
+ * `preparation` = adresse de passage et temps, `brief` = séquence d'ouverture,
+ * `route` = chemin tracé + retouche des adresses, `bilan` = bravo de fin.
  */
-type CarteTourPhase = 'off' | 'brief' | 'route' | 'bilan';
+type CarteTourPhase = 'off' | 'preparation' | 'brief' | 'route' | 'bilan';
+
+const DUREE_STORAGE_KEY = 'priimo-tournee-duree';
+/** Assez près pour dire qu'on est passé devant la porte, pas assez pour la frôler en voiture. */
+const PASSAGE_RAYON_M = 25;
+const PASSAGE_PRECISION_M = 35;
+const PASSAGE_VITESSE_MAX_MS = 2.5;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function lireDureeTournee(): number {
+  try {
+    const brut = Number(window.localStorage.getItem(DUREE_STORAGE_KEY));
+    return (DUREES_TOURNEE as readonly number[]).includes(brut) ? brut : DUREE_TOURNEE_DEFAUT;
+  } catch {
+    return DUREE_TOURNEE_DEFAUT;
+  }
+}
+
+function messageTourneeVide(reponse: TourneeReponse): string {
+  const ou = reponse.secteur ? `dans ${reponse.secteur}` : 'dans votre secteur';
+  if (reponse.adressesAFaire === 0 && reponse.dejaFaites > 0) {
+    return `Toutes les adresses à DPE récent ${ou} ont déjà été prospectées. Revenez quand de nouveaux DPE tombent.`;
+  }
+  if (reponse.adressesAFaire === 0) return `Aucun DPE récent ${ou} pour le moment.`;
+  return 'Aucune adresse ne tient dans ce temps. Essayez une durée plus longue.';
+}
 
 type TourTrip = {
   /** Ordre de visite retenu par le routeur. */
@@ -141,7 +173,7 @@ export default function CarteMobile({
   unplaced,
   agencyPostalCodes = [],
   center,
-  initialLeads = [],
+  isDirector,
   profileId = '',
   agencyOrigin = null,
   initialBanId = null,
@@ -161,7 +193,6 @@ export default function CarteMobile({
   center: { latitude: number | null; longitude: number | null };
   members: readonly AssigneeOption[];
   isDirector: boolean;
-  initialLeads?: Lead[];
   profileId?: string;
   agencyOrigin?: GeoCoord | null;
   initialBanId?: string | null;
@@ -169,7 +200,7 @@ export default function CarteMobile({
   hideAccount?: boolean;
   itineraryStops?: readonly ItineraireStop[] | null;
   showItineraire?: boolean;
-  /** Entrée « tournée » depuis l'accueil : la séquence démarre seule. */
+  /** Entrée « tournée » depuis l'accueil : la préparation s'ouvre seule. */
   autoTournee?: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
@@ -201,24 +232,28 @@ export default function CarteMobile({
   /** Une tournée a cadré la carte : ne pas la redézoomer sur tout le secteur. */
   const [tourFramed, setTourFramed] = useState(false);
   const [picking, setPicking] = useState(false);
+  /** Le point touché sur la carte devient l'adresse de passage, ou un arrêt de plus. */
+  const [pickTarget, setPickTarget] = useState<'ancre' | 'arret'>('arret');
   const [bilan, setBilan] = useState<{ stopCount: number; distanceM: number; durationS: number | null } | null>(
     null,
   );
   const autoStarted = useRef(false);
 
+  const [ancreTournee, setAncreTournee] = useState<SelectedAddress | null>(null);
+  const [dureeTournee, setDureeTournee] = useState<number>(lireDureeTournee);
+  const [generation, setGeneration] = useState(false);
+  const [messageTournee, setMessageTournee] = useState<string | null>(null);
+  const [contexteTournee, setContexteTournee] = useState<string | null>(null);
+  /** Portes devant lesquelles le GPS a vu passer l'agent pendant la tournée. */
+  const [faits, setFaits] = useState<readonly string[]>([]);
+  const positionPreparation = useRef<Promise<DevicePosition | null> | null>(null);
+  const faitsRef = useRef<ReadonlySet<string>>(new Set());
+  const arretsRef = useRef<readonly SortieStop[]>([]);
+
   /** Interaction : les appuis sur la carte retouchent la tournée. */
   const tourActive = tourPhase === 'brief' || tourPhase === 'route';
   /** Affichage : le chemin reste tracé sous le bravo de fin. */
-  const tourShown = tourPhase !== 'off';
-
-  const batch = useMemo(
-    () => latestBatchCandidates(initialLeads, profileId),
-    [initialLeads, profileId],
-  );
-  const suggestedPlan = useMemo(
-    () => suggestedSortiePlan(initialLeads, profileId, tourOrigin ?? agencyOrigin),
-    [initialLeads, profileId, tourOrigin, agencyOrigin],
-  );
+  const tourShown = tourActive || tourPhase === 'bilan';
 
   /** Boucle optimisée localement : disponible tout de suite, sans réseau. */
   const localPlan = useMemo(
@@ -256,6 +291,11 @@ export default function CarteMobile({
     [tourShown, tour.ordered],
   );
   const tourKeys = useMemo(() => new Set(tourStops.map((s) => s.key)), [tourStops]);
+  const faitsSet = useMemo(() => new Set(faits), [faits]);
+  const arretsFaits = useMemo(
+    () => tour.ordered.filter((s) => faitsSet.has(s.key)).map((s) => s.leadId),
+    [tour.ordered, faitsSet],
+  );
   const highlightBanIds = useMemo(() => {
     if (!tourShown) return null;
     const ids = new Set<string>();
@@ -270,6 +310,39 @@ export default function CarteMobile({
     setStoredStops(readItineraireStops());
   }, []);
 
+  useEffect(() => {
+    arretsRef.current = tourActive ? tour.ordered : [];
+  }, [tourActive, tour.ordered]);
+
+  /** Une porte longée à pied devient un passage : la prochaine tournée ne la reproposera pas. */
+  const noterPassage = useCallback(
+    (pos: DevicePosition) => {
+      if (pos.accuracyM === null || pos.accuracyM > PASSAGE_PRECISION_M) return;
+      if (pos.speedMs !== null && pos.speedMs > PASSAGE_VITESSE_MAX_MS) return;
+      const longees = arretsRef.current.filter(
+        (s) => !faitsRef.current.has(s.key) && haversineM(pos, s) <= PASSAGE_RAYON_M,
+      );
+      if (longees.length === 0) return;
+      faitsRef.current = new Set([...faitsRef.current, ...longees.map((s) => s.key)]);
+      setFaits([...faitsRef.current]);
+      vibrateBrief();
+      // Le journal de sortie est réservé aux collaborateurs.
+      if (isDirector) return;
+      for (const stop of longees) {
+        void postJsonOrQueue('/api/dashboard/sortie/events', {
+          kind: 'passer',
+          leadId: UUID.test(stop.leadId) ? stop.leadId : null,
+          stopKey: stop.key,
+          banId: stop.banId,
+          payload: { source: 'carte' },
+          clientId: newOfflineId(),
+          day: todaySortieDay(),
+        });
+      }
+    },
+    [isDirector],
+  );
+
   // GPS parent seulement en tournée (progressPoint). Hors tournée, le point
   // bleu vit dans LiveAgentLocationMarker pour ne pas re-render toute la carte.
   useEffect(() => {
@@ -277,13 +350,19 @@ export default function CarteMobile({
       setAgentPosition(null);
       return;
     }
-    return watchDevicePosition(setAgentPosition, {
-      pauseWhenHidden: true,
-      highAccuracy: true,
-      minUpdateM: 10,
-      maximumAge: 2_000,
-    });
-  }, [tourShown]);
+    return watchDevicePosition(
+      (pos) => {
+        setAgentPosition(pos);
+        noterPassage(pos);
+      },
+      {
+        pauseWhenHidden: true,
+        highAccuracy: true,
+        minUpdateM: 10,
+        maximumAge: 2_000,
+      },
+    );
+  }, [tourShown, noterPassage]);
 
   const itineraryStops = tourItineraryStops
     ? tourItineraryStops
@@ -460,43 +539,115 @@ export default function CarteMobile({
     writeItineraireStops(toItineraireStops(tour.ordered));
   }, [tourPhase, tour.ordered]);
 
-  /** Amorce : la sortie suggérée du jour, sinon le dernier lot livré. */
-  const startTournee = useCallback(() => {
-    const seeds: SortieStop[] =
-      suggestedPlan && suggestedPlan.ordered.length > 0
-        ? suggestedPlan.ordered.map((s) => ({ ...s }))
-        : (batch.mine.length > 0 ? batch.mine : batch.all)
-            .slice(0, MAX_SORTIE_STOPS)
-            .map(({ source: _source, ...stop }) => stop);
+  /** Le secteur que le serveur retiendra : celui affiché s'il est à l'agent, sinon le sien. */
+  const secteurTournee = useMemo(() => {
+    if (zoneChoisie && (isDirector || zoneChoisie.assignedTo === profileId)) return zoneChoisie;
+    return zones.find((z) => z.id === monSecteurId) ?? null;
+  }, [zoneChoisie, zones, monSecteurId, isDirector, profileId]);
 
-    const kept = seeds.slice(0, MAX_SORTIE_STOPS);
-
-    setTourStops(kept);
-    setTrip(null);
+  /** Le GPS se cherche pendant que l'agent choisit son adresse et son temps. */
+  const ouvrirPreparation = useCallback(() => {
     setLayersOpen(false);
     setSelectedBanId(null);
     closeParcelle();
-    setTourPhase(kept.length > 0 ? 'brief' : 'route');
-
-    const origin = tourOrigin ?? agencyOrigin;
-    if (kept.length > 0) {
-      setTourFramed(true);
-      mapApi.current?.fitStops(origin ? [origin, ...kept] : kept);
-    }
-
-    void requestDevicePosition().then((pos) => {
-      if (!pos) return;
-      setAgentPosition(pos);
-      const resolved = resolveSortieOrigin(agencyOrigin, pos);
-      setTourOrigin(resolved.origin ?? agencyOrigin);
-    });
-  }, [suggestedPlan, batch, agencyOrigin, tourOrigin, closeParcelle]);
+    setMessageTournee(null);
+    setTourPhase('preparation');
+    positionPreparation.current = readDevicePosition();
+  }, [closeParcelle]);
 
   useEffect(() => {
     if (!autoTournee || autoStarted.current) return;
     autoStarted.current = true;
-    startTournee();
-  }, [autoTournee, startTournee]);
+    ouvrirPreparation();
+  }, [autoTournee, ouvrirPreparation]);
+
+  const fermerPreparation = useCallback(() => {
+    setPicking(false);
+    setAncreTournee(null);
+    setMessageTournee(null);
+    setTourPhase('off');
+  }, []);
+
+  const choisirDuree = useCallback((minutes: number) => {
+    setDureeTournee(minutes);
+    setMessageTournee(null);
+    try {
+      window.localStorage.setItem(DUREE_STORAGE_KEY, String(minutes));
+    } catch {
+      /* mode privé */
+    }
+  }, []);
+
+  const genererTournee = useCallback(async () => {
+    if (generation) return;
+    setGeneration(true);
+    setMessageTournee(null);
+    const position = await Promise.race([
+      positionPreparation.current ?? readDevicePosition(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2_500)),
+    ]);
+
+    let reponse: TourneeReponse | null = null;
+    try {
+      const res = await fetch('/api/dashboard/tournee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dureeMinutes: dureeTournee,
+          zoneId: zoneChoisie?.id ?? null,
+          ancre: ancreTournee
+            ? {
+                label: ancreTournee.label,
+                latitude: ancreTournee.latitude,
+                longitude: ancreTournee.longitude,
+                banId: ancreTournee.id ?? null,
+                codePostal: ancreTournee.postcode || null,
+              }
+            : null,
+          position: position ? { latitude: position.latitude, longitude: position.longitude } : null,
+        }),
+      });
+      if (res.ok) {
+        reponse = (await res.json()) as TourneeReponse;
+      } else {
+        const corps = (await res.json().catch(() => null)) as { error?: string } | null;
+        setMessageTournee(corps?.error ?? 'La tournée n’a pas pu être préparée. Réessayez.');
+      }
+    } catch {
+      setMessageTournee('Pas de réseau : la tournée n’a pas pu être préparée.');
+    }
+    setGeneration(false);
+    if (!reponse) return;
+    if (reponse.arrets.length === 0) {
+      setMessageTournee(messageTourneeVide(reponse));
+      return;
+    }
+
+    const minutes = Math.max(5, Math.round(reponse.minutes / 5) * 5);
+    const parmi =
+      reponse.adressesAFaire > reponse.arrets.length
+        ? ` · retenues parmi ${reponse.adressesAFaire} adresses à DPE récent`
+        : '';
+    faitsRef.current = new Set();
+    setFaits([]);
+    setTourStops(reponse.arrets);
+    setTourOrigin(reponse.depart);
+    setTrip(null);
+    setContexteTournee(`Environ ${libelleDuree(minutes)}, portes comprises${parmi}`);
+    setTourPhase('brief');
+    setTourFramed(true);
+    mapApi.current?.fitStops(reponse.depart ? [reponse.depart, ...reponse.arrets] : reponse.arrets);
+  }, [generation, dureeTournee, zoneChoisie, ancreTournee]);
+
+  const finirTournee = useCallback(() => {
+    setTourPhase('off');
+    setTourStops([]);
+    setTrip(null);
+    setAncreTournee(null);
+    setContexteTournee(null);
+    faitsRef.current = new Set();
+    setFaits([]);
+  }, []);
 
   /** La croix ne coupe pas net : on félicite d'abord, puis on rend la carte. */
   const stopTournee = useCallback(() => {
@@ -510,22 +661,18 @@ export default function CarteMobile({
       setTourPhase('bilan');
       return;
     }
-    setTourPhase('off');
-    setTourStops([]);
-    setTrip(null);
-  }, [tour]);
+    finirTournee();
+  }, [tour, finirTournee]);
 
   const closeBilan = useCallback(() => {
     setBilan(null);
-    setTourPhase('off');
-    setTourStops([]);
-    setTrip(null);
-  }, []);
+    finirTournee();
+  }, [finirTournee]);
 
   const addStop = useCallback((stop: SortieStop) => {
     setTourStops((prev) => {
       if (prev.some((s) => s.key === stop.key)) return prev;
-      if (prev.length >= MAX_SORTIE_STOPS) return prev;
+      if (prev.length >= MAX_ARRETS_TOURNEE) return prev;
       return [...prev, stop];
     });
     vibrateBrief();
@@ -556,21 +703,43 @@ export default function CarteMobile({
     (coord: GeoCoord) => {
       setPicking(false);
       void reverseGeocode(coord.latitude, coord.longitude).then((hit) => {
-        addStop(
-          searchResultToManualStop({
-            label: hit?.adresse_normalisee ?? 'Point sur la carte',
-            latitude: hit?.lat ?? coord.latitude,
-            longitude: hit?.lng ?? coord.longitude,
-            banId: hit?.ban_id ?? null,
-          }),
-        );
+        const label = hit?.adresse_normalisee ?? 'Point sur la carte';
+        const latitude = hit?.lat ?? coord.latitude;
+        const longitude = hit?.lng ?? coord.longitude;
+        if (pickTarget === 'ancre') {
+          setAncreTournee({
+            label,
+            latitude,
+            longitude,
+            city: '',
+            postcode: /\b\d{5}\b/.exec(label)?.[0] ?? '',
+            id: hit?.ban_id,
+          });
+          return;
+        }
+        addStop(searchResultToManualStop({ label, latitude, longitude, banId: hit?.ban_id ?? null }));
       });
     },
-    [addStop],
+    [addStop, pickTarget],
   );
 
   const handleMapSelect = useCallback(
     (building: BuildingMarker) => {
+      if (tourPhase === 'preparation') {
+        setPicking(false);
+        setAncreTournee({
+          label: building.title,
+          latitude: building.latitude,
+          longitude: building.longitude,
+          city: '',
+          postcode: building.postalCode ?? '',
+          // `bien:…` et `gps:…` placent une fiche sans adresse BAN : pas un identifiant d'immeuble.
+          id: building.banId.includes(':') ? undefined : building.banId,
+        });
+        setMessageTournee(null);
+        vibrateBrief();
+        return;
+      }
       if (tourActive) {
         const stop = buildingToManualStop(building);
         if (!stop) return;
@@ -587,7 +756,7 @@ export default function CarteMobile({
       setSelectedBanId(building.banId);
       setLayersOpen(false);
     },
-    [tourActive, picking, tourKeys, addStop, removeStop, closeParcelle],
+    [tourPhase, tourActive, picking, tourKeys, addStop, removeStop, closeParcelle],
   );
 
   const switchDimension = useCallback(() => {
@@ -605,6 +774,16 @@ export default function CarteMobile({
     tourPhase === 'route'
       ? 'calc(86px + var(--field-nav-height))'
       : 'calc(12px + var(--field-nav-height))';
+
+  const recenterGps = useCallback(() => {
+    void requestDevicePosition().then((pos) => {
+      if (!pos) {
+        toast.error('Position indisponible. Active le GPS.');
+        return;
+      }
+      mapApi.current?.recenter(pos, 16);
+    });
+  }, []);
 
   return (
     <div
@@ -635,7 +814,8 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        parcellesEnabled={!tourShown && planParcelles}
+        // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
+        parcellesEnabled={!tourShown && (planParcelles || Boolean(parcelle.selectedParcelleId))}
         activeParcelleIds={activeParcelleIds}
         suiviParcelleIds={suiviParcelleIds}
         parcelleNoteMarkers={parcelleNoteMarkers}
@@ -648,13 +828,14 @@ export default function CarteMobile({
           cadastreDpeAges: layers.cadastreDpeAges,
         }}
         onSelectParcelle={(parcelleId, extra) => {
-          if (tourActive) return;
+          if (tourActive || tourPhase === 'preparation') return;
           setSelectedBanId(null);
           setLayersOpen(false);
           parcelle.openParcelle(parcelleId, extra);
         }}
         onPrefetchParcelle={parcelle.prefetchParcelle}
         agentPosition={agentPosition}
+        completedLeadIds={arretsFaits}
         highlightBanIds={highlightBanIds}
         // Une adresse cherchée garde la main : la carte ne repart pas sur tout le secteur.
         suppressAutoFit={tourShown || tourFramed || Boolean(cible)}
@@ -669,7 +850,9 @@ export default function CarteMobile({
         >
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1A2A56] py-1.5 pl-4 pr-1.5 shadow-lg">
             <p className="min-w-0 flex-1 text-[13.5px] font-medium text-white">
-              Touchez la carte pour ajouter ce point
+              {pickTarget === 'ancre'
+                ? 'Touchez la carte à l’endroit où passer'
+                : 'Touchez la carte pour ajouter ce point'}
             </p>
             <button
               type="button"
@@ -682,7 +865,7 @@ export default function CarteMobile({
         </div>
       ) : null}
 
-      {tourPhase !== 'brief' && tourPhase !== 'bilan' && !picking ? (
+      {(tourPhase === 'off' || tourPhase === 'route') && !picking ? (
         <div
           className="pointer-events-none absolute inset-x-0 z-20 px-4"
           style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
@@ -706,15 +889,15 @@ export default function CarteMobile({
         </div>
       ) : null}
 
-      {tourPhase !== 'brief' && tourPhase !== 'bilan' ? (
+      {tourPhase === 'off' || tourPhase === 'route' ? (
         <>
           {!tourShown ? (
             <button
               type="button"
-              onClick={() => startTournee()}
+              onClick={ouvrirPreparation}
               aria-label="Préparer une tournée"
-              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2.5 font-semibold text-white shadow-lg"
-              style={{ bottom: floatBottom, backgroundColor: FIELD.orange, fontSize: 14 }}
+              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(79,70,229,0.6)] ring-2 ring-white"
+              style={{ bottom: floatBottom, fontSize: 14 }}
             >
               <MapPin size={18} strokeWidth={2.2} aria-hidden />
               Tournée
@@ -734,32 +917,64 @@ export default function CarteMobile({
             <Layers size={20} strokeWidth={2.2} aria-hidden />
           </button>
 
-          {!tourShown ? (
+          <div
+            className="absolute right-4 z-20 flex flex-col-reverse items-center gap-2"
+            style={{ bottom: floatBottom }}
+          >
+            {!tourShown ? (
+              <button
+                type="button"
+                onClick={switchDimension}
+                aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
+                aria-pressed={dimension === '3d'}
+                className="app-press flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
+                style={{ color: dimension === '3d' ? FIELD.orange : undefined }}
+              >
+                {dimension === '3d' ? (
+                  <Box size={17} strokeWidth={2.2} aria-hidden />
+                ) : (
+                  <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
+                )}
+                <span
+                  className="text-[10px] font-bold leading-none"
+                  style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
+                >
+                  {dimension === '3d' ? '3D' : '2D'}
+                </span>
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={switchDimension}
-              aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
-              aria-pressed={dimension === '3d'}
-              className="app-press absolute right-4 z-20 flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
-              style={{
-                bottom: floatBottom,
-                color: dimension === '3d' ? FIELD.orange : undefined,
-              }}
+              onClick={recenterGps}
+              aria-label="Recentrer sur ma position"
+              className="app-press flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
             >
-              {dimension === '3d' ? (
-                <Box size={17} strokeWidth={2.2} aria-hidden />
-              ) : (
-                <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
-              )}
-              <span
-                className="text-[10px] font-bold leading-none"
-                style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
-              >
-                {dimension === '3d' ? '3D' : '2D'}
-              </span>
+              <Locate size={20} strokeWidth={2} aria-hidden />
             </button>
-          ) : null}
+          </div>
         </>
+      ) : null}
+
+      {tourPhase === 'preparation' && !picking ? (
+        <CarteTourneeSetupSheet
+          secteurNom={secteurTournee?.nom ?? null}
+          ancre={ancreTournee}
+          onAncre={(adresse) => {
+            setAncreTournee(adresse);
+            setMessageTournee(null);
+          }}
+          duree={dureeTournee}
+          onDuree={choisirDuree}
+          postcodeFilter={agencyPostalCodes[0]}
+          generating={generation}
+          message={messageTournee}
+          onPickOnMap={() => {
+            setPickTarget('ancre');
+            setPicking(true);
+          }}
+          onGenerate={() => void genererTournee()}
+          onClose={fermerPreparation}
+        />
       ) : null}
 
       {tourPhase === 'brief' ? (
@@ -767,6 +982,7 @@ export default function CarteMobile({
           stopCount={tour.ordered.length}
           distanceM={tour.distanceM}
           durationS={tour.durationS}
+          contexte={contexteTournee}
           onDone={() => setTourPhase('route')}
         />
       ) : null}
@@ -774,6 +990,8 @@ export default function CarteMobile({
       {tourPhase === 'route' ? (
         <CarteTourneeStopsSheet
           stops={tour.ordered}
+          faits={faitsSet}
+          maxStops={MAX_ARRETS_TOURNEE}
           distanceM={tour.distanceM}
           durationS={tour.durationS}
           optimizing={tripPending}
@@ -781,7 +999,10 @@ export default function CarteMobile({
           postcodeFilter={agencyPostalCodes[0]}
           onRemove={removeStop}
           onAddAddress={addAddressToTour}
-          onPickOnMap={() => setPicking(true)}
+          onPickOnMap={() => {
+            setPickTarget('arret');
+            setPicking(true);
+          }}
           onStop={stopTournee}
           onFocusStop={(stop) => mapApi.current?.recenter(stop, 17)}
         />

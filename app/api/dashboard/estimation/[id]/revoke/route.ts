@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { enregistrerEstimationEvent } from '@/lib/estimation/evenement';
 
 export const runtime = 'nodejs';
 
@@ -25,6 +26,13 @@ export async function POST(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await enregistrerEstimationEvent(session, {
+    agencyId: agency.id,
+    estimationId: id,
+    profileId: profile.id,
+    kind: 'revoked',
+  });
 
   return NextResponse.json({ ok: true });
 }

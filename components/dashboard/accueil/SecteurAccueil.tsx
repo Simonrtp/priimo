@@ -31,6 +31,7 @@ export default function SecteurAccueil({
       {apercu.zones.length > 0 ? (
         <MonSecteur
           apercu={apercu}
+          toutesZones={secteurs.zones.filter((z) => z.actif)}
           centre={centre}
           estDirecteur={estDirecteur}
           onAtelier={ouvrir}

@@ -13,8 +13,9 @@ import { enregistrerRappel } from '@/lib/notes/rappels';
 import { creerContact } from '@/lib/contacts/creation';
 import { colonnesDepuisChamps, completerContact } from '@/lib/contacts/modification';
 import { parseContactInput } from '@/lib/contact-input';
-import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { fetchContactById, fetchContactsDuplicateLite, updateContactRow } from '@/lib/queries/contacts';
+import { propagerLienVersParcelle } from '@/lib/notes/parcelle-lien';
 import type { ContactType } from '@/types/contact';
 import type {
   NoteLienConfianceDb,
@@ -216,7 +217,20 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
       { onConflict: 'note_id,entite_type,entite_id' },
     );
     if (error) echecs.push('rattachement');
-    else bilan.liens = lignes.size;
+    else {
+      bilan.liens = lignes.size;
+      // Bien / adresse → aussi la parcelle du volet carte.
+      for (const l of lignes.values()) {
+        if (l.entite_type === 'bien' || l.entite_type === 'immeuble' || l.entite_type === 'parcelle') {
+          await propagerLienVersParcelle(admin, {
+            agencyId: agency.id,
+            noteId: voiceNoteId,
+            entiteType: l.entite_type,
+            entiteId: l.entite_id,
+          });
+        }
+      }
+    }
   }
   const premierContact =
     [...contactParRef.values()].find((id) => contactsOk.has(id)) ??
@@ -241,7 +255,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
       taches.push(
         (async () => {
           const existing = await fetchContactById(supabase, contactId);
-          if (!existing || !canSeeOwnedRecord(viewer, { assignedTo: existing.assignedTo, createdBy: existing.createdBy })) {
+          if (!existing || !canSeeContact(viewer, existing)) {
             return;
           }
           const parsed = parseContactInput(maj);

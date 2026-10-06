@@ -31,6 +31,10 @@ import {
   type AjustementApplique,
   type MotifImpossible,
 } from '@/lib/estimation/moteur';
+import {
+  MESSAGE_SECTEUR_NON_COUVERT,
+  secteurEstimeCouvert,
+} from '@/lib/estimation/departements-couverts';
 
 type Db = SupabaseClient<Database>;
 
@@ -132,6 +136,7 @@ export type DvfEngineContext = {
   radiusM: number;
   /** « 2e trimestre 2026 » — période de la vente comparable la plus récente. */
   trimestreLabel: string | null;
+  dateDerniereVente: string | null;
   /** Les comparables sont trop hétérogènes pour resserrer une fourchette. */
   dispersionElevee: boolean;
   dispersionRatio: number | null;
@@ -417,6 +422,7 @@ export async function runDvfEstimation(
         negociacionMedianePct: null,
         radiusM: 0,
         trimestreLabel: null,
+        dateDerniereVente: null,
         dispersionElevee: false,
         dispersionRatio: null,
         sources: [],
@@ -424,6 +430,57 @@ export async function runDvfEstimation(
         degradationLabel: saisie.motif,
         degradationCode: 'secteur_non_couvert',
         impossible: saisie,
+        ajustements: [],
+        moteurValeur: null,
+        fenetreMois: null,
+        moteurTrace: null,
+      },
+      parcelleId: null,
+    };
+  }
+
+  if (!secteurEstimeCouvert(input.postalCode)) {
+    const motif: MotifImpossible = {
+      code: 'aucune_vente_zone',
+      motif: MESSAGE_SECTEUR_NON_COUVERT,
+      action: 'Saisissez le prix à la main.',
+    };
+    await emit({ id: 'secteur', label: motif.motif });
+    return {
+      available: false,
+      value: null,
+      low: null,
+      high: null,
+      pricePerM2: null,
+      reliability: 0,
+      reliabilityLabel: 'Fiabilité faible',
+      steps,
+      comparables: [],
+      sources: [],
+      corrections: [],
+      impossible: motif,
+      context: {
+        immeubleVentes: 0,
+        quartierVentes: 0,
+        outliersExcluded: 0,
+        coproLots: null,
+        coproPeriode: null,
+        dpeKnown: null,
+        dpeSource: null,
+        dpeRepartition: [],
+        biensEnVenteSecteur: 0,
+        biensEnVenteDetail: [],
+        negociacionMedianePct: null,
+        radiusM: 0,
+        trimestreLabel: null,
+        dateDerniereVente: null,
+        dispersionElevee: false,
+        dispersionRatio: null,
+        sources: [],
+        degradation: 'referentiel_cp',
+        degradationLabel: motif.motif,
+        degradationCode: 'secteur_non_couvert',
+        impossible: motif,
         ajustements: [],
         moteurValeur: null,
         fenetreMois: null,
@@ -610,6 +667,7 @@ export async function runDvfEstimation(
     conditionRating: input.conditionRating,
     dpeClass: input.dpeClass ?? dpeKnown,
     balconTerrasse: features.includes('balcon_terrasse') || input.extras?.balconM2 != null,
+    piscine: input.extras?.piscine === true,
     annexes: input.annexes ?? [],
     terrainM2: input.extras?.terrainM2 ?? null,
     exclusIds: input.exclusIds,
@@ -693,6 +751,7 @@ export async function runDvfEstimation(
     negociacionMedianePct: null,
     radiusM: collecte.radiusM ?? 0,
     trimestreLabel: trimestre,
+    dateDerniereVente: moteur.dateDerniereVente ?? derniereVente,
     dispersionElevee,
     dispersionRatio: ratio,
     sources,

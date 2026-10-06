@@ -23,7 +23,7 @@ import {
 import { formatNoteWhen } from '@/lib/notes/format-when';
 import { regrouperNotifications, type GroupeNotification } from '@/lib/notifications/regrouper';
 import type { Notification, NotificationType } from '@/lib/notifications/types';
-import { FIELD } from '@/lib/today/field';
+import { ACCUEIL_DARK, FIELD } from '@/lib/today/field';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 
 type FamilleCouleur = 'orange' | 'vert' | 'ardoise' | 'ambre' | 'neutre';
@@ -110,7 +110,7 @@ function Ligne({
         {nonLue ? (
           <span
             className="absolute left-1.5 top-1/2 size-1.5 -translate-y-1/2 rounded-full"
-            style={{ backgroundColor: FIELD.orange }}
+            style={{ backgroundColor: ACCUEIL_DARK.bleu }}
             aria-hidden
           />
         ) : null}

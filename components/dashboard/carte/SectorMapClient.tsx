@@ -487,7 +487,8 @@ export default function SectorMapClient({
           onViewport={setViewport}
           itineraryStops={itineraryStops}
           itineraryGeometry={route?.geometry ?? null}
-          parcellesEnabled={planParcelles}
+          // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
+          parcellesEnabled={planParcelles || Boolean(parcelle.selectedParcelleId)}
           activeParcelleIds={activeParcelleIds}
           suiviParcelleIds={suiviParcelleIds}
           parcelleNoteMarkers={parcelleNoteMarkers}

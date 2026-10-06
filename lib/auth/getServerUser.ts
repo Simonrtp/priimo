@@ -28,7 +28,10 @@ const AGENCIES_SELECT_COULEUR = 'couleur_principale';
 /** Colonne 20260939 — seconde couleur de l’avis. */
 const AGENCIES_SELECT_COULEUR2 = 'couleur_secondaire';
 
-const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}, ${AGENCIES_SELECT_COULEUR2}`;
+/** Colonne 20260953 — mention légale de l’avis (texte avocat). */
+const AGENCIES_SELECT_MENTION = 'avis_mention_legale';
+
+const AGENCIES_SELECT = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}, ${AGENCIES_SELECT_COULEUR2}, ${AGENCIES_SELECT_MENTION}`;
 const AGENCIES_SELECT_SANS_SECONDAIRE = `${AGENCIES_SELECT_BASE}, ${AGENCIES_SELECT_EXTRAS}, ${AGENCIES_SELECT_COULEUR}`;
 
 /** La colonne 20260939 peut manquer tant que la migration n’est pas passée. */
@@ -83,7 +86,7 @@ async function getServerUserUncached(): Promise<ServerUser> {
             : AGENCIES_SELECT_SANS_SECONDAIRE) as typeof AGENCIES_SELECT_SANS_SECONDAIRE,
         );
       if (withBilling.error) {
-        if (/couleur_secondaire/.test(withBilling.error.message)) {
+        if (/couleur_secondaire|avis_mention_legale/.test(withBilling.error.message)) {
           agenciesSelectAvecSecondaire = false;
           const sansSecondaire = await supabase.from('agencies').select(AGENCIES_SELECT_SANS_SECONDAIRE);
           if (!sansSecondaire.error) return sansSecondaire;

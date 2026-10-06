@@ -18,6 +18,8 @@ export type IdentiteAgenceRapport = {
   logoUrl: string | null;
   couleurPrincipale: string;
   couleurSecondaire?: string;
+  /** Texte avocat. Absent ou vide = emplacement sans formulation. */
+  mentionLegale?: string | null;
 };
 
 /** Un hex #RRGGBB, sinon l’orange Priimo (agences déjà paramétrées). */

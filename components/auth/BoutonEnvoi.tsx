@@ -12,7 +12,7 @@ export default function BoutonEnvoi({ libelle, attente }: { libelle: string; att
       disabled={pending}
       aria-busy={pending}
       aria-label={pending ? attente : undefined}
-      className={pending ? 'auth-wait-btn' : 'btn btn-primary w-full'}
+      className={pending ? 'priimo-wait-btn' : 'btn btn-primary w-full'}
     >
       {pending ? <AuthWait label="Un instant." /> : <span>{libelle}</span>}
     </button>

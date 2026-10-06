@@ -2,6 +2,7 @@ import type {
   ContactInteractionKindDb,
   ContactSourceDb,
   ContactTypeDb,
+  ContactVisibiliteDb,
   NoteLienConfianceDb,
   NoteLienCreeParDb,
   NoteLienEntiteDb,
@@ -19,6 +20,8 @@ export type PortraitCollaborateur = {
 };
 
 export type ContactType = ContactTypeDb;
+/** privee = le titulaire et la direction ; agence = toute l'agence. */
+export type ContactVisibilite = ContactVisibiliteDb;
 export type ContactSource = ContactSourceDb;
 export type VoiceNoteStatus = VoiceNoteStatusDb;
 export type VoiceNoteVisibilite = VoiceNoteVisibiliteDb;
@@ -76,6 +79,8 @@ export interface Contact {
   assignedTo: string | null;
   assignedBy: string | null;
   assignedAt: string | null;
+  /** Absent = privée : la fiche reste à son titulaire (et à la direction). */
+  visibilite?: ContactVisibilite;
   createdAt: string;
   updatedAt: string;
 }

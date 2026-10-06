@@ -3,6 +3,7 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import type { NoteLienConfiance, NoteLienCreePar, NoteLienEntite } from '@/types/contact';
 import { mapDbNoteLien } from '@/lib/notes/liens';
+import { propagerLienVersParcelle } from '@/lib/notes/parcelle-lien';
 import type { NoteLienRow } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -82,6 +83,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
       .update({ contact_id: entiteId })
       .eq('id', voiceNoteId)
       .eq('agency_id', agency.id);
+  }
+
+  if (entiteType === 'bien' || entiteType === 'immeuble' || entiteType === 'parcelle') {
+    await propagerLienVersParcelle(admin, {
+      agencyId: agency.id,
+      noteId: voiceNoteId,
+      entiteType,
+      entiteId,
+    });
   }
 
   return NextResponse.json({ lien: mapDbNoteLien(data as NoteLienRow) }, { status: 201 });

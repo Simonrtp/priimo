@@ -9,6 +9,7 @@ import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
+import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
@@ -116,6 +117,7 @@ export default function SectorMapCanvas({
   /** Pendant zoom/pan : on cache les pins HTML (coûteux à chaque frame Mapbox). */
   const [mapGesturing, setMapGesturing] = useState(false);
   const gestureTimer = useRef<number | null>(null);
+  useCanvasAJour(mapRef, styleReady);
 
   const interactiveLayerIds = useMemo(() => {
     const ids: string[] = [];
@@ -341,7 +343,6 @@ export default function SectorMapCanvas({
           <CibleRecherche
             cible={cible}
             buildings={buildings}
-            clipZone={clipZone}
             onSelect={onSelect}
             onSelectParcelle={onSelectParcelle}
           />

@@ -24,12 +24,16 @@ function manquesKind(kind: KindGeneree, d: DossierRapport): string[] {
       return absents([[d.priceValue, 'Valeur estimée']]);
     case 'votre_bien':
     case 'description':
-    case 'immeuble_appartement':
+    case 'cadastre':
+    case 'photos':
+    case 'comparables':
     case 'secteur':
+    case 'dpe_bien':
+    case 'strategie':
+    case 'immeuble_appartement':
     case 'points_interet':
     case 'connectivite':
     case 'permis':
-    case 'comparables':
     case 'indices':
     case 'prochaine_etape':
       return [];

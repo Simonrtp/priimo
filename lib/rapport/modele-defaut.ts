@@ -9,19 +9,23 @@ import { nomPersonne } from '@/lib/rapport/genere/format';
 export const KINDS_GABARIT_V2 = [
   'couverture',
   'votre_bien',
-  'immeuble_appartement',
-  'secteur',
+  'description',
+  'cadastre',
+  'photos',
   'comparables',
-  'concurrentiel',
+  'secteur',
+  'dpe_bien',
+  'strategie',
   'prix',
 ] as const;
 
-/** Anciennes pages fusionnées dans le gabarit 7 — ne plus les insérer ni les afficher. */
+/** Anciennes pages V2 hors avis V1 — lisibles, non insérées. */
 export const KINDS_ABSORBEES = [
-  'description',
+  'immeuble_appartement',
   'points_interet',
   'connectivite',
   'permis',
+  'concurrentiel',
   'indices',
   'prochaine_etape',
 ] as const;
@@ -38,17 +42,21 @@ export const KINDS_APRES_BIBLIO = [] as const satisfies readonly KindGeneree[];
 
 export const LIBELLE_KIND_GENEREE: Record<KindGeneree, string> = {
   couverture: 'Couverture',
-  votre_bien: 'Votre bien',
-  description: 'Description du bien',
+  votre_bien: 'Détails du bien',
+  description: 'Description et prestations',
+  cadastre: 'Cadastre',
+  photos: 'Photos du bien',
+  comparables: 'Ventes comparables',
+  secteur: 'Marché',
+  dpe_bien: 'DPE',
+  strategie: 'Stratégie de prix',
+  prix: 'Avis de valeur',
   immeuble_appartement: 'L’immeuble et son environnement',
-  secteur: 'Les prix dans votre quartier',
   points_interet: 'Points d’intérêt',
   connectivite: 'Connectivité',
   permis: 'Permis de construire',
-  comparables: 'Les ventes comparables',
   concurrentiel: 'Les biens en vente autour de vous',
   indices: 'Indices du marché',
-  prix: 'Notre estimation',
   prochaine_etape: 'Prochaine étape',
 };
 

@@ -17,6 +17,7 @@ import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/note
 import type { NoteExtraction } from '@/lib/notes/propositions';
 import type { NoteSourceInfo } from '@/types/contact';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
+import ChoixVisibilite, { type Visibilite } from '@/components/dashboard/workspace/ChoixVisibilite';
 
 export type TypedNoteSubmitPayload = {
   transcript: string;
@@ -25,6 +26,7 @@ export type TypedNoteSubmitPayload = {
   adresse: string;
   banCoords: { latitude: number; longitude: number } | null;
   liens: NoteLinkPick[];
+  visibilite: Visibilite;
 };
 
 export default function TypedNoteGuide({
@@ -50,6 +52,7 @@ export default function TypedNoteGuide({
   const textId = useId();
   const [draft, setDraft] = useState<TypedNoteDraft>(EMPTY_TYPED_NOTE_DRAFT);
   const [liens, setLiens] = useState<NoteLinkPick[]>([]);
+  const [visibilite, setVisibilite] = useState<Visibilite>('agence');
   const [localError, setLocalError] = useState<string | null>(null);
 
   function patch<K extends keyof TypedNoteDraft>(key: K, value: TypedNoteDraft[K]) {
@@ -80,6 +83,7 @@ export default function TypedNoteGuide({
       adresse,
       banCoords,
       liens,
+      visibilite,
     });
   }
 
@@ -170,6 +174,10 @@ export default function TypedNoteGuide({
           excludeIds={new Set(liens.map((l) => `${l.entiteType}:${l.entiteId}`))}
         />
       </div>
+
+      <Field label="Partage">
+        <ChoixVisibilite objet="note" value={visibilite} onChange={setVisibilite} />
+      </Field>
 
       {shownError ? (
         <p className="text-pretty text-[13.5px] text-text" role="alert">

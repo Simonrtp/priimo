@@ -23,6 +23,7 @@ export type EstimationExtras = {
   sousSolAmenage?: boolean;
   garagePlaces?: number | null;
   dependances?: boolean;
+  piscine?: boolean;
 };
 
 export type ExtraCoeff = {
@@ -109,6 +110,10 @@ export function extrasCoefficients(
     out.push({ id: 'dependances', label: 'Dépendances', pct: E.DEPENDANCES_PCT });
   }
 
+  if (extras.piscine) {
+    out.push({ id: 'piscine', label: 'Piscine', pct: E.PISCINE_PCT });
+  }
+
   // Le nombre de niveaux est enregistré mais ne porte aucun coefficient :
   // plain-pied ou étages, l'effet dépend trop du marché local pour être
   // forfaitisé honnêtement.
@@ -138,5 +143,6 @@ export function parseExtras(raw: unknown): EstimationExtras | null {
     sousSolAmenage: b.sousSolAmenage === true,
     garagePlaces: num(b.garagePlaces),
     dependances: b.dependances === true,
+    piscine: b.piscine === true,
   };
 }

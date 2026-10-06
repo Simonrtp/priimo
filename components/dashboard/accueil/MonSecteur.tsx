@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ApercuSecteur, RepartitionFraicheur } from '@/lib/zones/accueil';
+import type { Zone } from '@/lib/zones/types';
 import {
   COULEUR_FRAICHEUR,
   LIBELLE_FRAICHEUR,
@@ -14,7 +15,7 @@ import {
 const ZonesCarte = dynamic(() => import('@/components/dashboard/zones/ZonesCarte'), {
   ssr: false,
   loading: () => (
-    <div className="h-full min-h-[420px] animate-pulse rounded-clay-lg bg-black/[0.04] sm:min-h-[520px]" aria-hidden />
+    <div className="h-full animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
   ),
 });
 
@@ -46,17 +47,21 @@ function phraseFactuelle(aRevoir: number, cycleSemaines: number | null): string 
 }
 
 /**
- * Repère sur l'Accueil : la carte d'abord, le détail en dessous, un seul
- * « Modifier ». Un clic sur un secteur ouvre la carte complète.
+ * Repère sur l'Accueil : une carte figée qui montre tous les secteurs de
+ * l'agence (le sien ressort), le détail en dessous, un seul « Modifier ».
+ * Un clic sur un de ses secteurs ouvre la carte complète.
  * Mapbox ne charge qu'à l'approche du viewport (évite le jank au chargement).
  */
 export default function MonSecteur({
   apercu,
+  toutesZones,
   centre,
   estDirecteur,
   onAtelier,
 }: {
   apercu: ApercuSecteur;
+  /** Tous les secteurs de l'agence, pour situer le sien parmi les autres. */
+  toutesZones: readonly Zone[];
   centre: { latitude: number | null; longitude: number | null };
   estDirecteur: boolean;
   onAtelier: () => void;
@@ -102,11 +107,14 @@ export default function MonSecteur({
   }));
 
   const ouvrirCarte = (zoneId: string) => {
+    // La carte complète ne montre au négociateur que ses propres secteurs.
+    if (!estDirecteur && !zones.some((z) => z.id === zoneId)) return;
     router.push(hrefCarte(zoneId));
   };
+  const zonesCarte = toutesZones.length > 0 ? toutesZones : zones;
 
   return (
-    <section className="flex flex-col rounded-clay-lg bg-white p-4 shadow-clay">
+    <section className="flex h-full flex-col rounded-clay-lg bg-surface p-5 shadow-clay">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="min-w-0 truncate text-balance font-semibold text-ink" style={{ fontSize: 16 }}>
           {titre}
@@ -122,18 +130,19 @@ export default function MonSecteur({
 
       <div
         ref={setCadre}
-        className="relative h-[420px] min-h-[420px] overflow-hidden rounded-clay-lg sm:h-[520px] sm:min-h-[520px]"
+        className="relative h-[280px] overflow-hidden rounded-clay-lg sm:h-[340px]"
       >
         {carteVisible ? (
           <ZonesCarte
-            zones={zones}
+            zones={zonesCarte}
             zoneActive={estDirecteur ? null : zoneSeule}
             leads={leads}
             centre={centre}
             onChoisirZone={ouvrirCarte}
+            figee
           />
         ) : (
-          <div className="h-full min-h-[420px] animate-pulse rounded-clay-lg bg-black/[0.04] sm:min-h-[520px]" aria-hidden />
+          <div className="h-full animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
         )}
       </div>
 

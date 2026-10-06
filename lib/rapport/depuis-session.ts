@@ -24,6 +24,7 @@ export async function identiteAgenceDepuisRow(
     logoUrl: await signerCheminRapport(agency.logo_path),
     couleurPrincipale: normaliserCouleurPrincipale(agency.couleur_principale),
     couleurSecondaire: normaliserCouleurSecondaire(agency.couleur_secondaire),
+    mentionLegale: agency.avis_mention_legale?.trim() || null,
   };
 }
 

@@ -125,6 +125,7 @@ export type EstimationVoiceField =
   | 'surfaceM2'
   | 'carrez'
   | 'surfaceTerrain'
+  | 'piscine'
   | 'niveaux'
   | 'floor'
   | 'etagesImmeuble'
@@ -161,6 +162,7 @@ export type EstimationVoiceDraft = {
   surfaceM2: number | null;
   carrez: boolean | null;
   surfaceTerrain: number | null;
+  piscine?: boolean | null;
   niveaux: number | null;
   floor: string | null;
   etagesImmeuble: number | null;

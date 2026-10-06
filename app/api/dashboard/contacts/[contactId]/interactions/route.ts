@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
-import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
 import {
@@ -26,10 +26,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ contactId: str
   const supabase = await createSupabaseServerClient();
   const contact = await fetchContactById(supabase, contactId);
   const viewer = viewerFromProfile(profile);
-  if (
-    !contact ||
-    !canSeeOwnedRecord(viewer, { assignedTo: contact.assignedTo, createdBy: contact.createdBy })
-  ) {
+  if (!contact || !canSeeContact(viewer, contact)) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
   }
 
@@ -68,10 +65,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ contactId: str
   const supabase = await createSupabaseServerClient();
   const contact = await fetchContactById(supabase, contactId);
   const viewer = viewerFromProfile(profile);
-  if (
-    !contact ||
-    !canSeeOwnedRecord(viewer, { assignedTo: contact.assignedTo, createdBy: contact.createdBy })
-  ) {
+  if (!contact || !canSeeContact(viewer, contact)) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
   }
 

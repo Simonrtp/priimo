@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { assignmentMeta } from '@/lib/agency/assignees';
-import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
+import { canManageContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import {
   applyMergeChoices,
@@ -91,8 +91,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ contactId: str
     !absorb ||
     keep.agencyId !== agency.id ||
     absorb.agencyId !== agency.id ||
-    !canSeeOwnedRecord(viewer, { assignedTo: keep.assignedTo, createdBy: keep.createdBy }) ||
-    !canSeeOwnedRecord(viewer, { assignedTo: absorb.assignedTo, createdBy: absorb.createdBy })
+    // Fusionner efface une fiche : réservé à qui dispose des deux.
+    !canManageContact(viewer, keep) ||
+    !canManageContact(viewer, absorb)
   ) {
     return NextResponse.json({ error: 'Contact introuvable' }, { status: 404 });
   }
