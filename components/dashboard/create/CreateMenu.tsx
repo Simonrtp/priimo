@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Building2, Calculator, Mic, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
+import { Building2, Calculator, Mic, NotebookPen, Plus, Sparkles, Users, X, type LucideIcon } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { notifySuccess } from '@/lib/notify';
@@ -199,43 +199,94 @@ export default function CreateMenu({
     ? CREATE_ITEMS.filter((item) => item.value === 'note-write' || item.value === 'note-voice')
     : CREATE_ITEMS;
 
-  const menuItems = visibleItems.map(({ value, label, hint, Icon }) => (
-    <button
-      key={value}
-      type="button"
-      role="menuitem"
-      onClick={() => pick(value)}
-      className={
-        isCompact
-          ? 'app-press flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 text-left'
-          : 'flex min-h-9 w-full items-center gap-2.5 whitespace-nowrap px-3 text-left text-[13px] font-medium text-text hover:bg-black/[0.04]'
-      }
-    >
-      {isCompact ? (
-        <>
+  const menuItems = visibleItems.map(({ value, label, hint, Icon }) => {
+    // Dicter, c'est confier sa note à l'IA : la ligne en porte la couleur,
+    // sans crier — un fond à peine teinté, une pastille, une étincelle.
+    if (value === 'note-voice') {
+      return isCompact ? (
+        <button
+          key={value}
+          type="button"
+          role="menuitem"
+          onClick={() => pick(value)}
+          className="app-press flex min-h-[52px] w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-ia-50 to-transparent px-3 text-left"
+        >
           <span
-            className="flex size-10 flex-shrink-0 items-center justify-center rounded-full"
-            style={{
-              backgroundColor: isFab ? FIELD.orangePastel : FIELD.ardoisePastel,
-              color: isFab ? FIELD.orange : FIELD.ardoise,
-            }}
+            className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-ia text-white shadow-[0_4px_12px_rgba(99,102,241,0.32)]"
             aria-hidden
           >
             <Icon size={18} strokeWidth={2.1} />
           </span>
-          <span className="min-w-0">
-            <span className="block text-[15.5px] font-medium text-text-strong">{label}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15.5px] font-medium text-ia-700">{label}</span>
             <span className="block text-[12.5px] text-text-muted">{hint}</span>
           </span>
-        </>
+          <Sparkles size={16} strokeWidth={2} className="shrink-0 text-ia" aria-hidden />
+        </button>
       ) : (
-        <>
-          <Icon size={16} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
-          {label}
-        </>
-      )}
-    </button>
-  ));
+        <div key={value} className="pt-1">
+          <div role="separator" className="mx-3 mb-1 h-px bg-black/[0.06]" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => pick(value)}
+            className="group/ia mx-1 flex min-h-9 w-[calc(100%-0.5rem)] items-center gap-[7px] whitespace-nowrap rounded-[10px] bg-gradient-to-r from-ia-50 to-transparent px-2 pr-2.5 text-left text-[13px] font-semibold text-ia-700 transition-colors duration-fluid-subtle hover:from-ia-100 hover:to-ia-50"
+          >
+            <span
+              className="-ml-[3px] flex size-[22px] flex-shrink-0 items-center justify-center rounded-full bg-ia text-white shadow-[0_2px_6px_rgba(99,102,241,0.35)]"
+              aria-hidden
+            >
+              <Icon size={12} strokeWidth={2.4} />
+            </span>
+            <span className="flex-1">{label}</span>
+            <Sparkles
+              size={13}
+              strokeWidth={2.2}
+              className="ml-3 shrink-0 text-ia opacity-70 transition-opacity group-hover/ia:opacity-100 motion-safe:group-hover/ia:animate-iaRespire"
+              aria-hidden
+            />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <button
+        key={value}
+        type="button"
+        role="menuitem"
+        onClick={() => pick(value)}
+        className={
+          isCompact
+            ? 'app-press flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-3 text-left'
+            : 'flex min-h-9 w-full items-center gap-2.5 whitespace-nowrap px-3 text-left text-[13px] font-medium text-text hover:bg-black/[0.04]'
+        }
+      >
+        {isCompact ? (
+          <>
+            <span
+              className="flex size-10 flex-shrink-0 items-center justify-center rounded-full"
+              style={{
+                backgroundColor: isFab ? FIELD.orangePastel : FIELD.ardoisePastel,
+                color: isFab ? FIELD.orange : FIELD.ardoise,
+              }}
+              aria-hidden
+            >
+              <Icon size={18} strokeWidth={2.1} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[15.5px] font-medium text-text-strong">{label}</span>
+              <span className="block text-[12.5px] text-text-muted">{hint}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <Icon size={16} strokeWidth={2} className="flex-shrink-0 text-text-muted" aria-hidden />
+            {label}
+          </>
+        )}
+      </button>
+    );
+  });
 
   const sheet =
     open && isCompact && typeof document !== 'undefined'
