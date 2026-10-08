@@ -59,9 +59,10 @@ export default function BoutonNoteMobile() {
       className={`relative flex size-16 select-none items-center justify-center rounded-full text-white transition-transform duration-200 ease-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white [-webkit-touch-callout:none] [touch-action:manipulation] ${
         appuye ? 'scale-[0.92]' : 'scale-100'
       }`}
+      // La couleur de l'IA : dicter, c'est confier sa note à l'IA.
       style={{
-        backgroundColor: '#E8743C',
-        boxShadow: '0 8px 20px rgba(232, 116, 60, 0.38)',
+        backgroundColor: '#6366F1',
+        boxShadow: '0 8px 20px rgba(99, 102, 241, 0.38)',
       }}
     >
       <Mic size={27} strokeWidth={2.2} aria-hidden />

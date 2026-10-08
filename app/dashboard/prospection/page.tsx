@@ -143,11 +143,6 @@ export default async function ProspectionPage({
         members={membersUi}
         isDirector={profile.role === 'directeur'}
         profileId={profile.id}
-        agencyOrigin={
-          agency.latitude != null && agency.longitude != null
-            ? { latitude: agency.latitude, longitude: agency.longitude }
-            : null
-        }
         initialBanId={params.immeuble ?? null}
         itineraryStops={itineraryStops}
         showItineraire={params.itineraire === '1'}

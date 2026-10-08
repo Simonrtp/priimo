@@ -1,17 +1,29 @@
 'use client';
 
-import { Clock, Loader2, MapPin, Route, X } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Loader2, LocateOff, MapPin, Plus, Route, X } from 'lucide-react';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
-import { DUREES_TOURNEE, libelleDuree } from '@/lib/tournee/reglages';
+import {
+  DUREES_TOURNEE,
+  MAX_ADRESSES_IMPOSEES,
+  libelleDuree,
+  type PerimetreTournee,
+} from '@/lib/tournee/reglages';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
+import type { Localisation } from './useTourneeCarte';
 
-/** Avant de tracer : par où passer (facultatif) et combien de temps y consacrer. */
+/** Avant de tracer : où, par quelles adresses (facultatif), et combien de temps. */
 export default function CarteTourneeSetupSheet({
-  secteurNom,
-  ancre,
-  onAncre,
+  aUnSecteur,
+  libelleCodePostal,
+  perimetre,
+  onPerimetre,
+  ancres,
+  onAjouter,
+  onRetirer,
   duree,
   onDuree,
+  localisation,
   postcodeFilter,
   generating,
   message,
@@ -19,11 +31,16 @@ export default function CarteTourneeSetupSheet({
   onGenerate,
   onClose,
 }: {
-  secteurNom: string | null;
-  ancre: SelectedAddress | null;
-  onAncre: (adresse: SelectedAddress | null) => void;
+  aUnSecteur: boolean;
+  libelleCodePostal: string;
+  perimetre: PerimetreTournee;
+  onPerimetre: (valeur: PerimetreTournee) => void;
+  ancres: readonly SelectedAddress[];
+  onAjouter: (adresse: SelectedAddress) => void;
+  onRetirer: (index: number) => void;
   duree: number;
   onDuree: (minutes: number) => void;
+  localisation: Localisation;
   postcodeFilter?: string;
   generating: boolean;
   message: string | null;
@@ -31,6 +48,10 @@ export default function CarteTourneeSetupSheet({
   onGenerate: () => void;
   onClose: () => void;
 }) {
+  // Une recherche neuve après chaque adresse validée : le champ se vide pour la suivante.
+  const [recherche, setRecherche] = useState(0);
+  const plein = ancres.length >= MAX_ADRESSES_IMPOSEES;
+
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] px-3">
       <div
@@ -46,7 +67,7 @@ export default function CarteTourneeSetupSheet({
         >
           <div className="flex items-start gap-3">
             <span
-              className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white"
+              className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-500 text-white"
               aria-hidden
             >
               <Route size={21} strokeWidth={2.2} />
@@ -56,8 +77,7 @@ export default function CarteTourneeSetupSheet({
                 Préparer ma tournée
               </h2>
               <p className="mt-0.5 text-pretty text-[13px] leading-snug text-text-muted">
-                Les DPE les plus récents {secteurNom ? `de ${secteurNom}` : 'de l’agence'}, sans les
-                adresses déjà prospectées.
+                Les DPE les plus récents, sans les portes déjà faites.
               </p>
             </div>
             <button
@@ -73,45 +93,94 @@ export default function CarteTourneeSetupSheet({
             </button>
           </div>
 
+          {localisation === 'absente' ? (
+            <p className="mt-3 flex items-center gap-2 rounded-xl bg-primary-50 px-3 py-2.5 text-[13.5px] font-medium text-primary-700 ring-1 ring-primary-200">
+              <LocateOff size={16} strokeWidth={2.3} className="flex-shrink-0" aria-hidden />
+              Pense à activer ta localisation !
+            </p>
+          ) : null}
+
+          {aUnSecteur ? (
+            <div
+              className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-black/[0.05] p-1"
+              role="radiogroup"
+              aria-label="Où prospecter"
+            >
+              {(
+                [
+                  ['secteur', 'Mon secteur'],
+                  ['code_postal', libelleCodePostal],
+                ] as const
+              ).map(([valeur, libelle]) => {
+                const actif = perimetre === valeur;
+                return (
+                  <button
+                    key={valeur}
+                    type="button"
+                    role="radio"
+                    aria-checked={actif}
+                    onClick={() => onPerimetre(valeur)}
+                    className={`app-press min-h-[40px] truncate rounded-full px-2 text-[13.5px] font-semibold transition-colors duration-150 ${
+                      actif ? 'bg-white text-primary-600 shadow-sm' : 'text-text-muted'
+                    }`}
+                  >
+                    {libelle}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
           <section className="mt-4">
             <p className="flex items-center gap-1.5 pb-2 text-[12px] font-semibold uppercase tracking-wide text-text-muted">
               <MapPin size={13} strokeWidth={2.4} aria-hidden />
-              Passer par une adresse
+              Passer par des adresses
               <span className="font-medium normal-case tracking-normal text-text-subtle">(facultatif)</span>
             </p>
-            {ancre ? (
-              <div className="flex min-h-[48px] items-center gap-2.5 rounded-xl bg-primary-50 py-2 pl-3 pr-1.5 ring-1 ring-primary-200">
-                <MapPin size={17} strokeWidth={2.3} className="flex-shrink-0 text-primary-600" aria-hidden />
-                <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-text-strong">
-                  {ancre.label}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onAncre(null)}
-                  aria-label="Retirer cette adresse"
-                  className="app-press flex size-9 flex-shrink-0 items-center justify-center rounded-full text-text-muted"
-                >
-                  <X size={16} strokeWidth={2.3} aria-hidden />
-                </button>
-              </div>
-            ) : (
+            {ancres.length > 0 ? (
+              <ul className="mb-2 flex flex-col gap-1.5">
+                {ancres.map((ancre, index) => (
+                  <li
+                    key={`${ancre.id ?? ''}-${ancre.latitude}-${ancre.longitude}`}
+                    className="flex min-h-[44px] items-center gap-2.5 rounded-xl bg-primary-50 py-1.5 pl-3 pr-1 ring-1 ring-primary-200"
+                  >
+                    <MapPin size={16} strokeWidth={2.3} className="flex-shrink-0 text-primary-500" aria-hidden />
+                    <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-text-strong">
+                      {ancre.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRetirer(index)}
+                      aria-label={`Retirer ${ancre.label}`}
+                      className="app-press flex size-9 flex-shrink-0 items-center justify-center rounded-full text-text-muted"
+                    >
+                      <X size={16} strokeWidth={2.3} aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {plein ? null : (
               <>
                 <AddressAutocomplete
-                  placeholder="Rechercher une adresse…"
+                  key={recherche}
+                  placeholder={ancres.length > 0 ? 'Ajouter une autre adresse…' : 'Rechercher une adresse…'}
                   postcodeFilter={postcodeFilter}
                   onChange={(adresse) => {
-                    if (adresse) onAncre(adresse);
+                    if (!adresse) return;
+                    onAjouter(adresse);
+                    setRecherche((n) => n + 1);
                   }}
                   inputClassName="w-full rounded-xl border border-black/[0.08] bg-white py-3 pl-10 pr-3 text-[15px] text-text-strong outline-none focus:border-primary-400"
-                  aria-label="Adresse par laquelle passer"
+                  aria-label="Ajouter une adresse à la tournée"
                 />
                 <button
                   type="button"
                   onClick={onPickOnMap}
                   className="app-press mt-1 flex min-h-[44px] w-full items-center gap-2 rounded-xl px-1 text-left text-[13.5px] font-semibold text-primary-600"
                 >
-                  <MapPin size={15} strokeWidth={2.4} aria-hidden />
-                  Ou touchez un point sur la carte
+                  <Plus size={15} strokeWidth={2.4} aria-hidden />
+                  Ou touche un point sur la carte
                 </button>
               </>
             )}
@@ -133,7 +202,7 @@ export default function CarteTourneeSetupSheet({
                     aria-checked={actif}
                     onClick={() => onDuree(minutes)}
                     className={`app-press flex min-h-[44px] items-center justify-center rounded-full px-1 text-[13.5px] font-semibold tabular-nums transition-colors duration-150 ${
-                      actif ? 'bg-primary-600 text-white' : 'bg-black/[0.05] text-text'
+                      actif ? 'bg-primary-500 text-white' : 'bg-black/[0.05] text-text'
                     }`}
                   >
                     {libelleDuree(minutes)}
@@ -144,7 +213,10 @@ export default function CarteTourneeSetupSheet({
           </section>
 
           {message ? (
-            <p className="mt-3 text-pretty rounded-xl bg-black/[0.04] px-3 py-2.5 text-[13.5px] leading-snug text-text" role="status">
+            <p
+              className="mt-3 text-pretty rounded-xl bg-black/[0.04] px-3 py-2.5 text-[13.5px] leading-snug text-text"
+              role="status"
+            >
               {message}
             </p>
           ) : null}
@@ -155,13 +227,13 @@ export default function CarteTourneeSetupSheet({
             type="button"
             onClick={onGenerate}
             disabled={generating}
-            className="app-press flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-primary-600 font-semibold text-white disabled:opacity-80"
+            className="app-press flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-primary-500 font-semibold text-white disabled:opacity-80"
             style={{ fontSize: 15.5 }}
           >
             {generating ? (
               <>
                 <Loader2 size={18} strokeWidth={2.4} className="animate-spin" aria-hidden />
-                Je cherche les meilleures portes…
+                Je prépare ta tournée…
               </>
             ) : (
               'Générer ma tournée'

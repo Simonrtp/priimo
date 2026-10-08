@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Keyboard, MapPin, Mic, Square, X } from 'lucide-react';
 import VoiceWaveform from '../VoiceWaveform';
 import CartesComprises from './CartesComprises';
+import TranscriptionVivante from './TranscriptionVivante';
+import SignalIA from '@/components/ui/SignalIA';
 import type { CarteComprise } from '@/lib/voice/cartes';
 import styles from './dictee.module.css';
 
@@ -13,9 +15,9 @@ function chrono(ms: number): string {
 }
 
 /**
- * L'écran de la dictée : ce que Priimo comprend se range en cartes. Le texte
- * dicté reste hors écran — seul un lecteur d'écran l'entend. Un bouton pour
- * finir, ou la voix : « fin de note ».
+ * L'écran de la dictée : ce que l'agent dit s'écrit en direct, mot à mot, et
+ * ce que l'IA en comprend se range en cartes dessous, sous le signe de l'IA.
+ * Un bouton pour finir, ou la voix : « fin de note ».
  */
 export default function EcranDictee({
   variant,
@@ -125,7 +127,7 @@ export default function EcranDictee({
   );
 
   const corps = (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 px-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 px-5">
       <h2 className="sr-only">{titre}</h2>
       {ecrit ? (
         <textarea
@@ -138,22 +140,28 @@ export default function EcranDictee({
           className="min-h-[7.5rem] w-full shrink-0 resize-none rounded-2xl bg-bg-subtle px-4 py-3 text-[16px] leading-relaxed text-text-strong outline-none placeholder:text-text-subtle focus:ring-2 focus:ring-primary-200"
         />
       ) : (
-        <p className="sr-only" aria-live="polite" aria-atomic="false">
-          {transcript}
-        </p>
+        // Ce qui est dit s'affiche aussitôt : l'agent voit qu'on l'entend.
+        <TranscriptionVivante
+          texte={transcript}
+          placeholder={hasPriorTake ? 'Ajoutez ce qui manque…' : 'Je vous écoute…'}
+          className={`shrink-0 rounded-2xl bg-bg-subtle px-4 py-3 text-[16px] ${
+            mobile ? 'max-h-[30dvh] min-h-[5.5rem]' : 'max-h-[26vh] min-h-[5.5rem]'
+          }`}
+        />
       )}
+      {lecture || cartes.length > 0 ? (
+        <div className="flex shrink-0">
+          <SignalIA actif={lecture}>{lecture ? 'L’IA comprend' : 'Compris par l’IA'}</SignalIA>
+        </div>
+      ) : null}
       <div
         className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1 ${
-          mobile ? '' : 'max-h-[52vh]'
+          mobile ? '' : 'max-h-[40vh]'
         }`}
       >
         {cartes.length > 0 ? (
           <CartesComprises cartes={cartes} lecture={lecture} compact={mobile} />
-        ) : ecrit ? null : (
-          <p className="text-[15px] leading-relaxed text-text-subtle">
-            {hasPriorTake ? 'Ajoutez ce qui manque…' : 'Je vous écoute…'}
-          </p>
-        )}
+        ) : null}
       </div>
       {error ? (
         <p className="text-pretty text-[13px] text-text" role="alert">

@@ -1,5 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
 import {
@@ -365,6 +366,7 @@ export async function POST(req: Request) {
           keepGps: gpsLat !== null && gpsLng !== null,
           noteDate,
           agentPrenom: profile.first_name ?? null,
+          viewer: viewerFromProfile(profile),
           lieuConnu: {
             banId: banId || null,
             adresse: readText(form, 'adresse') || null,

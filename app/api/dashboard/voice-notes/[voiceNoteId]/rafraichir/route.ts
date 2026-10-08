@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { extractAndBuildReview } from '@/lib/notes/extract-review';
 import type { VoiceNoteVisibilite } from '@/types/contact';
@@ -61,6 +62,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     keepSourceInfo,
     noteDate: note.created_at ? new Date(note.created_at) : undefined,
     agentPrenom: profile.first_name ?? null,
+    viewer: viewerFromProfile(profile),
     lieuConnu: {
       banId: note.ban_id ?? null,
       adresse: note.adresse_normalisee ?? null,

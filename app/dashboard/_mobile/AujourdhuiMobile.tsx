@@ -12,14 +12,6 @@ import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { snoozeUntil } from '@/lib/today/field';
-import {
-  buildSortie,
-  buildTourneeFromSortie,
-  sortieStorageKey,
-  type SortiePlan,
-  type SortieProgress,
-} from '@/lib/today/sortie';
-import { CARTE_TOURNEE_HREF } from '@/lib/today/directions';
 import { organizeTodayLayout } from '@/lib/today/visual-level';
 import { notifyError } from '@/lib/notify';
 import { vibrateBrief } from './aujourdhui/tap';
@@ -32,8 +24,6 @@ import TaskCard from './aujourdhui/TaskCard';
 import PortfolioBand from '@/components/dashboard/today/PortfolioBand';
 import AValiderSection from '@/components/dashboard/today/AValiderSection';
 import RecentNotesCard from '@/components/dashboard/today/RecentNotesCard';
-import ZoneDuJourCard from '@/components/dashboard/today/ZoneDuJourCard';
-import { TourneeCard } from './aujourdhui/Tournee';
 import DirectorExceptions from '@/components/dashboard/today/DirectorExceptions';
 import DirectorMemberPanel from '@/components/dashboard/today/DirectorMemberPanel';
 
@@ -53,16 +43,19 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
+/**
+ * La pile du jour sur mobile.
+ *
+ * Pas de carte de tournée ici : la tournée se prépare depuis la Carte, et en
+ * tête d'accueil elle ne servait à rien. Les tâches du jour, elles, montent
+ * au-dessus des objectifs (`TachesDuJour`).
+ */
 export default function AujourdhuiMobile({
   initialCards,
-  initialLeads,
-  profileId,
   firstName: _firstName,
   week,
-  sectorRef,
   portfolio,
   recentNotes,
-  agencyOrigin,
   isDirector = false,
   previewingAgent = false,
   directorExceptions = [],
@@ -71,14 +64,14 @@ export default function AujourdhuiMobile({
   secteur,
 }: {
   initialCards: TodayCard[];
-  initialLeads: Lead[];
-  profileId: string;
+  /** Partagés avec l'écran desktop ; inutiles ici depuis le retrait de la tournée. */
+  initialLeads?: Lead[];
+  profileId?: string;
   firstName: string;
   week: FieldWeekSnapshot;
-  sectorRef: GeoCoord | null;
   portfolio: PortfolioStats;
   recentNotes: readonly HomeNote[];
-  agencyOrigin: GeoCoord | null;
+  agencyOrigin?: GeoCoord | null;
   isDirector?: boolean;
   previewingAgent?: boolean;
   directorExceptions?: readonly DirectorMemberExceptions[];
@@ -92,13 +85,6 @@ export default function AujourdhuiMobile({
   const now = useMemo(() => new Date(), [day]);
   const [cards, setCards] = useState(initialCards);
   const [doneToday, setDoneToday] = useState<DoneItem[]>([]);
-  const [sortieProgress, setSortieProgress] = useState<SortieProgress>({
-    signature: '',
-    done: [],
-    skipped: [],
-    dictees: [],
-  });
-  const [origin, setOrigin] = useState<GeoCoord | null>(agencyOrigin);
   const [snoozeCard, setSnoozeCard] = useState<TodayCard | null>(null);
   const [confirmDone, setConfirmDone] = useState<TodayCard | null>(null);
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
@@ -115,43 +101,10 @@ export default function AujourdhuiMobile({
   }, [day]);
 
   useEffect(() => {
-    // Plan de sortie : toujours depuis l'agence. Le recalcul GPS se propose dans /tournee.
-    setOrigin(agencyOrigin);
-  }, [agencyOrigin]);
-
-  useEffect(() => {
     sessionStorage.setItem(doneStorageKey(day), JSON.stringify(doneToday));
   }, [day, doneToday]);
 
-  const sortiePlan = useMemo(
-    () => buildSortie(initialLeads, profileId, origin),
-    [initialLeads, profileId, origin],
-  );
-  const tournee = useMemo(() => buildTourneeFromSortie(sortiePlan), [sortiePlan]);
-
-  useEffect(() => {
-    const signature = sortiePlan?.signature ?? '';
-    const stored = readJson<SortieProgress>(sortieStorageKey(profileId, day), {
-      signature: '',
-      done: [],
-      skipped: [],
-      dictees: [],
-    });
-    if (stored.signature === signature) {
-      setSortieProgress(stored);
-      return;
-    }
-    setSortieProgress({ signature, done: [], skipped: [], dictees: [] });
-  }, [day, profileId, sortiePlan?.signature]);
-
-  useEffect(() => {
-    sessionStorage.setItem(sortieStorageKey(profileId, day), JSON.stringify(sortieProgress));
-  }, [day, profileId, sortieProgress]);
-
-  const layout = useMemo(
-    () => organizeTodayLayout(cards, now, tournee != null),
-    [cards, now, tournee],
-  );
+  const layout = useMemo(() => organizeTodayLayout(cards, now), [cards, now]);
 
   const remaining = cards.length;
   const total = remaining + doneToday.length;
@@ -232,32 +185,8 @@ export default function AujourdhuiMobile({
     );
   }
 
-  /** Même destination que le bouton « Tournée » de la carte : la préparation s'y ouvre seule. */
-  function startZone(_plan: SortiePlan) {
-    router.push(CARTE_TOURNEE_HREF);
-  }
-
   return (
     <div className="field-page-enter relative z-[1] -mt-2 flex min-h-0 flex-1 flex-col gap-5 rounded-t-[24px] bg-bg-base pb-4 pt-6">
-        {directorLayout ? null : (
-          <div>
-            {tournee ? (
-              <TourneeCard
-                tournee={tournee}
-                doneCount={
-                  sortieProgress.signature === tournee.signature
-                    ? sortieProgress.done.length
-                    : 0
-                }
-                sectorRef={sectorRef}
-                onStart={() => startZone(tournee)}
-              />
-            ) : (
-              <ZoneDuJourCard plan={sortiePlan} onStart={startZone} />
-            )}
-          </div>
-        )}
-
         {variant === 'pilotage' ? null : <PortfolioBand stats={portfolio} />}
 
         <AValiderSection actions={actionsAValider} />

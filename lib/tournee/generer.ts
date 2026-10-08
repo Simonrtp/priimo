@@ -8,10 +8,16 @@ import { zoneDeLAdresse } from '@/lib/zones/appartenance';
 import type { PassageObserve } from '@/lib/zones/fraicheur';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import type { Zone } from '@/lib/zones/types';
-import { MAX_ARRETS_TOURNEE, type DepartTournee } from './reglages';
+import {
+  MAX_ARRETS_TOURNEE,
+  MINUTES_PAR_PORTE,
+  ilYa,
+  type ArretTournee,
+  type DepartTournee,
+  type DetailArret,
+} from './reglages';
 
 export const FENETRE_DPE_JOURS = 183;
-export const MINUTES_PAR_PORTE = 5;
 
 const METRES_PAR_MINUTE = 80;
 /** La rue n'est jamais à vol d'oiseau. */
@@ -21,7 +27,8 @@ const DEMI_VIE_DPE_JOURS = 45;
 const PLANCHER_LEAD = 0.08;
 const PASSAGE_RECENT_JOURS = 7;
 const RAYON_MAX_M = 3_000;
-const DEPART_PROCHE_M = 1_000;
+/** Au-delà, un coin du secteur vaut moitié moins que le même sous les pieds de l'agent. */
+const ECART_PENALISE_M = 2_000;
 const VIVIER_MAX = 300;
 const GRAINES_MAX = 10;
 const GRAINES_CANDIDATES = 600;
@@ -83,6 +90,8 @@ export type TourneeGeneree = {
   arrets: AdresseTournee[];
   depart: GeoCoord | null;
   departSource: DepartTournee | null;
+  /** Distance entre l'agent et le départ, quand la tournée ne part pas de lui. */
+  distanceDepartM: number | null;
   minutes: number;
   distanceM: number;
 };
@@ -251,7 +260,7 @@ export function secteurDeTournee(params: {
   return defaut ? actives.find((z) => z.id === defaut) ?? null : null;
 }
 
-/** Sans secteur, tout le territoire de l'agence, moins les secteurs des collègues. */
+/** Sans secteur, tout le territoire de l'agence ; les secteurs des collègues sautent sauf choix explicite. */
 export function adresseDansSecteur(
   a: AdresseTournee,
   ctx: {
@@ -260,6 +269,8 @@ export function adresseDansSecteur(
     profileId: string;
     directeur: boolean;
     codesPostaux: ReadonlySet<string>;
+    /** Faux quand l'agent a choisi tout le code postal. */
+    exclureCollegues: boolean;
   },
 ): boolean {
   const zone = zoneDeLAdresse(
@@ -274,7 +285,9 @@ export function adresseDansSecteur(
   );
   if (ctx.secteur) return zone?.id === ctx.secteur.id;
   if (a.codePostal && ctx.codesPostaux.size > 0 && !ctx.codesPostaux.has(a.codePostal)) return false;
-  if (!ctx.directeur && zone?.assignedTo && zone.assignedTo !== ctx.profileId) return false;
+  if (ctx.exclureCollegues && !ctx.directeur && zone?.assignedTo && zone.assignedTo !== ctx.profileId) {
+    return false;
+  }
   return true;
 }
 
@@ -447,10 +460,10 @@ function grainesDuSecteur(noeuds: readonly Noeud[]): Noeud[] {
   return graines;
 }
 
-/** Départ : l'adresse imposée, sinon l'agent sur place, sinon l'agence, sinon le meilleur coin du secteur. */
+/** Départ : l'agent s'il est à portée de marche, sinon l'agence, sinon le meilleur coin proche de lui. */
 export function genererTournee(input: {
   adresses: readonly AdresseTournee[];
-  ancre: AdresseTournee | null;
+  ancres: readonly AdresseTournee[];
   position: GeoCoord | null;
   agence: GeoCoord | null;
   budgetMinutes: number;
@@ -459,100 +472,125 @@ export function genererTournee(input: {
 }): TourneeGeneree {
   const max = Math.max(1, Math.min(input.maxArrets ?? MAX_ARRETS_TOURNEE, MAX_ARRETS_TOURNEE));
   const budget = Math.max(MINUTES_PAR_PORTE, input.budgetMinutes);
+  const premiere = input.ancres[0] ?? null;
   const reference =
-    input.ancre?.latitude ?? input.position?.latitude ?? input.agence?.latitude ?? input.adresses[0]?.latitude ?? 0;
+    input.position?.latitude ?? premiere?.latitude ?? input.agence?.latitude ?? input.adresses[0]?.latitude ?? 0;
   const projeter = projeteur(reference);
   const noeud = (adresse: AdresseTournee, valeur: number): Noeud => ({ ...projeter(adresse), adresse, valeur });
 
+  const clesImposees = new Set(input.ancres.map((a) => a.key));
+  const imposees = input.ancres.map((a) => noeud(a, valeurAdresse(a, input.maintenant)));
   const noeuds: Noeud[] = [];
   for (const adresse of input.adresses) {
-    if (adresse.key === input.ancre?.key) continue;
+    if (clesImposees.has(adresse.key)) continue;
     const valeur = valeurAdresse(adresse, input.maintenant);
     if (valeur > 0) noeuds.push(noeud(adresse, valeur));
   }
   noeuds.sort((a, b) => b.valeur - a.valeur);
 
   const rayon = rayonTourneeM(budget);
-  function essayer(depart: GeoCoord, source: DepartTournee, imposees: Noeud[]) {
+  function essayer(depart: GeoCoord, source: DepartTournee, imposeesIci: Noeud[]) {
     const departPlan = projeter(depart);
     const vivier: Noeud[] = [];
     for (const n of noeuds) {
       if (vivier.length >= VIVIER_MAX) break;
       if (distancePlan(departPlan, n) <= rayon) vivier.push(n);
     }
-    return { ...remplir({ vivier, depart, departPlan, imposees, budget, max }), depart, departSource: source };
+    return {
+      ...remplir({ vivier, depart, departPlan, imposees: imposeesIci, budget, max }),
+      depart,
+      departSource: source,
+    };
   }
 
   function finaliser(r: ReturnType<typeof essayer>): TourneeGeneree {
+    const depuisAgent = r.departSource === 'position' || input.position === null;
     return {
       arrets: r.arrets,
       depart: r.depart,
       departSource: r.departSource,
+      distanceDepartM: depuisAgent ? null : Math.round(haversineM(input.position!, r.depart)),
       minutes: r.minutes,
       distanceM: loopDistanceM(r.arrets, r.depart) * DETOUR,
     };
   }
 
-  if (input.ancre) {
-    const ancre = point(input.ancre);
-    const surPlace = input.position !== null && haversineM(input.position, ancre) <= DEPART_PROCHE_M;
-    const imposee = noeud(input.ancre, valeurAdresse(input.ancre, input.maintenant));
-    return finaliser(essayer(surPlace ? point(input.position!) : ancre, surPlace ? 'position' : 'ancre', [imposee]));
-  }
-
-  const departsProches: [GeoCoord | null, DepartTournee][] = [
-    [input.position, 'position'],
-    [input.agence, 'agence'],
-  ];
-  for (const [depart, source] of departsProches) {
-    if (!depart) continue;
+  const aPortee = (depart: GeoCoord, cibles: readonly Noeud[]) => {
     const departPlan = projeter(depart);
-    if (noeuds.some((n) => distancePlan(departPlan, n) <= DEPART_PROCHE_M)) {
-      return finaliser(essayer(point(depart), source, []));
+    return cibles.some((n) => distancePlan(departPlan, n) <= rayon);
+  };
+
+  if (imposees.length > 0) {
+    if (input.position && aPortee(input.position, imposees)) {
+      return finaliser(essayer(point(input.position), 'position', imposees));
     }
+    const proche = input.position
+      ? [...input.ancres].sort((a, b) => haversineM(input.position!, a) - haversineM(input.position!, b))[0]!
+      : premiere!;
+    return finaliser(essayer(point(proche), 'ancre', imposees));
   }
 
+  if (input.position && aPortee(input.position, noeuds)) {
+    return finaliser(essayer(point(input.position), 'position', []));
+  }
+  if (!input.position && input.agence && aPortee(input.agence, noeuds)) {
+    return finaliser(essayer(point(input.agence), 'agence', []));
+  }
+
+  // Loin de tout : le coin le plus riche, rapproché de l'agent quand on sait où il est.
+  const repere = input.position ?? input.agence;
   let meilleure: ReturnType<typeof essayer> | null = null;
+  let meilleurScore = -1;
   for (const graine of grainesDuSecteur(noeuds)) {
     const essai = essayer(point(graine.adresse), 'secteur', [graine]);
-    if (!meilleure || essai.valeur > meilleure.valeur) meilleure = essai;
+    const ecart = repere ? haversineM(repere, graine.adresse) : 0;
+    const score = essai.valeur / (1 + ecart / ECART_PENALISE_M);
+    if (score > meilleurScore) {
+      meilleurScore = score;
+      meilleure = essai;
+    }
   }
-  if (!meilleure) return { arrets: [], depart: null, departSource: null, minutes: 0, distanceM: 0 };
+  if (!meilleure) {
+    return { arrets: [], depart: null, departSource: null, distanceDepartM: null, minutes: 0, distanceM: 0 };
+  }
   return finaliser(meilleure);
 }
 
-function ilYa(jours: number): string {
-  if (!Number.isFinite(jours)) return '';
-  if (jours <= 0) return 'aujourd’hui';
-  if (jours === 1) return 'hier';
-  if (jours < 7) return `il y a ${jours} jours`;
-  if (jours < 14) return 'la semaine dernière';
-  if (jours < 60) return `il y a ${Math.round(jours / 7)} semaines`;
-  if (jours < 365) return `il y a ${Math.round(jours / 30.4)} mois`;
-  return 'il y a plus d’un an';
-}
-
-/** Pourquoi cette porte : ce que l'agent lit sous l'adresse. */
+/** La ligne courte sous l'adresse, dans la liste. */
 export function raisonArret(a: AdresseTournee, maintenant: Date): string | null {
-  const morceaux: string[] = [];
   if (a.dernierDpe) {
     const quand = ilYa(joursDepuis(a.dernierDpe, maintenant));
-    morceaux.push(
-      a.nbDpe > 1
-        ? `${a.nbDpe} DPE, le dernier ${quand}`
-        : `DPE${a.lettre ? ` ${a.lettre}` : ''} ${quand}`.trim(),
-    );
+    return a.nbDpe > 1
+      ? `${a.nbDpe} DPE, le dernier ${quand}`
+      : `DPE${a.lettre ? ` ${a.lettre}` : ''} ${quand}`.trim();
   }
-  if (a.leadId) morceaux.push(a.leadSignal?.trim() || 'Lead');
-  if (a.dernierPassage) morceaux.push('nouveau depuis votre passage');
-  return morceaux.length > 0 ? morceaux.join(' · ') : null;
+  if (a.leadId) return a.leadSignal?.trim() || 'Lead à suivre';
+  return null;
+}
+
+export function detailArret(a: AdresseTournee, options: { choisie?: boolean } = {}): DetailArret {
+  return {
+    dpe: a.dernierDpe
+      ? {
+          lettre: a.lettre,
+          date: a.dernierDpe,
+          nombre: Math.max(1, a.nbDpe),
+          passoire: a.passoire,
+          surfaceM2: a.surfaceM2,
+          type: a.typeBatiment,
+        }
+      : null,
+    lead: a.leadId ? { score: Math.round(a.leadScore ?? 0), signal: a.leadSignal?.trim() || null } : null,
+    dernierPassage: a.dernierPassage,
+    choisie: options.choisie ?? false,
+  };
 }
 
 export function versArretSortie(
   a: AdresseTournee,
   maintenant: Date,
-  options: { ancre?: boolean } = {},
-): SortieStop {
+  options: { choisie?: boolean } = {},
+): ArretTournee {
   const key = a.leadId ?? a.key;
   return {
     key,
@@ -563,11 +601,12 @@ export function versArretSortie(
     score: a.leadScore ?? 0,
     surfaceM2: a.surfaceM2,
     etage: null,
-    mainSignalLabel: raisonArret(a, maintenant) ?? (options.ancre ? 'Votre adresse de passage' : null),
+    mainSignalLabel: raisonArret(a, maintenant) ?? (options.choisie ? 'Adresse ajoutée' : null),
     notes: null,
     banId: a.banId,
     postalCode: a.codePostal,
     dernierPassageJour: a.dernierPassage,
+    detail: detailArret(a, options),
   };
 }
 

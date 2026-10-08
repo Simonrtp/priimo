@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, MapPin, Navigation, Phone, Square } from 'lucide-react';
+import { Box, Layers, Locate, MapPin, Navigation, Phone, Play, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
@@ -44,12 +44,7 @@ import {
   type WithoutPositionCount,
 } from '@/lib/carte/points';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import {
-  readDevicePosition,
-  requestDevicePosition,
-  watchDevicePosition,
-  type DevicePosition,
-} from '@/lib/voice/gps';
+import { requestDevicePosition } from '@/lib/voice/gps';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
@@ -61,89 +56,25 @@ import MobileSheet from './MobileSheet';
 import MobileAccountMenu from './MobileAccountMenu';
 import MobileSearchCapsule from './MobileSearchCapsule';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
-import type { SelectedAddress } from '@/components/AddressAutocomplete';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
-import { buildingToManualStop, searchResultToManualStop } from '@/lib/carte/carte-tournee';
 import type { GeoCoord } from '@/lib/carte/coords';
-import { haversineM } from '@/lib/geo/distance';
-import { newOfflineId, postJsonOrQueue } from '@/lib/offline/queue';
 import CarteTourneeBriefCard from './CarteTourneeBriefCard';
 import CarteTourneeDoneCard from './CarteTourneeDoneCard';
+import CarteTourneePanel from './CarteTourneePanel';
 import CarteTourneeSetupSheet from './CarteTourneeSetupSheet';
-import CarteTourneeStopsSheet from './CarteTourneeStopsSheet';
-import type { SortieStop } from '@/lib/today/sortie';
-import { rebuildPlanFromStops, todaySortieDay } from '@/lib/today/sortie-session';
-import {
-  DUREE_TOURNEE_DEFAUT,
-  DUREES_TOURNEE,
-  MAX_ARRETS_TOURNEE,
-  libelleDuree,
-  type TourneeReponse,
-} from '@/lib/tournee/reglages';
-import { loopWaypoints } from '@/lib/today/route-optimize';
-import {
-  applyTripOrder,
-  fetchOptimizedTrip,
-  MAX_TRIP_COORDS,
-} from '@/lib/today/optimized-trip';
-import {
-  fetchWalkingRoute,
-  readItineraireStops,
-  toItineraireStops,
-  writeItineraireStops,
-  type ItineraireStop,
-} from '@/lib/today/directions';
-import { MAPBOX_TOKEN } from '@/lib/map/style';
+import { useTourneeCarte } from './useTourneeCarte';
+import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
 import {
   persistMapDimension,
   readMapDimension,
   toggleDimension,
   type MapDimension,
 } from '@/lib/map/view-mode';
-import { FIELD } from '@/lib/today/field';
+import { FIELD, formatDistance } from '@/lib/today/field';
 import { vibrateBrief } from './aujourdhui/tap';
 import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
 import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
-
-/**
- * `preparation` = adresse de passage et temps, `brief` = séquence d'ouverture,
- * `route` = chemin tracé + retouche des adresses, `bilan` = bravo de fin.
- */
-type CarteTourPhase = 'off' | 'preparation' | 'brief' | 'route' | 'bilan';
-
-const DUREE_STORAGE_KEY = 'priimo-tournee-duree';
-/** Assez près pour dire qu'on est passé devant la porte, pas assez pour la frôler en voiture. */
-const PASSAGE_RAYON_M = 25;
-const PASSAGE_PRECISION_M = 35;
-const PASSAGE_VITESSE_MAX_MS = 2.5;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function lireDureeTournee(): number {
-  try {
-    const brut = Number(window.localStorage.getItem(DUREE_STORAGE_KEY));
-    return (DUREES_TOURNEE as readonly number[]).includes(brut) ? brut : DUREE_TOURNEE_DEFAUT;
-  } catch {
-    return DUREE_TOURNEE_DEFAUT;
-  }
-}
-
-function messageTourneeVide(reponse: TourneeReponse): string {
-  const ou = reponse.secteur ? `dans ${reponse.secteur}` : 'dans votre secteur';
-  if (reponse.adressesAFaire === 0 && reponse.dejaFaites > 0) {
-    return `Toutes les adresses à DPE récent ${ou} ont déjà été prospectées. Revenez quand de nouveaux DPE tombent.`;
-  }
-  if (reponse.adressesAFaire === 0) return `Aucun DPE récent ${ou} pour le moment.`;
-  return 'Aucune adresse ne tient dans ce temps. Essayez une durée plus longue.';
-}
-
-type TourTrip = {
-  /** Ordre de visite retenu par le routeur. */
-  keys: string[];
-  geometry: GeoJSON.LineString;
-  distanceM: number;
-  durationS: number;
-};
 
 const GEO_TABLE: Record<MapPointKind, 'leads' | 'contacts' | 'biens' | 'voice_notes'> = {
   lead: 'leads',
@@ -175,7 +106,6 @@ export default function CarteMobile({
   center,
   isDirector,
   profileId = '',
-  agencyOrigin = null,
   initialBanId = null,
   fillParent = false,
   hideAccount = false,
@@ -194,13 +124,12 @@ export default function CarteMobile({
   members: readonly AssigneeOption[];
   isDirector: boolean;
   profileId?: string;
-  agencyOrigin?: GeoCoord | null;
   initialBanId?: string | null;
   fillParent?: boolean;
   hideAccount?: boolean;
   itineraryStops?: readonly ItineraireStop[] | null;
   showItineraire?: boolean;
-  /** Entrée « tournée » depuis l'accueil : la préparation s'ouvre seule. */
+  /** Entrée « tournée » depuis l'accueil : la préparation s'ouvre seule, ou la tournée reprend. */
   autoTournee?: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
@@ -222,155 +151,40 @@ export default function CarteMobile({
   const [accountOpen, setAccountOpen] = useState(false);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
-  const [agentPosition, setAgentPosition] = useState<DevicePosition | null>(null);
-
-  const [tourPhase, setTourPhase] = useState<CarteTourPhase>('off');
-  const [tourStops, setTourStops] = useState<SortieStop[]>([]);
-  const [tourOrigin, setTourOrigin] = useState<GeoCoord | null>(agencyOrigin);
-  const [trip, setTrip] = useState<TourTrip | null>(null);
-  const [tripPending, setTripPending] = useState(false);
-  /** Une tournée a cadré la carte : ne pas la redézoomer sur tout le secteur. */
-  const [tourFramed, setTourFramed] = useState(false);
+  /** En préparation : le prochain appui sur la carte ajoute une adresse de passage. */
   const [picking, setPicking] = useState(false);
-  /** Le point touché sur la carte devient l'adresse de passage, ou un arrêt de plus. */
-  const [pickTarget, setPickTarget] = useState<'ancre' | 'arret'>('arret');
-  const [bilan, setBilan] = useState<{ stopCount: number; distanceM: number; durationS: number | null } | null>(
-    null,
+  const [confirmerFin, setConfirmerFin] = useState(false);
+
+  const monSecteurId = useMemo(
+    () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
+    [profileId, zones],
   );
-  const autoStarted = useRef(false);
+  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
 
-  const [ancreTournee, setAncreTournee] = useState<SelectedAddress | null>(null);
-  const [dureeTournee, setDureeTournee] = useState<number>(lireDureeTournee);
-  const [generation, setGeneration] = useState(false);
-  const [messageTournee, setMessageTournee] = useState<string | null>(null);
-  const [contexteTournee, setContexteTournee] = useState<string | null>(null);
-  /** Portes devant lesquelles le GPS a vu passer l'agent pendant la tournée. */
-  const [faits, setFaits] = useState<readonly string[]>([]);
-  const positionPreparation = useRef<Promise<DevicePosition | null> | null>(null);
-  const faitsRef = useRef<ReadonlySet<string>>(new Set());
-  const arretsRef = useRef<readonly SortieStop[]>([]);
-
-  /** Interaction : les appuis sur la carte retouchent la tournée. */
-  const tourActive = tourPhase === 'brief' || tourPhase === 'route';
-  /** Affichage : le chemin reste tracé sous le bravo de fin. */
-  const tourShown = tourActive || tourPhase === 'bilan';
-
-  /** Boucle optimisée localement : disponible tout de suite, sans réseau. */
-  const localPlan = useMemo(
-    () => rebuildPlanFromStops(tourStops, tourOrigin),
-    [tourStops, tourOrigin],
-  );
-
-  /** Le routeur Mapbox affine l'ordre et la géométrie ; sinon on garde le local. */
-  const tour = useMemo(() => {
-    const ordered = localPlan?.ordered ?? [];
-    const local = {
-      ordered,
-      distanceM: localPlan?.distanceM ?? 0,
-      durationS: null as number | null,
-      geometry: null as GeoJSON.LineString | null,
-    };
-    if (!trip || trip.keys.length !== ordered.length) return local;
-    const byKey = new Map(ordered.map((s) => [s.key, s]));
-    const routed: SortieStop[] = [];
-    for (const key of trip.keys) {
-      const stop = byKey.get(key);
-      if (!stop) return local;
-      routed.push(stop);
-    }
-    return {
-      ordered: routed,
-      distanceM: trip.distanceM,
-      durationS: trip.durationS,
-      geometry: trip.geometry,
-    };
-  }, [localPlan, trip]);
-
-  const tourItineraryStops = useMemo(
-    () => (tourShown && tour.ordered.length > 0 ? toItineraireStops(tour.ordered) : null),
-    [tourShown, tour.ordered],
-  );
-  const tourKeys = useMemo(() => new Set(tourStops.map((s) => s.key)), [tourStops]);
-  const faitsSet = useMemo(() => new Set(faits), [faits]);
-  const arretsFaits = useMemo(
-    () => tour.ordered.filter((s) => faitsSet.has(s.key)).map((s) => s.leadId),
-    [tour.ordered, faitsSet],
-  );
-  const highlightBanIds = useMemo(() => {
-    if (!tourShown) return null;
-    const ids = new Set<string>();
-    for (const stop of tourStops) {
-      if (stop.banId) ids.add(stop.banId);
-    }
-    return ids;
-  }, [tourShown, tourStops]);
+  const tournee = useTourneeCarte({
+    profileId,
+    isDirector,
+    zoneId: zoneChoisie?.id ?? null,
+    aUnSecteur: Boolean(monSecteurId) || (isDirector && zoneChoisie !== null),
+    autoTournee,
+    mapApi,
+  });
+  const tourShown = tournee.traceVisible;
+  /** Recherche, filtres, boutons et onglets ne reviennent qu'hors tournée, ou en pause. */
+  const chromeVisible = tournee.phase === 'off' || tournee.phase === 'pause';
 
   useEffect(() => {
     setDimension(readMapDimension());
     setStoredStops(readItineraireStops());
   }, []);
 
-  useEffect(() => {
-    arretsRef.current = tourActive ? tour.ordered : [];
-  }, [tourActive, tour.ordered]);
-
-  /** Une porte longée à pied devient un passage : la prochaine tournée ne la reproposera pas. */
-  const noterPassage = useCallback(
-    (pos: DevicePosition) => {
-      if (pos.accuracyM === null || pos.accuracyM > PASSAGE_PRECISION_M) return;
-      if (pos.speedMs !== null && pos.speedMs > PASSAGE_VITESSE_MAX_MS) return;
-      const longees = arretsRef.current.filter(
-        (s) => !faitsRef.current.has(s.key) && haversineM(pos, s) <= PASSAGE_RAYON_M,
-      );
-      if (longees.length === 0) return;
-      faitsRef.current = new Set([...faitsRef.current, ...longees.map((s) => s.key)]);
-      setFaits([...faitsRef.current]);
-      vibrateBrief();
-      // Le journal de sortie est réservé aux collaborateurs.
-      if (isDirector) return;
-      for (const stop of longees) {
-        void postJsonOrQueue('/api/dashboard/sortie/events', {
-          kind: 'passer',
-          leadId: UUID.test(stop.leadId) ? stop.leadId : null,
-          stopKey: stop.key,
-          banId: stop.banId,
-          payload: { source: 'carte' },
-          clientId: newOfflineId(),
-          day: todaySortieDay(),
-        });
-      }
-    },
-    [isDirector],
-  );
-
-  // GPS parent seulement en tournée (progressPoint). Hors tournée, le point
-  // bleu vit dans LiveAgentLocationMarker pour ne pas re-render toute la carte.
-  useEffect(() => {
-    if (!tourShown) {
-      setAgentPosition(null);
-      return;
-    }
-    return watchDevicePosition(
-      (pos) => {
-        setAgentPosition(pos);
-        noterPassage(pos);
-      },
-      {
-        pauseWhenHidden: true,
-        highAccuracy: true,
-        minUpdateM: 10,
-        maximumAge: 2_000,
-      },
-    );
-  }, [tourShown, noterPassage]);
-
-  const itineraryStops = tourItineraryStops
-    ? tourItineraryStops
+  const itineraryStops = tourShown
+    ? tournee.itineraire
     : showItineraire
       ? storedStops ?? itineraryStopsProp
       : null;
   const { route, waypoints } = useWalkingRoute(tourShown ? null : itineraryStops);
-  const itineraryGeometry = tourShown ? tour.geometry : route?.geometry ?? null;
+  const itineraryGeometry = tourShown ? tournee.geometrie : route?.geometry ?? null;
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
   const overlaysCadastre = anyCadastreOverlay(layers);
@@ -386,12 +200,7 @@ export default function CarteMobile({
   );
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
-  const monSecteurId = useMemo(
-    () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
-    [profileId, zones],
-  );
   const emprise = empriseDepuisZoneId(zoneId);
-  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
   const pointsDuSecteur = useMemo(
     () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
     [points, zoneChoisie],
@@ -484,250 +293,37 @@ export default function CarteMobile({
     };
   }, [unplaced, router]);
 
-  /**
-   * Chemin réel : d'abord l'Optimization API (vrai TSP piéton, retour au
-   * départ), sinon un simple itinéraire sur l'ordre calculé localement.
-   */
-  useEffect(() => {
-    const stops = localPlan?.ordered ?? [];
-    if (!tourShown || stops.length === 0 || !MAPBOX_TOKEN) {
-      setTrip(null);
-      setTripPending(false);
-      return;
-    }
-    const origin = tourOrigin;
-    let cancelled = false;
-    setTripPending(true);
-    void (async () => {
-      let next: TourTrip | null = null;
-      if (origin && stops.length + 1 <= MAX_TRIP_COORDS) {
-        const optimized = await fetchOptimizedTrip([origin, ...stops], MAPBOX_TOKEN);
-        const routed = optimized ? applyTripOrder(stops, optimized) : null;
-        if (optimized && routed) {
-          next = {
-            keys: routed.map((s) => s.key),
-            geometry: optimized.geometry,
-            distanceM: optimized.distanceM,
-            durationS: optimized.durationS,
-          };
-        }
-      }
-      if (!next) {
-        const walk = await fetchWalkingRoute(loopWaypoints(stops, origin), MAPBOX_TOKEN);
-        if (walk) {
-          next = {
-            keys: stops.map((s) => s.key),
-            geometry: walk.geometry,
-            distanceM: walk.distanceM,
-            durationS: walk.durationS,
-          };
-        }
-      }
-      if (cancelled) return;
-      setTrip(next);
-      setTripPending(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tourShown, localPlan?.signature, tourOrigin?.latitude, tourOrigin?.longitude]);
-
-  /** L'itinéraire retenu reste lisible depuis l'accueil et le bandeau carte. */
-  useEffect(() => {
-    if (tourPhase !== 'route' || tour.ordered.length < 2) return;
-    writeItineraireStops(toItineraireStops(tour.ordered));
-  }, [tourPhase, tour.ordered]);
-
-  /** Le secteur que le serveur retiendra : celui affiché s'il est à l'agent, sinon le sien. */
-  const secteurTournee = useMemo(() => {
-    if (zoneChoisie && (isDirector || zoneChoisie.assignedTo === profileId)) return zoneChoisie;
-    return zones.find((z) => z.id === monSecteurId) ?? null;
-  }, [zoneChoisie, zones, monSecteurId, isDirector, profileId]);
-
-  /** Le GPS se cherche pendant que l'agent choisit son adresse et son temps. */
-  const ouvrirPreparation = useCallback(() => {
+  const ouvrirTournee = useCallback(() => {
     setLayersOpen(false);
     setSelectedBanId(null);
     closeParcelle();
-    setMessageTournee(null);
-    setTourPhase('preparation');
-    positionPreparation.current = readDevicePosition();
-  }, [closeParcelle]);
+    tournee.ouvrirPreparation();
+  }, [closeParcelle, tournee]);
 
-  useEffect(() => {
-    if (!autoTournee || autoStarted.current) return;
-    autoStarted.current = true;
-    ouvrirPreparation();
-  }, [autoTournee, ouvrirPreparation]);
-
-  const fermerPreparation = useCallback(() => {
-    setPicking(false);
-    setAncreTournee(null);
-    setMessageTournee(null);
-    setTourPhase('off');
-  }, []);
-
-  const choisirDuree = useCallback((minutes: number) => {
-    setDureeTournee(minutes);
-    setMessageTournee(null);
-    try {
-      window.localStorage.setItem(DUREE_STORAGE_KEY, String(minutes));
-    } catch {
-      /* mode privé */
-    }
-  }, []);
-
-  const genererTournee = useCallback(async () => {
-    if (generation) return;
-    setGeneration(true);
-    setMessageTournee(null);
-    const position = await Promise.race([
-      positionPreparation.current ?? readDevicePosition(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2_500)),
-    ]);
-
-    let reponse: TourneeReponse | null = null;
-    try {
-      const res = await fetch('/api/dashboard/tournee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dureeMinutes: dureeTournee,
-          zoneId: zoneChoisie?.id ?? null,
-          ancre: ancreTournee
-            ? {
-                label: ancreTournee.label,
-                latitude: ancreTournee.latitude,
-                longitude: ancreTournee.longitude,
-                banId: ancreTournee.id ?? null,
-                codePostal: ancreTournee.postcode || null,
-              }
-            : null,
-          position: position ? { latitude: position.latitude, longitude: position.longitude } : null,
-        }),
-      });
-      if (res.ok) {
-        reponse = (await res.json()) as TourneeReponse;
-      } else {
-        const corps = (await res.json().catch(() => null)) as { error?: string } | null;
-        setMessageTournee(corps?.error ?? 'La tournée n’a pas pu être préparée. Réessayez.');
-      }
-    } catch {
-      setMessageTournee('Pas de réseau : la tournée n’a pas pu être préparée.');
-    }
-    setGeneration(false);
-    if (!reponse) return;
-    if (reponse.arrets.length === 0) {
-      setMessageTournee(messageTourneeVide(reponse));
-      return;
-    }
-
-    const minutes = Math.max(5, Math.round(reponse.minutes / 5) * 5);
-    const parmi =
-      reponse.adressesAFaire > reponse.arrets.length
-        ? ` · retenues parmi ${reponse.adressesAFaire} adresses à DPE récent`
-        : '';
-    faitsRef.current = new Set();
-    setFaits([]);
-    setTourStops(reponse.arrets);
-    setTourOrigin(reponse.depart);
-    setTrip(null);
-    setContexteTournee(`Environ ${libelleDuree(minutes)}, portes comprises${parmi}`);
-    setTourPhase('brief');
-    setTourFramed(true);
-    mapApi.current?.fitStops(reponse.depart ? [reponse.depart, ...reponse.arrets] : reponse.arrets);
-  }, [generation, dureeTournee, zoneChoisie, ancreTournee]);
-
-  const finirTournee = useCallback(() => {
-    setTourPhase('off');
-    setTourStops([]);
-    setTrip(null);
-    setAncreTournee(null);
-    setContexteTournee(null);
-    faitsRef.current = new Set();
-    setFaits([]);
-  }, []);
-
-  /** La croix ne coupe pas net : on félicite d'abord, puis on rend la carte. */
-  const stopTournee = useCallback(() => {
-    setPicking(false);
-    if (tour.ordered.length > 0) {
-      setBilan({
-        stopCount: tour.ordered.length,
-        distanceM: tour.distanceM,
-        durationS: tour.durationS,
-      });
-      setTourPhase('bilan');
-      return;
-    }
-    finirTournee();
-  }, [tour, finirTournee]);
-
-  const closeBilan = useCallback(() => {
-    setBilan(null);
-    finirTournee();
-  }, [finirTournee]);
-
-  const addStop = useCallback((stop: SortieStop) => {
-    setTourStops((prev) => {
-      if (prev.some((s) => s.key === stop.key)) return prev;
-      if (prev.length >= MAX_ARRETS_TOURNEE) return prev;
-      return [...prev, stop];
-    });
-    vibrateBrief();
-  }, []);
-
-  const removeStop = useCallback((key: string) => {
-    setTourStops((prev) => prev.filter((s) => s.key !== key));
-    vibrateBrief();
-  }, []);
-
-  const addAddressToTour = useCallback(
-    (address: { label: string; latitude: number; longitude: number; id?: string; postcode?: string }) => {
-      addStop(
-        searchResultToManualStop({
-          label: address.label,
-          latitude: address.latitude,
-          longitude: address.longitude,
-          banId: address.id ?? null,
-          postalCode: address.postcode ?? null,
-        }),
-      );
-    },
-    [addStop],
-  );
-
-  /** Point libre : l'adresse BAN la plus proche, sinon les coordonnées brutes. */
-  const addPointFromMap = useCallback(
+  /** Point libre : l'adresse la plus proche, sinon les coordonnées brutes. */
+  const ajouterPointCarte = useCallback(
     (coord: GeoCoord) => {
       setPicking(false);
       void reverseGeocode(coord.latitude, coord.longitude).then((hit) => {
         const label = hit?.adresse_normalisee ?? 'Point sur la carte';
-        const latitude = hit?.lat ?? coord.latitude;
-        const longitude = hit?.lng ?? coord.longitude;
-        if (pickTarget === 'ancre') {
-          setAncreTournee({
-            label,
-            latitude,
-            longitude,
-            city: '',
-            postcode: /\b\d{5}\b/.exec(label)?.[0] ?? '',
-            id: hit?.ban_id,
-          });
-          return;
-        }
-        addStop(searchResultToManualStop({ label, latitude, longitude, banId: hit?.ban_id ?? null }));
+        tournee.preparation.ajouterAncre({
+          label,
+          latitude: hit?.lat ?? coord.latitude,
+          longitude: hit?.lng ?? coord.longitude,
+          city: '',
+          postcode: /\b\d{5}\b/.exec(label)?.[0] ?? '',
+          id: hit?.ban_id,
+        });
       });
     },
-    [addStop, pickTarget],
+    [tournee.preparation],
   );
 
   const handleMapSelect = useCallback(
     (building: BuildingMarker) => {
-      if (tourPhase === 'preparation') {
+      if (tournee.phase === 'preparation') {
         setPicking(false);
-        setAncreTournee({
+        tournee.preparation.ajouterAncre({
           label: building.title,
           latitude: building.latitude,
           longitude: building.longitude,
@@ -736,27 +332,24 @@ export default function CarteMobile({
           // `bien:…` et `gps:…` placent une fiche sans adresse BAN : pas un identifiant d'immeuble.
           id: building.banId.includes(':') ? undefined : building.banId,
         });
-        setMessageTournee(null);
-        vibrateBrief();
         return;
       }
-      if (tourActive) {
-        const stop = buildingToManualStop(building);
-        if (!stop) return;
-        if (picking) {
-          setPicking(false);
-          addStop(stop);
-          return;
-        }
-        if (tourKeys.has(stop.key)) removeStop(stop.key);
-        else addStop(stop);
-        return;
-      }
+      if (tournee.enCours) return;
       closeParcelle();
       setSelectedBanId(building.banId);
       setLayersOpen(false);
     },
-    [tourPhase, tourActive, picking, tourKeys, addStop, removeStop, closeParcelle],
+    [tournee.phase, tournee.preparation, tournee.enCours, closeParcelle],
+  );
+
+  const choisirArretCarte = useCallback(
+    (stop: ItineraireStop) => {
+      const arret = tournee.arrets.find((a) => a.leadId === stop.leadId);
+      if (!arret) return;
+      tournee.choisirArret(arret.key);
+      mapApi.current?.recenter(arret, 17);
+    },
+    [tournee],
   );
 
   const switchDimension = useCallback(() => {
@@ -769,16 +362,20 @@ export default function CarteMobile({
   }, []);
 
   const phone = selected ? firstPhone(selected.entities) : null;
-  /** Au-dessus du bandeau flottant (carte plein écran derrière les onglets). */
-  const floatBottom =
-    tourPhase === 'route'
-      ? 'calc(86px + var(--field-nav-height))'
-      : 'calc(12px + var(--field-nav-height))';
+  /** Au-dessus de la barre d'onglets (carte plein écran derrière). */
+  const floatBottom = 'calc(12px + var(--field-nav-height))';
+  const contexteBrief = tournee.sansPosition
+    ? 'Pense à activer ta localisation !'
+    : tournee.distanceDepartM !== null
+      ? `Ta tournée commence à ${formatDistance(tournee.distanceDepartM)} d’ici.`
+      : null;
+  const libelleCodePostal =
+    agencyPostalCodes.length === 1 ? `Tout le ${agencyPostalCodes[0]}` : 'Tout le code postal';
 
   const recenterGps = useCallback(() => {
     void requestDevicePosition().then((pos) => {
       if (!pos) {
-        toast.error('Position indisponible. Active le GPS.');
+        toast('Pense à activer ta localisation !');
         return;
       }
       mapApi.current?.recenter(pos, 16);
@@ -787,6 +384,7 @@ export default function CarteMobile({
 
   return (
     <div
+      data-tournee-active={tournee.enCours ? '' : undefined}
       className={
         fillParent
           ? 'field-map relative h-full min-h-0 overflow-hidden overscroll-none bg-soft-cool'
@@ -806,7 +404,11 @@ export default function CarteMobile({
         mapRef={mapApi}
         onSelect={handleMapSelect}
         onDeselect={() => {
-          if (tourActive) return;
+          if (tournee.phase === 'route') {
+            tournee.choisirArret(null);
+            return;
+          }
+          if (tournee.enCours) return;
           setSelectedBanId(null);
           closeParcelle();
         }}
@@ -814,6 +416,8 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
+        onStopTap={tournee.phase === 'route' ? choisirArretCarte : undefined}
+        currentLeadId={tourShown ? ((tournee.arretChoisi ?? tournee.prochain)?.leadId ?? null) : null}
         // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
         parcellesEnabled={!tourShown && (planParcelles || Boolean(parcelle.selectedParcelleId))}
         activeParcelleIds={activeParcelleIds}
@@ -828,19 +432,19 @@ export default function CarteMobile({
           cadastreDpeAges: layers.cadastreDpeAges,
         }}
         onSelectParcelle={(parcelleId, extra) => {
-          if (tourActive || tourPhase === 'preparation') return;
+          if (tournee.enCours) return;
           setSelectedBanId(null);
           setLayersOpen(false);
           parcelle.openParcelle(parcelleId, extra);
         }}
         onPrefetchParcelle={parcelle.prefetchParcelle}
-        agentPosition={agentPosition}
-        completedLeadIds={arretsFaits}
-        highlightBanIds={highlightBanIds}
-        // Une adresse cherchée garde la main : la carte ne repart pas sur tout le secteur.
-        suppressAutoFit={tourShown || tourFramed || Boolean(cible)}
+        agentPosition={tournee.agentPosition}
+        completedLeadIds={tournee.arretsFaitsIds}
+        highlightBanIds={tournee.highlightBanIds}
+        // Une adresse cherchée ou une tournée gardent la main : la carte ne repart pas sur tout le secteur.
+        suppressAutoFit={tournee.phase !== 'off' || Boolean(cible)}
         navigation={tourShown}
-        onMapPoint={picking ? addPointFromMap : undefined}
+        onMapPoint={picking ? ajouterPointCarte : undefined}
       />
 
       {picking ? (
@@ -850,9 +454,7 @@ export default function CarteMobile({
         >
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1A2A56] py-1.5 pl-4 pr-1.5 shadow-lg">
             <p className="min-w-0 flex-1 text-[13.5px] font-medium text-white">
-              {pickTarget === 'ancre'
-                ? 'Touchez la carte à l’endroit où passer'
-                : 'Touchez la carte pour ajouter ce point'}
+              Touche la carte là où tu veux passer
             </p>
             <button
               type="button"
@@ -865,7 +467,7 @@ export default function CarteMobile({
         </div>
       ) : null}
 
-      {(tourPhase === 'off' || tourPhase === 'route') && !picking ? (
+      {chromeVisible ? (
         <div
           className="pointer-events-none absolute inset-x-0 z-20 px-4"
           style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
@@ -881,7 +483,7 @@ export default function CarteMobile({
           {viewSwitcher ? (
             <div className="pointer-events-auto mt-2 flex justify-end">{viewSwitcher}</div>
           ) : null}
-          {!tourShown && itineraryStops && itineraryStops.length >= 2 ? (
+          {itineraryStops && itineraryStops.length >= 2 ? (
             <div className="pointer-events-auto mt-2">
               <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
             </div>
@@ -889,20 +491,74 @@ export default function CarteMobile({
         </div>
       ) : null}
 
-      {tourPhase === 'off' || tourPhase === 'route' ? (
+      {chromeVisible ? (
         <>
-          {!tourShown ? (
+          {tournee.phase === 'pause' ? (
+            <div
+              className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5"
+              style={{ bottom: 'calc(72px + var(--field-nav-height))' }}
+            >
+              {confirmerFin ? (
+                <div className="flex items-center gap-1.5 rounded-full bg-surface p-1.5 shadow-lg ring-1 ring-black/[0.06]">
+                  <span className="whitespace-nowrap pl-2.5 text-[14px] font-semibold text-text-strong">
+                    Terminer la tournée ?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmerFin(false)}
+                    className="app-press flex h-10 items-center rounded-full bg-black/[0.05] px-3.5 text-[13.5px] font-semibold text-text-strong"
+                  >
+                    Non
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmerFin(false);
+                      tournee.terminer();
+                    }}
+                    className="app-press flex h-10 items-center rounded-full bg-primary-500 px-3.5 text-[13.5px] font-semibold text-white"
+                  >
+                    Oui
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBanId(null);
+                      closeParcelle();
+                      tournee.reprendre();
+                    }}
+                    className="app-press flex items-center gap-2 whitespace-nowrap rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
+                    style={{ fontSize: 14 }}
+                  >
+                    <Play size={16} strokeWidth={2.4} aria-hidden />
+                    Reprendre ma tournée
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmerFin(true)}
+                    aria-label="Terminer la tournée"
+                    className="app-press flex size-10 items-center justify-center rounded-full bg-surface text-text-muted shadow-md"
+                  >
+                    <X size={18} strokeWidth={2.3} aria-hidden />
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={ouvrirPreparation}
+              onClick={ouvrirTournee}
               aria-label="Préparer une tournée"
-              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(79,70,229,0.6)] ring-2 ring-white"
+              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
               style={{ bottom: floatBottom, fontSize: 14 }}
             >
               <MapPin size={18} strokeWidth={2.2} aria-hidden />
               Tournée
             </button>
-          ) : null}
+          )}
 
           <button
             type="button"
@@ -921,28 +577,26 @@ export default function CarteMobile({
             className="absolute right-4 z-20 flex flex-col-reverse items-center gap-2"
             style={{ bottom: floatBottom }}
           >
-            {!tourShown ? (
-              <button
-                type="button"
-                onClick={switchDimension}
-                aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
-                aria-pressed={dimension === '3d'}
-                className="app-press flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
-                style={{ color: dimension === '3d' ? FIELD.orange : undefined }}
+            <button
+              type="button"
+              onClick={switchDimension}
+              aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
+              aria-pressed={dimension === '3d'}
+              className="app-press flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
+              style={{ color: dimension === '3d' ? FIELD.orange : undefined }}
+            >
+              {dimension === '3d' ? (
+                <Box size={17} strokeWidth={2.2} aria-hidden />
+              ) : (
+                <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
+              )}
+              <span
+                className="text-[10px] font-bold leading-none"
+                style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
               >
-                {dimension === '3d' ? (
-                  <Box size={17} strokeWidth={2.2} aria-hidden />
-                ) : (
-                  <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
-                )}
-                <span
-                  className="text-[10px] font-bold leading-none"
-                  style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
-                >
-                  {dimension === '3d' ? '3D' : '2D'}
-                </span>
-              </button>
-            ) : null}
+                {dimension === '3d' ? '3D' : '2D'}
+              </span>
+            </button>
             <button
               type="button"
               onClick={recenterGps}
@@ -955,66 +609,65 @@ export default function CarteMobile({
         </>
       ) : null}
 
-      {tourPhase === 'preparation' && !picking ? (
+      {tournee.phase === 'preparation' && !picking ? (
         <CarteTourneeSetupSheet
-          secteurNom={secteurTournee?.nom ?? null}
-          ancre={ancreTournee}
-          onAncre={(adresse) => {
-            setAncreTournee(adresse);
-            setMessageTournee(null);
-          }}
-          duree={dureeTournee}
-          onDuree={choisirDuree}
+          aUnSecteur={Boolean(monSecteurId) || (isDirector && zoneChoisie !== null)}
+          libelleCodePostal={libelleCodePostal}
+          perimetre={tournee.preparation.perimetre}
+          onPerimetre={tournee.preparation.choisirPerimetre}
+          ancres={tournee.preparation.ancres}
+          onAjouter={tournee.preparation.ajouterAncre}
+          onRetirer={tournee.preparation.retirerAncre}
+          duree={tournee.preparation.duree}
+          onDuree={tournee.preparation.choisirDuree}
+          localisation={tournee.preparation.localisation}
           postcodeFilter={agencyPostalCodes[0]}
-          generating={generation}
-          message={messageTournee}
-          onPickOnMap={() => {
-            setPickTarget('ancre');
-            setPicking(true);
+          generating={tournee.preparation.generation}
+          message={tournee.preparation.message}
+          onPickOnMap={() => setPicking(true)}
+          onGenerate={() => void tournee.generer()}
+          onClose={() => {
+            setPicking(false);
+            tournee.fermerPreparation();
           }}
-          onGenerate={() => void genererTournee()}
-          onClose={fermerPreparation}
         />
       ) : null}
 
-      {tourPhase === 'brief' ? (
+      {tournee.phase === 'brief' ? (
         <CarteTourneeBriefCard
-          stopCount={tour.ordered.length}
-          distanceM={tour.distanceM}
-          durationS={tour.durationS}
-          contexte={contexteTournee}
-          onDone={() => setTourPhase('route')}
+          stopCount={tournee.arrets.length}
+          minutes={tournee.prevu.minutes}
+          distanceM={tournee.prevu.distanceM}
+          contexte={contexteBrief}
+          onDone={tournee.finBrief}
         />
       ) : null}
 
-      {tourPhase === 'route' ? (
-        <CarteTourneeStopsSheet
-          stops={tour.ordered}
-          faits={faitsSet}
-          maxStops={MAX_ARRETS_TOURNEE}
-          distanceM={tour.distanceM}
-          durationS={tour.durationS}
-          optimizing={tripPending}
-          picking={picking}
-          postcodeFilter={agencyPostalCodes[0]}
-          onRemove={removeStop}
-          onAddAddress={addAddressToTour}
-          onPickOnMap={() => {
-            setPickTarget('arret');
-            setPicking(true);
+      {tournee.phase === 'route' ? (
+        <CarteTourneePanel
+          arrets={tournee.arrets}
+          faits={tournee.faits}
+          prochain={tournee.prochain}
+          arretChoisi={tournee.arretChoisi}
+          onChoisir={(key) => {
+            tournee.choisirArret(key);
+            const arret = tournee.arrets.find((a) => a.key === key);
+            if (arret) mapApi.current?.recenter(arret, 17);
           }}
-          onStop={stopTournee}
-          onFocusStop={(stop) => mapApi.current?.recenter(stop, 17)}
+          tempsMs={tournee.tempsMs}
+          distanceM={tournee.distanceMarcheeM}
+          routage={tournee.routage}
+          sansPosition={tournee.sansPosition && !tournee.agentPosition}
+          onPause={tournee.pause}
+          onTerminer={tournee.terminer}
+          onNoter={tournee.noter}
+          onFait={tournee.marquerFait}
+          onRetirer={tournee.retirerArret}
         />
       ) : null}
 
-      {tourPhase === 'bilan' && bilan ? (
-        <CarteTourneeDoneCard
-          stopCount={bilan.stopCount}
-          distanceM={bilan.distanceM}
-          durationS={bilan.durationS}
-          onClose={closeBilan}
-        />
+      {tournee.phase === 'bilan' && tournee.bilan ? (
+        <CarteTourneeDoneCard bilan={tournee.bilan} onClose={tournee.fermerBilan} />
       ) : null}
 
       <MobileSheet
@@ -1109,7 +762,7 @@ export default function CarteMobile({
               <button
                 type="button"
                 onClick={() => openCapture({ adresse: selected.title })}
-                className="app-press flex min-h-[44px] flex-1 items-center justify-center rounded-clay bg-accent text-[13.5px] font-semibold text-white"
+                className="app-press flex min-h-[44px] flex-1 items-center justify-center rounded-clay bg-ia text-[13.5px] font-semibold text-white"
               >
                 Dicter ici
               </button>

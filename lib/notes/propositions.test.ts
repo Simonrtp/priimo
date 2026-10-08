@@ -210,3 +210,19 @@ describe('parseNoteExtraction v2 — actions multiples', () => {
     assert.equal(parseNoteExtraction(JSON.stringify({})).intention, 'note');
   });
 });
+
+describe('relation entre personnes', () => {
+  it('garde « sœur de Simon » et une entrée pour Simon', () => {
+    const parsed = parseNoteExtraction(
+      JSON.stringify({
+        personnes: [
+          { firstName: 'Christine', lastName: null, types: [], relation: 'sœur de Simon' },
+          { firstName: 'Simon', lastName: null, types: [] },
+        ],
+      }),
+    );
+    assert.equal(parsed.personnes[0]?.relation, 'sœur de Simon');
+    assert.equal(parsed.personnes[1]?.firstName, 'Simon');
+    assert.equal(parsed.personnes[1]?.relation ?? null, null);
+  });
+});

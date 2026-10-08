@@ -3804,6 +3804,16 @@ html:has(.feature-page) {
   overflow: hidden !important;
 }
 
+/* Tournée : la carte, les adresses et la note. Ni onglets ni geste retour. */
+.dashboard-mobile:has([data-tournee-active]) {
+  --field-nav-height: env(safe-area-inset-bottom, 0px);
+}
+
+.dashboard-mobile:has([data-tournee-active]) .app-tabbar,
+.dashboard-mobile:has([data-tournee-active]) .mobile-back-swipe {
+  display: none !important;
+}
+
 /* Accueil : la capsule flotte, les cartes défilent derrière. */
 .dashboard-mobile > .mobile-shell-header--overlay {
   position: absolute;

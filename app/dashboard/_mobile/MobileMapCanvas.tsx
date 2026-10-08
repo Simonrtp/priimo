@@ -91,6 +91,7 @@ export default function MobileMapCanvas({
   highlightBanIds = null,
   suppressAutoFit = false,
   onMapPoint,
+  onStopTap,
   onUserInteract,
   navigation = false,
   currentLeadId = null,
@@ -126,6 +127,8 @@ export default function MobileMapCanvas({
   suppressAutoFit?: boolean;
   /** Mode « choisir un point » : tout appui sur la carte renvoie ses coordonnées. */
   onMapPoint?: (coord: { latitude: number; longitude: number }) => void;
+  /** Tournée : un numéro d'arrêt touché ouvre sa fiche au lieu de l'immeuble. */
+  onStopTap?: (stop: ItineraireStop) => void;
   onUserInteract?: () => void;
   /** Tournée en cours : plus de cadastre, plus d'immeubles, carte atténuée. */
   navigation?: boolean;
@@ -431,7 +434,7 @@ export default function MobileMapCanvas({
             <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
           </>
         )}
-        {itineraryStops && itineraryStops.length >= 2 ? (
+        {itineraryStops && (itineraryStops.length >= 2 || (itineraryStops.length > 0 && itineraryGeometry)) ? (
           <ItineraireLayer
             geometry={itineraryGeometry}
             stops={itineraryStops}
@@ -439,6 +442,10 @@ export default function MobileMapCanvas({
             completedLeadIds={completedLeadIds}
             progressPoint={agentPosition}
             onStop={(stop) => {
+              if (onStopTap) {
+                onStopTap(stop);
+                return;
+              }
               const building = buildings.find((b) => b.banId && b.banId === stop.banId);
               if (building) onSelect(building);
             }}

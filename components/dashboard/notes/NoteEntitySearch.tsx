@@ -1,16 +1,10 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Home, MapPin, Plus, Search, Target, UserRound, type LucideIcon } from 'lucide-react';
 import type { NoteLienEntite } from '@/types/contact';
 import { banFeatureToSelectedAddress, searchBanAddresses } from '@/lib/ban';
-import {
-  filtrerCatalogue,
-  RATTACHER_CARTES,
-  type RattacherItem,
-  type RattacherKind,
-} from '@/lib/notes/rattacher-catalogue';
-import Select from '@/components/ui/Select';
-import { Field, TextInput } from '@/components/dashboard/workspace/Field';
+import { filtrerCatalogue, type RattacherItem } from '@/lib/notes/rattacher-catalogue';
 
 export type NoteLinkPick = {
   entiteType: NoteLienEntite;
@@ -28,22 +22,55 @@ export type NoteLinkPick = {
   rooms?: number | null;
 };
 
-type BanHit = {
-  id: string;
-  label: string;
-  latitude: number;
-  longitude: number;
+type Centre = { latitude: number; longitude: number };
+
+type Resultat =
+  | { cle: string; groupe: Groupe; item: RattacherItem }
+  | {
+      cle: string;
+      groupe: 'adresse';
+      adresse: {
+        id: string;
+        label: string;
+        latitude: number;
+        longitude: number;
+        postcode: string | null;
+        city: string | null;
+      };
+    }
+  | { cle: '__create__'; groupe: 'creer' };
+
+type Groupe = 'contact' | 'bien' | 'lead' | 'adresse' | 'creer';
+
+const TITRES: Record<Exclude<Groupe, 'creer'>, string> = {
+  contact: 'Contacts',
+  bien: 'Biens de l’agence',
+  lead: 'Prospects',
+  adresse: 'Adresses du secteur',
 };
 
-const BAN_MIN_LEN = 3;
-
-const CHOISIR: Record<RattacherKind, string> = {
-  contact: 'Choisir un contact…',
-  bien: 'Choisir un bien…',
-  lead: 'Choisir un prospect…',
-  immeuble: 'Rechercher une adresse…',
+const ICONES: Record<Exclude<Groupe, 'creer'>, LucideIcon> = {
+  contact: UserRound,
+  bien: Home,
+  lead: Target,
+  adresse: MapPin,
 };
 
+const ENTITE: Record<'contact' | 'bien' | 'lead', NoteLienEntite> = {
+  contact: 'contact',
+  bien: 'bien',
+  lead: 'lead',
+};
+
+const PAR_GROUPE = 5;
+const MIN_LOCAL = 2;
+const MIN_BAN = 3;
+
+/**
+ * Lier une note (ou une estimation) : un seul champ. Les fiches de l'agence
+ * d'abord, puis toutes les adresses du secteur — un immeuble qui n'est pas
+ * encore un bien se rattache quand même.
+ */
 export default function NoteEntitySearch({
   onPick,
   onCreateContact,
@@ -51,8 +78,9 @@ export default function NoteEntitySearch({
   excludeIds,
   id,
   className = 'w-full',
-  label = 'Rattachement du contact',
-  hint = 'Rattacher avec un contact, un bien, un prospect ou un immeuble.',
+  label = 'Lier à',
+  hint,
+  adresses = true,
 }: {
   onPick: (pick: NoteLinkPick) => void;
   onCreateContact?: () => void;
@@ -62,131 +90,155 @@ export default function NoteEntitySearch({
   className?: string;
   label?: string;
   hint?: string;
+  /** Proposer les adresses du secteur (immeubles) en plus des fiches. */
+  adresses?: boolean;
 }) {
   const generatedId = useId();
-  const kindId = id ?? `${generatedId}-kind`;
-  const cibleId = `${generatedId}-cible`;
-  const [kind, setKind] = useState<RattacherKind>('contact');
-  const [cible, setCible] = useState('');
+  const champId = id ?? `${generatedId}-champ`;
+  const listeId = `${generatedId}-liste`;
+  const [saisie, setSaisie] = useState('');
+  const [ouvert, setOuvert] = useState(false);
+  const [actif, setActif] = useState(0);
   const [catalogue, setCatalogue] = useState<Record<'contact' | 'bien' | 'lead', RattacherItem[]>>({
     contact: [],
     bien: [],
     lead: [],
   });
-  const [banHits, setBanHits] = useState<BanHit[]>([]);
-  const [banQuery, setBanQuery] = useState('');
+  const [centre, setCentre] = useState<Centre | null>(null);
+  const [adressesTrouvees, setAdressesTrouvees] = useState<
+    {
+      id: string;
+      label: string;
+      latitude: number;
+      longitude: number;
+      postcode: string | null;
+      city: string | null;
+    }[]
+  >([]);
+  const boite = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let cancel = false;
+    let annule = false;
     void fetch('/api/dashboard/rattacher')
       .then((r) => r.json())
-      .then((data: { contact?: RattacherItem[]; bien?: RattacherItem[]; lead?: RattacherItem[] }) => {
-        if (cancel) return;
-        setCatalogue({
-          contact: data.contact ?? [],
-          bien: data.bien ?? [],
-          lead: data.lead ?? [],
-        });
-      })
+      .then(
+        (data: {
+          contact?: RattacherItem[];
+          bien?: RattacherItem[];
+          lead?: RattacherItem[];
+          centre?: Centre | null;
+        }) => {
+          if (annule) return;
+          setCatalogue({
+            contact: data.contact ?? [],
+            bien: data.bien ?? [],
+            lead: data.lead ?? [],
+          });
+          setCentre(data.centre ?? null);
+        },
+      )
       .catch(() => undefined);
     return () => {
-      cancel = true;
+      annule = true;
     };
   }, []);
 
+  // Les adresses, au plus près du secteur de l'agent.
+  const q = saisie.trim();
   useEffect(() => {
-    if (kind !== 'immeuble') {
-      setBanHits([]);
-      return;
-    }
-    const q = banQuery.trim();
-    if (q.length < BAN_MIN_LEN) {
-      setBanHits([]);
-      return;
-    }
+    if (!adresses || q.length < MIN_BAN) return;
     const ac = new AbortController();
     const t = window.setTimeout(() => {
-      void searchBanAddresses(q, 8, undefined, ac.signal)
-        .then((features) => {
-          setBanHits(
-            features.flatMap((feature) => {
-              const selected = banFeatureToSelectedAddress(feature);
-              if (!selected.id) return [];
+      void searchBanAddresses(q, 6, undefined, ac.signal, centre)
+        .then((features) =>
+          setAdressesTrouvees(
+            features.flatMap((f) => {
+              const a = banFeatureToSelectedAddress(f);
+              // Un immeuble, pas une rue entière : seulement les adresses numérotées.
+              if (!a.id || a.id.split('_').length < 3) return [];
               return [
                 {
-                  id: selected.id,
-                  label: selected.label,
-                  latitude: selected.latitude,
-                  longitude: selected.longitude,
+                  id: a.id,
+                  label: a.label,
+                  latitude: a.latitude,
+                  longitude: a.longitude,
+                  postcode: a.postcode || null,
+                  city: a.city || null,
                 },
               ];
             }),
-          );
-        })
-        .catch(() => {
-          if (!ac.signal.aborted) setBanHits([]);
-        });
+          ),
+        )
+        .catch(() => undefined);
     }, 220);
     return () => {
       window.clearTimeout(t);
       ac.abort();
     };
-  }, [kind, banQuery]);
+  }, [adresses, q, centre]);
 
-  const options = useMemo(() => {
-    const vide = [{ value: '', label: CHOISIR[kind] }];
-    if (kind === 'immeuble') {
-      return [
-        ...vide,
-        ...banHits
-          .filter((b) => !excludeIds?.has(`immeuble:${b.id}`))
-          .map((b) => ({ value: b.id, label: b.label })),
-      ];
+  // Un clic ailleurs referme la liste.
+  useEffect(() => {
+    if (!ouvert) return;
+    const surClic = (e: PointerEvent) => {
+      if (boite.current && !boite.current.contains(e.target as Node)) setOuvert(false);
+    };
+    document.addEventListener('pointerdown', surClic);
+    return () => document.removeEventListener('pointerdown', surClic);
+  }, [ouvert]);
+
+  const resultats = useMemo<Resultat[]>(() => {
+    const out: Resultat[] = [];
+    if (q.length >= MIN_LOCAL) {
+      for (const groupe of ['contact', 'bien', 'lead'] as const) {
+        const items = filtrerCatalogue(
+          catalogue[groupe].filter((item) => !excludeIds?.has(`${ENTITE[groupe]}:${item.id}`)),
+          q,
+        ).slice(0, PAR_GROUPE);
+        for (const item of items) out.push({ cle: `${groupe}:${item.id}`, groupe, item });
+      }
     }
-    const items = filtrerCatalogue(
-      catalogue[kind].filter((item) => !excludeIds?.has(`${item.kind}:${item.id}`)),
-      '',
-    );
-    const extra =
-      kind === 'contact' && onCreateContact
-        ? [{ value: '__create__', label: 'Rajouter un contact' }]
-        : [];
-    return [
-      ...vide,
-      ...extra,
-      ...items.map((item) => ({
-        value: item.id,
-        label: item.subtitle ? `${item.label} · ${item.subtitle}` : item.label,
-      })),
-    ];
-  }, [banHits, catalogue, excludeIds, kind, onCreateContact]);
+    if (adresses && q.length >= MIN_BAN) {
+      // Une adresse déjà suivie comme bien n'apparaît qu'une fois.
+      const dejaBiens = new Set(catalogue.bien.map((b) => b.banId).filter(Boolean));
+      for (const a of adressesTrouvees) {
+        if (excludeIds?.has(`immeuble:${a.id}`) || dejaBiens.has(a.id)) continue;
+        out.push({ cle: `adresse:${a.id}`, groupe: 'adresse', adresse: a });
+      }
+    }
+    if (onCreateContact) out.push({ cle: '__create__', groupe: 'creer' });
+    return out;
+  }, [q, catalogue, excludeIds, adresses, adressesTrouvees, onCreateContact]);
 
-  function appliquer(value: string) {
-    setCible('');
-    if (!value) return;
-    if (value === '__create__') {
+  function choisir(r: Resultat) {
+    setSaisie('');
+    setOuvert(false);
+    setActif(0);
+    setAdressesTrouvees([]);
+    if (r.groupe === 'creer') {
       onCreateContact?.();
       return;
     }
-    if (kind === 'immeuble') {
-      const ban = banHits.find((b) => b.id === value);
-      if (!ban) return;
+    if (r.groupe === 'adresse' && 'adresse' in r) {
+      const a = r.adresse;
       onPick({
         entiteType: 'immeuble',
-        entiteId: ban.id,
-        label: ban.label,
-        subtitle: 'Immeuble',
-        latitude: ban.latitude,
-        longitude: ban.longitude,
+        entiteId: a.id,
+        label: a.label,
+        subtitle: 'Adresse du secteur',
+        address: a.label,
+        city: a.city,
+        postalCode: a.postcode,
+        banId: a.id,
+        latitude: a.latitude,
+        longitude: a.longitude,
       });
-      setBanQuery('');
       return;
     }
-    const carte = RATTACHER_CARTES.find((c) => c.id === kind);
-    const item = catalogue[kind].find((i) => i.id === value);
-    if (!carte || !item) return;
+    if (!('item' in r)) return;
+    const item = r.item;
     onPick({
-      entiteType: carte.entite,
+      entiteType: ENTITE[r.groupe as 'contact' | 'bien' | 'lead'],
       entiteId: item.id,
       label: item.label,
       subtitle: item.subtitle,
@@ -202,73 +254,157 @@ export default function NoteEntitySearch({
     });
   }
 
+  const visibles = ouvert && (q.length >= MIN_LOCAL || onCreateContact) ? resultats : [];
+  const indexActif = Math.min(actif, Math.max(visibles.length - 1, 0));
+
   return (
-    <div className={className}>
-      <Field label={label} htmlFor={kindId} hint={hint}>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="sm:w-[11.5rem] sm:shrink-0">
-            <Select
-              id={kindId}
-              value={kind}
-              disabled={disabled}
-              onChange={(v) => {
-                setKind((v || 'contact') as RattacherKind);
-                setCible('');
-                setBanQuery('');
-              }}
-              options={RATTACHER_CARTES.map((carte) => ({
-                value: carte.id,
-                label: `Avec un ${carte.label.toLocaleLowerCase('fr')}`,
-              }))}
-              aria-label="Rattacher avec"
-            />
-          </div>
-          <div className="relative min-w-0 flex-1">
-            {kind === 'immeuble' ? (
-              <>
-                <TextInput
-                  id={cibleId}
-                  value={banQuery}
-                  disabled={disabled}
-                  placeholder="Rechercher une adresse…"
-                  aria-label="Rechercher une adresse"
-                  autoComplete="off"
-                  onChange={(e) => setBanQuery(e.target.value)}
-                />
-                {banHits.length > 0 ? (
-                  <ul className="absolute z-[230] mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-black/[0.10] bg-surface py-1 shadow-clay-lg">
-                    {banHits
-                      .filter((b) => !excludeIds?.has(`immeuble:${b.id}`))
-                      .map((b) => (
-                        <li key={b.id}>
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => appliquer(b.id)}
-                            className="flex w-full px-3 py-2.5 text-left text-[14px] text-text hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
-                          >
-                            {b.label}
-                          </button>
-                        </li>
-                      ))}
-                  </ul>
-                ) : null}
-              </>
-            ) : (
-              <Select
-                id={cibleId}
-                value={cible}
-                disabled={disabled}
-                searchable
-                searchPlaceholder="Rechercher…"
-                onChange={appliquer}
-                options={options}
-                aria-label={CHOISIR[kind]}
-              />
-            )}
-          </div>
+    <div className={className} ref={boite}>
+      {label ? (
+        <label
+          htmlFor={champId}
+          className="mb-1.5 block font-medium text-text-muted"
+          style={{ fontSize: 12.5 }}
+        >
+          {label}
+        </label>
+      ) : null}
+      <div>
+        <div className="relative">
+          <Search
+            size={15}
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
+          />
+          <input
+            id={champId}
+            value={saisie}
+            disabled={disabled}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={visibles.length > 0}
+            aria-controls={listeId}
+            aria-activedescendant={visibles[indexActif] ? `${listeId}-${indexActif}` : undefined}
+            placeholder={adresses ? 'Un contact, un bien, une adresse…' : 'Un contact, un bien, un prospect…'}
+            onChange={(e) => {
+              setSaisie(e.target.value);
+              setOuvert(true);
+              setActif(0);
+              if (e.target.value.trim().length < MIN_BAN) setAdressesTrouvees([]);
+            }}
+            onFocus={() => setOuvert(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setOuvert(true);
+                setActif((i) => Math.min(i + 1, visibles.length - 1));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActif((i) => Math.max(i - 1, 0));
+              } else if (e.key === 'Enter') {
+                const r = visibles[indexActif];
+                if (r) {
+                  e.preventDefault();
+                  choisir(r);
+                }
+              } else if (e.key === 'Escape' && ouvert) {
+                e.stopPropagation();
+                setOuvert(false);
+              }
+            }}
+            className="w-full rounded-xl border border-black/10 bg-white py-2.5 pl-9 pr-3 text-[14px] text-text-strong outline-none placeholder:text-text-subtle focus:border-primary-400 focus:ring-2 focus:ring-primary-100 disabled:opacity-60"
+          />
         </div>
-      </Field>
+        {visibles.length > 0 ? (
+          <ul
+            id={listeId}
+            role="listbox"
+            // Dans le flux, pas en surimpression : une carte aux coins arrondis
+            // (overflow caché) la coupait.
+            className="mt-1.5 max-h-72 w-full overflow-y-auto overscroll-contain rounded-xl border border-black/[0.10] bg-surface py-1 shadow-clay-sm"
+          >
+            {visibles.map((r, i) => {
+              const precedent = visibles[i - 1];
+              const titre = r.groupe !== 'creer' && precedent?.groupe !== r.groupe ? TITRES[r.groupe] : null;
+              return (
+                <li key={r.cle} role="presentation">
+                  {titre ? (
+                    <p className="px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+                      {titre}
+                    </p>
+                  ) : null}
+                  <Option
+                    id={`${listeId}-${i}`}
+                    actif={i === indexActif}
+                    resultat={r}
+                    onSurvol={() => setActif(i)}
+                    onChoisir={() => choisir(r)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </div>
+      {adresses && ouvert && q.length >= MIN_BAN && !/\d/.test(q) ? (
+        <p className="mt-1.5 text-[12px] text-text-subtle">Avec le numéro, toutes les adresses du secteur.</p>
+      ) : null}
+      {hint ? <p className="mt-1.5 text-[12px] text-text-subtle">{hint}</p> : null}
     </div>
+  );
+}
+
+function Option({
+  id,
+  actif,
+  resultat,
+  onSurvol,
+  onChoisir,
+}: {
+  id: string;
+  actif: boolean;
+  resultat: Resultat;
+  onSurvol: () => void;
+  onChoisir: () => void;
+}) {
+  const commun = `flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors ${
+    actif ? 'bg-black/[0.05]' : ''
+  }`;
+  if (resultat.groupe === 'creer') {
+    return (
+      <button
+        id={id}
+        type="button"
+        role="option"
+        aria-selected={actif}
+        onMouseEnter={onSurvol}
+        onClick={onChoisir}
+        className={`${commun} border-t border-black/[0.06] text-[13.5px] font-semibold text-primary-700`}
+      >
+        <Plus size={15} strokeWidth={2.2} aria-hidden className="shrink-0" />
+        Créer un contact
+      </button>
+    );
+  }
+  const Icone = ICONES[resultat.groupe];
+  const [titre, detail] =
+    'adresse' in resultat ? [resultat.adresse.label, null] : [resultat.item.label, resultat.item.subtitle];
+  return (
+    <button
+      id={id}
+      type="button"
+      role="option"
+      aria-selected={actif}
+      onMouseEnter={onSurvol}
+      onClick={onChoisir}
+      className={commun}
+    >
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-bg-subtle text-text-muted">
+        <Icone size={14} strokeWidth={2.2} aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13.5px] font-medium text-text-strong">{titre}</span>
+        {detail ? <span className="block truncate text-[12px] text-text-muted">{detail}</span> : null}
+      </span>
+    </button>
   );
 }

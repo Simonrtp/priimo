@@ -50,6 +50,16 @@ const config: Config = {
           700: "var(--primary-700)",
         },
         violet: { 400: "var(--violet-400)", 500: "var(--violet-500)" },
+        // La couleur de l'IA : partout où Priimo écoute, lit, comprend ou
+        // propose. Hexadécimal (pas de variable) pour garder les opacités /NN.
+        ia: {
+          DEFAULT: "#6366F1",
+          50: "#EEF2FF",
+          100: "#E0E7FF",
+          200: "#C7D2FE",
+          600: "#4F46E5",
+          700: "#4338CA",
+        },
         text: {
           strong: "var(--text-strong)",
           DEFAULT: "var(--text)",
@@ -152,6 +162,15 @@ const config: Config = {
           "55%": { transform: "scale(1.03)" },
           "100%": { transform: "scale(1)" },
         },
+        // L'IA travaille : l'étincelle respire, les points se suivent.
+        iaRespire: {
+          "0%, 100%": { opacity: "0.55", transform: "scale(0.9) rotate(0deg)" },
+          "50%": { opacity: "1", transform: "scale(1.08) rotate(12deg)" },
+        },
+        iaPoint: {
+          "0%, 80%, 100%": { opacity: "0.25" },
+          "40%": { opacity: "1" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.4s ease-out",
@@ -160,6 +179,8 @@ const config: Config = {
         floatB: "floatB 18s ease-in-out infinite",
         floatC: "floatC 22s ease-in-out infinite",
         pop: "pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        iaRespire: "iaRespire 1.6s ease-in-out infinite",
+        iaPoint: "iaPoint 1.2s ease-in-out infinite",
       },
     },
   },

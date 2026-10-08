@@ -33,6 +33,8 @@ export type ExtractedPersonne = {
   /** Rôle principal ; les autres casquettes dites vont dans `autresTypes`. */
   type: ContactType;
   autresTypes?: ContactType[];
+  /** Son lien avec une autre personne citée : « sœur de Simon ». */
+  relation?: string | null;
 };
 
 export type ExtractedRelance = {
@@ -200,9 +202,10 @@ function buildPromptRapide(transcript: string, noteDate = new Date()): string {
     '"""',
     '',
     'JSON, en omettant toute clé vide ou nulle :',
-    '{"titre","intention":"note"|"question","personnes":[{"firstName","lastName","phone","email","types":["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"]}],"address","secteur","observations":[],"prix","rooms","surface","source_info":"proprietaire"|"gardien"|"voisin"|"tiers"|"agent","actions":[{"type":"rappel"|"tache"|"rdv"|"visite_faite","intitule","quand","rdv_type":"visite"|"estimation"|"signature"|"autre"}],"mises_a_jour":[{"champ":"prix"|"statut_mandat","valeur","bien"}],"recherche":{"personne","budget_min","budget_max","surface_min","pieces_min","villes":[],"codes_postaux":[]},"prospect":{"etape":"contacte"|"rendez_vous"|"mandat"|"perdu","motif"},"email":{"personne","objet"}}',
+    '{"titre","intention":"note"|"question","personnes":[{"firstName","lastName","phone","email","types":["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"],"relation"}],"address","secteur","observations":[],"prix","rooms","surface","source_info":"proprietaire"|"gardien"|"voisin"|"tiers"|"agent","actions":[{"type":"rappel"|"tache"|"rdv"|"visite_faite","intitule","quand","rdv_type":"visite"|"estimation"|"signature"|"autre"}],"mises_a_jour":[{"champ":"prix"|"statut_mandat","valeur","bien"}],"recherche":{"personne","budget_min","budget_max","surface_min","pieces_min","villes":[],"codes_postaux":[]},"prospect":{"etape":"contacte"|"rendez_vous"|"mandat"|"perdu","motif"},"email":{"personne","objet"}}',
     'Règles : rien d’inventé. Dernière version si l’agent se reprend. "intitule" court à l’infinitif avec le nom (« Rappeler Mme Martin »). "quand" = les mots dits (« jeudi à 14h »). "titre" : 3 à 6 mots. Montants en euros entiers (« 300 k » = 300000). "rooms" : T2 = 2. "email" seulement si l’agent dit d’envoyer un mail ou des documents.',
     'Rôles : veut acheter / acquérir → "acquereur" ; veut vendre / vend son bien → "vendeur" ; les deux si elle fait les deux. "observations" : ce que l’agent constate sur place (travaux, ravalement, panneau à vendre, déménagement), en phrase courte — un constat n’est jamais une action.',
+    '"relation" : le lien dit entre deux personnes citées, en quelques mots avec le prénom de l’autre (« sœur de Simon », « mari de Mme Martin »). Chaque personne citée par son nom a sa propre entrée, même sans autre information.',
   ].join('\n');
 }
 
@@ -226,7 +229,7 @@ function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOpti
     '  "titre": string|null,',
     '  "resume": string|null,',
     '  "intention": "note"|"question",',
-    '  "personnes": [{"firstName": string|null, "lastName": string|null, "phone": string|null, "email": string|null, "types": ["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"]}],',
+    '  "personnes": [{"firstName": string|null, "lastName": string|null, "phone": string|null, "email": string|null, "types": ["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"], "relation": string|null}],',
     '  "address": string|null,',
     '  "observations": [string],',
     '  "secteur": string|null,',
@@ -245,6 +248,7 @@ function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOpti
     '- "titre" : 3 à 8 mots qui résument la note (qui, quoi, où). "resume" : une phrase factuelle.',
     '- "intention" = "question" seulement si l’agent pose une question à son assistant (« qu’est-ce qu’on sait sur… », « quand est-ce que… ») au lieu de noter quelque chose.',
     '- "personnes" : tableau, vide s’il n’y a aucun nom. Une personne sans nom ni téléphone ne compte pas. Un rôle seul (« le gardien ») n’est pas un nom.',
+    '- "relation" : le lien dit entre cette personne et une autre personne citée, en quelques mots avec le prénom de l’autre (« sœur de Simon », « mari de Mme Martin », « locataire de M. Petit »). Rien de dit → null. Une personne citée seulement par ce lien (« la sœur de Simon » → Simon) a quand même sa propre entrée.',
     '- "types" : toutes les casquettes de la personne, déduites de ce qu’elle veut faire. « veut acheter », « veut acquérir », « cherche un appartement » → "acquereur" ; « veut vendre », « met en vente », « vend son bien » → "vendeur" ; « cherche une location » → "locataire". Quelqu’un qui vend et achète porte les deux. Rien de dit → tableau vide.',
     '- "observations" : les constats faits sur place ou rapportés, sur l’immeuble ou le lieu de la note — travaux, ravalement de façade, échafaudage, panneau « à vendre », déménagement, logement vide, nouveau commerce, changement de syndic. Une phrase courte et factuelle par constat, sans répéter l’adresse (« Ravalement de façade en cours »).',
     '- Un constat n’est jamais une action : « ils font un ravalement » va dans "observations", pas dans "actions". Une action n’existe que si l’agent dit ce qu’il doit faire.',
@@ -424,6 +428,7 @@ function parsePersonne(raw: unknown): ExtractedPersonne | null {
     email: asString(row.email, 160),
     type,
     autresTypes,
+    relation: asString(row.relation, 80),
   };
 }
 

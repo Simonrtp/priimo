@@ -24,19 +24,33 @@ import {
   regrouperAdresses,
   secteurDeTournee,
   versArretSortie,
+  type AdresseTournee,
   type LeadTournee,
 } from '@/lib/tournee/generer';
-import type { TourneeReponse } from '@/lib/tournee/reglages';
-import { bboxDeZone } from '@/lib/zones/geometrie';
+import {
+  MAX_ADRESSES_IMPOSEES,
+  type PerimetreTournee,
+  type TourneeReponse,
+} from '@/lib/tournee/reglages';
+import { bboxDeZone, type Bbox } from '@/lib/zones/geometrie';
 import type { Zone } from '@/lib/zones/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
+type AdresseDemandee = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  banId: string | null;
+  codePostal: string | null;
+};
+
 type Demande = {
   dureeMinutes: number;
   zoneId: string | null;
-  ancre: { label: string; latitude: number; longitude: number; banId: string | null; codePostal: string | null } | null;
+  perimetre: PerimetreTournee;
+  ancres: AdresseDemandee[];
   position: GeoCoord | null;
 };
 
@@ -55,28 +69,36 @@ function texteCourt(valeur: unknown, max = 64): string | null {
   return t && t.length <= max ? t : null;
 }
 
+function lireAdresse(valeur: unknown): AdresseDemandee | null {
+  if (!valeur || typeof valeur !== 'object') return null;
+  const a = valeur as Record<string, unknown>;
+  const coord = lireCoord(a);
+  const label = texteCourt(a.label, 200);
+  if (!coord || !label) return null;
+  const codePostal = texteCourt(a.codePostal, 5);
+  return {
+    label,
+    ...coord,
+    banId: texteCourt(a.banId),
+    codePostal: codePostal && /^\d{5}$/.test(codePostal) ? codePostal : null,
+  };
+}
+
 function lireDemande(corps: unknown): Demande | null {
   if (!corps || typeof corps !== 'object') return null;
   const c = corps as Record<string, unknown>;
   const duree = typeof c.dureeMinutes === 'number' ? Math.round(c.dureeMinutes) : Number.NaN;
   if (!(duree >= 15 && duree <= 240)) return null;
-
-  let ancre: Demande['ancre'] = null;
-  if (c.ancre) {
-    const a = c.ancre as Record<string, unknown>;
-    const coord = lireCoord(a);
-    const label = texteCourt(a.label, 200);
-    if (!coord || !label) return null;
-    const codePostal = texteCourt(a.codePostal, 5);
-    ancre = {
-      label,
-      ...coord,
-      banId: texteCourt(a.banId),
-      codePostal: codePostal && /^\d{5}$/.test(codePostal) ? codePostal : null,
-    };
-  }
-
-  return { dureeMinutes: duree, zoneId: texteCourt(c.zoneId), ancre, position: lireCoord(c.position) };
+  const brutes = Array.isArray(c.ancres) ? c.ancres.slice(0, MAX_ADRESSES_IMPOSEES) : [];
+  const ancres = brutes.map(lireAdresse);
+  if (ancres.some((a) => a === null)) return null;
+  return {
+    dureeMinutes: duree,
+    zoneId: texteCourt(c.zoneId),
+    perimetre: c.perimetre === 'code_postal' ? 'code_postal' : 'secteur',
+    ancres: ancres as AdresseDemandee[],
+    position: lireCoord(c.position),
+  };
 }
 
 /** Un secteur tracé à la rue ou au code postal dit lui-même où chercher ; un contour, non. */
@@ -94,18 +116,31 @@ function codesDuSecteur(secteur: Zone | null, codesAgence: readonly string[]): s
   return [...new Set([...codesAgence, ...valides])];
 }
 
+function boiteCommune(boites: readonly Bbox[]): Bbox | null {
+  if (boites.length === 0) return null;
+  return {
+    ouest: Math.min(...boites.map((b) => b.ouest)),
+    sud: Math.min(...boites.map((b) => b.sud)),
+    est: Math.max(...boites.map((b) => b.est)),
+    nord: Math.max(...boites.map((b) => b.nord)),
+  };
+}
+
 export async function POST(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    return NextResponse.json({ error: 'Reconnecte-toi pour préparer ta tournée.' }, { status: 401 });
   }
   if (estEnAttente(agency)) {
-    return NextResponse.json({ error: 'Votre agence est en attente de validation.' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Ton agence n’est pas encore validée : la tournée arrive très vite.' },
+      { status: 403 },
+    );
   }
 
   const demande = lireDemande(await req.json().catch(() => null));
   if (!demande) {
-    return NextResponse.json({ error: 'Demande de tournée invalide' }, { status: 400 });
+    return NextResponse.json({ error: 'Oups, ça n’a pas marché. Réessaie !' }, { status: 400 });
   }
 
   const maintenant = new Date();
@@ -118,18 +153,20 @@ export async function POST(req: Request) {
   ]);
 
   const actives = zones.filter((z) => z.actif);
-  const secteur = secteurDeTournee({
-    zones: actives,
-    profileId: profile.id,
-    directeur,
-    zoneId: demande.zoneId,
-    maintenant,
-  });
+  const secteur =
+    demande.perimetre === 'secteur'
+      ? secteurDeTournee({ zones: actives, profileId: profile.id, directeur, zoneId: demande.zoneId, maintenant })
+      : null;
   const codesAgence = (agency.codes_postaux ?? []).filter((c) => /^\d{5}$/.test(c));
   const agence = toGeoCoord(agency.latitude, agency.longitude);
   const rayon = rayonTourneeM(demande.dureeMinutes) + 300;
-  const contour = secteur ? bboxDeZone(secteur) : null;
   const pointConnu = demande.position ?? agence;
+  const zone =
+    demande.ancres.length > 0
+      ? boiteCommune(demande.ancres.map((a) => boiteAutour(a, rayon)))
+      : secteur
+        ? bboxDeZone(secteur)
+        : null;
 
   const [passages, dpes] = await Promise.all([
     fetchPassagesObserves({ supabase, stages, maintenant }),
@@ -137,7 +174,7 @@ export async function POST(req: Request) {
       openData: createSupabaseAdminClient(),
       codesPostaux: codesDuSecteur(secteur, codesAgence),
       depuis: dateKeyParis(new Date(maintenant.getTime() - FENETRE_DPE_JOURS * 86_400_000)),
-      zone: demande.ancre ? boiteAutour(demande.ancre, rayon) : contour,
+      zone,
       voisinage: pointConnu ? boiteAutour(pointConnu, rayon) : null,
     }),
   ]);
@@ -171,26 +208,24 @@ export async function POST(req: Request) {
     profileId: profile.id,
     directeur,
     codesPostaux: new Set(codesAgence),
+    exclureCollegues: demande.perimetre === 'secteur',
   };
-  const duSecteur = toutes.filter(
+  const duPerimetre = toutes.filter(
     (a) => !(a.banId && adressesFermees.has(a.banId)) && adresseDansSecteur(a, contexte),
   );
-  const aFaire = duSecteur.filter((a) => !dejaProspectee(a, maintenant));
+  const aFaire = duPerimetre.filter((a) => !dejaProspectee(a, maintenant));
 
-  const ancre = demande.ancre
-    ? (toutes.find((a) => demande.ancre?.banId && a.banId === demande.ancre.banId) ??
-      adresseLibre({
-        label: demande.ancre.label,
-        latitude: demande.ancre.latitude,
-        longitude: demande.ancre.longitude,
-        banId: demande.ancre.banId,
-        codePostal: demande.ancre.codePostal,
-      }))
-    : null;
+  const ancres: AdresseTournee[] = [];
+  for (const demandee of demande.ancres) {
+    const connue = demandee.banId ? toutes.find((a) => a.banId === demandee.banId) : undefined;
+    const ancre = connue ?? adresseLibre(demandee);
+    if (!ancres.some((a) => a.key === ancre.key)) ancres.push(ancre);
+  }
+  const clesAncres = new Set(ancres.map((a) => a.key));
 
   const tournee = genererTournee({
     adresses: aFaire,
-    ancre,
+    ancres,
     position: demande.position,
     agence,
     budgetMinutes: demande.dureeMinutes,
@@ -198,14 +233,15 @@ export async function POST(req: Request) {
   });
 
   const reponse: TourneeReponse = {
-    arrets: tournee.arrets.map((a) => versArretSortie(a, maintenant, { ancre: a.key === ancre?.key })),
+    arrets: tournee.arrets.map((a) => versArretSortie(a, maintenant, { choisie: clesAncres.has(a.key) })),
     depart: tournee.depart,
     departSource: tournee.departSource,
+    distanceDepartM: tournee.distanceDepartM,
     minutes: Math.round(tournee.minutes),
     distanceM: Math.round(tournee.distanceM),
     secteur: secteur?.nom ?? null,
     adressesAFaire: aFaire.length,
-    dejaFaites: duSecteur.length - aFaire.length,
+    dejaFaites: duPerimetre.length - aFaire.length,
   };
   return NextResponse.json(reponse);
 }

@@ -9,6 +9,8 @@ import {
   type NoteExtraction,
 } from '@/lib/notes/propositions';
 import { buildReviewPayload, type NoteReviewPayload } from '@/lib/notes/build-review';
+import type { RecordViewer } from '@/lib/agency/visibility';
+import { visibleContactsFor } from '@/lib/agency/scope-records';
 import type { BienContexte, EtapeContexte, LeadContexte } from '@/lib/notes/review-v2';
 import { guessAdresseFromTranscript } from '@/lib/notes/from-transcript';
 import { requireMistralKey } from '@/lib/voice/transcribe';
@@ -212,6 +214,11 @@ export async function extractAndBuildReview(args: {
   lieuConnu?: LieuConnu;
   /** Prénom de l'agent, pour signer un brouillon d'e-mail. */
   agentPrenom?: string | null;
+  /**
+   * Qui dicte : l'IA ne propose que les fiches qu'il a le droit d'ouvrir (une
+   * fiche privée d'un collègue ne doit ni apparaître ni être reconnue).
+   */
+  viewer?: RecordViewer;
 }): Promise<NoteReviewPayload> {
   const noteDate = args.noteDate ?? new Date();
   const transcript = args.transcript.trim();
@@ -306,7 +313,7 @@ export async function extractAndBuildReview(args: {
     visibilite: args.visibilite,
     extraction,
     extractFailed,
-    contacts: contexte.contacts,
+    contacts: args.viewer ? visibleContactsFor(args.viewer, contexte.contacts) : contexte.contacts,
     agencyId: args.agencyId,
     geo,
     biensAgence: contexte.biens,
@@ -332,6 +339,8 @@ export async function comprendreEnDirect(args: {
   banId?: string | null;
   agentPrenom?: string | null;
   mode?: ModeLecture;
+  /** Qui dicte : seules ses fiches visibles peuvent être reconnues. */
+  viewer?: RecordViewer;
 }): Promise<NoteReviewPayload> {
   const noteDate = args.noteDate ?? new Date();
   const transcript = args.transcript.trim();
@@ -351,7 +360,7 @@ export async function comprendreEnDirect(args: {
     visibilite: 'agence',
     extraction,
     extractFailed: false,
-    contacts: contexte.contacts,
+    contacts: args.viewer ? visibleContactsFor(args.viewer, contexte.contacts) : contexte.contacts,
     agencyId: args.agencyId,
     geo: { ban_id: args.banId ?? null, adresse_normalisee: null, geocode_score: null },
     biensAgence: contexte.biens,

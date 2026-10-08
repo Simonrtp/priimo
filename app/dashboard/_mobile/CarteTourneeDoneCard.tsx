@@ -1,29 +1,22 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Flame, PartyPopper, Route } from 'lucide-react';
+import { DoorOpen, Flame, Footprints, PartyPopper } from 'lucide-react';
 import { FIELD, formatDistance } from '@/lib/today/field';
-import { formatWalkingDuration } from '@/lib/today/directions';
-import { estimateWalkCalories, estimateWalkDurationS } from '@/lib/today/sortie-session';
+import { libelleTemps } from '@/lib/tournee/reglages';
+import type { BilanTournee } from './useTourneeCarte';
 
 /** La carte de fin se referme seule, sans bloquer le retour à la carte. */
-const AUTO_CLOSE_MS = 5_200;
+const AUTO_CLOSE_MS = 6_000;
 
-/** Bravo de fin de tournée : le récap de ce qui vient d'être marché. */
+/** Bravo de fin : seulement ce qui a vraiment été marché et fait. */
 export default function CarteTourneeDoneCard({
-  stopCount,
-  distanceM,
-  durationS,
+  bilan,
   onClose,
 }: {
-  stopCount: number;
-  distanceM: number;
-  durationS: number | null;
+  bilan: BilanTournee;
   onClose: () => void;
 }) {
-  const duration = durationS ?? estimateWalkDurationS(distanceM);
-  const calories = estimateWalkCalories(distanceM, duration);
-
   const close = useRef(onClose);
   close.current = onClose;
 
@@ -31,6 +24,8 @@ export default function CarteTourneeDoneCard({
     const timer = setTimeout(() => close.current(), AUTO_CLOSE_MS);
     return () => clearTimeout(timer);
   }, []);
+
+  const aMarche = bilan.distanceM >= 50;
 
   return (
     <>
@@ -40,9 +35,9 @@ export default function CarteTourneeDoneCard({
         onClick={onClose}
         className="absolute inset-0 z-[75] cursor-default"
       />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] px-4">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[80] px-4">
         <div
-          className="tour-brief overflow-hidden rounded-[26px] bg-surface shadow-[0_-12px_44px_rgba(26,42,86,0.24)] ring-1 ring-black/[0.06]"
+          className="tour-brief pointer-events-auto overflow-hidden rounded-[26px] bg-surface shadow-[0_-12px_44px_rgba(26,42,86,0.24)] ring-1 ring-black/[0.06]"
           style={{ marginBottom: 'calc(12px + var(--field-nav-height))' }}
         >
           <div
@@ -58,30 +53,27 @@ export default function CarteTourneeDoneCard({
                 <PartyPopper size={22} strokeWidth={2.1} />
               </span>
               <div className="min-w-0 flex-1">
-                <p
-                  className="text-[12px] font-semibold uppercase tracking-wide"
-                  style={{ color: FIELD.vert }}
-                >
+                <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: FIELD.vert }}>
                   Tournée terminée
                 </p>
-                <h2
-                  className="mt-0.5 font-semibold text-text-strong"
-                  style={{ fontSize: 23, lineHeight: 1.15 }}
-                >
-                  Bravo pour ta prospection ! 🎉
+                <h2 className="mt-0.5 font-semibold text-text-strong" style={{ fontSize: 23, lineHeight: 1.15 }}>
+                  Bravo pour ta prospection !
                 </h2>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <Stat label="Adresses" value={String(stopCount)} />
-              <Stat icon={Route} label="Marché" value={formatDistance(distanceM)} />
-              <Stat icon={Flame} label="Énergie" value={`~${calories} kcal`} />
+            <div className={`mt-4 grid gap-2.5 ${aMarche ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              <Stat icon={DoorOpen} label="Portes" value={`${bilan.faites}/${bilan.total}`} />
+              {aMarche ? (
+                <>
+                  <Stat icon={Footprints} label="Marché" value={formatDistance(bilan.distanceM)} />
+                  <Stat icon={Flame} label="Énergie" value={`${bilan.calories} kcal`} />
+                </>
+              ) : null}
             </div>
 
             <p className="mt-4 text-pretty text-[14.5px] leading-snug text-text-muted">
-              {formatWalkingDuration(duration)} sur le terrain — c&apos;est comme ça qu&apos;on rentre
-              des mandats.
+              {libelleTemps(bilan.actifMs)} sur le terrain.
             </p>
           </div>
 
@@ -101,19 +93,11 @@ export default function CarteTourneeDoneCard({
   );
 }
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon?: typeof Route;
-  label: string;
-  value: string;
-}) {
+function Stat({ icon: Icon, label, value }: { icon: typeof Flame; label: string; value: string }) {
   return (
     <div className="tour-brief__block rounded-2xl bg-white/90 px-3 py-2.5 ring-1 ring-black/[0.05]">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-        {Icon ? <Icon size={12} strokeWidth={2.2} aria-hidden /> : null}
+        <Icon size={12} strokeWidth={2.2} aria-hidden />
         {label}
       </div>
       <p className="mt-1 truncate tabular-nums text-[16px] font-semibold text-text-strong">{value}</p>

@@ -847,8 +847,10 @@ function PanneauZone({
     (r) => r.type !== 'voie' && !(r.type === 'polygone' && r.inclusion),
   );
 
-  const validerNom = () => {
-    const propre = nom.trim();
+  // Lu sur le champ lui-même : la valeur à l'écran fait foi, même si l'état
+  // React n'a pas encore suivi la dernière frappe.
+  const validerNom = (saisie: string) => {
+    const propre = saisie.trim();
     if (propre !== '' && propre !== zone.nom) onModifier({ nom: propre });
     else setNom(zone.nom);
   };
@@ -869,7 +871,7 @@ function PanneauZone({
           placeholder={`Ex : ${exempleNom}`}
           onChange={(e) => setNom(e.target.value)}
           onFocus={(e) => e.currentTarget.select()}
-          onBlur={validerNom}
+          onBlur={(e) => validerNom(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();

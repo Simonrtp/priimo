@@ -38,7 +38,6 @@ import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
 import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
 import { ymdKey, startOfWeekYmd } from '@/lib/today/calendar';
-import { centroidFromCoords } from '@/lib/today/quadrant';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
 import { bienIsActive } from '@/types/bien';
@@ -46,6 +45,8 @@ import { markServerTimingReady, timed } from '@/lib/perf/timing';
 import TodayClient from '@/components/dashboard/today/TodayClient';
 import AccueilAmorce from '@/components/dashboard/accueil/AccueilAmorce';
 import AujourdhuiMobile from '@/app/dashboard/_mobile/AujourdhuiMobile';
+import TachesDuJour from '@/app/dashboard/_mobile/aujourdhui/TachesDuJour';
+import { tachesDuJour } from '@/lib/today/taches';
 import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
@@ -523,6 +524,13 @@ async function TodayContent({
     />
   );
 
+  const device = await getDevice();
+
+  // Mobile : les tâches du jour montent en tête d'écran. Elles quittent la
+  // pile ordinaire pour ne pas apparaître deux fois.
+  const taches = device === 'mobile' ? tachesDuJour(metier.promesses, dismissals, new Date()) : [];
+  const enTete = new Set(taches.map((t) => t.id));
+
   const cards = buildTodayCards({
     leads: visibleLeads,
     contacts: visibleContacts,
@@ -534,6 +542,7 @@ async function TodayContent({
     demandesEstimation,
     estimationsVuees,
     ...metier,
+    promesses: metier.promesses.filter((p) => !enTete.has(p.id)),
     // Les relances contact (jamais recontacté, date due) n'ont plus leur
     // place sur l'Accueil : trop de cartes, un CTA qui n'est plus la DA.
     exclure: ['echeance_contractuelle', 'relance'],
@@ -542,8 +551,6 @@ async function TodayContent({
   const directorExceptions: import('@/lib/today/director-exceptions').DirectorMemberExceptions[] = [];
 
   markServerTimingReady();
-
-  const device = await getDevice();
 
   /* ---------------------------- prise en main ---------------------------- */
   const affichage =
@@ -718,13 +725,15 @@ async function TodayContent({
         {banners}
         <AccueilPilotage
           {...pilotageCommun}
+          taches={
+            taches.length > 0 ? <TachesDuJour key="taches-du-jour" taches={taches} /> : undefined
+          }
           aujourdhui={
             <AujourdhuiMobile
               key="today-mobile"
               {...homeProps}
               variant="pilotage"
               week={week}
-              sectorRef={centroidFromCoords(visibleLeads)}
             />
           }
         />

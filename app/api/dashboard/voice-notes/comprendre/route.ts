@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import { viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { rateLimit } from '@/lib/rate-limit';
 import { comprendreEnDirect } from '@/lib/notes/extract-review';
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
       banId: banIdRaw && !banIdRaw.startsWith('gps:') ? banIdRaw : null,
       noteDate: Number.isFinite(recordedAt) ? new Date(recordedAt) : undefined,
       agentPrenom: profile.first_name ?? null,
+      viewer: viewerFromProfile(profile),
     });
     return NextResponse.json(review, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {

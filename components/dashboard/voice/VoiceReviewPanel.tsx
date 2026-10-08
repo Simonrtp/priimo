@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Copy, ExternalLink, Eye, Link2, Lock, Mic, Pencil, X } from 'lucide-react';
+import { Copy, ExternalLink, Eye, Link2, Mic, Pencil, X } from 'lucide-react';
 import type { Contact, ContactType, VoiceNoteVisibilite } from '@/types/contact';
 import { repartirRoles, rolesDuContact } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
@@ -22,6 +22,8 @@ import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/note
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import IconeCarte from './live/IconeCarte';
+import SignalIA from '@/components/ui/SignalIA';
+import { prefixeRelation } from '@/lib/notes/relation';
 import { CarteContactNote, EditeurFicheContact, type FicheEditee, type LienCarte } from './ContactDeLaNote';
 import styles from './live/dictee.module.css';
 
@@ -291,8 +293,13 @@ export default function VoiceReviewPanel({
   const [majs, setMajs] = useState<Record<string, FicheEditee & { contactId: string }>>({});
   /** Fiches existantes dont l'agent refuse l'adresse proposée par la note. */
   const [adresseRetiree, setAdresseRetiree] = useState<string[]>([]);
-  /** Choix explicite quand plusieurs fiches matchent (Marina…). */
+  /** La fiche retenue pour une personne (`null` = nouvelle fiche). */
   const [matchChoisi, setMatchChoisi] = useState<Record<string, string | null>>({});
+  /**
+   * Fiches existantes reconnues par l'IA et confirmées par l'agent. Tant
+   * qu'une personne n'est pas confirmée, elle n'est ni rattachée ni créée.
+   */
+  const [confirmes, setConfirmes] = useState<Record<string, boolean>>({});
   const [editionAdresse, setEditionAdresse] = useState(false);
   const [editeur, setEditeur] = useState<{
     id: string;
@@ -368,6 +375,10 @@ export default function VoiceReviewPanel({
   /* ------------------------------------------------- Les personnes de la note */
 
   const personnesVisibles = personnes.filter((p) => !hiddenIds.includes(p.id));
+  /** Une fiche existante reconnue, en attente de « Rattacher à cette note ». */
+  const enSuggestion = (p: PersonneProposal) => p.matches.length > 0 && !confirmes[p.id];
+  /** Celles qui seront rangées : nouvelles fiches et fiches confirmées. */
+  const personnesRetenues = personnesVisibles.filter((p) => !enSuggestion(p));
   const adresseNote =
     review.immeuble && !hiddenIds.includes('immeuble')
       ? review.immeuble.adresseNormalisee ?? review.immeuble.address
@@ -381,7 +392,7 @@ export default function VoiceReviewPanel({
 
   /** Un bien n'a qu'un propriétaire : le premier vendeur de la note. */
   function estProprietaire(p: PersonneProposal): boolean {
-    const premier = personnesVisibles.find((x) => vueFiche(x).roles.includes('vendeur'));
+    const premier = personnesRetenues.find((x) => vueFiche(x).roles.includes('vendeur'));
     return premier?.id === p.id;
   }
 
@@ -396,6 +407,34 @@ export default function VoiceReviewPanel({
 
   function matchDe(p: PersonneProposal): ContactMatch | null {
     return pickMatch(p.matches, choixDe(p));
+  }
+
+  /** La fiche cochée dans la suggestion : le choix de l'agent, sinon la plus sûre. */
+  function candidatCoche(p: PersonneProposal): string | null {
+    const choix = choixDe(p);
+    if (choix !== undefined) return choix;
+    return pickMatch(p.matches, undefined)?.contactId ?? p.matches[0]?.contactId ?? null;
+  }
+
+  function rattacherSuggestion(p: PersonneProposal) {
+    toucher();
+    const choix = candidatCoche(p);
+    setMatchChoisi((prev) => ({ ...prev, [p.id]: choix }));
+    setMajs((prev) => {
+      const next = { ...prev };
+      delete next[p.id];
+      return next;
+    });
+    setConfirmes((prev) => ({ ...prev, [p.id]: true }));
+  }
+
+  /** Le nom tel que la note le dit, avant qu'une fiche soit confirmée. */
+  function nomDit(p: PersonneProposal): string {
+    return (
+      [p.personne.firstName, p.personne.lastName].filter(Boolean).join(' ') ||
+      formatPhoneOrNull(p.personne.phone) ||
+      'Contact'
+    );
   }
 
   function nomDe(p: PersonneProposal): string {
@@ -489,7 +528,8 @@ export default function VoiceReviewPanel({
   /** Liens hors adresse (l’adresse a son bloc raccordé sous la carte). */
   function liensDe(p: PersonneProposal, vue: ReturnType<typeof vueFiche>): LienCarte[] {
     const vend = vue.roles.includes('vendeur') && estProprietaire(p);
-    const out: LienCarte[] = [{ key: 'note', kind: 'note', label: 'Cette note' }];
+    // Pas de capsule « Cette note » : la carte est dans la note, ça va de soi.
+    const out: LienCarte[] = [];
     for (const b of biensVisibles) {
       out.push({
         key: `bien-${b.id}`,
@@ -502,7 +542,14 @@ export default function VoiceReviewPanel({
     for (const l of manualLinks) {
       out.push({
         key: l.key,
-        kind: l.entiteType === 'contact' ? 'personne' : l.entiteType === 'lead' ? 'prospect' : 'bien',
+        kind:
+          l.entiteType === 'contact'
+            ? 'personne'
+            : l.entiteType === 'lead'
+              ? 'prospect'
+              : l.entiteType === 'immeuble'
+                ? 'adresse'
+                : 'bien',
         label: l.label,
         prefixe: l.entiteType === 'bien' && vend ? 'Propriétaire' : null,
         onRetirer: () => {
@@ -520,8 +567,15 @@ export default function VoiceReviewPanel({
         onRetirer: () => cacher(`lead-${l.id}`, true),
       });
     }
-    for (const o of personnesVisibles) {
-      if (o.id !== p.id) out.push({ key: `avec-${o.id}`, kind: 'personne', label: nomDe(o), prefixe: 'Avec' });
+    for (const o of personnesRetenues) {
+      if (o.id === p.id) continue;
+      out.push({
+        key: `avec-${o.id}`,
+        kind: 'personne',
+        label: nomDe(o),
+        // « Christine est la sœur de Simon » : sur la carte de Christine, « Sœur de · Simon Ropiot ».
+        prefixe: prefixeRelation(p.personne.relation, o.personne) ?? 'Avec',
+      });
     }
     return out;
   }
@@ -561,8 +615,34 @@ export default function VoiceReviewPanel({
       return;
     }
     setEditeur({ id: p.id, initial: null, chargement: true, erreur: null });
+    let res: Response;
     try {
-      const res = await fetch(`/api/dashboard/contacts/${match.contactId}`);
+      res = await fetch(`/api/dashboard/contacts/${match.contactId}`);
+    } catch {
+      // Seul un échec réseau parle de connexion : le reste a sa propre raison.
+      setEditeur((e) =>
+        e && e.id === p.id
+          ? {
+              ...e,
+              chargement: false,
+              erreur:
+                typeof navigator !== 'undefined' && !navigator.onLine
+                  ? 'Pas de réseau pour ouvrir la fiche. Elle s’ouvrira dès le retour de la connexion.'
+                  : 'Le serveur n’a pas répondu. Réessayez dans un instant.',
+            }
+          : e,
+      );
+      return;
+    }
+    if (res.status === 404 || res.status === 403) {
+      setEditeur((e) =>
+        e && e.id === p.id
+          ? { ...e, chargement: false, erreur: 'Cette fiche n’est pas accessible depuis votre compte.' }
+          : e,
+      );
+      return;
+    }
+    try {
       const body = (await res.json().catch(() => ({}))) as { contact?: Contact };
       if (!res.ok || !body.contact) throw new Error('fiche');
       const c = body.contact;
@@ -587,7 +667,7 @@ export default function VoiceReviewPanel({
     } catch {
       setEditeur((e) =>
         e && e.id === p.id
-          ? { ...e, chargement: false, erreur: 'La fiche n’a pas pu être ouverte. Vérifiez la connexion et réessayez.' }
+          ? { ...e, chargement: false, erreur: 'La fiche n’a pas pu être chargée. Réessayez.' }
           : e,
       );
     }
@@ -602,7 +682,7 @@ export default function VoiceReviewPanel({
     const bienUnique =
       review.biens.length === 1 && !hiddenIds.includes(`bien-${review.biens[0]!.id}`) ? review.biens[0]!.id : null;
 
-    const planPersonnes = personnesVisibles
+    const planPersonnes = personnesRetenues
       .map((p) => {
         const match = matchDe(p);
         const vue = vueFiche(p);
@@ -754,16 +834,23 @@ export default function VoiceReviewPanel({
       }}
     />
   );
-  const adresseSurContact = personnesVisibles.some((p) => Boolean(vueFiche(p).adresse));
+  /**
+   * L'adresse que la note apporte à la personne. L'adresse déjà sur la fiche
+   * d'un contact existant n'est pas un lien de la note : elle ne s'affiche pas
+   * dans « Liée à ».
+   */
+  const adresseDeLaNote = (vue: ReturnType<typeof vueFiche>) =>
+    vue.adresse && (!vue.existante || vue.adresseNouvelle) ? vue.adresse : null;
+  const adresseSurContact = personnesRetenues.some((p) => Boolean(adresseDeLaNote(vueFiche(p))));
   const cartesContacts = personnesVisibles.map((p) => {
     const vue = vueFiche(p);
-    const aChoisir = p.matches.length > 1;
+    const suggestion = enSuggestion(p);
     return (
       <CarteContactNote
         key={`p-${p.id}`}
-        nom={nomDe(p)}
+        nom={suggestion ? nomDit(p) : nomDe(p)}
         existante={vue.existante}
-        probable={vue.probable}
+        relation={p.personne.relation ?? null}
         roles={vue.roles}
         rolesNouveaux={vue.rolesNouveaux}
         phone={vue.phone}
@@ -772,9 +859,9 @@ export default function VoiceReviewPanel({
         emailNouveau={vue.emailNouveau}
         liens={liensDe(p, vue)}
         adresse={
-          vue.adresse
+          adresseDeLaNote(vue)
             ? {
-                label: adresseCourte(vue.adresse),
+                label: adresseCourte(adresseDeLaNote(vue)!),
                 nouveau: vue.adresseNouvelle,
                 edition: editionAdresse,
                 onEditer: () => {
@@ -786,34 +873,37 @@ export default function VoiceReviewPanel({
                   : () => {
                       toucher();
                       setAdresseRetiree((r) => (r.includes(p.id) ? r : [...r, p.id]));
-                      if (personnesVisibles.length <= 1) cacher('immeuble', true);
+                      if (personnesRetenues.length <= 1) cacher('immeuble', true);
                     },
                 champ: champAdresse,
               }
             : null
         }
-        candidats={
-          aChoisir
-            ? p.matches.map((m) => ({
-                id: m.contactId,
-                label: m.label,
-                detail: [formatPhoneOrNull(m.phone), m.address ? adresseCourte(m.address) : null]
-                  .filter(Boolean)
-                  .join(' · ') || null,
-              }))
-            : undefined
+        suggestion={
+          suggestion
+            ? {
+                candidats: p.matches.map((m) => ({
+                  id: m.contactId,
+                  label: m.label,
+                  detail:
+                    [formatPhoneOrNull(m.phone), m.email, m.address ? adresseCourte(m.address) : null]
+                      .filter(Boolean)
+                      .join(' · ') || null,
+                })),
+                candidatId: candidatCoche(p),
+                onChoisir: (id) => {
+                  toucher();
+                  setMatchChoisi((prev) => ({ ...prev, [p.id]: id }));
+                },
+                onRattacher: () => rattacherSuggestion(p),
+              }
+            : null
         }
-        candidatId={aChoisir ? (choixDe(p) === undefined ? undefined : choixDe(p)) : undefined}
-        onChoisirCandidat={
-          aChoisir
-            ? (id) => {
+        onChangerFiche={
+          p.matches.length > 0
+            ? () => {
                 toucher();
-                setMatchChoisi((prev) => ({ ...prev, [p.id]: id }));
-                if (id) setMajs((prev) => {
-                  const next = { ...prev };
-                  delete next[p.id];
-                  return next;
-                });
+                setConfirmes((prev) => ({ ...prev, [p.id]: false }));
               }
             : undefined
         }
@@ -823,6 +913,7 @@ export default function VoiceReviewPanel({
         lierOuvert={lierPour === p.id}
         recherche={
           <NoteEntitySearch
+            label=""
             onPick={(pick) => {
               toucher();
               const key = `${pick.entiteType}:${pick.entiteId}`;
@@ -1040,7 +1131,7 @@ export default function VoiceReviewPanel({
     }
   }
 
-  for (const b of cartesContacts.length ? [] : review.biens) {
+  for (const b of personnesRetenues.length ? [] : review.biens) {
     lignes.push(
       <Ligne
         key={`b-${b.id}`}
@@ -1052,7 +1143,7 @@ export default function VoiceReviewPanel({
       />,
     );
   }
-  for (const l of cartesContacts.length ? [] : review.leads) {
+  for (const l of personnesRetenues.length ? [] : review.leads) {
     lignes.push(
       <Ligne
         key={`l-${l.id}`}
@@ -1079,11 +1170,19 @@ export default function VoiceReviewPanel({
       />,
     );
   }
-  for (const link of cartesContacts.length ? [] : manualLinks) {
+  for (const link of personnesRetenues.length ? [] : manualLinks) {
     lignes.push(
       <Ligne
         key={link.key}
-        kind={link.entiteType === 'contact' ? 'personne' : link.entiteType === 'lead' ? 'prospect' : 'bien'}
+        kind={
+          link.entiteType === 'contact'
+            ? 'personne'
+            : link.entiteType === 'lead'
+              ? 'prospect'
+              : link.entiteType === 'immeuble'
+                ? 'lieu'
+                : 'bien'
+        }
         titre={link.label}
         detail={link.subtitle ?? null}
         actif
@@ -1134,6 +1233,12 @@ export default function VoiceReviewPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-1">
+        {lecture ? (
+          <div className="mb-2.5 flex">
+            <SignalIA actif>L’IA relit la note</SignalIA>
+          </div>
+        ) : null}
+
         {/* Cartes d’abord (contact + adresse liée), puis transcription sous chaque carte. */}
         {cartesContacts.length ? (
           <ul className="mb-3 flex flex-col gap-2.5">{cartesContacts}</ul>
@@ -1185,7 +1290,7 @@ export default function VoiceReviewPanel({
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {/* Avec une personne, on lie depuis sa carte. */}
-          {cartesContacts.length === 0 ? (
+          {personnesRetenues.length === 0 ? (
             <button
               type="button"
               onClick={() => setRattacher((v) => !v)}
@@ -1196,24 +1301,18 @@ export default function VoiceReviewPanel({
               Rattacher
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => {
+          <BoutonCadenas
+            privee={visibilite === 'privee'}
+            onBasculer={() => {
               toucher();
               setVisibilite((v) => (v === 'privee' ? 'agence' : 'privee'));
             }}
-            aria-pressed={visibilite === 'privee'}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium ${
-              visibilite === 'privee' ? 'bg-primary-500 text-white' : 'bg-bg-subtle text-text'
-            }`}
-          >
-            <Lock size={14} strokeWidth={2} aria-hidden />
-            {visibilite === 'privee' ? 'Privée' : 'Visible par l’agence'}
-          </button>
+          />
         </div>
-        {rattacher && cartesContacts.length === 0 ? (
+        {rattacher && personnesRetenues.length === 0 ? (
           <div className="mt-3">
             <NoteEntitySearch
+              label=""
               onPick={(pick) => {
                 toucher();
                 const key = `${pick.entiteType}:${pick.entiteId}`;
@@ -1268,6 +1367,7 @@ export default function VoiceReviewPanel({
                 currentUserId={currentUserId}
                 idPrefix={`fiche-${p.id}`}
                 onFermer={() => setEditeur(null)}
+                onReessayer={() => void ouvrirEditeur(p)}
                 onValider={(fiche) => {
                   toucher();
                   if (match) setMajs((prev) => ({ ...prev, [p.id]: { ...fiche, contactId: match.contactId } }));
@@ -1279,5 +1379,49 @@ export default function VoiceReviewPanel({
           })()
         : null}
     </div>
+  );
+}
+
+/**
+ * Le partage de la note. Ouvert : la note est visible par l'agence. Un
+ * toucher : l'anse se referme, la note devient privée. Le bouton garde la même
+ * couleur ; seul le cadenas et le libellé changent.
+ */
+function BoutonCadenas({ privee, onBasculer }: { privee: boolean; onBasculer: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onBasculer}
+      aria-pressed={privee}
+      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text transition-colors hover:bg-black/[0.05]"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={15}
+        height={15}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+        className="shrink-0 overflow-visible"
+      >
+        <rect x="4.5" y="11" width="15" height="10" rx="2.2" />
+        <path
+          d="M8 11V7.5a4 4 0 0 1 8 0V11"
+          className="motion-safe:transition-transform motion-safe:duration-300"
+          style={{
+            transformBox: 'view-box',
+            transformOrigin: '16px 11px',
+            transform: privee ? 'none' : 'translateY(-2.2px) rotate(-32deg)',
+            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}
+        />
+      </svg>
+      <span key={privee ? 'privee' : 'agence'} className="motion-safe:animate-fadeIn">
+        {privee ? 'Note privée' : 'Note visible par l’agence'}
+      </span>
+    </button>
   );
 }

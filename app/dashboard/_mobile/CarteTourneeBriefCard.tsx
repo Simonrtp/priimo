@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Flame, Route, Sparkles } from 'lucide-react';
+import { Clock, Footprints, Sparkles } from 'lucide-react';
 import { formatDistance } from '@/lib/today/field';
-import { formatWalkingDuration } from '@/lib/today/directions';
-import { estimateWalkCalories, estimateWalkDurationS } from '@/lib/today/sortie-session';
+import { arrondiCinqMinutes, libelleDuree } from '@/lib/tournee/reglages';
 
-/** Rythme de la séquence : adresses → distance → énergie → sourire. */
+/** Rythme de la séquence : adresses → temps → distance → sourire. */
 const BEAT_MS = 760;
 const HOLD_MS = 1250;
 const COUNT_STEP_MS = 110;
@@ -23,23 +22,21 @@ function prefersReducedMotion(): boolean {
  */
 export default function CarteTourneeBriefCard({
   stopCount,
+  minutes,
   distanceM,
-  durationS,
   contexte = null,
   onDone,
 }: {
   stopCount: number;
+  /** Marche et portes comprises. */
+  minutes: number;
   distanceM: number;
-  durationS: number | null;
-  /** Temps prévu et vivier d'où viennent les adresses. */
+  /** Où commence la tournée, ou le rappel de localisation. */
   contexte?: string | null;
   onDone: () => void;
 }) {
   const [revealed, setRevealed] = useState(1);
   const [counted, setCounted] = useState(0);
-
-  const duration = durationS ?? estimateWalkDurationS(distanceM);
-  const calories = estimateWalkCalories(distanceM, duration);
 
   /** Le trajet Mapbox arrive pendant la séquence : ce re-rendu ne doit pas la rejouer. */
   const done = useRef(onDone);
@@ -97,13 +94,13 @@ export default function CarteTourneeBriefCard({
           >
             <div className="tour-brief__block flex items-start gap-3">
               <span
-                className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white"
+                className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-500 text-white"
                 aria-hidden
               >
                 <Sparkles size={22} strokeWidth={2.1} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-primary-600">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-primary-500">
                   C&apos;est parti
                 </p>
                 <h2
@@ -122,20 +119,20 @@ export default function CarteTourneeBriefCard({
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               {revealed >= 2 ? (
                 <StatPill
-                  icon={Route}
-                  label="Distance"
-                  value={formatDistance(distanceM)}
-                  sub={`${formatWalkingDuration(duration)} de marche`}
+                  icon={Clock}
+                  label="Durée"
+                  value={`≈ ${libelleDuree(arrondiCinqMinutes(minutes))}`}
+                  sub="portes comprises"
                 />
               ) : (
                 <StatSkeleton />
               )}
               {revealed >= 3 ? (
                 <StatPill
-                  icon={Flame}
-                  label="Énergie"
-                  value={`~${calories} kcal`}
-                  sub="brûlées en chemin"
+                  icon={Footprints}
+                  label="Distance"
+                  value={formatDistance(distanceM)}
+                  sub="à pied"
                 />
               ) : (
                 <StatSkeleton />
@@ -156,7 +153,7 @@ export default function CarteTourneeBriefCard({
 
           <div className="h-[3px] w-full bg-black/[0.06]" aria-hidden>
             <div
-              className="h-full bg-primary-600 transition-[width] duration-700 ease-out"
+              className="h-full bg-primary-500 transition-[width] duration-700 ease-out"
               style={{ width: `${(revealed / BLOCKS) * 100}%` }}
             />
           </div>
@@ -176,7 +173,7 @@ function StatPill({
   value,
   sub,
 }: {
-  icon: typeof Route;
+  icon: typeof Clock;
   label: string;
   value: string;
   sub: string;

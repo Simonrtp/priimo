@@ -24,7 +24,6 @@ export default function ProspectionCarteView({
   members,
   isDirector,
   profileId,
-  agencyOrigin,
   initialBanId,
   itineraryStops,
   showItineraire,
@@ -40,7 +39,6 @@ export default function ProspectionCarteView({
   members: readonly AssigneeOption[];
   isDirector: boolean;
   profileId: string;
-  agencyOrigin: { latitude: number; longitude: number } | null;
   initialBanId: string | null;
   itineraryStops: ItineraireStop[] | null;
   showItineraire: boolean;
@@ -84,7 +82,6 @@ export default function ProspectionCarteView({
             members={members}
             isDirector={isDirector}
             profileId={profileId}
-            agencyOrigin={agencyOrigin}
             initialBanId={initialBanId}
             itineraryStops={itineraryStops}
             showItineraire={showItineraire}

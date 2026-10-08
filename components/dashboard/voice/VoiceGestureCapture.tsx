@@ -437,7 +437,7 @@ export default forwardRef<
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="size-1.5 animate-pulse rounded-full bg-accent"
+                className="size-1.5 animate-pulse rounded-full bg-ia"
                 style={{ animationDelay: `${i * 180}ms` }}
                 aria-hidden
               />

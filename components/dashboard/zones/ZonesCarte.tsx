@@ -300,7 +300,7 @@ export default function ZonesCarte({
       dernierPixelRef.current = { x: e.point.x, y: e.point.y };
       setTrace(traceRef.current.slice());
     },
-    [collerPoint, dessinActif, formeActive],
+    [collerPoint, dessinActif, formeActive, tactile],
   );
 
   const prolongerTrace = useCallback(

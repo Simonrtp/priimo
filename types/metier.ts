@@ -59,6 +59,8 @@ export type TodayPromesse = {
   intitule: string;
   echeance: string;
   statut: PromesseStatut;
+  /** La note dictée d'où vient la promesse, s'il y en a une. */
+  noteId?: string | null;
 };
 
 export type TodayRendezVous = {

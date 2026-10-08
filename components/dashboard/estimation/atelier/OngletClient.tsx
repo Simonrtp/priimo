@@ -340,6 +340,8 @@ export default function OngletClient({
             ) : null}
             <NoteEntitySearch
               id="est-rattacher"
+              label=""
+              adresses={false}
               className="w-full"
               onCreateContact={() => {
                 setEditing(null);

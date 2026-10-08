@@ -189,7 +189,7 @@ function ChoixNote({
       onClick={onClick}
       className="flex min-h-10 w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04]"
     >
-      <Icone size={15} strokeWidth={2} className="text-accent" aria-hidden />
+      <Icone size={15} strokeWidth={2} className="text-ia" aria-hidden />
       {libelle}
     </button>
   );

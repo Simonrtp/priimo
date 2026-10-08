@@ -1161,7 +1161,7 @@ export default function ParcellePanel({
         <button
           type="button"
           onClick={() => openCapture(noteContext)}
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-accent text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(232,116,60,0.32)] transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-dark"
+          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-ia text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(99,102,241,0.32)] transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ia-700"
         >
           <Mic size={18} strokeWidth={2.2} aria-hidden />
           Dicter une note

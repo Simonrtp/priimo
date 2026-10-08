@@ -192,7 +192,7 @@ describe('genererTournee', () => {
   it('rend une tournée vide sans adresse', () => {
     const t = genererTournee({
       adresses: [],
-      ancre: null,
+      ancres: [],
       position: null,
       agence: null,
       budgetMinutes: 60,
@@ -209,7 +209,7 @@ describe('genererTournee', () => {
     const position = { latitude: 48.86, longitude: 2.34 };
     const t = genererTournee({
       adresses: adresses(dpes),
-      ancre: null,
+      ancres: [],
       position,
       agence: null,
       budgetMinutes: 30,
@@ -227,7 +227,7 @@ describe('genererTournee', () => {
     );
     const commun = {
       adresses: adresses(dpes),
-      ancre: null,
+      ancres: [],
       position: { latitude: 48.86, longitude: 2.34 },
       agence: null,
       maintenant: MAINTENANT,
@@ -245,7 +245,7 @@ describe('genererTournee', () => {
     ];
     const t = genererTournee({
       adresses: adresses(dpes),
-      ancre: null,
+      ancres: [],
       position: { latitude: 48.86, longitude: 2.341 },
       agence: null,
       budgetMinutes: 30,
@@ -266,7 +266,7 @@ describe('genererTournee', () => {
     });
     const t = genererTournee({
       adresses: adresses([dpe('a', 0.001, 0.001, '2026-09-28'), dpe('b', 0.0012, 0.0008, '2026-09-27')]),
-      ancre,
+      ancres: [ancre],
       position: null,
       agence: null,
       budgetMinutes: 60,
@@ -287,7 +287,7 @@ describe('genererTournee', () => {
     });
     const t = genererTournee({
       adresses: [],
-      ancre,
+      ancres: [ancre],
       position: { latitude: 48.862, longitude: 2.342 },
       agence: null,
       budgetMinutes: 60,
@@ -302,7 +302,7 @@ describe('genererTournee', () => {
     const isole = [dpe('isole', -0.02, -0.02, '2026-10-02')];
     const t = genererTournee({
       adresses: adresses([...riche, ...isole]),
-      ancre: null,
+      ancres: [],
       position: { latitude: 48.70, longitude: 2.10 },
       agence: { latitude: 48.71, longitude: 2.11 },
       budgetMinutes: 60,
@@ -311,6 +311,58 @@ describe('genererTournee', () => {
     assert.equal(t.departSource, 'secteur');
     assert.ok(t.arrets.length >= 6);
     assert.ok(t.arrets.every((a) => a.banId?.startsWith('riche')));
+  });
+
+  it('loin de tout, préfère le coin proche de l’agent à un coin à peine plus riche au bout de la ville', () => {
+    const proche = Array.from({ length: 6 }, (_, i) => dpe(`proche${i}`, 0.0225 + i * 0.0003, 0, '2026-09-25'));
+    const loin = Array.from({ length: 7 }, (_, i) => dpe(`loin${i}`, 0.135 + i * 0.0003, 0, '2026-09-25'));
+    const t = genererTournee({
+      adresses: adresses([...proche, ...loin]),
+      ancres: [],
+      position: { latitude: 48.86, longitude: 2.34 },
+      agence: null,
+      budgetMinutes: 60,
+      maintenant: MAINTENANT,
+    });
+    assert.ok(t.arrets.every((a) => a.banId?.startsWith('proche')));
+    assert.ok(t.distanceDepartM !== null && t.distanceDepartM > 2_000 && t.distanceDepartM < 3_000);
+  });
+
+  it('passe par toutes les adresses ajoutées', () => {
+    const ancres = [0, 1, 2].map((i) =>
+      adresseLibre({
+        label: `${i} place du Choix`,
+        latitude: 48.86 + i * 0.001,
+        longitude: 2.341,
+        banId: `choix${i}`,
+        codePostal: '75011',
+      }),
+    );
+    const t = genererTournee({
+      adresses: adresses([dpe('a', 0.0005, 0.0005, '2026-09-28')]),
+      ancres,
+      position: { latitude: 48.86, longitude: 2.34 },
+      agence: null,
+      budgetMinutes: 60,
+      maintenant: MAINTENANT,
+    });
+    assert.equal(t.departSource, 'position');
+    assert.equal(t.distanceDepartM, null);
+    for (const ancre of ancres) assert.ok(t.arrets.some((a) => a.key === ancre.key));
+  });
+
+  it("sans localisation, part de l'agence quand elle est dans le coin", () => {
+    const t = genererTournee({
+      adresses: adresses([dpe('a', 0.001, 0, '2026-09-28'), dpe('b', 0.0015, 0.0005, '2026-09-27')]),
+      ancres: [],
+      position: null,
+      agence: { latitude: 48.86, longitude: 2.34 },
+      budgetMinutes: 30,
+      maintenant: MAINTENANT,
+    });
+    assert.equal(t.departSource, 'agence');
+    assert.equal(t.distanceDepartM, null);
+    assert.equal(t.arrets.length, 2);
   });
 });
 
@@ -336,6 +388,7 @@ describe('secteur', () => {
       profileId: MOI,
       directeur: false,
       codesPostaux: new Set(['75011']),
+      exclureCollegues: true,
     };
     assert.equal(adresseDansSecteur(dedans!, ctx), true);
     assert.equal(adresseDansSecteur(dehors!, ctx), false);
@@ -353,10 +406,24 @@ describe('secteur', () => {
       profileId: MOI,
       directeur: false,
       codesPostaux: new Set(['75011']),
+      exclureCollegues: true,
     };
     assert.equal(adresseDansSecteur(libre!, ctx), true);
     assert.equal(adresseDansSecteur(collegue!, ctx), false);
     assert.equal(adresseDansSecteur(horsTerritoire!, ctx), false);
+  });
+
+  it('tout le code postal, secteurs des collègues compris, quand l’agent le choisit', () => {
+    const [collegue] = adresses([dpe('collegue', 0, 0.02, '2026-09-28')]);
+    const ctx = {
+      secteur: null,
+      zones: [sien],
+      profileId: MOI,
+      directeur: false,
+      codesPostaux: new Set(['75011']),
+      exclureCollegues: false,
+    };
+    assert.equal(adresseDansSecteur(collegue!, ctx), true);
   });
 });
 
@@ -366,16 +433,26 @@ describe('raisonArret', () => {
     assert.equal(raisonArret(a!, MAINTENANT), 'DPE F il y a 3 jours');
   });
 
-  it('compte les DPE et signale une porte rouverte', () => {
+  it('compte les DPE de l’immeuble', () => {
+    const [a] = adresses([dpe('a', 0, 0, '2026-09-21'), dpe('a', 0, 0, '2026-08-02')]);
+    assert.equal(raisonArret(a!, MAINTENANT), '2 DPE, le dernier il y a 2 semaines');
+  });
+
+  it('détaille la porte rouverte par un DPE arrivé après le passage', () => {
     const [a] = adresses(
-      [dpe('a', 0, 0, '2026-09-21'), dpe('a', 0, 0, '2026-08-02')],
+      [dpe('a', 0, 0, '2026-09-21', { lettre: 'G', surfaceM2: 42 }), dpe('a', 0, 0, '2026-08-02')],
       new Map([['a', '2026-09-01']]),
     );
-    assert.equal(raisonArret(a!, MAINTENANT), '2 DPE, le dernier il y a 2 semaines · nouveau depuis votre passage');
+    assert.deepEqual(versArretSortie(a!, MAINTENANT).detail, {
+      dpe: { lettre: 'G', date: '2026-09-21', nombre: 2, passoire: true, surfaceM2: 42, type: 'appartement' },
+      lead: null,
+      dernierPassage: '2026-09-01',
+      choisie: false,
+    });
   });
 
   it("présente l'adresse imposée sans DPE", () => {
     const ancre = adresseLibre({ label: 'x', latitude: 48.86, longitude: 2.34, banId: null, codePostal: null });
-    assert.equal(versArretSortie(ancre, MAINTENANT, { ancre: true }).mainSignalLabel, 'Votre adresse de passage');
+    assert.equal(versArretSortie(ancre, MAINTENANT, { choisie: true }).mainSignalLabel, 'Adresse ajoutée');
   });
 });

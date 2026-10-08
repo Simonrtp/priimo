@@ -7,6 +7,9 @@ import { fetchBiensSafe } from '@/lib/queries/biens';
 import { fetchLeads } from '@/lib/queries/leads';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { ligneRattachementContact, type RattacherItem } from '@/lib/notes/rattacher-catalogue';
+import { fetchZonesSafe } from '@/lib/queries/zones';
+import { zoneProspectionParDefaut } from '@/lib/zones/jour';
+import { bboxDeZone } from '@/lib/zones/geometrie';
 
 export const runtime = 'nodejs';
 
@@ -20,11 +23,21 @@ export async function GET() {
 
   const supabase = await createSupabaseServerClient();
   const viewer = viewerFromProfile(profile);
-  const [contacts, biens, leads] = await Promise.all([
+  const [contacts, biens, leads, zones] = await Promise.all([
     fetchContactsSafe(supabase),
     fetchBiensSafe(supabase),
     fetchLeads(supabase).catch(() => []),
+    fetchZonesSafe(supabase),
   ]);
+
+  // Les adresses proposées partent du secteur de l'agent, sinon de l'agence.
+  const zoneId = zoneProspectionParDefaut(zones, profile.id);
+  const boite = zoneId ? bboxDeZone(zones.find((z) => z.id === zoneId)!) : null;
+  const centre = boite
+    ? { latitude: (boite.sud + boite.nord) / 2, longitude: (boite.ouest + boite.est) / 2 }
+    : agency.latitude != null && agency.longitude != null
+      ? { latitude: agency.latitude, longitude: agency.longitude }
+      : null;
 
   const contactsVisibles = visibleContactsFor(viewer, contacts).slice(0, MAX);
   const biensVisibles = visibleBiensFor(viewer, biens).slice(0, MAX);
@@ -82,5 +95,6 @@ export async function GET() {
     contact: contactItems,
     bien: bienItems,
     lead: leadItems,
+    centre,
   });
 }

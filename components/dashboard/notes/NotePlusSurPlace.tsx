@@ -58,7 +58,7 @@ export default function NotePlusSurPlace({
           aria-expanded={ouvert}
           aria-haspopup="menu"
           aria-controls={ouvert ? menuId : undefined}
-          className="flex size-9 items-center justify-center rounded-full bg-accent text-white shadow-clay-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="flex size-9 items-center justify-center rounded-full bg-ia text-white shadow-clay-sm transition-colors duration-fluid-subtle ease-in-out hover:bg-ia-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ia"
         >
           {ouvert ? (
             <X size={16} strokeWidth={2.4} aria-hidden />
@@ -84,7 +84,7 @@ export default function NotePlusSurPlace({
             }}
             className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-[13.5px] font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            <NotebookPen size={16} strokeWidth={2} className="text-accent" aria-hidden />
+            <NotebookPen size={16} strokeWidth={2} className="text-ia" aria-hidden />
             Écrire
           </button>
           <button
@@ -97,7 +97,7 @@ export default function NotePlusSurPlace({
             }}
             className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-[13.5px] font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            <Mic size={16} strokeWidth={2} className="text-accent" aria-hidden />
+            <Mic size={16} strokeWidth={2} className="text-ia" aria-hidden />
             Dicter
           </button>
         </div>

@@ -146,7 +146,7 @@ export default function NoteCreateChooser({
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
           aria-haspopup="menu"
-          className="inline-flex min-h-[40px] items-center justify-center gap-2 whitespace-nowrap rounded-clay bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-5 sm:text-[14px]"
+          className="inline-flex min-h-[40px] items-center justify-center gap-2 whitespace-nowrap rounded-clay bg-ia px-4 py-2.5 text-[13.5px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-ia-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ia sm:px-5 sm:text-[14px]"
         >
           <Plus size={16} strokeWidth={2.2} aria-hidden />
           Note
@@ -225,7 +225,7 @@ function ChoiceButton({
         aria-label={label}
         className="flex min-h-11 items-center gap-2.5 rounded-full bg-surface px-3.5 py-2 text-[13.5px] font-semibold text-text shadow-md"
       >
-        <span className="flex size-9 items-center justify-center rounded-full bg-accent text-white" aria-hidden>
+        <span className="flex size-9 items-center justify-center rounded-full bg-ia text-white" aria-hidden>
           <Icon size={16} strokeWidth={2.2} />
         </span>
         {label}
@@ -241,7 +241,7 @@ function ChoiceButton({
         onClick={onClick}
         className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left text-[13.5px] font-medium text-text transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04]"
       >
-        <Icon size={16} strokeWidth={2} className="text-accent" aria-hidden />
+        <Icon size={16} strokeWidth={2} className="text-ia" aria-hidden />
         {label}
       </button>
     );

@@ -163,7 +163,7 @@ async function fetchPromessesAFaire(supabase: Client, profileId: string): Promis
     .from('promesses')
     .select(
       `
-      id, profile_id, contact_id, intitule, echeance, statut,
+      id, profile_id, contact_id, note_id, intitule, echeance, statut,
       contact:contacts ( first_name, last_name, phone )
     `,
     )
@@ -184,6 +184,7 @@ async function fetchPromessesAFaire(supabase: Client, profileId: string): Promis
       intitule: String(r.intitule),
       echeance: String(r.echeance).slice(0, 10),
       statut: r.statut as TodayPromesse['statut'],
+      noteId: r.note_id ? String(r.note_id) : null,
     };
   });
 }

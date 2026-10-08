@@ -22,6 +22,7 @@ import { validateContactFields, type ContactFieldErrors, type ContactInputFields
 import { formatPhoneOrNull } from '@/lib/import/normalize';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ContactFormFields, { type ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
+import SignalIA from '@/components/ui/SignalIA';
 import styles from './live/dictee.module.css';
 
 /* -------------------------------------------------------------------------- */
@@ -114,14 +115,28 @@ export type AdresseRaccordee = {
 };
 
 /**
+ * Une fiche existante que l'IA croit reconnaître : rien n'est rattaché tant
+ * que l'agent n'a pas confirmé que c'est la bonne personne.
+ */
+export type SuggestionFiche = {
+  candidats: readonly CandidatFiche[];
+  /** La fiche cochée ; `null` = une autre personne, nouvelle fiche. */
+  candidatId: string | null;
+  onChoisir: (id: string | null) => void;
+  onRattacher: () => void;
+};
+
+/**
  * La personne dont parle la note, telle qu'elle sera rangée : ses rôles, ses
- * coordonnées, et tout ce à quoi elle se rattache. Le crayon ouvre la fiche
+ * coordonnées, et tout ce à quoi la note la relie. Le crayon ouvre la fiche
  * entière ; une croix sur un lien le défait.
+ *
+ * Avec `suggestion`, la carte demande d'abord : « c'est bien elle ? ».
  */
 export function CarteContactNote({
   nom,
   existante,
-  probable = false,
+  relation,
   roles,
   rolesNouveaux,
   phone,
@@ -130,9 +145,8 @@ export function CarteContactNote({
   emailNouveau,
   liens,
   adresse,
-  candidats,
-  candidatId,
-  onChoisirCandidat,
+  suggestion,
+  onChangerFiche,
   onModifier,
   onRetirer,
   onLier,
@@ -141,7 +155,8 @@ export function CarteContactNote({
 }: {
   nom: string;
   existante: boolean;
-  probable?: boolean;
+  /** Ce que la note dit de son lien avec une autre personne : « Sœur de Simon ». */
+  relation?: string | null;
   roles: readonly ContactType[];
   rolesNouveaux: readonly ContactType[];
   phone: string | null;
@@ -149,12 +164,11 @@ export function CarteContactNote({
   email: string | null;
   emailNouveau?: boolean;
   liens: readonly LienCarte[];
-  /** Adresse de la note, rattachée visuellement (pas un simple chip). */
+  /** Adresse de la note : première capsule de « Liée à », modifiable. */
   adresse?: AdresseRaccordee | null;
-  /** Plusieurs Marina possibles : l’agent choisit. */
-  candidats?: readonly CandidatFiche[];
-  candidatId?: string | null;
-  onChoisirCandidat?: (id: string | null) => void;
+  suggestion?: SuggestionFiche | null;
+  /** Fiche existante confirmée : revenir au choix. */
+  onChangerFiche?: () => void;
   onModifier: () => void;
   onRetirer: () => void;
   onLier: () => void;
@@ -162,8 +176,13 @@ export function CarteContactNote({
   /** Le champ de recherche « Lier à… », affiché sous les liens. */
   recherche?: ReactNode;
 }) {
+  if (suggestion) {
+    return (
+      <CarteSuggestion nom={nom} relation={relation} suggestion={suggestion} onRetirer={onRetirer} />
+    );
+  }
+
   const rolesUtiles = roles.filter((r) => r !== 'autre');
-  const aChoisir = Boolean(candidats && candidats.length > 1 && onChoisirCandidat);
   return (
     <li
       className={`overflow-hidden rounded-2xl border border-black/[0.06] bg-surface shadow-clay-sm ${styles.carteEntree}`}
@@ -178,14 +197,17 @@ export function CarteContactNote({
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15.5px] font-semibold leading-tight text-text-strong">{nom}</p>
-          <p className={`mt-0.5 text-[12px] ${aChoisir && !candidatId ? 'text-warning' : probable ? 'text-warning' : 'text-text-muted'}`}>
-            {aChoisir && !candidatId
-              ? 'Plusieurs fiches possibles — choisissez'
-              : existante
-                ? probable
-                  ? 'Fiche existante, à vérifier'
-                  : 'Déjà dans vos contacts'
-                : 'Nouveau contact'}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-text-muted">
+            <span>{relation ? relationLisible(relation) : existante ? 'Déjà dans vos contacts' : 'Nouveau contact'}</span>
+            {existante && onChangerFiche ? (
+              <button
+                type="button"
+                onClick={onChangerFiche}
+                className="font-semibold text-ia-600 underline-offset-2 hover:underline"
+              >
+                Pas la bonne fiche ?
+              </button>
+            ) : null}
           </p>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -253,116 +275,33 @@ export function CarteContactNote({
         </div>
       </div>
 
-      {aChoisir ? (
-        <div className="border-t border-black/[0.06] px-3.5 py-2.5" role="radiogroup" aria-label="Choisir la fiche">
-          <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
-            Quelle fiche ?
-          </p>
-          <ul className="flex flex-col gap-1.5">
-            {candidats!.map((c) => {
-              const choisi = candidatId === c.id;
-              return (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={choisi}
-                    onClick={() => onChoisirCandidat!(c.id)}
-                    className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                      choisi
-                        ? 'bg-primary-50 ring-1 ring-primary-200'
-                        : 'bg-bg-subtle hover:bg-black/[0.04]'
-                    }`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                        choisi ? 'border-primary-500 bg-primary-500' : 'border-black/20 bg-surface'
-                      }`}
-                    >
-                      {choisi ? <span className="size-1.5 rounded-full bg-white" /> : null}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-semibold text-text-strong">{c.label}</span>
-                      {c.detail ? (
-                        <span className="mt-0.5 block truncate text-[12px] text-text-muted">{c.detail}</span>
-                      ) : null}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-            <li>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={candidatId === null}
-                onClick={() => onChoisirCandidat!(null)}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                  candidatId === null
-                    ? 'bg-primary-50 ring-1 ring-primary-200'
-                    : 'bg-bg-subtle hover:bg-black/[0.04]'
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                    candidatId === null ? 'border-primary-500 bg-primary-500' : 'border-black/20 bg-surface'
-                  }`}
-                >
-                  {candidatId === null ? <span className="size-1.5 rounded-full bg-white" /> : null}
-                </span>
-                <span className="text-[13.5px] font-semibold text-text-strong">Nouveau contact</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Adresse de la note : raccordée au contact, modifiable. */}
-      {adresse ? (
-        <div className="relative border-t border-black/[0.06] bg-[#F4F5FA] px-3.5 py-2.5">
-          <div className="pointer-events-none absolute left-[1.65rem] top-0 h-2.5 w-px bg-primary-300" aria-hidden />
-          <p className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-primary-700">
-            <Link2 size={11} strokeWidth={2.4} aria-hidden />
-            Liée à l’adresse
-          </p>
-          {adresse.edition && adresse.champ ? (
-            <div className="mt-1">{adresse.champ}</div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                <MapPin size={15} strokeWidth={2.2} aria-hidden />
-              </span>
-              <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[13.5px] font-semibold text-text-strong">
-                <span className="truncate">{adresse.label}</span>
-                {adresse.nouveau ? <MarqueNouveau /> : null}
-              </span>
+      {/* Tout ce à quoi la note relie la personne : l'adresse d'abord. */}
+      <div className="border-t border-black/[0.06] bg-bg-subtle px-3.5 py-2.5">
+        <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">Liée à</p>
+        <ul className="flex flex-wrap gap-1.5">
+          {adresse && !adresse.edition ? (
+            <li className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full bg-surface pl-2.5 pr-1 text-[12.5px] font-medium text-text shadow-clay-sm">
+              <MapPin size={13} strokeWidth={2.2} aria-hidden className="shrink-0" />
+              <span className="min-w-0 truncate">{adresse.label}</span>
+              {adresse.nouveau ? <MarqueNouveau /> : null}
               <button
                 type="button"
                 onClick={adresse.onEditer}
                 aria-label="Modifier l’adresse"
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-white"
+                className="flex size-6 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.06] hover:text-text"
               >
-                <Pencil size={15} strokeWidth={2} aria-hidden />
+                <Pencil size={11} strokeWidth={2.4} aria-hidden />
               </button>
               <button
                 type="button"
                 onClick={adresse.onRetirer}
                 aria-label="Retirer l’adresse"
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-white hover:text-text"
+                className="flex size-6 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.06] hover:text-text"
               >
-                <X size={15} strokeWidth={2} aria-hidden />
+                <X size={12} strokeWidth={2.4} aria-hidden />
               </button>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {/* Les autres liens (note, biens…). L’adresse a son bloc dédié. */}
-      <div className="border-t border-black/[0.06] bg-bg-subtle px-3.5 py-2.5">
-        <p className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">Aussi liée à</p>
-        <ul className="flex flex-wrap gap-1.5">
+            </li>
+          ) : null}
           {liens.map((l) => {
             const Icone = ICONE_LIEN[l.kind];
             return (
@@ -402,8 +341,136 @@ export function CarteContactNote({
             </button>
           </li>
         </ul>
+        {adresse?.edition && adresse.champ ? <div className="mt-2.5">{adresse.champ}</div> : null}
         {lierOuvert && recherche ? <div className="mt-2.5">{recherche}</div> : null}
       </div>
+    </li>
+  );
+}
+
+/** « sœur de Simon » → « Sœur de Simon ». */
+function relationLisible(relation: string): string {
+  const t = relation.trim();
+  return t ? t[0]!.toLocaleUpperCase('fr') + t.slice(1) : t;
+}
+
+/**
+ * L'IA croit reconnaître une fiche : l'agent vérifie (téléphone, adresse) et
+ * confirme. Tant qu'il n'a pas touché « Rattacher à cette note », rien n'est
+ * relié ni créé.
+ */
+function CarteSuggestion({
+  nom,
+  relation,
+  suggestion,
+  onRetirer,
+}: {
+  nom: string;
+  relation?: string | null;
+  suggestion: SuggestionFiche;
+  onRetirer: () => void;
+}) {
+  const { candidats, candidatId, onChoisir, onRattacher } = suggestion;
+  const plusieurs = candidats.length > 1;
+  return (
+    <li
+      className={`overflow-hidden rounded-2xl border border-ia-200 bg-surface shadow-clay-sm ${styles.carteEntree}`}
+    >
+      <div className="flex items-start gap-3 px-3.5 pb-2.5 pt-3.5">
+        <span
+          aria-hidden
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-dashed border-ia-200 bg-ia-50 text-[14px] font-semibold text-ia-700"
+        >
+          {initiales(nom)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15.5px] font-semibold leading-tight text-text-strong">{nom}</p>
+          {relation ? (
+            <p className="mt-0.5 text-[12px] text-text-muted">{relationLisible(relation)}</p>
+          ) : null}
+          <div className="mt-1.5">
+            <SignalIA>{plusieurs ? `${candidats.length} fiches possibles` : 'Fiche existante reconnue'}</SignalIA>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRetirer}
+          aria-label={`Ne pas ranger ${nom} avec la note`}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text"
+        >
+          <X size={16} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
+
+      <div className="px-3.5 pb-3.5" role="radiogroup" aria-label={`Quelle fiche pour ${nom} ?`}>
+        <p className="mb-2 text-[13px] font-medium text-text-strong">
+          {plusieurs ? 'De qui parlez-vous ?' : 'C’est bien cette personne ?'}
+        </p>
+        <ul className="flex flex-col gap-1.5">
+          {candidats.map((c) => (
+            <OptionFiche
+              key={c.id}
+              choisi={candidatId === c.id}
+              onChoisir={() => onChoisir(c.id)}
+              titre={c.label}
+              detail={c.detail ?? 'Fiche existante'}
+            />
+          ))}
+          <OptionFiche
+            choisi={candidatId === null}
+            onChoisir={() => onChoisir(null)}
+            titre="Une autre personne"
+            detail="Créer une nouvelle fiche"
+          />
+        </ul>
+        <button
+          type="button"
+          onClick={onRattacher}
+          className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-ia text-[14px] font-semibold text-white shadow-[0_8px_18px_rgba(99,102,241,0.28)] transition-transform hover:bg-ia-600 active:scale-[0.98]"
+        >
+          <Link2 size={16} strokeWidth={2.2} aria-hidden />
+          {candidatId === null ? 'Créer et rattacher à cette note' : 'Rattacher à cette note'}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function OptionFiche({
+  choisi,
+  onChoisir,
+  titre,
+  detail,
+}: {
+  choisi: boolean;
+  onChoisir: () => void;
+  titre: string;
+  detail: string;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={choisi}
+        onClick={onChoisir}
+        className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
+          choisi ? 'bg-ia-50 ring-1 ring-ia-200' : 'bg-bg-subtle hover:bg-black/[0.04]'
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${
+            choisi ? 'border-ia bg-ia' : 'border-black/20 bg-surface'
+          }`}
+        >
+          {choisi ? <span className="size-1.5 rounded-full bg-white" /> : null}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-semibold text-text-strong">{titre}</span>
+          <span className="mt-0.5 block truncate text-[12px] text-text-muted">{detail}</span>
+        </span>
+      </button>
     </li>
   );
 }
@@ -435,12 +502,15 @@ export function EditeurFicheContact({
   idPrefix,
   onFermer,
   onValider,
+  onReessayer,
 }: {
   nom: string;
   existante: boolean;
   initial: FicheEditee | null;
   chargement: boolean;
   erreurChargement: string | null;
+  /** Relancer la lecture de la fiche après un échec. */
+  onReessayer?: () => void;
   rolesNouveaux: readonly ContactType[];
   members: readonly AssigneeOption[];
   currentUserId?: string;
@@ -500,7 +570,18 @@ export function EditeurFicheContact({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
           {chargement || !fiche ? (
             erreurChargement ? (
-              <p className="rounded-2xl bg-bg-subtle px-4 py-3 text-[14px] text-text-muted">{erreurChargement}</p>
+              <div className="flex flex-col items-start gap-3 rounded-2xl bg-bg-subtle px-4 py-3">
+                <p className="text-[14px] text-text-muted">{erreurChargement}</p>
+                {onReessayer ? (
+                  <button
+                    type="button"
+                    onClick={onReessayer}
+                    className="inline-flex h-9 items-center rounded-full bg-surface px-3.5 text-[13px] font-semibold text-text-strong shadow-clay-sm"
+                  >
+                    Réessayer
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <div className="flex flex-col gap-4" aria-busy="true" aria-label="Chargement de la fiche">
                 {[0, 1, 2, 3, 4].map((i) => (

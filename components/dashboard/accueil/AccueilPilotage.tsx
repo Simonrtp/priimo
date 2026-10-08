@@ -41,7 +41,8 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
  * L'écran de pilotage.
  *
  * L'ordre n'est pas décoratif : le titre, le pense-bête juste à sa
- * droite, le sélecteur de période au bout, puis les objectifs, les
+ * droite, le sélecteur de période au bout, sur mobile les tâches du jour
+ * (un rappel passe avant les chiffres), puis les objectifs, les
  * cartes, les adresses à gauche de l'emploi du temps, puis l'entonnoir.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
@@ -57,6 +58,7 @@ export default function AccueilPilotage({
   membreSelectionne,
   moi,
   aujourdhui,
+  taches,
   penseBete,
   emploiDuTemps,
   secteur,
@@ -75,6 +77,8 @@ export default function AccueilPilotage({
   moi: string;
   /** Les cartes du jour, réutilisées telles quelles depuis lib/today. */
   aujourdhui: ReactNode;
+  /** Mobile : les tâches du jour, entre le pense-bête et les objectifs. */
+  taches?: ReactNode;
   penseBete: string;
   /** L'emploi du temps, rendu par le serveur sous son propre Suspense. */
   emploiDuTemps?: ReactNode;
@@ -216,6 +220,8 @@ export default function AccueilPilotage({
           </div>
         ) : null}
       </div>
+
+      {taches ? <Fragment key="accueil-taches">{taches}</Fragment> : null}
 
       {attenteInscription ? (
         <Fragment key="accueil-attente">{attenteInscription}</Fragment>
