@@ -11,11 +11,14 @@ import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo
 import {
   countKindsInViewport,
   entitiesByKind,
+  ficheImmeubleOuverte,
   filterMapEntities,
   groupEntitiesByBanId,
+  pointDuLien,
   type BuildingMarker,
   type MapPeriod,
   type MapViewport,
+  type RepliImmeuble,
 } from '@/lib/carte/buildings';
 import {
   MAP_LAYER_LABELS,
@@ -107,6 +110,8 @@ export default function CarteMobile({
   isDirector,
   profileId = '',
   initialBanId = null,
+  initialBanPos = null,
+  initialParcelleId = null,
   fillParent = false,
   hideAccount = false,
   itineraryStops: itineraryStopsProp = null,
@@ -125,6 +130,8 @@ export default function CarteMobile({
   isDirector: boolean;
   profileId?: string;
   initialBanId?: string | null;
+  initialBanPos?: RepliImmeuble | null;
+  initialParcelleId?: string | null;
   fillParent?: boolean;
   hideAccount?: boolean;
   itineraryStops?: readonly ItineraireStop[] | null;
@@ -231,8 +238,28 @@ export default function CarteMobile({
     [pointsDuSecteur],
   );
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
-  const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
+  const selected = useMemo(
+    () => ficheImmeubleOuverte(buildings, selectedBanId, initialBanPos),
+    [buildings, selectedBanId, initialBanPos],
+  );
+  const focusLien = useMemo(
+    () =>
+      pointDuLien({
+        parcelleDemandee: initialParcelleId,
+        parcelleOuverte: parcelle.fiche,
+        immeuble: selected,
+        immeubleDemande: initialBanId,
+      }),
+    [initialParcelleId, parcelle.fiche, selected, initialBanId],
+  );
   const counts = useMemo(() => countKindsInViewport(filteredAllKinds, null), [filteredAllKinds]);
+
+  const parcelleOuverte = useRef(false);
+  useEffect(() => {
+    if (!initialParcelleId || parcelleOuverte.current) return;
+    parcelleOuverte.current = true;
+    parcelle.openParcelle(initialParcelleId);
+  }, [initialParcelleId, parcelle.openParcelle]);
 
   function choisirEmprise(next: MapEmprise) {
     if (next === 'code_postal') {
@@ -442,7 +469,8 @@ export default function CarteMobile({
         completedLeadIds={tournee.arretsFaitsIds}
         highlightBanIds={tournee.highlightBanIds}
         // Une adresse cherchée ou une tournée gardent la main : la carte ne repart pas sur tout le secteur.
-        suppressAutoFit={tournee.phase !== 'off' || Boolean(cible)}
+        suppressAutoFit={tournee.phase !== 'off' || Boolean(cible) || Boolean(initialParcelleId) || Boolean(focusLien)}
+        focus={focusLien}
         navigation={tourShown}
         onMapPoint={picking ? ajouterPointCarte : undefined}
       />

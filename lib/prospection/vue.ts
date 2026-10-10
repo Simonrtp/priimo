@@ -28,6 +28,8 @@ export function prospectionHref(current: URLSearchParams, vue: ProspectionVue): 
   // La carte a ses propres query (immeuble, itineraire…) — on repart propre depuis liste/pipeline.
   if (vue !== 'carte') {
     params.delete('immeuble');
+    params.delete('parcelle');
+    params.delete('pos');
     params.delete('itineraire');
     params.delete('tournee');
   }

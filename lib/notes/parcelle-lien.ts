@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
-import { parcelleIdDepuisBan } from '@/lib/notes/parcelle-depuis-ban';
+import { parcelleDeLAdresse } from '@/lib/notes/parcelle-depuis-ban';
+import { BAN_LIEN_CERTAIN } from '@/lib/notes/match';
 
 type Admin = SupabaseClient<Database>;
 
@@ -94,7 +95,7 @@ export async function propagerLienVersParcelle(
     }
   }
 
-  const parcelleId = await parcelleIdDepuisBan(admin, banId);
+  const parcelleId = banId ? await parcelleDeLAdresse(admin, { banId }) : null;
   if (parcelleId) {
     await linkNoteToParcelle(admin, {
       agencyId: args.agencyId,
@@ -102,4 +103,28 @@ export async function propagerLienVersParcelle(
       parcelleId,
     });
   }
+}
+
+/** L'adresse posée sur la note devient un rattachement (immeuble, puis parcelle) : la carte la retrouve. */
+export async function rattacherAdresseDeLaNote(
+  admin: Admin,
+  args: { agencyId: string; noteId: string },
+): Promise<void> {
+  const { data: note } = await admin
+    .from('voice_notes')
+    .select('ban_id, geocode_score')
+    .eq('id', args.noteId)
+    .eq('agency_id', args.agencyId)
+    .maybeSingle();
+  const banId = typeof note?.ban_id === 'string' ? note.ban_id.trim() : '';
+  if (!banId || banId.startsWith('gps:')) return;
+  // Une adresse devinée de loin ne s'impose pas : l'agent la relie lui-même s'il le veut.
+  if (typeof note?.geocode_score === 'number' && note.geocode_score < BAN_LIEN_CERTAIN) return;
+  await linkNoteToImmeuble(admin, { agencyId: args.agencyId, noteId: args.noteId, banId });
+  await propagerLienVersParcelle(admin, {
+    agencyId: args.agencyId,
+    noteId: args.noteId,
+    entiteType: 'immeuble',
+    entiteId: banId,
+  });
 }

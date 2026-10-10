@@ -41,7 +41,7 @@ describe('composeTypedNote', () => {
       '6 rue des Maronites, Paris',
     );
     assert.match(transcript, /^Vendeur\n/);
-    assert.match(transcript, /Immeuble : 6 rue des Maronites/);
+    assert.match(transcript, /Adresse : 6 rue des Maronites/);
     assert.doesNotMatch(transcript, /Tél/);
     assert.doesNotMatch(transcript, /m²/);
     assert.equal(extraction.personnes.length, 0);

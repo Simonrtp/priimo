@@ -36,6 +36,7 @@ import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMar
 import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
 import CibleRecherche from '@/components/dashboard/carte/CibleRecherche';
+import VolCarte from '@/components/dashboard/carte/VolCarte';
 import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
@@ -81,6 +82,8 @@ export default function SectorMapCanvas({
   highlightedZoneId = null,
   clipZone = null,
   cible = null,
+  focus = null,
+  tenirLaVue = false,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -109,6 +112,9 @@ export default function SectorMapCanvas({
   clipZone?: Zone | null;
   /** L'adresse demandée dans la barre de recherche. */
   cible?: CibleCarte | null;
+  /** Lieu d'une note : la carte s'y pose, sans relancer le cadrage du secteur. */
+  focus?: { cle: string; latitude: number; longitude: number } | null;
+  tenirLaVue?: boolean;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -231,7 +237,7 @@ export default function SectorMapCanvas({
     : '';
 
   // Une adresse cherchée garde la main : la carte ne repart pas sur tout le secteur.
-  const cibleActive = Boolean(cible);
+  const cibleActive = Boolean(cible) || tenirLaVue;
   useEffect(() => {
     if (cibleActive) return;
     fitToPoints(true);
@@ -346,6 +352,8 @@ export default function SectorMapCanvas({
             onSelect={onSelect}
             onSelectParcelle={onSelectParcelle}
           />
+        ) : focus ? (
+          <VolCarte latitude={focus.latitude} longitude={focus.longitude} cle={focus.cle} />
         ) : null}
         <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
         {itineraryStops && itineraryStops.length >= 2 ? (

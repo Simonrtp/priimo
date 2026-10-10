@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Home, MapPin, Plus, Search, Target, UserRound, type LucideIcon } from 'lucide-react';
+import Select from '@/components/ui/Select';
 import type { NoteLienEntite } from '@/types/contact';
 import { banFeatureToSelectedAddress, searchBanAddresses } from '@/lib/ban';
 import { filtrerCatalogue, type RattacherItem } from '@/lib/notes/rattacher-catalogue';
@@ -42,12 +43,14 @@ type Resultat =
 
 type Groupe = 'contact' | 'bien' | 'lead' | 'adresse' | 'creer';
 
-const TITRES: Record<Exclude<Groupe, 'creer'>, string> = {
-  contact: 'Contacts',
-  bien: 'Biens de l’agence',
-  lead: 'Prospects',
-  adresse: 'Adresses du secteur',
-};
+type Cible = 'contact' | 'bien' | 'lead' | 'adresse';
+
+const CIBLES: { id: Cible; label: string; placeholder: string; vide: string }[] = [
+  { id: 'contact', label: 'Avec un contact', placeholder: 'Un nom, un téléphone…', vide: 'Aucun contact.' },
+  { id: 'bien', label: 'Avec un bien', placeholder: 'Une adresse de bien…', vide: 'Aucun bien.' },
+  { id: 'lead', label: 'Avec un prospect', placeholder: 'Un nom de prospect…', vide: 'Aucun prospect.' },
+  { id: 'adresse', label: 'Avec une adresse', placeholder: 'Numéro et rue…', vide: 'Aucune adresse.' },
+];
 
 const ICONES: Record<Exclude<Groupe, 'creer'>, LucideIcon> = {
   contact: UserRound,
@@ -67,9 +70,8 @@ const MIN_LOCAL = 2;
 const MIN_BAN = 3;
 
 /**
- * Lier une note (ou une estimation) : un seul champ. Les fiches de l'agence
- * d'abord, puis toutes les adresses du secteur — un immeuble qui n'est pas
- * encore un bien se rattache quand même.
+ * Lier une note (ou une estimation). On choisit d'abord le type
+ * (contact, bien, prospect, adresse), puis on cherche seulement dedans.
  */
 export default function NoteEntitySearch({
   onPick,
@@ -96,8 +98,10 @@ export default function NoteEntitySearch({
   const generatedId = useId();
   const champId = id ?? `${generatedId}-champ`;
   const listeId = `${generatedId}-liste`;
+  const [cibleChoisie, setCibleChoisie] = useState<Cible>('contact');
   const [saisie, setSaisie] = useState('');
   const [ouvert, setOuvert] = useState(false);
+  const champRef = useRef<HTMLInputElement | null>(null);
   const [actif, setActif] = useState(0);
   const [catalogue, setCatalogue] = useState<Record<'contact' | 'bien' | 'lead', RattacherItem[]>>({
     contact: [],
@@ -105,6 +109,7 @@ export default function NoteEntitySearch({
     lead: [],
   });
   const [centre, setCentre] = useState<Centre | null>(null);
+  const [adresseEnCours, setAdresseEnCours] = useState(false);
   const [adressesTrouvees, setAdressesTrouvees] = useState<
     {
       id: string;
@@ -143,11 +148,16 @@ export default function NoteEntitySearch({
     };
   }, []);
 
+  const cibles = adresses ? CIBLES : CIBLES.filter((c) => c.id !== 'adresse');
+  const cible = cibles.some((c) => c.id === cibleChoisie) ? cibleChoisie : 'contact';
+  const meta = cibles.find((c) => c.id === cible) ?? cibles[0];
+
   // Les adresses, au plus près du secteur de l'agent.
   const q = saisie.trim();
   useEffect(() => {
-    if (!adresses || q.length < MIN_BAN) return;
+    if (!adresses || cible !== 'adresse' || q.length < MIN_BAN) return;
     const ac = new AbortController();
+    setAdresseEnCours(true);
     const t = window.setTimeout(() => {
       void searchBanAddresses(q, 6, undefined, ac.signal, centre)
         .then((features) =>
@@ -169,13 +179,16 @@ export default function NoteEntitySearch({
             }),
           ),
         )
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          if (!ac.signal.aborted) setAdresseEnCours(false);
+        });
     }, 220);
     return () => {
       window.clearTimeout(t);
       ac.abort();
     };
-  }, [adresses, q, centre]);
+  }, [adresses, cible, q, centre]);
 
   // Un clic ailleurs referme la liste.
   useEffect(() => {
@@ -189,26 +202,27 @@ export default function NoteEntitySearch({
 
   const resultats = useMemo<Resultat[]>(() => {
     const out: Resultat[] = [];
+    if (cible === 'adresse') {
+      if (q.length >= MIN_BAN) {
+        // Une adresse déjà suivie comme bien n'apparaît qu'une fois.
+        const dejaBiens = new Set(catalogue.bien.map((b) => b.banId).filter(Boolean));
+        for (const a of adressesTrouvees) {
+          if (excludeIds?.has(`immeuble:${a.id}`) || dejaBiens.has(a.id)) continue;
+          out.push({ cle: `adresse:${a.id}`, groupe: 'adresse', adresse: a });
+        }
+      }
+      return out;
+    }
     if (q.length >= MIN_LOCAL) {
-      for (const groupe of ['contact', 'bien', 'lead'] as const) {
-        const items = filtrerCatalogue(
-          catalogue[groupe].filter((item) => !excludeIds?.has(`${ENTITE[groupe]}:${item.id}`)),
-          q,
-        ).slice(0, PAR_GROUPE);
-        for (const item of items) out.push({ cle: `${groupe}:${item.id}`, groupe, item });
-      }
+      const items = filtrerCatalogue(
+        catalogue[cible].filter((item) => !excludeIds?.has(`${ENTITE[cible]}:${item.id}`)),
+        q,
+      ).slice(0, PAR_GROUPE);
+      for (const item of items) out.push({ cle: `${cible}:${item.id}`, groupe: cible, item });
     }
-    if (adresses && q.length >= MIN_BAN) {
-      // Une adresse déjà suivie comme bien n'apparaît qu'une fois.
-      const dejaBiens = new Set(catalogue.bien.map((b) => b.banId).filter(Boolean));
-      for (const a of adressesTrouvees) {
-        if (excludeIds?.has(`immeuble:${a.id}`) || dejaBiens.has(a.id)) continue;
-        out.push({ cle: `adresse:${a.id}`, groupe: 'adresse', adresse: a });
-      }
-    }
-    if (onCreateContact) out.push({ cle: '__create__', groupe: 'creer' });
+    if (cible === 'contact' && onCreateContact) out.push({ cle: '__create__', groupe: 'creer' });
     return out;
-  }, [q, catalogue, excludeIds, adresses, adressesTrouvees, onCreateContact]);
+  }, [q, catalogue, excludeIds, cible, adressesTrouvees, onCreateContact]);
 
   function choisir(r: Resultat) {
     setSaisie('');
@@ -254,8 +268,20 @@ export default function NoteEntitySearch({
     });
   }
 
-  const visibles = ouvert && (q.length >= MIN_LOCAL || onCreateContact) ? resultats : [];
+  const min = cible === 'adresse' ? MIN_BAN : MIN_LOCAL;
+  const visibles =
+    ouvert && (q.length >= min || (cible === 'contact' && onCreateContact)) ? resultats : [];
   const indexActif = Math.min(actif, Math.max(visibles.length - 1, 0));
+
+  function changerCible(valeur: string) {
+    if (valeur !== 'contact' && valeur !== 'bien' && valeur !== 'lead' && valeur !== 'adresse') return;
+    setCibleChoisie(valeur);
+    setSaisie('');
+    setActif(0);
+    setAdressesTrouvees([]);
+    setOuvert(true);
+    champRef.current?.focus();
+  }
 
   return (
     <div className={className} ref={boite}>
@@ -269,50 +295,62 @@ export default function NoteEntitySearch({
         </label>
       ) : null}
       <div>
-        <div className="relative">
-          <Search
-            size={15}
-            aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
-          />
-          <input
-            id={champId}
-            value={saisie}
+        <div className="flex overflow-hidden rounded-xl border border-black/10 bg-white focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100">
+          <Select
+            aria-label="Type de rattachement"
+            value={cible}
             disabled={disabled}
-            autoComplete="off"
-            role="combobox"
-            aria-expanded={visibles.length > 0}
-            aria-controls={listeId}
-            aria-activedescendant={visibles[indexActif] ? `${listeId}-${indexActif}` : undefined}
-            placeholder={adresses ? 'Un contact, un bien, une adresse…' : 'Un contact, un bien, un prospect…'}
-            onChange={(e) => {
-              setSaisie(e.target.value);
-              setOuvert(true);
-              setActif(0);
-              if (e.target.value.trim().length < MIN_BAN) setAdressesTrouvees([]);
-            }}
-            onFocus={() => setOuvert(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setOuvert(true);
-                setActif((i) => Math.min(i + 1, visibles.length - 1));
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setActif((i) => Math.max(i - 1, 0));
-              } else if (e.key === 'Enter') {
-                const r = visibles[indexActif];
-                if (r) {
-                  e.preventDefault();
-                  choisir(r);
-                }
-              } else if (e.key === 'Escape' && ouvert) {
-                e.stopPropagation();
-                setOuvert(false);
-              }
-            }}
-            className="w-full rounded-xl border border-black/10 bg-white py-2.5 pl-9 pr-3 text-[14px] text-text-strong outline-none placeholder:text-text-subtle focus:border-primary-400 focus:ring-2 focus:ring-primary-100 disabled:opacity-60"
+            onChange={changerCible}
+            options={cibles.map((c) => ({ value: c.id, label: c.label }))}
+            className="shrink-0 self-stretch border-r border-black/10"
+            triggerClassName="flex h-full min-w-[12.5rem] items-center gap-1.5 whitespace-nowrap bg-transparent py-2.5 pl-3 pr-2.5 text-left text-[13.5px] font-medium text-text-strong outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
+          <div className="relative min-w-0 flex-1">
+            <Search
+              size={15}
+              aria-hidden
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
+            />
+            <input
+              ref={champRef}
+              id={champId}
+              value={saisie}
+              disabled={disabled}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={visibles.length > 0}
+              aria-controls={listeId}
+              aria-activedescendant={visibles[indexActif] ? `${listeId}-${indexActif}` : undefined}
+              placeholder={meta.placeholder}
+              onChange={(e) => {
+                setSaisie(e.target.value);
+                setOuvert(true);
+                setActif(0);
+                if (e.target.value.trim().length < MIN_BAN) setAdressesTrouvees([]);
+              }}
+              onFocus={() => setOuvert(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setOuvert(true);
+                  setActif((i) => Math.min(i + 1, visibles.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActif((i) => Math.max(i - 1, 0));
+                } else if (e.key === 'Enter') {
+                  const r = visibles[indexActif];
+                  if (r) {
+                    e.preventDefault();
+                    choisir(r);
+                  }
+                } else if (e.key === 'Escape' && ouvert) {
+                  e.stopPropagation();
+                  setOuvert(false);
+                }
+              }}
+              className="w-full bg-transparent py-2.5 pl-9 pr-3 text-[14px] text-text-strong outline-none placeholder:text-text-subtle disabled:opacity-60"
+            />
+          </div>
         </div>
         {visibles.length > 0 ? (
           <ul
@@ -322,31 +360,24 @@ export default function NoteEntitySearch({
             // (overflow caché) la coupait.
             className="mt-1.5 max-h-72 w-full overflow-y-auto overscroll-contain rounded-xl border border-black/[0.10] bg-surface py-1 shadow-clay-sm"
           >
-            {visibles.map((r, i) => {
-              const precedent = visibles[i - 1];
-              const titre = r.groupe !== 'creer' && precedent?.groupe !== r.groupe ? TITRES[r.groupe] : null;
-              return (
-                <li key={r.cle} role="presentation">
-                  {titre ? (
-                    <p className="px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
-                      {titre}
-                    </p>
-                  ) : null}
-                  <Option
-                    id={`${listeId}-${i}`}
-                    actif={i === indexActif}
-                    resultat={r}
-                    onSurvol={() => setActif(i)}
-                    onChoisir={() => choisir(r)}
-                  />
-                </li>
-              );
-            })}
+            {visibles.map((r, i) => (
+              <li key={r.cle} role="presentation">
+                <Option
+                  id={`${listeId}-${i}`}
+                  actif={i === indexActif}
+                  resultat={r}
+                  onSurvol={() => setActif(i)}
+                  onChoisir={() => choisir(r)}
+                />
+              </li>
+            ))}
           </ul>
         ) : null}
       </div>
-      {adresses && ouvert && q.length >= MIN_BAN && !/\d/.test(q) ? (
+      {cible === 'adresse' && ouvert && q.length >= MIN_BAN && !/\d/.test(q) ? (
         <p className="mt-1.5 text-[12px] text-text-subtle">Avec le numéro, toutes les adresses du secteur.</p>
+      ) : ouvert && q.length >= min && visibles.length === 0 && !adresseEnCours ? (
+        <p className="mt-1.5 text-[12px] text-text-subtle">{meta.vide}</p>
       ) : null}
       {hint ? <p className="mt-1.5 text-[12px] text-text-subtle">{hint}</p> : null}
     </div>

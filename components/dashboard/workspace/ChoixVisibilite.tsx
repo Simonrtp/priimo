@@ -1,7 +1,6 @@
 'use client';
 
 import { Lock, Users } from 'lucide-react';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 
 export type Visibilite = 'privee' | 'agence';
 
@@ -47,33 +46,40 @@ export default function ChoixVisibilite({
 }) {
   const textes = TEXTES[objet];
   const aide = disabled && aideVerrou ? aideVerrou : textes[value].aide;
+  const index = ORDRE.indexOf(value);
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div role="radiogroup" aria-label={textes.titre} className={PASTILLE_TRACK}>
-        {ORDRE.map((option) => {
-          const actif = option === value;
-          const Icone = option === 'privee' ? Lock : Users;
-          return (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={actif}
-              disabled={disabled}
-              onClick={() => {
-                if (!actif) onChange(option);
-              }}
-              className={`${pastilleClass(actif)} inline-flex min-h-9 items-center gap-1.5 disabled:cursor-not-allowed ${
-                disabled && !actif ? 'opacity-50' : ''
-              }`}
-            >
-              <Icone size={13} strokeWidth={2.2} aria-hidden />
-              {textes[option].label}
-            </button>
-          );
-        })}
-      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value === 'agence'}
+        aria-label={textes.titre}
+        disabled={disabled}
+        onClick={() => onChange(value === 'privee' ? 'agence' : 'privee')}
+        className="inline-flex h-9 w-fit items-center rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text transition-colors hover:bg-black/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="inline-grid h-5 overflow-hidden">
+          <span
+            className="col-start-1 row-start-1 flex min-h-0 flex-col transition-transform duration-200 ease-out motion-reduce:transition-none"
+            style={{ transform: `translateY(calc(${index} * -1.25rem))` }}
+          >
+            {ORDRE.map((option) => {
+              const Icone = option === 'privee' ? Lock : Users;
+              return (
+                <span
+                  key={option}
+                  aria-hidden={option !== value}
+                  className="flex h-5 items-center gap-1.5 whitespace-nowrap"
+                >
+                  <Icone size={14} strokeWidth={2} aria-hidden />
+                  {textes[option].label}
+                </span>
+              );
+            })}
+          </span>
+        </span>
+      </button>
       {avecAide ? <p className="text-pretty text-[12px] text-text-muted">{aide}</p> : null}
     </div>
   );

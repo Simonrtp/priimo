@@ -287,6 +287,7 @@ export default function CadastreLayerControls({
         className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
         aria-hidden={!open}
       >
+        <div>
         <ul className={`mt-0.5 flex flex-col gap-0.5 pb-1 ${compact ? 'pl-3' : 'pl-6'}`}>
           <li className={`rounded-xl ${pad}`}>
             <button
@@ -368,6 +369,7 @@ export default function CadastreLayerControls({
             );
           })}
         </ul>
+        </div>
       </div>
     </li>
   );

@@ -6,6 +6,7 @@ import { NOTE_CONFIANCE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { TerrainNote } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
+import { Field } from '@/components/dashboard/workspace/Field';
 import ChoixVisibilite from '@/components/dashboard/workspace/ChoixVisibilite';
 import { formatParcelleId } from '@/lib/carte/parcelle-id';
 import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
@@ -150,7 +151,7 @@ export default function NotesTerrainList({
             </p>
             {lienIci && !probable ? (
               <p className="mt-2 text-[12.5px] font-medium text-text-muted">
-                Rattachée à {LIBELLE_ENTITE[entiteType].toLowerCase()}
+                Rattachée à {entiteType === 'immeuble' ? 'une adresse' : LIBELLE_ENTITE[entiteType].toLowerCase()}
                 {entiteType === 'parcelle' ? ` ${formatParcelleId(entiteId)}` : ''}
               </p>
             ) : null}
@@ -174,11 +175,13 @@ export default function NotesTerrainList({
             ) : null}
             {mine ? (
               <div className="mt-3">
-                <ChoixVisibilite
-                  objet="note"
-                  value={note.visibilite}
-                  onChange={(next) => void patchVisibilite(note.id, next)}
-                />
+                <Field label="Partage">
+                  <ChoixVisibilite
+                    objet="note"
+                    value={note.visibilite}
+                    onChange={(next) => void patchVisibilite(note.id, next)}
+                  />
+                </Field>
               </div>
             ) : null}
           </li>

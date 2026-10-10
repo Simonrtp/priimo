@@ -1,6 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { contactGeocodeQuery, geocodeToColumns, type BanGeoColumns } from '@/lib/geo/fields';
+import {
+  contactGeocodeQuery,
+  geocoderAdresseDictee,
+  type BanGeoColumns,
+  type TerritoireAgence,
+} from '@/lib/geo/fields';
 import { reverseGeocode } from '@/lib/geo/ban';
+import { toGeoCoord } from '@/lib/carte/coords';
+import { rattacherAdresseDeLaNote } from '@/lib/notes/parcelle-lien';
+import { parcelleDeLAdresse } from '@/lib/notes/parcelle-depuis-ban';
 import { mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
 import {
   extractNotePropositions,
@@ -190,6 +198,36 @@ async function geoDuLieu(lieu: LieuConnu | undefined): Promise<BanGeoColumns> {
   return GEO_VIDE;
 }
 
+/** Ce que le rangement a déjà décidé : adresse confirmée par l'agent (score 1) ou retirée (vidée, date posée). */
+async function etatDeLaNote(
+  admin: Admin,
+  agencyId: string,
+  noteId: string,
+): Promise<{ rangee: boolean; adresseChoisie: boolean }> {
+  const { data } = await admin
+    .from('voice_notes')
+    .select('statut, ban_id, geocode_score, geocode_le')
+    .eq('id', noteId)
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+  if (!data) return { rangee: false, adresseChoisie: false };
+  const rangee = data.statut === 'revue';
+  const retiree = !data.ban_id && Boolean(data.geocode_le);
+  return { rangee, adresseChoisie: rangee && (retiree || data.geocode_score === 1) };
+}
+
+async function territoireDeLAgence(admin: Admin, agencyId: string, lieu?: LieuConnu): Promise<TerritoireAgence> {
+  const { data } = await admin
+    .from('agencies')
+    .select('codes_postaux, latitude, longitude')
+    .eq('id', agencyId)
+    .maybeSingle();
+  return {
+    codesPostaux: data?.codes_postaux ?? [],
+    centre: toGeoCoord(data?.latitude, data?.longitude) ?? toGeoCoord(lieu?.latitude, lieu?.longitude),
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Lecture qui fait foi                                                        */
 /* -------------------------------------------------------------------------- */
@@ -252,7 +290,11 @@ export async function extractAndBuildReview(args: {
     extractFailed = Boolean(transcript);
   }
 
-  if (!args.keepAdresse) {
+  // L'agent a pu ranger la note pendant cette lecture : son choix d'adresse ne se réécrit pas.
+  const etat = await etatDeLaNote(args.admin, args.agencyId, args.voiceNoteId);
+  const adresseFigee = Boolean(args.keepAdresse) || etat.adresseChoisie;
+
+  if (!adresseFigee) {
     const adresseDite =
       extraction?.address ?? (transcript ? guessAdresseFromTranscript(transcript) : null);
     if (adresseDite && extraction && !extraction.address) {
@@ -262,7 +304,10 @@ export async function extractAndBuildReview(args: {
     }
     const query = adresseDite ? contactGeocodeQuery(adresseDite, null, null) : null;
     if (query) {
-      const columns = await geocodeToColumns(query.adresse, query.codePostal);
+      const columns = await geocoderAdresseDictee(
+        query.adresse,
+        await territoireDeLAgence(args.admin, args.agencyId, args.lieuConnu),
+      );
       geo = { ...geo, ...columns };
     }
     if (!geo.ban_id) {
@@ -282,7 +327,7 @@ export async function extractAndBuildReview(args: {
         ...(args.keepGps || geo.latitude == null
           ? {}
           : { latitude: geo.latitude, longitude: geo.longitude }),
-        ...(args.keepAdresse || !geo.ban_id
+        ...(adresseFigee || !geo.ban_id
           ? {}
           : {
               ban_id: geo.ban_id,
@@ -294,6 +339,19 @@ export async function extractAndBuildReview(args: {
       })
       .eq('id', args.voiceNoteId)
       .eq('agency_id', args.agencyId);
+    if (!adresseFigee && geo.ban_id) {
+      try {
+        // Rangée avant la fin de la lecture : le rangement n'a pas pu rattacher l'adresse dite.
+        if (etat.rangee) {
+          await rattacherAdresseDeLaNote(args.admin, { agencyId: args.agencyId, noteId: args.voiceNoteId });
+        } else {
+          // L'index apprend la parcelle de l'adresse : la note se retrouve sur le plan, même avant revue.
+          await parcelleDeLAdresse(args.admin, { banId: geo.ban_id });
+        }
+      } catch (err) {
+        console.error('[voice] adresse de la note', err instanceof Error ? err.message : err);
+      }
+    }
   } else if (transcript) {
     await args.admin
       .from('voice_notes')

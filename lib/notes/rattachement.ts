@@ -5,7 +5,7 @@ export const LIBELLE_ENTITE: Record<NoteLienEntite, string> = {
   contact: 'Contact',
   bien: 'Bien',
   lead: 'Prospect',
-  immeuble: 'Immeuble',
+  immeuble: 'Adresse',
   parcelle: 'Parcelle',
 };
 
@@ -16,11 +16,55 @@ export type RattachementAffiche = {
   href: string | null;
 };
 
-export function hrefRattachement(type: NoteLienEntite, id: string): string | null {
+export type LieuCarte = {
+  latitude: number;
+  longitude: number;
+  libelle: string;
+};
+
+function lieuValide(lieu: LieuCarte | null | undefined): lieu is LieuCarte {
+  return Boolean(
+    lieu &&
+      Number.isFinite(lieu.latitude) &&
+      Number.isFinite(lieu.longitude) &&
+      Math.abs(lieu.latitude) <= 90 &&
+      Math.abs(lieu.longitude) <= 180,
+  );
+}
+
+/** L'immeuble sur la carte : la fiche s'ouvre, et la carte s'y pose si on a le point. */
+export function hrefImmeuble(id: string, lieu?: LieuCarte | null): string {
+  const params = new URLSearchParams({ vue: 'carte', immeuble: id });
+  if (lieuValide(lieu)) {
+    params.set('pos', `${lieu.latitude.toFixed(6)},${lieu.longitude.toFixed(6)}`);
+    const libelle = lieu.libelle.trim().slice(0, 160);
+    if (libelle) params.set('libelle', libelle);
+  }
+  return `/dashboard/prospection?${params.toString()}`;
+}
+
+/** Le volet de la parcelle, sur la carte. */
+export function hrefParcelle(id: string): string {
+  return `/dashboard/prospection?vue=carte&parcelle=${encodeURIComponent(id)}`;
+}
+
+/** `lat,lng` posé à côté de `immeuble` — distinct de la recherche d'adresse. */
+export function lirePosCarte(raw: string | null | undefined): { latitude: number; longitude: number } | null {
+  const m = raw?.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const latitude = Number(m[1]);
+  const longitude = Number(m[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return { latitude, longitude };
+}
+
+export function hrefRattachement(type: NoteLienEntite, id: string, lieu?: LieuCarte | null): string {
   if (type === 'contact') return `/dashboard/contacts?fiche=${encodeURIComponent(id)}`;
   if (type === 'bien') return `/dashboard/biens?fiche=${encodeURIComponent(id)}`;
   if (type === 'lead') return `/dashboard/prospection?lead=${encodeURIComponent(id)}`;
-  return null;
+  if (type === 'immeuble') return hrefImmeuble(id, lieu);
+  return hrefParcelle(id);
 }
 
 /** Libellé d'une parcelle : la référence cadastrale, pas l'identifiant compact. */

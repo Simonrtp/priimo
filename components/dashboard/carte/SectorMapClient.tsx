@@ -11,10 +11,13 @@ import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
   entitiesByKind,
+  ficheImmeubleOuverte,
   filterMapEntities,
   groupEntitiesByBanId,
+  pointDuLien,
   type MapPeriod,
   type MapViewport,
+  type RepliImmeuble,
 } from '@/lib/carte/buildings';
 import {
   MAP_LAYER_LABELS,
@@ -227,6 +230,8 @@ export default function SectorMapClient({
   members,
   isDirector,
   initialBanId = null,
+  initialBanPos = null,
+  initialParcelleId = null,
   embedded = false,
   viewSwitcher = null,
   itineraryStops: itineraryStopsProp = null,
@@ -241,6 +246,10 @@ export default function SectorMapClient({
   members: readonly AssigneeOption[];
   isDirector: boolean;
   initialBanId?: string | null;
+  /** Point de l'immeuble quand il n'est pas déjà une pastille de la carte. */
+  initialBanPos?: RepliImmeuble | null;
+  /** Ouvre le volet de cette parcelle dès l'arrivée. */
+  initialParcelleId?: string | null;
   /** Dans Prospection : carte plein cadre, sans bandeau au-dessus. */
   embedded?: boolean;
   /** Liste / Pipeline / Carte — overlay haut-droite sur la carte. */
@@ -331,7 +340,20 @@ export default function SectorMapClient({
   );
 
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
-  const selected = buildings.find((b) => b.banId === selectedBanId) ?? null;
+  const selected = useMemo(
+    () => ficheImmeubleOuverte(buildings, selectedBanId, initialBanPos),
+    [buildings, selectedBanId, initialBanPos],
+  );
+  const focusLien = useMemo(
+    () =>
+      pointDuLien({
+        parcelleDemandee: initialParcelleId,
+        parcelleOuverte: parcelle.fiche,
+        immeuble: selected,
+        immeubleDemande: initialBanId,
+      }),
+    [initialParcelleId, parcelle.fiche, selected, initialBanId],
+  );
 
   const counts = useMemo(
     () => countKindsInViewport(filteredAllKinds, null),
@@ -349,6 +371,13 @@ export default function SectorMapClient({
   useEffect(() => {
     if (selected) panelTitleRef.current?.focus();
   }, [selected]);
+
+  const parcelleOuverte = useRef(false);
+  useEffect(() => {
+    if (!initialParcelleId || parcelleOuverte.current) return;
+    parcelleOuverte.current = true;
+    parcelle.openParcelle(initialParcelleId);
+  }, [initialParcelleId, parcelle.openParcelle]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -474,6 +503,8 @@ export default function SectorMapClient({
           buildings={buildings}
           center={center}
           cible={cible}
+          focus={focusLien}
+          tenirLaVue={Boolean(initialParcelleId) || Boolean(focusLien)}
           selectedBanId={selectedBanId}
           onSelect={(building) => {
             parcelle.closeParcelle();

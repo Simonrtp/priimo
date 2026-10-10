@@ -38,6 +38,8 @@ async function parcelleDeLAdresse(cible: CibleCarte): Promise<{ parcelleId: stri
     lon: cible.longitude.toFixed(6),
   });
   if (cible.banId) params.set('ban', cible.banId);
+  const codePostal = /\b\d{5}\b/.exec(cible.libelle)?.[0];
+  if (codePostal) params.set('cp', codePostal);
   try {
     const res = await fetch(`/api/carte/parcelle-au-point?${params.toString()}`);
     if (!res.ok) return null;

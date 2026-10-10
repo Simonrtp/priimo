@@ -105,7 +105,7 @@ export function composeTypedNote(
   if (sourceInfo) {
     lines.push(`Source : ${NOTE_SOURCE_LABELS[sourceInfo]}`);
   }
-  if (address) lines.push(`Immeuble : ${address}`);
+  if (address) lines.push(`Adresse : ${address}`);
 
   const body = draft.body.trim();
   if (body) {

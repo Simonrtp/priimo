@@ -838,55 +838,6 @@ export default function ParcellePanel({
           >
             {title}
           </h2>
-          {pastillesEntete.length > 0 || plusieursAdresses ? (
-            <ul
-              className="mt-2 flex flex-wrap items-center gap-1.5"
-              title={refParcelle}
-              aria-label={[synthese.immeuble, refParcelle, surface ? `${surface} m² de terrain` : null]
-                .filter(Boolean)
-                .join('. ')}
-            >
-              {pastillesEntete.map((p) => (
-                <li
-                  key={p.cle}
-                  className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted"
-                >
-                  {p.libelle}
-                </li>
-              ))}
-              {plusieursAdresses ? (
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setAdressesOuvertes((v) => !v)}
-                    aria-expanded={adressesOuvertes}
-                    aria-label={`${fiche.adresses.length} adresses sur la parcelle`}
-                    className="inline-flex h-7 items-center gap-1 rounded-full bg-bg-subtle pl-2.5 pr-2 text-[12px] font-semibold text-text-muted transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                  >
-                    {fiche.adresses.length}&nbsp;adr.
-                    <ChevronDown
-                      size={13}
-                      aria-hidden
-                      className={`transition-transform ${adressesOuvertes ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                </li>
-              ) : null}
-            </ul>
-          ) : (
-            <p className="mt-1 text-[12.5px] text-text-subtle" title={refParcelle}>
-              {refParcelle}
-            </p>
-          )}
-          {adressesOuvertes ? (
-            <ul className="mt-2 flex flex-col gap-1">
-              {fiche.adresses.map((a) => (
-                <li key={a.banId} className="truncate text-[13px] text-text">
-                  {a.libelle}
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {suivi.disponible ? (
@@ -920,6 +871,55 @@ export default function ParcellePanel({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6">
+        {pastillesEntete.length > 0 || plusieursAdresses ? (
+          <ul
+            className="mb-3 flex flex-wrap items-center gap-1.5"
+            title={refParcelle}
+            aria-label={[synthese.immeuble, refParcelle, surface ? `${surface} m² de terrain` : null]
+              .filter(Boolean)
+              .join('. ')}
+          >
+            {pastillesEntete.map((p) => (
+              <li
+                key={p.cle}
+                className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted"
+              >
+                {p.libelle}
+              </li>
+            ))}
+            {plusieursAdresses ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setAdressesOuvertes((v) => !v)}
+                  aria-expanded={adressesOuvertes}
+                  aria-label={`${fiche.adresses.length} adresses sur la parcelle`}
+                  className="inline-flex h-7 items-center gap-1 rounded-full bg-bg-subtle pl-2.5 pr-2 text-[12px] font-semibold text-text-muted transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  {fiche.adresses.length}&nbsp;adr.
+                  <ChevronDown
+                    size={13}
+                    aria-hidden
+                    className={`transition-transform ${adressesOuvertes ? 'rotate-180' : ''}`}
+                  />
+                </button>
+              </li>
+            ) : null}
+          </ul>
+        ) : (
+          <p className="mb-3 text-[12.5px] text-text-subtle" title={refParcelle}>
+            {refParcelle}
+          </p>
+        )}
+        {adressesOuvertes ? (
+          <ul className="-mt-1 mb-3 flex flex-col gap-1">
+            {fiche.adresses.map((a) => (
+              <li key={a.banId} className="truncate text-[13px] text-text">
+                {a.libelle}
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {fiche.position && fiche.adresse ? (
           <div className="relative mb-3">
             <FacadeStreetLook

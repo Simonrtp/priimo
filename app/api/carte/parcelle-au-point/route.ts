@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { estEnAttente } from '@/lib/billing/acces';
-import { parcelleIdDepuisBan } from '@/lib/notes/parcelle-depuis-ban';
+import { parcelleDeLAdresse, retenirAdresseDeParcelle } from '@/lib/notes/parcelle-depuis-ban';
 import { fetchParcelleAuPoint } from '@/lib/geo/cadastre-point';
 
 export const runtime = 'nodejs';
@@ -35,11 +35,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Adresse inconnue' }, { status: 400 });
   }
 
+  const admin = createSupabaseAdminClient();
+  const codePostal = params.get('cp');
   let parcelleId: string | null = null;
   let surfaceM2: number | null = null;
   if (banId) {
     try {
-      parcelleId = await parcelleIdDepuisBan(createSupabaseAdminClient(), banId);
+      parcelleId = await parcelleDeLAdresse(admin, { banId, codePostal, parIgn: false });
     } catch (err) {
       console.error('[carte] parcelle par adresse', err);
     }
@@ -48,6 +50,10 @@ export async function GET(req: Request) {
     const auPoint = await fetchParcelleAuPoint({ latitude, longitude });
     parcelleId = auPoint?.parcelleId ?? null;
     surfaceM2 = auPoint?.surfaceM2 ?? null;
+    // Sans ce lien, les notes et DPE de l'adresse restent invisibles dans le volet de la parcelle.
+    if (banId && parcelleId) {
+      await retenirAdresseDeParcelle(admin, { banId, parcelleId, source: 'apicarto', codePostal });
+    }
   }
 
   return NextResponse.json(

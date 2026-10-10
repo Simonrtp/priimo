@@ -15,7 +15,8 @@ import { colonnesDepuisChamps, completerContact } from '@/lib/contacts/modificat
 import { parseContactInput } from '@/lib/contact-input';
 import { canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { fetchContactById, fetchContactsDuplicateLite, updateContactRow } from '@/lib/queries/contacts';
-import { propagerLienVersParcelle } from '@/lib/notes/parcelle-lien';
+import { propagerLienVersParcelle, rattacherAdresseDeLaNote } from '@/lib/notes/parcelle-lien';
+import { parcelleIdDepuisBan } from '@/lib/notes/parcelle-depuis-ban';
 import type { ContactType } from '@/types/contact';
 import type {
   NoteLienConfianceDb,
@@ -78,7 +79,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
   const [{ data: note }, members, supabase] = await Promise.all([
     admin
       .from('voice_notes')
-      .select('id, agency_id, created_by, transcript, structured')
+      .select('id, agency_id, created_by, transcript, structured, ban_id, geocode_score')
       .eq('id', voiceNoteId)
       .eq('agency_id', agency.id)
       .maybeSingle(),
@@ -232,6 +233,60 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
       }
     }
   }
+  /* ------------------------------------------------------- Adresse de la note */
+  // Le serveur rattache lui-même l'adresse : le téléphone a pu ranger avant la fin de la lecture.
+  const adresseGardee = objet(body.adresse);
+  const banBrut = adresseGardee ? str(adresseGardee.banId, 64) : null;
+  const banGarde = banBrut && /^[0-9A-Za-z_]+$/.test(banBrut) ? banBrut : null;
+  const ancienBan = typeof note.ban_id === 'string' && note.ban_id ? note.ban_id : null;
+  const oublierLien = (entiteType: NoteLienEntiteDb, entiteId: string) =>
+    admin
+      .from('note_liens')
+      .delete()
+      .eq('note_id', voiceNoteId)
+      .eq('agency_id', agency.id)
+      .eq('entite_type', entiteType)
+      .eq('entite_id', entiteId);
+  if (body.adresseRetiree === true) {
+    // Vidée mais datée : la lecture encore en cours saura que l'agent l'a écartée.
+    await admin
+      .from('voice_notes')
+      .update({ ban_id: null, adresse_normalisee: null, geocode_score: null, geocode_le: new Date().toISOString() })
+      .eq('id', voiceNoteId)
+      .eq('agency_id', agency.id);
+    if (ancienBan && !lignes.has(`immeuble:${ancienBan}`)) {
+      await oublierLien('immeuble', ancienBan);
+      // Un lieu relié à la main peut partager la parcelle : on ne la retire que s'il n'y en a aucun.
+      const autresLieux = [...lignes.values()].some(
+        (l) => l.entite_type === 'immeuble' || l.entite_type === 'bien' || l.entite_type === 'parcelle',
+      );
+      const ancienneParcelle = autresLieux ? null : await parcelleIdDepuisBan(admin, ancienBan);
+      if (ancienneParcelle) await oublierLien('parcelle', ancienneParcelle);
+    }
+  } else {
+    if (banGarde && banGarde !== ancienBan) {
+      await admin
+        .from('voice_notes')
+        .update({
+          ban_id: banGarde,
+          adresse_normalisee: str(adresseGardee?.label, 240),
+          geocode_score: 1,
+          geocode_le: new Date().toISOString(),
+        })
+        .eq('id', voiceNoteId)
+        .eq('agency_id', agency.id);
+    } else if (banGarde) {
+      await admin
+        .from('voice_notes')
+        .update({ geocode_score: 1 })
+        .eq('id', voiceNoteId)
+        .eq('agency_id', agency.id);
+    }
+    // Lecture pas encore finie : l'adresse posée vient du GPS ; la lecture rattachera celle qui est dite.
+    const lectureEnCours = !banGarde && note.structured == null && typeof note.geocode_score === 'number';
+    if (!lectureEnCours) await rattacherAdresseDeLaNote(admin, { agencyId: agency.id, noteId: voiceNoteId });
+  }
+
   const premierContact =
     [...contactParRef.values()].find((id) => contactsOk.has(id)) ??
     [...lignes.values()].find((l) => l.entite_type === 'contact')?.entite_id ??

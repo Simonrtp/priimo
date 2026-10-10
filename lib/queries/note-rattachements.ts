@@ -4,8 +4,10 @@ import { mapDbNoteLien, NOTE_LIENS_SELECT } from '@/lib/notes/liens';
 import {
   hrefRattachement,
   idsParType,
+  LIBELLE_ENTITE,
   libelleParcelle,
   nomContact,
+  type LieuCarte,
   type RattachementAffiche,
 } from '@/lib/notes/rattachement';
 import type { NoteLien, NoteLienEntite, VoiceNote } from '@/types/contact';
@@ -17,12 +19,13 @@ function etiquette(
   type: NoteLienEntite,
   id: string,
   libelles: ReadonlyMap<string, string>,
+  lieux: ReadonlyMap<string, LieuCarte>,
 ): RattachementAffiche {
   const key = `${type}:${id}`;
   const label =
     libelles.get(key) ??
-    (type === 'parcelle' ? libelleParcelle(id) : `${type === 'immeuble' ? 'Immeuble' : id}`);
-  return { type, id, label, href: hrefRattachement(type, id) };
+    (type === 'parcelle' ? libelleParcelle(id) : `${type === 'immeuble' ? LIBELLE_ENTITE.immeuble : id}`);
+  return { type, id, label, href: hrefRattachement(type, id, type === 'immeuble' ? lieux.get(id) ?? null : null) };
 }
 
 /**
@@ -68,6 +71,7 @@ export async function rattachementsDesNotes(params: {
   }
 
   const libelles = new Map<string, string>();
+  const lieux = new Map<string, LieuCarte>();
 
   const lectures: Promise<void>[] = [];
   if (contactIds.size > 0) {
@@ -108,10 +112,14 @@ export async function rattachementsDesNotes(params: {
       (async () => {
         const { data } = await params.supabase
           .from('buildings')
-          .select('ban_id, adresse')
+          .select('ban_id, adresse, lat, lng')
           .in('ban_id', [...banIds]);
         for (const row of data ?? []) {
-          libelles.set(`immeuble:${row.ban_id}`, (row.adresse ?? '').trim() || 'Immeuble');
+          const label = (row.adresse ?? '').trim() || LIBELLE_ENTITE.immeuble;
+          libelles.set(`immeuble:${row.ban_id}`, label);
+          if (row.lat != null && row.lng != null && Number.isFinite(row.lat) && Number.isFinite(row.lng)) {
+            lieux.set(row.ban_id, { latitude: row.lat, longitude: row.lng, libelle: label });
+          }
         }
       })(),
     );
@@ -119,10 +127,27 @@ export async function rattachementsDesNotes(params: {
   await Promise.all(lectures);
 
   for (const note of params.notes) {
+    if (
+      note.banId &&
+      !lieux.has(note.banId) &&
+      note.latitude != null &&
+      note.longitude != null &&
+      Number.isFinite(note.latitude) &&
+      Number.isFinite(note.longitude)
+    ) {
+      lieux.set(note.banId, {
+        latitude: note.latitude,
+        longitude: note.longitude,
+        libelle: libelles.get(`immeuble:${note.banId}`) ?? (note.adresseNormalisee?.trim() || LIBELLE_ENTITE.immeuble),
+      });
+    }
+  }
+
+  for (const note of params.notes) {
     const parType = idsParType(liensParNote.get(note.id) ?? [], note.contactId);
     const list: RattachementAffiche[] = [];
     for (const [type, idsType] of parType) {
-      for (const id of idsType) list.push(etiquette(type, id, libelles));
+      for (const id of idsType) list.push(etiquette(type, id, libelles, lieux));
     }
     parNote.set(note.id, list);
   }

@@ -59,7 +59,7 @@ export function proposalsFromReview(
     out.push({
       key,
       label: review.immeuble.adresseNormalisee ?? review.immeuble.address,
-      subtitle: 'Immeuble',
+      subtitle: 'Adresse',
       entiteType: 'immeuble',
       entiteId: review.immeuble.banId,
       alreadyLinked: linked.has(key),

@@ -12,7 +12,7 @@ import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import { TextArea } from '@/components/dashboard/workspace/Field';
+import { Field, TextArea } from '@/components/dashboard/workspace/Field';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 import ChoixVisibilite from '@/components/dashboard/workspace/ChoixVisibilite';
 
@@ -20,16 +20,16 @@ const ENTITE_LABELS: Record<NoteLienEntite, string> = {
   contact: 'Contact',
   bien: 'Bien',
   lead: 'Prospect',
-  immeuble: 'Immeuble',
+  immeuble: 'Adresse',
   parcelle: 'Parcelle',
 };
 
 const MANUAL_KINDS: { value: NoteLienEntite; label: string }[] = [
-  { value: 'contact', label: 'Contact' },
-  { value: 'bien', label: 'Bien' },
-  { value: 'lead', label: 'Prospect' },
-  { value: 'immeuble', label: 'Immeuble' },
-  { value: 'parcelle', label: 'Parcelle' },
+  { value: 'contact', label: 'Avec un contact' },
+  { value: 'bien', label: 'Avec un bien' },
+  { value: 'lead', label: 'Avec un prospect' },
+  { value: 'immeuble', label: 'Avec une adresse' },
+  { value: 'parcelle', label: 'Avec une parcelle' },
 ];
 
 export default function NoteFiche({
@@ -378,18 +378,16 @@ export default function NoteFiche({
           ) : null}
         </section>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
-          {isAuthor ? (
+        <div className="flex flex-wrap items-start justify-between gap-3 border-t border-black/[0.06] pt-4">
+          <Field label="Partage">
             <ChoixVisibilite
               objet="note"
               value={note.visibilite}
+              disabled={!isAuthor}
+              aideVerrou={isAuthor ? undefined : 'Seul l’auteur choisit le partage de cette note.'}
               onChange={(next: VoiceNoteVisibilite) => void patch({ visibilite: next })}
             />
-          ) : (
-            <p className="text-[13px] text-text-muted">
-              {note.visibilite === 'privee' ? 'Note privée' : 'Visible dans l’agence'}
-            </p>
-          )}
+          </Field>
           {isAuthor && note.statut === 'brute' ? (
             <WorkspaceButton
               type="button"

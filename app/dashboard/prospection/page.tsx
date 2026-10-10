@@ -35,6 +35,7 @@ import {
   parseNiveauFraicheur,
 } from '@/lib/zones/fraicheur';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
+import { lirePosCarte } from '@/lib/notes/rattachement';
 
 export const metadata = {
   title: 'Prospection',
@@ -49,6 +50,9 @@ export default async function ProspectionPage({
     vue?: string;
     membre?: string;
     immeuble?: string;
+    parcelle?: string;
+    pos?: string;
+    libelle?: string;
     itineraire?: string;
     tournee?: string;
     fraicheur?: string;
@@ -132,6 +136,7 @@ export default async function ProspectionPage({
     }));
     const plan = params.itineraire === '1' ? buildSortie(leadsTournee, profile.id, null) : null;
     const itineraryStops = plan ? toItineraireStops(plan.ordered) : null;
+    const posImmeuble = params.immeuble ? lirePosCarte(params.pos) : null;
 
     return (
       <ProspectionCarteView
@@ -144,6 +149,12 @@ export default async function ProspectionPage({
         isDirector={profile.role === 'directeur'}
         profileId={profile.id}
         initialBanId={params.immeuble ?? null}
+        initialBanPos={
+          params.immeuble && posImmeuble
+            ? { banId: params.immeuble, ...posImmeuble, libelle: params.libelle?.slice(0, 160) ?? '' }
+            : null
+        }
+        initialParcelleId={params.parcelle ?? null}
         itineraryStops={itineraryStops}
         showItineraire={params.itineraire === '1'}
         autoTournee={params.tournee === '1' && profile.role !== 'directeur'}

@@ -1,4 +1,6 @@
-import { geocodeAdresse, type BanGeocodeCache } from '@/lib/geo/ban';
+import type { GeoCoord } from '@/lib/carte/coords';
+import { geocodeAdresse, type BanGeocodeCache, type BanGeocodeHit } from '@/lib/geo/ban';
+import { haversineM } from '@/lib/geo/distance';
 
 export type BanGeoColumns = {
   ban_id: string | null;
@@ -94,6 +96,71 @@ export async function geocodeToColumns(
       geocode_score: hit.score,
       geocode_le: new Date().toISOString(),
     };
+  } catch {
+    return { ...EMPTY_BAN_GEO };
+  }
+}
+
+function versColonnes(hit: BanGeocodeHit | null): BanGeoColumns {
+  if (!hit) return { ...EMPTY_BAN_GEO };
+  return {
+    ban_id: hit.ban_id,
+    latitude: hit.lat,
+    longitude: hit.lng,
+    adresse_normalisee: hit.adresse_normalisee,
+    geocode_score: hit.score,
+    geocode_le: new Date().toISOString(),
+  };
+}
+
+export type TerritoireAgence = {
+  codesPostaux: readonly string[];
+  centre: GeoCoord | null;
+};
+
+/** Au-dessus, la rue du secteur l'emporte : l'agent prospecte chez lui. */
+const DANS_LE_SECTEUR_SUR = 0.75;
+const LOIN_DU_SECTEUR_M = 50_000;
+const MALUS_LOIN = 0.3;
+
+/** Entre la meilleure adresse du secteur et la meilleure de France, celle que l'agent a voulu dire. */
+export function choisirAdresseDictee(
+  dansLeSecteur: BanGeocodeHit | null,
+  enFrance: BanGeocodeHit | null,
+  centre: GeoCoord | null,
+): BanGeocodeHit | null {
+  const loin =
+    enFrance !== null &&
+    centre !== null &&
+    haversineM(centre, { latitude: enFrance.lat, longitude: enFrance.lng }) > LOIN_DU_SECTEUR_M;
+  const scoreFrance = enFrance ? enFrance.score - (loin ? MALUS_LOIN : 0) : -1;
+  if (dansLeSecteur && (dansLeSecteur.score >= DANS_LE_SECTEUR_SUR || dansLeSecteur.score >= scoreFrance)) {
+    return dansLeSecteur;
+  }
+  return enFrance;
+}
+
+/** Sans code postal dit, l'adresse se cherche aussi dans le territoire (« Penot » → rue Alphonse Penaud, 20e). */
+export async function geocoderAdresseDictee(
+  adresse: string | null | undefined,
+  territoire: TerritoireAgence,
+): Promise<BanGeoColumns> {
+  const query = (adresse ?? '').trim();
+  if (query.length < 3) return { ...EMPTY_BAN_GEO };
+  try {
+    const citeSonCodePostal = /\b\d{5}\b/.test(query);
+    const codes = citeSonCodePostal
+      ? []
+      : territoire.codesPostaux.filter((c) => /^\d{5}$/.test(c)).slice(0, 3);
+    const [enFrance, ...locales] = await Promise.all([
+      geocodeAdresse(query, undefined, undefined, territoire.centre),
+      ...codes.map((cp) => geocodeAdresse(query, cp)),
+    ]);
+    const dansLeSecteur = locales.reduce<BanGeocodeHit | null>(
+      (meilleure, hit) => (hit && (!meilleure || hit.score > meilleure.score) ? hit : meilleure),
+      null,
+    );
+    return versColonnes(choisirAdresseDictee(dansLeSecteur, enFrance ?? null, territoire.centre));
   } catch {
     return { ...EMPTY_BAN_GEO };
   }

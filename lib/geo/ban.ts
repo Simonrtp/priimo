@@ -136,13 +136,14 @@ export async function searchBan(
 async function geocodeUncached(
   adresse: string,
   codePostal?: string,
+  proche?: { latitude: number; longitude: number } | null,
 ): Promise<BanGeocodeHit | null> {
   const q = adresse.trim();
   if (q.length < 3) return null;
 
   let features: BanSearchFeature[];
   try {
-    features = await searchBan(q, { limit: 1, postcode: codePostal, autocomplete: false });
+    features = await searchBan(q, { limit: 1, postcode: codePostal, autocomplete: false, proche });
   } catch {
     return null;
   }
@@ -179,8 +180,10 @@ export async function geocodeAdresse(
   adresse: string,
   codePostal?: string,
   cache?: BanGeocodeCache,
+  /** Favorise les adresses proches de ce point ; contourne le cache, dont la clé l'ignore. */
+  proche?: { latitude: number; longitude: number } | null,
 ): Promise<BanGeocodeHit | null> {
-  if (!cache) return geocodeUncached(adresse, codePostal);
+  if (!cache || proche) return geocodeUncached(adresse, codePostal, proche);
 
   const key = banCacheKey(adresse, codePostal);
   const existing = cache.get(key);
@@ -230,6 +233,46 @@ export async function reverseGeocode(
       lng,
       adresse_normalisee: label,
       score,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const BAN_LOOKUP_URL = 'https://plateforme.adresse.data.gouv.fr/lookup/';
+
+/** Ce que la BAN sait d'une adresse par son identifiant : position, code postal, parcelles cadastrales. */
+export type FicheAdresseBan = {
+  latitude: number;
+  longitude: number;
+  codePostal: string | null;
+  parcelles: string[];
+};
+
+/** Serveur uniquement. Null si l'adresse est inconnue ou si la BAN ne répond pas. */
+export async function ficheAdresseBan(banId: string): Promise<FicheAdresseBan | null> {
+  const id = banId.trim();
+  if (!id || id.startsWith('gps:')) return null;
+  try {
+    const res = await fetch(`${BAN_LOOKUP_URL}${encodeURIComponent(id)}`, {
+      signal: fetchAbortSignal(FETCH_MS),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      lat?: unknown;
+      lon?: unknown;
+      codePostal?: unknown;
+      parcelles?: unknown;
+    };
+    if (typeof data.lat !== 'number' || typeof data.lon !== 'number') return null;
+    if (!Number.isFinite(data.lat) || !Number.isFinite(data.lon)) return null;
+    return {
+      latitude: data.lat,
+      longitude: data.lon,
+      codePostal: typeof data.codePostal === 'string' ? data.codePostal : null,
+      parcelles: Array.isArray(data.parcelles)
+        ? data.parcelles.filter((p): p is string => typeof p === 'string')
+        : [],
     };
   } catch {
     return null;

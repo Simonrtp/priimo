@@ -11,6 +11,7 @@ import RechercheAdresseCarte from '@/components/dashboard/carte/RechercheAdresse
 import CarteMobile from '@/app/dashboard/_mobile/CarteMobile';
 import ProspectsViewSwitch, { prospectionHref, type ProspectionVue } from './ProspectsViewSwitch';
 import type { Zone } from '@/lib/zones/types';
+import type { RepliImmeuble } from '@/lib/carte/buildings';
 
 /**
  * Vue Carte de la prospection : même carte qu’avant, avec le switch Carte / Liste / Pipeline.
@@ -25,6 +26,8 @@ export default function ProspectionCarteView({
   isDirector,
   profileId,
   initialBanId,
+  initialBanPos = null,
+  initialParcelleId = null,
   itineraryStops,
   showItineraire,
   autoTournee,
@@ -40,6 +43,8 @@ export default function ProspectionCarteView({
   isDirector: boolean;
   profileId: string;
   initialBanId: string | null;
+  initialBanPos?: RepliImmeuble | null;
+  initialParcelleId?: string | null;
   itineraryStops: ItineraireStop[] | null;
   showItineraire: boolean;
   autoTournee: boolean;
@@ -83,6 +88,8 @@ export default function ProspectionCarteView({
             isDirector={isDirector}
             profileId={profileId}
             initialBanId={initialBanId}
+            initialBanPos={initialBanPos}
+            initialParcelleId={initialParcelleId}
             itineraryStops={itineraryStops}
             showItineraire={showItineraire}
             autoTournee={autoTournee}
@@ -106,6 +113,8 @@ export default function ProspectionCarteView({
         members={members}
         isDirector={isDirector}
         initialBanId={initialBanId}
+        initialBanPos={initialBanPos}
+        initialParcelleId={initialParcelleId}
         itineraryStops={itineraryStops}
         showItineraire={showItineraire}
         embedded

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
+import { ficheAdresseBan } from '@/lib/geo/ban';
+import { fetchParcelleAuPoint } from '@/lib/geo/cadastre-point';
 
 type Admin = SupabaseClient<Database>;
 
@@ -32,6 +34,51 @@ export async function parcelleIdDepuisBan(
   return normalizeParcelleId(
     typeof batiment?.parcelle_id === 'string' ? batiment.parcelle_id : null,
   );
+}
+
+/** Une adresse absente de l'index, trouvée ailleurs : on la retient pour toutes les lectures suivantes. */
+export async function retenirAdresseDeParcelle(
+  admin: Admin,
+  args: { banId: string; parcelleId: string; source: 'ban' | 'apicarto'; codePostal?: string | null },
+): Promise<void> {
+  const parcelleId = normalizeParcelleId(args.parcelleId);
+  const banId = args.banId.trim();
+  if (!parcelleId || !banId || banId.startsWith('gps:')) return;
+  const { error } = await admin.from('parcelle_adresses').upsert(
+    {
+      parcelle_id: parcelleId,
+      ban_id: banId,
+      source: args.source,
+      code_postal: args.codePostal && /^\d{5}$/.test(args.codePostal) ? args.codePostal : null,
+      created_at: new Date().toISOString(),
+    },
+    { onConflict: 'parcelle_id,ban_id', ignoreDuplicates: true },
+  );
+  if (error) console.error('[parcelle] index adresse', error.message);
+}
+
+/** BAN → parcelle : l'index, sinon la BAN (lien officiel), sinon le cadastre IGN ; l'index retient le résultat. */
+export async function parcelleDeLAdresse(
+  admin: Admin,
+  adresse: { banId: string; codePostal?: string | null; parIgn?: boolean },
+): Promise<string | null> {
+  const connue = await parcelleIdDepuisBan(admin, adresse.banId);
+  if (connue) return connue;
+  const fiche = await ficheAdresseBan(adresse.banId);
+  if (!fiche) return null;
+  const codePostal = adresse.codePostal ?? fiche.codePostal;
+
+  const officielle = fiche.parcelles.map((p) => normalizeParcelleId(p)).find((p): p is string => Boolean(p));
+  if (officielle) {
+    await retenirAdresseDeParcelle(admin, { banId: adresse.banId, parcelleId: officielle, source: 'ban', codePostal });
+    return officielle;
+  }
+  if (adresse.parIgn === false) return null;
+  const auPoint = await fetchParcelleAuPoint({ latitude: fiche.latitude, longitude: fiche.longitude });
+  const parcelleId = normalizeParcelleId(auPoint?.parcelleId ?? null);
+  if (!parcelleId) return null;
+  await retenirAdresseDeParcelle(admin, { banId: adresse.banId, parcelleId, source: 'apicarto', codePostal });
+  return parcelleId;
 }
 
 /** Tous les BAN connus d’une parcelle (adresses + bâtiments). */

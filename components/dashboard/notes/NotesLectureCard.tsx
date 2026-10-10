@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mic, NotebookPen, Unlink } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Mic, NotebookPen, Unlink } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
@@ -291,7 +291,7 @@ function DetailNote({
             ) : note.authorName ? (
               <span>· {note.authorName}</span>
             ) : null}
-            {note.visibilite === 'privee' ? <span>· Privée</span> : <span>· Visible dans l’agence</span>}
+            {note.visibilite === 'privee' ? <span>· Privée</span> : <span>· Partagée</span>}
           </p>
         </div>
       </header>
@@ -327,9 +327,10 @@ function DetailNote({
                   {r.href ? (
                     <Link
                       href={r.href}
-                      className="block rounded-clay border border-black/12 bg-white px-3.5 py-3 hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="flex items-center gap-3 rounded-clay border border-black/12 bg-white px-3.5 py-3 hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
-                      {corps}
+                      <span className="min-w-0 flex-1">{corps}</span>
+                      <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-text-subtle" aria-hidden />
                     </Link>
                   ) : (
                     <div className="rounded-clay border border-black/12 bg-white px-3.5 py-3">{corps}</div>
@@ -349,7 +350,7 @@ function DetailNote({
                 <div>
                   <p className="text-[14px] font-semibold text-text-strong">Non rattachée</p>
                   <p className="mt-0.5 text-pretty text-[13px] font-medium" style={{ color: '#8A3D14' }}>
-                    Cette note n’est liée à aucun contact, bien, prospect, immeuble ou parcelle.
+                    Cette note n’est liée à aucun contact, bien, prospect, adresse ou parcelle.
                   </p>
                 </div>
               </div>

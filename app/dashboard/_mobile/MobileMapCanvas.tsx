@@ -36,6 +36,7 @@ import type { DevicePosition } from '@/lib/voice/gps';
 import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
 import CibleRecherche from '@/components/dashboard/carte/CibleRecherche';
+import VolCarte from '@/components/dashboard/carte/VolCarte';
 import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
@@ -102,6 +103,7 @@ export default function MobileMapCanvas({
   clipZone = null,
   dimension = '2d',
   cible = null,
+  focus = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -140,6 +142,8 @@ export default function MobileMapCanvas({
   clipZone?: Zone | null;
   /** L'adresse demandée dans la barre de recherche. */
   cible?: CibleCarte | null;
+  /** Lieu d'une note : la carte s'y pose. */
+  focus?: { cle: string; latitude: number; longitude: number } | null;
   /** Plan à plat ou relief des immeubles. */
   dimension?: MapDimension;
 }) {
@@ -367,7 +371,7 @@ export default function MobileMapCanvas({
             if (navigation) applyTourneeMapStyle(map.getMap());
           }
           setStyleReady(true);
-          if (!cible) fitToPoints(false);
+          if (!cible && !focus) fitToPoints(false);
         }}
         onMoveEnd={(event) => {
           const b = event.target.getBounds();
@@ -427,6 +431,8 @@ export default function MobileMapCanvas({
             onSelect={onSelect}
             onSelectParcelle={onSelectParcelle}
           />
+        ) : focus && !navigation ? (
+          <VolCarte latitude={focus.latitude} longitude={focus.longitude} cle={focus.cle} />
         ) : null}
         {navigation ? null : (
           <>

@@ -3,7 +3,10 @@ import { describe, it } from 'node:test';
 import {
   ancrageParcelle,
   estRattachee,
+  hrefImmeuble,
+  hrefParcelle,
   hrefRattachement,
+  lirePosCarte,
   idsParType,
   libelleParcelle,
   nomContact,
@@ -17,9 +20,23 @@ describe('rattachement d’une note', () => {
     assert.equal(nomContact(null, null), 'Contact');
   });
 
-  it('pointe les fiches de l’agence, pas la parcelle', () => {
+  it('envoie chaque rattachement à sa fiche', () => {
     assert.equal(hrefRattachement('contact', 'c1'), '/dashboard/contacts?fiche=c1');
-    assert.equal(hrefRattachement('parcelle', '75120000BN0208'), null);
+    assert.equal(hrefRattachement('bien', 'b1'), '/dashboard/biens?fiche=b1');
+    assert.equal(hrefRattachement('lead', 'l1'), '/dashboard/prospection?lead=l1');
+    assert.equal(hrefParcelle('75120000BN0208'), '/dashboard/prospection?vue=carte&parcelle=75120000BN0208');
+    const immeuble = hrefImmeuble('75120_0835', {
+      latitude: 48.85,
+      longitude: 2.4,
+      libelle: '36 Rue Alphonse Penaud',
+    });
+    const url = new URL(immeuble, 'http://x');
+    assert.equal(url.searchParams.get('immeuble'), '75120_0835');
+    assert.equal(url.searchParams.get('vue'), 'carte');
+    assert.equal(url.searchParams.get('pos'), '48.850000,2.400000');
+    assert.equal(url.searchParams.get('libelle'), '36 Rue Alphonse Penaud');
+    assert.equal(lirePosCarte('48.850000,2.400000')?.latitude, 48.85);
+    assert.equal(lirePosCarte('200,2'), null);
   });
 
   it('espace la référence cadastrale', () => {

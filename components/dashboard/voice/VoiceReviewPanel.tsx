@@ -17,6 +17,8 @@ import { dateParisIso } from '@/lib/notes/date-relative';
 import { heureLisible, jourLisible, type CarteComprise, type CarteKind } from '@/lib/voice/cartes';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
+import { Field } from '@/components/dashboard/workspace/Field';
+import ChoixVisibilite from '@/components/dashboard/workspace/ChoixVisibilite';
 import type { ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
@@ -751,6 +753,15 @@ export default function VoiceReviewPanel({
     if (review.immeuble?.banId && review.immeuble.confiance && !hiddenIds.includes('immeuble')) {
       liens.push({ entiteType: 'immeuble', entiteId: review.immeuble.banId, confiance: review.immeuble.confiance });
     }
+    // Le serveur rattache l'adresse de la note lui-même : il doit savoir si l'agent l'a gardée ou retirée.
+    const adresseRetiree = Boolean(review.immeuble) && hiddenIds.includes('immeuble');
+    const adresseGardee =
+      !adresseRetiree && review.immeuble?.banId && review.immeuble.confiance === 'certain'
+        ? {
+            banId: review.immeuble.banId,
+            label: review.immeuble.adresseNormalisee ?? review.immeuble.address,
+          }
+        : null;
 
     onRanger({
       transcript: transcript.trim(),
@@ -759,6 +770,8 @@ export default function VoiceReviewPanel({
       assignedTo: conseiller,
       personnes: planPersonnes,
       liens,
+      adresse: adresseGardee,
+      adresseRetiree,
       actions: actions
         .filter((a) => a.accepted)
         .map((a) => ({
@@ -1288,41 +1301,44 @@ export default function VoiceReviewPanel({
           <p className="mt-3 text-center text-[13px] text-text-subtle">La note sera gardée telle quelle.</p>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-col gap-4">
           {/* Avec une personne, on lie depuis sa carte. */}
           {personnesRetenues.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => setRattacher((v) => !v)}
-              aria-expanded={rattacher}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text"
-            >
-              <Link2 size={14} strokeWidth={2} aria-hidden />
-              Rattacher
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setRattacher((v) => !v)}
+                aria-expanded={rattacher}
+                className="inline-flex h-9 w-fit items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text"
+              >
+                <Link2 size={14} strokeWidth={2} aria-hidden />
+                Rattacher
+              </button>
+              {rattacher ? (
+                <NoteEntitySearch
+                  label=""
+                  onPick={(pick) => {
+                    toucher();
+                    const key = `${pick.entiteType}:${pick.entiteId}`;
+                    setManualLinks((prev) => (prev.some((l) => l.key === key) ? prev : [...prev, { ...pick, key }]));
+                    setRattacher(false);
+                  }}
+                  excludeIds={new Set(manualLinks.map((l) => l.key))}
+                />
+              ) : null}
+            </div>
           ) : null}
-          <BoutonCadenas
-            privee={visibilite === 'privee'}
-            onBasculer={() => {
-              toucher();
-              setVisibilite((v) => (v === 'privee' ? 'agence' : 'privee'));
-            }}
-          />
-        </div>
-        {rattacher && personnesRetenues.length === 0 ? (
-          <div className="mt-3">
-            <NoteEntitySearch
-              label=""
-              onPick={(pick) => {
+          <Field label="Partage">
+            <ChoixVisibilite
+              objet="note"
+              value={visibilite}
+              onChange={(next) => {
                 toucher();
-                const key = `${pick.entiteType}:${pick.entiteId}`;
-                setManualLinks((prev) => (prev.some((l) => l.key === key) ? prev : [...prev, { ...pick, key }]));
-                setRattacher(false);
+                setVisibilite(next);
               }}
-              excludeIds={new Set(manualLinks.map((l) => l.key))}
             />
-          </div>
-        ) : null}
+          </Field>
+        </div>
       </div>
 
       <footer
@@ -1382,46 +1398,3 @@ export default function VoiceReviewPanel({
   );
 }
 
-/**
- * Le partage de la note. Ouvert : la note est visible par l'agence. Un
- * toucher : l'anse se referme, la note devient privée. Le bouton garde la même
- * couleur ; seul le cadenas et le libellé changent.
- */
-function BoutonCadenas({ privee, onBasculer }: { privee: boolean; onBasculer: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onBasculer}
-      aria-pressed={privee}
-      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[13px] font-medium text-text transition-colors hover:bg-black/[0.05]"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        width={15}
-        height={15}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-        className="shrink-0 overflow-visible"
-      >
-        <rect x="4.5" y="11" width="15" height="10" rx="2.2" />
-        <path
-          d="M8 11V7.5a4 4 0 0 1 8 0V11"
-          className="motion-safe:transition-transform motion-safe:duration-300"
-          style={{
-            transformBox: 'view-box',
-            transformOrigin: '16px 11px',
-            transform: privee ? 'none' : 'translateY(-2.2px) rotate(-32deg)',
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-          }}
-        />
-      </svg>
-      <span key={privee ? 'privee' : 'agence'} className="motion-safe:animate-fadeIn">
-        {privee ? 'Note privée' : 'Note visible par l’agence'}
-      </span>
-    </button>
-  );
-}

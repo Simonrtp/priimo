@@ -123,6 +123,73 @@ export function countKindsInViewport(
   return counts;
 }
 
+/** Ce que le volet immeuble affiche : un point de la carte, ou l'adresse d'une note. */
+export type FicheImmeubleCarte = {
+  banId: string;
+  title: string;
+  latitude: number;
+  longitude: number;
+  count: number;
+  entities: MapPoint[];
+};
+
+export type RepliImmeuble = {
+  banId: string;
+  latitude: number;
+  longitude: number;
+  libelle: string;
+};
+
+export function ficheImmeubleOuverte(
+  buildings: readonly BuildingMarker[],
+  banId: string | null,
+  repli: RepliImmeuble | null,
+): FicheImmeubleCarte | null {
+  if (!banId) return null;
+  const connu = buildings.find((b) => b.banId === banId);
+  if (connu) {
+    return {
+      banId: connu.banId,
+      title: connu.title,
+      latitude: connu.latitude,
+      longitude: connu.longitude,
+      count: connu.count,
+      entities: connu.entities,
+    };
+  }
+  if (!repli || repli.banId !== banId) return null;
+  if (!Number.isFinite(repli.latitude) || !Number.isFinite(repli.longitude)) return null;
+  return {
+    banId,
+    title: repli.libelle.trim() || 'Immeuble',
+    latitude: repli.latitude,
+    longitude: repli.longitude,
+    count: 0,
+    entities: [],
+  };
+}
+
+/** Où poser la carte quand on arrive depuis une note. La parcelle prime sur l'immeuble. */
+export function pointDuLien(args: {
+  parcelleDemandee: string | null;
+  parcelleOuverte: { parcelleId: string; position: { latitude: number; longitude: number } | null } | null;
+  immeuble: FicheImmeubleCarte | null;
+  immeubleDemande: string | null;
+}): { cle: string; latitude: number; longitude: number } | null {
+  const position = args.parcelleOuverte?.position;
+  if (args.parcelleDemandee && args.parcelleOuverte?.parcelleId === args.parcelleDemandee && position) {
+    return { cle: `parcelle:${args.parcelleDemandee}`, latitude: position.latitude, longitude: position.longitude };
+  }
+  if (args.immeubleDemande && args.immeuble?.banId === args.immeubleDemande) {
+    return {
+      cle: `immeuble:${args.immeubleDemande}`,
+      latitude: args.immeuble.latitude,
+      longitude: args.immeuble.longitude,
+    };
+  }
+  return null;
+}
+
 export function entitiesByKind(entities: readonly MapPoint[]): {
   kind: MapPointKind;
   label: string;

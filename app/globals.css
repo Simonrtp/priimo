@@ -4067,6 +4067,7 @@ html:has(.feature-page) {
 .fluid-collapse {
   display: grid;
   min-width: 0;
+  overflow: hidden;
   transition: grid-template-rows 200ms var(--ease-soft);
 }
 

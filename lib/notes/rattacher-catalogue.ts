@@ -23,7 +23,7 @@ export const RATTACHER_CARTES: { id: RattacherKind; label: string; entite: NoteL
   { id: 'contact', label: 'Contact', entite: 'contact' },
   { id: 'bien', label: 'Bien', entite: 'bien' },
   { id: 'lead', label: 'Prospect', entite: 'lead' },
-  { id: 'immeuble', label: 'Immeuble', entite: 'immeuble' },
+  { id: 'immeuble', label: 'Adresse', entite: 'immeuble' },
 ];
 
 export function normaliserRecherche(q: string): string {
