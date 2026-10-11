@@ -30,6 +30,14 @@ const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: Luci
 const PLUS_HOVER_SPIN =
   'transition-transform duration-fluid-subtle ease-in-out group-hover:rotate-90 motion-reduce:transition-none motion-reduce:group-hover:rotate-0';
 
+function positionMenu(trigger: HTMLElement, panel: HTMLElement): { top: number; left: number } {
+  const r = trigger.getBoundingClientRect();
+  const menuW = panel.offsetWidth;
+  const idealLeft = r.left + r.width / 2 - menuW / 2;
+  const left = Math.max(8, Math.min(idealLeft, window.innerWidth - menuW - 8));
+  return { top: r.bottom + 8, left };
+}
+
 export default function CreateMenu({
   className = '',
   compact = false,
@@ -129,24 +137,15 @@ export default function CreateMenu({
     }
     function place() {
       const el = triggerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const menuW = menuPanelRef.current?.offsetWidth ?? 200;
-      // Centré sous le bouton, rabattu dans l’écran si besoin.
-      const idealLeft = r.left + r.width / 2 - menuW / 2;
-      const left = Math.max(8, Math.min(idealLeft, window.innerWidth - menuW - 8));
-      setMenuPos({
-        top: r.bottom + 8,
-        left,
-      });
+      const panel = menuPanelRef.current;
+      if (!el || !panel) return;
+      const next = positionMenu(el, panel);
+      setMenuPos((prev) => (prev && prev.top === next.top && prev.left === next.left ? prev : next));
     }
     place();
-    // 2ᵉ passe une fois le menu mesuré (largeur réelle).
-    const raf = window.requestAnimationFrame(place);
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {
-      window.cancelAnimationFrame(raf);
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
@@ -335,7 +334,7 @@ export default function CreateMenu({
       : null;
 
   const desktopMenu =
-    open && !isCompact && menuPos && typeof document !== 'undefined'
+    open && !isCompact && typeof document !== 'undefined'
       ? createPortal(
           <div
             ref={menuPanelRef}
@@ -343,7 +342,11 @@ export default function CreateMenu({
             role="menu"
             aria-label="Créer"
             className="fixed z-[120] w-max min-w-[11.5rem] overflow-hidden rounded-clay border border-black/[0.08] bg-surface py-1 shadow-clay-lg"
-            style={{ top: menuPos.top, left: menuPos.left }}
+            style={{
+              top: menuPos?.top ?? 0,
+              left: menuPos?.left ?? 0,
+              visibility: menuPos ? 'visible' : 'hidden',
+            }}
             onMouseEnter={ouvrirAuSurvol}
             onMouseLeave={fermerAuSurvol}
           >
@@ -397,7 +400,7 @@ export default function CreateMenu({
               size={variant === 'compact' ? 22 : 16}
               strokeWidth={2.2}
               aria-hidden
-              className={variant === 'default' || variant === 'compact' ? PLUS_HOVER_SPIN : undefined}
+              className={variant === 'compact' ? PLUS_HOVER_SPIN : undefined}
             />
           )}
           {isFab || variant === 'compact' ? null : 'Nouveau'}

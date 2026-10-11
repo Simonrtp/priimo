@@ -14,7 +14,11 @@ import {
   requestMicStream,
   stopMicStream,
 } from '@/lib/voice/mic';
-import { readDevicePosition } from '@/lib/voice/gps';
+import {
+  isAddressPositionPrecise,
+  readPreciseDevicePosition,
+  type DevicePosition,
+} from '@/lib/voice/gps';
 import { reverseGeocode } from '@/lib/geo/ban';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import VoiceWaveform from './VoiceWaveform';
@@ -135,7 +139,7 @@ export default function VoiceCaptureDialog({
   const cancelledRef = useRef(false);
   const transcriptRef = useRef(transcript);
   const toucheRef = useRef(touche);
-  const gpsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const gpsRef = useRef<DevicePosition | null>(null);
   const liveInFlightRef = useRef(false);
   const liveTextRef = useRef('');
   const takeBaseRef = useRef('');
@@ -245,9 +249,11 @@ export default function VoiceCaptureDialog({
 
   useEffect(() => {
     if (estimationMode) return;
-    void readDevicePosition().then(async (pos) => {
-      gpsRef.current = pos;
-      if (!pos) return;
+    void readPreciseDevicePosition().then(async (pos) => {
+      // Ne jamais rattacher une note à un numéro à partir d'un point Wi‑Fi
+      // approximatif. La note peut rester seule si le GPS n'est pas fiable.
+      gpsRef.current = isAddressPositionPrecise(pos) ? pos : null;
+      if (!pos || !isAddressPositionPrecise(pos)) return;
       const hit = await reverseGeocode(pos.latitude, pos.longitude);
       if (!hit) return;
       setBanGps(hit.ban_id);

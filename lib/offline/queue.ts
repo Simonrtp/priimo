@@ -6,6 +6,13 @@
 const DB_NAME = 'priimo-offline';
 const DB_VERSION = 1;
 const STORE = 'queue';
+export const OFFLINE_QUEUE_CHANGED_EVENT = 'priimo:offline-queue-changed';
+
+function signalQueueChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(OFFLINE_QUEUE_CHANGED_EVENT));
+  }
+}
 
 export type OfflineQueueKind = 'json' | 'form';
 
@@ -101,6 +108,7 @@ export async function enqueueJson(item: {
     attempts: 0,
   };
   await withStore('readwrite', (store) => store.put(row));
+  signalQueueChanged();
   return id;
 }
 
@@ -136,6 +144,7 @@ export async function enqueueFormData(item: {
     attempts: 0,
   };
   await withStore('readwrite', (store) => store.put(row));
+  signalQueueChanged();
   return id;
 }
 
@@ -163,6 +172,7 @@ export async function listQueue(): Promise<OfflineQueueItem[]> {
 
 export async function removeFromQueue(id: string): Promise<void> {
   await withStore('readwrite', (store) => store.delete(id));
+  signalQueueChanged();
 }
 
 export async function bumpAttempt(id: string, error: string, bloque = false): Promise<void> {

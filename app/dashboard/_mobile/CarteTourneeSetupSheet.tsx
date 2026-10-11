@@ -61,25 +61,12 @@ export default function CarteTourneeSetupSheet({
           maxHeight: 'calc(100dvh - var(--field-nav-height) - 24px - env(safe-area-inset-top, 0px))',
         }}
       >
-        <div
-          className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 pt-4"
-          style={{ background: 'linear-gradient(165deg, var(--primary-50) 0%, #fff 48%)' }}
-        >
-          <div className="flex items-start gap-3">
-            <span
-              className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-500 text-white"
-              aria-hidden
-            >
-              <Route size={21} strokeWidth={2.2} />
-            </span>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <h2 className="font-semibold text-text-strong" style={{ fontSize: 19, lineHeight: 1.2 }}>
-                Préparer ma tournée
-              </h2>
-              <p className="mt-0.5 text-pretty text-[13px] leading-snug text-text-muted">
-                Les DPE les plus récents, sans les portes déjà faites.
-              </p>
-            </div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 pt-4">
+          <div className="flex items-center gap-2.5">
+            <Route size={22} strokeWidth={2.1} className="flex-shrink-0 text-text-strong" aria-hidden />
+            <h2 className="min-w-0 flex-1 font-semibold text-text-strong" style={{ fontSize: 19, lineHeight: 1.2 }}>
+              Préparer ma tournée
+            </h2>
             <button
               type="button"
               onClick={() => {
@@ -87,14 +74,14 @@ export default function CarteTourneeSetupSheet({
                 onClose();
               }}
               aria-label="Fermer"
-              className="app-press -mr-1 -mt-1 flex size-10 flex-shrink-0 items-center justify-center rounded-full text-text-muted"
+              className="app-press -mr-1 flex size-11 flex-shrink-0 items-center justify-center rounded-full text-text-muted"
             >
               <X size={19} strokeWidth={2.2} aria-hidden />
             </button>
           </div>
 
           {localisation === 'absente' ? (
-            <p className="mt-3 flex items-center gap-2 rounded-xl bg-primary-50 px-3 py-2.5 text-[13.5px] font-medium text-primary-700 ring-1 ring-primary-200">
+            <p className="mt-3 flex items-center gap-2 rounded-xl bg-black/[0.04] px-3 py-2.5 text-[13.5px] font-medium text-text-strong">
               <LocateOff size={16} strokeWidth={2.3} className="flex-shrink-0" aria-hidden />
               Pense à activer ta localisation !
             </p>
@@ -121,7 +108,7 @@ export default function CarteTourneeSetupSheet({
                     aria-checked={actif}
                     onClick={() => onPerimetre(valeur)}
                     className={`app-press min-h-[40px] truncate rounded-full px-2 text-[13.5px] font-semibold transition-colors duration-150 ${
-                      actif ? 'bg-white text-primary-600 shadow-sm' : 'text-text-muted'
+                      actif ? 'bg-white text-text-strong shadow-sm' : 'text-text-muted'
                     }`}
                   >
                     {libelle}
@@ -142,9 +129,9 @@ export default function CarteTourneeSetupSheet({
                 {ancres.map((ancre, index) => (
                   <li
                     key={`${ancre.id ?? ''}-${ancre.latitude}-${ancre.longitude}`}
-                    className="flex min-h-[44px] items-center gap-2.5 rounded-xl bg-primary-50 py-1.5 pl-3 pr-1 ring-1 ring-primary-200"
+                    className="flex min-h-[44px] items-center gap-2.5 rounded-xl bg-black/[0.04] py-1.5 pl-3 pr-1"
                   >
-                    <MapPin size={16} strokeWidth={2.3} className="flex-shrink-0 text-primary-500" aria-hidden />
+                    <MapPin size={16} strokeWidth={2.3} className="flex-shrink-0 text-text-muted" aria-hidden />
                     <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-text-strong">
                       {ancre.label}
                     </span>
@@ -171,13 +158,13 @@ export default function CarteTourneeSetupSheet({
                     onAjouter(adresse);
                     setRecherche((n) => n + 1);
                   }}
-                  inputClassName="w-full rounded-xl border border-black/[0.08] bg-white py-3 pl-10 pr-3 text-[15px] text-text-strong outline-none focus:border-primary-400"
+                  inputClassName="w-full rounded-xl border border-black/[0.08] bg-white py-3 pl-10 pr-3 text-[15px] text-text-strong outline-none focus:border-black/30"
                   aria-label="Ajouter une adresse à la tournée"
                 />
                 <button
                   type="button"
                   onClick={onPickOnMap}
-                  className="app-press mt-1 flex min-h-[44px] w-full items-center gap-2 rounded-xl px-1 text-left text-[13.5px] font-semibold text-primary-600"
+                  className="app-press mt-1 flex min-h-[44px] w-full items-center gap-2 rounded-xl px-1 text-left text-[13.5px] font-semibold text-text-strong"
                 >
                   <Plus size={15} strokeWidth={2.4} aria-hidden />
                   Ou touche un point sur la carte
@@ -202,7 +189,7 @@ export default function CarteTourneeSetupSheet({
                     aria-checked={actif}
                     onClick={() => onDuree(minutes)}
                     className={`app-press flex min-h-[44px] items-center justify-center rounded-full px-1 text-[13.5px] font-semibold tabular-nums transition-colors duration-150 ${
-                      actif ? 'bg-primary-500 text-white' : 'bg-black/[0.05] text-text'
+                      actif ? 'bg-[#474B53] text-white' : 'bg-black/[0.05] text-text'
                     }`}
                   >
                     {libelleDuree(minutes)}
@@ -227,7 +214,7 @@ export default function CarteTourneeSetupSheet({
             type="button"
             onClick={onGenerate}
             disabled={generating}
-            className="app-press flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-primary-500 font-semibold text-white disabled:opacity-80"
+            className="app-press flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-blue font-semibold text-white disabled:opacity-80"
             style={{ fontSize: 15.5 }}
           >
             {generating ? (

@@ -5,7 +5,6 @@ import { getDevice } from '@/lib/device-server';
 import { beginDashboardTiming, markServerTimingReady, timed } from '@/lib/perf/timing';
 import { UserProvider } from '@/components/providers/UserProvider';
 import { NotificationsProvider } from '@/components/providers/NotificationsProvider';
-import NotificationsWelcomePopup from '@/components/dashboard/notifications/NotificationsWelcomePopup';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchNotificationsSafe } from '@/lib/queries/notifications';
 import DeviceProvider from '@/components/dashboard/device/DeviceProvider';
@@ -50,7 +49,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const tree = (
     <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
       <NotificationsProvider key={agency.id} initial={notifications}>
-        <NotificationsWelcomePopup />
         <DeviceProvider device={device}>
           <DeviceSync serverDevice={device} />
           <OfflineQueueProvider>

@@ -51,7 +51,6 @@ import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
 import { buildSectorMapPoints } from '@/lib/carte/points';
-import { buildSortie } from '@/lib/today/sortie';
 import { groupEntitiesByBanId } from '@/lib/carte/buildings';
 import { entreeStage } from '@/lib/queries/lead-stages';
 import { formatPhoneOrNull } from '@/lib/import/normalize';
@@ -573,8 +572,6 @@ async function TodayContent({
       notes: visibleNotes,
     });
 
-    const sortiePlan = buildSortie(visibleLeads, profile.id, agencyOrigin);
-
     return (
       <div
         data-agent-onboarding
@@ -590,7 +587,6 @@ async function TodayContent({
           stageEntreeId={entreeStage(stages)?.id ?? null}
           buildings={groupEntitiesByBanId(points)}
           center={{ latitude: agency.latitude, longitude: agency.longitude }}
-          sortiePlan={sortiePlan}
           aDesParcelles={aDesParcelles}
           mobile={device === 'mobile'}
           reprise={
@@ -610,7 +606,6 @@ async function TodayContent({
             buildParcours({
               aDesLeads: true,
               aDesParcelles: true,
-              aUneSortie: true,
               mobile: device === 'mobile',
             }),
             priseEnMain?.stepsReached ?? [],

@@ -10,6 +10,7 @@ import {
   type ScriptApproche,
   type ScriptApprocheStored,
 } from '@/lib/script-approche';
+import { passeFiltresApproche } from '@/lib/script-approche-filtres';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_MODEL = 'mistral-small-latest';
@@ -83,14 +84,6 @@ RÉPONDS UNIQUEMENT EN JSON, sans texte avant ni après :
 { "texte": "le prompt de prospection complet, prêt à lire (appel OU porte), avec **gras** sur les faits clés" }
 `;
 
-/** Fuites de méthode — pas les faits métier (diagnostic, ventes, etc.). */
-const LEAK_PATTERNS =
-  /\b(dvf|bodacc|algorithme|score|signal|pr[eé]dictif|donn[eé]es\s+publiques|base\s+de\s+donn[eé]es)\b/i;
-
-/** Mentions d'achat / détention — interdites produit. */
-const ACQUISITION_LEAK =
-  /\b(acquis|acquisition|achet[eé]|achat|d[eé]tention|depuis\s+\d+\s+ans?|il\s+y\s+a\s+\d+\s+ans?\s+que|propri[eé]taire\s+depuis|achet[eé]\s+en\s+\d{4}|en\s+\d{4}\s*[,\.]?\s*(vous\s+avez\s+)?achet)\b/i;
-
 export type LeadForApproach = {
   address: string;
   property_type: string | null;
@@ -108,10 +101,6 @@ export type LeadForApproach = {
   /** Notes internes agents — contexte terrain prioritaire. */
   notes: string | null;
 };
-
-function stripAccents(s: string): string {
-  return s.normalize('NFD').replace(/\p{M}/gu, '');
-}
 
 /** Labels affichables pour l'agent — on garde le sens métier, on retire le jargon source. */
 function sanitizeSignalLabel(label: string): string {
@@ -292,10 +281,6 @@ function stripForbiddenTimeWindows(text: string): string {
   return s;
 }
 
-/** Canal figé (téléphone / porte) — « je vous contacte » est autorisé. */
-const CHANNEL_LEAK =
-  /\b(je\s+vous\s+(appelle|t[eé]l[eé]phone|joi[gn]ds|joinds)|je\s+vous\s+[eé]cris|au\s+t[eé]l[eé]phone|coup\s+de\s+fil|suite\s+[aà]\s+mon\s+appel|je\s+passe\s+un\s+coup|je\s+me\s+permets\s+de\s+venir|venir\s+vous\s+voir|passer\s+[aà]\s+la\s+porte)\b/i;
-
 function normalizeIntroTexte(raw: Record<string, unknown>): string | null {
   const texte =
     (typeof raw.texte === 'string' && raw.texte.trim()) ||
@@ -308,9 +293,7 @@ function normalizeIntroTexte(raw: Record<string, unknown>): string | null {
   if (out.length > MAX_OUVERTURE_CHARS) {
     out = `${out.slice(0, MAX_OUVERTURE_CHARS - 1).trimEnd()}…`;
   }
-  if (LEAK_PATTERNS.test(stripAccents(out))) return null;
-  if (ACQUISITION_LEAK.test(stripAccents(out))) return null;
-  if (CHANNEL_LEAK.test(stripAccents(out))) return null;
+  if (!passeFiltresApproche(out)) return null;
   return out;
 }
 

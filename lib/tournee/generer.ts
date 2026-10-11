@@ -47,6 +47,7 @@ export type DpeTournee = {
   lettre: string | null;
   surfaceM2: number | null;
   typeBatiment: string | null;
+  etage?: number | null;
   parcelleId: string | null;
 };
 
@@ -79,6 +80,7 @@ export type AdresseTournee = {
   passoire: boolean;
   surfaceM2: number | null;
   typeBatiment: string | null;
+  etage?: number | null;
   leadId: string | null;
   leadScore: number | null;
   leadSignal: string | null;
@@ -169,6 +171,7 @@ export function regrouperAdresses(input: {
         passoire: estPassoire(lettre),
         surfaceM2: dpe.surfaceM2,
         typeBatiment: dpe.typeBatiment,
+        etage: dpe.etage ?? null,
         leadId: null,
         leadScore: null,
         leadSignal: null,
@@ -185,6 +188,7 @@ export function regrouperAdresses(input: {
       actuelle.lettre = lettre;
       actuelle.surfaceM2 = dpe.surfaceM2;
       actuelle.typeBatiment = dpe.typeBatiment;
+      actuelle.etage = dpe.etage ?? null;
     }
   }
 
@@ -578,6 +582,7 @@ export function detailArret(a: AdresseTournee, options: { choisie?: boolean } = 
           passoire: a.passoire,
           surfaceM2: a.surfaceM2,
           type: a.typeBatiment,
+          etage: a.etage ?? null,
         }
       : null,
     lead: a.leadId ? { score: Math.round(a.leadScore ?? 0), signal: a.leadSignal?.trim() || null } : null,

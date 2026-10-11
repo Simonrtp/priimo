@@ -13,7 +13,7 @@ import {
   rangEtape,
 } from './parcours';
 
-const complet = { aDesLeads: true, aDesParcelles: true, aUneSortie: true, mobile: false };
+const complet = { aDesLeads: true, aDesParcelles: true, mobile: false };
 
 describe('buildParcours', () => {
   it('ouvre par salut → lettre → anniversaire → avatar', () => {
@@ -24,20 +24,19 @@ describe('buildParcours', () => {
 
   it('sur desktop : secteur, lead, note parmi les gestes', () => {
     const p = buildParcours(complet);
-    assert.deepEqual(p.slice(4, -1), ['secteur', 'lead', 'note', 'immeuble', 'sortie']);
+    assert.deepEqual(p.slice(4, -1), ['secteur', 'lead', 'note', 'immeuble']);
   });
 
   it('sur mobile place la dictée en tête des gestes', () => {
     const p = buildParcours({ ...complet, mobile: true });
-    assert.deepEqual(p.slice(4, -1), ['note', 'secteur', 'lead', 'immeuble', 'sortie']);
+    assert.deepEqual(p.slice(4, -1), ['note', 'secteur', 'lead', 'immeuble']);
   });
 
-  it('saute immeuble / sortie / lead si données absentes', () => {
+  it('saute immeuble et lead si données absentes', () => {
     assert.deepEqual(
       buildParcours({
         aDesLeads: false,
         aDesParcelles: false,
-        aUneSortie: false,
         mobile: false,
       }),
       ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur', 'note', 'final'],
@@ -66,14 +65,14 @@ describe('navigation', () => {
   });
 
   it('enchaîne jusqu’au final', () => {
-    assert.equal(etapeSuivante(parcours, 'sortie'), 'final');
+    assert.equal(etapeSuivante(parcours, 'immeuble'), 'final');
     assert.equal(etapeSuivante(parcours, 'final'), null);
   });
 
   it('remonte d’une étape', () => {
     assert.equal(etapePrecedente(parcours, 'salut'), null);
     assert.equal(etapePrecedente(parcours, 'lettre'), 'salut');
-    assert.equal(etapePrecedente(parcours, 'final'), 'sortie');
+    assert.equal(etapePrecedente(parcours, 'final'), 'immeuble');
   });
 });
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Check } from 'lucide-react';
 import type { TodayCard } from '@/lib/today/cards';
 import type { Lead } from '@/types/lead';
 import type { HomeNote } from '@/lib/notes/inbox';
@@ -12,7 +11,6 @@ import type { PortfolioStats } from '@/lib/today/portfolio';
 import type { DirectorMemberExceptions } from '@/lib/today/director-exceptions';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { notifyError } from '@/lib/notify';
-import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import TodayCardView from './TodayCardView';
 import { organizeTodayLayout, visualLevel } from '@/lib/today/visual-level';
 import TodayStatusBand from './TodayStatusBand';
@@ -31,28 +29,6 @@ function readJson<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
-}
-
-function EmptyState({ secteur }: { secteur?: ReactNode }) {
-  if (secteur) return <div className="flex h-full min-w-0 flex-col [&>*]:h-full">{secteur}</div>;
-  return (
-    <div className="flex flex-col items-center py-12 text-center">
-      <div
-        className="flex h-14 w-14 items-center justify-center rounded-full"
-        style={{ backgroundColor: 'var(--primary-100)' }}
-        aria-hidden
-      >
-        <Check size={26} strokeWidth={2.2} style={{ color: 'var(--primary-700)' }} />
-      </div>
-      <h2 className="mt-6 text-[19px] font-semibold text-text-strong">Vous êtes à jour.</h2>
-      <p className="mt-2 max-w-md text-pretty text-[14px] text-text-muted" style={{ lineHeight: 1.6 }}>
-        Rien ne vous attend pour le moment. Ce que vous croisez sur le terrain se note ici en quelques secondes.
-      </p>
-      <div className="mt-8">
-        <NoteCreateChooser variant="toolbar" />
-      </div>
-    </div>
-  );
 }
 
 export default function TodayClient({
@@ -190,7 +166,9 @@ export default function TodayClient({
           {directorLayout ? (
             <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
           ) : workCards.length === 0 && emptyKind === 'rien' ? (
-            <EmptyState secteur={secteur} />
+            secteur ? (
+              <div className="flex h-full min-w-0 flex-col [&>*]:h-full">{secteur}</div>
+            ) : null
           ) : workCards.length === 0 ? null : (
             <div className="flex flex-col gap-4">
               {layout.level1ContextLine ? (

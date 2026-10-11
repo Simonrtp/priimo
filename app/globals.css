@@ -73,19 +73,18 @@
   --radius-xl: 32px;
   --radius-pill: 9999px;
 
-  /* Ombres clay — 2 couches (moins de paint), rendu quasi inchangé */
-  /* Ombres directionnelles (pas de glow 0 0 Xx) — même relief, paint bien moins cher. */
+  /* Ombres clay centrées : même diffusion sur les quatre côtés des cartes. */
   --clay-sm:
-    0 1px 2px rgba(79, 70, 229, 0.06),
-    0 3px 8px -3px rgba(79, 70, 229, 0.12),
+    0 0 2px rgba(79, 70, 229, 0.07),
+    0 0 8px -2px rgba(79, 70, 229, 0.13),
     inset 0 0 1px rgba(255, 255, 255, 0.9);
   --clay:
-    0 2px 4px rgba(79, 70, 229, 0.07),
-    0 6px 14px -4px rgba(79, 70, 229, 0.14),
+    0 0 4px rgba(79, 70, 229, 0.08),
+    0 0 14px -2px rgba(79, 70, 229, 0.15),
     inset 0 0 1px rgba(255, 255, 255, 0.9);
   --clay-lg:
-    0 3px 6px rgba(79, 70, 229, 0.08),
-    0 10px 22px -6px rgba(79, 70, 229, 0.16),
+    0 0 6px rgba(79, 70, 229, 0.09),
+    0 0 22px -4px rgba(79, 70, 229, 0.17),
     inset 0 0 1px rgba(255, 255, 255, 0.95);
   --clay-pressed:
     inset 0 0 10px rgba(79, 70, 229, 0.14);
@@ -4328,6 +4327,32 @@ html:has(.feature-page) {
   }
   .squelette-bloc {
     animation: none;
+  }
+}
+
+/* Le bloc d'où vient une ligne du brief de porte, un instant en évidence. */
+.fiche-bloc-eclat {
+  border-radius: 16px;
+  animation: fiche-bloc-eclat 1.6s var(--ease-soft) both;
+}
+
+@keyframes fiche-bloc-eclat {
+  0%,
+  45% {
+    background-color: rgba(213, 216, 228, 0.55);
+    box-shadow: 0 0 0 8px rgba(213, 216, 228, 0.55);
+  }
+  100% {
+    background-color: rgba(213, 216, 228, 0);
+    box-shadow: 0 0 0 8px rgba(213, 216, 228, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fiche-bloc-eclat {
+    animation: none;
+    background-color: rgba(213, 216, 228, 0.55);
+    box-shadow: 0 0 0 8px rgba(213, 216, 228, 0.55);
   }
 }
 

@@ -21,6 +21,7 @@ export type DetailArret = {
     passoire: boolean;
     surfaceM2: number | null;
     type: string | null;
+    etage?: number | null;
   } | null;
   lead: { score: number; signal: string | null } | null;
   /** YYYY-MM-DD : passage avant le dernier DPE, la porte est rouverte. */

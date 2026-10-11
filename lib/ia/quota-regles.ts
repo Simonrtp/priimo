@@ -19,6 +19,8 @@ export const PLAFONDS_IA_JOUR = {
   /** Mémoire d'un contact ou d'un immeuble, champs d'estimation dictés. */
   redaction: 300,
   script_approche: 100,
+  /** Brief de porte : rédigé une fois par état de la fiche, puis relu en cache. */
+  brief_porte: 300,
   assistant: 400,
 } as const;
 

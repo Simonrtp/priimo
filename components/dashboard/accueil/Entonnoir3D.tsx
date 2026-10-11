@@ -122,7 +122,7 @@ export default function Entonnoir3D({
   });
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-clay-lg bg-surface p-5 shadow-clay sm:p-6">
+    <section className="flex h-full min-h-0 min-w-0 flex-col rounded-clay-lg bg-surface p-5 shadow-clay">
       <div className="flex items-center gap-2">
         <Filter size={16} strokeWidth={2.4} className="shrink-0 text-blue-dark" aria-hidden />
         <h2 className="font-display text-[16px] font-bold leading-tight text-blue-dark sm:text-[17px]">

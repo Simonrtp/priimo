@@ -10,16 +10,13 @@ import {
   ChevronDown,
   ChevronRight,
   Footprints,
-  Info,
   Mic,
-  Navigation,
   NotebookPen,
   Phone,
   X,
 } from 'lucide-react';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
-import { FacadeStreetLook } from '@/components/dashboard/FacadeLead';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { useUser } from '@/lib/hooks/useUser';
@@ -36,9 +33,11 @@ import {
   decrireVente,
   depuisQuand,
   estPassoire,
-  pastillesEnteteParcelle,
+  raccourcirUsage,
+  resumeAudits,
+  resumeCopropriete,
+  resumeLogements,
   syntheseParcelle,
-  type PastilleParcelle,
 } from '@/lib/carte/parcelle-synthese';
 import type { GenreProprietaire, ProprietaireMorale } from '@/lib/carte/bdnb';
 import { decrireNiveaux } from '@/lib/carte/proprietaires-lots';
@@ -54,6 +53,8 @@ import type {
   ParcelleVente,
 } from '@/lib/carte/parcelle';
 import { CIBLE_CLOCHE, envolerNote } from '@/lib/ui/envol-note';
+import type { BlocFiche } from '@/lib/carte/brief-porte';
+import BriefPorte, { EVENEMENT_BLOC_FICHE, SqueletteBrief } from '@/components/dashboard/carte/BriefPorte';
 import type { Notification } from '@/lib/notifications/types';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 
@@ -133,14 +134,16 @@ function DpeLettre({ lettre, taille = 28 }: { lettre: string | null; taille?: nu
 function Section({
   titre,
   aside,
+  bloc,
   children,
 }: {
   titre: string;
   aside?: ReactNode;
+  bloc?: BlocFiche;
   children: ReactNode;
 }) {
   return (
-    <section className="border-t border-black/[0.06] py-5">
+    <section data-fiche-bloc={bloc} className="scroll-mt-2 border-t border-black/[0.06] py-5">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">{titre}</h3>
         {aside}
@@ -168,7 +171,7 @@ function Depliable<T>({
         <button
           type="button"
           onClick={() => setTout((v) => !v)}
-          className="mt-2 inline-flex min-h-[40px] items-center rounded-full px-1 text-[13px] font-semibold text-primary-600 hover:text-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="mt-2 inline-flex min-h-11 items-center rounded-full px-1 text-[13px] font-semibold text-primary-600 hover:text-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {tout ? 'Réduire' : libellePlus(lignes.length)}
         </button>
@@ -177,23 +180,52 @@ function Depliable<T>({
   );
 }
 
-const TON_PASTILLE: Record<PastilleParcelle['ton'], string> = {
-  passoire: 'bg-[#FCE9EA] text-[#A61B29]',
-  recent: 'bg-accent/10 text-accent-dark',
-  alerte: 'bg-amber-50 text-amber-800',
-  neutre: 'bg-black/[0.05] text-text-muted',
-};
+/** Détail replié : le résumé reste lisible fermé. */
+function Repli({
+  titre,
+  resume,
+  bloc,
+  children,
+}: {
+  titre: string;
+  resume: string;
+  bloc?: BlocFiche;
+  children: ReactNode;
+}) {
+  const [ouvert, setOuvert] = useState(false);
 
-function Pastilles({ pastilles }: { pastilles: readonly PastilleParcelle[] }) {
-  if (pastilles.length === 0) return null;
+  useEffect(() => {
+    if (!bloc) return;
+    function ouvrir(e: Event) {
+      if ((e as CustomEvent<BlocFiche>).detail === bloc) setOuvert(true);
+    }
+    window.addEventListener(EVENEMENT_BLOC_FICHE, ouvrir);
+    return () => window.removeEventListener(EVENEMENT_BLOC_FICHE, ouvrir);
+  }, [bloc]);
+
   return (
-    <ul className="flex flex-wrap gap-1.5">
-      {pastilles.map((p) => (
-        <li key={p.cle} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${TON_PASTILLE[p.ton]}`}>
-          {p.libelle}
-        </li>
-      ))}
-    </ul>
+    <section data-fiche-bloc={bloc} className="scroll-mt-2 border-t border-black/[0.06]">
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((v) => !v)}
+        className="flex min-h-11 w-full items-center gap-3 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+            {titre}
+          </span>
+          <span className="mt-0.5 block truncate text-[14px] text-text-strong">{resume}</span>
+        </span>
+        <ChevronDown
+          size={18}
+          strokeWidth={2.2}
+          aria-hidden
+          className={`shrink-0 text-text-subtle transition-transform duration-200 ${ouvert ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {ouvert ? <div className="pb-4">{children}</div> : null}
+    </section>
   );
 }
 
@@ -250,7 +282,7 @@ function LigneProspect({ p, avecAdresse }: { p: ParcelleProspect; avecAdresse: b
     <li className={LIGNE}>
       <Link
         href={p.href}
-        className="-mx-2 flex items-start gap-3 rounded-xl px-2 py-3 hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="-mx-2 flex min-h-11 items-start gap-3 rounded-xl px-2 py-3 hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <ScoreRing score={p.score} size={38} />
         <span className="min-w-0 flex-1">
@@ -289,7 +321,7 @@ function BoutonAppel({ telephone, nom }: { telephone: string; nom: string }) {
     <a
       href={telHref(telephone)}
       aria-label={`Appeler ${nom}`}
-      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[12.5px] font-semibold tabular-nums text-text-strong transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-bg-subtle px-3.5 text-[13px] font-semibold tabular-nums text-text-strong transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <Phone size={13} strokeWidth={2.2} aria-hidden />
       {formatPhoneDisplay(telephone)}
@@ -534,7 +566,7 @@ function LigneProprietaire({
         aria-expanded={ouvert}
         aria-controls={panelId}
         onClick={() => setOuvert((v) => !v)}
-        className="flex w-full items-center gap-2 py-2.5 text-left transition-colors hover:bg-black/[0.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+        className="flex min-h-11 w-full items-center gap-2 py-2.5 text-left transition-colors hover:bg-black/[0.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px] font-semibold text-text-strong">
@@ -798,24 +830,28 @@ export default function ParcellePanel({
   const plusieursAdresses = fiche.adresses.length > 1;
   const adresseParBan = new Map(fiche.adresses.map((a) => [a.banId, a.libelle]));
 
-  const pastillesEntete = useMemo(
-    () =>
-      pastillesEnteteParcelle({
-        localite: fiche.localite,
-        surfaceM2: surface ?? null,
-        batiment: fiche.batiment,
-      }),
-    [fiche.localite, fiche.batiment, surface],
-  );
   const refParcelle = fiche.reference
     ? `Parcelle ${fiche.reference}`
     : 'Parcelle sans adresse connue';
+  const typeImmeuble = [
+    raccourcirUsage(fiche.batiment?.usage ?? null),
+    fiche.batiment?.anneeConstruction ? String(fiche.batiment.anneeConstruction) : null,
+    fiche.batiment?.logements
+      ? `${fiche.batiment.logements} logement${fiche.batiment.logements > 1 ? 's' : ''}`
+      : null,
+    fiche.localite,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  const chezNous =
-    fiche.prospects.length + fiche.contacts.length + fiche.biens.length + fiche.passages.length > 0;
   const dernierPassage = fiche.passages[0] ?? null;
   const copro = fiche.coproprietes[0] ?? null;
   const procedure = fiche.coproprietes.some((c) => c.procedureEnCours);
+  const prixDit = synthese.prix ? eurosM2(synthese.prix.valeur) : null;
+  const ecartDit =
+    synthese.ecartSecteurPct == null
+      ? null
+      : `${synthese.ecartSecteurPct > 0 ? '+' : synthese.ecartSecteurPct < 0 ? '−' : ''}${Math.abs(synthese.ecartSecteurPct)} % vs le quartier`;
   // Le syndicat des copropriétaires n'est pas un vendeur : la copropriété a sa section.
   const proprietairesBase = fiche.proprietaires.filter((p) => p.genre !== 'copropriete');
   const suivi = useSuiviImmeuble(fiche.parcelleId, fiche.banId, fiche.adresse, onSuiviChanged);
@@ -823,247 +859,218 @@ export default function ParcellePanel({
     fiche.parcelleId,
     proprietairesBase,
   );
-  const itineraire = fiche.position
-    ? `https://www.google.com/maps/dir/?api=1&destination=${fiche.position.latitude},${fiche.position.longitude}`
-    : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex flex-shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
-        <div className="min-w-0">
-          <h2
-            id="parcelle-title"
-            className="text-balance text-[19px] font-semibold leading-snug text-text-strong"
-            title={refParcelle}
-          >
-            {title}
-          </h2>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {suivi.disponible ? (
-            <button
-              type="button"
-              onClick={(e) => void suivi.basculer(e.currentTarget.getBoundingClientRect())}
-              disabled={suivi.enCours}
-              aria-pressed={suivi.actif}
-              title={
-                suivi.actif
-                  ? 'Ne plus suivre cet immeuble'
-                  : 'Être prévenu d’un nouveau DPE, d’une vente ou d’un audit énergétique'
-              }
-              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${
-                suivi.actif ? 'bg-accent/10 text-accent-dark' : 'bg-bg-subtle text-text-strong hover:bg-black/[0.06]'
-              }`}
+    <div data-fiche-racine className="flex min-h-0 flex-1 flex-col">
+      <header className="flex flex-shrink-0 flex-col gap-3 px-5 pb-3 pt-4 sm:px-6">
+        <div className="flex items-start gap-3">
+          <div data-fiche-bloc="entete" className="min-w-0 flex-1 rounded-xl">
+            <h2
+              id="parcelle-title"
+              className="text-balance text-[19px] font-semibold leading-snug text-text-strong"
+              title={refParcelle}
             >
-              {suivi.actif ? <BellRing size={14} aria-hidden /> : <Bell size={14} aria-hidden />}
-              {suivi.actif ? 'Suivi' : 'Suivre'}
-            </button>
-          ) : null}
+              {title}
+            </h2>
+            <p className="mt-1 text-[14px] leading-snug text-text-muted">{typeImmeuble || refParcelle}</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <X size={18} strokeWidth={2} aria-hidden />
           </button>
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6">
-        {pastillesEntete.length > 0 || plusieursAdresses ? (
-          <ul
-            className="mb-3 flex flex-wrap items-center gap-1.5"
-            title={refParcelle}
-            aria-label={[synthese.immeuble, refParcelle, surface ? `${surface} m² de terrain` : null]
-              .filter(Boolean)
-              .join('. ')}
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6"
+        style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <BriefPorte fiche={fiche} noteTick={noteTick} />
+        {suivi.disponible ? (
+          <button
+            type="button"
+            onClick={(e) => void suivi.basculer(e.currentTarget.getBoundingClientRect())}
+            disabled={suivi.enCours}
+            aria-pressed={suivi.actif}
+            className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${
+              suivi.actif ? 'bg-blue text-white' : 'bg-bg-subtle text-text-strong hover:bg-black/[0.06]'
+            }`}
           >
-            {pastillesEntete.map((p) => (
-              <li
-                key={p.cle}
-                className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted"
-              >
-                {p.libelle}
-              </li>
-            ))}
-            {plusieursAdresses ? (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setAdressesOuvertes((v) => !v)}
-                  aria-expanded={adressesOuvertes}
-                  aria-label={`${fiche.adresses.length} adresses sur la parcelle`}
-                  className="inline-flex h-7 items-center gap-1 rounded-full bg-bg-subtle pl-2.5 pr-2 text-[12px] font-semibold text-text-muted transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                >
-                  {fiche.adresses.length}&nbsp;adr.
-                  <ChevronDown
-                    size={13}
-                    aria-hidden
-                    className={`transition-transform ${adressesOuvertes ? 'rotate-180' : ''}`}
-                  />
-                </button>
-              </li>
-            ) : null}
-          </ul>
-        ) : (
-          <p className="mb-3 text-[12.5px] text-text-subtle" title={refParcelle}>
-            {refParcelle}
-          </p>
-        )}
+            {suivi.actif ? <BellRing size={16} aria-hidden /> : <Bell size={16} aria-hidden />}
+            {suivi.actif ? 'Immeuble suivi' : 'Suivre l’immeuble'}
+          </button>
+        ) : null}
+        <div className="h-4" aria-hidden />
+        {plusieursAdresses ? (
+          <button
+            type="button"
+            onClick={() => setAdressesOuvertes((v) => !v)}
+            aria-expanded={adressesOuvertes}
+            className="mb-3 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            {fiche.adresses.length} adresses
+            <ChevronDown
+              size={16}
+              aria-hidden
+              className={`transition-transform duration-200 ${adressesOuvertes ? 'rotate-180' : ''}`}
+            />
+          </button>
+        ) : null}
         {adressesOuvertes ? (
-          <ul className="-mt-1 mb-3 flex flex-col gap-1">
+          <ul className="mb-3 flex flex-col gap-1">
             {fiche.adresses.map((a) => (
-              <li key={a.banId} className="truncate text-[13px] text-text">
+              <li key={a.banId} className="truncate text-[14px] text-text">
                 {a.libelle}
               </li>
             ))}
           </ul>
         ) : null}
-        {fiche.position && fiche.adresse ? (
-          <div className="relative mb-3">
-            <FacadeStreetLook
-              latitude={fiche.position.latitude}
-              longitude={fiche.position.longitude}
-            />
-            {itineraire ? (
-              <a
-                href={itineraire}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute bottom-2.5 right-2.5 z-[1] inline-flex h-9 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[12.5px] font-semibold text-text-strong shadow-[0_2px_10px_rgba(26,42,86,0.18)] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <Navigation size={13} strokeWidth={2.2} aria-hidden />
-                Itinéraire
-              </a>
-            ) : null}
-          </div>
+        {fiche.horsSecteur ? (
+          <p className="mb-4 text-pretty text-[14px] leading-snug text-text-muted">
+            Hors de vos codes postaux : les ventes et les diagnostics publics ne s’affichent pas.
+          </p>
         ) : null}
 
-        <div className="pb-5">
-          <Pastilles pastilles={synthese.pastilles} />
-
-          {synthese.faits.length > 0 ? (
-            <div className="mt-4 rounded-2xl bg-bg-subtle px-4 py-3.5">
-              <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">À retenir</p>
-              <ul className="flex flex-col gap-2">
-                {synthese.faits.map((f) => (
-                  <li key={f.cle} className="flex gap-2.5 text-[14px] leading-snug text-text-strong">
-                    <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
-                    <span className="min-w-0 text-pretty">{f.texte}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : fiche.horsSecteur ? (
-            <p className="mt-4 rounded-2xl bg-bg-subtle px-4 py-3.5 text-pretty text-[13.5px] text-text-muted">
-              Cette parcelle est hors de vos codes postaux : ventes et diagnostics ne sont pas affichés.
-            </p>
-          ) : null}
-
-          {synthese.pourquoi.length > 0 ? (
-            <div className="mt-3 rounded-2xl border border-black/[0.06] px-4 py-3.5">
-              <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
-                <Info size={13} aria-hidden />
-                {fiche.ventes.length === 0 && fiche.logements.length === 0
-                  ? 'Pourquoi si peu de données ?'
-                  : fiche.ventes.length === 0
-                    ? 'Pourquoi aucune vente ?'
-                    : 'Pourquoi aucun DPE ?'}
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {synthese.pourquoi.map((raison) => (
-                  <li key={raison} className="text-pretty text-[13.5px] leading-snug text-text-muted">
-                    {raison}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-
-        {chezNous ? (
-          <Section titre="Chez nous">
-            {dernierPassage ? (
-              <p className="mb-3 flex items-center gap-2 text-[13.5px] text-text">
-                <Footprints size={15} className="shrink-0 text-text-subtle" aria-hidden />
-                <span>
+        <Section titre="Ici" bloc="ici">
+          <p className="flex items-start gap-2 text-[14px] leading-snug text-text">
+            <Footprints size={16} className="mt-0.5 shrink-0 text-text-subtle" aria-hidden />
+            <span>
+              {dernierPassage ? (
+                <>
                   Dernier passage {depuisQuand(dernierPassage.jour)} · {PASSAGE_LIBELLE[dernierPassage.kind]}
                   {dernierPassage.auteur ? ` · ${dernierPassage.auteur}` : ''}
-                </span>
-              </p>
-            ) : null}
-            <ul className="flex flex-col">
-              {fiche.prospects.map((p) => (
-                <LigneProspect key={p.id} p={p} avecAdresse={plusieursAdresses} />
-              ))}
-              {fiche.contacts.map((c) => (
-                <LigneContact key={c.id} c={c} />
-              ))}
-              {fiche.biens.map((b) => (
-                <LigneBien key={b.id} b={b} />
-              ))}
-            </ul>
-          </Section>
-        ) : null}
-
-        {proprietaires.length > 0 ? (
-          <Section
-            titre="Propriétaires connus"
-            aside={<InfoTooltip content={PROPRIETAIRES_HINT} placement="top-end" iconSize={14} />}
-          >
-            <Depliable
-              lignes={proprietaires}
-              rendre={(p) => (
-                <LigneProprietaire
-                  key={`${p.nom}-${p.siren ?? ''}`}
-                  p={p}
-                  annuairePret={annuairePret}
-                />
+                </>
+              ) : (
+                'Aucun passage enregistré'
               )}
-              libellePlus={(n) => `Voir les ${n} propriétaires`}
+            </span>
+          </p>
+          <div className="mt-3">
+            <NotesTerrainList
+              key={`${fiche.parcelleId}:${noteTick}`}
+              entiteType="parcelle"
+              entiteId={fiche.parcelleId}
+              currentUserId={profile?.id}
             />
-          </Section>
-        ) : null}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openCapture(noteContext)}
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-blue px-4 text-[15px] font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue"
+            >
+              <Mic size={18} strokeWidth={2.2} aria-hidden />
+              Dicter une note
+            </button>
+            <button
+              type="button"
+              onClick={() => openCompose(noteContext)}
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-bg-subtle px-4 text-[14px] font-semibold text-text-strong transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <NotebookPen size={17} aria-hidden />
+              Écrire
+            </button>
+          </div>
+        </Section>
 
-        {fiche.entreprises.length > 0 ? (
-          <Section
-            titre="Dans l’immeuble"
-            aside={<InfoTooltip content={CONTACTS_LEGAL_HINT} placement="top-end" iconSize={14} />}
-          >
-            <Depliable
-              lignes={fiche.entreprises}
-              rendre={(e) => <LigneEntreprise key={`${e.nom}-${e.telephone}`} e={e} />}
-              libellePlus={(n) => `Voir les ${n} professionnels`}
-            />
-          </Section>
-        ) : null}
+        <Section
+          titre="Qui contacter"
+          bloc="contacts"
+          aside={
+            proprietaires.length > 0 ? (
+              <InfoTooltip content={PROPRIETAIRES_HINT} placement="top-end" iconSize={14} />
+            ) : fiche.entreprises.length > 0 ? (
+              <InfoTooltip content={CONTACTS_LEGAL_HINT} placement="top-end" iconSize={14} />
+            ) : null
+          }
+        >
+          {proprietaires.length + fiche.entreprises.length + fiche.prospects.length + fiche.contacts.length + fiche.biens.length === 0 ? (
+            <p className="text-[14px] text-text-muted">Aucun nom à contacter ici.</p>
+          ) : (
+            <>
+              {proprietaires.length > 0 ? (
+                <Depliable
+                  lignes={proprietaires}
+                  rendre={(p) => (
+                    <LigneProprietaire
+                      key={`${p.nom}-${p.siren ?? ''}`}
+                      p={p}
+                      annuairePret={annuairePret}
+                    />
+                  )}
+                  libellePlus={(n) => `Voir les ${n} propriétaires`}
+                />
+              ) : null}
+              {fiche.entreprises.length + fiche.prospects.length + fiche.contacts.length + fiche.biens.length > 0 ? (
+                <ul className="flex flex-col">
+                  {fiche.entreprises.map((e) => (
+                    <LigneEntreprise key={`${e.nom}-${e.telephone}`} e={e} />
+                  ))}
+                  {fiche.prospects.map((p) => (
+                    <LigneProspect key={p.id} p={p} avecAdresse={plusieursAdresses} />
+                  ))}
+                  {fiche.contacts.map((c) => (
+                    <LigneContact key={c.id} c={c} />
+                  ))}
+                  {fiche.biens.map((b) => (
+                    <LigneBien key={b.id} b={b} />
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          )}
+        </Section>
+
+        <Section titre="Ventes" bloc="ventes">
+          {prixDit ? (
+            <p className="text-[15px] font-semibold tabular-nums text-text-strong">
+              {prixDit}
+              <span className="mt-0.5 block text-[13px] font-normal text-text-muted">
+                Médiane
+                {synthese.prix?.recent ? ` sur ${synthese.prix.n} ventes` : synthese.prix ? ` depuis ${synthese.prix.depuis}` : ''}
+                {ecartDit ? ` · ${ecartDit}` : ''}
+              </span>
+            </p>
+          ) : (
+            <p className="text-[14px] text-text-muted">
+              {synthese.pourquoi[0] ?? 'Aucune vente publiée à citer.'}
+            </p>
+          )}
+          {synthese.ventes.length > 0 ? (
+            <div className="mt-2">
+              <Depliable
+                lignes={synthese.ventes}
+                rendre={(v, i) => (
+                  <LigneVente
+                    key={`${v.date}-${i}`}
+                    v={v}
+                    adresse={plusieursAdresses && v.banId ? adresseCourte(adresseParBan.get(v.banId) ?? '') || null : null}
+                  />
+                )}
+                libellePlus={(n) => `Voir les ${n} ventes`}
+              />
+            </div>
+          ) : null}
+        </Section>
 
         {synthese.logements.length > 0 ? (
-          <Section
-            titre="Logements connus"
-            aside={
-              <span className="flex items-center gap-1.5 text-[12.5px] tabular-nums text-text-subtle">
-                {synthese.logements.length} logement{synthese.logements.length > 1 ? 's' : ''}
-                {synthese.passoires.length > 0 ? ` · ${synthese.passoires.length} F/G` : ''}
-                <InfoTooltip content={DPE_2026_HINT} placement="top-end" iconSize={13} />
-              </span>
-            }
-          >
+          <Repli titre="Logements et DPE" resume={resumeLogements(synthese.logements.length, synthese.passoires.length)}>
             <Repartition repartition={synthese.repartition} />
             <Depliable
               lignes={synthese.logements}
               rendre={(l, i) => <LigneLogement key={`${l.banId}-${l.date}-${i}`} l={l} />}
               libellePlus={(n) => `Voir les ${n} logements`}
             />
-          </Section>
+            <p className="mt-2 text-[12.5px] leading-snug text-text-subtle">{DPE_2026_HINT}</p>
+          </Repli>
         ) : null}
 
         {fiche.audits.length > 0 ? (
-          <Section
-            titre="Audits énergétiques"
-            aside={<InfoTooltip content={AUDITS_HINT} placement="top-end" iconSize={14} />}
-          >
+          <Repli titre="Audits" resume={resumeAudits(fiche.audits.length)}>
             <Depliable
               lignes={fiche.audits}
               rendre={(a) => (
@@ -1075,98 +1082,34 @@ export default function ParcellePanel({
               )}
               libellePlus={(n) => `Voir les ${n} audits`}
             />
-          </Section>
-        ) : null}
-
-        {synthese.ventes.length > 0 ? (
-          <Section
-            titre="Ventes"
-            aside={
-              <span className="text-[12.5px] tabular-nums text-text-subtle">
-                {synthese.ventes.length} depuis {synthese.ventes[synthese.ventes.length - 1]!.date.slice(0, 4)}
-              </span>
-            }
-          >
-            <Depliable
-              lignes={synthese.ventes}
-              rendre={(v, i) => (
-                <LigneVente
-                  key={`${v.date}-${i}`}
-                  v={v}
-                  adresse={plusieursAdresses && v.banId ? adresseCourte(adresseParBan.get(v.banId) ?? '') || null : null}
-                />
-              )}
-              libellePlus={(n) => `Voir les ${n} ventes`}
-            />
-          </Section>
+            <p className="mt-2 text-[12.5px] leading-snug text-text-subtle">{AUDITS_HINT}</p>
+          </Repli>
         ) : null}
 
         {copro ? (
-          <Section titre="Copropriété">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[14px]">
-              {synthese.lots != null ? (
-                <>
-                  <dt className="text-text-muted">Lots</dt>
-                  <dd className="tabular-nums text-text-strong">{synthese.lots}</dd>
-                </>
-              ) : null}
-              {copro.periodeConstruction ? (
-                <>
-                  <dt className="text-text-muted">Construction</dt>
-                  <dd className="text-text-strong">{copro.periodeConstruction}</dd>
-                </>
-              ) : null}
-              <dt className="text-text-muted">Procédure</dt>
-              <dd className={procedure ? 'font-semibold text-amber-800' : 'text-text-strong'}>
-                {procedure ? 'En cours' : 'Aucune'}
-              </dd>
-            </dl>
-            {copro.numeroImmatriculation ? (
-              <p className="mt-2 text-[12px] tabular-nums text-text-subtle">
-                Immatriculation {copro.numeroImmatriculation}
-              </p>
-            ) : null}
-          </Section>
+          <Repli
+            titre="Copropriété"
+            bloc="copropriete"
+            resume={resumeCopropriete({
+              lots: synthese.lots,
+              periode: copro.periodeConstruction,
+              procedure,
+            })}
+          >
+            <p className="text-[14px] leading-snug text-text">
+              {copro.numeroImmatriculation ? `Immatriculation ${copro.numeroImmatriculation}` : 'Registre des copropriétés'}
+              {procedure ? ' · procédure en cours' : ''}
+            </p>
+          </Repli>
         ) : null}
 
-        <Section titre="Notes">
-          <NotesTerrainList
-            key={`${fiche.parcelleId}:${noteTick}`}
-            entiteType="parcelle"
-            entiteId={fiche.parcelleId}
-            currentUserId={profile?.id}
-          />
-        </Section>
-
-        <p className="border-t border-black/[0.06] pb-6 pt-4 text-pretty text-[11.5px] leading-relaxed text-text-subtle">
+        <p className="border-t border-black/[0.06] pb-2 pt-4 text-pretty text-[11.5px] leading-relaxed text-text-subtle">
           Sources : DVF (Etalab, ventes depuis janvier 2021), DPE (ADEME, depuis juillet 2021), registre des
           copropriétés (ANAH), base nationale des bâtiments (CSTB) et fichiers fonciers des personnes morales
           (DGFiP). Plan cadastral indicatif, sans
           valeur juridique.
         </p>
       </div>
-
-      <footer
-        className="flex flex-shrink-0 items-center gap-2.5 border-t border-black/[0.06] bg-white px-5 pt-3 sm:px-6"
-        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
-      >
-        <button
-          type="button"
-          onClick={() => openCompose(noteContext)}
-          className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-bg-subtle px-4 text-[14px] font-semibold text-text-strong transition-colors hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <NotebookPen size={17} aria-hidden />
-          Écrire
-        </button>
-        <button
-          type="button"
-          onClick={() => openCapture(noteContext)}
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-ia text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(99,102,241,0.32)] transition-transform active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ia-700"
-        >
-          <Mic size={18} strokeWidth={2.2} aria-hidden />
-          Dicter une note
-        </button>
-      </footer>
     </div>
   );
 }
@@ -1176,11 +1119,8 @@ function Barre({ className }: { className: string }) {
 }
 
 /**
- * L'attente, dessinée à la forme de la fiche.
- *
- * Les blocs occupent la place des sections réelles — titre, façade,
- * « À retenir », listes — pour que l'arrivée des données ne fasse sauter
- * aucune ligne. Ils entrent en cascade, du haut vers le bas.
+ * L'attente reprend la fiche : en-tête, passage, note, contacts, prix,
+ * puis trois lignes repliées.
  */
 function SqueletteParcelle({
   onClose,
@@ -1196,43 +1136,39 @@ function SqueletteParcelle({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex flex-shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
-        <div className="min-w-0 flex-1">
-          {reference ? (
-            <>
-              <h2 id="parcelle-title" className="text-balance text-[19px] font-semibold leading-snug text-text-strong">
-                {reference}
-              </h2>
-              {surfaceCourte ? (
-                <ul className="mt-2 flex flex-wrap gap-1.5" aria-hidden>
-                  <li className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted">
-                    {surfaceCourte}
-                  </li>
-                </ul>
-              ) : null}
-            </>
-          ) : (
-            <div className="squelette-bloc">
-              <h2 id="parcelle-title" className="sr-only">
-                Chargement de la parcelle
-              </h2>
-              <Barre className="h-[19px] w-3/5" />
-              <div className="mt-2.5 flex gap-1.5">
-                <Barre className="h-6 w-16" />
-                <Barre className="h-6 w-14" />
-                <Barre className="h-6 w-12" />
+      <header className="flex flex-shrink-0 flex-col gap-3 px-5 pb-3 pt-4 sm:px-6">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            {reference ? (
+              <>
+                <h2 id="parcelle-title" className="text-balance text-[19px] font-semibold leading-snug text-text-strong">
+                  {reference}
+                </h2>
+                {surfaceCourte ? (
+                  <p className="mt-1 text-[14px] text-text-muted">{surfaceCourte}</p>
+                ) : (
+                  <Barre className="mt-2 h-3.5 w-2/5" />
+                )}
+              </>
+            ) : (
+              <div className="squelette-bloc">
+                <h2 id="parcelle-title" className="sr-only">
+                  Chargement de la parcelle
+                </h2>
+                <Barre className="h-[19px] w-3/5" />
+                <Barre className="mt-2 h-3.5 w-2/5" />
               </div>
-            </div>
-          )}
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <X size={18} strokeWidth={2} aria-hidden />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <X size={18} strokeWidth={2} aria-hidden />
-        </button>
       </header>
 
       <div
@@ -1240,30 +1176,40 @@ function SqueletteParcelle({
         role="status"
         aria-label="Chargement de la parcelle"
       >
-        <div className="flex flex-col gap-4" aria-hidden>
-          <div className="squelette squelette-bloc h-[150px] w-full rounded-2xl" style={{ animationDelay: '30ms' }} />
-          <div className="squelette-bloc flex gap-1.5" style={{ animationDelay: '70ms' }}>
-            <Barre className="h-6 w-24" />
-            <Barre className="h-6 w-20" />
-          </div>
-          <div className="squelette-bloc rounded-2xl bg-bg-subtle px-4 py-3.5" style={{ animationDelay: '110ms' }}>
-            <Barre className="h-2.5 w-16" />
-            <Barre className="mt-3 h-3.5 w-11/12" />
-            <Barre className="mt-2.5 h-3.5 w-4/5" />
-            <Barre className="mt-2.5 h-3.5 w-3/5" />
-          </div>
-          <section className="squelette-bloc border-t border-black/[0.06] pt-5" style={{ animationDelay: '170ms' }}>
-            <Barre className="h-2.5 w-20" />
-            <div className="mt-4 flex flex-col gap-3.5">
-              {[0, 1, 2].map((i) => (
+        <SqueletteBrief />
+        <div className="mt-4 flex flex-col" aria-hidden>
+          <section className="border-t border-black/[0.06] py-5">
+            <Barre className="h-2.5 w-10" />
+            <Barre className="mt-3 h-3.5 w-4/5" />
+            <Barre className="mt-3 h-3.5 w-full" />
+            <Barre className="mt-2 h-3.5 w-2/3" />
+            <div className="squelette mt-3 h-11 w-full rounded-full" />
+          </section>
+          <section className="border-t border-black/[0.06] py-5">
+            <Barre className="h-2.5 w-24" />
+            <div className="mt-3 flex flex-col gap-3">
+              {[0, 1].map((i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="squelette size-7 shrink-0 rounded-full" />
                   <Barre className="h-3.5 flex-1" />
-                  <Barre className="h-3 w-14" />
+                  <Barre className="h-3 w-16" />
                 </div>
               ))}
             </div>
           </section>
+          <section className="border-t border-black/[0.06] py-5">
+            <Barre className="h-2.5 w-14" />
+            <Barre className="mt-3 h-4 w-28" />
+            <Barre className="mt-2 h-3.5 w-3/5" />
+          </section>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex min-h-11 items-center justify-between border-t border-black/[0.06]">
+              <div className="min-w-0 flex-1">
+                <Barre className="h-2.5 w-16" />
+                <Barre className="mt-2 h-3.5 w-40" />
+              </div>
+              <Barre className="size-4 rounded-full" />
+            </div>
+          ))}
         </div>
       </div>
     </div>

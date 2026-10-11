@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import { usePathname } from 'next/navigation';
-import { useCallback, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { useOnboardingNavLock } from '@/lib/hooks/useOnboardingNavLock';
 import { LogOut } from 'lucide-react';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
@@ -104,8 +104,14 @@ function readCollapsed(): boolean {
 export default function Sidebar() {
   const pathname = usePathname();
   const { profile } = useUser();
-  const [collapsed, setCollapsed] = useState(readCollapsed);
+  // Même premier rendu côté serveur et navigateur : localStorage n'est lu
+  // qu'après l'hydratation, sinon les classes ouvert/fermé se mélangent.
+  const [collapsed, setCollapsed] = useState(false);
   const navLocked = useOnboardingNavLock();
+
+  useEffect(() => {
+    setCollapsed(readCollapsed());
+  }, []);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {

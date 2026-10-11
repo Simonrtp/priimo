@@ -271,6 +271,38 @@ export function decrireAudit(audit: AuditEnergetique, maintenant: Date = new Dat
   return `Audit énergétique ${depuisQuand(audit.date, maintenant)}${entre ? ` (${entre})` : ''} : le propriétaire prépare une vente ou des travaux`;
 }
 
+const COMPTEUR = new Intl.NumberFormat('fr-FR');
+
+/** « 14 logements, 3 passoires » — lisible même quand le détail est replié. */
+export function resumeLogements(logements: number, passoires: number): string {
+  if (logements <= 0) return 'Aucun logement connu';
+  const base = logements === 1 ? '1 logement' : `${COMPTEUR.format(logements)} logements`;
+  if (passoires <= 0) return base;
+  const p = passoires === 1 ? '1 passoire' : `${COMPTEUR.format(passoires)} passoires`;
+  return `${base}, ${p}`;
+}
+
+/** « 2 audits énergétiques ». */
+export function resumeAudits(n: number): string {
+  if (n <= 0) return 'Aucun audit';
+  return n === 1 ? '1 audit énergétique' : `${COMPTEUR.format(n)} audits énergétiques`;
+}
+
+/** « 42 lots · 1949–1960 · procédure en cours ». */
+export function resumeCopropriete(input: {
+  lots: number | null;
+  periode: string | null;
+  procedure: boolean;
+}): string {
+  const bits: string[] = [];
+  if (input.lots != null && input.lots > 0) {
+    bits.push(input.lots === 1 ? '1 lot' : `${COMPTEUR.format(input.lots)} lots`);
+  }
+  if (input.periode) bits.push(input.periode);
+  if (input.procedure) bits.push('procédure en cours');
+  return bits.length > 0 ? bits.join(' · ') : 'Copropriété connue';
+}
+
 /** « Résidentiel collectif · construit en 1928 · 8 niveaux · 268 logements » */
 export function decrireImmeuble(b: BatimentParcelle | null): string | null {
   if (!b) return null;

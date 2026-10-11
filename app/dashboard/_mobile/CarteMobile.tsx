@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, MapPin, Navigation, Phone, Play, Square, X } from 'lucide-react';
+import { Box, Layers, Locate, MapPin, Navigation, Navigation2, Phone, Play, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
@@ -54,7 +54,7 @@ import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import MobileMapCanvas, { type MobileMapHandle } from './MobileMapCanvas';
+import MobileMapCanvas, { type MobileMapHandle, type VueCarte } from './MobileMapCanvas';
 import MobileSheet from './MobileSheet';
 import MobileAccountMenu from './MobileAccountMenu';
 import MobileSearchCapsule from './MobileSearchCapsule';
@@ -68,6 +68,7 @@ import CarteTourneeSetupSheet from './CarteTourneeSetupSheet';
 import { useTourneeCarte } from './useTourneeCarte';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
 import {
+  cameraFor,
   persistMapDimension,
   readMapDimension,
   toggleDimension,
@@ -151,6 +152,7 @@ export default function CarteMobile({
     initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
   );
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
+  const [vue, setVue] = useState<VueCarte | null>(null);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
@@ -391,6 +393,26 @@ export default function CarteMobile({
   const phone = selected ? firstPhone(selected.entities) : null;
   /** Au-dessus de la barre d'onglets (carte plein écran derrière). */
   const floatBottom = 'calc(12px + var(--field-nav-height))';
+  const cameraMode = cameraFor(dimension);
+  const vueTournee =
+    vue !== null &&
+    (Math.abs((((vue.bearing - cameraMode.bearing) % 360) + 540) % 360 - 180) > 3 ||
+      Math.abs(vue.pitch - cameraMode.pitch) > 3);
+  const boussole = vueTournee ? (
+    <button
+      type="button"
+      onClick={() => mapApi.current?.remettreVue()}
+      aria-label="Remettre la carte droite"
+      className="app-press flex size-12 items-center justify-center rounded-full bg-surface text-text-strong shadow-md"
+    >
+      <Navigation2
+        size={20}
+        strokeWidth={2.1}
+        style={{ transform: `rotate(${-(vue?.bearing ?? 0)}deg)` }}
+        aria-hidden
+      />
+    </button>
+  ) : null;
   const contexteBrief = tournee.sansPosition
     ? 'Pense à activer ta localisation !'
     : tournee.distanceDepartM !== null
@@ -427,6 +449,7 @@ export default function CarteMobile({
         highlightedZoneId={zoneChoisie?.id ?? null}
         clipZone={zoneChoisie}
         dimension={dimension}
+        onVue={setVue}
         selectedBanId={selectedBanId}
         mapRef={mapApi}
         onSelect={handleMapSelect}
@@ -544,7 +567,7 @@ export default function CarteMobile({
                       setConfirmerFin(false);
                       tournee.terminer();
                     }}
-                    className="app-press flex h-10 items-center rounded-full bg-primary-500 px-3.5 text-[13.5px] font-semibold text-white"
+                    className="app-press flex h-10 items-center rounded-full bg-blue px-3.5 text-[13.5px] font-semibold text-white"
                   >
                     Oui
                   </button>
@@ -558,7 +581,7 @@ export default function CarteMobile({
                       closeParcelle();
                       tournee.reprendre();
                     }}
-                    className="app-press flex items-center gap-2 whitespace-nowrap rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
+                    className="app-press flex items-center gap-2 whitespace-nowrap rounded-full bg-blue px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
                     style={{ fontSize: 14 }}
                   >
                     <Play size={16} strokeWidth={2.4} aria-hidden />
@@ -580,7 +603,7 @@ export default function CarteMobile({
               type="button"
               onClick={ouvrirTournee}
               aria-label="Préparer une tournée"
-              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
+              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-blue px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
               style={{ bottom: floatBottom, fontSize: 14 }}
             >
               <MapPin size={18} strokeWidth={2.2} aria-hidden />
@@ -633,8 +656,13 @@ export default function CarteMobile({
             >
               <Locate size={20} strokeWidth={2} aria-hidden />
             </button>
+            {boussole}
           </div>
         </>
+      ) : boussole ? (
+        <div className="absolute right-4 z-[71]" style={{ top: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
+          {boussole}
+        </div>
       ) : null}
 
       {tournee.phase === 'preparation' && !picking ? (

@@ -42,21 +42,26 @@ function clipGradient(drawn: number, color: string, from = 0): ExpressionSpecifi
   const start = Math.max(0, Math.min(1, from));
   const end = Math.max(start, Math.min(1, drawn));
   const eps = 0.002;
-  return [
-    'interpolate',
-    ['linear'],
-    ['line-progress'],
-    0,
-    'rgba(0,0,0,0)',
-    Math.max(0, start - eps),
-    'rgba(0,0,0,0)',
-    start,
-    color,
-    end,
-    color,
-    Math.min(1, end + eps),
-    'rgba(0,0,0,0)',
-  ] as ExpressionSpecification;
+  const vide = 'rgba(0,0,0,0)';
+  const candidats: [number, string][] = [
+    [0, vide],
+    [Math.max(0, start - eps), vide],
+    [start, color],
+    [end, color],
+    [Math.min(1, end + eps), vide],
+    [1, vide],
+  ];
+  // Mapbox exige des entrées strictement croissantes ; à égalité, la portion tracée l'emporte.
+  const paliers: [number, string][] = [];
+  for (const palier of candidats) {
+    const dernier = paliers[paliers.length - 1];
+    if (dernier && palier[0] <= dernier[0]) {
+      if (palier[1] === color) dernier[1] = color;
+      continue;
+    }
+    paliers.push(palier);
+  }
+  return ['interpolate', ['linear'], ['line-progress'], ...paliers.flat()] as ExpressionSpecification;
 }
 
 function ArretPin({

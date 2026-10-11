@@ -14,7 +14,7 @@ import { clientIpFromRequest, rateLimit } from '@/lib/rate-limit';
 import { formatParcelleId, normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { invaliderNotesAccueil } from '@/lib/cache/dashboard';
 import { linkNoteToParcelle } from '@/lib/notes/parcelle-lien';
-import { bansDeLaParcelle } from '@/lib/notes/parcelle-depuis-ban';
+import { notesPoseesSurLaParcelle } from '@/lib/notes/parcelle-notes';
 import type { NoteLienEntite, NoteLien, TerrainNote } from '@/types/contact';
 import type { NoteLienRow, VoiceNoteRow } from '@/types/database';
 
@@ -118,54 +118,6 @@ export async function GET(req: Request) {
     .filter((n) => canSeeVoiceNote(viewer, { visibilite: n.visibilite, createdBy: n.createdBy }));
 
   return NextResponse.json({ notes });
-}
-
-/**
- * Notes visibles sur le volet parcelle : posées à l’adresse (BAN), liées à
- * l’immeuble / la parcelle, ou rattachées à un bien de l’agence sur cette
- * parcelle.
- */
-async function notesPoseesSurLaParcelle(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  agencyId: string,
-  parcelleId: string,
-): Promise<string[]> {
-  const admin = createSupabaseAdminClient();
-  const bans = await bansDeLaParcelle(admin, parcelleId);
-  const ids = new Set<string>();
-
-  if (bans.length > 0) {
-    const [{ data: parBan }, { data: liensImm }] = await Promise.all([
-      supabase.from('voice_notes').select('id').eq('agency_id', agencyId).in('ban_id', bans),
-      supabase
-        .from('note_liens')
-        .select('note_id')
-        .eq('agency_id', agencyId)
-        .eq('entite_type', 'immeuble')
-        .in('entite_id', bans),
-    ]);
-    for (const r of parBan ?? []) ids.add((r as { id: string }).id);
-    for (const r of liensImm ?? []) ids.add((r as { note_id: string }).note_id);
-
-    // Biens de l’agence géocodés sur ces BAN → leurs notes aussi.
-    const { data: biens } = await admin
-      .from('biens')
-      .select('id')
-      .eq('agency_id', agencyId)
-      .in('ban_id', bans);
-    const bienIds = (biens ?? []).map((b) => (b as { id: string }).id);
-    if (bienIds.length > 0) {
-      const { data: liensBien } = await supabase
-        .from('note_liens')
-        .select('note_id')
-        .eq('agency_id', agencyId)
-        .eq('entite_type', 'bien')
-        .in('entite_id', bienIds);
-      for (const r of liensBien ?? []) ids.add((r as { note_id: string }).note_id);
-    }
-  }
-
-  return [...ids];
 }
 
 const MAX_TYPED_CHARS = 8000;

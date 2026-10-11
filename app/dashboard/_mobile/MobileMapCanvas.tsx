@@ -44,7 +44,11 @@ export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }, zoom?: number) => void;
   fitGroup: (buildings: readonly BuildingMarker[]) => void;
   fitStops: (stops: readonly { latitude: number; longitude: number }[]) => void;
+  /** Revient au cap et à l'inclinaison du mode 2D / 3D. */
+  remettreVue: () => void;
 };
+
+export type VueCarte = { bearing: number; pitch: number };
 
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
@@ -104,6 +108,7 @@ export default function MobileMapCanvas({
   dimension = '2d',
   cible = null,
   focus = null,
+  onVue,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -146,6 +151,8 @@ export default function MobileMapCanvas({
   focus?: { cle: string; latitude: number; longitude: number } | null;
   /** Plan à plat ou relief des immeubles. */
   dimension?: MapDimension;
+  /** Cap et inclinaison après chaque geste. */
+  onVue?: (vue: VueCarte) => void;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -267,12 +274,10 @@ export default function MobileMapCanvas({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const gestures = map.getMap().touchZoomRotate;
-    if (relief) gestures.enableRotation();
-    else gestures.disableRotation();
+    map.getMap().touchZoomRotate.enableRotation();
     if (navigation) return;
     map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
-  }, [camera.pitch, camera.bearing, navigation, relief, styleReady]);
+  }, [camera.pitch, camera.bearing, navigation, styleReady]);
 
   useEffect(() => {
     if (!mapRefOut) return;
@@ -288,6 +293,9 @@ export default function MobileMapCanvas({
       },
       fitGroup: (group) => fitToPoints(true, group),
       fitStops: (stops) => fitBoundsTo(computeLngLatBounds(stops), true),
+      remettreVue: () => {
+        mapRef.current?.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
+      },
     };
     return () => {
       mapRefOut.current = null;
@@ -338,9 +346,9 @@ export default function MobileMapCanvas({
         attributionControl={false}
         minPitch={0}
         maxPitch={MAP_MAX_PITCH}
-        dragRotate={relief}
-        pitchWithRotate={relief}
-        touchPitch={relief}
+        dragRotate
+        pitchWithRotate
+        touchPitch
         touchZoomRotate
         interactiveLayerIds={[
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
@@ -385,6 +393,7 @@ export default function MobileMapCanvas({
             });
           }
           setZoom(event.target.getZoom());
+          onVue?.({ bearing: event.target.getBearing(), pitch: event.target.getPitch() });
           if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
           gestureTimer.current = window.setTimeout(() => {
             gestureTimer.current = null;

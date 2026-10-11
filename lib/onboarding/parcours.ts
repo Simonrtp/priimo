@@ -1,8 +1,8 @@
 /**
  * Parcours de prise en main du négociateur (v2).
  *
- * Ouverture (salut → lettre → anniversaire → avatar), puis 5 gestes réels,
- * puis écran final. Mobile-first : la dictée ouvre les cinq gestes.
+ * Ouverture (salut → lettre → anniversaire → avatar), puis les gestes réels,
+ * puis écran final. Mobile-first : la dictée ouvre les gestes.
  */
 
 export type EtapeId =
@@ -14,7 +14,6 @@ export type EtapeId =
   | 'lead'
   | 'note'
   | 'immeuble'
-  | 'sortie'
   | 'final';
 
 /** Toutes les étapes possibles (mesure / validation API). */
@@ -27,7 +26,6 @@ export const TOUTES_LES_ETAPES: readonly EtapeId[] = [
   'lead',
   'note',
   'immeuble',
-  'sortie',
   'final',
 ];
 
@@ -37,8 +35,7 @@ export const ETAPE_PASSER_DES_DE: EtapeId = 'anniversaire';
 export type ContexteParcours = {
   aDesLeads: boolean;
   aDesParcelles: boolean;
-  aUneSortie: boolean;
-  /** Sur téléphone, la dictée ouvre les cinq gestes. */
+  /** Sur téléphone, la dictée ouvre les gestes. */
   mobile: boolean;
 };
 
@@ -58,7 +55,6 @@ function gestes(ctx: ContexteParcours): EtapeId[] {
   }
 
   if (ctx.aDesParcelles) etapes.push('immeuble');
-  if (ctx.aUneSortie) etapes.push('sortie');
   return etapes;
 }
 

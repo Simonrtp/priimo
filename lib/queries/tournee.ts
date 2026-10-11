@@ -81,7 +81,7 @@ async function dpeDesBatiments(db: Client, batiments: ReadonlyMap<string, Batime
       paquets.slice(i, i + PAQUETS_EN_PARALLELE).map(async (paquet) => {
         const { data, error } = await db
           .from('building_dpe')
-          .select('ban_id, numero_dpe, date_dpe, etiquette_dpe, surface')
+          .select('ban_id, numero_dpe, date_dpe, etiquette_dpe, surface, etage')
           .in('ban_id', paquet)
           .gte('date_dpe', depuis);
         if (error) {
@@ -94,6 +94,7 @@ async function dpeDesBatiments(db: Client, batiments: ReadonlyMap<string, Batime
           date_dpe: string | null;
           etiquette_dpe: string | null;
           surface: number | string | null;
+          etage: number | string | null;
         }[];
       }),
     );
@@ -103,6 +104,7 @@ async function dpeDesBatiments(db: Client, batiments: ReadonlyMap<string, Batime
         const date = ligne.date_dpe?.slice(0, 10);
         if (!batiment || !date) continue;
         const surface = ligne.surface === null ? null : Number(ligne.surface);
+        const etage = ligne.etage === null ? null : Number(ligne.etage);
         out.push({
           numeroDpe: ligne.numero_dpe,
           banId: ligne.ban_id,
@@ -114,6 +116,7 @@ async function dpeDesBatiments(db: Client, batiments: ReadonlyMap<string, Batime
           lettre: ligne.etiquette_dpe,
           surfaceM2: surface !== null && Number.isFinite(surface) ? surface : null,
           typeBatiment: null,
+          etage: etage !== null && Number.isFinite(etage) ? etage : null,
           parcelleId: batiment.parcelleId,
         });
       }
@@ -144,6 +147,7 @@ async function dpeAdeme(codes: readonly string[], depuis: string, boite: Bbox | 
       lettre: l.lettre,
       surfaceM2: l.surfaceM2,
       typeBatiment: l.typeBatiment,
+      etage: l.etage,
       parcelleId: null,
     });
   }

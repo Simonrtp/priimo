@@ -88,19 +88,11 @@ export default function CarteTourneeBriefCard({
           className="tour-brief overflow-hidden rounded-[26px] bg-surface shadow-[0_-12px_44px_rgba(26,42,86,0.24)] ring-1 ring-black/[0.06]"
           style={{ marginBottom: 'calc(12px + var(--field-nav-height))' }}
         >
-          <div
-            className="px-5 pb-5 pt-5"
-            style={{ background: 'linear-gradient(165deg, var(--primary-100) 0%, #fff 46%)' }}
-          >
-            <div className="tour-brief__block flex items-start gap-3">
-              <span
-                className="flex size-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-500 text-white"
-                aria-hidden
-              >
-                <Sparkles size={22} strokeWidth={2.1} />
-              </span>
+          <div className="px-5 pb-5 pt-5">
+            <div className="tour-brief__block flex items-start gap-2.5">
+              <Sparkles size={22} strokeWidth={2.1} className="mt-0.5 flex-shrink-0 text-text-strong" aria-hidden />
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-primary-500">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-text-subtle">
                   C&apos;est parti
                 </p>
                 <h2
@@ -153,7 +145,7 @@ export default function CarteTourneeBriefCard({
 
           <div className="h-[3px] w-full bg-black/[0.06]" aria-hidden>
             <div
-              className="h-full bg-primary-500 transition-[width] duration-700 ease-out"
+              className="h-full bg-[#474B53] transition-[width] duration-700 ease-out"
               style={{ width: `${(revealed / BLOCKS) * 100}%` }}
             />
           </div>

@@ -5,6 +5,9 @@ import type { BatimentParcelle } from './bdnb';
 import {
   decrireLogement,
   decrireVente,
+  resumeAudits,
+  resumeCopropriete,
+  resumeLogements,
   depuisQuand,
   logementsDistincts,
   decrireAudit,
@@ -476,5 +479,27 @@ describe('decrireAudit', () => {
       plat(texte),
       'Audit énergétique il y a 3 mois (T3 · 62 m² · 4e étage, F → A après travaux) : le propriétaire prépare une vente ou des travaux',
     );
+  });
+});
+
+describe('résumés repliés de la fiche', () => {
+  it('dit les logements et les passoires même fermé', () => {
+    assert.equal(resumeLogements(14, 3), '14 logements, 3 passoires');
+    assert.equal(resumeLogements(1, 1), '1 logement, 1 passoire');
+    assert.equal(resumeLogements(4, 0), '4 logements');
+    assert.equal(resumeLogements(0, 0), 'Aucun logement connu');
+  });
+
+  it('compte les audits', () => {
+    assert.equal(resumeAudits(1), '1 audit énergétique');
+    assert.equal(resumeAudits(2), '2 audits énergétiques');
+  });
+
+  it('résume la copropriété', () => {
+    assert.equal(
+      resumeCopropriete({ lots: 42, periode: '1949–1960', procedure: true }),
+      '42 lots · 1949–1960 · procédure en cours',
+    );
+    assert.equal(resumeCopropriete({ lots: null, periode: null, procedure: false }), 'Copropriété connue');
   });
 });

@@ -256,11 +256,18 @@ export default function AccueilPilotage({
         />
         {emploiDuTemps ? <Fragment key="accueil-emploi">{emploiDuTemps}</Fragment> : null}
       </div>
-      <div aria-busy={enCours} className={`max-md:hidden [content-visibility:auto] [contain-intrinsic-size:auto_280px] ${estompe}`}>
+      <div aria-busy={enCours} className={`min-w-0 max-md:hidden ${estompe}`}>
         <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} />
       </div>
 
       {aujourdhui ? <Fragment key="accueil-aujourdhui">{aujourdhui}</Fragment> : null}
+      {/* Une demi-page, comme les cartes du dessus. Pas de content-visibility
+          ici : son confinement coupait l'ombre de la carte. */}
+      {secteur ? (
+        <div key="accueil-secteur" className="grid gap-4 lg:grid-cols-2">
+          <div className="min-w-0">{secteur}</div>
+        </div>
+      ) : null}
       <div aria-busy={enCours} className={`[content-visibility:auto] [contain-intrinsic-size:auto_200px] ${estompe}`}>
         <JourParJour
           jours={bilan.joursGlissants}
@@ -272,13 +279,6 @@ export default function AccueilPilotage({
           onChoisirJour={(jour) => void changer('custom', jour, jour)}
         />
       </div>
-      {/* Une demi-page, comme les cartes du dessus. Pas de content-visibility
-          ici : son confinement coupait l'ombre de la carte. */}
-      {secteur ? (
-        <div key="accueil-secteur" className="grid gap-4 lg:grid-cols-2">
-          <div className="min-w-0">{secteur}</div>
-        </div>
-      ) : null}
     </div>
     </NotesLectureProvider>
   );

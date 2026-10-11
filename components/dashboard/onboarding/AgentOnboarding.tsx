@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { BuildingMarker } from '@/lib/carte/buildings';
-import type { SortiePlan } from '@/lib/today/sortie';
 import type { OnboardingLeadPropose, OnboardingSecteur } from '@/lib/queries/agent-onboarding';
 import {
   buildParcours,
@@ -22,7 +21,6 @@ import EtapeSecteur from './EtapeSecteur';
 import EtapeLead from './EtapeLead';
 import EtapeNote from './EtapeNote';
 import EtapeImmeuble from './EtapeImmeuble';
-import EtapeSortie from './EtapeSortie';
 import EtapeFinal from './EtapeFinal';
 
 function initialsOf(first: string, last: string): string {
@@ -44,7 +42,6 @@ export default function AgentOnboarding({
   stageEntreeId,
   buildings,
   center,
-  sortiePlan,
   aDesParcelles,
   mobile,
   reprise,
@@ -58,7 +55,6 @@ export default function AgentOnboarding({
   stageEntreeId: string | null;
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
-  sortiePlan: SortiePlan | null;
   aDesParcelles: boolean;
   mobile: boolean;
   reprise: { currentStep: string | null; stepsReached: string[] } | null;
@@ -71,10 +67,9 @@ export default function AgentOnboarding({
       buildParcours({
         aDesLeads: leads.length > 0,
         aDesParcelles,
-        aUneSortie: sortiePlan != null && sortiePlan.ordered.length > 0,
         mobile,
       }),
-    [leads.length, stageEntreeId, aDesParcelles, sortiePlan, mobile],
+    [leads.length, stageEntreeId, aDesParcelles, mobile],
   );
 
   const [etape, setEtape] = useState<EtapeId>(() =>
@@ -219,15 +214,6 @@ export default function AgentOnboarding({
   } else if (etape === 'immeuble') {
     contenu = (
       <EtapeImmeuble {...commun} buildings={buildings} center={center} onSuivant={suivant} />
-    );
-  } else if (etape === 'sortie' && sortiePlan) {
-    contenu = (
-      <EtapeSortie
-        {...commun}
-        plan={sortiePlan}
-        enCours={fermeture}
-        onTerminer={suivant}
-      />
     );
   } else if (etape === 'final') {
     contenu = (

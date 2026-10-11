@@ -22,8 +22,11 @@ import {
   stopMicStream,
 } from '@/lib/voice/mic';
 import { isVoiceBlobTooSmall, MIN_VOICE_RECORD_MS } from '@/lib/voice/audio-blob';
-import type { DevicePosition } from '@/lib/voice/gps';
-import { readDevicePosition } from '@/lib/voice/gps';
+import {
+  isAddressPositionPrecise,
+  readPreciseDevicePosition,
+  type DevicePosition,
+} from '@/lib/voice/gps';
 import { reverseGeocode } from '@/lib/geo/ban';
 import { shouldLockVoice, VOICE_LOCK_SWIPE_PX } from '@/lib/voice/gesture-lock';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
@@ -97,9 +100,9 @@ export default forwardRef<
 
   useEffect(() => {
     if (adresse) setGpsAddress(adresse);
-    void readDevicePosition().then(async (pos) => {
-      gpsRef.current = pos;
-      if (!pos || adresse) return;
+    void readPreciseDevicePosition().then(async (pos) => {
+      gpsRef.current = isAddressPositionPrecise(pos) ? pos : null;
+      if (!pos || !isAddressPositionPrecise(pos) || adresse) return;
       const hit = await reverseGeocode(pos.latitude, pos.longitude);
       if (hit) setGpsAddress(hit.adresse_normalisee);
     });

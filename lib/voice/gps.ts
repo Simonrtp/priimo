@@ -16,6 +16,15 @@ export type WatchPositionOptions = {
   maximumAge?: number;
 };
 
+/** Sous ce rayon, le GPS est assez précis pour choisir un numéro de rue. */
+export const ADDRESS_ACCURACY_MAX_M = 30;
+
+export function isAddressPositionPrecise(
+  pos: Pick<DevicePosition, 'accuracyM'> | null | undefined,
+): boolean {
+  return pos?.accuracyM != null && pos.accuracyM > 0 && pos.accuracyM <= ADDRESS_ACCURACY_MAX_M;
+}
+
 function distanceM(
   a: { latitude: number; longitude: number },
   b: { latitude: number; longitude: number },
@@ -124,6 +133,24 @@ export function readDevicePosition(): Promise<DevicePosition | null> {
       (pos) => resolve(fromCoords(pos.coords)),
       () => resolve(null),
       { enableHighAccuracy: false, timeout: 4000, maximumAge: 60_000 },
+    );
+  });
+}
+
+/**
+ * Position fraîche pour rattacher une note à une adresse.
+ * Un ordinateur peut ne fournir qu'une position Wi‑Fi approximative : l'appelant
+ * doit contrôler `isAddressPositionPrecise` avant de choisir un numéro de rue.
+ */
+export function readPreciseDevicePosition(): Promise<DevicePosition | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(fromCoords(pos.coords)),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
     );
   });
 }

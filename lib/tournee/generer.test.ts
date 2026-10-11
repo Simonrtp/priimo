@@ -440,11 +440,11 @@ describe('raisonArret', () => {
 
   it('détaille la porte rouverte par un DPE arrivé après le passage', () => {
     const [a] = adresses(
-      [dpe('a', 0, 0, '2026-09-21', { lettre: 'G', surfaceM2: 42 }), dpe('a', 0, 0, '2026-08-02')],
+      [dpe('a', 0, 0, '2026-09-21', { lettre: 'G', surfaceM2: 42, etage: 3 }), dpe('a', 0, 0, '2026-08-02')],
       new Map([['a', '2026-09-01']]),
     );
     assert.deepEqual(versArretSortie(a!, MAINTENANT).detail, {
-      dpe: { lettre: 'G', date: '2026-09-21', nombre: 2, passoire: true, surfaceM2: 42, type: 'appartement' },
+      dpe: { lettre: 'G', date: '2026-09-21', nombre: 2, passoire: true, surfaceM2: 42, type: 'appartement', etage: 3 },
       lead: null,
       dernierPassage: '2026-09-01',
       choisie: false,
