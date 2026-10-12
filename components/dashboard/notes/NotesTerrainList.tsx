@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { NoteLien, NoteLienEntite, VoiceNoteVisibilite } from '@/types/contact';
 import { NOTE_CONFIANCE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { TerrainNote } from '@/types/contact';
@@ -31,12 +31,15 @@ export default function NotesTerrainList({
   entiteType,
   entiteId,
   currentUserId,
+  focusNoteId,
 }: {
   entiteType: NoteLienEntite;
   entiteId: string;
   currentUserId?: string;
+  focusNoteId?: string | null;
 }) {
   const [notes, setNotes] = useState<TerrainNote[] | null>(null);
+  const focusNoteRef = useRef<HTMLLIElement | null>(null);
 
   async function load() {
     try {
@@ -57,6 +60,14 @@ export default function NotesTerrainList({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recharge quand la fiche change
   }, [entiteType, entiteId]);
+
+  useEffect(() => {
+    if (!focusNoteId || !notes?.some((note) => note.id === focusNoteId)) return;
+    const frame = window.requestAnimationFrame(() => {
+      focusNoteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusNoteId, notes]);
 
   async function patchVisibilite(noteId: string, visibilite: VoiceNoteVisibilite) {
     try {
@@ -123,7 +134,15 @@ export default function NotesTerrainList({
         const probable = lienIci?.confiance === 'probable';
         const mine = currentUserId && note.createdBy === currentUserId;
         return (
-          <li key={note.id} className="rounded-xl border border-black/[0.06] px-3.5 py-3">
+          <li
+            key={note.id}
+            ref={note.id === focusNoteId ? focusNoteRef : undefined}
+            className={`scroll-m-6 rounded-xl border px-3.5 py-3 ${
+              note.id === focusNoteId
+                ? 'border-accent/40 bg-accent/[0.04]'
+                : 'border-black/[0.06]'
+            }`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-text-subtle">
                 <span>{formatDate(note.createdAt)}</span>

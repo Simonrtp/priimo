@@ -7,121 +7,15 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import CtaButton from "./CtaButton";
-import DiffusionPortailsOrbit from "./DiffusionPortailsOrbit";
+import FonctionnaliteVisuelCarte from "@/components/landing/FonctionnaliteVisuelCarte";
 import {
   FONCTIONNALITES,
-  imageFonctionnalite,
   mediasFonctionnalitesAPrecharger,
-  type FonctionnaliteCarte,
 } from "@/lib/landing/fonctionnalites";
-
-/** Rend un paragraphe : **gras** et [libellé](/url). */
-function ParagrapheRiche({ texte }: { texte: string }) {
-  const nodes: ReactNode[] = [];
-  const re = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*)/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  let key = 0;
-
-  const pushTexte = (chunk: string) => {
-    if (!chunk) return;
-    nodes.push(chunk);
-  };
-
-  while ((m = re.exec(texte)) !== null) {
-    if (m.index > last) {
-      pushTexte(texte.slice(last, m.index));
-    }
-    const token = m[0];
-    if (token.startsWith("**")) {
-      nodes.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
-    } else {
-      const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
-      if (linkMatch) {
-        nodes.push(
-          <Link key={key++} href={linkMatch[2]} className="logiciel-carte-inline-link">
-            {linkMatch[1]}
-          </Link>,
-        );
-      }
-    }
-    last = m.index + token.length;
-  }
-  if (last < texte.length) {
-    pushTexte(texte.slice(last));
-  }
-  return <p className="logiciel-carte-p">{nodes}</p>;
-}
-
-function VisuelCarte({
-  carte,
-  actif,
-}: {
-  carte: FonctionnaliteCarte;
-  actif: boolean;
-}) {
-  const [ok, setOk] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const src = imageFonctionnalite(carte);
-  const videoSrcs = carte.videoSrcs;
-  const custom =
-    carte.visuel === "diffusion-orbit" ? (
-      <DiffusionPortailsOrbit />
-    ) : null;
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (actif) {
-      void video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  }, [actif]);
-
-  return (
-    <div
-      className={`logiciel-carte-media${carte.imageFit === "contain" ? " is-mockup" : ""}${videoSrcs?.length ? " is-video" : ""}${custom ? " is-custom" : ""}`}
-      style={{ background: carte.degrade }}
-    >
-      {custom ? (
-        custom
-      ) : videoSrcs?.length ? (
-        <video
-          ref={videoRef}
-          className="logiciel-carte-video"
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-label={carte.imageAlt}
-        >
-          {videoSrcs.map((s) => (
-            <source key={s.src} src={s.src} type={s.type} />
-          ))}
-        </video>
-      ) : ok ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={carte.imageAlt}
-          width={carte.imageFit === "contain" ? 599 : 1100}
-          height={carte.imageFit === "contain" ? 900 : 733}
-          loading="eager"
-          decoding="sync"
-          fetchPriority="high"
-          className={`logiciel-carte-img${carte.imageFit === "contain" ? " is-contain" : ""}`}
-          onError={() => setOk(false)}
-        />
-      ) : (
-        <span className="sr-only">{carte.imageAlt}</span>
-      )}
-    </div>
-  );
-}
+import LogicielCarteTitre from "@/components/landing/LogicielCarteTitre";
+import { ParagrapheRiche } from "@/lib/landing/paragraphe-riche";
 
 /** Charge et décode tous les médias dès le montage — zéro latence au clic. */
 function PrefetchMediasOnglets() {
@@ -287,7 +181,7 @@ export default function LogicielOnglets() {
               <div className="logiciel-onglet-panel-inner">
                 <div className="logiciel-carte">
                   <div className="logiciel-carte-copy">
-                    <h3 className="logiciel-carte-title">{carte.titre}</h3>
+                    <LogicielCarteTitre titre={carte.titre} />
                     {carte.sousTitre || carte.sousTitreLogo ? (
                       carte.sousTitreHref ? (
                         <a
@@ -347,7 +241,7 @@ export default function LogicielOnglets() {
                       </Link>
                     </div>
                   </div>
-                  <VisuelCarte carte={carte} actif={selected} />
+                  <FonctionnaliteVisuelCarte slug={carte.slug} actif={selected} />
                 </div>
               </div>
             </div>

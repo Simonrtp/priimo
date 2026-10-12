@@ -36,9 +36,6 @@ export default function CtaButton({
 
   return (
     <span className="cta-spark-host">
-      <span className="cta-cq">
-        <CtaSparkles />
-      </span>
       {isInternalHref(href) ? (
         <Link href={href} className={btnClass}>
           {children}
@@ -53,6 +50,9 @@ export default function CtaButton({
           {children}
         </a>
       )}
+      <span className="cta-cq">
+        <CtaSparkles />
+      </span>
     </span>
   );
 }

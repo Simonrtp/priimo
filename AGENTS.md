@@ -11,6 +11,7 @@
 - Le mobile est un écran de terrain à part, pas un desktop réduit. Détecter l'appareil côté serveur à partir du user-agent.
 - Une note vocale existe seule : les rattachements à un contact ou un bien sont optionnels et peuvent être ajoutés ensuite.
 - Les données de démonstration ne concernent que l'agence de test.
+- Appliquer les demandes d’interface par changement minimal : préserver les éléments voisins, les CTA, les liens, le responsive et les interactions qui ne sont pas explicitement visés. Avant/après une modification de composant, inventorier ces éléments et vérifier visuellement aux largeurs concernées ; ne jamais profiter d’une demande ciblée pour remplacer ou retirer autre chose.
 
 ## Learned Workspace Facts
 

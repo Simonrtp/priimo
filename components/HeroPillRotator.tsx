@@ -14,9 +14,9 @@ const TERMES: Terme[] = [
 ];
 
 /** Temps d’affichage d’un terme (hors transition). */
-const INTERVALLE_MS = 2400;
-/** Doit coller à la durée CSS de la transition. */
-const TRANSITION_MS = 620;
+const INTERVALLE_MS = 1400;
+/** Doit coller à la durée CSS de la transition (.landing .hero-pill). */
+const TRANSITION_MS = 420;
 
 export default function HeroPillRotator() {
   const rootRef = useRef<HTMLSpanElement>(null);

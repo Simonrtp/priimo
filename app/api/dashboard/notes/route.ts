@@ -23,6 +23,18 @@ export const maxDuration = 60;
 
 const TYPES: readonly NoteLienEntite[] = ['contact', 'bien', 'lead', 'immeuble', 'parcelle'];
 
+const VOICE_NOTES_SELECT_BASE =
+  'id, agency_id, created_by, duration_seconds, transcript, status, statut, visibilite, source_info, contact_id, ban_id, latitude, longitude, adresse_normalisee, assigned_to, created_at, structured, storage_path, mime_type, updated_at';
+const VOICE_NOTES_SELECT = `${VOICE_NOTES_SELECT_BASE}, transcript_original`;
+
+function colonneTranscriptOriginalAbsente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    (error.code === 'PGRST204' || error.code === '42703') &&
+    (error.message ?? '').includes('transcript_original')
+  );
+}
+
 export async function GET(req: Request) {
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) {
@@ -74,14 +86,22 @@ export async function GET(req: Request) {
 
   if (noteIds.length === 0) return NextResponse.json({ notes: [] as TerrainNote[] });
 
-  const { data: noteRows } = await supabase
-    .from('voice_notes')
-    .select(
-      'id, agency_id, created_by, duration_seconds, transcript, transcript_original, status, statut, visibilite, source_info, contact_id, ban_id, latitude, longitude, adresse_normalisee, assigned_to, created_at, structured, storage_path, mime_type, updated_at',
-    )
-    .eq('agency_id', agency.id)
-    .in('id', noteIds)
-    .order('created_at', { ascending: false });
+  const lireNotes = (select: string) =>
+    supabase
+      .from('voice_notes')
+      .select(select)
+      .eq('agency_id', agency.id)
+      .in('id', noteIds)
+      .order('created_at', { ascending: false });
+  const premiereLecture = await lireNotes(VOICE_NOTES_SELECT);
+  const lecture = colonneTranscriptOriginalAbsente(premiereLecture.error)
+    ? await lireNotes(VOICE_NOTES_SELECT_BASE)
+    : premiereLecture;
+  if (lecture.error) {
+    console.error('[notes] lecture terrain', lecture.error.message);
+    return NextResponse.json({ error: 'Les notes ne peuvent pas être chargées' }, { status: 500 });
+  }
+  const noteRows = lecture.data;
 
   const members = await fetchMembersOfMyAgency(agency.id, memberships);
   const auteurs = portraitsParId(members);

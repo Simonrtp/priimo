@@ -1,9 +1,9 @@
-import FeaturePage from '@/components/features/FeaturePage';
-import { ESTIMATION_PAGE } from '@/lib/features/pages';
-import { featurePageMetadata } from '@/lib/features/seo';
+import FonctionnaliteTiimePage from "@/components/features/FonctionnaliteTiimePage";
+import { ESTIMATION_PAGE } from "@/lib/features/pages";
+import { featurePageMetadata } from "@/lib/features/seo";
 
 export const metadata = featurePageMetadata(ESTIMATION_PAGE.meta);
 
 export default function EstimationFeaturePage() {
-  return <FeaturePage page={ESTIMATION_PAGE} />;
+  return <FonctionnaliteTiimePage segment="estimation" />;
 }

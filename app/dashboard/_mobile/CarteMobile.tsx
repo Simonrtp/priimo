@@ -154,6 +154,7 @@ export default function CarteMobile({
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [vue, setVue] = useState<VueCarte | null>(null);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
+  const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
   const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -364,11 +365,38 @@ export default function CarteMobile({
         return;
       }
       if (tournee.enCours) return;
+      const note = building.appearance.kind === 'note' ? building.appearance : null;
+      if (note) {
+        setSelectedBanId(null);
+        setLayersOpen(false);
+        const params = new URLSearchParams({
+          ban: building.banId,
+          lat: String(building.latitude),
+          lon: String(building.longitude),
+        });
+        if (building.postalCode) params.set('cp', building.postalCode);
+        void fetch(`/api/carte/parcelle-au-point?${params.toString()}`)
+          .then(async (res) => {
+            const data = (await res.json()) as {
+              parcelleId?: string | null;
+              surfaceM2?: number | null;
+            };
+            if (!res.ok || !data.parcelleId) throw new Error('parcelle');
+            setFocusNoteId(note.recordId);
+            parcelle.openParcelle(data.parcelleId, { surfaceM2: data.surfaceM2 ?? null });
+          })
+          .catch(() => {
+            setFocusNoteId(null);
+            setSelectedBanId(building.banId);
+          });
+        return;
+      }
+      setFocusNoteId(null);
       closeParcelle();
       setSelectedBanId(building.banId);
       setLayersOpen(false);
     },
-    [tournee.phase, tournee.preparation, tournee.enCours, closeParcelle],
+    [tournee.phase, tournee.preparation, tournee.enCours, closeParcelle, parcelle],
   );
 
   const choisirArretCarte = useCallback(
@@ -459,6 +487,7 @@ export default function CarteMobile({
             return;
           }
           if (tournee.enCours) return;
+          setFocusNoteId(null);
           setSelectedBanId(null);
           closeParcelle();
         }}
@@ -483,6 +512,7 @@ export default function CarteMobile({
         }}
         onSelectParcelle={(parcelleId, extra) => {
           if (tournee.enCours) return;
+          setFocusNoteId(null);
           setSelectedBanId(null);
           setLayersOpen(false);
           parcelle.openParcelle(parcelleId, extra);
@@ -862,9 +892,13 @@ export default function CarteMobile({
       <ParcelleDrawer
         fiche={parcelle.fiche}
         loading={parcelle.loading}
-        onClose={parcelle.closeParcelle}
+        onClose={() => {
+          setFocusNoteId(null);
+          parcelle.closeParcelle();
+        }}
         onNotesChanged={parcelle.refreshAfterNotes}
         onSuiviChanged={rechargerSuivis}
+        focusNoteId={focusNoteId}
       />
     </div>
   );

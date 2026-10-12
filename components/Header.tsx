@@ -123,9 +123,9 @@ export default function Header({
                 />
               </Link>
 
-              <CtaButton className="landing-nav-cta min-h-11 px-3.5 py-2.5 text-[13px] sm:px-6 sm:py-3 sm:text-[15px]">
-                <span className="sm:hidden">Démo</span>
-                <span className="hidden sm:inline">Réserver une démo</span>
+              <CtaButton className="landing-nav-cta min-h-11 max-w-full px-3.5 py-2.5 text-[13px] sm:px-4 sm:text-[14px] md:px-6 md:py-3 md:text-[15px]">
+                <span className="md:hidden">Démo</span>
+                <span className="hidden md:inline">Réserver une démo</span>
               </CtaButton>
 
               <MobileNav onDark />

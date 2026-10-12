@@ -25,7 +25,7 @@ export default function ScrollLine() {
       const top = rail.top + p * Math.max(0, rail.height - 44);
       const capsule = { top, bottom: top + 44 };
       const zones = document.querySelectorAll(
-        ".landing-hero, .problem-transform, .landing-ambiance-band[data-ambiance='dark'], main > section.bg-gradient-to-br",
+        ".landing-hero, .landing-ambiance-band[data-ambiance='dark'], main > section.bg-gradient-to-br",
       );
       for (const zone of zones) {
         const rect = zone.getBoundingClientRect();

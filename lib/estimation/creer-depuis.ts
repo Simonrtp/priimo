@@ -4,6 +4,15 @@
 export async function creerAvisDepuis(source: {
   leadId?: string;
   bienId?: string;
+  parcelle?: {
+    id: string;
+    adresse?: string | null;
+    codePostal?: string | null;
+    ville?: string | null;
+    banId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
 }): Promise<{ id: string } | { error: string }> {
   const res = await fetch('/api/dashboard/estimation', {
     method: 'POST',

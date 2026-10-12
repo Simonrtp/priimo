@@ -2,15 +2,11 @@ import CausioScripts from "@/components/landing/CausioScripts";
 import SiteHeader from "@/components/SiteHeader";
 import HeroSection from "@/components/HeroSection";
 import AgencyLogos from "@/components/AgencyLogos";
-import ProblemTransformation from "@/components/ProblemTransformation";
 import WhyPriimo from "@/components/WhyPriimo";
 import OffresSimplesIntro from "@/components/OffresSimplesIntro";
 import FAQ from "@/components/FAQ";
 import LandingAmbianceBand from "@/components/LandingAmbianceBand";
-import HowItWorks from "@/components/HowItWorks";
-import Features from "@/components/Features";
-import DataReassurance from "@/components/DataReassurance";
-import FinalCTA from "@/components/FinalCTA";
+import Footer from "@/components/Footer";
 import ScrollLine from "@/components/ScrollLine";
 
 // === LANDING PAGE ===
@@ -26,7 +22,7 @@ export default function Page() {
       {/*
        * Fond de scène : nappes d'aurore floues qui dérivent lentement,
        * posées derrière chaque section (transparent). Les sections qui
-       * déclarent leur propre fond (Hero, ProblemTransformation, FinalCTA)
+       * déclarent leur propre fond (Hero, Footer)
        * le recouvrent naturellement. Grain + dégradés chauds : gérés en CSS
        * sur `.landing` et `.landing-aurora`.
        */}
@@ -46,25 +42,17 @@ export default function Page() {
         {/* === B2 — AGENCES (preuve sociale) === */}
         <AgencyLogos />
 
-        {/* Why + prix + FAQ + constat : même ambiance, en même temps */}
+        {/* Why + prix + FAQ : même ambiance, en même temps */}
         <LandingAmbianceBand>
           <WhyPriimo />
           <OffresSimplesIntro />
           <FAQ />
-          <ProblemTransformation />
         </LandingAmbianceBand>
 
-        {/* === D — HOW IT WORKS === */}
-        <HowItWorks />
-
-        {/* === E — FEATURES === */}
-        <Features />
-
-        {/* === G — DATA REASSURANCE === */}
-        <DataReassurance />
-
-        {/* === J — FINAL CTA === */}
-        <FinalCTA />
+        {/* Footer seul : photo Lyon + colonnes de liens (sans bloc CTA secteur exclusif). */}
+        <div className="mt-12 sm:mt-16">
+          <Footer className="rounded-t-[28px] sm:rounded-t-[40px]" />
+        </div>
       </main>
     </div>
   );

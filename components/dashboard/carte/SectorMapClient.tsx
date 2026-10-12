@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useCibleCarte } from '@/lib/carte/cible';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -15,6 +15,7 @@ import {
   filterMapEntities,
   groupEntitiesByBanId,
   pointDuLien,
+  type BuildingMarker,
   type MapPeriod,
   type MapViewport,
   type RepliImmeuble,
@@ -270,6 +271,7 @@ export default function SectorMapClient({
   const [assignedTo, setAssignedTo] = useState('tous');
   const [period, setPeriod] = useState<MapPeriod>('all');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
+  const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
   const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -462,6 +464,39 @@ export default function SectorMapClient({
     [parcelle.noteMarkers, zoneChoisie],
   );
 
+  const ouvrirDepuisMarqueur = useCallback(
+    async (building: BuildingMarker) => {
+      const note = building.appearance.kind === 'note' ? building.appearance : null;
+      if (!note) {
+        setFocusNoteId(null);
+        parcelle.closeParcelle();
+        setSelectedBanId(building.banId);
+        setSheetOpen(false);
+        return;
+      }
+
+      setSelectedBanId(null);
+      setSheetOpen(false);
+      const params = new URLSearchParams({
+        ban: building.banId,
+        lat: String(building.latitude),
+        lon: String(building.longitude),
+      });
+      if (building.postalCode) params.set('cp', building.postalCode);
+      try {
+        const res = await fetch(`/api/carte/parcelle-au-point?${params.toString()}`);
+        const data = (await res.json()) as { parcelleId?: string | null; surfaceM2?: number | null };
+        if (!res.ok || !data.parcelleId) throw new Error('parcelle');
+        setFocusNoteId(note.recordId);
+        parcelle.openParcelle(data.parcelleId, { surfaceM2: data.surfaceM2 ?? null });
+      } catch {
+        setFocusNoteId(null);
+        setSelectedBanId(building.banId);
+      }
+    },
+    [parcelle],
+  );
+
   const cadastreLayerFlags = {
     cadastreDpe: layers.cadastreDpe,
     cadastreVentes: layers.cadastreVentes,
@@ -507,11 +542,10 @@ export default function SectorMapClient({
           tenirLaVue={Boolean(initialParcelleId) || Boolean(focusLien)}
           selectedBanId={selectedBanId}
           onSelect={(building) => {
-            parcelle.closeParcelle();
-            setSelectedBanId(building.banId);
-            setSheetOpen(false);
+            void ouvrirDepuisMarqueur(building);
           }}
           onDeselect={() => {
+            setFocusNoteId(null);
             setSelectedBanId(null);
             parcelle.closeParcelle();
           }}
@@ -528,6 +562,7 @@ export default function SectorMapClient({
           cadastreLayers={cadastreLayerFlags}
           showBuildingMarkers={!overlaysCadastre}
           onSelectParcelle={(parcelleId, extra) => {
+            setFocusNoteId(null);
             setSelectedBanId(null);
             setSheetOpen(false);
             parcelle.openParcelle(parcelleId, extra);
@@ -701,9 +736,13 @@ export default function SectorMapClient({
         <ParcelleDrawer
           fiche={parcelle.fiche}
           loading={parcelle.loading}
-          onClose={parcelle.closeParcelle}
+          onClose={() => {
+            setFocusNoteId(null);
+            parcelle.closeParcelle();
+          }}
           onNotesChanged={parcelle.refreshAfterNotes}
           onSuiviChanged={rechargerSuivis}
+          focusNoteId={focusNoteId}
         />
       </div>
     </div>

@@ -25,6 +25,7 @@ export type FonctionnaliteCarte = {
   badge?: string;
   /** Badge « Bientôt » sur l’onglet — off par défaut */
   bientot?: boolean;
+  /** Affiché tel quel sur l’accueil (sans pastille). Pastilles : `fonctionnalite-hero-titres.ts`, pages /fonctionnalites/* seulement. */
   titre: string;
   /** Ligne juste sous le titre (ex. partenaire) */
   sousTitre?: string;

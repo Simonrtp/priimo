@@ -1,26 +1,21 @@
 import type { CSSProperties } from "react";
 
 /** Hors du bouton + marge pour la taille et le drift — jamais coupées par le masque. */
+/** Positions en CSS (--dx / --dy) — voir globals.css ; pas de cqw (masque les étincelles si le conteneur n’a pas de taille). */
 const SPARKS = [
   {
-    dx: "calc(-50cqw - 22px)",
-    dy: "calc(-50cqh - 20px)",
     size: 22,
     delay: "0ms",
     drift: "spark-drift-a",
     color: "#9DD6C8",
   },
   {
-    dx: "calc(50cqw + 22px)",
-    dy: "calc(-50cqh - 22px)",
     size: 24,
     delay: "70ms",
     drift: "spark-drift-b",
     color: "#B8B4E8",
   },
   {
-    dx: "calc(50cqw + 22px)",
-    dy: "calc(50cqh + 20px)",
     size: 20,
     delay: "120ms",
     drift: "spark-drift-c",
@@ -47,8 +42,6 @@ export default function CtaSparkles() {
             {
               "--spark-size": `${spark.size}px`,
               "--spark-color": spark.color,
-              "--dx": spark.dx,
-              "--dy": spark.dy,
               "--spark-delay": spark.delay,
               "--spark-drift": spark.drift,
             } as CSSProperties

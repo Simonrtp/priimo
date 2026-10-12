@@ -236,7 +236,7 @@ export default function ResourcesMenu({
                 </Link>
 
                 <Link
-                  href="/faq"
+                  href="/#faq"
                   className="group flex items-start gap-3 rounded-2xl px-2.5 py-2.5 transition-all duration-200 hover:bg-[#FFF7F0]"
                   role="menuitem"
                   onClick={() => setOpen(false)}

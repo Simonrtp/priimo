@@ -34,6 +34,7 @@ const nextConfig = {
       { source: "/fonctionnalites/scoring", destination: "/fonctionnalites/detection", permanent: true },
       { source: "/fonctionnalites/sci", destination: "/fonctionnalites/detection", permanent: true },
       { source: "/fonctionnalites/livraison", destination: "/fonctionnalites/detection", permanent: true },
+      { source: "/faq", destination: "/#faq", permanent: true },
     ];
   },
   async headers() {

@@ -88,10 +88,6 @@ components/
   BetaModalContext.tsx       # Provider + hook useBetaModal()
   CtaButton.tsx              # Bouton CTA réutilisable
   Reveal.tsx                 # Wrapper IntersectionObserver
-  ProblemTransformation.tsx  # Bloc Avant / Avec Priimo
-  HowItWorks.tsx             # Section sticky scroll-jacking 01 → 02 → 03
-  Features.tsx               # Grid de features
-  DataReassurance.tsx        # Bloc conformité RGPD
   FAQ.tsx                    # Accordéon FAQ
   FinalCTA.tsx               # CTA final + footer fusionnés
 ```
