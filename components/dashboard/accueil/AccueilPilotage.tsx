@@ -9,6 +9,7 @@ import {
   type VuePeriode,
 } from '@/lib/activite/semaines';
 import BandeauObjectif from './BandeauObjectif';
+import CarteMiseEnPlace from './CarteMiseEnPlace';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
 import PenseBete from './PenseBete';
@@ -42,8 +43,9 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
  *
  * L'ordre n'est pas décoratif : le titre, le pense-bête juste à sa
  * droite, le sélecteur de période au bout, sur mobile les tâches du jour
- * (un rappel passe avant les chiffres), puis les objectifs, les
- * cartes, les adresses à gauche de l'emploi du temps, puis l'entonnoir.
+ * (un rappel passe avant les chiffres), puis les objectifs, ce qu'il
+ * reste à brancher (agenda, secteur), les cartes, les adresses à gauche
+ * de l'emploi du temps, puis l'entonnoir.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
  * ne dépend pas de la granularité (les cartes du jour, l'emploi du temps, le
@@ -64,6 +66,7 @@ export default function AccueilPilotage({
   secteur,
   attenteInscription,
   selecteurVueDirecteur = false,
+  miseEnPlace = null,
 }: {
   /** Le bilan calculé par le serveur au premier rendu. */
   pilotage: Pilotage;
@@ -87,6 +90,8 @@ export default function AccueilPilotage({
   attenteInscription?: ReactNode;
   /** Affiche L'agence / Ma semaine pour le directeur. */
   selecteurVueDirecteur?: boolean;
+  /** Ce qui manque encore : agenda et/ou secteur. Absent = tout est en place. */
+  miseEnPlace?: { agendaConnecte: boolean; aUnSecteur: boolean } | null;
 }) {
   const cleServeur = vueDuBilan(pilotage).cle;
   const cache = useRef<Cache>(new Map([[cleServeur, pilotage]]));
@@ -238,6 +243,12 @@ export default function AccueilPilotage({
           }
           onObjectifsChanges={rafraichir}
         />
+        {miseEnPlace && membreSelectionne === moi ? (
+          <CarteMiseEnPlace
+            agendaConnecte={miseEnPlace.agendaConnecte}
+            aUnSecteur={miseEnPlace.aUnSecteur}
+          />
+        ) : null}
         <CompteursActivite
           familles={bilan.familles}
           accueilleNotes={vue.estPeriodeCourante && membreSelectionne === moi}

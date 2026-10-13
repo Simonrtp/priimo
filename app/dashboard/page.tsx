@@ -37,7 +37,6 @@ import { auteurNote, portraitsParId, portraitsParNom, portraitPourNom } from '@/
 import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
 import { mondayOf, previousMonday, toPreviousWeek } from '@/lib/today/weekly-snapshot';
 import { fetchWeeklySnapshot, upsertWeeklySnapshot } from '@/lib/queries/weekly-snapshots';
-import { ymdKey, startOfWeekYmd } from '@/lib/today/calendar';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { rapprocherTousLesBiens } from '@/lib/matching/rapprochement';
 import { bienIsActive } from '@/types/bien';
@@ -50,16 +49,8 @@ import { tachesDuJour } from '@/lib/today/taches';
 import { getDevice } from '@/lib/device-server';
 import type { AgencyRow, ContextualProfile } from '@/types/database';
 import type { ProfileAgencyMembership } from '@/lib/auth/active-agency';
-import { buildSectorMapPoints } from '@/lib/carte/points';
-import { groupEntitiesByBanId } from '@/lib/carte/buildings';
-import { entreeStage } from '@/lib/queries/lead-stages';
 import { formatPhoneOrNull } from '@/lib/import/normalize';
-import {
-  fetchAgentOnboarding,
-  fetchOnboardingSecteur,
-  secteurADesParcelles,
-} from '@/lib/queries/agent-onboarding';
-import { leadShowcasePourOnboarding } from '@/lib/onboarding/lead-showcase';
+import { fetchAgentOnboarding } from '@/lib/queries/agent-onboarding';
 import {
   decideAffichage,
   doitProposerReprise,
@@ -81,7 +72,7 @@ import { EmploiDuTempsSquelette } from '@/components/dashboard/accueil/EmploiDuT
 import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsServeur';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 import { nomProprietaireAffiche, signauxEssentiels } from '@/lib/lead-apercu';
-import { lireAgendaSemaine } from '@/lib/agenda/lire';
+import { agendaEstConnecte, lireAgendaSemaine } from '@/lib/agenda/lire';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { apercuSecteur } from '@/lib/zones/accueil';
 import SecteurAccueil from '@/components/dashboard/accueil/SecteurAccueil';
@@ -391,6 +382,7 @@ async function TodayContent({
     notesDuJour,
     priseEnMain,
     anniversaires,
+    agendaConnecte,
   ] = await Promise.all([
     socleP,
     metierP,
@@ -445,7 +437,6 @@ async function TodayContent({
         viewerId: profile.id,
         isDirector: false,
         limit: 5,
-        weekStartKey: ymdKey(startOfWeekYmd(new Date())),
       });
       const rattachements = await timed('rattachementsDesNotes', () =>
         rattachementsDesNotes({ supabase, notes: notesAccueil }),
@@ -457,6 +448,7 @@ async function TodayContent({
       ? timed('fetchAgentOnboarding', () => fetchAgentOnboarding(supabase, profile.id))
       : Promise.resolve(null),
     timed('fetchAnniversairesDuJour', () => fetchAnniversairesDuJour(supabase, agency.id)),
+    timed('agendaEstConnecte', () => agendaEstConnecte()),
   ]);
 
   const {
@@ -558,37 +550,15 @@ async function TodayContent({
       : 'rien';
 
   if (affichage === 'onboarding') {
-    const [secteur, aDesParcelles] = await Promise.all([
-      fetchOnboardingSecteur(supabase, agency.id, agency.codes_postaux ?? []),
-      secteurADesParcelles(supabase, agency.codes_postaux ?? []),
-    ]);
-
-    // Les mêmes immeubles que l'écran Carte, filtrés par la même visibilité.
-    const { points } = buildSectorMapPoints({
-      agencyId: agency.id,
-      leads: visibleLeads,
-      contacts: visibleContacts,
-      biens: visibleBiens,
-      notes: visibleNotes,
-    });
-
     return (
       <div
         data-agent-onboarding
         className="flex h-full min-h-full w-full min-w-0 flex-1 flex-col overflow-hidden max-md:fixed max-md:inset-0 max-md:z-[200] max-md:bg-bg-base"
       >
         <AgentOnboarding
-          profileId={profile.id}
           firstName={profile.first_name}
           lastName={profile.last_name}
           avatarUrl={profile.avatar_url ?? null}
-          secteur={secteur}
-          leads={leadShowcasePourOnboarding(agency.codes_postaux ?? [], visibleLeads)}
-          stageEntreeId={entreeStage(stages)?.id ?? null}
-          buildings={groupEntitiesByBanId(points)}
-          center={{ latitude: agency.latitude, longitude: agency.longitude }}
-          aDesParcelles={aDesParcelles}
-          mobile={device === 'mobile'}
           reprise={
             priseEnMain
               ? { currentStep: priseEnMain.currentStep, stepsReached: priseEnMain.stepsReached }
@@ -602,14 +572,7 @@ async function TodayContent({
   const relance =
     profile.role === 'collaborateur' && doitProposerReprise(priseEnMain)
       ? {
-          minutes: minutesRestantes(
-            buildParcours({
-              aDesLeads: true,
-              aDesParcelles: true,
-              mobile: device === 'mobile',
-            }),
-            priseEnMain?.stepsReached ?? [],
-          ),
+          minutes: minutesRestantes(buildParcours(), priseEnMain?.stepsReached ?? []),
         }
       : null;
 
@@ -709,6 +672,14 @@ async function TodayContent({
       </Suspense>
     ),
     secteur: secteurAgent,
+    miseEnPlace:
+      membreActivite === profile.id &&
+      (!agendaConnecte || apercuAgent.zones.length === 0)
+        ? {
+            agendaConnecte,
+            aUnSecteur: apercuAgent.zones.length > 0,
+          }
+        : null,
     attenteInscription: estEnAttente(agency) ? (
       <EcranAttenteInscription key="attente-inscription" refusee={agency.demande_decision === 'refusee'} />
     ) : null,
@@ -741,6 +712,7 @@ async function TodayContent({
       {banners}
       <AccueilPilotage
         {...pilotageCommun}
+        secteur={undefined}
         aujourdhui={
           <TodayClient
             key="today-pilotage"
@@ -748,6 +720,7 @@ async function TodayContent({
             variant="pilotage"
             relancesProgrammees={week.relancesProgrammees}
             rapprochements={week.rapprochements}
+            secteur={secteurAgent}
           />
         }
       />

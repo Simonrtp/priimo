@@ -90,7 +90,7 @@ export default function CarteTourneeBriefCard({
         >
           <div className="px-5 pb-5 pt-5">
             <div className="tour-brief__block flex items-start gap-2.5">
-              <Sparkles size={22} strokeWidth={2.1} className="mt-0.5 flex-shrink-0 text-text-strong" aria-hidden />
+              <Sparkles size={22} strokeWidth={2.1} className="mt-0.5 flex-shrink-0 text-ia" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold uppercase tracking-wide text-text-subtle">
                   C&apos;est parti

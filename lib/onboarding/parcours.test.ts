@@ -13,39 +13,20 @@ import {
   rangEtape,
 } from './parcours';
 
-const complet = { aDesLeads: true, aDesParcelles: true, mobile: false };
-
 describe('buildParcours', () => {
   it('ouvre par salut → lettre → anniversaire → avatar', () => {
-    const p = buildParcours(complet);
+    const p = buildParcours();
     assert.deepEqual(p.slice(0, 4), ['salut', 'lettre', 'anniversaire', 'avatar']);
     assert.equal(p[p.length - 1], 'final');
   });
 
-  it('sur desktop : secteur, lead, note parmi les gestes', () => {
-    const p = buildParcours(complet);
-    assert.deepEqual(p.slice(4, -1), ['secteur', 'lead', 'note', 'immeuble']);
-  });
-
-  it('sur mobile place la dictée en tête des gestes', () => {
-    const p = buildParcours({ ...complet, mobile: true });
-    assert.deepEqual(p.slice(4, -1), ['note', 'secteur', 'lead', 'immeuble']);
-  });
-
-  it('saute immeuble et lead si données absentes', () => {
-    assert.deepEqual(
-      buildParcours({
-        aDesLeads: false,
-        aDesParcelles: false,
-        mobile: false,
-      }),
-      ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur', 'note', 'final'],
-    );
+  it('enchaîne le texte des fonctionnalités puis la formation', () => {
+    assert.deepEqual(buildParcours().slice(4, -1), ['fonctionnalites', 'formation']);
   });
 });
 
 describe('peutPasser', () => {
-  const p = buildParcours(complet);
+  const p = buildParcours();
   it('est masqué sur salut et lettre', () => {
     assert.equal(peutPasser('salut', p), false);
     assert.equal(peutPasser('lettre', p), false);
@@ -57,7 +38,7 @@ describe('peutPasser', () => {
 });
 
 describe('navigation', () => {
-  const parcours = buildParcours(complet);
+  const parcours = buildParcours();
 
   it('numérote sur le parcours réel', () => {
     assert.equal(rangEtape(parcours, 'salut'), 1);
@@ -65,27 +46,36 @@ describe('navigation', () => {
   });
 
   it('enchaîne jusqu’au final', () => {
-    assert.equal(etapeSuivante(parcours, 'immeuble'), 'final');
+    assert.equal(etapeSuivante(parcours, 'formation'), 'final');
     assert.equal(etapeSuivante(parcours, 'final'), null);
   });
 
   it('remonte d’une étape', () => {
     assert.equal(etapePrecedente(parcours, 'salut'), null);
     assert.equal(etapePrecedente(parcours, 'lettre'), 'salut');
-    assert.equal(etapePrecedente(parcours, 'final'), 'immeuble');
+    assert.equal(etapePrecedente(parcours, 'final'), 'formation');
   });
 });
 
 describe('etapeDeReprise', () => {
-  const parcours = buildParcours(complet);
+  const parcours = buildParcours();
 
   it('reprend l’étape enregistrée', () => {
     assert.equal(etapeDeReprise(parcours, 'avatar', ['salut', 'lettre']), 'avatar');
   });
 
   it('repart de la première non atteinte si l’étape a disparu', () => {
-    const court = buildParcours({ ...complet, aDesParcelles: false });
-    assert.equal(etapeDeReprise(court, 'immeuble', ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur', 'lead']), 'note');
+    assert.equal(
+      etapeDeReprise(parcours, 'inconnue', ['salut', 'lettre', 'anniversaire', 'avatar']),
+      'fonctionnalites',
+    );
+  });
+
+  it('reprend sur les fonctionnalités si l’agent était sur un ancien geste', () => {
+    assert.equal(
+      etapeDeReprise(parcours, 'secteur', ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur']),
+      'fonctionnalites',
+    );
   });
 });
 
@@ -137,7 +127,7 @@ describe('doitProposerReprise', () => {
 
 describe('minutesRestantes', () => {
   it('annonce une durée réaliste', () => {
-    const parcours = buildParcours(complet);
+    const parcours = buildParcours();
     assert.ok(minutesRestantes(parcours, []) >= 1);
   });
 });

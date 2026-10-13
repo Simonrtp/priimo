@@ -6,6 +6,7 @@ import { canSeeLeadRecord, canSeeOwnedRecord, viewerFromProfile } from '@/lib/ag
 import { visibleEstimationsFor } from '@/lib/agency/scope-records';
 import { isEtat, isMotif } from '@/lib/estimation/cycle';
 import { enregistrerEstimationEvent } from '@/lib/estimation/evenement';
+import { prefillColonnesParcelle } from '@/lib/estimation/prefill-parcelle';
 import {
   ESTIMATION_LIST_SELECT,
   ESTIMATION_SELECT,
@@ -227,35 +228,7 @@ function estErreurPrefill(
 }
 
 function lirePrefillParcelle(raw: unknown): Record<string, unknown> | null {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const value = raw as Record<string, unknown>;
-  const parcelleId = texte(value.id, 160);
-  if (!parcelleId) return null;
-
-  const codePostalBrut = texte(value.codePostal, 5);
-  const latitude = nombreBorne(value.latitude, -90, 90);
-  const longitude = nombreBorne(value.longitude, -180, 180);
-
-  return {
-    parcelle_id: parcelleId,
-    address: texte(value.adresse, 300),
-    postal_code: codePostalBrut && /^\d{5}$/.test(codePostalBrut) ? codePostalBrut : null,
-    city: texte(value.ville, 160),
-    ban_id: texte(value.banId, 180),
-    latitude,
-    longitude,
-  };
-}
-
-function texte(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null;
-  const propre = value.trim();
-  return propre ? propre.slice(0, max) : null;
-}
-
-function nombreBorne(value: unknown, min: number, max: number): number | null {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) return null;
-  return value;
+  return prefillColonnesParcelle(raw);
 }
 
 

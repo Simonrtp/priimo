@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDirector } from '@/lib/auth/requireDirector';
+import { getServerUser } from '@/lib/auth/getServerUser';
 import { mapLeadStage } from '@/lib/queries/lead-stages';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { LeadStageRow } from '@/types/database';
@@ -25,8 +25,10 @@ function slugifyStageKey(label: string): string {
 }
 
 export async function POST(request: Request) {
-  const guard = await requireDirector();
-  if (!guard.ok) return guard.response;
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
   const { data: existing, error: loadError } = await supabase
     .from('lead_stages')
     .select('cle, ordre')
-    .eq('agency_id', guard.agency.id)
+    .eq('agency_id', agency.id)
     .order('ordre', { ascending: true });
 
   if (loadError) {
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('lead_stages')
     .insert({
-      agency_id: guard.agency.id,
+      agency_id: agency.id,
       cle,
       libelle,
       ordre,

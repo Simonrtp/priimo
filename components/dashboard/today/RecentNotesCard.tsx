@@ -40,7 +40,6 @@ export default function RecentNotesCard({
       <CarteVideAccueil
         className={className}
         titre="Dernières notes"
-        accroche="Les nouvelles notes."
         etapes={ETAPES_VIDE}
         icone="/noter.png"
         action={<NoteCreateChooser variant="toolbar" />}

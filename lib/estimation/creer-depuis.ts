@@ -1,5 +1,7 @@
 'use client';
 
+import type { PrefillBatimentParcelle, PrefillLogementParcelle, PrefillVenteParcelle } from '@/lib/estimation/prefill-parcelle';
+
 /** Crée un avis pré-rempli depuis une fiche, puis renvoie son id. */
 export async function creerAvisDepuis(source: {
   leadId?: string;
@@ -12,6 +14,9 @@ export async function creerAvisDepuis(source: {
     banId?: string | null;
     latitude?: number | null;
     longitude?: number | null;
+    batiment?: PrefillBatimentParcelle | null;
+    logements?: PrefillLogementParcelle[];
+    ventes?: PrefillVenteParcelle[];
   };
 }): Promise<{ id: string } | { error: string }> {
   const res = await fetch('/api/dashboard/estimation', {

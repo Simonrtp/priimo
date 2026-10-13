@@ -145,7 +145,7 @@ function Section({
   return (
     <section className="border-t border-black/[0.06] py-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">{titre}</h3>
+        <h3 className="text-[16px] font-semibold text-text-strong">{titre}</h3>
         {aside}
       </div>
       {children}
@@ -663,10 +663,11 @@ function LigneEntreprise({ e }: { e: ParcelleEntreprise }) {
   );
 }
 
-function LigneLogement({ l }: { l: ParcelleLogement }) {
+function LigneLogement({ l, adresse }: { l: ParcelleLogement; adresse?: string | null }) {
   const details = [
     l.consoKwhM2 != null ? `${Math.round(l.consoKwhM2)} kWh/m²/an` : null,
     l.etiquetteGes ? `GES ${l.etiquetteGes}` : null,
+    adresse || null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -790,7 +791,7 @@ function MenuAjoutParcelle({
           onClick={() => choisir(onDicter)}
           className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-strong hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6366F1]"
         >
-          <Mic size={18} className="shrink-0 text-text-muted" aria-hidden />
+          <Mic size={18} className="shrink-0 text-ia" aria-hidden />
           Dicter une note
         </button>
         <button
@@ -913,6 +914,27 @@ export default function ParcellePanel({
         banId: fiche.banId,
         latitude: fiche.position?.latitude ?? null,
         longitude: fiche.position?.longitude ?? null,
+        batiment: fiche.batiment
+          ? {
+              usage: fiche.batiment.usage,
+              anneeConstruction: fiche.batiment.anneeConstruction,
+              niveaux: fiche.batiment.niveaux,
+              nbLogements: fiche.batiment.logements,
+            }
+          : null,
+        logements: fiche.logements.map((l) => ({
+          date: l.date,
+          etiquette: l.etiquette,
+          etiquetteGes: l.etiquetteGes,
+          consoKwhM2: l.consoKwhM2,
+          surface: l.surface,
+          etage: l.etage,
+        })),
+        ventes: fiche.ventes.map((v) => ({
+          typeLocal: v.typeLocal,
+          nombrePieces: v.nombrePieces,
+          surface: v.surface,
+        })),
       },
     });
     setEstimationEnCours(false);
@@ -1072,7 +1094,7 @@ export default function ParcellePanel({
 
           {synthese.faits.length > 0 ? (
             <div className="mt-4 rounded-2xl bg-bg-subtle px-4 py-3.5">
-              <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">À retenir</p>
+              <p className="mb-2 text-[16px] font-semibold text-text-strong">À retenir</p>
               <ul className="flex flex-col gap-2">
                 {synthese.faits.map((f) => (
                   <li key={f.cle} className="flex gap-2.5 text-[14px] leading-snug text-text-strong">
@@ -1180,7 +1202,17 @@ export default function ParcellePanel({
             <Repartition repartition={synthese.repartition} />
             <Depliable
               lignes={synthese.logements}
-              rendre={(l, i) => <LigneLogement key={`${l.banId}-${l.date}-${i}`} l={l} />}
+              rendre={(l, i) => (
+                <LigneLogement
+                  key={`${l.banId}-${l.date}-${i}`}
+                  l={l}
+                  adresse={
+                    plusieursAdresses && l.banId
+                      ? adresseCourte(adresseParBan.get(l.banId) ?? '') || null
+                      : null
+                  }
+                />
+              )}
               libellePlus={(n) => `Voir les ${n} logements`}
             />
           </Section>

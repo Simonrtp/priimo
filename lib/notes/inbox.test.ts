@@ -117,8 +117,6 @@ describe('recentNotesForHome', () => {
       recentNotesForHome(notes, {
         viewerId: 'me',
         isDirector: false,
-        now: Date.parse('2026-08-26T10:00:00Z'),
-        weekStartKey: '2026-08-24',
       }).map((n) => n.id),
       ['b'],
     );
@@ -133,8 +131,6 @@ describe('recentNotesForHome', () => {
       recentNotesForHome(notes, {
         viewerId: 'me',
         isDirector: false,
-        now: Date.parse('2026-08-26T10:00:00Z'),
-        weekStartKey: '2026-08-24',
       }).map((n) => n.id),
       ['a'],
     );
@@ -149,17 +145,35 @@ describe('recentNotesForHome', () => {
       recentNotesForHome(notes, {
         viewerId: 'me',
         isDirector: true,
-        now: Date.parse('2026-08-26T10:00:00Z'),
-        weekStartKey: '2026-08-24',
       }).length,
       2,
     );
   });
 
-  it('masque un transcript trop court ou vide de sens', () => {
+  it('masque un transcript vide de sens, garde une note courte utile', () => {
     assert.equal(isHomeNoteWorthy('Thank you.'), false);
     assert.equal(isHomeNoteWorthy('ok merci'), false);
+    assert.equal(isHomeNoteWorthy('Vu Dupont'), true);
     assert.equal(isHomeNoteWorthy('Appel à Dupont rue des Lilas'), true);
+  });
+
+  it('montre une note terrain même sans long transcript', () => {
+    const notes = [
+      note({ id: 'a', transcript: '', adresseNormalisee: '4 Rue d’Aligre' }),
+      note({ id: 'b', transcript: 'ok merci' }),
+    ];
+    assert.deepEqual(
+      recentNotesForHome(notes, { viewerId: 'me', isDirector: false }).map((n) => n.id),
+      ['a'],
+    );
+  });
+
+  it('montre les notes des semaines précédentes', () => {
+    const notes = [note({ id: 'a', createdAt: '2026-09-02T10:00:00Z' })];
+    assert.deepEqual(
+      recentNotesForHome(notes, { viewerId: 'me', isDirector: false }).map((n) => n.id),
+      ['a'],
+    );
   });
 });
 

@@ -528,10 +528,7 @@ function PanelBody({ poignee = false }: { poignee?: boolean }) {
       ) : null}
 
       <div className="flex flex-shrink-0 items-center gap-2 px-3 pb-2.5 pt-3">
-        <span
-          className="flex size-7 items-center justify-center rounded-[10px] bg-surface shadow-clay-sm ring-1 ring-primary-100"
-          aria-hidden
-        >
+        <span className="flex size-7 items-center justify-center text-ia" aria-hidden>
           <AssistantIcon size={18} />
         </span>
         <p className="font-display text-[14px] font-semibold tracking-[-0.01em] text-text-strong">

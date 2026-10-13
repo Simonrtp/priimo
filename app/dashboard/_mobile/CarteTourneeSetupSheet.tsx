@@ -214,7 +214,7 @@ export default function CarteTourneeSetupSheet({
             type="button"
             onClick={onGenerate}
             disabled={generating}
-            className="app-press flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-blue font-semibold text-white disabled:opacity-80"
+            className="app-press flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-primary-500 font-semibold text-white disabled:opacity-80"
             style={{ fontSize: 15.5 }}
           >
             {generating ? (

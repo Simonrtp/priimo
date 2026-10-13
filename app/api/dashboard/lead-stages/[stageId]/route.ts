@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDirector } from '@/lib/auth/requireDirector';
+import { getServerUser } from '@/lib/auth/getServerUser';
 import { mapLeadStage } from '@/lib/queries/lead-stages';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { LeadStageRow } from '@/types/database';
@@ -20,8 +20,10 @@ function normalizeColor(value: unknown): string | null {
 }
 
 export async function PATCH(request: Request, ctx: { params: Promise<{ stageId: string }> }) {
-  const guard = await requireDirector();
-  if (!guard.ok) return guard.response;
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
 
   const { stageId } = await ctx.params;
   if (!stageId) {
@@ -58,7 +60,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ stageId: 
     .from('lead_stages')
     .update(update)
     .eq('id', stageId)
-    .eq('agency_id', guard.agency.id)
+    .eq('agency_id', agency.id)
     .select('id, agency_id, cle, libelle, ordre, accent_color, type, created_at')
     .single();
 

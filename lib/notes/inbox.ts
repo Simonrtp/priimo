@@ -7,7 +7,6 @@ export type NotesInboxPeriod = 'tous' | '7j' | '30j';
 export type NotesInboxRattachement = 'tous' | 'rattachees' | 'orphelines';
 
 const DAY_MS = 86_400_000;
-const HOME_MIN_CHARS = 15;
 const STOPWORDS = new Set([
   'a',
   'au',
@@ -41,15 +40,25 @@ function normalize(s: string): string {
     .toLocaleLowerCase('fr');
 }
 
-/** Un « Thank you. » n’a rien à faire sur l’accueil. */
+/** Un « Thank you. » n’a rien à faire sur l’accueil. Un vrai mot suffit. */
 export function isHomeNoteWorthy(transcript: string | null | undefined): boolean {
   const raw = (transcript ?? '').trim();
-  if (raw.length < HOME_MIN_CHARS) return false;
+  if (!raw) return false;
   const words = normalize(raw)
     .replace(/[^a-z0-9àâäéèêëïîôùûüç\s]/g, ' ')
     .split(/\s+/)
     .filter(Boolean);
   return words.some((w) => w.length >= 3 && !STOPWORDS.has(w));
+}
+
+/** Une note terrain sans long transcript doit quand même apparaître. */
+export function noteVisibleAccueil(
+  note: Pick<VoiceNote, 'transcript' | 'adresseNormalisee' | 'contactId' | 'hasFicheLink' | 'banId'>,
+): boolean {
+  if (isHomeNoteWorthy(note.transcript)) return true;
+  return Boolean(
+    note.adresseNormalisee?.trim() || note.contactId || note.hasFicheLink || note.banId,
+  );
 }
 
 export type HomeNoteLieu = 'parcelle' | 'immeuble';
@@ -146,19 +155,13 @@ export function filterInboxNotes<T extends VoiceNote>(
 
 export function recentNotesForHome<T extends VoiceNote>(
   notes: readonly T[],
-  input: { viewerId: string; isDirector: boolean; limit?: number; now?: number; weekStartKey?: string },
+  input: { viewerId: string; isDirector: boolean; limit?: number },
 ): T[] {
   const limit = input.limit ?? 5;
-  const now = input.now ?? Date.now();
-  const weekStart = input.weekStartKey ? Date.parse(`${input.weekStartKey}T00:00:00`) : now - 7 * DAY_MS;
   const mine = (
     input.isDirector
       ? notes
       : notes.filter((n) => n.createdBy === input.viewerId || n.assignedTo === input.viewerId)
-  ).filter((n) => {
-    if (!isHomeNoteWorthy(n.transcript)) return false;
-    const t = Date.parse(n.createdAt);
-    return Number.isFinite(t) && t >= weekStart;
-  });
+  ).filter(noteVisibleAccueil);
   return mine.slice(0, limit);
 }

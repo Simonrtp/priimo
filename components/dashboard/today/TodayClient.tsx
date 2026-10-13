@@ -140,6 +140,46 @@ export default function TodayClient({
 
   const pilotage = variant === 'pilotage';
 
+  const cartesDuJour = directorLayout ? (
+    <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
+  ) : workCards.length === 0 ? null : (
+    <div className="flex flex-col gap-4">
+      {layout.level1ContextLine ? (
+        <p className="text-[13.5px] font-medium text-text-muted">{layout.level1ContextLine}</p>
+      ) : null}
+      {layout.level1.map((card) => (
+        <TodayCardView
+          key={card.key}
+          card={card}
+          onSnooze={handleSnooze}
+          onIgnore={(c) => void dismiss(c, null)}
+        />
+      ))}
+      {layout.level2.map((card) => (
+        <TodayCardView
+          key={card.key}
+          card={card}
+          onSnooze={handleSnooze}
+          onIgnore={(c) => void dismiss(c, null)}
+        />
+      ))}
+      {layout.level3Other.map((card) => (
+        <TodayCardView
+          key={card.key}
+          card={card}
+          onSnooze={handleSnooze}
+          onIgnore={(c) => void dismiss(c, null)}
+        />
+      ))}
+    </div>
+  );
+
+  const notes = (
+    <div className="relative min-w-0 overflow-visible">
+      <RecentNotesCard notes={recentNotes} className="h-full" />
+    </div>
+  );
+
   return (
     <div className={pilotage ? 'w-full min-w-0' : 'w-full min-w-0 pt-2'}>
       {pilotage ? null : (
@@ -161,51 +201,20 @@ export default function TodayClient({
 
       <AValiderSection actions={actionsAValider} className="mb-6 md:mb-8" />
 
-      <div className="grid gap-6 lg:grid-cols-5 lg:items-stretch lg:gap-8">
-        <div className="min-w-0 lg:col-span-3">
-          {directorLayout ? (
-            <DirectorExceptions rows={directorExceptions} onOpenMember={setOpenMemberId} />
-          ) : workCards.length === 0 && emptyKind === 'rien' ? (
-            secteur ? (
-              <div className="flex h-full min-w-0 flex-col [&>*]:h-full">{secteur}</div>
-            ) : null
-          ) : workCards.length === 0 ? null : (
-            <div className="flex flex-col gap-4">
-              {layout.level1ContextLine ? (
-                <p className="text-[13.5px] font-medium text-text-muted">{layout.level1ContextLine}</p>
-              ) : null}
-              {layout.level1.map((card) => (
-                <TodayCardView
-                  key={card.key}
-                  card={card}
-                  onSnooze={handleSnooze}
-                  onIgnore={(c) => void dismiss(c, null)}
-                />
-              ))}
-              {layout.level2.map((card) => (
-                <TodayCardView
-                  key={card.key}
-                  card={card}
-                  onSnooze={handleSnooze}
-                  onIgnore={(c) => void dismiss(c, null)}
-                />
-              ))}
-              {layout.level3Other.map((card) => (
-                <TodayCardView
-                  key={card.key}
-                  card={card}
-                  onSnooze={handleSnooze}
-                  onIgnore={(c) => void dismiss(c, null)}
-                />
-              ))}
-            </div>
-          )}
+      {secteur && !directorLayout ? (
+        <>
+          {cartesDuJour ? <div className="mb-6 min-w-0">{cartesDuJour}</div> : null}
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+            <div className="flex h-full min-w-0 flex-col [&>*]:h-full">{secteur}</div>
+            {notes}
+          </div>
+        </>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-5 lg:items-stretch lg:gap-8">
+          <div className="min-w-0 lg:col-span-3">{cartesDuJour}</div>
+          <div className="lg:col-span-2">{notes}</div>
         </div>
-
-        <div className="relative min-w-0 overflow-visible lg:col-span-2">
-          <RecentNotesCard notes={recentNotes} className="h-full" />
-        </div>
-      </div>
+      )}
 
       {children}
 

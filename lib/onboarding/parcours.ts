@@ -1,8 +1,8 @@
 /**
- * Parcours de prise en main du négociateur (v2).
+ * Parcours de prise en main du négociateur.
  *
- * Ouverture (salut → lettre → anniversaire → avatar), puis les gestes réels,
- * puis écran final. Mobile-first : la dictée ouvre les gestes.
+ * Ouverture (salut → lettre → anniversaire → avatar), puis le texte des
+ * fonctionnalités, la question de formation, puis l’écran final.
  */
 
 export type EtapeId =
@@ -10,11 +10,14 @@ export type EtapeId =
   | 'lettre'
   | 'anniversaire'
   | 'avatar'
+  | 'fonctionnalites'
+  | 'formation'
+  | 'final'
+  /** Anciens gestes : encore acceptés par l’API si un client les renvoie. */
   | 'secteur'
   | 'lead'
   | 'note'
-  | 'immeuble'
-  | 'final';
+  | 'immeuble';
 
 /** Toutes les étapes possibles (mesure / validation API). */
 export const TOUTES_LES_ETAPES: readonly EtapeId[] = [
@@ -22,44 +25,23 @@ export const TOUTES_LES_ETAPES: readonly EtapeId[] = [
   'lettre',
   'anniversaire',
   'avatar',
+  'fonctionnalites',
+  'formation',
+  'final',
   'secteur',
   'lead',
   'note',
   'immeuble',
-  'final',
 ];
 
 /** À partir de cette étape, « Passer » est proposé. */
 export const ETAPE_PASSER_DES_DE: EtapeId = 'anniversaire';
 
-export type ContexteParcours = {
-  aDesLeads: boolean;
-  aDesParcelles: boolean;
-  /** Sur téléphone, la dictée ouvre les gestes. */
-  mobile: boolean;
-};
-
 const OUVERTURE: readonly EtapeId[] = ['salut', 'lettre', 'anniversaire', 'avatar'];
+const PRISE_EN_MAIN: readonly EtapeId[] = ['fonctionnalites', 'formation'];
 
-function gestes(ctx: ContexteParcours): EtapeId[] {
-  const etapes: EtapeId[] = [];
-
-  if (ctx.mobile) {
-    etapes.push('note');
-    etapes.push('secteur');
-    if (ctx.aDesLeads) etapes.push('lead');
-  } else {
-    etapes.push('secteur');
-    if (ctx.aDesLeads) etapes.push('lead');
-    etapes.push('note');
-  }
-
-  if (ctx.aDesParcelles) etapes.push('immeuble');
-  return etapes;
-}
-
-export function buildParcours(ctx: ContexteParcours): EtapeId[] {
-  return [...OUVERTURE, ...gestes(ctx), 'final'];
+export function buildParcours(): EtapeId[] {
+  return [...OUVERTURE, ...PRISE_EN_MAIN, 'final'];
 }
 
 /** Rang 1-based dans le parcours réel. */

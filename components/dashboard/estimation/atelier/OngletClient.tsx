@@ -295,7 +295,7 @@ export default function OngletClient({
       </div>
 
       <div className="flex min-w-0 flex-col gap-3">
-        <Field label="Client rattaché au bien" htmlFor="est-rattacher">
+        <Field label="Client (facultatif)" htmlFor="est-rattacher">
           <div className="flex flex-col gap-3">
             {estimation.contactId || estimation.leadId || estimation.bienId ? (
               <div className="flex flex-col gap-1.5">

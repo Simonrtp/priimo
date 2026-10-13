@@ -138,6 +138,8 @@ export type TerrainNote = VoiceNote & {
   liens: NoteLien[];
   authorName: string | null;
   author?: PortraitCollaborateur | null;
+  /** Données explicitement extraites de la note, utilisées pour son résumé compact. */
+  structured?: unknown;
 };
 
 export const NOTE_SOURCE_LABELS: Record<NoteSourceInfo, string> = {

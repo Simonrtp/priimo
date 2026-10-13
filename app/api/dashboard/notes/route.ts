@@ -133,6 +133,7 @@ export async function GET(req: Request) {
         liens: liensByNote.get(row.id) ?? [],
         authorName: author?.fullName ?? null,
         author,
+        structured: row.structured,
       };
     })
     .filter((n) => canSeeVoiceNote(viewer, { visibilite: n.visibilite, createdBy: n.createdBy }));

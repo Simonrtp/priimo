@@ -152,6 +152,8 @@ export default function ParcellesLayer({
   clipZoneRef.current = clipZone;
   const onPrefetchRef = useRef(onPrefetch);
   onPrefetchRef.current = onPrefetch;
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
   const prefetchTimer = useRef<number | null>(null);
   const lastPrefetchId = useRef<string | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
@@ -202,6 +204,9 @@ export default function ParcellesLayer({
           hasDpe: hasDpe ? '1' : '0',
           letter: letter ?? '',
           dpeGrain: row.dpeGrain ?? '',
+          dateDpe: row.dateDpe ?? '',
+          surfaceDpe: row.surfaceDpe ?? '',
+          etageDpe: row.etageDpe ?? '',
           hasVente: hasVente ? '1' : '0',
           hasCopro: hasCopro ? '1' : '0',
           procedure: row.procedureCopro ? '1' : '0',
@@ -444,7 +449,7 @@ export default function ParcellesLayer({
         setOverlayHover(null);
         lastPrefetchId.current = parcelleId;
         onPrefetchRef.current?.(parcelleId);
-        onPick(parcelleId, {
+        onPickRef.current(parcelleId, {
           surfaceM2: surfaceDepuisFeature(f),
           longitude: lng,
           latitude: lat,
@@ -494,7 +499,7 @@ export default function ParcellesLayer({
     };
     // noteByParcelle / venteAgg / sélection / suivi : lus via refs
     // pour ne pas ré-attacher les listeners à chaque pan ou fetch overlay.
-  }, [enabled, mapRef, onPick, schedulePrefetch, layers.cadastreVentes, clipZone]);
+  }, [enabled, mapRef, schedulePrefetch]);
 
   // Repaint ciblé (sans rejouer moveend → refetch viewport).
   // activeParcelleIds n’influence plus le fill (état « active » retiré) :
@@ -503,7 +508,15 @@ export default function ParcellesLayer({
   useEffect(() => {
     if (!enabled) return;
     paintNowRef.current?.();
-  }, [enabled, suiviKey, selectedParcelleId]);
+  }, [
+    enabled,
+    suiviKey,
+    selectedParcelleId,
+    noteMarkers,
+    immeubles,
+    layers.cadastreVentes,
+    clipZone,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
@@ -610,12 +623,47 @@ export default function ParcellesLayer({
       lastPrefetchId.current = parcelleId;
       onPrefetchRef.current?.(parcelleId);
       const centrePick = f ? centroidLngLat(f.geometry) : null;
-      onPick(parcelleId, {
+      const layer = overlayLayerOf(f?.layer?.id);
+      const banId = typeof f?.properties?.banId === 'string' ? f.properties.banId : null;
+      const row = banId ? immeublesRef.current.find((item) => item.banId === banId) : null;
+      onPickRef.current(parcelleId, {
         surfaceM2: f ? surfaceDepuisFeature(f) : null,
         longitude: centrePick?.longitude ?? e.lngLat.lng,
         latitude: centrePick?.latitude ?? e.lngLat.lat,
+        dpe:
+          layer === 'dpe' && row
+            ? {
+                banId: row.banId,
+                date: row.dateDpe,
+                etiquette: row.etiquetteDpe,
+                etiquetteGes: null,
+                consoKwhM2: null,
+                surface: row.surfaceDpe,
+                etage: row.etageDpe,
+              }
+            : null,
       });
     };
+
+    // Le fond de plan (empreintes d'immeubles) se redessine au-dessus des
+    // cercles ajoutés trop tôt. La lettre, elle, reste : d'où les C/E noirs.
+    const raiseDpe = () => {
+      try {
+        const order = map.getStyle()?.layers;
+        if (!order) return;
+        const present = [CADASTRE_DPE_LAYER_ID, CADASTRE_DPE_LABEL_LAYER_ID].filter((id) =>
+          map.getLayer(id),
+        );
+        if (present.length === 0) return;
+        const tail = order.slice(-present.length).map((layer) => layer.id);
+        if (present.every((id, i) => tail[i] === id)) return;
+        for (const id of present) map.moveLayer(id);
+      } catch {
+        /* style pas encore prêt */
+      }
+    };
+    raiseDpe();
+    map.on('idle', raiseDpe);
 
     const overlayLayers = [
       CADASTRE_DPE_LAYER_ID,
@@ -632,6 +680,7 @@ export default function ParcellesLayer({
     }
 
     return () => {
+      map.off('idle', raiseDpe);
       for (const id of overlayLayers) {
         map.off('mousemove', id, onOverlayMove);
         map.off('mouseleave', id, onOverlayLeave);
@@ -640,7 +689,7 @@ export default function ParcellesLayer({
       const canvas = mapCanvas(map);
       if (canvas && !enabled) canvas.style.cursor = '';
     };
-  }, [enabled, mapRef, onPick, schedulePrefetch, showOverlays]);
+  }, [enabled, mapRef, schedulePrefetch, showOverlays]);
 
   if (!enabled && !showOverlays) return null;
 

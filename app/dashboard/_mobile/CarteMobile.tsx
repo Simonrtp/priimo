@@ -597,7 +597,7 @@ export default function CarteMobile({
                       setConfirmerFin(false);
                       tournee.terminer();
                     }}
-                    className="app-press flex h-10 items-center rounded-full bg-blue px-3.5 text-[13.5px] font-semibold text-white"
+                    className="app-press flex h-10 items-center rounded-full bg-primary-500 px-3.5 text-[13.5px] font-semibold text-white"
                   >
                     Oui
                   </button>
@@ -611,7 +611,7 @@ export default function CarteMobile({
                       closeParcelle();
                       tournee.reprendre();
                     }}
-                    className="app-press flex items-center gap-2 whitespace-nowrap rounded-full bg-blue px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
+                    className="app-press flex items-center gap-2 whitespace-nowrap rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
                     style={{ fontSize: 14 }}
                   >
                     <Play size={16} strokeWidth={2.4} aria-hidden />
@@ -633,7 +633,7 @@ export default function CarteMobile({
               type="button"
               onClick={ouvrirTournee}
               aria-label="Préparer une tournée"
-              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-blue px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
+              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
               style={{ bottom: floatBottom, fontSize: 14 }}
             >
               <MapPin size={18} strokeWidth={2.2} aria-hidden />

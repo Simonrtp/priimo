@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { EstimationObjet } from './objet';
 import { BIEN_VIDE } from './objet';
-import { etapeValidee } from './etapes';
+import {
+  etapeAccessible,
+  etapeInitiale,
+  etapeRapportOk,
+  etapeValidee,
+  manquesEtape,
+} from './etapes';
 
 function fiche(partial: Partial<EstimationObjet>): EstimationObjet {
   return {
@@ -37,5 +43,27 @@ describe('etapeValidee', () => {
   it('coche l’estimation dès qu’un prix est posé', () => {
     assert.equal(etapeValidee(fiche({}), 'estimation'), false);
     assert.equal(etapeValidee(fiche({ priceValue: 400_000 }), 'estimation'), true);
+  });
+});
+
+describe('parcours sans client', () => {
+  it('commence directement par le bien et ne bloque pas sa saisie', () => {
+    const vide = fiche({});
+    assert.equal(etapeInitiale(vide), 'bien');
+    assert.equal(etapeAccessible(vide, 0, 'bien'), true);
+    assert.equal(manquesEtape(vide, 'client'), null);
+  });
+
+  it('ouvre le rapport dès que le bien et le prix sont prêts', () => {
+    const prete = fiche({
+      address: '12 rue X',
+      propertyType: 'appartement',
+      surfaceM2: 60,
+      rooms: 3,
+      priceValue: 400_000,
+      contactId: null,
+    });
+    assert.equal(etapeRapportOk(prete), true);
+    assert.equal(etapeAccessible(prete, 2, 'rapport'), true);
   });
 });

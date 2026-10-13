@@ -34,7 +34,7 @@ export function DessinerMonSecteur({
       icone="/emplacement.png"
       action={
         <button type="button" onClick={onAtelier} className={BOUTON_CARTE_VIDE}>
-          {estDirecteur ? 'Définir un secteur' : 'Définir mon secteur'}
+          {estDirecteur ? 'Définir un secteur' : 'Faire mon secteur'}
         </button>
       }
     />

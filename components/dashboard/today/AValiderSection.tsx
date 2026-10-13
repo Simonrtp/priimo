@@ -33,7 +33,7 @@ export default function AValiderSection({
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Sparkles size={15} strokeWidth={2.2} aria-hidden />
+          <Sparkles size={15} strokeWidth={2.2} className="text-ia" aria-hidden />
           <h2 id="accueil-a-valider" className="text-[15px] font-semibold tracking-tight">
             À valider
           </h2>

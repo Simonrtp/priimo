@@ -73,7 +73,12 @@ export async function GET(
   const dpeAdresse = dpes.find((d) =>
     d.adresse.toLocaleLowerCase('fr').includes(adresseNorm.slice(0, 18)),
   );
-  const dpeClass = row.dpe_class ?? dpeAdresse?.lettre ?? immeuble.dpeKnown;
+  // Un immeuble a plusieurs logements : une lettre ou une surface trouvée à
+  // l'adresse n'est pas celle du bien que l'agent veut estimer.
+  const logementConnu = row.property_type !== 'appartement';
+  const dpeClass = logementConnu
+    ? (row.dpe_class ?? dpeAdresse?.lettre ?? immeuble.dpeKnown)
+    : row.dpe_class;
   const grille = preremplirDepuisPublic(parseGrille(row.grille), {
     dpeClass,
     commerces: proximite.commerces,
@@ -83,12 +88,12 @@ export async function GET(
   if (!bien.qualiteEmplacement && grille.quartier?.valeur) {
     bien.qualiteEmplacement = CRITERE_NOTE_LABELS[grille.quartier.valeur];
   }
-  if (dpeAdresse) {
+  if (logementConnu && dpeAdresse) {
     if (!bien.dpeVersion) bien.dpeVersion = '3.0';
     if (!bien.ges && dpeAdresse.lettre) bien.ges = dpeAdresse.lettre;
   }
 
-  const surfaceM2 = row.surface_m2 ?? dpeAdresse?.surfaceM2 ?? null;
+  const surfaceM2 = logementConnu ? (row.surface_m2 ?? dpeAdresse?.surfaceM2 ?? null) : row.surface_m2;
   const propertyType =
     row.property_type === 'maison' || row.property_type === 'appartement'
       ? row.property_type
@@ -113,6 +118,7 @@ export async function GET(
     resolved: true,
     immeuble: {
       ...immeuble,
+      ...(row.property_type === 'appartement' ? { dpeKnown: null } : {}),
       comparablesAppartement: appart,
       comparablesMaison: maison,
     },
@@ -122,7 +128,7 @@ export async function GET(
     urbanisme: gpu,
     risques,
     proximite,
-    dpe: dpeAdresse
+    dpe: logementConnu && dpeAdresse
       ? {
           lettre: dpeAdresse.lettre,
           surfaceM2: dpeAdresse.surfaceM2,

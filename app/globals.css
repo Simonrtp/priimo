@@ -141,13 +141,23 @@
   border-color: rgba(180, 35, 24, 0.28) !important;
 }
 
-/* Croix de fermeture — discrète, lisible sur pastille verte / rouge. */
+/* Croix de fermeture — grise et intégrée dans le coin du toast. */
 [data-sonner-toast] [data-close-button].priimo-toast-close,
 [data-sonner-toast] button[data-close-button] {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border: 1px solid rgba(26, 42, 86, 0.12) !important;
-  color: rgba(26, 42, 86, 0.72) !important;
-  box-shadow: 0 1px 4px rgba(26, 42, 86, 0.08) !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  transform: none !important;
+  width: 22px !important;
+  height: 22px !important;
+  background: transparent !important;
+  border: 0 !important;
+  color: rgba(71, 85, 105, 0.72) !important;
+  box-shadow: none !important;
+}
+
+[data-sonner-toast][data-styled='true'] {
+  padding-right: 38px !important;
 }
 
 /* Bleu shell Priimo — dégradé + grain à peine perceptible */

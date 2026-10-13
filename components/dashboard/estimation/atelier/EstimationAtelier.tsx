@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAdressesProposees } from './useAdressesProposees';
-import { ArrowLeft, ArrowRight, Check, Mic } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Mic, UserPlus } from 'lucide-react';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
@@ -19,6 +19,7 @@ import {
 import {
   ETAPES_ATELIER,
   etapeAccessible,
+  etapeInitiale,
   etapeValidee,
   indexEtape,
   indexMaxAccessible,
@@ -71,7 +72,7 @@ export default function EstimationAtelier({
   onRetour: () => void;
 }) {
   const [estimation, setEstimation] = useState(initial);
-  const [onglet, setOnglet] = useState<EtapeAtelierId>('client');
+  const [onglet, setOnglet] = useState<EtapeAtelierId>(() => etapeInitiale(initial));
   const [atteint, setAtteint] = useState(() => indexMaxAccessible(initial, 0));
   const [contexte, setContexte] = useState<ContexteAtelier | null>(null);
   const [contexteChargement, setContexteChargement] = useState(false);
@@ -347,7 +348,7 @@ export default function EstimationAtelier({
                 onEstimationDraft: applyVoiceDraft,
               })
             }
-            className="min-h-11 shrink-0"
+            className="min-h-11 shrink-0 !bg-ia hover:!bg-ia-600 focus-visible:!outline-ia"
           >
             <Mic size={16} strokeWidth={2} aria-hidden />
             Dicter le bien
@@ -414,6 +415,19 @@ export default function EstimationAtelier({
         })}
       </div>
 
+      {onglet === 'estimation' ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setOnglet('client')}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-[13px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <UserPlus size={15} strokeWidth={2} aria-hidden />
+            {estimation.contactId ? 'Voir le client rattaché' : 'Rattacher un client · facultatif'}
+          </button>
+        </div>
+      ) : null}
+
       <div
         className={`grid gap-4 ${
           onglet === 'rapport'
@@ -462,7 +476,7 @@ export default function EstimationAtelier({
           ) : null}
           {!estDerniere ? (
             <div
-              className="sticky bottom-0 z-10 mt-4 flex justify-end border-t border-black/[0.06] bg-bg-base py-3"
+              className="sticky bottom-0 z-10 mt-4 flex justify-end bg-transparent py-3"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
             >
               <button

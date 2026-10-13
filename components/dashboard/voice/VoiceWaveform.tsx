@@ -106,7 +106,7 @@ export default function VoiceWaveform({
             ref={(el) => {
               barsRef.current[i] = el;
             }}
-            className={`rounded-full ${compact ? 'bg-ia' : 'bg-blue'}`}
+            className="rounded-full bg-ia"
             style={{ height: minHeight, width: barWidth }}
           />
         </div>

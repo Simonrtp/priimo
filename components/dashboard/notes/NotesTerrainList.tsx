@@ -1,17 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Mail, MapPin, Pencil, Phone, UserRound } from 'lucide-react';
 import type { NoteLien, NoteLienEntite, VoiceNoteVisibilite } from '@/types/contact';
 import { NOTE_CONFIANCE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { TerrainNote } from '@/types/contact';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
-import { Field } from '@/components/dashboard/workspace/Field';
 import ChoixVisibilite from '@/components/dashboard/workspace/ChoixVisibilite';
-import { formatParcelleId } from '@/lib/carte/parcelle-id';
 import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
 import { onNoteCreated } from '@/lib/notes/note-created-event';
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import NoteFiche from '@/components/dashboard/notes/NoteFiche';
+import { resumeCarteNote } from '@/lib/notes/note-card';
+import { useUser } from '@/lib/hooks/useUser';
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -19,12 +21,6 @@ function formatDate(iso: string): string {
     month: 'short',
     year: 'numeric',
   }).format(new Date(iso));
-}
-
-function excerpt(text: string | null): string {
-  const t = (text ?? '').trim().replace(/\s+/g, ' ');
-  if (!t) return 'Sans transcription';
-  return t.length > 220 ? `${t.slice(0, 219)}…` : t;
 }
 
 export default function NotesTerrainList({
@@ -38,7 +34,10 @@ export default function NotesTerrainList({
   currentUserId?: string;
   focusNoteId?: string | null;
 }) {
+  const { profile } = useUser();
+  const viewerId = currentUserId ?? profile?.id;
   const [notes, setNotes] = useState<TerrainNote[] | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const focusNoteRef = useRef<HTMLLIElement | null>(null);
 
   async function load() {
@@ -128,84 +127,134 @@ export default function NotesTerrainList({
   }
 
   return (
-    <ul className="flex flex-col gap-4">
-      {notes.map((note) => {
-        const lienIci = note.liens.find((l) => l.entiteType === entiteType && l.entiteId === entiteId);
-        const probable = lienIci?.confiance === 'probable';
-        const mine = currentUserId && note.createdBy === currentUserId;
-        return (
-          <li
-            key={note.id}
-            ref={note.id === focusNoteId ? focusNoteRef : undefined}
-            className={`scroll-m-6 rounded-xl border px-3.5 py-3 ${
-              note.id === focusNoteId
-                ? 'border-accent/40 bg-accent/[0.04]'
-                : 'border-black/[0.06]'
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-text-subtle">
-                <span>{formatDate(note.createdAt)}</span>
-                {note.author ? (
-                  <span className="inline-flex min-w-0 items-center gap-1">
-                    · <CollaborateurNom portrait={note.author} size={16} />
-                  </span>
-                ) : note.authorName ? (
-                  <span>· {note.authorName}</span>
-                ) : null}
-                {note.sourceInfo ? ` · ${NOTE_SOURCE_LABELS[note.sourceInfo]}` : ''}
-              </p>
-              {lienIci ? (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    probable ? 'bg-black/[0.06] text-text-muted' : 'bg-accent/10 text-accent'
-                  }`}
-                >
-                  {NOTE_CONFIANCE_LABELS[lienIci.confiance]}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-2 text-pretty text-text" style={{ fontSize: 14, lineHeight: 1.55 }}>
-              {excerpt(note.transcript)}
-            </p>
-            {lienIci && !probable ? (
-              <p className="mt-2 text-[12.5px] font-medium text-text-muted">
-                Rattachée à {entiteType === 'immeuble' ? 'une adresse' : LIBELLE_ENTITE[entiteType].toLowerCase()}
-                {entiteType === 'parcelle' ? ` ${formatParcelleId(entiteId)}` : ''}
-              </p>
-            ) : null}
-            {probable && lienIci ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <WorkspaceButton
-                  type="button"
-                  variant="secondary"
-                  onClick={() => void confirmer(note.id, lienIci)}
-                >
-                  Confirmer
-                </WorkspaceButton>
-                <WorkspaceButton
-                  type="button"
-                  variant="secondary"
-                  onClick={() => void rejeter(note.id, lienIci)}
-                >
-                  Écarter
-                </WorkspaceButton>
+    <>
+      <ul className="flex flex-col gap-2.5">
+        {notes.map((note) => {
+          const lienIci = note.liens.find((l) => l.entiteType === entiteType && l.entiteId === entiteId);
+          const probable = lienIci?.confiance === 'probable';
+          const mine = Boolean(viewerId && note.createdBy === viewerId);
+          const resume = resumeCarteNote(note);
+          return (
+            <li
+              key={note.id}
+              ref={note.id === focusNoteId ? focusNoteRef : undefined}
+              className={`scroll-m-6 rounded-xl border bg-[#F0F1F4] px-3 py-2.5 ${
+                note.id === focusNoteId ? 'border-accent/40' : 'border-black/[0.06]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11.5px] text-text-subtle">
+                  <span>{formatDate(note.createdAt)}</span>
+                  {note.author ? (
+                    <span className="inline-flex min-w-0 items-center gap-1">
+                      · <CollaborateurNom portrait={note.author} size={15} />
+                    </span>
+                  ) : note.authorName ? (
+                    <span>· {note.authorName}</span>
+                  ) : null}
+                  {note.sourceInfo ? ` · ${NOTE_SOURCE_LABELS[note.sourceInfo]}` : ''}
+                </p>
+                <div className="flex shrink-0 items-center gap-1">
+                  {lienIci ? (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
+                        probable ? 'bg-black/[0.06] text-text-muted' : 'bg-accent/10 text-accent'
+                      }`}
+                    >
+                      {NOTE_CONFIANCE_LABELS[lienIci.confiance]}
+                    </span>
+                  ) : null}
+                  {mine ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditingNoteId(note.id)}
+                      className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <Pencil size={13} aria-hidden />
+                      Modifier
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
-            {mine ? (
-              <div className="mt-3">
-                <Field label="Partage">
+
+              {resume.contact ? (
+                <div className="mt-2">
+                  <p className="flex items-center gap-1.5 text-[14px] font-semibold text-text-strong">
+                    <UserRound size={15} className="shrink-0 text-text-muted" aria-hidden />
+                    {resume.contact.nom ?? 'Nouveau contact'}
+                  </p>
+                  <div className="mt-1.5 grid gap-1 text-[12.5px] text-text-muted">
+                    {resume.contact.telephone ? (
+                      <p className="flex min-w-0 items-center gap-1.5" aria-label={`Téléphone ${resume.contact.telephone}`}>
+                        <Phone size={13} className="shrink-0" aria-hidden />
+                        <span className="truncate">{resume.contact.telephone}</span>
+                      </p>
+                    ) : null}
+                    {resume.contact.email ? (
+                      <p className="flex min-w-0 items-center gap-1.5" aria-label={`E-mail ${resume.contact.email}`}>
+                        <Mail size={13} className="shrink-0" aria-hidden />
+                        <span className="truncate">{resume.contact.email}</span>
+                      </p>
+                    ) : null}
+                    {resume.contact.adresse ? (
+                      <p className="flex min-w-0 items-start gap-1.5" aria-label={`Adresse ${resume.contact.adresse}`}>
+                        <MapPin size={13} className="mt-0.5 shrink-0" aria-hidden />
+                        <span className="line-clamp-2">{resume.contact.adresse}</span>
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-1.5 text-pretty text-[13.5px] leading-snug text-text">
+                  {resume.texte}
+                </p>
+              )}
+
+              {lienIci && !probable && entiteType !== 'parcelle' ? (
+                <p className="mt-1.5 text-[11.5px] font-medium text-text-muted">
+                  Rattachée à {entiteType === 'immeuble' ? 'une adresse' : LIBELLE_ENTITE[entiteType].toLowerCase()}
+                </p>
+              ) : null}
+              {probable && lienIci ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <WorkspaceButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void confirmer(note.id, lienIci)}
+                  >
+                    Confirmer
+                  </WorkspaceButton>
+                  <WorkspaceButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void rejeter(note.id, lienIci)}
+                  >
+                    Écarter
+                  </WorkspaceButton>
+                </div>
+              ) : null}
+              {mine ? (
+                <div className="mt-2 flex items-center justify-between gap-3 border-t border-black/[0.05] pt-2">
+                  <span className="text-[11.5px] font-medium text-text-muted">Partage</span>
                   <ChoixVisibilite
                     objet="note"
                     value={note.visibilite}
+                    avecAide={false}
                     onChange={(next) => void patchVisibilite(note.id, next)}
                   />
-                </Field>
-              </div>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {editingNoteId ? (
+        <NoteFiche
+          noteId={editingNoteId}
+          onClose={() => setEditingNoteId(null)}
+          onChanged={() => void load()}
+        />
+      ) : null}
+    </>
   );
 }

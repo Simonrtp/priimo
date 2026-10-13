@@ -18,7 +18,7 @@ export default function CarteVideAccueil({
   className = '',
 }: {
   titre: string;
-  accroche: string;
+  accroche?: string;
   etapes?: readonly string[];
   action?: ReactNode;
   icone: string;
@@ -26,38 +26,42 @@ export default function CarteVideAccueil({
 }) {
   return (
     <section
-      className={`flex h-full min-w-0 items-center gap-6 rounded-clay-lg bg-white p-5 shadow-clay ${className}`.trim()}
+      className={`flex h-full min-w-0 flex-col rounded-clay-lg bg-white p-5 shadow-clay ${className}`.trim()}
     >
-      <div className="min-w-0 flex-1">
-        <h2 className="text-balance font-semibold text-ink" style={{ fontSize: 16 }}>
-          {titre}
-        </h2>
-        <p className="mt-3 text-balance text-[15px] font-semibold text-ink">{accroche}</p>
-        {etapes && etapes.length > 0 ? (
-          <ol className="mt-4 flex flex-col gap-2">
-            {etapes.map((etape, i) => (
-              <li key={etape} className="flex items-start gap-2.5 text-[13px] text-ink">
-                <span
-                  aria-hidden
-                  className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-[11px] font-semibold tabular-nums text-mute"
-                >
-                  {i + 1}
-                </span>
-                <span className="text-pretty">{etape}</span>
-              </li>
-            ))}
-          </ol>
-        ) : null}
-        {action ? <div className="mt-5">{action}</div> : null}
+      <h2 className="shrink-0 whitespace-nowrap font-semibold text-ink" style={{ fontSize: 16 }}>
+        {titre}
+      </h2>
+      <div className="mt-3 flex min-h-0 min-w-0 flex-1 items-center gap-6">
+        <div className="min-w-0 flex-1">
+          {accroche ? (
+            <p className="text-pretty text-[15px] font-semibold text-ink">{accroche}</p>
+          ) : null}
+          {etapes && etapes.length > 0 ? (
+            <ol className={`flex flex-col gap-2 ${accroche ? 'mt-4' : ''}`}>
+              {etapes.map((etape, i) => (
+                <li key={etape} className="flex items-start gap-2.5 text-[13px] text-ink">
+                  <span
+                    aria-hidden
+                    className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-black/[0.05] text-[11px] font-semibold tabular-nums text-mute"
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-pretty">{etape}</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+          {action ? <div className="mt-5">{action}</div> : null}
+        </div>
+        <Image
+          src={icone}
+          alt=""
+          width={152}
+          height={152}
+          aria-hidden
+          className="mr-3 hidden shrink-0 opacity-[0.38] sm:block"
+        />
       </div>
-      <Image
-        src={icone}
-        alt=""
-        width={152}
-        height={152}
-        aria-hidden
-        className="mr-3 hidden shrink-0 opacity-[0.38] sm:block"
-      />
     </section>
   );
 }

@@ -165,6 +165,8 @@ export type ParcellePickExtra = {
   /** Centroïde au clic — pour décaler la carte hors du volet. */
   longitude?: number | null;
   latitude?: number | null;
+  /** DPE exact du point cliqué, potentiellement plus frais que la copie locale. */
+  dpe?: ParcelleLogement | null;
 };
 
 export type ParcelleNoteMarker = {

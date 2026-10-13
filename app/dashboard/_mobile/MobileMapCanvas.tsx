@@ -40,6 +40,9 @@ import VolCarte from '@/components/dashboard/carte/VolCarte';
 import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
+const VIEWPORT_SETTLE_MS = 320;
+const MARKERS_GARDES_PENDANT_GESTE = 120;
+
 export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }, zoom?: number) => void;
   fitGroup: (buildings: readonly BuildingMarker[]) => void;
@@ -160,6 +163,7 @@ export default function MobileMapCanvas({
   const [styleReady, setStyleReady] = useState(false);
   const [mapGesturing, setMapGesturing] = useState(false);
   const gestureTimer = useRef<number | null>(null);
+  const viewportTimer = useRef<number | null>(null);
   const camera = cameraFor(dimension);
   const relief = !navigation && dimension === '3d';
   useCanvasAJour(mapRef, styleReady);
@@ -184,6 +188,7 @@ export default function MobileMapCanvas({
   useEffect(
     () => () => {
       if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+      if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
     },
     [],
   );
@@ -368,6 +373,10 @@ export default function MobileMapCanvas({
             window.clearTimeout(gestureTimer.current);
             gestureTimer.current = null;
           }
+          if (viewportTimer.current != null) {
+            window.clearTimeout(viewportTimer.current);
+            viewportTimer.current = null;
+          }
           setMapGesturing(true);
         }}
         onLoad={() => {
@@ -384,13 +393,18 @@ export default function MobileMapCanvas({
         onMoveEnd={(event) => {
           const b = event.target.getBounds();
           if (b) {
-            onViewport({
+            const next = {
               west: b.getWest(),
               south: b.getSouth(),
               east: b.getEast(),
               north: b.getNorth(),
               zoom: event.target.getZoom(),
-            });
+            };
+            if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
+            viewportTimer.current = window.setTimeout(() => {
+              viewportTimer.current = null;
+              onViewport(next);
+            }, VIEWPORT_SETTLE_MS);
           }
           setZoom(event.target.getZoom());
           onVue?.({ bearing: event.target.getBearing(), pitch: event.target.getPitch() });
@@ -466,7 +480,8 @@ export default function MobileMapCanvas({
             }}
           />
         ) : null}
-        {showCrmPins && !mapGesturing
+        {showCrmPins &&
+        (!mapGesturing || clustered.length <= MARKERS_GARDES_PENDANT_GESTE)
           ? clustered.map((item) => {
           if (item.kind === 'cluster') {
             return (

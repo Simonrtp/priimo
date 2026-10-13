@@ -254,7 +254,7 @@ function SearchField({
           title={voiceLabel}
           aria-pressed={listening}
           className={`flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50 ${
-            listening ? 'bg-accent text-white' : 'text-mute hover:text-ink'
+            listening ? 'bg-ia text-white' : 'text-mute hover:text-ink'
           }`}
         >
           <Mic size={16} strokeWidth={2} aria-hidden />

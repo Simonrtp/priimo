@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { BuildingMarker } from '@/lib/carte/buildings';
-import type { OnboardingLeadPropose, OnboardingSecteur } from '@/lib/queries/agent-onboarding';
 import {
   buildParcours,
   etapeDeReprise,
@@ -17,10 +15,8 @@ import EtapeSalut from './EtapeSalut';
 import EtapeLettre from './EtapeLettre';
 import EtapeAnniversaire from './EtapeAnniversaire';
 import EtapeAvatar from './EtapeAvatar';
-import EtapeSecteur from './EtapeSecteur';
-import EtapeLead from './EtapeLead';
-import EtapeNote from './EtapeNote';
-import EtapeImmeuble from './EtapeImmeuble';
+import EtapeFonctionnalites from './EtapeFonctionnalites';
+import EtapeFormation from './EtapeFormation';
 import EtapeFinal from './EtapeFinal';
 
 function initialsOf(first: string, last: string): string {
@@ -30,47 +26,22 @@ function initialsOf(first: string, last: string): string {
 }
 
 /**
- * Prise en main v2 — mobile d’abord, orange marque, état en base.
+ * Prise en main — ouverture, fonctionnalités, formation, écran final.
  */
 export default function AgentOnboarding({
-  profileId,
   firstName,
   lastName,
   avatarUrl,
-  secteur,
-  leads,
-  stageEntreeId,
-  buildings,
-  center,
-  aDesParcelles,
-  mobile,
   reprise,
 }: {
-  profileId: string;
   firstName: string;
   lastName: string;
   avatarUrl: string | null;
-  secteur: OnboardingSecteur;
-  leads: readonly OnboardingLeadPropose[];
-  stageEntreeId: string | null;
-  buildings: readonly BuildingMarker[];
-  center: { latitude: number | null; longitude: number | null };
-  aDesParcelles: boolean;
-  mobile: boolean;
   reprise: { currentStep: string | null; stepsReached: string[] } | null;
 }) {
   const router = useRouter();
   const prenom = firstName.trim() || 'toi';
-
-  const parcours = useMemo(
-    () =>
-      buildParcours({
-        aDesLeads: leads.length > 0,
-        aDesParcelles,
-        mobile,
-      }),
-    [leads.length, stageEntreeId, aDesParcelles, mobile],
-  );
+  const parcours = useMemo(() => buildParcours(), []);
 
   const [etape, setEtape] = useState<EtapeId>(() =>
     etapeDeReprise(parcours, reprise?.currentStep ?? null, reprise?.stepsReached ?? []),
@@ -163,7 +134,6 @@ export default function AgentOnboarding({
   const total = parcours.length;
   const rang = rangEtape(parcours, etape);
   const showRetour = etapePrecedente(parcours, etape) != null && !fermeture;
-
   const commun = { rang, total };
 
   let contenu: ReactNode = null;
@@ -189,36 +159,10 @@ export default function AgentOnboarding({
         onSuivant={(url) => void saveAvatar(url)}
       />
     );
-  } else if (etape === 'secteur') {
-    contenu = (
-      <EtapeSecteur
-        {...commun}
-        secteur={secteur}
-        buildings={buildings}
-        center={center}
-        onSuivant={suivant}
-      />
-    );
-  } else if (etape === 'lead') {
-    contenu = (
-      <EtapeLead
-        {...commun}
-        leads={leads}
-        stageEntreeId={stageEntreeId}
-        profileId={profileId}
-        onSuivant={suivant}
-      />
-    );
-  } else if (etape === 'note') {
-    contenu = <EtapeNote {...commun} onSuivant={suivant} />;
-  } else if (etape === 'immeuble') {
-    contenu = (
-      <EtapeImmeuble {...commun} buildings={buildings} center={center} onSuivant={suivant} />
-    );
-  } else if (etape === 'final') {
-    contenu = (
-      <EtapeFinal prenom={prenom} enCours={fermeture} onOuvrir={() => void terminer()} />
-    );
+  } else if (etape === 'fonctionnalites') {
+    contenu = <EtapeFonctionnalites {...commun} onSuivant={suivant} />;
+  } else if (etape === 'formation') {
+    contenu = <EtapeFormation {...commun} onSuivant={suivant} />;
   } else {
     contenu = (
       <EtapeFinal prenom={prenom} enCours={fermeture} onOuvrir={() => void terminer()} />

@@ -449,16 +449,12 @@ export default function ProspectsClient({
         />
       )}
 
-      {vue !== 'pipeline' ? (
-        <>
-          {/* Même onglet collé coin haut-droit que sur la Carte. */}
-          <div className="pointer-events-none absolute -right-6 -top-6 z-30 hidden md:block lg:-right-8 lg:-top-8">
-            <div className="pointer-events-auto">{switcher}</div>
-          </div>
-          {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
-          <div className="mb-4 hidden h-12 md:block" aria-hidden />
-        </>
-      ) : null}
+      {/* Même onglet collé coin haut-droit que sur la Carte, y compris Pipeline. */}
+      <div className="pointer-events-none absolute -right-6 -top-6 z-30 hidden md:block lg:-right-8 lg:-top-8">
+        <div className="pointer-events-auto">{switcher}</div>
+      </div>
+      {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
+      <div className="mb-4 hidden h-12 md:block" aria-hidden />
 
       {vue === 'pipeline' ? (
         <>
@@ -470,7 +466,6 @@ export default function ProspectsClient({
             members={teamMembers}
             showNegotiator={isDirector && pipelineScope === 'agency'}
             kpiLine={kpiLine}
-            actions={switcher}
           />
           <PipelineBoard
             stages={stageList}
@@ -478,7 +473,7 @@ export default function ProspectsClient({
             teamMembers={teamMembers}
             onLeadsChange={setLeads}
             onOpen={setSelectedLeadId}
-            canManageStages={isDirector}
+            canManageStages
             onStagesChange={setStageList}
           />
         </>

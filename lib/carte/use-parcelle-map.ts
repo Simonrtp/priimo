@@ -5,6 +5,7 @@ import {
   emptyParcelleFiche,
   type CadastreImmeublePoint,
   type ParcelleFiche,
+  type ParcelleLogement,
   type ParcelleNoteMarker,
   type ParcellePickExtra,
 } from '@/lib/carte/parcelle';
@@ -32,17 +33,27 @@ function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche:
   }
 }
 
-/** Arrondi bbox/zoom : évite un fetch à chaque cran de molette. */
-function quantizeViewport(v: Viewport): Viewport {
-  // Plus large qu’avant : un zoom fluide ne doit pas invalider le cache à chaque frame.
+/** Emprise mise en cache, toujours élargie : aucun point visible ne doit sortir par arrondi. */
+export function quantizeViewport(v: Viewport): Viewport {
   const step = v.zoom >= 16 ? 0.002 : v.zoom >= 14 ? 0.003 : v.zoom >= 12 ? 0.006 : 0.01;
-  const q = (n: number) => Math.round(n / step) * step;
   return {
-    west: q(v.west),
-    south: q(v.south),
-    east: q(v.east),
-    north: q(v.north),
+    west: Math.floor(v.west / step) * step,
+    south: Math.floor(v.south / step) * step,
+    east: Math.ceil(v.east / step) * step,
+    north: Math.ceil(v.north / step) * step,
     zoom: Math.round(v.zoom),
+  };
+}
+
+export function mergeOverlayPayload(base: OverlayPayload, incoming: OverlayPayload): OverlayPayload {
+  const immeubles = new Map(base.immeubles.map((row) => [row.banId, row]));
+  for (const row of incoming.immeubles) immeubles.set(row.banId, row);
+  const notes = new Map(base.notes.map((row) => [row.parcelleId, row]));
+  for (const row of incoming.notes) notes.set(row.parcelleId, row);
+  return {
+    immeubles: [...immeubles.values()],
+    notes: [...notes.values()],
+    sources: incoming.sources,
   };
 }
 
@@ -61,6 +72,22 @@ function appliquerSurface(fiche: ParcelleFiche, surface: number | null): Parcell
   return { ...fiche, surfaceCadastreM2: surface };
 }
 
+export function avecDpeClique(fiche: ParcelleFiche, dpe: ParcelleLogement | null): ParcelleFiche {
+  if (!dpe?.date || !dpe.etiquette) return fiche;
+  const logements = fiche.logements.filter(
+    (row) => !(row.banId === dpe.banId && row.date === dpe.date && row.etiquette === dpe.etiquette),
+  );
+  return { ...fiche, logements: [dpe, ...logements] };
+}
+
+function appliquerSelection(
+  fiche: ParcelleFiche,
+  surface: number | null,
+  dpe: ParcelleLogement | null,
+): ParcelleFiche {
+  return avecDpeClique(appliquerSurface(fiche, surface), dpe);
+}
+
 export function useParcelleMap(
   enabled: boolean,
   viewport: Viewport | null,
@@ -77,12 +104,20 @@ export function useParcelleMap(
   const cache = useRef<Map<string, ParcelleFiche>>(new Map());
   const inflight = useRef<Map<string, Promise<ParcelleFiche>>>(new Map());
   const overlayCache = useRef<Map<string, OverlayPayload>>(new Map());
+  const accumulatedOverlays = useRef<OverlayPayload>({
+    immeubles: [],
+    notes: [],
+    sources: EMPTY_SOURCES,
+  });
+  const overlayDatasetKeyRef = useRef('');
   const demande = useRef<string | null>(null);
   const seq = useRef(0);
   const surfaceCliquee = useRef<number | null>(null);
+  const dpeClique = useRef<ParcelleLogement | null>(null);
   const agesProvided = options?.dpeAges != null;
   const agesKey = serializeDpeAgeBuckets(options?.dpeAges ?? []);
   const includeDpe = options?.includeDpeDetail === true;
+  const overlayDatasetKey = `${includeDpe ? 1 : 0}|${agesProvided ? agesKey : ''}`;
 
   const viewportKey = useMemo(
     () => overlayCacheKey(viewport, includeDpe, agesProvided ? agesKey : ''),
@@ -90,17 +125,31 @@ export function useParcelleMap(
   );
 
   useEffect(() => {
+    if (overlayDatasetKeyRef.current === overlayDatasetKey) return;
+    overlayDatasetKeyRef.current = overlayDatasetKey;
+    overlayCache.current.clear();
+    accumulatedOverlays.current = { immeubles: [], notes: [], sources: EMPTY_SOURCES };
+    setImmeubles([]);
+    setNoteMarkers([]);
+    setSources(EMPTY_SOURCES);
+  }, [overlayDatasetKey]);
+
+  useEffect(() => {
     if (!enabled) {
+      accumulatedOverlays.current = { immeubles: [], notes: [], sources: EMPTY_SOURCES };
       setImmeubles([]);
       setNoteMarkers([]);
+      setSources(EMPTY_SOURCES);
       return;
     }
 
     const known = overlayCache.current.get(viewportKey);
     if (known) {
-      setImmeubles((prev) => (prev === known.immeubles ? prev : known.immeubles));
-      setNoteMarkers((prev) => (prev === known.notes ? prev : known.notes));
-      setSources((prev) => (prev === known.sources ? prev : known.sources));
+      const merged = mergeOverlayPayload(accumulatedOverlays.current, known);
+      accumulatedOverlays.current = merged;
+      setImmeubles(merged.immeubles);
+      setNoteMarkers(merged.notes);
+      setSources(merged.sources);
       // Cache hit : pas de refetch immédiat — le pan/zoom reste fluide.
       return;
     }
@@ -132,13 +181,15 @@ export function useParcelleMap(
             sources?: CadastreSourceDates;
           }) => {
             if (ticket !== seq.current) return;
-            const payload: OverlayPayload = {
+            const incoming: OverlayPayload = {
               immeubles: data.immeubles ?? [],
               notes: data.notes ?? [],
               sources: data.sources ?? EMPTY_SOURCES,
             };
+            const payload = mergeOverlayPayload(accumulatedOverlays.current, incoming);
+            accumulatedOverlays.current = payload;
             overlayCache.current.delete(viewportKey);
-            overlayCache.current.set(viewportKey, payload);
+            overlayCache.current.set(viewportKey, incoming);
             if (overlayCache.current.size > OVERLAY_CACHE) {
               const oldest = overlayCache.current.keys().next().value;
               if (oldest !== undefined) overlayCache.current.delete(oldest);
@@ -190,7 +241,7 @@ export function useParcelleMap(
 
   const appliquerSiOuverte = useCallback((parcelleId: string, next: ParcelleFiche) => {
     if (demande.current !== parcelleId) return;
-    setFiche(appliquerSurface(next, surfaceCliquee.current));
+    setFiche(appliquerSelection(next, surfaceCliquee.current, dpeClique.current));
     setLoading(false);
   }, []);
 
@@ -223,13 +274,18 @@ export function useParcelleMap(
     (parcelleId: string, extra?: ParcellePickExtra) => {
       demande.current = parcelleId;
       surfaceCliquee.current = extra?.surfaceM2 ?? null;
+      dpeClique.current = extra?.dpe ?? null;
       setSelectedParcelleId(parcelleId);
       const connue = cache.current.get(parcelleId);
       const surface = extra?.surfaceM2 ?? connue?.surfaceCadastreM2 ?? null;
       setFiche(
         connue
-          ? appliquerSurface(connue, surface)
-          : { ...emptyParcelleFiche(parcelleId), surfaceCadastreM2: surface },
+          ? appliquerSelection(connue, surface, dpeClique.current)
+          : appliquerSelection(
+              { ...emptyParcelleFiche(parcelleId), surfaceCadastreM2: surface },
+              surface,
+              dpeClique.current,
+            ),
       );
       setLoading(!connue);
       // Cache = affichage immédiat. Revalidation sans bypass : évite un 2ᵉ fetch
@@ -242,6 +298,7 @@ export function useParcelleMap(
   const closeParcelle = useCallback(() => {
     demande.current = null;
     surfaceCliquee.current = null;
+    dpeClique.current = null;
     setSelectedParcelleId(null);
     setFiche(null);
     setLoading(false);

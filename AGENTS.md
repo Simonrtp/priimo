@@ -2,6 +2,7 @@
 
 - Répondre en français. Dans le dashboard, s'adresser à l'agent avec « mes » / « nos », et nommer l'assistant intégré « Mon assistant ».
 - Rester dans la charte visuelle déjà en place : coins très arrondis (coque, cartes, footers, recherche mobile en pilule), accent orange existant, même dessin d'un écran à l'autre. Quand le volet d'un lead s'ouvre, assombrir la page sans assombrir le header.
+- « Bleu IA » désigne `#6366F1`. Tout contrôle qui déclenche ou signale l'IA (Mon assistant, dictée, compréhension) utilise cette couleur.
 - Une réécriture de la landing ne change que les textes et les metadata. Laisser le JSX, les classes, les animations et l'ordre des sections tels quels, sauf demande explicite.
 - Tenir les mentions légales alignées sur le produit actuel, et n'y indiquer que le prénom.
 - Dans l'interface, lire les signaux lead via `display_signals` uniquement. Le volet détail est en lignes épurées.

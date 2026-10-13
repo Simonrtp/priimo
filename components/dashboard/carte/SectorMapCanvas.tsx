@@ -40,6 +40,9 @@ import VolCarte from '@/components/dashboard/carte/VolCarte';
 import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
+const VIEWPORT_SETTLE_MS = 320;
+const MARKERS_GARDES_PENDANT_GESTE = 180;
+
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
   if (!b) return null;
@@ -123,6 +126,7 @@ export default function SectorMapCanvas({
   /** Pendant zoom/pan : on cache les pins HTML (coûteux à chaque frame Mapbox). */
   const [mapGesturing, setMapGesturing] = useState(false);
   const gestureTimer = useRef<number | null>(null);
+  const viewportTimer = useRef<number | null>(null);
   useCanvasAJour(mapRef, styleReady);
 
   const interactiveLayerIds = useMemo(() => {
@@ -247,6 +251,7 @@ export default function SectorMapCanvas({
   useEffect(
     () => () => {
       if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
+      if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
     },
     [],
   );
@@ -300,18 +305,27 @@ export default function SectorMapCanvas({
             window.clearTimeout(gestureTimer.current);
             gestureTimer.current = null;
           }
+          if (viewportTimer.current != null) {
+            window.clearTimeout(viewportTimer.current);
+            viewportTimer.current = null;
+          }
           setMapGesturing(true);
         }}
         onMoveEnd={(event) => {
           const b = event.target.getBounds();
           if (b) {
-            onViewport({
+            const next = {
               west: b.getWest(),
               south: b.getSouth(),
               east: b.getEast(),
               north: b.getNorth(),
               zoom: event.target.getZoom(),
-            });
+            };
+            if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
+            viewportTimer.current = window.setTimeout(() => {
+              viewportTimer.current = null;
+              onViewport(next);
+            }, VIEWPORT_SETTLE_MS);
           }
           if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
           gestureTimer.current = window.setTimeout(() => {
@@ -376,7 +390,8 @@ export default function SectorMapCanvas({
             <AgencyLocationMarker />
           </Marker>
         ) : null}
-        {showBuildingMarkers && !mapGesturing
+        {showBuildingMarkers &&
+        (!mapGesturing || buildings.length <= MARKERS_GARDES_PENDANT_GESTE)
           ? buildings.map((building) => {
           const emphasized = building.banId === selectedBanId;
           const hovered = building.banId === hoveredBanId;

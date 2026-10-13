@@ -47,6 +47,12 @@ function estActive(row: ConnexionRow | null): row is ConnexionRow {
   return Boolean(row && row.etat === 'actif');
 }
 
+/** Connexion Google Agenda déjà active — sans charger les événements. */
+export async function agendaEstConnecte(): Promise<boolean> {
+  const { row } = await chargerConnexion();
+  return estActive(row);
+}
+
 /** Semaine en cours : ce que voit l'accueil au premier rendu. */
 export async function lireAgendaSemaine(): Promise<AgendaReponse> {
   return lireAgendaPlage(cleAgenda('semaine', dateKeyParis(new Date())));

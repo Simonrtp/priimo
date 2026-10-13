@@ -1,7 +1,7 @@
 import type { EstimationObjet } from '@/lib/estimation/objet';
 
 export const ETAPES_ATELIER = [
-  { id: 'client', label: 'Client' },
+  { id: 'client', label: 'Client · facultatif' },
   { id: 'bien', label: 'Le bien' },
   { id: 'estimation', label: 'Estimation' },
   { id: 'rapport', label: 'Rapport' },
@@ -28,9 +28,9 @@ export function etapeEstimationOk(e: Pick<EstimationObjet, 'priceValue'>): boole
 }
 
 export function etapeRapportOk(
-  e: Pick<EstimationObjet, 'contactId' | 'address' | 'propertyType' | 'surfaceM2' | 'rooms' | 'priceValue'>,
+  e: Pick<EstimationObjet, 'address' | 'propertyType' | 'surfaceM2' | 'rooms' | 'priceValue'>,
 ): boolean {
-  return etapeClientOk(e) && etapeBienOk(e) && etapeEstimationOk(e);
+  return etapeBienOk(e) && etapeEstimationOk(e);
 }
 
 /** L’étape a ce qu’il faut : coche discrète dans le fil. */
@@ -45,9 +45,7 @@ export function etapeValidee(
 }
 
 export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | null {
-  if (id === 'client' && !etapeClientOk(e)) {
-    return 'Rattachez ou créez un client pour continuer.';
-  }
+  if (id === 'client') return null;
   if (id === 'bien' && !etapeBienOk(e)) {
     return 'Indiquez l’adresse, le type, la surface et le nombre de pièces.';
   }
@@ -55,14 +53,13 @@ export function manquesEtape(e: EstimationObjet, id: EtapeAtelierId): string | n
     return 'Le prix n’est pas encore prêt.';
   }
   if (id === 'rapport' && !etapeRapportOk(e)) {
-    return 'Terminez le client, le bien et l’estimation avant le rapport.';
+    return 'Terminez le bien et l’estimation avant le rapport.';
   }
   return null;
 }
 
 /** Plus loin qu’on peut aller d’après ce qui est déjà en base. */
 export function indexDepuisDonnees(e: EstimationObjet): number {
-  if (!etapeClientOk(e)) return 0;
   if (!etapeBienOk(e)) return 1;
   if (!etapeEstimationOk(e)) return 2;
   return 3;
@@ -77,13 +74,13 @@ export function etapeAccessible(
   atteint: number,
   id: EtapeAtelierId,
 ): boolean {
+  if (id === 'client' || id === 'bien') return true;
   if (id === 'rapport') return etapeRapportOk(e);
   return indexEtape(id) <= indexMaxAccessible(e, atteint);
 }
 
-/** Nouvelle estimation : toujours le client. Une fiche déjà avancée reprend où elle en est. */
+/** Nouvelle estimation : le bien d’abord. Le client reste facultatif et accessible à tout moment. */
 export function etapeInitiale(e: EstimationObjet): EtapeAtelierId {
-  if (!etapeClientOk(e)) return 'client';
   if (!etapeBienOk(e)) return 'bien';
   return 'estimation';
 }

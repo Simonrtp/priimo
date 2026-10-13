@@ -44,25 +44,35 @@ export default function PipelineColumn({
     >
       <header className="flex shrink-0 items-start justify-between gap-2 px-3 pb-2 pt-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          {onEditStage ? (
+            <button
+              type="button"
+              onClick={() => onEditStage(stage)}
+              className="flex w-full min-w-0 items-center gap-2 rounded-lg text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              aria-label={`Modifier la colonne ${stage.libelle}`}
+              title="Modifier le nom et la couleur"
+            >
+              <h2
+                className="min-w-0 truncate border-l-[3px] pl-2 text-[13.5px] font-semibold text-text-strong"
+                style={{ borderColor: theme.accent }}
+              >
+                {stage.libelle}
+              </h2>
+              <Pencil
+                size={14}
+                strokeWidth={2}
+                className="shrink-0 text-text-subtle"
+                aria-hidden
+              />
+            </button>
+          ) : (
             <h2
               className="truncate border-l-[3px] pl-2 text-[13.5px] font-semibold text-text-strong"
               style={{ borderColor: theme.accent }}
             >
               {stage.libelle}
             </h2>
-            {onEditStage ? (
-              <button
-                type="button"
-                onClick={() => onEditStage(stage)}
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-text"
-                aria-label={`Modifier la colonne ${stage.libelle}`}
-                title="Modifier la colonne"
-              >
-                <Pencil size={14} strokeWidth={2} aria-hidden />
-              </button>
-            ) : null}
-          </div>
+          )}
         </div>
         <span className="pt-0.5 text-[12px] tabular-nums text-text-muted">{leads.length}</span>
       </header>

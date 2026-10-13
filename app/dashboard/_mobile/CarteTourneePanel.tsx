@@ -270,7 +270,7 @@ export default function CarteTourneePanel({
                   setConfirmer(false);
                   onTerminer();
                 }}
-                className="app-press flex h-12 items-center justify-center rounded-2xl bg-blue text-[15px] font-semibold text-white"
+                className="app-press flex h-12 items-center justify-center rounded-2xl bg-primary-500 text-[15px] font-semibold text-white"
               >
                 Oui, terminer
               </button>
@@ -454,7 +454,7 @@ function FicheArret({
           <button
             type="button"
             onClick={onNoter}
-            className="app-press inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-blue px-4 text-[15px] font-semibold text-white"
+            className="app-press inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-ia px-4 text-[15px] font-semibold text-white"
           >
             <Mic size={18} strokeWidth={2.2} aria-hidden />
             Dicter une note

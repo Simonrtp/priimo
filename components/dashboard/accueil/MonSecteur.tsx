@@ -130,7 +130,7 @@ export default function MonSecteur({
 
       <div
         ref={setCadre}
-        className="relative h-[280px] overflow-hidden rounded-clay-lg sm:h-[340px]"
+        className="relative min-h-[280px] flex-1 overflow-hidden rounded-clay-lg sm:min-h-[340px]"
       >
         {carteVisible ? (
           <ZonesCarte
