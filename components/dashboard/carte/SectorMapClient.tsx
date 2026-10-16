@@ -37,7 +37,12 @@ import {
   type MapLayerState,
 } from '@/lib/carte/layers';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
+import { AnnoncesLayerControls, AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
+import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
+import { withAnnoncesMenuToggled } from '@/lib/carte/layers';
+import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
+import FiltresHautCarte, { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
@@ -73,13 +78,6 @@ const SectorMapCanvas = dynamic(() => import('./SectorMapCanvas'), {
   loading: () => <div className="h-full w-full animate-pulse bg-black/[0.04]" aria-hidden />,
 });
 
-const PERIOD_OPTIONS: { value: MapPeriod; label: string }[] = [
-  { value: 30, label: '30 jours' },
-  { value: 90, label: '90 jours' },
-  { value: 365, label: '365 jours' },
-  { value: 'all', label: 'Tout' },
-];
-
 const GEO_TABLE: Record<MapPointKind, 'leads' | 'contacts' | 'biens' | 'voice_notes'> = {
   lead: 'leads',
   contact: 'contacts',
@@ -101,6 +99,8 @@ function LayersPanel({
   onToggleCadastreOverlay,
   onChangeDpeAge,
   onToggleCadastreMenu,
+  onChangeAnnonces,
+  onToggleAnnoncesMenu,
   mapZoom,
   counts,
   assignedTo,
@@ -114,12 +114,17 @@ function LayersPanel({
   emprise,
   onEmprise,
   hasSecteur,
+  zones,
+  zoneId,
+  onZone,
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
   onToggleCadastreOverlay: (id: CadastreLayerId) => void;
   onChangeDpeAge: (from: number, to: number) => void;
   onToggleCadastreMenu: () => void;
+  onChangeAnnonces: (patch: Partial<MapLayerState>) => void;
+  onToggleAnnoncesMenu: () => void;
   mapZoom: number | null;
   counts: Record<MapPointKind, number>;
   assignedTo: string;
@@ -133,6 +138,9 @@ function LayersPanel({
   emprise: MapEmprise;
   onEmprise: (next: MapEmprise) => void;
   hasSecteur: boolean;
+  zones: readonly Zone[];
+  zoneId: string;
+  onZone: (id: string) => void;
 }) {
   return (
     <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden ${className}`}>
@@ -154,6 +162,7 @@ function LayersPanel({
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <EmpriseCapsules value={emprise} onChange={onEmprise} hasSecteur={hasSecteur} />
+        <FiltresHautCarte period={period} onPeriod={onPeriod} />
         <ul className="flex flex-col gap-1.5">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -186,6 +195,12 @@ function LayersPanel({
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
           />
+          <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} />
+          <AnnoncesLayerControls
+            layers={layers}
+            onChange={onChangeAnnonces}
+            onToggleMenu={onToggleAnnoncesMenu}
+          />
         </ul>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
@@ -208,15 +223,6 @@ function LayersPanel({
             </Field>
           ) : null}
 
-          <Field label="Période" htmlFor="carte-periode">
-            <Select
-              id="carte-periode"
-              aria-label="Filtrer par période"
-              value={String(period)}
-              onChange={(v) => onPeriod((v === 'all' ? 'all' : Number(v)) as MapPeriod)}
-              options={PERIOD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
-            />
-          </Field>
         </div>
       </div>
     </WorkspaceCard>
@@ -443,6 +449,17 @@ export default function SectorMapClient({
     setLayers((prev) => withCadastreMenuToggled(prev));
   }
 
+  function changeAnnonces(patch: Partial<MapLayerState>) {
+    setLayers((prev) => ({ ...prev, ...patch }));
+    setAnnonceOuverte(null);
+  }
+
+  function toggleAnnoncesMenu() {
+    setLayers((prev) => withAnnoncesMenuToggled(prev));
+  }
+
+  const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
+
   function choisirEmprise(next: MapEmprise) {
     if (next === 'code_postal') {
       setZoneId('aucun');
@@ -511,6 +528,8 @@ export default function SectorMapClient({
       onToggleCadastreOverlay={toggleCadastreOverlay}
       onChangeDpeAge={changeDpeAge}
       onToggleCadastreMenu={toggleCadastreMenu}
+      onChangeAnnonces={changeAnnonces}
+      onToggleAnnoncesMenu={toggleAnnoncesMenu}
       mapZoom={mapZoom}
       counts={counts}
       assignedTo={assignedTo}
@@ -522,6 +541,9 @@ export default function SectorMapClient({
       emprise={emprise}
       onEmprise={choisirEmprise}
       hasSecteur={Boolean(monSecteurId)}
+      zones={secteursAMoi(zones, profileId)}
+      zoneId={zoneId}
+      onZone={setZoneId}
     />
   );
 
@@ -572,6 +594,12 @@ export default function SectorMapClient({
           zones={zoneId === 'aucun' ? [] : zones}
           highlightedZoneId={zoneChoisie?.id ?? null}
           clipZone={zoneChoisie}
+          annoncesCouche={{
+            layers,
+            directeur: isDirector,
+            profileId,
+            onChoisir: (annonce, soeurs) => setAnnonceOuverte({ annonce, soeurs }),
+          }}
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
@@ -579,6 +607,16 @@ export default function SectorMapClient({
             <div className="pointer-events-auto">
               <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
             </div>
+          </div>
+        ) : null}
+
+        {annonceOuverte ? (
+          <div className="pointer-events-auto absolute bottom-3 left-3 z-30 max-h-[min(70%,520px)] w-[min(100%-1.5rem,340px)]">
+            <AnnonceVolet
+              annonce={annonceOuverte.annonce}
+              soeurs={annonceOuverte.soeurs}
+              onFermer={() => setAnnonceOuverte(null)}
+            />
           </div>
         ) : null}
 
@@ -608,6 +646,8 @@ export default function SectorMapClient({
                 onToggleCadastreOverlay={toggleCadastreOverlay}
                 onChangeDpeAge={changeDpeAge}
                 onToggleCadastreMenu={toggleCadastreMenu}
+      onChangeAnnonces={changeAnnonces}
+      onToggleAnnoncesMenu={toggleAnnoncesMenu}
                 mapZoom={mapZoom}
                 counts={counts}
                 assignedTo={assignedTo}
@@ -619,6 +659,9 @@ export default function SectorMapClient({
                 emprise={emprise}
                 onEmprise={choisirEmprise}
                 hasSecteur={Boolean(monSecteurId)}
+      zones={secteursAMoi(zones, profileId)}
+      zoneId={zoneId}
+      onZone={setZoneId}
                 onCollapse={() => setLayersPanelOpen(false)}
               />
             </div>

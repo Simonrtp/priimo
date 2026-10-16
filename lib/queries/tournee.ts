@@ -3,7 +3,7 @@ import type { Database } from '@/types/database';
 import type { GeoCoord } from '@/lib/carte/coords';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
-import type { DpeTournee } from '@/lib/tournee/generer';
+import type { CoproTournee, DpeTournee } from '@/lib/tournee/generer';
 import type { Bbox } from '@/lib/zones/geometrie';
 
 type Client = SupabaseClient<Database>;
@@ -182,4 +182,49 @@ export async function chargerDpeRecents(params: {
     dpeDesBatiments(params.openData, batiments, params.depuis),
   ]);
   return [...ademe, ...base];
+}
+
+/** Copropriétés en procédure, dans la boîte de la tournée. */
+export async function chargerCoprosEnProcedure(params: {
+  db: Client;
+  codesPostaux: readonly string[];
+  zone: Bbox | null;
+}): Promise<CoproTournee[]> {
+  const codes = [...new Set(params.codesPostaux.filter((c) => /^\d{5}$/.test(c)))];
+  if (codes.length === 0 || !params.zone) return [];
+  const { data, error } = await params.db
+    .from('building_activity')
+    .select('ban_id')
+    .eq('procedure_copro', true)
+    .in('code_postal', codes)
+    .limit(400);
+  if (error) {
+    console.error('[tournee] copropriétés', error.message);
+    return [];
+  }
+  const ids = [...new Set((data ?? []).map((r) => r.ban_id).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return [];
+  const { data: bats, error: batErr } = await params.db
+    .from('buildings')
+    .select('ban_id, adresse, code_postal, lat, lng, parcelle_id')
+    .in('ban_id', ids.slice(0, 400));
+  if (batErr) {
+    console.error('[tournee] immeubles en procédure', batErr.message);
+    return [];
+  }
+  const out: CoproTournee[] = [];
+  for (const b of bats ?? []) {
+    const coord = toGeoCoord(b.lat, b.lng);
+    const adresse = b.adresse?.trim();
+    if (!b.ban_id || !coord || !adresse || !dansBoite(coord, params.zone)) continue;
+    out.push({
+      banId: b.ban_id,
+      adresse,
+      codePostal: b.code_postal,
+      latitude: coord.latitude,
+      longitude: coord.longitude,
+      parcelleId: b.parcelle_id,
+    });
+  }
+  return out;
 }

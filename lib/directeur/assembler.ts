@@ -176,6 +176,8 @@ export function assemblerAccueilDirecteur(input: {
   mandats: readonly MandatDirecteurInput[];
   prospectsSansNegociateur: number;
   negociateurs: readonly CarteNegociateur[];
+  /** Reste en tête de L'équipe. */
+  directeurId?: string;
   indicateurs: IndicateursAgence;
   victoires: readonly VictoireSemaine[];
   now?: Date;
@@ -189,6 +191,8 @@ export function assemblerAccueilDirecteur(input: {
   });
   const { visibles, reste } = plafonnerCartesDirecteur(cartes);
   const negociateurs = [...input.negociateurs].sort((a, b) => {
+    if (input.directeurId && a.membreId === input.directeurId) return -1;
+    if (input.directeurId && b.membreId === input.directeurId) return 1;
     const oa = ordreStatutNegociateur(a.statut);
     const ob = ordreStatutNegociateur(b.statut);
     if (oa !== ob) return oa - ob;

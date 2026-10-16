@@ -98,7 +98,10 @@ async function cacheFirst(request) {
 async function networkOnlyWithOfflineFallback(request) {
   try {
     return await fetch(request);
-  } catch {
+  } catch (error) {
+    // Navigation annulée (tap fantôme, chargement interrompu) : ne pas
+    // remplacer le tableau de bord par la page « Pas de connexion ».
+    if (error && error.name === 'AbortError') throw error;
     const cache = await caches.open(CACHE_NAME);
     const offline = await cache.match(OFFLINE_URL);
     return (

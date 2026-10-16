@@ -34,7 +34,7 @@ type Client = SupabaseClient<Database>;
 export async function chargerAccueilDirecteur(input: {
   supabase: Client;
   agencyId: string;
-  /** Le directeur connecté — exclu des cartes « Les négociateurs » et zone 1 perso. */
+  /** Le directeur connecté. Il figure dans L'équipe, pas dans les agrégats des négociateurs. */
   directeurProfileId: string;
   membres: readonly {
     id: string;
@@ -162,8 +162,12 @@ export async function chargerAccueilDirecteur(input: {
     input.periode === 'mois' ? moisDe(now) : semaine;
   const mois = moisDe(now);
 
-  const negociateurs = membres
-    .filter((m) => m.id !== input.directeurProfileId)
+  const negociateurs = [...membres]
+    .sort((a, b) => {
+      if (a.id === input.directeurProfileId) return -1;
+      if (b.id === input.directeurProfileId) return 1;
+      return 0;
+    })
     .map((m) => {
     const i = membres.findIndex((x) => x.id === m.id);
     const obj = objectifsEffectifs(objectifsRows[i] ?? []);
@@ -288,6 +292,7 @@ export async function chargerAccueilDirecteur(input: {
     mandats: mandatsEquipe,
     prospectsSansNegociateur,
     negociateurs,
+    directeurId: input.directeurProfileId,
     indicateurs,
     victoires,
     now,

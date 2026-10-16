@@ -13,14 +13,14 @@ import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
-import { markerBadgeColor } from '@/lib/carte/colors';
+import PinIcone from '@/components/dashboard/carte/PinIcone';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { toGeoCoord } from '@/lib/carte/coords';
-import { buildScoreHeatScale } from '@/lib/lead-geo';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import LiveAgentLocationMarker from '@/components/dashboard/field/LiveAgentLocationMarker';
-import ScoreRing from '@/components/dashboard/ScoreRing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
+import { AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
+import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_DPE_LAYER_ID,
@@ -87,6 +87,7 @@ export default function SectorMapCanvas({
   cible = null,
   focus = null,
   tenirLaVue = false,
+  annoncesCouche = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -118,6 +119,12 @@ export default function SectorMapCanvas({
   /** Lieu d'une note : la carte s'y pose, sans relancer le cadrage du secteur. */
   focus?: { cle: string; latitude: number; longitude: number } | null;
   tenirLaVue?: boolean;
+  annoncesCouche?: {
+    layers: MapLayerState;
+    directeur: boolean;
+    profileId: string;
+    onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
+  } | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -155,16 +162,6 @@ export default function SectorMapCanvas({
   );
 
   const initialBounds = useMemo(() => computeLngLatBounds(buildings), []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const heatFor = useMemo(
-    () =>
-      buildScoreHeatScale(
-        buildings
-          .filter((b) => b.appearance.kind === 'lead')
-          .map((b) => b.appearance.score ?? 0),
-      ),
-    [buildings],
-  );
 
   const itineraryBounds = useMemo(() => {
     if (itineraryGeometry?.coordinates?.length) {
@@ -358,6 +355,15 @@ export default function SectorMapCanvas({
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
           onPrefetch={onPrefetchParcelle}
         />
+        {annoncesCouche ? (
+          <AnnoncesMarqueurs
+            layers={annoncesCouche.layers}
+            zones={zones}
+            directeur={annoncesCouche.directeur}
+            profileId={annoncesCouche.profileId}
+            onChoisir={annoncesCouche.onChoisir}
+          />
+        ) : null}
         <SecteurMasqueLayer zone={clipZone} />
         {cible ? (
           <CibleRecherche
@@ -396,10 +402,6 @@ export default function SectorMapCanvas({
           const emphasized = building.banId === selectedBanId;
           const hovered = building.banId === hoveredBanId;
           const appearance = building.appearance;
-          const isLead = appearance.kind === 'lead';
-          const score = appearance.score ?? 0;
-          const heat = isLead ? heatFor(score) : null;
-          const text = markerBadgeColor(appearance.color);
           const countLabel =
             building.count > 1 ? `${building.count} fiches à cette adresse` : appearance.title;
           const tooltipId = `carte-hover-${building.banId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
@@ -409,9 +411,7 @@ export default function SectorMapCanvas({
               longitude={building.longitude}
               latitude={building.latitude}
               anchor="center"
-              style={{
-                zIndex: emphasized ? 20 : hovered ? 32 : isLead ? 10 + Math.round(score / 10) : 2,
-              }}
+              style={{ zIndex: emphasized ? 20 : hovered ? 32 : 4 }}
               onClick={(event) => {
                 event.originalEvent.stopPropagation();
                 onSelect(building);
@@ -422,31 +422,15 @@ export default function SectorMapCanvas({
                 onMouseEnter={() => setHoveredBanId(building.banId)}
                 onMouseLeave={() => setHoveredBanId((id) => (id === building.banId ? null : id))}
               >
-                {isLead && heat ? (
-                  <button
-                    type="button"
-                    aria-label={countLabel}
-                    aria-describedby={tooltipId}
-                    className="cursor-pointer"
-                  >
-                    <ScoreRing
-                      score={score}
-                      size={heat.size}
-                      emphasized={emphasized || hovered}
-                      glowColor={heat.glow}
-                    />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    aria-label={countLabel}
-                    aria-describedby={tooltipId}
-                    className={`priimo-pin${emphasized ? ' priimo-pin--on' : ''}`}
-                    style={{ background: appearance.color, color: text }}
-                  >
-                    {appearance.badge}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  aria-label={countLabel}
+                  aria-describedby={tooltipId}
+                  className={`priimo-pin${emphasized ? ' priimo-pin--on' : ''}`}
+                  style={{ background: appearance.color, color: '#fff' }}
+                >
+                  <PinIcone kind={appearance.kind} />
+                </button>
                 {building.count > 1 ? (
                   <span className="priimo-pin-count" aria-hidden>
                     {building.count}

@@ -23,6 +23,9 @@ export const NOTIFICATION_TYPES = [
   'mandat_60_jours',
   'immeuble_suivi',
   'suivi_immeuble',
+  'annonce_baisse_prix',
+  'annonce_retiree',
+  'annonces_nouvelles',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -59,7 +62,8 @@ export type NotificationEntiteType =
   | 'bien'
   | 'profil'
   | 'agence'
-  | 'parcelle';
+  | 'parcelle'
+  | 'annonce';
 
 export type Notification = {
   id: string;

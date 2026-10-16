@@ -18,6 +18,14 @@ describe('construireBrief', () => {
     assert.equal(construireBrief(matiere()), null);
   });
 
+  it('ajoute la ligne des annonces et ouvre l’écran filtré si c’est tout', () => {
+    const brief = construireBrief(
+      matiere({ annoncesPhrase: '2 baisses de prix et 1 annonce retirée dans mon secteur' }),
+    );
+    assert.match(String(brief?.titre), /2 baisses de prix/);
+    assert.equal(brief?.url, '/dashboard/annonces?mouvements=1');
+  });
+
   it('annonce un seul élément sans énumération', () => {
     const brief = construireBrief(matiere({ rendezVous: 2 }));
     assert.equal(brief?.titre, 'Bonjour Simon — 2 rendez-vous');

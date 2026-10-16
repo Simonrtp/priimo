@@ -8,6 +8,7 @@
 - Dans l'interface, lire les signaux lead via `display_signals` uniquement. Le volet détail est en lignes épurées.
 - Travailler dans ce dépôt Next.js. Laisser le dépôt `priimo-pipeline` de côté.
 - Séparer le territoire de livraison de l'agence et le secteur du négociateur. Le négociateur dessine et modifie son secteur ; le directeur voit toutes les zones, sans seuil de revisite à configurer.
+- Un lead appartient à l'agent dont le secteur contient l'adresse. Le directeur n'assigne pas les leads.
 - Sur le dashboard, mesurer avant d'optimiser. Rendre la navigation instantanée par cache et préchargement à l'intention, sans précharger tous les écrans au démarrage.
 - Le mobile est un écran de terrain à part, pas un desktop réduit. Détecter l'appareil côté serveur à partir du user-agent.
 - Une note vocale existe seule : les rattachements à un contact ou un bien sont optionnels et peuvent être ajoutés ensuite.

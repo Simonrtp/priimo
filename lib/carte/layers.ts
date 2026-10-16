@@ -7,7 +7,6 @@ import {
 } from '@/lib/carte/dpe-age';
 
 export const MAP_LAYER_ORDER: readonly MapPointKind[] = [
-  'lead',
   'contact',
   'bien',
   'note',
@@ -17,7 +16,7 @@ export const MAP_LAYER_LABELS: Record<MapPointKind, string> = {
   lead: 'Prospects',
   contact: 'Contacts',
   bien: 'Biens',
-  note: 'Notes terrain',
+  note: 'Notre terrain',
 };
 
 export const CADASTRE_LAYER_IDS = ['parcelles', 'dpe', 'ventes', 'copro'] as const;
@@ -40,10 +39,19 @@ export type MapLayerState = Record<MapPointKind, boolean> & {
   cadastreCopro: boolean;
   cadastreDpeAges: DpeAgeBucket[];
   cadastreMenuOpen: boolean;
+  annoncesMenuOpen: boolean;
+  annoncesActives: boolean;
+  annoncesRetirees: boolean;
+  annoncesParticuliers: boolean;
+  annoncesBaisse: boolean;
+  annoncesMonSecteur: boolean;
+  annoncesDpe: string;
+  annoncesPieces: string;
+  annoncesPrixMax: string;
 };
 
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
-  lead: true,
+  lead: false,
   contact: true,
   bien: true,
   note: true,
@@ -54,6 +62,15 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
   cadastreCopro: false,
   cadastreDpeAges: [...DEFAULT_DPE_AGE_BUCKETS],
   cadastreMenuOpen: true,
+  annoncesMenuOpen: false,
+  annoncesActives: false,
+  annoncesRetirees: false,
+  annoncesParticuliers: true,
+  annoncesBaisse: false,
+  annoncesMonSecteur: true,
+  annoncesDpe: '',
+  annoncesPieces: '',
+  annoncesPrixMax: '',
 };
 
 export const MAP_LAYERS_STORAGE_KEY = 'priimo-carte-layers';
@@ -68,7 +85,7 @@ export function parseMapLayers(raw: unknown): MapLayerState {
   const row = raw as Record<string, unknown>;
   const cadastre = row.cadastre === true || row.parcelles === true;
   return {
-    lead: row.lead !== false,
+    lead: false,
     contact: row.contact !== false,
     bien: row.bien !== false,
     note: row.note !== false,
@@ -78,7 +95,24 @@ export function parseMapLayers(raw: unknown): MapLayerState {
     cadastreCopro: row.cadastreCopro === true,
     cadastreDpeAges: parseDpeAgeBuckets(row.cadastreDpeAges),
     cadastreMenuOpen: row.cadastreMenuOpen !== false,
+    annoncesMenuOpen: row.annoncesMenuOpen === true,
+    annoncesActives: row.annoncesActives === true,
+    annoncesRetirees: row.annoncesRetirees === true,
+    annoncesParticuliers: row.annoncesParticuliers !== false,
+    annoncesBaisse: row.annoncesBaisse === true,
+    annoncesMonSecteur: row.annoncesMonSecteur !== false,
+    annoncesDpe: typeof row.annoncesDpe === 'string' ? row.annoncesDpe : '',
+    annoncesPieces: typeof row.annoncesPieces === 'string' ? row.annoncesPieces : '',
+    annoncesPrixMax: typeof row.annoncesPrixMax === 'string' ? row.annoncesPrixMax : '',
   };
+}
+
+export function coucheAnnoncesActive(layers: MapLayerState): boolean {
+  return layers.annoncesActives || layers.annoncesRetirees || layers.annoncesBaisse;
+}
+
+export function withAnnoncesMenuToggled(prev: MapLayerState): MapLayerState {
+  return { ...prev, annoncesMenuOpen: !prev.annoncesMenuOpen };
 }
 
 /** Rev 6 : plan off par défaut ; pastilles restent éteintes si on vient d’avant. */

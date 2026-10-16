@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, Loader2, LocateOff, MapPin, Plus, Route, X } from 'lucide-react';
+import { Building2, Clock, Loader2, LocateOff, MapPin, Plus, Route, X } from 'lucide-react';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import {
   DUREES_TOURNEE,
@@ -18,6 +18,8 @@ export default function CarteTourneeSetupSheet({
   libelleCodePostal,
   perimetre,
   onPerimetre,
+  coproprietes,
+  onCoproprietes,
   ancres,
   onAjouter,
   onRetirer,
@@ -35,6 +37,8 @@ export default function CarteTourneeSetupSheet({
   libelleCodePostal: string;
   perimetre: PerimetreTournee;
   onPerimetre: (valeur: PerimetreTournee) => void;
+  coproprietes: boolean;
+  onCoproprietes: (valeur: boolean) => void;
   ancres: readonly SelectedAddress[];
   onAjouter: (adresse: SelectedAddress) => void;
   onRetirer: (index: number) => void;
@@ -117,6 +121,32 @@ export default function CarteTourneeSetupSheet({
               })}
             </div>
           ) : null}
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={coproprietes}
+            onClick={() => onCoproprietes(!coproprietes)}
+            className="mt-4 flex min-h-[52px] w-full items-center gap-3 rounded-2xl bg-black/[0.04] px-3 text-left"
+          >
+            <Building2 size={18} strokeWidth={2.2} className="flex-shrink-0 text-text-strong" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14.5px] font-semibold text-text-strong">Copropriétés</span>
+              <span className="block text-[12.5px] text-text-muted">Celles en procédure, affichées tout de suite</span>
+            </span>
+            <span
+              className={`relative h-7 w-12 flex-shrink-0 rounded-full transition-colors ${
+                coproprietes ? 'bg-text-strong' : 'bg-black/15'
+              }`}
+              aria-hidden
+            >
+              <span
+                className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
+                  coproprietes ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </span>
+          </button>
 
           <section className="mt-4">
             <p className="flex items-center gap-1.5 pb-2 text-[12px] font-semibold uppercase tracking-wide text-text-muted">

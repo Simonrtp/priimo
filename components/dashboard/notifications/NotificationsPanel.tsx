@@ -30,6 +30,9 @@ type FamilleCouleur = 'orange' | 'vert' | 'ardoise' | 'ambre' | 'neutre';
 
 const FAMILLE: Record<NotificationType, FamilleCouleur> = {
   suivi_immeuble: 'orange',
+  annonce_baisse_prix: 'orange',
+  annonce_retiree: 'ardoise',
+  annonces_nouvelles: 'ardoise',
   immeuble_suivi: 'orange',
   zone_modifiee: 'orange',
   zone_non_travaillee: 'orange',
@@ -74,6 +77,9 @@ const ICONE: Record<NotificationType, LucideIcon> = {
   mandat_60_jours: FileClock,
   immeuble_suivi: BellRing,
   suivi_immeuble: Building2,
+  annonce_baisse_prix: MapPin,
+  annonce_retiree: MapPinned,
+  annonces_nouvelles: Inbox,
 };
 
 type Onglet = 'non_lues' | 'tout';
@@ -83,11 +89,13 @@ function Ligne({
   deplie,
   onToggle,
   onOpen,
+  onLue,
 }: {
   groupe: GroupeNotification;
   deplie: boolean;
   onToggle: () => void;
   onOpen: (items: Notification[]) => void;
+  onLue: (items: Notification[]) => void;
 }) {
   const Icone = ICONE[groupe.type];
   const style = STYLE_FAMILLE[FAMILLE[groupe.type]];
@@ -96,15 +104,9 @@ function Ligne({
 
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => {
-          if (multiple) onToggle();
-          else onOpen(groupe.items);
-        }}
-        aria-expanded={multiple ? deplie : undefined}
-        className={`flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${
-          nonLue ? 'bg-[#FFF7F0]' : 'bg-transparent hover:bg-black/[0.03]'
+      <div
+        className={`flex w-full items-start gap-3 px-3 py-2.5 ${
+          nonLue ? 'bg-[#FFF7F0]' : 'bg-transparent'
         }`}
       >
         {nonLue ? (
@@ -114,28 +116,48 @@ function Ligne({
             aria-hidden
           />
         ) : null}
-        <span
-          className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: style.bg, color: style.fg }}
-          aria-hidden
+        <button
+          type="button"
+          onClick={() => {
+            if (multiple) onToggle();
+            else onOpen(groupe.items);
+          }}
+          aria-expanded={multiple ? deplie : undefined}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
         >
-          <Icone size={16} strokeWidth={1.75} />
-        </span>
-        <span className="min-w-0 flex-1">
           <span
-            className={`block truncate text-text-strong ${nonLue ? 'font-semibold' : 'font-medium'}`}
-            style={{ fontSize: 14 }}
+            className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: style.bg, color: style.fg }}
+            aria-hidden
           >
-            {groupe.titre}
+            <Icone size={16} strokeWidth={1.75} />
           </span>
-          <span className="mt-0.5 block truncate text-text-subtle" style={{ fontSize: 13 }}>
-            {groupe.corps}
+          <span className="min-w-0 flex-1">
+            <span
+              className={`block truncate text-text-strong ${nonLue ? 'font-semibold' : 'font-medium'}`}
+              style={{ fontSize: 14 }}
+            >
+              {groupe.titre}
+            </span>
+            <span className="mt-0.5 block truncate text-text-subtle" style={{ fontSize: 13 }}>
+              {groupe.corps}
+            </span>
           </span>
-        </span>
+        </button>
         <span className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
           <span className="tabular-nums text-text-subtle" style={{ fontSize: 11 }}>
             {formatNoteWhen(groupe.createdAt)}
           </span>
+          {nonLue ? (
+            <button
+              type="button"
+              onClick={() => onLue(groupe.items)}
+              className="rounded-full bg-white px-2 py-0.5 font-medium text-text-muted shadow-clay-sm hover:text-text-strong"
+              style={{ fontSize: 11 }}
+            >
+              Lu
+            </button>
+          ) : null}
           {multiple ? (
             <ChevronDown
               size={14}
@@ -145,7 +167,7 @@ function Ligne({
             />
           ) : null}
         </span>
-      </button>
+      </div>
       {multiple && deplie
         ? groupe.items.map((item) => (
             <button
@@ -256,6 +278,7 @@ export default function NotificationsPanel({
                     })
                   }
                   onOpen={ouvrir}
+                  onLue={(items) => marquerLue(items.map((item) => item.id))}
                 />
               </li>
             ))}

@@ -5,13 +5,8 @@ import type { Zone } from './types';
 /**
  * Répartition des leads livrés entre le secteur de l'agent et la file agence.
  *
- * Le principe : un lead qui appartient à quelqu'un se prend, un lead qui n'est
- * à personne reste. On sépare donc franchement ce dont l'agent est responsable
- * de ce qui traîne, et on dit toujours POURQUOI un lead est dans la file
- * agence — sans mention, cette file redevient le dépotoir qu'elle était.
- *
- * Le portillon ne change pas : appartenir à une zone ne prend pas le lead.
- * L'agent doit toujours le prendre explicitement.
+ * Un lead dans le secteur d'un agent lui appartient : ce n'est pas le directeur
+ * qui l'assigne. Hors de tout secteur, il n'est à personne.
  */
 
 /**

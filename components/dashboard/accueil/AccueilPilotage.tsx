@@ -9,6 +9,7 @@ import {
   type VuePeriode,
 } from '@/lib/activite/semaines';
 import BandeauObjectif from './BandeauObjectif';
+import CarteCompetition from './CarteCompetition';
 import CarteMiseEnPlace from './CarteMiseEnPlace';
 import CompteursActivite from './CompteursActivite';
 import EnteteSemaine from './EnteteSemaine';
@@ -233,16 +234,21 @@ export default function AccueilPilotage({
       ) : null}
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
-        <BandeauObjectif
-          bilan={bilan}
-          membre={membreSelectionne}
-          membreNom={
-            membreSelectionne === moi
-              ? null
-              : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
-          }
-          onObjectifsChanges={rafraichir}
-        />
+        <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-5 lg:grid-cols-4">
+          <div className="col-span-2 min-w-0 lg:col-span-3">
+            <BandeauObjectif
+              bilan={bilan}
+              membre={membreSelectionne}
+              membreNom={
+                membreSelectionne === moi
+                  ? null
+                  : (membres.find((m) => m.id === membreSelectionne)?.nom ?? null)
+              }
+              onObjectifsChanges={rafraichir}
+            />
+          </div>
+          <CarteCompetition podium={affiche.podium ?? []} />
+        </div>
         {miseEnPlace && membreSelectionne === moi ? (
           <CarteMiseEnPlace
             agendaConnecte={miseEnPlace.agendaConnecte}

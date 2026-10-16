@@ -105,7 +105,7 @@ export default function EnteteSemaine({
   );
 }
 
-function SelecteurFenetre({
+export function SelecteurFenetre({
   periode,
   intervalle,
   enCours,

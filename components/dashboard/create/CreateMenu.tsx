@@ -400,7 +400,15 @@ export default function CreateMenu({
               size={variant === 'compact' ? 22 : 16}
               strokeWidth={2.2}
               aria-hidden
-              className={variant === 'compact' ? PLUS_HOVER_SPIN : undefined}
+              className={
+                variant === 'compact'
+                  ? PLUS_HOVER_SPIN
+                  : `origin-center transition-transform duration-fluid-subtle ease-out motion-reduce:transition-none ${
+                      open
+                        ? 'rotate-45 motion-reduce:rotate-0'
+                        : 'group-hover:rotate-45 motion-reduce:group-hover:rotate-0'
+                    }`
+              }
             />
           )}
           {isFab || variant === 'compact' ? null : 'Nouveau'}

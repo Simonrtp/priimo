@@ -75,6 +75,19 @@ const DPE_CIRCLE_COLOR: ExpressionSpecification = [
 type Pin = { parcelleId: string; longitude: number; latitude: number };
 type OverlayHover = { lng: number; lat: number; preview: HoverPreview };
 
+/** Le temps de passer de la parcelle à la carte, sans qu'elle s'éteigne entre les deux. */
+const HOVER_HOLD_MS = 180;
+
+function overlayHoverIdentique(a: OverlayHover | null, b: OverlayHover): boolean {
+  if (!a) return false;
+  if (Math.abs(a.lng - b.lng) > 1e-7 || Math.abs(a.lat - b.lat) > 1e-7) return false;
+  const pa = a.preview;
+  const pb = b.preview;
+  if (pa.kindLabel !== pb.kindLabel || pa.title !== pb.title || pa.letter !== pb.letter) return false;
+  if (pa.lines.length !== pb.lines.length) return false;
+  return pa.lines.every((line, i) => line === pb.lines[i]);
+}
+
 function overlayLayerOf(layerId: string | undefined): CadastreOverlayId | null {
   if (layerId === CADASTRE_DPE_LAYER_ID || layerId === CADASTRE_DPE_LABEL_LAYER_ID) return 'dpe';
   if (
@@ -159,7 +172,51 @@ export default function ParcellesLayer({
   const [pins, setPins] = useState<Pin[]>([]);
   const [venteLabels, setVenteLabels] = useState<Pin[]>([]);
   const [overlayHover, setOverlayHover] = useState<OverlayHover | null>(null);
+  const pointerOnCard = useRef(false);
+  const hideHoverTimer = useRef<number | null>(null);
   const showOverlays = layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+
+  const cancelHideHover = useCallback(() => {
+    if (hideHoverTimer.current != null) {
+      window.clearTimeout(hideHoverTimer.current);
+      hideHoverTimer.current = null;
+    }
+  }, []);
+
+  const dismissHover = useCallback(() => {
+    cancelHideHover();
+    pointerOnCard.current = false;
+    setOverlayHover(null);
+  }, [cancelHideHover]);
+
+  const hideHoverSoon = useCallback(() => {
+    if (pointerOnCard.current || hideHoverTimer.current != null) return;
+    hideHoverTimer.current = window.setTimeout(() => {
+      hideHoverTimer.current = null;
+      if (pointerOnCard.current) return;
+      setOverlayHover(null);
+    }, HOVER_HOLD_MS);
+  }, []);
+
+  const showHover = useCallback(
+    (next: OverlayHover) => {
+      cancelHideHover();
+      setOverlayHover((prev) => (overlayHoverIdentique(prev, next) ? prev : next));
+    },
+    [cancelHideHover],
+  );
+
+  const garderCarte = useCallback(() => {
+    pointerOnCard.current = true;
+    cancelHideHover();
+  }, [cancelHideHover]);
+
+  const lacherCarte = useCallback(() => {
+    pointerOnCard.current = false;
+    hideHoverSoon();
+  }, [hideHoverSoon]);
+
+  useEffect(() => () => cancelHideHover(), [cancelHideHover]);
 
   const schedulePrefetch = useCallback((parcelleId: string | null) => {
     if (prefetchTimer.current != null) {
@@ -233,8 +290,8 @@ export default function ParcellesLayer({
   }, [venteLabels, venteAgg]);
 
   useEffect(() => {
-    setOverlayHover(null);
-  }, [layers.cadastreDpeAges, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro]);
+    dismissHover();
+  }, [dismissHover, layers.cadastreDpeAges, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro]);
 
   const noteByParcelleRef = useRef(noteByParcelle);
   noteByParcelleRef.current = noteByParcelle;
@@ -394,7 +451,7 @@ export default function ParcellesLayer({
         )
       ) {
         applyHover(null);
-        setOverlayHover(null);
+        hideHoverSoon();
         return;
       }
       applyHover(parcelleId);
@@ -405,6 +462,8 @@ export default function ParcellesLayer({
         CADASTRE_DPE_LABEL_LAYER_ID,
         CADASTRE_COPRO_LAYER_ID,
         CADASTRE_VENTES_POINT_LAYER_ID,
+        CADASTRE_VENTES_LAYER_ID,
+        CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
       ].filter((id) => Boolean(map.getLayer(id)));
       if (overlayHits.length > 0) {
         const top = map.queryRenderedFeatures(e.point, { layers: overlayHits });
@@ -414,7 +473,7 @@ export default function ParcellesLayer({
         const agg = venteAggRef.current.get(parcelleId);
         if (agg) {
           const c = centroidLngLat(f.geometry);
-          setOverlayHover({
+          showHover({
             lng: c?.longitude ?? e.lngLat.lng,
             lat: c?.latitude ?? e.lngLat.lat,
             preview: hoverPreviewFromVenteParcelle(agg),
@@ -422,12 +481,12 @@ export default function ParcellesLayer({
           return;
         }
       }
-      setOverlayHover(null);
+      hideHoverSoon();
     };
     const onLeave = () => {
       applyHover(null);
       schedulePrefetch(null);
-      setOverlayHover(null);
+      hideHoverSoon();
     };
     const onClick = (e: MapLayerMouseEvent) => {
       // Toutes les parcelles sous le curseur (pas seulement la 1ʳᵉ) — évite les
@@ -446,7 +505,7 @@ export default function ParcellesLayer({
           continue;
         }
         e.originalEvent.stopPropagation();
-        setOverlayHover(null);
+        dismissHover();
         lastPrefetchId.current = parcelleId;
         onPrefetchRef.current?.(parcelleId);
         onPickRef.current(parcelleId, {
@@ -499,7 +558,7 @@ export default function ParcellesLayer({
     };
     // noteByParcelle / venteAgg / sélection / suivi : lus via refs
     // pour ne pas ré-attacher les listeners à chaque pan ou fetch overlay.
-  }, [enabled, mapRef, schedulePrefetch]);
+  }, [enabled, mapRef, schedulePrefetch, showHover, hideHoverSoon, dismissHover]);
 
   // Repaint ciblé (sans rejouer moveend → refetch viewport).
   // activeParcelleIds n’influence plus le fill (état « active » retiré) :
@@ -521,7 +580,7 @@ export default function ParcellesLayer({
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map || !showOverlays) {
-      setOverlayHover(null);
+      dismissHover();
       return;
     }
 
@@ -566,14 +625,15 @@ export default function ParcellesLayer({
       if (layer === 'ventes' && !banId && parcelleId) {
         const agg = venteAggRef.current.get(parcelleId);
         if (!agg || parcelleId === selectedParcelleRef.current) {
-          setOverlayHover(null);
+          dismissHover();
           return;
         }
         const canvas = mapCanvas(map);
         if (canvas) canvas.style.cursor = 'pointer';
-        setOverlayHover({
-          lng: e.lngLat.lng,
-          lat: e.lngLat.lat,
+        const c = centroidLngLat(f?.geometry);
+        showHover({
+          lng: c?.longitude ?? e.lngLat.lng,
+          lat: c?.latitude ?? e.lngLat.lat,
           preview: hoverPreviewFromVenteParcelle(agg),
         });
         applyHover(parcelleId);
@@ -581,7 +641,7 @@ export default function ParcellesLayer({
       }
       const row = banId ? immeublesRef.current.find((item) => item.banId === banId) : undefined;
       if (!layer || !row) {
-        setOverlayHover(null);
+        hideHoverSoon();
         return;
       }
       if (layer === 'dpe') {
@@ -589,17 +649,17 @@ export default function ParcellesLayer({
           ? layersRef.current.cadastreDpeAges
           : DEFAULT_DPE_AGE_BUCKETS;
         if (!dpeVisibleOnMap(row, ages)) {
-          setOverlayHover(null);
+          hideHoverSoon();
           return;
         }
       }
       if (row.parcelleId && row.parcelleId === selectedParcelleRef.current) {
-        setOverlayHover(null);
+        dismissHover();
         return;
       }
       const canvas = mapCanvas(map);
       if (canvas) canvas.style.cursor = 'pointer';
-      setOverlayHover({
+      showHover({
         lng: row.longitude,
         lat: row.latitude,
         preview: hoverPreviewFromCadastre(row, layer),
@@ -610,7 +670,7 @@ export default function ParcellesLayer({
       }
     };
     const onOverlayLeave = () => {
-      setOverlayHover(null);
+      hideHoverSoon();
       schedulePrefetch(null);
     };
     const onOverlayClick = (e: MapLayerMouseEvent) => {
@@ -619,7 +679,7 @@ export default function ParcellesLayer({
       const parcelleId = normalizeParcelleId(typeof raw === 'string' ? raw : null);
       if (!parcelleId) return;
       e.originalEvent.stopPropagation();
-      setOverlayHover(null);
+      dismissHover();
       lastPrefetchId.current = parcelleId;
       onPrefetchRef.current?.(parcelleId);
       const centrePick = f ? centroidLngLat(f.geometry) : null;
@@ -689,7 +749,7 @@ export default function ParcellesLayer({
       const canvas = mapCanvas(map);
       if (canvas && !enabled) canvas.style.cursor = '';
     };
-  }, [enabled, mapRef, schedulePrefetch, showOverlays]);
+  }, [enabled, mapRef, schedulePrefetch, showOverlays, showHover, hideHoverSoon, dismissHover]);
 
   if (!enabled && !showOverlays) return null;
 
@@ -931,7 +991,11 @@ export default function ParcellesLayer({
           anchor="bottom"
           className="priimo-hover-popup"
         >
-          <MapHoverBubble preview={overlayHover.preview} />
+          <MapHoverBubble
+            preview={overlayHover.preview}
+            onMouseEnter={garderCarte}
+            onMouseLeave={lacherCarte}
+          />
         </Popup>
       ) : null}
       {pins.map((m) => (

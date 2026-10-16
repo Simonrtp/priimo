@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { invaliderAccueilEtProspection } from '@/lib/cache/dashboard';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { phraseMouvements } from '@/lib/annonces/phrase';
+import { jourParis } from '@/lib/annonces/notifier';
+import { traiterAnnoncesDuMatin } from '@/lib/annonces/matin';
 import { construireBrief } from '@/lib/push/brief';
 import { configurerVapid, envoyerPush, type AbonnementPush } from '@/lib/push/send';
 
@@ -73,6 +76,9 @@ export async function GET(req: Request) {
   let silencieux = 0;
   let supprimes = 0;
 
+  await traiterAnnoncesDuMatin(admin, now);
+  const jour = jourParis(now);
+
   for (const [profileId, { agencyId, abonnements }] of parProfil) {
     const [profil, actions, rdv, promesses] = await Promise.all([
       admin.from('profiles').select('first_name').eq('id', profileId).maybeSingle(),
@@ -99,12 +105,24 @@ export async function GET(req: Request) {
     ]);
 
     const lignes = (actions.data ?? []) as { titre: string }[];
+    const { data: notifsAnnonces } = await admin
+      .from('notifications')
+      .select('type, created_at')
+      .eq('profile_id', profileId)
+      .in('type', ['annonce_baisse_prix', 'annonce_retiree']);
+    const duJour = (notifsAnnonces ?? []).filter(
+      (n) => jourParis(new Date(n.created_at)) === jour,
+    );
     const brief = construireBrief({
       prenom: (profil.data as { first_name?: string } | null)?.first_name ?? null,
       actionsOuvertes: lignes.length,
       meilleureAction: lignes[0]?.titre ?? null,
       rendezVous: rdv.count ?? 0,
       promessesDues: promesses.count ?? 0,
+      annoncesPhrase: phraseMouvements(
+        duJour.filter((n) => n.type === 'annonce_baisse_prix').length,
+        duJour.filter((n) => n.type === 'annonce_retiree').length,
+      ),
     });
 
     // Journée vide : on ne notifie pas. C'est ce silence qui garde les

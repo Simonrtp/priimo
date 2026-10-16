@@ -9,7 +9,7 @@ import { toGeoCoord, type GeoCoord } from '@/lib/carte/coords';
 import { fetchLeads } from '@/lib/queries/leads';
 import { fetchLeadStages } from '@/lib/queries/lead-stages';
 import { fetchPassagesObserves } from '@/lib/queries/passages';
-import { boiteAutour, chargerDpeRecents } from '@/lib/queries/tournee';
+import { boiteAutour, chargerCoprosEnProcedure, chargerDpeRecents } from '@/lib/queries/tournee';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { isLeadForSortie } from '@/lib/today/sortie';
@@ -52,6 +52,7 @@ type Demande = {
   perimetre: PerimetreTournee;
   ancres: AdresseDemandee[];
   position: GeoCoord | null;
+  coproprietes: boolean;
 };
 
 function lireCoord(valeur: unknown): GeoCoord | null {
@@ -98,6 +99,7 @@ function lireDemande(corps: unknown): Demande | null {
     perimetre: c.perimetre === 'code_postal' ? 'code_postal' : 'secteur',
     ancres: ancres as AdresseDemandee[],
     position: lireCoord(c.position),
+    coproprietes: c.coproprietes === true,
   };
 }
 
@@ -168,15 +170,23 @@ export async function POST(req: Request) {
         ? bboxDeZone(secteur)
         : null;
 
-  const [passages, dpes] = await Promise.all([
+  const openData = createSupabaseAdminClient();
+  const [passages, dpes, copros] = await Promise.all([
     fetchPassagesObserves({ supabase, stages, maintenant }),
     chargerDpeRecents({
-      openData: createSupabaseAdminClient(),
+      openData,
       codesPostaux: codesDuSecteur(secteur, codesAgence),
       depuis: dateKeyParis(new Date(maintenant.getTime() - FENETRE_DPE_JOURS * 86_400_000)),
       zone,
       voisinage: pointConnu ? boiteAutour(pointConnu, rayon) : null,
     }),
+    demande.coproprietes
+      ? chargerCoprosEnProcedure({
+          db: openData,
+          codesPostaux: codesDuSecteur(secteur, codesAgence),
+          zone: zone ?? (pointConnu ? boiteAutour(pointConnu, rayon) : null),
+        })
+      : Promise.resolve([]),
   ]);
 
   // Un lead clos, ou celui d'un collègue, ferme toute l'adresse.
@@ -201,7 +211,12 @@ export async function POST(req: Request) {
     });
   }
 
-  const toutes = regrouperAdresses({ dpes, leads: leadsTournee, passages: derniersPassagesAgence(passages) });
+  const toutes = regrouperAdresses({
+    dpes,
+    leads: leadsTournee,
+    passages: derniersPassagesAgence(passages),
+    copros,
+  });
   const contexte = {
     secteur,
     zones: actives,

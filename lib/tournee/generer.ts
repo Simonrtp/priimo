@@ -86,6 +86,17 @@ export type AdresseTournee = {
   leadSignal: string | null;
   /** Dernier passage observé dans l'agence, YYYY-MM-DD. */
   dernierPassage: string | null;
+  /** Copropriété avec une procédure en cours. */
+  procedureCopro: boolean;
+};
+
+export type CoproTournee = {
+  banId: string;
+  adresse: string;
+  codePostal: string | null;
+  latitude: number;
+  longitude: number;
+  parcelleId: string | null;
 };
 
 export type TourneeGeneree = {
@@ -145,6 +156,7 @@ export function regrouperAdresses(input: {
   dpes: readonly DpeTournee[];
   leads: readonly LeadTournee[];
   passages: ReadonlyMap<string, string>;
+  copros?: readonly CoproTournee[];
 }): AdresseTournee[] {
   const dpeVus = new Set<string>();
   const parBan = new Map<string, AdresseTournee>();
@@ -176,6 +188,7 @@ export function regrouperAdresses(input: {
         leadScore: null,
         leadSignal: null,
         dernierPassage: null,
+        procedureCopro: false,
       });
       continue;
     }
@@ -222,6 +235,36 @@ export function regrouperAdresses(input: {
       leadScore: lead.score,
       leadSignal: lead.signal,
       dernierPassage: null,
+      procedureCopro: false,
+    });
+  }
+
+  for (const copro of input.copros ?? []) {
+    const actuelle = parBan.get(copro.banId);
+    if (actuelle) {
+      actuelle.procedureCopro = true;
+      continue;
+    }
+    parBan.set(copro.banId, {
+      key: `ban:${copro.banId}`,
+      banId: copro.banId,
+      adresse: copro.adresse,
+      codePostal: copro.codePostal,
+      latitude: copro.latitude,
+      longitude: copro.longitude,
+      parcelleId: copro.parcelleId,
+      dernierDpe: null,
+      nbDpe: 0,
+      lettre: null,
+      passoire: false,
+      surfaceM2: null,
+      typeBatiment: null,
+      etage: null,
+      leadId: null,
+      leadScore: null,
+      leadSignal: null,
+      dernierPassage: null,
+      procedureCopro: true,
     });
   }
 
@@ -236,12 +279,13 @@ export function regrouperAdresses(input: {
 export function dejaProspectee(a: AdresseTournee, maintenant: Date): boolean {
   if (!a.dernierPassage) return false;
   if (joursDepuis(a.dernierPassage, maintenant) <= PASSAGE_RECENT_JOURS) return true;
+  if (a.procedureCopro) return false;
   return !a.dernierDpe || a.dernierPassage >= a.dernierDpe;
 }
 
 export function valeurAdresse(a: AdresseTournee, maintenant: Date): number {
   const recence = a.dernierDpe ? 0.5 ** (joursDepuis(a.dernierDpe, maintenant) / DEMI_VIE_DPE_JOURS) : 0;
-  const base = a.leadId ? Math.max(recence, PLANCHER_LEAD) : recence;
+  const base = Math.max(a.leadId ? Math.max(recence, PLANCHER_LEAD) : recence, a.procedureCopro ? 0.9 : 0);
   const volume = 1 + 0.35 * Math.log2(Math.max(1, a.nbDpe));
   const passoire = a.passoire ? 1.2 : 1;
   const lead = a.leadScore !== null ? 1 + (Math.min(100, Math.max(0, a.leadScore)) / 100) * 0.6 : 1;
@@ -562,6 +606,7 @@ export function genererTournee(input: {
 
 /** La ligne courte sous l'adresse, dans la liste. */
 export function raisonArret(a: AdresseTournee, maintenant: Date): string | null {
+  if (a.procedureCopro) return 'Procédure en cours';
   if (a.dernierDpe) {
     const quand = ilYa(joursDepuis(a.dernierDpe, maintenant));
     return a.nbDpe > 1
@@ -588,6 +633,7 @@ export function detailArret(a: AdresseTournee, options: { choisie?: boolean } = 
     lead: a.leadId ? { score: Math.round(a.leadScore ?? 0), signal: a.leadSignal?.trim() || null } : null,
     dernierPassage: a.dernierPassage,
     choisie: options.choisie ?? false,
+    procedureCopro: a.procedureCopro,
   };
 }
 
@@ -642,5 +688,6 @@ export function adresseLibre(params: {
     leadScore: null,
     leadSignal: null,
     dernierPassage: null,
+    procedureCopro: false,
   };
 }

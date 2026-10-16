@@ -3,29 +3,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRight, Check, SlidersHorizontal, X } from 'lucide-react';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import InviteCollaboratorDialog from '@/components/dashboard/equipe/InviteCollaboratorDialog';
-import { COULEUR_FAMILLE, GRIS_NEUTRE, ROUGE_ALERTE } from '@/lib/activite/couleurs';
-import { FIELD } from '@/lib/today/field';
+import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import type { AccueilDirecteurModele, CarteNegociateur } from '@/lib/directeur/assembler';
-import type { DirecteurCarte, DirecteurCarteType } from '@/lib/directeur/cartes';
-import {
-  STATUT_NEGOCIATEUR_LABELS,
-  type StatutNegociateur,
-} from '@/lib/directeur/statut';
+import type { DirecteurCarte } from '@/lib/directeur/cartes';
+import { STATUT_NEGOCIATEUR_LABELS } from '@/lib/directeur/statut';
 import SelecteurVueAccueil from './SelecteurVueAccueil';
-import Pastilles from '@/components/ui/Pastilles';
+import { SelecteurFenetre } from '@/components/dashboard/accueil/EnteteSemaine';
+import { moisDe, semaineDe, type Periode } from '@/lib/activite/semaines';
 import ModeReunion from './ModeReunion';
 import ObjectifAgenceDialog from './ObjectifAgenceDialog';
-
-/** Violet objectif — mêmes paliers que BandeauObjectif Accueil agent. */
-const OBJECTIF = {
-  teinte: '#7C4DD3',
-  pastelFort: '#DCCFF7',
-  pastille: '#EBE3FA',
-  voile: '#F5F1FD',
-} as const;
+import BullesEquipe from './BullesEquipe';
+import { ALERTE_STYLE, OBJECTIF, STATUT_STYLE } from './statut-style';
 
 const MANDAT_VERT = {
   teinte: '#0F8F4A',
@@ -37,72 +28,6 @@ const MANDAT_VERT = {
 const CREME = {
   voile: '#F9F4EB',
 } as const;
-
-const ALERTE_STYLE: Record<
-  DirecteurCarteType,
-  { label: string; teinte: string; pastel: string; voile: string }
-> = {
-  mandat_fin_validite: {
-    label: 'Fin de mandat',
-    teinte: ROUGE_ALERTE.teinte,
-    pastel: ROUGE_ALERTE.pastelFort,
-    voile: ROUGE_ALERTE.voile,
-  },
-  decrochage: {
-    label: 'Décrochage',
-    teinte: COULEUR_FAMILLE.immeubles_prospectes.teinte,
-    pastel: COULEUR_FAMILLE.immeubles_prospectes.pastelFort,
-    voile: COULEUR_FAMILLE.immeubles_prospectes.voile,
-  },
-  estimation_sans_relance: {
-    label: 'Estimation',
-    teinte: COULEUR_FAMILLE.estimations.teinte,
-    pastel: COULEUR_FAMILLE.estimations.pastelFort,
-    voile: COULEUR_FAMILLE.estimations.voile,
-  },
-  mandat_vieillit: {
-    label: 'Mandat',
-    teinte: '#C45D2A',
-    pastel: FIELD.orangePastel,
-    voile: '#FFF4EC',
-  },
-  prospects_sans_negociateur: {
-    label: 'Prospection',
-    teinte: GRIS_NEUTRE.teinte,
-    pastel: GRIS_NEUTRE.pastelFort,
-    voile: GRIS_NEUTRE.voile,
-  },
-};
-
-const STATUT_STYLE: Record<
-  StatutNegociateur,
-  { fond: string; texte: string; barre: string; avatar: string }
-> = {
-  en_avance: {
-    fond: COULEUR_FAMILLE.contacts_qualifies.pastelFort,
-    texte: COULEUR_FAMILLE.contacts_qualifies.teinte,
-    barre: COULEUR_FAMILLE.contacts_qualifies.teinte,
-    avatar: COULEUR_FAMILLE.contacts_qualifies.pastille,
-  },
-  dans_le_rythme: {
-    fond: '#D6DEE8',
-    texte: '#3A4A66',
-    barre: '#5B6B86',
-    avatar: '#E8EEF5',
-  },
-  a_voir: {
-    fond: 'rgba(232, 116, 60, 0.18)',
-    texte: '#C45D2A',
-    barre: FIELD.orange,
-    avatar: '#FFE0C4',
-  },
-  nouveau: {
-    fond: OBJECTIF.pastelFort,
-    texte: OBJECTIF.teinte,
-    barre: OBJECTIF.teinte,
-    avatar: OBJECTIF.pastille,
-  },
-};
 
 function Sticker({
   repos,
@@ -136,53 +61,6 @@ function Sticker({
         className="absolute inset-0 m-auto size-9 object-contain opacity-0 transition-[opacity,transform] duration-fluid ease-soft group-hover/sticker:scale-110 group-hover/sticker:opacity-100 motion-reduce:transition-none"
       />
     </span>
-  );
-}
-
-function CarteATraiter({
-  carte,
-  onPreparer,
-}: {
-  carte: DirecteurCarte;
-  onPreparer: (carte: DirecteurCarte) => void;
-}) {
-  const style = ALERTE_STYLE[carte.type];
-  return (
-    <article
-      className="flex min-h-0 flex-col gap-2 rounded-clay-lg px-3.5 py-3 shadow-clay-sm"
-      style={{ backgroundColor: style.voile }}
-    >
-      <p
-        className="text-[11px] font-semibold uppercase tracking-[0.08em]"
-        style={{ color: style.teinte }}
-      >
-        {style.label}
-      </p>
-      <p className="text-pretty text-[13.5px] font-medium leading-snug text-text-strong">
-        {carte.texte}
-      </p>
-      {carte.repere ? (
-        <p className="text-[12px] text-text-muted">{carte.repere}</p>
-      ) : null}
-      {carte.action === 'assigner' && carte.href ? (
-        <Link
-          href={carte.href}
-          className="mt-auto inline-flex min-h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-white"
-          style={{ backgroundColor: FIELD.orange }}
-        >
-          Assigner
-        </Link>
-      ) : (
-        <button
-          type="button"
-          onClick={() => onPreparer(carte)}
-          className="mt-auto inline-flex min-h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold"
-          style={{ backgroundColor: style.pastel, color: style.teinte }}
-        >
-          Préparer l&apos;échange
-        </button>
-      )}
-    </article>
   );
 }
 
@@ -223,9 +101,11 @@ function CompteurMini({
 
 function PanneauPreparer({
   negociateur,
+  alertes,
   onClose,
 }: {
   negociateur: CarteNegociateur;
+  alertes: readonly DirecteurCarte[];
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -318,6 +198,49 @@ function PanneauPreparer({
               />
             </li>
           </ul>
+          {alertes.length > 0 ? (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
+                À voir ensemble
+              </p>
+              <ul className="mt-2 grid gap-2">
+                {alertes.map((a) => {
+                  const style = ALERTE_STYLE[a.type];
+                  const corps = (
+                    <>
+                      <span
+                        className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                        style={{ color: style.teinte }}
+                      >
+                        {style.label}
+                      </span>
+                      <span className="text-pretty text-[13.5px] font-medium leading-snug text-text-strong">
+                        {a.texte}
+                      </span>
+                      {a.repere ? <span className="text-[12px] text-text-muted">{a.repere}</span> : null}
+                    </>
+                  );
+                  return (
+                    <li key={a.key}>
+                      {a.href ? (
+                        <Link
+                          href={a.href}
+                          className="flex flex-col gap-1 rounded-xl px-3 py-2.5 transition-[filter] hover:brightness-[0.98]"
+                          style={{ backgroundColor: style.voile }}
+                        >
+                          {corps}
+                        </Link>
+                      ) : (
+                        <div className="flex flex-col gap-1 rounded-xl px-3 py-2.5" style={{ backgroundColor: style.voile }}>
+                          {corps}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
           <p className="text-[12.5px] leading-relaxed text-text-muted">
             Les notes privées comptent dans le volume, leur contenu n&apos;apparaît jamais ici.
           </p>
@@ -341,31 +264,35 @@ export default function AccueilDirecteur({
   agences,
   agenceActiveId,
   periode,
+  invitations = [],
   secteur,
 }: {
   modele: AccueilDirecteurModele;
   agences: readonly { id: string; name: string }[];
   agenceActiveId: string;
   periode: 'semaine' | 'mois';
+  invitations?: readonly { id: string; email: string }[];
   secteur?: ReactNode;
 }) {
   const router = useRouter();
   const [preparerId, setPreparerId] = useState<string | null>(null);
   const [reunion, setReunion] = useState(false);
-  const [voirTout, setVoirTout] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [objectifOpen, setObjectifOpen] = useState(false);
 
   const negociateur = modele.negociateurs.find((n) => n.membreId === preparerId) ?? null;
-  const cartes = voirTout ? modele.cartes : modele.cartesVisibles;
-  const collaborateurs = modele.negociateurs.filter((n) => n.membreId);
-  const sansCollaborateur = modele.solo || collaborateurs.length <= 1;
+  // Les alertes d'un négociateur vont dans sa bulle ; celles de l'agence
+  // (personne n'en a la charge) restent en tête de ligne.
+  const idsEquipe = new Set(modele.negociateurs.map((n) => n.membreId));
+  const alertesEquipe = modele.cartes.filter((c) => c.membreId && idsEquipe.has(c.membreId));
 
-  function changerPeriode(next: 'semaine' | 'mois') {
+  function changerPeriode(next: Periode) {
     const q = new URLSearchParams(window.location.search);
-    q.set('periode', next === 'mois' ? '30j' : '7j');
+    q.set('periode', next === 'custom' ? '30j' : next);
     router.push(`/dashboard?${q.toString()}`);
   }
+
+  const periodeSemaine: Periode = periode === 'mois' ? '30j' : '7j';
 
   if (reunion) {
     return <ModeReunion modele={modele} onClose={() => setReunion(false)} />;
@@ -373,19 +300,18 @@ export default function AccueilDirecteur({
 
   return (
     <div data-accueil className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-label={modele.titre}>
-      <header className="flex flex-row flex-wrap items-center gap-2 sm:gap-3">
+      <header className="flex flex-row flex-wrap items-center gap-2 sm:gap-4">
         <SelecteurVueAccueil vue="directeur" />
+        <h1 className="font-display text-[24px] font-bold leading-none tracking-[-0.01em] text-text-strong max-sm:sr-only">
+          L&apos;agence
+        </h1>
         <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
-          <Pastilles
-            label="Période"
-            value={periode}
-            options={
-              [
-                { id: 'semaine' as const, label: '7j' },
-                { id: 'mois' as const, label: '30j' },
-              ] as const
-            }
-            onChange={changerPeriode}
+          <SelecteurFenetre
+            periode={periodeSemaine}
+            intervalle={periode === 'mois' ? moisDe(new Date()) : semaineDe(new Date())}
+            enCours={false}
+            onChanger={changerPeriode}
+            etroit
           />
           {agences.length > 1 ? (
             <label className="inline-flex items-center gap-2 text-[13px] text-text-muted">
@@ -419,122 +345,38 @@ export default function AccueilDirecteur({
         </div>
       </header>
 
-      {/* Zone 1 — pleine largeur, compacte */}
-      <section aria-labelledby="zone-a-traiter">
-        <div className="mb-2 flex items-end justify-between gap-3">
-          <h2 id="zone-a-traiter" className="text-[15px] font-semibold text-text-strong sm:text-[16px]">
-            À traiter cette semaine
+      {/* Zone 1 — l'équipe d'un coup d'œil */}
+      <section aria-labelledby="zone-equipe" className="rounded-clay-lg bg-surface px-4 pb-3 pt-4 shadow-clay sm:px-5">
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 id="zone-equipe" className="text-[15px] font-semibold text-text-strong sm:text-[16px]">
+            L&apos;équipe
           </h2>
-          {modele.cartesReste > 0 && !voirTout ? (
-            <button
-              type="button"
-              onClick={() => setVoirTout(true)}
-              className="text-[12.5px] font-medium text-accent-dark hover:underline"
-            >
-              Voir tout ({modele.cartes.length})
-            </button>
+          {modele.cartes.length === 0 ? (
+            <span className="inline-flex items-center gap-1.5 text-[12.5px] text-text-muted sm:ml-auto">
+              <span
+                className="inline-flex size-5 items-center justify-center rounded-full"
+                style={{ backgroundColor: COULEUR_FAMILLE.contacts_qualifies.pastelFort }}
+                aria-hidden
+              >
+                <Check size={12} strokeWidth={2.6} style={{ color: COULEUR_FAMILLE.contacts_qualifies.teinte }} />
+              </span>
+              Rien à signaler
+            </span>
           ) : null}
         </div>
-        {cartes.length === 0 ? (
-          <p className="flex items-center gap-2 rounded-clay-lg bg-surface px-4 py-3 text-[13.5px] text-text-muted shadow-clay-sm">
-            <span
-              className="inline-flex size-6 items-center justify-center rounded-full"
-              style={{ backgroundColor: COULEUR_FAMILLE.contacts_qualifies.pastelFort }}
-              aria-hidden
-            >
-              <Check size={14} strokeWidth={2.4} style={{ color: COULEUR_FAMILLE.contacts_qualifies.teinte }} />
-            </span>
-            Rien à signaler cette semaine
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {cartes.map((c) => (
-              <CarteATraiter
-                key={c.key}
-                carte={c}
-                onPreparer={(carte) => {
-                  if (carte.membreId) setPreparerId(carte.membreId);
-                }}
-              />
-            ))}
-          </div>
-        )}
+        <BullesEquipe
+          negociateurs={modele.negociateurs}
+          alertes={alertesEquipe}
+          periodeLabel={periode === 'mois' ? '30 j' : '7 j'}
+          onOuvrir={setPreparerId}
+          onInviter={() => setInviteOpen(true)}
+          invitations={invitations}
+        />
       </section>
 
-      {secteur ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="min-w-0">{secteur}</div>
-        </div>
-      ) : null}
-
-      {/* Zones 2 + 3 — deux colonnes desktop */}
-      <div className="grid gap-4 lg:grid-cols-5 lg:items-start">
-        <section className="min-w-0 lg:col-span-3" aria-labelledby="zone-negociateurs">
-          <div className="mb-2 flex items-center gap-2">
-            <h2 id="zone-negociateurs" className="text-[15px] font-semibold text-text-strong sm:text-[16px]">
-              Les négociateurs
-            </h2>
-            <button
-              type="button"
-              onClick={() => setInviteOpen(true)}
-              title="Ajouter un collaborateur"
-              aria-label="Ajouter un collaborateur"
-              className="inline-flex size-8 items-center justify-center rounded-clay bg-surface text-text-muted shadow-clay-sm transition hover:text-text-strong"
-            >
-              <Plus size={16} strokeWidth={2.4} />
-            </button>
-            {sansCollaborateur ? (
-              <p className="text-[12.5px] text-text-muted">
-                Invitez votre premier collaborateur
-              </p>
-            ) : null}
-          </div>
-
-          {!sansCollaborateur ? (
-            <ul className="divide-y divide-black/[0.08]">
-              {modele.negociateurs.map((n) => {
-                const nomComplet = [n.prenom, n.nom].filter(Boolean).join(' ');
-                return (
-                  <li key={n.membreId}>
-                    <button
-                      type="button"
-                      onClick={() => setPreparerId(n.membreId)}
-                      className="flex w-full items-center gap-3 py-3.5 text-left transition-colors hover:bg-black/[0.02] sm:gap-3.5"
-                    >
-                      <ProfileAvatar
-                        firstName={n.prenom}
-                        lastName={n.nom}
-                        avatarUrl={n.avatarUrl}
-                        size={44}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14.5px] font-semibold text-text-strong">
-                          {nomComplet}
-                        </p>
-                        <div className="mt-2">
-                          <div className="mb-1 flex items-baseline justify-between gap-2">
-                            <span className="text-[11px] text-text-muted">Cette semaine</span>
-                            <span className="text-[12.5px] font-semibold tabular-nums text-text-strong">
-                              {n.progression}&nbsp;%
-                            </span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-black/[0.08]">
-                            <div
-                              className="h-full rounded-full bg-text-strong"
-                              style={{ width: `${n.progression}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </section>
-
-        <section className="min-w-0 lg:col-span-2" aria-labelledby="zone-agence">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        {secteur ? <div className="min-w-0">{secteur}</div> : null}
+        <section className="min-w-0 rounded-clay-lg bg-surface px-4 pb-4 pt-4 shadow-clay sm:px-5" aria-labelledby="zone-agence">
           <h2 id="zone-agence" className="mb-2 text-[15px] font-semibold text-text-strong sm:text-[16px]">
             L&apos;agence ce mois
           </h2>
@@ -656,7 +498,11 @@ export default function AccueilDirecteur({
       </div>
 
       {negociateur ? (
-        <PanneauPreparer negociateur={negociateur} onClose={() => setPreparerId(null)} />
+        <PanneauPreparer
+          negociateur={negociateur}
+          alertes={alertesEquipe.filter((a) => a.membreId === negociateur.membreId)}
+          onClose={() => setPreparerId(null)}
+        />
       ) : null}
 
       <InviteCollaboratorDialog

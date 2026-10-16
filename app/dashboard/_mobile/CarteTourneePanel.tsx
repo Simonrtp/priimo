@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  AlertTriangle,
   Building2,
   Check,
   ChevronDown,
@@ -90,10 +91,15 @@ function Section({ titre, children }: { titre: string; children: ReactNode }) {
 }
 
 function Pourquoi({ arret }: { arret: ArretTournee }) {
-  const { dpe, lead, dernierPassage, choisie } = arret.detail;
+  const { dpe, lead, dernierPassage, choisie, procedureCopro } = arret.detail;
   const icone = 'text-text-muted';
   return (
     <ul className="flex flex-col gap-2.5">
+      {procedureCopro ? (
+        <Ligne icone={<AlertTriangle size={18} strokeWidth={2.2} className="text-text-strong" />}>
+          Procédure en cours
+        </Ligne>
+      ) : null}
       {dpe?.date ? (
         <Ligne
           icone={
@@ -265,12 +271,15 @@ export default function CarteTourneePanel({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  armPointerShield();
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  armPointerShield(900);
                   setConfirmer(false);
                   onTerminer();
                 }}
                 className="app-press flex h-12 items-center justify-center rounded-2xl bg-primary-500 text-[15px] font-semibold text-white"
+                style={{ touchAction: 'manipulation' }}
               >
                 Oui, terminer
               </button>

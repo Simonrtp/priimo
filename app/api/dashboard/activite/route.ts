@@ -48,6 +48,12 @@ export async function GET(req: Request) {
     agencyId: agency.id,
     membreActivite,
     profileIdsAgence: members.map((m) => m.id),
+    membres: members.map((m) => ({
+      id: m.id,
+      firstName: m.firstName,
+      lastName: m.lastName,
+      avatarUrl: m.avatarUrl,
+    })),
     stages,
     periode,
     ancre: url.searchParams.get('le'),

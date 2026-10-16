@@ -17,6 +17,12 @@ export default function TouchScrollGuard() {
     let startX = 0;
     let startY = 0;
     let tracking = false;
+    let origine: Element | null = null;
+
+    const controle = (cible: EventTarget | null): Element | null =>
+      cible instanceof Element
+        ? cible.closest('button, a, [role="tab"], [role="radio"], [role="switch"], input, textarea, select')
+        : null;
 
     const onScroll = () => markTouchScroll();
 
@@ -26,6 +32,7 @@ export default function TouchScrollGuard() {
       startX = t.clientX;
       startY = t.clientY;
       tracking = true;
+      origine = controle(e.target);
     };
 
     const onTouchMove = (e: Event) => {
@@ -45,7 +52,18 @@ export default function TouchScrollGuard() {
     };
 
     const onClickCapture = (e: Event) => {
-      if (!wasRecentScroll()) return;
+      if (!wasRecentScroll()) {
+        origine = null;
+        return;
+      }
+      // Un doigt qui tremble de quelques pixels sur le bouton qu'il a touché
+      // reste un tap. On ne coupe que le clic qui atterrit ailleurs.
+      const ici = controle(e.target);
+      if (ici && origine && ici === origine) {
+        origine = null;
+        return;
+      }
+      origine = null;
       e.preventDefault();
       e.stopPropagation();
     };

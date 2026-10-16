@@ -90,6 +90,28 @@ describe('regrouperAdresses', () => {
     assert.equal(a?.passoire, true);
   });
 
+  it('ajoute une copropriété en procédure et l’affiche tout de suite', () => {
+    const [a] = regrouperAdresses({
+      dpes: [],
+      leads: [],
+      passages: new Map(),
+      copros: [
+        {
+          banId: 'copro',
+          adresse: '8 rue des Couronnes',
+          codePostal: '75020',
+          latitude: 48.86,
+          longitude: 2.38,
+          parcelleId: null,
+        },
+      ],
+    });
+    assert.equal(a?.procedureCopro, true);
+    assert.equal(raisonArret(a!, MAINTENANT), 'Procédure en cours');
+    assert.equal(versArretSortie(a!, MAINTENANT).detail.procedureCopro, true);
+    assert.equal(dejaProspectee(a!, MAINTENANT), false);
+  });
+
   it("rattache le lead à l'immeuble du DPE et note le dernier passage", () => {
     const [a] = regrouperAdresses({
       dpes: [dpe('a', 0, 0, '2026-09-20')],
@@ -448,6 +470,7 @@ describe('raisonArret', () => {
       lead: null,
       dernierPassage: '2026-09-01',
       choisie: false,
+      procedureCopro: false,
     });
   });
 

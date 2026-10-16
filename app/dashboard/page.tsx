@@ -295,7 +295,7 @@ async function TodayContent({
   if (layoutDirector) {
     const periodeDirecteur =
       periode === '30j' || periode === '90j' ? 'mois' : 'semaine';
-    const [socle, modeleDirecteur] = await Promise.all([
+    const [socle, modeleDirecteur, invitations] = await Promise.all([
       socleP,
       Promise.all([membersP, stagesP, leadsP, biensP, notesP, metierP]).then(
         ([members, stages, leads, biens, notes, metier]) =>
@@ -334,6 +334,13 @@ async function TodayContent({
             }),
           ),
       ),
+      supabase
+        .from('invitations')
+        .select('id, email, role')
+        .eq('agency_id', agency.id)
+        .eq('role', 'collaborateur')
+        .is('used_at', null)
+        .order('created_at', { ascending: false }),
     ]);
 
     const byKind = Object.fromEntries(socle.portfolio.counters.map((c) => [c.kind, c]));
@@ -353,6 +360,10 @@ async function TodayContent({
         agences={agencesDirecteur(memberships)}
         agenceActiveId={agency.id}
         periode={periodeDirecteur}
+        invitations={(invitations.data ?? []).map((row) => ({
+          id: row.id,
+          email: row.email,
+        }))}
         secteur={
           <SecteurAccueil
             key="secteur-agence"
@@ -425,6 +436,12 @@ async function TodayContent({
           agencyId: agency.id,
           membreActivite,
           profileIdsAgence: members.map((m) => m.id),
+          membres: members.map((m) => ({
+            id: m.id,
+            firstName: m.firstName,
+            lastName: m.lastName,
+            avatarUrl: m.avatarUrl,
+          })),
           stages,
           periode,
           ancre: ancreDemandee,

@@ -28,6 +28,8 @@ export type DetailArret = {
   dernierPassage: string | null;
   /** Ajoutée par l'agent à la préparation. */
   choisie: boolean;
+  /** Procédure de copropriété en cours : à lire sans ouvrir la fiche. */
+  procedureCopro?: boolean;
 };
 
 export type ArretTournee = SortieStop & { detail: DetailArret };

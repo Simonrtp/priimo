@@ -216,6 +216,7 @@
 
 .priimo-hover-popup.mapboxgl-popup {
   z-index: 50;
+  /* Le conteneur ne doit pas voler le survol de la parcelle. */
   pointer-events: none;
 }
 
@@ -223,10 +224,12 @@
   background: transparent;
   box-shadow: none;
   padding: 0;
+  pointer-events: none;
 }
 
 .priimo-hover-popup .mapboxgl-popup-tip {
   display: none;
+  pointer-events: none;
 }
 
 .priimo-hover-popup .priimo-hover-bubble {
@@ -235,6 +238,8 @@
   left: auto;
   opacity: 1;
   transform: none;
+  /* La carte elle-même se laisse lire : le curseur peut s'y poser. */
+  pointer-events: auto;
 }
 
 @media (hover: none) {

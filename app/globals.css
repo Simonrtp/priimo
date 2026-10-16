@@ -3878,14 +3878,32 @@ html:has(.feature-page) {
   padding-bottom: 0 !important;
 }
 
+/* `none` sur l'ancêtre avale le premier tap iOS des boutons posés sur la carte
+   (Tournée, onglets, Terminer) : le doigt doit revenir deux ou trois fois.
+   Seul le canevas Mapbox garde `none`, pour que le panoramique reste au doigt. */
 .dashboard-mobile:has(.field-map),
 .dashboard-mobile:has([data-prospection-carte]) {
+  touch-action: manipulation;
+}
+
+.dashboard-mobile .field-map {
+  touch-action: manipulation;
+}
+
+.dashboard-mobile .priimo-map,
+.dashboard-mobile .priimo-map .mapboxgl-map,
+.dashboard-mobile .priimo-map .mapboxgl-canvas-container,
+.dashboard-mobile .priimo-map .mapboxgl-canvas {
   touch-action: none;
 }
 
-.dashboard-mobile .field-map,
-.dashboard-mobile .priimo-map {
-  touch-action: none;
+.dashboard-mobile .field-map button,
+.dashboard-mobile .field-map a,
+.dashboard-mobile .field-map [role='tab'],
+.dashboard-mobile .app-tabbar,
+.dashboard-mobile .app-tabbar a,
+.dashboard-mobile .app-tabbar button {
+  touch-action: manipulation;
 }
 
 /* Prise en main agent : plein écran, sans chrome ni tab bar. */
@@ -4462,17 +4480,13 @@ html:has(.feature-page) {
   box-shadow: 0 1px 2px rgba(26, 42, 86, 0.28);
 }
 
-.priimo-pin-field--score {
-  width: 22px;
-  height: 22px;
-  font-size: 9px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: #ffffff;
+.priimo-pin-field--icon {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  color: #fff;
 }
 
 .priimo-pin-field--cluster {

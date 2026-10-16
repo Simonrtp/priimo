@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Box, Layers, Locate, MapPin, Navigation, Navigation2, Phone, Play, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { armPointerShield } from '@/lib/ui/pointer-guard';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
 import {
@@ -30,12 +31,17 @@ import {
   showParcellesPlan,
   withCadastreLayerToggled,
   withCadastreMenuToggled,
+  withAnnoncesMenuToggled,
   withDpeAgeSpan,
   type CadastreLayerId,
   type MapLayerState,
 } from '@/lib/carte/layers';
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
+import { AnnoncesLayerControls } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
+import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
+import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
+import FiltresHautCarte, { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
@@ -148,6 +154,7 @@ export default function CarteMobile({
   const mapApi = useRef<MobileMapHandle | null>(null);
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
+  const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
   const [zoneId, setZoneId] = useState(
     initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
   );
@@ -158,12 +165,16 @@ export default function CarteMobile({
   const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [period, setPeriod] = useState<MapPeriod>('all');
   const [accountOpen, setAccountOpen] = useState(false);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
   /** En préparation : le prochain appui sur la carte ajoute une adresse de passage. */
   const [picking, setPicking] = useState(false);
   const [confirmerFin, setConfirmerFin] = useState(false);
+  /** Le temps que le tap « Terminer » retombe : la barre d'onglets reste cachée. */
+  const [gardeFin, setGardeFin] = useState(false);
+  const gardeFinTimer = useRef<number | null>(null);
 
   const monSecteurId = useMemo(
     () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
@@ -225,20 +236,20 @@ export default function CarteMobile({
       filterMapEntities(pointsDuSecteur, {
         kinds,
         assignedTo: 'tous',
-        period: 'all' as MapPeriod,
+        period,
         now: Date.now(),
       }),
-    [pointsDuSecteur, kinds],
+    [pointsDuSecteur, kinds, period],
   );
   const filteredAllKinds = useMemo(
     () =>
       filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
         assignedTo: 'tous',
-        period: 'all',
+        period,
         now: Date.now(),
       }),
-    [pointsDuSecteur],
+    [pointsDuSecteur, period],
   );
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
   const selected = useMemo(
@@ -329,6 +340,24 @@ export default function CarteMobile({
     closeParcelle();
     tournee.ouvrirPreparation();
   }, [closeParcelle, tournee]);
+
+  const finirTournee = useCallback(() => {
+    armPointerShield(900);
+    setGardeFin(true);
+    if (gardeFinTimer.current != null) window.clearTimeout(gardeFinTimer.current);
+    gardeFinTimer.current = window.setTimeout(() => {
+      gardeFinTimer.current = null;
+      setGardeFin(false);
+    }, 900);
+    tournee.terminer();
+  }, [tournee.terminer]);
+
+  useEffect(
+    () => () => {
+      if (gardeFinTimer.current != null) window.clearTimeout(gardeFinTimer.current);
+    },
+    [],
+  );
 
   /** Point libre : l'adresse la plus proche, sinon les coordonnées brutes. */
   const ajouterPointCarte = useCallback(
@@ -461,7 +490,7 @@ export default function CarteMobile({
 
   return (
     <div
-      data-tournee-active={tournee.enCours ? '' : undefined}
+      data-tournee-active={tournee.enCours || gardeFin ? '' : undefined}
       className={
         fillParent
           ? 'field-map relative h-full min-h-0 overflow-hidden overscroll-none bg-soft-cool'
@@ -518,6 +547,15 @@ export default function CarteMobile({
           parcelle.openParcelle(parcelleId, extra);
         }}
         onPrefetchParcelle={parcelle.prefetchParcelle}
+        annoncesCouche={{
+          layers,
+          directeur: isDirector,
+          profileId,
+          onChoisir: (annonce, soeurs) => {
+            setLayersOpen(false);
+            setAnnonceOuverte({ annonce, soeurs });
+          },
+        }}
         agentPosition={tournee.agentPosition}
         completedLeadIds={tournee.arretsFaitsIds}
         highlightBanIds={tournee.highlightBanIds}
@@ -593,11 +631,14 @@ export default function CarteMobile({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
                       setConfirmerFin(false);
-                      tournee.terminer();
+                      finirTournee();
                     }}
                     className="app-press flex h-10 items-center rounded-full bg-primary-500 px-3.5 text-[13.5px] font-semibold text-white"
+                    style={{ touchAction: 'manipulation' }}
                   >
                     Oui
                   </button>
@@ -629,16 +670,18 @@ export default function CarteMobile({
               )}
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={ouvrirTournee}
-              aria-label="Préparer une tournée"
-              className="app-press absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
-              style={{ bottom: floatBottom, fontSize: 14 }}
-            >
-              <MapPin size={18} strokeWidth={2.2} aria-hidden />
-              Tournée
-            </button>
+            <div className="absolute left-1/2 z-20 -translate-x-1/2" style={{ bottom: floatBottom }}>
+              <button
+                type="button"
+                onClick={ouvrirTournee}
+                aria-label="Préparer une tournée"
+                className="app-press flex items-center gap-2 rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
+                style={{ fontSize: 14, touchAction: 'manipulation' }}
+              >
+                <MapPin size={18} strokeWidth={2.2} aria-hidden />
+                Tournée
+              </button>
+            </div>
           )}
 
           <button
@@ -701,6 +744,8 @@ export default function CarteMobile({
           libelleCodePostal={libelleCodePostal}
           perimetre={tournee.preparation.perimetre}
           onPerimetre={tournee.preparation.choisirPerimetre}
+          coproprietes={tournee.preparation.coproprietes}
+          onCoproprietes={tournee.preparation.choisirCoproprietes}
           ancres={tournee.preparation.ancres}
           onAjouter={tournee.preparation.ajouterAncre}
           onRetirer={tournee.preparation.retirerAncre}
@@ -745,7 +790,7 @@ export default function CarteMobile({
           routage={tournee.routage}
           sansPosition={tournee.sansPosition && !tournee.agentPosition}
           onPause={tournee.pause}
-          onTerminer={tournee.terminer}
+          onTerminer={finirTournee}
           onNoter={tournee.noter}
           onFait={tournee.marquerFait}
           onRetirer={tournee.retirerArret}
@@ -754,6 +799,16 @@ export default function CarteMobile({
 
       {tournee.phase === 'bilan' && tournee.bilan ? (
         <CarteTourneeDoneCard bilan={tournee.bilan} onClose={tournee.fermerBilan} />
+      ) : null}
+
+      {annonceOuverte && !tournee.enCours ? (
+        <div className="pointer-events-auto absolute inset-x-3 z-[72] max-h-[55%] overflow-hidden" style={{ bottom: 'calc(12px + var(--field-nav-height))' }}>
+          <AnnonceVolet
+            annonce={annonceOuverte.annonce}
+            soeurs={annonceOuverte.soeurs}
+            onFermer={() => setAnnonceOuverte(null)}
+          />
+        </div>
       ) : null}
 
       <MobileSheet
@@ -767,6 +822,7 @@ export default function CarteMobile({
           onChange={choisirEmprise}
           hasSecteur={Boolean(monSecteurId)}
         />
+        <FiltresHautCarte period={period} onPeriod={setPeriod} />
         <ul className="flex flex-col gap-1">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -815,6 +871,30 @@ export default function CarteMobile({
             }
             mapZoom={mapZoom}
             compact
+          />
+          <ChoixSecteurs
+            zones={secteursAMoi(zones, profileId)}
+            zoneId={zoneId}
+            onZone={setZoneId}
+          />
+          <AnnoncesLayerControls
+            layers={layers}
+            compact
+            onToggleMenu={() =>
+              setLayers((prev) => {
+                const next = withAnnoncesMenuToggled(prev);
+                persistMapLayers(next);
+                return next;
+              })
+            }
+            onChange={(patch) =>
+              setLayers((prev) => {
+                const next = { ...prev, ...patch };
+                persistMapLayers(next);
+                setAnnonceOuverte(null);
+                return next;
+              })
+            }
           />
         </ul>
       </MobileSheet>

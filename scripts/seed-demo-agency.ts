@@ -34,6 +34,7 @@ import {
   isoDateFromBase,
 } from '../lib/demo/dates';
 import { createSupabaseAdminClient } from '../lib/supabase/admin';
+import { purgeAnnoncesDemo, seedAnnoncesDemo } from './annonces-demo';
 import {
   CIBLES_SCENARIO,
   LEADS_REQUIS,
@@ -196,6 +197,7 @@ async function purgeDemo(admin: SupabaseClient) {
     users += 1;
   }
   console.log(`  profils démo supprimés : ${users}`);
+  await purgeAnnoncesDemo(admin);
 }
 
 async function ensureNegotiator(
@@ -548,6 +550,7 @@ async function main() {
   const now = new Date();
 
   if (doPurge) await purgeDemo(admin);
+  await seedAnnoncesDemo(admin);
 
   await verifyDirector(admin);
   const team = await ensureTeam(admin);

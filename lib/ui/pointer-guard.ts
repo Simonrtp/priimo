@@ -5,10 +5,10 @@
  * déclenche ensuite un `click` sur l'élément désormais sous le doigt
  * (lien de nav, carte, bouton). Ce module est la garde unique :
  * 1. capture en phase capture + preventDefault
- * 2. bouclier transparent ~450 ms au-dessus de tout
+ * 2. bouclier transparent ~800 ms au-dessus de tout
  */
 
-const SHIELD_MS = 450;
+const SHIELD_MS = 800;
 const SHIELD_Z = '2147483000';
 
 let shieldEl: HTMLDivElement | null = null;
@@ -24,9 +24,16 @@ export function armPointerShield(ms: number = SHIELD_MS): void {
       'position:fixed',
       'inset:0',
       `z-index:${SHIELD_Z}`,
-      'touch-action:none',
-      'cursor:none',
+      'touch-action:manipulation',
+      'background:transparent',
     ].join(';');
+    const avaler = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    for (const type of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend'] as const) {
+      shieldEl.addEventListener(type, avaler, true);
+    }
   }
   document.body.appendChild(shieldEl);
   if (shieldTimer != null) window.clearTimeout(shieldTimer);

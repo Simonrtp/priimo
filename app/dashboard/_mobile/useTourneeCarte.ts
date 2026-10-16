@@ -52,6 +52,7 @@ export type BilanTournee = { faites: number; total: number; distanceM: number; a
 
 const DUREE_KEY = 'priimo-tournee-duree';
 const PERIMETRE_KEY = 'priimo-tournee-perimetre';
+const COPRO_KEY = 'priimo-tournee-copro';
 /** Assez près pour dire qu'on est passé devant la porte, pas assez pour la frôler en voiture. */
 const PASSAGE_RAYON_M = 25;
 const PASSAGE_PRECISION_M = 35;
@@ -153,6 +154,10 @@ export function useTourneeCarte({
   const [duree, setDuree] = useState<number>(() =>
     lireReglage<number>(DUREE_KEY, DUREES_TOURNEE, DUREE_TOURNEE_DEFAUT),
   );
+  const [coproprietes, setCoproprietes] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(COPRO_KEY) === '1';
+  });
   const [perimetre, setPerimetre] = useState<PerimetreTournee>(() =>
     lireReglage<PerimetreTournee>(PERIMETRE_KEY, ['secteur', 'code_postal'], 'secteur'),
   );
@@ -404,6 +409,12 @@ export function useTourneeCarte({
     ecrireReglage(DUREE_KEY, minutes);
   }, []);
 
+  const choisirCoproprietes = useCallback((valeur: boolean) => {
+    setCoproprietes(valeur);
+    setMessage(null);
+    ecrireReglage(COPRO_KEY, valeur ? '1' : '0');
+  }, []);
+
   const choisirPerimetre = useCallback((valeur: PerimetreTournee) => {
     setPerimetre(valeur);
     setMessage(null);
@@ -437,6 +448,7 @@ export function useTourneeCarte({
             codePostal: a.postcode || null,
           })),
           position: position ? { latitude: position.latitude, longitude: position.longitude } : null,
+          coproprietes,
         }),
       });
       if (res.ok) {
@@ -472,7 +484,7 @@ export function useTourneeCarte({
     if (position) setAgentPosition(position);
     setPhase('brief');
     cadrer(reponse.depart, reponse.arrets);
-  }, [generation, duree, zoneId, perimetreEffectif, ancres, cadrer]);
+  }, [generation, duree, zoneId, perimetreEffectif, ancres, cadrer, coproprietes]);
 
   const finBrief = useCallback(() => setPhase('route'), []);
 
@@ -587,6 +599,8 @@ export function useTourneeCarte({
       choisirDuree,
       perimetre: perimetreEffectif,
       choisirPerimetre,
+      coproprietes,
+      choisirCoproprietes,
       localisation,
       generation,
       message,

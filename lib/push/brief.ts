@@ -22,6 +22,8 @@ export interface MatiereBrief {
   rendezVous: number;
   /** Promesses dont l'échéance tombe aujourd'hui ou avant. */
   promessesDues: number;
+  /** Ligne déjà rédigée, ou null s'il n'y a ni baisse ni retrait. */
+  annoncesPhrase?: string | null;
 }
 
 export interface Brief {
@@ -41,7 +43,8 @@ function pluriel(n: number, singulier: string, pluriel: string): string {
  */
 export function construireBrief(matiere: MatiereBrief): Brief | null {
   const { actionsOuvertes, rendezVous, promessesDues } = matiere;
-  if (actionsOuvertes === 0 && rendezVous === 0 && promessesDues === 0) return null;
+  const annoncesPhrase = matiere.annoncesPhrase?.trim() || null;
+  if (actionsOuvertes === 0 && rendezVous === 0 && promessesDues === 0 && !annoncesPhrase) return null;
 
   const salut = matiere.prenom?.trim() ? `Bonjour ${matiere.prenom.trim()}` : 'Bonjour';
 
@@ -57,15 +60,23 @@ export function construireBrief(matiere: MatiereBrief): Brief | null {
 
   // Le corps sert à donner envie d'ouvrir : une proposition nommée vaut mieux
   // qu'un décompte de plus.
-  const corps = matiere.meilleureAction
+  const base = matiere.meilleureAction
     ? matiere.meilleureAction
     : rendezVous > 0
       ? 'Votre tournée du jour vous attend.'
-      : 'Votre journée est prête.';
+      : actionsOuvertes > 0 || promessesDues > 0
+        ? 'Votre journée est prête.'
+        : '';
+  const corps = [base, annoncesPhrase].filter(Boolean).join(' ');
 
   return {
-    titre,
-    corps,
-    url: actionsOuvertes > 0 ? '/dashboard/actions' : '/dashboard',
+    titre: morceaux.length === 0 && annoncesPhrase ? `${salut} — ${annoncesPhrase}` : titre,
+    corps: corps || annoncesPhrase || 'Votre journée est prête.',
+    url:
+      morceaux.length === 0 && annoncesPhrase
+        ? '/dashboard/annonces?mouvements=1'
+        : actionsOuvertes > 0
+          ? '/dashboard/actions'
+          : '/dashboard',
   };
 }

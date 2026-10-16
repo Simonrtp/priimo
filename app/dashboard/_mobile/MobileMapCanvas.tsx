@@ -11,6 +11,7 @@ import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
 import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
+import PinIcone from '@/components/dashboard/carte/PinIcone';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { toGeoCoord } from '@/lib/carte/coords';
@@ -18,6 +19,8 @@ import { clusterBuildings } from '@/lib/carte/cluster';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
+import { AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
+import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_DPE_LAYER_ID,
@@ -112,6 +115,7 @@ export default function MobileMapCanvas({
   cible = null,
   focus = null,
   onVue,
+  annoncesCouche = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -156,6 +160,12 @@ export default function MobileMapCanvas({
   dimension?: MapDimension;
   /** Cap et inclinaison après chaque geste. */
   onVue?: (vue: VueCarte) => void;
+  annoncesCouche?: {
+    layers: MapLayerState;
+    directeur: boolean;
+    profileId: string;
+    onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
+  } | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const fallback = toGeoCoord(center.latitude, center.longitude);
@@ -317,8 +327,6 @@ export default function MobileMapCanvas({
     return <MapTokenMissing />;
   }
 
-  const showScore = zoom > 16;
-
   return (
     <div
       className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden"
@@ -447,6 +455,15 @@ export default function MobileMapCanvas({
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
           onPrefetch={onPrefetchParcelle}
         />
+        {annoncesCouche && !navigation ? (
+          <AnnoncesMarqueurs
+            layers={annoncesCouche.layers}
+            zones={zones}
+            directeur={annoncesCouche.directeur}
+            profileId={annoncesCouche.profileId}
+            onChoisir={annoncesCouche.onChoisir}
+          />
+        ) : null}
         {cible && !navigation ? (
           <CibleRecherche
             cible={cible}
@@ -509,10 +526,7 @@ export default function MobileMapCanvas({
           const building = item.building;
           const emphasized = building.banId === selectedBanId;
           const tourSelected = highlightBanIds?.has(building.banId) ?? false;
-          const isLead = building.appearance.kind === 'lead';
           const color = fieldColor(building);
-          const score = building.appearance.score;
-          const withScore = showScore && isLead && typeof score === 'number';
           const label =
             building.count > 1 ? `${building.count} fiches à cette adresse` : building.appearance.title;
 
@@ -532,7 +546,7 @@ export default function MobileMapCanvas({
                 <button
                   type="button"
                   aria-label={label}
-                  className={withScore ? 'priimo-pin-field priimo-pin-field--score' : 'priimo-pin-field'}
+                  className="priimo-pin-field priimo-pin-field--icon"
                   style={{
                     background: color,
                     boxShadow:
@@ -542,7 +556,7 @@ export default function MobileMapCanvas({
                     outline: tourSelected ? '2px solid #fff' : undefined,
                   }}
                 >
-                  {withScore ? Math.round(score) : null}
+                  <PinIcone kind={building.appearance.kind} />
                 </button>
                 {building.count > 1 ? (
                   <span className="priimo-pin-count" aria-hidden>

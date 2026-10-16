@@ -24,6 +24,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/annonces",
+      "schedule": "50 4 * * *"
+    },
+    {
       "path": "/api/cron/brief-matin",
       "schedule": "0 5 * * 1-6"
     }

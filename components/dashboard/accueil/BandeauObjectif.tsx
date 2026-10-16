@@ -53,7 +53,7 @@ export default function BandeauObjectif({
 
   return (
     <section
-      className="group/objectif flex flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8"
+      className="group/objectif flex h-full flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8"
       style={{ backgroundColor: OBJECTIF.voile }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">

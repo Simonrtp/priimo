@@ -171,6 +171,17 @@ const config: Config = {
           "0%, 80%, 100%": { opacity: "0.25" },
           "40%": { opacity: "1" },
         },
+        // Accueil directeur : l'anneau d'un négociateur se remplit à l'arrivée.
+        anneauRemplit: {
+          from: { strokeDashoffset: "var(--anneau-c)" },
+        },
+        barreRemplit: {
+          from: { width: "0%" },
+        },
+        ficheSurgit: {
+          from: { opacity: "0", transform: "translateY(10px) scale(0.96)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.4s ease-out",
@@ -181,6 +192,9 @@ const config: Config = {
         pop: "pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1)",
         iaRespire: "iaRespire 1.6s ease-in-out infinite",
         iaPoint: "iaPoint 1.2s ease-in-out infinite",
+        anneauRemplit: "anneauRemplit 1.1s cubic-bezier(0.22, 1, 0.36, 1) both",
+        barreRemplit: "barreRemplit 0.9s cubic-bezier(0.22, 1, 0.36, 1) both",
+        ficheSurgit: "ficheSurgit 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
       },
     },
   },

@@ -96,6 +96,16 @@ export function IconBiens({ active, className }: Props) {
   );
 }
 
+export function IconAnnonces({ active, className }: Props) {
+  return (
+    <svg {...base} className={`nav-ico ico-annonces ${active ? 'is-active' : ''} ${className ?? ''}`}>
+      <path d="M4 5h16v14H4z" />
+      <path d="M8 9h8" />
+      <path d="M8 13h5" />
+    </svg>
+  );
+}
+
 export function IconParametres({ active, className }: Props) {
   return (
     <svg {...base} className={`nav-ico ico-param ${active ? 'is-active' : ''} ${className ?? ''}`}>

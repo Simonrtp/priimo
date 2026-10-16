@@ -1685,7 +1685,10 @@ export type NotificationTypeDb =
   | 'zone_non_travaillee'
   | 'mandat_60_jours'
   | 'immeuble_suivi'
-  | 'suivi_immeuble';
+  | 'suivi_immeuble'
+  | 'annonce_baisse_prix'
+  | 'annonce_retiree'
+  | 'annonces_nouvelles';
 
 export type NotificationRow = {
   id: string;

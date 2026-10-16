@@ -31,12 +31,14 @@ import {
 } from '@/lib/queries/activite';
 import { parisYmd, ymdKey } from '@/lib/today/calendar';
 import { DEMO_AGENCY_ID } from '@/lib/demo/constants';
+import { podiumSemaine, type AgentPodium } from '@/lib/activite/podium';
 
 type Client = SupabaseClient<Database>;
 
 export type Pilotage = {
   bilan: BilanSemaine;
   phrase: PhrasePilotage;
+  podium: AgentPodium[];
 };
 
 /** L'ancre `?le=` n'est retenue que si elle a la forme d'un jour civil. */
@@ -92,6 +94,7 @@ export async function calculerPilotage(args: {
   membreActivite: string;
   /** Tous les membres de l'agence, pour les moyennes de comparaison. */
   profileIdsAgence: readonly string[];
+  membres: readonly { id: string; firstName: string; lastName: string; avatarUrl: string | null }[];
   stages: readonly LeadStage[];
   periode: Periode;
   ancre: string | null;
@@ -136,5 +139,17 @@ export async function calculerPilotage(args: {
     jourCourant: ymdKey(parisYmd(new Date())),
   });
 
-  return { bilan, phrase };
+  const semainePodium = args.periode === '7j' ? intervalle : semaineDe(new Date(`${intervalle.fin}T12:00:00Z`));
+  const podium = podiumSemaine(
+    journal,
+    args.membres.map((m) => ({
+      id: m.id,
+      prenom: m.firstName,
+      nom: m.lastName,
+      avatarUrl: m.avatarUrl,
+    })),
+    semainePodium,
+  );
+
+  return { bilan, phrase, podium };
 }

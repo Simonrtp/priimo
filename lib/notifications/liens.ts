@@ -50,5 +50,12 @@ export function lienNotification(
       return '/dashboard';
     case 'suivi_immeuble':
       return '/dashboard/prospection?vue=carte';
+    case 'annonce_baisse_prix':
+    case 'annonce_retiree':
+      return entiteId
+        ? `/dashboard/annonces?annonce=${encodeURIComponent(entiteId)}`
+        : '/dashboard/annonces?mouvements=1';
+    case 'annonces_nouvelles':
+      return '/dashboard/annonces?nouvelles=1';
   }
 }
