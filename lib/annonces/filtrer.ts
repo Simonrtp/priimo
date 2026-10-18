@@ -1,7 +1,7 @@
 import type { MapLayerState } from '@/lib/carte/layers';
 import type { Zone } from '@/lib/zones/types';
 import { baisseCumulee, joursEnLigne, regrouperAnnonces } from './presenter';
-import { dansMonSecteur } from './secteur';
+import { dansLaZone, dansMonSecteur } from './secteur';
 import type { Annonce, GroupeAnnonce } from './types';
 
 /** « Nouvelles » : en ligne depuis une semaine au plus. */
@@ -17,7 +17,12 @@ type ReglagesAnnonces = Pick<
   | 'annoncesPrixMax'
 >;
 
-type Qui = { directeur: boolean; profileId: string };
+type Qui = {
+  directeur: boolean;
+  profileId: string;
+  /** Secteur cadré par le bouton du haut. Il l'emporte sur « Mon secteur ». */
+  zoneCadree?: Zone | null;
+};
 
 /** Tous les filtres sauf « Mon secteur ». */
 function passeFiltres(a: Annonce, r: ReglagesAnnonces, maintenant: Date): boolean {
@@ -58,11 +63,19 @@ export function filtrerAnnonces(
   qui: Qui,
   maintenant = new Date(),
 ): Annonce[] {
-  return annonces.filter(
-    (a) =>
-      passeFiltres(a, reglages, maintenant) &&
-      (!reglages.annoncesMonSecteur || dansMonSecteur(a, zones, qui)),
-  );
+  return annonces.filter((a) => retenue(a, reglages, zones, qui, maintenant));
+}
+
+function retenue(
+  a: Annonce,
+  reglages: ReglagesAnnonces,
+  zones: readonly Zone[],
+  qui: Qui,
+  maintenant: Date,
+): boolean {
+  if (!passeFiltres(a, reglages, maintenant)) return false;
+  if (qui.zoneCadree) return dansLaZone(a, qui.zoneCadree);
+  return !reglages.annoncesMonSecteur || dansMonSecteur(a, zones, qui);
 }
 
 function placee(g: GroupeAnnonce): boolean {
@@ -90,7 +103,8 @@ export function bilanAnnonces(
 ): BilanAnnonces {
   const base = annonces.filter((a) => passeFiltres(a, reglages, maintenant));
   const secteur = base.filter((a) => dansMonSecteur(a, zones, qui));
-  const retenus = regrouperAnnonces(reglages.annoncesMonSecteur ? secteur : base);
+  const cadre = qui.zoneCadree ? base.filter((a) => dansLaZone(a, qui.zoneCadree!)) : null;
+  const retenus = regrouperAnnonces(cadre ?? (reglages.annoncesMonSecteur ? secteur : base));
   const surCarte = retenus.filter(placee).length;
   return {
     surCarte,

@@ -191,13 +191,13 @@ function LayersPanel({
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
           />
-          <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} />
           <AnnoncesLayerControls
             layers={layers}
             onChange={onChangeAnnonces}
             onToggleMenu={onToggleAnnoncesMenu}
             qui={annoncesQui}
           />
+          <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} />
         </ul>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
@@ -266,10 +266,6 @@ export default function SectorMapClient({
   const router = useRouter();
   const { profile } = useUser();
   const profileId = profile?.id ?? '';
-  const annoncesQui = useMemo(
-    () => ({ zones, directeur: isDirector, profileId }),
-    [zones, isDirector, profileId],
-  );
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
   const [zoneId, setZoneId] = useState(
@@ -313,6 +309,10 @@ export default function SectorMapClient({
   );
   const emprise = empriseDepuisZoneId(zoneId);
   const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
+  const annoncesQui = useMemo(
+    () => ({ zones, directeur: isDirector, profileId, zoneCadree: zoneChoisie }),
+    [zones, isDirector, profileId, zoneChoisie],
+  );
   const pointsDuSecteur = useMemo(
     () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
     [points, zoneChoisie],
@@ -596,6 +596,7 @@ export default function SectorMapClient({
           annoncesCouche={{
             layers,
             zones,
+            zoneCadree: zoneChoisie,
             directeur: isDirector,
             profileId,
             onChoisir: (annonce, soeurs) => setAnnonceOuverte({ annonce, soeurs }),

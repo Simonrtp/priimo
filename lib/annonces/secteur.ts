@@ -52,3 +52,8 @@ export function dansMonSecteur(
   if (opts.directeur) return true;
   return zone.assignedTo === opts.profileId;
 }
+
+/** L'annonce tombe dans ce secteur-là, celui cadré par le bouton « Secteur ». */
+export function dansLaZone(annonce: Annonce, zone: Zone): boolean {
+  return zoneDeLAnnonce(annonce, [zone])?.id === zone.id;
+}

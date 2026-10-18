@@ -44,7 +44,13 @@ const PIECES: readonly { id: string; label: string }[] = [
 
 const LETTRES_DPE = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
 
-type Qui = { zones: readonly Zone[]; directeur: boolean; profileId: string };
+type Qui = {
+  zones: readonly Zone[];
+  directeur: boolean;
+  profileId: string;
+  /** Secteur cadré par le bouton « Secteur » en haut du panneau. */
+  zoneCadree?: Zone | null;
+};
 
 function Choix<T extends string>({
   label,
@@ -113,9 +119,10 @@ export function AnnoncesLayerControls({
   const zones = qui?.zones;
   const directeur = qui?.directeur ?? false;
   const profileId = qui?.profileId ?? '';
+  const zoneCadree = qui?.zoneCadree ?? null;
   const bilan = useMemo(
-    () => bilanAnnonces(annonces, layers, zones ?? [], { directeur, profileId }),
-    [annonces, layers, zones, directeur, profileId],
+    () => bilanAnnonces(annonces, layers, zones ?? [], { directeur, profileId, zoneCadree }),
+    [annonces, layers, zones, directeur, profileId, zoneCadree],
   );
   const row = compact ? 'min-h-[44px] px-1' : 'min-h-[40px] px-2.5 py-1.5';
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
@@ -362,12 +369,15 @@ export function AnnoncesMarqueurs({
   zones,
   directeur,
   profileId,
+  zoneCadree = null,
   onChoisir,
 }: {
   layers: MapLayerState;
   zones: readonly Zone[];
   directeur: boolean;
   profileId: string;
+  /** Secteur choisi en haut : seules ses annonces restent. */
+  zoneCadree?: Zone | null;
   onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
 }) {
   const actif = coucheAnnoncesActive(layers);
@@ -376,15 +386,15 @@ export function AnnoncesMarqueurs({
 
   const groupes = useMemo(() => {
     if (!actif) return [];
-    const tous = regrouperAnnonces(filtrerAnnonces(annonces, layers, zones, { directeur, profileId })).filter(
-      (g) => isUsableCoord(g.principale.latitude, g.principale.longitude),
-    );
+    const tous = regrouperAnnonces(
+      filtrerAnnonces(annonces, layers, zones, { directeur, profileId, zoneCadree }),
+    ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude));
     const visibles = tous.length > MAX_PASTILLES ? tous.filter((g) => dansEmprise(g.principale, emprise)) : tous;
     // Les particuliers par-dessus les agences, et gardés en priorité.
     return visibles
       .sort((x, y) => Number(x.principale.typeVendeur === 'particulier') - Number(y.principale.typeVendeur === 'particulier'))
       .slice(-MAX_PASTILLES);
-  }, [actif, annonces, layers, zones, directeur, profileId, emprise]);
+  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, emprise]);
 
   if (!actif) return null;
   return (

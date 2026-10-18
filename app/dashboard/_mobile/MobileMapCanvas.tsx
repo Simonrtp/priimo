@@ -195,8 +195,10 @@ export default function MobileMapCanvas({
   onVue?: (vue: VueCarte) => void;
   annoncesCouche?: {
     layers: MapLayerState;
-    /** Toutes les zones de l'agence : « Mon secteur » ne dépend pas de l'emprise affichée. */
+    /** Toutes les zones de l'agence : le filtre « Mon secteur » s'en sert hors cadrage. */
     zones: readonly Zone[];
+    /** Bouton « Secteur » en haut : les annonces se limitent à ce périmètre. */
+    zoneCadree?: Zone | null;
     directeur: boolean;
     profileId: string;
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
@@ -547,6 +549,7 @@ export default function MobileMapCanvas({
           <AnnoncesMarqueurs
             layers={annoncesCouche.layers}
             zones={annoncesCouche.zones}
+            zoneCadree={annoncesCouche.zoneCadree}
             directeur={annoncesCouche.directeur}
             profileId={annoncesCouche.profileId}
             onChoisir={annoncesCouche.onChoisir}

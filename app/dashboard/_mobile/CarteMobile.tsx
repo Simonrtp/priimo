@@ -153,10 +153,6 @@ export default function CarteMobile({
   const mapApi = useRef<MobileMapHandle | null>(null);
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
-  const annoncesQui = useMemo(
-    () => ({ zones, directeur: isDirector, profileId }),
-    [zones, isDirector, profileId],
-  );
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
   const [zoneId, setZoneId] = useState(
     initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
@@ -183,6 +179,10 @@ export default function CarteMobile({
     [profileId, zones],
   );
   const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
+  const annoncesQui = useMemo(
+    () => ({ zones, directeur: isDirector, profileId, zoneCadree: zoneChoisie }),
+    [zones, isDirector, profileId, zoneChoisie],
+  );
 
   const tournee = useTourneeCarte({
     profileId,
@@ -552,6 +552,7 @@ export default function CarteMobile({
         annoncesCouche={{
           layers,
           zones,
+          zoneCadree: zoneChoisie,
           directeur: isDirector,
           profileId,
           onChoisir: (annonce, soeurs) => {
@@ -874,11 +875,6 @@ export default function CarteMobile({
             mapZoom={mapZoom}
             compact
           />
-          <ChoixSecteurs
-            zones={secteursAMoi(zones, profileId)}
-            zoneId={zoneId}
-            onZone={setZoneId}
-          />
           <AnnoncesLayerControls
             layers={layers}
             compact
@@ -898,6 +894,11 @@ export default function CarteMobile({
                 return next;
               })
             }
+          />
+          <ChoixSecteurs
+            zones={secteursAMoi(zones, profileId)}
+            zoneId={zoneId}
+            onZone={setZoneId}
           />
         </ul>
       </MobileSheet>

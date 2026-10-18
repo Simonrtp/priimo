@@ -122,6 +122,26 @@ describe('filtrerAnnonces', () => {
       ['part'],
     );
   });
+
+  it('le bouton Secteur ne garde que les annonces de ce secteur', () => {
+    const ailleurs = annonce({
+      id: 'loin',
+      adresseVoie: 'Rue de Bagnolet',
+      adresse: '4 Rue de Bagnolet 75020 Paris',
+    });
+    assert.deepEqual(
+      ids(
+        filtrerAnnonces(
+          [particulier, ailleurs],
+          reglages({ annoncesMonSecteur: false }),
+          [secteurPyrenees],
+          { ...QUI, zoneCadree: secteurPyrenees },
+          MAINTENANT,
+        ),
+      ),
+      ['part'],
+    );
+  });
 });
 
 describe('bilanAnnonces', () => {

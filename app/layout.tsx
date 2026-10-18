@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans, Libre_Baskerville } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import CausioRouteGuard from "@/components/landing/CausioRouteGuard";
@@ -7,6 +6,7 @@ import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import { fontHero } from "@/lib/fonts-hero";
 import { fontNunito } from "@/lib/fonts-nunito";
 import { fontMono } from "./fonts/mono";
+import { fontBrand, fontDisplay, fontSans } from "./fonts/text";
 import "./globals.css";
 
 // Chromium n'émet `beforeinstallprompt` qu'une seule fois, et souvent avant que
@@ -14,31 +14,9 @@ import "./globals.css";
 // l'événement de côté, pour que le bouton « Installer » le retrouve plus tard.
 const INSTALL_PROMPT_CAPTURE = `(function(){var w=window;w.__priimoInstallPrompt=null;w.addEventListener("beforeinstallprompt",function(e){e.preventDefault();w.__priimoInstallPrompt=e;w.dispatchEvent(new Event("priimo:installready"))});w.addEventListener("appinstalled",function(){w.__priimoInstallPrompt=null;w.dispatchEvent(new Event("priimo:installed"))})})();`;
 
-// === FONTS (next/font — self-hosted, aucun <link> externe) ===
-// Corps & données : Inter → --font-sans / --font-body (PRIIMO_DESIGN_SYSTEM.md §2.1)
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-// Display (titres, valeurs KPI héro) : Plus Jakarta Sans → --font-display (option B)
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-// Marque (logo « Priimo ») : Libre Baskerville → --font-brand
-const libreBaskerville = Libre_Baskerville({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-brand",
-  display: "swap",
-});
+// === FONTS (next/font/local — self-hosted, aucun fetch Google au build) ===
+// Corps : Inter → --font-sans. Titres : Plus Jakarta Sans → --font-display.
+// Marque : Libre Baskerville → --font-brand. Déclarées dans ./fonts/text.
 
 // Public site URL — falls back to the Vercel-injected URL when previewing,
 // then to localhost for local development. Used to build absolute OG/canonical
@@ -128,7 +106,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${inter.variable} ${jakarta.variable} ${fontHero.variable} ${fontNunito.variable} ${fontMono.variable} ${libreBaskerville.variable}`}
+      className={`${fontSans.variable} ${fontDisplay.variable} ${fontHero.variable} ${fontNunito.variable} ${fontMono.variable} ${fontBrand.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: INSTALL_PROMPT_CAPTURE }} />
