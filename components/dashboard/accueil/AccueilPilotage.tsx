@@ -68,6 +68,8 @@ export default function AccueilPilotage({
   attenteInscription,
   selecteurVueDirecteur = false,
   miseEnPlace = null,
+  lectureDe = null,
+  sansCollaborateur = false,
 }: {
   /** Le bilan calculé par le serveur au premier rendu. */
   pilotage: Pilotage;
@@ -80,10 +82,10 @@ export default function AccueilPilotage({
   /** Qui regarde : distingue « mes objectifs » de ceux d'un collaborateur. */
   moi: string;
   /** Les cartes du jour, réutilisées telles quelles depuis lib/today. */
-  aujourdhui: ReactNode;
+  aujourdhui?: ReactNode;
   /** Mobile : les tâches du jour, entre le pense-bête et les objectifs. */
   taches?: ReactNode;
-  penseBete: string;
+  penseBete: string | null;
   /** L'emploi du temps, rendu par le serveur sous son propre Suspense. */
   emploiDuTemps?: ReactNode;
   /** La carte du secteur, tout en bas : un repère, pas un outil de travail. */
@@ -93,6 +95,10 @@ export default function AccueilPilotage({
   selecteurVueDirecteur?: boolean;
   /** Ce qui manque encore : agenda et/ou secteur. Absent = tout est en place. */
   miseEnPlace?: { agendaConnecte: boolean; aUnSecteur: boolean } | null;
+  /** Prénom du collaborateur dont le directeur lit le tableau. */
+  lectureDe?: string | null;
+  /** Aucun collaborateur dans l'agence : le podium reste, sans personne dessus. */
+  sansCollaborateur?: boolean;
 }) {
   const cleServeur = vueDuBilan(pilotage).cle;
   const cache = useRef<Cache>(new Map([[cleServeur, pilotage]]));
@@ -218,7 +224,8 @@ export default function AccueilPilotage({
           debut={
             selecteurVueDirecteur ? <SelecteurVueAccueil vue="agent" /> : undefined
           }
-          droite={<PenseBete initial={penseBete} />}
+          droite={penseBete != null ? <PenseBete initial={penseBete} /> : undefined}
+          de={lectureDe}
         />
         {membres.length > 1 ? (
           <div className="flex justify-end">
@@ -234,7 +241,7 @@ export default function AccueilPilotage({
       ) : null}
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
-        <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-5 lg:grid-cols-4">
+        <div className="grid grid-cols-2 items-end gap-3 sm:gap-5 lg:grid-cols-4">
           <div className="col-span-2 min-w-0 lg:col-span-3">
             <BandeauObjectif
               bilan={bilan}
@@ -247,7 +254,12 @@ export default function AccueilPilotage({
               onObjectifsChanges={rafraichir}
             />
           </div>
-          <CarteCompetition podium={affiche.podium ?? []} />
+          <CarteCompetition
+            podium={affiche.podium ?? []}
+            peutOuvrir={selecteurVueDirecteur}
+            classement={!selecteurVueDirecteur}
+            vide={sansCollaborateur}
+          />
         </div>
         {miseEnPlace && membreSelectionne === moi ? (
           <CarteMiseEnPlace
@@ -259,33 +271,38 @@ export default function AccueilPilotage({
           familles={bilan.familles}
           accueilleNotes={vue.estPeriodeCourante && membreSelectionne === moi}
           periode={`${vueDuBilan(affiche).cle}:${membreSelectionne}`}
+          montrerActions={!lectureDe}
         />
       </div>
 
       {/* Les deux cartes s'alignent par étirement : la plus haute donne le
           bord bas, l'autre s'y étire. Aucune hauteur n'est imposée ici — une
           rangée figée déborderait dès que l'agenda demande plus de place. */}
+      {lectureDe && !emploiDuTemps ? null : (
       <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
+        {lectureDe ? null : (
         <NouvellesAdresses
           adresses={adresses}
           total={totalAdresses}
           sansLivraison={sansLivraison}
         />
+        )}
         {emploiDuTemps ? <Fragment key="accueil-emploi">{emploiDuTemps}</Fragment> : null}
       </div>
+      )}
       <div aria-busy={enCours} className={`min-w-0 max-md:hidden ${estompe}`}>
-        <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} />
+        <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} de={lectureDe} />
       </div>
 
       {aujourdhui ? <Fragment key="accueil-aujourdhui">{aujourdhui}</Fragment> : null}
       {/* Une demi-page, comme les cartes du dessus. Pas de content-visibility
           ici : son confinement coupait l'ombre de la carte. */}
       {secteur ? (
-        <div key="accueil-secteur" className="grid gap-4 lg:grid-cols-2">
+        <div key="accueil-secteur" className={lectureDe ? 'min-w-0' : 'grid gap-4 lg:grid-cols-2'}>
           <div className="min-w-0">{secteur}</div>
         </div>
       ) : null}
-      <div aria-busy={enCours} className={`[content-visibility:auto] [contain-intrinsic-size:auto_200px] ${estompe}`}>
+      <div aria-busy={enCours} className={estompe}>
         <JourParJour
           jours={bilan.joursGlissants}
           jourActif={
@@ -294,6 +311,7 @@ export default function AccueilPilotage({
               : null
           }
           onChoisirJour={(jour) => void changer('custom', jour, jour)}
+          de={lectureDe}
         />
       </div>
     </div>

@@ -13,6 +13,7 @@ import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import InviteCollaboratorDialog from './InviteCollaboratorDialog';
+import { CLASSE_BOUTON_RENVOYER } from './bouton-renvoyer';
 import { ETAT_LABEL, type EtatOnboarding } from '@/lib/onboarding/parcours';
 
 function roleLabel(role: ProfileRole): string {
@@ -301,13 +302,13 @@ export default function EquipeClient({
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <WorkspaceButton
+                      <button
                         type="button"
-                        variant="secondary"
+                        className={CLASSE_BOUTON_RENVOYER}
                         onClick={() => void resendInvitation(invitation.id)}
                       >
                         Renvoyer
-                      </WorkspaceButton>
+                      </button>
                       <WorkspaceButton
                         type="button"
                         variant="secondary"

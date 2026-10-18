@@ -49,11 +49,13 @@ export default function JourParJour({
   jours,
   jourActif = null,
   onChoisirJour,
+  de = null,
 }: {
   jours: readonly JourActivite[];
   /** Jour dont on lit les stats en tête d’Accueil, si on a choisi un jour. */
   jourActif?: string | null;
   onChoisirJour?: (jour: string) => void;
+  de?: string | null;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [calendrierOuvert, setCalendrierOuvert] = useState(false);
@@ -76,7 +78,7 @@ export default function JourParJour({
     <section className="max-md:hidden">
       <div
         ref={calRef}
-        className="relative flex items-center gap-2 rounded-clay-lg bg-surface px-4 py-3.5 shadow-clay-sm"
+        className="relative flex items-center gap-2 rounded-clay-lg bg-surface px-4 py-3.5 shadow-clay"
       >
         <button
           type="button"
@@ -96,7 +98,7 @@ export default function JourParJour({
         >
           <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5">
             <span className="font-display text-[15px] font-bold text-text-strong">
-              Mon activité du jour
+              {de ? `Activité de ${de}` : 'Mon activité du jour'}
             </span>
             <span className="text-[13px] font-medium text-text-muted">
               {intervalleLisible(debut, fin)}
@@ -125,7 +127,7 @@ export default function JourParJour({
       </div>
 
       {ouvert ? (
-        <div className="mt-2 overflow-x-auto rounded-clay-lg border border-black/10 bg-surface p-2 shadow-clay-sm">
+        <div className="mt-2 overflow-x-auto rounded-clay-lg bg-surface p-2 shadow-clay">
           <table className="w-full min-w-[520px] border-collapse text-[12.5px]">
             <caption className="sr-only">
               Activité des sept derniers jours, du même jour de semaine à aujourd’hui

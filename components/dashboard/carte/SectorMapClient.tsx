@@ -16,7 +16,6 @@ import {
   groupEntitiesByBanId,
   pointDuLien,
   type BuildingMarker,
-  type MapPeriod,
   type MapViewport,
   type RepliImmeuble,
 } from '@/lib/carte/buildings';
@@ -42,7 +41,7 @@ import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import { withAnnoncesMenuToggled } from '@/lib/carte/layers';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
-import FiltresHautCarte, { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
+import { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
@@ -107,8 +106,6 @@ function LayersPanel({
   onAssigned,
   members,
   showAssignee,
-  period,
-  onPeriod,
   onCollapse,
   className = '',
   emprise,
@@ -131,8 +128,6 @@ function LayersPanel({
   onAssigned: (v: string) => void;
   members: readonly AssigneeOption[];
   showAssignee: boolean;
-  period: MapPeriod;
-  onPeriod: (v: MapPeriod) => void;
   onCollapse?: () => void;
   className?: string;
   emprise: MapEmprise;
@@ -162,7 +157,6 @@ function LayersPanel({
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <EmpriseCapsules value={emprise} onChange={onEmprise} hasSecteur={hasSecteur} />
-        <FiltresHautCarte period={period} onPeriod={onPeriod} />
         <ul className="flex flex-col gap-1.5">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -275,7 +269,6 @@ export default function SectorMapClient({
     initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
   );
   const [assignedTo, setAssignedTo] = useState('tous');
-  const [period, setPeriod] = useState<MapPeriod>('all');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
   const cible = useCibleCarte();
@@ -330,10 +323,10 @@ export default function SectorMapClient({
       filterMapEntities(pointsDuSecteur, {
         kinds,
         assignedTo: isDirector ? assignedTo : 'tous',
-        period,
+        period: 'all',
         now: Date.now(),
       }),
-    [pointsDuSecteur, kinds, assignedTo, isDirector, period],
+    [pointsDuSecteur, kinds, assignedTo, isDirector],
   );
 
   const filteredAllKinds = useMemo(
@@ -341,10 +334,10 @@ export default function SectorMapClient({
       filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
         assignedTo: isDirector ? assignedTo : 'tous',
-        period,
+        period: 'all',
         now: Date.now(),
       }),
-    [pointsDuSecteur, assignedTo, isDirector, period],
+    [pointsDuSecteur, assignedTo, isDirector],
   );
 
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
@@ -536,8 +529,6 @@ export default function SectorMapClient({
       onAssigned={setAssignedTo}
       members={members}
       showAssignee={isDirector}
-      period={period}
-      onPeriod={setPeriod}
       emprise={emprise}
       onEmprise={choisirEmprise}
       hasSecteur={Boolean(monSecteurId)}
@@ -654,8 +645,6 @@ export default function SectorMapClient({
                 onAssigned={setAssignedTo}
                 members={members}
                 showAssignee={isDirector}
-                period={period}
-                onPeriod={setPeriod}
                 emprise={emprise}
                 onEmprise={choisirEmprise}
                 hasSecteur={Boolean(monSecteurId)}

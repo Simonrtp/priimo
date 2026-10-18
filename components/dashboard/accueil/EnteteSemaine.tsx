@@ -17,9 +17,16 @@ import { FIELD } from '@/lib/today/field';
 
 const JOURS_CAL = ['lu', 'ma', 'me', 'je', 've', 'sa', 'di'] as const;
 
-function titreDe(periode: Periode, intervalle: Intervalle): string {
-  if (periode === 'custom' && intervalle.debut === intervalle.fin) return 'Ma journée';
-  return TITRE_PERIODE[periode];
+function titreDe(periode: Periode, intervalle: Intervalle, de?: string | null): string {
+  if (!de) {
+    if (periode === 'custom' && intervalle.debut === intervalle.fin) return 'Ma journée';
+    return TITRE_PERIODE[periode];
+  }
+  if (periode === 'custom' && intervalle.debut === intervalle.fin) return `Journée de ${de}`;
+  if (periode === '30j') return `Mois de ${de}`;
+  if (periode === '90j') return `90 jours de ${de}`;
+  if (periode === 'custom') return `Période de ${de}`;
+  return `Semaine de ${de}`;
 }
 
 /**
@@ -37,6 +44,7 @@ export default function EnteteSemaine({
   onChanger,
   debut,
   droite,
+  de = null,
 }: {
   periode: Periode;
   intervalle: Intervalle;
@@ -45,6 +53,8 @@ export default function EnteteSemaine({
   onChanger: (periode: Periode, ancre: string | null, fin?: string | null) => void;
   debut?: ReactNode;
   droite?: ReactNode;
+  /** Prénom du collaborateur dont on lit la semaine. */
+  de?: string | null;
 }) {
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -52,7 +62,7 @@ export default function EnteteSemaine({
         {debut ? <div className="shrink-0">{debut}</div> : null}
         <div className="min-w-0 max-sm:hidden">
           <h1 className="font-display text-[24px] font-bold leading-none tracking-[-0.01em] text-text-strong">
-            {titreDe(periode, intervalle)}
+            {titreDe(periode, intervalle, de)}
           </h1>
           {!estPeriodeCourante ? (
             <p className="mt-1.5">
@@ -66,7 +76,7 @@ export default function EnteteSemaine({
             </p>
           ) : null}
         </div>
-        <h1 className="sr-only sm:hidden">{titreDe(periode, intervalle)}</h1>
+        <h1 className="sr-only sm:hidden">{titreDe(periode, intervalle, de)}</h1>
         {debut ? (
           <div className="ml-auto min-w-0 sm:hidden">
             <SelecteurFenetre
@@ -80,7 +90,8 @@ export default function EnteteSemaine({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:min-w-0 lg:flex-1 lg:justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 lg:min-w-0 lg:flex-1">
+        {droite ? <div className="min-w-0 sm:w-[15rem] lg:w-[18rem]">{droite}</div> : null}
         <div className={debut ? 'hidden sm:block' : undefined}>
           <SelecteurFenetre
             periode={periode}
@@ -89,7 +100,6 @@ export default function EnteteSemaine({
             onChanger={onChanger}
           />
         </div>
-        {droite ? <div className="min-w-0 sm:order-1 sm:w-[15rem] lg:w-[18rem]">{droite}</div> : null}
       </div>
 
       {!estPeriodeCourante ? (

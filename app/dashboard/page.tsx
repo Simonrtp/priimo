@@ -32,6 +32,7 @@ import { ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
 import { resolveVueAccueilDirecteur, agencesDirecteur } from '@/lib/directeur/vue';
 import { chargerAccueilDirecteur } from '@/lib/directeur/charger-accueil';
 import AccueilDirecteur from '@/components/dashboard/directeur/AccueilDirecteur';
+import SqueletteAgence from '@/components/dashboard/directeur/SqueletteAgence';
 import { homeNoteAttachment, homeNoteLieuKind, homeNoteTitre, recentNotesForHome } from '@/lib/notes/inbox';
 import { auteurNote, portraitsParId, portraitsParNom, portraitPourNom } from '@/lib/notes/auteur';
 import { rattachementsDesNotes } from '@/lib/queries/note-rattachements';
@@ -102,16 +103,26 @@ export default async function TodayPage({
 
   const sp = await searchParams;
   const device = await getDevice();
+  const cookieStore = await cookies();
+  const vueAgence =
+    profile.role === 'directeur' &&
+    resolveVueAccueilDirecteur({
+      cookie: cookieStore.get(ACCUEIL_VUE_COOKIE)?.value,
+    }) === 'directeur';
 
   return (
     <Suspense
       fallback={
-        <AccueilAmorce
-          periodeDemandee={sp.periode ?? null}
-          ancreDemandee={sp.le ?? null}
-          finDemandee={sp.a ?? null}
-          mobile={device === 'mobile'}
-        />
+        vueAgence ? (
+          <SqueletteAgence />
+        ) : (
+          <AccueilAmorce
+            periodeDemandee={sp.periode ?? null}
+            ancreDemandee={sp.le ?? null}
+            finDemandee={sp.a ?? null}
+            mobile={device === 'mobile'}
+          />
+        )
       }
     >
       <TodayContent
@@ -155,6 +166,7 @@ async function TodayContent({
   const vueAccueil = resolveVueAccueilDirecteur({
     cookie: cookieStore.get(ACCUEIL_VUE_COOKIE)?.value,
   });
+  const viewerReel = viewerFromProfile(profile);
   const previewingAgent = profile.role === 'directeur' && vueAccueil === 'agent';
   const layoutDirector = profile.role === 'directeur' && !previewingAgent;
   const viewer = viewerFromProfile(
@@ -169,8 +181,11 @@ async function TodayContent({
   const periode = normaliserPeriode(periodeDemandee);
 
   // Le sélecteur du directeur ne décide rien : l'autorisation se rejoue ici.
+  // Le vrai rôle décide : en « Ma semaine », un directeur peut ouvrir le
+  // tableau d'un collaborateur. Le repli collaborateur ne sert qu'à la
+  // visibilité de ses propres fiches, pas à lui fermer cette lecture.
   const membreActivite =
-    membreDemande && canSeeActivityOf(viewer, membreDemande) ? membreDemande : profile.id;
+    membreDemande && canSeeActivityOf(viewerReel, membreDemande) ? membreDemande : profile.id;
 
   /* ------------------------------------------------------------- lectures */
   // Tout part en même temps et chaque lecture n'attend que ce dont elle
@@ -240,7 +255,12 @@ async function TodayContent({
       repliCycleJours,
       titulaires,
     };
-    const apercuAgent = apercuSecteur({ ...paramsApercu, estDirecteur: false });
+    const apercuAgent = apercuSecteur({
+      ...paramsApercu,
+      leads: membreActivite === profile.id ? visibleLeads : visibleLeadsFor(viewerReel, leads),
+      profileId: membreActivite,
+      estDirecteur: false,
+    });
     const apercuAgence = apercuSecteur({ ...paramsApercu, estDirecteur: true });
 
     const secteursData: SecteursData = {
@@ -304,6 +324,7 @@ async function TodayContent({
               supabase,
               agencyId: agency.id,
               directeurProfileId: profile.id,
+              sansCollaborateur: members.every((m) => m.role !== 'collaborateur'),
               membres: members.map((m) => ({
                 id: m.id,
                 firstName: m.firstName,
@@ -522,6 +543,11 @@ async function TodayContent({
     ),
   );
 
+  const lectureDe =
+    membreActivite !== profile.id
+      ? members.find((m) => m.id === membreActivite)?.firstName?.trim() || 'Collaborateur'
+      : null;
+
   const secteurAgent = (
     <SecteurAccueil
       key="secteur-agent"
@@ -529,6 +555,7 @@ async function TodayContent({
       centre={centreAgence}
       estDirecteur={false}
       secteurs={socle.secteursData}
+      prenom={lectureDe}
     />
   );
 
@@ -611,16 +638,15 @@ async function TodayContent({
     signaux: signauxEssentiels(l),
   }));
 
-  const membresActivite =
-    isDirector && !previewingAgent
-      ? members.map((m) => ({
-          id: m.id,
-          nom: m.fullName,
-          firstName: m.firstName,
-          lastName: m.lastName,
-          avatarUrl: m.avatarUrl,
-        }))
-      : [];
+  const membresActivite = lectureDe
+    ? members.map((m) => ({
+        id: m.id,
+        nom: m.fullName,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        avatarUrl: m.avatarUrl,
+      }))
+    : [];
 
   const penseBete = lirePenseBete(profile.preferences);
 
@@ -679,11 +705,15 @@ async function TodayContent({
     membres: membresActivite,
     membreSelectionne: membreActivite,
     moi: profile.id,
-    penseBete,
+    penseBete: lectureDe ? null : penseBete,
+    lectureDe,
     selecteurVueDirecteur: isDirector && previewingAgent,
+    sansCollaborateur: members.every((m) => m.role !== 'collaborateur'),
     // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
     // sous son propre Suspense, sans retenir le reste de l'écran.
-    emploiDuTemps: (
+    // L'agenda connecté est celui du directeur : on ne le montre pas sur
+    // le tableau d'un collaborateur.
+    emploiDuTemps: lectureDe ? null : (
       <Suspense key="emploi-du-temps" fallback={<EmploiDuTempsSquelette />}>
         <EmploiDuTempsServeur agenda={agendaPromise} />
       </Suspense>
@@ -709,15 +739,19 @@ async function TodayContent({
         <AccueilPilotage
           {...pilotageCommun}
           taches={
-            taches.length > 0 ? <TachesDuJour key="taches-du-jour" taches={taches} /> : undefined
+            lectureDe || taches.length === 0 ? undefined : (
+              <TachesDuJour key="taches-du-jour" taches={taches} />
+            )
           }
           aujourdhui={
+            lectureDe ? undefined : (
             <AujourdhuiMobile
               key="today-mobile"
               {...homeProps}
               variant="pilotage"
               week={week}
             />
+            )
           }
         />
       </>
@@ -729,8 +763,9 @@ async function TodayContent({
       {banners}
       <AccueilPilotage
         {...pilotageCommun}
-        secteur={undefined}
+        secteur={lectureDe ? secteurAgent : undefined}
         aujourdhui={
+          lectureDe ? undefined : (
           <TodayClient
             key="today-pilotage"
             {...homeProps}
@@ -739,6 +774,7 @@ async function TodayContent({
             rapprochements={week.rapprochements}
             secteur={secteurAgent}
           />
+          )
         }
       />
     </>

@@ -104,9 +104,12 @@ function Etage3D({
 export default function Entonnoir3D({
   etapes,
   ratios,
+  de = null,
 }: {
   etapes: readonly EtapeEntonnoir[];
   ratios: Ratios;
+  /** Prénom du collaborateur, quand ce n'est pas sa propre semaine. */
+  de?: string | null;
 }) {
   const parCle = new Map(etapes.map((e) => [e.cle, e]));
   const ordonnees = ETAPES_ENTONNOIR.map((cle) => {
@@ -126,7 +129,7 @@ export default function Entonnoir3D({
       <div className="flex items-center gap-2">
         <Filter size={16} strokeWidth={2.4} className="shrink-0 text-blue-dark" aria-hidden />
         <h2 className="font-display text-[16px] font-bold leading-tight text-blue-dark sm:text-[17px]">
-          Mon entonnoir de conversion
+          {de ? `Entonnoir de ${de}` : 'Mon entonnoir de conversion'}
         </h2>
       </div>
 
@@ -170,7 +173,7 @@ export default function Entonnoir3D({
           </ul>
         </div>
 
-        <RatiosMoyens ratios={ratios} />
+        <RatiosMoyens ratios={ratios} de={de} />
       </div>
     </section>
   );

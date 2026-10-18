@@ -17,7 +17,6 @@ import {
   groupEntitiesByBanId,
   pointDuLien,
   type BuildingMarker,
-  type MapPeriod,
   type MapViewport,
   type RepliImmeuble,
 } from '@/lib/carte/buildings';
@@ -41,7 +40,7 @@ import { AnnoncesLayerControls } from '@/components/dashboard/annonces/AnnoncesC
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
-import FiltresHautCarte, { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
+import { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
@@ -165,7 +164,6 @@ export default function CarteMobile({
   const cible = useCibleCarte();
   const [viewport, setViewport] = useState<MapViewport | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
-  const [period, setPeriod] = useState<MapPeriod>('all');
   const [accountOpen, setAccountOpen] = useState(false);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
@@ -236,20 +234,20 @@ export default function CarteMobile({
       filterMapEntities(pointsDuSecteur, {
         kinds,
         assignedTo: 'tous',
-        period,
+        period: 'all',
         now: Date.now(),
       }),
-    [pointsDuSecteur, kinds, period],
+    [pointsDuSecteur, kinds],
   );
   const filteredAllKinds = useMemo(
     () =>
       filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
         assignedTo: 'tous',
-        period,
+        period: 'all',
         now: Date.now(),
       }),
-    [pointsDuSecteur, period],
+    [pointsDuSecteur],
   );
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
   const selected = useMemo(
@@ -822,7 +820,6 @@ export default function CarteMobile({
           onChange={choisirEmprise}
           hasSecteur={Boolean(monSecteurId)}
         />
-        <FiltresHautCarte period={period} onPeriod={setPeriod} />
         <ul className="flex flex-col gap-1">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];

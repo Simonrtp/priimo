@@ -247,10 +247,12 @@ function CarteCompteur({
   compteur,
   accueilleNotes,
   periode,
+  montrerActions,
 }: {
   compteur: Compteur;
   accueilleNotes: boolean;
   periode: string;
+  montrerActions: boolean;
 }) {
   const famille = compteur.activite as FamilleActivite;
   const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[famille];
@@ -358,7 +360,7 @@ function CarteCompteur({
           />
         </div>
 
-        {'note' in action ? (
+        {montrerActions ? ('note' in action ? (
           <BoutonNote
             libelle={action.libelle}
             fond={pastelFort}
@@ -394,7 +396,7 @@ function CarteCompteur({
               <ArrowRight size={12} strokeWidth={2.6} />
             </Link>
           </Volet>
-        )}
+        )) : null}
       </div>
     </li>
   );
@@ -405,17 +407,26 @@ export default function CompteursActivite({
   familles,
   accueilleNotes = false,
   periode = '',
+  montrerActions = true,
 }: {
   familles: readonly Compteur[];
   /** Mes chiffres de la période en cours : une note rangée les fait monter. */
   accueilleNotes?: boolean;
   /** Clé de la période affichée : un +1 n'appartient qu'à elle. */
   periode?: string;
+  /** Les raccourcis (carte, noter) sont ceux de la personne connectée. */
+  montrerActions?: boolean;
 }) {
   return (
     <ul className="grid grid-cols-2 items-stretch gap-3 sm:gap-5 lg:grid-cols-4">
       {familles.map((c) => (
-        <CarteCompteur key={c.activite} compteur={c} accueilleNotes={accueilleNotes} periode={periode} />
+        <CarteCompteur
+          key={c.activite}
+          compteur={c}
+          accueilleNotes={accueilleNotes}
+          periode={periode}
+          montrerActions={montrerActions}
+        />
       ))}
     </ul>
   );

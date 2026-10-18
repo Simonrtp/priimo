@@ -18,17 +18,24 @@ function Ligne({ un, n, plusieurs }: { un: string; n: number | null; plusieurs: 
   );
 }
 
-function noteActivite(ratios: Ratios): { titre: string; texte: string } {
+function noteActivite(ratios: Ratios, de: string | null): { titre: string; texte: string } {
   if (ratios.niveau !== 'personnel') {
-    return {
-      titre: 'Ça se construit avec mon activité.',
-      texte: `Chaque sortie, chaque note, chaque estimation précise ce chiffre. Le mien apparaît à partir de ${MANDATS_MINIMUM} mandats.`,
-    };
+    return de
+      ? {
+          titre: 'Ça se construit avec son activité.',
+          texte: `Chaque sortie, chaque note, chaque estimation précise ce chiffre. Le sien apparaît à partir de ${MANDATS_MINIMUM} mandats.`,
+        }
+      : {
+          titre: 'Ça se construit avec mon activité.',
+          texte: `Chaque sortie, chaque note, chaque estimation précise ce chiffre. Le mien apparaît à partir de ${MANDATS_MINIMUM} mandats.`,
+        };
   }
   if (ratios.positionMoyenne === 'mieux') {
     return {
       titre: 'Moins de portes que la moyenne.',
-      texte: 'C’est mon rythme, calculé sur mes dernières semaines.',
+      texte: de
+        ? 'C’est son rythme, calculé sur ses dernières semaines.'
+        : 'C’est mon rythme, calculé sur mes dernières semaines.',
     };
   }
   if (ratios.positionMoyenne === 'moins') {
@@ -37,19 +44,30 @@ function noteActivite(ratios: Ratios): { titre: string; texte: string } {
       texte: 'La moyenne bougera au fil des prochaines semaines.',
     };
   }
-  return {
-    titre: 'Voilà ce qu’il me faut.',
-    texte: 'C’est ma moyenne : tant de qualifiés pour un mandat.',
-  };
+  return de
+    ? {
+        titre: 'Voilà ce qu’il lui faut.',
+        texte: 'C’est sa moyenne : tant de qualifiés pour un mandat.',
+      }
+    : {
+        titre: 'Voilà ce qu’il me faut.',
+        texte: 'C’est ma moyenne : tant de qualifiés pour un mandat.',
+      };
 }
 
 /**
  * Le chiffre que l’agent emporte : combien de contacts pour un mandat.
  * Il n’est pas inventé le premier jour — il se durcit avec l’activité.
  */
-export default function RatiosMoyens({ ratios }: { ratios: Ratios }) {
+export default function RatiosMoyens({
+  ratios,
+  de = null,
+}: {
+  ratios: Ratios;
+  de?: string | null;
+}) {
   const aSoi = ratios.niveau === 'personnel';
-  const note = noteActivite(ratios);
+  const note = noteActivite(ratios, de);
 
   return (
     <aside className="flex min-w-0 flex-col">
@@ -64,12 +82,18 @@ export default function RatiosMoyens({ ratios }: { ratios: Ratios }) {
       >
         <div className="flex items-center gap-2">
           <BarChart3 size={16} strokeWidth={2.3} className="shrink-0 text-blue-dark" aria-hidden />
-          <h3 className="font-display text-[15px] font-bold text-blue-dark">Mes ratios moyens</h3>
+          <h3 className="font-display text-[15px] font-bold text-blue-dark">
+            {de ? `Ratios de ${de}` : 'Mes ratios moyens'}
+          </h3>
         </div>
         <p className="mt-1.5 text-pretty text-[12.5px] leading-snug text-text-muted">
-          {aSoi
-            ? 'Ce qu’il me faut, en moyenne, pour signer.'
-            : 'Pas encore le mien : il se calcule au fur et à mesure de mon activité.'}
+          {de
+            ? aSoi
+              ? 'Ce qu’il lui faut, en moyenne, pour signer.'
+              : 'Pas encore le sien : il se calcule au fur et à mesure de son activité.'
+            : aSoi
+              ? 'Ce qu’il me faut, en moyenne, pour signer.'
+              : 'Pas encore le mien : il se calcule au fur et à mesure de mon activité.'}
         </p>
 
         <div className="mt-4 flex flex-col gap-1.5">
@@ -78,7 +102,7 @@ export default function RatiosMoyens({ ratios }: { ratios: Ratios }) {
         </div>
 
         <p className="mt-4 text-pretty text-[13.5px] leading-snug text-text-strong">
-          Pour un mandat, {aSoi ? 'il me faut en moyenne' : 'compter pour l’instant'}
+          Pour un mandat, {de ? (aSoi ? 'il lui faut en moyenne' : 'compter pour l’instant') : aSoi ? 'il me faut en moyenne' : 'compter pour l’instant'}
         </p>
         <p className="mt-1 font-display text-[28px] font-bold leading-none tabular-nums text-blue-dark">
           {formateRatio(ratios.qualifiesParMandat)}

@@ -18,11 +18,14 @@ export default function SecteurAccueil({
   centre,
   estDirecteur,
   secteurs,
+  prenom = null,
 }: {
   apercu: ApercuSecteur;
   centre: { latitude: number | null; longitude: number | null };
   estDirecteur: boolean;
   secteurs: SecteursData;
+  /** Prénom du titulaire, quand le directeur lit son tableau. */
+  prenom?: string | null;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const ouvrir = () => setOuvert(true);
@@ -42,9 +45,10 @@ export default function SecteurAccueil({
           centre={centre}
           estDirecteur={estDirecteur}
           onAtelier={ouvrir}
+          prenom={prenom}
         />
       ) : (
-        <DessinerMonSecteur estDirecteur={estDirecteur} onAtelier={ouvrir} />
+        <DessinerMonSecteur estDirecteur={estDirecteur} onAtelier={ouvrir} prenom={prenom} />
       )}
 
       <AtelierSecteur

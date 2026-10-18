@@ -58,6 +58,7 @@ export default function MonSecteur({
   centre,
   estDirecteur,
   onAtelier,
+  prenom = null,
 }: {
   apercu: ApercuSecteur;
   /** Tous les secteurs de l'agence, pour situer le sien parmi les autres. */
@@ -65,6 +66,7 @@ export default function MonSecteur({
   centre: { latitude: number | null; longitude: number | null };
   estDirecteur: boolean;
   onAtelier: () => void;
+  prenom?: string | null;
 }) {
   const router = useRouter();
   const { zones, points, cycleSemaines, zonesDirecteur } = apercu;
@@ -95,7 +97,7 @@ export default function MonSecteur({
   const aRevoir = repartition.revoir + repartition.jamais;
   const phrase = phraseFactuelle(aRevoir, cycleSemaines);
 
-  const titre = estDirecteur ? 'Les secteurs de l’agence' : 'Mon secteur';
+  const titre = estDirecteur ? 'Les secteurs de l’agence' : prenom ? `Secteur de ${prenom}` : 'Mon secteur';
 
   if (zones.length === 0) return null;
 
@@ -133,16 +135,18 @@ export default function MonSecteur({
         className="relative min-h-[280px] flex-1 overflow-hidden rounded-clay-lg sm:min-h-[340px]"
       >
         {carteVisible ? (
-          <ZonesCarte
-            zones={zonesCarte}
-            zoneActive={estDirecteur ? null : zoneSeule}
-            leads={leads}
-            centre={centre}
-            onChoisirZone={ouvrirCarte}
-            figee
-          />
+          <div className="absolute inset-0">
+            <ZonesCarte
+              zones={zonesCarte}
+              zoneActive={estDirecteur ? null : zoneSeule}
+              leads={leads}
+              centre={centre}
+              onChoisirZone={ouvrirCarte}
+              figee
+            />
+          </div>
         ) : (
-          <div className="h-full animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
+          <div className="absolute inset-0 animate-pulse bg-black/[0.04]" aria-hidden />
         )}
       </div>
 

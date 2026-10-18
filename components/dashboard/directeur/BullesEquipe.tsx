@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
-import { Crown, Plus } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Crown, Plus } from 'lucide-react';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import { ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
+import { CLASSE_BOUTON_RENVOYER } from '@/components/dashboard/equipe/bouton-renvoyer';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import type { CarteNegociateur } from '@/lib/directeur/assembler';
 import type { DirecteurCarte } from '@/lib/directeur/cartes';
@@ -10,6 +13,11 @@ import { STATUT_NEGOCIATEUR_LABELS } from '@/lib/directeur/statut';
 import { STATUT_STYLE } from './statut-style';
 
 const MANDAT_VERT = { teinte: '#0F8F4A', pastelFort: '#D5EADF' } as const;
+
+function ouvrirSonTableau() {
+  const maxAge = 60 * 60 * 24 * 400;
+  document.cookie = `${ACCUEIL_VUE_COOKIE}=agent; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
 
 /** Anneau de la bulle : 80 px, trait de 5. */
 const TAILLE = 80;
@@ -29,30 +37,74 @@ function ilYa(iso: string | null, maintenant: number): string {
 
 /**
  * L'équipe d'un coup d'œil : une bulle par négociateur, dont l'anneau dit où
- * il en est de sa période. Au survol, sa fiche s'ouvre et les autres bulles
- * s'effacent ; un clic ouvre le panneau pour préparer l'échange.
+ * il en est de sa période. Un clic l'amène à gauche et ouvre sa fiche :
+ * les autres restent visibles, à droite. Un second clic, ou un clic à
+ * côté, referme. Depuis la fiche, un bouton ouvre son tableau de bord.
  *
  * Les alertes « à traiter » d'un négociateur vivent dans sa bulle (pastille)
  * et dans sa fiche : rien ne se perd, tout est à sa place.
  */
 export default function BullesEquipe({
   negociateurs,
+  moiId = null,
   alertes,
-  periodeLabel,
-  onOuvrir,
   onInviter,
-  invitations = [],
 }: {
   negociateurs: readonly CarteNegociateur[];
+  /** Le membre connecté : son prénom est suivi de « (Moi) ». */
+  moiId?: string | null;
   /** Alertes rattachées à un négociateur. */
   alertes: readonly DirecteurCarte[];
-  periodeLabel: string;
-  onOuvrir: (membreId: string) => void;
   onInviter: () => void;
-  invitations?: readonly { id: string; email: string }[];
 }) {
   const [survol, setSurvol] = useState<string | null>(null);
   const [maintenant] = useState(() => Date.now());
+  const cadreRef = useRef<HTMLDivElement>(null);
+  const ulRef = useRef<HTMLUListElement>(null);
+  const places = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (!survol) return;
+    const fermer = (e: MouseEvent) => {
+      if (!cadreRef.current?.contains(e.target as Node)) setSurvol(null);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSurvol(null);
+    };
+    document.addEventListener('mousedown', fermer);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', fermer);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [survol]);
+
+  useLayoutEffect(() => {
+    const ul = ulRef.current;
+    if (!ul) return;
+    const lis = [...ul.querySelectorAll<HTMLElement>(':scope > li[data-id]')];
+    const suivant = new Map<string, number>();
+    const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const li of lis) {
+      const id = li.dataset.id ?? '';
+      const left = li.getBoundingClientRect().left;
+      suivant.set(id, left);
+      const avant = places.current.get(id);
+      if (avant == null || reduit) continue;
+      const dx = avant - left;
+      if (Math.abs(dx) < 1) continue;
+      for (const anim of li.getAnimations()) anim.cancel();
+      li.animate(
+        [{ transform: `translateX(${dx}px)` }, { transform: 'translateX(0)' }],
+        { duration: 700, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      );
+    }
+    places.current = suivant;
+  }, [survol]);
+
+  function choisir(id: string) {
+    setSurvol((courant) => (courant === id ? null : id));
+  }
 
   const alertesDe = (id: string) => alertes.filter((a) => a.membreId === id);
   const meilleurId = (() => {
@@ -71,42 +123,47 @@ export default function BullesEquipe({
     return meilleur.membreId;
   })();
 
-  function survoler(id: string) {
-    if (!window.matchMedia('(hover: hover)').matches) return;
-    setSurvol(id);
-  }
-
   return (
+    <div ref={cadreRef} className="relative min-w-0">
     <ul
+      ref={ulRef}
       className="flex items-start max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none]"
-      onMouseLeave={() => setSurvol(null)}
     >
       {negociateurs.map((n, i) => {
         const style = STATUT_STYLE[n.statut];
         const progression = Math.max(0, Math.min(100, n.progression));
         const sesAlertes = alertesDe(n.membreId);
         const actif = survol === n.membreId;
-        const efface = survol !== null && !actif;
+        const moi = n.membreId === moiId;
+        const largeur = moi ? '9.75rem' : '5.5rem';
+        const colonne = moi ? '8.5rem' : '5.5rem';
         return (
           <li
             key={n.membreId}
-            className={`min-w-0 overflow-hidden transition-[flex-grow,opacity,padding] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-              efface ? 'pointer-events-none flex-none p-0 opacity-0' : actif ? 'flex-1 pr-0 opacity-100' : 'flex-none pr-5 opacity-100'
-            }`}
+            data-id={n.membreId}
+            className={`min-w-0 overflow-hidden pt-4 ${actif ? 'relative z-20' : ''}`}
+            style={{
+              order: actif ? -1 : 0,
+              flexGrow: actif ? 1 : 0,
+              flexShrink: 0,
+              flexBasis: largeur,
+              paddingRight: '1.25rem',
+            }}
           >
-            <button
-              type="button"
-              onMouseEnter={() => survoler(n.membreId)}
-              onFocus={() => survoler(n.membreId)}
-              onBlur={() => setSurvol(null)}
-              onClick={() => onOuvrir(n.membreId)}
-              aria-label={`${n.prenom} ${n.nom}, ${STATUT_NEGOCIATEUR_LABELS[n.statut]}, ${progression} %${n.membreId === meilleurId ? ', meilleur de l’équipe' : ''}`}
-              className="grid w-full items-center text-left outline-none transition-[grid-template-columns] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-primary-200 motion-reduce:transition-none"
+            <div
+              className="grid w-full items-start text-left"
               style={{
-                gridTemplateColumns: efface ? '0fr 0fr' : actif ? '5.5rem minmax(0,1fr)' : '5.5rem 0fr',
+                gridTemplateColumns: actif ? `${colonne} minmax(0, 1fr)` : `${colonne} minmax(0, 0fr)`,
               }}
             >
-              <span className="flex w-[5.5rem] min-w-0 flex-col items-center gap-1.5 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => choisir(n.membreId)}
+              aria-expanded={actif}
+              aria-label={`${n.prenom} ${n.nom}${moi ? ' (Moi)' : ''}, ${STATUT_NEGOCIATEUR_LABELS[n.statut]}, ${progression} %${n.membreId === meilleurId ? ', meilleur de l’équipe' : ''}`}
+              className="flex min-w-0 flex-col items-center justify-self-start gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-primary-200"
+              style={{ width: colonne }}
+            >
               <span className="relative" style={{ width: TAILLE, height: TAILLE }}>
                 {n.membreId === meilleurId ? (
                   <Crown
@@ -164,31 +221,26 @@ export default function BullesEquipe({
                   </span>
                 ) : null}
               </span>
-              <span className={`max-w-full truncate text-[12.5px] font-semibold text-text-strong ${actif ? 'sr-only' : ''}`}>{n.prenom}</span>
+              <span className={`max-w-full truncate text-[12.5px] font-semibold text-text-strong ${actif ? 'sr-only' : ''}`}>
+                {n.prenom}
+                {moi ? ' (Moi)' : ''}
+              </span>
               <span className={`text-[11.5px] font-semibold tabular-nums ${actif ? 'sr-only' : ''}`} style={{ color: style.texte }}>
                 {progression}&nbsp;%
               </span>
-              </span>
+            </button>
               <FicheNegociateur
                 visible={actif}
                 negociateur={n}
-                periodeLabel={periodeLabel}
+                moi={moi}
                 derniere={ilYa(n.derniereNoteAt, maintenant)}
               />
-            </button>
+            </div>
           </li>
         );
       })}
 
-      {invitations.map((invitation) => (
-        <InviteEnAttente key={invitation.id} invitation={invitation} />
-      ))}
-
-      <li
-        className={`shrink-0 overflow-hidden transition-[max-width,opacity,padding] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-          survol ? 'max-w-0 p-0 opacity-0' : 'max-w-[5.5rem] pr-1 opacity-100'
-        }`}
-      >
+      <li data-id="invite" className="max-w-[5.5rem] shrink-0 overflow-hidden pr-1 pt-4">
         <button
           type="button"
           onClick={onInviter}
@@ -205,12 +257,27 @@ export default function BullesEquipe({
         </button>
       </li>
     </ul>
+    </div>
+  );
+}
+
+export function InvitationsEnAttente({
+  invitations,
+}: {
+  invitations: readonly { id: string; email: string }[];
+}) {
+  if (invitations.length === 0) return null;
+  return (
+    <ul className="ml-auto flex flex-wrap items-center justify-end gap-2">
+      {invitations.map((invitation) => (
+        <InviteEnAttente key={invitation.id} invitation={invitation} />
+      ))}
+    </ul>
   );
 }
 
 function InviteEnAttente({ invitation }: { invitation: { id: string; email: string } }) {
   const [etat, setEtat] = useState<'pret' | 'envoi' | 'envoye' | 'erreur'>('pret');
-  const nom = invitation.email.split('@')[0] || invitation.email;
 
   async function renvoyer() {
     if (etat === 'envoi') return;
@@ -224,22 +291,15 @@ function InviteEnAttente({ invitation }: { invitation: { id: string; email: stri
   }
 
   return (
-    <li className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1.5 pr-5">
-      <span
-        className="flex items-center justify-center rounded-full border-2 border-dashed border-black/15 bg-black/[0.02] text-[18px] font-semibold uppercase text-text-subtle"
-        style={{ width: TAILLE, height: TAILLE }}
-        title={invitation.email}
-      >
-        {nom.slice(0, 1)}
-      </span>
-      <span className="max-w-full truncate text-[12.5px] font-semibold text-text-strong" title={invitation.email}>
-        {nom}
+    <li className="flex min-w-0 items-center gap-2">
+      <span className="max-w-[14rem] truncate text-[12.5px] text-text-muted" title={invitation.email}>
+        {invitation.email}
       </span>
       <button
         type="button"
         onClick={() => void renvoyer()}
         disabled={etat === 'envoi' || etat === 'envoye'}
-        className="text-[11.5px] font-semibold text-[#1A2A56] underline-offset-2 hover:underline disabled:no-underline disabled:opacity-60"
+        className={CLASSE_BOUTON_RENVOYER}
       >
         {etat === 'envoi' ? 'Envoi…' : etat === 'envoye' ? 'Envoyé' : etat === 'erreur' ? 'Réessayer' : 'Renvoyer'}
       </button>
@@ -250,12 +310,12 @@ function InviteEnAttente({ invitation }: { invitation: { id: string; email: stri
 function FicheNegociateur({
   visible,
   negociateur: n,
-  periodeLabel,
+  moi,
   derniere,
 }: {
   visible: boolean;
   negociateur: CarteNegociateur;
-  periodeLabel: string;
+  moi: boolean;
   derniere: string;
 }) {
   const style = STATUT_STYLE[n.statut];
@@ -268,16 +328,18 @@ function FicheNegociateur({
 
   return (
     <div
-      className={`min-w-0 overflow-hidden transition-opacity duration-500 ease-out motion-reduce:transition-none ${
-        visible ? 'opacity-100 delay-100' : 'opacity-0'
+        data-fiche
+        className={`min-w-0 overflow-hidden transition-opacity duration-[1000ms] ease-out motion-reduce:transition-none ${
+        visible ? 'opacity-100 delay-200' : 'opacity-0'
       }`}
       aria-hidden={!visible}
     >
-      <div className="flex min-w-[32rem] items-center gap-5 pl-4">
-        <div className="w-[9.5rem] shrink-0">
+      <div className="flex min-w-0 items-center gap-5 pl-4">
+        <div className={`min-w-0 shrink ${moi ? 'w-[12rem] max-w-[12rem]' : 'w-[9.5rem] max-w-[9.5rem]'}`}>
           <div className="flex items-center gap-2">
             <p className="min-w-0 truncate text-[15px] font-semibold text-text-strong">
               {[n.prenom, n.nom].filter(Boolean).join(' ')}
+              {moi ? ' (Moi)' : ''}
             </p>
           </div>
           <p className="mt-1 font-display text-[28px] font-bold leading-none tabular-nums" style={{ color: style.barre }}>
@@ -285,12 +347,6 @@ function FicheNegociateur({
             <span className="text-[15px]">&nbsp;%</span>
           </p>
           <p className="mt-1.5 truncate text-[12px] text-text-muted">{derniere}</p>
-          <span
-            className="mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
-            style={{ backgroundColor: style.fond, color: style.texte }}
-          >
-            {STATUT_NEGOCIATEUR_LABELS[n.statut]} · {periodeLabel}
-          </span>
         </div>
         <ul className="grid min-w-0 flex-1 grid-cols-3 gap-2">
           {kpis.map((k) => {
@@ -316,6 +372,16 @@ function FicheNegociateur({
           })}
         </ul>
       </div>
+      {visible ? (
+        <Link
+          href={`/dashboard?membre=${encodeURIComponent(n.membreId)}`}
+          onClick={ouvrirSonTableau}
+          className="ml-4 mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#1A2A56] px-3.5 text-[13px] font-semibold text-white"
+        >
+          {moi ? 'Voir toutes mes métriques' : 'Voir toutes ses métriques'}
+          <ArrowRight size={14} strokeWidth={2.4} aria-hidden />
+        </Link>
+      ) : null}
     </div>
   );
 }

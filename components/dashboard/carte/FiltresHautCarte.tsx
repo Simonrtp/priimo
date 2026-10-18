@@ -1,16 +1,7 @@
 'use client';
 
-import Pastilles from '@/components/ui/Pastilles';
 import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
-import type { MapPeriod } from '@/lib/carte/buildings';
 import type { Zone } from '@/lib/zones/types';
-
-const PERIODES: { id: string; label: string; value: MapPeriod }[] = [
-  { id: '30', label: '30j', value: 30 },
-  { id: '90', label: '90j', value: 90 },
-  { id: '365', label: '1 an', value: 365 },
-  { id: 'all', label: 'Tout', value: 'all' },
-];
 
 /** Secteurs dont l'agent est le titulaire. Ceux des collègues n'apparaissent pas. */
 export function secteursAMoi(zones: readonly Zone[], profileId: string): Zone[] {
@@ -44,27 +35,5 @@ export function ChoixSecteurs({
         ))}
       </div>
     </li>
-  );
-}
-
-export default function FiltresHautCarte({
-  period,
-  onPeriod,
-}: {
-  period: MapPeriod;
-  onPeriod: (next: MapPeriod) => void;
-}) {
-  return (
-    <div className="mb-3 flex flex-col gap-2">
-      <Pastilles
-        label="Période"
-        value={String(period)}
-        options={PERIODES.map((p) => ({ id: p.id, label: p.label }))}
-        onChange={(id) => {
-          const choisi = PERIODES.find((p) => p.id === id);
-          if (choisi) onPeriod(choisi.value);
-        }}
-      />
-    </div>
   );
 }
