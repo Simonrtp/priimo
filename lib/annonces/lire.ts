@@ -110,29 +110,78 @@ function table(client: Client, nom: 'annonces' | 'annonce_evenements' | 'annonce
   return (client as unknown as SupabaseClient).from(nom);
 }
 
-export async function lireAnnonces(client: Client): Promise<Annonce[]> {
-  const { data, error } = await table(client, 'annonces')
-    .select(SELECT_ANNONCE)
-    .order('derniere_vue_le', { ascending: false })
-    .limit(800);
+const PAGE = 1000;
+/** Garde-fou : un territoire d'agence compte quelques milliers d'annonces avec les agences. */
+const PLAFOND = 8000;
+
+/**
+ * Toutes les annonces lisibles (RLS : territoire de l'agence), par pages de
+ * 1 000 — la limite de PostgREST. `vendeur` réduit aux particuliers pour le
+ * brief du matin, qui lit sans RLS.
+ */
+export async function lireAnnonces(
+  client: Client,
+  opts: { vendeur?: 'particulier' } = {},
+): Promise<Annonce[]> {
+  const lignes: Record<string, unknown>[] = [];
+  for (let debut = 0; debut < PLAFOND; debut += PAGE) {
+    let requete = table(client, 'annonces').select(SELECT_ANNONCE);
+    if (opts.vendeur) requete = requete.eq('type_vendeur', opts.vendeur);
+    const { data, error } = await requete
+      .order('derniere_vue_le', { ascending: false })
+      .order('id', { ascending: true })
+      .range(debut, debut + PAGE - 1);
+    if (error) {
+      console.error('[annonces] lecture', error.message);
+      break;
+    }
+    const lot = (data ?? []) as unknown as Record<string, unknown>[];
+    lignes.push(...lot);
+    if (lot.length < PAGE) break;
+  }
+  return lignes.map(versAnnonce);
+}
+
+/** Une annonce et les autres portails du même logement. */
+export async function lireAnnonce(
+  client: Client,
+  id: string,
+): Promise<{ annonce: Annonce; soeurs: Annonce[] } | null> {
+  const { data, error } = await table(client, 'annonces').select(SELECT_ANNONCE).eq('id', id).maybeSingle();
   if (error) {
     console.error('[annonces] lecture', error.message);
-    return [];
+    return null;
   }
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce);
+  if (!data) return null;
+  const annonce = versAnnonce(data as unknown as Record<string, unknown>);
+  if (!annonce.logementCle) return { annonce, soeurs: [annonce] };
+  const { data: memes } = await table(client, 'annonces')
+    .select(SELECT_ANNONCE)
+    .eq('logement_cle', annonce.logementCle)
+    .limit(20);
+  const soeurs = ((memes ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce);
+  return { annonce, soeurs: soeurs.length > 0 ? soeurs : [annonce] };
 }
+
+/** Par lots : une liste `in.(…)` de plusieurs centaines d'UUID dépasse la longueur d'URL admise. */
+const LOT_IDS = 150;
 
 export async function lireEvenements(client: Client, annonceIds: string[]): Promise<EvenementAnnonce[]> {
   if (annonceIds.length === 0) return [];
-  const { data, error } = await table(client, 'annonce_evenements')
-    .select('id, annonce_id, type, survenu_le, avant, apres, created_at')
-    .in('annonce_id', annonceIds)
-    .order('survenu_le', { ascending: true });
-  if (error) {
-    console.error('[annonces] événements', error.message);
-    return [];
+  const lignes: Record<string, unknown>[] = [];
+  for (let i = 0; i < annonceIds.length; i += LOT_IDS) {
+    const { data, error } = await table(client, 'annonce_evenements')
+      .select('id, annonce_id, type, survenu_le, avant, apres, created_at')
+      .in('annonce_id', annonceIds.slice(i, i + LOT_IDS))
+      .order('survenu_le', { ascending: true });
+    if (error) {
+      console.error('[annonces] événements', error.message);
+      return [];
+    }
+    lignes.push(...((data ?? []) as unknown as Record<string, unknown>[]));
   }
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => ({
+  lignes.sort((a, b) => String(a.survenu_le ?? '').localeCompare(String(b.survenu_le ?? '')));
+  return lignes.map((row) => ({
     id: String(row.id),
     annonceId: String(row.annonce_id),
     type:

@@ -42,6 +42,7 @@ export async function assemblerRapport(
     titreCouverture: params?.rapport_titre_couverture,
     cta: params?.rapport_cta_prochaine_etape,
     exclusRaw: ctx.estimation.rapportExclus,
+    adressesComparables: params?.comparables_adresse_complete ? 'complete' : 'rue',
   });
 
   const mapped = await Promise.all(
@@ -67,7 +68,9 @@ export async function assemblerRapport(
 async function chargerParamsAgence(session: Session, agencyId: string) {
   const full = await session
     .from('agencies')
-    .select('rapport_email_modele, rapport_titre_couverture, rapport_cta_prochaine_etape')
+    .select(
+      'rapport_email_modele, rapport_titre_couverture, rapport_cta_prochaine_etape, comparables_adresse_complete',
+    )
     .eq('id', agencyId)
     .maybeSingle();
   if (!full.error && full.data) {
@@ -82,5 +85,6 @@ async function chargerParamsAgence(session: Session, agencyId: string) {
     rapport_email_modele: data?.rapport_email_modele ?? null,
     rapport_titre_couverture: null as string | null,
     rapport_cta_prochaine_etape: null as string | null,
+    comparables_adresse_complete: false,
   };
 }

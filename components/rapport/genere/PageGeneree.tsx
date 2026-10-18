@@ -70,6 +70,10 @@ export default function PageGeneree({
       return <Strategie d={dossier} accent={accent} />;
     case 'prochaine_etape':
       return <ProchaineEtape d={dossier} accent={accent} />;
+    case 'socio_economie':
+    case 'services_proximite':
+    case 'accessibilite':
+      return <TitrePage accent={accent}>{kind}</TitrePage>;
   }
 }
 

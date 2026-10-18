@@ -13,7 +13,12 @@ import {
   type MutationBrute,
 } from '@/lib/rapport/genere/comparables';
 import { binsPrixM2, indexBin } from '@/lib/rapport/genere/graphiques-marche';
-import { assurerFourchette, prixAuM2DepuisDossier } from '@/lib/rapport/genere/fourchette';
+import { confianceComparables } from '@/lib/estimation/confiance-comparables';
+import { origineDpe } from '@/lib/estimation/dpe-origine';
+import { fourchetteReelle, prixAuM2DepuisDossier } from '@/lib/rapport/genere/fourchette';
+import { chargerAccessibilite } from '@/lib/rapport/isochrones';
+import { chargerServicesOsm, type ServicesProximite } from '@/lib/rapport/services-osm';
+import { chargerSocioCommune, socioDepuisLigne } from '@/lib/rapport/socio';
 import { libelleEtatBien } from '@/lib/rapport/genere/format';
 import type {
   AnnonceMarche,
@@ -49,6 +54,7 @@ export async function chargerDossierRapport(
     titreCouverture?: string | null;
     cta?: string | null;
     exclusRaw?: unknown;
+    adressesComparables?: 'rue' | 'complete';
   },
 ): Promise<DossierRapport> {
   const e = input.estimation;
@@ -61,8 +67,7 @@ export async function chargerDossierRapport(
   }));
   const photoCouverture = photos.find((p) => p.couverture && p.kind === 'photo') ?? null;
 
-  const fourchette =
-    e.priceValue != null ? assurerFourchette(e.priceValue, e.priceLow, e.priceHigh) : null;
+  const fourchette = fourchetteReelle(e.priceValue, e.priceLow, e.priceHigh);
   const surfPrix = prixAuM2DepuisDossier({
     priceValue: e.priceValue,
     surfaceM2: e.surfaceM2,
@@ -70,14 +75,7 @@ export async function chargerDossierRapport(
   });
   const pricePerM2 = surfPrix?.prixM2 ?? null;
 
-  if (fourchette?.ajoutee && e.priceValue != null) {
-    await session
-      .from('agency_estimations')
-      .update({ price_low: fourchette.low, price_high: fourchette.high })
-      .eq('id', e.id);
-  }
-
-  const [client, comparables, publicData] = await Promise.all([
+  const [client, comparables, publicData, socio, services, accessibilite] = await Promise.all([
     chargerClient(session, e.contactId, e.agencyId),
     chargerComparables(session, e, exclus.comparables),
     chargerPublic(session, e, exclus.annonces).catch(() => ({
@@ -93,6 +91,18 @@ export async function chargerDossierRapport(
       fluiditeJoursMedian: null,
       negotiationPctMedian: null,
     })),
+    chargerSocio(session, e).catch(() => null),
+    e.latitude != null && e.longitude != null
+      ? chargerServicesOsm({
+          latitude: e.latitude,
+          longitude: e.longitude,
+          lireCache: (cle) => lireCacheServices(session, cle),
+          ecrireCache: (cle, services) => ecrireCacheServices(session, cle, services),
+        }).catch(() => null)
+      : Promise.resolve(null),
+    e.latitude != null && e.longitude != null
+      ? chargerAccessibilite({ latitude: e.latitude, longitude: e.longitude }).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const pm2Marche = comparables.retenues
@@ -114,7 +124,15 @@ export async function chargerDossierRapport(
     floor: e.floor,
     occupation: e.occupation,
     dpeClass: e.dpeClass,
+    dpeOrigine: origineDpe({
+      dpeClass: e.dpeClass,
+      propertyType: e.propertyType,
+      declaree: e.bien.dpeOrigine,
+      sourceContexte:
+        e.context.dpeSource === 'ademe' || e.context.dpeSource === 'declare' ? e.context.dpeSource : null,
+    }),
     gesClass: e.bien.ges,
+    prestations: e.bien.prestations,
     etatLibelle: libelleEtatBien({
       conditionRating: e.conditionRating,
       etatGeneral: e.grille.etat_general?.valeur ?? null,
@@ -132,11 +150,16 @@ export async function chargerDossierRapport(
     latitude: e.latitude,
     longitude: e.longitude,
     priceValue: e.priceValue,
-    priceLow: fourchette?.low ?? e.priceLow,
-    priceHigh: fourchette?.high ?? e.priceHigh,
+    priceLow: fourchette?.low ?? null,
+    priceHigh: fourchette?.high ?? null,
     pricePerM2,
     surfacePrixLibelle: surfPrix?.libelle ?? null,
-    fourchetteAjoutee: fourchette?.ajoutee ?? false,
+    fourchetteAjoutee: false,
+    confiance: confianceComparables(comparables.retenues.map((v) => v.prix)),
+    adressesComparables: input.adressesComparables === 'complete' ? 'complete' : 'rue',
+    socio,
+    services,
+    accessibilite,
     client,
     agence: input.agence,
     agent: input.agent,
@@ -182,6 +205,75 @@ function serieIndice(context: Record<string, unknown>): Array<{ label: string; v
   return tri
     .filter((t) => Number.isFinite(t.mediane))
     .map((t) => ({ label: t.cle, valeur: t.mediane }));
+}
+
+async function chargerSocio(session: Session, e: EstimationObjet) {
+  return chargerSocioCommune({
+    parcelleId: e.parcelleId,
+    postalCode: e.postalCode,
+    lireTable: (code) => lireCommuneInsee(session, code),
+  });
+}
+
+async function lireCommuneInsee(session: Session, code: string) {
+  const client = session as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => {
+        eq: (
+          col: string,
+          val: string,
+        ) => {
+          maybeSingle: () => Promise<{
+            data: {
+              code: string;
+              nom: string | null;
+              population: number | null;
+              serie: unknown;
+              ages: unknown;
+              csp: unknown;
+              taux_chomage: number | null;
+              millesime: number | null;
+            } | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+    };
+  };
+  const { data, error } = await client
+    .from('insee_communes')
+    .select('code, nom, population, serie, ages, csp, taux_chomage, millesime')
+    .eq('code', code)
+    .maybeSingle();
+  if (error || !data) return null;
+  return socioDepuisLigne(data);
+}
+
+async function lireCacheServices(session: Session, cle: string): Promise<ServicesProximite | null> {
+  const client = session as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{ data: { payload: ServicesProximite } | null; error: { message: string } | null }>;
+        };
+      };
+    };
+  };
+  const { data, error } = await client.from('osm_services_cache').select('payload').eq('cle', cle).maybeSingle();
+  if (error || !data?.payload || !Array.isArray(data.payload.groupes)) return null;
+  return data.payload;
+}
+
+async function ecrireCacheServices(session: Session, cle: string, services: ServicesProximite): Promise<void> {
+  const client = session as unknown as {
+    from: (table: string) => {
+      upsert: (row: { cle: string; payload: ServicesProximite; fetched_at: string }, opts: { onConflict: string }) => Promise<{ error: { message: string } | null }>;
+    };
+  };
+  await client.from('osm_services_cache').upsert(
+    { cle, payload: services, fetched_at: new Date().toISOString() },
+    { onConflict: 'cle' },
+  );
 }
 
 function premierePhoto(photos: EstimationObjet['photos']): number {

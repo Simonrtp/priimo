@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Layer, Marker, Source, useMap } from 'react-map-gl';
 import type { ExpressionSpecification } from 'mapbox-gl';
 import { Check } from 'lucide-react';
+import { isUsableCoord } from '@/lib/carte/coords';
 import type { ItineraireStop } from '@/lib/today/directions';
 import { FIELD } from '@/lib/today/field';
 import { lineGeoJson } from '@/lib/today/sortie';
@@ -186,6 +187,7 @@ export default function ItineraireLayer({
 
   if (stops.length < 2 && !geometry) return null;
   if (!simplified) return null;
+  if (simplified.coordinates.some((c) => !isUsableCoord(c[1], c[0]))) return null;
 
   const feature: GeoJSON.Feature<GeoJSON.LineString> = {
     type: 'Feature',
@@ -226,6 +228,7 @@ export default function ItineraireLayer({
       </Source>
       {showStops
         ? stops.map((stop, i) => {
+            if (!isUsableCoord(stop.latitude, stop.longitude)) return null;
             const frac = coords.length >= 2 ? stopFraction(coords as [number, number][], stop) : i / Math.max(1, stops.length - 1);
             if (drawn < frac - 0.03) return null;
             const state: 'upcoming' | 'current' | 'done' = done.has(stop.leadId)
@@ -236,7 +239,7 @@ export default function ItineraireLayer({
             const offset = offsets[i] ?? ([0, 0] as [number, number]);
             return (
               <Marker
-                key={stop.leadId}
+                key={`${stop.leadId}:${i}`}
                 longitude={stop.longitude}
                 latitude={stop.latitude}
                 anchor="center"

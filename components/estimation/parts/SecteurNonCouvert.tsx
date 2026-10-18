@@ -12,12 +12,14 @@ export default function SecteurNonCouvert({
   postalCode,
   city,
   address,
+  explication,
   onRestart,
 }: {
   postalCode: string;
   city: string | null;
   address: string;
-  onRestart: () => void;
+  explication?: { titre: string; texte: string };
+  onRestart?: () => void;
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -47,10 +49,12 @@ export default function SecteurNonCouvert({
   return (
     <section className="flex flex-col gap-5 rounded-clay border border-black/[0.06] bg-surface p-5 shadow-clay-sm">
       <div>
-        <h2 className="text-balance text-[18px] font-semibold text-ink">Secteur non couvert</h2>
+        <h2 className="text-balance text-[18px] font-semibold text-ink">
+          {explication?.titre ?? 'Secteur non couvert'}
+        </h2>
         <p className="mt-3 text-pretty text-[14px] leading-relaxed text-text-muted">
-          Ce secteur n’est pas encore couvert par nos données de ventes. Nous chargeons actuellement
-          Paris et la Haute-Savoie.
+          {explication?.texte ??
+            'Ce secteur n’est pas encore couvert par les ventes chargées.'}
         </p>
         {postalCode ? (
           <p className="mt-2 text-[13px] text-text-subtle">
@@ -62,15 +66,17 @@ export default function SecteurNonCouvert({
 
       <div className="flex flex-wrap gap-2">
         <WorkspaceButton type="button" onClick={() => void signaler()} disabled={sending || sent}>
-          {sent ? 'Demande enregistrée' : 'Signaler cette demande'}
+          {sent ? 'Demande enregistrée' : 'Demander la couverture'}
         </WorkspaceButton>
-        <button
-          type="button"
-          onClick={onRestart}
-          className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-black/[0.03]"
-        >
-          Autre adresse
-        </button>
+        {onRestart ? (
+          <button
+            type="button"
+            onClick={onRestart}
+            className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-black/[0.03]"
+          >
+            Autre adresse
+          </button>
+        ) : null}
       </div>
     </section>
   );

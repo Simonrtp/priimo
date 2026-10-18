@@ -82,6 +82,8 @@ export async function notifierAnnonces(
         }
         continue;
       }
+      // Une baisse ou un retrait chez une agence ne déclenche pas de cloche : trop fréquent, rien à piger.
+      if (annonce.typeVendeur !== 'particulier') continue;
       if (evt.type === 'baisse_prix' && baisseAvantSuivi(evt, annonce.premiereVueLe)) continue;
       if (evt.type !== 'baisse_prix' && evt.type !== 'retiree') continue;
       const type = evt.type === 'baisse_prix' ? 'annonce_baisse_prix' : 'annonce_retiree';

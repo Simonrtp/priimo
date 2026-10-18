@@ -4,6 +4,7 @@ import { LIBELLE_PERIODE, PRESETS_PERIODE, type Periode } from '@/lib/activite/s
 import { FAMILLES_ACTIVITE, LIBELLE_ACTIVITE } from '@/lib/activite/types';
 import { ACCUEIL, FIELD } from '@/lib/today/field';
 import { EmploiDuTempsSquelette } from './EmploiDuTemps';
+import CarteCompetition from './CarteCompetition';
 import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 
 const OBJECTIF = {
@@ -35,8 +36,9 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
     <div className="flex min-w-0 flex-col gap-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Chargement de l’accueil</span>
 
+      <div className="grid grid-cols-2 items-end gap-3 sm:gap-5 lg:grid-cols-4">
       <section
-        className="flex flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8"
+        className="col-span-2 flex min-w-0 flex-col gap-4 rounded-clay-lg px-5 py-4 shadow-clay-sm sm:flex-row sm:items-center sm:gap-8 lg:col-span-3"
         style={{ backgroundColor: OBJECTIF.voile }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -72,6 +74,8 @@ export default function AccueilSquelette({ mobile }: { mobile: boolean }) {
           </div>
         </div>
       </section>
+      {mobile ? null : <CarteCompetition podium={[]} />}
+      </div>
 
       <ul className="grid grid-cols-2 items-stretch gap-5 lg:grid-cols-4">
         {FAMILLES_ACTIVITE.map((famille) => {

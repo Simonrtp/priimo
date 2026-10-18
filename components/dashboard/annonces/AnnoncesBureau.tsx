@@ -9,6 +9,7 @@ import {
   joursEnLigne,
   libelleAdresse,
   libellePortail,
+  libelleVendeur,
   prixM2,
   bandeauMiseAJour,
   regrouperAnnonces,
@@ -21,7 +22,7 @@ import AnnonceVolet from './AnnonceVolet';
 
 export type FiltresAnnonces = {
   secteur: 'mien' | 'agence';
-  vendeur: 'particulier' | 'tous';
+  vendeur: 'particulier' | 'professionnel' | 'tous';
   statut: 'active' | 'retiree' | 'toutes';
   baisse: boolean;
   nouvelles: boolean;
@@ -80,6 +81,7 @@ function Fiche({
       <p className="mt-1 text-[12.5px] text-text-muted">
         {jours != null ? `En ligne depuis ${jours} jour${jours > 1 ? 's' : ''}` : 'Mise en ligne inconnue'}
         {' · '}
+        {annonce.typeVendeur === 'professionnel' ? `${libelleVendeur(annonce)} · ` : null}
         {portails.map((p) => libellePortail(p.portail)).join(', ')}
       </p>
       {badge?.kind === 'nouvelle' ? <p className="mt-2 text-[12px] font-semibold text-text-strong">Nouvelle</p> : null}
@@ -119,7 +121,7 @@ export default function AnnoncesBureau({
 
   const groupes = useMemo(() => {
     const filtrees = annonces.filter((a) => {
-      if (filtres.vendeur === 'particulier' && a.typeVendeur !== 'particulier') return false;
+      if (filtres.vendeur !== 'tous' && a.typeVendeur !== filtres.vendeur) return false;
       if (filtres.statut !== 'toutes' && a.statut !== filtres.statut) return false;
       if (filtres.baisse && baisseCumulee(a) == null) return false;
       if (filtres.nouvelles && badgeAnnonce(a)?.kind !== 'nouvelle') return false;
@@ -162,12 +164,15 @@ export default function AnnoncesBureau({
           {filtres.secteur === 'mien' ? 'Mon secteur' : 'Toute l’agence'}
         </Filtre>
         <Filtre
-          actif={filtres.vendeur === 'particulier'}
+          actif={filtres.vendeur !== 'tous'}
           onClick={() =>
-            setFiltres((f) => ({ ...f, vendeur: f.vendeur === 'particulier' ? 'tous' : 'particulier' }))
+            setFiltres((f) => ({
+              ...f,
+              vendeur: f.vendeur === 'particulier' ? 'professionnel' : f.vendeur === 'professionnel' ? 'tous' : 'particulier',
+            }))
           }
         >
-          {filtres.vendeur === 'particulier' ? 'Particuliers' : 'Tous les vendeurs'}
+          {filtres.vendeur === 'particulier' ? 'Particuliers' : filtres.vendeur === 'professionnel' ? 'Agences' : 'Tous les vendeurs'}
         </Filtre>
         <Filtre
           actif={filtres.statut === 'retiree'}

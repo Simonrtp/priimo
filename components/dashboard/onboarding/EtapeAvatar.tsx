@@ -29,8 +29,15 @@ export default function EtapeAvatar({
       total={total}
       titre="Choisissez votre avatar."
       compact
+      defile
       action={
-        <OnboardingPrimaryButton disabled={uploading} onClick={() => onSuivant(selected)}>
+        <OnboardingPrimaryButton
+          tone="navy"
+          disabled={uploading || !selected}
+          onClick={() => {
+            if (selected) onSuivant(selected);
+          }}
+        >
           Continuer
         </OnboardingPrimaryButton>
       }
@@ -43,7 +50,7 @@ export default function EtapeAvatar({
         onChange={(url) => setSelected(url)}
       />
       <p className="mt-3 text-[12.5px] text-[#8A8A8A]">
-        Sans choix, vos initiales restent affichées partout.
+        Choisissez une illustration ou ajoutez une photo pour continuer.
       </p>
     </OnboardingShell>
   );

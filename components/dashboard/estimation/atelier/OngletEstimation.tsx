@@ -17,6 +17,10 @@ import {
 import type { DecompositionValeur } from '@/lib/estimation/valeur';
 import { parseRapportExclus, basculerExclusion } from '@/lib/rapport/genere/exclus';
 import { formatDateCourte, formatPrixM2, formatSurface } from '@/lib/rapport/genere/format';
+import { expliquerHorsCouverture, raisonHorsCouverture } from '@/lib/estimation/couverture-secteur';
+import { confianceComparables } from '@/lib/estimation/confiance-comparables';
+import { fourchetteReelle } from '@/lib/rapport/genere/fourchette';
+import SecteurNonCouvert from '@/components/estimation/parts/SecteurNonCouvert';
 
 type VenteVu = {
   id: string;
@@ -141,8 +145,10 @@ export default function OngletEstimation({
   }
 
   const listeVentes = connues.length > 0 ? connues : retenues;
-  const fourchetteBasse = estimation.priceLow;
-  const fourchetteHaute = estimation.priceHigh;
+  const fourchette = fourchetteReelle(prixRetenu, estimation.priceLow, estimation.priceHigh);
+  const fourchetteBasse = fourchette?.low ?? null;
+  const fourchetteHaute = fourchette?.high ?? null;
+  const confiance = confianceComparables(listeVentes.map((v) => v.prix));
   const prixM2 =
     prixRetenu != null && estimation.surfaceM2
       ? Math.round(prixRetenu / estimation.surfaceM2)
@@ -159,6 +165,13 @@ export default function OngletEstimation({
           <div className="h-3.5 w-24 animate-pulse rounded bg-black/[0.06]" />
           <div className="mt-3 h-10 w-44 animate-pulse rounded bg-black/[0.08]" />
         </div>
+      ) : raisonHorsCouverture(estimation.postalCode) && moteurValeur == null && prixRetenu == null ? (
+        <SecteurNonCouvert
+          postalCode={estimation.postalCode ?? ''}
+          city={estimation.city}
+          address={estimation.address ?? ''}
+          explication={expliquerHorsCouverture(estimation.postalCode)}
+        />
       ) : impossible && moteurValeur == null && prixRetenu == null ? (
         <div className="rounded-clay border border-black/[0.08] bg-surface px-5 py-4 shadow-clay-sm">
           <p className="text-[12.5px] font-semibold uppercase tracking-wide text-text-muted">
@@ -185,6 +198,11 @@ export default function OngletEstimation({
             <p className="mt-1 text-[13.5px] tabular-nums text-text-muted">
               Fourchette {formatEuro(fourchetteBasse)} – {formatEuro(fourchetteHaute)}
             </p>
+          ) : (
+            <p className="mt-1 text-[13.5px] text-text-muted">Fourchette non disponible.</p>
+          )}
+          {confiance ? (
+            <p className="mt-2 text-pretty text-[13px] text-text-strong">{confiance.message}</p>
           ) : null}
           <p className="mt-2 text-[13px] font-semibold tabular-nums text-text-strong">
             Fiabilité : {formatNoteSurDix(estimation.reliability)}

@@ -67,6 +67,7 @@ export default function Buildings3DLayer({
     if (!map) return;
 
     const apply = () => {
+      try {
       let present = false;
       try {
         present = Boolean(map.getLayer(BUILDINGS_3D_LAYER_ID));
@@ -123,9 +124,16 @@ export default function Buildings3DLayer({
         },
         firstLabelLayerId(map),
       );
+      } catch {
+        /* style pas prêt, ou couche déjà posée */
+      }
     };
 
-    if (map.isStyleLoaded()) apply();
+    try {
+      if (map.isStyleLoaded()) apply();
+    } catch {
+      /* style pas prêt */
+    }
     map.on('styledata', apply);
     return () => {
       map.off('styledata', apply);

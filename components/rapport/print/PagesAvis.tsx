@@ -5,6 +5,8 @@ import { ATTRIBUTION_IGN, urlCarteIgn } from '@/lib/rapport/genere/carte-ign';
 import { ATTRIBUTION_MAPBOX, MENTION_CADASTRE, urlCarteMapbox } from '@/lib/rapport/genere/carte-mapbox';
 import { svgEvolutionMediane, svgRepartition } from '@/lib/rapport/genere/graphiques-marche';
 import { formaterAdresseComparable } from '@/lib/estimation/adresse-comparable';
+import { libelleOrigineDpe } from '@/lib/estimation/dpe-origine';
+import { prestationsRenseignees } from '@/lib/estimation/prestations';
 import { COMPARABLES_RAYON_M } from '@/lib/rapport/genere/comparables';
 import { prixAuM2, surfacePourPrixM2 } from '@/lib/rapport/genere/fourchette';
 import { DPE_LETTERS, parseDpeLetter, type DpeLetter } from '@/lib/carte/dpe-public';
@@ -598,7 +600,7 @@ export function PageComparables({ d, accent }: { d: DossierRapport; accent: stri
             {d.comparables.map((v, i) => (
               <div key={v.id} style={{ ...row, borderRadius: 6, background: i % 2 === 0 ? 'rgba(26, 42, 86,.05)' : undefined }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-2)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
-                <span>{formaterAdresseComparable(v.adresse) ?? libelleTypeLocal(v.typeLocal) ?? ''}</span>
+                <span>{formaterAdresseComparable(v.adresse, d.adressesComparables ?? 'rue') ?? libelleTypeLocal(v.typeLocal) ?? ''}</span>
                 <span>{formatDateCourte(v.date)}</span>
                 <span style={{ textAlign: 'right' }}>{v.pieces != null ? String(v.pieces) : ''}</span>
                 <span style={{ textAlign: 'right' }}>{formatSurface(v.surfaceM2)}</span>
@@ -676,6 +678,12 @@ export function PageEstimation({ d, accent }: { d: DossierRapport; accent: strin
               ) : null}
               {d.pricePerM2 != null ? (
                 <div style={{ fontSize: 19, fontWeight: 600, color: '#0A0D11' }}>soit {formatPrixM2(d.pricePerM2)}</div>
+              ) : null}
+              {d.confiance ? (
+                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: '#1A2A56' }}>{d.confiance.message}</p>
+              ) : null}
+              {low == null || high == null ? (
+                <p style={{ margin: 0, fontSize: 12.5, color: '#1A2A56' }}>Fourchette non disponible.</p>
               ) : null}
               <div style={{ fontSize: 11.5, color: '#1A2A56' }}>Estimation établie pour un bien {libelleOccupation(d.occupation).toLowerCase()}</div>
             </div>
@@ -782,7 +790,46 @@ export function PageProchaineEtape({ d, accent }: { d: DossierRapport; accent: s
 }
 
 export function PageDescription({ d, accent }: { d: DossierRapport; accent: string }) {
-  return <PageVotreBien d={d} accent={accent} />;
+  const lignes = prestationsRenseignees(d.prestations ?? {
+    cuisine: { qualite: null, etat: null },
+    salle_de_bain: { qualite: null, etat: null },
+    sol: { qualite: null, etat: null },
+    fenetres: { qualite: null, etat: null },
+    maconnerie: { qualite: null, etat: null },
+  });
+  return (
+    <GabaritPage d={d} titre="Description et prestations" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {d.commentairesPublics ? (
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55 }}>{d.commentairesPublics}</p>
+        ) : (
+          <p className="avis-muted">Description non disponible.</p>
+        )}
+        {lignes.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '6px 0' }}>Poste</th>
+                <th style={{ textAlign: 'left' }}>Qualité</th>
+                <th style={{ textAlign: 'left' }}>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((l) => (
+                <tr key={l.id}>
+                  <td style={{ padding: '5px 0' }}>{l.libelle}</td>
+                  <td>{l.qualite ?? 'non disponible'}</td>
+                  <td>{l.etat ?? 'non disponible'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="avis-muted">Prestations non disponibles.</p>
+        )}
+      </div>
+    </GabaritPage>
+  );
 }
 
 export function PageSecteur({ d, accent }: { d: DossierRapport; accent: string }) {
@@ -1101,11 +1148,7 @@ export function PageDpeBien({ d, accent }: { d: DossierRapport; accent: string }
       <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <EchelleDpeGes dpe={dpe} ges={ges} />
         <div>
-          {d.dpeClass ? (
-            <p style={{ fontSize: 16 }}>Étiquette saisie : DPE {d.dpeClass}{d.gesClass ? ` · GES ${d.gesClass}` : ''}</p>
-          ) : (
-            <p className="avis-muted">DPE non renseigné.</p>
-          )}
+          <p style={{ fontSize: 16 }}>{libelleOrigineDpe(d.dpeOrigine ?? (d.dpeClass ? 'estime' : null))}{d.dpeClass ? ` · ${d.dpeClass}` : ''}{d.gesClass ? ` · GES ${d.gesClass}` : ''}</p>
         </div>
       </div>
     </GabaritPage>
@@ -1134,5 +1177,124 @@ export function PageStrategie({ d, accent }: { d: DossierRapport; accent: string
         </Carte>
       </div>
     </GabaritPage>
+  );
+}
+
+export function PageSocioEconomie({ d, accent }: { d: DossierRapport; accent: string }) {
+  const s = d.socio;
+  return (
+    <GabaritPage d={d} titre="Socio-économie" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 13, color: '#1A2A56' }}>
+          {s?.nom ?? 'Commune'}{s?.code ? ` · ${s.code}` : ''}
+          {s?.millesime ? ` · recensement ${s.millesime}` : ''}
+        </p>
+        <p style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
+          {s?.population != null ? `${s.population.toLocaleString('fr-FR')} habitants` : 'Population non disponible'}
+        </p>
+        <BlocListe titre="Population en série" vide={!(s && s.serie.length > 0)}>
+          {(s?.serie ?? []).map((p) => (
+            <li key={p.annee}>{p.annee} · {p.population.toLocaleString('fr-FR')}</li>
+          ))}
+        </BlocListe>
+        <BlocListe titre="Tranches d’âge" vide={!(s && s.ages.length > 0)}>
+          {(s?.ages ?? []).map((p) => (
+            <li key={p.libelle}>{p.libelle} · {formatPct(p.part)}</li>
+          ))}
+        </BlocListe>
+        <BlocListe titre="Catégories socio-professionnelles" vide={!(s && s.csp.length > 0)}>
+          {(s?.csp ?? []).map((p) => (
+            <li key={p.libelle}>{p.libelle} · {formatPct(p.part)}</li>
+          ))}
+        </BlocListe>
+        <p style={{ margin: 0, fontSize: 14 }}>
+          Taux de chômage : {s?.tauxChomage != null ? formatPct(s.tauxChomage) : 'non disponible'}
+        </p>
+        <p style={{ marginTop: 'auto', fontSize: 11, color: '#1A2A56' }}>
+          Source : INSEE. Ce n’est pas l’indice Notaires–INSEE utilisé pour actualiser les prix.
+        </p>
+      </div>
+    </GabaritPage>
+  );
+}
+
+export function PageServices({ d, accent }: { d: DossierRapport; accent: string }) {
+  const services = d.services;
+  const pins = (services?.groupes ?? []).flatMap((g) => g.lieux.slice(0, 1));
+  const carte =
+    d.latitude != null && d.longitude != null
+      ? urlCarteMapbox({
+          latitude: d.latitude,
+          longitude: d.longitude,
+          zoom: 14,
+          pins: pins.map((p, i) => ({ lat: p.latitude, lng: p.longitude, label: String(i + 1) })),
+        })
+      : null;
+  return (
+    <GabaritPage d={d} titre="Services à proximité" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '280px minmax(0, 1fr)', gap: 16 }}>
+        <div style={{ borderRadius: 12, overflow: 'hidden', background: '#F3F4F6' }}>
+          {carte ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={carte} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : null}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, overflow: 'hidden' }}>
+          {(services?.groupes ?? []).map((g) => (
+            <div key={g.id}>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
+                {g.libelle}{g.note != null ? ` · ${g.note}/5` : ' · non disponible'}
+              </p>
+              {g.lieux.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 12 }}>non disponible</p>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: 12 }}>
+                  {g.lieux.map((l) => (
+                    <li key={`${g.id}-${l.nom}-${l.distanceM}`}>{l.nom} · {formatDistance(l.distanceM)}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+          <p style={{ marginTop: 'auto', fontSize: 11, color: '#1A2A56' }}>{services?.attribution ?? '© OpenStreetMap'}</p>
+        </div>
+      </div>
+    </GabaritPage>
+  );
+}
+
+export function PageAccessibilite({ d, accent }: { d: DossierRapport; accent: string }) {
+  const a = d.accessibilite;
+  return (
+    <GabaritPage d={d} titre="Accessibilité" accent={accent}>
+      <div style={{ flex: 1, minHeight: 0, padding: '18px 40px 16px', display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
+        <div style={{ borderRadius: 12, overflow: 'hidden', background: '#F3F4F6' }}>
+          {a?.carteUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={a.carteUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <p style={{ padding: 16 }}>Carte non disponible.</p>
+          )}
+        </div>
+        <div>
+          {(a?.zones ?? []).map((z) => (
+            <p key={z.profil} style={{ margin: '0 0 8px', fontSize: 14 }}>
+              {z.libelle} · {z.minutes.join(' et ')} min
+            </p>
+          ))}
+          <p style={{ fontSize: 12, color: '#1A2A56' }}>Pas de transports en commun.</p>
+          <p style={{ fontSize: 11, color: '#1A2A56' }}>{a?.attribution}</p>
+        </div>
+      </div>
+    </GabaritPage>
+  );
+}
+
+function BlocListe({ titre, vide, children }: { titre: string; vide: boolean; children: ReactNode }) {
+  return (
+    <div>
+      <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700 }}>{titre}</p>
+      {vide ? <p style={{ margin: 0, fontSize: 13 }}>non disponible</p> : <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: 13 }}>{children}</ul>}
+    </div>
   );
 }

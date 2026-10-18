@@ -1,12 +1,9 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import type { AgentPodium } from '@/lib/activite/podium';
 import { LIBELLE_ACTIVITE, type Activite } from '@/lib/activite/types';
-import { ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
 
 /** Une place : un aplat, sans bande claire ni ombre sur le dessus. */
 const MARCHE = {
@@ -33,11 +30,6 @@ const MARCHE = {
   },
 } as const;
 
-function ouvrirAgence() {
-  const maxAge = 60 * 60 * 24 * 400;
-  document.cookie = `${ACCUEIL_VUE_COOKIE}=directeur; path=/; max-age=${maxAge}; SameSite=Lax`;
-}
-
 const ORDRE = [2, 1, 3] as const;
 
 /** Hauteur de la marche seule. La 3e reste sous la 2e, la 2e sous la 1re, d'un même cran. */
@@ -59,19 +51,15 @@ const STATS: readonly Activite[] = [
 
 export default function CarteCompetition({
   podium,
-  peutOuvrir = false,
   classement = false,
   vide = false,
 }: {
   podium: readonly AgentPodium[];
-  /** Le directeur ouvre l'agence d'un clic sur le podium entier. */
-  peutOuvrir?: boolean;
-  /** L'agent ouvre la liste des noms et des stats. */
+  /** Un clic sur le podium entier ouvre la liste des noms et des stats. */
   classement?: boolean;
   /** Aucun collaborateur : les trois marches restent, sans personne dessus. */
   vide?: boolean;
 }) {
-  const router = useRouter();
   const listeId = useId();
   const ancre = useRef<HTMLElement>(null);
   const [listeOuverte, setListeOuverte] = useState(false);
@@ -79,8 +67,7 @@ export default function CarteCompetition({
     rang,
     agent: vide ? null : (podium[rang - 1] ?? null),
   }));
-  const voitListe = classement && !peutOuvrir && !vide;
-  const cliquable = (peutOuvrir || voitListe) && !vide && (voitListe || places.some((place) => place.agent));
+  const voitListe = classement && !vide;
 
   useEffect(() => {
     if (!listeOuverte) return;
@@ -98,13 +85,6 @@ export default function CarteCompetition({
     };
   }, [listeOuverte]);
 
-  function allerAgence(event: { preventDefault: () => void }) {
-    event.preventDefault();
-    ouvrirAgence();
-    router.push('/dashboard');
-    router.refresh();
-  }
-
   const marches = (
     <>
       {places.map(({ rang, agent }, index) => {
@@ -119,7 +99,7 @@ export default function CarteCompetition({
             aria-hidden={agent ? undefined : true}
           >
             {agent ? (
-              <span className="relative z-10 -mb-1 rounded-full shadow-[0_0_0_2px_#fff,0_0_0_3px_var(--anneau)] transition-transform duration-300 ease-out group-hover/podium:-translate-y-0.5 group-hover/podium:scale-105 group-hover/podium:shadow-[0_0_0_2px_#fff,0_0_0_3px_var(--anneau),0_6px_14px_var(--anneau)]">
+              <span className="relative z-10 -mb-1 rounded-full shadow-[0_0_0_2px_#fff,0_0_0_3px_var(--anneau)] transition-transform duration-300 ease-out group-hover/podium:scale-[1.03]">
                 <ProfileAvatar
                   firstName={agent.prenom}
                   lastName={agent.nom}
@@ -129,7 +109,7 @@ export default function CarteCompetition({
               </span>
             ) : null}
             <div
-              className="relative flex w-full shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-1 pb-1 transition-[filter] duration-300 group-hover/podium:brightness-110"
+              className="relative flex w-full shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-1 pb-1 transition-[filter] duration-300 group-hover/podium:brightness-105"
               style={{
                 height: HAUTEUR_PLACE[rang],
                 background: marche.fond,
@@ -140,7 +120,7 @@ export default function CarteCompetition({
             >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/45 opacity-0 transition-all duration-500 ease-out group-hover/podium:left-[130%] group-hover/podium:opacity-100"
+                  className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/25 opacity-0 transition-all duration-700 ease-out group-hover/podium:left-[130%] group-hover/podium:opacity-60"
                 />
                 <span className="relative font-display font-bold leading-none" style={{ fontSize: marche.chiffre }}>
                   {rang}
@@ -165,11 +145,9 @@ export default function CarteCompetition({
     >
       <h2 className="sr-only">Compétition</h2>
       <Socle
-        cliquable={cliquable}
-        liste={voitListe}
+        cliquable={voitListe}
         listeOuverte={listeOuverte}
         listeId={listeId}
-        onOuvrir={allerAgence}
         onListe={() => setListeOuverte((ouverte) => !ouverte)}
       >
         {marches}
@@ -181,48 +159,37 @@ export default function CarteCompetition({
 
 function Socle({
   cliquable,
-  liste,
   listeOuverte,
   listeId,
-  onOuvrir,
   onListe,
   children,
 }: {
   cliquable: boolean;
-  liste: boolean;
   listeOuverte: boolean;
   listeId: string;
-  onOuvrir: (event: { preventDefault: () => void }) => void;
   onListe: () => void;
   children: ReactNode;
 }) {
   const classe =
-    'group/podium flex w-full flex-col outline-none transition-transform duration-300 ease-out hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#1A2A56] focus-visible:ring-offset-2';
+    'group/podium flex w-full flex-col outline-none transition-transform duration-300 ease-out hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-[#1A2A56] focus-visible:ring-offset-2';
   const contenu = (
     <>
       <div className="flex w-full items-end">{children}</div>
       <div aria-hidden className="h-2.5 w-full shrink-0 bg-[#1A2A56]" />
     </>
   );
-  if (liste && cliquable) {
-    return (
-      <button
-        type="button"
-        className={`${classe} cursor-pointer text-left`}
-        aria-label="Voir le classement"
-        aria-expanded={listeOuverte}
-        aria-controls={listeId}
-        onClick={onListe}
-      >
-        {contenu}
-      </button>
-    );
-  }
   if (!cliquable) return <div className={classe}>{contenu}</div>;
   return (
-    <Link href="/dashboard" onClick={onOuvrir} aria-label="Voir l'agence" className={classe}>
+    <button
+      type="button"
+      className={`${classe} cursor-pointer text-left`}
+      aria-label="Voir le classement"
+      aria-expanded={listeOuverte}
+      aria-controls={listeId}
+      onClick={onListe}
+    >
       {contenu}
-    </Link>
+    </button>
   );
 }
 

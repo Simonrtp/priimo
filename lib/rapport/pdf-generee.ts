@@ -166,6 +166,7 @@ export async function dessinerPageGeneree(
     case 'dpe_bien':
       lignes(ctx, y0, [
         dossier.dpeClass ? `DPE ${dossier.dpeClass}` : 'DPE non renseigné',
+        dossier.dpeOrigine === 'reel' ? 'DPE réel, trouvé à l’adresse' : dossier.dpeClass ? 'DPE estimé' : null,
         dossier.gesClass ? `GES ${dossier.gesClass}` : null,
       ]);
       break;
@@ -173,6 +174,28 @@ export async function dessinerPageGeneree(
       lignes(ctx, y0, [
         ...dossier.pointsForts.map((p) => `+ ${p}`),
         ...dossier.pointsFaibles.map((p) => `- ${p}`),
+      ]);
+      break;
+    case 'socio_economie':
+      lignes(ctx, y0, [
+        dossier.socio?.nom,
+        dossier.socio?.population != null ? `${dossier.socio.population} habitants` : 'Population non disponible',
+        'Source : INSEE',
+      ]);
+      break;
+    case 'services_proximite':
+      lignes(
+        ctx,
+        y0,
+        (dossier.services?.groupes ?? []).map((g) =>
+          g.lieux[0] ? `${g.libelle} : ${g.lieux[0].nom}` : `${g.libelle} : non disponible`,
+        ),
+      );
+      break;
+    case 'accessibilite':
+      lignes(ctx, y0, [
+        ...(dossier.accessibilite?.zones ?? []).map((z) => `${z.libelle} ${z.minutes.join(', ')} min`),
+        'Pas de transports en commun',
       ]);
       break;
     case 'prochaine_etape':

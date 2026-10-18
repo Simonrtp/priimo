@@ -15,7 +15,7 @@ import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import PinIcone from '@/components/dashboard/carte/PinIcone';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
-import { toGeoCoord } from '@/lib/carte/coords';
+import { isUsableCoord, toGeoCoord } from '@/lib/carte/coords';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import LiveAgentLocationMarker from '@/components/dashboard/field/LiveAgentLocationMarker';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
@@ -121,6 +121,8 @@ export default function SectorMapCanvas({
   tenirLaVue?: boolean;
   annoncesCouche?: {
     layers: MapLayerState;
+    /** Toutes les zones de l'agence : « Mon secteur » ne dépend pas de l'emprise affichée. */
+    zones: readonly Zone[];
     directeur: boolean;
     profileId: string;
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
@@ -331,11 +333,15 @@ export default function SectorMapCanvas({
           }, 120);
         }}
         onClick={(event) => {
-          if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
-            const hits = event.target.queryRenderedFeatures(event.point, {
-              layers: [PARCELLES_FILL_LAYER_ID],
-            });
-            if (hits.length > 0) return;
+          try {
+            if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
+              const hits = event.target.queryRenderedFeatures(event.point, {
+                layers: [PARCELLES_FILL_LAYER_ID],
+              });
+              if (hits.length > 0) return;
+            }
+          } catch {
+            /* couche ou style pas encore là */
           }
           onDeselect();
         }}
@@ -358,7 +364,7 @@ export default function SectorMapCanvas({
         {annoncesCouche ? (
           <AnnoncesMarqueurs
             layers={annoncesCouche.layers}
-            zones={zones}
+            zones={annoncesCouche.zones}
             directeur={annoncesCouche.directeur}
             profileId={annoncesCouche.profileId}
             onChoisir={annoncesCouche.onChoisir}
@@ -399,6 +405,7 @@ export default function SectorMapCanvas({
         {showBuildingMarkers &&
         (!mapGesturing || buildings.length <= MARKERS_GARDES_PENDANT_GESTE)
           ? buildings.map((building) => {
+          if (!isUsableCoord(building.latitude, building.longitude)) return null;
           const emphasized = building.banId === selectedBanId;
           const hovered = building.banId === hoveredBanId;
           const appearance = building.appearance;

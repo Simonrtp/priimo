@@ -54,6 +54,14 @@ export function pagesVisiblesRapport(pages: readonly PageRapportComposee[]): Pag
   return retenirPagesUniques(pages).gardees.filter((page) => {
     if (page.kind !== 'generee') return true;
     if (page.kindGeneree === 'concurrentiel' && page.manques.length > 0) return false;
+    if (
+      (page.kindGeneree === 'socio_economie' ||
+        page.kindGeneree === 'services_proximite' ||
+        page.kindGeneree === 'accessibilite') &&
+      page.manques.length > 0
+    ) {
+      return false;
+    }
     return true;
   });
 }

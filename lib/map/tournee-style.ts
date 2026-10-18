@@ -15,22 +15,40 @@ const HIDDEN = [
   'building-extrusion',
 ] as const;
 
+function stylePret(map: MapboxMap): boolean {
+  try {
+    return map.isStyleLoaded() && Boolean(map.getStyle()?.layers);
+  } catch {
+    return false;
+  }
+}
+
 function eachLayer(map: MapboxMap, fn: (id: string, type: string) => void): void {
-  const layers = map.getStyle()?.layers;
-  if (!layers) return;
-  for (const layer of layers) {
-    if (layer.id.startsWith('priimo-')) continue;
-    fn(layer.id, layer.type);
+  try {
+    const layers = map.getStyle()?.layers;
+    if (!layers) return;
+    for (const layer of layers) {
+      if (layer.id.startsWith('priimo-')) continue;
+      fn(layer.id, layer.type);
+    }
+  } catch {
+    /* style pas prêt */
+  }
+}
+
+function visibilite(map: MapboxMap, id: string, valeur: 'none' | 'visible'): void {
+  try {
+    if (!map.getLayer(id)) return;
+    map.setLayoutProperty(id, 'visibility', valeur);
+  } catch {
+    /* couche absente, style en cours, ou propriété illégale */
   }
 }
 
 /** Pendant une tournée : la carte s'efface derrière le tracé. */
 export function applyTourneeMapStyle(map: MapboxMap): void {
-  for (const id of HIDDEN) {
-    if (map.getLayer(id)) {
-      map.setLayoutProperty(id, 'visibility', 'none');
-    }
-  }
+  if (!stylePret(map)) return;
+  for (const id of HIDDEN) visibilite(map, id, 'none');
   eachLayer(map, (id, type) => {
     if (type === 'symbol' && (id.includes('poi') || id.includes('transit'))) {
       try {
@@ -57,11 +75,8 @@ export function applyTourneeMapStyle(map: MapboxMap): void {
 }
 
 export function restoreTourneeMapStyle(map: MapboxMap): void {
-  for (const id of HIDDEN) {
-    if (map.getLayer(id)) {
-      map.setLayoutProperty(id, 'visibility', 'visible');
-    }
-  }
+  if (!stylePret(map)) return;
+  for (const id of HIDDEN) visibilite(map, id, 'visible');
   eachLayer(map, (id, type) => {
     if (type === 'symbol' && (id.includes('poi') || id.includes('transit'))) {
       try {

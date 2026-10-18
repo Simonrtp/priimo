@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
   }
   const supabase = await createSupabaseServerClient();
-  const annonces = await lireAnnonces(supabase);
+  // Les raisons de localisation arrivent avec le détail (volet) : la liste reste légère.
+  const annonces = (await lireAnnonces(supabase)).map((a) => ({ ...a, raisonsLocalisation: [] }));
   return NextResponse.json({ annonces });
 }

@@ -1,4 +1,5 @@
 import type { BuildingMarker } from '@/lib/carte/buildings';
+import { isUsableCoord } from '@/lib/carte/coords';
 import type { MapPoint, MapPointKind } from '@/lib/carte/points';
 
 const CLUSTER_PX = 52;
@@ -109,13 +110,14 @@ export function clusterBuildings(
   buildings: readonly BuildingMarker[],
   zoom: number,
 ): ClusteredBuilding[] {
-  if (buildings.length === 0) return [];
-  if (zoom >= DISABLE_CLUSTERING_AT_ZOOM || buildings.length === 1) {
-    return buildings.map((building) => ({ kind: 'building' as const, building }));
+  const posables = buildings.filter((building) => isUsableCoord(building.latitude, building.longitude));
+  if (posables.length === 0) return [];
+  if (zoom >= DISABLE_CLUSTERING_AT_ZOOM || posables.length === 1) {
+    return posables.map((building) => ({ kind: 'building' as const, building }));
   }
 
   const buckets = new Map<string, BuildingMarker[]>();
-  for (const building of buildings) {
+  for (const building of posables) {
     const { x, y } = project(building.longitude, building.latitude, zoom);
     const key = `${Math.floor(x / CLUSTER_PX)}:${Math.floor(y / CLUSTER_PX)}`;
     const bucket = buckets.get(key);

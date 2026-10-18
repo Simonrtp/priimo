@@ -1,38 +1,101 @@
 import type { MapLayerState } from '@/lib/carte/layers';
 import type { Zone } from '@/lib/zones/types';
-import { baisseCumulee } from './presenter';
+import { baisseCumulee, joursEnLigne, regrouperAnnonces } from './presenter';
 import { dansMonSecteur } from './secteur';
-import type { Annonce } from './types';
+import type { Annonce, GroupeAnnonce } from './types';
+
+/** « Nouvelles » : en ligne depuis une semaine au plus. */
+export const JOURS_NOUVELLE = 7;
+
+type ReglagesAnnonces = Pick<
+  MapLayerState,
+  | 'annoncesVendeur'
+  | 'annoncesStatut'
+  | 'annoncesMonSecteur'
+  | 'annoncesDpe'
+  | 'annoncesPieces'
+  | 'annoncesPrixMax'
+>;
+
+type Qui = { directeur: boolean; profileId: string };
+
+/** Tous les filtres sauf « Mon secteur ». */
+function passeFiltres(a: Annonce, r: ReglagesAnnonces, maintenant: Date): boolean {
+  if (r.annoncesVendeur !== 'tous' && a.typeVendeur !== r.annoncesVendeur) return false;
+  switch (r.annoncesStatut) {
+    case 'retirees':
+      if (a.statut !== 'retiree') return false;
+      break;
+    case 'baisse':
+      if (a.statut !== 'active' || baisseCumulee(a) == null) return false;
+      break;
+    case 'nouvelles': {
+      if (a.statut !== 'active') return false;
+      const jours = joursEnLigne(a, maintenant);
+      if (jours == null || jours > JOURS_NOUVELLE) return false;
+      break;
+    }
+    default:
+      if (a.statut !== 'active') return false;
+  }
+  if (r.annoncesDpe && (!a.dpe || !r.annoncesDpe.includes(a.dpe))) return false;
+  if (r.annoncesPieces) {
+    const voulu = Number(r.annoncesPieces);
+    if (a.pieces == null) return false;
+    if (voulu >= 5 ? a.pieces < 5 : a.pieces !== voulu) return false;
+  }
+  if (r.annoncesPrixMax) {
+    const max = Number(r.annoncesPrixMax);
+    if (a.prix == null || !Number.isFinite(max) || a.prix > max) return false;
+  }
+  return true;
+}
 
 export function filtrerAnnonces(
   annonces: readonly Annonce[],
-  layers: Pick<
-    MapLayerState,
-    | 'annoncesActives'
-    | 'annoncesRetirees'
-    | 'annoncesParticuliers'
-    | 'annoncesBaisse'
-    | 'annoncesMonSecteur'
-    | 'annoncesDpe'
-    | 'annoncesPieces'
-    | 'annoncesPrixMax'
-  >,
+  reglages: ReglagesAnnonces,
   zones: readonly Zone[],
-  opts: { directeur: boolean; profileId: string },
+  qui: Qui,
+  maintenant = new Date(),
 ): Annonce[] {
-  const voitActives = layers.annoncesActives || layers.annoncesBaisse;
-  const voitRetirees = layers.annoncesRetirees;
-  if (!voitActives && !voitRetirees) return [];
-  const prixMax = Number(layers.annoncesPrixMax);
-  return annonces.filter((a) => {
-    if (a.statut === 'active' && !voitActives) return false;
-    if (a.statut === 'retiree' && !voitRetirees) return false;
-    if (layers.annoncesParticuliers && a.typeVendeur !== 'particulier') return false;
-    if (layers.annoncesBaisse && baisseCumulee(a) == null) return false;
-    if (layers.annoncesDpe && a.dpe !== layers.annoncesDpe) return false;
-    if (layers.annoncesPieces && String(a.pieces ?? '') !== layers.annoncesPieces) return false;
-    if (layers.annoncesPrixMax && (a.prix == null || !Number.isFinite(prixMax) || a.prix > prixMax)) return false;
-    if (layers.annoncesMonSecteur && !dansMonSecteur(a, zones, opts)) return false;
-    return true;
-  });
+  return annonces.filter(
+    (a) =>
+      passeFiltres(a, reglages, maintenant) &&
+      (!reglages.annoncesMonSecteur || dansMonSecteur(a, zones, qui)),
+  );
+}
+
+function placee(g: GroupeAnnonce): boolean {
+  return g.principale.latitude != null && g.principale.longitude != null;
+}
+
+export type BilanAnnonces = {
+  /** Logements affichés sur la carte avec les réglages en cours. */
+  surCarte: number;
+  /** Logements retenus mais pas encore localisés : invisibles sur la carte. */
+  sansPosition: number;
+  /** Logements placés qui passent les filtres, secteur ou non. */
+  tousSecteurs: number;
+  /** Dont ceux de mon secteur. */
+  dansMonSecteur: number;
+};
+
+/** Les compteurs du panneau, calculés sur les mêmes règles que la carte. */
+export function bilanAnnonces(
+  annonces: readonly Annonce[],
+  reglages: ReglagesAnnonces,
+  zones: readonly Zone[],
+  qui: Qui,
+  maintenant = new Date(),
+): BilanAnnonces {
+  const base = annonces.filter((a) => passeFiltres(a, reglages, maintenant));
+  const secteur = base.filter((a) => dansMonSecteur(a, zones, qui));
+  const retenus = regrouperAnnonces(reglages.annoncesMonSecteur ? secteur : base);
+  const surCarte = retenus.filter(placee).length;
+  return {
+    surCarte,
+    sansPosition: retenus.length - surCarte,
+    tousSecteurs: regrouperAnnonces(base).filter(placee).length,
+    dansMonSecteur: regrouperAnnonces(secteur).filter(placee).length,
+  };
 }

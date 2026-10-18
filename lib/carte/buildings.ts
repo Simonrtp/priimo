@@ -1,3 +1,4 @@
+import { isUsableCoord } from '@/lib/carte/coords';
 import type { MapPoint, MapPointKind } from '@/lib/carte/points';
 
 /** Prospect > Bien > Contact > Note. */
@@ -66,6 +67,8 @@ export function groupEntitiesByBanId(points: readonly MapPoint[]): BuildingMarke
   const buildings: BuildingMarker[] = [];
   for (const [banId, entities] of buckets) {
     const appearance = pickBuildingAppearance(entities);
+    // Une coordonnée illégale fait planter le marqueur Mapbox au rendu.
+    if (!isUsableCoord(appearance.latitude, appearance.longitude)) continue;
     buildings.push({
       banId,
       latitude: appearance.latitude,

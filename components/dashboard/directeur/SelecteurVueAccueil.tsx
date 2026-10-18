@@ -40,7 +40,7 @@ export default function SelecteurVueAccueil({
 
   const amorce = hote
     ? createPortal(
-        <div className="absolute inset-0 z-30 overflow-y-auto bg-bg-base p-6 lg:p-8">
+        <div className="absolute inset-0 z-30 overflow-y-auto bg-[#f3f6fd] p-6 lg:p-8">
           <SqueletteAgence />
         </div>,
         hote,

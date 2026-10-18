@@ -16,8 +16,11 @@ import {
   PagePointsInteret,
   PageProchaineEtape,
   PageSecteur,
+  PageServices,
+  PageSocioEconomie,
   PageStrategie,
   PageVotreBien,
+  PageAccessibilite,
 } from './PagesAvis';
 
 export default function PageGenereeHtml({
@@ -64,5 +67,11 @@ export default function PageGenereeHtml({
       return <PageStrategie d={dossier} accent={accent} />;
     case 'prochaine_etape':
       return <PageProchaineEtape d={dossier} accent={accent} />;
+    case 'socio_economie':
+      return <PageSocioEconomie d={dossier} accent={accent} />;
+    case 'services_proximite':
+      return <PageServices d={dossier} accent={accent} />;
+    case 'accessibilite':
+      return <PageAccessibilite d={dossier} accent={accent} />;
   }
 }

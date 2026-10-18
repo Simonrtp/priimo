@@ -14,7 +14,7 @@ import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds'
 import PinIcone from '@/components/dashboard/carte/PinIcone';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
-import { toGeoCoord } from '@/lib/carte/coords';
+import { isUsableCoord, toGeoCoord } from '@/lib/carte/coords';
 import { clusterBuildings } from '@/lib/carte/cluster';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
@@ -162,6 +162,8 @@ export default function MobileMapCanvas({
   onVue?: (vue: VueCarte) => void;
   annoncesCouche?: {
     layers: MapLayerState;
+    /** Toutes les zones de l'agence : « Mon secteur » ne dépend pas de l'emprise affichée. */
+    zones: readonly Zone[];
     directeur: boolean;
     profileId: string;
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
@@ -191,8 +193,26 @@ export default function MobileMapCanvas({
     if (!styleReady) return;
     const raw = mapRef.current?.getMap();
     if (!raw) return;
-    if (navigation) applyTourneeMapStyle(raw);
-    else restoreTourneeMapStyle(raw);
+    let annule = false;
+    const appliquer = () => {
+      if (annule) return;
+      if (navigation) applyTourneeMapStyle(raw);
+      else restoreTourneeMapStyle(raw);
+    };
+    appliquer();
+    try {
+      raw.once('idle', appliquer);
+    } catch {
+      /* carte déjà détruite */
+    }
+    return () => {
+      annule = true;
+      try {
+        raw.off('idle', appliquer);
+      } catch {
+        /* */
+      }
+    };
   }, [navigation, styleReady]);
 
   useEffect(
@@ -217,6 +237,7 @@ export default function MobileMapCanvas({
     (bounds: ReturnType<typeof computeLngLatBounds>, animate: boolean) => {
       const map = mapRef.current;
       if (!map) return;
+      try {
       const duration = animate ? 400 : 0;
       const tilt = navigation ? tiltFromMap(map) : camera;
       if (!bounds) {
@@ -257,6 +278,9 @@ export default function MobileMapCanvas({
         duration,
         ...tilt,
       });
+      } catch {
+        /* style pas encore prêt : le cadrage attendra le prochain geste */
+      }
     },
     [fallback, camera, navigation],
   );
@@ -289,9 +313,13 @@ export default function MobileMapCanvas({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.getMap().touchZoomRotate.enableRotation();
-    if (navigation) return;
-    map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
+    try {
+      map.getMap().touchZoomRotate.enableRotation();
+      if (navigation) return;
+      map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 450, essential: true });
+    } catch {
+      /* style pas encore prêt */
+    }
   }, [camera.pitch, camera.bearing, navigation, styleReady]);
 
   useEffect(() => {
@@ -423,15 +451,19 @@ export default function MobileMapCanvas({
           }, 120);
         }}
         onClick={(event) => {
-          if (onMapPoint) {
-            onMapPoint({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
-            return;
-          }
-          if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
-            const hits = event.target.queryRenderedFeatures(event.point, {
-              layers: [PARCELLES_FILL_LAYER_ID],
-            });
-            if (hits.length > 0) return;
+          try {
+            if (onMapPoint) {
+              onMapPoint({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
+              return;
+            }
+            if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
+              const hits = event.target.queryRenderedFeatures(event.point, {
+                layers: [PARCELLES_FILL_LAYER_ID],
+              });
+              if (hits.length > 0) return;
+            }
+          } catch {
+            /* couche ou style pas encore là */
           }
           onDeselect();
         }}
@@ -458,7 +490,7 @@ export default function MobileMapCanvas({
         {annoncesCouche && !navigation ? (
           <AnnoncesMarqueurs
             layers={annoncesCouche.layers}
-            zones={zones}
+            zones={annoncesCouche.zones}
             directeur={annoncesCouche.directeur}
             profileId={annoncesCouche.profileId}
             onChoisir={annoncesCouche.onChoisir}
@@ -501,6 +533,7 @@ export default function MobileMapCanvas({
         (!mapGesturing || clustered.length <= MARKERS_GARDES_PENDANT_GESTE)
           ? clustered.map((item) => {
           if (item.kind === 'cluster') {
+            if (!isUsableCoord(item.latitude, item.longitude)) return null;
             return (
               <Marker
                 key={item.id}
@@ -524,6 +557,7 @@ export default function MobileMapCanvas({
           }
 
           const building = item.building;
+          if (!isUsableCoord(building.latitude, building.longitude)) return null;
           const emphasized = building.banId === selectedBanId;
           const tourSelected = highlightBanIds?.has(building.banId) ?? false;
           const color = fieldColor(building);
@@ -578,7 +612,7 @@ export default function MobileMapCanvas({
             <AgencyLocationMarker />
           </Marker>
         ) : null}
-        {navigation && agentPosition ? (
+        {navigation && agentPosition && isUsableCoord(agentPosition.latitude, agentPosition.longitude) ? (
           <Marker
             longitude={agentPosition.longitude}
             latitude={agentPosition.latitude}

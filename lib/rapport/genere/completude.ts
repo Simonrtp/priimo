@@ -1,4 +1,5 @@
 import { KINDS_GABARIT_V2, type KindGeneree } from '@/lib/rapport/modele-defaut';
+import { servicesUtiles } from '@/lib/rapport/services-osm';
 import type { CompletudePage, DossierRapport } from '@/lib/rapport/genere/types';
 
 export function pageConcurrentielPossible(d: DossierRapport): boolean {
@@ -37,6 +38,12 @@ function manquesKind(kind: KindGeneree, d: DossierRapport): string[] {
     case 'indices':
     case 'prochaine_etape':
       return [];
+    case 'socio_economie':
+      return d.socio ? [] : ['Recensement INSEE'];
+    case 'services_proximite':
+      return servicesUtiles(d.services ?? null) ? [] : ['Services OpenStreetMap'];
+    case 'accessibilite':
+      return d.accessibilite ? [] : ['Isochrones'];
     case 'concurrentiel':
       return pageConcurrentielPossible(d) ? [] : ['Annonces insuffisantes'];
   }

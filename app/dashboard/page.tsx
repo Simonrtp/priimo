@@ -324,7 +324,6 @@ async function TodayContent({
               supabase,
               agencyId: agency.id,
               directeurProfileId: profile.id,
-              sansCollaborateur: members.every((m) => m.role !== 'collaborateur'),
               membres: members.map((m) => ({
                 id: m.id,
                 firstName: m.firstName,
@@ -738,6 +737,7 @@ async function TodayContent({
         {banners}
         <AccueilPilotage
           {...pilotageCommun}
+          mobile
           taches={
             lectureDe || taches.length === 0 ? undefined : (
               <TachesDuJour key="taches-du-jour" taches={taches} />

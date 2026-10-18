@@ -221,6 +221,7 @@ export default function EstimationAtelier({
                     ...prev.bien,
                     qualiteEmplacement: prev.bien.qualiteEmplacement ?? data.bien.qualiteEmplacement,
                     dpeVersion: prev.bien.dpeVersion ?? data.bien.dpeVersion,
+                    dpeOrigine: prev.bien.dpeOrigine ?? data.bien.dpeOrigine,
                     ges: prev.bien.ges ?? data.bien.ges,
                   },
                 }

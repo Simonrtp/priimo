@@ -7,7 +7,6 @@ import {
   fetchEstimationsPourDirecteur,
 } from '@/lib/queries/directeur-accueil';
 import { compteursSemaine } from '@/lib/activite/derive';
-import { podiumSemaine } from '@/lib/activite/podium';
 import { objectifsEffectifs } from '@/lib/activite/objectifs';
 import {
   intervalleSeptJours,
@@ -37,8 +36,6 @@ export async function chargerAccueilDirecteur(input: {
   agencyId: string;
   /** Le directeur connecté. Il figure dans L'équipe, pas dans les agrégats des négociateurs. */
   directeurProfileId: string;
-  /** Aucun négociateur : le podium reste, vide. */
-  sansCollaborateur: boolean;
   membres: readonly {
     id: string;
     firstName: string;
@@ -288,17 +285,6 @@ export async function chargerAccueilDirecteur(input: {
     }
   }
 
-  const podium = podiumSemaine(
-    journal,
-    membres.map((m) => ({
-      id: m.id,
-      prenom: m.prenom,
-      nom: m.nom,
-      avatarUrl: m.avatarUrl,
-    })),
-    semaine,
-  );
-
   return assemblerAccueilDirecteur({
     membres: membres.filter((m) => m.id !== input.directeurProfileId),
     activites: activitesEquipe,
@@ -309,8 +295,6 @@ export async function chargerAccueilDirecteur(input: {
     directeurId: input.directeurProfileId,
     indicateurs,
     victoires,
-    podium,
-    sansCollaborateur: input.sansCollaborateur,
     now,
   });
 }

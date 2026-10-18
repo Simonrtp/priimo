@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { Marker, useMap } from 'react-map-gl';
 import type { CibleCarte } from '@/lib/carte/cible';
+import { isUsableCoord } from '@/lib/carte/coords';
 import type { BuildingMarker } from '@/lib/carte/buildings';
 import type { ParcellePickExtra } from '@/lib/carte/parcelle';
 import { PARCELLES_FILL_LAYER_ID, parcelleIdOf, surfaceDepuisFeature } from './ParcellesLayer';
@@ -91,7 +92,7 @@ export default function CibleRecherche({
   useEffect(() => {
     // Pas de nettoyage qui annule : en mode strict, l'effet rejoué sortirait
     // ici et la demande annulée ne serait jamais relancée.
-    if (!map || traitee.current === cible.cle) return;
+    if (!map || traitee.current === cible.cle || !isUsableCoord(cible.latitude, cible.longitude)) return;
     traitee.current = cible.cle;
     const carte = map.getMap();
     const cle = cible.cle;
@@ -99,12 +100,16 @@ export default function CibleRecherche({
 
     // Repli : la parcelle dessinée sous le repère, si le plan est allumé.
     const parcelleDessinee = () => {
+      try {
       if (!toujoursDemandee() || !carte.getLayer(PARCELLES_FILL_LAYER_ID)) return;
       const point = carte.project([cible.longitude, cible.latitude]);
       const [parcelle] = carte.queryRenderedFeatures(point, { layers: [PARCELLES_FILL_LAYER_ID] });
       const parcelleId = parcelleIdOf(parcelle);
       if (parcelle && parcelleId) {
         rappels.current.onSelectParcelle?.(parcelleId, { surfaceM2: surfaceDepuisFeature(parcelle) });
+      }
+      } catch {
+        /* plan pas encore dessiné */
       }
     };
 
@@ -126,14 +131,20 @@ export default function CibleRecherche({
       });
     }
 
-    carte.flyTo({
-      center: [cible.longitude, cible.latitude],
-      zoom: ZOOM_CIBLE,
-      offset: decalageSousVolet(carte.getContainer()),
-      duration: 1100,
-      essential: true,
-    });
+    try {
+      carte.flyTo({
+        center: [cible.longitude, cible.latitude],
+        zoom: ZOOM_CIBLE,
+        offset: decalageSousVolet(carte.getContainer()),
+        duration: 1100,
+        essential: true,
+      });
+    } catch {
+      /* style pas encore prêt */
+    }
   }, [map, cible]);
+
+  if (!isUsableCoord(cible.latitude, cible.longitude)) return null;
 
   return (
     <Marker longitude={cible.longitude} latitude={cible.latitude} anchor="bottom" style={{ zIndex: 5 }}>

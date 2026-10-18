@@ -84,9 +84,10 @@ describe('ajustements visibles', () => {
 });
 
 describe('adresses comparables', () => {
-  it('garde l’adresse complète tant que la constante est full', () => {
+  it('n’affiche que la rue tant que l’agence n’a pas activé l’adresse complète', () => {
     const a = '12 rue Alphonse Penaud 75020 Paris';
-    assert.equal(formaterAdresseComparable(a), a);
+    assert.equal(formaterAdresseComparable(a), 'rue Alphonse Penaud');
+    assert.equal(formaterAdresseComparable(a, 'complete'), a);
     assert.equal(rueSeule(a), 'rue Alphonse Penaud');
   });
 });

@@ -4,7 +4,7 @@ import { LIBELLE_PERIODE, PRESETS_PERIODE } from '@/lib/activite/semaines';
 /** Chargement de L'agence : même rangée que l'écran, sans les chiffres. */
 export default function SqueletteAgence() {
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-busy="true">
+    <div data-accueil-agence className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-busy="true">
       <span className="sr-only">Chargement de l’agence</span>
       <header className="flex flex-row flex-wrap items-center gap-2 sm:gap-4">
         <div className={PASTILLE_TRACK} aria-hidden>

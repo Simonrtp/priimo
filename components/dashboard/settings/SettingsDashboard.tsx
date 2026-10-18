@@ -204,6 +204,7 @@ function SectionAgency() {
     Math.max(2, Math.round((agency.frequence_passage_jours ?? 84) / 7)),
   );
   const [mentionLegale, setMentionLegale] = useState(agency.avis_mention_legale ?? '');
+  const [adressesCompletes, setAdressesCompletes] = useState(agency.comparables_adresse_complete === true);
   const [addressError, setAddressError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -273,6 +274,7 @@ function SectionAgency() {
       longitude,
       frequence_passage_jours: Math.min(365, Math.max(14, frequenceSemaines * 7)),
       avis_mention_legale: mentionLegale.trim() || null,
+      comparables_adresse_complete: adressesCompletes,
     };
 
     validerEnFond({
@@ -292,6 +294,10 @@ function SectionAgency() {
         if (error && /avis_mention_legale/.test(error.message)) {
           const { avis_mention_legale: _m, ...sansMention } = payload;
           ({ error } = await supabase.from('agencies').update(sansMention).eq('id', agency.id));
+        }
+        if (error && /comparables_adresse_complete/.test(error.message)) {
+          const { comparables_adresse_complete: _a, ...sansAdresses } = payload;
+          ({ error } = await supabase.from('agencies').update(sansAdresses).eq('id', agency.id));
         }
         if (error && /frequence_passage/.test(error.message)) {
           const { frequence_passage_jours: _ignore, ...sansFrequence } = payload;
@@ -409,6 +415,15 @@ function SectionAgency() {
             placeholder="Emplacement réservé. Le texte viendra de votre avocat."
           />
         </div>
+        <label className="flex items-start gap-2 text-[13px] text-ink">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={adressesCompletes}
+            onChange={(e) => setAdressesCompletes(e.target.checked)}
+          />
+          <span>Afficher l’adresse complète des ventes comparables dans l’avis. Par défaut, seule la rue est indiquée.</span>
+        </label>
         <div>
           <p className={labelClass}>Couleurs de l’avis de valeur</p>
           <NuancierAvis

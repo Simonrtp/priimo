@@ -65,6 +65,8 @@ export type AgencyRow = {
   rapport_cta_prochaine_etape?: string | null;
   /** Mention légale de l’avis. NULL = emplacement vide (texte avocat à venir). */
   avis_mention_legale?: string | null;
+  /** true = adresse complète des comparables dans l’avis. Défaut : rue seulement. */
+  comparables_adresse_complete?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -254,6 +256,7 @@ export type AgencyInsert = {
   couleur_principale?: string | null;
   couleur_secondaire?: string | null;
   avis_mention_legale?: string | null;
+  comparables_adresse_complete?: boolean | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -787,7 +790,10 @@ export type AgencyRapportModeleKindGeneree =
   | 'cadastre'
   | 'photos'
   | 'dpe_bien'
-  | 'strategie';
+  | 'strategie'
+  | 'socio_economie'
+  | 'services_proximite'
+  | 'accessibilite';
 
 export type AgencyRapportModeleRow = {
   id: string;

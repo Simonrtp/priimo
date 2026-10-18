@@ -211,7 +211,7 @@ function MiniEstimation() {
         <p className="font-display text-[16px] font-bold tabular-nums" style={{ color: ACCENT }}>
           412 000 €
         </p>
-        <p className="mt-0.5 text-[6.5px] text-mute">fourchette ± 6 %</p>
+        <p className="mt-0.5 text-[6.5px] text-mute">fourchette des ventes</p>
         <div className="mt-2 h-1 w-16 overflow-hidden rounded-full bg-black/[0.08]">
           <span className="block h-full w-2/3 rounded-full" style={{ backgroundColor: ACCENT }} />
         </div>

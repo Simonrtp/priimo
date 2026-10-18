@@ -9,6 +9,7 @@ import { toGeoCoord } from '@/lib/carte/coords';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { leadsDuJour, libelleModeDuJour, modeDuJour } from '@/lib/zones/jour';
 import TourneeMobile from '@/app/dashboard/_mobile/TourneeMobile';
+import { LimiteErreur } from '@/components/erreurs/EcranReprise';
 
 export const metadata = {
   title: 'Tournée',
@@ -37,11 +38,17 @@ export default async function TourneePage() {
   const leadsTournee = leadsDuJour(visibleLeads, zones, profile.id);
 
   return (
-    <TourneeMobile
-      initialLeads={leadsTournee}
-      profileId={profile.id}
-      agencyOrigin={agencyOrigin}
-      bandeauZone={libelleModeDuJour(duJour)}
-    />
+    <LimiteErreur
+      titre="La tournée n’a pas pu s’afficher."
+      detail="Réessayez. Elle est toujours là."
+      action="Réessayer"
+    >
+      <TourneeMobile
+        initialLeads={leadsTournee}
+        profileId={profile.id}
+        agencyOrigin={agencyOrigin}
+        bandeauZone={libelleModeDuJour(duJour)}
+      />
+    </LimiteErreur>
   );
 }

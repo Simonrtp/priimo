@@ -12,7 +12,6 @@ import { moisDe, semaineDe, type Periode } from '@/lib/activite/semaines';
 import ModeReunion from './ModeReunion';
 import ObjectifAgenceDialog from './ObjectifAgenceDialog';
 import BullesEquipe, { InvitationsEnAttente } from './BullesEquipe';
-import CarteCompetition from '@/components/dashboard/accueil/CarteCompetition';
 import { OBJECTIF } from './statut-style';
 
 const CREME = {
@@ -92,7 +91,7 @@ export default function AccueilDirecteur({
   }
 
   return (
-    <div data-accueil className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-label={modele.titre}>
+    <div data-accueil data-accueil-agence className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-label={modele.titre}>
       <header className="flex flex-row flex-wrap items-center gap-2 sm:gap-4">
         <SelecteurVueAccueil vue="directeur" />
         <h1 className="font-display text-[24px] font-bold leading-none tracking-[-0.01em] text-text-strong max-sm:sr-only">
@@ -137,16 +136,6 @@ export default function AccueilDirecteur({
           </button>
         </div>
       </header>
-
-      <div className="flex justify-end">
-        <div className="w-[13.25rem] shrink-0">
-          <CarteCompetition
-            podium={modele.podium}
-            peutOuvrir
-            vide={modele.sansCollaborateur}
-          />
-        </div>
-      </div>
 
       {/* Zone 1 — l'équipe d'un coup d'œil */}
       <section aria-labelledby="zone-equipe" className="mt-4 rounded-clay-lg bg-surface px-4 pb-3 pt-4 shadow-clay sm:px-5">

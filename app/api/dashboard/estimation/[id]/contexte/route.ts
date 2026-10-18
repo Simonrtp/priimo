@@ -91,6 +91,9 @@ export async function GET(
   if (logementConnu && dpeAdresse) {
     if (!bien.dpeVersion) bien.dpeVersion = '3.0';
     if (!bien.ges && dpeAdresse.lettre) bien.ges = dpeAdresse.lettre;
+    if (dpeAdresse.lettre && (!row.dpe_class || row.dpe_class === dpeAdresse.lettre) && !bien.dpeOrigine) {
+      bien.dpeOrigine = 'reel';
+    }
   }
 
   const surfaceM2 = logementConnu ? (row.surface_m2 ?? dpeAdresse?.surfaceM2 ?? null) : row.surface_m2;

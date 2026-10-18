@@ -17,6 +17,9 @@ export const KINDS_GABARIT_V2 = [
   'dpe_bien',
   'strategie',
   'prix',
+  'socio_economie',
+  'services_proximite',
+  'accessibilite',
 ] as const;
 
 /** Anciennes pages V2 hors avis V1 — lisibles, non insérées. */
@@ -51,6 +54,9 @@ export const LIBELLE_KIND_GENEREE: Record<KindGeneree, string> = {
   dpe_bien: 'DPE',
   strategie: 'Stratégie de prix',
   prix: 'Avis de valeur',
+  socio_economie: 'Socio-économie',
+  services_proximite: 'Services à proximité',
+  accessibilite: 'Accessibilité',
   immeuble_appartement: 'L’immeuble et son environnement',
   points_interet: 'Points d’intérêt',
   connectivite: 'Connectivité',

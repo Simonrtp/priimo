@@ -57,6 +57,18 @@ describe('groupEntitiesByBanId', () => {
     );
   });
 
+  it('écarte une coordonnée illégale, qui ferait planter le marqueur', () => {
+    const buildings = groupEntitiesByBanId([
+      point({ id: 'ok', kind: 'lead', banId: 'ban-ok' }),
+      point({ id: 'nan', kind: 'lead', banId: 'ban-nan', latitude: Number.NaN, longitude: 3.06 }),
+      point({ id: 'hors', kind: 'lead', banId: 'ban-hors', latitude: 120, longitude: 3.06 }),
+    ]);
+    assert.deepEqual(
+      buildings.map((b) => b.banId),
+      ['ban-ok'],
+    );
+  });
+
   it('laisse deux immeubles distincts séparés', () => {
     const buildings = groupEntitiesByBanId([
       point({ id: 'a', kind: 'contact', banId: 'ban-1' }),

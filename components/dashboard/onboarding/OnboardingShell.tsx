@@ -20,6 +20,8 @@ export default function OnboardingShell({
   children,
   action,
   compact,
+  /** Le bouton suit le contenu au scroll, au lieu de rester en bas de l’écran. */
+  defile,
   /** Contenu carte : pas de scroll vertical, le flex-1 remplit la hauteur. */
   fill,
 }: {
@@ -33,6 +35,7 @@ export default function OnboardingShell({
   action?: ReactNode;
   /** Moins d’espace sous le titre (écrans denses : avatar, carte). */
   compact?: boolean;
+  defile?: boolean;
   fill?: boolean;
 }) {
   const progress = Math.min(1, Math.max(0, rang / total));
@@ -80,7 +83,7 @@ export default function OnboardingShell({
 
         {children ? (
           <div
-            className={`onb-fade-up flex min-h-0 w-full flex-1 flex-col [animation-delay:420ms] ${compact ? 'mt-5 md:mt-7' : 'mt-8 md:mt-10'}`}
+            className={`onb-fade-up flex w-full flex-col [animation-delay:420ms] ${defile ? '' : 'min-h-0 flex-1'} ${compact ? 'mt-5 md:mt-7' : 'mt-8 md:mt-10'}`}
           >
             {children}
           </div>
@@ -99,18 +102,26 @@ export function OnboardingPrimaryButton({
   onClick,
   disabled,
   type = 'button',
+  tone = 'accent',
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   type?: 'button' | 'submit';
+  /** `navy` : bleu coque #1A2A56. Grisé tant que le bouton est inactif. */
+  tone?: 'accent' | 'navy';
 }) {
+  const teinte =
+    tone === 'navy'
+      ? 'bg-[#1A2A56] text-white shadow-[0_4px_14px_-6px_rgba(26,42,86,0.45)] enabled:hover:bg-[#152044] enabled:hover:shadow-[0_12px_28px_-8px_rgba(26,42,86,0.5)] enabled:active:bg-[#101832] disabled:bg-[#E4E6ED] disabled:text-[#8B8B8B] disabled:shadow-none'
+      : 'bg-[#E8743C] text-white shadow-[0_4px_14px_-6px_rgba(232,116,60,0.45)] enabled:hover:bg-[#C25E2C] enabled:hover:shadow-[0_12px_28px_-8px_rgba(194,94,44,0.55)] enabled:active:bg-[#A34E24] disabled:opacity-40';
+
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="onb-cta group mx-auto flex w-full max-w-[280px] items-center justify-center gap-2.5 rounded-2xl bg-[#E8743C] px-6 py-3.5 text-[15px] font-semibold text-white shadow-[0_4px_14px_-6px_rgba(232,116,60,0.45)] transition-[transform,background-color,box-shadow] duration-150 ease-out enabled:hover:-translate-y-0.5 enabled:hover:bg-[#C25E2C] enabled:hover:shadow-[0_12px_28px_-8px_rgba(194,94,44,0.55)] enabled:active:translate-y-0 enabled:active:scale-[0.97] enabled:active:bg-[#A34E24] enabled:active:shadow-none disabled:opacity-40 motion-reduce:transition-none motion-reduce:enabled:hover:translate-y-0 motion-reduce:enabled:active:scale-100 md:max-w-[340px] md:gap-3 md:py-4 md:text-[16px]"
+      className={`onb-cta group mx-auto flex w-full max-w-[280px] items-center justify-center gap-2.5 rounded-2xl px-6 py-3.5 text-[15px] font-semibold transition-[transform,background-color,box-shadow,color] duration-150 ease-out enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 enabled:active:scale-[0.97] enabled:active:shadow-none motion-reduce:transition-none motion-reduce:enabled:hover:translate-y-0 motion-reduce:enabled:active:scale-100 md:max-w-[340px] md:gap-3 md:py-4 md:text-[16px] ${teinte}`}
     >
       <span>{children}</span>
       <ArrowRight

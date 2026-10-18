@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Marker } from 'react-map-gl';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
+import { isUsableCoord } from '@/lib/carte/coords';
 import { watchDevicePosition, type DevicePosition } from '@/lib/voice/gps';
 
 /**
@@ -30,7 +31,7 @@ export default function LiveAgentLocationMarker({
     });
   }, [enabled, highAccuracy, minUpdateM]);
 
-  if (!position) return null;
+  if (!position || !isUsableCoord(position.latitude, position.longitude)) return null;
 
   return (
     <Marker

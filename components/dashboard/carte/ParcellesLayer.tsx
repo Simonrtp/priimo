@@ -8,6 +8,7 @@ import {
   IGN_PCI_SOURCE_LAYER,
   IGN_PCI_VECTOR_SOURCE,
 } from '@/lib/map/style';
+import { isUsableCoord } from '@/lib/carte/coords';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { DPE_PALETTE, parseDpeLetter } from '@/lib/carte/dpe-public';
 import { DEFAULT_DPE_AGE_BUCKETS } from '@/lib/carte/dpe-age';
@@ -998,7 +999,8 @@ export default function ParcellesLayer({
           />
         </Popup>
       ) : null}
-      {pins.map((m) => (
+      {pins.map((m) =>
+        isUsableCoord(m.latitude, m.longitude) ? (
         <Marker
           key={m.parcelleId}
           longitude={m.longitude}
@@ -1020,7 +1022,8 @@ export default function ParcellesLayer({
             style={{ background: PARCELLE_SLATE, color: '#fff' }}
           />
         </Marker>
-      ))}
+        ) : null,
+      )}
     </>
   );
 }

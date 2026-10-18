@@ -9,6 +9,7 @@ import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import SectorMapClient from '@/components/dashboard/carte/SectorMapClient';
 import RechercheAdresseCarte from '@/components/dashboard/carte/RechercheAdresseCarte';
 import CarteMobile from '@/app/dashboard/_mobile/CarteMobile';
+import { LimiteErreur } from '@/components/erreurs/EcranReprise';
 import ProspectsViewSwitch, { prospectionHref, type ProspectionVue } from './ProspectsViewSwitch';
 import type { Zone } from '@/lib/zones/types';
 import type { RepliImmeuble } from '@/lib/carte/buildings';
@@ -73,6 +74,11 @@ export default function ProspectionCarteView({
 
   if (device === 'mobile') {
     return (
+      <LimiteErreur
+        titre="La carte n’a pas pu s’afficher."
+        detail="Réessayez. La tournée en cours est toujours là."
+        action="Réessayer"
+      >
       <div
         data-prospection-carte
         className="field-map relative h-full min-h-0 w-full overflow-hidden"
@@ -100,10 +106,16 @@ export default function ProspectionCarteView({
           />
         </div>
       </div>
+      </LimiteErreur>
     );
   }
 
   return (
+    <LimiteErreur
+      titre="La carte n’a pas pu s’afficher."
+      detail="Réessayez. Rien n’est perdu."
+      action="Réessayer"
+    >
     <div data-prospection-carte className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
       <SectorMapClient
         points={points}
@@ -123,5 +135,6 @@ export default function ProspectionCarteView({
         initialZoneId={initialZoneId}
       />
     </div>
+    </LimiteErreur>
   );
 }

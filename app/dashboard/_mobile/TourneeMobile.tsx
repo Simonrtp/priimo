@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import MapboxMap, { Marker, type MapRef } from 'react-map-gl';
 import { Locate, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Lead } from '@/types/lead';
-import type { GeoCoord } from '@/lib/carte/coords';
+import { isUsableCoord, type GeoCoord } from '@/lib/carte/coords';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
 import { FIELD, formatDistance } from '@/lib/today/field';
@@ -349,7 +349,14 @@ export default function TourneeMobile({
   function pauseTour() {
     vibrateBrief();
     setTracking(false);
-    persist((s) => ({ ...s, phase: 'prep' }));
+    const suivante: SortieSession = { ...session, phase: 'prep' };
+    writeSortieSession(storageKey, {
+      ...suivante,
+      signature: plan?.signature ?? session.signature,
+      origin,
+      originSource,
+    });
+    setSession(suivante);
     void logEvent({ kind: 'pause', payload: { done: doneN, total: totalN } });
   }
 
@@ -466,7 +473,7 @@ export default function TourneeMobile({
                   progressPoint={agentPos ?? lastClosed}
                 />
               ) : null}
-              {agentPos ? (
+              {agentPos && isUsableCoord(agentPos.latitude, agentPos.longitude) ? (
                 <Marker
                   longitude={agentPos.longitude}
                   latitude={agentPos.latitude}

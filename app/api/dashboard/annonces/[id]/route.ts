@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
-import { lireAnnonces, lireEvenements } from '@/lib/annonces/lire';
+import { lireAnnonce, lireEvenements } from '@/lib/annonces/lire';
 import { ligneHistorique } from '@/lib/annonces/presenter';
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -11,13 +11,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const { id } = await ctx.params;
   const supabase = await createSupabaseServerClient();
-  const annonces = await lireAnnonces(supabase);
-  const annonce = annonces.find((a) => a.id === id);
-  if (!annonce) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
-  const ids = annonce.logementCle
-    ? annonces.filter((a) => a.logementCle === annonce.logementCle).map((a) => a.id)
-    : [annonce.id];
-  const evenements = await lireEvenements(supabase, ids);
+  const lue = await lireAnnonce(supabase, id);
+  if (!lue) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+  const { annonce, soeurs } = lue;
+  const evenements = await lireEvenements(
+    supabase,
+    soeurs.map((a) => a.id),
+  );
   return NextResponse.json({
     lignes: evenements.map((e) => ({ id: e.id, texte: ligneHistorique(e, annonce.premiereVueLe) })),
     raisons: annonce.confiance === 'adresse_publiee'

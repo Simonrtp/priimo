@@ -13,6 +13,12 @@ import CartesAdresseProposee from './CartesAdresseProposee';
 import { patchDepuisAdresseProposee, type AdresseProposee } from '@/lib/notes/rattacher-catalogue';
 import { inferDernierEtage, numeroEtage, optionsEtage, optionsEtagesImmeuble } from '@/lib/estimation/etages';
 import { optionsQualiteEmplacement } from '@/lib/estimation/qualite-emplacement';
+import {
+  ETATS_PRESTATION,
+  POSTES_PRESTATION,
+  QUALITES_PRESTATION,
+  type PostePrestationId,
+} from '@/lib/estimation/prestations';
 import { optionsNiveaux } from '@/lib/estimation/niveaux';
 import { optionsSousType } from '@/lib/estimation/sous-types';
 import {
@@ -86,6 +92,18 @@ export default function OngletBien({
   function edit(key: EstimationVoiceField, body: Record<string, unknown>) {
     onClearPending(key);
     onPatch(body);
+  }
+
+  function poserPrestation(
+    id: PostePrestationId,
+    part: Partial<EstimationBien['prestations'][PostePrestationId]>,
+  ) {
+    setBien({
+      prestations: {
+        ...bien.prestations,
+        [id]: { ...bien.prestations[id], ...part },
+      },
+    });
   }
 
   function editBien(key: EstimationVoiceField, partial: Partial<EstimationBien>) {
@@ -549,6 +567,34 @@ export default function OngletBien({
         </div>
       </SectionRepliable>
 
+      <SectionRepliable titre="Prestations">
+        <div className="flex flex-col gap-3">
+          {POSTES_PRESTATION.map((poste) => (
+            <div key={poste.id} className="grid gap-2 sm:grid-cols-[8rem_1fr_1fr] sm:items-center">
+              <p className="text-[13px] font-medium text-text-strong">{poste.libelle}</p>
+              <Select
+                id={`prest-${poste.id}-q`}
+                value={bien.prestations[poste.id].qualite ?? ''}
+                options={[
+                  { value: '', label: 'Qualité' },
+                  ...QUALITES_PRESTATION.map((q) => ({ value: q, label: q })),
+                ]}
+                onChange={(v) => poserPrestation(poste.id, { qualite: (v || null) as typeof bien.prestations[typeof poste.id]['qualite'] })}
+              />
+              <Select
+                id={`prest-${poste.id}-e`}
+                value={bien.prestations[poste.id].etat ?? ''}
+                options={[
+                  { value: '', label: 'État' },
+                  ...ETATS_PRESTATION.map((q) => ({ value: q, label: q })),
+                ]}
+                onChange={(v) => poserPrestation(poste.id, { etat: (v || null) as typeof bien.prestations[typeof poste.id]['etat'] })}
+              />
+            </div>
+          ))}
+        </div>
+      </SectionRepliable>
+
       <SectionRepliable titre="Énergie">
         <div className="grid gap-3 sm:grid-cols-2">
           <Propose pendingVoice={pendingVoice} onClearPending={onClearPending} field="dpeVersion">
@@ -566,7 +612,12 @@ export default function OngletBien({
                 id="est-dpe"
                 value={estimation.dpeClass ?? ''}
                 options={DPE.map((l) => ({ value: l, label: l || 'Non renseigné' }))}
-                onChange={(v) => edit('dpeClass', { dpeClass: v || null })}
+                onChange={(v) =>
+                  edit('dpeClass', {
+                    dpeClass: v || null,
+                    bien: { ...bien, dpeOrigine: v ? 'estime' : null },
+                  })
+                }
               />
             </Field>
           </Propose>

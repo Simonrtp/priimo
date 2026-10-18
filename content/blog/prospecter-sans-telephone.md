@@ -161,7 +161,7 @@ C'est le travail de fond à lancer maintenant, parce qu'il prend des mois à por
 
 Le principe est simple : un outil qui apporte une valeur immédiate au
 propriétaire, en échange de ses coordonnées et d'un accord explicite pour être
-recontacté. Une estimation en ligne sur votre site en est l'exemple le plus
+recontacté. Un rendez-vous demandé par le propriétaire en est l'exemple le plus
 courant.
 
 Trois conditions pour que la base soit exploitable :

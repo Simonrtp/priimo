@@ -1,5 +1,4 @@
 import type { JournalActivite } from '@/lib/activite/derive';
-import type { AgentPodium } from '@/lib/activite/podium';
 import { dansLaSemaine, type Intervalle } from '@/lib/activite/semaines';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { DIRECTEUR_SEUILS } from './config';
@@ -54,9 +53,6 @@ export type AccueilDirecteurModele = {
   progressionEquipe: number;
   victoires: VictoireSemaine[];
   solo: boolean;
-  /** Classement de la semaine, visible aussi au rechargement de L'agence. */
-  podium: AgentPodium[];
-  sansCollaborateur: boolean;
 };
 
 function unitesActiviteJournal(
@@ -186,8 +182,6 @@ export function assemblerAccueilDirecteur(input: {
   directeurId?: string;
   indicateurs: IndicateursAgence;
   victoires: readonly VictoireSemaine[];
-  podium: readonly AgentPodium[];
-  sansCollaborateur: boolean;
   now?: Date;
 }): AccueilDirecteurModele {
   const cartes = construireCartesDirecteur({
@@ -221,8 +215,6 @@ export function assemblerAccueilDirecteur(input: {
     ),
     victoires: [...input.victoires],
     solo: input.membres.length <= 1,
-    podium: [...input.podium],
-    sansCollaborateur: input.sansCollaborateur,
   };
 }
 

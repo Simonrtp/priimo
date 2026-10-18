@@ -93,7 +93,7 @@ C'est exactement ce que Priimo prépare chaque lundi : une liste courte d'adress
 Huit questions à poser dans votre agence, avant le 11 août :
 
 1. Vos agents appellent-ils encore des particuliers à froid, sans preuve de consentement ? Si oui, il faut planifier l'arrêt — pas l'improviser en août.
-2. Vos formulaires (contact, estimation, rappel) ont-ils une case dédiée, non précochée, mentionnant explicitement la prospection téléphonique ?
+2. Vos formulaires (contact, rappel) ont-ils une case dédiée, non précochée, mentionnant explicitement la prospection téléphonique ?
 3. Savez-vous **conserver la preuve** d'un consentement : date, source, formulation ?
 4. Vos scripts distinguent-ils clairement un particulier d'un professionnel ?
 5. Vos équipes savent-elles ce qu'est un contrat en cours — et surtout ce qu'il n'est pas ?

@@ -92,6 +92,22 @@ export function euros(n: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
 }
 
+/** Étiquette de pastille : « 310 k€ », « 1,25 M€ ». */
+export function eurosCourt(n: number): string {
+  if (n >= 1_000_000) {
+    const m = Math.round(n / 10_000) / 100;
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(m)} M€`;
+  }
+  if (n >= 10_000) return `${Math.round(n / 1000)} k€`;
+  return euros(n);
+}
+
+/** « Particulier » ou le nom de l'agence (« Agence » s'il est inconnu). */
+export function libelleVendeur(annonce: Annonce): string {
+  if (annonce.typeVendeur === 'particulier') return 'Particulier';
+  return annonce.agenceNom?.trim() || 'Agence';
+}
+
 function prixDans(json: Record<string, unknown> | null): number | null {
   if (!json) return null;
   const v = json.prix ?? json.price;

@@ -44,8 +44,9 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
  *
  * L'ordre n'est pas décoratif : le titre, le pense-bête juste à sa
  * droite, le sélecteur de période au bout, sur mobile les tâches du jour
- * (un rappel passe avant les chiffres), puis les objectifs, ce qu'il
- * reste à brancher (agenda, secteur), les cartes, les adresses à gauche
+ * (un rappel passe avant les chiffres), puis ce qu'il reste à brancher
+ * (agenda, secteur) et seulement ensuite les objectifs. Le podium reste
+ * au bureau. Puis les cartes, les adresses à gauche
  * de l'emploi du temps, puis l'entonnoir.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
@@ -70,6 +71,7 @@ export default function AccueilPilotage({
   miseEnPlace = null,
   lectureDe = null,
   sansCollaborateur = false,
+  mobile = false,
 }: {
   /** Le bilan calculé par le serveur au premier rendu. */
   pilotage: Pilotage;
@@ -99,6 +101,8 @@ export default function AccueilPilotage({
   lectureDe?: string | null;
   /** Aucun collaborateur dans l'agence : le podium reste, sans personne dessus. */
   sansCollaborateur?: boolean;
+  /** Téléphone : pas de podium, l'objectif sous « Ce qu'il reste à faire ». */
+  mobile?: boolean;
 }) {
   const cleServeur = vueDuBilan(pilotage).cle;
   const cache = useRef<Cache>(new Map([[cleServeur, pilotage]]));
@@ -241,8 +245,14 @@ export default function AccueilPilotage({
       ) : null}
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
-        <div className="grid grid-cols-2 items-end gap-3 sm:gap-5 lg:grid-cols-4">
-          <div className="col-span-2 min-w-0 lg:col-span-3">
+        {mobile && miseEnPlace && membreSelectionne === moi ? (
+          <CarteMiseEnPlace
+            agendaConnecte={miseEnPlace.agendaConnecte}
+            aUnSecteur={miseEnPlace.aUnSecteur}
+          />
+        ) : null}
+        <div className={mobile ? 'min-w-0' : 'grid grid-cols-2 items-end gap-3 sm:gap-5 lg:grid-cols-4'}>
+          <div className={mobile ? 'min-w-0' : 'col-span-2 min-w-0 lg:col-span-3'}>
             <BandeauObjectif
               bilan={bilan}
               membre={membreSelectionne}
@@ -254,14 +264,15 @@ export default function AccueilPilotage({
               onObjectifsChanges={rafraichir}
             />
           </div>
-          <CarteCompetition
-            podium={affiche.podium ?? []}
-            peutOuvrir={selecteurVueDirecteur}
-            classement={!selecteurVueDirecteur}
-            vide={sansCollaborateur}
-          />
+          {mobile ? null : (
+            <CarteCompetition
+              podium={affiche.podium ?? []}
+              classement
+              vide={sansCollaborateur}
+            />
+          )}
         </div>
-        {miseEnPlace && membreSelectionne === moi ? (
+        {!mobile && miseEnPlace && membreSelectionne === moi ? (
           <CarteMiseEnPlace
             agendaConnecte={miseEnPlace.agendaConnecte}
             aUnSecteur={miseEnPlace.aUnSecteur}

@@ -3950,6 +3950,11 @@ html:has(.feature-page) {
   user-select: none;
 }
 
+/* L'agence : le fond de la carte, légèrement bleuté. Les cartes internes restent blanches. */
+.priimo-workspace-panel:has([data-accueil-agence]) {
+  background-color: #f3f6fd;
+}
+
 /* Fond pastel — prise en main uniquement (carte entière, pas seulement le contenu) */
 .priimo-pastel-wash,
 .priimo-workspace-panel:has([data-agent-onboarding]) {

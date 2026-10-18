@@ -88,4 +88,38 @@ describe('parseMapLayers', () => {
     assert.equal(fromRev5.state.cadastreDpe, true);
     assert.equal(fromRev5.rev, MAP_LAYERS_STORAGE_REV);
   });
+
+  it('rev 7 éteint « Mon secteur » des annonces sans toucher au cadastre', () => {
+    const fromRev6 = migrateStoredMapLayers(
+      { ...DEFAULT_MAP_LAYERS, cadastre: true, annoncesMonSecteur: true, annonces: true },
+      6,
+    );
+    assert.equal(fromRev6.state.annoncesMonSecteur, false);
+    assert.equal(fromRev6.state.annonces, true);
+    assert.equal(fromRev6.state.cadastre, true);
+    assert.equal(fromRev6.rev, MAP_LAYERS_STORAGE_REV);
+  });
+
+  it('convertit les anciens réglages des annonces', () => {
+    const ancien = parseMapLayers({ annoncesActives: true, annoncesParticuliers: false, annoncesDpe: 'F' });
+    assert.equal(ancien.annonces, true);
+    assert.equal(ancien.annoncesVendeur, 'tous');
+    assert.equal(ancien.annoncesStatut, 'actives');
+    assert.equal(ancien.annoncesDpe, 'F');
+    const baisse = parseMapLayers({ annoncesBaisse: true });
+    assert.equal(baisse.annonces, true);
+    assert.equal(baisse.annoncesStatut, 'baisse');
+    assert.equal(baisse.annoncesVendeur, 'particulier');
+    assert.equal(parseMapLayers({ annoncesRetirees: true }).annoncesStatut, 'retirees');
+    assert.equal(parseMapLayers({}).annonces, false);
+  });
+
+  it('lit le nouveau modèle des annonces', () => {
+    const lu = parseMapLayers({ annonces: false, annoncesVendeur: 'professionnel', annoncesStatut: 'nouvelles', annoncesDpe: 'fgx' });
+    assert.equal(lu.annonces, false);
+    assert.equal(lu.annoncesVendeur, 'professionnel');
+    assert.equal(lu.annoncesStatut, 'nouvelles');
+    assert.equal(lu.annoncesDpe, 'FG');
+    assert.equal(parseMapLayers({ annoncesVendeur: 'n’importe' }).annoncesVendeur, 'particulier');
+  });
 });

@@ -22,6 +22,7 @@ import {
   type PerimetreTournee,
   type TourneeReponse,
 } from '@/lib/tournee/reglages';
+import { drapeauxPhase, type PhaseTournee } from '@/lib/tournee/phases';
 import {
   chargerTournee,
   enregistrerTournee,
@@ -44,9 +45,10 @@ import type { MobileMapHandle } from './MobileMapCanvas';
 
 /**
  * `preparation` = adresses et temps, `brief` = ouverture, `route` = tournée en cours,
- * `pause` = carte normale avec reprise en un geste, `bilan` = bravo de fin.
+ * `pause` = carte normale, tracé conservé, reprise en un geste, `bilan` = bravo de fin.
+ * Les drapeaux de chaque phase sont dans `drapeauxPhase`.
  */
-export type PhaseTournee = 'off' | 'preparation' | 'brief' | 'route' | 'pause' | 'bilan';
+export type { PhaseTournee };
 export type Localisation = 'attente' | 'ok' | 'absente';
 export type BilanTournee = { faites: number; total: number; distanceM: number; actifMs: number; calories: number };
 
@@ -171,8 +173,9 @@ export function useTourneeCarte({
   const restauree = useRef(false);
 
   const perimetreEffectif: PerimetreTournee = aUnSecteur ? perimetre : 'code_postal';
-  const traceVisible = phase === 'brief' || phase === 'route' || phase === 'bilan';
-  const suiviActif = phase === 'brief' || phase === 'route';
+  const drapeaux = drapeauxPhase(phase);
+  const traceVisible = drapeaux.trace;
+  const suiviActif = drapeaux.suivi;
 
   const cleTrajet = useMemo(() => cleDuTrajet(arrets, depart), [arrets, depart]);
   const planLocal = useMemo(() => {
@@ -489,10 +492,25 @@ export function useTourneeCarte({
   const finBrief = useCallback(() => setPhase('route'), []);
 
   const pause = useCallback(() => {
-    setSuivi((s) => mettreEnPause(s, Date.now()));
+    const t = Date.now();
+    const suivant = mettreEnPause(suivi, t);
+    setSuivi(suivant);
     setArretChoisi(null);
     setPhase('pause');
-  }, []);
+    // Écrit avant le rendu : si l'affichage casse, la reprise retrouve la pause.
+    enregistrerTournee(profileId, {
+      v: 1,
+      jour: dateKeyParis(new Date()),
+      phase: 'pause',
+      arrets,
+      depart,
+      trajet: trajetValide,
+      faits: [...faits],
+      suivi: suivant,
+      prevuMinutes: prevuServeur.minutes,
+      sansPosition,
+    });
+  }, [suivi, profileId, arrets, depart, trajetValide, faits, prevuServeur.minutes, sansPosition]);
 
   const reprendre = useCallback(() => {
     const t = Date.now();
@@ -572,8 +590,11 @@ export function useTourneeCarte({
   return {
     phase,
     /** Le chrome de la carte s'efface dès qu'on prépare une tournée. */
-    enCours: phase === 'preparation' || phase === 'brief' || phase === 'route' || phase === 'bilan',
+    enCours: drapeaux.occupe,
     traceVisible,
+    /** Pastilles et cadastre cachés : brief, marche, bilan. Pas la pause. */
+    immersion: drapeaux.immersion,
+    chrome: drapeaux.chrome,
     arrets: ordonnes,
     faits: faitsSet,
     prochain,

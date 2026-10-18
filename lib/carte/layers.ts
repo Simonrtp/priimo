@@ -32,6 +32,12 @@ export const CADASTRE_LAYER_LABELS: Record<CadastreLayerId, string> = {
 export const CADASTRE_OVERLAY_IDS = ['dpe', 'ventes', 'copro'] as const;
 export type CadastreOverlayId = (typeof CADASTRE_OVERLAY_IDS)[number];
 
+export const ANNONCES_VENDEURS = ['particulier', 'professionnel', 'tous'] as const;
+export type AnnoncesVendeur = (typeof ANNONCES_VENDEURS)[number];
+
+export const ANNONCES_STATUTS = ['actives', 'nouvelles', 'baisse', 'retirees'] as const;
+export type AnnoncesStatut = (typeof ANNONCES_STATUTS)[number];
+
 export type MapLayerState = Record<MapPointKind, boolean> & {
   cadastre: boolean;
   cadastreDpe: boolean;
@@ -39,13 +45,15 @@ export type MapLayerState = Record<MapPointKind, boolean> & {
   cadastreCopro: boolean;
   cadastreDpeAges: DpeAgeBucket[];
   cadastreMenuOpen: boolean;
+  /** Couche Annonces affichée. */
+  annonces: boolean;
   annoncesMenuOpen: boolean;
-  annoncesActives: boolean;
-  annoncesRetirees: boolean;
-  annoncesParticuliers: boolean;
-  annoncesBaisse: boolean;
+  annoncesVendeur: AnnoncesVendeur;
+  annoncesStatut: AnnoncesStatut;
   annoncesMonSecteur: boolean;
+  /** Classes DPE retenues (« FG »), vide = toutes. */
   annoncesDpe: string;
+  /** Pièces : '' = toutes, '5' = 5 et plus. */
   annoncesPieces: string;
   annoncesPrixMax: string;
 };
@@ -62,12 +70,11 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
   cadastreCopro: false,
   cadastreDpeAges: [...DEFAULT_DPE_AGE_BUCKETS],
   cadastreMenuOpen: true,
+  annonces: false,
   annoncesMenuOpen: false,
-  annoncesActives: false,
-  annoncesRetirees: false,
-  annoncesParticuliers: true,
-  annoncesBaisse: false,
-  annoncesMonSecteur: true,
+  annoncesVendeur: 'particulier',
+  annoncesStatut: 'actives',
+  annoncesMonSecteur: false,
   annoncesDpe: '',
   annoncesPieces: '',
   annoncesPrixMax: '',
@@ -75,8 +82,12 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
 
 export const MAP_LAYERS_STORAGE_KEY = 'priimo-carte-layers';
 export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
-/** Rev 6 : plan parcellaire off par défaut (sauf si overlay cadastre actif). */
-export const MAP_LAYERS_STORAGE_REV = 6;
+/**
+ * Rev 6 : plan parcellaire off par défaut (sauf si overlay cadastre actif).
+ * Rev 7 : « Mon secteur » des annonces éteint une fois — allumé par défaut, il
+ * vidait la carte des négociateurs au petit secteur.
+ */
+export const MAP_LAYERS_STORAGE_REV = 7;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
@@ -95,20 +106,59 @@ export function parseMapLayers(raw: unknown): MapLayerState {
     cadastreCopro: row.cadastreCopro === true,
     cadastreDpeAges: parseDpeAgeBuckets(row.cadastreDpeAges),
     cadastreMenuOpen: row.cadastreMenuOpen !== false,
+    ...parseAnnonces(row),
+    annoncesPieces: typeof row.annoncesPieces === 'string' ? row.annoncesPieces : '',
+    annoncesPrixMax: typeof row.annoncesPrixMax === 'string' ? row.annoncesPrixMax : '',
+  };
+}
+
+type ChampsAnnonces = Pick<
+  MapLayerState,
+  | 'annonces'
+  | 'annoncesMenuOpen'
+  | 'annoncesVendeur'
+  | 'annoncesStatut'
+  | 'annoncesMonSecteur'
+  | 'annoncesDpe'
+  | 'annoncesPieces'
+  | 'annoncesPrixMax'
+>;
+
+function choix<T extends string>(valeur: unknown, permis: readonly T[]): T | null {
+  return typeof valeur === 'string' && (permis as readonly string[]).includes(valeur) ? (valeur as T) : null;
+}
+
+/**
+ * Réglages enregistrés avant l'interrupteur général : « Actives / Retirées /
+ * En baisse » allumaient la couche, « Particuliers » choisissait le vendeur.
+ */
+function parseAnnonces(row: Record<string, unknown>): ChampsAnnonces {
+  const ancienActives = row.annoncesActives === true;
+  const ancienRetirees = row.annoncesRetirees === true;
+  const ancienBaisse = row.annoncesBaisse === true;
+  const ancienStatut: AnnoncesStatut = ancienBaisse
+    ? 'baisse'
+    : ancienRetirees && !ancienActives
+      ? 'retirees'
+      : 'actives';
+  const dpe = typeof row.annoncesDpe === 'string' ? row.annoncesDpe.toUpperCase().replace(/[^A-G]/g, '') : '';
+  return {
+    annonces:
+      typeof row.annonces === 'boolean' ? row.annonces : ancienActives || ancienRetirees || ancienBaisse,
     annoncesMenuOpen: row.annoncesMenuOpen === true,
-    annoncesActives: row.annoncesActives === true,
-    annoncesRetirees: row.annoncesRetirees === true,
-    annoncesParticuliers: row.annoncesParticuliers !== false,
-    annoncesBaisse: row.annoncesBaisse === true,
-    annoncesMonSecteur: row.annoncesMonSecteur !== false,
-    annoncesDpe: typeof row.annoncesDpe === 'string' ? row.annoncesDpe : '',
+    annoncesVendeur:
+      choix(row.annoncesVendeur, ANNONCES_VENDEURS) ??
+      (row.annoncesParticuliers === false ? 'tous' : 'particulier'),
+    annoncesStatut: choix(row.annoncesStatut, ANNONCES_STATUTS) ?? ancienStatut,
+    annoncesMonSecteur: row.annoncesMonSecteur === true,
+    annoncesDpe: dpe,
     annoncesPieces: typeof row.annoncesPieces === 'string' ? row.annoncesPieces : '',
     annoncesPrixMax: typeof row.annoncesPrixMax === 'string' ? row.annoncesPrixMax : '',
   };
 }
 
 export function coucheAnnoncesActive(layers: MapLayerState): boolean {
-  return layers.annoncesActives || layers.annoncesRetirees || layers.annoncesBaisse;
+  return layers.annonces;
 }
 
 export function withAnnoncesMenuToggled(prev: MapLayerState): MapLayerState {
@@ -121,9 +171,13 @@ export function migrateStoredMapLayers(
   rev: number,
 ): { state: MapLayerState; rev: number } {
   if (rev >= MAP_LAYERS_STORAGE_REV) return { state, rev };
+  if (rev === 6) {
+    return { state: { ...state, annoncesMonSecteur: false }, rev: MAP_LAYERS_STORAGE_REV };
+  }
   return {
     state: {
       ...state,
+      annoncesMonSecteur: false,
       cadastre: false,
       ...(rev < 5
         ? {

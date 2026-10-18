@@ -1,11 +1,10 @@
 /**
  * Moteur d'estimation DVF.
  * Chaque étape renvoyée correspond à un vrai comptage / vrai traitement.
- * Coefficients partagés avec lib/estimation.ts (funnel public).
+ * Coefficients partagés avec lib/estimation.ts.
  *
- * Le moteur sert le dashboard (agence connectée) et le parcours public
- * /estimation. Quand `agencyId` est null, aucune donnée interne d'agence
- * n'est lue ni renvoyée.
+ * Le moteur sert l’atelier de l’agent. Quand `agencyId` est null, aucune
+ * donnée interne d'agence n'est lue ni renvoyée.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -32,9 +31,9 @@ import {
   type MotifImpossible,
 } from '@/lib/estimation/moteur';
 import {
-  MESSAGE_SECTEUR_NON_COUVERT,
   secteurEstimeCouvert,
 } from '@/lib/estimation/departements-couverts';
+import { expliquerHorsCouverture } from '@/lib/estimation/couverture-secteur';
 
 type Db = SupabaseClient<Database>;
 
@@ -440,10 +439,11 @@ export async function runDvfEstimation(
   }
 
   if (!secteurEstimeCouvert(input.postalCode)) {
+    const explication = expliquerHorsCouverture(input.postalCode);
     const motif: MotifImpossible = {
       code: 'aucune_vente_zone',
-      motif: MESSAGE_SECTEUR_NON_COUVERT,
-      action: 'Saisissez le prix à la main.',
+      motif: `${explication.titre}. ${explication.texte}`,
+      action: 'Vous pouvez demander la couverture de ce département, ou saisir le prix à la main.',
     };
     await emit({ id: 'secteur', label: motif.motif });
     return {

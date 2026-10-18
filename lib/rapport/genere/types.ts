@@ -2,6 +2,12 @@ import type { KindGeneree } from '@/lib/rapport/modele-defaut';
 import type { IdentiteAgenceRapport, IdentiteAgentRapport } from '@/lib/rapport/identite';
 import type { VenteComparable } from '@/lib/rapport/genere/comparables';
 import type { ContradictionRapport } from '@/lib/rapport/genere/contradictions';
+import type { ConfianceComparables } from '@/lib/estimation/confiance-comparables';
+import type { DpeOrigine } from '@/lib/estimation/dpe-origine';
+import type { PrestationsSaisie } from '@/lib/estimation/prestations';
+import type { Accessibilite } from '@/lib/rapport/isochrones';
+import type { ServicesProximite } from '@/lib/rapport/services-osm';
+import type { SocioCommune } from '@/lib/rapport/socio';
 
 export type ClientRapport = {
   prenom: string | null;
@@ -103,7 +109,9 @@ export type DossierRapport = {
   floor: string | null;
   occupation: 'libre' | 'occupe';
   dpeClass: string | null;
+  dpeOrigine?: DpeOrigine | null;
   gesClass: string | null;
+  prestations?: PrestationsSaisie | null;
   etatLibelle: string | null;
   balconTerrasse: boolean | null;
   commentairesPublics: string | null;
@@ -123,6 +131,12 @@ export type DossierRapport = {
   pricePerM2: number | null;
   surfacePrixLibelle: 'Carrez' | 'habitable' | null;
   fourchetteAjoutee: boolean;
+  confiance?: ConfianceComparables | null;
+  /** Défaut : rue seulement. */
+  adressesComparables?: 'rue' | 'complete';
+  socio?: SocioCommune | null;
+  services?: ServicesProximite | null;
+  accessibilite?: Accessibilite | null;
   client: ClientRapport;
   agence: IdentiteAgenceRapport;
   agent: IdentiteAgentRapport;

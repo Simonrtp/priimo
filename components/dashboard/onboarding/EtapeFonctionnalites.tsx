@@ -25,6 +25,7 @@ export default function EtapeFonctionnalites({
       rang={rang}
       total={total}
       titre="Ce que vous pourrez faire avec Priimo."
+      defile
       action={<OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>}
     >
       <ul className="max-w-[36rem] space-y-3.5 text-pretty text-[16px] leading-relaxed text-[#3A3A3A] md:max-w-2xl md:space-y-4 md:text-[17px]">

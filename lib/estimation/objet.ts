@@ -7,6 +7,7 @@ import {
   type EstimationOccupation,
 } from '@/lib/estimation/cycle';
 import { estNote, type CritereSource, type GrilleSaisie } from '@/lib/estimation/grille';
+import { parsePrestations, type PrestationsSaisie } from '@/lib/estimation/prestations';
 
 export type EstimationBien = {
   sousType: string | null;
@@ -25,10 +26,13 @@ export type EstimationBien = {
   chargesCopro: number | null;
   taxeFonciere: number | null;
   dpeVersion: string | null;
+  /** reel = ADEME à l’adresse du bien. estime = saisie. */
+  dpeOrigine: 'reel' | 'estime' | null;
   ges: string | null;
   consoKwh: number | null;
   facadeCouverture: boolean;
   piscine: boolean | null;
+  prestations: PrestationsSaisie;
 };
 
 export type EstimationAnnexe = {
@@ -65,6 +69,8 @@ export const BIEN_VIDE: EstimationBien = {
   consoKwh: null,
   facadeCouverture: false,
   piscine: null,
+  dpeOrigine: null,
+  prestations: parsePrestations(null),
 };
 
 function asObject(raw: unknown): Record<string, unknown> {
@@ -123,10 +129,12 @@ export function parseBien(raw: unknown): EstimationBien {
     chargesCopro: asNum(o.chargesCopro),
     taxeFonciere: asNum(o.taxeFonciere),
     dpeVersion: asText(o.dpeVersion),
+    dpeOrigine: o.dpeOrigine === 'reel' || o.dpeOrigine === 'estime' ? o.dpeOrigine : null,
     ges: asText(o.ges),
     consoKwh: asNum(o.consoKwh),
     facadeCouverture: o.facadeCouverture === true,
     piscine: asBool(o.piscine),
+    prestations: parsePrestations(o.prestations),
   };
 }
 

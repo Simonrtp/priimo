@@ -121,6 +121,9 @@ describe('modèle de rapport', () => {
       'dpe_bien',
       'strategie',
       'prix',
+      'socio_economie',
+      'services_proximite',
+      'accessibilite',
     ]);
     const idxPrix = slots.findIndex((s) => s.source === 'generee' && s.kindGeneree === 'prix');
     const idxBiblio = slots.findIndex((s) => s.source === 'bibliotheque');

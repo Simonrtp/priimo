@@ -1,18 +1,24 @@
 import { arrondirMillier } from '@/lib/rapport/genere/format';
 
-export function assurerFourchette(
-  value: number,
+/** Ancienne fourchette ±8 % écrite comme si elle venait des ventes. */
+export function estFourchetteInventee(value: number, low: number, high: number): boolean {
+  const bas = value * 0.92;
+  const haut = value * 1.08;
+  const exacte = Math.abs(low - bas) < 1 && Math.abs(high - haut) < 1;
+  const arrondie = low === arrondirMillier(bas) && high === arrondirMillier(haut);
+  return exacte || arrondie;
+}
+
+/** Bornes déjà calculées sur les comparables. Jamais un pourcentage posé à la place. */
+export function fourchetteReelle(
+  value: number | null,
   low: number | null,
   high: number | null,
-): { low: number; high: number; ajoutee: boolean } {
-  if (low != null && high != null && low < high) {
-    return { low, high, ajoutee: false };
-  }
-  return {
-    low: arrondirMillier(value * 0.92),
-    high: arrondirMillier(value * 1.08),
-    ajoutee: true,
-  };
+): { low: number; high: number } | null {
+  if (value == null || low == null || high == null) return null;
+  if (!(low < value && high > value && low < high)) return null;
+  if (estFourchetteInventee(value, low, high)) return null;
+  return { low, high };
 }
 
 export function surfacePourPrixM2(input: {

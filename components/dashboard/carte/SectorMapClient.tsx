@@ -114,6 +114,7 @@ function LayersPanel({
   zones,
   zoneId,
   onZone,
+  annoncesQui,
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
@@ -136,6 +137,7 @@ function LayersPanel({
   zones: readonly Zone[];
   zoneId: string;
   onZone: (id: string) => void;
+  annoncesQui: { zones: readonly Zone[]; directeur: boolean; profileId: string };
 }) {
   return (
     <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden ${className}`}>
@@ -194,6 +196,7 @@ function LayersPanel({
             layers={layers}
             onChange={onChangeAnnonces}
             onToggleMenu={onToggleAnnoncesMenu}
+            qui={annoncesQui}
           />
         </ul>
 
@@ -263,6 +266,10 @@ export default function SectorMapClient({
   const router = useRouter();
   const { profile } = useUser();
   const profileId = profile?.id ?? '';
+  const annoncesQui = useMemo(
+    () => ({ zones, directeur: isDirector, profileId }),
+    [zones, isDirector, profileId],
+  );
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
   const [zoneId, setZoneId] = useState(
@@ -533,6 +540,7 @@ export default function SectorMapClient({
       onEmprise={choisirEmprise}
       hasSecteur={Boolean(monSecteurId)}
       zones={secteursAMoi(zones, profileId)}
+      annoncesQui={annoncesQui}
       zoneId={zoneId}
       onZone={setZoneId}
     />
@@ -587,6 +595,7 @@ export default function SectorMapClient({
           clipZone={zoneChoisie}
           annoncesCouche={{
             layers,
+            zones,
             directeur: isDirector,
             profileId,
             onChoisir: (annonce, soeurs) => setAnnonceOuverte({ annonce, soeurs }),
@@ -602,7 +611,7 @@ export default function SectorMapClient({
         ) : null}
 
         {annonceOuverte ? (
-          <div className="pointer-events-auto absolute bottom-3 left-3 z-30 max-h-[min(70%,520px)] w-[min(100%-1.5rem,340px)]">
+          <div className="pointer-events-auto absolute bottom-3 left-3 z-30 flex max-h-[min(70%,520px)] w-[min(100%-1.5rem,340px)] flex-col">
             <AnnonceVolet
               annonce={annonceOuverte.annonce}
               soeurs={annonceOuverte.soeurs}
@@ -649,6 +658,7 @@ export default function SectorMapClient({
                 onEmprise={choisirEmprise}
                 hasSecteur={Boolean(monSecteurId)}
       zones={secteursAMoi(zones, profileId)}
+      annoncesQui={annoncesQui}
       zoneId={zoneId}
       onZone={setZoneId}
                 onCollapse={() => setLayersPanelOpen(false)}

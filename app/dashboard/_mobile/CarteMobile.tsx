@@ -153,6 +153,10 @@ export default function CarteMobile({
   const mapApi = useRef<MobileMapHandle | null>(null);
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
+  const annoncesQui = useMemo(
+    () => ({ zones, directeur: isDirector, profileId }),
+    [zones, isDirector, profileId],
+  );
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
   const [zoneId, setZoneId] = useState(
     initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
@@ -189,8 +193,8 @@ export default function CarteMobile({
     mapApi,
   });
   const tourShown = tournee.traceVisible;
-  /** Recherche, filtres, boutons et onglets ne reviennent qu'hors tournée, ou en pause. */
-  const chromeVisible = tournee.phase === 'off' || tournee.phase === 'pause';
+  /** Recherche, filtres, boutons et onglets : hors tournée, ou en pause. */
+  const chromeVisible = tournee.chrome;
 
   useEffect(() => {
     setDimension(readMapDimension());
@@ -525,7 +529,7 @@ export default function CarteMobile({
         onStopTap={tournee.phase === 'route' ? choisirArretCarte : undefined}
         currentLeadId={tourShown ? ((tournee.arretChoisi ?? tournee.prochain)?.leadId ?? null) : null}
         // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
-        parcellesEnabled={!tourShown && (planParcelles || Boolean(parcelle.selectedParcelleId))}
+        parcellesEnabled={!tournee.immersion && (planParcelles || Boolean(parcelle.selectedParcelleId))}
         activeParcelleIds={activeParcelleIds}
         suiviParcelleIds={suiviParcelleIds}
         parcelleNoteMarkers={parcelleNoteMarkers}
@@ -547,6 +551,7 @@ export default function CarteMobile({
         onPrefetchParcelle={parcelle.prefetchParcelle}
         annoncesCouche={{
           layers,
+          zones,
           directeur: isDirector,
           profileId,
           onChoisir: (annonce, soeurs) => {
@@ -560,7 +565,7 @@ export default function CarteMobile({
         // Une adresse cherchée ou une tournée gardent la main : la carte ne repart pas sur tout le secteur.
         suppressAutoFit={tournee.phase !== 'off' || Boolean(cible) || Boolean(initialParcelleId) || Boolean(focusLien)}
         focus={focusLien}
-        navigation={tourShown}
+        navigation={tournee.immersion}
         onMapPoint={picking ? ajouterPointCarte : undefined}
       />
 
@@ -800,7 +805,7 @@ export default function CarteMobile({
       ) : null}
 
       {annonceOuverte && !tournee.enCours ? (
-        <div className="pointer-events-auto absolute inset-x-3 z-[72] max-h-[55%] overflow-hidden" style={{ bottom: 'calc(12px + var(--field-nav-height))' }}>
+        <div className="pointer-events-auto absolute inset-x-3 z-[72] flex max-h-[55%] flex-col overflow-hidden" style={{ bottom: 'calc(12px + var(--field-nav-height))' }}>
           <AnnonceVolet
             annonce={annonceOuverte.annonce}
             soeurs={annonceOuverte.soeurs}
@@ -877,6 +882,7 @@ export default function CarteMobile({
           <AnnoncesLayerControls
             layers={layers}
             compact
+            qui={annoncesQui}
             onToggleMenu={() =>
               setLayers((prev) => {
                 const next = withAnnoncesMenuToggled(prev);

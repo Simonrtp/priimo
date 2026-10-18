@@ -15,7 +15,6 @@ const SKIP_AUTH_PREFIXES = [
   '/confidentialite',
   '/politique-de-confidentialite',
   '/mentions-legales',
-  '/estimation',
   '/avis',
   '/rapport',
   '/c',

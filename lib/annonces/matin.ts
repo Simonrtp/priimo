@@ -27,7 +27,8 @@ export async function curseurAnnonces(admin: Admin): Promise<string | null> {
  * Sans curseur, on ne rattrape pas l'historique plus vieux qu'hier.
  */
 export async function traiterAnnoncesDuMatin(admin: Admin, maintenant = new Date()): Promise<number> {
-  const annonces = await lireAnnonces(admin);
+  // Seuls les particuliers sont notifiés : les agences du secteur restent sur la carte.
+  const annonces = await lireAnnonces(admin, { vendeur: 'particulier' });
   if (annonces.length === 0) return 0;
   let evenements = await lireEvenements(
     admin,
