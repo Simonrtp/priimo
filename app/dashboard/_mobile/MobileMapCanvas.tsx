@@ -56,6 +56,39 @@ export type MobileMapHandle = {
 
 export type VueCarte = { bearing: number; pitch: number };
 
+function vueDepart(
+  bounds: LngLatBoundsTuple | null,
+  secours: { longitude: number; latitude: number } | null,
+  camera: { pitch: number; bearing: number },
+) {
+  // Un cadrage « bounds » seul est lu comme zoom 0 au centre du globe
+  // tant que le style n'est pas prêt. On donne toujours un centre local.
+  if (bounds) {
+    const [[west, south], [east, north]] = bounds;
+    return {
+      longitude: (west + east) / 2,
+      latitude: (south + north) / 2,
+      zoom: 14,
+      pitch: camera.pitch,
+      bearing: camera.bearing,
+      bounds,
+      fitBoundsOptions: {
+        padding: 60,
+        maxZoom: 15,
+      },
+    };
+  }
+  if (secours) {
+    return {
+      longitude: secours.longitude,
+      latitude: secours.latitude,
+      zoom: 15,
+      ...camera,
+    };
+  }
+  return { ...FRANCE_MAP_VIEW, ...camera };
+}
+
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
   if (!b) return null;
@@ -173,9 +206,11 @@ export default function MobileMapCanvas({
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [zoom, setZoom] = useState(13);
   const [styleReady, setStyleReady] = useState(false);
+  const [vuePosee, setVuePosee] = useState(false);
   const [mapGesturing, setMapGesturing] = useState(false);
   const gestureTimer = useRef<number | null>(null);
   const viewportTimer = useRef<number | null>(null);
+  const revelerTimer = useRef<number | null>(null);
   const camera = cameraFor(dimension);
   const relief = !navigation && dimension === '3d';
   useCanvasAJour(mapRef, styleReady);
@@ -219,6 +254,7 @@ export default function MobileMapCanvas({
     () => () => {
       if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
       if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
+      if (revelerTimer.current != null) window.clearTimeout(revelerTimer.current);
     },
     [],
   );
@@ -304,9 +340,12 @@ export default function MobileMapCanvas({
     ? `${focusBounds[0][0]},${focusBounds[0][1]},${focusBounds[1][0]},${focusBounds[1][1]}`
     : '';
 
+  const cadrageInitial = useRef(true);
   useEffect(() => {
     if (suppressAutoFit) return;
-    fitToPoints(true);
+    const animer = !cadrageInitial.current;
+    cadrageInitial.current = false;
+    fitToPoints(animer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsSignature, itineraryBounds, suppressAutoFit, focusSignature]);
 
@@ -357,33 +396,16 @@ export default function MobileMapCanvas({
 
   return (
     <div
-      className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden"
+      data-carte-vue={vuePosee ? 'prete' : 'attente'}
+      className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden bg-[#c8c0b4]"
       onContextMenu={(event) => event.preventDefault()}
     >
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
-        initialViewState={
-          initialBounds
-            ? {
-                bounds: initialBounds,
-                pitch: camera.pitch,
-                bearing: camera.bearing,
-                fitBoundsOptions: {
-                  padding: 60,
-                  maxZoom: 15,
-                },
-              }
-            : fallback
-              ? {
-                  longitude: fallback.longitude,
-                  latitude: fallback.latitude,
-                  zoom: 15,
-                  ...camera,
-                }
-              : { ...FRANCE_MAP_VIEW, ...camera }
-        }
+        projection={{ name: 'mercator' }}
+        initialViewState={vueDepart(initialBounds, fallback, camera)}
         attributionControl={false}
         minPitch={0}
         maxPitch={MAP_MAX_PITCH}
@@ -417,6 +439,14 @@ export default function MobileMapCanvas({
         }}
         onLoad={() => {
           const map = mapRef.current;
+          const raw = map?.getMap();
+          if (raw) {
+            try {
+              raw.setProjection('mercator');
+            } catch {
+              /* carte déjà détruite */
+            }
+          }
           const next = map ? boundsToViewport(map) : null;
           if (next) onViewport(next);
           if (map) {
@@ -425,6 +455,32 @@ export default function MobileMapCanvas({
           }
           setStyleReady(true);
           if (!cible && !focus) fitToPoints(false);
+          const montrer = () => {
+            const vue = mapRef.current;
+            if (vue && vue.getZoom() < 6 && fallback) {
+              try {
+                vue.easeTo({
+                  center: [fallback.longitude, fallback.latitude],
+                  zoom: 15,
+                  duration: 0,
+                });
+              } catch {
+                /* le cadrage de secours attendra le prochain geste */
+              }
+            }
+            setVuePosee(true);
+          };
+          if (raw) {
+            try {
+              raw.once('render', montrer);
+            } catch {
+              montrer();
+            }
+          } else {
+            montrer();
+          }
+          if (revelerTimer.current != null) window.clearTimeout(revelerTimer.current);
+          revelerTimer.current = window.setTimeout(montrer, 250);
         }}
         onMoveEnd={(event) => {
           const b = event.target.getBounds();

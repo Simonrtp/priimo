@@ -1092,6 +1092,11 @@ form.is-waiting button[type='button'] {
 .priimo-map .mapboxgl-canvas {
   filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
+/* Le style Mapbox peint le globe tant que la caméra n'est pas sur le secteur. */
+.priimo-map[data-carte-vue='attente'] .mapboxgl-map {
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* Pas de mention Mapbox (logo / attribution) sur les cartes Priimo. */
 .priimo-map .mapboxgl-ctrl-logo,

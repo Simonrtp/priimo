@@ -24,9 +24,9 @@ export default function SqueletteAgence() {
       </header>
       <section className="mt-4 rounded-clay-lg bg-surface px-4 pb-4 pt-4 shadow-clay sm:px-5">
         <h2 className="mb-4 text-[15px] font-semibold text-text-strong sm:text-[16px]">L&apos;équipe</h2>
-        <div className="flex gap-5">
+        <div className="flex gap-6">
           {['a', 'b', 'c'].map((id) => (
-            <div key={id} className="flex w-[5.5rem] flex-col items-center gap-2">
+            <div key={id} className="flex w-20 flex-col items-center gap-2">
               <div className="squelette size-20 rounded-full" />
               <div className="squelette h-3 w-14 rounded-full" />
             </div>

@@ -37,9 +37,9 @@ function ilYa(iso: string | null, maintenant: number): string {
 
 /**
  * L'équipe d'un coup d'œil : une bulle par négociateur, dont l'anneau dit où
- * il en est de sa période. Un clic l'amène à gauche et ouvre sa fiche :
- * les autres restent visibles, à droite. Un second clic, ou un clic à
- * côté, referme. Depuis la fiche, un bouton ouvre son tableau de bord.
+ * il en est de sa période. Un clic ouvre sa fiche. Les autres avatars
+ * s'effacent : seul « Inviter » reste à côté. Un second clic, ou un clic
+ * à côté, referme. Depuis la fiche, un bouton ouvre son tableau de bord.
  *
  * Les alertes « à traiter » d'un négociateur vivent dans sa bulle (pastille)
  * et dans sa fiche : rien ne se perd, tout est à sa place.
@@ -127,7 +127,7 @@ export default function BullesEquipe({
     <div ref={cadreRef} className="relative min-w-0">
     <ul
       ref={ulRef}
-      className="flex items-start max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none]"
+      className="flex items-start gap-6 max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none]"
     >
       {negociateurs.map((n, i) => {
         const style = STATUT_STYLE[n.statut];
@@ -135,19 +135,16 @@ export default function BullesEquipe({
         const sesAlertes = alertesDe(n.membreId);
         const actif = survol === n.membreId;
         const moi = n.membreId === moiId;
-        const largeur = moi ? '9.75rem' : '5.5rem';
-        const colonne = moi ? '8.5rem' : '5.5rem';
+        if (survol && !actif) return null;
+        const colonne = `${TAILLE}px`;
         return (
           <li
             key={n.membreId}
             data-id={n.membreId}
-            className={`min-w-0 overflow-hidden pt-4 ${actif ? 'relative z-20' : ''}`}
+            className={`pt-4 ${actif ? 'relative z-20 min-w-0 flex-1' : 'shrink-0'}`}
             style={{
               order: actif ? -1 : 0,
-              flexGrow: actif ? 1 : 0,
-              flexShrink: 0,
-              flexBasis: largeur,
-              paddingRight: '1.25rem',
+              width: actif ? undefined : TAILLE,
             }}
           >
             <div
@@ -161,10 +158,13 @@ export default function BullesEquipe({
               onClick={() => choisir(n.membreId)}
               aria-expanded={actif}
               aria-label={`${n.prenom} ${n.nom}${moi ? ' (Moi)' : ''}, ${STATUT_NEGOCIATEUR_LABELS[n.statut]}, ${progression} %${n.membreId === meilleurId ? ', meilleur de l’équipe' : ''}`}
-              className="flex min-w-0 flex-col items-center justify-self-start gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-primary-200"
-              style={{ width: colonne }}
+              className="group flex flex-col items-center justify-self-start gap-1.5 overflow-visible outline-none focus-visible:ring-2 focus-visible:ring-primary-200"
+              style={{ width: TAILLE }}
             >
-              <span className="relative" style={{ width: TAILLE, height: TAILLE }}>
+              <span
+                className="relative transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:scale-[1.04] motion-reduce:transition-none"
+                style={{ width: TAILLE, height: TAILLE }}
+              >
                 {n.membreId === meilleurId ? (
                   <Crown
                     size={18}
@@ -197,7 +197,7 @@ export default function BullesEquipe({
                   />
                 </svg>
                 <span
-                  className="absolute overflow-hidden rounded-full shadow-clay-sm transition-[transform,box-shadow] duration-300 ease-out group-hover:scale-[1.06] motion-reduce:transition-none"
+                  className="absolute overflow-hidden rounded-full shadow-clay-sm"
                   style={{
                     inset: RETRAIT,
                     backgroundColor: style.avatar,
@@ -221,13 +221,19 @@ export default function BullesEquipe({
                   </span>
                 ) : null}
               </span>
-              <span className={`max-w-full truncate text-[12.5px] font-semibold text-text-strong ${actif ? 'sr-only' : ''}`}>
-                {n.prenom}
-                {moi ? ' (Moi)' : ''}
-              </span>
-              <span className={`text-[11.5px] font-semibold tabular-nums ${actif ? 'sr-only' : ''}`} style={{ color: style.texte }}>
-                {progression}&nbsp;%
-              </span>
+              {actif ? null : (
+                <span className="relative block h-4 w-full">
+                  <span className="absolute left-1/2 top-0 max-w-[7.5rem] -translate-x-1/2 truncate whitespace-nowrap text-[12.5px] font-semibold text-text-strong">
+                    {n.prenom}
+                    {moi ? ' (Moi)' : ''}
+                  </span>
+                </span>
+              )}
+              {actif ? null : (
+                <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: style.texte }}>
+                  {progression}&nbsp;%
+                </span>
+              )}
             </button>
               <FicheNegociateur
                 visible={actif}
@@ -240,12 +246,12 @@ export default function BullesEquipe({
         );
       })}
 
-      <li data-id="invite" className="max-w-[5.5rem] shrink-0 overflow-hidden pr-1 pt-4">
+      <li data-id="invite" className="shrink-0 pt-4" style={{ width: TAILLE }}>
         <button
           type="button"
           onClick={onInviter}
           aria-label="Ajouter un collaborateur"
-          className="group flex w-[92px] flex-col items-center gap-1.5 pb-1 pt-1.5"
+          className="group flex w-full flex-col items-center gap-1.5"
         >
           <span
             className="flex items-center justify-center rounded-full border-2 border-dashed border-black/15 text-text-subtle transition-colors group-hover:border-primary-400 group-hover:text-primary-600"
@@ -330,7 +336,7 @@ function FicheNegociateur({
     <div
         data-fiche
         className={`min-w-0 overflow-hidden transition-opacity duration-[1000ms] ease-out motion-reduce:transition-none ${
-        visible ? 'opacity-100 delay-200' : 'opacity-0'
+        visible ? 'opacity-100 delay-200' : 'pointer-events-none opacity-0'
       }`}
       aria-hidden={!visible}
     >
