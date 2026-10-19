@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Crown, Plus } from 'lucide-react';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
@@ -26,6 +26,32 @@ const TRAIT = 5;
 const RETRAIT = 8;
 const RAYON = (TAILLE - TRAIT) / 2;
 const CIRCONFERENCE = 2 * Math.PI * RAYON;
+
+/** Un pastel par collaborateur, pris dans les familles déjà en place. */
+const FONDS_AVATAR = [
+  COULEUR_FAMILLE.immeubles_prospectes.pastille,
+  COULEUR_FAMILLE.contacts_qualifies.pastille,
+  COULEUR_FAMILLE.estimations.pastille,
+  COULEUR_FAMILLE.informations_terrain.pastille,
+  '#FFE0C4',
+  '#E8EEF5',
+] as const;
+
+function fondsParMembre(ids: readonly string[]): Map<string, string> {
+  const pris = new Set<number>();
+  const out = new Map<string, string>();
+  for (const id of [...ids].sort()) {
+    let h = 0;
+    for (let i = 0; i < id.length; i += 1) h = (h * 33 + id.charCodeAt(i)) >>> 0;
+    let slot = h % FONDS_AVATAR.length;
+    if (pris.size < FONDS_AVATAR.length) {
+      while (pris.has(slot)) slot = (slot + 1) % FONDS_AVATAR.length;
+    }
+    pris.add(slot);
+    out.set(id, FONDS_AVATAR[slot] ?? FONDS_AVATAR[0]);
+  }
+  return out;
+}
 
 function ilYa(iso: string | null, maintenant: number): string {
   if (!iso) return 'Pas encore d’activité';
@@ -107,6 +133,7 @@ export default function BullesEquipe({
   }
 
   const alertesDe = (id: string) => alertes.filter((a) => a.membreId === id);
+  const fonds = useMemo(() => fondsParMembre(negociateurs.map((n) => n.membreId)), [negociateurs]);
   const meilleurId = (() => {
     if (negociateurs.length < 2) return null;
     let meilleur = negociateurs[0]!;
@@ -200,7 +227,7 @@ export default function BullesEquipe({
                   className="absolute overflow-hidden rounded-full shadow-clay-sm"
                   style={{
                     inset: RETRAIT,
-                    backgroundColor: style.avatar,
+                    backgroundColor: fonds.get(n.membreId),
                     // Halo de la couleur du statut sous la bulle survolée.
                     boxShadow: actif ? `0 14px 30px -10px ${style.barre}` : undefined,
                   }}
@@ -210,6 +237,7 @@ export default function BullesEquipe({
                     lastName={n.nom}
                     avatarUrl={n.avatarUrl}
                     size={TAILLE - 2 * RETRAIT}
+                    fond={fonds.get(n.membreId)}
                   />
                 </span>
                 {sesAlertes.length > 0 ? (

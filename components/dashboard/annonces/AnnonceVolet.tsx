@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowDown, ChevronDown, ExternalLink, X } from 'lucide-react';
+import PhotosAnnonce from './PhotosAnnonce';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
 import {
@@ -15,7 +16,24 @@ import {
   prixM2,
   repereApproximatif,
 } from '@/lib/annonces/presenter';
-import type { Annonce } from '@/lib/annonces/types';
+import type { Annonce, Portail } from '@/lib/annonces/types';
+
+const LOGO_PORTAIL: Record<Portail, string> = {
+  seloger: '/landing/portails/marquee/seloger.webp',
+  pap: '/landing/portails/pap.svg',
+  leboncoin: '/landing/portails/marquee/leboncoin.webp',
+  bienici: '/landing/portails/marquee/bienici.webp',
+  logicimmo: '/landing/portails/marquee/logicimmo.webp',
+};
+
+function portailsUniques(portails: Annonce[]): Annonce[] {
+  const vus = new Set<string>();
+  return portails.filter((p) => {
+    if (vus.has(p.portail)) return false;
+    vus.add(p.portail);
+    return true;
+  });
+}
 
 const TYPE_BIEN: Record<string, string> = { appartement: 'Appartement', maison: 'Maison' };
 
@@ -46,6 +64,7 @@ export default function AnnonceVolet({
   onFermer: () => void;
 }) {
   const [lignes, setLignes] = useState<{ id: string; texte: string }[]>([]);
+  const [photos, setPhotos] = useState<string[] | null>(null);
   const [raisons, setRaisons] = useState<string[]>(
     annonce.confiance === 'adresse_publiee'
       ? annonce.raisonsLocalisation.filter((r) => !/dpe/i.test(r))
@@ -74,16 +93,25 @@ export default function AnnonceVolet({
 
   useEffect(() => {
     let ignore = false;
+    setPhotos(null);
     void fetch(`/api/dashboard/annonces/${annonce.id}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { lignes?: { id: string; texte: string }[]; raisons?: string[] } | null) => {
-        if (ignore || !json) return;
+      .then((json: { lignes?: { id: string; texte: string }[]; raisons?: string[]; photos?: string[] } | null) => {
+        if (ignore) return;
+        if (!json) {
+          setPhotos([]);
+          return;
+        }
         setLignes(json.lignes ?? []);
         setRaisons(
           annonce.confiance === 'adresse_publiee'
             ? (json.raisons ?? []).filter((r) => !/dpe/i.test(r))
             : (json.raisons ?? []),
         );
+        setPhotos((json.photos ?? []).filter((p) => typeof p === 'string'));
+      })
+      .catch(() => {
+        if (!ignore) setPhotos([]);
       });
     return () => {
       ignore = true;
@@ -94,7 +122,10 @@ export default function AnnonceVolet({
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface">
       <header className="flex shrink-0 items-start justify-between gap-3 px-4 pb-3 pt-4">
         <div className="min-w-0">
-          <p className={`text-[19px] font-semibold leading-snug text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}>
+          <p className="text-pretty text-[13px] font-medium leading-snug text-text-strong">{lieu.ligne}</p>
+          {lieu.probable ? <p className="text-[12px] text-text-muted">Adresse probable</p> : null}
+          {approx ? <p className="text-[12px] text-text-muted">Emplacement approximatif</p> : null}
+          <p className={`mt-1 text-[19px] font-semibold leading-snug text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}>
             {annonce.prix != null ? euros(annonce.prix) : 'Prix non indiqué'}
           </p>
           {baisse != null && annonce.prixInitial != null ? (
@@ -130,6 +161,7 @@ export default function AnnonceVolet({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+        <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />
         {particulier && annonce.refusDemarchage ? (
           <p className="mb-3 rounded-[12px] bg-black/[0.04] px-3 py-2 text-[13px] text-text-strong">
             Le propriétaire refuse le démarchage commercial.
@@ -160,15 +192,17 @@ export default function AnnonceVolet({
               'Date inconnue'
             )}
           </Ligne>
-          <Ligne titre={approx ? 'Secteur' : 'Adresse'}>
-            {lieu.ligne}
-            {lieu.probable ? <span className="block text-[12px] font-normal text-text-muted">Adresse probable</span> : null}
-            {approx ? <span className="block text-[12px] font-normal text-text-muted">Emplacement approximatif</span> : null}
-          </Ligne>
-          <Ligne titre={portails.length > 1 ? 'Portails' : 'Portail'}>
-            {portails.map((p) => libellePortail(p.portail)).join(', ')}
-          </Ligne>
         </dl>
+        <div className="flex items-center gap-1.5 border-t border-black/[0.05] py-2.5">
+          {portailsUniques(portails).map((p) => (
+            <img
+              key={p.portail}
+              src={LOGO_PORTAIL[p.portail]}
+              alt={libellePortail(p.portail)}
+              className="h-5 w-auto max-w-[5.75rem] object-contain object-left"
+            />
+          ))}
+        </div>
 
         <section className="mt-2 border-t border-black/[0.06] pt-4">
           <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Historique</h3>

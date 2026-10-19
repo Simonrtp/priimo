@@ -15,6 +15,7 @@ import {
   type ArretTournee,
   type DepartTournee,
   type DetailArret,
+  type SignalAnnonce,
 } from './reglages';
 
 export const FENETRE_DPE_JOURS = 183;
@@ -88,6 +89,19 @@ export type AdresseTournee = {
   dernierPassage: string | null;
   /** Copropriété avec une procédure en cours. */
   procedureCopro: boolean;
+  /** Annonce nouvelle ou en baisse de prix, sur cette adresse. */
+  annonce: SignalAnnonce | null;
+};
+
+/** Une annonce à faire entrer dans la tournée, déjà localisée. */
+export type AnnoncePorte = SignalAnnonce & {
+  id: string;
+  banId: string | null;
+  adresse: string;
+  codePostal: string | null;
+  latitude: number;
+  longitude: number;
+  parcelleId: string | null;
 };
 
 export type CoproTournee = {
@@ -151,12 +165,26 @@ export function derniersPassagesAgence(passages: readonly PassageObserve[]): Map
   return out;
 }
 
+function signalAnnonce(porte: AnnoncePorte): SignalAnnonce {
+  return { motif: porte.motif, baissePourcent: porte.baissePourcent, depuis: porte.depuis };
+}
+
+/** Une baisse passe devant une mise en ligne ; à motif égal, la plus forte, puis la plus récente. */
+function prefereSignal(a: SignalAnnonce, b: SignalAnnonce): SignalAnnonce {
+  if (a.motif !== b.motif) return a.motif === 'baisse' ? a : b;
+  const pa = a.baissePourcent ?? 0;
+  const pb = b.baissePourcent ?? 0;
+  if (pa !== pb) return pa > pb ? a : b;
+  return a.depuis >= b.depuis ? a : b;
+}
+
 /** Une adresse = un immeuble BAN, avec ses diagnostics et son éventuel lead. */
 export function regrouperAdresses(input: {
   dpes: readonly DpeTournee[];
   leads: readonly LeadTournee[];
   passages: ReadonlyMap<string, string>;
   copros?: readonly CoproTournee[];
+  annonces?: readonly AnnoncePorte[];
 }): AdresseTournee[] {
   const dpeVus = new Set<string>();
   const parBan = new Map<string, AdresseTournee>();
@@ -189,6 +217,7 @@ export function regrouperAdresses(input: {
         leadSignal: null,
         dernierPassage: null,
         procedureCopro: false,
+        annonce: null,
       });
       continue;
     }
@@ -236,6 +265,7 @@ export function regrouperAdresses(input: {
       leadSignal: lead.signal,
       dernierPassage: null,
       procedureCopro: false,
+      annonce: null,
     });
   }
 
@@ -265,6 +295,40 @@ export function regrouperAdresses(input: {
       leadSignal: null,
       dernierPassage: null,
       procedureCopro: true,
+      annonce: null,
+    });
+  }
+
+  for (const porte of input.annonces ?? []) {
+    const cle = porte.banId ?? (porte.parcelleId ? `parcelle:${porte.parcelleId}` : `pt:${porte.latitude.toFixed(4)},${porte.longitude.toFixed(4)}`);
+    const signal = signalAnnonce(porte);
+    const actuelle = parBan.get(cle);
+    if (actuelle) {
+      actuelle.annonce = actuelle.annonce ? prefereSignal(actuelle.annonce, signal) : signal;
+      if (!actuelle.parcelleId && porte.parcelleId) actuelle.parcelleId = porte.parcelleId;
+      continue;
+    }
+    parBan.set(cle, {
+      key: porte.banId ? `ban:${porte.banId}` : cle,
+      banId: porte.banId,
+      adresse: porte.adresse,
+      codePostal: porte.codePostal,
+      latitude: porte.latitude,
+      longitude: porte.longitude,
+      parcelleId: porte.parcelleId,
+      dernierDpe: null,
+      nbDpe: 0,
+      lettre: null,
+      passoire: false,
+      surfaceM2: null,
+      typeBatiment: null,
+      etage: null,
+      leadId: null,
+      leadScore: null,
+      leadSignal: null,
+      dernierPassage: null,
+      procedureCopro: false,
+      annonce: signal,
     });
   }
 
@@ -275,17 +339,24 @@ export function regrouperAdresses(input: {
   return adresses;
 }
 
-/** Faite si on y est passé depuis son dernier DPE, ou dans la semaine. */
+/** Faite si on y est passé depuis son dernier signal, ou dans la semaine. */
 export function dejaProspectee(a: AdresseTournee, maintenant: Date): boolean {
   if (!a.dernierPassage) return false;
+  if (a.annonce && a.dernierPassage < a.annonce.depuis) return false;
   if (joursDepuis(a.dernierPassage, maintenant) <= PASSAGE_RECENT_JOURS) return true;
   if (a.procedureCopro) return false;
+  if (a.annonce) return a.dernierPassage >= a.annonce.depuis;
   return !a.dernierDpe || a.dernierPassage >= a.dernierDpe;
 }
 
 export function valeurAdresse(a: AdresseTournee, maintenant: Date): number {
   const recence = a.dernierDpe ? 0.5 ** (joursDepuis(a.dernierDpe, maintenant) / DEMI_VIE_DPE_JOURS) : 0;
-  const base = Math.max(a.leadId ? Math.max(recence, PLANCHER_LEAD) : recence, a.procedureCopro ? 0.9 : 0);
+  const signalAnnonceValeur = a.annonce?.motif === 'baisse' ? 1.15 : a.annonce ? 1.05 : 0;
+  const base = Math.max(
+    a.leadId ? Math.max(recence, PLANCHER_LEAD) : recence,
+    a.procedureCopro ? 0.9 : 0,
+    signalAnnonceValeur,
+  );
   const volume = 1 + 0.35 * Math.log2(Math.max(1, a.nbDpe));
   const passoire = a.passoire ? 1.2 : 1;
   const lead = a.leadScore !== null ? 1 + (Math.min(100, Math.max(0, a.leadScore)) / 100) * 0.6 : 1;
@@ -606,6 +677,11 @@ export function genererTournee(input: {
 
 /** La ligne courte sous l'adresse, dans la liste. */
 export function raisonArret(a: AdresseTournee, maintenant: Date): string | null {
+  if (a.annonce?.motif === 'baisse') {
+    const pourcent = a.annonce.baissePourcent;
+    return pourcent != null ? `Prix en baisse −${String(pourcent).replace('.', ',')} %` : 'Prix en baisse';
+  }
+  if (a.annonce?.motif === 'nouvelle') return 'Nouvelle annonce';
   if (a.procedureCopro) return 'Procédure en cours';
   if (a.dernierDpe) {
     const quand = ilYa(joursDepuis(a.dernierDpe, maintenant));
@@ -634,6 +710,7 @@ export function detailArret(a: AdresseTournee, options: { choisie?: boolean } = 
     dernierPassage: a.dernierPassage,
     choisie: options.choisie ?? false,
     procedureCopro: a.procedureCopro,
+    annonce: a.annonce,
   };
 }
 
@@ -689,5 +766,6 @@ export function adresseLibre(params: {
     leadSignal: null,
     dernierPassage: null,
     procedureCopro: false,
+    annonce: null,
   };
 }

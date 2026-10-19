@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
+  ArrowDown,
   Building2,
   Check,
   ChevronDown,
@@ -100,6 +101,14 @@ function Pourquoi({ arret }: { arret: ArretTournee }) {
           Procédure en cours
         </Ligne>
       ) : null}
+      {arret.detail.annonce?.motif === 'baisse' ? (
+        <Ligne icone={<ArrowDown size={18} strokeWidth={2.2} className="text-text-strong" />}>
+          {arret.mainSignalLabel ?? 'Prix en baisse'}
+        </Ligne>
+      ) : null}
+      {arret.detail.annonce?.motif === 'nouvelle' ? (
+        <Ligne icone={<Building2 size={18} strokeWidth={2.2} className={icone} />}>Nouvelle annonce</Ligne>
+      ) : null}
       {dpe?.date ? (
         <Ligne
           icone={
@@ -123,7 +132,7 @@ function Pourquoi({ arret }: { arret: ArretTournee }) {
           {lead.signal ? `Dans tes leads : ${lead.signal}` : 'Dans tes leads'}
         </Ligne>
       ) : null}
-      {dernierPassage ? (
+      {dernierPassage && dpe?.date && dernierPassage < dpe.date ? (
         <Ligne icone={<RotateCcw size={18} strokeWidth={2.2} className={icone} />}>
           Nouveau DPE depuis ton passage du {dateCourte(dernierPassage)}
         </Ligne>

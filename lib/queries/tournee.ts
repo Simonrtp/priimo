@@ -3,7 +3,8 @@ import type { Database } from '@/types/database';
 import type { GeoCoord } from '@/lib/carte/coords';
 import { toGeoCoord } from '@/lib/carte/coords';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
-import type { CoproTournee, DpeTournee } from '@/lib/tournee/generer';
+import { haversineM } from '@/lib/geo/distance';
+import type { AnnoncePorte, CoproTournee, DpeTournee } from '@/lib/tournee/generer';
 import type { Bbox } from '@/lib/zones/geometrie';
 
 type Client = SupabaseClient<Database>;
@@ -227,4 +228,60 @@ export async function chargerCoprosEnProcedure(params: {
     });
   }
   return out;
+}
+
+const PAQUET_PARCELLE = 150;
+const PORTE_MAX_M = 80;
+
+type Entree = GeoCoord & { banId: string; adresse: string; codePostal: string | null; parcelleId: string };
+
+/** Rattache chaque annonce à l'entrée la plus proche de sa parcelle, quand on la connaît. */
+export async function completerBanDesPortes(db: Client, portes: readonly AnnoncePorte[]): Promise<AnnoncePorte[]> {
+  const ids = [...new Set(portes.map((p) => p.parcelleId).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return [...portes];
+
+  const parParcelle = new Map<string, Entree[]>();
+  for (let i = 0; i < ids.length; i += PAQUET_PARCELLE) {
+    const { data, error } = await db
+      .from('buildings')
+      .select('ban_id, adresse, code_postal, lat, lng, parcelle_id')
+      .in('parcelle_id', ids.slice(i, i + PAQUET_PARCELLE))
+      .limit(2_000);
+    if (error) {
+      console.error('[tournee] immeubles des annonces', error.message);
+      continue;
+    }
+    for (const b of data ?? []) {
+      const coord = toGeoCoord(b.lat, b.lng);
+      const adresse = b.adresse?.trim();
+      if (!b.ban_id || !b.parcelle_id || !coord || !adresse) continue;
+      const liste = parParcelle.get(b.parcelle_id) ?? [];
+      liste.push({ ...coord, adresse, codePostal: b.code_postal, parcelleId: b.parcelle_id, banId: b.ban_id });
+      parParcelle.set(b.parcelle_id, liste);
+    }
+  }
+
+  return portes.map((porte) => {
+    const candidats = porte.parcelleId ? parParcelle.get(porte.parcelleId) : undefined;
+    if (!candidats || candidats.length === 0) return porte;
+    let meilleur = candidats[0]!;
+    let ecart = haversineM(porte, meilleur);
+    for (const batiment of candidats.slice(1)) {
+      const d = haversineM(porte, batiment);
+      if (d < ecart) {
+        meilleur = batiment;
+        ecart = d;
+      }
+    }
+    if (ecart > PORTE_MAX_M) return porte;
+    return {
+      ...porte,
+      banId: meilleur.banId,
+      adresse: meilleur.adresse,
+      codePostal: meilleur.codePostal ?? porte.codePostal,
+      latitude: meilleur.latitude,
+      longitude: meilleur.longitude,
+      parcelleId: meilleur.parcelleId,
+    };
+  });
 }

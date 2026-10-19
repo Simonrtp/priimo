@@ -748,8 +748,6 @@ export default function CarteMobile({
           libelleCodePostal={libelleCodePostal}
           perimetre={tournee.preparation.perimetre}
           onPerimetre={tournee.preparation.choisirPerimetre}
-          coproprietes={tournee.preparation.coproprietes}
-          onCoproprietes={tournee.preparation.choisirCoproprietes}
           ancres={tournee.preparation.ancres}
           onAjouter={tournee.preparation.ajouterAncre}
           onRetirer={tournee.preparation.retirerAncre}

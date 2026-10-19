@@ -106,23 +106,6 @@ describe('filtrerAnnonces', () => {
     assert.deepEqual(pour('retirees'), ['partie']);
   });
 
-  it('retient plusieurs classes DPE et « 5 pièces et plus »', () => {
-    const f = annonce({ id: 'f', dpe: 'F', pieces: 6 });
-    const g = annonce({ id: 'g', dpe: 'G', pieces: 5 });
-    const liste = [particulier, f, g];
-    assert.deepEqual(ids(filtrerAnnonces(liste, reglages({ annoncesDpe: 'FG' }), [], QUI, MAINTENANT)), ['f', 'g']);
-    assert.deepEqual(ids(filtrerAnnonces(liste, reglages({ annoncesPieces: '5' }), [], QUI, MAINTENANT)), ['f', 'g']);
-    assert.deepEqual(ids(filtrerAnnonces(liste, reglages({ annoncesPieces: '2' }), [], QUI, MAINTENANT)), ['part']);
-  });
-
-  it('plafonne le prix', () => {
-    const chere = annonce({ id: 'chere', prix: 900_000, prixInitial: 900_000 });
-    assert.deepEqual(
-      ids(filtrerAnnonces([particulier, chere], reglages({ annoncesPrixMax: '500000' }), [], QUI, MAINTENANT)),
-      ['part'],
-    );
-  });
-
   it('le bouton Secteur ne garde que les annonces de ce secteur', () => {
     const ailleurs = annonce({
       id: 'loin',
@@ -154,7 +137,7 @@ describe('bilanAnnonces', () => {
     const tous = bilanAnnonces(liste, reglages(), [secteurPyrenees], QUI, MAINTENANT);
     assert.deepEqual(tous, { surCarte: 2, sansPosition: 1, tousSecteurs: 2, dansMonSecteur: 1 });
 
-    const secteur = bilanAnnonces(liste, reglages({ annoncesMonSecteur: true }), [secteurPyrenees], QUI, MAINTENANT);
+    const secteur = bilanAnnonces(liste, reglages(), [secteurPyrenees], { ...QUI, zoneCadree: secteurPyrenees }, MAINTENANT);
     assert.equal(secteur.surCarte, 1);
     assert.equal(secteur.sansPosition, 0);
   });

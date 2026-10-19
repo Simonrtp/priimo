@@ -112,6 +112,61 @@ describe('regrouperAdresses', () => {
     assert.equal(dejaProspectee(a!, MAINTENANT), false);
   });
 
+  it('rattache une baisse de prix à l’immeuble et rouvre la porte si le passage est antérieur', () => {
+    const [a] = regrouperAdresses({
+      dpes: [dpe('immeuble', 0, 0, '2026-06-01')],
+      leads: [],
+      passages: new Map([['immeuble', '2026-09-01']]),
+      annonces: [
+        {
+          id: 'ann-1',
+          banId: 'immeuble',
+          adresse: 'immeuble rue de Test 75011 Paris',
+          codePostal: '75011',
+          latitude: 48.86,
+          longitude: 2.34,
+          parcelleId: null,
+          motif: 'baisse',
+          baissePourcent: 8,
+          depuis: '2026-10-04',
+        },
+      ],
+    });
+    assert.equal(a?.annonce?.motif, 'baisse');
+    assert.equal(a?.dernierDpe, '2026-06-01');
+    assert.equal(raisonArret(a!, MAINTENANT), 'Prix en baisse −8 %');
+    assert.equal(dejaProspectee(a!, MAINTENANT), false);
+    assert.equal(
+      dejaProspectee({ ...a!, dernierPassage: '2026-10-04' }, MAINTENANT),
+      true,
+    );
+  });
+
+  it('prend une nouvelle annonce même sans DPE', () => {
+    const [a] = regrouperAdresses({
+      dpes: [],
+      leads: [],
+      passages: new Map(),
+      annonces: [
+        {
+          id: 'ann-2',
+          banId: null,
+          adresse: '4 rue Neuve 75011 Paris',
+          codePostal: '75011',
+          latitude: 48.861,
+          longitude: 2.341,
+          parcelleId: 'parcelle-1',
+          motif: 'nouvelle',
+          baissePourcent: null,
+          depuis: '2026-10-03',
+        },
+      ],
+    });
+    assert.equal(a?.key, 'parcelle:parcelle-1');
+    assert.equal(raisonArret(a!, MAINTENANT), 'Nouvelle annonce');
+    assert.ok(valeurAdresse(a!, MAINTENANT) > 1);
+  });
+
   it("rattache le lead à l'immeuble du DPE et note le dernier passage", () => {
     const [a] = regrouperAdresses({
       dpes: [dpe('a', 0, 0, '2026-09-20')],
@@ -276,6 +331,40 @@ describe('genererTournee', () => {
     const frais = t.arrets.filter((a) => a.banId?.startsWith('frais')).length;
     const vieux = t.arrets.filter((a) => a.banId?.startsWith('vieux')).length;
     assert.ok(frais > vieux, `${frais} frais contre ${vieux} vieux`);
+  });
+
+  it('passe par la baisse de prix à côté de l’agent', () => {
+    const [baisse] = regrouperAdresses({
+      dpes: [],
+      leads: [],
+      passages: new Map(),
+      annonces: [
+        {
+          id: 'ann-baisse',
+          banId: 'baisse',
+          adresse: '12 rue de la Baisse 75011 Paris',
+          codePostal: '75011',
+          latitude: 48.8602,
+          longitude: 2.3402,
+          parcelleId: null,
+          motif: 'baisse',
+          baissePourcent: 6,
+          depuis: '2026-10-04',
+        },
+      ],
+    });
+    const vieux = adresses(
+      Array.from({ length: 8 }, (_, i) => dpe(`vieux${i}`, 0.004, i * 0.0003, '2026-04-01')),
+    );
+    const t = genererTournee({
+      adresses: [...vieux, baisse!],
+      ancres: [],
+      position: { latitude: 48.86, longitude: 2.34 },
+      agence: null,
+      budgetMinutes: 40,
+      maintenant: MAINTENANT,
+    });
+    assert.ok(t.arrets.some((a) => a.banId === 'baisse'));
   });
 
   it("passe toujours par l'adresse imposée, même sans DPE", () => {
@@ -471,6 +560,7 @@ describe('raisonArret', () => {
       dernierPassage: '2026-09-01',
       choisie: false,
       procedureCopro: false,
+      annonce: null,
     });
   });
 

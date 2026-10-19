@@ -139,7 +139,6 @@ export async function calculerPilotage(args: {
     jourCourant: ymdKey(parisYmd(new Date())),
   });
 
-  const semainePodium = args.periode === '7j' ? intervalle : semaineDe(new Date(`${intervalle.fin}T12:00:00Z`));
   const podium = podiumSemaine(
     journal,
     args.membres.map((m) => ({
@@ -148,7 +147,7 @@ export async function calculerPilotage(args: {
       nom: m.lastName,
       avatarUrl: m.avatarUrl,
     })),
-    semainePodium,
+    intervalle,
   );
 
   return { bilan, phrase, podium };

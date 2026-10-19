@@ -11,6 +11,14 @@ export type PerimetreTournee = 'secteur' | 'code_postal';
 
 export type DepartTournee = 'ancre' | 'position' | 'agence' | 'secteur';
 
+/** Annonce nouvelle ou dont le prix a baissé, rattachée à une porte. */
+export type SignalAnnonce = {
+  motif: 'nouvelle' | 'baisse';
+  baissePourcent: number | null;
+  /** YYYY-MM-DD. Mise en ligne, ou dernière vue quand le prix a baissé. */
+  depuis: string;
+};
+
 /** Ce qui justifie une porte, tel que l'agent le lit en touchant l'adresse. */
 export type DetailArret = {
   dpe: {
@@ -30,6 +38,8 @@ export type DetailArret = {
   choisie: boolean;
   /** Procédure de copropriété en cours : à lire sans ouvrir la fiche. */
   procedureCopro?: boolean;
+  /** Annonce nouvelle ou dont le prix a baissé. */
+  annonce?: SignalAnnonce | null;
 };
 
 export type ArretTournee = SortieStop & { detail: DetailArret };

@@ -11,9 +11,7 @@ import {
   type AnnoncesVendeur,
   type MapLayerState,
 } from '@/lib/carte/layers';
-import { markerBadgeColor } from '@/lib/carte/colors';
 import { isUsableCoord } from '@/lib/carte/coords';
-import { dpeFillColor } from '@/lib/carte/dpe-public';
 import { bilanAnnonces, filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
 import { baisseCumulee, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
 import { useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
@@ -32,17 +30,6 @@ const STATUTS: readonly { id: AnnoncesStatut; label: string }[] = [
   { id: 'baisse', label: 'Baisses' },
   { id: 'retirees', label: 'Retirées' },
 ];
-
-const PIECES: readonly { id: string; label: string }[] = [
-  { id: '', label: 'Toutes' },
-  { id: '1', label: '1' },
-  { id: '2', label: '2' },
-  { id: '3', label: '3' },
-  { id: '4', label: '4' },
-  { id: '5', label: '5+' },
-];
-
-const LETTRES_DPE = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
 
 type Qui = {
   zones: readonly Zone[];
@@ -95,10 +82,6 @@ function Rubrique({ titre, children }: { titre: string; children: ReactNode }) {
   );
 }
 
-function filtresActifs(layers: MapLayerState): boolean {
-  return Boolean(layers.annoncesDpe || layers.annoncesPieces || layers.annoncesPrixMax);
-}
-
 export function AnnoncesLayerControls({
   layers,
   onChange,
@@ -128,7 +111,6 @@ export function AnnoncesLayerControls({
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
   // Toucher un réglage montre la couche : sinon on règle dans le vide.
   const regler = (patch: Partial<MapLayerState>) => onChange({ ...patch, annonces: true });
-  const dpeCochees = layers.annoncesDpe;
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
@@ -180,101 +162,11 @@ export function AnnoncesLayerControls({
               />
             </Rubrique>
 
-            <button
-              type="button"
-              role="switch"
-              aria-checked={layers.annoncesMonSecteur}
-              onClick={() => regler({ annoncesMonSecteur: !layers.annoncesMonSecteur })}
-              className="-mx-0.5 flex min-h-[40px] w-full cursor-pointer items-center gap-3 rounded-xl px-0.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
-            >
-              <Switch checked={layers.annoncesMonSecteur} />
-              <span className="min-w-0 flex-1">
-                <span className={`block ${textSize} font-medium ${layers.annoncesMonSecteur ? 'text-text-strong' : 'text-text-muted'}`}>
-                  Mon secteur
-                </span>
-                {pret ? (
-                  <span className="block text-[11.5px] text-text-subtle">
-                    {bilan.dansMonSecteur} sur {bilan.tousSecteurs} avec ces réglages
-                  </span>
-                ) : null}
-              </span>
-            </button>
-
-            <Rubrique titre="DPE">
-              <div role="group" aria-label="Classes DPE" className="flex flex-wrap gap-1">
-                {LETTRES_DPE.map((l) => {
-                  const coche = dpeCochees.includes(l);
-                  const fond = dpeFillColor(l);
-                  return (
-                    <button
-                      key={l}
-                      type="button"
-                      aria-pressed={coche}
-                      aria-label={`Classe ${l}`}
-                      onClick={() =>
-                        regler({
-                          annoncesDpe: coche
-                            ? dpeCochees.replace(l, '')
-                            : LETTRES_DPE.filter((x) => x === l || dpeCochees.includes(x)).join(''),
-                        })
-                      }
-                      className={`flex size-7 items-center justify-center rounded-full text-[11.5px] font-bold transition-colors duration-fluid-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
-                        coche ? '' : 'bg-white/70 text-text-muted hover:text-text-strong'
-                      }`}
-                      style={coche ? { backgroundColor: fond, color: markerBadgeColor(fond) } : undefined}
-                    >
-                      {l}
-                    </button>
-                  );
-                })}
-              </div>
-            </Rubrique>
-
-            <Rubrique titre="Pièces">
-              <Choix
-                label="Pièces"
-                value={layers.annoncesPieces}
-                options={PIECES}
-                onChange={(id) => regler({ annoncesPieces: id })}
-              />
-            </Rubrique>
-
-            <Rubrique titre="Prix maximum">
-              <label className="relative block">
-                <input
-                  aria-label="Prix maximum"
-                  inputMode="numeric"
-                  placeholder="Sans limite"
-                  className="h-9 w-full rounded-[12px] bg-white px-3 pr-8 text-[12.5px] text-text-strong shadow-clay-inset outline-none placeholder:text-text-subtle focus:ring-2 focus:ring-[#1A2A56]/25"
-                  value={layers.annoncesPrixMax ? new Intl.NumberFormat('fr-FR').format(Number(layers.annoncesPrixMax)) : ''}
-                  onChange={(e) => regler({ annoncesPrixMax: e.target.value.replace(/\D/g, '').slice(0, 9) })}
-                />
-                <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12.5px] text-text-subtle">
-                  €
-                </span>
-              </label>
-            </Rubrique>
-
-            {pret && (bilan.sansPosition > 0 || filtresActifs(layers)) ? (
-              <div className="flex items-start justify-between gap-3">
-                {bilan.sansPosition > 0 ? (
-                  <p className="text-pretty text-[11.5px] text-text-subtle">
-                    {bilan.sansPosition} annonce{bilan.sansPosition > 1 ? 's' : ''} pas encore localisée
-                    {bilan.sansPosition > 1 ? 's' : ''} : hors carte pour l’instant.
-                  </p>
-                ) : (
-                  <span />
-                )}
-                {filtresActifs(layers) ? (
-                  <button
-                    type="button"
-                    onClick={() => onChange({ annoncesDpe: '', annoncesPieces: '', annoncesPrixMax: '' })}
-                    className="shrink-0 rounded-lg text-[11.5px] font-semibold text-text-strong underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
-                  >
-                    Effacer
-                  </button>
-                ) : null}
-              </div>
+            {pret && bilan.sansPosition > 0 ? (
+              <p className="text-pretty text-[11.5px] text-text-subtle">
+                {bilan.sansPosition} annonce{bilan.sansPosition > 1 ? 's' : ''} pas encore localisée
+                {bilan.sansPosition > 1 ? 's' : ''} : hors carte pour l’instant.
+              </p>
             ) : null}
           </div>
         </div>

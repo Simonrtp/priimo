@@ -16,7 +16,7 @@ const MARCHE = {
   },
   2: {
     fond: '#D7DBE3',
-    texte: '#FFFFFF',
+    texte: '#1A2A56',
     anneau: '#C5CAD3',
     avatar: 28,
     chiffre: '1rem',
@@ -126,8 +126,9 @@ export default function CarteCompetition({
                   {rang}
                 </span>
                 {agent ? (
-                  <span className="relative max-w-full truncate text-[10px] font-semibold leading-none">
-                    {agent.prenom}
+                  <span className="relative flex max-w-full items-baseline gap-1 leading-none">
+                    <span className="truncate text-[10px] font-semibold">{agent.prenom}</span>
+                    <span className="shrink-0 text-[10px] font-semibold tabular-nums">{agent.score}</span>
                   </span>
                 ) : null}
             </div>
