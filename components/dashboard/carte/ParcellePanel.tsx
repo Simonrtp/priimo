@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowDown,
   ArrowRight,
+  ArrowUpRight,
   Bell,
   BellRing,
   Calculator,
@@ -46,6 +48,7 @@ import type { GenreProprietaire, ProprietaireMorale } from '@/lib/carte/bdnb';
 import { decrireNiveaux } from '@/lib/carte/proprietaires-lots';
 import type { AuditEnergetique } from '@/lib/carte/audits';
 import type {
+  ParcelleAnnonce,
   ParcelleBienAgence,
   ParcelleContactAgence,
   ParcelleEntreprise,
@@ -297,6 +300,78 @@ function BoutonAppel({ telephone, nom }: { telephone: string; nom: string }) {
       <Phone size={13} strokeWidth={2.2} aria-hidden />
       {formatPhoneDisplay(telephone)}
     </a>
+  );
+}
+
+function LigneAnnonce({ a, signalerRetrait }: { a: ParcelleAnnonce; signalerRetrait: boolean }) {
+  const details = [
+    a.pieces != null ? `${a.pieces} p.` : null,
+    a.surface != null ? `${new Intl.NumberFormat('fr-FR').format(a.surface)} m²` : null,
+    a.etage == null || a.etage === '' ? null : a.etage === '0' ? 'RDC' : `${a.etage}e`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const vendeur = a.particulier ? 'Particulier' : a.agence || 'Agence';
+  return (
+    <li className={LIGNE}>
+      <a
+        href={a.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`Voir l’annonce sur ${a.portail}`}
+        className={`flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-black/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+          a.retiree ? 'opacity-55' : ''
+        }`}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className={`text-[15px] font-semibold tabular-nums text-text-strong ${a.retiree ? 'line-through decoration-1' : ''}`}>
+              {a.prix != null ? euros(a.prix) : 'Prix non affiché'}
+            </span>
+            {a.baisse != null ? (
+              <span className="inline-flex items-center gap-0.5 text-[12px] font-semibold tabular-nums text-accent-dark">
+                <ArrowDown size={12} strokeWidth={2.5} aria-hidden />
+                {String(a.baisse).replace('.', ',')} %
+              </span>
+            ) : null}
+            {a.retiree && signalerRetrait ? <span className="text-[12px] text-text-muted">Retirée</span> : null}
+          </span>
+          {details || a.dpe ? (
+            <span className="mt-0.5 flex items-center gap-1.5 text-[12.5px] tabular-nums text-text-muted">
+              {details}
+              {a.dpe ? <DpeLettre lettre={a.dpe} taille={18} /> : null}
+            </span>
+          ) : null}
+        </span>
+        <span
+          className={`max-w-[42%] shrink-0 truncate rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
+            a.particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
+          }`}
+          title={vendeur}
+        >
+          {vendeur}
+        </span>
+        <ArrowUpRight size={15} strokeWidth={2} className="shrink-0 text-text-subtle" aria-hidden />
+      </a>
+    </li>
+  );
+}
+
+/** Le logement est en vente : en tête de fiche, une ligne par annonce. */
+function AnnoncesParcelle({ annonces }: { annonces: readonly ParcelleAnnonce[] }) {
+  if (annonces.length === 0) return null;
+  const enVente = annonces.some((a) => !a.retiree);
+  return (
+    <section className="mb-3 overflow-hidden rounded-2xl border border-black/[0.06]" aria-label="Annonces">
+      <p className="px-3.5 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-text-subtle">
+        {enVente ? 'En vente' : 'Plus en vente'}
+      </p>
+      <ul className="flex flex-col">
+        {annonces.map((a) => (
+          <LigneAnnonce key={a.id} a={a} signalerRetrait={enVente} />
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -1088,6 +1163,8 @@ export default function ParcellePanel({
             ) : null}
           </div>
         ) : null}
+
+        <AnnoncesParcelle annonces={fiche.annonces ?? []} />
 
         <div className="pb-5">
           <Pastilles pastilles={synthese.pastilles} />

@@ -163,6 +163,23 @@ export async function lireAnnonce(
   return { annonce, soeurs: soeurs.length > 0 ? soeurs : [annonce] };
 }
 
+/**
+ * Annonces rattachées à une parcelle. Le pipeline ne pose `parcelle_ids` que
+ * sur une adresse retrouvée ou publiée : jamais sur un repère approximatif.
+ */
+export async function lireAnnoncesParcelle(client: Client, parcelleId: string): Promise<Annonce[]> {
+  const { data, error } = await table(client, 'annonces')
+    .select(SELECT_ANNONCE)
+    .contains('parcelle_ids', [parcelleId])
+    .order('derniere_vue_le', { ascending: false })
+    .limit(40);
+  if (error) {
+    console.error('[annonces] parcelle', error.message);
+    return [];
+  }
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce);
+}
+
 /** Par lots : une liste `in.(…)` de plusieurs centaines d'UUID dépasse la longueur d'URL admise. */
 const LOT_IDS = 150;
 

@@ -118,6 +118,24 @@ export type ParcellePassage = {
   auteur: string | null;
 };
 
+/** Un logement de la parcelle en vente sur un portail (ou retiré depuis peu). */
+export type ParcelleAnnonce = {
+  id: string;
+  url: string;
+  /** « PAP », « Bien’ici »… */
+  portail: string;
+  particulier: boolean;
+  agence: string | null;
+  prix: number | null;
+  /** Baisse depuis la mise en ligne, en %. */
+  baisse: number | null;
+  pieces: number | null;
+  surface: number | null;
+  etage: string | null;
+  dpe: string | null;
+  retiree: boolean;
+};
+
 export type ParcelleFiche = {
   parcelleId: string;
   reference: string;
@@ -158,6 +176,8 @@ export type ParcelleFiche = {
   audits: AuditEnergetique[];
   /** Faux quand l'ADEME n'a pas répondu. */
   auditsConnus: boolean;
+  /** Annonces localisées sur la parcelle (adresse retrouvée ou publiée). */
+  annonces: ParcelleAnnonce[];
 };
 
 export type ParcellePickExtra = {
@@ -304,5 +324,6 @@ export function emptyParcelleFiche(raw: string): ParcelleFiche {
     proprietaires: [],
     audits: [],
     auditsConnus: false,
+    annonces: [],
   };
 }

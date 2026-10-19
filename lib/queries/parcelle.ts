@@ -47,6 +47,8 @@ import { signauxEssentiels } from '@/lib/lead-apercu';
 import { parseContactabilite, parseContactsImmeuble } from '@/lib/lead-contacts';
 import { formatPhoneOrNull } from '@/lib/import/normalize';
 import { fetchLeadStages } from '@/lib/queries/lead-stages';
+import { lireAnnoncesParcelle } from '@/lib/annonces/lire';
+import { annoncesDeLaParcelle } from '@/lib/carte/parcelle-annonces';
 
 type Db = SupabaseClient<Database>;
 
@@ -451,7 +453,12 @@ export async function fetchParcelleFiche(args: {
       )
     : Promise.resolve([] as AuditEnergetique[]);
 
-  const [[dpeIndex, coproRows], prixM2Secteur, agence, extraBuildings, dpeFilet, bdnb, lots, audits] =
+  // Session : la RLS ne laisse lire que les annonces du territoire de l'agence.
+  const annoncesP = inSector
+    ? lireAnnoncesParcelle(sessionDb, parcelleId).then((a) => annoncesDeLaParcelle(a))
+    : Promise.resolve([]);
+
+  const [[dpeIndex, coproRows], prixM2Secteur, agence, extraBuildings, dpeFilet, bdnb, lots, audits, annonces] =
     await Promise.all([
       openDataParBan,
       secteurP,
@@ -461,6 +468,7 @@ export async function fetchParcelleFiche(args: {
       bdnbP,
       lotsP,
       auditsP,
+      annoncesP,
     ]);
   if (extraBuildings.length > 0) {
     buildings = [...buildings, ...extraBuildings];
@@ -550,6 +558,7 @@ export async function fetchParcelleFiche(args: {
           : [],
     audits: audits ?? [],
     auditsConnus: inSector && audits !== null,
+    annonces,
   };
 }
 
