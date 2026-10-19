@@ -59,7 +59,6 @@ import type {
   ParcelleVente,
 } from '@/lib/carte/parcelle';
 import { CIBLE_CLOCHE, envolerNote } from '@/lib/ui/envol-note';
-import { creerAvisDepuis } from '@/lib/estimation/creer-depuis';
 import type { Notification } from '@/lib/notifications/types';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 
@@ -815,13 +814,9 @@ function LigneVente({ v, adresse }: { v: ParcelleVente; adresse: string | null }
 function MenuAjoutParcelle({
   onDicter,
   onEcrire,
-  onEstimer,
-  estimationEnCours,
 }: {
   onDicter: () => void;
   onEcrire: () => void;
-  onEstimer: () => void;
-  estimationEnCours: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const racineRef = useRef<HTMLDivElement>(null);
@@ -879,17 +874,15 @@ function MenuAjoutParcelle({
           <NotebookPen size={18} className="shrink-0 text-text-muted" aria-hidden />
           Écrire une note
         </button>
-        <button
-          type="button"
+        <div
           role="menuitem"
-          tabIndex={ouvert ? 0 : -1}
-          disabled={estimationEnCours}
-          onClick={() => choisir(onEstimer)}
-          className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-strong hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6366F1] disabled:opacity-55"
+          aria-disabled="true"
+          className="flex min-h-12 w-full cursor-default items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-muted"
         >
-          <Calculator size={18} className="shrink-0 text-text-muted" aria-hidden />
-          {estimationEnCours ? 'Ouverture…' : 'Faire une estimation'}
-        </button>
+          <Calculator size={18} className="shrink-0 opacity-45" aria-hidden />
+          <span className="min-w-0 flex-1">Faire une estimation</span>
+          <span className="shrink-0 text-[12px] font-normal">À venir</span>
+        </div>
       </div>
       <button
         type="button"
@@ -929,12 +922,10 @@ export default function ParcellePanel({
   surfaceCadastreM2?: number | null;
   focusNoteId?: string | null;
 }) {
-  const router = useRouter();
   const { openCapture, openCompose, captureSessionOpen } = useVoiceCapture();
   const { profile } = useUser();
   const [noteTick, setNoteTick] = useState(0);
   const [adressesOuvertes, setAdressesOuvertes] = useState(false);
-  const [estimationEnCours, setEstimationEnCours] = useState(false);
   const captureWasOpen = useRef(false);
 
   useEffect(() => {
@@ -975,49 +966,6 @@ export default function ParcellePanel({
     adresse: fiche.adresse ? [fiche.adresse, fiche.localite].filter(Boolean).join(', ') : fiche.reference,
     parcelleId: fiche.parcelleId,
     ...(fiche.banId ? { banId: fiche.banId } : {}),
-  };
-  const ouvrirEstimation = async () => {
-    if (estimationEnCours) return;
-    setEstimationEnCours(true);
-    const localite = fiche.localite?.match(/^(\d{5})\s+(.+)$/);
-    const resultat = await creerAvisDepuis({
-      parcelle: {
-        id: fiche.parcelleId,
-        adresse: fiche.adresse,
-        codePostal: localite?.[1] ?? null,
-        ville: localite?.[2] ?? fiche.localite,
-        banId: fiche.banId,
-        latitude: fiche.position?.latitude ?? null,
-        longitude: fiche.position?.longitude ?? null,
-        batiment: fiche.batiment
-          ? {
-              usage: fiche.batiment.usage,
-              anneeConstruction: fiche.batiment.anneeConstruction,
-              niveaux: fiche.batiment.niveaux,
-              nbLogements: fiche.batiment.logements,
-            }
-          : null,
-        logements: fiche.logements.map((l) => ({
-          date: l.date,
-          etiquette: l.etiquette,
-          etiquetteGes: l.etiquetteGes,
-          consoKwhM2: l.consoKwhM2,
-          surface: l.surface,
-          etage: l.etage,
-        })),
-        ventes: fiche.ventes.map((v) => ({
-          typeLocal: v.typeLocal,
-          nombrePieces: v.nombrePieces,
-          surface: v.surface,
-        })),
-      },
-    });
-    setEstimationEnCours(false);
-    if ('error' in resultat) {
-      notifyError(resultat.error);
-      return;
-    }
-    router.push(`/dashboard/estimation?id=${resultat.id}`);
   };
   const plusieursAdresses = fiche.adresses.length > 1;
   const adresseParBan = new Map(fiche.adresses.map((a) => [a.banId, a.libelle]));
@@ -1390,8 +1338,6 @@ export default function ParcellePanel({
         <MenuAjoutParcelle
           onDicter={() => openCapture(noteContext)}
           onEcrire={() => openCompose(noteContext)}
-          onEstimer={() => void ouvrirEstimation()}
-          estimationEnCours={estimationEnCours}
         />
       </div>
     </div>

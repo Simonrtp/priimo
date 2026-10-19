@@ -24,7 +24,7 @@ type ActionCompteur = {
   libelle: string;
   /** Sur téléphone, deux cartes par ligne : le libellé doit tenir sur une. */
   court?: string;
-} & ({ href: string } | { note: true });
+} & ({ href: string } | { note: true } | { bientot: true });
 
 const ACTION: Record<FamilleActivite, ActionCompteur> = {
   immeubles_prospectes: {
@@ -38,8 +38,8 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
   },
   estimations: {
     libelle: 'Créer une estimation',
-    court: 'Estimer',
-    href: '/dashboard/estimation?id=nouvelle',
+    court: 'À venir',
+    bientot: true,
   },
   informations_terrain: {
     libelle: 'Noter',
@@ -378,6 +378,15 @@ function CarteCompteur({
               </button>
             }
           />
+        ) : 'bientot' in action ? (
+          <Volet>
+            <span
+              className={`${PILULE} cursor-default text-text-muted`}
+              style={{ backgroundColor: pastelFort }}
+            >
+              À venir
+            </span>
+          </Volet>
         ) : (
           <Volet>
             <Link

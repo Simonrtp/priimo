@@ -10,7 +10,7 @@ import {
   anyCadastreLayer,
   anyCadastreOverlay,
   type CadastreLayerId,
-  type CadastreOverlayId,
+  type CadastreOverlayMenuId,
   type MapLayerState,
 } from '@/lib/carte/layers';
 import {
@@ -28,7 +28,7 @@ import { CADASTRE_OVERLAY_MIN_ZOOM, PARCELLE_MIN_ZOOM } from '@/lib/carte/parcel
 
 const THUMB_PAD = 14;
 
-function overlayKey(id: CadastreOverlayId): 'cadastreDpe' | 'cadastreVentes' {
+function overlayKey(id: CadastreOverlayMenuId): 'cadastreDpe' | 'cadastreVentes' {
   return id === 'dpe' ? 'cadastreDpe' : 'cadastreVentes';
 }
 

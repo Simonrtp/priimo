@@ -5,6 +5,8 @@ import {
   badgeAnnonce,
   baisseCumulee,
   bandeauMiseAJour,
+  couleurAnnonce,
+  couleurGroupe,
   ligneHistorique,
   regrouperAnnonces,
 } from './presenter';
@@ -88,6 +90,17 @@ describe('annonces', () => {
     const retrait = ligneHistorique({ ...evt, type: 'retiree', avant: null, apres: null });
     assert.match(retrait, /retirée/);
     assert.doesNotMatch(retrait, /vendu/i);
+  });
+
+  it('colore SeLoger en rouge et PAP en bleu', () => {
+    assert.deepEqual(couleurAnnonce(annonce({ portail: 'seloger' })), { vive: '#E30513', douce: '#F6D0D3' });
+    assert.deepEqual(couleurAnnonce(annonce({ portail: 'pap' })), { vive: '#2409F1', douce: '#D9D6FC' });
+    assert.equal(couleurAnnonce(annonce({ portail: 'bienici' })), null);
+    const groupe = regrouperAnnonces([
+      annonce({ id: '1', portail: 'bienici', logementCle: 'cle', derniereVueLe: '2026-10-02' }),
+      annonce({ id: '2', portail: 'seloger', logementCle: 'cle', derniereVueLe: '2026-10-01' }),
+    ])[0]!;
+    assert.equal(couleurGroupe(groupe)?.vive, '#E30513');
   });
 
   it('regroupe deux portails du même logement', () => {

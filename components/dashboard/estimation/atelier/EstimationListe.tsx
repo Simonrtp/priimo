@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -30,7 +29,6 @@ function libelleAdresse(row: EstimationResume): string {
 export default function EstimationListe({
   rows,
   onOuvrir,
-  onNouvelle,
   onSupprimee,
 }: {
   rows: EstimationResume[] | null;
@@ -69,9 +67,10 @@ export default function EstimationListe({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <WorkspaceButton type="button" variant="create" onClick={onNouvelle}>
+        <span className="inline-flex min-h-9 cursor-default items-center gap-2 rounded-full bg-black/[0.05] px-4 text-[13px] font-semibold text-text-muted">
           Nouvelle estimation
-        </WorkspaceButton>
+          <span className="text-[12px] font-normal">À venir</span>
+        </span>
       </div>
       {rows == null ? (
         <ul className="flex flex-col gap-2" aria-busy="true" aria-label="Chargement des estimations">

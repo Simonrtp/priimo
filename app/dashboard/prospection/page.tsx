@@ -34,7 +34,7 @@ import {
   dernierPassageParAdresse,
   parseNiveauFraicheur,
 } from '@/lib/zones/fraicheur';
-import { zoneProspectionParDefaut } from '@/lib/zones/jour';
+import { zoneParDefautProspection } from '@/lib/carte/emprise';
 import { lirePosCarte } from '@/lib/notes/rattachement';
 
 export const metadata = {
@@ -159,7 +159,7 @@ export default async function ProspectionPage({
         showItineraire={params.itineraire === '1'}
         autoTournee={params.tournee === '1' && profile.role !== 'directeur'}
         zones={zones}
-        initialZoneId={params.zone ?? zoneProspectionParDefaut(zones, profile.id)}
+        initialZoneId={params.zone ?? zoneParDefautProspection(zones, profile.id, profile.role === 'directeur')}
       />
     );
   }

@@ -1,5 +1,22 @@
 import type { Annonce, Confiance, EvenementAnnonce, GroupeAnnonce, RunAnnonce } from './types';
 
+/** Vive au survol et à l'ouverture. Douce sur la carte, pour ne pas crier. */
+const COULEUR_PORTAIL: Partial<Record<Annonce['portail'], { vive: string; douce: string }>> = {
+  seloger: { vive: '#E30513', douce: '#F6D0D3' },
+  pap: { vive: '#2409F1', douce: '#D9D6FC' },
+};
+
+export type TeinteAnnonce = { vive: string; douce: string };
+
+export function couleurAnnonce(annonce: Pick<Annonce, 'portail'>): TeinteAnnonce | null {
+  return COULEUR_PORTAIL[annonce.portail] ?? null;
+}
+
+/** La teinte du portail de l'annonce affichée, sinon celle d'une sœur du même logement. */
+export function couleurGroupe(groupe: Pick<GroupeAnnonce, 'principale' | 'annonces'>): TeinteAnnonce | null {
+  return couleurAnnonce(groupe.principale) ?? groupe.annonces.map(couleurAnnonce).find((c) => c != null) ?? null;
+}
+
 const PORTAIL_LABEL: Record<Annonce['portail'], string> = {
   seloger: 'SeLoger',
   pap: 'PAP',

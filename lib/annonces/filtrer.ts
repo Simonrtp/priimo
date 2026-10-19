@@ -14,6 +14,8 @@ type Qui = {
   profileId: string;
   /** Secteur cadré par le bouton « Secteur » en haut du panneau. */
   zoneCadree?: Zone | null;
+  /** Directeur : tous les secteurs des agents, d'un coup. */
+  zonesCadrees?: readonly Zone[] | null;
 };
 
 /** Tous les filtres sauf « Mon secteur ». */
@@ -48,6 +50,14 @@ export function filtrerAnnonces(
   return annonces.filter((a) => retenue(a, reglages, qui, maintenant));
 }
 
+function dansLeCadre(a: Annonce, qui: Qui): boolean {
+  if (qui.zoneCadree) return dansLaZone(a, qui.zoneCadree);
+  if (qui.zonesCadrees && qui.zonesCadrees.length > 0) {
+    return qui.zonesCadrees.some((zone) => dansLaZone(a, zone));
+  }
+  return true;
+}
+
 function retenue(
   a: Annonce,
   reglages: ReglagesAnnonces,
@@ -55,8 +65,7 @@ function retenue(
   maintenant: Date,
 ): boolean {
   if (!passeFiltres(a, reglages, maintenant)) return false;
-  if (qui.zoneCadree) return dansLaZone(a, qui.zoneCadree);
-  return true;
+  return dansLeCadre(a, qui);
 }
 
 function placee(g: GroupeAnnonce): boolean {
@@ -84,7 +93,10 @@ export function bilanAnnonces(
 ): BilanAnnonces {
   const base = annonces.filter((a) => passeFiltres(a, reglages, maintenant));
   const secteur = base.filter((a) => dansMonSecteur(a, zones, qui));
-  const cadre = qui.zoneCadree ? base.filter((a) => dansLaZone(a, qui.zoneCadree!)) : null;
+  const cadre =
+    qui.zoneCadree || (qui.zonesCadrees && qui.zonesCadrees.length > 0)
+      ? base.filter((a) => dansLeCadre(a, qui))
+      : null;
   const retenus = regrouperAnnonces(cadre ?? base);
   const surCarte = retenus.filter(placee).length;
   return {

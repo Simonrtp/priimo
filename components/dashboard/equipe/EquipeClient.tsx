@@ -346,9 +346,9 @@ export default function EquipeClient({
         open={pendingPromote !== null}
         onClose={() => setPendingPromote(null)}
         onConfirm={() => void confirmPromote()}
-        title="Transférer le rôle de directeur ?"
-        message={`${pendingPromote?.fullName ?? ''} deviendra directeur de cette agence. Vous passerez collaborateur — un seul directeur par agence.`}
-        primaryLabel="Transférer"
+        title="Nommer directeur ?"
+        message={`${pendingPromote?.fullName ?? ''} devient directeur de l’agence, avec vous.`}
+        primaryLabel="Nommer"
         variant="primary"
         isLoading={busy}
       />

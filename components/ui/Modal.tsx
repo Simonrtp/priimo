@@ -14,6 +14,8 @@ interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   /** Pour empiler un modal au-dessus d’un autre (ex. créer un proprio depuis un bien). */
   elevated?: boolean;
+  /** Titre et croix sur une seule ligne, contenu collé dessous. */
+  compact?: boolean;
 }
 
 const MAX_WIDTH_CLASS: Record<NonNullable<ModalProps['maxWidth']>, string> = {
@@ -34,6 +36,7 @@ export default function Modal({
   children,
   maxWidth = 'md',
   elevated = false,
+  compact = false,
 }: ModalProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -100,11 +103,17 @@ export default function Modal({
         aria-describedby={description ? descriptionId : undefined}
         className={`relative z-[1] flex max-h-[calc(100dvh-2rem)] w-full ${MAX_WIDTH_CLASS[maxWidth]} mx-auto flex-col overflow-hidden rounded-2xl bg-white shadow-xl`}
       >
-        <div className="flex flex-shrink-0 items-start justify-between gap-4 px-5 pt-5">
+        <div
+          className={`flex flex-shrink-0 justify-between gap-3 px-5 ${
+            compact ? 'items-center py-3' : 'items-start pt-5'
+          }`}
+        >
           <div className="min-w-0">
             <h3
               id={titleId}
-              className="text-balance text-[16px] font-semibold text-ink sm:text-[17px]"
+              className={`font-semibold text-ink ${
+                compact ? 'text-[16px] leading-none' : 'text-balance text-[16px] sm:text-[17px]'
+              }`}
               style={{ letterSpacing: '-0.01em' }}
             >
               {title}
@@ -118,7 +127,9 @@ export default function Modal({
           <button
             type="button"
             onClick={requestClose}
-            className="flex size-11 flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink"
+            className={`flex flex-shrink-0 items-center justify-center rounded-lg text-mute transition-colors hover:bg-black/[0.04] hover:text-ink ${
+              compact ? 'size-8' : 'size-11'
+            }`}
             aria-label="Fermer"
           >
             <X size={18} strokeWidth={2} aria-hidden />
@@ -126,7 +137,7 @@ export default function Modal({
         </div>
         {/* Les formulaires longs (critères d'un acquéreur) doivent défiler dans la carte,
             pas déborder sous le pli sur un écran de portable. */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">{children}</div>
+        <div className={`min-h-0 flex-1 overflow-y-auto px-5 pb-5 ${compact ? 'pt-0' : 'pt-4'}`}>{children}</div>
       </div>
     </div>
   );

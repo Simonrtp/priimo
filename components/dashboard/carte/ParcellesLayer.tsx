@@ -30,7 +30,7 @@ import {
 } from '@/lib/carte/parcelle';
 import type { CadastreOverlayId, MapLayerState } from '@/lib/carte/layers';
 import { hoverPreviewFromCadastre, hoverPreviewFromVenteParcelle, type HoverPreview } from '@/lib/carte/hover-preview';
-import { cadastreDansEmprise } from '@/lib/carte/emprise';
+import { cadastreDansEmprises } from '@/lib/carte/emprise';
 import type { Zone } from '@/lib/zones/types';
 import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 
@@ -134,7 +134,7 @@ export default function ParcellesLayer({
   selectedParcelleId,
   immeubles,
   layers,
-  clipZone = null,
+  clipZones = null,
   onPick,
   onPrefetch,
 }: {
@@ -148,7 +148,7 @@ export default function ParcellesLayer({
   selectedParcelleId: string | null;
   immeubles: readonly CadastreImmeublePoint[];
   layers: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
-  clipZone?: Zone | null;
+  clipZones?: readonly Zone[] | null;
   onPick: (parcelleId: string, extra?: ParcellePickExtra) => void;
   onPrefetch?: (parcelleId: string) => void;
 }) {
@@ -162,8 +162,8 @@ export default function ParcellesLayer({
   selectedParcelleRef.current = selectedParcelleId;
   const layersRef = useRef(layers);
   layersRef.current = layers;
-  const clipZoneRef = useRef(clipZone);
-  clipZoneRef.current = clipZone;
+  const clipZonesRef = useRef(clipZones);
+  clipZonesRef.current = clipZones;
   const onPrefetchRef = useRef(onPrefetch);
   onPrefetchRef.current = onPrefetch;
   const onPickRef = useRef(onPick);
@@ -346,9 +346,9 @@ export default function ParcellesLayer({
         const hasVente = ventesOn && venteAggRef.current.has(parcelleId);
         const estSuivi = suiviSet.current.has(parcelleId);
         const centre = centroidLngLat(f.geometry);
-        const hors = !cadastreDansEmprise(
+        const hors = !cadastreDansEmprises(
           { latitude: centre?.latitude ?? null, longitude: centre?.longitude ?? null },
-          clipZoneRef.current,
+          clipZonesRef.current,
         );
         const state = {
           selected: selectedId === parcelleId,
@@ -383,7 +383,7 @@ export default function ParcellesLayer({
       for (const [parcelleId, marker] of notes) {
         if (pinSeen.has(parcelleId)) continue;
         if (marker.latitude == null || marker.longitude == null) continue;
-        if (!cadastreDansEmprise(marker, clipZoneRef.current)) continue;
+        if (!cadastreDansEmprises(marker, clipZonesRef.current)) continue;
         pinSeen.add(parcelleId);
         nextPins.push({ parcelleId, longitude: marker.longitude, latitude: marker.latitude });
       }
@@ -446,9 +446,9 @@ export default function ParcellesLayer({
       const parcelleId = parcelleIdOf(f);
       const centre = f ? centroidLngLat(f.geometry) : null;
       if (
-        !cadastreDansEmprise(
+        !cadastreDansEmprises(
           { latitude: centre?.latitude ?? e.lngLat.lat, longitude: centre?.longitude ?? e.lngLat.lng },
-          clipZoneRef.current,
+          clipZonesRef.current,
         )
       ) {
         applyHover(null);
@@ -502,7 +502,7 @@ export default function ParcellesLayer({
         const centre = centroidLngLat(f.geometry);
         const lat = centre?.latitude ?? e.lngLat.lat;
         const lng = centre?.longitude ?? e.lngLat.lng;
-        if (!cadastreDansEmprise({ latitude: lat, longitude: lng }, clipZoneRef.current)) {
+        if (!cadastreDansEmprises({ latitude: lat, longitude: lng }, clipZonesRef.current)) {
           continue;
         }
         e.originalEvent.stopPropagation();
@@ -575,7 +575,7 @@ export default function ParcellesLayer({
     noteMarkers,
     immeubles,
     layers.cadastreVentes,
-    clipZone,
+    clipZones,
   ]);
 
   useEffect(() => {

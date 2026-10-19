@@ -1,3 +1,7 @@
+.dessin-secteur .mapboxgl-marker {
+  pointer-events: none;
+}
+
 .priimo-pin-wrap {
   position: relative;
   display: inline-flex;

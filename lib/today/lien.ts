@@ -21,7 +21,7 @@ export function lienAction(action: TodayCardAction): string | null {
     case 'ouvrir_liste':
       return `/dashboard?filtre=${action.cardType}`;
     case 'ouvrir_estimation':
-      return `/dashboard/estimation?historique=1&id=${action.estimationId}`;
+      return null;
     case 'ouvrir_note':
       return lienLectureNote(action.noteId);
     case 'ouvrir_promesse':

@@ -7,20 +7,21 @@ export default function EmpriseCapsules({
   value,
   onChange,
   hasSecteur,
+  titreSecteur,
 }: {
   value: MapEmprise;
   onChange: (next: MapEmprise) => void;
   hasSecteur: boolean;
+  titreSecteur?: string;
 }) {
   return (
     <div role="group" aria-label="Emprise de la carte" className={`${PASTILLE_TRACK} mb-3 w-full`}>
       <button
         type="button"
         aria-pressed={value === 'secteur'}
-        disabled={!hasSecteur}
-        title={hasSecteur ? 'Mon secteur' : 'Aucun secteur attribué'}
+        title={titreSecteur ?? (hasSecteur ? 'Mon secteur' : 'Dessiner mon secteur')}
         onClick={() => onChange('secteur')}
-        className={`${pastilleClass(value === 'secteur')} min-w-0 flex-1 disabled:cursor-not-allowed disabled:opacity-45`}
+        className={`${pastilleClass(value === 'secteur')} min-w-0 flex-1`}
       >
         Secteur
       </button>

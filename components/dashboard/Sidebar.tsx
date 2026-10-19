@@ -166,10 +166,10 @@ export default function Sidebar() {
                     title="À venir"
                     aria-disabled="true"
                     aria-label={collapsed ? `${label}, à venir` : undefined}
-                    className={`flex w-full cursor-default items-center border-l-[3px] border-transparent py-2.5 font-medium text-white/35 ${
+                    className={`flex w-full cursor-default items-center rounded-xl py-2.5 font-medium text-white/35 ${
                       collapsed
-                        ? 'justify-center rounded-xl px-0'
-                        : 'justify-start gap-3 rounded-xl pl-[9px] pr-3'
+                        ? 'justify-center px-0'
+                        : 'justify-start gap-3 px-3'
                     }`}
                     style={{ fontSize: 13.5 }}
                   >
@@ -200,16 +200,14 @@ export default function Sidebar() {
                   onClick={(e) => {
                     if (navLocked) e.preventDefault();
                   }}
-                  className={`nav-link flex w-full items-center border-l-[3px] py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
+                  className={`nav-link flex w-full items-center rounded-xl py-2.5 font-medium transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
                     collapsed
-                      ? 'justify-center rounded-xl border-transparent px-0'
-                      : 'justify-start gap-3 pl-[9px] pr-3'
+                      ? 'justify-center px-0'
+                      : 'justify-start gap-3 px-3'
                   } ${
                     active
-                      ? collapsed
-                        ? 'border-transparent bg-white/[0.08] text-white'
-                        : 'rounded-r-xl border-[#E8743C] bg-white/[0.08] text-white'
-                      : 'rounded-xl border-transparent text-[#B8CDE3] hover:bg-white/[0.05]'
+                      ? 'bg-white/10 text-white'
+                      : 'text-[#B8CDE3] hover:bg-white/[0.05]'
                   }`}
                   style={{ fontSize: 13.5 }}
                 >

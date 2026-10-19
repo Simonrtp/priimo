@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowDown, ChevronDown, ExternalLink, X } from 'lucide-react';
+import { ArrowDown, ExternalLink, X } from 'lucide-react';
 import PhotosAnnonce from './PhotosAnnonce';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
@@ -20,10 +20,10 @@ import type { Annonce, Portail } from '@/lib/annonces/types';
 
 /** Les portails sans logo (Figaro, site d'agence collé par URL) s'affichent en toutes lettres. */
 const LOGO_PORTAIL: Partial<Record<Portail, string>> = {
-  seloger: '/landing/portails/marquee/seloger.webp',
-  pap: '/landing/portails/pap.svg',
+  seloger: '/se%20loger%20.png',
+  pap: '/landing/portails/pap.png',
   leboncoin: '/landing/portails/marquee/leboncoin.webp',
-  bienici: '/landing/portails/marquee/bienici.webp',
+  bienici: '/bienici.png',
   logicimmo: '/landing/portails/marquee/logicimmo.webp',
 };
 
@@ -37,6 +37,28 @@ function portailsUniques(portails: Annonce[]): Annonce[] {
 }
 
 const TYPE_BIEN: Record<string, string> = { appartement: 'Appartement', maison: 'Maison' };
+const MARQUE_HAUT = new Set<Portail>(['seloger', 'pap']);
+
+function LogosPortail({ annonces }: { annonces: Annonce[] }) {
+  return (
+    <>
+      {annonces.map((p) =>
+        LOGO_PORTAIL[p.portail] ? (
+          <img
+            key={p.portail}
+            src={LOGO_PORTAIL[p.portail]}
+            alt={libellePortail(p.portail)}
+            className="h-7 w-auto max-w-[7.5rem] object-contain object-left"
+          />
+        ) : (
+          <span key={p.portail} className="text-[13px] font-semibold text-text-strong">
+            {libellePortail(p.portail)}
+          </span>
+        ),
+      )}
+    </>
+  );
+}
 
 function Ligne({ titre, children }: { titre: string; children: ReactNode }) {
   return (
@@ -66,12 +88,6 @@ export default function AnnonceVolet({
 }) {
   const [lignes, setLignes] = useState<{ id: string; texte: string }[]>([]);
   const [photos, setPhotos] = useState<string[] | null>(null);
-  const [raisons, setRaisons] = useState<string[]>(
-    annonce.confiance === 'adresse_publiee'
-      ? annonce.raisonsLocalisation.filter((r) => !/dpe/i.test(r))
-      : annonce.raisonsLocalisation,
-  );
-  const [ouvert, setOuvert] = useState(false);
   const lieu = libelleAdresse(annonce);
   const parcelle = annonce.parcelleIds[0] ?? null;
   const baisse = baisseCumulee(annonce);
@@ -82,6 +98,9 @@ export default function AnnonceVolet({
   const retiree = annonce.statut === 'retiree';
   const approx = repereApproximatif(annonce) || annonce.confiance === 'incertaine';
   const portails = soeurs.length > 0 ? soeurs : [annonce];
+  const portailsDistincts = portailsUniques(portails);
+  const marques = portailsDistincts.filter((p) => MARQUE_HAUT.has(p.portail));
+  const autresPortails = portailsDistincts.filter((p) => !MARQUE_HAUT.has(p.portail));
   const bien = [
     annonce.typeBien ? TYPE_BIEN[annonce.typeBien] ?? null : null,
     annonce.pieces != null ? `${annonce.pieces} p.` : null,
@@ -97,18 +116,13 @@ export default function AnnonceVolet({
     setPhotos(null);
     void fetch(`/api/dashboard/annonces/${annonce.id}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { lignes?: { id: string; texte: string }[]; raisons?: string[]; photos?: string[] } | null) => {
+      .then((json: { lignes?: { id: string; texte: string }[]; photos?: string[] } | null) => {
         if (ignore) return;
         if (!json) {
           setPhotos([]);
           return;
         }
         setLignes(json.lignes ?? []);
-        setRaisons(
-          annonce.confiance === 'adresse_publiee'
-            ? (json.raisons ?? []).filter((r) => !/dpe/i.test(r))
-            : (json.raisons ?? []),
-        );
         setPhotos((json.photos ?? []).filter((p) => typeof p === 'string'));
       })
       .catch(() => {
@@ -117,14 +131,18 @@ export default function AnnonceVolet({
     return () => {
       ignore = true;
     };
-  }, [annonce.id, annonce.confiance]);
+  }, [annonce.id]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface">
       <header className="flex shrink-0 items-start justify-between gap-3 px-4 pb-3 pt-4">
         <div className="min-w-0">
+          {marques.length > 0 ? (
+            <div className="mb-2 flex items-center gap-3">
+              <LogosPortail annonces={marques} />
+            </div>
+          ) : null}
           <p className="text-pretty text-[13px] font-medium leading-snug text-text-strong">{lieu.ligne}</p>
-          {lieu.probable ? <p className="text-[12px] text-text-muted">Adresse probable</p> : null}
           {approx ? <p className="text-[12px] text-text-muted">Emplacement approximatif</p> : null}
           <p className={`mt-1 text-[19px] font-semibold leading-snug text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}>
             {annonce.prix != null ? euros(annonce.prix) : 'Prix non indiqué'}
@@ -194,22 +212,11 @@ export default function AnnonceVolet({
             )}
           </Ligne>
         </dl>
-        <div className="flex items-center gap-1.5 border-t border-black/[0.05] py-2.5">
-          {portailsUniques(portails).map((p) =>
-            LOGO_PORTAIL[p.portail] ? (
-              <img
-                key={p.portail}
-                src={LOGO_PORTAIL[p.portail]}
-                alt={libellePortail(p.portail)}
-                className="h-5 w-auto max-w-[5.75rem] object-contain object-left"
-              />
-            ) : (
-              <span key={p.portail} className="text-[13px] font-semibold text-text-strong">
-                {libellePortail(p.portail)}
-              </span>
-            ),
-          )}
-        </div>
+        {autresPortails.length > 0 ? (
+          <div className="flex items-center gap-1.5 border-t border-black/[0.05] py-2.5">
+            <LogosPortail annonces={autresPortails} />
+          </div>
+        ) : null}
 
         <section className="mt-2 border-t border-black/[0.06] pt-4">
           <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Historique</h3>
@@ -221,33 +228,6 @@ export default function AnnonceVolet({
               </li>
             ))}
           </ul>
-        </section>
-
-        <section className="mt-4 border-t border-black/[0.06] pt-3">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between gap-3 rounded-lg py-1 text-left text-[15px] font-semibold text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
-            onClick={() => setOuvert((v) => !v)}
-            aria-expanded={ouvert}
-          >
-            Pourquoi cette adresse ?
-            <ChevronDown
-              size={16}
-              strokeWidth={2}
-              aria-hidden
-              className={`shrink-0 text-text-subtle transition-transform duration-fluid-subtle ${ouvert ? 'rotate-180' : ''}`}
-            />
-          </button>
-          {ouvert ? (
-            <ul className="mt-2 space-y-1">
-              {raisons.length === 0 ? <li className="text-[13px] text-text-muted">Pas de détail.</li> : null}
-              {raisons.map((r) => (
-                <li key={r} className="text-[13px] text-text">
-                  {r}
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </section>
 
         <section className="mt-4 flex flex-col items-start gap-2 border-t border-black/[0.06] pt-4">
@@ -281,12 +261,10 @@ export default function AnnonceVolet({
               </a>
             ) : null}
           </div>
-          <a
-            href="/dashboard/estimation?id=nouvelle"
-            className="rounded-lg text-[13px] text-text-muted underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
-          >
+          <p className="text-[13px] text-text-muted">
             Ajouter aux comparables d’une estimation
-          </a>
+            <span className="ml-2 text-[12px]">À venir</span>
+          </p>
         </section>
       </div>
     </aside>

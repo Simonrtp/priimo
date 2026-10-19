@@ -13,7 +13,7 @@ import {
 } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { bilanAnnonces, filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
-import { baisseCumulee, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
+import { baisseCumulee, couleurGroupe, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
 import { useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
 import type { Zone } from '@/lib/zones/types';
@@ -39,6 +39,8 @@ type Qui = {
   profileId: string;
   /** Secteur cadré par le bouton « Secteur » en haut du panneau. */
   zoneCadree?: Zone | null;
+  /** Directeur : tous les secteurs affichés ensemble. */
+  zonesCadrees?: readonly Zone[] | null;
 };
 
 function Choix<T extends string>({
@@ -105,9 +107,10 @@ export function AnnoncesLayerControls({
   const directeur = qui?.directeur ?? false;
   const profileId = qui?.profileId ?? '';
   const zoneCadree = qui?.zoneCadree ?? null;
+  const zonesCadrees = qui?.zonesCadrees ?? null;
   const bilan = useMemo(
-    () => bilanAnnonces(annonces, layers, zones ?? [], { directeur, profileId, zoneCadree }),
-    [annonces, layers, zones, directeur, profileId, zoneCadree],
+    () => bilanAnnonces(annonces, layers, zones ?? [], { directeur, profileId, zoneCadree, zonesCadrees }),
+    [annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees],
   );
   const row = compact ? 'min-h-[44px] px-1' : 'min-h-[40px] px-2.5 py-1.5';
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
@@ -145,7 +148,7 @@ export function AnnoncesLayerControls({
       </div>
       <div className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`} aria-hidden={!open}>
         <div>
-          <div className={`flex flex-col gap-3 pb-3 ${compact ? 'pl-3 pr-1' : 'pl-6 pr-2.5'}`}>
+          <div className={`flex flex-col gap-3 pb-3 ${compact ? 'px-1' : 'px-2.5'}`}>
             <ImportAnnonce compact={compact} />
           </div>
           <div className={`flex flex-col gap-3 pb-3 ${compact ? 'pl-3 pr-1' : 'pl-6 pr-2.5'} ${actif ? '' : 'opacity-60'}`}>
@@ -217,8 +220,19 @@ function useEmprise(): Emprise | null {
   return emprise;
 }
 
-function Pastille({ groupe, onClick }: { groupe: GroupeAnnonce; onClick: () => void }) {
+function Pastille({
+  groupe,
+  choisie,
+  onClick,
+}: {
+  groupe: GroupeAnnonce;
+  choisie: boolean;
+  onClick: () => void;
+}) {
   const a = groupe.principale;
+  const teinte = couleurGroupe(groupe);
+  const [survol, setSurvol] = useState(false);
+  const marque = choisie || survol;
   const particulier = a.typeVendeur === 'particulier';
   const retiree = a.statut === 'retiree';
   const baisse = !retiree && baisseCumulee(a) != null;
@@ -243,15 +257,29 @@ function Pastille({ groupe, onClick }: { groupe: GroupeAnnonce; onClick: () => v
         e.stopPropagation();
         onClick();
       }}
+      onMouseEnter={() => setSurvol(true)}
+      onMouseLeave={() => setSurvol(false)}
+      onFocus={() => setSurvol(true)}
+      onBlur={() => setSurvol(false)}
       aria-label={libelle}
+      aria-pressed={choisie}
       title={libelle}
       className={`relative inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[16px] shadow-sm transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
-        particulier ? 'bg-blue text-white ring-1 ring-white/70' : 'bg-white text-text-strong ring-1 ring-black/10'
+        teinte ? 'ring-1 ring-white/80' : particulier ? 'bg-blue text-white ring-1 ring-white/70' : 'bg-white text-text-strong ring-1 ring-black/10'
       } ${retiree ? 'line-through' : ''}`}
-      style={{ opacity: retiree ? 0.5 : approx ? 0.7 : 1 }}
+      style={{
+        opacity: retiree ? 0.5 : approx ? 0.7 : 1,
+        background: teinte ? (marque ? teinte.vive : teinte.douce) : undefined,
+        color: teinte ? (marque ? '#fff' : '#1A2A56') : undefined,
+      }}
     >
       {baisse ? (
-        <ArrowDown size={11} strokeWidth={2.5} aria-hidden className={particulier ? 'text-accent-light' : 'text-accent'} />
+        <ArrowDown
+          size={11}
+          strokeWidth={2.5}
+          aria-hidden
+          className={teinte ? '' : particulier ? 'text-accent-light' : 'text-accent'}
+        />
       ) : null}
       {prix}
       {nouvelle ? (
@@ -267,7 +295,9 @@ export function AnnoncesMarqueurs({
   directeur,
   profileId,
   zoneCadree = null,
+  zonesCadrees = null,
   onChoisir,
+  ouverteId = null,
 }: {
   layers: MapLayerState;
   zones: readonly Zone[];
@@ -275,7 +305,11 @@ export function AnnoncesMarqueurs({
   profileId: string;
   /** Secteur choisi en haut : seules ses annonces restent. */
   zoneCadree?: Zone | null;
+  /** Tous les secteurs du directeur, affichés ensemble. */
+  zonesCadrees?: readonly Zone[] | null;
   onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
+  /** Annonce dont le volet est ouvert : sa pastille reste vive. */
+  ouverteId?: string | null;
 }) {
   const actif = coucheAnnoncesActive(layers);
   const { annonces } = useAnnoncesSecteur(actif);
@@ -284,14 +318,14 @@ export function AnnoncesMarqueurs({
   const groupes = useMemo(() => {
     if (!actif) return [];
     const tous = regrouperAnnonces(
-      filtrerAnnonces(annonces, layers, zones, { directeur, profileId, zoneCadree }),
+      filtrerAnnonces(annonces, layers, zones, { directeur, profileId, zoneCadree, zonesCadrees }),
     ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude));
     const visibles = tous.length > MAX_PASTILLES ? tous.filter((g) => dansEmprise(g.principale, emprise)) : tous;
     // Les particuliers par-dessus les agences, et gardés en priorité.
     return visibles
       .sort((x, y) => Number(x.principale.typeVendeur === 'particulier') - Number(y.principale.typeVendeur === 'particulier'))
       .slice(-MAX_PASTILLES);
-  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, emprise]);
+  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise]);
 
   if (!actif) return <PointImport />;
   return (
@@ -303,9 +337,13 @@ export function AnnoncesMarqueurs({
           longitude={g.principale.longitude!}
           latitude={g.principale.latitude!}
           anchor="center"
-          style={{ zIndex: g.principale.typeVendeur === 'particulier' ? 2 : 1 }}
+          style={{ zIndex: g.annonces.some((a) => a.id === ouverteId) ? 4 : g.principale.typeVendeur === 'particulier' ? 2 : 1 }}
         >
-          <Pastille groupe={g} onClick={() => onChoisir(g.principale, g.annonces)} />
+          <Pastille
+            groupe={g}
+            choisie={g.annonces.some((a) => a.id === ouverteId)}
+            onClick={() => onChoisir(g.principale, g.annonces)}
+          />
         </Marker>
       ))}
     </>

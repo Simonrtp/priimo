@@ -141,6 +141,7 @@ export function phraseNotesReturn(relances: number, rapprochements: number): str
 
 /** Libellé court du bouton plein. Chaque carte en a un. */
 export function ctaCourt(card: TodayCard): string {
+  if (card.action.kind === 'ouvrir_estimation') return 'À venir';
   if (card.action.kind === 'appeler') return 'Appeler';
   if (card.action.kind === 'voir_acquereurs') return 'Voir les acquéreurs';
   if (card.action.kind === 'ouvrir_bien') return 'Ouvrir';

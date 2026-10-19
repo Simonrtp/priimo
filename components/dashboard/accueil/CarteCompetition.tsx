@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import Modal from '@/components/ui/Modal';
 import type { AgentPodium } from '@/lib/activite/podium';
 import { LIBELLE_ACTIVITE, type Activite } from '@/lib/activite/types';
 
@@ -49,6 +50,30 @@ const STATS: readonly Activite[] = [
   'mandats',
 ];
 
+const COURT: Record<Activite, string> = {
+  immeubles_prospectes: 'Immeubles',
+  contacts_qualifies: 'Contacts',
+  estimations: 'Estimations',
+  informations_terrain: 'Notes',
+  mandats: 'Mandats',
+};
+
+/** 1 or, 2 argent, 3 bronze. La suite du classement reste neutre. */
+const LIGNE = {
+  1: { fond: '#F5C542', texte: '#1A2A56', mute: 'rgba(26,42,86,0.72)' },
+  2: { fond: '#D7DBE3', texte: '#1A2A56', mute: 'rgba(26,42,86,0.72)' },
+  3: { fond: '#C4844A', texte: '#FFFFFF', mute: 'rgba(255,255,255,0.84)' },
+} as const;
+
+const LIGNE_SUITE = { fond: '#F4F6FB', texte: '#1A2A56', mute: 'rgba(26,42,86,0.62)' };
+
+function ligneDuRang(index: number) {
+  if (index === 0) return LIGNE[1];
+  if (index === 1) return LIGNE[2];
+  if (index === 2) return LIGNE[3];
+  return LIGNE_SUITE;
+}
+
 export default function CarteCompetition({
   podium,
   classement = false,
@@ -61,29 +86,12 @@ export default function CarteCompetition({
   vide?: boolean;
 }) {
   const listeId = useId();
-  const ancre = useRef<HTMLElement>(null);
   const [listeOuverte, setListeOuverte] = useState(false);
   const places = ORDRE.map((rang) => ({
     rang,
     agent: vide ? null : (podium[rang - 1] ?? null),
   }));
   const voitListe = classement && !vide;
-
-  useEffect(() => {
-    if (!listeOuverte) return;
-    function fermer(event: MouseEvent) {
-      if (!ancre.current?.contains(event.target as Node)) setListeOuverte(false);
-    }
-    function echap(event: KeyboardEvent) {
-      if (event.key === 'Escape') setListeOuverte(false);
-    }
-    document.addEventListener('mousedown', fermer);
-    document.addEventListener('keydown', echap);
-    return () => {
-      document.removeEventListener('mousedown', fermer);
-      document.removeEventListener('keydown', echap);
-    };
-  }, [listeOuverte]);
 
   const marches = (
     <>
@@ -140,7 +148,6 @@ export default function CarteCompetition({
 
   return (
     <section
-      ref={ancre}
       aria-label={vide ? 'Compétition, podium vide' : 'Compétition'}
       className="relative col-span-2 flex min-w-0 items-end self-end lg:col-span-1"
     >
@@ -149,11 +156,18 @@ export default function CarteCompetition({
         cliquable={voitListe}
         listeOuverte={listeOuverte}
         listeId={listeId}
-        onListe={() => setListeOuverte((ouverte) => !ouverte)}
+        onListe={() => setListeOuverte(true)}
       >
         {marches}
       </Socle>
-      {voitListe && listeOuverte ? <ListeClassement id={listeId} podium={podium} /> : null}
+      {voitListe ? (
+        <ListeClassement
+          id={listeId}
+          open={listeOuverte}
+          podium={podium}
+          onClose={() => setListeOuverte(false)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -194,39 +208,58 @@ function Socle({
   );
 }
 
-function ListeClassement({ id, podium }: { id: string; podium: readonly AgentPodium[] }) {
+function ListeClassement({
+  id,
+  open,
+  podium,
+  onClose,
+}: {
+  id: string;
+  open: boolean;
+  podium: readonly AgentPodium[];
+  onClose: () => void;
+}) {
   return (
-    <div
-      id={id}
-      role="region"
-      aria-label="Classement"
-      className="absolute right-0 top-full z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-clay-lg bg-surface p-3 shadow-clay"
-    >
-      <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">Classement</p>
+    <Modal open={open} onClose={onClose} title="Classement" maxWidth="xl" compact>
       {podium.length === 0 ? (
-        <p className="px-1 pt-2 text-[13px] text-text-muted">Pas encore de passage cette semaine.</p>
+        <p className="py-6 text-[13.5px] font-medium text-[#1A2A56]">
+          Pas encore de passage cette semaine.
+        </p>
       ) : (
-        <ol className="mt-2 flex flex-col gap-2">
-          {podium.map((agent, index) => (
-            <li key={agent.id} className="rounded-2xl bg-surface-2 px-3 py-2">
-              <p className="truncate text-[13px] font-semibold text-text-strong">
-                <span className="mr-1.5 tabular-nums text-text-muted">{index + 1}</span>
-                {agent.prenom} {agent.nom}
-              </p>
-              <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5">
-                {STATS.map((cle) => (
-                  <div key={cle} className="flex items-baseline justify-between gap-2">
-                    <dt className="truncate text-[11px] text-text-muted">{LIBELLE_ACTIVITE[cle]}</dt>
-                    <dd className="shrink-0 text-[12px] font-semibold tabular-nums text-text-strong">
-                      {agent.stats[cle]}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </li>
-          ))}
+        <ol id={id} className="flex flex-col gap-1.5">
+          {podium.map((agent, index) => {
+            const ligne = ligneDuRang(index);
+            return (
+              <li
+                key={agent.id}
+                className="flex min-h-11 items-center gap-2.5 rounded-xl px-2.5 py-1.5"
+                style={{ background: ligne.fond, color: ligne.texte }}
+              >
+                <ProfileAvatar
+                  firstName={agent.prenom}
+                  lastName={agent.nom}
+                  avatarUrl={agent.avatarUrl}
+                  size={28}
+                />
+                <span className="w-4 shrink-0 text-[13px] font-bold tabular-nums">{index + 1}</span>
+                <span className="min-w-0 truncate text-[13.5px] font-semibold">
+                  {agent.prenom} {agent.nom}
+                </span>
+                <dl className="ml-auto flex min-w-0 flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">
+                  {STATS.map((cle) => (
+                    <div key={cle} className="flex items-baseline gap-1" title={LIBELLE_ACTIVITE[cle]}>
+                      <dt className="text-[11px]" style={{ color: ligne.mute }}>
+                        {COURT[cle]}
+                      </dt>
+                      <dd className="text-[13px] font-semibold tabular-nums">{agent.stats[cle]}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            );
+          })}
         </ol>
       )}
-    </div>
+    </Modal>
   );
 }

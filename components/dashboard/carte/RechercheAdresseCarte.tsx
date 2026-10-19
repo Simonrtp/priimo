@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { CircleX, MapPin, Search } from 'lucide-react';
+import { CircleX, MapPin } from 'lucide-react';
 import { searchBanAddresses } from '@/lib/ban';
 import { versAdressesTrouvees, type AdresseTrouvee } from '@/lib/ban-recherche';
 import { viserSurLaCarte } from '@/lib/carte/cible';
@@ -102,7 +102,7 @@ export default function RechercheAdresseCarte() {
           title="Aller à une adresse"
           className="flex size-[34px] shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500"
         >
-          <Search size={16} strokeWidth={2.2} aria-hidden />
+          <MapPin size={16} strokeWidth={2.2} aria-hidden />
         </button>
         <label htmlFor={champId} className="sr-only">
           Aller à une adresse

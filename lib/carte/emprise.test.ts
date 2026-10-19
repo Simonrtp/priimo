@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { cadastreDansEmprise, empriseDepuisZoneId } from './emprise';
+import {
+  ZONE_TOUS_SECTEURS,
+  cadastreDansEmprise,
+  cadastreDansEmprises,
+  empriseDepuisZoneId,
+  secteursDeLaCarte,
+  zoneParDefautProspection,
+} from './emprise';
 import type { Zone } from '@/lib/zones/types';
 
 const zone: Zone = {
@@ -42,6 +49,32 @@ describe('empriseDepuisZoneId', () => {
 
   it('traite un identifiant de zone comme le secteur', () => {
     assert.equal(empriseDepuisZoneId('ouest'), 'secteur');
+    assert.equal(empriseDepuisZoneId(ZONE_TOUS_SECTEURS), 'secteur');
+  });
+});
+
+describe('secteursDeLaCarte', () => {
+  const mien = { ...zone, id: 'mien', nom: 'Secteur de Simon', assignedTo: 'moi' };
+  const sien = { ...zone, id: 'sien', nom: 'Secteur de Camille', assignedTo: 'camille' };
+
+  it('ne propose au négociateur que son secteur', () => {
+    assert.deepEqual(
+      secteursDeLaCarte([sien, mien], 'moi', false).map((z) => z.id),
+      ['mien'],
+    );
+  });
+
+  it('propose au directeur tous les secteurs, le sien d’abord', () => {
+    assert.deepEqual(
+      secteursDeLaCarte([sien, mien], 'moi', true).map((z) => z.id),
+      ['mien', 'sien'],
+    );
+  });
+
+  it('ouvre tous les secteurs pour le directeur', () => {
+    assert.equal(zoneParDefautProspection([sien, mien], 'moi', true), ZONE_TOUS_SECTEURS);
+    assert.equal(zoneParDefautProspection([sien], 'moi', true), 'sien');
+    assert.equal(zoneParDefautProspection([], 'moi', true), null);
   });
 });
 
@@ -53,5 +86,35 @@ describe('cadastreDansEmprise', () => {
   it('garde un point dans le secteur et retire le reste', () => {
     assert.equal(cadastreDansEmprise({ latitude: 48.85, longitude: 2.39 }, zone), true);
     assert.equal(cadastreDansEmprise({ latitude: 48.85, longitude: 2.5 }, zone), false);
+  });
+
+  it('garde un point dès qu’un des secteurs le contient', () => {
+    const autre: Zone = {
+      ...zone,
+      id: 'est',
+      regles: [
+        {
+          id: 'r2',
+          zoneId: 'est',
+          inclusion: true,
+          type: 'polygone',
+          valeur: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [2.45, 48.84],
+                [2.55, 48.84],
+                [2.55, 48.86],
+                [2.45, 48.86],
+                [2.45, 48.84],
+              ],
+            ],
+          },
+        },
+      ],
+    };
+    assert.equal(cadastreDansEmprises({ latitude: 48.85, longitude: 2.5 }, [zone, autre]), true);
+    assert.equal(cadastreDansEmprises({ latitude: 48.85, longitude: 2.2 }, [zone, autre]), false);
+    assert.equal(cadastreDansEmprises({ latitude: 48.85, longitude: 2.2 }, null), true);
   });
 });

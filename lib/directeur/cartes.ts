@@ -163,7 +163,7 @@ export function cartesEstimationSansRelance(
           texte: consulte,
           repere: null,
           action: 'preparer',
-          href: `/dashboard/estimation?id=${encodeURIComponent(row.id)}`,
+          href: null,
           meta: { estimationId: row.id },
         },
         ENJEU_TYPE_DIRECTEUR.estimation_sans_relance,

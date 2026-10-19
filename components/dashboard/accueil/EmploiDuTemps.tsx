@@ -523,18 +523,9 @@ function CaseJourMois({
   );
 }
 
-/** Même carte, cases vides : le contenu arrive juste après. */
+/** Carte grise, le temps que l'agenda arrive. */
 export function EmploiDuTempsSquelette() {
-  const aujourdhui = dateKeyParis(new Date());
-  return (
-    <section className="flex h-full min-w-0 flex-col rounded-clay-lg bg-surface p-5 shadow-clay">
-      <EnteteAgenda />
-      <BarreVues vue="semaine" libelle={libelleVue('semaine', aujourdhui)} />
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-0.5">
-        <VueSemaine ancre={aujourdhui} aujourdhui={aujourdhui} evenements={[]} attente />
-      </div>
-    </section>
-  );
+  return <div className="squelette h-full min-h-64 rounded-clay-lg" aria-hidden />;
 }
 
 const GOOGLE = {

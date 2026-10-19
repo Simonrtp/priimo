@@ -145,10 +145,6 @@ COMMENT ON TABLE public.profile_agencies IS
 CREATE INDEX IF NOT EXISTS idx_profile_agencies_agency_id ON public.profile_agencies (agency_id);
 CREATE INDEX IF NOT EXISTS idx_profile_agencies_profile_id ON public.profile_agencies (profile_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_agencies_one_director_per_agency
-  ON public.profile_agencies (agency_id)
-  WHERE role = 'directeur';
-
 -- ---------------------------------------------------------------------
 -- 3.c Table `agency_requests` (demandes de secteur)
 -- ---------------------------------------------------------------------

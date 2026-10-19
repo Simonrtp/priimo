@@ -41,10 +41,18 @@ import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import { withAnnoncesMenuToggled } from '@/lib/carte/layers';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
-import { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
+import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
+import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
-import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
+import {
+  ZONE_TOUS_SECTEURS,
+  cadastreDansEmprises,
+  cadrageCarte,
+  empriseDepuisZoneId,
+  zoneIdInitial,
+  type MapEmprise,
+} from '@/lib/carte/emprise';
 import { useUser } from '@/lib/hooks/useUser';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import ImmeubleFacade from '@/components/dashboard/carte/ImmeubleFacade';
@@ -68,7 +76,7 @@ import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
-import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
+import { bboxDeZone, bboxVersBounds, fusionnerBbox, type Bbox } from '@/lib/zones/geometrie';
 import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
 
@@ -111,10 +119,13 @@ function LayersPanel({
   emprise,
   onEmprise,
   hasSecteur,
+  titreSecteur,
   zones,
   zoneId,
   onZone,
+  tousSecteurs = false,
   annoncesQui,
+  atelier = null,
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
@@ -134,10 +145,13 @@ function LayersPanel({
   emprise: MapEmprise;
   onEmprise: (next: MapEmprise) => void;
   hasSecteur: boolean;
+  titreSecteur?: string;
   zones: readonly Zone[];
   zoneId: string;
   onZone: (id: string) => void;
+  tousSecteurs?: boolean;
   annoncesQui: { zones: readonly Zone[]; directeur: boolean; profileId: string };
+  atelier?: ReactNode;
 }) {
   return (
     <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden ${className}`}>
@@ -158,7 +172,9 @@ function LayersPanel({
         ) : null}
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <EmpriseCapsules value={emprise} onChange={onEmprise} hasSecteur={hasSecteur} />
+        <EmpriseCapsules value={emprise} onChange={onEmprise} hasSecteur={hasSecteur} titreSecteur={titreSecteur} />
+        {atelier ?? (
+        <>
         <ul className="flex flex-col gap-1.5">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -197,7 +213,7 @@ function LayersPanel({
             onToggleMenu={onToggleAnnoncesMenu}
             qui={annoncesQui}
           />
-          <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} />
+          <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} tous={tousSecteurs} />
         </ul>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
@@ -221,6 +237,8 @@ function LayersPanel({
           ) : null}
 
         </div>
+        </>
+        )}
       </div>
     </WorkspaceCard>
   );
@@ -268,9 +286,8 @@ export default function SectorMapClient({
   const profileId = profile?.id ?? '';
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
-  const [zoneId, setZoneId] = useState(
-    initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
-  );
+  const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
+  const [atelier, setAtelier] = useState(false);
   const [assignedTo, setAssignedTo] = useState('tous');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
@@ -303,27 +320,35 @@ export default function SectorMapClient({
     [immeublesSuivis],
   );
   const mapZoom = viewport?.zoom ?? null;
-  const monSecteurId = useMemo(
-    () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
-    [profileId, zones],
+  const cadre = useMemo(
+    () => cadrageCarte({ zoneId, zones, profileId, directeur: isDirector }),
+    [zoneId, zones, profileId, isDirector],
   );
-  const emprise = empriseDepuisZoneId(zoneId);
-  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
+  const { proposes, voirTous, zoneChoisie, affiches } = cadre;
+  const empriseZone = empriseDepuisZoneId(zoneId);
+  const emprise: MapEmprise = atelier ? 'secteur' : empriseZone;
+  const dessin = useDessinSecteur({ ouvert: atelier, zones, centre: center });
   const annoncesQui = useMemo(
-    () => ({ zones, directeur: isDirector, profileId, zoneCadree: zoneChoisie }),
-    [zones, isDirector, profileId, zoneChoisie],
+    () => ({
+      zones,
+      directeur: isDirector,
+      profileId,
+      zoneCadree: zoneChoisie,
+      zonesCadrees: voirTous ? affiches : null,
+    }),
+    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches],
   );
   const pointsDuSecteur = useMemo(
-    () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
-    [points, zoneChoisie],
+    () =>
+      affiches.length > 0
+        ? points.filter((p) => affiches.some((z) => pointDansZone(p, z)))
+        : points,
+    [points, affiches],
   );
-  const focusBounds = useMemo(
-    () => (zoneChoisie ? (() => {
-      const boite = bboxDeZone(zoneChoisie);
-      return boite ? bboxVersBounds(boite) : null;
-    })() : null),
-    [zoneChoisie],
-  );
+  const focusBounds = useMemo(() => {
+    const boite = fusionnerBbox(affiches.map(bboxDeZone).filter((b): b is Bbox => b !== null));
+    return boite ? bboxVersBounds(boite) : null;
+  }, [affiches]);
 
   const filtered = useMemo(
     () =>
@@ -462,23 +487,33 @@ export default function SectorMapClient({
 
   function choisirEmprise(next: MapEmprise) {
     if (next === 'code_postal') {
+      setAtelier(false);
       setZoneId('aucun');
       return;
     }
-    if (monSecteurId) setZoneId(monSecteurId);
+    if (proposes.length > 0) {
+      setAtelier(false);
+      setZoneId(
+        isDirector && proposes.length > 1
+          ? ZONE_TOUS_SECTEURS
+          : (zoneProspectionParDefaut(zones, profileId) ?? proposes[0]!.id),
+      );
+      return;
+    }
+    setAtelier(true);
   }
 
   const cadastreImmeubles = useMemo(
-    () => parcelle.immeubles.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
-    [parcelle.immeubles, zoneChoisie],
+    () => parcelle.immeubles.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
+    [parcelle.immeubles, affiches],
   );
   const activeParcelleIds = useMemo(
     () => cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id)),
     [cadastreImmeubles],
   );
   const parcelleNoteMarkers = useMemo(
-    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
-    [parcelle.noteMarkers, zoneChoisie],
+    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
+    [parcelle.noteMarkers, affiches],
   );
 
   const ouvrirDepuisMarqueur = useCallback(
@@ -538,11 +573,14 @@ export default function SectorMapClient({
       showAssignee={isDirector}
       emprise={emprise}
       onEmprise={choisirEmprise}
-      hasSecteur={Boolean(monSecteurId)}
-      zones={secteursAMoi(zones, profileId)}
+      hasSecteur={proposes.length > 0}
+      titreSecteur={isDirector && proposes.length > 1 ? 'Tous les secteurs' : undefined}
+      zones={proposes}
+      tousSecteurs={isDirector}
       annoncesQui={annoncesQui}
       zoneId={zoneId}
       onZone={setZoneId}
+      atelier={dessin.panneau}
     />
   );
 
@@ -590,16 +628,23 @@ export default function SectorMapClient({
           }}
           onPrefetchParcelle={parcelle.prefetchParcelle}
           focusBounds={focusBounds}
-          zones={zoneId === 'aucun' ? [] : zones}
+          zones={affiches}
           highlightedZoneId={zoneChoisie?.id ?? null}
-          clipZone={zoneChoisie}
+          clipZones={affiches.length > 0 ? affiches : null}
+          dessin={
+            atelier
+              ? { couleur: dessin.couleur, polygone: dessin.polygone, onContour: dessin.poserContour }
+              : null
+          }
           annoncesCouche={{
             layers,
             zones,
             zoneCadree: zoneChoisie,
+            zonesCadrees: voirTous ? affiches : null,
             directeur: isDirector,
             profileId,
             onChoisir: (annonce, soeurs) => setAnnonceOuverte({ annonce, soeurs }),
+            ouverteId: annonceOuverte?.annonce.id ?? null,
           }}
         />
 
@@ -657,11 +702,14 @@ export default function SectorMapClient({
                 showAssignee={isDirector}
                 emprise={emprise}
                 onEmprise={choisirEmprise}
-                hasSecteur={Boolean(monSecteurId)}
-      zones={secteursAMoi(zones, profileId)}
+                hasSecteur={proposes.length > 0}
+      titreSecteur={isDirector && proposes.length > 1 ? 'Tous les secteurs' : undefined}
+      zones={proposes}
+      tousSecteurs={isDirector}
       annoncesQui={annoncesQui}
-      zoneId={zoneId}
-      onZone={setZoneId}
+                zoneId={zoneId}
+                onZone={setZoneId}
+                atelier={dessin.panneau}
                 onCollapse={() => setLayersPanelOpen(false)}
               />
             </div>

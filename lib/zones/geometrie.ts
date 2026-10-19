@@ -212,8 +212,9 @@ const ANNEAU_MONDE: [number, number][] = [
  * Voile hors du secteur : un polygone-monde percé des contours du titulaire.
  * Les clics passent dans les trous ; le voile n’est que visuel.
  */
-export function collectionMasqueHorsZone(zone: Zone): GeoJSON.FeatureCollection {
-  const trous = polygonesDeZone(zone)
+export function collectionMasqueHorsZones(zones: readonly Zone[]): GeoJSON.FeatureCollection {
+  const trous = zones
+    .flatMap((zone) => polygonesDeZone(zone))
     .map((p) => p.coordinates[0])
     .filter((anneau): anneau is readonly (readonly [number, number])[] =>
       Boolean(anneau && anneau.length >= 4),
@@ -233,5 +234,9 @@ export function collectionMasqueHorsZone(zone: Zone): GeoJSON.FeatureCollection 
       },
     ],
   };
+}
+
+export function collectionMasqueHorsZone(zone: Zone): GeoJSON.FeatureCollection {
+  return collectionMasqueHorsZones([zone]);
 }
 

@@ -148,6 +148,9 @@ export default function TaskCard({
             </p>
           ) : null}
         </div>
+        {card.action.kind === 'ouvrir_estimation' ? (
+          <span className="flex-shrink-0 px-1 py-2 text-[13px] font-semibold text-text-muted">À venir</span>
+        ) : (
         <button
           type="button"
           className="flex-shrink-0 px-1 py-2 font-semibold text-text-strong underline decoration-black/25 underline-offset-2"
@@ -156,6 +159,7 @@ export default function TaskCard({
         >
           {ctaLink(card)}
         </button>
+        )}
       </article>
     );
   }
@@ -231,7 +235,9 @@ export default function TaskCard({
             ) : null}
           </div>
         </div>
-        {card.action.kind === 'appeler' ? null : (
+        {card.action.kind === 'appeler' ? null : card.action.kind === 'ouvrir_estimation' ? (
+          <p className="mt-3 text-[13px] font-semibold text-text-muted">À venir</p>
+        ) : (
           <button
             type="button"
             className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-[12px] font-semibold text-white"

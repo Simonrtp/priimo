@@ -40,10 +40,18 @@ import { AnnoncesLayerControls } from '@/components/dashboard/annonces/AnnoncesC
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
-import { ChoixSecteurs, secteursAMoi } from '@/components/dashboard/carte/FiltresHautCarte';
+import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
+import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
-import { cadastreDansEmprise, empriseDepuisZoneId, type MapEmprise } from '@/lib/carte/emprise';
+import {
+  ZONE_TOUS_SECTEURS,
+  cadastreDansEmprises,
+  cadrageCarte,
+  empriseDepuisZoneId,
+  zoneIdInitial,
+  type MapEmprise,
+} from '@/lib/carte/emprise';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import {
   type MapPoint,
@@ -81,7 +89,7 @@ import {
 } from '@/lib/map/view-mode';
 import { FIELD, formatDistance } from '@/lib/today/field';
 import { vibrateBrief } from './aujourdhui/tap';
-import { bboxDeZone, bboxVersBounds } from '@/lib/zones/geometrie';
+import { bboxDeZone, bboxVersBounds, fusionnerBbox, type Bbox } from '@/lib/zones/geometrie';
 import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
 
@@ -154,9 +162,8 @@ export default function CarteMobile({
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
-  const [zoneId, setZoneId] = useState(
-    initialZoneId && zones.some((z) => z.id === initialZoneId) ? initialZoneId : 'aucun',
-  );
+  const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
+  const [atelier, setAtelier] = useState(false);
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [vue, setVue] = useState<VueCarte | null>(null);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
@@ -174,14 +181,21 @@ export default function CarteMobile({
   const [gardeFin, setGardeFin] = useState(false);
   const gardeFinTimer = useRef<number | null>(null);
 
-  const monSecteurId = useMemo(
-    () => (profileId ? zoneProspectionParDefaut(zones, profileId) : null),
-    [profileId, zones],
+  const cadre = useMemo(
+    () => cadrageCarte({ zoneId, zones, profileId, directeur: isDirector }),
+    [zoneId, zones, profileId, isDirector],
   );
-  const zoneChoisie = zones.find((z) => z.id === zoneId) ?? null;
+  const { proposes, voirTous, zoneChoisie, affiches } = cadre;
+  const monSecteurId = zoneProspectionParDefaut(zones, profileId);
   const annoncesQui = useMemo(
-    () => ({ zones, directeur: isDirector, profileId, zoneCadree: zoneChoisie }),
-    [zones, isDirector, profileId, zoneChoisie],
+    () => ({
+      zones,
+      directeur: isDirector,
+      profileId,
+      zoneCadree: zoneChoisie,
+      zonesCadrees: voirTous ? affiches : null,
+    }),
+    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches],
   );
 
   const tournee = useTourneeCarte({
@@ -223,16 +237,20 @@ export default function CarteMobile({
   );
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
-  const emprise = empriseDepuisZoneId(zoneId);
+  const empriseZone = empriseDepuisZoneId(zoneId);
+  const emprise = atelier ? 'secteur' : empriseZone;
+  const dessin = useDessinSecteur({ ouvert: atelier, zones, centre: center });
   const pointsDuSecteur = useMemo(
-    () => (zoneChoisie ? points.filter((p) => pointDansZone(p, zoneChoisie)) : points),
-    [points, zoneChoisie],
+    () =>
+      affiches.length > 0
+        ? points.filter((p) => affiches.some((z) => pointDansZone(p, z)))
+        : points,
+    [points, affiches],
   );
   const focusBounds = useMemo(() => {
-    if (!zoneChoisie) return null;
-    const boite = bboxDeZone(zoneChoisie);
+    const boite = fusionnerBbox(affiches.map(bboxDeZone).filter((b): b is Bbox => b !== null));
     return boite ? bboxVersBounds(boite) : null;
-  }, [zoneChoisie]);
+  }, [affiches]);
   const filtered = useMemo(
     () =>
       filterMapEntities(pointsDuSecteur, {
@@ -279,23 +297,33 @@ export default function CarteMobile({
 
   function choisirEmprise(next: MapEmprise) {
     if (next === 'code_postal') {
+      setAtelier(false);
       setZoneId('aucun');
       return;
     }
-    if (monSecteurId) setZoneId(monSecteurId);
+    if (proposes.length > 0) {
+      setAtelier(false);
+      setZoneId(
+        isDirector && proposes.length > 1
+          ? ZONE_TOUS_SECTEURS
+          : (monSecteurId ?? proposes[0]!.id),
+      );
+      return;
+    }
+    setAtelier(true);
   }
 
   const cadastreImmeubles = useMemo(
-    () => parcelle.immeubles.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
-    [parcelle.immeubles, zoneChoisie],
+    () => parcelle.immeubles.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
+    [parcelle.immeubles, affiches],
   );
   const activeParcelleIds = useMemo(
     () => cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id)),
     [cadastreImmeubles],
   );
   const parcelleNoteMarkers = useMemo(
-    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprise(row, zoneChoisie)),
-    [parcelle.noteMarkers, zoneChoisie],
+    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
+    [parcelle.noteMarkers, affiches],
   );
 
   useEffect(() => {
@@ -504,9 +532,14 @@ export default function CarteMobile({
         center={center}
         cible={cible}
         focusBounds={focusBounds}
-        zones={zoneId === 'aucun' ? [] : zones}
+        zones={affiches}
         highlightedZoneId={zoneChoisie?.id ?? null}
-        clipZone={zoneChoisie}
+        clipZones={affiches.length > 0 ? affiches : null}
+        dessin={
+          atelier
+            ? { couleur: dessin.couleur, polygone: dessin.polygone, onContour: dessin.poserContour }
+            : null
+        }
         dimension={dimension}
         onVue={setVue}
         selectedBanId={selectedBanId}
@@ -553,12 +586,14 @@ export default function CarteMobile({
           layers,
           zones,
           zoneCadree: zoneChoisie,
+          zonesCadrees: voirTous ? affiches : null,
           directeur: isDirector,
           profileId,
           onChoisir: (annonce, soeurs) => {
             setLayersOpen(false);
             setAnnonceOuverte({ annonce, soeurs });
           },
+          ouverteId: annonceOuverte?.annonce.id ?? null,
         }}
         agentPosition={tournee.agentPosition}
         completedLeadIds={tournee.arretsFaitsIds}
@@ -822,8 +857,10 @@ export default function CarteMobile({
         <EmpriseCapsules
           value={emprise}
           onChange={choisirEmprise}
-          hasSecteur={Boolean(monSecteurId)}
+          hasSecteur={proposes.length > 0}
+          titreSecteur={isDirector && proposes.length > 1 ? 'Tous les secteurs' : undefined}
         />
+        {dessin.panneau ?? (
         <ul className="flex flex-col gap-1">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -894,11 +931,13 @@ export default function CarteMobile({
             }
           />
           <ChoixSecteurs
-            zones={secteursAMoi(zones, profileId)}
+            zones={proposes}
             zoneId={zoneId}
             onZone={setZoneId}
+            tous={isDirector}
           />
         </ul>
+        )}
       </MobileSheet>
 
       <MobileSheet

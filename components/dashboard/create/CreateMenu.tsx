@@ -14,13 +14,12 @@ import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { FIELD } from '@/lib/today/field';
-import { ID_ESTIMATION_NOUVELLE } from '@/lib/estimation/navigation';
 
 type CreateKind = 'contact' | 'bien';
 type MenuAction = CreateKind | 'estimation' | 'note-write' | 'note-voice';
 
-const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: LucideIcon }[] = [
-  { value: 'estimation', label: 'Nouvelle estimation', hint: 'Ouvrir l’outil', Icon: Calculator },
+const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: LucideIcon; bientot?: boolean }[] = [
+  { value: 'estimation', label: 'Nouvelle estimation', hint: 'À venir', Icon: Calculator, bientot: true },
   { value: 'contact', label: 'Nouveau contact', hint: 'Fiche client', Icon: Users },
   { value: 'bien', label: 'Nouveau bien', hint: 'Mandat / annonce', Icon: Building2 },
   { value: 'note-write', label: 'Écrire une note', hint: 'Au clavier', Icon: NotebookPen },
@@ -176,11 +175,7 @@ export default function CreateMenu({
 
   function pick(action: MenuAction) {
     setOpen(false);
-    if (action === 'estimation') {
-      armPointerShield();
-      router.push(`/dashboard/estimation?id=${ID_ESTIMATION_NOUVELLE}`);
-      return;
-    }
+    if (action === 'estimation') return;
     if (action === 'note-write') {
       armPointerShield();
       openCompose();
@@ -198,7 +193,21 @@ export default function CreateMenu({
     ? CREATE_ITEMS.filter((item) => item.value === 'note-write' || item.value === 'note-voice')
     : CREATE_ITEMS;
 
-  const menuItems = visibleItems.map(({ value, label, hint, Icon }) => {
+  const menuItems = visibleItems.map(({ value, label, hint, Icon, bientot }) => {
+    if (bientot) {
+      return (
+        <div
+          key={value}
+          role="menuitem"
+          aria-disabled="true"
+          className="flex min-h-9 w-full cursor-default items-center gap-2.5 whitespace-nowrap px-3 text-left text-[13px] font-medium text-text-muted"
+        >
+          <Icon size={16} strokeWidth={2} className="flex-shrink-0 opacity-45" aria-hidden />
+          <span className="min-w-0 flex-1">{label}</span>
+          <span className="shrink-0 pl-4 text-[12px] font-normal">À venir</span>
+        </div>
+      );
+    }
     // Dicter, c'est confier sa note à l'IA : la ligne en porte la couleur,
     // sans crier — un fond à peine teinté, une pastille, une étincelle.
     if (value === 'note-voice') {

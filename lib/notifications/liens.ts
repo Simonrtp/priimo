@@ -25,9 +25,7 @@ export function lienNotification(
       return '/dashboard/prospection?vue=carte';
     case 'estimation_consultee':
     case 'estimation_calculee':
-      return entiteId
-        ? `/dashboard/estimation/${encodeURIComponent(entiteId)}`
-        : '/dashboard/estimation';
+      return '/dashboard';
     case 'demande_estimation':
       return '/dashboard';
     case 'lead_portail':

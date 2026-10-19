@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Map, { Marker } from 'react-map-gl';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
-import { repereApproximatif } from '@/lib/annonces/presenter';
+import { couleurAnnonce, repereApproximatif } from '@/lib/annonces/presenter';
 import type { Annonce } from '@/lib/annonces/types';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -37,33 +38,53 @@ export default function AnnoncesCarte({
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
       >
-        {points.map((a) => {
-          const approx = repereApproximatif(a) || !['certaine', 'probable', 'adresse_publiee'].includes(a.confiance);
-          const actif = a.id === activeId;
-          return (
-            <Marker
-              key={a.id}
-              latitude={a.latitude!}
-              longitude={a.longitude!}
-              anchor="center"
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                onChoisir(a.id);
-              }}
-            >
-              <span
-                className="block rounded-full border-2 border-white"
-                style={{
-                  width: approx ? 22 : 14,
-                  height: approx ? 22 : 14,
-                  background: actif ? '#1A2A56' : 'rgba(26, 42, 86, 0.72)',
-                  opacity: approx ? 0.45 : 1,
-                }}
-              />
-            </Marker>
-          );
-        })}
+        {points.map((a) => (
+          <PointAnnonce
+            key={a.id}
+            annonce={a}
+            actif={a.id === activeId}
+            onChoisir={onChoisir}
+          />
+        ))}
       </Map>
     </div>
+  );
+}
+
+function PointAnnonce({
+  annonce,
+  actif,
+  onChoisir,
+}: {
+  annonce: Annonce;
+  actif: boolean;
+  onChoisir: (id: string) => void;
+}) {
+  const [survol, setSurvol] = useState(false);
+  const teinte = couleurAnnonce(annonce);
+  const marque = actif || survol;
+  const approx = repereApproximatif(annonce) || !['certaine', 'probable', 'adresse_publiee'].includes(annonce.confiance);
+  return (
+    <Marker
+      latitude={annonce.latitude!}
+      longitude={annonce.longitude!}
+      anchor="center"
+      onClick={(e) => {
+        e.originalEvent.stopPropagation();
+        onChoisir(annonce.id);
+      }}
+    >
+      <span
+        className="block rounded-full border-2 border-white"
+        onMouseEnter={() => setSurvol(true)}
+        onMouseLeave={() => setSurvol(false)}
+        style={{
+          width: approx ? 22 : 14,
+          height: approx ? 22 : 14,
+          background: teinte ? (marque ? teinte.vive : teinte.douce) : marque ? '#1A2A56' : 'rgba(26, 42, 86, 0.72)',
+          opacity: approx ? 0.45 : 1,
+        }}
+      />
+    </Marker>
   );
 }

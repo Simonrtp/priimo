@@ -6,9 +6,9 @@ import type { ProfileRole } from '@/types/database';
 const ROLES: readonly ProfileRole[] = ['directeur', 'collaborateur'];
 
 /**
- * Change le rôle d'un membre dans l'agence active. Un seul directeur :
- * promouvoir un collaborateur transfère le rôle — l'ancien directeur
- * devient collaborateur.
+ * Change le rôle d'un membre dans l'agence active.
+ * Plusieurs directeurs coexistent : en nommer un laisse le rôle
+ * à celui qui le nomme.
  */
 export async function PATCH(
   request: Request,
@@ -57,22 +57,12 @@ export async function PATCH(
   }
   if (membership.role === 'directeur') {
     return NextResponse.json(
-      { error: 'Impossible de modifier le rôle du directeur en place.' },
+      { error: 'Impossible de modifier le rôle d’un directeur.' },
       { status: 400 },
     );
   }
 
   if (nextRole === 'directeur') {
-    const { error: demoteErr } = await admin
-      .from('profile_agencies')
-      .update({ role: 'collaborateur' })
-      .eq('profile_id', guard.user.id)
-      .eq('agency_id', guard.agency.id);
-    if (demoteErr) {
-      console.error('[team/role] demote', demoteErr);
-      return NextResponse.json({ error: 'Le rôle n\'a pas pu être transféré.' }, { status: 500 });
-    }
-
     const { error: promoteErr } = await admin
       .from('profile_agencies')
       .update({ role: 'directeur' })
@@ -80,15 +70,10 @@ export async function PATCH(
       .eq('agency_id', guard.agency.id);
     if (promoteErr) {
       console.error('[team/role] promote', promoteErr);
-      await admin
-        .from('profile_agencies')
-        .update({ role: 'directeur' })
-        .eq('profile_id', guard.user.id)
-        .eq('agency_id', guard.agency.id);
-      return NextResponse.json({ error: 'Le rôle n\'a pas pu être transféré.' }, { status: 500 });
+      return NextResponse.json({ error: 'Le rôle n’a pas pu être modifié.' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, transferred: true });
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: 'Rôle inchangé' }, { status: 400 });
@@ -129,7 +114,7 @@ export async function DELETE(
   }
   if (membership.role === 'directeur') {
     return NextResponse.json(
-      { error: 'Impossible de retirer le directeur.' },
+      { error: 'Impossible de retirer un directeur.' },
       { status: 400 },
     );
   }

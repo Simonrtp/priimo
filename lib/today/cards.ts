@@ -584,7 +584,7 @@ function cartesEstimationVuee(
           (range ? ` · ${range}` : ''),
         action: {
           kind: 'ouvrir_estimation',
-          label: 'Voir l’estimation',
+          label: 'À venir',
           estimationId: e.id,
         },
         urgent: vues >= 3 && ageH < 48,

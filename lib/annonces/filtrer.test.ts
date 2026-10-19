@@ -125,6 +125,52 @@ describe('filtrerAnnonces', () => {
       ['part'],
     );
   });
+
+  it('tous les secteurs du directeur gardent chaque périmètre', () => {
+    const bagnolet: Zone = {
+      ...secteurPyrenees,
+      id: 'z2',
+      nom: 'Bagnolet',
+      assignedTo: 'camille',
+      regles: [
+        {
+          id: 'r2',
+          zoneId: 'z2',
+          inclusion: true,
+          type: 'voie',
+          valeur: {
+            nom_voie: 'Rue de Bagnolet',
+            code_postal: '75020',
+            parite: 'toutes',
+            numero_min: null,
+            numero_max: null,
+          },
+        },
+      ],
+    };
+    const loin = annonce({
+      id: 'loin',
+      adresseVoie: 'Rue de Bagnolet',
+      adresse: '4 Rue de Bagnolet 75020 Paris',
+    });
+    const hors = annonce({
+      id: 'hors',
+      adresseVoie: 'Rue de Charonne',
+      adresse: '2 Rue de Charonne 75011 Paris',
+    });
+    assert.deepEqual(
+      ids(
+        filtrerAnnonces(
+          [particulier, loin, hors],
+          reglages(),
+          [secteurPyrenees, bagnolet],
+          { directeur: true, profileId: 'dir', zonesCadrees: [secteurPyrenees, bagnolet] },
+          MAINTENANT,
+        ),
+      ),
+      ['part', 'loin'],
+    );
+  });
 });
 
 describe('bilanAnnonces', () => {

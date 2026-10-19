@@ -5,6 +5,7 @@ import './carte.css';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
+import { GesteContourCalque, useGesteContour } from '@/components/dashboard/carte/geste-contour';
 import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
@@ -83,11 +84,12 @@ export default function SectorMapCanvas({
   focusBounds = null,
   zones = [],
   highlightedZoneId = null,
-  clipZone = null,
+  clipZones = null,
   cible = null,
   focus = null,
   tenirLaVue = false,
   annoncesCouche = null,
+  dessin = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -113,7 +115,7 @@ export default function SectorMapCanvas({
   focusBounds?: LngLatBoundsTuple | null;
   zones?: readonly Zone[];
   highlightedZoneId?: string | null;
-  clipZone?: Zone | null;
+  clipZones?: readonly Zone[] | null;
   /** L'adresse demandée dans la barre de recherche. */
   cible?: CibleCarte | null;
   /** Lieu d'une note : la carte s'y pose, sans relancer le cadrage du secteur. */
@@ -125,12 +127,21 @@ export default function SectorMapCanvas({
     zones: readonly Zone[];
     /** Bouton « Secteur » en haut : les annonces se limitent à ce périmètre. */
     zoneCadree?: Zone | null;
+    zonesCadrees?: readonly Zone[] | null;
     directeur: boolean;
     profileId: string;
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
+    ouverteId?: string | null;
+  } | null;
+  /** Sans secteur : le geste trace le contour, la carte ne se déplace plus. */
+  dessin?: {
+    couleur: string;
+    polygone: GeoJSON.Polygon | null;
+    onContour: (polygone: GeoJSON.Polygon) => void;
   } | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
+  const geste = useGesteContour(Boolean(dessin), mapRef, (polygone) => dessin?.onContour(polygone));
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [hoveredBanId, setHoveredBanId] = useState<string | null>(null);
   const [styleReady, setStyleReady] = useState(false);
@@ -263,7 +274,7 @@ export default function SectorMapCanvas({
 
   return (
     <div
-      className="priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden"
+      className={`priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden${dessin ? ' dessin-secteur' : ''}`}
       onContextMenu={(event) => event.preventDefault()}
     >
       <Map
@@ -293,6 +304,8 @@ export default function SectorMapCanvas({
         pitchWithRotate
         touchPitch
         touchZoomRotate
+        dragPan={!dessin}
+        cursor={dessin ? 'crosshair' : undefined}
         interactiveLayerIds={interactiveLayerIds}
         onLoad={() => {
           setStyleReady(true);
@@ -335,6 +348,7 @@ export default function SectorMapCanvas({
           }, 120);
         }}
         onClick={(event) => {
+          if (dessin) return;
           try {
             if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
               const hits = event.target.queryRenderedFeatures(event.point, {
@@ -347,8 +361,31 @@ export default function SectorMapCanvas({
           }
           onDeselect();
         }}
+        onMouseDown={(event) => {
+          if (dessin) geste.debuter(event);
+        }}
+        onMouseMove={(event) => {
+          if (dessin) geste.prolonger(event);
+        }}
+        onMouseUp={() => {
+          if (dessin) geste.terminer();
+        }}
+        onTouchStart={(event) => {
+          if (!dessin || event.originalEvent.touches.length > 1) return;
+          geste.debuter(event);
+        }}
+        onTouchMove={(event) => {
+          if (!dessin || event.originalEvent.touches.length > 1) return;
+          geste.prolonger(event);
+        }}
+        onTouchEnd={() => {
+          if (dessin) geste.terminer();
+        }}
         style={{ width: '100%', height: '100%' }}
       >
+        {dessin ? (
+          <GesteContourCalque trace={geste.trace} polygone={dessin.polygone} couleur={dessin.couleur} />
+        ) : null}
         <Buildings3DLayer mapRef={mapRef} enabled={false} ready={styleReady} />
         <ParcellesLayer
           mapRef={mapRef}
@@ -359,7 +396,7 @@ export default function SectorMapCanvas({
           selectedParcelleId={selectedParcelleId}
           immeubles={cadastreImmeubles}
           layers={cadastreLayers}
-          clipZone={clipZone}
+          clipZones={clipZones}
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
           onPrefetch={onPrefetchParcelle}
         />
@@ -368,12 +405,14 @@ export default function SectorMapCanvas({
             layers={annoncesCouche.layers}
             zones={annoncesCouche.zones}
             zoneCadree={annoncesCouche.zoneCadree}
+            zonesCadrees={annoncesCouche.zonesCadrees}
             directeur={annoncesCouche.directeur}
             profileId={annoncesCouche.profileId}
             onChoisir={annoncesCouche.onChoisir}
+            ouverteId={annoncesCouche.ouverteId}
           />
         ) : null}
-        <SecteurMasqueLayer zone={clipZone} />
+        <SecteurMasqueLayer zones={clipZones ?? []} />
         {cible ? (
           <CibleRecherche
             cible={cible}

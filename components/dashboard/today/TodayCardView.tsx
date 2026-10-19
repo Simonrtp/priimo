@@ -84,7 +84,6 @@ export default function TodayCardView({
         router.push(`/dashboard?filtre=${action.cardType}`);
         break;
       case 'ouvrir_estimation':
-        router.push(`/dashboard/estimation?historique=1&id=${action.estimationId}`);
         break;
       case 'ouvrir_note':
         if (lecture) lecture.ouvrir(action.noteId);
@@ -116,7 +115,9 @@ export default function TodayCardView({
           {card.context ? (
             <p className="mt-0.5 truncate text-[13px] text-text-muted">{card.context}</p>
           ) : null}
-          {card.action.kind === 'appeler' ? null : (
+          {card.action.kind === 'appeler' ? null : card.action.kind === 'ouvrir_estimation' ? (
+            <p className="mt-2 text-[13.5px] text-text-muted">À venir</p>
+          ) : (
             <button
               type="button"
               onClick={runPrimary}
@@ -172,7 +173,9 @@ export default function TodayCardView({
         />
       </div>
 
-      {card.action.kind === 'appeler' ? null : (
+      {card.action.kind === 'appeler' ? null : card.action.kind === 'ouvrir_estimation' ? (
+        <p className="mt-4 text-[13px] font-semibold text-text-muted sm:mt-5">À venir</p>
+      ) : (
         <div className="mt-4 sm:mt-5">
           <WorkspaceButton type="button" onClick={runPrimary} className="max-sm:w-full">
             {ctaCourt(card)}
