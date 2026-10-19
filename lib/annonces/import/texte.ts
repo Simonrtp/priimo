@@ -120,32 +120,40 @@ async function demander(model: string, apiKey: string, contenu: string): Promise
   }
 }
 
-/**
- * Texte collé → fiche. Une adresse écrite dans l'annonce, retrouvée au numéro
- * près par la BAN dans le bon code postal, devient un repère exact.
- */
-export async function ficheDepuisTexte(u: UrlAnnonce, collé: string): Promise<FicheAnnonce | null> {
+/** Mon assistant lit le texte d'une annonce ; null si la clé manque ou si aucun modèle ne répond. */
+export async function extraireAvecAssistant(texteAnnonce: string): Promise<Brut | null> {
   const apiKey = process.env.MISTRAL_API_KEY;
-  const contenu = collé.trim().slice(0, MAX_TEXTE);
+  const contenu = texteAnnonce.trim().slice(0, MAX_TEXTE);
   if (!apiKey || contenu.length < 40) return null;
-  let json: Brut | null = null;
   for (const model of chaineModeles(MODELES_PROFONDS, process.env.MISTRAL_MODEL_ANNONCE)) {
-    json = await demander(model, apiKey, contenu);
-    if (json) break;
+    const json = await demander(model, apiKey, contenu);
+    if (json) return json;
   }
+  return null;
+}
+
+/**
+ * Une adresse écrite dans l'annonce, retrouvée au numéro près par la BAN dans
+ * le bon code postal, devient un repère exact. Sinon rien.
+ */
+export async function zoneDepuisAdresse(json: Brut, codePostal: string | null): Promise<FicheAnnonce['zone']> {
+  const adresse = texte(json.adresse);
+  if (!adresse || !codePostal) return null;
+  const hits = await searchBanDirect(adresse, { limit: 1, postcode: codePostal, autocomplete: false }).catch(() => []);
+  const props = (hits[0]?.properties ?? {}) as { type?: string; score?: number; postcode?: string };
+  const coords = hits[0]?.geometry?.coordinates;
+  if (props.type === 'housenumber' && (props.score ?? 0) >= 0.75 && props.postcode === codePostal && coords) {
+    return { latitude: coords[1], longitude: coords[0], rayonM: 0 };
+  }
+  return null;
+}
+
+/** Texte collé → fiche. */
+export async function ficheDepuisTexte(u: UrlAnnonce, collé: string): Promise<FicheAnnonce | null> {
+  const contenu = collé.trim().slice(0, MAX_TEXTE);
+  const json = await extraireAvecAssistant(contenu);
   if (!json) return null;
   const fiche = ficheDepuisExtraction(json, u, contenu);
-
-  const adresse = texte(json.adresse);
-  if (adresse && fiche.codePostal) {
-    const hits = await searchBanDirect(adresse, { limit: 1, postcode: fiche.codePostal, autocomplete: false }).catch(
-      () => [],
-    );
-    const props = (hits[0]?.properties ?? {}) as { type?: string; score?: number; postcode?: string };
-    const coords = hits[0]?.geometry?.coordinates;
-    if (props.type === 'housenumber' && (props.score ?? 0) >= 0.75 && props.postcode === fiche.codePostal && coords) {
-      fiche.zone = { latitude: coords[1], longitude: coords[0], rayonM: 0 };
-    }
-  }
+  fiche.zone = await zoneDepuisAdresse(json, fiche.codePostal);
   return fiche;
 }

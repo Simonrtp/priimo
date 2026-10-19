@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
+import { reponseEnFlux } from '@/lib/annonces/import/flux';
 import { importerTexte } from '@/lib/annonces/import/serveur';
 import { sessionImport } from '@/lib/annonces/import/session';
 import { analyserUrl } from '@/lib/annonces/import/url';
@@ -7,7 +8,7 @@ import { analyserUrl } from '@/lib/annonces/import/url';
 export const runtime = 'nodejs';
 export const maxDuration = 45;
 
-/** Repli : le texte de l'annonce collé par l'agent, lu par Mon assistant. */
+/** Repli : le texte de l'annonce collé par l'agent, lu par Mon assistant. Réponse en flux. */
 export async function POST(req: Request) {
   const s = await sessionImport();
   if (!s) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -21,5 +22,5 @@ export async function POST(req: Request) {
   if (texte.trim().length < 40) {
     return NextResponse.json({ etat: 'erreur', message: 'Collez tout le texte de l’annonce' }, { status: 400 });
   }
-  return NextResponse.json(await importerTexte(s.admin, s.qui, u, texte));
+  return reponseEnFlux((onEtape) => importerTexte(s.admin, s.qui, u, texte, onEtape));
 }

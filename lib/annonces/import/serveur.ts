@@ -2,12 +2,14 @@
  * Une URL collée dans le panneau Annonces : la retrouver, la localiser, la
  * garder en attente d'ajout. Serveur uniquement (service role pour l'écriture).
  *
- * Ordre : nos données d'abord (instantané), puis Bien'ici en direct, puis la
- * file du PC de la veille (PAP, SeLoger), sinon le texte collé.
+ * Ordre : nos données d'abord (instantané, gratuit : chaque URL n'est lue
+ * qu'une fois pour tout Priimo), Bien'ici par son API, puis n'importe quel
+ * site téléchargé par Bright Data et lu (données de la page + Mon assistant).
+ * Si la page ne se lit pas, l'agent colle le texte.
  *
- * Sans la migration 20261019_annonces_import_url, la recherche et la
- * localisation marchent ; l'ajout, le suivi et la file du PC attendent les
- * tables (`disponible: false`).
+ * Chaque étape est annoncée (`onEtape`) : le panneau l'affiche en direct.
+ * Sans la migration 20261019_annonces_import_url, l'ajout attend les tables
+ * (`disponible: false`) ; la recherche et la carte marchent.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -16,10 +18,12 @@ import { libellePortail } from '@/lib/annonces/presenter';
 import type { Annonce } from '@/lib/annonces/types';
 import { lireBienici } from './bienici';
 import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, type CarteImport } from './carte';
+import { ficheDepuisPage } from './fiche';
 import { localiserFiche } from './localiser';
+import { telechargerPage } from './telecharger';
 import { ficheDepuisTexte } from './texte';
 import type { FicheAnnonce, LocalisationImport } from './types';
-import { cleImport, lisiblePc, type UrlAnnonce } from './url';
+import { cleImport, type UrlAnnonce } from './url';
 
 /** Les tables des annonces vivent hors des types générés (écrites par le pipeline). */
 type Db = SupabaseClient;
@@ -30,9 +34,33 @@ export type Qui = { agencyId: string; profileId: string; codesPostaux: readonly 
 
 export type ReponseImport =
   | { etat: 'trouvee'; carte: CarteImport; disponible: boolean }
-  | { etat: 'en_lecture'; importId: string; lent: boolean }
-  | { etat: 'texte'; raison: 'illisible' | 'pc' | 'echec' }
+  | { etat: 'texte'; raison: 'illisible' | 'bloquee' }
   | { etat: 'erreur'; message: string };
+
+/** Les étapes que le panneau montre en bulles pendant la recherche. */
+export type EtapeImport = {
+  cle: 'lecture' | 'donnees' | 'adresse';
+  etat: 'en_cours' | 'fait' | 'rate';
+  detail?: string;
+};
+type SurEtape = (e: EtapeImport) => void;
+const rien: SurEtape = () => {};
+
+function euros(n: number): string {
+  return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
+}
+
+/** « 472 500 € · 45 m² · DPE D » */
+function resumeDonnees(f: Pick<FicheAnnonce, 'prix' | 'surface' | 'dpe'>): string {
+  return [f.prix != null ? euros(f.prix) : null, f.surface != null ? `${new Intl.NumberFormat('fr-FR').format(f.surface)} m²` : null, f.dpe ? `DPE ${f.dpe}` : null]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function resumeAdresse(c: Pick<CarteImport, 'adresse' | 'approximative' | 'latitude'>): string {
+  if (!c.approximative && c.adresse) return c.adresse.replace(/\s\d{5}\s.*$/, '');
+  return c.latitude != null ? 'Secteur approximatif' : 'Adresse introuvable';
+}
 
 /** La table manque (migration non appliquée) : PostgREST 42P01 / PGRST205. */
 export function tableAbsente(error: { code?: string; message?: string } | null): boolean {
@@ -90,109 +118,71 @@ async function enregistrer(
   return { id: String((data as { id: string }).id), disponible: true };
 }
 
-/** Une fiche lue (Bien'ici ou texte) : localisée, gardée en attente d'ajout. */
-async function resultatFiche(admin: Db, qui: Qui, u: UrlAnnonce, fiche: FicheAnnonce): Promise<ReponseImport> {
+/** Une fiche lue : localisée, gardée en attente d'ajout. */
+async function resultatFiche(admin: Db, qui: Qui, u: UrlAnnonce, fiche: FicheAnnonce, onEtape: SurEtape): Promise<ReponseImport> {
+  onEtape({ cle: 'donnees', etat: 'fait', detail: resumeDonnees(fiche) });
+  onEtape({ cle: 'adresse', etat: 'en_cours' });
   const loc: LocalisationImport = await localiserFiche(fiche);
   const colonnes = colonnesAnnonce(fiche, loc);
   const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: colonnes });
-  return { etat: 'trouvee', carte: carteDepuisFiche(fiche, loc, { importId: id, annonceId: null, suivie: false }), disponible };
+  const carte = carteDepuisFiche(fiche, loc, { importId: id, annonceId: null, suivie: false });
+  onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
+  return { etat: 'trouvee', carte, disponible };
 }
 
-export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce): Promise<ReponseImport> {
-  // 1. Déjà vue par la veille ou ajoutée par une agence.
+export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, onEtape: SurEtape = rien): Promise<ReponseImport> {
+  onEtape({ cle: 'lecture', etat: 'en_cours' });
+  const portail = libellePortail(u.portail);
+
+  // 1. Déjà connue : lue par la veille ou collée par une agence (une seule lecture pour tout Priimo).
   const connue = await lireAnnonceParPortail(type(admin), u.portail, cleImport(u));
   if (connue) {
-    if (await visiblePourAgence(admin, connue, qui)) {
-      const { suivie, disponible } = await etatSuivi(db, connue.id, qui.profileId);
-      return { etat: 'trouvee', carte: carteDepuisAnnonce(connue, { annonceId: connue.id, suivie }), disponible };
-    }
-    // Connue ailleurs (autre territoire) : rien à relire, l'ajout la rattachera.
-    const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: { annonce_existante: connue.id } });
-    return { etat: 'trouvee', carte: carteDepuisAnnonce(connue, { annonceId: null, suivie: false }), disponible: disponible && id != null };
+    onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
+    onEtape({ cle: 'donnees', etat: 'fait', detail: resumeDonnees(connue) });
+    const visible = await visiblePourAgence(admin, connue, qui);
+    const etat = visible ? await etatSuivi(db, connue.id, qui.profileId) : null;
+    const enregistre = visible ? null : await enregistrer(admin, qui, u, { statut: 'lue', resultat: { annonce_existante: connue.id } });
+    const carte = carteDepuisAnnonce(connue, { annonceId: visible ? connue.id : null, suivie: etat?.suivie ?? false });
+    if (enregistre) carte.importId = enregistre.id;
+    onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
+    return { etat: 'trouvee', carte, disponible: visible ? (etat?.disponible ?? true) : Boolean(enregistre?.disponible && enregistre.id) };
   }
 
-  // 2. Bien'ici se lit en direct.
+  // 2. Bien'ici : son API, gratuite.
+  let fiche: FicheAnnonce | null = null;
   if (u.portail === 'bienici' && u.idPortail) {
-    const fiche = await lireBienici(u.idPortail, u.url);
-    if (!fiche) return { etat: 'erreur', message: 'Annonce introuvable sur Bien’ici' };
-    return resultatFiche(admin, qui, u, fiche);
+    fiche = await lireBienici(u.idPortail, u.url);
   }
 
-  // 3. PAP et SeLoger : le PC de la veille les lit.
-  if (lisiblePc(u.portail) && u.idPortail) {
-    const { id } = await enregistrer(admin, qui, u, { statut: 'en_attente' });
-    if (id) return { etat: 'en_lecture', importId: id, lent: false };
-    return { etat: 'texte', raison: 'pc' };
+  // 3. Tout autre site : la page téléchargée, puis lue.
+  if (!fiche) {
+    const page = await telechargerPage(u.url);
+    if (!page.ok) {
+      onEtape({ cle: 'lecture', etat: 'rate' });
+      if (page.raison === 'disparue') return { etat: 'erreur', message: 'Cette annonce n’est plus en ligne' };
+      return { etat: 'texte', raison: page.raison === 'sans_cle' ? 'illisible' : 'bloquee' };
+    }
+    onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
+    onEtape({ cle: 'donnees', etat: 'en_cours' });
+    fiche = await ficheDepuisPage(u, page.html);
+    if (!fiche) {
+      onEtape({ cle: 'donnees', etat: 'rate' });
+      return { etat: 'texte', raison: 'bloquee' };
+    }
+  } else {
+    onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
   }
-
-  // 4. Leboncoin, Logic-Immo, Le Figaro, site d'agence : le texte collé.
-  return { etat: 'texte', raison: 'illisible' };
+  return resultatFiche(admin, qui, u, fiche, onEtape);
 }
 
-export async function importerTexte(admin: Db, qui: Qui, u: UrlAnnonce, texte: string): Promise<ReponseImport> {
+export async function importerTexte(admin: Db, qui: Qui, u: UrlAnnonce, texte: string, onEtape: SurEtape = rien): Promise<ReponseImport> {
+  onEtape({ cle: 'donnees', etat: 'en_cours' });
   const fiche = await ficheDepuisTexte(u, texte);
-  if (!fiche) return { etat: 'erreur', message: 'Texte illisible : collez toute la page de l’annonce' };
-  return resultatFiche(admin, qui, u, fiche);
-}
-
-/** Délai au-delà duquel le panneau propose le texte collé (le PC est sans doute éteint). */
-const LECTURE_LENTE_MS = 45_000;
-
-type LigneImport = {
-  id: string;
-  statut: string;
-  resultat: Record<string, unknown> | null;
-  erreur: string | null;
-  annonce_id: string | null;
-  cree_le: string;
-  url: string;
-  portail: string;
-};
-
-/** Où en est la lecture d'une URL par le PC. */
-export async function etatImport(admin: Db, qui: Qui, importId: string): Promise<ReponseImport> {
-  const { data, error } = await admin
-    .from('annonces_imports')
-    .select('id, statut, resultat, erreur, annonce_id, cree_le, url, portail')
-    .eq('id', importId)
-    .eq('profile_id', qui.profileId)
-    .maybeSingle();
-  if (error || !data) return { etat: 'erreur', message: 'Recherche introuvable' };
-  const ligne = data as LigneImport;
-  if (ligne.statut === 'echec') return { etat: 'texte', raison: 'echec' };
-  if (ligne.statut !== 'lue' || !ligne.resultat) {
-    return { etat: 'en_lecture', importId, lent: Date.now() - Date.parse(ligne.cree_le) > LECTURE_LENTE_MS };
+  if (!fiche) {
+    onEtape({ cle: 'donnees', etat: 'rate' });
+    return { etat: 'erreur', message: 'Texte illisible : collez toute la page de l’annonce' };
   }
-  return { etat: 'trouvee', carte: carteDepuisResultat(ligne), disponible: true };
-}
-
-function carteDepuisResultat(ligne: LigneImport): CarteImport {
-  const r = ligne.resultat ?? {};
-  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-  const t = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
-  const confiance = (t(r.confiance) ?? 'incertaine') as CarteImport['confiance'];
-  const photos = Array.isArray(r.photos) ? (r.photos as unknown[]).filter((p): p is string => typeof p === 'string') : [];
-  return {
-    importId: ligne.id,
-    annonceId: ligne.annonce_id,
-    suivie: false,
-    portail: libellePortail(t(r.portail) ?? ligne.portail),
-    url: t(r.url) ?? ligne.url,
-    particulier: r.type_vendeur !== 'professionnel',
-    agence: t(r.agence_nom),
-    prix: n(r.prix),
-    surface: n(r.surface),
-    pieces: n(r.pieces),
-    etage: r.etage == null ? null : String(r.etage),
-    dpe: t(r.dpe),
-    confiance,
-    adresse: confiance === 'incertaine' ? null : t(r.adresse),
-    latitude: n(r.latitude),
-    longitude: n(r.longitude),
-    approximative: confiance === 'incertaine',
-    parcelleId: Array.isArray(r.parcelle_ids) ? (t(r.parcelle_ids[0]) ?? null) : null,
-    photo: photos[0] ?? null,
-  };
+  return resultatFiche(admin, qui, u, fiche, onEtape);
 }
 
 /**

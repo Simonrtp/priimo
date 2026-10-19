@@ -82,13 +82,3 @@ export function analyserUrl(brute: string): UrlAnnonce | null {
 export function cleImport(u: UrlAnnonce): string {
   return u.idPortail ?? u.url.slice(0, 500);
 }
-
-/** Lisible par nos serveurs : seule l'API de Bien'ici répond (constaté le 19/10/2026). */
-export function lisibleServeur(p: PortailImport): boolean {
-  return p === 'bienici';
-}
-
-/** Lisible par le PC de la veille (navigateur furtif) : PAP et SeLoger. */
-export function lisiblePc(p: PortailImport): boolean {
-  return p === 'pap' || p === 'seloger';
-}
