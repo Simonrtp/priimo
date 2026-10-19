@@ -6,6 +6,8 @@ const PORTAIL_LABEL: Record<Annonce['portail'], string> = {
   leboncoin: 'Leboncoin',
   bienici: 'Bien’ici',
   logicimmo: 'Logic-Immo',
+  figaro: 'Figaro Immobilier',
+  autre: 'le site',
 };
 
 export function libellePortail(portail: string): string {

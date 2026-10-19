@@ -58,6 +58,8 @@ export async function notifierAnnonces(
     annonces: Annonce[];
     evenements: EvenementAnnonce[];
     agences: AgenceCouvrante[];
+    /** Cloche « Suivre » : annonce → agents qui la suivent, quel que soit le vendeur ou le secteur. */
+    suivis?: ReadonlyMap<string, readonly DestinataireAnnonce[]>;
   },
 ): Promise<{ ecrites: number }> {
   const jour = jourParis(input.maintenant ?? new Date());
@@ -69,46 +71,66 @@ export async function notifierAnnonces(
   for (const evt of frais) {
     const annonce = parId.get(evt.annonceId);
     if (!annonce) continue;
-    for (const agence of input.agences) {
-      if (!agenceConcernee(annonce, agence)) continue;
-      const dests = destinatairesAnnonce(annonce, agence.agencyId, agence.zones, agence.directeurs);
-      if (evt.type === 'nouvelle') {
-        if (annonce.typeVendeur !== 'particulier') continue;
-        for (const dest of dests) {
+    if (evt.type === 'nouvelle') {
+      if (annonce.typeVendeur !== 'particulier') continue;
+      for (const agence of input.agences) {
+        if (!agenceConcernee(annonce, agence)) continue;
+        for (const dest of destinatairesAnnonce(annonce, agence.agencyId, agence.zones, agence.directeurs)) {
           const key = `${dest.agencyId}:${dest.profileId}`;
           const cur = nouvellesParDest.get(key) ?? { dest, n: 0 };
           cur.n += 1;
           nouvellesParDest.set(key, cur);
         }
-        continue;
       }
-      // Une baisse ou un retrait chez une agence ne déclenche pas de cloche : trop fréquent, rien à piger.
-      if (annonce.typeVendeur !== 'particulier') continue;
-      if (evt.type === 'baisse_prix' && baisseAvantSuivi(evt, annonce.premiereVueLe)) continue;
-      if (evt.type !== 'baisse_prix' && evt.type !== 'retiree') continue;
-      const type = evt.type === 'baisse_prix' ? 'annonce_baisse_prix' : 'annonce_retiree';
-      const groupeCle = `annonce-evt:${evt.id}`;
-      for (const dest of dests) {
-        const deja = await notificationDejaEmise(admin, {
-          agencyId: dest.agencyId,
-          profileId: dest.profileId,
-          groupeCle,
-          depuisIso: '1970-01-01T00:00:00.000Z',
-        });
-        if (deja) continue;
-        const ok = await ecrireNotification(admin, {
-          agencyId: dest.agencyId,
-          profileId: dest.profileId,
-          type,
-          titre: evt.type === 'baisse_prix' ? 'Prix en baisse dans mon secteur' : 'Annonce retirée dans mon secteur',
-          corps: annonce.adresse ?? annonce.quartier ?? annonce.ville ?? 'Une annonce du secteur',
-          lien: lienNotification(type, annonce.id),
-          entiteType: 'annonce',
-          entiteId: annonce.id,
-          groupeCle,
-        });
-        if (ok) ecrites += 1;
+      continue;
+    }
+    if (evt.type !== 'baisse_prix' && evt.type !== 'retiree') continue;
+    if (evt.type === 'baisse_prix' && baisseAvantSuivi(evt, annonce.premiereVueLe)) continue;
+
+    // Le secteur (particuliers seulement : chez une agence, trop fréquent, rien à piger),
+    // puis ceux qui suivent l'annonce, quel que soit le vendeur.
+    const dests = new Map<string, { dest: DestinataireAnnonce; suivie: boolean }>();
+    if (annonce.typeVendeur === 'particulier') {
+      for (const agence of input.agences) {
+        if (!agenceConcernee(annonce, agence)) continue;
+        for (const dest of destinatairesAnnonce(annonce, agence.agencyId, agence.zones, agence.directeurs)) {
+          dests.set(`${dest.agencyId}:${dest.profileId}`, { dest, suivie: false });
+        }
       }
+    }
+    for (const dest of input.suivis?.get(annonce.id) ?? []) {
+      const key = `${dest.agencyId}:${dest.profileId}`;
+      if (!dests.has(key)) dests.set(key, { dest, suivie: true });
+    }
+
+    const type = evt.type === 'baisse_prix' ? 'annonce_baisse_prix' : 'annonce_retiree';
+    const groupeCle = `annonce-evt:${evt.id}`;
+    for (const { dest, suivie } of dests.values()) {
+      const deja = await notificationDejaEmise(admin, {
+        agencyId: dest.agencyId,
+        profileId: dest.profileId,
+        groupeCle,
+        depuisIso: '1970-01-01T00:00:00.000Z',
+      });
+      if (deja) continue;
+      const ok = await ecrireNotification(admin, {
+        agencyId: dest.agencyId,
+        profileId: dest.profileId,
+        type,
+        titre: suivie
+          ? evt.type === 'baisse_prix'
+            ? 'Annonce suivie : prix en baisse'
+            : 'Annonce suivie : retirée'
+          : evt.type === 'baisse_prix'
+            ? 'Prix en baisse dans mon secteur'
+            : 'Annonce retirée dans mon secteur',
+        corps: annonce.adresse ?? annonce.quartier ?? annonce.ville ?? 'Une annonce du secteur',
+        lien: lienNotification(type, annonce.id),
+        entiteType: 'annonce',
+        entiteId: annonce.id,
+        groupeCle,
+      });
+      if (ok) ecrites += 1;
     }
   }
 

@@ -1,6 +1,6 @@
 /** Lecture des annonces de secteur. L'écriture vit dans priimo-pipeline. */
 
-export const PORTAILS = ['seloger', 'pap', 'leboncoin', 'bienici', 'logicimmo'] as const;
+export const PORTAILS = ['seloger', 'pap', 'leboncoin', 'bienici', 'logicimmo', 'figaro', 'autre'] as const;
 export type Portail = (typeof PORTAILS)[number];
 
 export const CONFIANCES = ['certaine', 'probable', 'adresse_publiee', 'incertaine'] as const;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Annonce } from './types';
 
 /**
@@ -12,6 +12,9 @@ const FRAICHEUR_MS = 10 * 60_000;
 
 let memoire: { annonces: Annonce[]; le: number } | null = null;
 let enVol: Promise<Annonce[]> | null = null;
+/** Change à chaque ajout d'annonce par URL : les pastilles se relisent. */
+let version = 0;
+const abonnes = new Set<() => void>();
 
 function charger(): Promise<Annonce[]> {
   if (memoire && Date.now() - memoire.le < FRAICHEUR_MS) return Promise.resolve(memoire.annonces);
@@ -32,9 +35,26 @@ function charger(): Promise<Annonce[]> {
   return enVol;
 }
 
+/** Une annonce vient d'être ajoutée : relire au lieu d'attendre dix minutes. */
+export function rafraichirAnnoncesSecteur(): void {
+  memoire = null;
+  version += 1;
+  for (const f of abonnes) f();
+}
+
+function abonner(f: () => void): () => void {
+  abonnes.add(f);
+  return () => abonnes.delete(f);
+}
+
 export function useAnnoncesSecteur(actif: boolean): { annonces: Annonce[]; pret: boolean } {
   const [annonces, setAnnonces] = useState<Annonce[]>(() => memoire?.annonces ?? []);
   const [pret, setPret] = useState(() => memoire != null);
+  const v = useSyncExternalStore(
+    abonner,
+    () => version,
+    () => 0,
+  );
 
   useEffect(() => {
     if (!actif) return;
@@ -47,7 +67,7 @@ export function useAnnoncesSecteur(actif: boolean): { annonces: Annonce[]; pret:
     return () => {
       ignore = true;
     };
-  }, [actif]);
+  }, [actif, v]);
 
   return { annonces, pret };
 }

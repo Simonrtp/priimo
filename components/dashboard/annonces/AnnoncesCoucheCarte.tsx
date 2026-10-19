@@ -17,6 +17,8 @@ import { baisseCumulee, eurosCourt, joursEnLigne, regrouperAnnonces, repereAppro
 import { useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
 import type { Zone } from '@/lib/zones/types';
+import ImportAnnonce from './ImportAnnonce';
+import PointImport from './PointImport';
 
 const VENDEURS: readonly { id: AnnoncesVendeur; label: string }[] = [
   { id: 'particulier', label: 'Particuliers' },
@@ -143,6 +145,9 @@ export function AnnoncesLayerControls({
       </div>
       <div className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`} aria-hidden={!open}>
         <div>
+          <div className={`flex flex-col gap-3 pb-3 ${compact ? 'pl-3 pr-1' : 'pl-6 pr-2.5'}`}>
+            <ImportAnnonce compact={compact} />
+          </div>
           <div className={`flex flex-col gap-3 pb-3 ${compact ? 'pl-3 pr-1' : 'pl-6 pr-2.5'} ${actif ? '' : 'opacity-60'}`}>
             <Rubrique titre="Vendeur">
               <Choix
@@ -288,9 +293,10 @@ export function AnnoncesMarqueurs({
       .slice(-MAX_PASTILLES);
   }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, emprise]);
 
-  if (!actif) return null;
+  if (!actif) return <PointImport />;
   return (
     <>
+      <PointImport />
       {groupes.map((g) => (
         <Marker
           key={g.cle}

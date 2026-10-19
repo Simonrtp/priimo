@@ -18,7 +18,8 @@ import {
 } from '@/lib/annonces/presenter';
 import type { Annonce, Portail } from '@/lib/annonces/types';
 
-const LOGO_PORTAIL: Record<Portail, string> = {
+/** Les portails sans logo (Figaro, site d'agence collé par URL) s'affichent en toutes lettres. */
+const LOGO_PORTAIL: Partial<Record<Portail, string>> = {
   seloger: '/landing/portails/marquee/seloger.webp',
   pap: '/landing/portails/pap.svg',
   leboncoin: '/landing/portails/marquee/leboncoin.webp',
@@ -194,14 +195,20 @@ export default function AnnonceVolet({
           </Ligne>
         </dl>
         <div className="flex items-center gap-1.5 border-t border-black/[0.05] py-2.5">
-          {portailsUniques(portails).map((p) => (
-            <img
-              key={p.portail}
-              src={LOGO_PORTAIL[p.portail]}
-              alt={libellePortail(p.portail)}
-              className="h-5 w-auto max-w-[5.75rem] object-contain object-left"
-            />
-          ))}
+          {portailsUniques(portails).map((p) =>
+            LOGO_PORTAIL[p.portail] ? (
+              <img
+                key={p.portail}
+                src={LOGO_PORTAIL[p.portail]}
+                alt={libellePortail(p.portail)}
+                className="h-5 w-auto max-w-[5.75rem] object-contain object-left"
+              />
+            ) : (
+              <span key={p.portail} className="text-[13px] font-semibold text-text-strong">
+                {libellePortail(p.portail)}
+              </span>
+            ),
+          )}
         </div>
 
         <section className="mt-2 border-t border-black/[0.06] pt-4">

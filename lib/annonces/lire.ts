@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import type { Annonce, Confiance, EvenementAnnonce, Portail, RunAnnonce } from './types';
+import { PORTAILS, type Annonce, type Confiance, type EvenementAnnonce, type Portail, type RunAnnonce } from './types';
 
 type Client = SupabaseClient<Database>;
 
@@ -49,8 +49,7 @@ function raisons(v: unknown): string[] {
 }
 
 function portail(v: unknown): Portail {
-  if (v === 'seloger' || v === 'pap' || v === 'leboncoin' || v === 'bienici' || v === 'logicimmo') return v;
-  return 'pap';
+  return (PORTAILS as readonly unknown[]).includes(v) ? (v as Portail) : 'autre';
 }
 
 function confiance(v: unknown): Confiance {
@@ -161,6 +160,35 @@ export async function lireAnnonce(
     .limit(20);
   const soeurs = ((memes ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce);
   return { annonce, soeurs: soeurs.length > 0 ? soeurs : [annonce] };
+}
+
+/** Des annonces précises (suivies par un agent), par lots. */
+export async function lireAnnoncesParIds(client: Client, ids: readonly string[]): Promise<Annonce[]> {
+  const out: Annonce[] = [];
+  for (let i = 0; i < ids.length; i += LOT_IDS) {
+    const { data, error } = await table(client, 'annonces').select(SELECT_ANNONCE).in('id', ids.slice(i, i + LOT_IDS));
+    if (error) {
+      console.error('[annonces] par ids', error.message);
+      break;
+    }
+    out.push(...((data ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce));
+  }
+  return out;
+}
+
+/** L'annonce d'un portail par son identifiant (URL collée déjà vue par la veille). */
+export async function lireAnnonceParPortail(
+  client: Client,
+  portailAnnonce: string,
+  idPortail: string,
+): Promise<Annonce | null> {
+  const { data, error } = await table(client, 'annonces')
+    .select(SELECT_ANNONCE)
+    .eq('portail', portailAnnonce)
+    .eq('id_portail', idPortail)
+    .maybeSingle();
+  if (error || !data) return null;
+  return versAnnonce(data as unknown as Record<string, unknown>);
 }
 
 /**

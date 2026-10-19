@@ -1,8 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { fetchZonesPourAgence } from '@/lib/queries/zones';
-import { lireAnnonces, lireEvenements } from './lire';
-import { jourParis, notifierAnnonces, TYPES_NOTIF_ANNONCES, type AgenceCouvrante } from './notifier';
+import { lireAnnonces, lireAnnoncesParIds, lireEvenements } from './lire';
+import {
+  jourParis,
+  notifierAnnonces,
+  TYPES_NOTIF_ANNONCES,
+  type AgenceCouvrante,
+  type DestinataireAnnonce,
+} from './notifier';
 
 type Admin = SupabaseClient<Database>;
 
@@ -21,14 +27,33 @@ export async function curseurAnnonces(admin: Admin): Promise<string | null> {
   return data?.created_at ?? null;
 }
 
+/** Cloche « Suivre » : annonce → agents. Vide tant que la table n'existe pas. */
+async function lireSuivis(admin: Admin): Promise<Map<string, DestinataireAnnonce[]>> {
+  const suivis = new Map<string, DestinataireAnnonce[]>();
+  const { data, error } = await (admin as unknown as SupabaseClient)
+    .from('annonces_suivies')
+    .select('annonce_id, agency_id, profile_id');
+  if (error) return suivis;
+  for (const row of (data ?? []) as Array<{ annonce_id: string; agency_id: string; profile_id: string }>) {
+    const liste = suivis.get(row.annonce_id) ?? [];
+    liste.push({ agencyId: row.agency_id, profileId: row.profile_id });
+    suivis.set(row.annonce_id, liste);
+  }
+  return suivis;
+}
+
 /**
  * Une passe au brief du matin. Le pipeline a tourné la veille au soir :
  * on notifie les événements créés depuis le brief précédent.
  * Sans curseur, on ne rattrape pas l'historique plus vieux qu'hier.
  */
 export async function traiterAnnoncesDuMatin(admin: Admin, maintenant = new Date()): Promise<number> {
-  // Seuls les particuliers sont notifiés : les agences du secteur restent sur la carte.
-  const annonces = await lireAnnonces(admin, { vendeur: 'particulier' });
+  // Les particuliers du secteur, plus les annonces que des agents suivent (cloche), quel que soit le vendeur.
+  const suivis = await lireSuivis(admin);
+  const particuliers = await lireAnnonces(admin, { vendeur: 'particulier' });
+  const connues = new Set(particuliers.map((a) => a.id));
+  const enPlus = await lireAnnoncesParIds(admin, [...suivis.keys()].filter((id) => !connues.has(id)));
+  const annonces = [...particuliers, ...enPlus];
   if (annonces.length === 0) return 0;
   let evenements = await lireEvenements(
     admin,
@@ -71,6 +96,7 @@ export async function traiterAnnoncesDuMatin(admin: Admin, maintenant = new Date
     annonces,
     evenements,
     agences: couvrantes,
+    suivis,
   });
   return ecrites;
 }
