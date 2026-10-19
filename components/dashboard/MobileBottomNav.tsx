@@ -27,31 +27,51 @@ function TabItem({
   label,
   Icon,
   active,
+  bientot = false,
 }: {
   href: string;
   label: string;
   Icon: ComponentType<NavIconProps>;
   active: boolean;
+  bientot?: boolean;
 }) {
+  const contenu = (
+    <>
+      <span
+        className={`flex h-8 w-full max-w-[52px] items-center justify-center rounded-full ${
+          bientot ? 'opacity-40' : active ? 'bg-primary-100' : 'bg-transparent'
+        }`}
+      >
+        <Icon active={!bientot && active} />
+      </span>
+      <span
+        className="flex max-w-full flex-col items-center text-center font-semibold leading-none"
+        style={{ fontSize: 10.5, color: bientot ? '#94A3B8' : active ? '#4F46E5' : INACTIVE }}
+      >
+        <span className="max-w-full truncate">{label}</span>
+        {bientot ? <span className="mt-0.5 text-[9px] font-normal">À venir</span> : null}
+      </span>
+    </>
+  );
+  if (bientot) {
+    return (
+      <span
+        aria-disabled="true"
+        title={`${label}, à venir`}
+        aria-label={`${label}, à venir`}
+        className="flex min-w-0 flex-1 cursor-default flex-col items-center justify-center gap-1 pt-1.5"
+      >
+        {contenu}
+      </span>
+    );
+  }
   return (
     <NavPrefetchLink
       href={href}
       aria-current={active ? 'page' : undefined}
       className="nav-link app-press flex min-w-0 flex-1 flex-col items-center justify-center gap-1 pt-1.5"
     >
-      <span
-        className={`flex h-8 w-full max-w-[52px] items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out ${
-          active ? 'bg-primary-100' : 'bg-transparent'
-        }`}
-      >
-        <Icon active={active} />
-      </span>
-      <span
-        className="max-w-full truncate text-center font-semibold"
-        style={{ fontSize: 10.5, color: active ? '#4F46E5' : INACTIVE }}
-      >
-        {label}
-      </span>
+      {contenu}
     </NavPrefetchLink>
   );
 }
@@ -86,7 +106,7 @@ function DesktopCompactNav() {
         active={activeProspects}
       />
       <TabItem href="/dashboard/contacts" label="Contacts" Icon={IconContacts} active={activeContacts} />
-      <TabItem href="/dashboard/biens" label="Biens" Icon={IconBiens} active={activeBiens} />
+      <TabItem href="/dashboard/biens" label="Biens" Icon={IconBiens} active={activeBiens} bientot />
       <TabItem
         href="/dashboard/settings"
         label="Paramètres"

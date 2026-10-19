@@ -100,6 +100,18 @@ describe('parseMapLayers', () => {
     assert.equal(fromRev6.rev, MAP_LAYERS_STORAGE_REV);
   });
 
+  it('rev 8 retire la couche Copropriétés sans toucher au reste', () => {
+    const fromRev7 = migrateStoredMapLayers(
+      { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreCopro: true, cadastreVentes: true },
+      7,
+    );
+    assert.equal(fromRev7.state.cadastreCopro, false);
+    assert.equal(fromRev7.state.cadastre, true);
+    assert.equal(fromRev7.state.cadastreVentes, true);
+    assert.equal(fromRev7.rev, MAP_LAYERS_STORAGE_REV);
+    assert.equal(parseMapLayers({ cadastreCopro: true }).cadastreCopro, false);
+  });
+
   it('convertit les anciens réglages des annonces', () => {
     const ancien = parseMapLayers({ annoncesActives: true, annoncesParticuliers: false, annoncesDpe: 'F' });
     assert.equal(ancien.annonces, true);

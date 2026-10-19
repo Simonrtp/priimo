@@ -14,10 +14,10 @@ import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { FIELD } from '@/lib/today/field';
 
 const LINKS = [
-  { href: '/dashboard/prospection', label: 'Prospection', Icon: Target },
-  { href: '/dashboard/contacts', label: 'Contacts', Icon: Users },
-  { href: '/dashboard/biens', label: 'Biens', Icon: Building2 },
-  { href: '/dashboard/settings', label: 'Paramètres', Icon: Settings },
+  { href: '/dashboard/prospection', label: 'Prospection', Icon: Target, bientot: false },
+  { href: '/dashboard/contacts', label: 'Contacts', Icon: Users, bientot: false },
+  { href: '/dashboard/biens', label: 'Biens', Icon: Building2, bientot: true },
+  { href: '/dashboard/settings', label: 'Paramètres', Icon: Settings, bientot: false },
 ] as const;
 
 export default function FieldPlusSheet({
@@ -56,8 +56,24 @@ export default function FieldPlusSheet({
         </div>
 
         <ul className="px-3 pb-2">
-          {LINKS.map(({ href, label, Icon }) => (
+          {LINKS.map(({ href, label, Icon, bientot }) => (
             <li key={href}>
+              {bientot ? (
+                <span
+                  aria-disabled="true"
+                  className="flex min-h-[52px] cursor-default items-center gap-3 rounded-2xl px-3 text-[15.5px] font-medium text-text-muted"
+                >
+                  <span
+                    className="flex size-10 items-center justify-center rounded-full opacity-50"
+                    style={{ backgroundColor: FIELD.ardoisePastel, color: FIELD.ardoise }}
+                    aria-hidden
+                  >
+                    <Icon size={18} strokeWidth={2.1} />
+                  </span>
+                  <span className="min-w-0 flex-1">{label}</span>
+                  <span className="shrink-0 text-[12px] font-normal">À venir</span>
+                </span>
+              ) : (
               <NavPrefetchLink
                 href={href}
                 onClick={onClose}
@@ -72,6 +88,7 @@ export default function FieldPlusSheet({
                 </span>
                 {label}
               </NavPrefetchLink>
+              )}
             </li>
           ))}
           <li>

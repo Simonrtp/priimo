@@ -32,6 +32,8 @@ type NavItem = {
   label: string;
   Icon: ComponentType<NavIconProps>;
   match: (pathname: string) => boolean;
+  /** Affiché, mais pas encore ouvert. */
+  bientot?: boolean;
 };
 
 const NAV_GROUPS: NavItem[][] = [
@@ -56,6 +58,7 @@ const NAV_GROUPS: NavItem[][] = [
       label: 'Estimation',
       Icon: IconEstimation,
       match: (p) => p.startsWith('/dashboard/estimation'),
+      bientot: true,
     },
     {
       href: '/dashboard/contacts',
@@ -68,6 +71,7 @@ const NAV_GROUPS: NavItem[][] = [
       label: 'Biens',
       Icon: IconBiens,
       match: (p) => p.startsWith('/dashboard/biens'),
+      bientot: true,
     },
   ],
   [
@@ -154,7 +158,35 @@ export default function Sidebar() {
         {NAV_GROUPS.map((group, groupIndex) => (
           <div key={groupIndex} className="flex w-full flex-col">
             {groupIndex > 0 ? <NavDivider collapsed={collapsed} /> : null}
-            {group.map(({ href, label, Icon, match }) => {
+            {group.map(({ href, label, Icon, match, bientot }) => {
+              if (bientot) {
+                return (
+                  <span
+                    key={href}
+                    title="À venir"
+                    aria-disabled="true"
+                    aria-label={collapsed ? `${label}, à venir` : undefined}
+                    className={`flex w-full cursor-default items-center border-l-[3px] border-transparent py-2.5 font-medium text-white/35 ${
+                      collapsed
+                        ? 'justify-center rounded-xl px-0'
+                        : 'justify-start gap-3 rounded-xl pl-[9px] pr-3'
+                    }`}
+                    style={{ fontSize: 13.5 }}
+                  >
+                    <span className="flex size-5 shrink-0 items-center justify-center opacity-50" aria-hidden>
+                      <Icon className="size-5" />
+                    </span>
+                    <span
+                      className={`sidebar-nav-label min-w-0 flex-1 items-center justify-between gap-2 overflow-hidden whitespace-nowrap ${
+                        collapsed ? 'hidden' : 'flex'
+                      }`}
+                    >
+                      <span>{label}</span>
+                      <span className="shrink-0 text-[11px] font-normal text-white/45">À venir</span>
+                    </span>
+                  </span>
+                );
+              }
               const active = match(pathname);
               return (
                 <NavPrefetchLink

@@ -28,13 +28,8 @@ import { CADASTRE_OVERLAY_MIN_ZOOM, PARCELLE_MIN_ZOOM } from '@/lib/carte/parcel
 
 const THUMB_PAD = 14;
 
-function overlayKey(id: CadastreOverlayId): keyof Pick<
-  MapLayerState,
-  'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro'
-> {
-  if (id === 'dpe') return 'cadastreDpe';
-  if (id === 'ventes') return 'cadastreVentes';
-  return 'cadastreCopro';
+function overlayKey(id: CadastreOverlayId): 'cadastreDpe' | 'cadastreVentes' {
+  return id === 'dpe' ? 'cadastreDpe' : 'cadastreVentes';
 }
 
 function DpeAgeSlider({
@@ -318,7 +313,7 @@ export default function CadastreLayerControls({
                   </span>
                 ) : parcellesForced ? (
                   <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                    Nécessaire pour DPE / ventes / copro
+                    Nécessaire pour DPE / ventes
                   </span>
                 ) : null}
               </span>

@@ -25,11 +25,11 @@ export type CadastreLayerId = (typeof CADASTRE_LAYER_IDS)[number];
 export const CADASTRE_LAYER_LABELS: Record<CadastreLayerId, string> = {
   parcelles: 'Parcelles',
   dpe: 'DPE',
-  ventes: 'Ventes',
+  ventes: 'Ventes (DVF)',
   copro: 'Copropriétés',
 };
 
-export const CADASTRE_OVERLAY_IDS = ['dpe', 'ventes', 'copro'] as const;
+export const CADASTRE_OVERLAY_IDS = ['dpe', 'ventes'] as const;
 export type CadastreOverlayId = (typeof CADASTRE_OVERLAY_IDS)[number];
 
 export const ANNONCES_VENDEURS = ['particulier', 'professionnel', 'tous'] as const;
@@ -86,8 +86,9 @@ export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
  * Rev 6 : plan parcellaire off par défaut (sauf si overlay cadastre actif).
  * Rev 7 : « Mon secteur » des annonces éteint une fois — allumé par défaut, il
  * vidait la carte des négociateurs au petit secteur.
+ * Rev 8 : la couche Copropriétés n’est plus proposée.
  */
-export const MAP_LAYERS_STORAGE_REV = 7;
+export const MAP_LAYERS_STORAGE_REV = 8;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
@@ -103,7 +104,7 @@ export function parseMapLayers(raw: unknown): MapLayerState {
     cadastre,
     cadastreDpe: row.cadastreDpe === true,
     cadastreVentes: row.cadastreVentes === true,
-    cadastreCopro: row.cadastreCopro === true,
+    cadastreCopro: false,
     cadastreDpeAges: parseDpeAgeBuckets(row.cadastreDpeAges),
     cadastreMenuOpen: row.cadastreMenuOpen !== false,
     ...parseAnnonces(row),
@@ -171,12 +172,10 @@ export function migrateStoredMapLayers(
   rev: number,
 ): { state: MapLayerState; rev: number } {
   if (rev >= MAP_LAYERS_STORAGE_REV) return { state, rev };
-  if (rev === 6) {
-    return { state: { ...state, annoncesMonSecteur: false }, rev: MAP_LAYERS_STORAGE_REV };
-  }
-  return {
-    state: {
-      ...state,
+  let next = state;
+  if (rev < 6) {
+    next = {
+      ...next,
       annoncesMonSecteur: false,
       cadastre: false,
       ...(rev < 5
@@ -186,9 +185,12 @@ export function migrateStoredMapLayers(
             cadastreCopro: false,
           }
         : {}),
-    },
-    rev: MAP_LAYERS_STORAGE_REV,
-  };
+    };
+  } else if (rev === 6) {
+    next = { ...next, annoncesMonSecteur: false };
+  }
+  if (rev < 8) next = { ...next, cadastreCopro: false };
+  return { state: next, rev: MAP_LAYERS_STORAGE_REV };
 }
 
 /** Au moins une couche cadastre cochée (plan ou overlay). */
