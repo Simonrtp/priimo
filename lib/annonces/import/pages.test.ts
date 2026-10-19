@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ficheDepuisPage, lectureIncomplete } from './fiche';
-import { lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, pageInexploitable, texteVisible } from './pages';
+import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, pageInexploitable, texteVisible } from './pages';
 import { analyserUrl } from './url';
 
 const FICHE_PAP = `
@@ -83,6 +83,14 @@ describe('lecteurs de pages', () => {
     assert.deepEqual(p.zone, { latitude: 48.869042, longitude: 2.372634, rayonM: 0 });
   });
 
+  it('PAP rendu par un navigateur : le point de carte entre guillemets doubles', () => {
+    const rendu = FICHE_PAP.replace(
+      `data-thunderforest='{"center":["48.869042","2.372634"],"zoom":15}'`,
+      'data-thunderforest="{&quot;center&quot;:[&quot;48.870358&quot;,&quot;2.384085&quot;],&quot;zoom&quot;:15}"',
+    );
+    assert.deepEqual(lirePap(rendu)!.zone, { latitude: 48.870358, longitude: 2.384085, rayonM: 0 });
+  });
+
   it('SeLoger : conso et émissions chiffrées, point exact, agence', () => {
     const p = lireSeLoger(pageSeLoger(CLASSIFIED))!;
     assert.deepEqual(
@@ -99,6 +107,38 @@ describe('lecteurs de pages', () => {
     assert.deepEqual([p.prix, p.surface, p.pieces, p.dpe, p.ges, p.typeBien, p.typeVendeur], [155_000, 16, 1, 'G', 'D', 'appartement', 'particulier']);
     assert.deepEqual(p.zone, { latitude: 48.8562, longitude: 2.3988, rayonM: 800 });
     assert.deepEqual(p.photos, ['https://img.leboncoin.fr/a.jpg']);
+  });
+
+  it('Leboncoin agence : boutique, chauffage, année, quartier ; DPE « vierge » ignoré', () => {
+    const ad = {
+      ...AD_LBC,
+      owner: { type: 'pro' },
+      location: { ...AD_LBC.location, city_label: 'Paris 75020 Ménilmontant - Amandiers' },
+      attributes: [
+        ...AD_LBC.attributes.filter((a) => a.key !== 'energy_rate'),
+        { key: 'energy_rate', value: 'v', value_label: 'Vierge' },
+        { key: 'store_name', value: 'FREDēLION Gambetta' },
+        { key: 'heating_mode', value: 'gas', value_label: 'Gaz' },
+        { key: 'heating_type', value: 'individual', value_label: 'Individuel' },
+        { key: 'building_year', value: '1903' },
+      ],
+    };
+    const p = lireLeboncoin(pageLeboncoin(ad))!;
+    assert.equal(p.agenceNom, 'FREDēLION Gambetta');
+    assert.equal(p.chauffage, 'gaz individuel');
+    assert.equal(p.anneeConstruction, 1903);
+    assert.equal(p.quartier, 'Ménilmontant - Amandiers');
+    assert.equal(p.dpe, null);
+  });
+
+  it('les chiffres du DPE écrits dans le texte, sans Mon assistant', () => {
+    assert.deepEqual(
+      chiffresDpeDuTexte(
+        'Date de réalisation du diagnostic énergétique : 28/09/2026 Consommation énergie primaire : 352 kWh/m²/an Consommation énergie finale : 160 kWh/m²/an. Émissions de gaz à effet de serre : 71 kg CO2/m²/an',
+      ),
+      { consoKwhM2: 352, gesKgM2: 71, dateDpe: '2026-09-28' },
+    );
+    assert.deepEqual(chiffresDpeDuTexte('Bel appartement lumineux'), {});
   });
 
   it('schema.org : un site d’agence quelconque', () => {
@@ -120,21 +160,33 @@ describe('lecteurs de pages', () => {
 });
 
 describe('ficheDepuisPage', () => {
-  it('Leboncoin sans conso structurée : Mon assistant la lit dans le texte, le repère reste celui du portail', async () => {
+  it('Leboncoin : les chiffres du DPE écrits dans le texte suffisent, Mon assistant n’est pas sollicité', async () => {
     const u = analyserUrl('https://www.leboncoin.fr/ad/ventes_immobilieres/2843918821')!;
     const html = pageLeboncoin(AD_LBC);
-    assert.ok(lectureIncomplete(lireLeboncoin(html)!));
+    assert.ok(lectureIncomplete(lireLeboncoin(html)!), 'rien dans les attributs');
+    let appels = 0;
+    const fiche = await ficheDepuisPage(u, html, async () => {
+      appels += 1;
+      return null;
+    });
+    assert.equal(appels, 0);
+    assert.equal(fiche!.consoKwhM2, 528);
+    assert.equal(fiche!.gesKgM2, 20);
+    assert.equal(fiche!.zone!.rayonM, 800);
+    assert.equal(fiche!.portail, 'leboncoin');
+  });
+
+  it('Leboncoin sans chiffres dans le texte : Mon assistant complète, la donnée structurée l’emporte', async () => {
+    const u = analyserUrl('https://www.leboncoin.fr/ad/ventes_immobilieres/2843918821')!;
+    const html = pageLeboncoin({ ...AD_LBC, body: 'Studio lumineux au 6e étage, DPE en pièce jointe.' });
     let lu = '';
     const fiche = await ficheDepuisPage(u, html, async (texte) => {
       lu = texte;
       return { conso_kwh_m2: 528, ges_kg_m2: 20, etage: 6, prix: 999 };
     });
-    assert.ok(lu.includes('528 kWh'));
+    assert.ok(lu.includes('Studio lumineux'));
     assert.equal(fiche!.consoKwhM2, 528);
-    assert.equal(fiche!.gesKgM2, 20);
     assert.equal(fiche!.prix, 155_000, 'la donnée structurée l’emporte sur la lecture du texte');
-    assert.equal(fiche!.zone!.rayonM, 800);
-    assert.equal(fiche!.portail, 'leboncoin');
   });
 
   it('SeLoger complet : Mon assistant n’est pas sollicité', async () => {

@@ -7,7 +7,7 @@
  *      (prix, surface, conso chiffrée) : la lecture universelle.
  * Les données structurées l'emportent toujours sur la lecture du texte.
  */
-import { lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
+import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
 import { valeursFiables } from './localiser';
 import { ficheDepuisExtraction, zoneDepuisAdresse } from './extraction';
 import type { FicheAnnonce } from './types';
@@ -59,7 +59,8 @@ export function completer(base: Partielle, ajout: Partielle): Partielle {
 
 export function lecturePortail(u: UrlAnnonce, html: string): Partielle {
   const portail = u.portail === 'seloger' ? lireSeLoger(html) : u.portail === 'leboncoin' ? lireLeboncoin(html) : u.portail === 'pap' ? lirePap(html) : null;
-  return completer(portail ?? {}, lireJsonLd(html) ?? {});
+  const structure = completer(portail ?? {}, lireJsonLd(html) ?? {});
+  return completer(structure, chiffresDpeDuTexte(structure.description));
 }
 
 /** Faut-il demander à Mon assistant ? Seulement s'il manque de quoi afficher ou localiser. */

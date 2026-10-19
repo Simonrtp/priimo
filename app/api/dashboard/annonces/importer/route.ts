@@ -6,7 +6,7 @@ import { sessionImport } from '@/lib/annonces/import/session';
 import { analyserUrl } from '@/lib/annonces/import/url';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /**
  * Une URL collée dans le panneau Annonces → l'annonce, son adresse, le point

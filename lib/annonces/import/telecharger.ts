@@ -15,7 +15,8 @@ import 'server-only';
 import { pageInexploitable } from './pages';
 
 const ENDPOINT = 'https://api.brightdata.com/request';
-const DELAI_MS = 45_000;
+/** Leboncoin et SeLoger, rendus par un navigateur chez Bright Data : 30 à 55 s constatés. */
+const DELAI_MS = 90_000;
 /** Une page d'annonce dépasse rarement 2 Mo ; au-delà, on ne lit que le début. */
 const TAILLE_MAX = 3_000_000;
 

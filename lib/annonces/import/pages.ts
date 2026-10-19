@@ -68,10 +68,10 @@ export function lirePap(html: string): Partielle | null {
     lettres[bloc] = html.match(new RegExp(`class="${bloc}">[\\s\\S]*?<li class="active">([A-G])</li>`))?.[1] ?? null;
   }
   let zone: FicheAnnonce['zone'] = null;
-  const carte = html.match(/map-annonce-adresse"[^>]*data-thunderforest='([^']+)'/);
+  const carte = html.match(/map-annonce-adresse"[^>]*data-thunderforest=(?:'([^']+)'|"([^"]+)")/);
   if (carte) {
     try {
-      const [lat, lon] = (JSON.parse(carte[1]!) as { center: [string, string] }).center.map(Number);
+      const [lat, lon] = (JSON.parse(decoder(carte[1] ?? carte[2]!)) as { center: [string, string] }).center.map(Number);
       if (Number.isFinite(lat) && Number.isFinite(lon)) zone = { latitude: lat!, longitude: lon!, rayonM: 0 };
     } catch {
       zone = null;
@@ -224,6 +224,10 @@ export function lireLeboncoin(html: string): Partielle | null {
   const lat = nombre(loc.lat);
   const lon = nombre(loc.lng);
   const owner = (ad.owner ?? {}) as Brut;
+  const etiquette = (cle: string) => texte(attributs.get(cle)?.value_label);
+  const chauffage = [etiquette('heating_mode'), etiquette('heating_type')].filter(Boolean).join(' ').toLowerCase() || null;
+  // « Paris 75020 Ménilmontant - Amandiers » → « Ménilmontant - Amandiers »
+  const quartier = texte(loc.city_label)?.replace(/^.*?\b\d{5}\b\s*/, '') || null;
   const prix = Array.isArray(ad.price) ? nombre(ad.price[0]) : nombre(ad.price) ?? (nombre(ad.price_cents) != null ? nombre(ad.price_cents)! / 100 : null);
   // Une conso chiffrée, si le portail l'expose (selon les annonces).
   let conso: number | null = null;
@@ -238,7 +242,7 @@ export function lireLeboncoin(html: string): Partielle | null {
   const images = (chemin(ad, 'images', 'urls_large') as string[] | undefined) ?? (chemin(ad, 'images', 'urls') as string[] | undefined) ?? [];
   return {
     typeVendeur: owner.type === 'pro' ? 'professionnel' : 'particulier',
-    agenceNom: owner.type === 'pro' ? texte(owner.name) : null,
+    agenceNom: owner.type === 'pro' ? (texte(owner.name) ?? texte(valeur('store_name'))) : null,
     typeBien: type === '1' ? 'maison' : type === '2' ? 'appartement' : null,
     titre: texte(ad.subject),
     prix,
@@ -251,6 +255,9 @@ export function lireLeboncoin(html: string): Partielle | null {
     gesKgM2: gesKg,
     codePostal: texte(loc.zipcode),
     ville: texte(loc.city),
+    quartier,
+    chauffage,
+    anneeConstruction: nombre(valeur('building_year')),
     description: texte(ad.body),
     datePublication: texte(ad.first_publication_date),
     // Leboncoin floute la position (commune ou quartier) : un repère, jamais une adresse.
@@ -307,6 +314,44 @@ export function lireJsonLd(html: string): Partielle | null {
     }
   }
   return Object.values(r).some((v) => v != null && !(Array.isArray(v) && v.length === 0)) ? r : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       Chiffres du DPE écrits dans le texte                 */
+/* -------------------------------------------------------------------------- */
+
+function premierNombre(texteSource: string, motifs: RegExp[]): number | null {
+  for (const motif of motifs) {
+    const m = texteSource.match(motif);
+    if (m?.[1]) {
+      const n = nombre(m[1]);
+      if (n != null) return n;
+    }
+  }
+  return null;
+}
+
+/**
+ * La loi impose dans l'annonce la consommation (énergie primaire), les
+ * émissions et souvent la date du diagnostic : une simple lecture du texte
+ * suffit, sans Mon assistant (« Consommation énergie primaire : 352 kWh/m²/an »,
+ * « Date de réalisation du diagnostic énergétique : 28/09/2026 »).
+ */
+export function chiffresDpeDuTexte(source: string | null | undefined): Partielle {
+  const t = (source ?? '').replace(/[\u00a0\u202f]/g, ' ');
+  if (!t) return {};
+  const conso = premierNombre(t, [
+    /[ée]nergie primaire[^0-9]{0,40}?(\d[\d\s.,]*)\s*kwh/i,
+    /consommation[^0-9]{0,60}?(\d[\d\s.,]*)\s*kwh/i,
+    /(\d[\d\s.,]*)\s*kwh\s*\/?\s*m(?:²|2)/i,
+  ]);
+  const gesKg = premierNombre(t, [/(?:[ée]missions?|gaz à effet de serre|ges)[^0-9]{0,60}?(\d[\d\s.,]*)\s*kg/i, /(\d[\d\s.,]*)\s*kg\s*(?:co2|eq|éq)/i]);
+  const date = t.match(/diagnostic[^0-9]{0,60}?(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/i);
+  const r: Partielle = {};
+  if (conso != null && conso > 0 && conso < 1000) r.consoKwhM2 = conso;
+  if (gesKg != null && gesKg >= 0 && gesKg < 300) r.gesKgM2 = gesKg;
+  if (date) r.dateDpe = `${date[3]}-${date[2]!.padStart(2, '0')}-${date[1]!.padStart(2, '0')}`;
+  return r;
 }
 
 /* -------------------------------------------------------------------------- */
