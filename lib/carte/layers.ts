@@ -29,8 +29,12 @@ export const CADASTRE_LAYER_LABELS: Record<CadastreLayerId, string> = {
   copro: 'Copropriétés',
 };
 
+/** Couches proposées dans le panneau. Copropriétés n’y figure plus. */
 export const CADASTRE_OVERLAY_IDS = ['dpe', 'ventes'] as const;
-export type CadastreOverlayId = (typeof CADASTRE_OVERLAY_IDS)[number];
+export type CadastreOverlayMenuId = (typeof CADASTRE_OVERLAY_IDS)[number];
+
+/** Pastille cadastre. Copropriétés reste reconnu par la carte, hors du panneau. */
+export type CadastreOverlayId = CadastreOverlayMenuId | 'copro';
 
 export const ANNONCES_VENDEURS = ['particulier', 'professionnel', 'tous'] as const;
 export type AnnoncesVendeur = (typeof ANNONCES_VENDEURS)[number];
