@@ -15,7 +15,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const s = await sessionImport();
   if (!s) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-  if (!rateLimit(`annonce-import:${s.qui.profileId}`, { limit: 30, windowMs: 60_000 }).ok) {
+  if (!rateLimit(`annonce-import:${s.qui.profileId}`, { limit: 10, windowMs: 60_000 }).ok) {
     return NextResponse.json({ etat: 'erreur', message: 'Trop de recherches, réessayez dans une minute' }, { status: 429 });
   }
   const body = (await req.json().catch(() => null)) as { url?: unknown } | null;

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ficheDepuisPage, lectureIncomplete } from './fiche';
-import { lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible } from './pages';
-import { pageInexploitable } from './telecharger';
+import { lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, pageInexploitable, texteVisible } from './pages';
 import { analyserUrl } from './url';
 
 const FICHE_PAP = `

@@ -44,7 +44,9 @@ export function analyserUrl(brute: string): UrlAnnonce | null {
   } catch {
     return null;
   }
-  if (!u.hostname.includes('.')) return null;
+  // Une annonce est sur le web public : ni adresse IP, ni machine locale, ni autre protocole.
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  if (!u.hostname.includes('.') || /^[\d.]+$|^\[|localhost$|\.local$|\.internal$/i.test(u.hostname)) return null;
   const h = hote(u.hostname);
   const url = nettoyer(u);
   const chemin = u.pathname;

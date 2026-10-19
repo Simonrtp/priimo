@@ -14,7 +14,7 @@ import { rafraichirAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 type Etat =
   | { k: 'vide' }
   | { k: 'travail'; ia: boolean }
-  | { k: 'texte'; raison: 'illisible' | 'bloquee' }
+  | { k: 'texte'; raison: 'illisible' | 'bloquee' | 'plafond' }
   | { k: 'trouvee'; carte: CarteImport; disponible: boolean };
 
 const ORDRE: EtapeImport['cle'][] = ['lecture', 'donnees', 'adresse'];
@@ -270,8 +270,10 @@ export default function ImportAnnonce({ compact = false }: { compact?: boolean }
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="relative block">
-        <Link2 size={15} strokeWidth={2} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle" />
+      <label className={`flex w-full items-center overflow-hidden rounded-full bg-bg-subtle ${compact ? 'h-11' : 'h-[34px]'}`}>
+        <span className={`flex shrink-0 items-center justify-center text-text-muted ${compact ? 'size-11' : 'size-[34px]'}`}>
+          <Link2 size={16} strokeWidth={2.2} aria-hidden />
+        </span>
         <input
           type="url"
           inputMode="url"
@@ -294,24 +296,22 @@ export default function ImportAnnonce({ compact = false }: { compact?: boolean }
               chercher(url);
             }
           }}
-          className={`h-10 w-full rounded-[12px] bg-white pl-9 pr-9 text-text-strong shadow-clay-inset outline-none placeholder:text-text-subtle focus:ring-2 focus:ring-[#1A2A56]/25 ${
-            compact ? 'text-[14px]' : 'text-[12.5px]'
+          className={`min-w-0 flex-1 bg-transparent pr-1 text-text-strong outline-none placeholder:text-text-subtle ${
+            compact ? 'text-[14px]' : 'text-[13.5px]'
           }`}
         />
-        <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
-          {travail ? (
-            <Loader2 size={16} className="mr-1 animate-spin text-text-subtle" aria-label="Recherche en cours" />
-          ) : url ? (
-            <button
-              type="button"
-              onClick={effacer}
-              aria-label="Effacer"
-              className="flex size-7 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.05] hover:text-text"
-            >
-              <X size={14} strokeWidth={2} aria-hidden />
-            </button>
-          ) : null}
-        </span>
+        {travail ? (
+          <Loader2 size={16} className="mr-2.5 shrink-0 animate-spin text-text-subtle" aria-label="Recherche en cours" />
+        ) : url ? (
+          <button
+            type="button"
+            onClick={effacer}
+            aria-label="Effacer"
+            className="mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.06] hover:text-text"
+          >
+            <X size={14} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
       </label>
 
       {travail ? <Etapes etapes={etapes} ia={etat.ia} /> : null}
@@ -323,7 +323,9 @@ export default function ImportAnnonce({ compact = false }: { compact?: boolean }
             placeholder={
               etat.raison === 'bloquee'
                 ? 'Cette page ne se lit pas : collez ici tout le texte de l’annonce'
-                : 'Collez ici tout le texte de l’annonce'
+                : etat.raison === 'plafond'
+                  ? 'Limite de lectures du jour atteinte : collez ici le texte de l’annonce'
+                  : 'Collez ici tout le texte de l’annonce'
             }
             value={texte}
             onChange={(e) => setTexte(e.target.value)}

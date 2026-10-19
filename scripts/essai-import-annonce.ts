@@ -20,7 +20,7 @@ function resume(r: ReponseImport): string {
 
 async function main() {
   const [agencyId, profileId, cp, ...reste] = process.argv.slice(2);
-  const qui: Qui = { agencyId: agencyId!, profileId: profileId!, codesPostaux: [cp!] };
+  const qui: Qui = { agencyId: agencyId!, profileId: profileId!, codesPostaux: [cp!], pagesAutorisees: true };
   const admin = createSupabaseAdminClient() as unknown as SupabaseClient;
   if (reste[0] === '--texte') {
     const u = analyserUrl(reste[1]!)!;

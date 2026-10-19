@@ -36,4 +36,11 @@ describe('analyserUrl', () => {
     assert.equal(cleImport(autre!), 'https://www.agence-du-village.fr/biens/appartement-3-pieces');
     assert.equal(analyserUrl('pas une url'), null);
   });
+
+  it('refuse les adresses IP, les machines locales et les autres protocoles', () => {
+    assert.equal(analyserUrl('http://169.254.169.254/latest/meta-data'), null);
+    assert.equal(analyserUrl('http://[::1]/'), null);
+    assert.equal(analyserUrl('http://intranet.local/annonce'), null);
+    assert.equal(analyserUrl('ftp://www.pap.fr/annonces/x-r462101331'), null);
+  });
 });

@@ -330,3 +330,13 @@ export function texteVisible(html: string, max = 12_000): string {
   const assemble = [titre, meta, ...new Set([...utiles, ...debut])].join('\n');
   return assemble.slice(0, max);
 }
+
+/** Page vide, page d'erreur ou défi anti-robot encore présent. */
+export function pageInexploitable(html: string): 'bloquee' | 'disparue' | null {
+  if (html.length < 800) return 'bloquee';
+  if (/captcha-delivery\.com|cf-chl-|Just a moment\.\.\.|Please enable JS and disable any ad blocker/i.test(html)) return 'bloquee';
+  if (/annonce (?:n'est plus|n’est plus) (?:disponible|en ligne)|cette annonce a été (?:supprimée|désactivée)|page introuvable/i.test(html.slice(0, 200_000))) {
+    return 'disparue';
+  }
+  return null;
+}

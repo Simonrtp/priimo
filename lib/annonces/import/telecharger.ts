@@ -11,6 +11,8 @@
  * (nom de la zone « Web Unlocker » du tableau de bord Bright Data).
  * https://docs.brightdata.com/scraping-automation/web-unlocker/send-your-first-request
  */
+import 'server-only';
+import { pageInexploitable } from './pages';
 
 const ENDPOINT = 'https://api.brightdata.com/request';
 const DELAI_MS = 45_000;
@@ -23,16 +25,6 @@ export type Telechargement =
 
 export function telechargementConfigure(): boolean {
   return Boolean(process.env.BRIGHTDATA_API_TOKEN && process.env.BRIGHTDATA_ZONE);
-}
-
-/** Page vide, page d'erreur ou défi anti-robot encore présent. */
-export function pageInexploitable(html: string): 'bloquee' | 'disparue' | null {
-  if (html.length < 800) return 'bloquee';
-  if (/captcha-delivery\.com|cf-chl-|Just a moment\.\.\.|Please enable JS and disable any ad blocker/i.test(html)) return 'bloquee';
-  if (/annonce (?:n'est plus|n’est plus) (?:disponible|en ligne)|cette annonce a été (?:supprimée|désactivée)|page introuvable/i.test(html.slice(0, 200_000))) {
-    return 'disparue';
-  }
-  return null;
 }
 
 export async function telechargerPage(url: string): Promise<Telechargement> {

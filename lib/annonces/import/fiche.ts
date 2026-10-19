@@ -9,7 +9,7 @@
  */
 import { lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
 import { valeursFiables } from './localiser';
-import { extraireAvecAssistant, ficheDepuisExtraction, zoneDepuisAdresse } from './texte';
+import { ficheDepuisExtraction, zoneDepuisAdresse } from './extraction';
 import type { FicheAnnonce } from './types';
 import type { UrlAnnonce } from './url';
 
@@ -79,7 +79,8 @@ type Assistant = (texte: string) => Promise<Record<string, unknown> | null>;
 export async function ficheDepuisPage(
   u: UrlAnnonce,
   html: string,
-  assistant: Assistant = extraireAvecAssistant,
+  /** Mon assistant, déjà plafonné par l'appelant (serveur.ts). */
+  assistant: Assistant,
 ): Promise<FicheAnnonce | null> {
   let p = lecturePortail(u, html);
   if (lectureIncomplete(p)) {

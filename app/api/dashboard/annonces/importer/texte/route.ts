@@ -12,7 +12,7 @@ export const maxDuration = 45;
 export async function POST(req: Request) {
   const s = await sessionImport();
   if (!s) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-  if (!rateLimit(`annonce-texte:${s.qui.profileId}`, { limit: 12, windowMs: 60_000 }).ok) {
+  if (!rateLimit(`annonce-texte:${s.qui.profileId}`, { limit: 6, windowMs: 60_000 }).ok) {
     return NextResponse.json({ etat: 'erreur', message: 'Trop de lectures, réessayez dans une minute' }, { status: 429 });
   }
   const body = (await req.json().catch(() => null)) as { url?: unknown; texte?: unknown } | null;

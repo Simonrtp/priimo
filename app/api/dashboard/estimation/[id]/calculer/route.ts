@@ -17,6 +17,7 @@ import {
 import { parseGrille, parseListe } from '@/lib/estimation/objet';
 import { appliquerQualiteEtAgent, capitaliser, type AjustementAgent } from '@/lib/estimation/valeur';
 import { proposerStrategie } from '@/lib/estimation/strategie-mistral';
+import { reserverIa } from '@/lib/ia/quota';
 import type { EstimationFeatureKey } from '@/lib/estimation';
 
 export const runtime = 'nodejs';
@@ -231,7 +232,8 @@ export async function POST(
   const pointsFaiblesExistants = parseListe(row.points_faibles);
   let pointsForts = pointsFortsExistants;
   let pointsFaibles = pointsFaiblesExistants;
-  if (pointsForts.length === 0 && pointsFaibles.length === 0) {
+  // Mistral propose points forts et faibles une fois, dans la limite du plafond IA du jour.
+  if (pointsForts.length === 0 && pointsFaibles.length === 0 && (await reserverIa('redaction'))) {
     const strat = await proposerStrategie({
       propertyType,
       surfaceM2: surface,

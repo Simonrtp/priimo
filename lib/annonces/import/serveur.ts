@@ -7,21 +7,31 @@
  * site téléchargé par Bright Data et lu (données de la page + Mon assistant).
  * Si la page ne se lit pas, l'agent colle le texte.
  *
+ * Garde-fous de facture (Bright Data est payé à la page) :
+ *   - une URL déjà lue (7 jours) est reprise en base, sans nouvel appel ;
+ *   - une page qui vient d'échouer n'est pas relancée avant une heure ;
+ *   - plafonds du jour par agent, agence et pour tout Priimo, sur un compteur
+ *     commun à tous les serveurs ; sans compteur, rien ne part ;
+ *   - une seule lecture à la fois par agent ; aucune pour une agence en attente.
+ *
  * Chaque étape est annoncée (`onEtape`) : le panneau l'affiche en direct.
  * Sans la migration 20261019_annonces_import_url, l'ajout attend les tables
  * (`disponible: false`) ; la recherche et la carte marchent.
  */
+import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { lireAnnonceParPortail } from '@/lib/annonces/lire';
 import { libellePortail } from '@/lib/annonces/presenter';
 import type { Annonce } from '@/lib/annonces/types';
+import { PLAFONDS_LECTURE_ANNONCE, plafondsLecturePage } from '@/lib/quota/regles';
+import { reserverQuota } from '@/lib/quota/reserver';
 import { lireBienici } from './bienici';
 import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, type CarteImport } from './carte';
 import { ficheDepuisPage } from './fiche';
 import { localiserFiche } from './localiser';
 import { telechargerPage } from './telecharger';
-import { ficheDepuisTexte } from './texte';
+import { extraireAvecAssistant, ficheDepuisTexte } from './texte';
 import type { FicheAnnonce, LocalisationImport } from './types';
 import { cleImport, type UrlAnnonce } from './url';
 
@@ -30,11 +40,17 @@ type Db = SupabaseClient;
 type DbType = SupabaseClient<Database>;
 const type = (db: Db) => db as unknown as DbType;
 
-export type Qui = { agencyId: string; profileId: string; codesPostaux: readonly string[] };
+export type Qui = {
+  agencyId: string;
+  profileId: string;
+  codesPostaux: readonly string[];
+  /** Faux pour une agence en attente de validation : pas de page téléchargée. */
+  pagesAutorisees: boolean;
+};
 
 export type ReponseImport =
   | { etat: 'trouvee'; carte: CarteImport; disponible: boolean }
-  | { etat: 'texte'; raison: 'illisible' | 'bloquee' }
+  | { etat: 'texte'; raison: 'illisible' | 'bloquee' | 'plafond' }
   | { etat: 'erreur'; message: string };
 
 /** Les étapes que le panneau montre en bulles pendant la recherche. */
@@ -94,7 +110,7 @@ async function enregistrer(
   admin: Db,
   qui: Qui,
   u: UrlAnnonce,
-  champs: { statut: 'en_attente' | 'lue'; resultat?: Record<string, unknown> | null },
+  champs: { statut: 'lue' | 'echec'; resultat?: Record<string, unknown> | null; erreur?: string },
 ): Promise<{ id: string | null; disponible: boolean }> {
   const { data, error } = await admin
     .from('annonces_imports')
@@ -106,7 +122,8 @@ async function enregistrer(
       id_portail: cleImport(u),
       statut: champs.statut,
       resultat: champs.resultat ?? null,
-      lue_le: champs.statut === 'lue' ? new Date().toISOString() : null,
+      erreur: champs.erreur ?? null,
+      lue_le: new Date().toISOString(),
     })
     .select('id')
     .single();
@@ -116,6 +133,69 @@ async function enregistrer(
     return { id: null, disponible: false };
   }
   return { id: String((data as { id: string }).id), disponible: true };
+}
+
+const SEMAINE_MS = 7 * 86_400_000;
+const HEURE_MS = 3_600_000;
+
+/** La dernière lecture de cette URL, par n'importe quelle agence (cache partagé). */
+async function derniereLecture(
+  admin: Db,
+  u: UrlAnnonce,
+): Promise<{ statut: string; resultat: Record<string, unknown> | null; erreur: string | null; lueLe: number } | null> {
+  const { data, error } = await admin
+    .from('annonces_imports')
+    .select('statut, resultat, erreur, lue_le')
+    .eq('portail', u.portail)
+    .eq('id_portail', cleImport(u))
+    .in('statut', ['lue', 'echec'])
+    .gte('lue_le', new Date(Date.now() - SEMAINE_MS).toISOString())
+    .order('lue_le', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as { statut: string; resultat: Record<string, unknown> | null; erreur: string | null; lue_le: string };
+  return { statut: row.statut, resultat: row.resultat, erreur: row.erreur, lueLe: Date.parse(row.lue_le) };
+}
+
+/** Colonnes `annonces` gardées en base → carte du panneau. */
+export function carteDepuisColonnes(r: Record<string, unknown>, importId: string | null): CarteImport {
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const t = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
+  const confiance = (t(r.confiance) ?? 'incertaine') as CarteImport['confiance'];
+  const photos = Array.isArray(r.photos) ? (r.photos as unknown[]).filter((p): p is string => typeof p === 'string') : [];
+  return {
+    importId,
+    annonceId: null,
+    suivie: false,
+    portail: libellePortail(t(r.portail) ?? 'autre'),
+    url: t(r.url) ?? '',
+    particulier: r.type_vendeur !== 'professionnel',
+    agence: t(r.agence_nom),
+    prix: n(r.prix),
+    surface: n(r.surface),
+    pieces: n(r.pieces),
+    etage: r.etage == null ? null : String(r.etage),
+    dpe: t(r.dpe),
+    confiance,
+    adresse: confiance === 'incertaine' ? null : t(r.adresse),
+    latitude: n(r.latitude),
+    longitude: n(r.longitude),
+    approximative: confiance === 'incertaine',
+    parcelleId: Array.isArray(r.parcelle_ids) ? (t(r.parcelle_ids[0]) ?? null) : null,
+    photo: photos[0] ?? null,
+  };
+}
+
+/** Une lecture à la fois par agent (par instance ; le plafond en base borne le reste). */
+const lecturesEnCours = new Set<string>();
+
+/** Mon assistant n'est appelé que dans la limite de son plafond. */
+function assistantPlafonne(qui: Qui) {
+  return async (texte: string) => {
+    const r = await reserverQuota('lecture_annonce', PLAFONDS_LECTURE_ANNONCE, qui);
+    return r === 'plafond' ? null : extraireAvecAssistant(texte);
+  };
 }
 
 /** Une fiche lue : localisée, gardée en attente d'ajout. */
@@ -154,17 +234,49 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
     fiche = await lireBienici(u.idPortail, u.url);
   }
 
-  // 3. Tout autre site : la page téléchargée, puis lue.
+  // 3. Tout autre site : la page téléchargée (payante), puis lue.
   if (!fiche) {
-    const page = await telechargerPage(u.url);
+    const derniere = await derniereLecture(admin, u);
+    // Déjà lue par une agence : reprise telle quelle, sans nouvel appel.
+    if (derniere?.statut === 'lue' && derniere.resultat && !derniere.resultat.annonce_existante) {
+      const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: derniere.resultat });
+      const carte = carteDepuisColonnes(derniere.resultat, id);
+      onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
+      onEtape({ cle: 'donnees', etat: 'fait', detail: resumeDonnees(carte) });
+      onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
+      return { etat: 'trouvee', carte, disponible };
+    }
+    if (derniere?.statut === 'echec' && Date.now() - derniere.lueLe < HEURE_MS) {
+      onEtape({ cle: 'lecture', etat: 'rate' });
+      if (derniere.erreur === 'disparue') return { etat: 'erreur', message: 'Cette annonce n’est plus en ligne' };
+      return { etat: 'texte', raison: 'bloquee' };
+    }
+    if (!qui.pagesAutorisees) {
+      onEtape({ cle: 'lecture', etat: 'rate' });
+      return { etat: 'texte', raison: 'illisible' };
+    }
+    if (lecturesEnCours.has(qui.profileId)) return { etat: 'erreur', message: 'Une recherche est déjà en cours' };
+    const reservation = await reserverQuota('lecture_page', plafondsLecturePage(), qui);
+    if (reservation !== 'ok') {
+      onEtape({ cle: 'lecture', etat: 'rate' });
+      return { etat: 'texte', raison: reservation === 'plafond' ? 'plafond' : 'illisible' };
+    }
+    lecturesEnCours.add(qui.profileId);
+    let page: Awaited<ReturnType<typeof telechargerPage>>;
+    try {
+      page = await telechargerPage(u.url);
+    } finally {
+      lecturesEnCours.delete(qui.profileId);
+    }
     if (!page.ok) {
       onEtape({ cle: 'lecture', etat: 'rate' });
+      if (page.raison !== 'sans_cle') await enregistrer(admin, qui, u, { statut: 'echec', erreur: page.raison });
       if (page.raison === 'disparue') return { etat: 'erreur', message: 'Cette annonce n’est plus en ligne' };
       return { etat: 'texte', raison: page.raison === 'sans_cle' ? 'illisible' : 'bloquee' };
     }
     onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
     onEtape({ cle: 'donnees', etat: 'en_cours' });
-    fiche = await ficheDepuisPage(u, page.html);
+    fiche = await ficheDepuisPage(u, page.html, assistantPlafonne(qui));
     if (!fiche) {
       onEtape({ cle: 'donnees', etat: 'rate' });
       return { etat: 'texte', raison: 'bloquee' };
@@ -176,6 +288,9 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
 }
 
 export async function importerTexte(admin: Db, qui: Qui, u: UrlAnnonce, texte: string, onEtape: SurEtape = rien): Promise<ReponseImport> {
+  if ((await reserverQuota('lecture_annonce', PLAFONDS_LECTURE_ANNONCE, qui)) === 'plafond') {
+    return { etat: 'erreur', message: 'Limite du jour atteinte pour la lecture d’annonces. Elle se rouvre demain.' };
+  }
   onEtape({ cle: 'donnees', etat: 'en_cours' });
   const fiche = await ficheDepuisTexte(u, texte);
   if (!fiche) {
