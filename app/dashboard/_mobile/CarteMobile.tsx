@@ -30,7 +30,6 @@ import {
   showParcellesPlan,
   withCadastreLayerToggled,
   withCadastreMenuToggled,
-  withAnnoncesMenuToggled,
   withDpeAgeSpan,
   type CadastreLayerId,
   type MapLayerState,
@@ -914,13 +913,6 @@ export default function CarteMobile({
             layers={layers}
             compact
             qui={annoncesQui}
-            onToggleMenu={() =>
-              setLayers((prev) => {
-                const next = withAnnoncesMenuToggled(prev);
-                persistMapLayers(next);
-                return next;
-              })
-            }
             onChange={(patch) =>
               setLayers((prev) => {
                 const next = { ...prev, ...patch };

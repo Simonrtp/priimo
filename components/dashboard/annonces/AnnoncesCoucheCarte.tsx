@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Marker, useMap } from 'react-map-gl';
-import { ArrowDown, ChevronDown } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
 import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 import {
@@ -89,20 +89,17 @@ function Rubrique({ titre, children }: { titre: string; children: ReactNode }) {
 export function AnnoncesLayerControls({
   layers,
   onChange,
-  onToggleMenu,
   compact = false,
   qui,
 }: {
   layers: MapLayerState;
   onChange: (patch: Partial<MapLayerState>) => void;
-  onToggleMenu: () => void;
   compact?: boolean;
   /** Pour compter comme la carte (« Mon secteur »). */
   qui?: Qui;
 }) {
-  const open = layers.annoncesMenuOpen;
   const actif = coucheAnnoncesActive(layers);
-  const { annonces, pret } = useAnnoncesSecteur(actif || open);
+  const { annonces, pret } = useAnnoncesSecteur(true);
   const zones = qui?.zones;
   const directeur = qui?.directeur ?? false;
   const profileId = qui?.profileId ?? '';
@@ -112,46 +109,30 @@ export function AnnoncesLayerControls({
     () => bilanAnnonces(annonces, layers, zones ?? [], { directeur, profileId, zoneCadree, zonesCadrees }),
     [annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees],
   );
-  const row = compact ? 'min-h-[44px] px-1' : 'min-h-[40px] px-2.5 py-1.5';
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
   // Toucher un réglage montre la couche : sinon on règle dans le vide.
   const regler = (patch: Partial<MapLayerState>) => onChange({ ...patch, annonces: true });
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
-      <div className={`flex w-full ${row} items-center gap-3 rounded-[14px]`}>
-        <Switch
-          checked={actif}
-          onChange={(next) => onChange({ annonces: next })}
-          aria-label={actif ? 'Masquer les annonces' : 'Afficher les annonces'}
-        />
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-label={open ? 'Replier les réglages des annonces' : 'Déplier les réglages des annonces'}
-          onClick={onToggleMenu}
-          className="-my-1.5 flex min-h-[40px] min-w-0 flex-1 items-center gap-2 rounded-xl text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]/40"
-        >
-          <span className={`min-w-0 flex-1 ${textSize} font-medium ${actif ? 'text-text-strong' : 'text-text-muted'}`}>
-            Annonces
-          </span>
+      <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
+        <p className={`${textSize} font-medium text-text-strong`}>Annonces</p>
+        <ImportAnnonce compact={compact} onAfficher={() => onChange({ annonces: true })} />
+        <p className="text-pretty text-[12px] leading-snug text-text-muted">
+          N’importe quelle plateforme : l’annonce s’affiche.
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <span className={`${textSize} text-text-strong`}>Sur la carte</span>
           {actif && pret ? (
-            <span className="tabular-nums text-[12.5px] text-text-subtle">{bilan.surCarte}</span>
+            <span className="ml-auto tabular-nums text-[12.5px] text-text-subtle">{bilan.surCarte}</span>
           ) : null}
-          <ChevronDown
-            size={16}
-            strokeWidth={2}
-            aria-hidden
-            className={`shrink-0 text-text-subtle transition-transform duration-fluid-subtle ${open ? 'rotate-180' : ''}`}
+          <Switch
+            checked={actif}
+            onChange={(next) => onChange({ annonces: next })}
+            aria-label={actif ? 'Masquer les annonces' : 'Afficher les annonces'}
           />
-        </button>
-      </div>
-      <div className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`} aria-hidden={!open}>
-        <div>
-          <div className={`flex flex-col gap-3 pb-3 ${compact ? 'px-1' : 'px-2.5'}`}>
-            <ImportAnnonce compact={compact} />
-          </div>
-          <div className={`flex flex-col gap-3 pb-3 ${compact ? 'pl-3 pr-1' : 'pl-6 pr-2.5'} ${actif ? '' : 'opacity-60'}`}>
+        </div>
+        <div className={`flex flex-col gap-3 ${actif ? '' : 'opacity-60'}`}>
             <Rubrique titre="Vendeur">
               <Choix
                 label="Vendeur"
@@ -176,7 +157,6 @@ export function AnnoncesLayerControls({
                 {bilan.sansPosition > 1 ? 's' : ''} : hors carte pour l’instant.
               </p>
             ) : null}
-          </div>
         </div>
       </div>
     </li>

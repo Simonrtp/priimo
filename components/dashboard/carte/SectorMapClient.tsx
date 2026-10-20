@@ -38,7 +38,6 @@ import {
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { AnnoncesLayerControls, AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
-import { withAnnoncesMenuToggled } from '@/lib/carte/layers';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
@@ -107,7 +106,6 @@ function LayersPanel({
   onChangeDpeAge,
   onToggleCadastreMenu,
   onChangeAnnonces,
-  onToggleAnnoncesMenu,
   mapZoom,
   counts,
   assignedTo,
@@ -133,7 +131,6 @@ function LayersPanel({
   onChangeDpeAge: (from: number, to: number) => void;
   onToggleCadastreMenu: () => void;
   onChangeAnnonces: (patch: Partial<MapLayerState>) => void;
-  onToggleAnnoncesMenu: () => void;
   mapZoom: number | null;
   counts: Record<MapPointKind, number>;
   assignedTo: string;
@@ -207,12 +204,7 @@ function LayersPanel({
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
           />
-          <AnnoncesLayerControls
-            layers={layers}
-            onChange={onChangeAnnonces}
-            onToggleMenu={onToggleAnnoncesMenu}
-            qui={annoncesQui}
-          />
+          <AnnoncesLayerControls layers={layers} onChange={onChangeAnnonces} qui={annoncesQui} />
           <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} tous={tousSecteurs} />
         </ul>
 
@@ -479,10 +471,6 @@ export default function SectorMapClient({
     setAnnonceOuverte(null);
   }
 
-  function toggleAnnoncesMenu() {
-    setLayers((prev) => withAnnoncesMenuToggled(prev));
-  }
-
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
 
   function choisirEmprise(next: MapEmprise) {
@@ -564,7 +552,6 @@ export default function SectorMapClient({
       onChangeDpeAge={changeDpeAge}
       onToggleCadastreMenu={toggleCadastreMenu}
       onChangeAnnonces={changeAnnonces}
-      onToggleAnnoncesMenu={toggleAnnoncesMenu}
       mapZoom={mapZoom}
       counts={counts}
       assignedTo={assignedTo}
@@ -692,8 +679,7 @@ export default function SectorMapClient({
                 onToggleCadastreOverlay={toggleCadastreOverlay}
                 onChangeDpeAge={changeDpeAge}
                 onToggleCadastreMenu={toggleCadastreMenu}
-      onChangeAnnonces={changeAnnonces}
-      onToggleAnnoncesMenu={toggleAnnoncesMenu}
+                onChangeAnnonces={changeAnnonces}
                 mapZoom={mapZoom}
                 counts={counts}
                 assignedTo={assignedTo}

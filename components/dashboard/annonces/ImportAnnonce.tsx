@@ -97,11 +97,13 @@ function Carte({
   carte,
   disponible,
   onAjoutee,
+  onAfficher,
   onFermer,
 }: {
   carte: CarteImport;
   disponible: boolean;
   onAjoutee: (annonceId: string) => void;
+  onAfficher: () => void;
   onFermer: () => void;
 }) {
   const [ajout, setAjout] = useState(false);
@@ -129,6 +131,7 @@ function Carte({
       return;
     }
     rafraichirAnnoncesSecteur();
+    onAfficher();
     onAjoutee(json.annonceId);
   }
 
@@ -216,7 +219,14 @@ function Carte({
 }
 
 /** Le champ URL du panneau Annonces : coller, et l'annonce apparaît sur la carte. */
-export default function ImportAnnonce({ compact = false }: { compact?: boolean }) {
+export default function ImportAnnonce({
+  compact = false,
+  onAfficher,
+}: {
+  compact?: boolean;
+  /** L'annonce ajoutée doit être visible : la couche s'allume. */
+  onAfficher?: () => void;
+}) {
   const [url, setUrl] = useState('');
   const [texte, setTexte] = useState('');
   const [etat, setEtat] = useState<Etat>({ k: 'vide' });
@@ -241,6 +251,7 @@ export default function ImportAnnonce({ compact = false }: { compact?: boolean }
     if (r.etat === 'trouvee') {
       setEtat({ k: 'trouvee', carte: r.carte, disponible: r.disponible });
       definirAnnonceImportee(r.carte);
+      if (r.carte.annonceId) onAfficher?.();
     } else if (r.etat === 'texte') {
       setEtat({ k: 'texte', raison: r.raison });
     } else {
@@ -270,7 +281,7 @@ export default function ImportAnnonce({ compact = false }: { compact?: boolean }
 
   return (
     <div className="flex flex-col gap-2">
-      <label className={`flex w-full items-center overflow-hidden rounded-full bg-bg-subtle ${compact ? 'h-11' : 'h-[34px]'}`}>
+      <label className={`flex w-full items-center overflow-hidden rounded-full bg-white ${compact ? 'h-11' : 'h-[34px]'}`}>
         <span className={`flex shrink-0 items-center justify-center text-text-muted ${compact ? 'size-11' : 'size-[34px]'}`}>
           <Link2 size={16} strokeWidth={2.2} aria-hidden />
         </span>
@@ -348,6 +359,7 @@ export default function ImportAnnonce({ compact = false }: { compact?: boolean }
         <Carte
           carte={etat.carte}
           disponible={etat.disponible}
+          onAfficher={() => onAfficher?.()}
           onAjoutee={(annonceId) => {
             const carte = { ...etat.carte, annonceId };
             setEtat({ k: 'trouvee', carte, disponible: etat.disponible });
