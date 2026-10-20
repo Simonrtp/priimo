@@ -9,6 +9,8 @@ export type CarteImport = {
   annonceId: string | null;
   suivie: boolean;
   portail: string;
+  /** Clé du portail (seloger, leboncoin…) : son logo. */
+  portailCle: string;
   url: string;
   particulier: boolean;
   agence: string | null;
@@ -35,6 +37,7 @@ export function carteDepuisFiche(
   return {
     ...ids,
     portail: libellePortail(fiche.portail),
+    portailCle: fiche.portail,
     url: fiche.url,
     particulier: fiche.typeVendeur === 'particulier',
     agence: fiche.agenceNom,
@@ -58,6 +61,7 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     importId: null,
     ...ids,
     portail: libellePortail(a.portail),
+    portailCle: a.portail,
     url: a.url,
     particulier: a.typeVendeur === 'particulier',
     agence: a.agenceNom,

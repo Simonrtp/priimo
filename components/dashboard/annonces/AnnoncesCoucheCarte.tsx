@@ -13,6 +13,7 @@ import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
 import type { Zone } from '@/lib/zones/types';
 import ImportAnnonce from './ImportAnnonce';
 import PointImport from './PointImport';
+import { useAnnonceImportee } from '@/lib/annonces/import/store';
 
 type Qui = {
   zones: readonly Zone[];
@@ -207,23 +208,30 @@ export function AnnoncesMarqueurs({
   const actif = coucheAnnoncesActive(layers);
   const { annonces } = useAnnoncesSecteur(actif);
   const emprise = useEmprise();
+  // L'annonce qu'on vient d'ajouter reste sur la carte sous son propre repère : pas de doublon.
+  const ajouteeId = useAnnonceImportee()?.annonceId ?? null;
 
   const groupes = useMemo(() => {
     if (!actif) return [];
     const tous = regrouperAnnonces(
       filtrerAnnonces(annonces, layers, zones, { directeur, profileId, zoneCadree, zonesCadrees }),
-    ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude));
+    ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude) && !g.annonces.some((a) => a.id === ajouteeId));
     const visibles = tous.length > MAX_PASTILLES ? tous.filter((g) => dansEmprise(g.principale, emprise)) : tous;
     // Les particuliers par-dessus les agences, et gardés en priorité.
     return visibles
       .sort((x, y) => Number(x.principale.typeVendeur === 'particulier') - Number(y.principale.typeVendeur === 'particulier'))
       .slice(-MAX_PASTILLES);
-  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise]);
+  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise, ajouteeId]);
 
-  if (!actif) return <PointImport />;
+  const ouvrirAjoutee = (id: string) => {
+    const g = regrouperAnnonces(annonces).find((x) => x.annonces.some((a) => a.id === id));
+    if (g) onChoisir(g.principale, g.annonces);
+  };
+
+  if (!actif) return <PointImport onOuvrir={ouvrirAjoutee} />;
   return (
     <>
-      <PointImport />
+      <PointImport onOuvrir={ouvrirAjoutee} />
       {groupes.map((g) => (
         <Marker
           key={g.cle}

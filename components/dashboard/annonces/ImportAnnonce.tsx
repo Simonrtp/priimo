@@ -1,10 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Link2, Loader2, MapPin, Sparkles, X } from 'lucide-react';
-import { markerBadgeColor } from '@/lib/carte/colors';
-import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
 import { notifyError } from '@/lib/notify';
+import { LOGO_PORTAIL } from '@/lib/annonces/logos';
 import type { CarteImport } from '@/lib/annonces/import/carte';
 import type { LigneFlux } from '@/lib/annonces/import/flux';
 import type { EtapeImport, ReponseImport } from '@/lib/annonces/import/serveur';
@@ -13,17 +12,11 @@ import { rafraichirAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 
 type Etat =
   | { k: 'vide' }
-  | { k: 'travail' }
-  /** La recherche s'arrête : les bulles restent, la dernière dit pourquoi. */
+  /** `fini` : la réponse est arrivée, la barre file à 100 % avant la carte. */
+  | { k: 'travail'; fini: boolean }
+  /** La recherche s'arrête : une phrase dit pourquoi. */
   | { k: 'echec'; message: string }
   | { k: 'trouvee'; carte: CarteImport; disponible: boolean };
-
-const ORDRE: EtapeImport['cle'][] = ['lecture', 'donnees', 'adresse'];
-const LIBELLES: Record<EtapeImport['cle'], string> = {
-  lecture: 'Lecture de l’annonce',
-  donnees: 'Prix, surface, DPE',
-  adresse: 'Recherche de l’adresse',
-};
 
 const PILULE =
   'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold transition-colors duration-fluid-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] disabled:opacity-60';
@@ -58,45 +51,81 @@ async function suivreFlux(res: Response, surEtape: (e: EtapeImport) => void): Pr
   return resultat ?? { etat: 'erreur', message: 'Recherche interrompue' };
 }
 
-function Etapes({ etapes, message }: { etapes: Partial<Record<EtapeImport['cle'], EtapeImport>>; message?: string }) {
-  const visibles = ORDRE.filter((cle) => etapes[cle]);
-  if (!visibles.length && !message) return null;
+type EtapesRecues = Partial<Record<EtapeImport['cle'], EtapeImport>>;
+
+/** Où en est la recherche : le plancher qu'elle a atteint et le plafond qu'elle ne dépasse pas avant l'étape suivante. */
+function paliers(etapes: EtapesRecues): { plancher: number; plafond: number; libelle: string; ia: boolean } {
+  const { lecture, donnees, adresse } = etapes;
+  if (adresse?.etat === 'fait' || adresse?.etat === 'rate') return { plancher: 99, plafond: 99, libelle: 'Terminé', ia: false };
+  if (adresse) return { plancher: 88, plafond: 97, libelle: 'Recherche de l’adresse', ia: false };
+  if (donnees?.etat === 'fait') return { plancher: 86, plafond: 97, libelle: 'Recherche de l’adresse', ia: false };
+  if (donnees?.ia) return { plancher: 62, plafond: 90, libelle: 'Mon assistant lit l’annonce', ia: true };
+  if (donnees) return { plancher: 60, plafond: 85, libelle: 'Lecture des données', ia: false };
+  if (lecture?.etat === 'fait') return { plancher: 55, plafond: 82, libelle: 'Lecture des données', ia: false };
+  return { plancher: 0, plafond: 52, libelle: 'Lecture de l’annonce', ia: false };
+}
+
+/**
+ * Barre de progression : fine, un seul trait. Le serveur n'annonce que des
+ * étapes (de 3 à 60 s selon le site) : le pourcentage glisse en continu vers
+ * le plafond de l'étape en cours, saute au plancher quand une étape finit, et
+ * ne recule jamais. `fini` l'emmène à 100 %.
+ */
+function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) {
+  const { plancher, plafond, libelle, ia } = paliers(etapes);
+  const cible = useRef({ plancher, plafond, fini });
+  useEffect(() => {
+    cible.current = { plancher, plafond, fini };
+  });
+  const [pct, setPct] = useState(0);
+
+  useEffect(() => {
+    let valeur = 0;
+    let dernier = performance.now();
+    let image = 0;
+    const pas = (maintenant: number) => {
+      const dt = Math.min(64, maintenant - dernier);
+      dernier = maintenant;
+      const { plancher: bas, plafond: haut, fini: termine } = cible.current;
+      if (termine) valeur += (100 - valeur) * Math.min(1, dt / 90);
+      else {
+        if (valeur < bas) valeur += (bas - valeur) * Math.min(1, dt / 160);
+        // Vers le plafond, de plus en plus lentement : jamais figé, jamais à court.
+        else valeur += (haut - valeur) * Math.min(1, dt / 5000);
+      }
+      setPct(Math.min(100, valeur));
+      image = requestAnimationFrame(pas);
+    };
+    image = requestAnimationFrame(pas);
+    return () => cancelAnimationFrame(image);
+  }, []);
+
+  const entier = Math.min(100, Math.round(pct));
   return (
-    <ol className="flex flex-col gap-1.5" aria-live="polite">
-      {visibles.map((cle) => {
-        const e = etapes[cle]!;
-        const assistant = Boolean(e.ia);
-        return (
-          <li
-            key={cle}
-            className={`flex w-fit max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-[12.5px] shadow-clay-inset motion-safe:animate-ficheSurgit ${
-              assistant ? 'bg-ia-50 text-ia-700' : 'bg-white text-text-strong'
-            }`}
-          >
-            {e.etat === 'en_cours' ? (
-              assistant ? (
-                <Sparkles size={13} strokeWidth={2.2} aria-hidden className="shrink-0 text-ia motion-safe:animate-iaRespire" />
-              ) : (
-                <Loader2 size={13} aria-hidden className="shrink-0 animate-spin text-text-subtle" />
-              )
-            ) : e.etat === 'fait' ? (
-              <Check size={13} strokeWidth={2.6} aria-hidden className={`shrink-0 ${assistant ? 'text-ia' : 'text-accent'}`} />
-            ) : (
-              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-text-subtle" />
-            )}
-            <span className={`truncate ${e.etat === 'rate' ? 'text-text-muted' : ''}`}>
-              {e.etat === 'en_cours' || !e.detail ? (assistant && e.etat === 'en_cours' ? 'Mon assistant lit l’annonce' : LIBELLES[cle]) : e.detail}
-            </span>
-          </li>
-        );
-      })}
-      {message ? (
-        <li className="flex w-fit max-w-full items-start gap-2 rounded-[14px] bg-white px-3 py-1.5 text-[12.5px] leading-snug text-text-muted shadow-clay-inset motion-safe:animate-ficheSurgit">
-          <span aria-hidden className="mt-[6px] size-1.5 shrink-0 rounded-full bg-text-subtle" />
-          <span className="min-w-0">{message}</span>
-        </li>
-      ) : null}
-    </ol>
+    <div className="motion-safe:animate-ficheSurgit" role="progressbar" aria-label="Lecture de l’annonce" aria-valuemin={0} aria-valuemax={100} aria-valuenow={entier}>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.07]">
+        <div
+          className={`h-full rounded-full transition-colors duration-500 ${ia ? 'bg-ia' : 'bg-accent'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1.5 flex items-center justify-between gap-2 text-[12px]">
+        <span className={`flex items-center gap-1 truncate ${ia ? 'text-ia-700' : 'text-text-muted'}`}>
+          {ia ? <Sparkles size={12} strokeWidth={2.2} aria-hidden className="shrink-0 text-ia motion-safe:animate-iaRespire" /> : null}
+          <span className="truncate">{fini ? 'Terminé' : libelle}</span>
+        </span>
+        <span className="shrink-0 font-semibold tabular-nums text-text-strong">{entier} %</span>
+      </p>
+    </div>
+  );
+}
+
+function Echec({ message }: { message: string }) {
+  return (
+    <p className="flex items-start gap-2 rounded-[14px] bg-white px-3 py-2 text-[12.5px] leading-snug text-text-muted shadow-clay-inset motion-safe:animate-ficheSurgit">
+      <span aria-hidden className="mt-[6px] size-1.5 shrink-0 rounded-full bg-text-subtle" />
+      <span className="min-w-0">{message}</span>
+    </p>
   );
 }
 
@@ -114,14 +143,14 @@ function Carte({
   onFermer: () => void;
 }) {
   const [ajout, setAjout] = useState(false);
-  const dpe = parseDpeLetter(carte.dpe);
   const details = [
     carte.pieces != null ? `${carte.pieces} p.` : null,
     carte.surface != null ? `${new Intl.NumberFormat('fr-FR').format(carte.surface)} m²` : null,
-    carte.etage == null || carte.etage === '' ? null : carte.etage === '0' ? 'RDC' : `${carte.etage}e`,
   ]
     .filter(Boolean)
     .join(' · ');
+  const rue = carte.approximative ? 'Secteur approximatif' : (carte.adresse ?? '').replace(/\s\d{5}\s.*$/, '');
+  const logo = LOGO_PORTAIL[carte.portailCle];
 
   async function ajouter() {
     if (!carte.importId) return;
@@ -143,60 +172,37 @@ function Carte({
   }
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[14px] bg-white p-2.5 shadow-clay-inset motion-safe:animate-ficheSurgit">
-      <div className="flex items-start gap-2.5">
+    <div className="flex flex-col gap-3 rounded-[16px] bg-white p-3 shadow-clay-inset motion-safe:animate-ficheSurgit">
+      <div className="flex items-center gap-3">
         {carte.photo ? (
           // Photos des portails : URL externes, sans optimisation Next.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={carte.photo} alt="" referrerPolicy="no-referrer" className="size-14 shrink-0 rounded-[10px] object-cover" />
+          <img src={carte.photo} alt="" referrerPolicy="no-referrer" className="size-12 shrink-0 rounded-[12px] object-cover" />
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold tabular-nums leading-tight text-text-strong">
+          <p className="text-[17px] font-semibold tabular-nums leading-tight text-text-strong">
             {carte.prix != null ? euros(carte.prix) : 'Prix non affiché'}
           </p>
-          {details || dpe ? (
-            <p className="mt-0.5 flex items-center gap-1.5 text-[12.5px] tabular-nums text-text-muted">
-              {details}
-              {dpe ? (
-                <span
-                  className="inline-flex size-[18px] items-center justify-center rounded-full text-[10.5px] font-bold"
-                  style={{ backgroundColor: dpeFillColor(dpe), color: markerBadgeColor(dpeFillColor(dpe)) }}
-                  aria-label={`Classe ${dpe}`}
-                >
-                  {dpe}
-                </span>
-              ) : null}
-            </p>
-          ) : null}
-          <p className="mt-1 flex items-center gap-1 text-[12px]">
-            <span
-              className={`max-w-[60%] truncate rounded-full px-1.5 py-px text-[11px] font-semibold ${
-                carte.particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
-              }`}
-            >
-              {carte.particulier ? 'Particulier' : carte.agence || 'Agence'}
-            </span>
-            <span className="truncate text-text-subtle">{carte.portail}</span>
-          </p>
+          {details ? <p className="mt-0.5 text-[12.5px] tabular-nums text-text-muted">{details}</p> : null}
         </div>
         <button
           type="button"
           onClick={onFermer}
           aria-label="Effacer"
-          className="-mr-1 -mt-1 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1A2A56]"
+          className="-mr-1 flex size-7 shrink-0 items-center justify-center self-start rounded-full text-text-subtle hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1A2A56]"
         >
           <X size={15} strokeWidth={2} aria-hidden />
         </button>
       </div>
 
-      <p className={`flex items-start gap-1.5 text-[12.5px] leading-snug ${carte.approximative ? 'text-text-muted' : 'text-text-strong'}`}>
-        <MapPin size={14} strokeWidth={2} aria-hidden className={`mt-px shrink-0 ${carte.approximative ? 'text-text-subtle' : 'text-accent'}`} />
-        <span className="min-w-0">
-          {carte.approximative ? (carte.latitude != null ? 'Secteur approximatif' : 'Adresse introuvable') : carte.adresse}
-        </span>
-      </p>
+      {rue ? (
+        <p className={`flex items-center gap-1.5 text-[13px] ${carte.approximative ? 'text-text-muted' : 'text-text-strong'}`}>
+          <MapPin size={14} strokeWidth={2} aria-hidden className={`shrink-0 ${carte.approximative ? 'text-text-subtle' : 'text-accent'}`} />
+          <span className="min-w-0 truncate">{rue}</span>
+        </p>
+      ) : null}
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         {disponible ? (
           carte.annonceId ? (
             <span className={`${PILULE} bg-black/[0.05] text-text-muted`}>
@@ -216,9 +222,15 @@ function Carte({
           rel="noopener noreferrer"
           aria-label={`Voir l’annonce sur ${carte.portail}`}
           title={`Voir l’annonce sur ${carte.portail}`}
-          className={`${PILULE} ml-auto px-2 text-text-subtle hover:bg-black/[0.05] hover:text-text`}
+          className="ml-auto flex h-8 items-center gap-1.5 rounded-full px-2 text-text-subtle hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1A2A56]"
         >
-          <ArrowUpRight size={15} strokeWidth={2} aria-hidden />
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={carte.portail} className="h-4 w-auto max-w-[5.5rem] object-contain" />
+          ) : (
+            <span className="text-[12px] font-medium">{carte.portail}</span>
+          )}
+          <ArrowUpRight size={14} strokeWidth={2} aria-hidden />
         </a>
       </div>
     </div>
@@ -244,7 +256,7 @@ export default function ImportAnnonce({
     const tour = ++enCours.current;
     definirAnnonceImportee(null);
     setEtapes({});
-    setEtat({ k: 'travail' });
+    setEtat({ k: 'travail', fini: false });
     const res = await fetch('/api/dashboard/annonces/importer', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -252,12 +264,15 @@ export default function ImportAnnonce({
     }).catch(() => null);
     const r: ReponseImport = res
       ? await suivreFlux(res, (e) => {
-          // Une bulle passée au bleu IA le reste jusqu'au bout.
+          // Une étape passée au bleu IA le reste jusqu'au bout.
           if (tour === enCours.current) setEtapes((prev) => ({ ...prev, [e.cle]: { ...e, ia: e.ia || prev[e.cle]?.ia } }));
         })
       : { etat: 'erreur', message: 'Connexion perdue : réessayez' };
     if (tour !== enCours.current) return;
     if (r.etat === 'trouvee') {
+      setEtat({ k: 'travail', fini: true });
+      await new Promise((ok) => setTimeout(ok, 520));
+      if (tour !== enCours.current) return;
       setEtat({ k: 'trouvee', carte: r.carte, disponible: r.disponible });
       definirAnnonceImportee(r.carte);
       if (r.carte.annonceId) onAfficher?.();
@@ -281,8 +296,6 @@ export default function ImportAnnonce({
     setEtat({ k: 'vide' });
     definirAnnonceImportee(null);
   }
-
-  const travail = etat.k === 'travail';
 
   return (
     <div className="flex flex-col gap-2">
@@ -316,9 +329,7 @@ export default function ImportAnnonce({
             compact ? 'text-[14px]' : 'text-[13.5px]'
           }`}
         />
-        {travail ? (
-          <Loader2 size={16} className="mr-2.5 shrink-0 animate-spin text-text-subtle" aria-label="Recherche en cours" />
-        ) : url ? (
+        {url ? (
           <button
             type="button"
             onClick={effacer}
@@ -330,8 +341,8 @@ export default function ImportAnnonce({
         ) : null}
       </label>
 
-      {travail ? <Etapes etapes={etapes} /> : null}
-      {etat.k === 'echec' ? <Etapes etapes={etapes} message={etat.message} /> : null}
+      {etat.k === 'travail' ? <Progression etapes={etapes} fini={etat.fini} /> : null}
+      {etat.k === 'echec' ? <Echec message={etat.message} /> : null}
 
       {etat.k === 'trouvee' ? (
         <Carte

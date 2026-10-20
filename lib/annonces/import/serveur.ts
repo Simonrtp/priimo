@@ -181,6 +181,7 @@ export function carteDepuisColonnes(r: Record<string, unknown>, importId: string
     annonceId: null,
     suivie: false,
     portail: libellePortail(t(r.portail) ?? 'autre'),
+    portailCle: t(r.portail) ?? 'autre',
     url: t(r.url) ?? '',
     particulier: r.type_vendeur !== 'professionnel',
     agence: t(r.agence_nom),
