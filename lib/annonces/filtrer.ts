@@ -1,6 +1,6 @@
 import type { MapLayerState } from '@/lib/carte/layers';
 import type { Zone } from '@/lib/zones/types';
-import { baisseCumulee, joursEnLigne, regrouperAnnonces } from './presenter';
+import { regrouperAnnonces } from './presenter';
 import { dansLaZone, dansMonSecteur } from './secteur';
 import type { Annonce, GroupeAnnonce } from './types';
 
@@ -18,36 +18,14 @@ type Qui = {
   zonesCadrees?: readonly Zone[] | null;
 };
 
-/** Tous les filtres sauf « Mon secteur ». */
-function passeFiltres(a: Annonce, r: ReglagesAnnonces, maintenant: Date): boolean {
-  if (r.annoncesVendeur !== 'tous' && a.typeVendeur !== r.annoncesVendeur) return false;
-  switch (r.annoncesStatut) {
-    case 'retirees':
-      if (a.statut !== 'retiree') return false;
-      break;
-    case 'baisse':
-      if (a.statut !== 'active' || baisseCumulee(a) == null) return false;
-      break;
-    case 'nouvelles': {
-      if (a.statut !== 'active') return false;
-      const jours = joursEnLigne(a, maintenant);
-      if (jours == null || jours > JOURS_NOUVELLE) return false;
-      break;
-    }
-    default:
-      if (a.statut !== 'active') return false;
-  }
-  return true;
-}
-
 export function filtrerAnnonces(
   annonces: readonly Annonce[],
-  reglages: ReglagesAnnonces,
+  _reglages: ReglagesAnnonces,
   _zones: readonly Zone[],
   qui: Qui,
-  maintenant = new Date(),
+  _maintenant = new Date(),
 ): Annonce[] {
-  return annonces.filter((a) => retenue(a, reglages, qui, maintenant));
+  return annonces.filter((a) => dansLeCadre(a, qui));
 }
 
 function dansLeCadre(a: Annonce, qui: Qui): boolean {
@@ -56,16 +34,6 @@ function dansLeCadre(a: Annonce, qui: Qui): boolean {
     return qui.zonesCadrees.some((zone) => dansLaZone(a, zone));
   }
   return true;
-}
-
-function retenue(
-  a: Annonce,
-  reglages: ReglagesAnnonces,
-  qui: Qui,
-  maintenant: Date,
-): boolean {
-  if (!passeFiltres(a, reglages, maintenant)) return false;
-  return dansLeCadre(a, qui);
 }
 
 function placee(g: GroupeAnnonce): boolean {
@@ -86,12 +54,12 @@ export type BilanAnnonces = {
 /** Les compteurs du panneau, calculés sur les mêmes règles que la carte. */
 export function bilanAnnonces(
   annonces: readonly Annonce[],
-  reglages: ReglagesAnnonces,
+  _reglages: ReglagesAnnonces,
   zones: readonly Zone[],
   qui: Qui,
-  maintenant = new Date(),
+  _maintenant = new Date(),
 ): BilanAnnonces {
-  const base = annonces.filter((a) => passeFiltres(a, reglages, maintenant));
+  const base = annonces;
   const secteur = base.filter((a) => dansMonSecteur(a, zones, qui));
   const cadre =
     qui.zoneCadree || (qui.zonesCadrees && qui.zonesCadrees.length > 0)

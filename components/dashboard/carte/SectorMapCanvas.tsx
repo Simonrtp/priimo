@@ -6,7 +6,6 @@ import './carte.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { GesteContourCalque, useGesteContour } from '@/components/dashboard/carte/geste-contour';
-import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
 import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
@@ -14,7 +13,8 @@ import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
-import PinIcone from '@/components/dashboard/carte/PinIcone';
+import EpinglesCalque, { type Epingle } from '@/components/dashboard/carte/EpinglesCalque';
+import { epingleSous } from '@/lib/carte/epingles';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { isUsableCoord, toGeoCoord } from '@/lib/carte/coords';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
@@ -42,7 +42,6 @@ import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
 const VIEWPORT_SETTLE_MS = 320;
-const MARKERS_GARDES_PENDANT_GESTE = 180;
 
 function boundsToViewport(map: MapRef): MapViewport | null {
   const b = map.getBounds();
@@ -143,11 +142,7 @@ export default function SectorMapCanvas({
   const mapRef = useRef<MapRef | null>(null);
   const geste = useGesteContour(Boolean(dessin), mapRef, (polygone) => dessin?.onContour(polygone));
   const fallback = toGeoCoord(center.latitude, center.longitude);
-  const [hoveredBanId, setHoveredBanId] = useState<string | null>(null);
   const [styleReady, setStyleReady] = useState(false);
-  /** Pendant zoom/pan : on cache les pins HTML (coûteux à chaque frame Mapbox). */
-  const [mapGesturing, setMapGesturing] = useState(false);
-  const gestureTimer = useRef<number | null>(null);
   const viewportTimer = useRef<number | null>(null);
   useCanvasAJour(mapRef, styleReady);
 
@@ -170,6 +165,38 @@ export default function SectorMapCanvas({
     cadastreLayers.cadastreVentes,
     cadastreLayers.cadastreCopro,
   ]);
+
+  // `Map` désigne ici la carte react-map-gl.
+  const parBanId = useMemo(
+    () => new globalThis.Map(buildings.map((b) => [b.banId, b] as const)),
+    [buildings],
+  );
+  const epingles = useMemo<Epingle[]>(
+    () =>
+      showBuildingMarkers
+        ? buildings
+            .filter((b) => isUsableCoord(b.latitude, b.longitude))
+            .map((b) => ({
+              id: b.banId,
+              longitude: b.longitude,
+              latitude: b.latitude,
+              couleur: b.appearance.color,
+              kind: b.appearance.kind,
+              nombre: b.count,
+              enAvant: b.banId === selectedBanId,
+            }))
+        : [],
+    [buildings, selectedBanId, showBuildingMarkers],
+  );
+  // L'épingle ouverte n'a pas de bulle : son volet est déjà là.
+  const apercuEpingle = useCallback(
+    (banId: string) => {
+      if (banId === selectedBanId) return null;
+      const building = parBanId.get(banId);
+      return building ? hoverPreviewFromPoint(building.appearance, building.count) : null;
+    },
+    [parBanId, selectedBanId],
+  );
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -262,7 +289,6 @@ export default function SectorMapCanvas({
 
   useEffect(
     () => () => {
-      if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
       if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
     },
     [],
@@ -315,15 +341,10 @@ export default function SectorMapCanvas({
           if (!cibleActive) fitToPoints(false);
         }}
         onMoveStart={() => {
-          if (gestureTimer.current != null) {
-            window.clearTimeout(gestureTimer.current);
-            gestureTimer.current = null;
-          }
           if (viewportTimer.current != null) {
             window.clearTimeout(viewportTimer.current);
             viewportTimer.current = null;
           }
-          setMapGesturing(true);
         }}
         onMoveEnd={(event) => {
           const b = event.target.getBounds();
@@ -341,14 +362,15 @@ export default function SectorMapCanvas({
               onViewport(next);
             }, VIEWPORT_SETTLE_MS);
           }
-          if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
-          gestureTimer.current = window.setTimeout(() => {
-            gestureTimer.current = null;
-            setMapGesturing(false);
-          }, 120);
         }}
         onClick={(event) => {
           if (dessin) return;
+          const epingle = epingleSous(event.target, event.point);
+          if (epingle) {
+            const building = parBanId.get(epingle);
+            if (building) onSelect(building);
+            return;
+          }
           try {
             if (parcellesEnabled && event.target.getLayer(PARCELLES_FILL_LAYER_ID)) {
               const hits = event.target.queryRenderedFeatures(event.point, {
@@ -444,56 +466,7 @@ export default function SectorMapCanvas({
             <AgencyLocationMarker />
           </Marker>
         ) : null}
-        {showBuildingMarkers &&
-        (!mapGesturing || buildings.length <= MARKERS_GARDES_PENDANT_GESTE)
-          ? buildings.map((building) => {
-          if (!isUsableCoord(building.latitude, building.longitude)) return null;
-          const emphasized = building.banId === selectedBanId;
-          const hovered = building.banId === hoveredBanId;
-          const appearance = building.appearance;
-          const countLabel =
-            building.count > 1 ? `${building.count} fiches à cette adresse` : appearance.title;
-          const tooltipId = `carte-hover-${building.banId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-          return (
-            <Marker
-              key={building.banId}
-              longitude={building.longitude}
-              latitude={building.latitude}
-              anchor="center"
-              style={{ zIndex: emphasized ? 20 : hovered ? 32 : 4 }}
-              onClick={(event) => {
-                event.originalEvent.stopPropagation();
-                onSelect(building);
-              }}
-            >
-              <span
-                className={`priimo-pin-wrap${emphasized ? ' priimo-pin-wrap--open' : ''}`}
-                onMouseEnter={() => setHoveredBanId(building.banId)}
-                onMouseLeave={() => setHoveredBanId((id) => (id === building.banId ? null : id))}
-              >
-                <button
-                  type="button"
-                  aria-label={countLabel}
-                  aria-describedby={tooltipId}
-                  className={`priimo-pin${emphasized ? ' priimo-pin--on' : ''}`}
-                  style={{ background: appearance.color, color: '#fff' }}
-                >
-                  <PinIcone kind={appearance.kind} />
-                </button>
-                {building.count > 1 ? (
-                  <span className="priimo-pin-count" aria-hidden>
-                    {building.count}
-                  </span>
-                ) : null}
-                <MapHoverBubble
-                  id={tooltipId}
-                  preview={hoverPreviewFromPoint(appearance, building.count)}
-                />
-              </span>
-            </Marker>
-          );
-        })
-          : null}
+        <EpinglesCalque epingles={epingles} bordure="#f4efe8" anneau={0.35} apercu={apercuEpingle} />
         <LiveAgentLocationMarker />
       </Map>
     </div>

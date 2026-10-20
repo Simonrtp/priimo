@@ -41,6 +41,7 @@ const SELECT_ANNONCE = [
   'logement_cle',
   'score_localisation',
   'raisons_localisation',
+  'photos',
 ].join(', ');
 
 function raisons(v: unknown): string[] {
@@ -101,6 +102,7 @@ function versAnnonce(row: Record<string, unknown>): Annonce {
     logementCle: typeof row.logement_cle === 'string' ? row.logement_cle : null,
     scoreLocalisation: typeof row.score_localisation === 'number' ? row.score_localisation : null,
     raisonsLocalisation: raisons(row.raisons_localisation),
+    photos: raisons(row.photos).filter((p) => p.startsWith('https://')).slice(0, 24),
   };
 }
 

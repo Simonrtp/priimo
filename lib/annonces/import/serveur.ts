@@ -326,7 +326,6 @@ export async function ajouterImport(admin: Db, qui: Qui, importId: string): Prom
   let annonceId = ligne.annonce_id ?? (typeof ligne.resultat.annonce_existante === 'string' ? ligne.resultat.annonce_existante : null);
   if (!annonceId) {
     const colonnes = { ...ligne.resultat };
-    delete colonnes.photos;
     if (!colonnes.code_postal) return { erreur: 'Code postal inconnu : impossible d’ajouter' };
     const { data: inseree, error: errInsert } = await admin
       .from('annonces')

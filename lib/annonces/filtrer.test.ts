@@ -79,31 +79,16 @@ const ids = (liste: Annonce[]) => liste.map((a) => a.id);
 describe('filtrerAnnonces', () => {
   const particulier = annonce({ id: 'part' });
   const agence = annonce({ id: 'pro', typeVendeur: 'professionnel', agenceNom: 'Agence du Village' });
-  const tout = [particulier, agence];
 
-  it('choisit le vendeur', () => {
-    assert.deepEqual(ids(filtrerAnnonces(tout, reglages(), [], QUI, MAINTENANT)), ['part']);
-    assert.deepEqual(
-      ids(filtrerAnnonces(tout, reglages({ annoncesVendeur: 'professionnel' }), [], QUI, MAINTENANT)),
-      ['pro'],
-    );
-    assert.deepEqual(ids(filtrerAnnonces(tout, reglages({ annoncesVendeur: 'tous' }), [], QUI, MAINTENANT)), [
-      'part',
-      'pro',
-    ]);
-  });
-
-  it('distingue en vente, nouvelles, baisses et retirées', () => {
+  it('garde tous les vendeurs et tous les statuts', () => {
     const nouvelle = annonce({ id: 'neuve', publieeLe: '2026-10-15T08:00:00Z' });
     const baisse = annonce({ id: 'baisse', prix: 380_000 });
     const retiree = annonce({ id: 'partie', statut: 'retiree', retireeLe: '2026-10-10T20:00:00Z' });
-    const liste = [particulier, nouvelle, baisse, retiree];
-    const pour = (annoncesStatut: MapLayerState['annoncesStatut']) =>
-      ids(filtrerAnnonces(liste, reglages({ annoncesStatut }), [], QUI, MAINTENANT));
-    assert.deepEqual(pour('actives'), ['part', 'neuve', 'baisse']);
-    assert.deepEqual(pour('nouvelles'), ['neuve']);
-    assert.deepEqual(pour('baisse'), ['baisse']);
-    assert.deepEqual(pour('retirees'), ['partie']);
+    const liste = [particulier, agence, nouvelle, baisse, retiree];
+    assert.deepEqual(
+      ids(filtrerAnnonces(liste, reglages({ annoncesVendeur: 'particulier', annoncesStatut: 'baisse' }), [], QUI, MAINTENANT)),
+      ['part', 'pro', 'neuve', 'baisse', 'partie'],
+    );
   });
 
   it('le bouton Secteur ne garde que les annonces de ce secteur', () => {

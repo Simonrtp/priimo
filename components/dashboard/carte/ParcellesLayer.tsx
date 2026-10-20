@@ -31,6 +31,7 @@ import {
 import type { CadastreOverlayId, MapLayerState } from '@/lib/carte/layers';
 import { hoverPreviewFromCadastre, hoverPreviewFromVenteParcelle, type HoverPreview } from '@/lib/carte/hover-preview';
 import { cadastreDansEmprises } from '@/lib/carte/emprise';
+import { epingleSous } from '@/lib/carte/epingles';
 import type { Zone } from '@/lib/zones/types';
 import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
 
@@ -442,6 +443,14 @@ export default function ParcellesLayer({
 
     const onMove = (e: MapLayerMouseEvent) => {
       if (map.isMoving() || map.isZooming()) return;
+      // Une épingle CRM couvre la parcelle : c'est elle qu'on survole.
+      if (epingleSous(map, e.point)) {
+        applyHover(null);
+        const canvas = mapCanvas(map);
+        if (canvas) canvas.style.cursor = 'pointer';
+        hideHoverSoon();
+        return;
+      }
       const f = e.features?.[0];
       const parcelleId = parcelleIdOf(f);
       const centre = f ? centroidLngLat(f.geometry) : null;
@@ -490,6 +499,8 @@ export default function ParcellesLayer({
       hideHoverSoon();
     };
     const onClick = (e: MapLayerMouseEvent) => {
+      // Le clic sur une épingle CRM ouvre sa fiche, pas la parcelle dessous.
+      if (epingleSous(map, e.point)) return;
       // Toutes les parcelles sous le curseur (pas seulement la 1ʳᵉ) — évite les
       // clics « morts » quand une feature hors emprise ou un overlay est au-dessus.
       const hits =

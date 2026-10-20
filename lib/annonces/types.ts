@@ -54,6 +54,8 @@ export type Annonce = {
   logementCle: string | null;
   scoreLocalisation: number | null;
   raisonsLocalisation: string[];
+  /** URLs des photos du portail, quand elles ont déjà été lues. */
+  photos?: string[];
 };
 
 export type EvenementAnnonce = {

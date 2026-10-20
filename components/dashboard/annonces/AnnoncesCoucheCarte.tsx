@@ -1,16 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Marker, useMap } from 'react-map-gl';
 import { ArrowDown } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
-import {
-  coucheAnnoncesActive,
-  type AnnoncesStatut,
-  type AnnoncesVendeur,
-  type MapLayerState,
-} from '@/lib/carte/layers';
+import { coucheAnnoncesActive, type MapLayerState } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { bilanAnnonces, filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
 import { baisseCumulee, couleurGroupe, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
@@ -19,19 +13,6 @@ import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
 import type { Zone } from '@/lib/zones/types';
 import ImportAnnonce from './ImportAnnonce';
 import PointImport from './PointImport';
-
-const VENDEURS: readonly { id: AnnoncesVendeur; label: string }[] = [
-  { id: 'particulier', label: 'Particuliers' },
-  { id: 'professionnel', label: 'Agences' },
-  { id: 'tous', label: 'Tous' },
-];
-
-const STATUTS: readonly { id: AnnoncesStatut; label: string }[] = [
-  { id: 'actives', label: 'En vente' },
-  { id: 'nouvelles', label: 'Nouvelles' },
-  { id: 'baisse', label: 'Baisses' },
-  { id: 'retirees', label: 'Retirées' },
-];
 
 type Qui = {
   zones: readonly Zone[];
@@ -42,49 +23,6 @@ type Qui = {
   /** Directeur : tous les secteurs affichés ensemble. */
   zonesCadrees?: readonly Zone[] | null;
 };
-
-function Choix<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  grille = false,
-}: {
-  label: string;
-  value: T;
-  options: readonly { id: T; label: string }[];
-  onChange: (id: T) => void;
-  /** Deux colonnes : quatre choix ne tiennent pas sur une ligne du panneau bureau. */
-  grille?: boolean;
-}) {
-  const piste = grille
-    ? 'grid w-full grid-cols-2 gap-0.5 rounded-clay bg-surface-2 p-1 shadow-clay-inset'
-    : `${PASTILLE_TRACK} max-w-full flex-wrap`;
-  return (
-    <div role="group" aria-label={label} className={piste}>
-      {options.map((o) => (
-        <button
-          key={o.id || 'tous'}
-          type="button"
-          aria-pressed={o.id === value}
-          onClick={() => onChange(o.id)}
-          className={pastilleClass(o.id === value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Rubrique({ titre, children }: { titre: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="text-[11.5px] font-medium text-text-subtle">{titre}</p>
-      {children}
-    </div>
-  );
-}
 
 export function AnnoncesLayerControls({
   layers,
@@ -110,17 +48,12 @@ export function AnnoncesLayerControls({
     [annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees],
   );
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
-  // Toucher un réglage montre la couche : sinon on règle dans le vide.
-  const regler = (patch: Partial<MapLayerState>) => onChange({ ...patch, annonces: true });
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
         <p className={`${textSize} font-medium text-text-strong`}>Annonces</p>
         <ImportAnnonce compact={compact} onAfficher={() => onChange({ annonces: true })} />
-        <p className="text-pretty text-[12px] leading-snug text-text-muted">
-          N’importe quelle plateforme : l’annonce s’affiche.
-        </p>
         <div className="flex items-center justify-between gap-3">
           <span className={`${textSize} text-text-strong`}>Sur la carte</span>
           {actif && pret ? (
@@ -132,32 +65,12 @@ export function AnnoncesLayerControls({
             aria-label={actif ? 'Masquer les annonces' : 'Afficher les annonces'}
           />
         </div>
-        <div className={`flex flex-col gap-3 ${actif ? '' : 'opacity-60'}`}>
-            <Rubrique titre="Vendeur">
-              <Choix
-                label="Vendeur"
-                value={layers.annoncesVendeur}
-                options={VENDEURS}
-                onChange={(id) => regler({ annoncesVendeur: id })}
-              />
-            </Rubrique>
-            <Rubrique titre="Statut">
-              <Choix
-                label="Statut"
-                value={layers.annoncesStatut}
-                options={STATUTS}
-                grille={!compact}
-                onChange={(id) => regler({ annoncesStatut: id })}
-              />
-            </Rubrique>
-
-            {pret && bilan.sansPosition > 0 ? (
-              <p className="text-pretty text-[11.5px] text-text-subtle">
-                {bilan.sansPosition} annonce{bilan.sansPosition > 1 ? 's' : ''} pas encore localisée
-                {bilan.sansPosition > 1 ? 's' : ''} : hors carte pour l’instant.
-              </p>
-            ) : null}
-        </div>
+        {pret && bilan.sansPosition > 0 ? (
+          <p className="text-pretty text-[11.5px] text-text-subtle">
+            {bilan.sansPosition} annonce{bilan.sansPosition > 1 ? 's' : ''} pas encore localisée
+            {bilan.sansPosition > 1 ? 's' : ''} : hors carte pour l’instant.
+          </p>
+        ) : null}
       </div>
     </li>
   );

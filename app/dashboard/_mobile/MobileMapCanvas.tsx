@@ -12,11 +12,12 @@ import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
 import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
-import PinIcone from '@/components/dashboard/carte/PinIcone';
+import EpinglesCalque, { type Epingle } from '@/components/dashboard/carte/EpinglesCalque';
+import { epingleSous } from '@/lib/carte/epingles';
 import { LEAD_FIELD_COLOR } from '@/lib/carte/colors';
 import type { BuildingMarker, MapViewport } from '@/lib/carte/buildings';
 import { isUsableCoord, toGeoCoord } from '@/lib/carte/coords';
-import { clusterBuildings } from '@/lib/carte/cluster';
+import { clusterBuildings, type ClusteredBuilding } from '@/lib/carte/cluster';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
@@ -45,7 +46,6 @@ import type { CibleCarte } from '@/lib/carte/cible';
 import type { Zone } from '@/lib/zones/types';
 
 const VIEWPORT_SETTLE_MS = 320;
-const MARKERS_GARDES_PENDANT_GESTE = 120;
 
 export type MobileMapHandle = {
   recenter: (coord: { latitude: number; longitude: number }, zoom?: number) => void;
@@ -219,8 +219,6 @@ export default function MobileMapCanvas({
   const [zoom, setZoom] = useState(13);
   const [styleReady, setStyleReady] = useState(false);
   const [vuePosee, setVuePosee] = useState(false);
-  const [mapGesturing, setMapGesturing] = useState(false);
-  const gestureTimer = useRef<number | null>(null);
   const viewportTimer = useRef<number | null>(null);
   const revelerTimer = useRef<number | null>(null);
   const camera = cameraFor(dimension);
@@ -264,7 +262,6 @@ export default function MobileMapCanvas({
 
   useEffect(
     () => () => {
-      if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
       if (viewportTimer.current != null) window.clearTimeout(viewportTimer.current);
       if (revelerTimer.current != null) window.clearTimeout(revelerTimer.current);
     },
@@ -396,11 +393,53 @@ export default function MobileMapCanvas({
     };
   }, [mapRefOut, fitToPoints, fitBoundsTo, camera, navigation]);
 
+  // `Map` désigne ici la carte react-map-gl.
+  const parId = useMemo(
+    () =>
+      new globalThis.Map<string, ClusteredBuilding>(
+        clustered.map((item) => [item.kind === 'cluster' ? item.id : item.building.banId, item] as const),
+      ),
+    [clustered],
+  );
+
   const showCrmPins =
     !navigation &&
     !cadastreLayers.cadastreDpe &&
     !cadastreLayers.cadastreVentes &&
     !cadastreLayers.cadastreCopro;
+
+  const epingles = useMemo<Epingle[]>(() => {
+    if (!showCrmPins) return [];
+    const out: Epingle[] = [];
+    for (const item of clustered) {
+      if (item.kind === 'cluster') {
+        if (!isUsableCoord(item.latitude, item.longitude)) continue;
+        out.push({
+          id: item.id,
+          longitude: item.longitude,
+          latitude: item.latitude,
+          couleur: '#1A2A56',
+          kind: 'amas',
+          nombre: item.count,
+        });
+        continue;
+      }
+      const building = item.building;
+      if (!isUsableCoord(building.latitude, building.longitude)) continue;
+      const retenu = highlightBanIds?.has(building.banId) ?? false;
+      out.push({
+        id: building.banId,
+        longitude: building.longitude,
+        latitude: building.latitude,
+        couleur: fieldColor(building),
+        kind: building.appearance.kind,
+        nombre: building.count,
+        enAvant: building.banId === selectedBanId || retenu,
+        lisere: retenu,
+      });
+    }
+    return out;
+  }, [clustered, showCrmPins, highlightBanIds, selectedBanId]);
 
   if (!MAPBOX_TOKEN) {
     return <MapTokenMissing />;
@@ -441,15 +480,10 @@ export default function MobileMapCanvas({
         ]}
         onMoveStart={() => {
           onUserInteract?.();
-          if (gestureTimer.current != null) {
-            window.clearTimeout(gestureTimer.current);
-            gestureTimer.current = null;
-          }
           if (viewportTimer.current != null) {
             window.clearTimeout(viewportTimer.current);
             viewportTimer.current = null;
           }
-          setMapGesturing(true);
         }}
         onLoad={() => {
           const map = mapRef.current;
@@ -514,14 +548,17 @@ export default function MobileMapCanvas({
           }
           setZoom(event.target.getZoom());
           onVue?.({ bearing: event.target.getBearing(), pitch: event.target.getPitch() });
-          if (gestureTimer.current != null) window.clearTimeout(gestureTimer.current);
-          gestureTimer.current = window.setTimeout(() => {
-            gestureTimer.current = null;
-            setMapGesturing(false);
-          }, 120);
         }}
         onClick={(event) => {
           if (dessin) return;
+          // Une épingle touchée ouvre sa fiche (ou déplie son amas), comme avant.
+          const touchee = epingleSous(event.target, event.point);
+          const item = touchee ? parId.get(touchee) : undefined;
+          if (item) {
+            if (item.kind === 'cluster') onCluster(item.children);
+            else onSelect(item.building);
+            return;
+          }
           try {
             if (onMapPoint) {
               onMapPoint({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
@@ -626,79 +663,7 @@ export default function MobileMapCanvas({
             }}
           />
         ) : null}
-        {showCrmPins &&
-        (!mapGesturing || clustered.length <= MARKERS_GARDES_PENDANT_GESTE)
-          ? clustered.map((item) => {
-          if (item.kind === 'cluster') {
-            if (!isUsableCoord(item.latitude, item.longitude)) return null;
-            return (
-              <Marker
-                key={item.id}
-                longitude={item.longitude}
-                latitude={item.latitude}
-                anchor="center"
-                onClick={(event) => {
-                  event.originalEvent.stopPropagation();
-                  onCluster(item.children);
-                }}
-              >
-                <button
-                  type="button"
-                  aria-label={`${item.count} adresses`}
-                  className="priimo-pin-field priimo-pin-field--cluster"
-                >
-                  {item.count}
-                </button>
-              </Marker>
-            );
-          }
-
-          const building = item.building;
-          if (!isUsableCoord(building.latitude, building.longitude)) return null;
-          const emphasized = building.banId === selectedBanId;
-          const tourSelected = highlightBanIds?.has(building.banId) ?? false;
-          const color = fieldColor(building);
-          const label =
-            building.count > 1 ? `${building.count} fiches à cette adresse` : building.appearance.title;
-
-          return (
-            <Marker
-              key={building.banId}
-              longitude={building.longitude}
-              latitude={building.latitude}
-              anchor="center"
-              style={{ zIndex: emphasized ? 20 : 4 }}
-              onClick={(event) => {
-                event.originalEvent.stopPropagation();
-                onSelect(building);
-              }}
-            >
-              <span className="priimo-pin-wrap">
-                <button
-                  type="button"
-                  aria-label={label}
-                  className="priimo-pin-field priimo-pin-field--icon"
-                  style={{
-                    background: color,
-                    boxShadow:
-                      emphasized || tourSelected
-                        ? '0 0 0 3px rgba(232, 116, 60, 0.45)'
-                        : undefined,
-                    outline: tourSelected ? '2px solid #fff' : undefined,
-                  }}
-                >
-                  <PinIcone kind={building.appearance.kind} />
-                </button>
-                {building.count > 1 ? (
-                  <span className="priimo-pin-count" aria-hidden>
-                    {building.count}
-                  </span>
-                ) : null}
-              </span>
-            </Marker>
-          );
-        })
-          : null}
+        <EpinglesCalque epingles={epingles} bordure="#ffffff" anneau={0.45} />
         {!navigation && fallback ? (
           <Marker
             longitude={fallback.longitude}

@@ -6,6 +6,7 @@
  * (SeLoger, Leboncoin, PAP, puis schema.org pour tout autre site) ; Mon
  * assistant complète ensuite à partir du texte visible (lecture universelle).
  */
+import { extrairePhotosPap } from '../photos';
 import type { FicheAnnonce } from './types';
 
 export type Partielle = Partial<Omit<FicheAnnonce, 'portail' | 'idPortail' | 'url'>>;
@@ -91,6 +92,7 @@ export function lirePap(html: string): Partielle | null {
     ges: lettres['ges-indice'] ?? null,
     description: description || null,
     zone,
+    photos: extrairePhotosPap(html).slice(0, PLAFOND_PHOTOS),
   };
 }
 

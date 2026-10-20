@@ -113,25 +113,36 @@ export default function AnnonceVolet({
 
   useEffect(() => {
     let ignore = false;
+    setLignes([]);
     setPhotos(null);
-    void fetch(`/api/dashboard/annonces/${annonce.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json: { lignes?: { id: string; texte: string }[]; photos?: string[] } | null) => {
+    const photosDe = (json: { photos?: unknown } | null): string[] =>
+      Array.isArray(json?.photos) ? json.photos.filter((p): p is string => typeof p === 'string') : [];
+    void (async () => {
+      try {
+        const r = await fetch(`/api/dashboard/annonces/${annonce.id}`);
+        const json = r.ok ? ((await r.json()) as { lignes?: { id: string; texte: string }[]; photos?: unknown }) : null;
         if (ignore) return;
         if (!json) {
           setPhotos([]);
           return;
         }
         setLignes(json.lignes ?? []);
-        setPhotos((json.photos ?? []).filter((p) => typeof p === 'string'));
-      })
-      .catch(() => {
+        const photos = photosDe(json);
+        if (photos.length > 0 || annonce.portail !== 'pap') {
+          setPhotos(photos);
+          return;
+        }
+        const suite = await fetch(`/api/dashboard/annonces/${annonce.id}?lire=1`);
+        const encore = suite.ok ? ((await suite.json()) as { photos?: unknown }) : null;
+        if (!ignore) setPhotos(photosDe(encore));
+      } catch {
         if (!ignore) setPhotos([]);
-      });
+      }
+    })();
     return () => {
       ignore = true;
     };
-  }, [annonce.id]);
+  }, [annonce.id, annonce.portail]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface">

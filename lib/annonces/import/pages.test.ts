@@ -91,6 +91,11 @@ describe('lecteurs de pages', () => {
     assert.deepEqual(lirePap(rendu)!.zone, { latitude: 48.870358, longitude: 2.384085, rayonM: 0 });
   });
 
+  it('PAP : photos du CDN', () => {
+    const url = 'https://cdn.pap.fr/photos/pap/dc/df/dcdf3f1644679599a3d8fe55021469db/d-p1.jpg';
+    assert.deepEqual(lirePap(`${FICHE_PAP}<img src="${url}">`)!.photos, [url]);
+  });
+
   it('SeLoger : conso et émissions chiffrées, point exact, agence', () => {
     const p = lireSeLoger(pageSeLoger(CLASSIFIED))!;
     assert.deepEqual(
