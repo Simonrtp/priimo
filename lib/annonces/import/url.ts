@@ -55,6 +55,13 @@ export function analyserUrl(brute: string): UrlAnnonce | null {
     const id = chemin.match(/-r(\d{6,})(?:\/|$)/)?.[1] ?? null;
     return { portail: 'pap', idPortail: id, url };
   }
+  // Programme neuf (selogerneuf.com/program/183494757/, …/annonces/neuf/programme/montrouge-92/242006217/) :
+  // préfixe « neuf- » pour ne pas croiser les identifiants numériques des annonces SeLoger.
+  const neuf = h === 'selogerneuf.com' || h.endsWith('.selogerneuf.com') || (h.endsWith('seloger.com') && /\/(?:program|neuf\/programme)\//.test(chemin));
+  if (neuf) {
+    const id = chemin.match(/\/(\d{6,})(?:\/|$)/)?.[1] ?? null;
+    return { portail: 'seloger', idPortail: id ? `neuf-${id}` : null, url };
+  }
   if (h === 'seloger.com' || h.endsWith('.seloger.com')) {
     // /annonces/achat/appartement/paris-20eme-75/gambetta/26B8QY8S7L4V.htm
     // /annonces/achat/appartement/paris-20eme-75/251234567.htm

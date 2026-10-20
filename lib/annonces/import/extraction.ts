@@ -72,3 +72,47 @@ export async function zoneDepuisAdresse(json: Brut, codePostal: string | null): 
   }
   return null;
 }
+
+type Numero = { latitude: number; longitude: number; voie: string };
+
+/** Ce numéro précis, dans ce code postal ; null si la BAN ne le connaît pas. */
+async function numeroBan(numero: number, voie: string, codePostal: string): Promise<Numero | null> {
+  const hits = await searchBanDirect(`${numero} ${voie}`, { limit: 1, postcode: codePostal, autocomplete: false }).catch(() => []);
+  const props = (hits[0]?.properties ?? {}) as { type?: string; score?: number; postcode?: string; housenumber?: string; street?: string };
+  const coords = hits[0]?.geometry?.coordinates;
+  if (props.type !== 'housenumber' || (props.score ?? 0) < 0.75 || props.postcode !== codePostal || !coords) return null;
+  if (props.housenumber !== String(numero) || !props.street) return null;
+  return { latitude: coords[1], longitude: coords[0], voie: props.street };
+}
+
+function distanceM(a: Numero, b: Numero): number {
+  return Math.hypot((a.longitude - b.longitude) * 73_000, (a.latitude - b.latitude) * 111_000);
+}
+
+/** Deux voisins plus éloignés que cela ne cernent plus un seul immeuble. */
+const ECART_VOISINS_MAX_M = 150;
+
+/**
+ * L'adresse écrite par le site (programme neuf…). Connue de la BAN au numéro
+ * près : point exact. Un immeuble neuf y manque souvent : il est placé entre
+ * ses voisins du même côté de la rue (n − 2 et n + 2), ou contre le plus
+ * proche, avec un rayon qui dit l'incertitude. Jamais au centre de la rue.
+ */
+export async function zoneDepuisAdressePubliee(adresse: string, codePostal: string): Promise<FicheAnnonce['zone']> {
+  const exacte = await zoneDepuisAdresse({ adresse }, codePostal);
+  if (exacte) return exacte;
+  const m = adresse.match(/^(\d{1,4})\s*(?:bis|ter|quater|[a-d])?\s+(.{4,})$/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const voie = m[2]!;
+  const [avant, apres] = await Promise.all([n > 2 ? numeroBan(n - 2, voie, codePostal) : null, numeroBan(n + 2, voie, codePostal)]);
+  if (avant && apres && avant.voie === apres.voie && distanceM(avant, apres) <= ECART_VOISINS_MAX_M) {
+    return {
+      latitude: (avant.latitude + apres.latitude) / 2,
+      longitude: (avant.longitude + apres.longitude) / 2,
+      rayonM: Math.round(distanceM(avant, apres) / 2) + 10,
+    };
+  }
+  const seul = avant ?? apres;
+  return seul ? { latitude: seul.latitude, longitude: seul.longitude, rayonM: 40 } : null;
+}

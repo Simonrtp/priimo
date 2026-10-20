@@ -405,6 +405,9 @@ function repereApproximatif(f: FicheAnnonce): Pick<LocalisationImport, 'latitude
   };
 }
 
+/** Rayon d'un immeuble placé entre ses voisins (zoneDepuisAdressePubliee : 85 m au plus). */
+const RAYON_ENTRE_VOISINS_MAX_M = 85;
+
 export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promise<LocalisationImport> {
   const { lignes, portee } = await chercherCandidats(f, fetcher);
   const decision = decider(f, lignes, portee);
@@ -423,6 +426,23 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
       complementDpe: String(decision.meilleur.dpe.complement_adresse_logement ?? '') || null,
       score: decision.meilleur.score,
       raisons: decision.meilleur.raisons,
+    };
+  }
+
+  // Adresse écrite par le site mais absente de la BAN (immeuble neuf) : placée entre ses numéros
+  // voisins. L'adresse montrée reste celle de l'annonce ; aucune parcelle n'est devinée.
+  if (f.adressePubliee && f.zone && f.zone.rayonM > 0 && f.zone.rayonM <= RAYON_ENTRE_VOISINS_MAX_M) {
+    return {
+      confiance: 'adresse_publiee',
+      precision: 'immeuble',
+      adresse: [f.adressePubliee, f.codePostal, f.ville].filter(Boolean).join(' '),
+      latitude: f.zone.latitude,
+      longitude: f.zone.longitude,
+      parcelleIds: [],
+      numeroDpe: null,
+      complementDpe: null,
+      score: decision.meilleur?.score ?? null,
+      raisons: ["adresse publiée sur l'annonce, placée entre ses numéros voisins (BAN)"],
     };
   }
 

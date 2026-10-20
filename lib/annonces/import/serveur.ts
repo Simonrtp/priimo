@@ -5,11 +5,12 @@
  * Ordre : nos données d'abord (instantané, gratuit : chaque URL n'est lue
  * qu'une fois pour tout Priimo), Bien'ici par son API, puis n'importe quel
  * site téléchargé par Bright Data et lu (données de la page + Mon assistant).
- * Si la page ne se lit pas, l'agent colle le texte.
+ * Tout est automatique : l'agent colle l'URL, rien d'autre. Une page qui
+ * n'arrive pas est redemandée une fois ; Mon assistant est relu une fois.
  *
  * Garde-fous de facture (Bright Data est payé à la page) :
  *   - une URL déjà lue (7 jours) est reprise en base, sans nouvel appel ;
- *   - une page qui vient d'échouer n'est pas relancée avant une heure ;
+ *   - une page qui vient d'échouer n'est pas relancée avant un quart d'heure ;
  *   - plafonds du jour par agent, agence et pour tout Priimo, sur un compteur
  *     commun à tous les serveurs ; sans compteur, rien ne part ;
  *   - une seule lecture à la fois par agent ; aucune pour une agence en attente.
@@ -31,7 +32,7 @@ import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, type CarteImport
 import { ficheDepuisPage } from './fiche';
 import { localiserFiche } from './localiser';
 import { telechargerPage } from './telecharger';
-import { extraireAvecAssistant, ficheDepuisTexte } from './texte';
+import { extraireAvecAssistant } from './texte';
 import type { FicheAnnonce, LocalisationImport } from './types';
 import { cleImport, type UrlAnnonce } from './url';
 
@@ -50,7 +51,6 @@ export type Qui = {
 
 export type ReponseImport =
   | { etat: 'trouvee'; carte: CarteImport; disponible: boolean }
-  | { etat: 'texte'; raison: 'illisible' | 'bloquee' | 'plafond' }
   | { etat: 'erreur'; message: string };
 
 /** Les étapes que le panneau montre en bulles pendant la recherche. */
@@ -58,7 +58,19 @@ export type EtapeImport = {
   cle: 'lecture' | 'donnees' | 'adresse';
   etat: 'en_cours' | 'fait' | 'rate';
   detail?: string;
+  /** Mon assistant lit la page : la bulle passe au bleu IA. */
+  ia?: boolean;
 };
+
+/** Ce que l'agent lit quand la recherche s'arrête : une phrase, jamais un formulaire. */
+const MESSAGES = {
+  disparue: 'Cette annonce n’est plus en ligne',
+  injoignable: 'Le site ne répond pas : réessayez dans quelques minutes',
+  illisible: 'Aucune annonce lisible sur cette page',
+  plafond: 'Limite de lectures du jour atteinte : elle se rouvre demain',
+  attente: 'Lecture des annonces ouverte une fois l’agence validée',
+  indisponible: 'Lecture des annonces indisponible pour le moment',
+} as const;
 type SurEtape = (e: EtapeImport) => void;
 const rien: SurEtape = () => {};
 
@@ -136,7 +148,7 @@ async function enregistrer(
 }
 
 const SEMAINE_MS = 7 * 86_400_000;
-const HEURE_MS = 3_600_000;
+const ECHEC_MS = 15 * 60_000;
 
 /** La dernière lecture de cette URL, par n'importe quelle agence (cache partagé). */
 async function derniereLecture(
@@ -190,11 +202,13 @@ export function carteDepuisColonnes(r: Record<string, unknown>, importId: string
 /** Une lecture à la fois par agent (par instance ; le plafond en base borne le reste). */
 const lecturesEnCours = new Set<string>();
 
-/** Mon assistant n'est appelé que dans la limite de son plafond. */
-function assistantPlafonne(qui: Qui) {
+/** Mon assistant n'est appelé que dans la limite de son plafond ; sa bulle passe au bleu IA. */
+function assistantPlafonne(qui: Qui, onEtape: SurEtape) {
   return async (texte: string) => {
     const r = await reserverQuota('lecture_annonce', PLAFONDS_LECTURE_ANNONCE, qui);
-    return r === 'plafond' ? null : extraireAvecAssistant(texte);
+    if (r === 'plafond') return null;
+    onEtape({ cle: 'donnees', etat: 'en_cours', ia: true });
+    return extraireAvecAssistant(texte);
   };
 }
 
@@ -246,20 +260,20 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
       onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
       return { etat: 'trouvee', carte, disponible };
     }
-    if (derniere?.statut === 'echec' && Date.now() - derniere.lueLe < HEURE_MS) {
+    if (derniere?.statut === 'echec' && Date.now() - derniere.lueLe < ECHEC_MS) {
       onEtape({ cle: 'lecture', etat: 'rate' });
-      if (derniere.erreur === 'disparue') return { etat: 'erreur', message: 'Cette annonce n’est plus en ligne' };
-      return { etat: 'texte', raison: 'bloquee' };
+      const message = derniere.erreur === 'disparue' ? MESSAGES.disparue : derniere.erreur === 'illisible' ? MESSAGES.illisible : MESSAGES.injoignable;
+      return { etat: 'erreur', message };
     }
     if (!qui.pagesAutorisees) {
       onEtape({ cle: 'lecture', etat: 'rate' });
-      return { etat: 'texte', raison: 'illisible' };
+      return { etat: 'erreur', message: MESSAGES.attente };
     }
     if (lecturesEnCours.has(qui.profileId)) return { etat: 'erreur', message: 'Une recherche est déjà en cours' };
     const reservation = await reserverQuota('lecture_page', plafondsLecturePage(), qui);
     if (reservation !== 'ok') {
       onEtape({ cle: 'lecture', etat: 'rate' });
-      return { etat: 'texte', raison: reservation === 'plafond' ? 'plafond' : 'illisible' };
+      return { etat: 'erreur', message: reservation === 'plafond' ? MESSAGES.plafond : MESSAGES.indisponible };
     }
     lecturesEnCours.add(qui.profileId);
     let page: Awaited<ReturnType<typeof telechargerPage>>;
@@ -270,32 +284,24 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
     }
     if (!page.ok) {
       onEtape({ cle: 'lecture', etat: 'rate' });
-      if (page.raison !== 'sans_cle') await enregistrer(admin, qui, u, { statut: 'echec', erreur: page.raison });
-      if (page.raison === 'disparue') return { etat: 'erreur', message: 'Cette annonce n’est plus en ligne' };
-      return { etat: 'texte', raison: page.raison === 'sans_cle' ? 'illisible' : 'bloquee' };
+      if (page.raison === 'sans_cle') {
+        console.error('[import] BRIGHTDATA_API_TOKEN ou BRIGHTDATA_ZONE manquant');
+        return { etat: 'erreur', message: MESSAGES.indisponible };
+      }
+      await enregistrer(admin, qui, u, { statut: 'echec', erreur: page.raison });
+      return { etat: 'erreur', message: page.raison === 'disparue' ? MESSAGES.disparue : MESSAGES.injoignable };
     }
     onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
     onEtape({ cle: 'donnees', etat: 'en_cours' });
-    fiche = await ficheDepuisPage(u, page.html, assistantPlafonne(qui));
+    fiche = await ficheDepuisPage(u, page.html, assistantPlafonne(qui, onEtape));
     if (!fiche) {
       onEtape({ cle: 'donnees', etat: 'rate' });
-      return { etat: 'texte', raison: 'bloquee' };
+      // Page payée mais sans annonce : pas de nouvel achat avant un quart d'heure.
+      await enregistrer(admin, qui, u, { statut: 'echec', erreur: 'illisible' });
+      return { etat: 'erreur', message: MESSAGES.illisible };
     }
   } else {
     onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
-  }
-  return resultatFiche(admin, qui, u, fiche, onEtape);
-}
-
-export async function importerTexte(admin: Db, qui: Qui, u: UrlAnnonce, texte: string, onEtape: SurEtape = rien): Promise<ReponseImport> {
-  if ((await reserverQuota('lecture_annonce', PLAFONDS_LECTURE_ANNONCE, qui)) === 'plafond') {
-    return { etat: 'erreur', message: 'Limite du jour atteinte pour la lecture d’annonces. Elle se rouvre demain.' };
-  }
-  onEtape({ cle: 'donnees', etat: 'en_cours' });
-  const fiche = await ficheDepuisTexte(u, texte);
-  if (!fiche) {
-    onEtape({ cle: 'donnees', etat: 'rate' });
-    return { etat: 'erreur', message: 'Texte illisible : collez toute la page de l’annonce' };
   }
   return resultatFiche(admin, qui, u, fiche, onEtape);
 }

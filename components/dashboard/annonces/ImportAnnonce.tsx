@@ -13,8 +13,9 @@ import { rafraichirAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 
 type Etat =
   | { k: 'vide' }
-  | { k: 'travail'; ia: boolean }
-  | { k: 'texte'; raison: 'illisible' | 'bloquee' | 'plafond' }
+  | { k: 'travail' }
+  /** La recherche s'arrête : les bulles restent, la dernière dit pourquoi. */
+  | { k: 'echec'; message: string }
   | { k: 'trouvee'; carte: CarteImport; disponible: boolean };
 
 const ORDRE: EtapeImport['cle'][] = ['lecture', 'donnees', 'adresse'];
@@ -57,14 +58,14 @@ async function suivreFlux(res: Response, surEtape: (e: EtapeImport) => void): Pr
   return resultat ?? { etat: 'erreur', message: 'Recherche interrompue' };
 }
 
-function Etapes({ etapes, ia }: { etapes: Partial<Record<EtapeImport['cle'], EtapeImport>>; ia: boolean }) {
+function Etapes({ etapes, message }: { etapes: Partial<Record<EtapeImport['cle'], EtapeImport>>; message?: string }) {
   const visibles = ORDRE.filter((cle) => etapes[cle]);
-  if (!visibles.length) return null;
+  if (!visibles.length && !message) return null;
   return (
     <ol className="flex flex-col gap-1.5" aria-live="polite">
       {visibles.map((cle) => {
         const e = etapes[cle]!;
-        const assistant = ia && cle === 'donnees';
+        const assistant = Boolean(e.ia);
         return (
           <li
             key={cle}
@@ -89,6 +90,12 @@ function Etapes({ etapes, ia }: { etapes: Partial<Record<EtapeImport['cle'], Eta
           </li>
         );
       })}
+      {message ? (
+        <li className="flex w-fit max-w-full items-start gap-2 rounded-[14px] bg-white px-3 py-1.5 text-[12.5px] leading-snug text-text-muted shadow-clay-inset motion-safe:animate-ficheSurgit">
+          <span aria-hidden className="mt-[6px] size-1.5 shrink-0 rounded-full bg-text-subtle" />
+          <span className="min-w-0">{message}</span>
+        </li>
+      ) : null}
     </ol>
   );
 }
@@ -228,35 +235,34 @@ export default function ImportAnnonce({
   onAfficher?: () => void;
 }) {
   const [url, setUrl] = useState('');
-  const [texte, setTexte] = useState('');
   const [etat, setEtat] = useState<Etat>({ k: 'vide' });
   const [etapes, setEtapes] = useState<Partial<Record<EtapeImport['cle'], EtapeImport>>>({});
   const derniere = useRef('');
   const enCours = useRef(0);
 
-  async function lancer(chemin: string, corps: unknown, ia: boolean) {
+  async function lancer(valeur: string) {
     const tour = ++enCours.current;
     definirAnnonceImportee(null);
     setEtapes({});
-    setEtat({ k: 'travail', ia });
-    const res = await fetch(chemin, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corps) }).catch(
-      () => null,
-    );
+    setEtat({ k: 'travail' });
+    const res = await fetch('/api/dashboard/annonces/importer', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: valeur }),
+    }).catch(() => null);
     const r: ReponseImport = res
       ? await suivreFlux(res, (e) => {
-          if (tour === enCours.current) setEtapes((prev) => ({ ...prev, [e.cle]: e }));
+          // Une bulle passée au bleu IA le reste jusqu'au bout.
+          if (tour === enCours.current) setEtapes((prev) => ({ ...prev, [e.cle]: { ...e, ia: e.ia || prev[e.cle]?.ia } }));
         })
-      : { etat: 'erreur', message: 'Connexion perdue' };
+      : { etat: 'erreur', message: 'Connexion perdue : réessayez' };
     if (tour !== enCours.current) return;
     if (r.etat === 'trouvee') {
       setEtat({ k: 'trouvee', carte: r.carte, disponible: r.disponible });
       definirAnnonceImportee(r.carte);
       if (r.carte.annonceId) onAfficher?.();
-    } else if (r.etat === 'texte') {
-      setEtat({ k: 'texte', raison: r.raison });
     } else {
-      setEtat({ k: 'vide' });
-      notifyError(r.message);
+      setEtat({ k: 'echec', message: r.message });
     }
   }
 
@@ -264,13 +270,12 @@ export default function ImportAnnonce({
     const v = valeur.trim();
     if (!v || v === derniere.current) return;
     derniere.current = v;
-    void lancer('/api/dashboard/annonces/importer', { url: v }, false);
+    void lancer(v);
   }
 
   function effacer() {
     enCours.current += 1;
     setUrl('');
-    setTexte('');
     setEtapes({});
     derniere.current = '';
     setEtat({ k: 'vide' });
@@ -325,35 +330,8 @@ export default function ImportAnnonce({
         ) : null}
       </label>
 
-      {travail ? <Etapes etapes={etapes} ia={etat.ia} /> : null}
-
-      {etat.k === 'texte' ? (
-        <div className="flex flex-col gap-2 motion-safe:animate-ficheSurgit">
-          <textarea
-            aria-label="Texte de l’annonce"
-            placeholder={
-              etat.raison === 'bloquee'
-                ? 'Cette page ne se lit pas : collez ici tout le texte de l’annonce'
-                : etat.raison === 'plafond'
-                  ? 'Limite de lectures du jour atteinte : collez ici le texte de l’annonce'
-                  : 'Collez ici tout le texte de l’annonce'
-            }
-            value={texte}
-            onChange={(e) => setTexte(e.target.value)}
-            rows={compact ? 4 : 3}
-            className="w-full resize-none rounded-[12px] bg-white px-3 py-2 text-[12.5px] text-text-strong shadow-clay-inset outline-none placeholder:text-text-subtle focus:ring-2 focus:ring-ia/30"
-          />
-          <button
-            type="button"
-            disabled={texte.trim().length < 40}
-            onClick={() => void lancer('/api/dashboard/annonces/importer/texte', { url: derniere.current, texte }, true)}
-            className={`${PILULE} self-start bg-ia text-white hover:bg-ia-600 disabled:bg-ia/40`}
-          >
-            <Sparkles size={14} strokeWidth={2.2} aria-hidden />
-            Lire l’annonce
-          </button>
-        </div>
-      ) : null}
+      {travail ? <Etapes etapes={etapes} /> : null}
+      {etat.k === 'echec' ? <Etapes etapes={etapes} message={etat.message} /> : null}
 
       {etat.k === 'trouvee' ? (
         <Carte

@@ -1,21 +1,20 @@
 /**
- * Repli quand l'URL ne se lit pas (Leboncoin, portail bloqué, PC éteint) :
- * l'agent colle le texte de l'annonce. Mon assistant (Mistral) en tire les
- * chiffres — surtout la conso et les émissions affichées, que la loi impose
- * dans l'annonce et qui retrouvent le logement — puis le localiseur fait le
- * reste. Nos serveurs ne lisent jamais le site.
+ * Lecture universelle : Mon assistant (Mistral) lit le texte visible d'une
+ * page d'annonce téléchargée quand ses données structurées ne suffisent pas.
+ * Il en tire les chiffres — surtout la conso et les émissions affichées, que
+ * la loi impose dans l'annonce et qui retrouvent le logement — puis le
+ * localiseur fait le reste.
  */
 import 'server-only';
 import { chaineModeles, ecarterModele, MODELES_PROFONDS } from '@/lib/mistral/modeles';
-import { ficheDepuisExtraction, zoneDepuisAdresse, type Brut } from './extraction';
-import type { FicheAnnonce } from './types';
-import type { UrlAnnonce } from './url';
+import type { Brut } from './extraction';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MAX_TEXTE = 12_000;
 const DELAI_MS = 20_000;
 
 const SYSTEME = `Tu lis le texte d'une annonce immobilière française copié depuis un portail.
+Programme neuf ou annonce de plusieurs logements : décris le logement le moins cher affiché (le prix « à partir de »), avec sa surface et ses pièces.
 Réponds UNIQUEMENT par un objet JSON avec ces clés (null si l'information n'est pas écrite ; ne devine jamais) :
 {
   "prix": nombre en euros,
@@ -80,14 +79,4 @@ export async function extraireAvecAssistant(texteAnnonce: string): Promise<Brut 
     if (json) return json;
   }
   return null;
-}
-
-/** Texte collé → fiche. */
-export async function ficheDepuisTexte(u: UrlAnnonce, collé: string): Promise<FicheAnnonce | null> {
-  const contenu = collé.trim().slice(0, MAX_TEXTE);
-  const json = await extraireAvecAssistant(contenu);
-  if (!json) return null;
-  const fiche = ficheDepuisExtraction(json, u, contenu);
-  fiche.zone = await zoneDepuisAdresse(json, fiche.codePostal);
-  return fiche;
 }

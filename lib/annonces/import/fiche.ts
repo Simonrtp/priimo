@@ -1,15 +1,19 @@
 /**
  * Page téléchargée → fiche d'annonce, pour n'importe quel site.
  *
- *   1. le lecteur du portail (SeLoger, Leboncoin, PAP) : données structurées ;
+ *   1. le lecteur du portail (SeLoger, SeLoger Neuf, Leboncoin, PAP) : données structurées ;
  *   2. schema.org, que publient beaucoup de sites d'agences ;
  *   3. Mon assistant sur le texte visible, seulement s'il manque l'essentiel
- *      (prix, surface, conso chiffrée) : la lecture universelle.
+ *      (prix, surface, de quoi localiser) : la lecture universelle. Il peut,
+ *      d'une fois sur l'autre, rendre prix et surface vides : une seconde
+ *      lecture est faite avant de renoncer.
  * Les données structurées l'emportent toujours sur la lecture du texte.
+ * Une adresse écrite par le site est ensuite retrouvée au numéro près (BAN).
  */
 import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
 import { valeursFiables } from './localiser';
-import { ficheDepuisExtraction, zoneDepuisAdresse } from './extraction';
+import { ficheDepuisExtraction, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
+import { lireSeLogerNeuf } from './seloger-neuf';
 import type { FicheAnnonce } from './types';
 import type { UrlAnnonce } from './url';
 
@@ -58,13 +62,23 @@ export function completer(base: Partielle, ajout: Partielle): Partielle {
 }
 
 export function lecturePortail(u: UrlAnnonce, html: string): Partielle {
-  const portail = u.portail === 'seloger' ? lireSeLoger(html) : u.portail === 'leboncoin' ? lireLeboncoin(html) : u.portail === 'pap' ? lirePap(html) : null;
+  const portail =
+    u.portail === 'seloger'
+      ? (lireSeLoger(html) ?? lireSeLogerNeuf(html))
+      : u.portail === 'leboncoin'
+        ? lireLeboncoin(html)
+        : u.portail === 'pap'
+          ? lirePap(html)
+          : null;
   const structure = completer(portail ?? {}, lireJsonLd(html) ?? {});
   return completer(structure, chiffresDpeDuTexte(structure.description));
 }
 
 /** Faut-il demander à Mon assistant ? Seulement s'il manque de quoi afficher ou localiser. */
 export function lectureIncomplete(p: Partielle): boolean {
+  if (p.prix == null || p.surface == null) return true;
+  // Une adresse publiée ou un point exact localisent sans passer par la conso du DPE.
+  if (p.adressePubliee || p.zone?.rayonM === 0) return false;
   const { conso } = valeursFiables({
     consoKwhM2: p.consoKwhM2 ?? null,
     gesKgM2: p.gesKgM2 ?? null,
@@ -72,20 +86,49 @@ export function lectureIncomplete(p: Partielle): boolean {
     ges: p.ges ?? null,
     dpeApresJuillet2021: p.dpeApresJuillet2021 ?? null,
   });
-  return p.prix == null || p.surface == null || conso == null;
+  return conso == null;
+}
+
+/** De quoi montrer l'annonce : un chiffre, ou un endroit sur la carte. */
+export function ficheExploitable(p: Partielle): boolean {
+  return p.prix != null || p.surface != null || p.zone != null || Boolean(p.adressePubliee && p.codePostal);
 }
 
 type Assistant = (texte: string) => Promise<Record<string, unknown> | null>;
+type Geocodeur = (adresse: string, codePostal: string) => Promise<FicheAnnonce['zone']>;
+
+const geocoderBan: Geocodeur = zoneDepuisAdressePubliee;
+
+/** Mon assistant est relu une fois si prix et surface reviennent vides. */
+const LECTURES_ASSISTANT = 2;
+/** Au-delà, le point publié et l'adresse écrite ne parlent pas du même endroit : on garde le point. */
+const ECART_ADRESSE_MAX_M = 300;
+
+type Zone = NonNullable<FicheAnnonce['zone']>;
+
+function ecartM(a: Zone, b: Zone): number {
+  return Math.hypot((a.longitude - b.longitude) * 73_000, (a.latitude - b.latitude) * 111_000);
+}
+
+/** L'adresse retrouvée remplace le repère s'il est plus vague ; un point exact ne cède qu'à un point exact proche. */
+function meilleureZone(repere: Zone | null | undefined, adresse: Zone): boolean {
+  if (!repere) return true;
+  if (repere.rayonM > 0) return adresse.rayonM < repere.rayonM;
+  return adresse.rayonM === 0 && ecartM(adresse, repere) <= ECART_ADRESSE_MAX_M;
+}
 
 export async function ficheDepuisPage(
   u: UrlAnnonce,
   html: string,
   /** Mon assistant, déjà plafonné par l'appelant (serveur.ts). */
   assistant: Assistant,
+  geocoder: Geocodeur = geocoderBan,
 ): Promise<FicheAnnonce | null> {
   let p = lecturePortail(u, html);
-  if (lectureIncomplete(p)) {
-    const texte = [p.titre, p.description, texteVisible(html)].filter(Boolean).join('\n');
+  const texte = [p.titre, p.description, texteVisible(html)].filter(Boolean).join('\n');
+  for (let lecture = 0; lecture < LECTURES_ASSISTANT && lectureIncomplete(p); lecture += 1) {
+    // La relecture ne sert qu'à rattraper un prix et une surface rendus vides.
+    if (lecture > 0 && (p.prix != null || p.surface != null)) break;
     const json = await assistant(texte);
     if (json) {
       const lue: Partielle & Partial<FicheAnnonce> = { ...ficheDepuisExtraction(json, u, p.description ?? '') };
@@ -100,6 +143,11 @@ export async function ficheDepuisPage(
       }
     }
   }
-  if (p.prix == null && p.surface == null) return null;
+  // L'adresse écrite par le site, retrouvée dans la BAN : plus sûre qu'un repère, si elle s'accorde avec le point publié.
+  if (p.adressePubliee && p.codePostal) {
+    const retrouvee = await geocoder(p.adressePubliee, p.codePostal);
+    if (retrouvee && meilleureZone(p.zone, retrouvee)) p.zone = retrouvee;
+  }
+  if (!ficheExploitable(p)) return null;
   return { ...ficheVide(u), ...p, photos: p.photos ?? [] };
 }

@@ -22,6 +22,16 @@ describe('analyserUrl', () => {
     assert.equal(analyserUrl('https://immobilier.lefigaro.fr/annonces/annonce-71234567.html')?.idPortail, '71234567');
   });
 
+  it('reconnaît un programme SeLoger Neuf, sous ses deux formes d’URL', () => {
+    assert.deepEqual(analyserUrl('https://www.selogerneuf.com/program/183494757/#m=hp_classifiedseocarousel'), {
+      portail: 'seloger',
+      idPortail: 'neuf-183494757',
+      url: 'https://www.selogerneuf.com/program/183494757/',
+    });
+    assert.equal(analyserUrl('https://www.selogerneuf.com/annonces/neuf/programme/montrouge-92/242006217/')?.idPortail, 'neuf-242006217');
+    assert.equal(analyserUrl('https://www.seloger.com/annonces/neuf/programme/montrouge-92/242006217/')?.idPortail, 'neuf-242006217');
+  });
+
   it('nettoie les paramètres de suivi et accepte une URL noyée dans du texte', () => {
     const u = analyserUrl(
       'Regarde ça : https://www.pap.fr/annonces/appartement-paris-20e-75020-r462101331?utm_source=mail&xtor=EPR-1#photos merci',

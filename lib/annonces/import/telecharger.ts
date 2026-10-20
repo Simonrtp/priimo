@@ -17,6 +17,14 @@ import { pageInexploitable } from './pages';
 const ENDPOINT = 'https://api.brightdata.com/request';
 /** Leboncoin et SeLoger, rendus par un navigateur chez Bright Data : 30 à 55 s constatés. */
 const DELAI_MS = 90_000;
+/**
+ * Une page qui n'arrive pas (réseau, défi anti-robot) est redemandée une fois,
+ * tant que le tout tient dans la durée de la route (120 s) : Bright Data ne
+ * facture que les pages reçues.
+ */
+const ESSAIS = 2;
+const BUDGET_MS = 105_000;
+const DELAI_MIN_ESSAI_MS = 25_000;
 /** Une page d'annonce dépasse rarement 2 Mo ; au-delà, on ne lit que le début. */
 const TAILLE_MAX = 3_000_000;
 
@@ -32,13 +40,25 @@ export async function telechargerPage(url: string): Promise<Telechargement> {
   const token = process.env.BRIGHTDATA_API_TOKEN;
   const zone = process.env.BRIGHTDATA_ZONE;
   if (!token || !zone) return { ok: false, raison: 'sans_cle' };
+  const debut = Date.now();
+  let dernier: Telechargement = { ok: false, raison: 'echec' };
+  for (let essai = 0; essai < ESSAIS; essai += 1) {
+    const reste = BUDGET_MS - (Date.now() - debut);
+    if (essai > 0 && reste < DELAI_MIN_ESSAI_MS) break;
+    dernier = await unEssai(url, token, zone, Math.min(DELAI_MS, reste));
+    if (dernier.ok || dernier.raison === 'disparue') return dernier;
+  }
+  return dernier;
+}
+
+async function unEssai(url: string, token: string, zone: string, delaiMs: number): Promise<Telechargement> {
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ zone, url, format: 'raw', country: 'fr' }),
       cache: 'no-store',
-      signal: AbortSignal.timeout(DELAI_MS),
+      signal: AbortSignal.timeout(delaiMs),
     });
     // Statut du site visé, quand Bright Data le transmet.
     const statutSite = Number(res.headers.get('x-brd-status-code') ?? res.status);

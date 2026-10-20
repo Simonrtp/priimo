@@ -32,6 +32,8 @@ export type FicheAnnonce = {
   datePublication: string | null;
   /** Repère publié par le portail ; rayon 0 = point exact. */
   zone: { latitude: number; longitude: number; rayonM: number } | null;
+  /** Adresse du bien écrite par le site (programme neuf…), retrouvée ensuite dans la BAN. */
+  adressePubliee?: string | null;
   photos: string[];
 };
 
