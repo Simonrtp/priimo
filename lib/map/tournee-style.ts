@@ -1,4 +1,5 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
+import { FOND_IMPORT_ID, PRIIMO_MAP_CONFIG } from '@/lib/map/style';
 
 /** Commerces, transports, extrusions : rien à faire pour qui marche. */
 const HIDDEN = [
@@ -14,6 +15,21 @@ const HIDDEN = [
   'building',
   'building-extrusion',
 ] as const;
+
+/**
+ * Fond Standard : ses couches vivent dans un import, hors d'atteinte des
+ * identifiants ci-dessus. Commerces et transports se coupent par sa
+ * configuration ; les routes s'estompent.
+ */
+function fondStandard(map: MapboxMap, tournee: boolean): void {
+  try {
+    map.setConfigProperty(FOND_IMPORT_ID, 'showPointOfInterestLabels', !tournee);
+    map.setConfigProperty(FOND_IMPORT_ID, 'showTransitLabels', !tournee);
+    map.setConfigProperty(FOND_IMPORT_ID, 'roadsBrightness', tournee ? 0.3 : PRIIMO_MAP_CONFIG[FOND_IMPORT_ID].roadsBrightness);
+  } catch {
+    /* pas de fond Standard sur cette carte */
+  }
+}
 
 function stylePret(map: MapboxMap): boolean {
   try {
@@ -48,6 +64,7 @@ function visibilite(map: MapboxMap, id: string, valeur: 'none' | 'visible'): voi
 /** Pendant une tournée : la carte s'efface derrière le tracé. */
 export function applyTourneeMapStyle(map: MapboxMap): void {
   if (!stylePret(map)) return;
+  fondStandard(map, true);
   for (const id of HIDDEN) visibilite(map, id, 'none');
   eachLayer(map, (id, type) => {
     if (type === 'symbol' && (id.includes('poi') || id.includes('transit'))) {
@@ -76,6 +93,7 @@ export function applyTourneeMapStyle(map: MapboxMap): void {
 
 export function restoreTourneeMapStyle(map: MapboxMap): void {
   if (!stylePret(map)) return;
+  fondStandard(map, false);
   for (const id of HIDDEN) visibilite(map, id, 'visible');
   eachLayer(map, (id, type) => {
     if (type === 'symbol' && (id.includes('poi') || id.includes('transit'))) {

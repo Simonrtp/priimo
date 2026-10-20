@@ -6,7 +6,8 @@ import MapboxMap, { Marker, type MapRef } from 'react-map-gl';
 import { Locate, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Lead } from '@/types/lead';
 import { isUsableCoord, type GeoCoord } from '@/lib/carte/coords';
-import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
+import { MAPBOX_TOKEN, PRIIMO_MAP_CONFIG, PRIIMO_MAP_STYLE } from '@/lib/map/style';
+import FondPriimo from '@/components/dashboard/carte/FondPriimo';
 import { MAP_3D_BEARING, MAP_3D_PITCH } from '@/lib/map/camera';
 import { FIELD, formatDistance } from '@/lib/today/field';
 import { applyTourneeMapStyle } from '@/lib/map/tournee-style';
@@ -449,6 +450,7 @@ export default function TourneeMobile({
               ref={mapRef}
               mapboxAccessToken={MAPBOX_TOKEN}
               mapStyle={PRIIMO_MAP_STYLE}
+              {...{ config: PRIIMO_MAP_CONFIG }}
               initialViewState={{
                 longitude: active.longitude,
                 latitude: active.latitude,
@@ -464,6 +466,8 @@ export default function TourneeMobile({
               }}
               style={{ width: '100%', height: '100%' }}
             >
+              {/* En marche : la ville à plat, le tracé passe devant. */}
+              <FondPriimo relief={false} />
               {stops.length >= 2 ? (
                 <ItineraireLayer
                   geometry={routeGeometry}

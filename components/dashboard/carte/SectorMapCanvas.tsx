@@ -7,10 +7,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { GesteContourCalque, useGesteContour } from '@/components/dashboard/carte/geste-contour';
 import { hoverPreviewFromPoint } from '@/lib/carte/hover-preview';
-import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
+import { MAPBOX_TOKEN, PRIIMO_MAP_CONFIG, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
+import FondPriimo from '@/components/dashboard/carte/FondPriimo';
 import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
-import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { PARCELLE_FOCUS_ZOOM } from '@/lib/carte/parcelle';
 import { computeLngLatBounds, type LngLatBoundsTuple } from '@/lib/carte/bounds';
 import EpinglesCalque, { type Epingle } from '@/components/dashboard/carte/EpinglesCalque';
@@ -89,6 +89,7 @@ export default function SectorMapCanvas({
   tenirLaVue = false,
   annoncesCouche = null,
   dessin = null,
+  relief = true,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -138,12 +139,16 @@ export default function SectorMapCanvas({
     polygone: GeoJSON.Polygon | null;
     onContour: (polygone: GeoJSON.Polygon) => void;
   } | null;
+  /** Faux : immeubles à plat (plan cadastral allumé, pour lire et cliquer les parcelles). */
+  relief?: boolean;
 }) {
   const mapRef = useRef<MapRef | null>(null);
   const geste = useGesteContour(Boolean(dessin), mapRef, (polygone) => dessin?.onContour(polygone));
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [styleReady, setStyleReady] = useState(false);
   const viewportTimer = useRef<number | null>(null);
+  // Dernier clic sur le plan : l'immeuble de la parcelle ouverte s'y allume.
+  const [dernierClic, setDernierClic] = useState<{ latitude: number; longitude: number } | null>(null);
   useCanvasAJour(mapRef, styleReady);
 
   const interactiveLayerIds = useMemo(() => {
@@ -197,6 +202,17 @@ export default function SectorMapCanvas({
     },
     [parBanId, selectedBanId],
   );
+
+  // L'immeuble choisi (épingle, parcelle cliquée, adresse cherchée) s'allume en orange.
+  const immeubleChoisi = useMemo(() => {
+    const epingle = selectedBanId ? parBanId.get(selectedBanId) : null;
+    if (epingle && isUsableCoord(epingle.latitude, epingle.longitude)) {
+      return { latitude: epingle.latitude, longitude: epingle.longitude };
+    }
+    if (selectedParcelleId && dernierClic) return dernierClic;
+    if (cible) return { latitude: cible.latitude, longitude: cible.longitude };
+    return null;
+  }, [selectedBanId, parBanId, selectedParcelleId, dernierClic, cible]);
 
   const idsSignature = useMemo(
     () => buildings.map((b) => b.banId).sort().join(','),
@@ -307,6 +323,7 @@ export default function SectorMapCanvas({
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
+        {...{ config: PRIIMO_MAP_CONFIG }}
         initialViewState={
           zoomPreset === 'parcelles' && fallback
             ? {
@@ -365,6 +382,7 @@ export default function SectorMapCanvas({
         }}
         onClick={(event) => {
           if (dessin) return;
+          setDernierClic({ latitude: event.lngLat.lat, longitude: event.lngLat.lng });
           const epingle = epingleSous(event.target, event.point);
           if (epingle) {
             const building = parBanId.get(epingle);
@@ -408,7 +426,7 @@ export default function SectorMapCanvas({
         {dessin ? (
           <GesteContourCalque trace={geste.trace} polygone={dessin.polygone} couleur={dessin.couleur} />
         ) : null}
-        <Buildings3DLayer mapRef={mapRef} enabled={false} ready={styleReady} />
+        <FondPriimo immeuble={immeubleChoisi} relief={relief && !dessin} />
         <ParcellesLayer
           mapRef={mapRef}
           enabled={parcellesEnabled}

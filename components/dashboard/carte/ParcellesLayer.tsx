@@ -34,6 +34,16 @@ import { cadastreDansEmprises } from '@/lib/carte/emprise';
 import { epingleSous } from '@/lib/carte/epingles';
 import type { Zone } from '@/lib/zones/types';
 import MapHoverBubble from '@/components/dashboard/carte/MapHoverBubble';
+import {
+  CHALEUR_FILTER,
+  CHALEUR_MAXZOOM,
+  CHALEUR_PAINT,
+  LUEUR_FILTER,
+  LUEUR_MINZOOM,
+  PASSOIRES_CHALEUR_LAYER_ID,
+  PASSOIRES_LUEUR_LAYER_ID,
+  LUEUR_PAINT,
+} from '@/components/dashboard/carte/passoires-lueur';
 
 export const PARCELLES_FILL_LAYER_ID = 'parcelles-fill';
 export const PARCELLES_LINE_LAYER_ID = 'parcelles-line';
@@ -772,6 +782,9 @@ export default function ParcellesLayer({
           <Layer
             id={PARCELLES_FILL_LAYER_ID}
             type="fill"
+            // Au-dessus des immeubles : le plan cadastral se lit et se clique. L'aplat
+            // suit la lumière (la nuit, pas de voile gris) ; les contours restent lumineux.
+            metadata={{ 'priimo:etage': 'top', 'priimo:eteint': true }}
             source-layer={IGN_PCI_SOURCE_LAYER}
             minzoom={PARCELLE_MIN_ZOOM}
             paint={{
@@ -793,6 +806,7 @@ export default function ParcellesLayer({
           <Layer
             id={PARCELLES_LINE_LAYER_ID}
             type="line"
+            metadata={{ 'priimo:etage': 'top' }}
             source-layer={IGN_PCI_SOURCE_LAYER}
             minzoom={PARCELLE_MIN_ZOOM}
             paint={{
@@ -876,6 +890,19 @@ export default function ParcellesLayer({
                 'circle-pitch-scale': 'viewport',
               }}
             />
+          ) : null}
+          {layers.cadastreDpe ? (
+            <Layer
+              id={PASSOIRES_CHALEUR_LAYER_ID}
+              type="heatmap"
+              minzoom={CADASTRE_OVERLAY_MIN_ZOOM - 1}
+              maxzoom={CHALEUR_MAXZOOM}
+              filter={CHALEUR_FILTER}
+              paint={CHALEUR_PAINT}
+            />
+          ) : null}
+          {layers.cadastreDpe ? (
+            <Layer id={PASSOIRES_LUEUR_LAYER_ID} type="circle" minzoom={LUEUR_MINZOOM} filter={LUEUR_FILTER} paint={LUEUR_PAINT} />
           ) : null}
           {layers.cadastreDpe ? (
             <Layer

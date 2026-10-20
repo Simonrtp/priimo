@@ -1,6 +1,6 @@
-import { PRIIMO_MAP_STYLE } from '@/lib/map/style';
+import { PRIIMO_STATIC_MAP_STYLE } from '@/lib/map/style';
 
-const STYLE_ID = PRIIMO_MAP_STYLE.replace('mapbox://styles/', '');
+const STYLE_ID = PRIIMO_STATIC_MAP_STYLE.replace('mapbox://styles/', '');
 
 export const ATTRIBUTION_MAPBOX = '© Mapbox © OpenStreetMap';
 export const MENTION_CADASTRE = 'Plan cadastral indicatif, sans valeur juridique.';

@@ -41,6 +41,7 @@ import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
+import ChoixLumiere from '@/components/dashboard/carte/ChoixLumiere';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import {
@@ -931,6 +932,7 @@ export default function CarteMobile({
             profileId={profileId}
             membres={members}
           />
+          <ChoixLumiere />
         </ul>
         )}
       </MobileSheet>

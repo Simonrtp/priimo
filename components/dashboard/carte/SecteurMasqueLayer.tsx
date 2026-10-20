@@ -16,6 +16,8 @@ export default function SecteurMasqueLayer({ zones }: { zones: readonly Zone[] }
       <Layer
         id={SECTEUR_MASQUE_LAYER_ID}
         type="fill"
+        // Un voile : il s'assombrit avec la nuit au lieu de briller (FondPriimo).
+        metadata={{ 'priimo:eteint': true }}
         paint={{
           'fill-color': '#C8C0B4',
           'fill-opacity': 0.4,
