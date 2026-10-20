@@ -120,6 +120,7 @@ export default function CarteMobile({
   unplaced,
   agencyPostalCodes = [],
   center,
+  members,
   isDirector,
   profileId = '',
   initialBanId = null,
@@ -857,7 +858,7 @@ export default function CarteMobile({
           value={emprise}
           onChange={choisirEmprise}
           hasSecteur={proposes.length > 0}
-          titreSecteur={isDirector && proposes.length > 1 ? 'Tous les secteurs' : undefined}
+          titreSecteur={isDirector ? 'Secteurs' : undefined}
         />
         {dessin.panneau ?? (
         <ul className="flex flex-col gap-1">
@@ -927,6 +928,8 @@ export default function CarteMobile({
             zoneId={zoneId}
             onZone={setZoneId}
             tous={isDirector}
+            profileId={profileId}
+            membres={members}
           />
         </ul>
         )}

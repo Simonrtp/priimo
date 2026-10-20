@@ -205,7 +205,14 @@ function LayersPanel({
             mapZoom={mapZoom}
           />
           <AnnoncesLayerControls layers={layers} onChange={onChangeAnnonces} qui={annoncesQui} />
-          <ChoixSecteurs zones={zones} zoneId={zoneId} onZone={onZone} tous={tousSecteurs} />
+          <ChoixSecteurs
+            zones={zones}
+            zoneId={zoneId}
+            onZone={onZone}
+            tous={tousSecteurs}
+            profileId={annoncesQui.profileId}
+            membres={members}
+          />
         </ul>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
@@ -561,7 +568,7 @@ export default function SectorMapClient({
       emprise={emprise}
       onEmprise={choisirEmprise}
       hasSecteur={proposes.length > 0}
-      titreSecteur={isDirector && proposes.length > 1 ? 'Tous les secteurs' : undefined}
+      titreSecteur={isDirector ? 'Secteurs' : undefined}
       zones={proposes}
       tousSecteurs={isDirector}
       annoncesQui={annoncesQui}
@@ -689,7 +696,7 @@ export default function SectorMapClient({
                 emprise={emprise}
                 onEmprise={choisirEmprise}
                 hasSecteur={proposes.length > 0}
-      titreSecteur={isDirector && proposes.length > 1 ? 'Tous les secteurs' : undefined}
+      titreSecteur={isDirector ? 'Secteurs' : undefined}
       zones={proposes}
       tousSecteurs={isDirector}
       annoncesQui={annoncesQui}

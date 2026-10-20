@@ -14,16 +14,17 @@ export default function EmpriseCapsules({
   hasSecteur: boolean;
   titreSecteur?: string;
 }) {
+  const libelle = titreSecteur ?? 'Mon secteur';
   return (
     <div role="group" aria-label="Emprise de la carte" className={`${PASTILLE_TRACK} mb-3 w-full`}>
       <button
         type="button"
         aria-pressed={value === 'secteur'}
-        title={titreSecteur ?? (hasSecteur ? 'Mon secteur' : 'Dessiner mon secteur')}
+        title={hasSecteur || titreSecteur ? libelle : 'Dessiner mon secteur'}
         onClick={() => onChange('secteur')}
-        className={`${pastilleClass(value === 'secteur')} min-w-0 flex-1`}
+        className={`${pastilleClass(value === 'secteur')} min-w-0 flex-1 text-balance text-center`}
       >
-        Secteur
+        {libelle}
       </button>
       <button
         type="button"
