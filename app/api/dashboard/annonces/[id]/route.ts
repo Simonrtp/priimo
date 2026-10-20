@@ -18,16 +18,16 @@ async function garderPhotos(id: string, photos: string[]) {
   if (error) console.error('[annonces] photos', error.message);
 }
 
-/** Photos déjà gardées, sinon la page publique. `relire` : PAP passe par le lecteur déjà utilisé à l’import. */
-async function photosDeLAnnonce(annonce: Annonce, relire: boolean): Promise<string[]> {
+/** Photos absentes de la base : page publique, puis le lecteur déjà utilisé à l’import. */
+async function lirePhotosManquantes(annonce: Annonce): Promise<string[]> {
   const deja = annonce.photos ?? [];
   if (deja.length > 0) return deja;
-  if (!relire) {
-    const publiques = await photosPubliques(annonce.portail, annonce.url);
-    if (publiques.length > 0) await garderPhotos(annonce.id, publiques);
+  if (annonce.portail !== 'pap' || !annonce.url) return [];
+  const publiques = await photosPubliques(annonce.portail, annonce.url);
+  if (publiques.length > 0) {
+    await garderPhotos(annonce.id, publiques);
     return publiques;
   }
-  if (annonce.portail !== 'pap' || !annonce.url) return [];
   const page = await telechargerPage(annonce.url);
   if (!page.ok) return [];
   const photos = extrairePhotosPap(page.html);
@@ -46,22 +46,23 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const lue = await lireAnnonce(supabase, id);
   if (!lue) return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
   const { annonce, soeurs } = lue;
-  const [evenements, photos] = await Promise.all([
-    lireEvenements(
-      supabase,
-      soeurs.map((a) => a.id),
-    ),
-    photosDeLAnnonce(annonce, relire).catch((err: unknown) => {
+  if (relire) {
+    const photos = await lirePhotosManquantes(annonce).catch((err: unknown) => {
       console.error('[annonces] photos', err instanceof Error ? err.name : 'réseau');
       return [] as string[];
-    }),
-  ]);
+    });
+    return NextResponse.json({ photos });
+  }
+  const evenements = await lireEvenements(
+    supabase,
+    soeurs.map((a) => a.id),
+  );
   return NextResponse.json({
     lignes: evenements.map((e) => ({ id: e.id, texte: ligneHistorique(e, annonce.premiereVueLe) })),
     raisons: annonce.confiance === 'adresse_publiee'
       ? annonce.raisonsLocalisation.filter((r) => !/dpe/i.test(r))
       : annonce.raisonsLocalisation,
     parcelleIds: annonce.parcelleIds,
-    photos,
+    photos: annonce.photos ?? [],
   });
 }

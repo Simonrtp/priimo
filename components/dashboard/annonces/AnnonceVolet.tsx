@@ -39,6 +39,18 @@ function portailsUniques(portails: Annonce[]): Annonce[] {
 const TYPE_BIEN: Record<string, string> = { appartement: 'Appartement', maison: 'Maison' };
 const MARQUE_HAUT = new Set<Portail>(['seloger', 'pap']);
 
+/** Photos déjà connues. `null` : PAP encore à lire, le bloc reste gris sans bloquer la fiche. */
+function photosConnues(annonce: Annonce): string[] | null {
+  const deja = (annonce.photos ?? []).filter((p) => p.startsWith('https://'));
+  if (deja.length > 0) return deja;
+  return annonce.portail === 'pap' ? null : [];
+}
+
+function photosDuJson(json: { photos?: unknown } | null): string[] {
+  if (!Array.isArray(json?.photos)) return [];
+  return json.photos.filter((p): p is string => typeof p === 'string' && p.startsWith('https://'));
+}
+
 function LogosPortail({ annonces }: { annonces: Annonce[] }) {
   return (
     <>
@@ -87,7 +99,7 @@ export default function AnnonceVolet({
   onFermer: () => void;
 }) {
   const [lignes, setLignes] = useState<{ id: string; texte: string }[]>([]);
-  const [photos, setPhotos] = useState<string[] | null>(null);
+  const [photos, setPhotos] = useState<string[] | null>(() => photosConnues(annonce));
   const lieu = libelleAdresse(annonce);
   const parcelle = annonce.parcelleIds[0] ?? null;
   const baisse = baisseCumulee(annonce);
@@ -110,39 +122,51 @@ export default function AnnonceVolet({
     .filter(Boolean)
     .join(' · ');
   const publiee = annonce.publieeLe ?? annonce.premiereVueLe;
+  const clePhotos = (annonce.photos ?? []).join('\n');
 
   useEffect(() => {
     let ignore = false;
     setLignes([]);
-    setPhotos(null);
-    const photosDe = (json: { photos?: unknown } | null): string[] =>
-      Array.isArray(json?.photos) ? json.photos.filter((p): p is string => typeof p === 'string') : [];
+    const deja = photosConnues(annonce);
+    setPhotos(deja);
+    const lirePhotos = deja == null;
+
     void (async () => {
       try {
         const r = await fetch(`/api/dashboard/annonces/${annonce.id}`);
-        const json = r.ok ? ((await r.json()) as { lignes?: { id: string; texte: string }[]; photos?: unknown }) : null;
+        const json = r.ok
+          ? ((await r.json()) as { lignes?: { id: string; texte: string }[]; photos?: unknown })
+          : null;
         if (ignore) return;
         if (!json) {
-          setPhotos([]);
+          if (!lirePhotos) setPhotos([]);
           return;
         }
         setLignes(json.lignes ?? []);
-        const photos = photosDe(json);
-        if (photos.length > 0 || annonce.portail !== 'pap') {
-          setPhotos(photos);
-          return;
-        }
-        const suite = await fetch(`/api/dashboard/annonces/${annonce.id}?lire=1`);
-        const encore = suite.ok ? ((await suite.json()) as { photos?: unknown }) : null;
-        if (!ignore) setPhotos(photosDe(encore));
+        const duDetail = photosDuJson(json);
+        if (duDetail.length > 0) setPhotos(duDetail);
+        else if (!lirePhotos) setPhotos([]);
       } catch {
-        if (!ignore) setPhotos([]);
+        if (!ignore && !lirePhotos) setPhotos([]);
       }
     })();
+
+    if (lirePhotos) {
+      void (async () => {
+        try {
+          const r = await fetch(`/api/dashboard/annonces/${annonce.id}?lire=1`);
+          const json = r.ok ? ((await r.json()) as { photos?: unknown }) : null;
+          if (!ignore) setPhotos(photosDuJson(json));
+        } catch {
+          if (!ignore) setPhotos([]);
+        }
+      })();
+    }
+
     return () => {
       ignore = true;
     };
-  }, [annonce.id, annonce.portail]);
+  }, [annonce.id, annonce.portail, clePhotos]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface">

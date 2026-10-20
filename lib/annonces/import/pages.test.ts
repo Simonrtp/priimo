@@ -107,6 +107,28 @@ describe('lecteurs de pages', () => {
     assert.deepEqual(p.zone, { latitude: 48.8481, longitude: 2.4045, rayonM: 0 });
   });
 
+  it('SeLoger : rue et numéro publiés', () => {
+    const classified = {
+      ...CLASSIFIED,
+      sections: {
+        ...CLASSIFIED.sections,
+        location: {
+          address: {
+            zipCode: '75011',
+            city: 'Paris 11ème',
+            district: 'Nation',
+            street: 'rue de Charonne',
+            extra: '45',
+          },
+          geometry: CLASSIFIED.sections.location.geometry,
+        },
+      },
+    };
+    const p = lireSeLoger(pageSeLoger(classified))!;
+    assert.equal(p.adressePubliee, '45 rue de Charonne');
+    assert.equal(p.quartier, 'Nation');
+  });
+
   it('Leboncoin : attributs, vendeur, position floutée en repère', () => {
     const p = lireLeboncoin(pageLeboncoin(AD_LBC))!;
     assert.deepEqual([p.prix, p.surface, p.pieces, p.dpe, p.ges, p.typeBien, p.typeVendeur], [155_000, 16, 1, 'G', 'D', 'appartement', 'particulier']);

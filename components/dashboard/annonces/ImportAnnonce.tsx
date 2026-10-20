@@ -61,8 +61,8 @@ function paliers(etapes: EtapesRecues): { plancher: number; plafond: number; lib
   if (donnees?.etat === 'fait') return { plancher: 86, plafond: 97, libelle: 'Recherche de l’adresse', ia: false };
   if (donnees?.ia) return { plancher: 62, plafond: 90, libelle: 'Mon assistant lit l’annonce', ia: true };
   if (donnees) return { plancher: 60, plafond: 85, libelle: 'Lecture des données', ia: false };
-  if (lecture?.etat === 'fait') return { plancher: 55, plafond: 82, libelle: 'Lecture des données', ia: false };
-  return { plancher: 0, plafond: 52, libelle: 'Lecture de l’annonce', ia: false };
+  if (lecture?.etat === 'fait') return { plancher: 68, plafond: 82, libelle: 'Lecture des données', ia: false };
+  return { plancher: 4, plafond: 68, libelle: 'Lecture de l’annonce', ia: false };
 }
 
 /**
@@ -77,10 +77,10 @@ function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) 
   useEffect(() => {
     cible.current = { plancher, plafond, fini };
   });
-  const [pct, setPct] = useState(0);
+  const [pct, setPct] = useState(4);
 
   useEffect(() => {
-    let valeur = 0;
+    let valeur = 4;
     let dernier = performance.now();
     let image = 0;
     const pas = (maintenant: number) => {
@@ -88,10 +88,10 @@ function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) 
       dernier = maintenant;
       const { plancher: bas, plafond: haut, fini: termine } = cible.current;
       if (termine) valeur += (100 - valeur) * Math.min(1, dt / 90);
+      else if (valeur < bas) valeur += (bas - valeur) * Math.min(1, dt / 120);
       else {
-        if (valeur < bas) valeur += (bas - valeur) * Math.min(1, dt / 160);
-        // Vers le plafond, de plus en plus lentement : jamais figé, jamais à court.
-        else valeur += (haut - valeur) * Math.min(1, dt / 5000);
+        // ~40 s de lecture SeLoger : la barre avance tout du long, sans rester à 0.
+        valeur += (haut - valeur) * Math.min(1, dt / 22_000);
       }
       setPct(Math.min(100, valeur));
       image = requestAnimationFrame(pas);
@@ -149,7 +149,11 @@ function Carte({
   ]
     .filter(Boolean)
     .join(' · ');
-  const rue = carte.approximative ? 'Secteur approximatif' : (carte.adresse ?? '').replace(/\s\d{5}\s.*$/, '');
+  const rue = carte.adresse
+    ? carte.adresse.replace(/\s\d{5}\s.*$/, '')
+    : carte.approximative
+      ? 'Secteur approximatif'
+      : '';
   const logo = LOGO_PORTAIL[carte.portailCle];
 
   async function ajouter() {

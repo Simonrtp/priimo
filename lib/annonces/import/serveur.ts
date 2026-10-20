@@ -24,11 +24,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { lireAnnonceParPortail } from '@/lib/annonces/lire';
 import { libellePortail } from '@/lib/annonces/presenter';
-import type { Annonce } from '@/lib/annonces/types';
+import type { Annonce, PrecisionLocalisation } from '@/lib/annonces/types';
 import { PLAFONDS_LECTURE_ANNONCE, plafondsLecturePage } from '@/lib/quota/regles';
 import { reserverQuota } from '@/lib/quota/reserver';
 import { lireBienici } from './bienici';
-import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, type CarteImport } from './carte';
+import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, rayonDuRepere, type CarteImport } from './carte';
 import { ficheDepuisPage } from './fiche';
 import { localiserFiche } from './localiser';
 import { telechargerPage } from './telecharger';
@@ -86,7 +86,7 @@ function resumeDonnees(f: Pick<FicheAnnonce, 'prix' | 'surface' | 'dpe'>): strin
 }
 
 function resumeAdresse(c: Pick<CarteImport, 'adresse' | 'approximative' | 'latitude'>): string {
-  if (!c.approximative && c.adresse) return c.adresse.replace(/\s\d{5}\s.*$/, '');
+  if (c.adresse) return c.adresse.replace(/\s\d{5}\s.*$/, '');
   return c.latitude != null ? 'Secteur approximatif' : 'Adresse introuvable';
 }
 
@@ -191,10 +191,15 @@ export function carteDepuisColonnes(r: Record<string, unknown>, importId: string
     etage: r.etage == null ? null : String(r.etage),
     dpe: t(r.dpe),
     confiance,
-    adresse: confiance === 'incertaine' ? null : t(r.adresse),
+    adresse: t(r.adresse),
     latitude: n(r.latitude),
     longitude: n(r.longitude),
     approximative: confiance === 'incertaine',
+    rayonM: rayonDuRepere(
+      confiance,
+      t(r.localisation_precision) as PrecisionLocalisation | null,
+      n(r.rayon_m),
+    ),
     parcelleId: Array.isArray(r.parcelle_ids) ? (t(r.parcelle_ids[0]) ?? null) : null,
     photo: photos[0] ?? null,
   };
@@ -227,6 +232,7 @@ async function resultatFiche(admin: Db, qui: Qui, u: UrlAnnonce, fiche: FicheAnn
 
 export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, onEtape: SurEtape = rien): Promise<ReponseImport> {
   onEtape({ cle: 'lecture', etat: 'en_cours' });
+  await new Promise<void>((ok) => setImmediate(ok));
   const portail = libellePortail(u.portail);
 
   // 1. Déjà connue : lue par la veille ou collée par une agence (une seule lecture pour tout Priimo).
@@ -254,12 +260,16 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
     const derniere = await derniereLecture(admin, u);
     // Déjà lue par une agence : reprise telle quelle, sans nouvel appel.
     if (derniere?.statut === 'lue' && derniere.resultat && !derniere.resultat.annonce_existante) {
-      const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: derniere.resultat });
-      const carte = carteDepuisColonnes(derniere.resultat, id);
-      onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
-      onEtape({ cle: 'donnees', etat: 'fait', detail: resumeDonnees(carte) });
-      onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
-      return { etat: 'trouvee', carte, disponible };
+      const carteCache = carteDepuisColonnes(derniere.resultat, null);
+      // Un secteur sans rue : relire, la page a peut-être l'adresse.
+      if (!(carteCache.approximative && !carteCache.adresse)) {
+        const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: derniere.resultat });
+        const carte = carteDepuisColonnes(derniere.resultat, id);
+        onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
+        onEtape({ cle: 'donnees', etat: 'fait', detail: resumeDonnees(carte) });
+        onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
+        return { etat: 'trouvee', carte, disponible };
+      }
     }
     if (derniere?.statut === 'echec' && Date.now() - derniere.lueLe < ECHEC_MS) {
       onEtape({ cle: 'lecture', etat: 'rate' });

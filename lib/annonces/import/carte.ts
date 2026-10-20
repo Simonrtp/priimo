@@ -25,9 +25,22 @@ export type CarteImport = {
   longitude: number | null;
   /** Repère seulement (quartier, commune) : pas d'adresse affirmée. */
   approximative: boolean;
+  /** Rayon du secteur, en mètres. Null : point d'immeuble. */
+  rayonM: number | null;
   parcelleId: string | null;
   photo: string | null;
 };
+
+export function rayonDuRepere(
+  confiance: LocalisationImport['confiance'],
+  precision: LocalisationImport['precision'] | null | undefined,
+  rayon: number | null | undefined,
+): number | null {
+  if (confiance !== 'incertaine') return null;
+  if (rayon != null && rayon > 0) return rayon;
+  if (precision === 'code_postal') return 700;
+  return 300;
+}
 
 export function carteDepuisFiche(
   fiche: FicheAnnonce,
@@ -51,6 +64,7 @@ export function carteDepuisFiche(
     latitude: loc.latitude,
     longitude: loc.longitude,
     approximative: loc.confiance === 'incertaine',
+    rayonM: rayonDuRepere(loc.confiance, loc.precision, fiche.zone?.rayonM),
     parcelleId: loc.parcelleIds[0] ?? null,
     photo: fiche.photos[0] ?? null,
   };
@@ -71,10 +85,11 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     etage: a.etage,
     dpe: a.dpe,
     confiance: a.confiance,
-    adresse: a.confiance === 'incertaine' ? null : a.adresse,
+    adresse: a.adresse,
     latitude: a.latitude,
     longitude: a.longitude,
     approximative: a.confiance === 'incertaine',
+    rayonM: rayonDuRepere(a.confiance, a.localisationPrecision, null),
     parcelleId: a.parcelleIds[0] ?? null,
     photo: null,
   };
@@ -89,7 +104,7 @@ function numeroEtVoie(adresse: string | null): { numero: string | null; voie: st
 export function colonnesAnnonce(fiche: FicheAnnonce, loc: LocalisationImport, maintenant = new Date()): Record<string, unknown> | null {
   const codePostal = fiche.codePostal ?? loc.adresse?.match(/\b(\d{5})\b/)?.[1] ?? null;
   if (!codePostal) return null;
-  const adresseAffichable = loc.confiance !== 'incertaine' ? loc.adresse : null;
+  const adresseAffichable = loc.adresse;
   const { numero, voie } = numeroEtVoie(adresseAffichable);
   const vu = maintenant.toISOString();
   return {

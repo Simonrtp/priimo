@@ -42,8 +42,8 @@ function lireViaCurl(url: string): Promise<string> {
   return new Promise((resolve) => {
     execFile(
       curl,
-      ['-sL', '--max-redirs', '0', '--max-time', '8', '-A', NAVIGATEUR, '-H', 'Accept-Language: fr-FR,fr;q=0.9', url],
-      { encoding: 'utf8', timeout: 9000, maxBuffer: 2_000_000, windowsHide: true },
+      ['-sL', '--max-redirs', '0', '--max-time', '2', '-A', NAVIGATEUR, '-H', 'Accept-Language: fr-FR,fr;q=0.9', url],
+      { encoding: 'utf8', timeout: 3000, maxBuffer: 2_000_000, windowsHide: true },
       (err, stdout) => {
         resolve(err || typeof stdout !== 'string' ? '' : stdout);
       },

@@ -466,14 +466,20 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
     }
   }
 
+  const libelle =
+    f.adressePubliee
+      ? [f.adressePubliee, f.codePostal, f.ville].filter(Boolean).join(' ')
+      : f.quartier ?? null;
   return {
     confiance: 'incertaine',
     ...repereApproximatif(f),
-    adresse: null,
+    adresse: libelle,
     parcelleIds: [],
     numeroDpe: null,
     complementDpe: null,
     score: decision.meilleur?.score ?? null,
-    raisons: [],
+    raisons: f.adressePubliee
+      ? ["adresse publiée sur l'annonce, immeuble non départagé"]
+      : [],
   };
 }

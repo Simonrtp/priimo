@@ -102,6 +102,18 @@ export function lirePap(html: string): Partielle | null {
 
 const RE_UFRN = /window\["__UFRN_LIFECYCLE_SERVERREQUEST__"\]=JSON\.parse\(("(?:[^"\\]|\\.)*")\)/;
 
+/** Rue (et numéro s'il est publié) : SeLoger les met dans street / extra, parfois dans label. */
+function adresseSeLoger(adresse: Brut): string | null {
+  const label = texte(adresse.label) ?? texte(adresse.fullAddress) ?? texte(adresse.formattedAddress);
+  if (label && /\d/.test(label) && /\b(rue|avenue|boulevard|bd|place|impasse|all[ée]e|chemin|cours|quai|square|villa|passage)\b/i.test(label)) {
+    return label.replace(/\s+\d{5}\b.*$/, '').trim();
+  }
+  const numero = texte(adresse.extra) ?? texte(adresse.streetNumber) ?? texte(adresse.houseNumber);
+  const rue = texte(adresse.street) ?? texte(adresse.streetName);
+  if (!rue) return label && /\b(rue|avenue|boulevard|bd|place|impasse|all[ée]e|chemin|cours|quai)\b/i.test(label) ? label : null;
+  return [numero, rue].filter(Boolean).join(' ');
+}
+
 /** JSON embarqué des fiches SeLoger (même lecture que priimo-pipeline/portails/seloger.py). */
 export function lireSeLoger(html: string): Partielle | null {
   const m = html.match(RE_UFRN);
@@ -122,6 +134,7 @@ export function lireSeLoger(html: string): Partielle | null {
   const location = (sections.location ?? {}) as Brut;
   const adresse = (location.address ?? {}) as Brut;
   const geometrie = (location.geometry ?? {}) as Brut;
+  const adressePubliee = adresseSeLoger(adresse);
 
   let zone: FicheAnnonce['zone'] = null;
   if (geometrie.type === 'Point' && Array.isArray(geometrie.coordinates)) {
@@ -194,6 +207,7 @@ export function lireSeLoger(html: string): Partielle | null {
     codePostal: texte(adresse.zipCode),
     ville: texte(adresse.city),
     quartier: texte(adresse.district),
+    adressePubliee,
     description,
     datePublication: texte(chemin(classified, 'metadata', 'creationDate')),
     zone,
@@ -304,6 +318,7 @@ export function lireJsonLd(html: string): Partielle | null {
     r.pieces ??= nombre(o.numberOfRooms);
     r.codePostal ??= texte(chemin(o, 'address', 'postalCode'));
     r.ville ??= texte(chemin(o, 'address', 'addressLocality'));
+    r.adressePubliee ??= texte(chemin(o, 'address', 'streetAddress'));
     r.titre ??= texte(o.name);
     r.description ??= texte(o.description);
     const lat = nombre(chemin(o, 'geo', 'latitude'));

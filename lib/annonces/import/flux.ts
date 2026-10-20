@@ -7,7 +7,10 @@ export function reponseEnFlux(travail: (onEtape: (e: EtapeImport) => void) => Pr
   const encodeur = new TextEncoder();
   const flux = new ReadableStream<Uint8Array>({
     async start(controleur) {
-      const envoyer = (ligne: LigneFlux) => controleur.enqueue(encodeur.encode(`${JSON.stringify(ligne)}\n`));
+      const envoyer = (ligne: LigneFlux) => {
+        // Le padding force le premier événement hors des buffers (nginx, compress).
+        controleur.enqueue(encodeur.encode(`${JSON.stringify(ligne)}\n${' '.repeat(4096)}\n`));
+      };
       try {
         envoyer({ resultat: await travail((etape) => envoyer({ etape })) });
       } catch (err) {
