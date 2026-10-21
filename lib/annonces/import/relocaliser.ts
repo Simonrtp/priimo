@@ -83,14 +83,29 @@ export async function relocaliserAnnoncesAjoutees(admin: SupabaseClient): Promis
     aRevoir.push(...((data ?? []) as Ligne[]));
   }
 
+  // Avant la migration 20261021, la colonne des adresses possibles n'existe pas : on s'en passe.
+  const maj = async (id: string, valeurs: Record<string, unknown>) => {
+    let { error: e } = await admin.from('annonces').update(valeurs).eq('id', id).eq('confiance', 'incertaine');
+    if (e && /adresses_possibles/.test(e.message)) {
+      const { adresses_possibles: _ignore, ...sans } = valeurs;
+      void _ignore;
+      if (Object.keys(sans).length === 0) return true;
+      ({ error: e } = await admin.from('annonces').update(sans).eq('id', id).eq('confiance', 'incertaine'));
+    }
+    if (e) console.error('[relocaliser] mise à jour', e.message);
+    return !e;
+  };
+
   let retrouvees = 0;
   for (const ligne of aRevoir.slice(0, PLAFOND_PAR_NUIT)) {
     const loc = await localiserFiche(ficheDepuisLigne(ligne));
-    if (loc.confiance === 'incertaine' || loc.latitude == null || loc.longitude == null) continue;
+    if (loc.confiance === 'incertaine' || loc.latitude == null || loc.longitude == null) {
+      // Toujours à départager : les adresses possibles du jour (des DPE ont pu arriver).
+      await maj(String(ligne.id), { adresses_possibles: loc.adressesPossibles ?? [] });
+      continue;
+    }
     const { numero, voie } = numeroEtVoie(loc.adresse);
-    const { error: e } = await admin
-      .from('annonces')
-      .update({
+    const ok = await maj(String(ligne.id), {
         confiance: loc.confiance,
         localisation_precision: loc.precision,
         adresse: loc.adresse,
@@ -104,11 +119,9 @@ export async function relocaliserAnnoncesAjoutees(admin: SupabaseClient): Promis
         logement_cle: loc.numeroDpe ?? ligne.logement_cle ?? null,
         score_localisation: loc.score,
         raisons_localisation: loc.raisons,
-      })
-      .eq('id', String(ligne.id))
-      .eq('confiance', 'incertaine');
-    if (e) console.error('[relocaliser] mise à jour', e.message);
-    else retrouvees += 1;
+        adresses_possibles: [],
+    });
+    if (ok) retrouvees += 1;
   }
   return { revues: aRevoir.length, retrouvees };
 }

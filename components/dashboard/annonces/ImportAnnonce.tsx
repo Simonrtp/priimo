@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Link2, Loader2, MapPin, Sparkles, X } from 'lucide-react';
 import { notifyError } from '@/lib/notify';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
+import { NumeroPossible } from './AnnoncesAjoutees';
 import type { CarteImport } from '@/lib/annonces/import/carte';
 import type { LigneFlux } from '@/lib/annonces/import/flux';
 import type { EtapeImport, ReponseImport } from '@/lib/annonces/import/serveur';
@@ -154,9 +155,10 @@ function Carte({
   ]
     .filter(Boolean)
     .join(' · ');
+  const possibles = carte.approximative ? carte.adressesPossibles : [];
   const rue = carte.adresse
     ? carte.adresse.replace(/\s\d{5}\s.*$/, '')
-    : carte.approximative
+    : carte.approximative && possibles.length === 0
       ? 'Secteur approximatif'
       : '';
   const logo = LOGO_PORTAIL[carte.portailCle];
@@ -204,7 +206,21 @@ function Carte({
         </button>
       </div>
 
-      {rue ? (
+      {possibles.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <p className="text-[12px] font-medium text-text-subtle">
+            {possibles.length > 1 ? `${possibles.length} adresses possibles` : 'Adresse possible'}
+          </p>
+          <ol className="flex flex-col gap-1">
+            {possibles.map((p, i) => (
+              <li key={p.adresse} className="flex items-center gap-1.5 text-[13px] text-text-strong">
+                <NumeroPossible n={i + 1} />
+                <span className="min-w-0 truncate">{p.adresse.replace(/\s\d{5}\s.*$/, '')}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : rue ? (
         <p className={`flex items-center gap-1.5 text-[13px] ${carte.approximative ? 'text-text-muted' : 'text-text-strong'}`}>
           <MapPin size={14} strokeWidth={2} aria-hidden className={`shrink-0 ${carte.approximative ? 'text-text-subtle' : 'text-accent'}`} />
           <span className="min-w-0 truncate">{rue}</span>

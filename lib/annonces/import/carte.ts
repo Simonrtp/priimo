@@ -1,5 +1,5 @@
 import { libellePortail } from '@/lib/annonces/presenter';
-import type { Annonce } from '@/lib/annonces/types';
+import type { AdressePossible, Annonce } from '@/lib/annonces/types';
 import type { FicheAnnonce, LocalisationImport } from './types';
 
 /** Ce que le panneau montre d'une annonce retrouvée : peu de texte, le point sur la carte. */
@@ -27,6 +27,8 @@ export type CarteImport = {
   approximative: boolean;
   /** Rayon du secteur, en mètres. Null : point d'immeuble. */
   rayonM: number | null;
+  /** Sans adresse sûre : les immeubles possibles, à vérifier sur place. */
+  adressesPossibles: AdressePossible[];
   parcelleId: string | null;
   photo: string | null;
 };
@@ -65,6 +67,7 @@ export function carteDepuisFiche(
     longitude: loc.longitude,
     approximative: loc.confiance === 'incertaine',
     rayonM: rayonDuRepere(loc.confiance, loc.precision, loc.rayonM ?? fiche.zone?.rayonM),
+    adressesPossibles: loc.confiance === 'incertaine' ? (loc.adressesPossibles ?? []) : [],
     parcelleId: loc.parcelleIds[0] ?? null,
     photo: fiche.photos[0] ?? null,
   };
@@ -90,6 +93,7 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     longitude: a.longitude,
     approximative: a.confiance === 'incertaine',
     rayonM: rayonDuRepere(a.confiance, a.localisationPrecision, null),
+    adressesPossibles: a.confiance === 'incertaine' ? (a.adressesPossibles ?? []) : [],
     parcelleId: a.parcelleIds[0] ?? null,
     photo: null,
   };
@@ -145,6 +149,7 @@ export function colonnesAnnonce(fiche: FicheAnnonce, loc: LocalisationImport, ma
     logement_cle: loc.numeroDpe,
     score_localisation: loc.score,
     raisons_localisation: loc.raisons,
+    adresses_possibles: loc.confiance === 'incertaine' ? (loc.adressesPossibles ?? []) : [],
     photos: fiche.photos,
   };
 }

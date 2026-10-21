@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  adressesPossibles,
   chercherCandidats,
   decider,
   etageDpe,
@@ -286,5 +287,69 @@ describe('garde-fous de l’audit du 21/10/2026 (cas réels)', () => {
       fetcher,
     );
     assert.equal(loc.adresse, null);
+  });
+});
+
+describe('adresses possibles (21/10/2026)', () => {
+  const zone = { latitude: 48.852, longitude: 2.3957, rayonM: 281 };
+  const f = fiche({ codePostal: '75011', zone, surface: 42, consoKwhM2: 172, gesKgM2: 36, dpe: 'D', ges: 'D', etage: null });
+  const candidat = (adresse: string, cp: string, point: string, over: LigneDpe = {}) =>
+    dpe({
+      numero_dpe: adresse,
+      adresse_ban: adresse,
+      code_postal_ban: cp,
+      _geopoint: point,
+      surface_habitable_logement: 42.2,
+      conso_5_usages_par_m2_ep: 171.5,
+      emission_ges_5_usages_par_m2: 36,
+      etiquette_dpe: 'D',
+      etiquette_ges: 'D',
+      complement_adresse_logement: '',
+      ...over,
+    });
+
+  it('deux immeubles à égalité : les deux, l’autre côté du boulevard compris', () => {
+    const lignes = [
+      candidat('58 Boulevard de Charonne 75020 Paris', '75020', '48.8525,2.3960'),
+      candidat('44 Rue Chanzy 75011 Paris', '75011', '48.8530,2.3930'),
+    ];
+    assert.deepEqual(adressesPossibles(f, lignes).map((p) => p.adresse).sort(), ['44 Rue Chanzy 75011 Paris', '58 Boulevard de Charonne 75020 Paris']);
+  });
+
+  it('trois au plus, un seul par immeuble', () => {
+    const lignes = [
+      candidat('1 Rue A 75011 Paris', '75011', '48.8521,2.3955'),
+      candidat('1 Rue A 75011 Paris', '75011', '48.8521,2.3955', { numero_dpe: 'bis' }),
+      candidat('2 Rue B 75011 Paris', '75011', '48.8522,2.3956'),
+      candidat('3 Rue C 75011 Paris', '75011', '48.8523,2.3957'),
+      candidat('4 Rue D 75011 Paris', '75011', '48.8524,2.3958'),
+    ];
+    const possibles = adressesPossibles(f, lignes);
+    assert.equal(possibles.length, 3);
+    assert.equal(new Set(possibles.map((p) => p.adresse)).size, 3);
+  });
+
+  it('jamais une surface trop éloignée, ni un immeuble à plus de 400 m du repère', () => {
+    const lignes = [
+      candidat('55 Boulevard de Charonne 75011 Paris', '75011', '48.8525,2.3960', { surface_habitable_logement: 88 }),
+      candidat('31 Avenue Parmentier 75011 Paris', '75011', '48.8650,2.3740'),
+    ];
+    assert.deepEqual(adressesPossibles(f, lignes), []);
+  });
+
+  it('localiserFiche les renvoie quand l’adresse reste à départager', async () => {
+    const fetcher = async () => ({
+      ok: true,
+      json: async () => ({
+        results: [
+          candidat('58 Boulevard de Charonne 75020 Paris', '75020', '48.8525,2.3960'),
+          // Comme le vrai 44 rue Chanzy : 360 m hors du quartier publié.
+          candidat('44 Rue Chanzy 75011 Paris', '75011', '48.8530,2.3890'),
+        ],
+      }),
+    });
+    const loc = await localiserFiche(f, fetcher);
+    assert.equal(loc.confiance, 'incertaine');
+    assert.equal(loc.adressesPossibles?.length, 2);
   });
 });

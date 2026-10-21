@@ -47,6 +47,8 @@ export function libelleAdresse(annonce: Annonce): { ligne: string; probable: boo
     return { ligne: rue, probable: annonce.confiance === 'probable' };
   }
   if (!adresseVisible(annonce.confiance)) {
+    const possibles = (annonce.adressesPossibles ?? []).map((p) => p.adresse.replace(/\s\d{5}\b.*$/, ''));
+    if (possibles.length > 0) return { ligne: possibles.join(' ou '), probable: true };
     return { ligne: 'Secteur approximatif', probable: false };
   }
   return { ligne: rue || 'Adresse non précisée', probable: annonce.confiance === 'probable' };

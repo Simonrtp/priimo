@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Layer, Marker, Source, useMap } from 'react-map-gl';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
-import { PastilleAjoutee } from './AnnoncesAjoutees';
+import { PastilleAjoutee, ReperesPossibles } from './AnnoncesAjoutees';
 
 function euros(n: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
@@ -81,7 +81,10 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
 
   const secteur =
     carte.approximative ? (
-      <SecteurImport longitude={carte.longitude} latitude={carte.latitude} rayonM={carte.rayonM ?? 300} />
+      <>
+        <SecteurImport longitude={carte.longitude} latitude={carte.latitude} rayonM={carte.rayonM ?? 300} />
+        <ReperesPossibles possibles={carte.adressesPossibles} />
+      </>
     ) : null;
 
   // Ajoutée : elle reste sur la carte, sous le logo de son portail. Dès que la

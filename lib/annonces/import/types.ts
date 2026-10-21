@@ -1,4 +1,4 @@
-import type { Confiance, PrecisionLocalisation } from '@/lib/annonces/types';
+import type { AdressePossible, Confiance, PrecisionLocalisation } from '@/lib/annonces/types';
 import type { PortailImport } from './url';
 
 /** Ce qu'une annonce dit d'elle-même, quel que soit le portail ou le texte collé. */
@@ -45,6 +45,8 @@ export type LocalisationImport = {
   longitude: number | null;
   /** Secteur, en mètres. Absent : le point est un immeuble. */
   rayonM?: number | null;
+  /** Sans adresse sûre : les immeubles qui restent possibles (trois au plus). */
+  adressesPossibles?: AdressePossible[];
   parcelleIds: string[];
   numeroDpe: string | null;
   complementDpe: string | null;

@@ -1,48 +1,23 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import { PORTAILS, type Annonce, type Confiance, type EvenementAnnonce, type Portail, type RunAnnonce } from './types';
+import { PORTAILS, type AdressePossible, type Annonce, type Confiance, type EvenementAnnonce, type Portail, type RunAnnonce } from './types';
 
 type Client = SupabaseClient<Database>;
 
-const SELECT_ANNONCE = [
-  'id',
-  'id_portail',
-  'portail',
-  'url',
-  'type_vendeur',
-  'agence_nom',
-  'refus_demarchage',
-  'statut',
-  'publiee_le',
-  'premiere_vue_le',
-  'derniere_vue_le',
-  'retiree_le',
-  'type_bien',
-  'titre',
-  'prix_initial',
-  'prix',
-  'surface',
-  'pieces',
-  'etage',
-  'dpe',
-  'code_postal',
-  'ville',
-  'quartier',
-  'confiance',
-  'localisation_precision',
-  'adresse',
-  'adresse_numero',
-  'adresse_voie',
-  'parcelle_ids',
-  'numero_dpe',
-  'complement_dpe',
-  'latitude',
-  'longitude',
-  'logement_cle',
-  'score_localisation',
-  'raisons_localisation',
-  'photos',
-].join(', ');
+/**
+ * Toutes les colonnes : `adresses_possibles` (migration 20261021) est lue si
+ * elle existe, sans casser la lecture tant qu'elle n'existe pas.
+ */
+const SELECT_ANNONCE = '*';
+
+function possibles(v: unknown): AdressePossible[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((x) => {
+    const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : null;
+    if (!o || typeof o.adresse !== 'string' || typeof o.latitude !== 'number' || typeof o.longitude !== 'number') return [];
+    return [{ adresse: o.adresse, latitude: o.latitude, longitude: o.longitude }];
+  });
+}
 
 function raisons(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
@@ -102,6 +77,7 @@ function versAnnonce(row: Record<string, unknown>): Annonce {
     logementCle: typeof row.logement_cle === 'string' ? row.logement_cle : null,
     scoreLocalisation: typeof row.score_localisation === 'number' ? row.score_localisation : null,
     raisonsLocalisation: raisons(row.raisons_localisation),
+    adressesPossibles: possibles(row.adresses_possibles),
     photos: raisons(row.photos).filter((p) => p.startsWith('https://')).slice(0, 24),
   };
 }
@@ -111,36 +87,19 @@ function table(client: Client, nom: 'annonces' | 'annonce_evenements' | 'annonce
   return (client as unknown as SupabaseClient).from(nom);
 }
 
-const PAGE = 1000;
-/** Garde-fou : un territoire d'agence compte quelques milliers d'annonces avec les agences. */
-const PLAFOND = 8000;
-
 /**
- * Toutes les annonces lisibles (RLS : territoire de l'agence), par pages de
- * 1 000 — la limite de PostgREST. `vendeur` réduit aux particuliers pour le
- * brief du matin, qui lit sans RLS.
+ * Les annonces de l'agence : celles qu'elle a ajoutées par leur URL. Depuis le
+ * 21/10/2026 (décision de Simon et Nicolas), plus de veille qui aspire les
+ * portails : intenable à grande échelle. Carte, page Annonces, tournée et
+ * fiche parcelle ne lisent plus que ces annonces-là.
  */
 export async function lireAnnonces(
   client: Client,
   opts: { vendeur?: 'particulier' } = {},
 ): Promise<Annonce[]> {
-  const lignes: Record<string, unknown>[] = [];
-  for (let debut = 0; debut < PLAFOND; debut += PAGE) {
-    let requete = table(client, 'annonces').select(SELECT_ANNONCE);
-    if (opts.vendeur) requete = requete.eq('type_vendeur', opts.vendeur);
-    const { data, error } = await requete
-      .order('derniere_vue_le', { ascending: false })
-      .order('id', { ascending: true })
-      .range(debut, debut + PAGE - 1);
-    if (error) {
-      console.error('[annonces] lecture', error.message);
-      break;
-    }
-    const lot = (data ?? []) as unknown as Record<string, unknown>[];
-    lignes.push(...lot);
-    if (lot.length < PAGE) break;
-  }
-  return lignes.map(versAnnonce);
+  const annonces = await lireAnnoncesAjoutees(client);
+  const triees = annonces.sort((a, b) => String(b.derniereVueLe ?? '').localeCompare(String(a.derniereVueLe ?? '')));
+  return opts.vendeur ? triees.filter((a) => a.typeVendeur === opts.vendeur) : triees;
 }
 
 /** Une annonce et les autres portails du même logement. */
@@ -198,16 +157,7 @@ export async function lireAnnonceParPortail(
  * sur une adresse retrouvée ou publiée : jamais sur un repère approximatif.
  */
 export async function lireAnnoncesParcelle(client: Client, parcelleId: string): Promise<Annonce[]> {
-  const { data, error } = await table(client, 'annonces')
-    .select(SELECT_ANNONCE)
-    .contains('parcelle_ids', [parcelleId])
-    .order('derniere_vue_le', { ascending: false })
-    .limit(40);
-  if (error) {
-    console.error('[annonces] parcelle', error.message);
-    return [];
-  }
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce);
+  return (await lireAnnonces(client)).filter((a) => a.parcelleIds.includes(parcelleId)).slice(0, 40);
 }
 
 /** Par lots : une liste `in.(…)` de plusieurs centaines d'UUID dépasse la longueur d'URL admise. */

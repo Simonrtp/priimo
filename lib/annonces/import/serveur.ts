@@ -24,7 +24,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { lireAnnonceParPortail } from '@/lib/annonces/lire';
 import { libellePortail } from '@/lib/annonces/presenter';
-import type { Annonce, PrecisionLocalisation } from '@/lib/annonces/types';
+import type { AdressePossible, Annonce, PrecisionLocalisation } from '@/lib/annonces/types';
 import { PLAFONDS_LECTURE_ANNONCE, plafondsLecturePage } from '@/lib/quota/regles';
 import { reserverQuota } from '@/lib/quota/reserver';
 import { lireBienici } from './bienici';
@@ -107,8 +107,8 @@ async function etatSuivi(db: Db, annonceId: string, profileId: string): Promise<
   return { suivie: !error && Boolean(data), disponible: !tableAbsente(error) };
 }
 
+/** Déjà dans les annonces de l'agence : le lien `annonces_agences`, rien d'autre (plus de veille par code postal). */
 async function visiblePourAgence(admin: Db, a: Annonce, qui: Qui): Promise<boolean> {
-  if (a.codePostal && qui.codesPostaux.includes(a.codePostal)) return true;
   const { data, error } = await admin
     .from('annonces_agences')
     .select('annonce_id')
@@ -200,9 +200,25 @@ export function carteDepuisColonnes(r: Record<string, unknown>, importId: string
       t(r.localisation_precision) as PrecisionLocalisation | null,
       n(r.rayon_m),
     ),
+    adressesPossibles: confiance === 'incertaine' ? adressesPossiblesDe(r.adresses_possibles) : [],
     parcelleId: Array.isArray(r.parcelle_ids) ? (t(r.parcelle_ids[0]) ?? null) : null,
     photo: photos[0] ?? null,
   };
+}
+
+/** Les adresses possibles gardées en base (jsonb) ; une valeur mal formée est ignorée. */
+export function adressesPossiblesDe(v: unknown): AdressePossible[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((x) => {
+    const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : null;
+    if (!o || typeof o.adresse !== 'string' || typeof o.latitude !== 'number' || typeof o.longitude !== 'number') return [];
+    return [{ adresse: o.adresse, latitude: o.latitude, longitude: o.longitude }];
+  });
+}
+
+/** Colonne `adresses_possibles` pas encore créée (migration 20261021) : PostgREST la dit introuvable. */
+function colonnePossiblesAbsente(message: string | undefined): boolean {
+  return /adresses_possibles/.test(message ?? '');
 }
 
 /** Une lecture à la fois par agent (par instance ; le plafond en base borne le reste). */
@@ -338,11 +354,14 @@ export async function ajouterImport(admin: Db, qui: Qui, importId: string): Prom
   if (!annonceId) {
     const colonnes = { ...ligne.resultat };
     if (!colonnes.code_postal) return { erreur: 'Code postal inconnu : impossible d’ajouter' };
-    const { data: inseree, error: errInsert } = await admin
-      .from('annonces')
-      .upsert(colonnes, { onConflict: 'portail,id_portail', ignoreDuplicates: true })
-      .select('id')
-      .maybeSingle();
+    const inserer = (valeurs: Record<string, unknown>) =>
+      admin.from('annonces').upsert(valeurs, { onConflict: 'portail,id_portail', ignoreDuplicates: true }).select('id').maybeSingle();
+    let { data: inseree, error: errInsert } = await inserer(colonnes);
+    // Avant la migration des adresses possibles : l'annonce s'ajoute quand même, sans elles.
+    if (errInsert && colonnePossiblesAbsente(errInsert.message)) {
+      delete colonnes.adresses_possibles;
+      ({ data: inseree, error: errInsert } = await inserer(colonnes));
+    }
     if (errInsert) {
       console.error('[import] ajout', errInsert.message);
       return { erreur: 'Ajout impossible' };

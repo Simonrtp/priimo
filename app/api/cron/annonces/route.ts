@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { traiterAnnoncesDuMatin } from '@/lib/annonces/matin';
 import { relocaliserAnnoncesAjoutees } from '@/lib/annonces/import/relocaliser';
 
 export const runtime = 'nodejs';
@@ -13,14 +12,12 @@ function authorized(req: Request): boolean {
   return req.headers.get('authorization') === `Bearer ${secret}`;
 }
 
-/** Le pipeline a déjà tourné la veille au soir. La cloche part avec le brief de 7 h. */
+/** Chaque matin : les annonces ajoutées encore sans adresse sont relocalisées (base DPE publiée par lots). */
 export async function GET(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
   }
   const admin = createSupabaseAdminClient();
-  const ecrites = await traiterAnnoncesDuMatin(admin);
-  // Annonces ajoutées encore sans adresse : leur DPE est peut-être publié depuis hier.
   const relocalisees = await relocaliserAnnoncesAjoutees(admin);
-  return NextResponse.json({ ok: true, ecrites, relocalisees });
+  return NextResponse.json({ ok: true, relocalisees });
 }

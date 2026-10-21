@@ -7,6 +7,9 @@ export const CONFIANCES = ['certaine', 'probable', 'adresse_publiee', 'incertain
 export type Confiance = (typeof CONFIANCES)[number];
 
 export type PrecisionLocalisation = 'logement' | 'immeuble' | 'quartier' | 'code_postal';
+
+/** Une adresse possible quand plusieurs logements restent à départager (trois au plus). */
+export type AdressePossible = { adresse: string; latitude: number; longitude: number };
 export type StatutAnnonce = 'active' | 'retiree';
 export type TypeVendeur = 'particulier' | 'professionnel';
 export type TypeEvenementAnnonce =
@@ -54,6 +57,8 @@ export type Annonce = {
   logementCle: string | null;
   scoreLocalisation: number | null;
   raisonsLocalisation: string[];
+  /** Sans adresse sûre : les deux ou trois immeubles qui restent possibles. */
+  adressesPossibles?: AdressePossible[];
   /** URLs des photos du portail, quand elles ont déjà été lues. */
   photos?: string[];
 };

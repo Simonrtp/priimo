@@ -20,6 +20,7 @@
  * la BAN pour une adresse publiée, l'API Carto pour la parcelle.
  */
 import { fetchParcelleAuPoint } from '@/lib/geo/cadastre-point';
+import type { AdressePossible } from '@/lib/annonces/types';
 import type { FicheAnnonce, LocalisationImport } from './types';
 
 const ADEME_BASE = process.env.ADEME_API_BASE ?? 'https://data.ademe.fr/data-fair/api/v1/datasets';
@@ -524,6 +525,46 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
 }
 
 /* -------------------------------------------------------------------------- */
+/*                             Adresses possibles                             */
+/* -------------------------------------------------------------------------- */
+
+/** Un candidat ne devient « possible » qu'avec une note solide (conso, surface concordantes)… */
+const SCORE_POSSIBLE = 40;
+/** …proche du meilleur : au-delà, ce n'est plus une hésitation. */
+const ECART_POSSIBLE = 20;
+const POSSIBLES_MAX = 3;
+
+/**
+ * Sans adresse sûre, les deux ou trois immeubles qui restent possibles, à
+ * vérifier sur place. Mêmes garde-fous qu'une adresse (surface à 6 m², 400 m
+ * autour du repère publié), sauf le code postal : un immeuble de l'autre côté
+ * du boulevard reste une piste (58 bd de Charonne 75020 / 44 rue Chanzy 75011).
+ */
+export function adressesPossibles(f: FicheAnnonce, lignes: readonly LigneDpe[]): AdressePossible[] {
+  const notes = lignes
+    .map((dpe) => ({ dpe, ...scorerCandidat(f, dpe), point: geopoint(dpe) }))
+    .filter((n) => n.score >= SCORE_POSSIBLE && n.point && String(n.dpe.adresse_ban ?? '').trim())
+    .filter((n) => {
+      const s = num(n.dpe.surface_habitable_logement);
+      return !(f.surface && s && Math.abs(f.surface - s) > ECART_SURFACE_MAX_M2);
+    })
+    .filter((n) => !f.zone || distanceM(n.point!, { lat: f.zone.latitude, lon: f.zone.longitude }) <= f.zone.rayonM + MARGE_HORS_REPERE_MAX_M)
+    .sort((a, b) => b.score - a.score);
+  if (notes.length === 0) return [];
+  const meilleur = notes[0]!.score;
+  const vus = new Set<string>();
+  const possibles: AdressePossible[] = [];
+  for (const n of notes) {
+    if (n.score < meilleur - ECART_POSSIBLE || possibles.length >= POSSIBLES_MAX) break;
+    const cle = cleAdresse(n.dpe.adresse_ban);
+    if (vus.has(cle)) continue;
+    vus.add(cle);
+    possibles.push({ adresse: String(n.dpe.adresse_ban).trim(), latitude: n.point!.lat, longitude: n.point!.lon });
+  }
+  return possibles;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                  Localiser                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -640,6 +681,7 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
       complementDpe: null,
       score: decision.meilleur?.score ?? null,
       raisons: [`tous les DPE concordants sont ${memeVoie.voie}`],
+      adressesPossibles: adressesPossibles(f, lignes),
     };
   }
 
@@ -655,5 +697,6 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
     complementDpe: null,
     score: decision.meilleur?.score ?? null,
     raisons: rue ? ["adresse publiée sur l'annonce, immeuble non départagé"] : [],
+    adressesPossibles: adressesPossibles(f, lignes),
   };
 }

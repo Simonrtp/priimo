@@ -25,8 +25,8 @@ export default async function AnnoncesPage({
     fetchZonesSafe(supabase),
   ]);
   const initial: FiltresAnnonces = {
-    secteur: 'mien',
-    vendeur: 'particulier',
+    secteur: 'agence',
+    vendeur: 'tous',
     statut: 'active',
     baisse: params.mouvements === '1',
     nouvelles: params.nouvelles === '1',

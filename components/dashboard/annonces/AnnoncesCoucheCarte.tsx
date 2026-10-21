@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Marker, useMap } from 'react-map-gl';
 import { ArrowDown } from 'lucide-react';
-import Switch from '@/components/ui/Switch';
 import { coucheAnnoncesActive, type MapLayerState } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
-import { bilanAnnonces, filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
+import { filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
 import { baisseCumulee, couleurGroupe, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
 import { useAnnoncesAjoutees, useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
@@ -37,17 +36,10 @@ export function AnnoncesLayerControls({
   /** Pour compter comme la carte (« Mon secteur »). */
   qui?: Qui;
 }) {
-  const actif = coucheAnnoncesActive(layers);
-  const { annonces, pret } = useAnnoncesSecteur(actif);
-  const zones = qui?.zones;
-  const directeur = qui?.directeur ?? false;
-  const profileId = qui?.profileId ?? '';
-  const zoneCadree = qui?.zoneCadree ?? null;
-  const zonesCadrees = qui?.zonesCadrees ?? null;
-  const bilan = useMemo(
-    () => bilanAnnonces(annonces, layers, zones ?? [], { directeur, profileId, zoneCadree, zonesCadrees }),
-    [annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees],
-  );
+  // Version simple : l'agent colle une URL, l'annonce s'ajoute et reste sur la carte
+  // (AnnoncesAjoutees). Plus de couche « annonces du secteur » ni de compteur.
+  void layers;
+  void qui;
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
 
   return (
@@ -55,23 +47,6 @@ export function AnnoncesLayerControls({
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
         <p className={`${textSize} font-medium text-text-strong`}>Annonces</p>
         <ImportAnnonce compact={compact} onAfficher={() => onChange({ annonces: true })} />
-        <div className="flex items-center justify-between gap-3">
-          <span className={`${textSize} text-text-strong`}>Sur la carte</span>
-          {actif && pret ? (
-            <span className="ml-auto tabular-nums text-[12.5px] text-text-subtle">{bilan.surCarte}</span>
-          ) : null}
-          <Switch
-            checked={actif}
-            onChange={(next) => onChange({ annonces: next })}
-            aria-label={actif ? 'Masquer les annonces' : 'Afficher les annonces'}
-          />
-        </div>
-        {pret && bilan.sansPosition > 0 ? (
-          <p className="text-pretty text-[11.5px] text-text-subtle">
-            {bilan.sansPosition} annonce{bilan.sansPosition > 1 ? 's' : ''} pas encore localisée
-            {bilan.sansPosition > 1 ? 's' : ''} : hors carte pour l’instant.
-          </p>
-        ) : null}
       </div>
     </li>
   );

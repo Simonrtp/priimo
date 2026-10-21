@@ -148,7 +148,7 @@ export default function AnnoncesBureau({
   const liste = (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div>
-        <h1 className="text-[22px] font-semibold text-text-strong">Annonces du secteur</h1>
+        <h1 className="text-[22px] font-semibold text-text-strong">Mes annonces</h1>
         <p className="mt-1 text-[13px] text-text-muted">{bandeau.texte}</p>
         {bandeau.alertes.map((a) => (
           <p key={a} className="text-[13px] text-text-strong">
