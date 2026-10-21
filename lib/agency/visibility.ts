@@ -83,16 +83,24 @@ export function canSeeActivityOf(viewer: RecordViewer, profileId: string): boole
 }
 
 /**
- * Leads : la file non assignée reste visible (travail commun). Un lead
- * déjà attribué n'apparaît qu'à l'assigné — et au directeur.
+ * Leads : un seul pipeline d’agence. Tout le monde voit les mêmes cartes
+ * (pris, mandat compris). L’isolation entre agences reste la RLS.
  */
 export function canSeeLeadRecord(
-  viewer: RecordViewer,
-  lead: { assignedTo: string | null },
+  _viewer: RecordViewer,
+  _lead: { assignedTo: string | null },
 ): boolean {
-  if (viewer.role === 'directeur' || collaboratorSeesColleaguesRecords()) return true;
-  if (lead.assignedTo === null) return true;
-  return lead.assignedTo === viewer.id;
+  return true;
+}
+
+/**
+ * Biens / mandats : visibles par toute l’agence, comme le pipeline.
+ */
+export function canSeeBienRecord(
+  _viewer: RecordViewer,
+  _bien: { createdBy: string | null },
+): boolean {
+  return true;
 }
 
 /** Ce qu'il faut pour décider qui touche à une zone. */

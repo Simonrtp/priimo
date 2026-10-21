@@ -92,8 +92,8 @@ export default function PipelineLeadCard({
           <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-text-muted">{note}</p>
         ) : null}
 
-        <div className="mt-2 flex items-center justify-between gap-2">
-          {stale && days != null ? (
+        {stale && days != null ? (
+          <div className="mt-2">
             <InfoTooltip
               content={`Pris il y a ${days} jour${days > 1 ? 's' : ''}, jamais contacté`}
               placement="top-start"
@@ -104,20 +104,29 @@ export default function PipelineLeadCard({
                 aria-label={`Pris il y a ${days} jours, jamais contacté`}
               />
             </InfoTooltip>
-          ) : (
-            <span />
-          )}
-          {assignee ? (
-            <span title={assignee.fullName} aria-label={assignee.fullName}>
-              <ProfileAvatar
-                firstName={assignee.firstName}
-                lastName={assignee.lastName}
-                avatarUrl={assignee.avatarUrl}
-                size={22}
-              />
+          </div>
+        ) : null}
+
+        {assignee ? (
+          <div
+            className={`mt-2.5 flex items-center gap-2 ${
+              stage?.cle === 'mandat' || stage?.type === 'gagne'
+                ? 'rounded-xl bg-[#D5EADF] px-2 py-1.5'
+                : 'border-t border-black/[0.06] pt-2'
+            }`}
+          >
+            <ProfileAvatar
+              firstName={assignee.firstName}
+              lastName={assignee.lastName}
+              avatarUrl={assignee.avatarUrl}
+              size={32}
+              className="shrink-0"
+            />
+            <span className="min-w-0 truncate text-[13px] font-semibold text-text-strong">
+              {assignee.fullName}
             </span>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );

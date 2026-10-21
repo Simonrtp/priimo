@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import OnboardingRevealText from './OnboardingRevealText';
 
 /**
- * Écran 1 — salut puis phrase d’accueil.
+ * Écran 1 — salut puis positionnement.
  * Auto-avance 2,6 s × 2. Clic = suite immédiate.
  */
 export default function EtapeSalut({
@@ -16,6 +16,7 @@ export default function EtapeSalut({
 }) {
   const [phase, setPhase] = useState<0 | 1>(0);
   const advanced = useRef(false);
+  const nom = prenom.trim();
 
   const go = () => {
     if (advanced.current) return;
@@ -35,8 +36,10 @@ export default function EtapeSalut({
 
   const text =
     phase === 0
-      ? `Bonjour ${prenom || 'toi'}.`
-      : 'Bienvenue sur ton futur outil préféré.';
+      ? nom
+        ? `Bonjour ${nom}.`
+        : 'Bonjour.'
+      : 'Votre outil de prospection et de terrain.';
 
   return (
     <button
@@ -50,7 +53,7 @@ export default function EtapeSalut({
         as="p"
         text={text}
         staggerMs={56}
-        className="onb-serif max-w-[18ch] text-[36px] leading-[1.3] text-[#1A1A1A] md:text-[48px]"
+        className="onb-serif max-w-[20ch] text-[36px] leading-[1.3] text-[#1A1A1A] md:text-[48px]"
       />
     </button>
   );

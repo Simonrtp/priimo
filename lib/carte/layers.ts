@@ -73,7 +73,7 @@ export const DEFAULT_MAP_LAYERS: MapLayerState = {
   cadastreVentes: false,
   cadastreCopro: false,
   cadastreDpeAges: [...DEFAULT_DPE_AGE_BUCKETS],
-  cadastreMenuOpen: true,
+  cadastreMenuOpen: false,
   annonces: false,
   annoncesMenuOpen: false,
   annoncesVendeur: 'particulier',
@@ -91,8 +91,9 @@ export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
  * Rev 7 : « Mon secteur » des annonces éteint une fois — allumé par défaut, il
  * vidait la carte des négociateurs au petit secteur.
  * Rev 8 : la couche Copropriétés n’est plus proposée.
+ * Rev 9 : annonces masquées, menu Cadastre replié.
  */
-export const MAP_LAYERS_STORAGE_REV = 8;
+export const MAP_LAYERS_STORAGE_REV = 9;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
@@ -110,7 +111,7 @@ export function parseMapLayers(raw: unknown): MapLayerState {
     cadastreVentes: row.cadastreVentes === true,
     cadastreCopro: false,
     cadastreDpeAges: parseDpeAgeBuckets(row.cadastreDpeAges),
-    cadastreMenuOpen: row.cadastreMenuOpen !== false,
+    cadastreMenuOpen: row.cadastreMenuOpen === true,
     ...parseAnnonces(row),
     annoncesPieces: typeof row.annoncesPieces === 'string' ? row.annoncesPieces : '',
     annoncesPrixMax: typeof row.annoncesPrixMax === 'string' ? row.annoncesPrixMax : '',
@@ -194,6 +195,7 @@ export function migrateStoredMapLayers(
     next = { ...next, annoncesMonSecteur: false };
   }
   if (rev < 8) next = { ...next, cadastreCopro: false };
+  if (rev < 9) next = { ...next, annonces: false, annoncesMenuOpen: false, cadastreMenuOpen: false };
   return { state: next, rev: MAP_LAYERS_STORAGE_REV };
 }
 
@@ -274,13 +276,13 @@ export function persistLayersPanelOpen(open: boolean): void {
 }
 
 export function readCadastreMenuOpen(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   try {
     const raw = window.localStorage.getItem(CADASTRE_MENU_STORAGE_KEY);
-    if (raw == null) return true;
+    if (raw == null) return false;
     return raw === 'open';
   } catch {
-    return true;
+    return false;
   }
 }
 

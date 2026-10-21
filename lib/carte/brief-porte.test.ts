@@ -229,6 +229,7 @@ describe('brief de porte — contenu', () => {
           signaux: ['DPE G récent', 'Passoire thermique'],
           entreprise: null,
           etape: null,
+          stageId: null,
           contactabilite: null,
         },
       ],

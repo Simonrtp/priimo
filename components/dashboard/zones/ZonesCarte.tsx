@@ -651,7 +651,7 @@ export default function ZonesCarte({
     <div
       ref={boiteRef}
       className={`priimo-map relative overflow-hidden rounded-clay-lg ${
-        dessinActif ? 'touch-none' : ''
+        figee ? 'priimo-map--figee' : dessinActif ? 'touch-none' : ''
       } ${hauteur == null ? 'h-full min-h-[280px]' : ''}`}
       style={hauteur != null ? { height: hauteur } : undefined}
       // Relâcher au-dessus d'un point de lead ne passe pas par la carte : sans
@@ -679,24 +679,33 @@ export default function ZonesCarte({
         }}
         cursor={dessinActif ? 'crosshair' : onChoisirZone ? 'pointer' : undefined}
         onMouseDown={(e) => {
+          if (figee) return;
           if (formeActive) debuterForme(e);
           else debuterTrace(e);
         }}
-        onMouseUp={relacherGeste}
-        onTouchStart={(e) => {
-          if (e.originalEvent.touches.length > 1) {
-            abandonnerGeste();
-            return;
-          }
-          if (formeActive) debuterForme(e);
-          else debuterTrace(e);
-        }}
-        onTouchMove={(e) => {
-          if (e.originalEvent.touches.length > 1) return;
-          if (formeRef.current) etirerForme(e);
-          else prolongerTrace(e);
-        }}
-        onTouchEnd={relacherGeste}
+        onMouseUp={figee ? undefined : relacherGeste}
+        onTouchStart={
+          figee
+            ? undefined
+            : (e) => {
+                if (e.originalEvent.touches.length > 1) {
+                  abandonnerGeste();
+                  return;
+                }
+                if (formeActive) debuterForme(e);
+                else debuterTrace(e);
+              }
+        }
+        onTouchMove={
+          figee
+            ? undefined
+            : (e) => {
+                if (e.originalEvent.touches.length > 1) return;
+                if (formeRef.current) etirerForme(e);
+                else prolongerTrace(e);
+              }
+        }
+        onTouchEnd={figee ? undefined : relacherGeste}
         onClick={(e) => {
           if (dessinActif || ajustActif || !onChoisirZone) return;
           const zoneId = e.features?.[0]?.properties?.zoneId;
@@ -710,6 +719,10 @@ export default function ZonesCarte({
             if (pixels) map.addImage('hachure-chevauchement', pixels, { pixelRatio: 2 });
           }
           setPret(true);
+          if (figee) {
+            map.getCanvas().style.touchAction = 'pan-y';
+            map.getContainer().style.touchAction = 'pan-y';
+          }
         }}
         interactiveLayerIds={actives.map((z) => `zone-fill-${z.id}`)}
         onMouseMove={(e) => {
@@ -985,6 +998,30 @@ export default function ZonesCarte({
         ))}
 
       </Map>
+
+      {figee ? (
+        <div
+          aria-hidden
+          className={`absolute inset-0 z-[2] ${onChoisirZone ? 'cursor-pointer' : ''}`}
+          style={{ touchAction: 'pan-y' }}
+          onClick={(e) => {
+            if (!onChoisirZone) return;
+            const map = mapRef.current?.getMap();
+            if (!map) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const couches = actives
+              .map((z) => `zone-fill-${z.id}`)
+              .filter((id) => map.getLayer(id));
+            if (couches.length === 0) return;
+            const hits = map.queryRenderedFeatures(
+              [e.clientX - rect.left, e.clientY - rect.top],
+              { layers: couches },
+            );
+            const zoneId = hits[0]?.properties?.zoneId;
+            if (typeof zoneId === 'string') onChoisirZone(zoneId);
+          }}
+        />
+      ) : null}
 
       {(dessinActif && !propose && trace.length === 0) || ajustActif ? (
         <p className="pointer-events-none absolute inset-x-0 top-3 z-10 mx-auto w-fit max-w-[90%] rounded-full bg-[#1a2a56]/90 px-3.5 py-1.5 text-center text-[12.5px] font-medium text-white shadow-clay">

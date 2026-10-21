@@ -1089,6 +1089,14 @@ form.is-waiting button[type='button'] {
 .priimo-map .mapboxgl-canvas {
   touch-action: none;
 }
+/* Accueil : carte figée — le pouce doit faire défiler la page, pas rester coincé.
+   !important : Mapbox pose `touch-action: none` en style inline sur le canvas. */
+.priimo-map--figee,
+.priimo-map--figee .mapboxgl-map,
+.priimo-map--figee .mapboxgl-canvas-container,
+.priimo-map--figee .mapboxgl-canvas {
+  touch-action: pan-y !important;
+}
 .priimo-map .mapboxgl-canvas {
   filter: saturate(1.08) sepia(0.16) hue-rotate(-10deg) contrast(1.06) brightness(0.94);
 }
@@ -3901,6 +3909,12 @@ html:has(.feature-page) {
 .dashboard-mobile .priimo-map .mapboxgl-canvas {
   touch-action: none;
 }
+.dashboard-mobile .priimo-map--figee,
+.dashboard-mobile .priimo-map--figee .mapboxgl-map,
+.dashboard-mobile .priimo-map--figee .mapboxgl-canvas-container,
+.dashboard-mobile .priimo-map--figee .mapboxgl-canvas {
+  touch-action: pan-y !important;
+}
 
 .dashboard-mobile .field-map button,
 .dashboard-mobile .field-map a,
@@ -3930,6 +3944,14 @@ html:has(.feature-page) {
 
 .dashboard-mobile:has([data-tournee-active]) .app-tabbar,
 .dashboard-mobile:has([data-tournee-active]) .mobile-back-swipe {
+  display: none !important;
+}
+
+/* Feuille Filtres / Couches : la tab bar blanche ne doit plus recouvrir le bas. */
+.dashboard-mobile:has([data-feuille-basse]) {
+  --field-nav-height: env(safe-area-inset-bottom, 0px);
+}
+.dashboard-mobile:has([data-feuille-basse]) .app-tabbar {
   display: none !important;
 }
 

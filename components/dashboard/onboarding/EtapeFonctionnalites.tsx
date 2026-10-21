@@ -1,16 +1,7 @@
 import OnboardingShell, { OnboardingPrimaryButton } from './OnboardingShell';
+import { FONCTIONNALITES } from './fonctionnalites';
 
-const FONCTIONNALITES = [
-  'Voir votre secteur sur la carte : immeubles, ventes, DPE, copropriétés.',
-  'Savoir quelles adresses frapper, et pourquoi, avant de sortir.',
-  'Dicter une note en marchant : Priimo la range.',
-  'Estimer un bien avec les ventes réelles du quartier.',
-  'Suivre vos leads dans le pipeline, jusqu’au mandat.',
-  'Publier un mandat une fois, sur tous les portails.',
-  'Lire où l’agence avance, sans rien ressaisir le soir.',
-] as const;
-
-/** Un seul texte : tout ce que Priimo fait, puis Continuer. */
+/** Recapitulatif technique — même fond que la lettre, pour une reprise d’étape. */
 export default function EtapeFonctionnalites({
   rang,
   total,
@@ -24,15 +15,31 @@ export default function EtapeFonctionnalites({
     <OnboardingShell
       rang={rang}
       total={total}
-      titre="Ce que vous pourrez faire avec Priimo."
+      titre="Ce que Priimo fait."
+      phrase="CRM de pige et de terrain : bases publiques sur votre secteur, notes classées, pipeline à jour."
       defile
       action={<OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>}
     >
       <ul className="max-w-[36rem] space-y-3.5 text-pretty text-[16px] leading-relaxed text-[#3A3A3A] md:max-w-2xl md:space-y-4 md:text-[17px]">
         {FONCTIONNALITES.map((ligne) => (
-          <li key={ligne} className="flex gap-3">
-            <span className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-[#E8743C]" aria-hidden />
-            <span>{ligne}</span>
+          <li
+            key={ligne.texte}
+            className={`flex gap-3 ${'bientot' in ligne ? 'text-text-muted' : ''}`}
+          >
+            <span
+              className={`mt-[0.55em] size-1.5 shrink-0 rounded-full ${
+                'bientot' in ligne ? 'bg-[#C4C4C4]' : 'bg-[#E8743C]'
+              }`}
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1">
+              {ligne.texte}
+              {'bientot' in ligne ? (
+                <span className="ml-2 inline-flex cursor-default items-center rounded-full bg-black/[0.06] px-2.5 py-0.5 align-middle text-[12px] font-semibold text-text-muted">
+                  À venir
+                </span>
+              ) : null}
+            </span>
           </li>
         ))}
       </ul>

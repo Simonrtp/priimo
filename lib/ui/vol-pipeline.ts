@@ -1,5 +1,6 @@
 export const SELECTEUR_PIPELINE = '[data-prospection-vue="pipeline"]';
 export const VOL_CHIP = { w: 216, h: 40 } as const;
+export const VOL_BILLE = { w: 16, h: 16 } as const;
 export const VOL_DUREE_MS = 520;
 
 export type PointVol = { x: number; y: number };
@@ -110,5 +111,24 @@ export function mesurerVolLead(opts: {
     score: opts.score,
     adresse: opts.adresse,
     ...pointsVol(from, cible.getBoundingClientRect()),
+  };
+}
+
+export type VolBille = {
+  id: string;
+  start: PointVol;
+  mid: PointVol;
+  end: PointVol;
+};
+
+/** Petite bille orange : du bouton + jusqu’à l’onglet Pipeline. */
+export function mesurerVolBille(origine: HTMLElement | null | undefined): VolBille | null {
+  if (typeof document === 'undefined' || prefereMouvementReduit()) return null;
+  const cible = elementPipelineVisible();
+  const from = origine?.getBoundingClientRect();
+  if (!cible || !from || from.width < 4) return null;
+  return {
+    id: `bille-${Date.now()}`,
+    ...pointsVol(from, cible.getBoundingClientRect(), VOL_BILLE),
   };
 }

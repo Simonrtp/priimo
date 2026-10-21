@@ -20,8 +20,8 @@ describe('buildParcours', () => {
     assert.equal(p[p.length - 1], 'final');
   });
 
-  it('enchaîne le texte des fonctionnalités puis la formation', () => {
-    assert.deepEqual(buildParcours().slice(4, -1), ['fonctionnalites', 'formation']);
+  it('enchaîne la formation après l’ouverture', () => {
+    assert.deepEqual(buildParcours().slice(4, -1), ['formation']);
   });
 });
 
@@ -67,14 +67,14 @@ describe('etapeDeReprise', () => {
   it('repart de la première non atteinte si l’étape a disparu', () => {
     assert.equal(
       etapeDeReprise(parcours, 'inconnue', ['salut', 'lettre', 'anniversaire', 'avatar']),
-      'fonctionnalites',
+      'formation',
     );
   });
 
-  it('reprend sur les fonctionnalités si l’agent était sur un ancien geste', () => {
+  it('reprend sur la formation si l’agent était sur un ancien geste', () => {
     assert.equal(
       etapeDeReprise(parcours, 'secteur', ['salut', 'lettre', 'anniversaire', 'avatar', 'secteur']),
-      'fonctionnalites',
+      'formation',
     );
   });
 });

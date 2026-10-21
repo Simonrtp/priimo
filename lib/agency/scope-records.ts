@@ -1,6 +1,7 @@
 import type { Contact } from '@/types/contact';
 import type { Lead } from '@/types/lead';
 import {
+  canSeeBienRecord,
   canSeeContact,
   canSeeLeadRecord,
   canSeeOwnedRecord,
@@ -26,7 +27,7 @@ export function visibleBiensFor<T extends { createdBy: string | null }>(
   viewer: RecordViewer,
   biens: readonly T[],
 ): T[] {
-  return biens.filter((b) => canSeeOwnedRecord(viewer, { assignedTo: null, createdBy: b.createdBy }));
+  return biens.filter((b) => canSeeBienRecord(viewer, { createdBy: b.createdBy }));
 }
 
 export function visibleVoiceNotesFor<

@@ -27,6 +27,7 @@ import { nextStagePosition } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
+import { leadsDuPipeline } from '@/lib/pipeline/perimetre';
 import { useUser } from '@/lib/hooks/useUser';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { pickTourLeadId } from '@/lib/tour-lead';
@@ -97,8 +98,6 @@ export default function ProspectsClient({
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(initialSelectedLeadId);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
-  const [pipelineScope, setPipelineScope] = useState<'mine' | 'agency'>('mine');
-  const [negotiatorId, setNegotiatorId] = useState('');
   const [pendingLost, setPendingLost] = useState<{ leadId: string; stageId: string } | null>(null);
   const [lostReason, setLostReason] = useState('');
   const [volsPipeline, setVolsPipeline] = useState<VolLead[]>([]);
@@ -185,16 +184,7 @@ export default function ProspectsClient({
     ? secteur.monSecteur.length + secteur.mesHorsSecteur.length + secteur.agence.length
     : filtered.length;
 
-  const pipelineLeads = useMemo(() => {
-    const userId = profile?.id;
-    return leads.filter((lead) => {
-      if (pipelineScope === 'mine' && userId && lead.assignedTo !== userId) return false;
-      if (pipelineScope === 'agency' && isDirector && negotiatorId && lead.assignedTo !== negotiatorId) {
-        return false;
-      }
-      return true;
-    });
-  }, [leads, pipelineScope, profile?.id, isDirector, negotiatorId]);
+  const pipelineLeads = useMemo(() => leadsDuPipeline(leads), [leads]);
 
   const kpiLine = useMemo(() => formatPriseLine(priseStats(leads)), [leads]);
 
@@ -458,15 +448,7 @@ export default function ProspectsClient({
 
       {vue === 'pipeline' ? (
         <>
-          <PipelineFilters
-            scope={pipelineScope}
-            onScope={setPipelineScope}
-            negotiatorId={negotiatorId}
-            onNegotiator={setNegotiatorId}
-            members={teamMembers}
-            showNegotiator={isDirector && pipelineScope === 'agency'}
-            kpiLine={kpiLine}
-          />
+          <PipelineFilters kpiLine={kpiLine} />
           <PipelineBoard
             stages={stageList}
             leads={pipelineLeads}

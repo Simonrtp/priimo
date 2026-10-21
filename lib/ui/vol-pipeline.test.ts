@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { keyframesVol, pointsVol, VOL_CHIP } from './vol-pipeline';
+import { keyframesVol, pointsVol, VOL_BILLE, VOL_CHIP } from './vol-pipeline';
 
 describe('vol-pipeline', () => {
   it('part de la gauche du lead et vise le centre de l’onglet', () => {
@@ -14,6 +14,16 @@ describe('vol-pipeline', () => {
     assert.equal(pts.end.y, 12 + 18 - VOL_CHIP.h / 2);
     assert.ok(pts.mid.y < Math.min(pts.start.y, pts.end.y));
     assert.ok(pts.mid.x > pts.start.x && pts.mid.x < pts.end.x);
+  });
+
+  it('centre la bille orange sur le bouton et l’onglet', () => {
+    const pts = pointsVol(
+      { left: 200, top: 600, width: 48, height: 48 },
+      { left: 900, top: 12, width: 80, height: 36 },
+      VOL_BILLE,
+    );
+    assert.equal(pts.start.y, 600 + 24 - VOL_BILLE.h / 2);
+    assert.equal(pts.end.x, 900 + 40 - VOL_BILLE.w / 2);
   });
 
   it('n’anime que transform et opacity', () => {

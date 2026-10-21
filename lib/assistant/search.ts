@@ -4,7 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RecordViewer } from '@/lib/agency/visibility';
-import { canSeeContact, canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
+import { canSeeBienRecord, canSeeContact, canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { buildFullName, fetchContactsPartagesIds } from '@/lib/queries/contacts';
 import type { Database } from '@/types/database';
@@ -376,7 +376,7 @@ export function buildSearchHits(
   }
 
   for (const row of rows.biens) {
-    if (!canSeeOwnedRecord(viewer, { assignedTo: null, createdBy: row.created_by })) continue;
+    if (!canSeeBienRecord(viewer, { createdBy: row.created_by })) continue;
     const label = addressLabel(row);
     const s = scoreMatch(
       q,

@@ -56,6 +56,7 @@ function Ligne({
   fond,
   valeur,
   onChange,
+  bientot = false,
 }: {
   id: string;
   libelle: string;
@@ -63,31 +64,40 @@ function Ligne({
   fond: string;
   valeur: number;
   onChange: (n: number) => void;
+  bientot?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${bientot ? 'opacity-55' : ''}`}>
       <span
         aria-hidden
         className="relative flex size-10 shrink-0 items-center justify-center rounded-[12px]"
-        style={{ backgroundColor: fond }}
+        style={{ backgroundColor: bientot ? '#E4E4E7' : fond }}
       >
         <img src={icone} alt="" width={28} height={28} className="size-7 object-contain" />
       </span>
-      <label htmlFor={id} className="min-w-0 flex-1 text-[13.5px] font-medium leading-tight text-ink">
+      <label
+        htmlFor={bientot ? undefined : id}
+        className={`min-w-0 flex-1 text-[13.5px] font-medium leading-tight ${
+          bientot ? 'text-text-muted' : 'text-ink'
+        }`}
+      >
         {libelle}
       </label>
-      {/* Champ texte, pas `number` : les flèches natives du navigateur sont
-          laides et n'ont aucun intérêt sur six champs qu'on tape au clavier.
-          La saisie est filtrée et bornée par `nombre`. */}
-      <input
-        id={id}
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        className={CHAMP}
-        value={String(valeur)}
-        onChange={(e) => onChange(nombre(e.target.value))}
-      />
+      {bientot ? (
+        <span className="inline-flex cursor-default items-center rounded-full bg-black/[0.08] px-3 py-1.5 text-[12.5px] font-semibold text-text-muted">
+          À venir
+        </span>
+      ) : (
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          className={CHAMP}
+          value={String(valeur)}
+          onChange={(e) => onChange(nombre(e.target.value))}
+        />
+      )}
     </div>
   );
 }
@@ -195,6 +205,7 @@ export default function ObjectifsDialog({
               fond={COULEUR_FAMILLE[famille].pastelFort}
               valeur={objectifACadence(saisie.hebdo[famille], cadence)}
               onChange={(n) => poser(famille, objectifDepuisCadence(n, cadence))}
+              bientot={famille === 'estimations'}
             />
           ))}
         </div>
@@ -216,7 +227,12 @@ export default function ObjectifsDialog({
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <button
             type="button"
-            onClick={() => setSaisie({ hebdo: { ...CONSEILLES.hebdo }, mandatsMensuel: CONSEILLES.mandatsMensuel })}
+            onClick={() =>
+              setSaisie({
+                hebdo: { ...CONSEILLES.hebdo, estimations: saisie.hebdo.estimations },
+                mandatsMensuel: CONSEILLES.mandatsMensuel,
+              })
+            }
             className="text-[12.5px] font-semibold text-mute underline-offset-2 transition-colors hover:text-ink hover:underline"
           >
             Revenir aux repères conseillés

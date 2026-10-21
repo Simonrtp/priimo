@@ -95,8 +95,8 @@ export default function AccueilPilotage({
   attenteInscription?: ReactNode;
   /** Affiche L'agence / Ma semaine pour le directeur. */
   selecteurVueDirecteur?: boolean;
-  /** Ce qui manque encore : agenda et/ou secteur. Absent = tout est en place. */
-  miseEnPlace?: { agendaConnecte: boolean; aUnSecteur: boolean } | null;
+  /** Ce qui manque encore : le secteur. Absent = tout est en place. */
+  miseEnPlace?: { aUnSecteur: boolean } | null;
   /** Prénom du collaborateur dont le directeur lit le tableau. */
   lectureDe?: string | null;
   /** Aucun collaborateur dans l'agence : le podium reste, sans personne dessus. */
@@ -246,10 +246,7 @@ export default function AccueilPilotage({
 
       <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
         {mobile && miseEnPlace && membreSelectionne === moi ? (
-          <CarteMiseEnPlace
-            agendaConnecte={miseEnPlace.agendaConnecte}
-            aUnSecteur={miseEnPlace.aUnSecteur}
-          />
+          <CarteMiseEnPlace aUnSecteur={miseEnPlace.aUnSecteur} />
         ) : null}
         <div className={mobile ? 'min-w-0' : 'grid grid-cols-2 items-end gap-3 sm:gap-5 lg:grid-cols-4'}>
           <div className={mobile ? 'min-w-0' : 'col-span-2 min-w-0 lg:col-span-3'}>
@@ -273,10 +270,7 @@ export default function AccueilPilotage({
           )}
         </div>
         {!mobile && miseEnPlace && membreSelectionne === moi ? (
-          <CarteMiseEnPlace
-            agendaConnecte={miseEnPlace.agendaConnecte}
-            aUnSecteur={miseEnPlace.aUnSecteur}
-          />
+          <CarteMiseEnPlace aUnSecteur={miseEnPlace.aUnSecteur} />
         ) : null}
         <CompteursActivite
           familles={bilan.familles}

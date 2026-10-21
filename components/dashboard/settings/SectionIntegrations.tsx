@@ -1,90 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CalendarDays, ExternalLink, Link2Off, Megaphone } from 'lucide-react';
-import { toast } from 'sonner';
+import { CalendarDays, Megaphone } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
 
-type CalendarStatus = {
-  connected: boolean;
-  calendarEmail?: string;
-  emailPro?: string;
-  etat?: string;
-  dernierErreur?: string | null;
-};
+const PILULE_A_VENIR =
+  'inline-flex cursor-default items-center rounded-full bg-black/[0.08] px-3 py-1.5 text-[12.5px] font-semibold text-text-muted';
 
 /**
- * Connexions portails + Google Agenda.
- * Rappelle clairement que les abonnements portails restent à la charge de l'agence.
+ * Connexions portails. Google Agenda n’est pas encore disponible :
+ * on le montre grisé, sans bouton de configuration.
  */
 export default function SectionIntegrations() {
   const { isDirector } = useUser();
-  const [busy, setBusy] = useState(false);
-  const [agenda, setAgenda] = useState<CalendarStatus | null>(null);
-
-  async function loadStatus() {
-    try {
-      const calRes = await fetch('/api/dashboard/integrations/calendar/status');
-      if (calRes.ok) setAgenda((await calRes.json()) as CalendarStatus);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  useEffect(() => {
-    void loadStatus();
-    const params = new URLSearchParams(window.location.search);
-    const agendaFlag = params.get('agenda');
-    if (agendaFlag === 'connected') toast.success('Google Agenda connecté');
-    else if (agendaFlag === 'denied') toast.error('Connexion Agenda refusée');
-    else if (agendaFlag === 'auth_required') {
-      toast.error('Reconnecte-toi à Priimo, puis relance Google Agenda.');
-    } else if (agendaFlag === 'invalid_state') {
-      toast.error('La connexion a été coupée. Relance-la depuis priimo.fr, pas depuis localhost.');
-    } else if (agendaFlag === 'error' || agendaFlag === 'not_configured') {
-      toast.error('Connexion Agenda impossible');
-    }
-    if (!agendaFlag) return;
-    const url = new URL(window.location.href);
-    url.searchParams.delete('agenda');
-    window.history.replaceState({}, '', url.pathname + url.search);
-  }, []);
-
-  async function connectAgenda() {
-    setBusy(true);
-    try {
-      const res = await fetch('/api/dashboard/integrations/calendar/start?next=settings');
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) {
-        toast.error(data.error ?? 'OAuth Agenda indisponible');
-        return;
-      }
-      window.location.href = data.url;
-    } catch {
-      toast.error('Impossible de démarrer la connexion Agenda');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function disconnectAgenda() {
-    setBusy(true);
-    try {
-      const res = await fetch('/api/dashboard/integrations/calendar/disconnect', {
-        method: 'POST',
-      });
-      if (!res.ok) {
-        toast.error('Déconnexion impossible');
-        return;
-      }
-      toast.success('Google Agenda déconnecté');
-      setAgenda({ connected: false });
-    } catch {
-      toast.error('Déconnexion impossible');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <section>
@@ -126,50 +53,20 @@ export default function SectionIntegrations() {
           </div>
         ) : null}
 
-        <div className="rounded-clay border border-black/[0.06] bg-surface p-4 shadow-clay-sm">
+        <div
+          aria-disabled="true"
+          className="rounded-clay border border-black/[0.06] bg-black/[0.03] p-4"
+        >
           <div className="flex items-start gap-3">
-            <CalendarDays className="mt-0.5 size-5 text-text-subtle" strokeWidth={2} aria-hidden />
+            <CalendarDays className="mt-0.5 size-5 text-text-muted" strokeWidth={2} aria-hidden />
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-text-strong" style={{ fontSize: 15 }}>
-                Google Agenda — mon emploi du temps
+              <h3 className="font-semibold text-text-muted" style={{ fontSize: 15 }}>
+                Google Agenda
               </h3>
               <p className="mt-1 text-[13px] text-text-muted">
-                Lecture seule. Google propose mes comptes : je choisis l’agenda à afficher
-                sur l’accueil.
+                Mes rendez-vous sur l’accueil. Pas encore disponible, donc pas configurable.
               </p>
-              {agenda?.connected ? (
-                <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-[13px] text-text">
-                    Connecté :{' '}
-                    <span className="font-medium tabular-nums">{agenda.calendarEmail}</span>
-                    {agenda.etat && agenda.etat !== 'actif' ? (
-                      <span className="text-text-muted"> ({agenda.etat})</span>
-                    ) : null}
-                  </p>
-                  {agenda.dernierErreur ? (
-                    <p className="text-[12.5px] text-amber-800">{agenda.dernierErreur}</p>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void disconnectAgenda()}
-                    className="inline-flex w-fit items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-soft-gray/40 disabled:opacity-60"
-                  >
-                    <Link2Off size={14} strokeWidth={2} aria-hidden />
-                    {busy ? 'Déconnexion…' : 'Déconnecter Google Agenda'}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void connectAgenda()}
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-[13px] font-medium text-ink hover:bg-soft-gray/40 disabled:opacity-60"
-                >
-                  <ExternalLink size={14} strokeWidth={2} aria-hidden />
-                  {busy ? 'Redirection…' : 'Connecter mon Google Agenda'}
-                </button>
-              )}
+              <span className={`mt-3 ${PILULE_A_VENIR}`}>À venir</span>
             </div>
           </div>
         </div>

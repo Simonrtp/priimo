@@ -26,7 +26,7 @@ function initialsOf(first: string, last: string): string {
 }
 
 /**
- * Prise en main — ouverture, fonctionnalités, formation, écran final.
+ * Prise en main — ouverture, formation, écran final.
  */
 export default function AgentOnboarding({
   firstName,
@@ -40,7 +40,7 @@ export default function AgentOnboarding({
   reprise: { currentStep: string | null; stepsReached: string[] } | null;
 }) {
   const router = useRouter();
-  const prenom = firstName.trim() || 'toi';
+  const prenom = firstName.trim();
   const parcours = useMemo(() => buildParcours(), []);
 
   const [etape, setEtape] = useState<EtapeId>(() =>

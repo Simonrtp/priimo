@@ -2,9 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import {
   canSeeActivityOf,
+  canSeeBienRecord,
   canSeeContact,
   canSeeLeadRecord,
-  canSeeOwnedRecord,
   type RecordViewer,
 } from '@/lib/agency/visibility';
 import { avecVisibiliteContact } from '@/lib/queries/contacts';
@@ -46,7 +46,7 @@ import { parseDisplaySignals } from '@/lib/display-signals';
 import { signauxEssentiels } from '@/lib/lead-apercu';
 import { parseContactabilite, parseContactsImmeuble } from '@/lib/lead-contacts';
 import { formatPhoneOrNull } from '@/lib/import/normalize';
-import { fetchLeadStages } from '@/lib/queries/lead-stages';
+import { entreeStage, fetchLeadStages } from '@/lib/queries/lead-stages';
 import { lireAnnoncesParcelle } from '@/lib/annonces/lire';
 import { annoncesDeLaParcelle } from '@/lib/carte/parcelle-annonces';
 
@@ -564,11 +564,13 @@ export async function fetchParcelleFiche(args: {
 
 type AgenceSurLaParcelle = Pick<
   ParcelleFiche,
-  'prospects' | 'contacts' | 'biens' | 'entreprises' | 'passages'
+  'prospects' | 'entreeStageId' | 'entreeLibelle' | 'contacts' | 'biens' | 'entreprises' | 'passages'
 >;
 
 const AGENCE_VIDE: AgenceSurLaParcelle = {
   prospects: [],
+  entreeStageId: null,
+  entreeLibelle: null,
   contacts: [],
   biens: [],
   entreprises: [],
@@ -690,6 +692,7 @@ async function lireAgenceSurLaParcelle(
           ? (row.owner_company ?? row.company_name ?? '').trim() || null
           : null,
       etape: row.stage_id ? etapes.get(row.stage_id) ?? null : null,
+      stageId: row.stage_id ?? null,
       contactabilite: contactabilite === 'aucun' ? null : contactabilite,
     });
 
@@ -729,7 +732,7 @@ async function lireAgenceSurLaParcelle(
 
   const biens: ParcelleBienAgence[] = [];
   for (const row of (biensRes.data ?? []) as unknown as BienParcelleRow[]) {
-    if (!canSeeOwnedRecord(viewer, { assignedTo: null, createdBy: row.created_by ?? null })) continue;
+    if (!canSeeBienRecord(viewer, { createdBy: row.created_by ?? null })) continue;
     biens.push({
       id: row.id,
       href: `/dashboard/biens?fiche=${row.id}`,
@@ -762,7 +765,16 @@ async function lireAgenceSurLaParcelle(
     auteur: p.profile_id === viewer.id ? null : prenoms.get(p.profile_id) ?? 'Un collègue',
   }));
 
-  return { prospects, contacts, biens, entreprises, passages };
+  const entree = entreeStage(stages);
+  return {
+    prospects,
+    entreeStageId: entree?.id ?? null,
+    entreeLibelle: entree?.libelle ?? null,
+    contacts,
+    biens,
+    entreprises,
+    passages,
+  };
 }
 
 /**

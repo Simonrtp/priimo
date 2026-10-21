@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { invaliderAccueilEtProspection } from '@/lib/cache/dashboard';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
+import { nextStagePosition } from '@/lib/pipeline/position';
 import { canSeeLeadRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
@@ -123,6 +124,19 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leadId: strin
       return NextResponse.json({ error: 'Position invalide' }, { status: 400 });
     }
     update.stage_position = raw.stagePosition;
+  } else if (update.stage_id) {
+    const { data: siblings } = await supabase
+      .from('leads')
+      .select('stage_id, stage_position')
+      .eq('agency_id', agency.id)
+      .eq('stage_id', update.stage_id);
+    update.stage_position = nextStagePosition(
+      (siblings ?? []).map((row) => ({
+        stageId: row.stage_id,
+        stagePosition: row.stage_position,
+      })),
+      update.stage_id,
+    );
   }
 
   if (typeof raw.stageChangedAt === 'string') {

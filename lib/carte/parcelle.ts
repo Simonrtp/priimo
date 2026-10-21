@@ -80,6 +80,7 @@ export type ParcelleProspect = {
   entreprise: string | null;
   /** Étape du pipeline ; null tant que personne ne l'a pris. */
   etape: string | null;
+  stageId: string | null;
   contactabilite: 'direct' | 'nominatif' | 'immeuble' | null;
 };
 
@@ -159,6 +160,9 @@ export type ParcelleFiche = {
   logements: ParcelleLogement[];
   coproprietes: ParcelleCopro[];
   prospects: ParcelleProspect[];
+  /** Colonne d’entrée (Pris) — pour ajouter un lead depuis la parcelle. */
+  entreeStageId: string | null;
+  entreeLibelle: string | null;
   contacts: ParcelleContactAgence[];
   biens: ParcelleBienAgence[];
   entreprises: ParcelleEntreprise[];
@@ -315,6 +319,8 @@ export function emptyParcelleFiche(raw: string): ParcelleFiche {
     logements: [],
     coproprietes: [],
     prospects: [],
+    entreeStageId: null,
+    entreeLibelle: null,
     contacts: [],
     biens: [],
     entreprises: [],

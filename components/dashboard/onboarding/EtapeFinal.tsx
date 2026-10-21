@@ -13,13 +13,13 @@ export default function EtapeFinal({
   enCours: boolean;
   onOuvrir: () => void;
 }) {
-  const name = prenom.trim() || 'toi';
+  const name = prenom.trim();
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
       <OnboardingRevealText
         as="p"
-        text={`C’est à vous, ${name}.`}
+        text={name ? `C’est à vous, ${name}.` : 'C’est à vous.'}
         staggerMs={56}
         className="onb-serif max-w-[16ch] text-[36px] leading-[1.3] text-[#1A1A1A] md:text-[44px]"
       />

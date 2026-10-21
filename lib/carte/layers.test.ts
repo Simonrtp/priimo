@@ -17,6 +17,8 @@ describe('parseMapLayers', () => {
     assert.equal(DEFAULT_MAP_LAYERS.cadastreDpe, false);
     assert.equal(DEFAULT_MAP_LAYERS.cadastreVentes, false);
     assert.equal(DEFAULT_MAP_LAYERS.cadastreCopro, false);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastreMenuOpen, false);
+    assert.equal(DEFAULT_MAP_LAYERS.annonces, false);
   });
 
   it('n’active les biens par défaut', () => {
@@ -62,7 +64,8 @@ describe('parseMapLayers', () => {
   });
 
   it('persiste l’état du menu Cadastre', () => {
-    assert.equal(parseMapLayers({}).cadastreMenuOpen, true);
+    assert.equal(parseMapLayers({}).cadastreMenuOpen, false);
+    assert.equal(parseMapLayers({ cadastreMenuOpen: true }).cadastreMenuOpen, true);
     assert.equal(parseMapLayers({ cadastreMenuOpen: false }).cadastreMenuOpen, false);
   });
 
@@ -95,9 +98,20 @@ describe('parseMapLayers', () => {
       6,
     );
     assert.equal(fromRev6.state.annoncesMonSecteur, false);
-    assert.equal(fromRev6.state.annonces, true);
+    assert.equal(fromRev6.state.annonces, false);
     assert.equal(fromRev6.state.cadastre, true);
     assert.equal(fromRev6.rev, MAP_LAYERS_STORAGE_REV);
+  });
+
+  it('rev 9 masque les annonces et replie Cadastre', () => {
+    const fromRev8 = migrateStoredMapLayers(
+      { ...DEFAULT_MAP_LAYERS, annonces: true, annoncesMenuOpen: true, cadastreMenuOpen: true },
+      8,
+    );
+    assert.equal(fromRev8.state.annonces, false);
+    assert.equal(fromRev8.state.annoncesMenuOpen, false);
+    assert.equal(fromRev8.state.cadastreMenuOpen, false);
+    assert.equal(fromRev8.rev, MAP_LAYERS_STORAGE_REV);
   });
 
   it('rev 8 retire la couche Copropriétés sans toucher au reste', () => {

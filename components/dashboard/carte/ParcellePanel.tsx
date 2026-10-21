@@ -10,6 +10,7 @@ import {
   Bell,
   BellRing,
   Calculator,
+  Columns3,
   ChevronDown,
   ChevronRight,
   Footprints,
@@ -59,6 +60,10 @@ import type {
   ParcelleVente,
 } from '@/lib/carte/parcelle';
 import { CIBLE_CLOCHE, envolerNote } from '@/lib/ui/envol-note';
+import { mesurerVolBille, pulseOngletPipeline, type VolBille } from '@/lib/ui/vol-pipeline';
+import { patchLeadPipeline } from '@/lib/pipeline/patch';
+import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
+import { VolBillePipeline } from '@/components/dashboard/prospection/VolLeadPipeline';
 import type { Notification } from '@/lib/notifications/types';
 import { useNotifications } from '@/components/providers/NotificationsProvider';
 
@@ -814,9 +819,13 @@ function LigneVente({ v, adresse }: { v: ParcelleVente; adresse: string | null }
 function MenuAjoutParcelle({
   onDicter,
   onEcrire,
+  onAjouterPipeline,
+  etatPipeline,
 }: {
   onDicter: () => void;
   onEcrire: () => void;
+  onAjouterPipeline: (origine: HTMLElement) => void;
+  etatPipeline: 'disponible' | 'deja' | 'aucun' | 'busy';
 }) {
   const [ouvert, setOuvert] = useState(false);
   const racineRef = useRef<HTMLDivElement>(null);
@@ -874,6 +883,28 @@ function MenuAjoutParcelle({
           <NotebookPen size={18} className="shrink-0 text-text-muted" aria-hidden />
           Écrire une note
         </button>
+        {etatPipeline === 'deja' ? (
+          <div
+            role="menuitem"
+            aria-disabled="true"
+            className="flex min-h-12 w-full cursor-default items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-muted"
+          >
+            <Columns3 size={18} className="shrink-0 opacity-45" aria-hidden />
+            <span className="min-w-0 flex-1">Déjà au pipeline</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={ouvert ? 0 : -1}
+            disabled={etatPipeline === 'busy'}
+            onClick={(e) => choisir(() => onAjouterPipeline(e.currentTarget))}
+            className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-strong hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
+          >
+            <Columns3 size={18} className="shrink-0 text-accent" aria-hidden />
+            Ajouter au pipeline
+          </button>
+        )}
         <div
           role="menuitem"
           aria-disabled="true"
@@ -926,7 +957,14 @@ export default function ParcellePanel({
   const { profile } = useUser();
   const [noteTick, setNoteTick] = useState(0);
   const [adressesOuvertes, setAdressesOuvertes] = useState(false);
+  const [prospects, setProspects] = useState(fiche.prospects);
+  const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [volsPipeline, setVolsPipeline] = useState<VolBille[]>([]);
   const captureWasOpen = useRef(false);
+
+  useEffect(() => {
+    setProspects(fiche.prospects);
+  }, [fiche.prospects]);
 
   useEffect(() => {
     if (captureSessionOpen) {
@@ -983,8 +1021,58 @@ export default function ParcellePanel({
     ? `Parcelle ${fiche.reference}`
     : 'Parcelle sans adresse connue';
 
+  const aPrendre = prospects
+    .filter((p) => !p.stageId)
+    .sort((a, b) => b.score - a.score)[0] ?? null;
+  const etatPipeline = pipelineBusy
+    ? 'busy'
+    : aPrendre
+      ? 'disponible'
+      : prospects.length > 0
+        ? 'deja'
+        : 'aucun';
+
+  const ajouterAuPipeline = async (origine: HTMLElement) => {
+    if (!aPrendre) {
+      notifyError('Aucun lead livré sur cette parcelle.');
+      return;
+    }
+    const userId = profile?.id;
+    const entreeId = fiche.entreeStageId;
+    if (!userId || !entreeId) {
+      notifyError('Impossible d’ajouter ce lead au pipeline pour le moment.');
+      return;
+    }
+    const vol = mesurerVolBille(origine);
+    if (vol) setVolsPipeline((prev) => [...prev, vol]);
+    else pulseOngletPipeline();
+    const now = new Date().toISOString();
+    setProspects((prev) =>
+      prev.map((p) =>
+        p.id === aPrendre.id
+          ? { ...p, stageId: entreeId, etape: fiche.entreeLibelle ?? 'Pris' }
+          : p,
+      ),
+    );
+    setPipelineBusy(true);
+    try {
+      await patchLeadPipeline(aPrendre.id, {
+        stageId: entreeId,
+        takenAt: now,
+        assignedTo: userId,
+        stageChangedAt: now,
+      });
+      void invaliderNavigationApresLead();
+    } catch (e) {
+      setProspects(fiche.prospects);
+      notifyError(e instanceof Error ? e.message : 'Le lead n’a pas pu être ajouté au pipeline.');
+    } finally {
+      setPipelineBusy(false);
+    }
+  };
+
   const chezNous =
-    fiche.prospects.length + fiche.contacts.length + fiche.biens.length + fiche.passages.length > 0;
+    prospects.length + fiche.contacts.length + fiche.biens.length + fiche.passages.length > 0;
   const dernierPassage = fiche.passages[0] ?? null;
   const copro = fiche.coproprietes[0] ?? null;
   const procedure = fiche.coproprietes.some((c) => c.procedureEnCours);
@@ -1001,6 +1089,13 @@ export default function ParcellePanel({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
+      <VolBillePipeline
+        vols={volsPipeline}
+        onFini={(id) => {
+          pulseOngletPipeline();
+          setVolsPipeline((prev) => prev.filter((v) => v.id !== id));
+        }}
+      />
       <header className="flex flex-shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5 sm:px-6">
         <div className="min-w-0">
           <h2
@@ -1168,7 +1263,7 @@ export default function ParcellePanel({
               </p>
             ) : null}
             <ul className="flex flex-col">
-              {fiche.prospects.map((p) => (
+              {prospects.map((p) => (
                 <LigneProspect key={p.id} p={p} avecAdresse={plusieursAdresses} />
               ))}
               {fiche.contacts.map((c) => (
@@ -1338,6 +1433,8 @@ export default function ParcellePanel({
         <MenuAjoutParcelle
           onDicter={() => openCapture(noteContext)}
           onEcrire={() => openCompose(noteContext)}
+          onAjouterPipeline={(origine) => void ajouterAuPipeline(origine)}
+          etatPipeline={etatPipeline}
         />
       </div>
     </div>

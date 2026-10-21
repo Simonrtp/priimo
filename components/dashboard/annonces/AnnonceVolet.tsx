@@ -296,10 +296,13 @@ export default function AnnonceVolet({
               </a>
             ) : null}
           </div>
-          <p className="text-[13px] text-text-muted">
+          <span
+            aria-disabled="true"
+            className={`${BOUTON} cursor-default bg-black/[0.04] text-text-muted`}
+          >
             Ajouter aux comparables d’une estimation
-            <span className="ml-2 text-[12px]">À venir</span>
-          </p>
+            <span className="text-[12px] font-normal">À venir</span>
+          </span>
         </section>
       </div>
     </aside>

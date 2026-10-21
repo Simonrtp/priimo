@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronDown, Mic, NotebookPen } from 'lucide-react';
-import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
+import { COULEUR_FAMILLE, GRIS_NEUTRE } from '@/lib/activite/couleurs';
 import type { Compteur, FamilleActivite } from '@/lib/activite/types';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { useNotesLecture } from '@/components/dashboard/notes/NotesLectureProvider';
@@ -255,9 +255,12 @@ function CarteCompteur({
   montrerActions: boolean;
 }) {
   const famille = compteur.activite as FamilleActivite;
-  const { teinte, pastelFort, pastille, voile } = COULEUR_FAMILLE[famille];
-  const illustration = ILLUSTRATION[famille];
   const action = ACTION[famille];
+  const bientot = 'bientot' in action;
+  const { teinte, pastelFort, pastille, voile } = bientot
+    ? GRIS_NEUTRE
+    : COULEUR_FAMILLE[famille];
+  const illustration = ILLUSTRATION[famille];
   const { ouvrir } = useNotesLecture();
   const { bonus, impact, compte } = useArriveeNote(famille, compteur, accueilleNotes, periode);
   const valeur = compteur.valeur + bonus;
@@ -291,21 +294,34 @@ function CarteCompteur({
   return (
     <li className="relative min-w-0">
       {/* Calibre la case au repos, sans les images : la carte vraie se pose
-          par-dessus et s'allonge au survol sans pousser la grille. */}
-      <div className="invisible flex flex-col p-4 [@media(hover:none)]:hidden" aria-hidden>
-        <span className="size-12 shrink-0" />
-        <p className="mt-3 text-[12px] font-semibold leading-tight">{compteur.libelle}</p>
-        <p className="mt-1 font-display text-[28px] font-bold leading-none">0</p>
-        <div className="mt-3 h-2.5" />
-      </div>
+          par-dessus et s'allonge au survol sans pousser la grille.
+          Une carte « à venir » reste dans le flux : sa pastille est toujours
+          visible, elle ne doit pas recouvrir la carte du dessous. */}
+      {bientot ? null : (
+        <div className="invisible flex flex-col p-4 [@media(hover:none)]:hidden" aria-hidden>
+          <span className="size-12 shrink-0" />
+          <p className="mt-3 text-[12px] font-semibold leading-tight">{compteur.libelle}</p>
+          <p className="mt-1 font-display text-[28px] font-bold leading-none">0</p>
+          <div className="mt-3 h-2.5" />
+        </div>
+      )}
       <div
-        className="group/compteur flex h-full flex-col rounded-clay-lg p-4 shadow-clay-sm [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-x-0 [@media(hover:hover)]:top-0 [@media(hover:hover)]:h-auto [@media(hover:hover)]:min-h-full hover:z-30 focus-within:z-30"
+        aria-disabled={bientot || undefined}
+        className={`flex h-full flex-col rounded-clay-lg p-4 shadow-clay-sm ${
+          bientot
+            ? 'cursor-default'
+            : 'group/compteur hover:z-30 focus-within:z-30 [@media(hover:hover)]:absolute [@media(hover:hover)]:inset-x-0 [@media(hover:hover)]:top-0 [@media(hover:hover)]:h-auto [@media(hover:hover)]:min-h-full'
+        }`}
         style={{ backgroundColor: voile }}
       >
         <div className="flex items-center gap-2.5 lg:block">
           <span
             aria-hidden
-            className="relative flex size-12 shrink-0 items-center justify-center rounded-[14px] transition-transform duration-fluid ease-soft group-hover/compteur:scale-105 motion-reduce:transition-none"
+            className={`relative flex size-12 shrink-0 items-center justify-center rounded-[14px] ${
+              bientot
+                ? ''
+                : 'transition-transform duration-fluid ease-soft group-hover/compteur:scale-105 motion-reduce:transition-none'
+            }`}
             style={{ backgroundColor: pastelFort }}
           >
             {impact ? (
@@ -334,7 +350,11 @@ function CarteCompteur({
           </p>
         </div>
 
-        <p className="mt-2 text-[12px] font-semibold leading-tight text-text-strong lg:mt-3">
+        <p
+          className={`mt-2 text-[12px] font-semibold leading-tight lg:mt-3 ${
+            bientot ? 'text-text-muted' : 'text-text-strong'
+          }`}
+        >
           {compteur.libelle}
         </p>
 
@@ -360,7 +380,14 @@ function CarteCompteur({
           />
         </div>
 
-        {montrerActions ? ('note' in action ? (
+        {bientot ? (
+          <span
+            className={`${PILULE} mt-2.5 w-fit cursor-default text-text-muted`}
+            style={{ backgroundColor: pastelFort }}
+          >
+            À venir
+          </span>
+        ) : montrerActions && 'note' in action ? (
           <BoutonNote
             libelle={action.libelle}
             fond={pastelFort}
@@ -378,16 +405,7 @@ function CarteCompteur({
               </button>
             }
           />
-        ) : 'bientot' in action ? (
-          <Volet>
-            <span
-              className={`${PILULE} cursor-default text-text-muted`}
-              style={{ backgroundColor: pastelFort }}
-            >
-              À venir
-            </span>
-          </Volet>
-        ) : (
+        ) : montrerActions && 'href' in action ? (
           <Volet>
             <Link
               href={action.href}
@@ -405,7 +423,7 @@ function CarteCompteur({
               <ArrowRight size={12} strokeWidth={2.6} />
             </Link>
           </Volet>
-        )) : null}
+        ) : null}
       </div>
     </li>
   );

@@ -4,6 +4,7 @@ import { parseAssigneeId } from './assignees';
 import { suggestMemberFromText } from './match-member';
 import {
   AGENCY_RECORD_VISIBILITY,
+  canSeeBienRecord,
   canSeeLeadRecord,
   canSeeOwnedRecord,
 } from './visibility';
@@ -84,10 +85,11 @@ describe('visibilité interne', () => {
     );
   });
 
-  it('laisse la file de leads non assignés visible', () => {
+  it('montre tous les leads de l’agence, y compris ceux d’un collègue', () => {
     const collab = { id: 'p1', role: 'collaborateur' as const };
     assert.equal(canSeeLeadRecord(collab, { assignedTo: null }), true);
-    assert.equal(canSeeLeadRecord(collab, { assignedTo: 'm1' }), false);
+    assert.equal(canSeeLeadRecord(collab, { assignedTo: 'm1' }), true);
     assert.equal(canSeeLeadRecord(collab, { assignedTo: 'p1' }), true);
+    assert.equal(canSeeBienRecord(collab, { createdBy: 'm1' }), true);
   });
 });

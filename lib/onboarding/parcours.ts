@@ -1,8 +1,8 @@
 /**
  * Parcours de prise en main du négociateur.
  *
- * Ouverture (salut → lettre → anniversaire → avatar), puis le texte des
- * fonctionnalités, la question de formation, puis l’écran final.
+ * Ouverture (salut → lettre → anniversaire → avatar), puis la question
+ * de formation, puis l’écran final. La lettre dit déjà ce que Priimo fait.
  */
 
 export type EtapeId =
@@ -38,7 +38,7 @@ export const TOUTES_LES_ETAPES: readonly EtapeId[] = [
 export const ETAPE_PASSER_DES_DE: EtapeId = 'anniversaire';
 
 const OUVERTURE: readonly EtapeId[] = ['salut', 'lettre', 'anniversaire', 'avatar'];
-const PRISE_EN_MAIN: readonly EtapeId[] = ['fonctionnalites', 'formation'];
+const PRISE_EN_MAIN: readonly EtapeId[] = ['formation'];
 
 export function buildParcours(): EtapeId[] {
   return [...OUVERTURE, ...PRISE_EN_MAIN, 'final'];

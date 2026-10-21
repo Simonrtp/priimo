@@ -6,7 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RecordViewer } from '@/lib/agency/visibility';
-import { canSeeContact, canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
+import { canSeeBienRecord, canSeeContact, canSeeLeadRecord, canSeeOwnedRecord } from '@/lib/agency/visibility';
 import { canSeeVoiceNote } from '@/lib/notes/visibility';
 import { geocodeAdresse, type BanGeocodeHit } from '@/lib/geo/ban';
 import { rapprocherAcquereurs, type RapprochableBien } from '@/lib/matching/rapprochement';
@@ -220,7 +220,7 @@ function visContacts(viewer: RecordViewer, rows: CollecteContact[]): CollecteCon
 }
 
 function visBiens(viewer: RecordViewer, rows: CollecteBien[]): CollecteBien[] {
-  return rows.filter((b) => canSeeOwnedRecord(viewer, { assignedTo: null, createdBy: b.createdBy }));
+  return rows.filter((b) => canSeeBienRecord(viewer, { createdBy: b.createdBy }));
 }
 
 function visNotes(viewer: RecordViewer, rows: CollecteNote[]): CollecteNote[] {

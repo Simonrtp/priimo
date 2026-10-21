@@ -46,7 +46,13 @@ export default function MobileSheet({
   const heightPct = SNAPS[snap] * 100;
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title}>
+    <div
+      className="fixed inset-0 z-[60]"
+      data-feuille-basse
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <button
         type="button"
         className="absolute inset-0 bg-[rgba(26,42,86,0.28)]"

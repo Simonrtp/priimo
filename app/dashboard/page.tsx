@@ -69,11 +69,9 @@ import { canSeeActivityOf } from '@/lib/agency/visibility';
 import AccueilPilotage from '@/components/dashboard/accueil/AccueilPilotage';
 import EcranAttenteInscription from '@/components/dashboard/abonnement/EcranAttenteInscription';
 import { estEnAttente } from '@/lib/billing/acces';
-import { EmploiDuTempsSquelette } from '@/components/dashboard/accueil/EmploiDuTemps';
 import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsServeur';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 import { nomProprietaireAffiche, signauxEssentiels } from '@/lib/lead-apercu';
-import { agendaEstConnecte, lireAgendaSemaine } from '@/lib/agenda/lire';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { apercuSecteur } from '@/lib/zones/accueil';
 import SecteurAccueil from '@/components/dashboard/accueil/SecteurAccueil';
@@ -158,7 +156,6 @@ async function TodayContent({
   finDemandee: string | null;
   membreDemande: string | null;
 }) {
-  const agendaPromise = lireAgendaSemaine();
   const supabase = await createSupabaseServerClient();
   const cookieStore = await cookies();
   // La vue se lit dans le cookie : connue avant la moindre lecture, elle
@@ -413,7 +410,6 @@ async function TodayContent({
     notesDuJour,
     priseEnMain,
     anniversaires,
-    agendaConnecte,
   ] = await Promise.all([
     socleP,
     metierP,
@@ -485,7 +481,6 @@ async function TodayContent({
       ? timed('fetchAgentOnboarding', () => fetchAgentOnboarding(supabase, profile.id))
       : Promise.resolve(null),
     timed('fetchAnniversairesDuJour', () => fetchAnniversairesDuJour(supabase, agency.id)),
-    timed('agendaEstConnecte', () => agendaEstConnecte()),
   ]);
 
   const {
@@ -708,23 +703,12 @@ async function TodayContent({
     lectureDe,
     selecteurVueDirecteur: isDirector && previewingAgent,
     sansCollaborateur: members.every((m) => m.role !== 'collaborateur'),
-    // L'emploi du temps reste rendu par le serveur : il attend l'agenda Google
-    // sous son propre Suspense, sans retenir le reste de l'écran.
-    // L'agenda connecté est celui du directeur : on ne le montre pas sur
-    // le tableau d'un collaborateur.
-    emploiDuTemps: lectureDe ? null : (
-      <Suspense key="emploi-du-temps" fallback={<EmploiDuTempsSquelette />}>
-        <EmploiDuTempsServeur agenda={agendaPromise} />
-      </Suspense>
-    ),
+    // L'agenda n'est pas encore disponible : carte grise, sans OAuth.
+    emploiDuTemps: lectureDe ? null : <EmploiDuTempsServeur />,
     secteur: secteurAgent,
     miseEnPlace:
-      membreActivite === profile.id &&
-      (!agendaConnecte || apercuAgent.zones.length === 0)
-        ? {
-            agendaConnecte,
-            aUnSecteur: apercuAgent.zones.length > 0,
-          }
+      membreActivite === profile.id && apercuAgent.zones.length === 0
+        ? { aUnSecteur: false }
         : null,
     attenteInscription: estEnAttente(agency) ? (
       <EcranAttenteInscription key="attente-inscription" refusee={agency.demande_decision === 'refusee'} />
