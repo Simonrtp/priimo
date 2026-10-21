@@ -8,8 +8,7 @@ import type { Zone } from '@/lib/zones/types';
 /**
  * Contours dessinés par l'agent, en lecture seule — même dessin que l'atelier
  * secteurs, sans poignées. Un secteur choisi n'affiche que son contour ;
- * « tous » montre le pavage entier. Un halo flou de sa couleur borde chaque
- * contour : un néon discret le jour, lumineux la nuit.
+ * « tous » montre le pavage entier.
  */
 export default function ZonesOverlay({
   zones,
@@ -45,17 +44,6 @@ export default function ZonesOverlay({
                 'fill-opacity': courante
                   ? OPACITE_REMPLISSAGE_ZONE * 2
                   : OPACITE_REMPLISSAGE_ZONE,
-              }}
-            />
-            <Layer
-              id={`prospection-zone-lueur-${zone.id}`}
-              type="line"
-              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-              paint={{
-                'line-color': zone.couleur,
-                'line-width': courante ? 14 : 9,
-                'line-blur': courante ? 10 : 7,
-                'line-opacity': courante ? 0.42 : 0.26,
               }}
             />
             <Layer

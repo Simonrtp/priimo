@@ -42,7 +42,6 @@ import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
-import ChoixLumiere from '@/components/dashboard/carte/ChoixLumiere';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import {
@@ -214,7 +213,6 @@ function LayersPanel({
             profileId={annoncesQui.profileId}
             membres={members}
           />
-          <ChoixLumiere />
         </ul>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
@@ -609,7 +607,6 @@ export default function SectorMapClient({
           itineraryGeometry={route?.geometry ?? null}
           // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
           parcellesEnabled={planParcelles || Boolean(parcelle.selectedParcelleId)}
-          relief={!planParcelles}
           activeParcelleIds={activeParcelleIds}
           suiviParcelleIds={suiviParcelleIds}
           parcelleNoteMarkers={parcelleNoteMarkers}

@@ -6,8 +6,7 @@ import '@/components/dashboard/carte/carte.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import Map, { Marker, type MapRef } from 'react-map-gl';
 import { GesteContourCalque, useGesteContour } from '@/components/dashboard/carte/geste-contour';
-import { MAPBOX_TOKEN, PRIIMO_MAP_CONFIG, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
-import FondPriimo from '@/components/dashboard/carte/FondPriimo';
+import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE, FRANCE_MAP_VIEW } from '@/lib/map/style';
 import { applyTourneeMapStyle, restoreTourneeMapStyle } from '@/lib/map/tournee-style';
 import { MAP_MAX_PITCH, tiltFromMap } from '@/lib/map/camera';
 import { cameraFor, type MapDimension } from '@/lib/map/view-mode';
@@ -21,6 +20,7 @@ import { isUsableCoord, toGeoCoord } from '@/lib/carte/coords';
 import { clusterBuildings, type ClusteredBuilding } from '@/lib/carte/cluster';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
+import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
@@ -223,14 +223,6 @@ export default function MobileMapCanvas({
   const revelerTimer = useRef<number | null>(null);
   const camera = cameraFor(dimension);
   const relief = !navigation && dimension === '3d';
-  // L'immeuble de l'épingle ouverte, ou de l'adresse cherchée, s'allume en orange.
-  const immeubleChoisi = useMemo(() => {
-    const epingle = selectedBanId ? buildings.find((b) => b.banId === selectedBanId) : null;
-    if (epingle && isUsableCoord(epingle.latitude, epingle.longitude)) {
-      return { latitude: epingle.latitude, longitude: epingle.longitude };
-    }
-    return cible ? { latitude: cible.latitude, longitude: cible.longitude } : null;
-  }, [selectedBanId, buildings, cible]);
   useCanvasAJour(mapRef, styleReady);
 
   const idsSignature = useMemo(
@@ -463,7 +455,6 @@ export default function MobileMapCanvas({
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
-        {...{ config: PRIIMO_MAP_CONFIG }}
         projection={{ name: 'mercator' }}
         initialViewState={vueDepart(initialBounds, fallback, camera)}
         attributionControl={false}
@@ -609,7 +600,11 @@ export default function MobileMapCanvas({
         {dessin ? (
           <GesteContourCalque trace={geste.trace} polygone={dessin.polygone} couleur={dessin.couleur} />
         ) : null}
-        <FondPriimo immeuble={immeubleChoisi} relief={relief} />
+        <Buildings3DLayer
+          mapRef={mapRef}
+          enabled={relief}
+          ready={styleReady}
+        />
         <ParcellesLayer
           mapRef={mapRef}
           enabled={!navigation && parcellesEnabled}

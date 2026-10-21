@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import Map, { Marker } from 'react-map-gl';
-import { MAPBOX_TOKEN, PRIIMO_MAP_CONFIG, PRIIMO_MAP_STYLE } from '@/lib/map/style';
-import FondPriimo from '@/components/dashboard/carte/FondPriimo';
+import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
 import { couleurAnnonce, repereApproximatif } from '@/lib/annonces/presenter';
 import type { Annonce } from '@/lib/annonces/types';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -31,7 +30,6 @@ export default function AnnoncesCarte({
       <Map
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
-        {...{ config: PRIIMO_MAP_CONFIG }}
         initialViewState={{
           latitude: premier.latitude!,
           longitude: premier.longitude!,
@@ -48,7 +46,6 @@ export default function AnnoncesCarte({
             onChoisir={onChoisir}
           />
         ))}
-        <FondPriimo />
       </Map>
     </div>
   );

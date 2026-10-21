@@ -1,8 +1,7 @@
 'use client';
 
 import Map, { Marker } from 'react-map-gl';
-import { MAPBOX_TOKEN, PRIIMO_MAP_CONFIG, PRIIMO_MAP_STYLE } from '@/lib/map/style';
-import FondPriimo from '@/components/dashboard/carte/FondPriimo';
+import { MAPBOX_TOKEN, PRIIMO_MAP_STYLE } from '@/lib/map/style';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 export default function CartePosition({
@@ -21,7 +20,6 @@ export default function CartePosition({
           key={`${latitude.toFixed(5)}-${longitude.toFixed(5)}`}
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={PRIIMO_MAP_STYLE}
-          {...{ config: PRIIMO_MAP_CONFIG }}
           initialViewState={{ latitude, longitude, zoom: 16 }}
           style={{ width: '100%', height: '100%' }}
           attributionControl={false}
@@ -32,7 +30,6 @@ export default function CartePosition({
           }
         >
           <Marker latitude={latitude} longitude={longitude} color="#1A1A1A" />
-          <FondPriimo />
         </Map>
       ) : (
         <p className="p-3 text-[12.5px] text-text-muted">Carte indisponible.</p>

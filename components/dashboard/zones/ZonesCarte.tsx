@@ -11,10 +11,8 @@ import {
   IGN_PCI_SOURCE_LAYER,
   IGN_PCI_VECTOR_SOURCE,
   MAPBOX_TOKEN,
-  PRIIMO_MAP_CONFIG,
   PRIIMO_MAP_STYLE,
 } from '@/lib/map/style';
-import FondPriimo from '@/components/dashboard/carte/FondPriimo';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import { useCanvasAJour } from '@/lib/map/canvas-a-jour';
 import { OPACITE_REMPLISSAGE_ZONE } from '@/lib/zones/palette';
@@ -664,7 +662,6 @@ export default function ZonesCarte({
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={PRIIMO_MAP_STYLE}
-        {...{ config: PRIIMO_MAP_CONFIG }}
         initialViewState={depart}
         attributionControl={false}
         // Le geste appartient au tracé : la carte ne coulisse plus sous la main.
@@ -987,8 +984,6 @@ export default function ZonesCarte({
           />
         ))}
 
-        {/* L'atelier trace sur un plan à plat, contours au-dessus des immeubles. */}
-        <FondPriimo relief={false} etageSol="top" />
       </Map>
 
       {(dessinActif && !propose && trace.length === 0) || ajustActif ? (
