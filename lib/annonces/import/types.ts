@@ -34,6 +34,12 @@ export type FicheAnnonce = {
   zone: { latitude: number; longitude: number; rayonM: number } | null;
   /** Adresse du bien écrite par le site (programme neuf…), retrouvée ensuite dans la BAN. */
   adressePubliee?: string | null;
+  /**
+   * La rue publiée par le portail (PAP : « Rue du Surmelin, 75020 Paris »), sous
+   * son nom BAN — celui de la base DPE (`nom_rue_ban`). Le DPE se cherche dans
+   * toute la rue, et un DPE d'une autre rue perd sa place.
+   */
+  voiePubliee?: string | null;
   photos: string[];
 };
 

@@ -12,7 +12,7 @@
  */
 import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
 import { rueDepuisTexte, valeursFiables } from './localiser';
-import { ficheDepuisExtraction, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
+import { ficheDepuisExtraction, voieBan, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
 import { lireSeLogerNeuf } from './seloger-neuf';
 import type { FicheAnnonce } from './types';
 import type { UrlAnnonce } from './url';
@@ -132,6 +132,7 @@ export async function ficheDepuisPage(
   /** Mon assistant, déjà plafonné par l'appelant (serveur.ts). */
   assistant: Assistant,
   geocoder: Geocodeur = geocoderBan,
+  nommerVoie: (adresse: string, codePostal: string) => Promise<string | null> = voieBan,
 ): Promise<FicheAnnonce | null> {
   let p = lecturePortail(u, html);
   const texte = [p.titre, p.description, texteVisible(html)].filter(Boolean).join('\n');
@@ -173,6 +174,10 @@ export async function ficheDepuisPage(
     const admise = retrouvee && (!rueDuTexte || dansLeRepere(retrouvee, reperePortail));
     if (retrouvee && admise && meilleureZone(p.zone, retrouvee)) p.zone = retrouvee;
     else if (rueDuTexte && !admise) p.adressePubliee = null;
+  }
+  // La rue publiée par le portail, sous son nom BAN : le DPE se cherchera dans toute la rue.
+  if (p.adressePubliee && p.codePostal && !rueDuTexte) {
+    p.voiePubliee = await nommerVoie(p.adressePubliee, p.codePostal);
   }
   if (!ficheExploitable(p)) return null;
   return { ...ficheVide(u), ...p, photos: p.photos ?? [] };

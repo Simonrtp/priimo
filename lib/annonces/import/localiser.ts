@@ -34,6 +34,7 @@ const CHAMPS = [
   'adresse_ban',
   'identifiant_ban',
   'code_postal_ban',
+  'nom_rue_ban',
   '_geopoint',
   'type_batiment',
   'surface_habitable_logement',
@@ -116,8 +117,33 @@ function fourchette(params: Record<string, string>, champ: string, valeur: numbe
 }
 
 /** Les requêtes à tenter, de la plus serrée à la plus large. Vide : pas de localisation précise possible. */
+/** La rue publiée, fouillée en entier (`nom_rue_ban`) : surface, puis conso ou étiquette. */
+function requetesVoie(f: FicheAnnonce, conso: number | null, ges: number | null): RequeteDpe[] {
+  if (!f.voiePubliee || !f.codePostal || !/^\d{5}$/.test(f.codePostal)) return [];
+  const base: Record<string, string> = { nom_rue_ban_eq: f.voiePubliee, code_postal_ban_eq: f.codePostal };
+  if (conso != null) {
+    fourchette(base, 'conso_5_usages_par_m2_ep', conso, FENETRE_CONSO);
+    if (ges != null) fourchette(base, 'emission_ges_5_usages_par_m2', ges, FENETRE_GES);
+  } else {
+    const etiquette = pireLettre(f.dpe, f.ges);
+    if (etiquette) base.etiquette_dpe_eq = etiquette;
+  }
+  const requetes: RequeteDpe[] = [];
+  if (f.surface) {
+    const avecSurface = { ...base };
+    fourchette(avecSurface, 'surface_habitable_logement', f.surface, FENETRE_SURFACE);
+    requetes.push({ params: avecSurface, portee: 'zone' });
+  }
+  requetes.push({ params: base, portee: 'zone' });
+  return requetes;
+}
+
 export function requetesDpe(f: FicheAnnonce): RequeteDpe[] {
   const { conso, ges } = valeursFiables(f);
+  return [...requetesVoie(f, conso, ges), ...requetesHorsVoie(f, conso, ges)];
+}
+
+function requetesHorsVoie(f: FicheAnnonce, conso: number | null, ges: number | null): RequeteDpe[] {
   const z = f.zone;
   if (conso != null) {
     const lieux: { lieu: Record<string, string>; portee: RequeteDpe['portee'] }[] = [];
@@ -145,7 +171,9 @@ export function requetesDpe(f: FicheAnnonce): RequeteDpe[] {
         geo_distance: `${z.longitude},${z.latitude},${Math.round(z.rayonM + 120)}`,
       };
       fourchette(params, 'surface_habitable_logement', f.surface, FENETRE_SURFACE);
-      if (f.dpe && /^[A-G]$/i.test(f.dpe)) params.etiquette_dpe_eq = f.dpe.toUpperCase();
+      // L'étiquette du DPE est la pire des classes énergie et climat.
+      const etiquette = pireLettre(f.dpe, f.ges);
+      if (etiquette) params.etiquette_dpe_eq = etiquette;
       return [{ params, portee: 'zone' }];
     }
   }
@@ -354,6 +382,11 @@ export function pireLettre(a: string | null | undefined, b: string | null | unde
   return x > y ? x : y;
 }
 
+/** Le DPE est-il sur la rue publiée par le portail ? Nom BAN comparé sans casse ni accents. */
+function surLaVoie(f: FicheAnnonce, dpe: LigneDpe): boolean {
+  return Boolean(f.voiePubliee) && texteNormalise(String(dpe.nom_rue_ban ?? '')) === texteNormalise(f.voiePubliee);
+}
+
 function codePostalDpe(dpe: LigneDpe): string | null {
   return String(dpe.code_postal_ban ?? '').match(/^\d{5}$/)?.[0] ?? null;
 }
@@ -421,6 +454,11 @@ export function scorerCandidat(f: FicheAnnonce, dpe: LigneDpe): { score: number;
   }
 
   if (rueCitee(String(dpe.adresse_ban ?? ''), f.description)) note(12, 'voie citée dans la description');
+
+  if (f.voiePubliee) {
+    if (surLaVoie(f, dpe)) note(25, `sur la rue publiée (${f.voiePubliee})`);
+    else note(-20, 'hors de la rue publiée');
+  }
 
   const cpDpe = codePostalDpe(dpe);
   if (f.codePostal && cpDpe && cpDpe !== f.codePostal) note(-15, `code postal ${cpDpe} ≠ annonce ${f.codePostal}`);
@@ -506,7 +544,7 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
   if (statut === 'probable' && portee === 'code_postal' && ges == null) statut = 'incertaine';
   // Sans conso chiffrée, lettre et surface ne départagent que dans un repère serré :
   // à 650 m, un 32 m² classé E a des dizaines de jumeaux, et le vrai DPE peut manquer.
-  if (conso == null && !(f.zone && f.zone.rayonM <= RAYON_MAX_SANS_CONSO_M)) statut = 'incertaine';
+  if (conso == null && !(f.zone && f.zone.rayonM <= RAYON_MAX_SANS_CONSO_M) && !surLaVoie(f, meilleur.dpe)) statut = 'incertaine';
   // Une surface à plus de 6 m² de l'annonce : un autre logement (55 bd de Charonne, 41,7 m² pour 88).
   const surfaceD = num(meilleur.dpe.surface_habitable_logement);
   if (f.surface && surfaceD && Math.abs(f.surface - surfaceD) > ECART_SURFACE_MAX_M2) statut = 'incertaine';

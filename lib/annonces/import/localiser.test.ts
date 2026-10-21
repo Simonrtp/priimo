@@ -353,3 +353,56 @@ describe('adresses possibles (21/10/2026)', () => {
     assert.equal(loc.adressesPossibles?.length, 2);
   });
 });
+
+describe('rue publiée par le portail (PAP « Rue du Surmelin », 21/10/2026)', () => {
+  const surmelin = fiche({
+    portail: 'pap',
+    codePostal: '75020',
+    surface: 23,
+    etage: 1,
+    dpe: 'E',
+    ges: 'C',
+    consoKwhM2: null,
+    gesKgM2: null,
+    description: 'Métro Pelleport. Beau studio au 1er étage.',
+    zone: { latitude: 48.868872, longitude: 2.404689, rayonM: 350 },
+    voiePubliee: 'Rue du Surmelin',
+  });
+
+  it('fouille toute la rue (nom BAN), avec l’étiquette quand la conso manque', () => {
+    const [avecSurface, sansSurface] = requetesDpe(surmelin);
+    assert.equal(avecSurface!.params.nom_rue_ban_eq, 'Rue du Surmelin');
+    assert.equal(avecSurface!.params.code_postal_ban_eq, '75020');
+    assert.equal(avecSurface!.params.etiquette_dpe_eq, 'E');
+    assert.equal(avecSurface!.params.surface_habitable_logement_gte, '20');
+    assert.equal(sansSurface!.params.surface_habitable_logement_gte, undefined);
+  });
+
+  it('le DPE de la rue publiée devance ceux des rues voisines, adresse probable sans conso', () => {
+    const rue = dpe({
+      numero_dpe: 'S30',
+      adresse_ban: '30 Rue du Surmelin 75020 Paris',
+      nom_rue_ban: 'Rue du Surmelin',
+      code_postal_ban: '75020',
+      _geopoint: '48.8683,2.4040',
+      surface_habitable_logement: 25.8,
+      etiquette_dpe: 'E',
+      etiquette_ges: 'C',
+      complement_adresse_logement: 'Etage 1; Porte droite',
+    });
+    const voisine = dpe({
+      numero_dpe: 'M8',
+      adresse_ban: '8 Rue du Groupe Manouchian 75020 Paris',
+      nom_rue_ban: 'Rue du Groupe Manouchian',
+      code_postal_ban: '75020',
+      _geopoint: '48.8689,2.4047',
+      surface_habitable_logement: 24.3,
+      etiquette_dpe: 'E',
+      etiquette_ges: 'C',
+      complement_adresse_logement: 'Etage 1; Porte Gauche',
+    });
+    const d = decider(surmelin, [voisine, rue], 'zone');
+    assert.equal(d.meilleur!.dpe.numero_dpe, 'S30');
+    assert.equal(d.statut, 'probable');
+  });
+});

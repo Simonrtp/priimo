@@ -70,11 +70,28 @@ export async function zoneDepuisAdresse(json: Brut, codePostal: string | null): 
   if (props.type === 'housenumber' && (props.score ?? 0) >= 0.75 && props.postcode === codePostal && coords) {
     return { latitude: coords[1], longitude: coords[0], rayonM: 0 };
   }
-  // Rue sans numéro : le centre de la voie, pas le centre du quartier.
+  // Rue sans numéro : le centre de la voie, avec le rayon d'une rue entière (le 1 et le 76
+  // d'une rue parisienne sont à des centaines de mètres) — pas un point à 80 m.
   if (!/^\d{1,4}\b/.test(adresse) && props.type === 'street' && (props.score ?? 0) >= 0.55 && coords) {
     if (props.postcode && props.postcode !== codePostal) return null;
-    return { latitude: coords[1], longitude: coords[0], rayonM: 80 };
+    return { latitude: coords[1], longitude: coords[0], rayonM: RAYON_RUE_M };
   }
+  return null;
+}
+
+/** Une rue parisienne : quelques centaines de mètres de part et d'autre de son milieu BAN. */
+const RAYON_RUE_M = 350;
+
+/**
+ * Le nom officiel (BAN) de la voie d'une adresse publiée : c'est celui de la base
+ * DPE (`nom_rue_ban`). Null si la BAN ne la retrouve pas sûrement dans ce code postal.
+ */
+export async function voieBan(adresse: string, codePostal: string): Promise<string | null> {
+  const hits = await searchBanDirect(adresse, { limit: 1, postcode: codePostal, autocomplete: false }).catch(() => []);
+  const props = (hits[0]?.properties ?? {}) as { type?: string; score?: number; postcode?: string; name?: string; street?: string };
+  if ((props.score ?? 0) < 0.55 || (props.postcode && props.postcode !== codePostal)) return null;
+  if (props.type === 'street') return props.name?.trim() || null;
+  if (props.type === 'housenumber') return props.street?.trim() || null;
   return null;
 }
 
