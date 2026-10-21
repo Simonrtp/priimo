@@ -30,35 +30,48 @@ const TAILLE_MAX = 3_000_000;
 
 export type Telechargement =
   | { ok: true; html: string }
-  | { ok: false; raison: 'sans_cle' | 'bloquee' | 'disparue' | 'echec' };
+  | { ok: false; raison: 'sans_cle' | 'bloquee' | 'disparue' | 'echec' | 'abandon' };
 
 export function telechargementConfigure(): boolean {
   return Boolean(process.env.BRIGHTDATA_API_TOKEN && process.env.BRIGHTDATA_ZONE);
 }
 
-export async function telechargerPage(url: string): Promise<Telechargement> {
+export async function telechargerPage(url: string, signal?: AbortSignal): Promise<Telechargement> {
   const token = process.env.BRIGHTDATA_API_TOKEN;
   const zone = process.env.BRIGHTDATA_ZONE;
+  if (signal?.aborted) return { ok: false, raison: 'abandon' };
   if (!token || !zone) return { ok: false, raison: 'sans_cle' };
   const debut = Date.now();
   let dernier: Telechargement = { ok: false, raison: 'echec' };
   for (let essai = 0; essai < ESSAIS; essai += 1) {
+    if (signal?.aborted) return { ok: false, raison: 'abandon' };
     const reste = BUDGET_MS - (Date.now() - debut);
     if (essai > 0 && reste < DELAI_MIN_ESSAI_MS) break;
-    dernier = await unEssai(url, token, zone, Math.min(DELAI_MS, reste));
-    if (dernier.ok || dernier.raison === 'disparue') return dernier;
+    dernier = await unEssai(url, token, zone, Math.min(DELAI_MS, reste), signal);
+    if (dernier.ok || dernier.raison === 'disparue' || dernier.raison === 'abandon') return dernier;
   }
   return dernier;
 }
 
-async function unEssai(url: string, token: string, zone: string, delaiMs: number): Promise<Telechargement> {
+async function unEssai(
+  url: string,
+  token: string,
+  zone: string,
+  delaiMs: number,
+  signal?: AbortSignal,
+): Promise<Telechargement> {
+  if (signal?.aborted) return { ok: false, raison: 'abandon' };
+  const attente = new AbortController();
+  const timer = setTimeout(() => attente.abort(), delaiMs);
+  const couper = () => attente.abort();
+  signal?.addEventListener('abort', couper, { once: true });
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ zone, url, format: 'raw', country: 'fr' }),
       cache: 'no-store',
-      signal: AbortSignal.timeout(delaiMs),
+      signal: attente.signal,
     });
     // Statut du site visé, quand Bright Data le transmet.
     const statutSite = Number(res.headers.get('x-brd-status-code') ?? res.status);
@@ -72,7 +85,11 @@ async function unEssai(url: string, token: string, zone: string, delaiMs: number
     if (probleme) return { ok: false, raison: probleme };
     return { ok: true, html };
   } catch (err) {
+    if (signal?.aborted) return { ok: false, raison: 'abandon' };
     console.error('[import] Bright Data', err instanceof Error ? err.name : 'réseau');
     return { ok: false, raison: 'echec' };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', couper);
   }
 }

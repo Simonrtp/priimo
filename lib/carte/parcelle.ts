@@ -125,6 +125,8 @@ export type ParcelleAnnonce = {
   url: string;
   /** « PAP », « Bien’ici »… */
   portail: string;
+  /** Clés des portails où le logement est en vente (seloger, pap…). */
+  portails: string[];
   particulier: boolean;
   agence: string | null;
   prix: number | null;

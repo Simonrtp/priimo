@@ -23,6 +23,7 @@ import TourneeDictationProvider from '@/components/dashboard/field/TourneeDictat
 import MobileChrome, { MobileBackSwipe } from './_mobile/MobileChrome';
 import TouchScrollGuard from './_mobile/TouchScrollGuard';
 import { SHELL_BG_CLASS } from '@/lib/today/field';
+import RepriseRecherche from '@/components/dashboard/annonces/RepriseRecherche';
 
 /**
  * Pas de `force-dynamic` : ça cassait le cache de navigation client.
@@ -56,6 +57,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <VoiceCaptureProvider>
                 <AssistantProvider>
                   <AssistantPanelProvider>
+                    <RepriseRecherche />
                     {isMobile ? (
                       <div className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base">
                         <TouchScrollGuard />

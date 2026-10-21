@@ -78,6 +78,8 @@ export function useAnnoncesSecteur(actif: boolean): { annonces: Annonce[]; pret:
 
 let ajoutees: { annonces: Annonce[]; le: number; version: number } | null = null;
 let ajouteesEnVol: Promise<Annonce[]> | null = null;
+/** Une réponse partie avant un retrait ne doit pas reposer le point. */
+let ajouteesEpoch = 0;
 
 function chargerAjoutees(): Promise<Annonce[]> {
   if (ajoutees && ajoutees.version === version && Date.now() - ajoutees.le < FRAICHEUR_MS) {
@@ -85,8 +87,10 @@ function chargerAjoutees(): Promise<Annonce[]> {
   }
   if (!ajouteesEnVol) {
     const pour = version;
-    ajouteesEnVol = fetch('/api/dashboard/annonces/ajoutees')
+    const epoch = ajouteesEpoch;
+    ajouteesEnVol = fetch('/api/dashboard/annonces/ajoutees', { cache: 'no-store' })
       .then(async (r) => {
+        if (epoch !== ajouteesEpoch) return ajoutees?.annonces ?? [];
         if (!r.ok) return ajoutees?.annonces ?? [];
         const json = (await r.json()) as { annonces?: Annonce[] };
         const liste = json.annonces ?? [];
@@ -99,6 +103,25 @@ function chargerAjoutees(): Promise<Annonce[]> {
       });
   }
   return ajouteesEnVol;
+}
+
+/** Le point vient d'être retiré : la carte se met à jour sans attendre le réseau. */
+export function oublierAnnonceAjoutee(id: string): void {
+  ajouteesEpoch += 1;
+  version += 1;
+  ajoutees = {
+    annonces: (ajoutees?.annonces ?? []).filter((a) => a.id !== id),
+    le: Date.now(),
+    version,
+  };
+  for (const f of abonnes) f();
+}
+
+/** Le retrait a échoué : relire ce que l'agence a vraiment sur la carte. */
+export function relireAnnoncesAjoutees(): void {
+  ajoutees = null;
+  version += 1;
+  for (const f of abonnes) f();
 }
 
 /**

@@ -59,8 +59,16 @@ import type {
   ParcelleProspect,
   ParcelleVente,
 } from '@/lib/carte/parcelle';
+import { LOGO_PORTAIL } from '@/lib/annonces/logos';
+import { libellePortail } from '@/lib/annonces/presenter';
+import { useAnnonceImportee } from '@/lib/annonces/import/store';
+import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
+import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
 import { CIBLE_CLOCHE, envolerNote } from '@/lib/ui/envol-note';
 import { mesurerVolBille, pulseOngletPipeline, type VolBille } from '@/lib/ui/vol-pipeline';
+import { rueSeule } from '@/lib/ban-recherche';
+import { noteDepuisAnnonce } from '@/lib/pipeline/entrer';
+import { envoyerAuPipeline } from '@/lib/pipeline/envoyer';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { VolBillePipeline } from '@/components/dashboard/prospection/VolLeadPipeline';
@@ -307,7 +315,66 @@ function BoutonAppel({ telephone, nom }: { telephone: string; nom: string }) {
   );
 }
 
-function LigneAnnonce({ a, signalerRetrait }: { a: ParcelleAnnonce; signalerRetrait: boolean }) {
+function LogosPlateformes({ cles }: { cles: readonly string[] }) {
+  return (
+    <span className="flex max-w-[48%] shrink-0 items-center justify-end gap-2">
+      {cles.map((cle) => {
+        const logo = LOGO_PORTAIL[cle];
+        const nom = libellePortail(cle);
+        return logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={cle} src={logo} alt={nom} className="h-[18px] w-auto max-w-[5.25rem] object-contain" />
+        ) : (
+          <span key={cle} className="truncate text-[12px] font-semibold text-text-strong">
+            {nom}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+type LieuPipeline = {
+  address: string;
+  city: string | null;
+  postalCode: string | null;
+  latitude: number;
+  longitude: number;
+  banId: string | null;
+};
+
+function lieuDeLaFiche(fiche: ParcelleFiche): LieuPipeline | null {
+  const rue = fiche.adresse?.trim();
+  if (!rue || !fiche.position) return null;
+  const localite = fiche.localite?.trim() ?? '';
+  const code = localite.match(/^(\d{5})\b/);
+  const postalCode = code?.[1] ?? null;
+  const city = (postalCode ? localite.slice(postalCode.length) : localite).trim() || null;
+  const banId = fiche.adresses.length <= 1 ? (fiche.adresses[0]?.banId ?? fiche.banId) : null;
+  return {
+    address: rueSeule(rue, postalCode ?? undefined, city ?? undefined),
+    city,
+    postalCode,
+    latitude: fiche.position.latitude,
+    longitude: fiche.position.longitude,
+    banId,
+  };
+}
+
+function LigneAnnonce({
+  a,
+  signalerRetrait,
+  lieu,
+}: {
+  a: ParcelleAnnonce;
+  signalerRetrait: boolean;
+  lieu: LieuPipeline | null;
+}) {
+  const [envoiPipeline, setEnvoiPipeline] = useState(false);
+  const [dejaPipeline, setDejaPipeline] = useState(false);
+  const ajoutees = useAnnoncesAjoutees();
+  const importee = useAnnonceImportee();
+  const surCarte = ajoutees.some((x) => x.id === a.id) || importee?.annonceId === a.id;
   const details = [
     a.pieces != null ? `${a.pieces} p.` : null,
     a.surface != null ? `${new Intl.NumberFormat('fr-FR').format(a.surface)} m²` : null,
@@ -316,14 +383,17 @@ function LigneAnnonce({ a, signalerRetrait }: { a: ParcelleAnnonce; signalerRetr
     .filter(Boolean)
     .join(' · ');
   const vendeur = a.particulier ? 'Particulier' : a.agence || 'Agence';
+  const plateformes = a.portails ?? [];
+  const noms = plateformes.map((c) => libellePortail(c)).filter(Boolean).join(', ');
   return (
     <li className={LIGNE}>
+      <div className="flex items-center">
       <a
         href={a.url}
         target="_blank"
         rel="noopener noreferrer"
-        title={`Voir l’annonce sur ${a.portail}`}
-        className={`flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-black/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+        title={noms ? `Voir l’annonce sur ${noms}` : `Voir l’annonce sur ${a.portail}`}
+        className={`flex min-w-0 flex-1 items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-black/[0.025] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
           a.retiree ? 'opacity-55' : ''
         }`}
       >
@@ -347,22 +417,75 @@ function LigneAnnonce({ a, signalerRetrait }: { a: ParcelleAnnonce; signalerRetr
             </span>
           ) : null}
         </span>
-        <span
-          className={`max-w-[42%] shrink-0 truncate rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
-            a.particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
-          }`}
-          title={vendeur}
-        >
-          {vendeur}
-        </span>
+        {plateformes.length > 0 ? (
+          <LogosPlateformes cles={plateformes} />
+        ) : (
+          <span
+            className={`max-w-[42%] shrink-0 truncate rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
+              a.particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
+            }`}
+            title={vendeur}
+          >
+            {vendeur}
+          </span>
+        )}
         <ArrowUpRight size={15} strokeWidth={2} className="shrink-0 text-text-subtle" aria-hidden />
       </a>
+      {surCarte ? (
+        <button
+          type="button"
+          aria-label="Retirer de la carte"
+          onClick={() => void retirerOuPrevenir(a.id, notifyError)}
+          className="mr-2 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.06] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <X size={14} strokeWidth={2.2} aria-hidden />
+        </button>
+      ) : null}
+      </div>
+      {lieu ? (
+        <div className="flex justify-end px-3.5 pb-2.5">
+          <button
+            type="button"
+            disabled={envoiPipeline || dejaPipeline}
+            onClick={(e) => {
+              const origine = e.currentTarget;
+              setEnvoiPipeline(true);
+              void envoyerAuPipeline(
+                {
+                  ...lieu,
+                  surfaceM2: a.surface,
+                  rooms: a.pieces,
+                  etage: a.etage,
+                  dpeClass: a.dpe,
+                  ownerType: a.particulier ? 'particulier' : 'entreprise',
+                  companyName: a.agence,
+                  notes: noteDepuisAnnonce(a.portails[0] || a.portail, a.prix),
+                  provenance: 'portail',
+                },
+                origine,
+              ).then((resultat) => {
+                setEnvoiPipeline(false);
+                if (resultat?.etat === 'deja') setDejaPipeline(true);
+              });
+            }}
+            className="inline-flex h-8 items-center rounded-full bg-accent px-3 text-[12.5px] font-semibold text-white hover:bg-accent-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+          >
+            {dejaPipeline ? 'Déjà au pipeline' : 'Au pipeline'}
+          </button>
+        </div>
+      ) : null}
     </li>
   );
 }
 
 /** Le logement est en vente : en tête de fiche, une ligne par annonce. */
-function AnnoncesParcelle({ annonces }: { annonces: readonly ParcelleAnnonce[] }) {
+function AnnoncesParcelle({
+  annonces,
+  lieu,
+}: {
+  annonces: readonly ParcelleAnnonce[];
+  lieu: LieuPipeline | null;
+}) {
   if (annonces.length === 0) return null;
   const enVente = annonces.some((a) => !a.retiree);
   return (
@@ -372,7 +495,7 @@ function AnnoncesParcelle({ annonces }: { annonces: readonly ParcelleAnnonce[] }
       </p>
       <ul className="flex flex-col">
         {annonces.map((a) => (
-          <LigneAnnonce key={a.id} a={a} signalerRetrait={enVente} />
+          <LigneAnnonce key={a.id} a={a} signalerRetrait={enVente} lieu={a.retiree ? null : lieu} />
         ))}
       </ul>
     </section>
@@ -1207,7 +1330,7 @@ export default function ParcellePanel({
           </div>
         ) : null}
 
-        <AnnoncesParcelle annonces={fiche.annonces ?? []} />
+        <AnnoncesParcelle annonces={fiche.annonces ?? []} lieu={lieuDeLaFiche(fiche)} />
 
         <div className="pb-5">
           <Pastilles pastilles={synthese.pastilles} />

@@ -13,7 +13,8 @@
  *   - une page qui vient d'échouer n'est pas relancée avant un quart d'heure ;
  *   - plafonds du jour par agent, agence et pour tout Priimo, sur un compteur
  *     commun à tous les serveurs ; sans compteur, rien ne part ;
- *   - une seule lecture à la fois par agent ; aucune pour une agence en attente.
+ *   - une seule lecture à la fois par agent ; la croix l'arrête ;
+ *   - aucune pour une agence en attente.
  *
  * Chaque étape est annoncée (`onEtape`) : le panneau l'affiche en direct.
  * Sans la migration 20261019_annonces_import_url, l'ajout attend les tables
@@ -34,6 +35,7 @@ import { localiserFiche } from './localiser';
 import { telechargerPage } from './telecharger';
 import { extraireAvecAssistant } from './texte';
 import type { FicheAnnonce, LocalisationImport } from './types';
+import { MESSAGE_RECHERCHE_ARRETEE, MESSAGE_RECHERCHE_EN_COURS } from './messages';
 import { cleImport, type UrlAnnonce } from './url';
 
 /** Les tables des annonces vivent hors des types générés (écrites par le pipeline). */
@@ -221,32 +223,70 @@ function colonnePossiblesAbsente(message: string | undefined): boolean {
   return /adresses_possibles/.test(message ?? '');
 }
 
-/** Une lecture à la fois par agent (par instance ; le plafond en base borne le reste). */
-const lecturesEnCours = new Set<string>();
+/**
+ * Une lecture à la fois par agent, sur cette instance. La croix annule le
+ * contrôleur : le téléchargement s'arrête. Une deuxième demande pour la même
+ * annonce attend le même résultat, au lieu d'un message opaque.
+ */
+type TacheLecture = {
+  cle: string;
+  controleur: AbortController;
+  promesse: Promise<ReponseImport>;
+};
+const taches = new Map<string, TacheLecture>();
+
+export function annulerLecture(profileId: string): void {
+  const tache = taches.get(profileId);
+  if (!tache) return;
+  taches.delete(profileId);
+  tache.controleur.abort();
+}
+
+function arretSiBesoin(signal: AbortSignal, resultat: ReponseImport): ReponseImport {
+  if (signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
+  return resultat;
+}
 
 /** Mon assistant n'est appelé que dans la limite de son plafond ; sa bulle passe au bleu IA. */
-function assistantPlafonne(qui: Qui, onEtape: SurEtape) {
+function assistantPlafonne(qui: Qui, onEtape: SurEtape, signal: AbortSignal) {
   return async (texte: string) => {
+    if (signal.aborted) return null;
     const r = await reserverQuota('lecture_annonce', PLAFONDS_LECTURE_ANNONCE, qui);
-    if (r === 'plafond') return null;
+    if (r === 'plafond' || signal.aborted) return null;
     onEtape({ cle: 'donnees', etat: 'en_cours', ia: true });
-    return extraireAvecAssistant(texte);
+    return extraireAvecAssistant(texte, signal);
   };
 }
 
 /** Une fiche lue : localisée, gardée en attente d'ajout. */
-async function resultatFiche(admin: Db, qui: Qui, u: UrlAnnonce, fiche: FicheAnnonce, onEtape: SurEtape): Promise<ReponseImport> {
+async function resultatFiche(
+  admin: Db,
+  qui: Qui,
+  u: UrlAnnonce,
+  fiche: FicheAnnonce,
+  onEtape: SurEtape,
+  signal: AbortSignal,
+): Promise<ReponseImport> {
+  if (signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
   onEtape({ cle: 'donnees', etat: 'fait', detail: resumeDonnees(fiche) });
   onEtape({ cle: 'adresse', etat: 'en_cours' });
   const loc: LocalisationImport = await localiserFiche(fiche);
+  if (signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
   const colonnes = colonnesAnnonce(fiche, loc);
   const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: colonnes });
   const carte = carteDepuisFiche(fiche, loc, { importId: id, annonceId: null, suivie: false });
   onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
-  return { etat: 'trouvee', carte, disponible };
+  return arretSiBesoin(signal, { etat: 'trouvee', carte, disponible });
 }
 
-export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, onEtape: SurEtape = rien): Promise<ReponseImport> {
+async function lireUrl(
+  admin: Db,
+  db: Db,
+  qui: Qui,
+  u: UrlAnnonce,
+  onEtape: SurEtape,
+  signal: AbortSignal,
+): Promise<ReponseImport> {
   onEtape({ cle: 'lecture', etat: 'en_cours' });
   await new Promise<void>((ok) => setImmediate(ok));
   const portail = libellePortail(u.portail);
@@ -262,7 +302,11 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
     const carte = carteDepuisAnnonce(connue, { annonceId: visible ? connue.id : null, suivie: etat?.suivie ?? false });
     if (enregistre) carte.importId = enregistre.id;
     onEtape({ cle: 'adresse', etat: carte.approximative ? 'rate' : 'fait', detail: resumeAdresse(carte) });
-    return { etat: 'trouvee', carte, disponible: visible ? (etat?.disponible ?? true) : Boolean(enregistre?.disponible && enregistre.id) };
+    return arretSiBesoin(signal, {
+      etat: 'trouvee',
+      carte,
+      disponible: visible ? (etat?.disponible ?? true) : Boolean(enregistre?.disponible && enregistre.id),
+    });
   }
 
   // 2. Bien'ici : son API, gratuite.
@@ -296,20 +340,16 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
       onEtape({ cle: 'lecture', etat: 'rate' });
       return { etat: 'erreur', message: MESSAGES.attente };
     }
-    if (lecturesEnCours.has(qui.profileId)) return { etat: 'erreur', message: 'Une recherche est déjà en cours' };
+    if (signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
     const reservation = await reserverQuota('lecture_page', plafondsLecturePage(), qui);
+    if (signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
     if (reservation !== 'ok') {
       onEtape({ cle: 'lecture', etat: 'rate' });
       return { etat: 'erreur', message: reservation === 'plafond' ? MESSAGES.plafond : MESSAGES.indisponible };
     }
-    lecturesEnCours.add(qui.profileId);
-    let page: Awaited<ReturnType<typeof telechargerPage>>;
-    try {
-      page = await telechargerPage(u.url);
-    } finally {
-      lecturesEnCours.delete(qui.profileId);
-    }
+    const page = await telechargerPage(u.url, signal);
     if (!page.ok) {
+      if (page.raison === 'abandon' || signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
       onEtape({ cle: 'lecture', etat: 'rate' });
       if (page.raison === 'sans_cle') {
         console.error('[import] BRIGHTDATA_API_TOKEN ou BRIGHTDATA_ZONE manquant');
@@ -320,7 +360,8 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
     }
     onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
     onEtape({ cle: 'donnees', etat: 'en_cours' });
-    fiche = await ficheDepuisPage(u, page.html, assistantPlafonne(qui, onEtape));
+    fiche = await ficheDepuisPage(u, page.html, assistantPlafonne(qui, onEtape, signal));
+    if (signal.aborted) return { etat: 'erreur', message: MESSAGE_RECHERCHE_ARRETEE };
     if (!fiche) {
       onEtape({ cle: 'donnees', etat: 'rate' });
       // Page payée mais sans annonce : pas de nouvel achat avant un quart d'heure.
@@ -330,7 +371,34 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
   } else {
     onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
   }
-  return resultatFiche(admin, qui, u, fiche, onEtape);
+  return resultatFiche(admin, qui, u, fiche, onEtape, signal);
+}
+
+export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, onEtape: SurEtape = rien): Promise<ReponseImport> {
+  const cle = cleImport(u);
+  const enCours = taches.get(qui.profileId);
+  if (enCours) {
+    if (enCours.cle === cle) return enCours.promesse;
+    return { etat: 'erreur', message: MESSAGE_RECHERCHE_EN_COURS };
+  }
+
+  const controleur = new AbortController();
+  let finir!: (r: ReponseImport) => void;
+  const promesse = new Promise<ReponseImport>((ok) => {
+    finir = ok;
+  });
+  const tache: TacheLecture = { cle, controleur, promesse };
+  taches.set(qui.profileId, tache);
+  void lireUrl(admin, db, qui, u, onEtape, controleur.signal)
+    .then(finir)
+    .catch((err) => {
+      console.error('[import]', err instanceof Error ? err.message : err);
+      finir({ etat: 'erreur', message: 'Recherche impossible' });
+    })
+    .finally(() => {
+      if (taches.get(qui.profileId) === tache) taches.delete(qui.profileId);
+    });
+  return promesse;
 }
 
 /**
@@ -383,6 +451,24 @@ export async function ajouterImport(admin: Db, qui: Qui, importId: string): Prom
   }
   await admin.from('annonces_imports').update({ annonce_id: annonceId }).eq('id', importId);
   return { annonceId };
+}
+
+/** « Retirer de la carte » : le lien de l'agence saute. L'annonce publique reste. */
+export async function retirerAnnonceAgence(
+  admin: Db,
+  qui: Qui,
+  annonceId: string,
+): Promise<{ ok: true } | { erreur: string }> {
+  const { error } = await admin
+    .from('annonces_agences')
+    .delete()
+    .eq('annonce_id', annonceId)
+    .eq('agency_id', qui.agencyId);
+  if (error) {
+    console.error('[import] retrait', error.message);
+    return { erreur: tableAbsente(error) ? 'Retrait indisponible pour le moment' : 'Retrait impossible' };
+  }
+  return { ok: true };
 }
 
 /** La cloche : l'agent suit (ou ne suit plus) l'annonce. RLS : ses propres suivis. */

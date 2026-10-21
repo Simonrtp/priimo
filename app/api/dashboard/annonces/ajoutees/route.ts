@@ -11,5 +11,5 @@ export async function GET() {
   }
   const supabase = await createSupabaseServerClient();
   const annonces = (await lireAnnoncesAjoutees(supabase)).map((a) => ({ ...a, raisonsLocalisation: [] }));
-  return NextResponse.json({ annonces });
+  return NextResponse.json({ annonces }, { headers: { 'Cache-Control': 'no-store' } });
 }

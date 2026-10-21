@@ -2,8 +2,12 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { Layer, Marker, Source, useMap } from 'react-map-gl';
+import { X } from 'lucide-react';
+import { masquerSurLaCarte } from '@/lib/annonces/import/recherche';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
+import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
+import { notifyError } from '@/lib/notify';
 import { PastilleAjoutee, ReperesPossibles } from './AnnoncesAjoutees';
 
 function euros(n: number): string {
@@ -77,7 +81,7 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
     });
   }, [map, carte]);
 
-  if (!carte || carte.latitude == null || carte.longitude == null) return null;
+  if (!carte || carte.surCarte === false || carte.latitude == null || carte.longitude == null) return null;
 
   const secteur =
     carte.approximative ? (
@@ -102,6 +106,7 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
             prix={carte.prix}
             approximative={carte.approximative}
             onClick={() => onOuvrir?.(carte.annonceId!)}
+            onRetirer={() => void retirerOuPrevenir(carte.annonceId!, notifyError)}
           />
         </Marker>
       </>
@@ -116,10 +121,23 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
   const bulle = (
     <span
       key={carte.url}
-      className="pointer-events-none relative mb-2.5 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[12px] shadow-[0_6px_20px_rgba(26,42,86,0.18)] motion-safe:animate-ficheSurgit"
+      className="relative mb-2.5 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[12px] shadow-[0_6px_20px_rgba(26,42,86,0.18)] motion-safe:animate-ficheSurgit"
     >
       {carte.prix != null ? <span className="font-semibold tabular-nums text-text-strong">{euros(carte.prix)}</span> : null}
       {rue ? <span className="max-w-[180px] truncate text-text-muted">{rue}</span> : null}
+      <button
+        type="button"
+        aria-label="Retirer de la carte"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          masquerSurLaCarte();
+        }}
+        className="-mr-1 flex size-4 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.06] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
+      >
+        <X size={11} strokeWidth={2.6} aria-hidden />
+      </button>
       <span aria-hidden className="absolute left-1/2 top-full -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-white" />
     </span>
   );

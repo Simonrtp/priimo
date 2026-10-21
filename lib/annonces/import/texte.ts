@@ -40,12 +40,17 @@ Réponds UNIQUEMENT par un objet JSON avec ces clés (null si l'information n'es
   "date_publication": "AAAA-MM-JJ"
 }`;
 
-async function demander(model: string, apiKey: string, contenu: string): Promise<Brut | null> {
+async function demander(model: string, apiKey: string, contenu: string, signal?: AbortSignal): Promise<Brut | null> {
+  if (signal?.aborted) return null;
+  const attente = new AbortController();
+  const timer = setTimeout(() => attente.abort(), DELAI_MS);
+  const couper = () => attente.abort();
+  signal?.addEventListener('abort', couper, { once: true });
   try {
     const res = await fetch(MISTRAL_API_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(DELAI_MS),
+      signal: attente.signal,
       body: JSON.stringify({
         model,
         temperature: 0,
@@ -66,16 +71,20 @@ async function demander(model: string, apiKey: string, contenu: string): Promise
     return brut ? (JSON.parse(brut) as Brut) : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', couper);
   }
 }
 
 /** Mon assistant lit le texte d'une annonce ; null si la clé manque ou si aucun modèle ne répond. */
-export async function extraireAvecAssistant(texteAnnonce: string): Promise<Brut | null> {
+export async function extraireAvecAssistant(texteAnnonce: string, signal?: AbortSignal): Promise<Brut | null> {
   const apiKey = process.env.MISTRAL_API_KEY;
   const contenu = texteAnnonce.trim().slice(0, MAX_TEXTE);
-  if (!apiKey || contenu.length < 40) return null;
+  if (signal?.aborted || !apiKey || contenu.length < 40) return null;
   for (const model of chaineModeles(MODELES_PROFONDS, process.env.MISTRAL_MODEL_ANNONCE)) {
-    const json = await demander(model, apiKey, contenu);
+    if (signal?.aborted) return null;
+    const json = await demander(model, apiKey, contenu, signal);
     if (json) return json;
   }
   return null;

@@ -26,7 +26,6 @@ import { entreeStage } from '@/lib/queries/lead-stages';
 import { nextStagePosition } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
-import { formatPriseLine, priseStats } from '@/lib/pipeline/prise';
 import { leadsDuPipeline } from '@/lib/pipeline/perimetre';
 import { useUser } from '@/lib/hooks/useUser';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
@@ -45,7 +44,7 @@ import LeadsSecteur, { LeadsParZone } from './prospection/LeadsSecteur';
 import VolLeadPipeline from './prospection/VolLeadPipeline';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
-import PipelineFilters from './pipeline/PipelineFilters';
+import AjouterLead from './pipeline/AjouterLead';
 import LostReasonDialog from './pipeline/LostReasonDialog';
 
 const LeadDrawer = dynamic(() => import('./LeadDrawer'), { ssr: false });
@@ -185,8 +184,6 @@ export default function ProspectsClient({
     : filtered.length;
 
   const pipelineLeads = useMemo(() => leadsDuPipeline(leads), [leads]);
-
-  const kpiLine = useMemo(() => formatPriseLine(priseStats(leads)), [leads]);
 
   const selected = selectedLeadId ? (leads.find((l) => l.id === selectedLeadId) ?? null) : null;
 
@@ -448,7 +445,19 @@ export default function ProspectsClient({
 
       {vue === 'pipeline' ? (
         <>
-          <PipelineFilters kpiLine={kpiLine} />
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <AjouterLead
+              onAjoute={(lead) => {
+                setLeads((prev) => {
+                  const deja = prev.some((l) => l.id === lead.id);
+                  return deja ? prev.map((l) => (l.id === lead.id ? lead : l)) : [lead, ...prev];
+                });
+              }}
+            />
+            {pipelineLeads.some((lead) => lead.stageId) ? null : (
+              <p className="text-[13px] text-text-muted">Une adresse, ou une annonce depuis la carte.</p>
+            )}
+          </div>
           <PipelineBoard
             stages={stageList}
             leads={pipelineLeads}

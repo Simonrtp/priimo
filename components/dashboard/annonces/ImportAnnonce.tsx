@@ -6,50 +6,21 @@ import { notifyError } from '@/lib/notify';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
 import { NumeroPossible } from './AnnoncesAjoutees';
 import type { CarteImport } from '@/lib/annonces/import/carte';
-import type { LigneFlux } from '@/lib/annonces/import/flux';
-import type { EtapeImport, ReponseImport } from '@/lib/annonces/import/serveur';
-import { definirAnnonceImportee } from '@/lib/annonces/import/store';
+import type { EtapeImport } from '@/lib/annonces/import/serveur';
+import {
+  arreterRecherche,
+  ecrireUrl,
+  lancerRecherche,
+  noterAnnonceAjoutee,
+  useSessionRecherche,
+} from '@/lib/annonces/import/recherche';
 import { rafraichirAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
-
-type Etat =
-  | { k: 'vide' }
-  /** `fini` : la réponse est arrivée, la barre file à 100 % avant la carte. */
-  | { k: 'travail'; fini: boolean }
-  /** La recherche s'arrête : une phrase dit pourquoi. */
-  | { k: 'echec'; message: string }
-  | { k: 'trouvee'; carte: CarteImport; disponible: boolean };
 
 const PILULE =
   'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold transition-colors duration-fluid-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] disabled:opacity-60';
 
 function euros(n: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
-}
-
-/** Lit la réponse en flux : chaque étape dès qu'elle arrive, puis le résultat. */
-async function suivreFlux(res: Response, surEtape: (e: EtapeImport) => void): Promise<ReponseImport> {
-  if (!res.ok || !res.body) {
-    const json = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
-    return { etat: 'erreur', message: json?.message ?? json?.error ?? 'Recherche impossible' };
-  }
-  const lecteur = res.body.getReader();
-  const decodeur = new TextDecoder();
-  let reste = '';
-  let resultat: ReponseImport | null = null;
-  for (;;) {
-    const { value, done } = await lecteur.read();
-    if (done) break;
-    reste += decodeur.decode(value, { stream: true });
-    const lignes = reste.split('\n');
-    reste = lignes.pop() ?? '';
-    for (const ligne of lignes) {
-      if (!ligne.trim()) continue;
-      const evt = JSON.parse(ligne) as LigneFlux;
-      if ('etape' in evt) surEtape(evt.etape);
-      else resultat = evt.resultat;
-    }
-  }
-  return resultat ?? { etat: 'erreur', message: 'Recherche interrompue' };
 }
 
 type EtapesRecues = Partial<Record<EtapeImport['cle'], EtapeImport>>;
@@ -74,33 +45,36 @@ const DUREE_LECTURE_MS = 48_000;
  * temps (environ 1 % toutes les 0,7 s pendant la lecture), les étapes
  * relèvent le plancher, et `fini` rejoint 100 % en moins d’une seconde.
  */
-function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) {
+function Progression({ etapes, fini, depuis }: { etapes: EtapesRecues; fini: boolean; depuis: number }) {
   const { plancher, plafond, libelle, ia } = paliers(etapes);
-  const cible = useRef({ plancher, plafond, fini });
+  const cible = useRef({ plancher, plafond, fini, depuis });
   useEffect(() => {
-    cible.current = { plancher, plafond, fini };
+    cible.current = { plancher, plafond, fini, depuis };
   });
   const [pct, setPct] = useState(6);
 
   useEffect(() => {
-    const debut = performance.now();
-    let valeur = 6;
+    const selonTemps = () => {
+      const { plancher: bas, plafond: haut, depuis: depart } = cible.current;
+      const ecoule = Date.now() - depart;
+      return Math.max(bas, Math.min(haut, 6 + 72 * Math.min(1, ecoule / DUREE_LECTURE_MS)));
+    };
+    let valeur = selonTemps();
+    setPct(valeur);
     const id = window.setInterval(() => {
       const { plancher: bas, plafond: haut, fini: termine } = cible.current;
       if (termine) {
         valeur += (100 - valeur) * 0.22;
         if (valeur > 99.4) valeur = 100;
       } else {
-        const t = performance.now() - debut;
-        const selonTemps = 6 + 72 * Math.min(1, t / DUREE_LECTURE_MS);
-        const visee = Math.max(bas, Math.min(haut, selonTemps));
+        const visee = Math.max(bas, Math.min(haut, selonTemps()));
         if (visee >= valeur) valeur = visee;
         else valeur += (visee - valeur) * 0.18;
       }
       setPct(Math.min(100, valeur));
     }, 80);
     return () => window.clearInterval(id);
-  }, []);
+  }, [depuis]);
 
   const entier = Math.min(100, Math.round(pct));
   return (
@@ -118,7 +92,7 @@ function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) 
       <p className="mt-1.5 flex items-center justify-between gap-2 text-[12px]">
         <span className={`flex items-center gap-1 truncate ${ia ? 'text-ia-700' : 'text-text-muted'}`}>
           {ia ? <Sparkles size={12} strokeWidth={2.2} aria-hidden className="shrink-0 text-ia motion-safe:animate-iaRespire" /> : null}
-          <span className="truncate">{fini ? 'Terminé' : libelle}</span>
+          <span className="truncate">{fini ? 'Annonce trouvée' : libelle}</span>
         </span>
         <span className="shrink-0 font-semibold tabular-nums text-text-strong">{entier} %</span>
       </p>
@@ -155,7 +129,7 @@ function Carte({
   ]
     .filter(Boolean)
     .join(' · ');
-  const possibles = carte.approximative ? carte.adressesPossibles : [];
+  const possibles = (carte.approximative ? carte.adressesPossibles : []) ?? [];
   const rue = carte.adresse
     ? carte.adresse.replace(/\s\d{5}\s.*$/, '')
     : carte.approximative && possibles.length === 0
@@ -182,8 +156,23 @@ function Carte({
     onAjoutee(json.annonceId);
   }
 
+  const dejaLa = Boolean(carte.annonceId);
+
   return (
     <div className="flex flex-col gap-3 rounded-[16px] bg-white p-3 shadow-clay-inset motion-safe:animate-ficheSurgit">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 text-[12.5px] font-semibold text-text-strong">
+          {dejaLa ? 'Déjà dans mes annonces' : 'Annonce trouvée'}
+        </p>
+        <button
+          type="button"
+          onClick={onFermer}
+          aria-label="Effacer"
+          className="-mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1A2A56]"
+        >
+          <X size={15} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
       <div className="flex items-center gap-3">
         {carte.photo ? (
           // Photos des portails : URL externes, sans optimisation Next.
@@ -196,14 +185,6 @@ function Carte({
           </p>
           {details ? <p className="mt-0.5 text-[12.5px] tabular-nums text-text-muted">{details}</p> : null}
         </div>
-        <button
-          type="button"
-          onClick={onFermer}
-          aria-label="Effacer"
-          className="-mr-1 flex size-7 shrink-0 items-center justify-center self-start rounded-full text-text-subtle hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1A2A56]"
-        >
-          <X size={15} strokeWidth={2} aria-hidden />
-        </button>
       </div>
 
       {possibles.length > 0 ? (
@@ -229,7 +210,7 @@ function Carte({
 
       <div className="flex items-center gap-2">
         {disponible ? (
-          carte.annonceId ? (
+          dejaLa ? (
             <span className={`${PILULE} bg-black/[0.05] text-text-muted`}>
               <Check size={14} strokeWidth={2.4} aria-hidden />
               Ajoutée
@@ -271,56 +252,21 @@ export default function ImportAnnonce({
   /** L'annonce ajoutée doit être visible : la couche s'allume. */
   onAfficher?: () => void;
 }) {
-  const [url, setUrl] = useState('');
-  const [etat, setEtat] = useState<Etat>({ k: 'vide' });
-  const [etapes, setEtapes] = useState<Partial<Record<EtapeImport['cle'], EtapeImport>>>({});
-  const derniere = useRef('');
-  const enCours = useRef(0);
+  const session = useSessionRecherche();
+  const { url, etat, etapes } = session;
+  const afficher = useRef(onAfficher);
+  afficher.current = onAfficher;
+  const annonceSignalee = useRef<string | null>(null);
 
-  async function lancer(valeur: string) {
-    const tour = ++enCours.current;
-    definirAnnonceImportee(null);
-    setEtapes({});
-    setEtat({ k: 'travail', fini: false });
-    const res = await fetch('/api/dashboard/annonces/importer', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url: valeur }),
-    }).catch(() => null);
-    const r: ReponseImport = res
-      ? await suivreFlux(res, (e) => {
-          // Une étape passée au bleu IA le reste jusqu'au bout.
-          if (tour === enCours.current) setEtapes((prev) => ({ ...prev, [e.cle]: { ...e, ia: e.ia || prev[e.cle]?.ia } }));
-        })
-      : { etat: 'erreur', message: 'Connexion perdue : réessayez' };
-    if (tour !== enCours.current) return;
-    if (r.etat === 'trouvee') {
-      setEtat({ k: 'travail', fini: true });
-      await new Promise((ok) => setTimeout(ok, 520));
-      if (tour !== enCours.current) return;
-      setEtat({ k: 'trouvee', carte: r.carte, disponible: r.disponible });
-      definirAnnonceImportee(r.carte);
-      if (r.carte.annonceId) onAfficher?.();
-    } else {
-      setEtat({ k: 'echec', message: r.message });
-    }
-  }
+  useEffect(() => {
+    if (etat.k !== 'trouvee') return;
+    const id = etat.carte.annonceId;
+    if (!id || id === annonceSignalee.current) return;
+    annonceSignalee.current = id;
+    afficher.current?.();
+  }, [etat]);
 
-  function chercher(valeur: string) {
-    const v = valeur.trim();
-    if (!v || v === derniere.current) return;
-    derniere.current = v;
-    void lancer(v);
-  }
-
-  function effacer() {
-    enCours.current += 1;
-    setUrl('');
-    setEtapes({});
-    derniere.current = '';
-    setEtat({ k: 'vide' });
-    definirAnnonceImportee(null);
-  }
+  const occupe = etat.k !== 'vide';
 
   return (
     <div className="flex flex-col gap-2">
@@ -334,31 +280,29 @@ export default function ImportAnnonce({
           aria-label="URL d’une annonce"
           placeholder="Coller l’URL d’une annonce"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e) => ecrireUrl(e.target.value)}
           onPaste={(e) => {
             const colle = e.clipboardData.getData('text');
-            if (colle) {
-              e.preventDefault();
-              setUrl(colle.trim());
-              chercher(colle);
-            }
+            if (!colle) return;
+            e.preventDefault();
+            const v = colle.trim();
+            ecrireUrl(v);
+            lancerRecherche(v);
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              derniere.current = '';
-              chercher(url);
-            }
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            lancerRecherche(url, { forcer: etat.k !== 'travail' });
           }}
           className={`min-w-0 flex-1 bg-transparent pr-1 text-text-strong outline-none placeholder:text-text-subtle ${
             compact ? 'text-[14px]' : 'text-[13.5px]'
           }`}
         />
-        {url ? (
+        {url || occupe ? (
           <button
             type="button"
-            onClick={effacer}
-            aria-label="Effacer"
+            onClick={arreterRecherche}
+            aria-label={etat.k === 'travail' ? 'Arrêter la recherche' : 'Effacer'}
             className="mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle hover:bg-black/[0.06] hover:text-text"
           >
             <X size={14} strokeWidth={2} aria-hidden />
@@ -366,7 +310,14 @@ export default function ImportAnnonce({
         ) : null}
       </label>
 
-      {etat.k === 'travail' ? <Progression etapes={etapes} fini={etat.fini} /> : null}
+      {etat.k === 'travail' ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="px-1 text-[12.5px] font-semibold text-text-strong">
+            {etat.fini ? 'Annonce trouvée' : 'Recherche en cours'}
+          </p>
+          <Progression etapes={etapes} fini={etat.fini} depuis={etat.depuis} />
+        </div>
+      ) : null}
       {etat.k === 'echec' ? <Echec message={etat.message} /> : null}
 
       {etat.k === 'trouvee' ? (
@@ -374,12 +325,8 @@ export default function ImportAnnonce({
           carte={etat.carte}
           disponible={etat.disponible}
           onAfficher={() => onAfficher?.()}
-          onAjoutee={(annonceId) => {
-            const carte = { ...etat.carte, annonceId };
-            setEtat({ k: 'trouvee', carte, disponible: etat.disponible });
-            definirAnnonceImportee(carte);
-          }}
-          onFermer={effacer}
+          onAjoutee={noterAnnonceAjoutee}
+          onFermer={arreterRecherche}
         />
       ) : null}
     </div>

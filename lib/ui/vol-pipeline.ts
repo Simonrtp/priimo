@@ -121,6 +121,41 @@ export type VolBille = {
   end: PointVol;
 };
 
+/** La bille orange part du bouton et l’onglet Pipeline s’allume. */
+export function lancerBilleVersPipeline(origine: HTMLElement | null | undefined): void {
+  if (typeof document === 'undefined') return;
+  const vol = mesurerVolBille(origine);
+  const cible = elementPipelineVisible();
+  if (cible) cible.classList.add('pipeline-attend');
+  const relacher = () => {
+    pulseOngletPipeline();
+    window.setTimeout(() => cible?.classList.remove('pipeline-attend'), 700);
+  };
+  if (!vol) {
+    relacher();
+    return;
+  }
+  const el = document.createElement('div');
+  el.setAttribute('aria-hidden', 'true');
+  el.className =
+    'pointer-events-none fixed left-0 top-0 z-[80] rounded-full bg-[#E8743C] shadow-[0_4px_12px_rgba(232,116,60,0.45)]';
+  el.style.width = `${VOL_BILLE.w}px`;
+  el.style.height = `${VOL_BILLE.h}px`;
+  el.style.transform = `translate3d(${vol.start.x}px, ${vol.start.y}px, 0)`;
+  document.body.appendChild(el);
+  const anim = el.animate(keyframesVol(vol), {
+    duration: VOL_DUREE_MS,
+    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    fill: 'forwards',
+  });
+  const fin = () => {
+    el.remove();
+    relacher();
+  };
+  anim.onfinish = fin;
+  anim.oncancel = fin;
+}
+
 /** Petite bille orange : du bouton + jusqu’à l’onglet Pipeline. */
 export function mesurerVolBille(origine: HTMLElement | null | undefined): VolBille | null {
   if (typeof document === 'undefined' || prefereMouvementReduit()) return null;

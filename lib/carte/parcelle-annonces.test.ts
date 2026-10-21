@@ -54,6 +54,7 @@ describe('annoncesDeLaParcelle', () => {
       id: 'a1',
       url: 'https://www.pap.fr/annonces/appartement-paris-20e-75020-r1',
       portail: 'PAP',
+      portails: ['pap'],
       particulier: true,
       agence: null,
       prix: 380_000,
@@ -71,6 +72,7 @@ describe('annoncesDeLaParcelle', () => {
     const bienici = annonce({ id: 'bi', portail: 'bienici', logementCle: 'DPE-1', derniereVueLe: '2026-10-18T21:00:00Z' });
     const lignes = annoncesDeLaParcelle([pap, bienici], MAINTENANT);
     assert.equal(lignes.length, 1);
+    assert.deepEqual([...(lignes[0]?.portails ?? [])].sort(), ['bienici', 'pap']);
   });
 
   it('les particuliers devant les agences, les retirées récentes derrière, les anciennes oubliées', () => {

@@ -31,6 +31,8 @@ export type CarteImport = {
   adressesPossibles: AdressePossible[];
   parcelleId: string | null;
   photo: string | null;
+  /** Faux quand l'agent a retiré le point : la fiche reste, la carte non. */
+  surCarte?: boolean;
 };
 
 export function rayonDuRepere(

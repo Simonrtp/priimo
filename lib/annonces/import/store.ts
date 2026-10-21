@@ -15,6 +15,10 @@ export function definirAnnonceImportee(carte: CarteImport | null): void {
   for (const f of abonnes) f();
 }
 
+export function annonceImportee(): CarteImport | null {
+  return courante;
+}
+
 function abonner(f: () => void): () => void {
   abonnes.add(f);
   return () => abonnes.delete(f);

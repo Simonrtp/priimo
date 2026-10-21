@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Marker, useMap } from 'react-map-gl';
 import { ArrowDown } from 'lucide-react';
-import { coucheAnnoncesActive, type MapLayerState } from '@/lib/carte/layers';
+import { type MapLayerState } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
 import { baisseCumulee, couleurGroupe, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
@@ -40,13 +40,14 @@ export function AnnoncesLayerControls({
   // (AnnoncesAjoutees). Plus de couche « annonces du secteur » ni de compteur.
   void layers;
   void qui;
+  void onChange;
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
         <p className={`${textSize} font-medium text-text-strong`}>Annonces</p>
-        <ImportAnnonce compact={compact} onAfficher={() => onChange({ annonces: true })} />
+        <ImportAnnonce compact={compact} />
       </div>
     </li>
   );
@@ -180,7 +181,10 @@ export function AnnoncesMarqueurs({
   /** Annonce dont le volet est ouvert : sa pastille reste vive. */
   ouverteId?: string | null;
 }) {
-  const actif = coucheAnnoncesActive(layers);
+  // La couche « tout le secteur » n'a plus d'interrupteur : elle ne se rallume pas.
+  // Seules les annonces ajoutées par URL restent, et chacune s'enlève.
+  void layers;
+  const actif = false;
   const { annonces } = useAnnoncesSecteur(actif);
   const emprise = useEmprise();
   // Les annonces ajoutées ont leur propre repère (AnnoncesAjoutees), toujours affiché : pas de doublon.

@@ -10,6 +10,18 @@ function rang(a: Annonce): number {
   return (a.statut === 'active' ? 0 : 2) + (a.typeVendeur === 'particulier' ? 0 : 1);
 }
 
+/** Les portails du logement, sans doublon, le plus récent d'abord. */
+function clesPortail(annonces: readonly Annonce[]): string[] {
+  const vus = new Set<string>();
+  const cles: string[] = [];
+  for (const a of annonces) {
+    if (vus.has(a.portail)) continue;
+    vus.add(a.portail);
+    cles.push(a.portail);
+  }
+  return cles;
+}
+
 /** Un logement par ligne (plusieurs portails = une ligne), en vente d'abord, particuliers devant. */
 export function annoncesDeLaParcelle(annonces: readonly Annonce[], maintenant = new Date()): ParcelleAnnonce[] {
   const limite = maintenant.getTime() - JOURS_RETIREE_VISIBLE * 86_400_000;
@@ -19,13 +31,17 @@ export function annoncesDeLaParcelle(annonces: readonly Annonce[], maintenant = 
     return Number.isFinite(le) && le >= limite;
   });
   return regrouperAnnonces(retenues)
-    .map((g) => g.annonces.find((a) => a.statut === 'active') ?? g.principale)
-    .sort((x, y) => rang(x) - rang(y) || (y.derniereVueLe ?? '').localeCompare(x.derniereVueLe ?? ''))
+    .map((g) => ({
+      a: g.annonces.find((x) => x.statut === 'active') ?? g.principale,
+      portails: clesPortail(g.annonces),
+    }))
+    .sort((x, y) => rang(x.a) - rang(y.a) || (y.a.derniereVueLe ?? '').localeCompare(x.a.derniereVueLe ?? ''))
     .slice(0, MAX_ANNONCES)
-    .map((a) => ({
+    .map(({ a, portails }) => ({
       id: a.id,
       url: a.url,
       portail: libellePortail(a.portail),
+      portails,
       particulier: a.typeVendeur === 'particulier',
       agence: a.agenceNom,
       prix: a.prix,

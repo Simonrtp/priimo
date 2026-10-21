@@ -3,6 +3,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowDown, ExternalLink, X } from 'lucide-react';
 import PhotosAnnonce from './PhotosAnnonce';
+import { rueSeule } from '@/lib/ban-recherche';
+import { noteDepuisAnnonce } from '@/lib/pipeline/entrer';
+import { envoyerAuPipeline } from '@/lib/pipeline/envoyer';
+import { useAnnonceImportee } from '@/lib/annonces/import/store';
+import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
+import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
+import { notifyError } from '@/lib/notify';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
 import {
@@ -99,6 +106,12 @@ export default function AnnonceVolet({
   onFermer: () => void;
 }) {
   const [lignes, setLignes] = useState<{ id: string; texte: string }[]>([]);
+  const [retrait, setRetrait] = useState(false);
+  const [envoiPipeline, setEnvoiPipeline] = useState(false);
+  const [dejaPipeline, setDejaPipeline] = useState(false);
+  const ajoutees = useAnnoncesAjoutees();
+  const importee = useAnnonceImportee();
+  const surLaCarte = ajoutees.some((a) => a.id === annonce.id) || importee?.annonceId === annonce.id;
   const [photos, setPhotos] = useState<string[] | null>(() => photosConnues(annonce));
   const lieu = libelleAdresse(annonce);
   const parcelle = annonce.parcelleIds[0] ?? null;
@@ -109,6 +122,18 @@ export default function AnnonceVolet({
   const particulier = annonce.typeVendeur === 'particulier';
   const retiree = annonce.statut === 'retiree';
   const approx = repereApproximatif(annonce) || annonce.confiance === 'incertaine';
+  const rueAnnonce =
+    annonce.adresse?.trim() || [annonce.adresseNumero, annonce.adresseVoie].filter(Boolean).join(' ').trim();
+  const adressePipeline =
+    !approx && annonce.latitude != null && annonce.longitude != null && rueAnnonce
+      ? {
+          address: rueSeule(rueAnnonce, annonce.codePostal ?? undefined, annonce.ville ?? undefined),
+          city: annonce.ville,
+          postalCode: annonce.codePostal,
+          latitude: annonce.latitude,
+          longitude: annonce.longitude,
+        }
+      : null;
   const portails = soeurs.length > 0 ? soeurs : [annonce];
   const portailsDistincts = portailsUniques(portails);
   const marques = portailsDistincts.filter((p) => MARQUE_HAUT.has(p.portail));
@@ -267,6 +292,37 @@ export default function AnnonceVolet({
 
         <section className="mt-4 flex flex-col items-start gap-2 border-t border-black/[0.06] pt-4">
           <div className="flex flex-wrap gap-2">
+            {adressePipeline ? (
+              <button
+                type="button"
+                disabled={envoiPipeline || dejaPipeline}
+                onClick={(e) => {
+                  const origine = e.currentTarget;
+                  setEnvoiPipeline(true);
+                  void envoyerAuPipeline(
+                    {
+                      ...adressePipeline,
+                      surfaceM2: annonce.surface,
+                      rooms: annonce.pieces,
+                      etage: annonce.etage,
+                      dpeClass: annonce.dpe,
+                      propertyType: annonce.typeBien,
+                      ownerType: particulier ? 'particulier' : 'entreprise',
+                      companyName: annonce.agenceNom,
+                      notes: noteDepuisAnnonce(annonce.portail, annonce.prix),
+                      provenance: 'portail',
+                    },
+                    origine,
+                  ).then((resultat) => {
+                    setEnvoiPipeline(false);
+                    if (resultat?.etat === 'deja') setDejaPipeline(true);
+                  });
+                }}
+                className={`${BOUTON} bg-accent text-white hover:bg-accent-dark disabled:opacity-60`}
+              >
+                {dejaPipeline ? 'Déjà au pipeline' : 'Au pipeline'}
+              </button>
+            ) : null}
             {portails.map((s) => (
               <a
                 key={s.id}
@@ -294,6 +350,22 @@ export default function AnnonceVolet({
               >
                 Ajouter une note
               </a>
+            ) : null}
+            {surLaCarte ? (
+              <button
+                type="button"
+                disabled={retrait}
+                onClick={() => {
+                  setRetrait(true);
+                  void retirerOuPrevenir(annonce.id, notifyError).then((ok) => {
+                    if (ok) onFermer();
+                    else setRetrait(false);
+                  });
+                }}
+                className={`${BOUTON} bg-black/[0.05] text-text-strong hover:bg-black/[0.08] disabled:opacity-60`}
+              >
+                Retirer de la carte
+              </button>
             ) : null}
           </div>
           <span
