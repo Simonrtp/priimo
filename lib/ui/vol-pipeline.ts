@@ -22,7 +22,7 @@ type RectLike = {
 };
 
 /** Départ à gauche du lead, arrivée au centre de l’onglet, arc vers le haut. */
-export function pointsVol(origine: RectLike, cible: RectLike, chip = VOL_CHIP) {
+export function pointsVol(origine: RectLike, cible: RectLike, chip: { readonly w: number; readonly h: number } = VOL_CHIP) {
   const start: PointVol = {
     x: origine.left + Math.min(16, Math.max(0, origine.width * 0.06)),
     y: origine.top + origine.height / 2 - chip.h / 2,

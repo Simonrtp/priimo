@@ -132,8 +132,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leadId: strin
       .eq('stage_id', update.stage_id);
     update.stage_position = nextStagePosition(
       (siblings ?? []).map((row) => ({
-        stageId: row.stage_id,
-        stagePosition: row.stage_position,
+        stageId: row.stage_id ?? null,
+        stagePosition: row.stage_position ?? null,
       })),
       update.stage_id,
     );
