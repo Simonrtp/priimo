@@ -21,6 +21,7 @@ import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import LiveAgentLocationMarker from '@/components/dashboard/field/LiveAgentLocationMarker';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import { AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
+import AnnoncesAjoutees from '@/components/dashboard/annonces/AnnoncesAjoutees';
 import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
@@ -422,6 +423,8 @@ export default function SectorMapCanvas({
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
           onPrefetch={onPrefetchParcelle}
         />
+        {/* Les annonces ajoutées par URL : toujours là, couche Annonces allumée ou non. */}
+        <AnnoncesAjoutees onChoisir={annoncesCouche?.onChoisir} />
         {annoncesCouche ? (
           <AnnoncesMarqueurs
             layers={annoncesCouche.layers}

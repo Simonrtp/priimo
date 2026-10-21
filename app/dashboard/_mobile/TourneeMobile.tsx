@@ -42,6 +42,7 @@ import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarke
 import OfflineIndicator from '@/components/dashboard/field/OfflineIndicator';
 import ScoreRing from '@/components/dashboard/ScoreRing';
 import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
+import AnnoncesAjoutees from '@/components/dashboard/annonces/AnnoncesAjoutees';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import { vibrateBrief } from '@/app/dashboard/_mobile/aujourdhui/tap';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -473,6 +474,8 @@ export default function TourneeMobile({
                   progressPoint={agentPos ?? lastClosed}
                 />
               ) : null}
+              {/* Les annonces ajoutées par URL restent visibles en tournée. */}
+              <AnnoncesAjoutees />
               {agentPos && isUsableCoord(agentPos.latitude, agentPos.longitude) ? (
                 <Marker
                   longitude={agentPos.longitude}

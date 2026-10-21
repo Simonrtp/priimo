@@ -56,20 +56,22 @@ type EtapesRecues = Partial<Record<EtapeImport['cle'], EtapeImport>>;
 /** Où en est la recherche : le plancher qu'elle a atteint et le plafond qu'elle ne dépasse pas avant l'étape suivante. */
 function paliers(etapes: EtapesRecues): { plancher: number; plafond: number; libelle: string; ia: boolean } {
   const { lecture, donnees, adresse } = etapes;
-  if (adresse?.etat === 'fait' || adresse?.etat === 'rate') return { plancher: 99, plafond: 99, libelle: 'Terminé', ia: false };
-  if (adresse) return { plancher: 88, plafond: 97, libelle: 'Recherche de l’adresse', ia: false };
-  if (donnees?.etat === 'fait') return { plancher: 86, plafond: 97, libelle: 'Recherche de l’adresse', ia: false };
-  if (donnees?.ia) return { plancher: 62, plafond: 90, libelle: 'Mon assistant lit l’annonce', ia: true };
-  if (donnees) return { plancher: 60, plafond: 85, libelle: 'Lecture des données', ia: false };
-  if (lecture?.etat === 'fait') return { plancher: 68, plafond: 82, libelle: 'Lecture des données', ia: false };
-  return { plancher: 4, plafond: 68, libelle: 'Lecture de l’annonce', ia: false };
+  if (adresse?.etat === 'fait' || adresse?.etat === 'rate') return { plancher: 96, plafond: 99, libelle: 'Terminé', ia: false };
+  if (adresse) return { plancher: 84, plafond: 94, libelle: 'Recherche de l’adresse', ia: false };
+  if (donnees?.etat === 'fait') return { plancher: 82, plafond: 94, libelle: 'Recherche de l’adresse', ia: false };
+  if (donnees?.ia) return { plancher: 68, plafond: 88, libelle: 'Mon assistant lit l’annonce', ia: true };
+  if (donnees) return { plancher: 64, plafond: 82, libelle: 'Lecture des données', ia: false };
+  if (lecture?.etat === 'fait') return { plancher: 62, plafond: 80, libelle: 'Lecture des données', ia: false };
+  return { plancher: 6, plafond: 78, libelle: 'Lecture de l’annonce', ia: false };
 }
 
+/** SeLoger / PAP : la page met souvent 40 à 50 s. La barre suit ce temps, pas les événements. */
+const DUREE_LECTURE_MS = 48_000;
+
 /**
- * Barre de progression : fine, un seul trait. Le serveur n'annonce que des
- * étapes (de 3 à 60 s selon le site) : le pourcentage glisse en continu vers
- * le plafond de l'étape en cours, saute au plancher quand une étape finit, et
- * ne recule jamais. `fini` l'emmène à 100 %.
+ * Barre de progression : fine, un seul trait. Le pourcentage avance avec le
+ * temps (environ 1 % toutes les 0,7 s pendant la lecture), les étapes
+ * relèvent le plancher, et `fini` rejoint 100 % en moins d’une seconde.
  */
 function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) {
   const { plancher, plafond, libelle, ia } = paliers(etapes);
@@ -77,33 +79,36 @@ function Progression({ etapes, fini }: { etapes: EtapesRecues; fini: boolean }) 
   useEffect(() => {
     cible.current = { plancher, plafond, fini };
   });
-  const [pct, setPct] = useState(4);
+  const [pct, setPct] = useState(6);
 
   useEffect(() => {
-    let valeur = 4;
-    let dernier = performance.now();
-    let image = 0;
-    const pas = (maintenant: number) => {
-      const dt = Math.min(64, maintenant - dernier);
-      dernier = maintenant;
+    const debut = performance.now();
+    let valeur = 6;
+    const id = window.setInterval(() => {
       const { plancher: bas, plafond: haut, fini: termine } = cible.current;
-      if (termine) valeur += (100 - valeur) * Math.min(1, dt / 90);
-      else if (valeur < bas) valeur += (bas - valeur) * Math.min(1, dt / 120);
-      else {
-        // ~40 s de lecture SeLoger : la barre avance tout du long, sans rester à 0.
-        valeur += (haut - valeur) * Math.min(1, dt / 22_000);
+      if (termine) {
+        valeur += (100 - valeur) * 0.22;
+        if (valeur > 99.4) valeur = 100;
+      } else {
+        const t = performance.now() - debut;
+        const selonTemps = 6 + 72 * Math.min(1, t / DUREE_LECTURE_MS);
+        const visee = Math.max(bas, Math.min(haut, selonTemps));
+        if (visee >= valeur) valeur = visee;
+        else valeur += (visee - valeur) * 0.18;
       }
       setPct(Math.min(100, valeur));
-      image = requestAnimationFrame(pas);
-    };
-    image = requestAnimationFrame(pas);
-    return () => cancelAnimationFrame(image);
+    }, 80);
+    return () => window.clearInterval(id);
   }, []);
 
   const entier = Math.min(100, Math.round(pct));
   return (
     <div className="motion-safe:animate-ficheSurgit" role="progressbar" aria-label="Lecture de l’annonce" aria-valuemin={0} aria-valuemax={100} aria-valuenow={entier}>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.07]">
+      <div
+        className={`h-1.5 w-full overflow-hidden rounded-full bg-black/[0.07] ${
+          fini ? '' : ia ? 'lecture-reflet lecture-reflet-ia' : 'lecture-reflet'
+        }`}
+      >
         <div
           className={`h-full rounded-full transition-colors duration-500 ${ia ? 'bg-ia' : 'bg-accent'}`}
           style={{ width: `${pct}%` }}

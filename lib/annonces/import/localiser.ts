@@ -8,9 +8,13 @@
  * ont la même conso et les mêmes émissions à ±1 ; avec la surface en plus, il
  * en reste un ou deux. D'où :
  *   - conso chiffrée exigée pour chercher dans un code postal ;
- *   - sans conso, seulement dans un repère publié de 250 m au plus ;
+ *   - sans conso, surface dans un repère de 250 m, ou 650 m avec la lettre DPE ;
  *   - une adresse seulement si le meilleur DPE devance nettement la meilleure
- *     autre adresse (mêmes seuils que le pipeline).
+ *     autre adresse (mêmes seuils que le pipeline) ;
+ *   - le quartier publié ET tout le code postal sont fouillés, puis notés
+ *     ensemble : un quartier mal centré ne cache plus le bon logement, et un
+ *     DPE seul dans le quartier ne l'emporte plus par forfait ;
+ *   - jamais d'adresse affirmée dans un autre code postal que celui de l'annonce.
  *
  * Réseau : l'API ADEME en filtres `_gte`/`_lte`/`_eq` (le WAF refuse `qs`),
  * la BAN pour une adresse publiée, l'API Carto pour la parcelle.
@@ -49,6 +53,19 @@ const FENETRE_GES = 1.5;
 const FENETRE_SURFACE = 3;
 /** Sans conso, la surface ne suffit que dans un repère serré. */
 const RAYON_MAX_SANS_CONSO_M = 250;
+/** Avec la lettre DPE, un quartier SeLoger (~500 m) reste assez petit pour départager. */
+const RAYON_MAX_AVEC_LETTRE_M = 650;
+
+/**
+ * Le repère publié (quartier SeLoger, cercle Leboncoin) n'est qu'approché : le
+ * vrai logement en sort parfois de 200 m (73 bd Richard Lenoir, 12e étage, hors
+ * du quartier « République-Saint Ambroise », vu le 21/10/2026). Au-delà de la
+ * première marge, au mieux « probable » ; au-delà de la seconde, jamais affirmé.
+ */
+const MARGE_HORS_REPERE_M = 150;
+/** Carrez, mezzanine, arrondi : quelques m² d'écart entre l'annonce et le DPE, pas davantage. */
+const ECART_SURFACE_MAX_M2 = 6;
+const MARGE_HORS_REPERE_MAX_M = 400;
 
 /** (score minimal du meilleur, écart minimal avec la meilleure AUTRE adresse) — comme le pipeline. */
 const SEUILS = { certaine: [60, 25], probable: [40, 10] } as const;
@@ -102,30 +119,34 @@ export function requetesDpe(f: FicheAnnonce): RequeteDpe[] {
   const { conso, ges } = valeursFiables(f);
   const z = f.zone;
   if (conso != null) {
-    const lieu: Record<string, string> | null = z
-      ? { geo_distance: `${z.longitude},${z.latitude},${Math.max(300, Math.round(z.rayonM + 150))}` }
-      : f.codePostal && /^\d{5}$/.test(f.codePostal)
-        ? { code_postal_ban_eq: f.codePostal }
-        : null;
-    if (!lieu) return [];
-    const portee = z ? 'zone' : 'code_postal';
-    const base: Record<string, string> = { ...lieu };
-    fourchette(base, 'conso_5_usages_par_m2_ep', conso, FENETRE_CONSO);
-    if (ges != null) fourchette(base, 'emission_ges_5_usages_par_m2', ges, FENETRE_GES);
+    const lieux: { lieu: Record<string, string>; portee: RequeteDpe['portee'] }[] = [];
+    if (z) lieux.push({ lieu: { geo_distance: `${z.longitude},${z.latitude},${Math.max(300, Math.round(z.rayonM + 150))}` }, portee: 'zone' });
+    if (f.codePostal && /^\d{5}$/.test(f.codePostal)) lieux.push({ lieu: { code_postal_ban_eq: f.codePostal }, portee: 'code_postal' });
     const requetes: RequeteDpe[] = [];
-    if (f.surface) {
-      const avecSurface = { ...base };
-      fourchette(avecSurface, 'surface_habitable_logement', f.surface, FENETRE_SURFACE);
-      requetes.push({ params: avecSurface, portee });
+    for (const { lieu, portee } of lieux) {
+      const base: Record<string, string> = { ...lieu };
+      fourchette(base, 'conso_5_usages_par_m2_ep', conso, FENETRE_CONSO);
+      if (ges != null) fourchette(base, 'emission_ges_5_usages_par_m2', ges, FENETRE_GES);
+      if (f.surface) {
+        const avecSurface = { ...base };
+        fourchette(avecSurface, 'surface_habitable_logement', f.surface, FENETRE_SURFACE);
+        requetes.push({ params: avecSurface, portee });
+      }
+      // Surface de l'annonce parfois loin de celle du DPE (Carrez, mezzanine) : la conso tient seule.
+      requetes.push({ params: base, portee });
     }
-    // Surface de l'annonce parfois loin de celle du DPE (Carrez, mezzanine) : la conso tient seule.
-    requetes.push({ params: base, portee });
     return requetes;
   }
-  if (z && z.rayonM <= RAYON_MAX_SANS_CONSO_M && f.surface) {
-    const params: Record<string, string> = { geo_distance: `${z.longitude},${z.latitude},${Math.round(z.rayonM + 120)}` };
-    fourchette(params, 'surface_habitable_logement', f.surface, FENETRE_SURFACE);
-    return [{ params, portee: 'zone' }];
+  if (z && f.surface) {
+    const max = f.dpe ? RAYON_MAX_AVEC_LETTRE_M : RAYON_MAX_SANS_CONSO_M;
+    if (z.rayonM <= max) {
+      const params: Record<string, string> = {
+        geo_distance: `${z.longitude},${z.latitude},${Math.round(z.rayonM + 120)}`,
+      };
+      fourchette(params, 'surface_habitable_logement', f.surface, FENETRE_SURFACE);
+      if (f.dpe && /^[A-G]$/i.test(f.dpe)) params.etiquette_dpe_eq = f.dpe.toUpperCase();
+      return [{ params, portee: 'zone' }];
+    }
   }
   return [];
 }
@@ -141,22 +162,39 @@ export function urlAdeme(params: Record<string, string>, taille = 200): string {
 const fetcherParDefaut: Fetcher = (url) =>
   fetch(url, { headers: ENTETES, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
 
+/**
+ * Toutes les requêtes, en parallèle, réunies sans doublon : le quartier ET le
+ * code postal. La portée « zone » dit qu'un repère publié encadre la recherche
+ * (le score pénalise ce qui en sort) ; « code_postal », qu'il n'y en a pas.
+ */
 export async function chercherCandidats(
   f: FicheAnnonce,
   fetcher: Fetcher = fetcherParDefaut,
 ): Promise<{ lignes: LigneDpe[]; portee: 'zone' | 'code_postal' | null }> {
-  for (const requete of requetesDpe(f)) {
-    try {
-      const res = await fetcher(urlAdeme(requete.params));
-      if (!res.ok) continue;
-      const body = (await res.json()) as { results?: unknown };
-      const lignes = Array.isArray(body.results) ? (body.results as LigneDpe[]) : [];
-      if (lignes.length > 0) return { lignes, portee: requete.portee };
-    } catch {
-      // ADEME indisponible ou lente : la requête suivante, puis rien.
-    }
+  const requetes = requetesDpe(f);
+  const reponses = await Promise.all(
+    requetes.map(async (requete) => {
+      try {
+        const res = await fetcher(urlAdeme(requete.params));
+        if (!res.ok) return [];
+        const body = (await res.json()) as { results?: unknown };
+        return Array.isArray(body.results) ? (body.results as LigneDpe[]) : [];
+      } catch {
+        // ADEME indisponible ou lente : les autres requêtes restent.
+        return [];
+      }
+    }),
+  );
+  const vus = new Set<string>();
+  const lignes: LigneDpe[] = [];
+  for (const ligne of reponses.flat()) {
+    const cle = String(ligne.numero_dpe ?? JSON.stringify(ligne));
+    if (vus.has(cle)) continue;
+    vus.add(cle);
+    lignes.push(ligne);
   }
-  return { lignes: [], portee: null };
+  if (lignes.length === 0) return { lignes, portee: null };
+  return { lignes, portee: requetes.some((r) => r.portee === 'zone') ? 'zone' : 'code_postal' };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -167,11 +205,16 @@ const RE_ETAGE = /(?:[ée]tage|etg|niveau)\s*[:.]?\s*(-?\d{1,2})\b|\b(\d{1,2})\s
 const RE_RDC = /\brdc\b|rez[- ]de[- ]chauss/i;
 
 /** Étage lu dans le complément d'adresse ; 0 dans `numero_etage_appartement` est une valeur par défaut. */
+/** « BAT E 7EME GAUCHE », « 3ème droite », « R+3 » : l'étage sans le mot « étage ». */
+const RE_ETAGE_COURT = /\bR\s*\+\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:er|[èe]me|eme)\b/i;
+
 export function etageDpe(dpe: LigneDpe): number | null {
   const complement = String(dpe.complement_adresse_logement ?? '');
   const m = complement.match(RE_ETAGE);
   if (m) return Number(m[1] ?? m[2]);
   if (RE_RDC.test(complement)) return 0;
+  const court = complement.match(RE_ETAGE_COURT);
+  if (court) return Number(court[1] ?? court[2]);
   const n = num(dpe.numero_etage_appartement);
   return n == null || n === 0 ? null : n;
 }
@@ -186,10 +229,13 @@ function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: numbe
   return Math.hypot((a.lon - b.lon) * k, (a.lat - b.lat) * 110_540);
 }
 
-const TYPES_VOIE = ['rue', 'boulevard', 'bd', 'avenue', 'av', 'passage', 'impasse', 'cite', 'villa', 'quai', 'allee', 'square', 'faubourg', 'place'];
+const TYPES_VOIE = ['rue', 'boulevard', 'bd', 'avenue', 'av', 'passage', 'impasse', 'cite', 'villa', 'quai', 'allee', 'square', 'faubourg', 'place', 'chemin', 'cours'];
+const TYPES_RUE_RE = 'rue|boulevard|bd|avenue|av|passage|impasse|cit[ée]|villa|quai|all[ée]e|square|faubourg|place|chemin|cours';
 const SYNONYMES: Record<string, string> = { bd: 'boulevard', av: 'avenue' };
 const PARTICULES = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'l', 'd', 'et', 'a', 'au', 'aux']);
 const PROXIMITE = new Set(['pas', 'proche', 'proximite', 'pres', 'minutes', 'min', 'entre', 'face', 'vue', 'metro', 'station', 'voisin', 'environs', 'depuis']);
+/** Une rue écrite près de ces mots est celle de l'agence, pas celle du bien. */
+const CONTEXTE_AGENCE = new Set(['agence', 'agences', 'bureau', 'bureaux', 'contact', 'contactez', 'siege', 'cabinet', 'notre', 'nos', 'rendez', 'adresse']);
 
 function sansParticules(mots: string[]): string[] {
   const m = [...mots];
@@ -216,6 +262,69 @@ export function rueCitee(adresseBan: string | null | undefined, description: str
   return false;
 }
 
+/**
+ * Rue écrite comme adresse du bien, pas comme un repère (« à deux pas de… »).
+ * « 12 rue Oberkampf » ou « situé rue Mouraud ». La casse d’origine est gardée.
+ */
+export function rueDepuisTexte(source: string | null | undefined): string | null {
+  if (!source) return null;
+  const re = new RegExp(
+    `(^|[^\\p{L}\\d])(?:n(?:°|o)?\\s*)?(\\d{1,4}[a-zA-Z]?(?:\\s*(?:bis|ter|quater))?)?\\s*(${TYPES_RUE_RE})\\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9'\\- ]{1,40})`,
+    'giu',
+  );
+  let trouvee: string | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source))) {
+    const avant = texteNormalise(source.slice(Math.max(0, m.index - 48), m.index));
+    if (avant.split(' ').some((x) => PROXIMITE.has(x) || CONTEXTE_AGENCE.has(x))) continue;
+    const numero = m[2]?.trim() ?? '';
+    const type = m[3]!;
+    const gardes: string[] = [];
+    for (const mot of m[4]!.trim().split(/\s+/)) {
+      const n = texteNormalise(mot.replace(/[.,;:]+$/, ''));
+      if (!n) break;
+      if (TYPES_VOIE.includes(n) || TYPES_VOIE.includes(SYNONYMES[n] ?? '')) break;
+      if (PROXIMITE.has(n) || /^(m2|piece|pieces|appartement|maison|dpe|etage|er|eme)$/.test(n)) break;
+      if (/^\d{5}$/.test(n) || /^\d+[eè]?$/.test(n)) break;
+      gardes.push(mot.replace(/[.,;:]+$/, ''));
+      if (gardes.length >= 5 && !PARTICULES.has(n)) break;
+    }
+    while (gardes.length && PARTICULES.has(texteNormalise(gardes[gardes.length - 1]!))) gardes.pop();
+    if (!sansParticules(gardes.map((g) => texteNormalise(g))).length) continue;
+    const rue = [numero, type, gardes.join(' ')].filter(Boolean).join(' ');
+    if (numero) return rue;
+    if (!trouvee) trouvee = rue;
+  }
+  return trouvee;
+}
+
+function voieDe(adresse: unknown): string {
+  return texteNormalise(String(adresse ?? ''))
+    .replace(/^\d+[a-z]?\s+(?:bis|ter|quater)?\s*/i, '')
+    .replace(/\s\d{5}\b.*$/, '')
+    .trim();
+}
+
+function voieAffichable(adresse: unknown): string {
+  return String(adresse ?? '')
+    .replace(/^\s*\d+[a-z]?\s+(?:bis|ter|quater)?\s*/i, '')
+    .replace(/\s+\d{5}\b.*$/, '')
+    .trim();
+}
+
+/** Un DPE ne compte pour « la rue » qu'avec une note correcte ; il en faut deux au moins (un seul ne fait pas une rue). */
+const SCORE_MEME_VOIE = 25;
+
+/** Les meilleurs DPE du secteur tombent tous dans la même rue (deux au moins). */
+function dpesMemeVoie(lignes: readonly LigneDpe[], f: FicheAnnonce): { voie: string; dpes: LigneDpe[] } | null {
+  const notes = lignes.map((dpe) => ({ dpe, ...scorerCandidat(f, dpe) })).filter((n) => n.score >= SCORE_MEME_VOIE);
+  if (notes.length < 2) return null;
+  const voie = voieDe(notes[0]!.dpe.adresse_ban);
+  if (!voie || voie.split(' ').length < 2) return null;
+  if (!notes.every((n) => voieDe(n.dpe.adresse_ban) === voie)) return null;
+  return { voie: voieAffichable(notes[0]!.dpe.adresse_ban) || voie, dpes: notes.map((n) => n.dpe) };
+}
+
 const FAMILLES: Record<string, string[]> = {
   electricite: ['electri'],
   gaz: ['gaz'],
@@ -233,6 +342,19 @@ function jours(a: string | null | undefined, b: string | null | undefined): numb
   const da = Date.parse(a ?? '');
   const db = Date.parse(b ?? '');
   return Number.isFinite(da) && Number.isFinite(db) ? Math.round((da - db) / 86_400_000) : null;
+}
+
+/** La plus mauvaise des deux lettres (A meilleure, G pire) ; l'autre si l'une manque. */
+export function pireLettre(a: string | null | undefined, b: string | null | undefined): string | null {
+  const x = /^[A-G]$/i.test(a ?? '') ? a!.toUpperCase() : null;
+  const y = /^[A-G]$/i.test(b ?? '') ? b!.toUpperCase() : null;
+  if (!x) return y;
+  if (!y) return x;
+  return x > y ? x : y;
+}
+
+function codePostalDpe(dpe: LigneDpe): string | null {
+  return String(dpe.code_postal_ban ?? '').match(/^\d{5}$/)?.[0] ?? null;
 }
 
 /** Note un DPE candidat ; raisons lisibles (« +35 conso … »), comme le pipeline. */
@@ -265,8 +387,11 @@ export function scorerCandidat(f: FicheAnnonce, dpe: LigneDpe): { score: number;
     else if (e > 4) note(-20, `GES ${gesD} kg CO₂/m² ≠ annonce ${ges}`);
   }
   if (f.dpeApresJuillet2021 !== false) {
+    // Depuis 2021, l'étiquette du DPE est la pire des classes énergie et climat ;
+    // SeLoger affiche la classe énergie seule (E à 325 kWh, GES F → étiquette F).
+    const etiquetteAttendue = pireLettre(f.dpe, f.ges);
     for (const [lettreA, champ, nom, bonus, malus] of [
-      [f.dpe, 'etiquette_dpe', 'DPE', 5, -30],
+      [etiquetteAttendue, 'etiquette_dpe', 'DPE', 5, -30],
       [f.ges, 'etiquette_ges', 'GES', 3, -15],
     ] as const) {
       const lettreD = String(dpe[champ] ?? '');
@@ -296,6 +421,9 @@ export function scorerCandidat(f: FicheAnnonce, dpe: LigneDpe): { score: number;
 
   if (rueCitee(String(dpe.adresse_ban ?? ''), f.description)) note(12, 'voie citée dans la description');
 
+  const cpDpe = codePostalDpe(dpe);
+  if (f.codePostal && cpDpe && cpDpe !== f.codePostal) note(-15, `code postal ${cpDpe} ≠ annonce ${f.codePostal}`);
+
   const point = geopoint(dpe);
   if (f.zone && point) {
     const d = distanceM(point, { lat: f.zone.latitude, lon: f.zone.longitude });
@@ -304,11 +432,14 @@ export function scorerCandidat(f: FicheAnnonce, dpe: LigneDpe): { score: number;
       if (d <= 15) note(25, libelle);
       else if (d <= 30) note(15, libelle);
       else if (d <= 60) note(5, libelle);
+      else if (d > MARGE_HORS_REPERE_MAX_M) note(-30, libelle);
       else if (d > 200) note(-10, libelle);
     } else if (d <= f.zone.rayonM) {
       note(4, 'dans le repère publié');
-    } else if (d > f.zone.rayonM + 100) {
-      note(-10, `à ${Math.round(d - f.zone.rayonM)} m hors du repère publié`);
+    } else if (d > f.zone.rayonM + MARGE_HORS_REPERE_MAX_M) {
+      note(-30, `à ${Math.round(d - f.zone.rayonM)} m hors du repère publié`);
+    } else if (d > f.zone.rayonM + MARGE_HORS_REPERE_M) {
+      note(-15, `à ${Math.round(d - f.zone.rayonM)} m hors du repère publié`);
     }
   }
 
@@ -370,8 +501,25 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
   if (meilleur.score >= SEUILS.certaine[0] && ecart >= SEUILS.certaine[1]) statut = 'certaine';
   else if (meilleur.score >= SEUILS.probable[0] && ecart >= SEUILS.probable[1]) statut = 'probable';
   // Code postal entier sans émissions chiffrées : on n'affirme une adresse que sans hésitation.
-  const { ges } = valeursFiables(f);
+  const { conso, ges } = valeursFiables(f);
   if (statut === 'probable' && portee === 'code_postal' && ges == null) statut = 'incertaine';
+  // Sans conso chiffrée, lettre et surface ne départagent que dans un repère serré :
+  // à 650 m, un 32 m² classé E a des dizaines de jumeaux, et le vrai DPE peut manquer.
+  if (conso == null && !(f.zone && f.zone.rayonM <= RAYON_MAX_SANS_CONSO_M)) statut = 'incertaine';
+  // Une surface à plus de 6 m² de l'annonce : un autre logement (55 bd de Charonne, 41,7 m² pour 88).
+  const surfaceD = num(meilleur.dpe.surface_habitable_logement);
+  if (f.surface && surfaceD && Math.abs(f.surface - surfaceD) > ECART_SURFACE_MAX_M2) statut = 'incertaine';
+  // Hors du repère publié : au mieux probable, puis jamais affirmé.
+  const point = geopoint(meilleur.dpe);
+  if (f.zone && point) {
+    const d = distanceM(point, { lat: f.zone.latitude, lon: f.zone.longitude });
+    // Rayon 0 (adresse publiée) : un sosie à un kilomètre n'est pas ce logement.
+    if (d > f.zone.rayonM + MARGE_HORS_REPERE_MAX_M) statut = 'incertaine';
+    else if (d > f.zone.rayonM + MARGE_HORS_REPERE_M && statut === 'certaine') statut = 'probable';
+  }
+  // Le code postal de l'annonce fait foi : un DPE de l'autre côté du boulevard n'est pas affirmé.
+  const cpMeilleur = codePostalDpe(meilleur.dpe);
+  if (f.codePostal && cpMeilleur && cpMeilleur !== f.codePostal && !(f.zone && f.zone.rayonM === 0)) statut = 'incertaine';
   return { statut, meilleur, ecart };
 }
 
@@ -431,7 +579,13 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
 
   // Adresse écrite par le site mais absente de la BAN (immeuble neuf) : placée entre ses numéros
   // voisins. L'adresse montrée reste celle de l'annonce ; aucune parcelle n'est devinée.
-  if (f.adressePubliee && f.zone && f.zone.rayonM > 0 && f.zone.rayonM <= RAYON_ENTRE_VOISINS_MAX_M) {
+  if (
+    f.adressePubliee &&
+    /^\d/.test(f.adressePubliee) &&
+    f.zone &&
+    f.zone.rayonM > 0 &&
+    f.zone.rayonM <= RAYON_ENTRE_VOISINS_MAX_M
+  ) {
     return {
       confiance: 'adresse_publiee',
       precision: 'immeuble',
@@ -466,20 +620,40 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
     }
   }
 
-  const libelle =
-    f.adressePubliee
-      ? [f.adressePubliee, f.codePostal, f.ville].filter(Boolean).join(' ')
-      : f.quartier ?? null;
+  const memeVoie = dpesMemeVoie(lignes, f);
+  if (memeVoie) {
+    const points = memeVoie.dpes.map(geopoint).filter((p): p is { lat: number; lon: number } => p != null);
+    const lat = points.reduce((s, p) => s + p.lat, 0) / Math.max(points.length, 1);
+    const lon = points.reduce((s, p) => s + p.lon, 0) / Math.max(points.length, 1);
+    const rayon = points.length
+      ? Math.max(...points.map((p) => distanceM(p, { lat, lon }))) + 30
+      : 80;
+    return {
+      confiance: 'incertaine',
+      precision: 'quartier',
+      adresse: [memeVoie.voie, f.codePostal, f.ville].filter(Boolean).join(' '),
+      latitude: points.length ? lat : f.zone?.latitude ?? null,
+      longitude: points.length ? lon : f.zone?.longitude ?? null,
+      rayonM: Math.round(Math.min(Math.max(rayon, 60), 180)),
+      parcelleIds: [],
+      numeroDpe: null,
+      complementDpe: null,
+      score: decision.meilleur?.score ?? null,
+      raisons: [`tous les DPE concordants sont ${memeVoie.voie}`],
+    };
+  }
+
+  const rue = rueDepuisTexte(f.adressePubliee);
+  const libelle = rue ? [f.adressePubliee, f.codePostal, f.ville].filter(Boolean).join(' ') : null;
   return {
     confiance: 'incertaine',
     ...repereApproximatif(f),
     adresse: libelle,
+    rayonM: rue ? Math.min(f.zone?.rayonM || 80, 120) : f.zone?.rayonM ?? null,
     parcelleIds: [],
     numeroDpe: null,
     complementDpe: null,
     score: decision.meilleur?.score ?? null,
-    raisons: f.adressePubliee
-      ? ["adresse publiée sur l'annonce, immeuble non départagé"]
-      : [],
+    raisons: rue ? ["adresse publiée sur l'annonce, immeuble non départagé"] : [],
   };
 }

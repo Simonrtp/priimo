@@ -11,7 +11,7 @@
  * Une adresse écrite par le site est ensuite retrouvée au numéro près (BAN).
  */
 import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
-import { valeursFiables } from './localiser';
+import { rueDepuisTexte, valeursFiables } from './localiser';
 import { ficheDepuisExtraction, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
 import { lireSeLogerNeuf } from './seloger-neuf';
 import type { FicheAnnonce } from './types';
@@ -110,6 +110,15 @@ function ecartM(a: Zone, b: Zone): number {
   return Math.hypot((a.longitude - b.longitude) * 73_000, (a.latitude - b.latitude) * 111_000);
 }
 
+/** Marge autour d'un repère publié : une adresse du texte doit y tomber pour être crue. */
+const MARGE_REPERE_M = 150;
+
+/** Pas de repère publié : rien à contredire. */
+export function dansLeRepere(point: Zone, repere: Zone | null | undefined): boolean {
+  if (!repere) return true;
+  return ecartM(point, repere) <= repere.rayonM + MARGE_REPERE_M;
+}
+
 /** L'adresse retrouvée remplace le repère s'il est plus vague ; un point exact ne cède qu'à un point exact proche. */
 function meilleureZone(repere: Zone | null | undefined, adresse: Zone): boolean {
   if (!repere) return true;
@@ -126,6 +135,19 @@ export async function ficheDepuisPage(
 ): Promise<FicheAnnonce | null> {
   let p = lecturePortail(u, html);
   const texte = [p.titre, p.description, texteVisible(html)].filter(Boolean).join('\n');
+  // Le repère publié par le portail : ce que le texte trouve doit tomber dedans.
+  const reperePortail = p.zone ?? null;
+  // Un district SeLoger (« République-Saint Ambroise ») n’est pas une rue. La rue
+  // se cherche dans la seule description : le reste de la page porte l'adresse
+  // de l'agence (« 111 boulevard Richard Lenoir », vue le 21/10/2026).
+  let rueDuTexte = false;
+  if (!rueDepuisTexte(p.adressePubliee ?? '')) {
+    const rue = rueDepuisTexte(p.description);
+    // Une rue nue (« rue Crozatier ») peut être un voisinage : elle compte au score
+    // (voie citée), elle ne devient ni repère ni adresse affichée.
+    p.adressePubliee = rue && /^\d/.test(rue) ? rue : null;
+    rueDuTexte = p.adressePubliee != null;
+  }
   for (let lecture = 0; lecture < LECTURES_ASSISTANT && lectureIncomplete(p); lecture += 1) {
     // La relecture ne sert qu'à rattraper un prix et une surface rendus vides.
     if (lecture > 0 && (p.prix != null || p.surface != null)) break;
@@ -136,17 +158,21 @@ export async function ficheDepuisPage(
       delete lue.idPortail;
       delete lue.url;
       p = completer(p, lue);
-      // Une adresse écrite dans le texte vaut mieux qu'un repère flouté.
+      // Une adresse écrite dans le texte vaut mieux qu'un repère flouté — si elle tombe dans le repère publié.
       if (!p.zone || p.zone.rayonM > 0) {
         const exacte = await zoneDepuisAdresse(json, p.codePostal ?? null);
-        if (exacte) p.zone = exacte;
+        // Un numéro et une voie seulement (rayon 0) : une rue nue peut n'être qu'un voisinage.
+        if (exacte && exacte.rayonM === 0 && dansLeRepere(exacte, reperePortail)) p.zone = exacte;
       }
     }
   }
   // L'adresse écrite par le site, retrouvée dans la BAN : plus sûre qu'un repère, si elle s'accorde avec le point publié.
   if (p.adressePubliee && p.codePostal) {
     const retrouvee = await geocoder(p.adressePubliee, p.codePostal);
-    if (retrouvee && meilleureZone(p.zone, retrouvee)) p.zone = retrouvee;
+    // Une rue lue dans le texte ne sort jamais l'annonce du quartier publié par le portail.
+    const admise = retrouvee && (!rueDuTexte || dansLeRepere(retrouvee, reperePortail));
+    if (retrouvee && admise && meilleureZone(p.zone, retrouvee)) p.zone = retrouvee;
+    else if (rueDuTexte && !admise) p.adressePubliee = null;
   }
   if (!ficheExploitable(p)) return null;
   return { ...ficheVide(u), ...p, photos: p.photos ?? [] };

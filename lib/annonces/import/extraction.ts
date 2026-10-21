@@ -70,6 +70,11 @@ export async function zoneDepuisAdresse(json: Brut, codePostal: string | null): 
   if (props.type === 'housenumber' && (props.score ?? 0) >= 0.75 && props.postcode === codePostal && coords) {
     return { latitude: coords[1], longitude: coords[0], rayonM: 0 };
   }
+  // Rue sans numéro : le centre de la voie, pas le centre du quartier.
+  if (!/^\d{1,4}\b/.test(adresse) && props.type === 'street' && (props.score ?? 0) >= 0.55 && coords) {
+    if (props.postcode && props.postcode !== codePostal) return null;
+    return { latitude: coords[1], longitude: coords[0], rayonM: 80 };
+  }
   return null;
 }
 

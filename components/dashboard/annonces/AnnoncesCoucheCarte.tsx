@@ -8,7 +8,7 @@ import { coucheAnnoncesActive, type MapLayerState } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { bilanAnnonces, filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
 import { baisseCumulee, couleurGroupe, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
-import { useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
+import { useAnnoncesAjoutees, useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
 import type { Zone } from '@/lib/zones/types';
 import ImportAnnonce from './ImportAnnonce';
@@ -38,7 +38,7 @@ export function AnnoncesLayerControls({
   qui?: Qui;
 }) {
   const actif = coucheAnnoncesActive(layers);
-  const { annonces, pret } = useAnnoncesSecteur(true);
+  const { annonces, pret } = useAnnoncesSecteur(actif);
   const zones = qui?.zones;
   const directeur = qui?.directeur ?? false;
   const profileId = qui?.profileId ?? '';
@@ -208,23 +208,28 @@ export function AnnoncesMarqueurs({
   const actif = coucheAnnoncesActive(layers);
   const { annonces } = useAnnoncesSecteur(actif);
   const emprise = useEmprise();
-  // L'annonce qu'on vient d'ajouter reste sur la carte sous son propre repère : pas de doublon.
+  // Les annonces ajoutées ont leur propre repère (AnnoncesAjoutees), toujours affiché : pas de doublon.
   const ajouteeId = useAnnonceImportee()?.annonceId ?? null;
+  const ajoutees = useAnnoncesAjoutees();
+  const idsAjoutees = useMemo(
+    () => new Set([...ajoutees.map((a) => a.id), ...(ajouteeId ? [ajouteeId] : [])]),
+    [ajoutees, ajouteeId],
+  );
 
   const groupes = useMemo(() => {
     if (!actif) return [];
     const tous = regrouperAnnonces(
       filtrerAnnonces(annonces, layers, zones, { directeur, profileId, zoneCadree, zonesCadrees }),
-    ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude) && !g.annonces.some((a) => a.id === ajouteeId));
+    ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude) && !g.annonces.some((a) => idsAjoutees.has(a.id)));
     const visibles = tous.length > MAX_PASTILLES ? tous.filter((g) => dansEmprise(g.principale, emprise)) : tous;
     // Les particuliers par-dessus les agences, et gardés en priorité.
     return visibles
       .sort((x, y) => Number(x.principale.typeVendeur === 'particulier') - Number(y.principale.typeVendeur === 'particulier'))
       .slice(-MAX_PASTILLES);
-  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise, ajouteeId]);
+  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise, idsAjoutees]);
 
   const ouvrirAjoutee = (id: string) => {
-    const g = regrouperAnnonces(annonces).find((x) => x.annonces.some((a) => a.id === id));
+    const g = regrouperAnnonces([...annonces, ...ajoutees]).find((x) => x.annonces.some((a) => a.id === id));
     if (g) onChoisir(g.principale, g.annonces);
   };
 

@@ -22,6 +22,7 @@ import MapTokenMissing from '@/components/dashboard/map/MapTokenMissing';
 import ItineraireLayer from '@/components/dashboard/carte/ItineraireLayer';
 import Buildings3DLayer from '@/components/dashboard/carte/Buildings3DLayer';
 import { AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
+import AnnoncesAjoutees from '@/components/dashboard/annonces/AnnoncesAjoutees';
 import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
@@ -618,6 +619,8 @@ export default function MobileMapCanvas({
           onPick={(parcelleId, extra) => onSelectParcelle?.(parcelleId, extra)}
           onPrefetch={onPrefetchParcelle}
         />
+        {/* Les annonces ajoutées par URL : toujours là, tournée comprise (la pastille n'ouvre rien en marche). */}
+        <AnnoncesAjoutees onChoisir={navigation ? undefined : annoncesCouche?.onChoisir} />
         {annoncesCouche && !navigation ? (
           <AnnoncesMarqueurs
             layers={annoncesCouche.layers}

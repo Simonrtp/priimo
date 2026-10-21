@@ -64,7 +64,7 @@ export function carteDepuisFiche(
     latitude: loc.latitude,
     longitude: loc.longitude,
     approximative: loc.confiance === 'incertaine',
-    rayonM: rayonDuRepere(loc.confiance, loc.precision, fiche.zone?.rayonM),
+    rayonM: rayonDuRepere(loc.confiance, loc.precision, loc.rayonM ?? fiche.zone?.rayonM),
     parcelleId: loc.parcelleIds[0] ?? null,
     photo: fiche.photos[0] ?? null,
   };
@@ -95,7 +95,7 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
   };
 }
 
-function numeroEtVoie(adresse: string | null): { numero: string | null; voie: string | null } {
+export function numeroEtVoie(adresse: string | null): { numero: string | null; voie: string | null } {
   const m = adresse?.match(/^\s*(\d+\s?[a-zA-Z]?)\s+(.+?)\s+\d{5}\b/);
   return m ? { numero: m[1]!.replace(/\s/g, ''), voie: m[2]! } : { numero: null, voie: null };
 }

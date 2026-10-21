@@ -107,6 +107,22 @@ describe('lecteurs de pages', () => {
     assert.deepEqual(p.zone, { latitude: 48.8481, longitude: 2.4045, rayonM: 0 });
   });
 
+  it('SeLoger : un district n’est pas une adresse', () => {
+    const classified = {
+      ...CLASSIFIED,
+      sections: {
+        ...CLASSIFIED.sections,
+        location: {
+          address: { zipCode: '75011', city: 'Paris 11ème', district: 'République-Saint Ambroise' },
+          geometry: CLASSIFIED.sections.location.geometry,
+        },
+      },
+    };
+    const p = lireSeLoger(pageSeLoger(classified))!;
+    assert.equal(p.adressePubliee, null);
+    assert.equal(p.quartier, 'République-Saint Ambroise');
+  });
+
   it('SeLoger : rue et numéro publiés', () => {
     const classified = {
       ...CLASSIFIED,
@@ -214,6 +230,79 @@ describe('ficheDepuisPage', () => {
     assert.ok(lu.includes('Studio lumineux'));
     assert.equal(fiche!.consoKwhM2, 528);
     assert.equal(fiche!.prix, 155_000, 'la donnée structurée l’emporte sur la lecture du texte');
+  });
+
+  describe('SeLoger : rue lue dans la description', () => {
+    const quartier = (description: string) => ({
+      ...CLASSIFIED,
+      sections: {
+        ...CLASSIFIED.sections,
+        location: {
+          address: { zipCode: '75011', city: 'Paris 11ème', district: 'République-Saint Ambroise' },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [2.37, 48.86],
+                [2.38, 48.86],
+                [2.38, 48.87],
+                [2.37, 48.87],
+                [2.37, 48.86],
+              ],
+            ],
+          },
+        },
+        mainDescription: { description },
+      },
+    });
+    const u = analyserUrl('https://www.seloger.com/annonces/achat/appartement/paris-11eme-75/xxx.htm')!;
+
+    it('une rue sans numéro reste un indice, jamais une adresse ni un repère', async () => {
+      let geocodee = '';
+      const fiche = await ficheDepuisPage(u, pageSeLoger(quartier('Appartement situé rue Oberkampf, 3 pièces.')), async () => null, async (a, cp) => {
+        geocodee = `${a}|${cp}`;
+        return { latitude: 48.864, longitude: 2.37, rayonM: 80 };
+      });
+      assert.equal(fiche!.quartier, 'République-Saint Ambroise');
+      assert.equal(fiche!.adressePubliee, null);
+      assert.equal(geocodee, '');
+      assert.ok(fiche!.zone!.rayonM > 80, 'le quartier publié reste le repère');
+    });
+
+    it('une adresse numérotée dans le quartier devient le repère exact', async () => {
+      const fiche = await ficheDepuisPage(u, pageSeLoger(quartier('Au 12 rue Oberkampf, 3 pièces lumineux.')), async () => null, async () => ({
+        latitude: 48.8645,
+        longitude: 2.3745,
+        rayonM: 0,
+      }));
+      assert.equal(fiche!.adressePubliee, '12 rue Oberkampf');
+      assert.equal(fiche!.zone!.rayonM, 0);
+    });
+
+    it('une adresse hors du quartier (celle de l’agence) est écartée', async () => {
+      const fiche = await ficheDepuisPage(u, pageSeLoger(quartier('Au 111 boulevard Voltaire, 3 pièces.')), async () => null, async () => ({
+        latitude: 48.9,
+        longitude: 2.3,
+        rayonM: 0,
+      }));
+      assert.equal(fiche!.adressePubliee, null);
+      assert.ok(fiche!.zone!.rayonM > 0);
+    });
+
+    it('l’adresse écrite près de « agence » n’est pas lue', async () => {
+      let appele = false;
+      const fiche = await ficheDepuisPage(
+        u,
+        pageSeLoger(quartier('3 pièces lumineux. Contactez notre agence au 111 boulevard Richard Lenoir.')),
+        async () => null,
+        async () => {
+          appele = true;
+          return { latitude: 48.864, longitude: 2.372, rayonM: 0 };
+        },
+      );
+      assert.equal(fiche!.adressePubliee, null);
+      assert.equal(appele, false);
+    });
   });
 
   it('SeLoger complet : Mon assistant n’est pas sollicité', async () => {

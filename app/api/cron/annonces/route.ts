@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { traiterAnnoncesDuMatin } from '@/lib/annonces/matin';
+import { relocaliserAnnoncesAjoutees } from '@/lib/annonces/import/relocaliser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,5 +20,7 @@ export async function GET(req: Request) {
   }
   const admin = createSupabaseAdminClient();
   const ecrites = await traiterAnnoncesDuMatin(admin);
-  return NextResponse.json({ ok: true, ecrites });
+  // Annonces ajoutées encore sans adresse : leur DPE est peut-être publié depuis hier.
+  const relocalisees = await relocaliserAnnoncesAjoutees(admin);
+  return NextResponse.json({ ok: true, ecrites, relocalisees });
 }

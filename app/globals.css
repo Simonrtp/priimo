@@ -4445,6 +4445,35 @@ html:has(.feature-page) {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Lecture d’une annonce : un reflet traverse la barre, comme une réflexion. */
+.lecture-reflet {
+  position: relative;
+  overflow: hidden;
+}
+.lecture-reflet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    rgba(255, 255, 255, 0.78) 50%,
+    transparent 72%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: squelette-balayage 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.lecture-reflet-ia::after {
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    rgba(99, 102, 241, 0.42) 50%,
+    transparent 72%
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .squelette {
     animation: none;
@@ -4452,6 +4481,10 @@ html:has(.feature-page) {
   }
   .squelette-bloc {
     animation: none;
+  }
+  .lecture-reflet::after {
+    animation: none;
+    background-image: none;
   }
 }
 

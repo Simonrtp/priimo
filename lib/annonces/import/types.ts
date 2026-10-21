@@ -43,6 +43,8 @@ export type LocalisationImport = {
   adresse: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** Secteur, en mètres. Absent : le point est un immeuble. */
+  rayonM?: number | null;
   parcelleIds: string[];
   numeroDpe: string | null;
   complementDpe: string | null;

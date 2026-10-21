@@ -35,16 +35,21 @@ export function adresseVisible(confiance: Confiance): boolean {
   return confiance === 'certaine' || confiance === 'probable' || confiance === 'adresse_publiee';
 }
 
+function ressembleAUneRue(s: string): boolean {
+  return /\b(rue|avenue|boulevard|bd|place|impasse|all[ée]e|chemin|cours|quai|square|villa|passage|cit[ée]|faubourg)\b/i.test(s);
+}
+
 export function libelleAdresse(annonce: Annonce): { ligne: string; probable: boolean } {
-  if (!adresseVisible(annonce.confiance)) {
-    return { ligne: annonce.quartier?.trim() || annonce.ville?.trim() || 'Quartier non précisé', probable: false };
-  }
-  const ligne =
+  const rue =
     annonce.adresse?.trim() ||
-    [annonce.adresseNumero, annonce.adresseVoie].filter(Boolean).join(' ').trim() ||
-    annonce.quartier?.trim() ||
-    'Adresse non précisée';
-  return { ligne, probable: annonce.confiance === 'probable' };
+    [annonce.adresseNumero, annonce.adresseVoie].filter(Boolean).join(' ').trim();
+  if (rue && (adresseVisible(annonce.confiance) || ressembleAUneRue(rue))) {
+    return { ligne: rue, probable: annonce.confiance === 'probable' };
+  }
+  if (!adresseVisible(annonce.confiance)) {
+    return { ligne: 'Secteur approximatif', probable: false };
+  }
+  return { ligne: rue || 'Adresse non précisée', probable: annonce.confiance === 'probable' };
 }
 
 export function repereApproximatif(annonce: Annonce): boolean {

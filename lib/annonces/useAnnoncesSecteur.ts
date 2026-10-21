@@ -71,3 +71,56 @@ export function useAnnoncesSecteur(actif: boolean): { annonces: Annonce[]; pret:
 
   return { annonces, pret };
 }
+
+/* -------------------------------------------------------------------------- */
+/*          Annonces ajoutées par l'agence : toujours sur la carte            */
+/* -------------------------------------------------------------------------- */
+
+let ajoutees: { annonces: Annonce[]; le: number; version: number } | null = null;
+let ajouteesEnVol: Promise<Annonce[]> | null = null;
+
+function chargerAjoutees(): Promise<Annonce[]> {
+  if (ajoutees && ajoutees.version === version && Date.now() - ajoutees.le < FRAICHEUR_MS) {
+    return Promise.resolve(ajoutees.annonces);
+  }
+  if (!ajouteesEnVol) {
+    const pour = version;
+    ajouteesEnVol = fetch('/api/dashboard/annonces/ajoutees')
+      .then(async (r) => {
+        if (!r.ok) return ajoutees?.annonces ?? [];
+        const json = (await r.json()) as { annonces?: Annonce[] };
+        const liste = json.annonces ?? [];
+        ajoutees = { annonces: liste, le: Date.now(), version: pour };
+        return liste;
+      })
+      .catch(() => ajoutees?.annonces ?? [])
+      .finally(() => {
+        ajouteesEnVol = null;
+      });
+  }
+  return ajouteesEnVol;
+}
+
+/**
+ * Les annonces que l'agence a ajoutées par leur URL, quels que soient la couche
+ * Annonces, le secteur choisi ou le code postal : elles restent sur la carte,
+ * au bureau comme sur le téléphone, tournée comprise. Relues après chaque ajout.
+ */
+export function useAnnoncesAjoutees(): Annonce[] {
+  const [liste, setListe] = useState<Annonce[]>(() => ajoutees?.annonces ?? []);
+  const v = useSyncExternalStore(
+    abonner,
+    () => version,
+    () => 0,
+  );
+  useEffect(() => {
+    let ignore = false;
+    void chargerAjoutees().then((a) => {
+      if (!ignore) setListe(a);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [v]);
+  return liste;
+}

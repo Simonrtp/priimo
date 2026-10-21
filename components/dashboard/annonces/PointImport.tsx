@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { Layer, Marker, Source, useMap } from 'react-map-gl';
-import { LOGO_PORTAIL } from '@/lib/annonces/logos';
-import { eurosCourt } from '@/lib/annonces/presenter';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
+import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
+import { PastilleAjoutee } from './AnnoncesAjoutees';
 
 function euros(n: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
@@ -60,6 +60,7 @@ function SecteurImport({ longitude, latitude, rayonM }: { longitude: number; lat
  */
 export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: string) => void }) {
   const carte = useAnnonceImportee();
+  const ajoutees = useAnnoncesAjoutees();
   const { current: map } = useMap();
   const dernier = useRef<string | null>(null);
 
@@ -83,34 +84,22 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
       <SecteurImport longitude={carte.longitude} latitude={carte.latitude} rayonM={carte.rayonM ?? 300} />
     ) : null;
 
-  // Ajoutée : elle reste sur la carte, sous le logo de son portail (jamais une couleur de plus).
+  // Ajoutée : elle reste sur la carte, sous le logo de son portail. Dès que la
+  // liste des annonces ajoutées la contient, c'est AnnoncesAjoutees qui la montre.
   if (carte.annonceId) {
-    const logo = LOGO_PORTAIL[carte.portailCle];
-    const ajoutee = (
-      <button
-        type="button"
-        key={carte.annonceId}
-        onClick={(e) => {
-          e.stopPropagation();
-          onOuvrir?.(carte.annonceId!);
-        }}
-        aria-label={`Annonce ${carte.portail}${carte.prix != null ? ` à ${eurosCourt(carte.prix)}` : ''}`}
-        className="relative inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[11px] font-semibold leading-[16px] text-text-strong shadow-[0_4px_14px_rgba(26,42,86,0.22)] ring-1 ring-black/10 transition-transform duration-fluid-subtle hover:scale-105 motion-safe:animate-ficheSurgit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
-      >
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="h-3.5 w-auto max-w-[4.5rem] object-contain" />
-        ) : (
-          <span className="max-w-[4.5rem] truncate">{carte.portail}</span>
-        )}
-        {carte.prix != null ? <span className="tabular-nums">{eurosCourt(carte.prix)}</span> : null}
-      </button>
-    );
+    if (ajoutees.some((a) => a.id === carte.annonceId)) return null;
     return (
       <>
         {secteur}
         <Marker longitude={carte.longitude} latitude={carte.latitude} anchor="center" style={{ zIndex: 5 }}>
-          {ajoutee}
+          <PastilleAjoutee
+            key={carte.annonceId}
+            portailCle={carte.portailCle}
+            portail={carte.portail}
+            prix={carte.prix}
+            approximative={carte.approximative}
+            onClick={() => onOuvrir?.(carte.annonceId!)}
+          />
         </Marker>
       </>
     );

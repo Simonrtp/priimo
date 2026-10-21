@@ -7,6 +7,7 @@ import {
   bandeauMiseAJour,
   couleurAnnonce,
   couleurGroupe,
+  libelleAdresse,
   ligneHistorique,
   regrouperAnnonces,
 } from './presenter';
@@ -59,6 +60,27 @@ describe('annonces', () => {
     assert.equal(adresseVisible('incertaine'), false);
     assert.equal(adresseVisible('probable'), true);
     assert.equal(adresseVisible('adresse_publiee'), true);
+  });
+
+  it('une rue incertaine s’affiche, un quartier non', () => {
+    assert.equal(
+      libelleAdresse(
+        annonce({ confiance: 'incertaine', adresse: 'rue Oberkampf', quartier: 'République-Saint Ambroise' }),
+      ).ligne,
+      'rue Oberkampf',
+    );
+    assert.equal(
+      libelleAdresse(
+        annonce({
+          confiance: 'incertaine',
+          adresse: null,
+          adresseNumero: null,
+          adresseVoie: null,
+          quartier: 'République-Saint Ambroise',
+        }),
+      ).ligne,
+      'Secteur approximatif',
+    );
   });
 
   it('calcule la baisse cumulée et ne parle jamais de vente', () => {

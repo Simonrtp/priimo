@@ -107,7 +107,7 @@ function versAnnonce(row: Record<string, unknown>): Annonce {
 }
 
 /** Les tables ne sont pas dans les types générés : elles vivent dans le pipeline. */
-function table(client: Client, nom: 'annonces' | 'annonce_evenements' | 'annonces_runs') {
+function table(client: Client, nom: 'annonces' | 'annonce_evenements' | 'annonces_runs' | 'annonces_agences') {
   return (client as unknown as SupabaseClient).from(nom);
 }
 
@@ -212,6 +212,20 @@ export async function lireAnnoncesParcelle(client: Client, parcelleId: string): 
 
 /** Par lots : une liste `in.(…)` de plusieurs centaines d'UUID dépasse la longueur d'URL admise. */
 const LOT_IDS = 150;
+
+/**
+ * Les annonces ajoutées par l'agence (lien `annonces_agences`, RLS : la sienne
+ * seulement), hors de toute limite de secteur ou de code postal.
+ */
+export async function lireAnnoncesAjoutees(client: Client): Promise<Annonce[]> {
+  const { data, error } = await table(client, 'annonces_agences').select('annonce_id').limit(2000);
+  if (error) {
+    console.error('[annonces] ajoutées', error.message);
+    return [];
+  }
+  const ids = ((data ?? []) as unknown as { annonce_id: string }[]).map((l) => String(l.annonce_id));
+  return ids.length > 0 ? lireAnnoncesParIds(client, ids) : [];
+}
 
 export async function lireEvenements(client: Client, annonceIds: string[]): Promise<EvenementAnnonce[]> {
   if (annonceIds.length === 0) return [];
