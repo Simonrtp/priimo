@@ -321,8 +321,9 @@ async function lireUrl(
     // Déjà lue par une agence : reprise telle quelle, sans nouvel appel.
     if (derniere?.statut === 'lue' && derniere.resultat && !derniere.resultat.annonce_existante) {
       const carteCache = carteDepuisColonnes(derniere.resultat, null);
-      // Un secteur sans rue : relire, la page a peut-être l'adresse.
-      if (!(carteCache.approximative && !carteCache.adresse)) {
+      // Sans adresse sûre (secteur, rue seule) : relire. Le moteur progresse et la base DPE
+      // arrive par lots — la même URL peut donner une adresse le lendemain.
+      if (!carteCache.approximative) {
         const { id, disponible } = await enregistrer(admin, qui, u, { statut: 'lue', resultat: derniere.resultat });
         const carte = carteDepuisColonnes(derniere.resultat, id);
         onEtape({ cle: 'lecture', etat: 'fait', detail: portail });
