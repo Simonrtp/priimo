@@ -31,7 +31,7 @@ import { reserverQuota } from '@/lib/quota/reserver';
 import { lireBienici } from './bienici';
 import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, rayonDuRepere, type CarteImport } from './carte';
 import { ficheDepuisPage } from './fiche';
-import { localiserFiche } from './localiser';
+import { localiserFiche, MOTEUR_LOCALISATION_DEPUIS } from './localiser';
 import { telechargerPage } from './telecharger';
 import { extraireAvecAssistant } from './texte';
 import type { FicheAnnonce, LocalisationImport } from './types';
@@ -163,7 +163,8 @@ async function derniereLecture(
     .eq('portail', u.portail)
     .eq('id_portail', cleImport(u))
     .in('statut', ['lue', 'echec'])
-    .gte('lue_le', new Date(Date.now() - SEMAINE_MS).toISOString())
+    // Une semaine au plus, et jamais d'une version antérieure du moteur de localisation.
+    .gte('lue_le', new Date(Math.max(Date.now() - SEMAINE_MS, Date.parse(MOTEUR_LOCALISATION_DEPUIS))).toISOString())
     .order('lue_le', { ascending: false })
     .limit(1)
     .maybeSingle();

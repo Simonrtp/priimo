@@ -5,6 +5,7 @@ import { ArrowUpRight, Check, Link2, Loader2, MapPin, Sparkles, X } from 'lucide
 import { notifyError } from '@/lib/notify';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
 import { NumeroPossible } from './AnnoncesAjoutees';
+import IndiceSurete from './IndiceSurete';
 import type { CarteImport } from '@/lib/annonces/import/carte';
 import type { EtapeImport } from '@/lib/annonces/import/serveur';
 import {
@@ -189,8 +190,9 @@ function Carte({
 
       {possibles.length > 0 ? (
         <div className="flex flex-col gap-1">
-          <p className="text-[12px] font-medium text-text-subtle">
-            {possibles.length > 1 ? `${possibles.length} adresses possibles` : 'Adresse possible'}
+          <p className="flex items-center gap-2 text-[12px] font-medium text-text-subtle">
+            <span className="min-w-0 flex-1">{possibles.length > 1 ? `${possibles.length} adresses possibles` : 'Adresse possible'}</span>
+            <IndiceSurete confiance={carte.confiance} nbPossibles={possibles.length} />
           </p>
           <ol className="flex flex-col gap-1">
             {possibles.map((p, i) => (
@@ -204,9 +206,12 @@ function Carte({
       ) : rue ? (
         <p className={`flex items-center gap-1.5 text-[13px] ${carte.approximative ? 'text-text-muted' : 'text-text-strong'}`}>
           <MapPin size={14} strokeWidth={2} aria-hidden className={`shrink-0 ${carte.approximative ? 'text-text-subtle' : 'text-accent'}`} />
-          <span className="min-w-0 truncate">{rue}</span>
+          <span className="min-w-0 flex-1 truncate">{rue}</span>
+          <IndiceSurete confiance={carte.confiance} />
         </p>
-      ) : null}
+      ) : (
+        <IndiceSurete confiance={carte.confiance} className="self-start" />
+      )}
 
       <div className="flex items-center gap-2">
         {disponible ? (

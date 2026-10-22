@@ -67,7 +67,21 @@ const RAYON_MAX_AVEC_LETTRE_M = 650;
 const MARGE_HORS_REPERE_M = 150;
 /** Carrez, mezzanine, arrondi : quelques m² d'écart entre l'annonce et le DPE, pas davantage. */
 const ECART_SURFACE_MAX_M2 = 6;
+/**
+ * Au-delà de 1,5 m² d'écart, la surface ne départage plus un jumeau d'un autre
+ * immeuble (même conso, même GES) quand le vrai DPE n'est pas encore publié :
+ * seul l'étage confirmé autorise alors une adresse (banc d'essai du 22/10/2026).
+ */
+const ECART_SURFACE_SUR_M2 = 1.5;
 const MARGE_HORS_REPERE_MAX_M = 400;
+
+/**
+ * Version des règles de localisation. À AVANCER À CHAQUE CHANGEMENT de règle :
+ * une lecture gardée en cache avant cette date est refaite au lieu d'être
+ * resservie (le 22/10/2026, « 14 rue du Surmelin », issu d'une règle corrigée
+ * le matin même, revenait du cache pendant 7 jours).
+ */
+export const MOTEUR_LOCALISATION_DEPUIS = '2026-10-22T12:00:00Z';
 
 /** (score minimal du meilleur, écart minimal avec la meilleure AUTRE adresse) — comme le pipeline. */
 const SEUILS = { certaine: [60, 25], probable: [40, 10] } as const;
@@ -548,10 +562,23 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
   // Une surface à plus de 6 m² de l'annonce : un autre logement (55 bd de Charonne, 41,7 m² pour 88).
   const surfaceD = num(meilleur.dpe.surface_habitable_logement);
   if (f.surface && surfaceD && Math.abs(f.surface - surfaceD) > ECART_SURFACE_MAX_M2) statut = 'incertaine';
-  // Hors du repère publié : au mieux probable, puis jamais affirmé.
   const point = geopoint(meilleur.dpe);
-  if (f.zone && point) {
-    const d = distanceM(point, { lat: f.zone.latitude, lon: f.zone.longitude });
+  const d = f.zone && point ? distanceM(point, { lat: f.zone.latitude, lon: f.zone.longitude }) : null;
+  // Un jumeau d'un autre immeuble ressemble trait pour trait quand le vrai DPE n'est pas encore
+  // publié. Sans l'adresse publiée au point près : « sûre » exige la surface à 1,5 m² ; un autre
+  // étage, c'est un autre logement ; plus loin que 1,5 m² (Carrez contre habitable : 36 m² pour
+  // 33,1 rue Saint-Maur) ou hors du cercle publié, l'étage doit être confirmé.
+  if (!(f.zone?.rayonM === 0 && d != null && d <= 30)) {
+    const surfaceSure = f.surface != null && surfaceD != null && Math.abs(f.surface - surfaceD) <= ECART_SURFACE_SUR_M2;
+    const etageD = etageDpe(meilleur.dpe);
+    const etageConnu = f.etage != null && etageD != null;
+    const horsDuCercle = f.zone != null && f.zone.rayonM > 0 && d != null && d > f.zone.rayonM;
+    if (statut === 'certaine' && !surfaceSure) statut = 'probable';
+    if (etageConnu && f.etage !== etageD) statut = 'incertaine';
+    else if ((!surfaceSure || horsDuCercle) && !etageConnu) statut = 'incertaine';
+  }
+  // Hors du repère publié : au mieux probable, puis jamais affirmé.
+  if (f.zone && d != null) {
     // Rayon 0 (adresse publiée) : un sosie à un kilomètre n'est pas ce logement.
     if (d > f.zone.rayonM + MARGE_HORS_REPERE_MAX_M) statut = 'incertaine';
     else if (d > f.zone.rayonM + MARGE_HORS_REPERE_M && statut === 'certaine') statut = 'probable';

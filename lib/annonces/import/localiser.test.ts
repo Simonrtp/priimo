@@ -280,6 +280,33 @@ describe('garde-fous de l’audit du 21/10/2026 (cas réels)', () => {
     assert.equal(loin.statut, 'incertaine');
   });
 
+  it('jumeau d’un autre immeuble (banc du 22/10/2026) : « sûre » exige la surface à 1,5 m² et l’étage non contredit', () => {
+    const f = fiche({ surface: 36, etage: 2, codePostal: '75020' });
+    const pres = decider(f, [dpe({ surface_habitable_logement: 35.4, complement_adresse_logement: 'Etage 2', code_postal_ban: '75020' })], 'code_postal');
+    assert.equal(pres.statut, 'certaine');
+    // 36 m² pour 33,1 (Carrez contre habitable, rue Saint-Maur) : l’étage confirmé garde l’adresse, en « probable ».
+    const carrez = decider(f, [dpe({ surface_habitable_logement: 33.1, complement_adresse_logement: 'Etage 2', code_postal_ban: '75020' })], 'code_postal');
+    assert.equal(carrez.statut, 'probable');
+    // Même écart sans étage lisible, ou avec un autre étage : rien n’est affirmé.
+    const sansEtage = decider(f, [dpe({ surface_habitable_logement: 33.1, complement_adresse_logement: null, code_postal_ban: '75020' })], 'code_postal');
+    assert.equal(sansEtage.statut, 'incertaine');
+    const autreEtage = decider(f, [dpe({ surface_habitable_logement: 35.6, complement_adresse_logement: 'Etage 4', code_postal_ban: '75020' })], 'code_postal');
+    assert.equal(autreEtage.statut, 'incertaine');
+  });
+
+  it('hors du cercle publié, l’étage doit être confirmé', () => {
+    const zone = { latitude: 48.86521, longitude: 2.371655, rayonM: 269 };
+    const horsCercle = { code_postal_ban: '75020', _geopoint: '48.8608,2.3700', surface_habitable_logement: 31.9 }; // ~ 220 m hors du cercle
+    assert.equal(decider(fiche({ codePostal: '75020', zone, etage: null }), [dpe(horsCercle)], 'zone').statut, 'incertaine');
+    assert.equal(decider(fiche({ codePostal: '75020', zone, etage: 5 }), [dpe(horsCercle)], 'zone').statut, 'probable');
+  });
+
+  it('l’adresse publiée au point près n’a pas besoin de la surface exacte', () => {
+    const f = fiche({ surface: 36, etage: null, codePostal: '75020', zone: { latitude: 48.8553, longitude: 2.4088, rayonM: 0 } });
+    const d = decider(f, [dpe({ surface_habitable_logement: 33.1, code_postal_ban: '75020' })], 'zone');
+    assert.equal(d.statut, 'certaine');
+  });
+
   it('un seul DPE faible dans une rue ne fait pas « la rue »', async () => {
     const fetcher = async () => ({ ok: true, json: async () => ({ results: [dpe({ adresse_ban: '17 Rue de Lappe 75011 Paris', _geopoint: '48.8530,2.3720' })] }) });
     const loc = await localiserFiche(
