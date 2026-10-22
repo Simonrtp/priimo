@@ -110,6 +110,9 @@ function ecartM(a: Zone, b: Zone): number {
   return Math.hypot((a.longitude - b.longitude) * 73_000, (a.latitude - b.latitude) * 111_000);
 }
 
+/** Un point de carte publié sans numéro de rue : un repère, pas une adresse. */
+const RAYON_POINT_SANS_NUMERO_M = 150;
+
 /** Marge autour d'un repère publié : une adresse du texte doit y tomber pour être crue. */
 const MARGE_REPERE_M = 150;
 
@@ -136,6 +139,11 @@ export async function ficheDepuisPage(
 ): Promise<FicheAnnonce | null> {
   let p = lecturePortail(u, html);
   const texte = [p.titre, p.description, texteVisible(html)].filter(Boolean).join('\n');
+  // Un point publié n'est exact qu'avec un numéro de rue : PAP « Rue du Surmelin » (sans
+  // numéro) pose son point de carte à 110 m du vrai logement (30 rue du Surmelin, 22/10/2026).
+  if (p.zone?.rayonM === 0 && !/^\s*\d/.test(p.adressePubliee ?? '')) {
+    p.zone = { ...p.zone, rayonM: RAYON_POINT_SANS_NUMERO_M };
+  }
   // Le repère publié par le portail : ce que le texte trouve doit tomber dedans.
   const reperePortail = p.zone ?? null;
   // Un district SeLoger (« République-Saint Ambroise ») n’est pas une rue. La rue

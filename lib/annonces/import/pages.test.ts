@@ -316,3 +316,11 @@ describe('ficheDepuisPage', () => {
     assert.equal(fiche!.consoKwhM2, 214);
   });
 });
+
+describe('point de carte publié (22/10/2026)', () => {
+  it('sans numéro de rue publié, le point du portail est un repère de 150 m, pas une adresse', async () => {
+    const u = analyserUrl('https://www.seloger.com/annonces/achat/appartement/paris-20eme-75/26B8QY8S7L4V.htm')!;
+    const fiche = await ficheDepuisPage(u, pageSeLoger(CLASSIFIED), async () => null, async () => null, async () => null);
+    assert.deepEqual(fiche!.zone, { latitude: 48.8481, longitude: 2.4045, rayonM: 150 });
+  });
+});

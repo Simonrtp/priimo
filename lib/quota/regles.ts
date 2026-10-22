@@ -16,7 +16,8 @@ function entier(nom: string, defaut: number): number {
 
 /**
  * Pages téléchargées par Bright Data (≈ 0,0015 $ l'une). Au plafond global
- * par défaut, la journée la plus chère coûte 0,45 $. Une URL déjà lue ne
+ * par défaut, la journée la plus chère coûte 0,90 $ (deux demandes en parallèle par lecture, la
+ * plus rapide l'emporte : au pire deux pages facturées). Une URL déjà lue ne
  * recompte pas : elle est reprise en base.
  */
 export function plafondsLecturePage(): Plafonds {

@@ -15,16 +15,17 @@ import 'server-only';
 import { pageInexploitable } from './pages';
 
 const ENDPOINT = 'https://api.brightdata.com/request';
-/** Leboncoin et SeLoger, rendus par un navigateur chez Bright Data : 30 à 55 s constatés. */
-const DELAI_MS = 90_000;
+/** Une demande ne dépasse pas cette durée (la route en a 120 s). */
+const DELAI_MS = 100_000;
 /**
- * Une page qui n'arrive pas (réseau, défi anti-robot) est redemandée une fois,
- * tant que le tout tient dans la durée de la route (120 s) : Bright Data ne
- * facture que les pages reçues.
+ * Deux demandes en même temps, la première page reçue l'emporte, l'autre est
+ * coupée. Chez Bright Data la même page arrive en 23 s ou en 77 s, ou échoue
+ * après 105 s (banc du 22/10/2026, PAP et SeLoger) : l'attente suit la plus
+ * rapide des deux, et un échec isolé ne coûte plus une minute et demie. Coût :
+ * au pire deux pages facturées (≈ 0,3 centime) — Bright Data ne facture que
+ * les pages reçues.
  */
-const ESSAIS = 2;
-const BUDGET_MS = 105_000;
-const DELAI_MIN_ESSAI_MS = 25_000;
+const EN_PARALLELE = 2;
 /** Une page d'annonce dépasse rarement 2 Mo ; au-delà, on ne lit que le début. */
 const TAILLE_MAX = 3_000_000;
 
@@ -41,16 +42,40 @@ export async function telechargerPage(url: string, signal?: AbortSignal): Promis
   const zone = process.env.BRIGHTDATA_ZONE;
   if (signal?.aborted) return { ok: false, raison: 'abandon' };
   if (!token || !zone) return { ok: false, raison: 'sans_cle' };
-  const debut = Date.now();
-  let dernier: Telechargement = { ok: false, raison: 'echec' };
-  for (let essai = 0; essai < ESSAIS; essai += 1) {
-    if (signal?.aborted) return { ok: false, raison: 'abandon' };
-    const reste = BUDGET_MS - (Date.now() - debut);
-    if (essai > 0 && reste < DELAI_MIN_ESSAI_MS) break;
-    dernier = await unEssai(url, token, zone, Math.min(DELAI_MS, reste), signal);
-    if (dernier.ok || dernier.raison === 'disparue' || dernier.raison === 'abandon') return dernier;
+  // Coupe les demandes restantes dès qu'une page arrive, ou quand l'agent arrête (croix).
+  const coupe = new AbortController();
+  const arreter = () => coupe.abort();
+  signal?.addEventListener('abort', arreter, { once: true });
+  try {
+    const essais = Array.from({ length: EN_PARALLELE }, () => unEssai(url, token, zone, DELAI_MS, coupe.signal));
+    const resultat = await premiereReponseUtile(essais);
+    return signal?.aborted ? { ok: false, raison: 'abandon' } : resultat;
+  } finally {
+    coupe.abort();
+    signal?.removeEventListener('abort', arreter);
   }
-  return dernier;
+}
+
+/** Le plus parlant des échecs, quand aucune demande n'a abouti. */
+const ORDRE_ECHEC: Record<string, number> = { abandon: 3, bloquee: 2, echec: 1, sans_cle: 0 };
+
+/** La première page reçue (ou une annonce retirée, sans appel) ; sinon le plus parlant des échecs. */
+export function premiereReponseUtile(essais: readonly Promise<Telechargement>[]): Promise<Telechargement> {
+  return new Promise((resolve) => {
+    const echecs: Telechargement[] = [];
+    for (const essai of essais) {
+      void essai.then((r) => {
+        if (r.ok || r.raison === 'disparue') {
+          resolve(r);
+          return;
+        }
+        echecs.push(r);
+        if (echecs.length === essais.length) {
+          resolve(echecs.reduce((a, b) => ((ORDRE_ECHEC[(b as { raison: string }).raison] ?? 0) > (ORDRE_ECHEC[(a as { raison: string }).raison] ?? 0) ? b : a)));
+        }
+      });
+    }
+  });
 }
 
 async function unEssai(
