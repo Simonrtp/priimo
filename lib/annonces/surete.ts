@@ -31,7 +31,7 @@ export const SURETE: Record<NiveauSurete, { libelle: string; titre: string; aide
   sure: {
     libelle: 'Sûre',
     titre: 'Adresse sûre',
-    aide: 'Le DPE de l’annonce désigne cet immeuble sans hésitation, ou le portail publie le numéro. Moins d’1 erreur sur 100.',
+    aide: 'Le DPE de l’annonce ou la carte du portail désigne cet immeuble sans hésitation. Moins d’1 erreur sur 100.',
     fond: '#E6F4EC',
     texte: '#2D7A50',
     point: '#49A673',

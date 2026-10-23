@@ -7,6 +7,7 @@
  * assistant complète ensuite à partir du texte visible (lecture universelle).
  */
 import { extrairePhotosPap } from '../photos';
+import { ecolesSeLoger } from './ecoles';
 import type { FicheAnnonce } from './types';
 
 export type Partielle = Partial<Omit<FicheAnnonce, 'portail' | 'idPortail' | 'url'>>;
@@ -227,6 +228,7 @@ export function lireSeLoger(html: string): Partielle | null {
     description,
     datePublication: texte(chemin(classified, 'metadata', 'creationDate')),
     zone,
+    ecolesProches: ecolesSeLoger(location),
     photos: photos.slice(0, PLAFOND_PHOTOS),
   };
 }
@@ -234,6 +236,11 @@ export function lireSeLoger(html: string): Partielle | null {
 /* -------------------------------------------------------------------------- */
 /*                                  Leboncoin                                 */
 /* -------------------------------------------------------------------------- */
+
+/** `"source":"address", "type":"streetNumber", "is_shape":false` : la position est l'adresse du bien. */
+export function pointExactLeboncoin(loc: Brut): boolean {
+  return loc.is_shape === false && loc.source === 'address' && /streetnumber/i.test(String(loc.type ?? ''));
+}
 
 /** `props.pageProps.ad` du JSON Next.js de la fiche. La position de Leboncoin est floutée. */
 export function lireLeboncoin(html: string): Partielle | null {
@@ -293,8 +300,9 @@ export function lireLeboncoin(html: string): Partielle | null {
     anneeConstruction: nombre(valeur('building_year')),
     description: texte(ad.body),
     datePublication: texte(ad.first_publication_date),
-    // Leboncoin floute la position (commune ou quartier) : un repère, jamais une adresse.
-    zone: lat != null && lon != null ? { latitude: lat, longitude: lon, rayonM: 800 } : null,
+    // Leboncoin floute la position (commune ou quartier), sauf quand le vendeur montre son adresse :
+    // point géocodé sur un numéro de rue, sans forme (10 rue Filaterie, Annecy : à 2 m, 23/10/2026).
+    zone: lat != null && lon != null ? { latitude: lat, longitude: lon, rayonM: pointExactLeboncoin(loc) ? 0 : 800 } : null,
     photos: images.filter((p) => typeof p === 'string' && p.startsWith('https://')).slice(0, PLAFOND_PHOTOS),
   };
 }

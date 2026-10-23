@@ -95,6 +95,22 @@ export async function voieBan(adresse: string, codePostal: string): Promise<stri
   return null;
 }
 
+/** Le numéro de la BAN le plus proche d'un point (« 60 Rue de Boulainvilliers ») et sa distance, ou null. */
+export async function numeroAuPoint(latitude: number, longitude: number): Promise<{ adresse: string; distanceM: number } | null> {
+  try {
+    const res = await fetch(`https://api-adresse.data.gouv.fr/reverse/?lat=${latitude}&lon=${longitude}&limit=1`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const p = ((await res.json()) as { features?: Array<{ properties?: Record<string, unknown> }> }).features?.[0]?.properties;
+    if (!p || p.type !== 'housenumber' || typeof p.name !== 'string' || typeof p.distance !== 'number') return null;
+    return { adresse: p.name, distanceM: p.distance };
+  } catch {
+    return null;
+  }
+}
+
 type Numero = { latitude: number; longitude: number; voie: string };
 
 /** Ce numéro précis, dans ce code postal ; null si la BAN ne le connaît pas. */

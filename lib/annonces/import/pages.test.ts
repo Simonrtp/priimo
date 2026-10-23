@@ -308,10 +308,17 @@ describe('ficheDepuisPage', () => {
   it('SeLoger complet : Mon assistant n’est pas sollicité', async () => {
     const u = analyserUrl('https://www.seloger.com/annonces/achat/appartement/paris-20eme-75/26B8QY8S7L4V.htm')!;
     let appels = 0;
-    const fiche = await ficheDepuisPage(u, pageSeLoger(CLASSIFIED), async () => {
-      appels += 1;
-      return null;
-    });
+    const fiche = await ficheDepuisPage(
+      u,
+      pageSeLoger(CLASSIFIED),
+      async () => {
+        appels += 1;
+        return null;
+      },
+      undefined,
+      undefined,
+      { numeroAuPoint: async () => null },
+    );
     assert.equal(appels, 0);
     assert.equal(fiche!.consoKwhM2, 214);
   });
@@ -358,7 +365,61 @@ describe('dépenses annuelles d’énergie, l’empreinte du logement (22/10/202
 describe('point de carte publié (22/10/2026)', () => {
   it('sans numéro de rue publié, le point du portail est un repère de 150 m, pas une adresse', async () => {
     const u = analyserUrl('https://www.seloger.com/annonces/achat/appartement/paris-20eme-75/26B8QY8S7L4V.htm')!;
-    const fiche = await ficheDepuisPage(u, pageSeLoger(CLASSIFIED), async () => null, async () => null, async () => null);
+    const fiche = await ficheDepuisPage(u, pageSeLoger(CLASSIFIED), async () => null, async () => null, async () => null, {
+      numeroAuPoint: async () => ({ adresse: '14 Rue du Surmelin', distanceM: 7 }),
+    });
     assert.deepEqual(fiche!.zone, { latitude: 48.8481, longitude: 2.4045, rayonM: 150 });
+  });
+});
+
+describe('la petite carte du portail (23/10/2026)', () => {
+  it('PAP : un point posé sur un numéro de la BAN est l’adresse du bien', async () => {
+    const u = analyserUrl('https://www.pap.fr/annonces/appartement-paris-16e-75016-r465400493')!;
+    const fiche = await ficheDepuisPage(
+      u,
+      FICHE_PAP,
+      async () => null,
+      async () => ({ latitude: 48.869042, longitude: 2.372634, rayonM: 0 }),
+      async () => 'Rue de Boulainvilliers',
+      { numeroAuPoint: async () => ({ adresse: '60 Rue de Boulainvilliers', distanceM: 0 }) },
+    );
+    assert.equal(fiche!.adressePubliee, '60 Rue de Boulainvilliers');
+    assert.equal(fiche!.zone?.rayonM, 0);
+  });
+
+  it('Leboncoin : la position « numéro de rue » sans forme est un point exact, sinon un repère flouté', () => {
+    const exacte = lireLeboncoin(
+      pageLeboncoin({ ...AD_LBC, location: { ...AD_LBC.location, source: 'address', type: 'streetNumber', is_shape: false } }),
+    )!;
+    assert.equal(exacte.zone?.rayonM, 0);
+    const floutee = lireLeboncoin(
+      pageLeboncoin({ ...AD_LBC, location: { ...AD_LBC.location, source: 'city', type: 'district', origin_type: 'streetNumber', is_shape: true } }),
+    )!;
+    assert.equal(floutee.zone?.rayonM, 800);
+  });
+
+  it('SeLoger : les écoles privées publiées situent le bien à la place du quartier', async () => {
+    const u = analyserUrl('https://www.seloger.com/annonces/achat/appartement/paris-11eme-75/26GS5LBKPDE1.htm')!;
+    const quartier = {
+      ...CLASSIFIED,
+      sections: {
+        ...(CLASSIFIED as { sections: Record<string, unknown> }).sections,
+        location: {
+          address: { zipCode: '75011', city: 'Paris', district: 'République-Saint Ambroise' },
+          geometry: { type: 'Polygon', coordinates: [[[2.368, 48.858], [2.374, 48.858], [2.374, 48.863], [2.368, 48.863], [2.368, 48.858]]] },
+          schools: { privateSchools: [{ name: 'École Élémentaire Privée Charles Peguy', distanceKm: '382 m' }, { name: 'Collège privé Saint Ambroise', distanceKm: '481 m' }] },
+        },
+      },
+    };
+    let ecolesVues = 0;
+    const fiche = await ficheDepuisPage(u, pageSeLoger(quartier), async () => null, async () => null, async () => null, {
+      numeroAuPoint: async () => null,
+      situerParEcoles: async (ecoles) => {
+        ecolesVues = ecoles.length;
+        return { latitude: 48.8608, longitude: 2.3721, rayonM: 35 };
+      },
+    });
+    assert.equal(ecolesVues, 2);
+    assert.deepEqual(fiche!.zone, { latitude: 48.8608, longitude: 2.3721, rayonM: 35 });
   });
 });

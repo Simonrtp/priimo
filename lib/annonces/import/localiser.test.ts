@@ -344,6 +344,16 @@ describe('garde-fous de l’audit du 21/10/2026 (cas réels)', () => {
     assert.equal(d.meilleur?.dpe.adresse_ban, '12 Rue du Parc 74100 Annemasse');
   });
 
+  it('point retrouvé par les écoles (rayon 35 m) : le DPE au point est affirmé, un jumeau à 190 m jamais', () => {
+    const zone = { latitude: 48.854232, longitude: 2.375375, rayonM: 35 }; // 12 rue des Taillandiers
+    const f = fiche({ surface: 41.44, etage: 3, dpe: 'D', consoKwhM2: 241, ges: 'B', gesKgM2: 9, codePostal: '75011', zone });
+    const auPoint = dpe({ adresse_ban: '12 Rue des Taillandiers 75011 Paris', code_postal_ban: '75011', _geopoint: '48.85430,2.37530', surface_habitable_logement: 41.4, complement_adresse_logement: 'Etage 3', etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 241, etiquette_ges: 'B', emission_ges_5_usages_par_m2: 9 });
+    assert.equal(decider(f, [auPoint], 'zone').statut, 'certaine');
+    // 24 rue de Lappe : même logement trait pour trait, mais à 190 m du point.
+    const jumeau = dpe({ ...auPoint, numero_dpe: 'J', adresse_ban: '24 Rue de Lappe 75011 Paris', _geopoint: '48.853511,2.373006' });
+    assert.equal(decider(f, [jumeau], 'zone').statut, 'incertaine');
+  });
+
   it('l’adresse publiée au point près n’a pas besoin de la surface exacte', () => {
     const f = fiche({ surface: 36, etage: null, codePostal: '75020', zone: { latitude: 48.8553, longitude: 2.4088, rayonM: 0 } });
     const d = decider(f, [dpe({ surface_habitable_logement: 33.1, code_postal_ban: '75020' })], 'zone');

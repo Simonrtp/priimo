@@ -1,4 +1,5 @@
 import type { AdressePossible, Confiance, PrecisionLocalisation } from '@/lib/annonces/types';
+import type { EcoleProche } from './ecoles';
 import type { PortailImport } from './url';
 
 /** Ce qu'une annonce dit d'elle-même, quel que soit le portail ou le texte collé. */
@@ -46,6 +47,8 @@ export type FicheAnnonce = {
    * toute la rue, et un DPE d'une autre rue perd sa place.
    */
   voiePubliee?: string | null;
+  /** SeLoger : les écoles privées voisines et leur distance au vrai logement (de quoi le situer). */
+  ecolesProches?: EcoleProche[];
   photos: string[];
 };
 

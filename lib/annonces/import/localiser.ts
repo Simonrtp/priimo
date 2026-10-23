@@ -21,6 +21,7 @@
  */
 import { fetchParcelleAuPoint } from '@/lib/geo/cadastre-point';
 import type { AdressePossible } from '@/lib/annonces/types';
+import { RAYON_ECOLES_M } from './ecoles';
 import type { FicheAnnonce, LocalisationImport } from './types';
 
 const ADEME_BASE = process.env.ADEME_API_BASE ?? 'https://data.ademe.fr/data-fair/api/v1/datasets';
@@ -77,6 +78,22 @@ const ECART_SURFACE_SUR_M2 = 1.5;
 /** Avance minimale d'une adresse « probable » quand l'annonce ne publie que les lettres du DPE. */
 const ECART_PROBABLE_LETTRES = 15;
 const MARGE_HORS_REPERE_MAX_M = 400;
+/**
+ * Un repère de 85 m au plus est un point retrouvé (distances aux écoles SeLoger,
+ * immeuble neuf entre ses voisins) : le DPE doit y être, à 40 m près ; au-delà
+ * de 120 m, c'est un autre immeuble.
+ */
+const RAYON_POINT_PRECIS_M = 85;
+const MARGE_POINT_PRECIS_M = 40;
+const LOIN_DU_POINT_PRECIS_M = 120;
+/** Un DPE à plus de 80 m de l'adresse posée sur la carte (entrées d'un grand immeuble comprises) en est un autre. */
+const LOIN_ADRESSE_PUBLIEE_M = 80;
+/**
+ * Un DPE aussi ressemblant (note sans le lieu), à moins de 600 m du point de la carte mais pas dessus :
+ * l'un des deux trompe, les deux adresses sont proposées.
+ */
+const SCORE_DPE_CONTRADICTOIRE = 60;
+const SOSIE_VOISIN_MAX_M = 600;
 
 /**
  * Version des règles de localisation. À AVANCER À CHAQUE CHANGEMENT de règle :
@@ -84,7 +101,7 @@ const MARGE_HORS_REPERE_MAX_M = 400;
  * resservie (le 22/10/2026, « 14 rue du Surmelin », issu d'une règle corrigée
  * le matin même, revenait du cache pendant 7 jours).
  */
-export const MOTEUR_LOCALISATION_DEPUIS = '2026-10-23T08:00:00Z';
+export const MOTEUR_LOCALISATION_DEPUIS = '2026-10-23T14:00:00Z';
 
 /** (score minimal du meilleur, écart minimal avec la meilleure AUTRE adresse) — comme le pipeline. */
 const SEUILS = { certaine: [60, 25], probable: [40, 10] } as const;
@@ -547,6 +564,12 @@ export function scorerCandidat(f: FicheAnnonce, dpe: LigneDpe): { score: number;
       else if (d <= 60) note(5, libelle);
       else if (d > MARGE_HORS_REPERE_MAX_M) note(-30, libelle);
       else if (d > 200) note(-10, libelle);
+    } else if (f.zone.rayonM <= RAYON_POINT_PRECIS_M) {
+      // Un point retrouvé à quelques dizaines de mètres (écoles SeLoger, numéros voisins) désigne l'immeuble.
+      const libelle = `à ${Math.round(d)} m du point retrouvé`;
+      if (d <= f.zone.rayonM) note(20, libelle);
+      else if (d <= f.zone.rayonM + MARGE_POINT_PRECIS_M) note(5, libelle);
+      else if (d > f.zone.rayonM + LOIN_DU_POINT_PRECIS_M) note(-40, libelle);
     } else if (d <= f.zone.rayonM) {
       note(4, 'dans le repère publié');
     } else if (d > f.zone.rayonM + MARGE_HORS_REPERE_MAX_M) {
@@ -677,7 +700,8 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
     const etageD = etageDpe(meilleur.dpe);
     const etageConnu = f.etage != null && etageD != null;
     const etageConfirme = etageConnu && f.etage === etageD;
-    const horsDuCercle = f.zone != null && f.zone.rayonM > 0 && d != null && d > f.zone.rayonM;
+    const limite = !f.zone ? 0 : f.zone.rayonM <= RAYON_POINT_PRECIS_M ? f.zone.rayonM + MARGE_POINT_PRECIS_M : f.zone.rayonM;
+    const horsDuCercle = f.zone != null && f.zone.rayonM > 0 && d != null && d > limite;
     if (etageConnu && !etageConfirme) statut = 'incertaine';
     else if (horsDuCercle && !etageConfirme) statut = 'incertaine';
     else if (!surfaceSure && !etageConfirme && !empreinteForte) statut = 'incertaine';
@@ -694,6 +718,10 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
   if (f.zone && d != null) {
     // Rayon 0 (adresse publiée) : un sosie à un kilomètre n'est pas ce logement.
     if (d > f.zone.rayonM + MARGE_HORS_REPERE_MAX_M) statut = 'incertaine';
+    // Loin d'un point retrouvé à quelques mètres, ou de l'adresse posée sur la carte : un autre immeuble
+    // (ou une adresse décalée par l'agence) ; jamais affirmé.
+    else if (f.zone.rayonM > 0 && f.zone.rayonM <= RAYON_POINT_PRECIS_M && d > f.zone.rayonM + LOIN_DU_POINT_PRECIS_M) statut = 'incertaine';
+    else if (f.zone.rayonM === 0 && d > LOIN_ADRESSE_PUBLIEE_M) statut = 'incertaine';
     else if (d > f.zone.rayonM + MARGE_HORS_REPERE_M && statut === 'certaine') statut = 'probable';
   }
   // Le code postal de l'annonce fait foi : un DPE de l'autre côté du boulevard n'est pas affirmé.
@@ -769,6 +797,32 @@ async function adresseDuPoint(lat: number, lon: number): Promise<{ libelle: stri
   }
 }
 
+/** Les numéros de la BAN autour d'un point retrouvé (trois au plus, du plus proche au plus loin). */
+async function numerosAutour(lat: number, lon: number, rayonM: number): Promise<AdressePossible[]> {
+  try {
+    const url = new URL(BAN_REVERSE);
+    url.searchParams.set('lat', String(lat));
+    url.searchParams.set('lon', String(lon));
+    url.searchParams.set('type', 'housenumber');
+    url.searchParams.set('limit', '6');
+    const res = await fetch(url, { headers: ENTETES, cache: 'no-store', signal: AbortSignal.timeout(5_000) });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { features?: Array<{ properties?: Record<string, unknown>; geometry?: { coordinates?: number[] } }> };
+    const vus = new Set<string>();
+    const out: AdressePossible[] = [];
+    for (const f of body.features ?? []) {
+      const p = f.properties ?? {};
+      const c = f.geometry?.coordinates;
+      if (p.type !== 'housenumber' || typeof p.label !== 'string' || !c || (num(p.distance) ?? Infinity) > rayonM || vus.has(p.label)) continue;
+      vus.add(p.label);
+      out.push({ adresse: p.label, latitude: c[1]!, longitude: c[0]! });
+    }
+    return out.slice(0, POSSIBLES_MAX);
+  } catch {
+    return [];
+  }
+}
+
 function repereApproximatif(f: FicheAnnonce): Pick<LocalisationImport, 'latitude' | 'longitude' | 'precision'> {
   if (!f.zone) return { latitude: null, longitude: null, precision: null };
   return {
@@ -800,6 +854,42 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
       score: decision.meilleur.score,
       raisons: decision.meilleur.raisons,
     };
+  }
+
+  // Un DPE ressemblant trait pour trait, mais loin du point exact de la carte : l'un des deux trompe
+  // (adresse décalée par l'agence, ou logement jumeau). Les deux immeubles, à vérifier : 24 rue de
+  // Lappe contre 12 rue des Taillandiers, 82 rue de la Folie-Méricourt contre 8 passage du Jeu-de-Boules.
+  const pointCarte = f.zone && f.zone.rayonM <= RAYON_ECOLES_M ? f.zone : null;
+  // La ressemblance se mesure sans le lieu : la rue posée par le point pénalise déjà le sosie.
+  const sansLieu: FicheAnnonce = { ...f, zone: null, voiePubliee: null };
+  const sosie = pointCarte
+    ? lignes
+        .filter((l) => !chiffresContredits(f, l) && accordDepenses(f, l) !== 'autre' && !(f.codePostal && codePostalDpe(l) && codePostalDpe(l) !== f.codePostal))
+        .map((dpe) => ({ dpe, score: scorerCandidat(sansLieu, dpe).score, point: geopoint(dpe) }))
+        .sort((a, b) => b.score - a.score)[0]
+    : undefined;
+  if (pointCarte && sosie?.point && sosie.score >= SCORE_DPE_CONTRADICTOIRE) {
+    const d = distanceM(sosie.point, { lat: pointCarte.latitude, lon: pointCarte.longitude });
+    const loin = pointCarte.rayonM === 0 ? LOIN_ADRESSE_PUBLIEE_M : pointCarte.rayonM + MARGE_POINT_PRECIS_M;
+    const adresseDpe = String(sosie.dpe.adresse_ban ?? '').trim();
+    if (d > loin && d <= SOSIE_VOISIN_MAX_M && adresseDpe) {
+      const lieuSosie = sosie.point;
+      const auPoint = await numerosAutour(pointCarte.latitude, pointCarte.longitude, Math.max(pointCarte.rayonM, 15));
+      return {
+        confiance: 'incertaine',
+        precision: 'immeuble',
+        adresse: null,
+        latitude: pointCarte.latitude,
+        longitude: pointCarte.longitude,
+        rayonM: Math.max(pointCarte.rayonM, 30),
+        parcelleIds: [],
+        numeroDpe: null,
+        complementDpe: null,
+        score: sosie.score,
+        raisons: ['le point de la carte et le DPE le plus ressemblant désignent deux immeubles différents'],
+        adressesPossibles: [...auPoint.slice(0, 2), { adresse: adresseDpe, latitude: lieuSosie.lat, longitude: lieuSosie.lon }],
+      };
+    }
   }
 
   // Adresse écrite par le site mais absente de la BAN (immeuble neuf) : placée entre ses numéros
@@ -841,6 +931,46 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
         complementDpe: null,
         score: decision.meilleur?.score ?? null,
         raisons: ["adresse publiée sur l'annonce, aucun DPE concordant"],
+      };
+    }
+  }
+
+  // Emplacement retrouvé à une vingtaine de mètres près (écoles SeLoger) sans DPE qui l'affirme : les
+  // immeubles au point, à vérifier (le voisin peut l'être : 27 pour 29 bd Jules Ferry). Un seul : probable.
+  if (f.zone && f.zone.rayonM > 0 && f.zone.rayonM <= RAYON_ECOLES_M && !f.adressePubliee) {
+    const parDpe = adressesPossibles(f, lignes);
+    const autour = parDpe.length ? parDpe : await numerosAutour(f.zone.latitude, f.zone.longitude, f.zone.rayonM);
+    const raisons = ["emplacement retrouvé par les distances aux écoles publiées sur l'annonce"];
+    if (autour.length === 1 && !parDpe.length) {
+      const seul = autour[0]!;
+      const parcelle = await fetchParcelleAuPoint({ latitude: seul.latitude, longitude: seul.longitude });
+      return {
+        confiance: 'probable',
+        precision: 'immeuble',
+        adresse: seul.adresse,
+        latitude: seul.latitude,
+        longitude: seul.longitude,
+        parcelleIds: parcelle ? [parcelle.parcelleId] : [],
+        numeroDpe: null,
+        complementDpe: null,
+        score: decision.meilleur?.score ?? null,
+        raisons,
+      };
+    }
+    if (autour.length) {
+      return {
+        confiance: 'incertaine',
+        precision: 'immeuble',
+        adresse: null,
+        latitude: f.zone.latitude,
+        longitude: f.zone.longitude,
+        rayonM: f.zone.rayonM,
+        parcelleIds: [],
+        numeroDpe: null,
+        complementDpe: null,
+        score: decision.meilleur?.score ?? null,
+        raisons,
+        adressesPossibles: autour,
       };
     }
   }

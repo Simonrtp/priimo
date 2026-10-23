@@ -12,7 +12,8 @@
  */
 import { chiffresDpeDuTexte, depensesDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
 import { rueDepuisTexte, valeursFiables } from './localiser';
-import { ficheDepuisExtraction, voieBan, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
+import { situerParEcoles } from './ecoles';
+import { ficheDepuisExtraction, numeroAuPoint, voieBan, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
 import { lireSeLogerNeuf } from './seloger-neuf';
 import type { FicheAnnonce } from './types';
 import type { UrlAnnonce } from './url';
@@ -115,6 +116,21 @@ function ecartM(a: Zone, b: Zone): number {
 /** Un point de carte publié sans numéro de rue : un repère, pas une adresse. */
 const RAYON_POINT_SANS_NUMERO_M = 150;
 
+/**
+ * Un point de carte posé sur un numéro de la BAN est l'adresse géocodée du vendeur :
+ * PAP à 0 m pour cinq annonces sur six, toutes confirmées par leur DPE ; « 14 rue du
+ * Surmelin », à 7 m, n'était qu'un repère (23/10/2026). Leboncoin géocode avec un autre
+ * service (HERE) : quelques mètres d'écart (10 rue Filaterie, Annecy : 2 m).
+ */
+const NUMERO_SOUS_LE_POINT_M = 3;
+const NUMERO_SOUS_LE_POINT_LEBONCOIN_M = 15;
+
+/** Ce que la lecture d'une page demande au réseau ; remplaçable dans les tests. */
+export type OutilsCarte = {
+  numeroAuPoint?: typeof numeroAuPoint;
+  situerParEcoles?: typeof situerParEcoles;
+};
+
 /** Marge autour d'un repère publié : une adresse du texte doit y tomber pour être crue. */
 const MARGE_REPERE_M = 150;
 
@@ -138,13 +154,25 @@ export async function ficheDepuisPage(
   assistant: Assistant,
   geocoder: Geocodeur = geocoderBan,
   nommerVoie: (adresse: string, codePostal: string) => Promise<string | null> = voieBan,
+  outils: OutilsCarte = {},
 ): Promise<FicheAnnonce | null> {
   let p = lecturePortail(u, html);
   const texte = [p.titre, p.description, texteVisible(html)].filter(Boolean).join('\n');
+  // Le point de la carte sur un numéro de la BAN : l'adresse du bien, même sans numéro écrit.
+  if (p.zone?.rayonM === 0 && !/^\s*\d/.test(p.adressePubliee ?? '')) {
+    const numero = await (outils.numeroAuPoint ?? numeroAuPoint)(p.zone.latitude, p.zone.longitude);
+    const tolerance = u.portail === 'leboncoin' ? NUMERO_SOUS_LE_POINT_LEBONCOIN_M : NUMERO_SOUS_LE_POINT_M;
+    if (numero && numero.distanceM <= tolerance) p.adressePubliee = numero.adresse;
+  }
   // Un point publié n'est exact qu'avec un numéro de rue : PAP « Rue du Surmelin » (sans
   // numéro) pose son point de carte à 110 m du vrai logement (30 rue du Surmelin, 22/10/2026).
   if (p.zone?.rayonM === 0 && !/^\s*\d/.test(p.adressePubliee ?? '')) {
     p.zone = { ...p.zone, rayonM: RAYON_POINT_SANS_NUMERO_M };
+  }
+  // SeLoger : un quartier sur la carte, mais les distances aux écoles situent le bien à quelques mètres.
+  if (p.zone && p.zone.rayonM > 0 && p.ecolesProches?.length && p.codePostal) {
+    const situe = await (outils.situerParEcoles ?? situerParEcoles)(p.ecolesProches, p.codePostal, p.zone);
+    if (situe) p.zone = situe;
   }
   // Le repère publié par le portail : ce que le texte trouve doit tomber dedans.
   const reperePortail = p.zone ?? null;
