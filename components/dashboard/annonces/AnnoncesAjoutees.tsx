@@ -1,7 +1,7 @@
 'use client';
 
-import { Fragment } from 'react';
-import { Marker } from 'react-map-gl';
+import { Fragment, useMemo } from 'react';
+import { Layer, Marker, Source } from 'react-map-gl';
 import { X } from 'lucide-react';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
@@ -11,41 +11,95 @@ import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
 import { notifyError } from '@/lib/notify';
 import type { AdressePossible, Annonce } from '@/lib/annonces/types';
 
-/** Le numéro d'une adresse possible : le même dans le panneau et sur la carte. */
-export function NumeroPossible({ n }: { n: number }) {
+/** Le numéro d'une adresse possible : le même dans le panneau et sur la carte. Plein : l'adresse choisie. */
+export function NumeroPossible({ n, etat }: { n: number; etat?: 'choisie' | 'estompee' }) {
   return (
     <span
       aria-hidden
-      className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white text-[10.5px] font-bold tabular-nums text-[#1A2A56] ring-[1.5px] ring-[#1A2A56]"
+      className={`inline-flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold tabular-nums ring-[1.5px] ring-[#1A2A56] transition-[background-color,color,opacity] duration-fluid-subtle ${
+        etat === 'choisie' ? 'bg-[#1A2A56] text-white' : 'bg-white text-[#1A2A56]'
+      } ${etat === 'estompee' ? 'opacity-45' : ''}`}
     >
       {n}
     </span>
   );
 }
 
-/** Les immeubles possibles d'une annonce sans adresse sûre, numérotés sur la carte. */
-export function ReperesPossibles({ possibles, onClick }: { possibles: readonly AdressePossible[]; onClick?: () => void }) {
+/**
+ * Les immeubles possibles d'une annonce sans adresse sûre, numérotés sur la carte.
+ * Toucher un numéro le choisit (`onChoisir`) ou ouvre l'annonce (`onClick`).
+ */
+export function ReperesPossibles({
+  possibles,
+  choisie = null,
+  masquerChoisie = false,
+  onClick,
+  onChoisir,
+}: {
+  possibles: readonly AdressePossible[];
+  choisie?: string | null;
+  /** L'adresse choisie porte déjà le point de l'annonce : son numéro s'efface (les autres gardent le leur). */
+  masquerChoisie?: boolean;
+  onClick?: () => void;
+  onChoisir?: (adresse: string | null) => void;
+}) {
   return (
     <>
       {possibles.map((p, i) =>
-        isUsableCoord(p.latitude, p.longitude) ? (
+        isUsableCoord(p.latitude, p.longitude) && !(masquerChoisie && choisie === p.adresse) ? (
           <Marker key={`${p.adresse}-${i}`} longitude={p.longitude} latitude={p.latitude} anchor="center" style={{ zIndex: 4 }}>
             <button
               type="button"
-              title={`Adresse possible : ${p.adresse}`}
+              title={p.raison ? `${p.adresse} : ${p.raison}` : `Adresse possible : ${p.adresse}`}
               aria-label={`Adresse possible ${i + 1} : ${p.adresse}`}
+              aria-pressed={onChoisir ? choisie === p.adresse : undefined}
               onClick={(e) => {
                 e.stopPropagation();
-                onClick?.();
+                if (onChoisir) onChoisir(choisie === p.adresse ? null : p.adresse);
+                else onClick?.();
               }}
               className="rounded-full shadow-[0_2px_8px_rgba(26,42,86,0.25)] transition-transform duration-fluid-subtle hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
             >
-              <NumeroPossible n={i + 1} />
+              <NumeroPossible n={i + 1} etat={choisie === p.adresse ? 'choisie' : choisie ? 'estompee' : undefined} />
             </button>
           </Marker>
         ) : null,
       )}
     </>
+  );
+}
+
+export type GroupePossibles = { id: string; longitude: number; latitude: number; possibles: readonly AdressePossible[] };
+
+/**
+ * Le lien entre une annonce et ses adresses possibles : un trait pointillé de sa
+ * pastille vers chacune. Collé au sol, il suit la carte au zoom.
+ */
+export function LiensPossibles({ sourceId, groupes }: { sourceId: string; groupes: readonly GroupePossibles[] }) {
+  const data = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: groupes.flatMap((g) =>
+        g.possibles
+          .filter((p) => isUsableCoord(p.latitude, p.longitude))
+          .map((p) => ({
+            type: 'Feature' as const,
+            properties: { annonce: g.id },
+            geometry: { type: 'LineString' as const, coordinates: [[g.longitude, g.latitude], [p.longitude, p.latitude]] },
+          })),
+      ),
+    }),
+    [groupes],
+  );
+  return (
+    <Source id={sourceId} type="geojson" data={data}>
+      <Layer
+        id={`${sourceId}-ligne`}
+        type="line"
+        layout={{ 'line-cap': 'round' }}
+        paint={{ 'line-color': '#1A2A56', 'line-opacity': 0.5, 'line-width': 1.6, 'line-dasharray': [1.5, 2] }}
+      />
+    </Source>
   );
 }
 
@@ -122,15 +176,24 @@ export default function AnnoncesAjoutees({
   onChoisir?: (annonce: Annonce, soeurs: Annonce[]) => void;
 }) {
   const annonces = useAnnoncesAjoutees();
+  const visibles = useMemo(() => annonces.filter((a) => a.statut !== 'retiree' && isUsableCoord(a.latitude, a.longitude)), [annonces]);
+  // Sans adresse choisie, l'annonce reste reliée à ses adresses possibles.
+  const groupes = useMemo<GroupePossibles[]>(
+    () =>
+      visibles
+        .filter((a) => a.confiance === 'incertaine' && !a.adresseChoisie && a.adressesPossibles?.length)
+        .map((a) => ({ id: a.id, longitude: a.longitude!, latitude: a.latitude!, possibles: a.adressesPossibles! })),
+    [visibles],
+  );
   return (
     <>
-      {annonces
-        .filter((a) => a.statut !== 'retiree' && isUsableCoord(a.latitude, a.longitude))
-        .map((a) => {
+      <LiensPossibles sourceId="priimo-annonces-ajoutees-liens" groupes={groupes} />
+      {visibles.map((a) => {
           const ouvrir = onChoisir ? () => onChoisir(a, [a]) : undefined;
+          const incertaine = a.confiance === 'incertaine' && !a.adresseChoisie;
           return (
             <Fragment key={a.id}>
-              {a.confiance === 'incertaine' && a.adressesPossibles?.length ? (
+              {incertaine && a.adressesPossibles?.length ? (
                 <ReperesPossibles possibles={a.adressesPossibles} onClick={ouvrir} />
               ) : null}
               <Marker longitude={a.longitude!} latitude={a.latitude!} anchor="center" style={{ zIndex: 5 }}>
@@ -138,7 +201,7 @@ export default function AnnoncesAjoutees({
                   portailCle={a.portail}
                   portail={libellePortail(a.portail)}
                   prix={a.prix}
-                  approximative={a.confiance === 'incertaine'}
+                  approximative={incertaine}
                   onClick={ouvrir}
                   onRetirer={() => void retirerOuPrevenir(a.id, notifyError)}
                 />

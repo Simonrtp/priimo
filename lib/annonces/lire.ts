@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import { PORTAILS, type AdressePossible, type Annonce, type Confiance, type EvenementAnnonce, type Portail, type RunAnnonce } from './types';
+import { PORTAILS, lireAdressePossible, lireAdressesPossibles, type AdressePossible, type Annonce, type Confiance, type EvenementAnnonce, type Portail, type RunAnnonce } from './types';
 
 type Client = SupabaseClient<Database>;
 
@@ -10,14 +10,7 @@ type Client = SupabaseClient<Database>;
  */
 const SELECT_ANNONCE = '*';
 
-function possibles(v: unknown): AdressePossible[] {
-  if (!Array.isArray(v)) return [];
-  return v.flatMap((x) => {
-    const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : null;
-    if (!o || typeof o.adresse !== 'string' || typeof o.latitude !== 'number' || typeof o.longitude !== 'number') return [];
-    return [{ adresse: o.adresse, latitude: o.latitude, longitude: o.longitude }];
-  });
-}
+const possibles = lireAdressesPossibles;
 
 function raisons(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
@@ -167,14 +160,32 @@ const LOT_IDS = 150;
  * Les annonces ajoutées par l'agence (lien `annonces_agences`, RLS : la sienne
  * seulement), hors de toute limite de secteur ou de code postal.
  */
+/**
+ * L'adresse choisie par l'agence parmi les possibles remplace l'adresse et le
+ * point de l'annonce ; les possibles restent, pour revenir en arrière. Pur.
+ */
+export function appliquerChoix(annonce: Annonce, choix: AdressePossible | null): Annonce {
+  if (!choix) return annonce;
+  return { ...annonce, adresse: choix.adresse, latitude: choix.latitude, longitude: choix.longitude, adresseChoisie: choix };
+}
+
 export async function lireAnnoncesAjoutees(client: Client): Promise<Annonce[]> {
-  const { data, error } = await table(client, 'annonces_agences').select('annonce_id').limit(2000);
+  type Lien = { annonce_id: string; adresse_choisie?: unknown };
+  const lire = async (colonnes: string) => {
+    const r = await table(client, 'annonces_agences').select(colonnes).limit(2000);
+    return { liens: (r.data ?? []) as unknown as Lien[], error: r.error };
+  };
+  let { liens, error } = await lire('annonce_id, adresse_choisie');
+  // Avant la migration 20261023 : les annonces se lisent sans le choix d'adresse.
+  if (error && /adresse_choisie/.test(error.message)) ({ liens, error } = await lire('annonce_id'));
   if (error) {
     console.error('[annonces] ajoutées', error.message);
     return [];
   }
-  const ids = ((data ?? []) as unknown as { annonce_id: string }[]).map((l) => String(l.annonce_id));
-  return ids.length > 0 ? lireAnnoncesParIds(client, ids) : [];
+  const choix = new Map(liens.map((l) => [String(l.annonce_id), lireAdressePossible(l.adresse_choisie)]));
+  if (choix.size === 0) return [];
+  const annonces = await lireAnnoncesParIds(client, [...choix.keys()]);
+  return annonces.map((a) => appliquerChoix(a, choix.get(a.id) ?? null));
 }
 
 export async function lireEvenements(client: Client, annonceIds: string[]): Promise<EvenementAnnonce[]> {

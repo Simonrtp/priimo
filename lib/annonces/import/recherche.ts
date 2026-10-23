@@ -175,6 +175,14 @@ export function noterAnnonceAjoutee(annonceId: string) {
   definirAnnonceImportee(carte);
 }
 
+/** L'agent désigne l'une des adresses possibles, ou revient à toutes : le panneau et la carte suivent. */
+export function choisirAdresseImport(adresse: string | null) {
+  if (session.etat.k !== 'trouvee') return;
+  const carte = { ...session.etat.carte, adresseChoisie: adresse };
+  poser({ ...session, etat: { k: 'trouvee', carte, disponible: session.etat.disponible } });
+  if (carte.surCarte !== false) definirAnnonceImportee(carte);
+}
+
 /**
  * Le point quitte la carte. La recherche affichée dans le panneau reste.
  * Avec un id : seulement si c'est cette annonce (un autre point ne l'efface pas).

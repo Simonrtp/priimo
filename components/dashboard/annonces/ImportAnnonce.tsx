@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Link2, Loader2, MapPin, Sparkles, X } from 'lucide-react';
 import { notifyError } from '@/lib/notify';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
-import { NumeroPossible } from './AnnoncesAjoutees';
+import ChoixAdresses from './ChoixAdresses';
 import IndiceSurete from './IndiceSurete';
 import type { CarteImport } from '@/lib/annonces/import/carte';
 import type { EtapeImport } from '@/lib/annonces/import/serveur';
 import {
   arreterRecherche,
+  choisirAdresseImport,
   ecrireUrl,
   lancerRecherche,
   noterAnnonceAjoutee,
@@ -137,6 +138,29 @@ function Carte({
       ? 'Secteur approximatif'
       : '';
   const logo = LOGO_PORTAIL[carte.portailCle];
+  const choisie = carte.adresseChoisie ?? null;
+  const [choixEnCours, setChoixEnCours] = useState(false);
+
+  /** Avant l'ajout, le choix reste dans le panneau ; après, il est gardé pour l'agence (et se défait de même). */
+  async function choisir(adresse: string | null) {
+    const avant = choisie;
+    choisirAdresseImport(adresse);
+    if (!carte.annonceId) return;
+    setChoixEnCours(true);
+    const res = await fetch('/api/dashboard/annonces/adresse', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ annonceId: carte.annonceId, adresse }),
+    }).catch(() => null);
+    setChoixEnCours(false);
+    if (!res?.ok) {
+      choisirAdresseImport(avant);
+      const json = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
+      notifyError(json?.error ?? 'Choix impossible');
+      return;
+    }
+    rafraichirAnnoncesSecteur();
+  }
 
   async function ajouter() {
     if (!carte.importId) return;
@@ -144,7 +168,7 @@ function Carte({
     const res = await fetch('/api/dashboard/annonces/ajouter', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ importId: carte.importId }),
+      body: JSON.stringify({ importId: carte.importId, adresseChoisie: choisie }),
     });
     const json = (await res.json().catch(() => ({}))) as { annonceId?: string; error?: string };
     setAjout(false);
@@ -189,20 +213,7 @@ function Carte({
       </div>
 
       {possibles.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          <p className="flex items-center gap-2 text-[12px] font-medium text-text-subtle">
-            <span className="min-w-0 flex-1">{possibles.length > 1 ? `${possibles.length} adresses possibles` : 'Adresse possible'}</span>
-            <IndiceSurete confiance={carte.confiance} nbPossibles={possibles.length} />
-          </p>
-          <ol className="flex flex-col gap-1">
-            {possibles.map((p, i) => (
-              <li key={p.adresse} className="flex items-center gap-1.5 text-[13px] text-text-strong">
-                <NumeroPossible n={i + 1} />
-                <span className="min-w-0 truncate">{p.adresse.replace(/\s\d{5}\s.*$/, '')}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <ChoixAdresses possibles={possibles} choisie={choisie} onChoisir={(a) => void choisir(a)} occupe={choixEnCours || ajout} />
       ) : rue ? (
         <p className={`flex items-center gap-1.5 text-[13px] ${carte.approximative ? 'text-text-muted' : 'text-text-strong'}`}>
           <MapPin size={14} strokeWidth={2} aria-hidden className={`shrink-0 ${carte.approximative ? 'text-text-subtle' : 'text-accent'}`} />
@@ -223,7 +234,13 @@ function Carte({
           ) : (
             <button type="button" onClick={() => void ajouter()} disabled={ajout} className={`${PILULE} bg-blue text-white hover:bg-blue-dark`}>
               {ajout ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Check size={14} strokeWidth={2.4} aria-hidden />}
-              Ajouter
+              {possibles.length === 0
+                ? 'Ajouter'
+                : choisie
+                  ? 'Valider cette adresse'
+                  : possibles.length > 1
+                    ? `Valider les ${possibles.length}`
+                    : 'Valider'}
             </button>
           )
         ) : null}

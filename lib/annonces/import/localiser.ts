@@ -771,7 +771,7 @@ export function adressesPossibles(f: FicheAnnonce, lignes: readonly LigneDpe[]):
     const cle = cleAdresse(n.dpe.adresse_ban);
     if (vus.has(cle)) continue;
     vus.add(cle);
-    possibles.push({ adresse: String(n.dpe.adresse_ban).trim(), latitude: n.point!.lat, longitude: n.point!.lon });
+    possibles.push({ adresse: String(n.dpe.adresse_ban).trim(), latitude: n.point!.lat, longitude: n.point!.lon, raison: `DPE ressemblant : ${resumeDpe(n.dpe)}` });
   }
   return possibles;
 }
@@ -798,7 +798,24 @@ async function adresseDuPoint(lat: number, lon: number): Promise<{ libelle: stri
 }
 
 /** Les numéros de la BAN autour d'un point retrouvé (trois au plus, du plus proche au plus loin). */
-async function numerosAutour(lat: number, lon: number, rayonM: number): Promise<AdressePossible[]> {
+/** « 48 m² · classe E · 2e étage » : ce qui rapproche un DPE de l'annonce, en clair. */
+function resumeDpe(dpe: LigneDpe): string {
+  const surface = num(dpe.surface_habitable_logement);
+  const etiquette = String(dpe.etiquette_dpe ?? '').toUpperCase();
+  const etage = etageDpe(dpe);
+  return [
+    surface != null ? `${new Intl.NumberFormat('fr-FR').format(Math.round(surface * 10) / 10)} m²` : null,
+    /^[A-G]$/.test(etiquette) ? `classe ${etiquette}` : null,
+    etage == null ? null : etage === 0 ? 'RDC' : `${etage}e étage`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** D'où vient le point autour duquel les numéros sont proposés. */
+type OriginePoint = 'carte' | 'ecoles';
+
+async function numerosAutour(lat: number, lon: number, rayonM: number, origine: OriginePoint): Promise<AdressePossible[]> {
   try {
     const url = new URL(BAN_REVERSE);
     url.searchParams.set('lat', String(lat));
@@ -815,7 +832,13 @@ async function numerosAutour(lat: number, lon: number, rayonM: number): Promise<
       const c = f.geometry?.coordinates;
       if (p.type !== 'housenumber' || typeof p.label !== 'string' || !c || (num(p.distance) ?? Infinity) > rayonM || vus.has(p.label)) continue;
       vus.add(p.label);
-      out.push({ adresse: p.label, latitude: c[1]!, longitude: c[0]! });
+      const raison =
+        out.length > 0
+          ? 'Immeuble voisin du point'
+          : origine === 'ecoles'
+            ? 'Au point retrouvé par les écoles voisines de l’annonce'
+            : 'Au point de la carte de l’annonce';
+      out.push({ adresse: p.label, latitude: c[1]!, longitude: c[0]!, raison });
     }
     return out.slice(0, POSSIBLES_MAX);
   } catch {
@@ -874,7 +897,7 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
     const adresseDpe = String(sosie.dpe.adresse_ban ?? '').trim();
     if (d > loin && d <= SOSIE_VOISIN_MAX_M && adresseDpe) {
       const lieuSosie = sosie.point;
-      const auPoint = await numerosAutour(pointCarte.latitude, pointCarte.longitude, Math.max(pointCarte.rayonM, 15));
+      const auPoint = await numerosAutour(pointCarte.latitude, pointCarte.longitude, Math.max(pointCarte.rayonM, 15), pointCarte.rayonM === 0 ? 'carte' : 'ecoles');
       return {
         confiance: 'incertaine',
         precision: 'immeuble',
@@ -887,7 +910,10 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
         complementDpe: null,
         score: sosie.score,
         raisons: ['le point de la carte et le DPE le plus ressemblant désignent deux immeubles différents'],
-        adressesPossibles: [...auPoint.slice(0, 2), { adresse: adresseDpe, latitude: lieuSosie.lat, longitude: lieuSosie.lon }],
+        adressesPossibles: [
+          ...auPoint.slice(0, 2),
+          { adresse: adresseDpe, latitude: lieuSosie.lat, longitude: lieuSosie.lon, raison: `Même DPE que l’annonce (${resumeDpe(sosie.dpe)}), à ${Math.round(d)} m du point` },
+        ],
       };
     }
   }
@@ -939,7 +965,7 @@ export async function localiserFiche(f: FicheAnnonce, fetcher?: Fetcher): Promis
   // immeubles au point, à vérifier (le voisin peut l'être : 27 pour 29 bd Jules Ferry). Un seul : probable.
   if (f.zone && f.zone.rayonM > 0 && f.zone.rayonM <= RAYON_ECOLES_M && !f.adressePubliee) {
     const parDpe = adressesPossibles(f, lignes);
-    const autour = parDpe.length ? parDpe : await numerosAutour(f.zone.latitude, f.zone.longitude, f.zone.rayonM);
+    const autour = parDpe.length ? parDpe : await numerosAutour(f.zone.latitude, f.zone.longitude, f.zone.rayonM, 'ecoles');
     const raisons = ["emplacement retrouvé par les distances aux écoles publiées sur l'annonce"];
     if (autour.length === 1 && !parDpe.length) {
       const seul = autour[0]!;

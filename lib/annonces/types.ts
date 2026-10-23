@@ -8,8 +8,32 @@ export type Confiance = (typeof CONFIANCES)[number];
 
 export type PrecisionLocalisation = 'logement' | 'immeuble' | 'quartier' | 'code_postal';
 
-/** Une adresse possible quand plusieurs logements restent à départager (trois au plus). */
-export type AdressePossible = { adresse: string; latitude: number; longitude: number };
+/**
+ * Une adresse possible quand plusieurs logements restent à départager (trois au plus),
+ * et la raison qui la rend cohérente (« Au point de la carte de l'annonce », « Même DPE… »).
+ */
+export type AdressePossible = { adresse: string; latitude: number; longitude: number; raison?: string };
+
+/** Les adresses possibles lues en base (jsonb) ; une valeur mal formée est ignorée. Pur. */
+export function lireAdressesPossibles(v: unknown): AdressePossible[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((x) => {
+    const p = lireAdressePossible(x);
+    return p ? [p] : [];
+  });
+}
+
+/** L'adresse choisie, si elle est bien l'une des possibles de l'annonce (rien d'autre n'est accepté). Pur. */
+export function possibleChoisie(possibles: readonly AdressePossible[], adresse: string | null | undefined): AdressePossible | null {
+  if (!adresse) return null;
+  return possibles.find((p) => p.adresse === adresse) ?? null;
+}
+
+export function lireAdressePossible(x: unknown): AdressePossible | null {
+  const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : null;
+  if (!o || typeof o.adresse !== 'string' || typeof o.latitude !== 'number' || typeof o.longitude !== 'number') return null;
+  return { adresse: o.adresse, latitude: o.latitude, longitude: o.longitude, ...(typeof o.raison === 'string' && o.raison ? { raison: o.raison } : {}) };
+}
 export type StatutAnnonce = 'active' | 'retiree';
 export type TypeVendeur = 'particulier' | 'professionnel';
 export type TypeEvenementAnnonce =
@@ -59,6 +83,8 @@ export type Annonce = {
   raisonsLocalisation: string[];
   /** Sans adresse sûre : les deux ou trois immeubles qui restent possibles. */
   adressesPossibles?: AdressePossible[];
+  /** L'une d'elles, choisie par l'agence : l'annonce s'y affiche (adresse et point déjà remplacés). */
+  adresseChoisie?: AdressePossible | null;
   /** URLs des photos du portail, quand elles ont déjà été lues. */
   photos?: string[];
 };

@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Layer, Marker, Source, useMap } from 'react-map-gl';
 import { X } from 'lucide-react';
-import { masquerSurLaCarte } from '@/lib/annonces/import/recherche';
+import { choisirAdresseImport, masquerSurLaCarte } from '@/lib/annonces/import/recherche';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
 import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
 import { notifyError } from '@/lib/notify';
-import { PastilleAjoutee, ReperesPossibles } from './AnnoncesAjoutees';
+import { LiensPossibles, PastilleAjoutee, ReperesPossibles, type GroupePossibles } from './AnnoncesAjoutees';
 
 function euros(n: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
@@ -60,13 +60,23 @@ function SecteurImport({ longitude, latitude, rayonM }: { longitude: number; lat
 /**
  * L'annonce retrouvée par son URL : la carte y vole, le point pulse et une
  * bulle surgit au-dessus (prix, adresse courte). Adresse sûre : un point.
- * Repère seulement : un disque au sol (mètres), jamais un rond figé à l'écran.
+ * Adresses possibles : reliées à la bulle, numérotées ; toucher un numéro
+ * (ou une ligne du panneau) y pose l'annonce, les autres s'estompent.
  */
 export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: string) => void }) {
   const carte = useAnnonceImportee();
   const ajoutees = useAnnoncesAjoutees();
   const { current: map } = useMap();
   const dernier = useRef<string | null>(null);
+  const possibles = useMemo(() => (carte?.approximative ? carte.adressesPossibles : []), [carte]);
+  const choisie = carte?.adresseChoisie ? (possibles.find((p) => p.adresse === carte.adresseChoisie) ?? null) : null;
+  const groupes = useMemo<GroupePossibles[]>(
+    () =>
+      carte && carte.latitude != null && carte.longitude != null && possibles.length > 0 && !choisie
+        ? [{ id: carte.url, longitude: carte.longitude, latitude: carte.latitude, possibles }]
+        : [],
+    [carte, possibles, choisie],
+  );
 
   useEffect(() => {
     if (!map || !carte || carte.latitude == null || carte.longitude == null) return;
@@ -81,15 +91,15 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
     });
   }, [map, carte]);
 
-  if (!carte || carte.surCarte === false || carte.latitude == null || carte.longitude == null) return null;
+  // Une adresse choisie : la carte s'y recentre sans changer d'échelle, les autres restent en vue.
+  useEffect(() => {
+    if (!map || !choisie) return;
+    map.easeTo({ center: [choisie.longitude, choisie.latitude], duration: 600 });
+  }, [map, choisie]);
 
-  const secteur =
-    carte.approximative ? (
-      <>
-        <SecteurImport longitude={carte.longitude} latitude={carte.latitude} rayonM={carte.rayonM ?? 300} />
-        <ReperesPossibles possibles={carte.adressesPossibles} />
-      </>
-    ) : null;
+  if (!carte || carte.surCarte === false || carte.latitude == null || carte.longitude == null) return null;
+  const point = choisie ? { longitude: choisie.longitude, latitude: choisie.latitude } : { longitude: carte.longitude, latitude: carte.latitude };
+  const incertaine = carte.approximative && !choisie;
 
   // Ajoutée : elle reste sur la carte, sous le logo de son portail. Dès que la
   // liste des annonces ajoutées la contient, c'est AnnoncesAjoutees qui la montre.
@@ -97,14 +107,20 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
     if (ajoutees.some((a) => a.id === carte.annonceId)) return null;
     return (
       <>
-        {secteur}
-        <Marker longitude={carte.longitude} latitude={carte.latitude} anchor="center" style={{ zIndex: 5 }}>
+        {incertaine ? (
+          <>
+            <SecteurImport longitude={carte.longitude} latitude={carte.latitude} rayonM={carte.rayonM ?? 300} />
+            <LiensPossibles sourceId="priimo-import-liens" groupes={groupes} />
+            <ReperesPossibles possibles={possibles} />
+          </>
+        ) : null}
+        <Marker longitude={point.longitude} latitude={point.latitude} anchor="center" style={{ zIndex: 5 }}>
           <PastilleAjoutee
             key={carte.annonceId}
             portailCle={carte.portailCle}
             portail={carte.portail}
             prix={carte.prix}
-            approximative={carte.approximative}
+            approximative={incertaine}
             onClick={() => onOuvrir?.(carte.annonceId!)}
             onRetirer={() => void retirerOuPrevenir(carte.annonceId!, notifyError)}
           />
@@ -113,11 +129,15 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
     );
   }
 
-  const rue = carte.adresse
-    ? carte.adresse.replace(/\s\d{5}\s.*$/, '')
-    : carte.approximative
-      ? 'Secteur approximatif'
-      : '';
+  const rue = choisie
+    ? choisie.adresse.replace(/\s\d{5}\s.*$/, '')
+    : carte.adresse
+      ? carte.adresse.replace(/\s\d{5}\s.*$/, '')
+      : carte.approximative
+        ? possibles.length > 1
+          ? `${possibles.length} adresses possibles`
+          : 'Secteur approximatif'
+        : '';
   const bulle = (
     <span
       key={carte.url}
@@ -144,14 +164,20 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
 
   return (
     <>
-      {secteur}
-      <Marker longitude={carte.longitude} latitude={carte.latitude} anchor="bottom" style={{ zIndex: 5 }}>
-        {carte.approximative ? (
+      {incertaine ? (
+        <>
+          <SecteurImport longitude={carte.longitude} latitude={carte.latitude} rayonM={carte.rayonM ?? 300} />
+          <LiensPossibles sourceId="priimo-import-liens" groupes={groupes} />
+        </>
+      ) : null}
+      {possibles.length > 0 ? <ReperesPossibles possibles={possibles} choisie={choisie?.adresse ?? null} masquerChoisie onChoisir={choisirAdresseImport} /> : null}
+      <Marker longitude={point.longitude} latitude={point.latitude} anchor="bottom" style={{ zIndex: 5 }}>
+        {incertaine ? (
           <span aria-label={rue || 'Secteur approximatif de l’annonce'} className="relative flex flex-col items-center">
             {bulle}
           </span>
         ) : (
-          <span aria-label={carte.adresse ?? 'Annonce'} className="relative flex flex-col items-center">
+          <span aria-label={choisie?.adresse ?? carte.adresse ?? 'Annonce'} className="relative flex flex-col items-center">
             {bulle}
             <span className="relative flex size-5 items-center justify-center">
               <span className="absolute inline-flex size-full rounded-full bg-accent/50 motion-safe:animate-ping" />

@@ -2,13 +2,14 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowDown, ExternalLink, X } from 'lucide-react';
+import ChoixAdresses from './ChoixAdresses';
 import PhotosAnnonce from './PhotosAnnonce';
 import { rueSeule } from '@/lib/ban-recherche';
 import { noteDepuisAnnonce } from '@/lib/pipeline/entrer';
 import { envoyerAuPipeline } from '@/lib/pipeline/envoyer';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
 import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
-import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
+import { rafraichirAnnoncesSecteur, useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
 import { notifyError } from '@/lib/notify';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
@@ -113,7 +114,15 @@ export default function AnnonceVolet({
   const importee = useAnnonceImportee();
   const surLaCarte = ajoutees.some((a) => a.id === annonce.id) || importee?.annonceId === annonce.id;
   const [photos, setPhotos] = useState<string[] | null>(() => photosConnues(annonce));
-  const lieu = libelleAdresse(annonce);
+  // Les adresses possibles : l'agence en choisit une (ou revient à toutes), tout de suite visible ici.
+  const possibles = annonce.confiance === 'incertaine' ? (annonce.adressesPossibles ?? []) : [];
+  // Le choix tout juste fait vaut pour cette annonce seulement ; sinon, celui gardé pour l'agence.
+  const [choixLocal, setChoixLocal] = useState<{ id: string; adresse: string | null } | null>(null);
+  const choix = choixLocal?.id === annonce.id ? choixLocal.adresse : (annonce.adresseChoisie?.adresse ?? null);
+  const setChoix = (adresse: string | null) => setChoixLocal({ id: annonce.id, adresse });
+  const [choixEnCours, setChoixEnCours] = useState(false);
+  const elue = possibles.find((p) => p.adresse === choix) ?? null;
+  const lieu = elue ? { ligne: elue.adresse.replace(/\s\d{5}\s.*$/, ''), probable: false } : libelleAdresse(annonce);
   const parcelle = annonce.parcelleIds[0] ?? null;
   const baisse = baisseCumulee(annonce);
   const m2 = prixM2(annonce);
@@ -121,19 +130,41 @@ export default function AnnonceVolet({
   const dpe = parseDpeLetter(annonce.dpe);
   const particulier = annonce.typeVendeur === 'particulier';
   const retiree = annonce.statut === 'retiree';
-  const approx = repereApproximatif(annonce) || annonce.confiance === 'incertaine';
-  const rueAnnonce =
-    annonce.adresse?.trim() || [annonce.adresseNumero, annonce.adresseVoie].filter(Boolean).join(' ').trim();
+  const approx = !elue && (repereApproximatif(annonce) || annonce.confiance === 'incertaine');
+  const rueAnnonce = elue
+    ? elue.adresse
+    : annonce.adresse?.trim() || [annonce.adresseNumero, annonce.adresseVoie].filter(Boolean).join(' ').trim();
+  const lat = elue ? elue.latitude : annonce.latitude;
+  const lon = elue ? elue.longitude : annonce.longitude;
   const adressePipeline =
-    !approx && annonce.latitude != null && annonce.longitude != null && rueAnnonce
+    !approx && lat != null && lon != null && rueAnnonce
       ? {
           address: rueSeule(rueAnnonce, annonce.codePostal ?? undefined, annonce.ville ?? undefined),
           city: annonce.ville,
           postalCode: annonce.codePostal,
-          latitude: annonce.latitude,
-          longitude: annonce.longitude,
+          latitude: lat,
+          longitude: lon,
         }
       : null;
+
+  async function choisir(adresse: string | null) {
+    const avant = choix;
+    setChoix(adresse);
+    setChoixEnCours(true);
+    const res = await fetch('/api/dashboard/annonces/adresse', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ annonceId: annonce.id, adresse }),
+    }).catch(() => null);
+    setChoixEnCours(false);
+    if (!res?.ok) {
+      setChoix(avant);
+      const json = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
+      notifyError(json?.error ?? 'Choix impossible');
+      return;
+    }
+    rafraichirAnnoncesSecteur();
+  }
   const portails = soeurs.length > 0 ? soeurs : [annonce];
   const portailsDistincts = portailsUniques(portails);
   const marques = portailsDistincts.filter((p) => MARQUE_HAUT.has(p.portail));
@@ -240,6 +271,11 @@ export default function AnnonceVolet({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+        {possibles.length > 0 && surLaCarte ? (
+          <div className="mb-3">
+            <ChoixAdresses possibles={possibles} choisie={choix} onChoisir={(a) => void choisir(a)} occupe={choixEnCours} />
+          </div>
+        ) : null}
         <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />
         {particulier && annonce.refusDemarchage ? (
           <p className="mb-3 rounded-[12px] bg-black/[0.04] px-3 py-2 text-[13px] text-text-strong">

@@ -25,7 +25,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { lireAnnonceParPortail } from '@/lib/annonces/lire';
 import { libellePortail } from '@/lib/annonces/presenter';
-import type { AdressePossible, Annonce, PrecisionLocalisation } from '@/lib/annonces/types';
+import { lireAdressesPossibles, possibleChoisie, type AdressePossible, type Annonce, type PrecisionLocalisation } from '@/lib/annonces/types';
 import { PLAFONDS_LECTURE_ANNONCE, plafondsLecturePage } from '@/lib/quota/regles';
 import { reserverQuota } from '@/lib/quota/reserver';
 import { lireBienici } from './bienici';
@@ -210,14 +210,7 @@ export function carteDepuisColonnes(r: Record<string, unknown>, importId: string
 }
 
 /** Les adresses possibles gardées en base (jsonb) ; une valeur mal formée est ignorée. */
-export function adressesPossiblesDe(v: unknown): AdressePossible[] {
-  if (!Array.isArray(v)) return [];
-  return v.flatMap((x) => {
-    const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : null;
-    if (!o || typeof o.adresse !== 'string' || typeof o.latitude !== 'number' || typeof o.longitude !== 'number') return [];
-    return [{ adresse: o.adresse, latitude: o.latitude, longitude: o.longitude }];
-  });
-}
+export const adressesPossiblesDe: (v: unknown) => AdressePossible[] = lireAdressesPossibles;
 
 /** Colonne `adresses_possibles` pas encore créée (migration 20261021) : PostgREST la dit introuvable. */
 function colonnePossiblesAbsente(message: string | undefined): boolean {
@@ -408,7 +401,51 @@ export async function importerUrl(admin: Db, db: Db, qui: Qui, u: UrlAnnonce, on
  * déjà connue (même portail, même identifiant) n'est pas dupliquée : seul le
  * lien avec l'agence est posé.
  */
-export async function ajouterImport(admin: Db, qui: Qui, importId: string): Promise<{ annonceId: string } | { erreur: string }> {
+/** Colonne `annonces_agences.adresse_choisie` pas encore créée (migration 20261023). */
+function colonneChoixAbsente(message: string | undefined): boolean {
+  return /adresse_choisie/.test(message ?? '');
+}
+
+/**
+ * L'agence choisit l'une des adresses possibles de l'annonce, ou revient à
+ * toutes (`adresse` null). Le choix est celui de l'agence : l'annonce publique
+ * garde ses possibles, d'autres agences peuvent choisir autrement.
+ */
+export async function choisirAdresseAnnonce(
+  admin: Db,
+  qui: Qui,
+  annonceId: string,
+  adresse: string | null,
+): Promise<{ adresseChoisie: AdressePossible | null } | { erreur: string }> {
+  let choix: AdressePossible | null = null;
+  if (adresse) {
+    const { data, error } = await admin.from('annonces').select('adresses_possibles').eq('id', annonceId).maybeSingle();
+    if (error || !data) return { erreur: 'Annonce introuvable' };
+    choix = possibleChoisie(adressesPossiblesDe((data as { adresses_possibles?: unknown }).adresses_possibles), adresse);
+    if (!choix) return { erreur: 'Cette adresse n’est pas l’une des possibles' };
+  }
+  const { data: lien, error } = await admin
+    .from('annonces_agences')
+    .update({ adresse_choisie: choix })
+    .eq('annonce_id', annonceId)
+    .eq('agency_id', qui.agencyId)
+    .select('annonce_id')
+    .maybeSingle();
+  if (error) {
+    console.error('[import] choix d’adresse', error.message);
+    return { erreur: colonneChoixAbsente(error.message) ? 'Choix d’adresse indisponible pour le moment' : 'Choix impossible' };
+  }
+  if (!lien) return { erreur: 'Annonce absente de mes annonces' };
+  return { adresseChoisie: choix };
+}
+
+export async function ajouterImport(
+  admin: Db,
+  qui: Qui,
+  importId: string,
+  /** L'adresse choisie parmi les possibles avant l'ajout ; absente : toutes restent liées. */
+  adresseChoisie: string | null = null,
+): Promise<{ annonceId: string; adresseChoisie?: AdressePossible | null } | { erreur: string }> {
   const { data, error } = await admin
     .from('annonces_imports')
     .select('id, statut, resultat, annonce_id, portail, id_portail')
@@ -452,7 +489,10 @@ export async function ajouterImport(admin: Db, qui: Qui, importId: string): Prom
     return { erreur: tableAbsente(errLien) ? 'Ajout indisponible pour le moment' : 'Ajout impossible' };
   }
   await admin.from('annonces_imports').update({ annonce_id: annonceId }).eq('id', importId);
-  return { annonceId };
+  if (!adresseChoisie) return { annonceId };
+  const choix = await choisirAdresseAnnonce(admin, qui, annonceId, adresseChoisie);
+  // L'annonce est ajoutée même si le choix n'a pas pu être gardé : l'agent le refera dans la fiche.
+  return { annonceId, adresseChoisie: 'erreur' in choix ? null : choix.adresseChoisie };
 }
 
 /** « Retirer de la carte » : le lien de l'agence saute. L'annonce publique reste. */

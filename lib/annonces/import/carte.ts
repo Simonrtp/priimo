@@ -29,6 +29,8 @@ export type CarteImport = {
   rayonM: number | null;
   /** Sans adresse sûre : les immeubles possibles, à vérifier sur place. */
   adressesPossibles: AdressePossible[];
+  /** L'une d'elles, désignée par l'agent (avant ou après l'ajout) ; null : toutes restent liées. */
+  adresseChoisie?: string | null;
   parcelleId: string | null;
   photo: string | null;
   /** Faux quand l'agent a retiré le point : la fiche reste, la carte non. */
@@ -96,6 +98,7 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     approximative: a.confiance === 'incertaine',
     rayonM: rayonDuRepere(a.confiance, a.localisationPrecision, null),
     adressesPossibles: a.confiance === 'incertaine' ? (a.adressesPossibles ?? []) : [],
+    adresseChoisie: a.adresseChoisie?.adresse ?? null,
     parcelleId: a.parcelleIds[0] ?? null,
     photo: null,
   };
