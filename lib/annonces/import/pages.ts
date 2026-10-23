@@ -41,6 +41,20 @@ function texte(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? decoder(v.trim()) : null;
 }
 
+/** Une fourchette de dépenses d'énergie plausible (bornes à environ ±16 % du coût du DPE), sinon rien. */
+export function fourchetteDepenses(min: number | null, max: number | null): FicheAnnonce['depensesEnergie'] {
+  if (min == null || max == null || !(min >= 50 && max > min && max <= 30_000 && max / min <= 1.8)) return null;
+  return { min, max };
+}
+
+const RE_DEPENSES = /(?:d[ée]penses?|co[uû]ts?|montant)[^€\n]{0,90}?[ée]nergi[^€\n]{0,90}?entre\s*(\d[\d\s.,]*)\s*(?:€|euros?)?\s*et\s*(\d[\d\s.,]*)\s*(?:€|euros?)/i;
+
+/** « Montant estimé des dépenses annuelles d'énergie […] : entre 667 et 890 € par an. » */
+export function depensesDuTexte(source: string | null | undefined): FicheAnnonce['depensesEnergie'] {
+  const m = (source ?? '').replace(/[  ]/g, ' ').match(RE_DEPENSES);
+  return m ? fourchetteDepenses(nombre(m[1]), nombre(m[2])) : null;
+}
+
 function chemin(o: unknown, ...cles: string[]): unknown {
   let x = o;
   for (const c of cles) {
@@ -202,6 +216,8 @@ export function lireSeLoger(html: string): Partielle | null {
     ges,
     gesKgM2: gesKg,
     dpeApresJuillet2021: apres2021,
+    // « estimationDescription » : la phrase légale, quelque part dans la fiche.
+    depensesEnergie: depensesDuTexte(JSON.stringify(classified)),
     anneeConstruction: annee,
     chauffage,
     codePostal: texte(adresse.zipCode),
@@ -269,6 +285,7 @@ export function lireLeboncoin(html: string): Partielle | null {
     consoKwhM2: conso,
     ges: lettre(valeur('ges')),
     gesKgM2: gesKg,
+    depensesEnergie: fourchetteDepenses(nombre(valeur('annual_energy_budget_min')), nombre(valeur('annual_energy_budget_max'))),
     codePostal: texte(loc.zipcode),
     ville: texte(loc.city),
     quartier,
@@ -367,6 +384,8 @@ export function chiffresDpeDuTexte(source: string | null | undefined): Partielle
   const r: Partielle = {};
   if (conso != null && conso > 0 && conso < 1000) r.consoKwhM2 = conso;
   if (gesKg != null && gesKg >= 0 && gesKg < 300) r.gesKgM2 = gesKg;
+  const depenses = depensesDuTexte(t);
+  if (depenses) r.depensesEnergie = depenses;
   if (date) r.dateDpe = `${date[3]}-${date[2]!.padStart(2, '0')}-${date[1]!.padStart(2, '0')}`;
   return r;
 }

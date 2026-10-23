@@ -10,7 +10,7 @@
  * Les données structurées l'emportent toujours sur la lecture du texte.
  * Une adresse écrite par le site est ensuite retrouvée au numéro près (BAN).
  */
-import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
+import { chiffresDpeDuTexte, depensesDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, texteVisible, type Partielle } from './pages';
 import { rueDepuisTexte, valeursFiables } from './localiser';
 import { ficheDepuisExtraction, voieBan, zoneDepuisAdresse, zoneDepuisAdressePubliee } from './extraction';
 import { lireSeLogerNeuf } from './seloger-neuf';
@@ -71,7 +71,9 @@ export function lecturePortail(u: UrlAnnonce, html: string): Partielle {
           ? lirePap(html)
           : null;
   const structure = completer(portail ?? {}, lireJsonLd(html) ?? {});
-  return completer(structure, chiffresDpeDuTexte(structure.description));
+  const lue = completer(structure, chiffresDpeDuTexte(structure.description));
+  // La fourchette légale des dépenses d'énergie figure souvent hors de la description.
+  return lue.depensesEnergie ? lue : completer(lue, { depensesEnergie: depensesDuTexte(texteVisible(html)) });
 }
 
 /** Faut-il demander à Mon assistant ? Seulement s'il manque de quoi afficher ou localiser. */

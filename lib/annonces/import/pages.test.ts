@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ficheDepuisPage, lectureIncomplete } from './fiche';
-import { chiffresDpeDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, pageInexploitable, texteVisible } from './pages';
+import { chiffresDpeDuTexte, depensesDuTexte, lireJsonLd, lireLeboncoin, lirePap, lireSeLoger, pageInexploitable, texteVisible } from './pages';
 import { analyserUrl } from './url';
 
 const FICHE_PAP = `
@@ -314,6 +314,44 @@ describe('ficheDepuisPage', () => {
     });
     assert.equal(appels, 0);
     assert.equal(fiche!.consoKwhM2, 214);
+  });
+});
+
+describe('dépenses annuelles d’énergie, l’empreinte du logement (22/10/2026)', () => {
+  it('Leboncoin : les attributs annual_energy_budget_min / max', () => {
+    const p = lireLeboncoin(
+      pageLeboncoin({
+        ...AD_LBC,
+        attributes: [
+          ...AD_LBC.attributes,
+          { key: 'annual_energy_budget_min', value: '1680', value_label: '1680 €' },
+          { key: 'annual_energy_budget_max', value: '2310', value_label: '2310 €' },
+        ],
+      }),
+    )!;
+    assert.deepEqual(p.depensesEnergie, { min: 1680, max: 2310 });
+  });
+
+  it('SeLoger : la phrase légale, où qu’elle soit dans la fiche', () => {
+    const p = lireSeLoger(
+      pageSeLoger({
+        ...CLASSIFIED,
+        sections: {
+          ...(CLASSIFIED as { sections: Record<string, unknown> }).sections,
+          energyInfos: [
+            { type: 'estimationDescription', value: 'Montant estimé des dépenses annuelles d’énergie pour un usage standard : entre 667 et 890 € par an.' },
+          ],
+        },
+      }),
+    )!;
+    assert.deepEqual(p.depensesEnergie, { min: 667, max: 890 });
+  });
+
+  it('texte libre : milliers espacés, euros écrits, fourchette absurde refusée', () => {
+    assert.deepEqual(depensesDuTexte('Coûts annuels d’énergie estimés : entre 1 230 € et 1 710 € par an'), { min: 1230, max: 1710 });
+    assert.deepEqual(depensesDuTexte('Dépenses d’énergie : entre 880 euros et 1 230 euros'), { min: 880, max: 1230 });
+    assert.equal(depensesDuTexte('Mensualités : entre 1 200 € et 1 500 €'), null);
+    assert.equal(depensesDuTexte('Dépenses d’énergie : entre 100 € et 900 €'), null);
   });
 });
 

@@ -301,6 +301,49 @@ describe('garde-fous de l’audit du 21/10/2026 (cas réels)', () => {
     assert.equal(decider(fiche({ codePostal: '75020', zone, etage: 5 }), [dpe(horsCercle)], 'zone').statut, 'probable');
   });
 
+  it('empreinte des dépenses d’énergie : 73 bd Richard Lenoir retrouvé, « 5 rue Titon » écarté (cas réels)', () => {
+    // 75 m² à l’annonce, 71,5 m² au DPE, étage illisible : sans l’empreinte, rien n’était affirmé.
+    const lenoir = fiche({ surface: 75, etage: 2, dpe: 'E', consoKwhM2: 241, ges: 'E', gesKgM2: 59, codePostal: '75011', depensesEnergie: { min: 2320, max: 3180 } });
+    const d1 = decider(lenoir, [dpe({ adresse_ban: '73 Boulevard Richard Lenoir 75011 Paris', code_postal_ban: '75011', surface_habitable_logement: 71.5, complement_adresse_logement: '1-Bâtiment n°1-1-LogZone', etiquette_dpe: 'E', conso_5_usages_par_m2_ep: 241.5, etiquette_ges: 'E', emission_ges_5_usages_par_m2: 59, cout_total_5_usages: 2750 })], 'code_postal');
+    assert.equal(d1.statut, 'certaine');
+    // Studio au 11e : le DPE d’un 1er étage, 909 €/an pour 778 au milieu de la fourchette.
+    const titon = fiche({ surface: 31, etage: 11, dpe: 'D', consoKwhM2: 234, ges: 'D', gesKgM2: 33, codePostal: '75011', depensesEnergie: { min: 667, max: 890 } });
+    const d2 = decider(titon, [dpe({ adresse_ban: '5 Rue Titon 75011 Paris', code_postal_ban: '75011', surface_habitable_logement: 31.2, complement_adresse_logement: null, etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 233.3, etiquette_ges: 'D', emission_ges_5_usages_par_m2: 32, cout_total_5_usages: 909.3 })], 'code_postal');
+    assert.equal(d2.statut, 'incertaine');
+  });
+
+  it('un coût qui coïncide ne pèse rien contre un GES contraire (« 10 rue Émile Lepeu », 23/10/2026)', () => {
+    const titon = fiche({ surface: 31, etage: 11, dpe: 'D', consoKwhM2: 234, ges: 'D', gesKgM2: 33, codePostal: '75011', depensesEnergie: { min: 667, max: 890 } });
+    const lepeu = dpe({ adresse_ban: '10 Rue Emile Lepeu 75011 Paris', code_postal_ban: '75011', surface_habitable_logement: 32, complement_adresse_logement: null, etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 236.6, etiquette_ges: 'D', emission_ges_5_usages_par_m2: 49.3, cout_total_5_usages: 783 });
+    assert.equal(decider(titon, [lepeu], 'code_postal').statut, 'incertaine');
+    assert.deepEqual(adressesPossibles(titon, [lepeu]), []);
+  });
+
+  it('même coût, conso à 3 kWh : probable, pas sûre (55 bd de Charonne)', () => {
+    const f = fiche({ surface: 42.12, etage: null, dpe: 'D', consoKwhM2: 172, ges: 'D', gesKgM2: 36, codePostal: '75011', depensesEnergie: { min: 580, max: 830 } });
+    const d = decider(f, [dpe({ adresse_ban: '55 Boulevard de Charonne 75011 Paris', code_postal_ban: '75011', surface_habitable_logement: 42.3, complement_adresse_logement: 'Etage 1', etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 175, etiquette_ges: 'D', emission_ges_5_usages_par_m2: 37, cout_total_5_usages: 710 })], 'code_postal');
+    assert.equal(d.statut, 'probable');
+  });
+
+  it('même date de diagnostic et même coût : identité prouvée malgré la surface annoncée (Annecy, 23/10/2026)', () => {
+    const f = fiche({ surface: 183, etage: 3, dpe: 'D', consoKwhM2: 192, ges: 'B', gesKgM2: null, dateDpe: '2025-04-16', codePostal: '74000', zone: { latitude: 45.8995, longitude: 6.1262, rayonM: 800 }, depensesEnergie: { min: 1978, max: 2677 } });
+    const filaterie = dpe({ adresse_ban: '10 Rue Filaterie 74000 Annecy', code_postal_ban: '74000', _geopoint: '45.8990,6.1270', surface_habitable_logement: 122, complement_adresse_logement: 'Etage : 3ème', etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 192.1, etiquette_ges: 'B', emission_ges_5_usages_par_m2: 7, cout_total_5_usages: 2327, date_etablissement_dpe: '2025-04-16' });
+    assert.equal(decider(f, [filaterie], 'zone').statut, 'certaine');
+    // Sans la date, une surface à 61 m² reste un autre logement.
+    assert.equal(decider({ ...f, dateDpe: null }, [filaterie], 'zone').statut, 'incertaine');
+  });
+
+  it('Leboncoin en lettres seules : la fourchette des dépenses cherche dans tout le code postal et départage', async () => {
+    const f = fiche({ consoKwhM2: null, gesKgM2: null, dpe: 'D', ges: 'D', surface: 76, etage: 4, codePostal: '74100', zone: { latitude: 46.19, longitude: 6.237, rayonM: 800 }, depensesEnergie: { min: 1150, max: 1570 } });
+    const requetes = requetesDpe(f);
+    assert.ok(requetes.some((r) => r.params.code_postal_ban_eq === '74100' && r.params.cout_total_5_usages_gte === '1346.4' && r.params.cout_total_5_usages_lte === '1373.6'));
+    const bon = dpe({ numero_dpe: 'B', adresse_ban: '12 Rue du Parc 74100 Annemasse', code_postal_ban: '74100', _geopoint: '46.1912,6.2380', surface_habitable_logement: 75.8, complement_adresse_logement: 'Etage 4', etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 180, etiquette_ges: 'D', emission_ges_5_usages_par_m2: 38, cout_total_5_usages: 1362 });
+    const sosie = dpe({ numero_dpe: 'S', adresse_ban: '3 Rue Faucigny 74100 Annemasse', code_postal_ban: '74100', _geopoint: '46.1930,6.2350', surface_habitable_logement: 76.4, complement_adresse_logement: null, etiquette_dpe: 'D', conso_5_usages_par_m2_ep: 181, etiquette_ges: 'D', emission_ges_5_usages_par_m2: 38, cout_total_5_usages: 1376 });
+    const d = decider(f, [bon, sosie], 'zone');
+    assert.equal(d.statut, 'certaine');
+    assert.equal(d.meilleur?.dpe.adresse_ban, '12 Rue du Parc 74100 Annemasse');
+  });
+
   it('l’adresse publiée au point près n’a pas besoin de la surface exacte', () => {
     const f = fiche({ surface: 36, etage: null, codePostal: '75020', zone: { latitude: 48.8553, longitude: 2.4088, rayonM: 0 } });
     const d = decider(f, [dpe({ surface_habitable_logement: 33.1, code_postal_ban: '75020' })], 'zone');

@@ -23,6 +23,12 @@ export type FicheAnnonce = {
   /** false : DPE d'avant juillet 2021, absent de la base ADEME v2. */
   dpeApresJuillet2021: boolean | null;
   dateDpe: string | null;
+  /**
+   * Dépenses annuelles d'énergie publiées (« entre 1 680 € et 2 310 € par an »),
+   * obligatoires dans l'annonce depuis 2023 : leur milieu est le coût du DPE
+   * (`cout_total_5_usages`) à quelques euros près, une empreinte du logement.
+   */
+  depensesEnergie?: { min: number; max: number } | null;
   anneeConstruction: number | null;
   chauffage: string | null;
   codePostal: string | null;

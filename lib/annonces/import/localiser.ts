@@ -47,6 +47,7 @@ const CHAMPS = [
   'type_energie_principale_chauffage',
   'annee_construction',
   'periode_construction',
+  'cout_total_5_usages',
 ].join(',');
 
 /** Fenêtres de recherche autour des valeurs de l'annonce (souvent arrondies à l'unité). */
@@ -73,6 +74,8 @@ const ECART_SURFACE_MAX_M2 = 6;
  * seul l'étage confirmé autorise alors une adresse (banc d'essai du 22/10/2026).
  */
 const ECART_SURFACE_SUR_M2 = 1.5;
+/** Avance minimale d'une adresse « probable » quand l'annonce ne publie que les lettres du DPE. */
+const ECART_PROBABLE_LETTRES = 15;
 const MARGE_HORS_REPERE_MAX_M = 400;
 
 /**
@@ -81,7 +84,7 @@ const MARGE_HORS_REPERE_MAX_M = 400;
  * resservie (le 22/10/2026, « 14 rue du Surmelin », issu d'une règle corrigée
  * le matin même, revenait du cache pendant 7 jours).
  */
-export const MOTEUR_LOCALISATION_DEPUIS = '2026-10-22T12:00:00Z';
+export const MOTEUR_LOCALISATION_DEPUIS = '2026-10-23T08:00:00Z';
 
 /** (score minimal du meilleur, écart minimal avec la meilleure AUTRE adresse) — comme le pipeline. */
 const SEUILS = { certaine: [60, 25], probable: [40, 10] } as const;
@@ -125,6 +128,56 @@ export function valeursFiables(f: Pick<FicheAnnonce, 'consoKwhM2' | 'gesKgM2' | 
 
 export type RequeteDpe = { params: Record<string, string>; portee: 'zone' | 'code_postal' };
 
+/* -------------------------------------------------------------------------- */
+/*                  Empreinte : les dépenses annuelles d'énergie              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La fourchette légale de l'annonce (« entre 2 320 et 3 180 € par an ») est
+ * centrée sur le coût du DPE, bornes arrondies à la dizaine : 2 750 € au milieu,
+ * 2 750 € dans la base (73 bd Richard Lenoir) ; 1 055 / 1 057 (55 bd de Charonne) ;
+ * 1 360 / 1 358 (24 rue de Lappe). Un autre logement s'en écarte : 778 / 909
+ * (« 5 rue Titon »), 705 / 691 (58 bd de Charonne). Mesuré le 22/10/2026.
+ */
+export function milieuDepenses(f: Pick<FicheAnnonce, 'depensesEnergie'>): number | null {
+  const d = f.depensesEnergie;
+  return d && d.max > d.min ? (d.min + d.max) / 2 : null;
+}
+const ecartDepensesEgal = (milieu: number) => Math.max(6, milieu * 0.004);
+const ecartDepensesAutre = (milieu: number) => Math.max(12, milieu * 0.01);
+
+/** 'egal' : ce DPE est celui de l'annonce ; 'autre' : un autre logement ; null : rien à comparer. */
+export function accordDepenses(f: Pick<FicheAnnonce, 'depensesEnergie'>, dpe: LigneDpe): 'egal' | 'autre' | null {
+  const milieu = milieuDepenses(f);
+  const cout = num(dpe.cout_total_5_usages);
+  if (milieu == null || cout == null) return null;
+  const e = Math.abs(cout - milieu);
+  if (e <= ecartDepensesEgal(milieu)) return 'egal';
+  return e > ecartDepensesAutre(milieu) ? 'autre' : null;
+}
+
+/** Par l'empreinte seule : Leboncoin et PAP n'ont souvent que des lettres, mais la fourchette est là. */
+function requetesDepenses(f: FicheAnnonce): RequeteDpe[] {
+  const milieu = milieuDepenses(f);
+  if (milieu == null) return [];
+  const lieux: { lieu: Record<string, string>; portee: RequeteDpe['portee'] }[] = [];
+  const z = f.zone;
+  if (z) lieux.push({ lieu: { geo_distance: `${z.longitude},${z.latitude},${Math.round(z.rayonM + MARGE_HORS_REPERE_MAX_M)}` }, portee: 'zone' });
+  if (f.codePostal && /^\d{5}$/.test(f.codePostal)) lieux.push({ lieu: { code_postal_ban_eq: f.codePostal }, portee: 'code_postal' });
+  const requetes: RequeteDpe[] = [];
+  for (const { lieu, portee } of lieux) {
+    const base: Record<string, string> = { ...lieu };
+    fourchette(base, 'cout_total_5_usages', milieu, ecartDepensesAutre(milieu));
+    if (f.surface) {
+      const avecSurface = { ...base };
+      fourchette(avecSurface, 'surface_habitable_logement', f.surface, ECART_SURFACE_MAX_M2);
+      requetes.push({ params: avecSurface, portee });
+    }
+    requetes.push({ params: base, portee });
+  }
+  return requetes;
+}
+
 function fourchette(params: Record<string, string>, champ: string, valeur: number, fenetre: number) {
   params[`${champ}_gte`] = String(Math.round((valeur - fenetre) * 10) / 10);
   params[`${champ}_lte`] = String(Math.round((valeur + fenetre) * 10) / 10);
@@ -154,7 +207,7 @@ function requetesVoie(f: FicheAnnonce, conso: number | null, ges: number | null)
 
 export function requetesDpe(f: FicheAnnonce): RequeteDpe[] {
   const { conso, ges } = valeursFiables(f);
-  return [...requetesVoie(f, conso, ges), ...requetesHorsVoie(f, conso, ges)];
+  return [...requetesVoie(f, conso, ges), ...requetesHorsVoie(f, conso, ges), ...requetesDepenses(f)];
 }
 
 function requetesHorsVoie(f: FicheAnnonce, conso: number | null, ges: number | null): RequeteDpe[] {
@@ -434,6 +487,13 @@ export function scorerCandidat(f: FicheAnnonce, dpe: LigneDpe): { score: number;
     else if (e <= 2) note(6, `GES ${gesD} kg CO₂/m² ≈ annonce ${ges}`);
     else if (e > 4) note(-20, `GES ${gesD} kg CO₂/m² ≠ annonce ${ges}`);
   }
+  const depenses = accordDepenses(f, dpe);
+  if (depenses) {
+    const libelle = `dépenses d'énergie ${Math.round(num(dpe.cout_total_5_usages)!)} €/an`;
+    if (depenses === 'autre') note(-35, `${libelle} ≠ annonce ${Math.round(milieuDepenses(f)!)}`);
+    // Un coût qui coïncide malgré une conso ou des émissions contraires ne prouve rien.
+    else if (!chiffresContredits(f, dpe) && consoCompatible(f, dpe)) note(35, `${libelle} = annonce ${Math.round(milieuDepenses(f)!)}`);
+  }
   if (f.dpeApresJuillet2021 !== false) {
     // Depuis 2021, l'étiquette du DPE est la pire des classes énergie et climat ;
     // SeLoger affiche la classe énergie seule (E à 325 kWh, GES F → étiquette F).
@@ -528,6 +588,39 @@ function cleAdresse(adresse: unknown): string {
   return texteNormalise(String(adresse ?? '')).replace(/\s\d{5}\b.*$/, '');
 }
 
+/** Un chiffre publié qui contredit (conso à plus de 8 kWh, GES à plus de 4 kg) : un autre logement. */
+function chiffresContredits(f: FicheAnnonce, dpe: LigneDpe): boolean {
+  const { conso, ges } = valeursFiables(f);
+  const c = num(dpe.conso_5_usages_par_m2_ep);
+  const g = num(dpe.emission_ges_5_usages_par_m2);
+  return (conso != null && c != null && Math.abs(conso - c) > 8) || (ges != null && g != null && Math.abs(ges - g) > 4);
+}
+
+/**
+ * Le coût ne vaut empreinte qu'avec une conso publiée retrouvée à 3 kWh près : à
+ * ±6 €, des dizaines de logements d'un arrondissement partagent le même coût
+ * (banc d'essai du 23/10/2026, vrai DPE retiré : 24 jumeaux sur 70 affirmés).
+ */
+function consoCompatible(f: FicheAnnonce, dpe: LigneDpe): boolean {
+  const { conso } = valeursFiables(f);
+  const c = num(dpe.conso_5_usages_par_m2_ep);
+  return conso == null || c == null || Math.abs(conso - c) <= 3;
+}
+
+/** Les chiffres publiés retrouvés à l'unité près (rien de publié : rien à redire). */
+function chiffresExacts(f: FicheAnnonce, dpe: LigneDpe): boolean {
+  const { conso, ges } = valeursFiables(f);
+  const c = num(dpe.conso_5_usages_par_m2_ep);
+  const g = num(dpe.emission_ges_5_usages_par_m2);
+  return !(conso != null && c != null && Math.abs(conso - c) > 1) && !(ges != null && g != null && Math.abs(ges - g) > 1);
+}
+
+/** Même jour de diagnostic que l'annonce (à un jour près). */
+function memeDateDpe(f: FicheAnnonce, dpe: LigneDpe): boolean {
+  const e = f.dateDpe && dpe.date_etablissement_dpe ? jours(f.dateDpe, String(dpe.date_etablissement_dpe)) : null;
+  return e != null && Math.abs(e) <= 1;
+}
+
 export type Decision = {
   statut: 'certaine' | 'probable' | 'incertaine';
   meilleur: { dpe: LigneDpe; score: number; raisons: string[] } | null;
@@ -553,29 +646,49 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
   let statut: Decision['statut'] = 'incertaine';
   if (meilleur.score >= SEUILS.certaine[0] && ecart >= SEUILS.certaine[1]) statut = 'certaine';
   else if (meilleur.score >= SEUILS.probable[0] && ecart >= SEUILS.probable[1]) statut = 'probable';
-  // Code postal entier sans émissions chiffrées : on n'affirme une adresse que sans hésitation.
+  // Un chiffre publié qui contredit ferme la porte, même si le coût coïncide (« 10 rue Émile Lepeu » :
+  // 783 €/an pour 779, mais 49 kg de CO₂ pour 33). L'empreinte des dépenses d'énergie : à quelques
+  // euros près et sans contradiction, ce DPE est celui de l'annonce ; loin, c'est un autre logement.
+  const contredit = chiffresContredits(f, meilleur.dpe);
+  const accord = accordDepenses(f, meilleur.dpe);
+  if (accord === 'autre' || contredit) statut = 'incertaine';
+  const empreinte = accord === 'egal' && !contredit && consoCompatible(f, meilleur.dpe) ? 'egal' : null;
+  // Même date de diagnostic et même coût : l'identité du DPE est prouvée, quoi que dise la surface
+  // de l'annonce (10 rue Filaterie, Annecy : 183 m² annoncés, 122 au DPE du 16/04/2025).
+  const prouve = empreinte === 'egal' && memeDateDpe(f, meilleur.dpe);
   const { conso, ges } = valeursFiables(f);
-  if (statut === 'probable' && portee === 'code_postal' && ges == null) statut = 'incertaine';
   // Sans conso chiffrée, lettre et surface ne départagent que dans un repère serré :
   // à 650 m, un 32 m² classé E a des dizaines de jumeaux, et le vrai DPE peut manquer.
-  if (conso == null && !(f.zone && f.zone.rayonM <= RAYON_MAX_SANS_CONSO_M) && !surLaVoie(f, meilleur.dpe)) statut = 'incertaine';
+  if (conso == null && empreinte !== 'egal' && !(f.zone && f.zone.rayonM <= RAYON_MAX_SANS_CONSO_M) && !surLaVoie(f, meilleur.dpe)) statut = 'incertaine';
   // Une surface à plus de 6 m² de l'annonce : un autre logement (55 bd de Charonne, 41,7 m² pour 88).
   const surfaceD = num(meilleur.dpe.surface_habitable_logement);
-  if (f.surface && surfaceD && Math.abs(f.surface - surfaceD) > ECART_SURFACE_MAX_M2) statut = 'incertaine';
+  if (!prouve && f.surface && surfaceD && Math.abs(f.surface - surfaceD) > ECART_SURFACE_MAX_M2) statut = 'incertaine';
   const point = geopoint(meilleur.dpe);
   const d = f.zone && point ? distanceM(point, { lat: f.zone.latitude, lon: f.zone.longitude }) : null;
   // Un jumeau d'un autre immeuble ressemble trait pour trait quand le vrai DPE n'est pas encore
   // publié. Sans l'adresse publiée au point près : « sûre » exige la surface à 1,5 m² ; un autre
   // étage, c'est un autre logement ; plus loin que 1,5 m² (Carrez contre habitable : 36 m² pour
   // 33,1 rue Saint-Maur) ou hors du cercle publié, l'étage doit être confirmé.
-  if (!(f.zone?.rayonM === 0 && d != null && d <= 30)) {
+  // L'empreinte (coût à quelques euros) avec la conso et les émissions publiées à l'unité près vaut
+  // la surface exacte : 73 bd Richard Lenoir, 75 m² annoncés, 71,5 au DPE, 2 750 €/an des deux côtés.
+  const empreinteForte = empreinte === 'egal' && conso != null && chiffresExacts(f, meilleur.dpe);
+  if (!prouve && !(f.zone?.rayonM === 0 && d != null && d <= 30)) {
     const surfaceSure = f.surface != null && surfaceD != null && Math.abs(f.surface - surfaceD) <= ECART_SURFACE_SUR_M2;
     const etageD = etageDpe(meilleur.dpe);
     const etageConnu = f.etage != null && etageD != null;
+    const etageConfirme = etageConnu && f.etage === etageD;
     const horsDuCercle = f.zone != null && f.zone.rayonM > 0 && d != null && d > f.zone.rayonM;
-    if (statut === 'certaine' && !surfaceSure) statut = 'probable';
-    if (etageConnu && f.etage !== etageD) statut = 'incertaine';
-    else if ((!surfaceSure || horsDuCercle) && !etageConnu) statut = 'incertaine';
+    if (etageConnu && !etageConfirme) statut = 'incertaine';
+    else if (horsDuCercle && !etageConfirme) statut = 'incertaine';
+    else if (!surfaceSure && !etageConfirme && !empreinteForte) statut = 'incertaine';
+    if (statut === 'certaine') {
+      // « Sûre » : la surface à 1,5 m² (ou l'empreinte forte), la conso publiée à l'unité près
+      // (55 bd de Charonne : 175 kWh pour 172, sans doute un DPE refait), et l'étage confirmé
+      // ou l'empreinte.
+      if (!surfaceSure && !empreinteForte) statut = 'probable';
+      else if (conso != null && !chiffresExacts(f, meilleur.dpe)) statut = 'probable';
+      else if (!etageConfirme && !(empreinte === 'egal' && (conso == null || empreinteForte))) statut = 'probable';
+    }
   }
   // Hors du repère publié : au mieux probable, puis jamais affirmé.
   if (f.zone && d != null) {
@@ -586,6 +699,11 @@ export function decider(f: FicheAnnonce, lignes: readonly LigneDpe[], portee: 'z
   // Le code postal de l'annonce fait foi : un DPE de l'autre côté du boulevard n'est pas affirmé.
   const cpMeilleur = codePostalDpe(meilleur.dpe);
   if (f.codePostal && cpMeilleur && cpMeilleur !== f.codePostal && !(f.zone && f.zone.rayonM === 0)) statut = 'incertaine';
+  // Code postal entier sans émissions chiffrées : on n'affirme une adresse que sans hésitation.
+  if (statut === 'probable' && portee === 'code_postal' && ges == null && empreinte !== 'egal') statut = 'incertaine';
+  // En lettres seules (Leboncoin, PAP), « probable » exige 15 points d'avance : à 10, un jumeau
+  // passait une fois sur dix (banc d'essai du 23/10/2026).
+  if (statut === 'probable' && conso == null && ecart < ECART_PROBABLE_LETTRES) statut = 'incertaine';
   return { statut, meilleur, ecart };
 }
 
@@ -609,6 +727,7 @@ export function adressesPossibles(f: FicheAnnonce, lignes: readonly LigneDpe[]):
   const notes = lignes
     .map((dpe) => ({ dpe, ...scorerCandidat(f, dpe), point: geopoint(dpe) }))
     .filter((n) => n.score >= SCORE_POSSIBLE && n.point && String(n.dpe.adresse_ban ?? '').trim())
+    .filter((n) => !chiffresContredits(f, n.dpe) && accordDepenses(f, n.dpe) !== 'autre')
     .filter((n) => {
       const s = num(n.dpe.surface_habitable_logement);
       return !(f.surface && s && Math.abs(f.surface - s) > ECART_SURFACE_MAX_M2);
