@@ -187,7 +187,7 @@ function DpeAgeSlider({
           }}
         />
       </div>
-      <div className="mt-0.5 flex justify-between gap-0.5">
+      <div className="mt-1 flex flex-wrap gap-1">
         {DPE_AGE_BUCKETS.map((bucket, i) => {
           const on = i >= from && i <= to;
           return (
@@ -198,8 +198,8 @@ function DpeAgeSlider({
               disabled={disabled}
               aria-label={DPE_AGE_LABELS[bucket]}
               onClick={() => snapTick(i)}
-              className={`min-h-8 min-w-0 flex-1 rounded-md px-0.5 text-center text-[11px] leading-tight transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed ${
-                on ? 'font-semibold text-text-strong' : 'font-medium text-text-subtle'
+              className={`min-h-7 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px] leading-none transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed ${
+                on ? 'bg-[#1A2A56]/10 font-semibold text-text-strong' : 'font-medium text-text-subtle hover:bg-black/[0.04]'
               }`}
             >
               {DPE_AGE_TICK_LABELS[bucket]}

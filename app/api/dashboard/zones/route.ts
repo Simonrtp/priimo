@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { canCreateZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { fetchZones, joursEnConflit } from '@/lib/queries/zones';
+import { agentADejaUnSecteur, fetchZones, joursEnConflit } from '@/lib/queries/zones';
+import { messageSecteurUnique } from '@/lib/zones/titulaire';
 import { couleurZoneLibre } from '@/lib/zones/palette';
 import { libelleJours } from '@/lib/zones/jour';
 import {
@@ -79,6 +80,19 @@ export async function POST(req: Request) {
       { error: 'Vous ne pouvez créer que votre secteur' },
       { status: 403 },
     );
+  }
+
+  if (assignedTo) {
+    const deja = await agentADejaUnSecteur(supabase, { agencyId: agency.id, assignedTo });
+    if (deja === null) {
+      return NextResponse.json({ error: 'Le secteur n’a pas pu être créé' }, { status: 500 });
+    }
+    if (deja) {
+      return NextResponse.json(
+        { error: messageSecteurUnique(assignedTo === profile.id) },
+        { status: 409 },
+      );
+    }
   }
 
   const conflits = await joursEnConflit(supabase, {

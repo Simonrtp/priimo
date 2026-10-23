@@ -17,6 +17,8 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { toast } from 'sonner';
+import { colonneVoisine } from '@/lib/pipeline/colonne';
+import { notifyError, notifySuccess } from '@/lib/notify';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import type { Lead, LeadStage, TeamMember } from '@/types/lead';
 import { fractionalPosition, positionNeighbors } from '@/lib/pipeline/position';
@@ -83,6 +85,7 @@ export default function PipelineBoard({
   const [stageLabel, setStageLabel] = useState('');
   const [stageColor, setStageColor] = useState(COULEUR_COLONNE_DEFAUT);
   const [stageError, setStageError] = useState<string | null>(null);
+  const [suppression, setSuppression] = useState(false);
 
   const leadsById = useMemo(() => new Map(leads.map((l) => [l.id, l])), [leads]);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
@@ -94,6 +97,7 @@ export default function PipelineBoard({
     setStageLabel('');
     setStageColor(COULEUR_COLONNE_DEFAUT);
     setStageError(null);
+    setSuppression(false);
   }, []);
 
   const openCreateEditor = useCallback(() => {
@@ -317,6 +321,58 @@ export default function PipelineBoard({
     });
   }, [closeEditor, editorMode, editingStageId, onStagesChange, stageColor, stageLabel, stages]);
 
+  const editingStage = editingStageId ? stagesById.get(editingStageId) : undefined;
+  const cartesColonne = editingStage ? leads.filter((lead) => lead.stageId === editingStage.id).length : 0;
+  const versColonne = editingStage
+    ? colonneVoisine(
+        editingStage,
+        stages.filter((stage) => stage.id !== editingStage.id),
+      )
+    : null;
+
+  const supprimerColonne = useCallback(async () => {
+    const stage = editingStageId ? stagesById.get(editingStageId) : undefined;
+    if (!stage || stage.type === 'entree' || suppression) return;
+    setSuppression(true);
+    setStageError(null);
+    try {
+      const res = await fetch(`/api/dashboard/lead-stages/${stage.id}`, { method: 'DELETE' });
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        destination?: { id: string; libelle: string };
+        leads?: { id: string; stagePosition: number }[];
+      };
+      if (!res.ok || !body.destination) {
+        throw new Error(body.error ?? "La colonne n'a pas pu être supprimée");
+      }
+      const positions = new Map((body.leads ?? []).map((lead) => [lead.id, lead.stagePosition]));
+      const destinationId = body.destination.id;
+      if (positions.size > 0) {
+        onLeadsChange((prev) =>
+          prev.map((lead) => {
+            const stagePosition = positions.get(lead.id);
+            return stagePosition == null ? lead : { ...lead, stageId: destinationId, stagePosition };
+          }),
+        );
+      }
+      onStagesChange?.((prev) => {
+        const list = Array.isArray(prev) ? prev : stages;
+        return list.filter((item) => item.id !== stage.id);
+      });
+      notifySuccess(
+        positions.size === 0
+          ? 'Colonne supprimée'
+          : `Colonne supprimée. Les cartes sont dans ${body.destination.libelle}.`,
+      );
+      closeEditor();
+    } catch (err) {
+      setSuppression(false);
+      const message = err instanceof Error && err.message ? err.message : "La colonne n'a pas pu être supprimée";
+      setStageError(message);
+      notifyError(message);
+    }
+  }, [closeEditor, editingStageId, onLeadsChange, onStagesChange, stages, stagesById, suppression]);
+
   const activeLead = activeId ? leadsById.get(activeId) : null;
   const activeStage = activeLead?.stageId ? stagesById.get(activeLead.stageId) : undefined;
 
@@ -418,6 +474,11 @@ export default function PipelineBoard({
         onAccentColorChange={setStageColor}
         onCancel={closeEditor}
         onConfirm={submitStageEditor}
+        peutSupprimer={editingStage?.type !== 'entree' && Boolean(versColonne)}
+        cartes={cartesColonne}
+        vers={versColonne?.libelle ?? null}
+        suppression={suppression}
+        onSupprimer={() => void supprimerColonne()}
       />
     </>
   );

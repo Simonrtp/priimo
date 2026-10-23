@@ -329,9 +329,7 @@ export default function ImportAnnonce({
           >
             <X size={14} strokeWidth={2} aria-hidden />
           </button>
-        ) : (
-          <span className="mr-2 shrink-0 rounded-full bg-black/[0.05] px-1.5 py-0.5 text-[10.5px] font-semibold text-text-muted">Bêta</span>
-        )}
+        ) : null}
       </label>
 
       {etat.k === 'travail' ? (

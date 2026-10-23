@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Marker, useMap } from 'react-map-gl';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, HardHat } from 'lucide-react';
 import { type MapLayerState } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
@@ -46,7 +46,13 @@ export function AnnoncesLayerControls({
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
-        <p className={`${textSize} font-medium text-text-strong`}>Annonces</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`${textSize} shrink-0 font-medium text-text-strong`}>Annonces</p>
+          <span className="inline-flex max-w-[8.5rem] items-center gap-1 rounded-full bg-[#E3F2FC] px-1.5 py-0.5 text-[11px] font-medium leading-snug text-[#3B87B8]">
+            <HardHat size={12} strokeWidth={2.2} aria-hidden className="shrink-0" />
+            <span className="text-balance">Fonctionnalité en cours de dev</span>
+          </span>
+        </div>
         <ImportAnnonce compact={compact} />
       </div>
     </li>

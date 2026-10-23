@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import { COULEURS_COLONNE } from '@/lib/pipeline/stage-theme';
@@ -22,6 +22,11 @@ export default function StageEditorDialog({
   onAccentColorChange,
   onCancel,
   onConfirm,
+  peutSupprimer = false,
+  cartes = 0,
+  vers = null,
+  suppression = false,
+  onSupprimer,
 }: {
   open: boolean;
   mode: 'create' | 'edit';
@@ -33,7 +38,17 @@ export default function StageEditorDialog({
   onAccentColorChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
+  /** Pris, la colonne d'entrée, ne se supprime pas. */
+  peutSupprimer?: boolean;
+  cartes?: number;
+  vers?: string | null;
+  suppression?: boolean;
+  onSupprimer?: () => void;
 }) {
+  const [confirme, setConfirme] = useState(false);
+  useEffect(() => {
+    if (!open) setConfirme(false);
+  }, [open]);
   const couleurs = useMemo(() => {
     const connue = COULEURS_COLONNE.some((c) => memeCouleur(c, accentColor));
     return connue ? [...COULEURS_COLONNE] : [accentColor, ...COULEURS_COLONNE];
@@ -42,7 +57,7 @@ export default function StageEditorDialog({
   return (
     <Modal
       open={open}
-      onClose={saving ? () => undefined : onCancel}
+      onClose={saving || suppression ? () => undefined : onCancel}
       title={mode === 'create' ? 'Nouvelle colonne' : 'Modifier la colonne'}
       description="Choisissez d'abord une couleur, puis donnez un nom à la colonne."
       maxWidth="sm"
@@ -51,11 +66,11 @@ export default function StageEditorDialog({
         <div>
           <p className="text-[12px] font-semibold uppercase text-text-subtle">Couleur</p>
           <div className="mt-3 grid grid-cols-8 gap-2">
-            {couleurs.map((color) => {
+            {couleurs.map((color, index) => {
               const active = memeCouleur(accentColor, color);
               return (
                 <button
-                  key={color}
+                  key={`${color}-${index}`}
                   type="button"
                   aria-label={`Choisir la couleur ${color}`}
                   aria-pressed={active}
@@ -83,19 +98,48 @@ export default function StageEditorDialog({
         </label>
 
         {error ? <p className="text-[13px] text-[var(--danger)]">{error}</p> : null}
+        {confirme ? (
+          <p className="text-[13px] text-text-muted">
+            {cartes === 0
+              ? 'La colonne disparaît.'
+              : cartes === 1
+                ? `La carte passe dans « ${vers} ».`
+                : `Les ${cartes} cartes passent dans « ${vers} ».`}
+          </p>
+        ) : null}
 
-        <div className="flex justify-end gap-2">
-          <WorkspaceButton type="button" variant="secondary" onClick={onCancel} disabled={saving}>
-            Annuler
-          </WorkspaceButton>
-          <WorkspaceButton
-            type="button"
-            onClick={onConfirm}
-            busy={saving}
-            disabled={libelle.trim().length < 2}
-          >
-            {mode === 'create' ? 'Créer la colonne' : 'Valider'}
-          </WorkspaceButton>
+        <div className="flex items-center justify-between gap-3">
+          {mode === 'edit' && peutSupprimer && onSupprimer ? (
+            <button
+              type="button"
+              disabled={saving || suppression}
+              onClick={() => {
+                if (!confirme) {
+                  setConfirme(true);
+                  return;
+                }
+                onSupprimer();
+              }}
+              className="text-[13px] font-semibold text-[var(--danger)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)] disabled:opacity-50"
+            >
+              {suppression ? 'Suppression…' : confirme ? 'Supprimer vraiment' : 'Supprimer'}
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <WorkspaceButton type="button" variant="secondary" onClick={onCancel} disabled={saving || suppression}>
+              Annuler
+            </WorkspaceButton>
+            <WorkspaceButton
+              type="button"
+              onClick={onConfirm}
+              busy={saving}
+              disabled={suppression || libelle.trim().length < 2}
+            >
+              {mode === 'create' ? 'Créer la colonne' : 'Valider'}
+            </WorkspaceButton>
+          </div>
         </div>
       </div>
     </Modal>

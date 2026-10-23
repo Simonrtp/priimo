@@ -20,6 +20,7 @@ import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import StatistiquesSecteur from './StatistiquesSecteur';
 import { couleurZoneLibre } from '@/lib/zones/palette';
 import { estNomParDefaut, nomSecteurParDefaut, prenomDuMembre, trierSecteurs } from '@/lib/zones/nom';
+import { messageSecteurUnique } from '@/lib/zones/titulaire';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
 import { resumerVoie } from '@/lib/zones/voie-trace';
@@ -163,6 +164,8 @@ export default function SecteursClient({
   const mobile = useDevice() === 'mobile';
   /** Valider n’est actif que s’il y a eu un vrai changement dans l’atelier. */
   const [aValider, setAValider] = useState(false);
+  /** Secteur qui vient d’être créé : sa carte s’ouvre, son nom est prêt. */
+  const [secteurNe, setSecteurNe] = useState<string | null>(null);
   const marquerAValider = useCallback(() => {
     aChangeRef.current = true;
     setAValider(true);
@@ -223,7 +226,7 @@ export default function SecteursClient({
   );
 
   const creerZone = useCallback(
-    async (nom: string, couleur?: string, polygone?: GeoJSON.Polygon) => {
+    async (nom: string, couleur?: string, polygone?: GeoJSON.Polygon, accueil = false) => {
       try {
         const { id } = (await appeler('/api/dashboard/zones', 'POST', { nom, couleur })) as {
           id?: string;
@@ -237,6 +240,10 @@ export default function SecteursClient({
         }
         if (id) {
           setZoneActiveId(id);
+          if (accueil) {
+            setModeDessin('polygone');
+            setSecteurNe(id);
+          }
           marquerAValider();
           const nouvelle: Zone = {
             id,
@@ -462,8 +469,14 @@ export default function SecteursClient({
    * directeur, et son nom s'ouvre aussitôt pour qui veut en changer.
    */
   const creerSecteur = useCallback(() => {
+    if (
+      !estDirecteur &&
+      zonesRef.current.some((z) => z.actif && z.assignedTo === profileId)
+    ) {
+      return;
+    }
     const prenom = estDirecteur ? null : prenomDe(profileId);
-    void creerZone(nomSecteurParDefaut(prenom, zonesRef.current.map((z) => z.nom)));
+    void creerZone(nomSecteurParDefaut(prenom, zonesRef.current.map((z) => z.nom)), undefined, undefined, true);
   }, [creerZone, estDirecteur, prenomDe, profileId]);
 
   /** Un nom donné d'office suit son titulaire ; un nom choisi ne bouge pas. */
@@ -501,17 +514,15 @@ export default function SecteursClient({
 
   const choisirZone = useCallback((id: string | null) => {
     setZoneActiveId(id);
+    setSecteurNe((neuf) => (neuf && neuf !== id ? null : neuf));
     setVoieApercu(null);
     setModeDessin('inactif');
   }, []);
 
   const zonesTriees = useMemo(() => trierSecteurs(zonesLocales, profileId), [zonesLocales, profileId]);
-  const aDejaLeSien = zonesLocales.some((z) => z.assignedTo === profileId);
-  const libelleCreer = estDirecteur
-    ? 'Créer un secteur'
-    : aDejaLeSien
-      ? 'Créer un autre secteur'
-      : 'Créer mon secteur';
+  const aDejaLeSien = zonesLocales.some((z) => z.actif && z.assignedTo === profileId);
+  const peutEncoreCreer = estDirecteur || !aDejaLeSien;
+  const libelleCreer = estDirecteur ? 'Créer un secteur' : 'Créer mon secteur';
 
   const carte = (
     <ZonesCarte
@@ -539,7 +550,7 @@ export default function SecteursClient({
 
   const reglages =
     zonesLocales.length === 0 ? (
-      peutCreer ? (
+      peutCreer && peutEncoreCreer ? (
         <div className="flex flex-col gap-2">
           <button type="button" className={boutonNuit} disabled={enCours} onClick={creerSecteur}>
             <Plus size={14} aria-hidden />
@@ -555,6 +566,7 @@ export default function SecteursClient({
           zones={zonesTriees}
           membres={membres}
           zoneActiveId={zoneActiveId}
+          secteurNeId={secteurNe}
           onChoisir={(id) => choisirZone(zoneActiveId === id ? null : id)}
           profileId={profileId}
           panneau={
@@ -569,6 +581,8 @@ export default function SecteursClient({
                     enCours={enCours}
                     modeDessin={modeDessin}
                     centre={centre}
+                    accueillir={secteurNe === zone.id}
+                    titulairesPris={titulairesPris(zonesLocales, zone.id)}
                     exempleNom={nomSecteurParDefaut(prenomDe(zone.assignedTo) ?? prenomDe(profileId), [])}
                     onModeDessin={setModeDessin}
                     onModifier={(patch) => modifierZone(zone.id, patch)}
@@ -583,7 +597,7 @@ export default function SecteursClient({
           }
         />
 
-        {peutCreer ? (
+        {peutCreer && peutEncoreCreer ? (
           <CreerZone
             enCours={enCours}
             libelle={libelleCreer}
@@ -657,10 +671,19 @@ export default function SecteursClient({
   );
 }
 
+function titulairesPris(zones: readonly Zone[], saufId: string): Set<string> {
+  const pris = new Set<string>();
+  for (const zone of zones) {
+    if (zone.actif && zone.assignedTo && zone.id !== saufId) pris.add(zone.assignedTo);
+  }
+  return pris;
+}
+
 function ListeZones({
   zones,
   membres,
   zoneActiveId,
+  secteurNeId,
   onChoisir,
   profileId,
   panneau,
@@ -668,10 +691,18 @@ function ListeZones({
   zones: readonly Zone[];
   membres: readonly Membre[];
   zoneActiveId: string | null;
+  secteurNeId: string | null;
   onChoisir: (id: string) => void;
   profileId: string;
   panneau?: (zone: Zone) => ReactNode;
 }) {
+  const neufRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (!secteurNeId) return;
+    neufRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [secteurNeId]);
+
   if (zones.length === 0) return null;
 
   return (
@@ -679,9 +710,14 @@ function ListeZones({
       {zones.map((zone) => {
         const titulaire = membres.find((m) => m.id === zone.assignedTo);
         const ouvert = zone.id === zoneActiveId;
+        const neuf = zone.id === secteurNeId;
         const panneauId = `secteur-panneau-${zone.id}`;
         return (
-          <li key={zone.id} className="rounded-clay bg-white shadow-clay-sm">
+          <li
+            key={zone.id}
+            ref={neuf ? neufRef : undefined}
+            className={`rounded-clay bg-white shadow-clay-sm ${neuf ? 'ring-2 ring-[#1A2A56]' : ''}`}
+          >
             <button
               type="button"
               onClick={() => onChoisir(zone.id)}
@@ -796,6 +832,8 @@ function PanneauZone({
   enCours,
   modeDessin,
   centre,
+  accueillir = false,
+  titulairesPris = new Set<string>(),
   exempleNom,
   onModeDessin,
   onModifier,
@@ -813,6 +851,10 @@ function PanneauZone({
   enCours: boolean;
   modeDessin: ModeCarte;
   centre: { latitude: number | null; longitude: number | null };
+  /** Vient d’être créé : le nom est sélectionné, le contour s’annonce. */
+  accueillir?: boolean;
+  /** Agents qui ont déjà un autre secteur. */
+  titulairesPris?: ReadonlySet<string>;
   exempleNom: string;
   onModeDessin: (m: ModeCarte) => void;
   onModifier: (
@@ -831,6 +873,14 @@ function PanneauZone({
    */
   const [nom, setNom] = useState(zone.nom);
   const [nomConnu, setNomConnu] = useState(zone.nom);
+  const champNom = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!accueillir) return;
+    const champ = champNom.current;
+    if (!champ) return;
+    champ.focus();
+    champ.select();
+  }, [accueillir]);
   if (nomConnu !== zone.nom) {
     // Renommé d'office (nouveau titulaire) : le champ suit.
     setNomConnu(zone.nom);
@@ -863,7 +913,14 @@ function PanneauZone({
   return (
     <div className="flex flex-col gap-3.5">
       {peutEditer ? (
+        <>
+          {accueillir ? (
+            <p className="text-pretty text-[13px] font-medium text-[#1A2A56]">
+              Le secteur est créé. Changez le nom, puis tracez-le sur la carte.
+            </p>
+          ) : null}
         <input
+          ref={champNom}
           aria-label="Nom du secteur"
           className={champClass}
           value={nom}
@@ -879,6 +936,7 @@ function PanneauZone({
             }
           }}
         />
+        </>
       ) : null}
 
       {peutGerer ? (
@@ -889,12 +947,18 @@ function PanneauZone({
           <Select
             id={`zone-titulaire-${zone.id}`}
             value={zone.assignedTo ?? ''}
-            onChange={(valeur) => onChangerTitulaire(valeur || null)}
+            onChange={(valeur) => {
+              if (valeur && titulairesPris.has(valeur)) {
+                toast.error(messageSecteurUnique(false));
+                return;
+              }
+              onChangerTitulaire(valeur || null);
+            }}
             options={[
               { value: '', label: 'Sans titulaire' },
               ...membres.map((m) => ({
                 value: m.id,
-                label: m.fullName,
+                label: titulairesPris.has(m.id) ? `${m.fullName} · a déjà un secteur` : m.fullName,
                 avatar: assigneeSelectAvatar({
                   id: m.id,
                   fullName: m.fullName,

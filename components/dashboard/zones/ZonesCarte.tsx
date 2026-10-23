@@ -598,22 +598,21 @@ export default function ZonesCarte({
     contoursAjustables.reduce((n, c) => n + c.sommets.length, 0) > MILIEUX_JUSQUA;
 
   /**
-   * Cadre de départ : l'emprise de tous les secteurs. Sans secteur, l'adresse
-   * de l'agence ; sans adresse, la France — on n'affiche jamais une carte grise
-   * sans repère.
+   * Cadre de départ : l'emprise de tous les secteurs, y compris ceux des
+   * collègues. Choisir le sien ne les chasse pas du cadre. Sans secteur,
+   * l'adresse de l'agence ; sans adresse, la France.
    */
   const cadre = useMemo(() => {
-    const cibles = !figee && onChoisirZone && zoneActive ? [zoneActive] : actives;
-    const boites = cibles
+    const boites = actives
       .flatMap((z) => polygonesDeZone(z).map(bbox))
       .filter((b): b is NonNullable<typeof b> => b !== null);
     return fusionnerBbox(boites);
-  }, [actives, zoneActive, onChoisirZone, figee]);
+  }, [actives]);
 
   /**
-   * On recadre à l'arrivée et quand la liste des secteurs change, jamais quand
-   * un contour bouge : recadrer après chaque poignée relâchée déplacerait la
-   * carte sous la main de celui qui retouche.
+   * On recadre à l'arrivée et quand un secteur apparaît ou disparaît, jamais
+   * quand un contour bouge : recadrer après chaque poignée relâchée
+   * déplacerait la carte sous la main de celui qui retouche.
    */
   const listeSecteurs = actives.map((z) => z.id).join(',');
   const cadreRef = useRef(cadre);
@@ -627,14 +626,14 @@ export default function ZonesCarte({
         [c.ouest, c.sud],
         [c.est, c.nord],
       ],
-      { padding: 40, maxZoom: 15, duration: duree },
+      { padding: 48, maxZoom: 15, duration: duree },
     );
   }, []);
   useEffect(() => {
     if (!pret) return;
-    cadrer(zoneActive && !figee ? 400 : 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recadrer seulement quand la liste ou le secteur choisi change
-  }, [pret, listeSecteurs, zoneActive?.id]);
+    cadrer(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recadrer seulement quand la liste des secteurs change
+  }, [pret, listeSecteurs]);
 
   // Un parent en flex change de taille après le premier rendu : sans ça,
   // Mapbox garde le canvas de 280 px dans une carte déjà plus haute.
