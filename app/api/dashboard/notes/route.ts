@@ -247,7 +247,7 @@ export async function POST(req: Request) {
       source_info: extraction?.sourceInfo ?? null,
       status: 'transcrit',
       statut: 'revue',
-      // L'auteur choisit en écrivant : privée = lui seul, direction comprise.
+      // Privée : l'auteur et le directeur. Partagée : toute l'agence.
       visibilite: body.visibilite === 'privee' ? 'privee' : 'agence',
       contact_id: contactId,
       adresse_normalisee: geo.adresse_normalisee,

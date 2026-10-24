@@ -105,6 +105,23 @@ describe('filterInboxNotes', () => {
     });
     assert.deepEqual(out.map((n) => n.id), ['1', '2', '3']);
   });
+
+  it('le directeur voit aussi les notes privées des collègues', () => {
+    const mix = [
+      ...notes,
+      note({ id: '4', visibilite: 'privee', createdBy: 'other', transcript: 'Note privée d’un collègue' }),
+    ];
+    const out = filterInboxNotes(mix, {
+      viewerId: 'me',
+      statut: 'tous',
+      scope: 'visibles',
+      period: 'tous',
+      rattachement: 'tous',
+      q: '',
+      voirToutes: true,
+    });
+    assert.deepEqual(out.map((n) => n.id), ['1', '2', '3', '4']);
+  });
 });
 
 describe('recentNotesForHome', () => {
@@ -157,14 +174,14 @@ describe('recentNotesForHome', () => {
     assert.equal(isHomeNoteWorthy('Appel à Dupont rue des Lilas'), true);
   });
 
-  it('montre une note terrain même sans long transcript', () => {
+  it('garde chaque note, même courte', () => {
     const notes = [
       note({ id: 'a', transcript: '', adresseNormalisee: '4 Rue d’Aligre' }),
       note({ id: 'b', transcript: 'ok merci' }),
     ];
     assert.deepEqual(
       recentNotesForHome(notes, { viewerId: 'me', isDirector: false }).map((n) => n.id),
-      ['a'],
+      ['a', 'b'],
     );
   });
 

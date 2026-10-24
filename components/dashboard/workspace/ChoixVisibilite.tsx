@@ -6,9 +6,9 @@ export type Visibilite = 'privee' | 'agence';
 
 /**
  * Le même choix pour une fiche contact et pour une note : la garder pour soi
- * ou la partager avec l'agence. Une note privée échappe aussi à la direction ;
- * une fiche contact privée reste visible de la direction (le fichier de
- * l'agence). Le texte d'aide le dit à chaque fois.
+ * ou la partager avec l'agence. Une note privée est lue par son auteur et
+ * par le directeur ; les collègues ne la voient pas. Une fiche contact
+ * privée reste visible de la direction. Le texte d'aide le dit à chaque fois.
  */
 const TEXTES: Record<
   'contact' | 'note',
@@ -21,7 +21,7 @@ const TEXTES: Record<
   },
   note: {
     titre: 'Partage de la note',
-    privee: { label: 'Privée', aide: 'Vous seul la lisez, direction comprise.' },
+    privee: { label: 'Privée', aide: 'Vous et la direction la lisez. Pas les collègues.' },
     agence: { label: 'Partagée', aide: 'Toute l’agence peut la lire.' },
   },
 };

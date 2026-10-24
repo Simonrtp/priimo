@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Marker } from 'react-map-gl';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { watchDevicePosition, type DevicePosition } from '@/lib/voice/gps';
@@ -33,14 +32,5 @@ export default function LiveAgentLocationMarker({
 
   if (!position || !isUsableCoord(position.latitude, position.longitude)) return null;
 
-  return (
-    <Marker
-      longitude={position.longitude}
-      latitude={position.latitude}
-      anchor="center"
-      style={{ zIndex: 40 }}
-    >
-      <AgentLocationMarker position={position} />
-    </Marker>
-  );
+  return <AgentLocationMarker position={position} />;
 }

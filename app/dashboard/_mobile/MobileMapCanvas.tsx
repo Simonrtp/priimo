@@ -678,14 +678,7 @@ export default function MobileMapCanvas({
           </Marker>
         ) : null}
         {navigation && agentPosition && isUsableCoord(agentPosition.latitude, agentPosition.longitude) ? (
-          <Marker
-            longitude={agentPosition.longitude}
-            latitude={agentPosition.latitude}
-            anchor="center"
-            style={{ zIndex: 40 }}
-          >
-            <AgentLocationMarker position={agentPosition} />
-          </Marker>
+          <AgentLocationMarker position={agentPosition} />
         ) : null}
         {!navigation ? <LiveAgentLocationMarker highAccuracy minUpdateM={10} /> : null}
       </Map>

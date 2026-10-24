@@ -8,13 +8,16 @@ export type VoiceNoteVisibilityFields = {
 
 /**
  * Une note 'agence' est lisible par toute l'agence.
- * Une note 'privee' n'est lisible que par son auteur — y compris un directeur.
+ * Une note 'privee' est lisible par son auteur, et par le directeur :
+ * il doit voir chaque note, et savoir qui l'a écrite.
+ * Un collaborateur ne lit pas les notes privées des autres.
  * L'isolation inter-agences est ailleurs (agency_id / RLS).
  */
 export function canSeeVoiceNote(
   viewer: RecordViewer,
   note: VoiceNoteVisibilityFields,
 ): boolean {
+  if (viewer.role === 'directeur') return true;
   if (note.visibilite === 'privee') return note.createdBy === viewer.id;
   return true;
 }

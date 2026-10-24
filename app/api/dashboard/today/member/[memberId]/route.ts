@@ -12,7 +12,6 @@ import { fetchLeads } from '@/lib/queries/leads';
 import { fetchVoiceNotesSafe } from '@/lib/queries/contacts';
 import { fetchBiensSafe } from '@/lib/queries/biens';
 import { isSignedMandat } from '@/lib/today/portfolio';
-import { isHomeNoteWorthy } from '@/lib/notes/inbox';
 
 export const runtime = 'nodejs';
 
@@ -48,7 +47,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ memberId: stri
     .filter((b) => b.createdBy === memberId && isSignedMandat(b.mandatStatut))
     .slice(0, 12);
   const memberNotes = visibleVoiceNotesFor(viewer, notes).filter((n) => n.createdBy === memberId);
-  const visibleNotes = memberNotes.filter((n) => isHomeNoteWorthy(n.transcript)).slice(0, 8);
+  const visibleNotes = memberNotes;
 
   let lastActivityAt: string | null = null;
   function consider(iso: string | null | undefined) {

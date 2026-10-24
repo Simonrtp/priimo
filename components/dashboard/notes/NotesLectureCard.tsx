@@ -16,7 +16,8 @@ import {
   syntheseRattachement,
 } from '@/lib/notes/rattachement';
 import type { NoteLecture } from '@/lib/notes/lecture';
-import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import { nomComplet } from '@/lib/notes/auteur';
 import { bilanDuMois } from '@/lib/notes/temps-gagne';
 
 const ENCRE = '#1A2A56';
@@ -39,6 +40,14 @@ function IconeSource({ vocale, surSombre = false }: { vocale: boolean; surSombre
   );
 }
 
+function nomAuteur(note: NoteLecture): string {
+  if (note.author) {
+    const nom = nomComplet(note.author);
+    if (nom) return nom;
+  }
+  return note.authorName?.trim() || 'Auteur inconnu';
+}
+
 function LigneNote({
   note,
   active,
@@ -49,6 +58,7 @@ function LigneNote({
   onChoisir: (id: string) => void;
 }) {
   const rattachee = estRattachee(note.rattachements);
+  const encreMeta = active ? 'rgba(255,255,255,0.78)' : FIELD.ardoise;
   return (
     <li>
       <button
@@ -60,33 +70,43 @@ function LigneNote({
         }`}
         style={active ? { backgroundColor: ENCRE, color: '#fff' } : { color: ENCRE }}
       >
-        <IconeSource vocale={note.hasAudio} surSombre={active} />
+        {note.author ? (
+          <ProfileAvatar
+            firstName={note.author.firstName}
+            lastName={note.author.lastName}
+            avatarUrl={note.author.avatarUrl}
+            size={32}
+            className="mt-0.5 shrink-0"
+          />
+        ) : (
+          <span className="mt-0.5 size-8 shrink-0 rounded-full bg-black/10" aria-hidden />
+        )}
         <span className="min-w-0 flex-1">
-          <span className={`line-clamp-2 text-pretty text-[14px] font-semibold ${active ? 'text-white' : ''}`}>
+          <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+            <span className={`text-[13.5px] font-semibold ${active ? 'text-white' : 'text-text-strong'}`}>
+              {nomAuteur(note)}
+            </span>
+            <time
+              dateTime={note.createdAt}
+              className="text-[12px] font-medium"
+              style={{ color: encreMeta }}
+            >
+              {formatNoteWhen(note.createdAt)}
+            </time>
+          </span>
+          <span className={`mt-0.5 line-clamp-3 text-pretty text-[13.5px] leading-snug ${active ? 'text-white' : 'text-text'}`}>
             {(note.transcript ?? '').trim() || 'Sans texte'}
           </span>
           <span
-            className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] font-medium"
-            style={{ color: active ? 'rgba(255,255,255,0.78)' : FIELD.ardoise }}
+            className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] font-medium"
+            style={{ color: encreMeta }}
           >
-            <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
-            {note.author ? (
-              <span className="inline-flex min-w-0 items-center gap-1">
-                ·{' '}
-                <CollaborateurNom
-                  portrait={note.author}
-                  size={16}
-                  className={active ? 'text-white' : undefined}
-                />
-              </span>
-            ) : note.authorName ? (
-              <span>· {note.authorName}</span>
-            ) : null}
+            {note.visibilite === 'privee' ? <span>Privée</span> : null}
             {rattachee ? (
-              <span className="truncate">· {syntheseRattachement(note.rattachements)}</span>
+              <span className="truncate">{syntheseRattachement(note.rattachements)}</span>
             ) : (
               <span className={active ? 'font-semibold text-white' : 'font-semibold'} style={active ? undefined : { color: '#8A3D14' }}>
-                · Non rattachée
+                Non rattachée
               </span>
             )}
           </span>
@@ -111,7 +131,7 @@ export default function NotesLectureCard({
   onChoisir: (id: string | null) => void;
   onRafraichir: () => void;
 }) {
-  const { profile } = useUser();
+  const { profile, isDirector } = useUser();
   const [choisieId, setChoisieId] = useState<string | null>(noteIdInitial);
 
   useEffect(() => {
@@ -138,8 +158,12 @@ export default function NotesLectureCard({
     <Modal
       open
       onClose={onClose}
-      title="Mes notes"
-      description="Les vôtres, et celles que l’équipe a rendues visibles."
+      title={isDirector ? 'Les notes' : 'Mes notes'}
+      description={
+        isDirector
+          ? 'Toutes les notes de l’agence. Chaque note indique qui l’a écrite.'
+          : 'Les vôtres, et celles que l’équipe a rendues visibles.'
+      }
       maxWidth="2xl"
     >
       <div className="grid min-h-[22rem] gap-4 border-t border-black/[0.06] pt-4 md:grid-cols-[minmax(0,17.5rem)_1fr] md:items-stretch">
@@ -164,42 +188,57 @@ export default function NotesLectureCard({
                   {mois.minutes >= 1 ? ` · ≈ ${mois.libelle} de saisie évitées` : ''}
                 </p>
               ) : null}
-              {miennes.length > 0 ? (
-                <section>
-                  {publiees.length > 0 ? (
-                    <h3 className="mb-1.5 px-1 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>
-                      Les miennes
-                    </h3>
+              {isDirector ? (
+                <ul className="flex flex-col gap-1">
+                  {liste.map((note) => (
+                    <LigneNote
+                      key={note.id}
+                      note={note}
+                      active={note.id === choisieId}
+                      onChoisir={choisir}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <>
+                  {miennes.length > 0 ? (
+                    <section>
+                      {publiees.length > 0 ? (
+                        <h3 className="mb-1.5 px-1 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>
+                          Les miennes
+                        </h3>
+                      ) : null}
+                      <ul className="flex flex-col gap-1">
+                        {miennes.map((note) => (
+                          <LigneNote
+                            key={note.id}
+                            note={note}
+                            active={note.id === choisieId}
+                            onChoisir={choisir}
+                          />
+                        ))}
+                      </ul>
+                    </section>
                   ) : null}
-                  <ul className="flex flex-col gap-1">
-                    {miennes.map((note) => (
-                      <LigneNote
-                        key={note.id}
-                        note={note}
-                        active={note.id === choisieId}
-                        onChoisir={choisir}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-              {publiees.length > 0 ? (
-                <section>
-                  <h3 className="mb-1.5 px-1 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>
-                    Publiées par l’équipe
-                  </h3>
-                  <ul className="flex flex-col gap-1">
-                    {publiees.map((note) => (
-                      <LigneNote
-                        key={note.id}
-                        note={note}
-                        active={note.id === choisieId}
-                        onChoisir={choisir}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
+                  {publiees.length > 0 ? (
+                    <section>
+                      <h3 className="mb-1.5 px-1 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>
+                        Publiées par l’équipe
+                      </h3>
+                      <ul className="flex flex-col gap-1">
+                        {publiees.map((note) => (
+                          <LigneNote
+                            key={note.id}
+                            note={note}
+                            active={note.id === choisieId}
+                            onChoisir={choisir}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -277,20 +316,22 @@ function DetailNote({
       </button>
 
       <header className="flex items-start gap-3">
-        <IconeSource vocale={vocale} />
+        {note.author ? (
+          <ProfileAvatar
+            firstName={note.author.firstName}
+            lastName={note.author.lastName}
+            avatarUrl={note.author.avatarUrl}
+            size={40}
+            className="shrink-0"
+          />
+        ) : (
+          <IconeSource vocale={vocale} />
+        )}
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-text-strong">
-            {vocale ? 'Note vocale' : 'Note écrite'}
-          </p>
+          <p className="text-[15px] font-semibold text-text-strong">{nomAuteur(note)}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] font-medium" style={{ color: FIELD.ardoise }}>
             <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
-            {note.author ? (
-              <span className="inline-flex min-w-0 items-center gap-1">
-                · <CollaborateurNom portrait={note.author} size={16} />
-              </span>
-            ) : note.authorName ? (
-              <span>· {note.authorName}</span>
-            ) : null}
+            <span>· {vocale ? 'Note vocale' : 'Note écrite'}</span>
             {note.visibilite === 'privee' ? <span>· Privée</span> : <span>· Partagée</span>}
           </p>
         </div>

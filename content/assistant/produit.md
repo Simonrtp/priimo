@@ -152,8 +152,8 @@ Les notes de terrain se dictent ou s'écrivent depuis l'Accueil (carte
 Notes terrain). On les relit dans la carte « Mes notes », posée
 par-dessus l'Accueil : les vôtres, et celles que l'équipe a publiées.
 Priimo les transcrit, les rattache à l'adresse ou au contact concerné et en
-extrait ce qui peut l'être. Une note privée n'est visible que de vous ; une
-note d'agence est visible par l'équipe.
+extrait ce qui peut l'être. Une note privée est lue par son auteur et par
+le directeur ; une note d'agence est visible par l'équipe.
 
 ## Les rôles et la visibilité
 Écran: /dashboard/settings

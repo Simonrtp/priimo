@@ -43,7 +43,7 @@ export function NotesLectureProvider({ children }: { children: ReactNode }) {
 
   const charger = useCallback(
     async (signal?: AbortSignal) => {
-      const q = new URLSearchParams({ scope: 'visibles', limit: '60' });
+      const q = new URLSearchParams({ scope: 'visibles' });
       if (membre) q.set('membre', membre);
       try {
         const res = await fetch(`/api/dashboard/notes/inbox?${q.toString()}`, { signal });

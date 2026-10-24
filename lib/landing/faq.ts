@@ -70,7 +70,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       {
         id: "donnees-visibilite",
         q: "Qui voit quoi dans l'équipe ?",
-        a: "Chaque agent voit ses dossiers et les prospects non attribués. Il ne s'installe pas dans le fichier d'un collègue. Le directeur voit toute l'agence.\n\nUne note privée n'est lisible que par son auteur — y compris si vous êtes directeur. On a besoin d'une mémoire d'agence, pas d'un outil où plus rien n'est dit parce que tout le monde lit tout.",
+        a: "Chaque agent voit ses dossiers et les prospects non attribués. Il ne s'installe pas dans le fichier d'un collègue. Le directeur voit toute l'agence.\n\nUne note privée n'est pas lue par les collègues. Le directeur voit chaque note, et qui l'a écrite. On a besoin d'une mémoire d'agence, pas d'un outil où plus rien n'est dit parce que tout le monde lit tout.",
       },
     ],
   },
@@ -86,7 +86,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       {
         id: "directeur-surveillance",
         q: "Mes agents vont-ils se sentir surveillés ?",
-        a: "Non. Priimo ne montre jamais au directeur où se trouvent ses agents. Ce n'est pas un outil de géolocalisation d'équipe.\n\nUne note privée reste lisible seulement par son auteur. On mesure le travail fait dans l'outil — les notes, les suites, ce qui avance — pas la position de quelqu'un dans la rue. C'est la différence entre piloter une agence et fliquer une tournée.",
+        a: "Non. Priimo ne montre jamais au directeur où se trouvent ses agents. Ce n'est pas un outil de géolocalisation d'équipe.\n\nUne note privée n'est pas lue par les collègues. Le directeur la voit, avec le nom de celui qui l'a écrite. On mesure le travail fait dans l'outil — les notes, les suites, ce qui avance — pas la position de quelqu'un dans la rue. C'est la différence entre piloter une agence et fliquer une tournée.",
       },
       {
         id: "directeur-multi",

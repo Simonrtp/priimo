@@ -117,6 +117,8 @@ export function filterInboxNotes<T extends VoiceNote>(
     rattachement: NotesInboxRattachement;
     q: string;
     auteurId?: string | null;
+    /** Directeur : les notes privées des collègues restent dans « visibles ». */
+    voirToutes?: boolean;
     now?: number;
   },
 ): T[] {
@@ -133,11 +135,11 @@ export function filterInboxNotes<T extends VoiceNote>(
     }
     if (input.scope === 'agence' && note.visibilite !== 'agence') return false;
     // `visibles` : les miennes, plus celles que les collègues ont publiées.
-    // La visibilité amont (`canSeeVoiceNote`) isole déjà les privées des autres ;
-    // on rejoue ici pour ne jamais les laisser passer par un oubli d'appelant.
+    // Le directeur voit aussi les notes privées. On rejoue la règle ici pour
+    // ne jamais laisser une privée passer vers un collaborateur.
     if (input.scope === 'visibles') {
       const mienne = note.createdBy === input.viewerId;
-      if (!mienne && note.visibilite !== 'agence') return false;
+      if (!mienne && note.visibilite !== 'agence' && !input.voirToutes) return false;
     }
     if (maxAge !== null) {
       const t = Date.parse(note.createdAt);
@@ -157,11 +159,9 @@ export function recentNotesForHome<T extends VoiceNote>(
   notes: readonly T[],
   input: { viewerId: string; isDirector: boolean; limit?: number },
 ): T[] {
-  const limit = input.limit ?? 5;
-  const mine = (
-    input.isDirector
-      ? notes
-      : notes.filter((n) => n.createdBy === input.viewerId || n.assignedTo === input.viewerId)
-  ).filter(noteVisibleAccueil);
-  return mine.slice(0, limit);
+  const mine = input.isDirector
+    ? [...notes]
+    : notes.filter((n) => n.createdBy === input.viewerId || n.assignedTo === input.viewerId);
+  const limit = input.limit;
+  return limit && limit > 0 ? mine.slice(0, limit) : mine;
 }

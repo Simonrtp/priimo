@@ -17,7 +17,8 @@ import {
 } from '@/lib/activite/semaines';
 import { parisYmd, ymdKey } from '@/lib/today/calendar';
 import { DIRECTEUR_SEUILS } from './config';
-import { indicateursAgence, type VictoireSemaine } from './agence';
+import { indicateursAgence } from './agence';
+import { victoiresDeLaSemaine, type BienPourVictoire, type ContactPourVictoire, type LeadPourVictoire } from './victoires';
 import {
   activitesDepuisJournal,
   assemblerAccueilDirecteur,
@@ -44,12 +45,12 @@ export async function chargerAccueilDirecteur(input: {
     avatarUrl: string | null;
   }[];
   stages: readonly LeadStage[];
-  leads: readonly {
+  leads: readonly (LeadPourVictoire & {
     assignedTo: string | null;
     deliveredAt: string | null;
     createdAt: string;
     stageId: string | null;
-  }[];
+  })[];
   biensMetier: readonly {
     id: string;
     address: string;
@@ -58,13 +59,11 @@ export async function chargerAccueilDirecteur(input: {
     mandatStatut: string;
     visitCount: number;
   }[];
-  biens: readonly {
-    id: string;
+  biens: readonly (BienPourVictoire & {
     assignedTo: string | null;
-    mandatStatut: string;
     mandatDate: string | null;
-    proprietaireContactId: string | null;
-  }[];
+  })[];
+  contacts: readonly ContactPourVictoire[];
   notes: readonly { createdBy: string | null; createdAt: string }[];
   periode: 'semaine' | 'mois';
   now?: Date;
@@ -271,19 +270,14 @@ export async function chargerAccueilDirecteur(input: {
     objectifMandatsMois: Math.max(1, objectifAgence ?? objectifEquipe),
   });
 
-  const victoires: VictoireSemaine[] = [];
-  for (const t of journal.transitions) {
-    if (t.versCle !== 'mandat' && t.versCle !== 'rendez_vous') continue;
-    if (!t.profileId) continue;
-    const jour = t.createdAt.slice(0, 10);
-    if (jour < semaine.debut || jour > semaine.fin) continue;
-    const prenom = prenoms.get(t.profileId) ?? 'Un collègue';
-    if (t.versCle === 'mandat') {
-      victoires.push({ kind: 'mandat', prenom, label: 'mandat signé' });
-    } else {
-      victoires.push({ kind: 'rendez_vous', prenom, label: 'rendez-vous obtenu' });
-    }
-  }
+  const victoires = victoiresDeLaSemaine({
+    transitions: journal.transitions,
+    semaine,
+    prenoms,
+    leads: input.leads,
+    biens: input.biens,
+    contacts: input.contacts,
+  });
 
   return assemblerAccueilDirecteur({
     membres: membres.filter((m) => m.id !== input.directeurProfileId),

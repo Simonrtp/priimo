@@ -6,6 +6,7 @@ import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import type { AccueilDirecteurModele, CarteNegociateur } from '@/lib/directeur/assembler';
 import type { VictoireSemaine } from '@/lib/directeur/agence';
+import { quandVictoire } from '@/lib/directeur/victoires';
 
 /** Les teintes de la projection : pastels des familles, lavande de l'objectif, orange Priimo. */
 const TEINTE = {
@@ -333,7 +334,18 @@ function SlideVictoires({ victoires, equipe }: { victoires: readonly VictoireSem
                   </span>
                   <div className="min-w-0">
                     <p className="font-display text-[clamp(20px,1.9vw,26px)] font-bold leading-tight">{v.prenom}</p>
-                    <p className="mt-0.5 truncate text-[clamp(14px,1.2vw,17px)] text-white/60">{v.label}</p>
+                    <p className="mt-0.5 text-[clamp(14px,1.2vw,17px)] text-white/70">{v.label}</p>
+                    {v.adresse ? (
+                      <p className="mt-0.5 line-clamp-2 text-[clamp(14px,1.2vw,17px)] text-white/60">{v.adresse}</p>
+                    ) : null}
+                    {v.contacts && v.contacts.length > 0 ? (
+                      <p className="mt-0.5 truncate text-[clamp(13px,1.1vw,16px)] text-white/55">
+                        {v.contacts.map((c) => c.nom).join(', ')}
+                      </p>
+                    ) : null}
+                    {v.quand ? (
+                      <p className="mt-0.5 text-[13px] text-white/40">{quandVictoire(v.quand)}</p>
+                    ) : null}
                   </div>
                 </Verre>
               </li>

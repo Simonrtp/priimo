@@ -1,6 +1,7 @@
 'use client';
 
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+import { nomComplet } from '@/lib/notes/auteur';
 import type { PortraitCollaborateur } from '@/types/contact';
 
 export default function CollaborateurNom({
@@ -23,7 +24,7 @@ export default function CollaborateurNom({
         size={size}
         className="shrink-0"
       />
-      <span className="min-w-0 truncate">{nom ?? portrait.fullName}</span>
+      <span className="min-w-0 truncate">{nom ?? nomComplet(portrait)}</span>
     </span>
   );
 }

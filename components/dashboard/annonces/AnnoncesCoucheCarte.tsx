@@ -48,9 +48,13 @@ export function AnnoncesLayerControls({
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
         <div className="flex items-center justify-between gap-2">
           <p className={`${textSize} shrink-0 font-medium text-text-strong`}>Annonces</p>
-          <span className="inline-flex max-w-[8.5rem] items-center gap-1 rounded-full bg-[#E3F2FC] px-1.5 py-0.5 text-[11px] font-medium leading-snug text-[#3B87B8]">
-            <HardHat size={12} strokeWidth={2.2} aria-hidden className="shrink-0" />
-            <span className="text-balance">Fonctionnalité en cours de dev</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E3F2FC] px-2 py-1 text-[11px] font-medium leading-tight text-[#3B87B8]">
+            <HardHat size={13} strokeWidth={2.2} aria-hidden className="shrink-0" />
+            <span>
+              En cours de
+              <br />
+              développement
+            </span>
           </span>
         </div>
         <ImportAnnonce compact={compact} />

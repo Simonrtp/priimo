@@ -13,9 +13,9 @@ describe('canSeeVoiceNote', () => {
     assert.equal(canSeeVoiceNote({ id: 'col-2', role: 'collaborateur' }, note), true);
   });
 
-  it('cache une note privée au directeur s’il n’en est pas l’auteur', () => {
+  it('laisse une note privée au directeur et à son auteur, pas aux autres', () => {
     const note = { visibilite: 'privee' as const, createdBy: 'col-1' };
-    assert.equal(canSeeVoiceNote(director, note), false);
+    assert.equal(canSeeVoiceNote(director, note), true);
     assert.equal(canSeeVoiceNote(collab, note), true);
     assert.equal(canSeeVoiceNote({ id: 'col-2', role: 'collaborateur' }, note), false);
   });

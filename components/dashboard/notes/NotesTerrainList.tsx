@@ -142,17 +142,21 @@ export default function NotesTerrainList({
                 note.id === focusNoteId ? 'border-accent/40' : 'border-black/[0.06]'
               }`}
             >
+              {note.author ? (
+                <CollaborateurNom
+                  portrait={note.author}
+                  size={28}
+                  className="mb-1.5 text-[13.5px] font-semibold text-text-strong"
+                />
+              ) : (
+                <p className="mb-1.5 text-[13.5px] font-semibold text-text-strong">
+                  {note.authorName?.trim() || 'Auteur inconnu'}
+                </p>
+              )}
               <div className="flex items-start justify-between gap-2">
                 <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11.5px] text-text-subtle">
                   <span>{formatDate(note.createdAt)}</span>
-                  {note.author ? (
-                    <span className="inline-flex min-w-0 items-center gap-1">
-                      · <CollaborateurNom portrait={note.author} size={15} />
-                    </span>
-                  ) : note.authorName ? (
-                    <span>· {note.authorName}</span>
-                  ) : null}
-                  {note.sourceInfo ? ` · ${NOTE_SOURCE_LABELS[note.sourceInfo]}` : ''}
+                  {note.sourceInfo ? <span>· {NOTE_SOURCE_LABELS[note.sourceInfo]}</span> : null}
                 </p>
                 <div className="flex shrink-0 items-center gap-1">
                   {lienIci ? (

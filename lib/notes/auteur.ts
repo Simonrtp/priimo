@@ -63,6 +63,16 @@ export function portraitPourNom(
   return parNom.get(cleNom(nom)) ?? null;
 }
 
+/** Prénom puis nom. Le nom complet déjà stocké sert si l'un des deux manque. */
+export function nomComplet(
+  p: Pick<PortraitCollaborateur, 'firstName' | 'lastName' | 'fullName'>,
+): string {
+  const prenom = p.firstName.trim();
+  const nom = p.lastName.trim();
+  if (prenom && nom) return `${prenom} ${nom}`;
+  return p.fullName.trim() || prenom || nom;
+}
+
 export function auteurNote(
   createdBy: string | null | undefined,
   parId: ReadonlyMap<string, PortraitCollaborateur>,

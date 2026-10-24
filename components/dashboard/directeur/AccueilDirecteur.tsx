@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, SlidersHorizontal } from 'lucide-react';
 import InviteCollaboratorDialog from '@/components/dashboard/equipe/InviteCollaboratorDialog';
@@ -13,6 +14,21 @@ import ModeReunion from './ModeReunion';
 import ObjectifAgenceDialog from './ObjectifAgenceDialog';
 import BullesEquipe, { InvitationsEnAttente } from './BullesEquipe';
 import { OBJECTIF } from './statut-style';
+import type { VictoireSemaine } from '@/lib/directeur/agence';
+import { quandVictoire } from '@/lib/directeur/victoires';
+import type { PortraitCollaborateur } from '@/types/contact';
+import { nomComplet } from '@/lib/notes/auteur';
+import { formatNoteWhen } from '@/lib/notes/format-when';
+import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectureProvider';
+import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
+
+export type NoteAgenceLigne = {
+  id: string;
+  texte: string;
+  createdAt: string;
+  privee: boolean;
+  auteur: PortraitCollaborateur | null;
+};
 
 const CREME = {
   voile: '#F9F4EB',
@@ -60,6 +76,7 @@ export default function AccueilDirecteur({
   periode,
   invitations = [],
   secteur,
+  notes = [],
 }: {
   modele: AccueilDirecteurModele;
   agences: readonly { id: string; name: string }[];
@@ -67,6 +84,7 @@ export default function AccueilDirecteur({
   periode: 'semaine' | 'mois';
   invitations?: readonly { id: string; email: string }[];
   secteur?: ReactNode;
+  notes?: readonly NoteAgenceLigne[];
 }) {
   const router = useRouter();
   const [reunion, setReunion] = useState(false);
@@ -274,19 +292,17 @@ export default function AccueilDirecteur({
             {modele.victoires.length === 0 ? (
               <p className="mt-2.5 text-[13px] text-text-muted">Pas encore de victoire cette semaine.</p>
             ) : (
-              <ul className="mt-2.5 space-y-1.5">
+              <ul className="mt-2.5 divide-y divide-black/[0.08]">
                 {modele.victoires.map((v, i) => (
-                  <li key={`${v.kind}-${i}`} className="text-[13.5px] text-text">
-                    <span className="font-semibold">{v.prenom}</span>
-                    {' — '}
-                    {v.label}
-                  </li>
+                  <VictoireLigne key={`${v.kind}-${v.leadId ?? ''}-${v.quand ?? ''}-${i}`} victoire={v} />
                 ))}
               </ul>
             )}
           </div>
         </section>
       </div>
+
+      <NotesAgence notes={notes} />
 
       <InviteCollaboratorDialog
         open={inviteOpen}
@@ -305,5 +321,148 @@ export default function AccueilDirecteur({
         />
       ) : null}
     </div>
+  );
+}
+
+function NotesAgence({ notes }: { notes: readonly NoteAgenceLigne[] }) {
+  const lecture = useNotesLectureOptional();
+
+  return (
+    <section className="rounded-clay-lg bg-surface px-4 pb-2 pt-4 shadow-clay sm:px-5" aria-labelledby="zone-notes">
+      <h2 id="zone-notes" className="text-[15px] font-semibold text-text-strong sm:text-[16px]">
+        Les notes
+      </h2>
+      {notes.length === 0 ? (
+        <p className="py-4 text-[13.5px] text-text-muted">Aucune note pour l’instant.</p>
+      ) : (
+        <ul className="mt-1 max-h-[40rem] divide-y divide-black/[0.08] overflow-y-auto">
+          {notes.map((note) => {
+            const nom = note.auteur ? nomComplet(note.auteur) : '';
+            return (
+              <li key={note.id}>
+                <button
+                  type="button"
+                  onClick={() => lecture?.ouvrir(note.id)}
+                  className="flex w-full items-start gap-3 rounded-lg py-3 text-left hover:bg-black/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  {note.auteur ? (
+                    <ProfileAvatar
+                      firstName={note.auteur.firstName}
+                      lastName={note.auteur.lastName}
+                      avatarUrl={note.auteur.avatarUrl}
+                      size={36}
+                      className="mt-0.5 shrink-0"
+                    />
+                  ) : (
+                    <span className="mt-0.5 size-9 shrink-0 rounded-full bg-black/[0.06]" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span className="text-[14px] font-semibold text-text-strong">
+                        {nom || 'Auteur inconnu'}
+                      </span>
+                      <time dateTime={note.createdAt} className="text-[12.5px] text-text-muted">
+                        {formatNoteWhen(note.createdAt)}
+                      </time>
+                      {note.privee ? <span className="text-[12px] text-text-muted">Privée</span> : null}
+                    </span>
+                    <span className="mt-1 block whitespace-pre-wrap text-pretty text-[13.5px] leading-snug text-text">
+                      {note.texte || 'Sans texte'}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const LIEN = 'underline-offset-2 hover:underline';
+
+function VictoireLigne({ victoire }: { victoire: VictoireSemaine }) {
+  const quand = victoire.quand ? quandVictoire(victoire.quand) : '';
+  const contacts = victoire.contacts ?? [];
+  const bien = victoire.bien ?? null;
+  const faitsBien = [bien?.precisions, bien?.prix, bien?.achat, bien?.mandat].filter(Boolean).join(' · ');
+  const hrefLead = victoire.leadId
+    ? `/dashboard/prospection?lead=${victoire.leadId}&vue=liste`
+    : null;
+  const hrefBien = bien?.id ? `/dashboard/biens?fiche=${bien.id}` : null;
+
+  return (
+    <li className="py-2.5 first:pt-1">
+      <p className="text-[13.5px] text-text">
+        <span className="font-semibold text-text-strong">{victoire.prenom}</span>
+        {' — '}
+        {victoire.label}
+        {quand ? <span className="text-text-muted"> · {quand}</span> : null}
+      </p>
+      {victoire.adresse ? (
+        hrefLead ? (
+          <Link href={hrefLead} className={`mt-0.5 block text-[13px] font-medium text-text-strong ${LIEN}`}>
+            {victoire.adresse}
+          </Link>
+        ) : hrefBien ? (
+          <Link href={hrefBien} className={`mt-0.5 block text-[13px] font-medium text-text-strong ${LIEN}`}>
+            {victoire.adresse}
+          </Link>
+        ) : (
+          <p className="mt-0.5 text-[13px] font-medium text-text-strong">{victoire.adresse}</p>
+        )
+      ) : hrefLead ? (
+        <Link href={hrefLead} className={`mt-0.5 block text-[13px] text-text-muted ${LIEN}`}>
+          Voir le lead
+        </Link>
+      ) : null}
+      {contacts.map((contact, index) => (
+        <p key={`${contact.id ?? contact.nom}-${index}`} className="mt-0.5 text-[12.5px] text-text-muted">
+          {contact.role ? <span>{contact.role} · </span> : null}
+          {contact.id ? (
+            <Link
+              href={`/dashboard/contacts?fiche=${contact.id}`}
+              className={`font-medium text-text-strong ${LIEN}`}
+            >
+              {contact.nom}
+            </Link>
+          ) : (
+            <span className="font-medium text-text-strong">{contact.nom}</span>
+          )}
+          {contact.telephone ? (
+            <>
+              {' · '}
+              <a href={`tel:${contact.telephone.replace(/\s/g, '')}`} className={LIEN}>
+                {contact.telephone}
+              </a>
+            </>
+          ) : null}
+          {contact.email ? (
+            <>
+              {' · '}
+              <a href={`mailto:${contact.email}`} className={`break-all ${LIEN}`}>
+                {contact.email}
+              </a>
+            </>
+          ) : null}
+        </p>
+      ))}
+      {faitsBien ? (
+        <p className="mt-0.5 text-[12.5px] text-text-muted">
+          {hrefBien ? (
+            <Link href={hrefBien} className={LIEN}>
+              {faitsBien}
+            </Link>
+          ) : (
+            faitsBien
+          )}
+        </p>
+      ) : hrefBien && hrefLead ? (
+        <Link href={hrefBien} className={`mt-0.5 block text-[12.5px] text-text-muted ${LIEN}`}>
+          Voir le bien
+        </Link>
+      ) : null}
+    </li>
   );
 }

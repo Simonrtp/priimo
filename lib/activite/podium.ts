@@ -15,8 +15,9 @@ export type AgentPodium = {
 };
 
 /**
- * Les agents qui ont une activité sur l'intervalle, du plus actif au moins actif.
- * À score égal, l'ordre alphabétique départage. Le podium n'affiche que les trois premiers.
+ * Tous les collaborateurs, du plus actif au moins actif.
+ * Quelqu'un sans passage reste là, à 0 : une marche vide n'est pas une place.
+ * À score égal, l'ordre alphabétique départage. L'affichage ne garde que les trois premiers.
  */
 export function podiumSemaine(
   journal: JournalActivite,
@@ -29,6 +30,5 @@ export function podiumSemaine(
       const score = Object.values(stats).reduce((s, n) => s + n, 0);
       return { id: m.id, prenom: m.prenom, nom: m.nom, avatarUrl: m.avatarUrl, score, stats };
     })
-    .filter((m) => m.score > 0)
     .sort((a, b) => b.score - a.score || a.prenom.localeCompare(b.prenom, 'fr') || a.id.localeCompare(b.id));
 }

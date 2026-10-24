@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import MapboxMap, { Marker, type MapRef } from 'react-map-gl';
+import MapboxMap, { type MapRef } from 'react-map-gl';
 import { Locate, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Lead } from '@/types/lead';
 import { isUsableCoord, type GeoCoord } from '@/lib/carte/coords';
@@ -477,14 +477,7 @@ export default function TourneeMobile({
               {/* Les annonces ajoutées par URL restent visibles en tournée. */}
               <AnnoncesAjoutees />
               {agentPos && isUsableCoord(agentPos.latitude, agentPos.longitude) ? (
-                <Marker
-                  longitude={agentPos.longitude}
-                  latitude={agentPos.latitude}
-                  anchor="center"
-                  style={{ zIndex: 30 }}
-                >
-                  <AgentLocationMarker position={agentPos} />
-                </Marker>
+                <AgentLocationMarker position={agentPos} zIndex={30} />
               ) : null}
             </MapboxMap>
           )}

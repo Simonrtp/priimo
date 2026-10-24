@@ -31,7 +31,8 @@ import { buildPortfolioStats } from '@/lib/today/portfolio';
 import { ACCUEIL_VUE_COOKIE } from '@/lib/today/accueil-vue';
 import { resolveVueAccueilDirecteur, agencesDirecteur } from '@/lib/directeur/vue';
 import { chargerAccueilDirecteur } from '@/lib/directeur/charger-accueil';
-import AccueilDirecteur from '@/components/dashboard/directeur/AccueilDirecteur';
+import AccueilDirecteur, { type NoteAgenceLigne } from '@/components/dashboard/directeur/AccueilDirecteur';
+import { NotesLectureProvider } from '@/components/dashboard/notes/NotesLectureProvider';
 import SqueletteAgence from '@/components/dashboard/directeur/SqueletteAgence';
 import { homeNoteAttachment, homeNoteLieuKind, homeNoteTitre, recentNotesForHome } from '@/lib/notes/inbox';
 import { auteurNote, portraitsParId, portraitsParNom, portraitPourNom } from '@/lib/notes/auteur';
@@ -312,11 +313,20 @@ async function TodayContent({
   if (layoutDirector) {
     const periodeDirecteur =
       periode === '30j' || periode === '90j' ? 'mois' : 'semaine';
-    const [socle, modeleDirecteur, invitations] = await Promise.all([
+    const [socle, directeurCharge, invitations] = await Promise.all([
       socleP,
-      Promise.all([membersP, stagesP, leadsP, biensP, notesP, metierP]).then(
-        ([members, stages, leads, biens, notes, metier]) =>
-          timed('chargerAccueilDirecteur', () =>
+      Promise.all([membersP, stagesP, leadsP, biensP, contactsP, notesP, metierP]).then(
+        async ([members, stages, leads, biens, contacts, notes, metier]) => {
+          const notesVisibles = visibleVoiceNotesFor(viewer, notes);
+          const auteurs = portraitsParId(members);
+          const notesAgence: NoteAgenceLigne[] = notesVisibles.map((n) => ({
+            id: n.id,
+            texte: (n.transcript ?? '').trim(),
+            createdAt: n.createdAt,
+            privee: n.visibilite === 'privee',
+            auteur: auteurNote(n.createdBy, auteurs),
+          }));
+          const modele = await timed('chargerAccueilDirecteur', () =>
             chargerAccueilDirecteur({
               supabase,
               agencyId: agency.id,
@@ -330,10 +340,31 @@ async function TodayContent({
               })),
               stages,
               leads: visibleLeadsFor(viewer, leads).map((l) => ({
+                id: l.id,
                 assignedTo: l.assignedTo,
                 deliveredAt: l.deliveredAt,
                 createdAt: l.createdAt,
                 stageId: l.stageId,
+                address: l.address,
+                city: l.city,
+                postalCode: l.postalCode,
+                propertyType: l.propertyType,
+                surfaceM2: l.surfaceM2,
+                rooms: l.rooms,
+                etage: l.etage,
+                dpeClass: l.dpeClass,
+                acquiredYear: l.acquiredYear,
+                acquiredPrice: l.acquiredPrice,
+                acquiredPriceReliable: l.acquiredPriceReliable,
+                ownerName: l.ownerName,
+                ownerPhone: l.ownerPhone,
+                ownerPhoneSource: l.ownerPhoneSource,
+                ownerType: l.ownerType,
+                companyName: l.companyName,
+                companyDirector: l.companyDirector,
+                companyPhone: l.companyPhone,
+                companyEmail: l.companyEmail,
+                banId: l.banId,
               })),
               biensMetier: metier.biens,
               biens: visibleBiensFor(viewer, biens).map((b) => ({
@@ -342,14 +373,36 @@ async function TodayContent({
                 mandatStatut: b.mandatStatut,
                 mandatDate: b.mandatDate,
                 proprietaireContactId: b.proprietaireContactId,
+                leadId: b.leadId,
+                banId: b.banId,
+                address: b.address,
+                city: b.city,
+                postalCode: b.postalCode,
+                propertyType: b.propertyType,
+                surfaceM2: b.surfaceM2,
+                rooms: b.rooms,
+                price: b.price,
+                proprietaireName: b.proprietaireName,
+                proprietairePhone: b.proprietairePhone,
+                proprietaireEmail: b.proprietaireEmail,
               })),
-              notes: visibleVoiceNotesFor(viewer, notes).map((n) => ({
+              contacts: visibleContactsFor(viewer, contacts).map((c) => ({
+                id: c.id,
+                leadId: c.leadId,
+                fullName: c.fullName,
+                phone: c.phone,
+                email: c.email,
+                type: c.type,
+              })),
+              notes: notesVisibles.map((n) => ({
                 createdBy: n.createdBy,
                 createdAt: n.createdAt,
               })),
               periode: periodeDirecteur,
             }),
-          ),
+          );
+          return { modele, notesAgence };
+        },
       ),
       supabase
         .from('invitations')
@@ -372,25 +425,28 @@ async function TodayContent({
     markServerTimingReady();
 
     return (
-      <AccueilDirecteur
-        modele={modeleDirecteur}
-        agences={agencesDirecteur(memberships)}
-        agenceActiveId={agency.id}
-        periode={periodeDirecteur}
-        invitations={(invitations.data ?? []).map((row) => ({
-          id: row.id,
-          email: row.email,
-        }))}
-        secteur={
-          <SecteurAccueil
-            key="secteur-agence"
-            apercu={socle.apercuAgence}
-            centre={centreAgence}
-            estDirecteur
-            secteurs={socle.secteursData}
-          />
-        }
-      />
+      <NotesLectureProvider>
+        <AccueilDirecteur
+          modele={directeurCharge.modele}
+          agences={agencesDirecteur(memberships)}
+          agenceActiveId={agency.id}
+          periode={periodeDirecteur}
+          invitations={(invitations.data ?? []).map((row) => ({
+            id: row.id,
+            email: row.email,
+          }))}
+          notes={directeurCharge.notesAgence}
+          secteur={
+            <SecteurAccueil
+              key="secteur-agence"
+              apercu={socle.apercuAgence}
+              centre={centreAgence}
+              estDirecteur
+              secteurs={socle.secteursData}
+            />
+          }
+        />
+      </NotesLectureProvider>
     );
   }
 
@@ -469,7 +525,6 @@ async function TodayContent({
       const notesAccueil = recentNotesForHome(visibleVoiceNotesFor(viewer, notes), {
         viewerId: profile.id,
         isDirector: false,
-        limit: 5,
       });
       const rattachements = await timed('rattachementsDesNotes', () =>
         rattachementsDesNotes({ supabase, notes: notesAccueil }),

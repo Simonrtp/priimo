@@ -65,6 +65,7 @@ export async function GET(req: Request) {
     rattachement: asRattachement(url.searchParams.get('rattachement')),
     q: url.searchParams.get('q') ?? '',
     auteurId: url.searchParams.get('membre')?.trim() || null,
+    voirToutes: viewer.role === 'directeur',
   });
   const filtered = limite ? candidates.slice(0, limite) : candidates;
 

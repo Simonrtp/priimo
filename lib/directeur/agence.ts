@@ -9,9 +9,37 @@ export type IndicateursAgence = {
   objectifMandatsMois: number;
 };
 
-export type VictoireSemaine =
-  | { kind: 'mandat'; prenom: string; label: string }
-  | { kind: 'rendez_vous'; prenom: string; label: string };
+export type VictoireContact = {
+  /** Fiche contact, absente quand le nom vient seulement du lead ou du bien. */
+  id: string | null;
+  nom: string;
+  telephone: string | null;
+  email: string | null;
+  role: string | null;
+};
+
+export type VictoireBien = {
+  /** Fiche bien, absente quand les précisions viennent seulement du lead. */
+  id: string | null;
+  precisions: string | null;
+  /** Prix de la fiche bien, s'il existe. */
+  prix: string | null;
+  /** Prix d'achat du lead, seulement s'il est affiché ailleurs comme fiable. */
+  achat: string | null;
+  mandat: string | null;
+};
+
+export type VictoireSemaine = {
+  kind: 'mandat' | 'rendez_vous';
+  prenom: string;
+  label: string;
+  /** ISO de la transition. Absent sur les jeux d'aperçu. */
+  quand?: string;
+  leadId?: string | null;
+  adresse?: string | null;
+  contacts?: readonly VictoireContact[];
+  bien?: VictoireBien | null;
+};
 
 export function indicateursAgence(input: {
   mandatsActifs: number;

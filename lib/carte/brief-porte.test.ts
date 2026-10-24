@@ -100,21 +100,30 @@ function texteComplet(lignes: readonly LigneBrief[]): string {
 }
 
 describe('brief de porte — visibilité', () => {
-  it('la note privée d’un autre agent n’apparaît jamais dans son brief', () => {
+  it('la note privée d’un autre agent n’apparaît pas dans le brief d’un collaborateur', () => {
     const notes = [NOTE_PRIVEE_BRUNO, NOTE_AGENCE];
-    for (const lecteur of [ALICE, DIRECTRICE]) {
-      const { lignes, notes: visibles } = collecterBrief(fiche(), notes, lecteur, MAINTENANT);
-      const tout = [
-        texteComplet(lignes),
-        promptBrief(lignes, visibles),
-        sourceEmpreinte('75120000AB0001', lignes, visibles),
-        texteAEcouter(lignes),
-      ].join('\n');
-      assert.ok(!tout.includes('Zébulon'), `fuite pour ${lecteur.id}`);
-      assert.ok(!tout.includes('610'), `fuite pour ${lecteur.id}`);
-      assert.ok(!tout.includes('n-privee'), `fuite pour ${lecteur.id}`);
-      assert.deepEqual(visibles.map((n) => n.id), ['n-agence']);
-    }
+    const { lignes, notes: visibles } = collecterBrief(fiche(), notes, ALICE, MAINTENANT);
+    const tout = [
+      texteComplet(lignes),
+      promptBrief(lignes, visibles),
+      sourceEmpreinte('75120000AB0001', lignes, visibles),
+      texteAEcouter(lignes),
+    ].join('\n');
+    assert.ok(!tout.includes('Zébulon'));
+    assert.ok(!tout.includes('610'));
+    assert.ok(!tout.includes('n-privee'));
+    assert.deepEqual(visibles.map((n) => n.id), ['n-agence']);
+  });
+
+  it('le directeur voit la note privée dans le brief', () => {
+    const { lignes, notes: visibles } = collecterBrief(
+      fiche(),
+      [NOTE_PRIVEE_BRUNO, NOTE_AGENCE],
+      DIRECTRICE,
+      MAINTENANT,
+    );
+    assert.match(texteComplet(lignes), /Zébulon/);
+    assert.deepEqual(visibles.map((n) => n.id), ['n-privee', 'n-agence']);
   });
 
   it('une rédaction qui recopierait la note privée est refusée', () => {
@@ -141,7 +150,7 @@ describe('brief de porte — visibilité', () => {
       const r = collecterBrief(fiche({ passages: [] }), notes, v, MAINTENANT);
       return sourceEmpreinte('p', r.lignes, r.notes);
     };
-    assert.equal(pour(ALICE), pour(DIRECTRICE));
+    assert.equal(pour(DIRECTRICE), pour(BRUNO));
     assert.notEqual(pour(ALICE), pour(BRUNO));
   });
 
@@ -168,9 +177,10 @@ describe('brief de porte — visibilité', () => {
     assert.equal(sourceEmpreinte('p', encore.lignes, encore.notes), e0);
   });
 
-  it('notesVisibles applique la règle des notes privées, directeur compris', () => {
-    assert.deepEqual(notesVisibles([NOTE_PRIVEE_BRUNO], DIRECTRICE), []);
+  it('notesVisibles montre une note privée au directeur et à son auteur', () => {
+    assert.deepEqual(notesVisibles([NOTE_PRIVEE_BRUNO], DIRECTRICE).map((n) => n.id), ['n-privee']);
     assert.deepEqual(notesVisibles([NOTE_PRIVEE_BRUNO], BRUNO).map((n) => n.id), ['n-privee']);
+    assert.deepEqual(notesVisibles([NOTE_PRIVEE_BRUNO], ALICE), []);
   });
 });
 
