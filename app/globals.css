@@ -562,9 +562,37 @@ html:has(.landing)::-webkit-scrollbar {
 .reunion-slide-back {
   animation: reunionSlideBack 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+/* Halos du mode réunion : deux lueurs qui dérivent lentement (transform seul, composité). */
+.reunion-halo-a {
+  will-change: transform;
+  animation: reunionDeriveA 22s ease-in-out infinite alternate;
+}
+.reunion-halo-b {
+  will-change: transform;
+  animation: reunionDeriveB 28s ease-in-out infinite alternate;
+}
+@keyframes reunionDeriveA {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(8vmax, 6vmax, 0) scale(1.12); }
+}
+@keyframes reunionDeriveB {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-7vmax, -5vmax, 0) scale(0.95); }
+}
+/* Le chiffre qui surgit (nombre de victoires). */
+.reunion-pop {
+  animation: reunionPop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both;
+}
+@keyframes reunionPop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .reunion-slide-in,
-  .reunion-slide-back {
+  .reunion-slide-back,
+  .reunion-halo-a,
+  .reunion-halo-b,
+  .reunion-pop {
     animation: none;
   }
 }
