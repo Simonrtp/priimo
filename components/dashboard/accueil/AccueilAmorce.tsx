@@ -10,7 +10,7 @@ export default function AccueilAmorce({
   mobile: boolean;
 }) {
   return (
-    <div data-accueil className="flex w-full min-w-0 flex-col gap-4 pb-10">
+    <div data-accueil data-accueil-amorce className="flex w-full min-w-0 flex-col gap-4 pb-10">
       <EnteteSquelette />
       <AccueilSquelette mobile={mobile} />
     </div>

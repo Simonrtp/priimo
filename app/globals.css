@@ -597,6 +597,98 @@ html:has(.landing)::-webkit-scrollbar {
   }
 }
 
+/* === ENTRÉE DANS L'OUTIL ===
+   Posé sur la racine de la coque ([data-entree-racine]) à la connexion et à la
+   première ouverture du jour, retiré dès la fin. Transform, opacity et
+   découpage seulement ; aucun délai avant d'afficher ni de pouvoir cliquer. */
+[data-entree='grande'] [data-entree-coque] {
+  animation: entreeCoque 780ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+/* Le contenu de la barre glisse ; son fond reste, sinon la colonne passe au blanc. */
+[data-entree='grande'] #dashboard-sidebar > * {
+  animation: entreeBarre 560ms cubic-bezier(0.22, 1, 0.36, 1) 140ms backwards;
+}
+[data-entree='grande'] [data-entree-colonne] > header {
+  animation: entreeHaut 520ms cubic-bezier(0.22, 1, 0.36, 1) 240ms backwards;
+}
+[data-entree='grande'] [data-entree-mobile] {
+  animation: entreeMobile 620ms cubic-bezier(0.22, 1, 0.36, 1) 80ms backwards;
+}
+/* L'Accueil arrive bloc après bloc : sur le vrai contenu, jamais sur ses cartes grises. */
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > * {
+  animation: entreeBloc 600ms cubic-bezier(0.2, 0.9, 0.25, 1.06) backwards;
+  animation-delay: calc(260ms + var(--entree-rang, 9) * 70ms);
+}
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(1) { --entree-rang: 0; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(2) { --entree-rang: 1; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(3) { --entree-rang: 2; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(4) { --entree-rang: 3; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(5) { --entree-rang: 4; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(6) { --entree-rang: 5; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(7) { --entree-rang: 6; }
+[data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(8) { --entree-rang: 7; }
+@keyframes entreeCoque {
+  from {
+    clip-path: inset(max(0px, calc(50% - 230px)) max(0px, calc(50% - 250px)) max(0px, calc(50% - 230px)) max(0px, calc(50% - 250px)) round 24px);
+  }
+  to {
+    clip-path: inset(0px 0px 0px 0px round 28px 0px 0px 0px);
+  }
+}
+@keyframes entreeBarre {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes entreeHaut {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes entreeMobile {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes entreeBloc {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+/* Le secteur plonge en vue la première fois qu'il apparaît dans la journée. */
+.secteur-eveil {
+  animation: secteurEveil 1200ms cubic-bezier(0.22, 1, 0.36, 1) 150ms backwards;
+}
+@keyframes secteurEveil {
+  from { opacity: 0.35; transform: scale(1.12); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+/* La pastille des nouvelles adresses respire une fois à l'arrivée. */
+.pastille-nouveautes {
+  animation: pastilleNouveautes 900ms cubic-bezier(0.34, 1.56, 0.64, 1) 400ms backwards;
+}
+@keyframes pastilleNouveautes {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: none; }
+}
+/* Pendant la connexion, le logo respire : l'attente se voit sans rond qui tourne de plus. */
+.connexion-logo-attente {
+  animation: connexionLogo 1400ms ease-in-out infinite;
+}
+@keyframes connexionLogo {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(232, 116, 60, 0)); }
+  50% { transform: scale(1.045); filter: drop-shadow(0 6px 18px rgba(232, 116, 60, 0.28)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .connexion-logo-attente,
+  [data-entree='grande'] [data-entree-coque],
+  [data-entree='grande'] #dashboard-sidebar > *,
+  [data-entree='grande'] [data-entree-colonne] > header,
+  [data-entree='grande'] [data-entree-mobile],
+  [data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > *,
+  .secteur-eveil,
+  .pastille-nouveautes {
+    animation: none;
+  }
+}
+
 /* === SCROLL REVEAL (CSS scroll-driven — pas de JS) === */
 @keyframes revealUp {
   from { opacity: 0; transform: translateY(28px); }

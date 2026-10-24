@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import type { BilanSemaine } from '@/lib/activite/bilan';
 import ObjectifsDialog from './ObjectifsDialog';
+import { useMonteeEntree } from '@/components/dashboard/entree/useMonteeEntree';
 
 /**
  * Violet de l'objectif, aux mêmes paliers que `COULEUR_FAMILLE` : voile pour
@@ -46,6 +47,8 @@ export default function BandeauObjectif({
 }) {
   const [reglage, setReglage] = useState(false);
   const { progressionHebdo, mandatsDuMois } = bilan;
+  const refProgression = useRef<HTMLParagraphElement>(null);
+  const progressionAffichee = useMonteeEntree(progressionHebdo, refProgression);
   const pctMandats =
     mandatsDuMois.objectif > 0
       ? Math.min(100, Math.round((mandatsDuMois.valeur / mandatsDuMois.objectif) * 100))
@@ -82,10 +85,11 @@ export default function BandeauObjectif({
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-[12px] font-semibold text-text-muted">Objectif de la période</p>
             <p
+              ref={refProgression}
               className="font-display text-[17px] font-bold"
               style={{ color: OBJECTIF.teinte }}
             >
-              {progressionHebdo} %
+              {progressionAffichee} %
             </p>
           </div>
           <div

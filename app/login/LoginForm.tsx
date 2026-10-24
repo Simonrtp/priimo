@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Footer from '@/components/Footer';
 import { PriimoLogo } from '@/components/brand/PriimoLogo';
 import { CALENDLY_URL } from '@/lib/calendly';
 import AuthWait from '@/components/AuthWait';
+import { CLE_CONNEXION, CLE_LOGO } from '@/lib/entree/entree';
 import { loginAction } from './actions';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,6 +47,18 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
     password: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const logoRef = useRef<HTMLDivElement>(null);
+
+  // Une connexion refusée ne doit pas laisser l'entrée en attente pour plus tard.
+  useEffect(() => {
+    if (!erreurServeur) return;
+    try {
+      window.sessionStorage.removeItem(CLE_CONNEXION);
+      window.sessionStorage.removeItem(CLE_LOGO);
+    } catch {
+      // Stockage indisponible : rien à nettoyer.
+    }
+  }, [erreurServeur]);
 
   const validateEmail = (value: string): string | undefined => {
     if (!value.trim()) return "L'adresse email est requise.";
@@ -70,6 +83,14 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
       return;
     }
     setIsSubmitting(true);
+    // L'entrée dans l'outil repartira d'ici : le logo reprend sa place exacte avant de s'envoler.
+    try {
+      const r = logoRef.current?.getBoundingClientRect();
+      window.sessionStorage.setItem(CLE_CONNEXION, String(Date.now()));
+      if (r && r.width > 0) window.sessionStorage.setItem(CLE_LOGO, JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height }));
+    } catch {
+      // Stockage indisponible : la connexion se fait sans l'animation.
+    }
   };
 
   return (
@@ -89,11 +110,17 @@ export default function LoginForm({ erreurServeur }: { erreurServeur?: string })
       <div className="w-full max-w-[420px]">
         <div className="flex justify-center mb-6">
           <Link href="/" className="inline-block">
-            <PriimoLogo className="h-12" priority />
+            <div ref={logoRef} className={isSubmitting ? 'connexion-logo-attente' : undefined}>
+              <PriimoLogo className="h-12" priority />
+            </div>
           </Link>
         </div>
 
-        <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-6 sm:p-8">
+        <div
+          className={`rounded-2xl bg-white border border-black/5 shadow-soft p-6 sm:p-8 transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isSubmitting ? '-translate-y-1 shadow-[0_24px_60px_-20px_rgba(26,42,86,0.25)]' : ''
+          }`}
+        >
           <div className="text-center mb-6">
             <h1 className="font-sans text-2xl font-semibold text-gray-900 tracking-tight">
               Content de vous revoir

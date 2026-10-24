@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ApercuSecteur, RepartitionFraicheur } from '@/lib/zones/accueil';
 import type { Zone } from '@/lib/zones/types';
+import { CLE_EVEIL_SECTEUR, jourParis } from '@/lib/entree/entree';
 import {
   COULEUR_FRAICHEUR,
   LIBELLE_FRAICHEUR,
@@ -18,6 +19,19 @@ const ZonesCarte = dynamic(() => import('@/components/dashboard/zones/ZonesCarte
     <div className="h-full animate-pulse rounded-clay-lg bg-black/[0.04]" aria-hidden />
   ),
 });
+
+/** La première apparition du secteur dans la journée : la carte y plonge en vue (une fois par jour). */
+function premiereFoisAujourdhui(): boolean {
+  try {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+    const jour = jourParis();
+    if (window.localStorage.getItem(CLE_EVEIL_SECTEUR) === jour) return false;
+    window.localStorage.setItem(CLE_EVEIL_SECTEUR, jour);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function hrefCarte(zoneId: string | null) {
   const base = '/dashboard/prospection?vue=carte';
@@ -72,6 +86,7 @@ export default function MonSecteur({
   const { zones, points, cycleSemaines, zonesDirecteur } = apercu;
   const zoneSeule = zones.length === 1 ? zones[0] : null;
   const [carteVisible, setCarteVisible] = useState(false);
+  const [eveil, setEveil] = useState(false);
   const [cadre, setCadre] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -83,6 +98,7 @@ export default function MonSecteur({
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
+          setEveil(premiereFoisAujourdhui());
           setCarteVisible(true);
           io.disconnect();
         }
@@ -135,7 +151,7 @@ export default function MonSecteur({
         className="relative min-h-[280px] flex-1 overflow-hidden rounded-clay-lg sm:min-h-[340px]"
       >
         {carteVisible ? (
-          <div className="absolute inset-0">
+          <div className={`absolute inset-0 ${eveil ? 'secteur-eveil' : ''}`}>
             <ZonesCarte
               zones={zonesCarte}
               zoneActive={estDirecteur ? null : zoneSeule}

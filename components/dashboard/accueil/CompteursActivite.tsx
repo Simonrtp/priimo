@@ -11,6 +11,7 @@ import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import { EVENEMENT_ENVOL_ARRIVE, type EnvolArrive } from '@/lib/ui/envol-note';
 import styles from './envol.module.css';
+import { useMonteeEntree } from '@/components/dashboard/entree/useMonteeEntree';
 
 /**
  * Le geste qui fait monter le chiffre, et rien d'autre. Chaque libellé nomme
@@ -264,6 +265,8 @@ function CarteCompteur({
   const { ouvrir } = useNotesLecture();
   const { bonus, impact, compte } = useArriveeNote(famille, compteur, accueilleNotes, periode);
   const valeur = compteur.valeur + bonus;
+  const refChiffre = useRef<HTMLSpanElement>(null);
+  const valeurAffichee = useMonteeEntree(valeur, refChiffre);
   const pct =
     compteur.objectif > 0
       ? Math.min(100, Math.round((valeur / compteur.objectif) * 100))
@@ -277,11 +280,12 @@ function CarteCompteur({
     <span className="relative inline-flex">
       <span
         key={impact}
+        ref={refChiffre}
         {...cible}
         className={`font-display ${taille} font-bold leading-none tabular-nums ${impact ? styles.chiffreImpact : ''}`}
         style={{ color: teinte }}
       >
-        {valeur.toLocaleString('fr-FR')}
+        {valeurAffichee.toLocaleString('fr-FR')}
       </span>
       {impact && compte ? (
         <span key={`plus-${impact}`} className={styles.plusUn} style={{ color: teinte }} aria-hidden>

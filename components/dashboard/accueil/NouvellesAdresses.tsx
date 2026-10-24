@@ -3,6 +3,7 @@ import { ArrowRight, MapPin } from 'lucide-react';
 import FacadeLead from '@/components/dashboard/FacadeLead';
 import { FIELD } from '@/lib/today/field';
 import CarteVideAccueil, { BOUTON_CARTE_VIDE } from './CarteVideAccueil';
+import NouveautesDepuisVisite from './NouveautesDepuisVisite';
 
 export type AdresseLivree = {
   id: string;
@@ -88,6 +89,7 @@ export default function NouvellesAdresses({
           Voir tout
         </Link>
       </div>
+      <NouveautesDepuisVisite ids={adresses.map((a) => a.id)} />
 
       <ul className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         {adresses.map((a) => (
