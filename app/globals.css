@@ -602,22 +602,22 @@ html:has(.landing)::-webkit-scrollbar {
    première ouverture du jour, retiré dès la fin. Transform, opacity et
    découpage seulement ; aucun délai avant d'afficher ni de pouvoir cliquer. */
 [data-entree='grande'] [data-entree-coque] {
-  animation: entreeCoque 780ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: entreeCoque 1400ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 /* Le contenu de la barre glisse ; son fond reste, sinon la colonne passe au blanc. */
 [data-entree='grande'] #dashboard-sidebar > * {
-  animation: entreeBarre 560ms cubic-bezier(0.22, 1, 0.36, 1) 140ms backwards;
+  animation: entreeBarre 960ms cubic-bezier(0.22, 1, 0.36, 1) 240ms backwards;
 }
 [data-entree='grande'] [data-entree-colonne] > header {
-  animation: entreeHaut 520ms cubic-bezier(0.22, 1, 0.36, 1) 240ms backwards;
+  animation: entreeHaut 900ms cubic-bezier(0.22, 1, 0.36, 1) 420ms backwards;
 }
 [data-entree='grande'] [data-entree-mobile] {
-  animation: entreeMobile 620ms cubic-bezier(0.22, 1, 0.36, 1) 80ms backwards;
+  animation: entreeMobile 1100ms cubic-bezier(0.22, 1, 0.36, 1) 160ms backwards;
 }
 /* L'Accueil arrive bloc après bloc : sur le vrai contenu, jamais sur ses cartes grises. */
 [data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > * {
-  animation: entreeBloc 600ms cubic-bezier(0.2, 0.9, 0.25, 1.06) backwards;
-  animation-delay: calc(260ms + var(--entree-rang, 9) * 70ms);
+  animation: entreeBloc 980ms cubic-bezier(0.2, 0.9, 0.25, 1.06) backwards;
+  animation-delay: calc(480ms + var(--entree-rang, 9) * 110ms);
 }
 [data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(1) { --entree-rang: 0; }
 [data-entree='grande'] [data-accueil]:not([data-accueil-amorce]) > :nth-child(2) { --entree-rang: 1; }

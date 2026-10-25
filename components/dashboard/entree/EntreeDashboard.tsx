@@ -13,9 +13,9 @@ type Scene = { salut: string; logo: Cadre };
 /** Proportions du logo Priimo (wordmark). */
 const RATIO_LOGO = 2446 / 1153;
 /** Fin de la superposition (logo et salutation), en ms. */
-const DUREE_SCENE_MS = 1300;
+const DUREE_SCENE_MS = 2400;
 /** Après l'arrivée du vrai contenu de l'Accueil, le temps de sa cascade. */
-const APRES_CONTENU_MS = 1800;
+const APRES_CONTENU_MS = 2400;
 /** Au plus tard, la coque redevient immobile. */
 const DUREE_MAX_MS = 6500;
 
@@ -66,7 +66,7 @@ function cibleVisible(selecteur: string): { el: HTMLElement; r: DOMRect } | null
  * la coque, le logo vole jusqu'à la barre latérale et « Bonjour Simon » file
  * vers l'avatar. À la première ouverture du jour (page chargée en entier), la
  * coque et l'Accueil s'animent seuls (posé avant rendu par le script d'entrée).
- * Rien ne bloque les clics ; tout est fini en moins de deux secondes.
+ * Rien ne bloque les clics. Le logo et la salutation prennent le temps d'être vus.
  */
 export default function EntreeDashboard() {
   const { profile } = useUser();
@@ -97,39 +97,39 @@ export default function EntreeDashboard() {
     const animations: Animation[] = [];
     if (scene && voile.current && logo.current && salut.current) {
       const doux = 'cubic-bezier(0.22, 1, 0.36, 1)';
-      // Le voile part vite : on voit la carte de connexion devenir la coque.
-      animations.push(voile.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 420, delay: 60, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }));
+      // Le voile reste un instant : on voit la carte de connexion devenir la coque.
+      animations.push(voile.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 160, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }));
 
       const depart = scene.logo;
       const cible = cibleVisible('#dashboard-sidebar a[aria-label="Priimo"]');
       if (cible) {
         const arrivee = cible.r;
         // Le vrai logo attend l'atterrissage : jamais deux logos à l'écran.
-        animations.push(cible.el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.99 }, { opacity: 1 }], { duration: 930 }));
+        animations.push(cible.el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.99 }, { opacity: 1 }], { duration: 1680 }));
         const dx = arrivee.left + arrivee.width / 2 - (depart.x + depart.w / 2);
         const dy = arrivee.top + arrivee.height / 2 - (depart.y + depart.h / 2);
         const s = Math.min(arrivee.width / depart.w, arrivee.height / depart.h);
         animations.push(
           logo.current.animate([{ transform: 'translate(0, 0) scale(1)' }, { transform: `translate(${dx}px, ${dy}px) scale(${s})` }], {
-            duration: 760,
-            delay: 140,
+            duration: 1320,
+            delay: 240,
             easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
             fill: 'forwards',
           }),
-          logo.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: 920, fill: 'forwards' }),
+          logo.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, delay: 1480, fill: 'forwards' }),
         );
       } else {
         animations.push(
           logo.current.animate([{ transform: 'translateY(0) scale(1)', opacity: 1 }, { transform: 'translateY(-28px) scale(0.92)', opacity: 0 }], {
-            duration: 560,
-            delay: 260,
+            duration: 980,
+            delay: 420,
             easing: doux,
             fill: 'forwards',
           }),
         );
       }
 
-      animations.push(salut.current.animate([{ opacity: 0, transform: 'translate(-50%, 14px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: 380, delay: 60, easing: doux, fill: 'both' }));
+      animations.push(salut.current.animate([{ opacity: 0, transform: 'translate(-50%, 14px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: 680, delay: 180, easing: doux, fill: 'both' }));
       const avatar = cibleVisible('a[aria-label="Mon profil"]')?.r;
       const p = salut.current.getBoundingClientRect();
       const vers = avatar
@@ -137,8 +137,8 @@ export default function EntreeDashboard() {
         : 'translate(-50%, -24px) scale(0.96)';
       animations.push(
         salut.current.animate([{ opacity: 1, transform: 'translate(-50%, 0) scale(1)' }, { opacity: 0, transform: vers }], {
-          duration: 520,
-          delay: 640,
+          duration: 900,
+          delay: 1280,
           easing: 'cubic-bezier(0.55, 0, 0.45, 1)',
           fill: 'forwards',
         }),
