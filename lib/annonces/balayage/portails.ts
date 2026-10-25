@@ -196,7 +196,11 @@ export function lirePageSeLoger(html: string): { lisible: boolean; total: number
 
 // ---------------------------------------------------------------- fiches
 
-/** « Le propriétaire refuse le démarchage commercial » (PAP) : l'agent doit le voir. */
+/**
+ * « NB : Le propriétaire refuse le démarchage commercial » : PAP l'écrit sous le
+ * numéro du vendeur (presque toutes les fiches). C'est un refus d'appel
+ * commercial, pas de visite : l'agent doit le voir avant de téléphoner.
+ */
 export function refusDemarchage(html: string): boolean {
   return /refuse\s+(?:tout\s+)?le\s+d[ée]marchage/i.test(html);
 }

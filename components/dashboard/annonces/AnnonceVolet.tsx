@@ -279,7 +279,7 @@ export default function AnnonceVolet({
         <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />
         {particulier && annonce.refusDemarchage ? (
           <p className="mb-3 rounded-[12px] bg-black/[0.04] px-3 py-2 text-[13px] text-text-strong">
-            Le propriétaire refuse le démarchage commercial.
+            Le propriétaire refuse le démarchage téléphonique.
           </p>
         ) : null}
 

@@ -29,14 +29,16 @@ export function plafondsLecturePage(): Plafonds {
 }
 
 /**
- * Pages lues chaque jour par le balayage de nuit, pour tout Priimo (compteur à
- * part de celui des agents). Un soir ordinaire en lit ~50 pour 75011 + 75020 ;
- * le premier soir ~480 (stock existant), étalés sur deux nuits. Au plafond
- * tous les jours : ~7 500 pages par mois, au-delà des 5 000 gratuites de Bright
- * Data — la limite mensuelle du compte Bright Data reste le dernier rempart.
+ * Plafond (pas une cible) des pages lues chaque jour par le balayage de nuit,
+ * pour tout Priimo, sur un compteur à part de celui des agents. Mesuré le
+ * 25/10/2026 : le premier passage d'un code postal en lit ~240 (tout le stock,
+ * une fois), une nuit ordinaire ~20 par code postal, ~60 la nuit du balayage
+ * complet de SeLoger. 500 laisse passer le premier passage d'un nouveau code
+ * postal en une nuit ; ensuite la consommation réelle reste bien en dessous.
+ * La limite de la zone Bright Data `priimo_balayage` reste le dernier rempart.
  */
 export function plafondBalayageJour(): number {
-  return entier('BALAYAGE_PLAFOND_JOUR', 250);
+  return entier('BALAYAGE_PLAFOND_JOUR', 500);
 }
 
 /** Mon assistant qui lit le texte d'une annonce (collé ou téléchargé). */
