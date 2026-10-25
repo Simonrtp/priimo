@@ -372,6 +372,14 @@ export default function AccueilDirecteur({
       {objectifOpen ? (
         <ObjectifAgenceDialog
           initial={modele.indicateurs.objectifMandatsMois}
+          agents={modele.negociateurs.map((n) => ({
+            membreId: n.membreId,
+            prenom: n.prenom,
+            nom: n.nom,
+            avatarUrl: n.avatarUrl,
+            moi: n.membreId === modele.moiId,
+            objectifs: n.objectifs,
+          }))}
           onClose={() => setObjectifOpen(false)}
           onEnregistre={() => router.refresh()}
         />

@@ -12,8 +12,6 @@ import type { DirecteurCarte } from '@/lib/directeur/cartes';
 import { STATUT_NEGOCIATEUR_LABELS } from '@/lib/directeur/statut';
 import { STATUT_STYLE } from './statut-style';
 
-const MANDAT_VERT = { teinte: '#0F8F4A', pastelFort: '#D5EADF' } as const;
-
 function ouvrirSonTableau() {
   const maxAge = 60 * 60 * 24 * 400;
   document.cookie = `${ACCUEIL_VUE_COOKIE}=agent; path=/; max-age=${maxAge}; SameSite=Lax`;
@@ -341,6 +339,14 @@ function InviteEnAttente({ invitation }: { invitation: { id: string; email: stri
   );
 }
 
+type TuileFiche = {
+  label: string;
+  teinte: string;
+  pastille: string;
+  voile: string;
+  muet?: boolean;
+} & ({ valeur: number; objectif: number | null } | { texte: string; part?: number });
+
 function FicheNegociateur({
   visible,
   negociateur: n,
@@ -353,10 +359,41 @@ function FicheNegociateur({
   derniere: string;
 }) {
   const style = STATUT_STYLE[n.statut];
-  const kpis = [
-    { label: 'Secteurs', ...n.contacts, ...COULEUR_FAMILLE.immeubles_prospectes },
-    { label: 'Estimations', ...n.estimations, ...COULEUR_FAMILLE.estimations },
-    { label: 'Mandats', ...n.mandats, teinte: MANDAT_VERT.teinte, pastelFort: MANDAT_VERT.pastelFort, pastille: '#E7F6EE', voile: '#F3FBF6' },
+  const sec = n.secteurs;
+  const secteurSeul =
+    sec.total === 0 ? '—' : sec.total === 1 ? (sec.travailles > 0 ? 'Travaillé' : 'Pas travaillé') : null;
+  const kpis: TuileFiche[] = [
+    {
+      label: 'Nouveaux contacts',
+      valeur: n.qualifies.valeur,
+      objectif: n.qualifies.objectif,
+      ...COULEUR_FAMILLE.contacts_qualifies,
+    },
+    {
+      label: 'Notes terrain',
+      valeur: n.notes,
+      objectif: null,
+      ...COULEUR_FAMILLE.informations_terrain,
+    },
+    secteurSeul
+      ? {
+          label: sec.total > 1 ? 'Secteurs' : 'Secteur',
+          texte: secteurSeul,
+          part: sec.total === 0 ? 0 : sec.travailles > 0 ? 100 : 0,
+          ...COULEUR_FAMILLE.immeubles_prospectes,
+        }
+      : {
+          label: 'Secteurs',
+          valeur: sec.travailles,
+          objectif: sec.total,
+          ...COULEUR_FAMILLE.immeubles_prospectes,
+        },
+    {
+      label: 'Estimations',
+      texte: 'À venir',
+      muet: true,
+      ...COULEUR_FAMILLE.estimations,
+    },
   ];
   const progression = Math.max(0, Math.min(100, n.progression));
 
@@ -382,25 +419,41 @@ function FicheNegociateur({
           </p>
           <p className="mt-1.5 truncate text-[12px] text-text-muted">{derniere}</p>
         </div>
-        <ul className="grid min-w-0 flex-1 grid-cols-3 gap-2">
+        <ul className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
           {kpis.map((k) => {
-            const part = k.objectif > 0 ? Math.min(100, Math.round((k.valeur / k.objectif) * 100)) : 0;
+            const texte = 'texte' in k ? k.texte : null;
+            const objectif = 'objectif' in k ? k.objectif : null;
+            const part =
+              'part' in k
+                ? k.part
+                : objectif != null && objectif > 0 && 'valeur' in k
+                  ? Math.min(100, Math.round((k.valeur / objectif) * 100))
+                  : null;
             return (
               <li
                 key={k.label}
-                className="rounded-[18px] px-3 py-2.5"
+                className="min-w-0 rounded-[18px] px-3 py-2.5"
                 style={{ backgroundColor: k.voile }}
               >
-                <p className="text-[11.5px] font-medium text-text-muted">{k.label}</p>
-                <p className="mt-1 font-display text-[20px] font-bold leading-none tabular-nums" style={{ color: k.teinte }}>
-                  {k.valeur}
-                  {k.objectif > 0 ? (
-                    <span className="text-[12px] font-medium text-text-subtle"> / {k.objectif}</span>
+                <p className="text-[11.5px] font-medium leading-tight text-text-muted">{k.label}</p>
+                <p
+                  className={`mt-1 font-display font-bold leading-tight tabular-nums ${
+                    texte ? 'whitespace-nowrap text-[13px]' : 'text-[20px] leading-none'
+                  } ${k.muet ? 'text-text-muted' : ''}`}
+                  style={k.muet ? undefined : { color: k.teinte }}
+                >
+                  {texte ?? ('valeur' in k ? k.valeur : null)}
+                  {objectif != null && objectif > 0 ? (
+                    <span className="text-[12px] font-medium text-text-subtle"> / {objectif}</span>
                   ) : null}
                 </p>
-                <div className="mt-2 h-1 overflow-hidden rounded-full" style={{ backgroundColor: k.pastille }}>
-                  <div className="h-full rounded-full" style={{ width: `${part}%`, backgroundColor: k.teinte }} />
-                </div>
+                {part != null && !k.muet ? (
+                  <div className="mt-2 h-1 overflow-hidden rounded-full" style={{ backgroundColor: k.pastille }}>
+                    <div className="h-full rounded-full" style={{ width: `${part}%`, backgroundColor: k.teinte }} />
+                  </div>
+                ) : (
+                  <div className="mt-2 h-1" aria-hidden />
+                )}
               </li>
             );
           })}

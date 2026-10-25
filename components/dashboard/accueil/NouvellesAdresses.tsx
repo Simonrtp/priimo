@@ -88,7 +88,7 @@ export default function NouvellesAdresses({
           </span>
         </h2>
         <Link
-          href={adresses.some((a) => a.href) ? '/dashboard/annonces' : '/dashboard/prospection'}
+          href={adresses.some((a) => a.href) ? '/dashboard/prospection?vue=liste' : '/dashboard/prospection'}
           className="shrink-0 text-[12px] font-semibold text-text-muted transition-colors hover:text-text-strong"
         >
           Voir tout

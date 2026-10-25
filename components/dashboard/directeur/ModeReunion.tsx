@@ -267,7 +267,8 @@ export default function ModeReunion({
 /* -------------------------------------------------------------------------- */
 
 function SlideOuverture({ modele, equipe }: { modele: AccueilDirecteurModele; equipe: CarteNegociateur[] }) {
-  const immeubles = equipe.reduce((s, n) => s + n.contacts.valeur, 0);
+  const secteursTravailles = equipe.reduce((s, n) => s + n.secteurs.travailles, 0);
+  const secteursTotal = equipe.reduce((s, n) => s + n.secteurs.total, 0);
   const estimations = equipe.reduce((s, n) => s + n.estimations.valeur, 0);
   return (
     <div className="flex flex-col items-center text-center">
@@ -287,7 +288,14 @@ function SlideOuverture({ modele, equipe }: { modele: AccueilDirecteurModele; eq
           sur={modele.indicateurs.objectifMandatsMois}
           delai={0}
         />
-        <TuileChiffre icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Secteurs travaillés" valeur={immeubles} delai={80} />
+        <TuileChiffre
+          icone="/porte-ouverte.png"
+          teinte={TEINTE.immeubles}
+          label="Secteurs travaillés"
+          valeur={secteursTravailles}
+          sur={secteursTotal > 0 ? secteursTotal : undefined}
+          delai={80}
+        />
         <TuileChiffre icone="/calculatrice.png" teinte={TEINTE.estimations} label="Estimations" valeur={estimations} delai={160} />
       </div>
     </div>
@@ -450,9 +458,9 @@ function SlideNegociateur({ nego }: { nego: CarteNegociateur }) {
           </span>
         ) : null}
         <ul className="mt-8 grid gap-3">
-          <Jauge icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Secteurs travaillés" valeur={nego.contacts.valeur} objectif={nego.contacts.objectif} delai={150} />
-          <Jauge icone="/calculatrice.png" teinte={TEINTE.estimations} label="Estimations" valeur={nego.estimations.valeur} objectif={nego.estimations.objectif} delai={230} />
-          <Jauge icone="/contact.png" teinte={TEINTE.mandats} label="Mandats" valeur={nego.mandats.valeur} objectif={nego.mandats.objectif} delai={310} />
+          <Jauge icone="/contact.png" teinte={TEINTE.mandats} label="Nouveaux contacts" valeur={nego.qualifies.valeur} objectif={nego.qualifies.objectif} delai={150} />
+          <Jauge icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Secteurs travaillés" valeur={nego.secteurs.travailles} objectif={nego.secteurs.total} delai={230} />
+          <Jauge icone="/calculatrice.png" teinte={TEINTE.estimations} label="Notes terrain" valeur={nego.notes} objectif={null} delai={310} />
         </ul>
       </div>
     </div>
@@ -549,12 +557,15 @@ function TuileChiffre({ icone, teinte, label, valeur, sur, delai }: { icone: str
   );
 }
 
-function Jauge({ icone, teinte, label, valeur, objectif, delai }: { icone: string; teinte: string; label: string; valeur: number; objectif: number; delai: number }) {
+function Jauge({ icone, teinte, label, valeur, objectif, delai }: { icone: string; teinte: string; label: string; valeur: number; objectif: number | null; delai: number }) {
   const v = useCompteur(valeur);
-  const atteint = objectif > 0 && valeur >= objectif;
+  const avecCible = objectif != null && objectif > 0;
+  const atteint = avecCible && valeur >= objectif;
   const [largeur, setLargeur] = useState(0);
   useEffect(() => {
-    const id = requestAnimationFrame(() => setLargeur(objectif > 0 ? Math.min(100, (valeur / objectif) * 100) : 0));
+    const id = requestAnimationFrame(() =>
+      setLargeur(objectif != null && objectif > 0 ? Math.min(100, (valeur / objectif) * 100) : 0),
+    );
     return () => cancelAnimationFrame(id);
   }, [valeur, objectif]);
   return (
@@ -569,9 +580,12 @@ function Jauge({ icone, teinte, label, valeur, objectif, delai }: { icone: strin
             <p className="truncate text-[clamp(15px,1.3vw,18px)] font-semibold text-white/80">{label}</p>
             <p className="shrink-0 font-display text-[clamp(24px,2.4vw,32px)] font-extrabold leading-none tabular-nums">
               {v}
-              <span className="text-[0.55em] font-bold text-white/45"> / {objectif}</span>
+              {avecCible ? (
+                <span className="text-[0.55em] font-bold text-white/45"> / {objectif}</span>
+              ) : null}
             </p>
           </div>
+          {avecCible ? (
           <div className="mt-3 flex items-center gap-3">
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
               <div
@@ -586,6 +600,7 @@ function Jauge({ icone, teinte, label, valeur, objectif, delai }: { icone: strin
               </span>
             ) : null}
           </div>
+          ) : null}
         </div>
       </Verre>
     </li>

@@ -15,6 +15,7 @@ import {
 import { partitionLeadsForDisplay } from '@/lib/lead-delivery';
 import { grouperParSecteur, statistiquesParZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
+import type { Annonce } from '@/lib/annonces/types';
 import {
   correspondFraicheur,
   LIBELLE_FRAICHEUR,
@@ -42,6 +43,7 @@ import ProspectsViewSwitch, {
 } from './ProspectsViewSwitch';
 import LeadsList from './LeadsList';
 import LeadsSecteur, { LeadsParZone } from './prospection/LeadsSecteur';
+import AnnoncesListe from './prospection/AnnoncesListe';
 import VolLeadPipeline from './prospection/VolLeadPipeline';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
@@ -65,6 +67,8 @@ interface ProspectsClientProps {
   /** Découpage interne de l'agence. Vide = l'écran se comporte comme avant. */
   zones?: Zone[];
   fraicheurFilter?: FiltreFraicheur | null;
+  /** La Liste : les annonces de particuliers du secteur, à la place des leads. */
+  annoncesListe?: { annonces: Annonce[]; profileId: string; annonceId: string | null } | null;
 }
 
 export default function ProspectsClient({
@@ -80,6 +84,7 @@ export default function ProspectsClient({
   initialVue = 'liste',
   zones = [],
   fraicheurFilter = null,
+  annoncesListe = null,
 }: ProspectsClientProps) {
   const { profile } = useUser();
   const device = useDevice();
@@ -153,6 +158,9 @@ export default function ProspectsClient({
    * chercher une réponse, pas relire son secteur.
    */
   const parSecteur = zones.length > 0 && listFilter === null && memberId === null;
+
+  /** Les liens vers un filtre précis gardent la liste des leads ; sinon, la Liste montre les annonces. */
+  const listeDeLeads = listFilter !== null || fraicheurFilter !== null || memberId !== null;
 
   const prenoms = useMemo(() => {
     const map: Record<string, string | null> = {};
@@ -476,7 +484,27 @@ export default function ProspectsClient({
         </>
       ) : null}
 
-      {vue === 'liste' ? (
+      {vue === 'liste' && !listeDeLeads ? (
+        annoncesListe ? (
+          <AnnoncesListe
+            annonces={annoncesListe.annonces}
+            zones={zones}
+            profileId={annoncesListe.profileId}
+            initialAnnonceId={annoncesListe.annonceId}
+          />
+        ) : (
+          <div aria-busy className="overflow-hidden rounded-clay-lg bg-white shadow-clay">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 border-t border-black/[0.05] px-6 py-3.5 first:border-t-0">
+                <span className="size-14 shrink-0 animate-pulse rounded-[16px] bg-black/[0.05]" />
+                <span className="h-3 w-1/3 animate-pulse rounded-full bg-black/[0.05]" />
+              </div>
+            ))}
+          </div>
+        )
+      ) : null}
+
+      {vue === 'liste' && listeDeLeads ? (
         <>
           <div className="flex flex-col">
             <div className="order-3 mb-3 md:mb-3">

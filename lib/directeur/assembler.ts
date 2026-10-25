@@ -1,4 +1,5 @@
 import type { JournalActivite } from '@/lib/activite/derive';
+import type { ObjectifsSaisis } from '@/lib/activite/objectifs';
 import type { RepartitionEquipe } from '@/lib/activite/repartition';
 import type { SecteurPeriode } from '@/lib/activite/secteurs-travailles';
 import type { Compteur } from '@/lib/activite/types';
@@ -41,6 +42,14 @@ export type CarteNegociateur = {
   contacts: { valeur: number; objectif: number };
   estimations: { valeur: number; objectif: number };
   mandats: { valeur: number; objectif: number };
+  /** Contacts qualifiés de la période, objectif proratisé. */
+  qualifies: { valeur: number; objectif: number };
+  /** Notes de la période : un nombre, pas une cible. */
+  notes: number;
+  /** Secteurs du titulaire, travaillés ou non. */
+  secteurs: { travailles: number; total: number };
+  /** Objectifs posés pour cette personne : contacts à la semaine, mandats au mois. */
+  objectifs: ObjectifsSaisis;
   statut: StatutNegociateur;
 };
 
@@ -244,6 +253,10 @@ export function carteNegociateurDepuis(
     contacts: { valeur: number; objectif: number };
     estimations: { valeur: number; objectif: number };
     mandats: { valeur: number; objectif: number };
+    qualifies: { valeur: number; objectif: number };
+    notes: number;
+    secteurs: { travailles: number; total: number };
+    objectifs: ObjectifsSaisis;
   },
 ): CarteNegociateur {
   return {
@@ -256,6 +269,10 @@ export function carteNegociateurDepuis(
     contacts: input.contacts,
     estimations: input.estimations,
     mandats: input.mandats,
+    qualifies: input.qualifies,
+    notes: input.notes,
+    secteurs: input.secteurs,
+    objectifs: input.objectifs,
     statut: statutNegociateur({
       activiteRecente: input.activite7j,
       moyenneHebdo4Semaines: input.moyenneHebdo4s,

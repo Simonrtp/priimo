@@ -1,26 +1,19 @@
 /**
  * « Mes nouvelles adresses » (accueil) : les annonces de particuliers trouvées
  * par le balayage de nuit dans le secteur du négociateur — pas de toute
- * l'agence. Même règle d'appartenance que les leads (`dansMonSecteur`). Pur.
- *
- * Depuis le 25/10/2026, la carte ne montre plus les leads de l'ancien
- * pipeline (DVF + scoring, supprimés) : un clic ouvre l'annonce.
+ * l'agence. Même sélection que la Liste de Prospection, où mène « Voir tout ».
+ * Pur.
  */
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 import type { Zone } from '@/lib/zones/types';
+import { aUnSecteur, annoncesAProspecter } from './liste-prospection';
 import { libellePortail } from './presenter';
-import { dansMonSecteur } from './secteur';
 import type { Annonce } from './types';
 
-/** Six lignes : de quoi remplir la carte ; « Voir tout » ouvre les annonces. */
+/** Six lignes : de quoi remplir la carte ; « Voir tout » ouvre la Liste. */
 const LIGNES = 6;
 
 const euros = (n: number) => `${new Intl.NumberFormat('fr-FR').format(Math.round(n))} €`;
-
-/** La plus récente d'abord : publiée sur le portail, sinon vue la première fois. */
-function date(a: Annonce): string {
-  return a.publieeLe ?? a.premiereVueLe ?? '';
-}
 
 /** Adresse retrouvée, sinon la rue seule, sinon le quartier. */
 function libelle(a: Annonce): string {
@@ -50,12 +43,9 @@ export function nouvellesAdressesDuSecteur(
   zones: readonly Zone[],
   profileId: string,
 ): { adresses: AdresseLivree[]; total: number; sansSecteur: boolean } {
-  const sansSecteur = !zones.some((z) => z.assignedTo === profileId);
-  const miennes = annonces
-    .filter((a) => a.statut === 'active' && a.typeVendeur === 'particulier' && dansMonSecteur(a, zones, { directeur: false, profileId }))
-    .sort((a, b) => date(b).localeCompare(date(a)));
+  const miennes = annoncesAProspecter(annonces, zones, { profileId, portee: 'mien' }).map((g) => g.principale);
   return {
-    sansSecteur,
+    sansSecteur: !aUnSecteur(zones, profileId),
     total: miennes.length,
     adresses: miennes.slice(0, LIGNES).map((a) => ({
       id: a.id,
@@ -65,7 +55,7 @@ export function nouvellesAdressesDuSecteur(
       mainSignalLabel: null,
       ownerName: null,
       signaux: signaux(a),
-      href: `/dashboard/annonces?annonce=${a.id}`,
+      href: `/dashboard/prospection?vue=liste&annonce=${a.id}`,
       photo: a.photos?.[0] ?? null,
     })),
   };

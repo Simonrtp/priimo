@@ -15,7 +15,6 @@ import CompteursActivite from './CompteursActivite';
 import EnteteSemaine, { titreDe } from './EnteteSemaine';
 import PenseBete from './PenseBete';
 import { NotesLectureProvider } from '@/components/dashboard/notes/NotesLectureProvider';
-import Entonnoir3D from './Entonnoir3D';
 import JourParJour from './JourParJour';
 import NouvellesAdresses, { type AdresseLivree } from './NouvellesAdresses';
 import SelecteurCollaborateur, { type MembreOption } from './SelecteurCollaborateur';
@@ -47,7 +46,7 @@ function vueDuBilan(pilotage: Pilotage): VuePeriode {
  * (un rappel passe avant les chiffres), puis ce qu'il reste à brancher
  * (agenda, secteur) et seulement ensuite les objectifs. Le podium reste
  * au bureau. Puis les cartes, les adresses à gauche
- * de l'emploi du temps, puis l'entonnoir.
+ * de l'emploi du temps. L'entonnoir de conversion reste calculé, il n'est pas affiché.
  *
  * Composant client, mais seulement pour le sélecteur de période : tout ce qui
  * ne dépend pas de la granularité (les cartes du jour, l'emploi du temps, le
@@ -321,10 +320,6 @@ export default function AccueilPilotage({
         {emploiDuTemps ? <Fragment key="accueil-emploi">{emploiDuTemps}</Fragment> : null}
       </div>
       )}
-      <div aria-busy={enCours} className={`min-w-0 max-md:hidden ${estompe}`}>
-        <Entonnoir3D etapes={bilan.entonnoir} ratios={bilan.ratios} de={lectureDe} />
-      </div>
-
       {aujourdhui ? <Fragment key="accueil-aujourdhui">{aujourdhui}</Fragment> : null}
       {/* Une demi-page, comme les cartes du dessus. Pas de content-visibility
           ici : son confinement coupait l'ombre de la carte. */}

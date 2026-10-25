@@ -10,6 +10,6 @@ export const LEGAL_CONTACT = {
   forme: 'Entrepreneur individuel',
 } as const;
 
-export const CGU_LAST_UPDATED = '8 septembre 2026';
+export const CGU_LAST_UPDATED = '25 octobre 2026';
 export const MENTIONS_LAST_UPDATED = '8 septembre 2026';
-export const CONFIDENTIALITE_LAST_UPDATED = '21 septembre 2026';
+export const CONFIDENTIALITE_LAST_UPDATED = '25 octobre 2026';

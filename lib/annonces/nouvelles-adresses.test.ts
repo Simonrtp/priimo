@@ -81,7 +81,7 @@ describe('nouvellesAdressesDuSecteur', () => {
       mainSignalLabel: null,
       ownerName: null,
       signaux: ['Prix en baisse', '2 pièces', 'DPE C'],
-      href: '/dashboard/annonces?annonce=recente',
+      href: '/dashboard/prospection?vue=liste&annonce=recente',
       photo: 'https://cdn.pap.fr/photos/1.webp',
     });
   });

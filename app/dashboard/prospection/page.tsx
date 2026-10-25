@@ -36,6 +36,7 @@ import {
 } from '@/lib/zones/fraicheur';
 import { zoneParDefautProspection } from '@/lib/carte/emprise';
 import { lirePosCarte } from '@/lib/notes/rattachement';
+import { lireAnnonces } from '@/lib/annonces/lire';
 
 export const metadata = {
   title: 'Prospection',
@@ -57,6 +58,7 @@ export default async function ProspectionPage({
     tournee?: string;
     fraicheur?: string;
     zone?: string;
+    annonce?: string;
   }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
@@ -164,11 +166,15 @@ export default async function ProspectionPage({
     );
   }
 
-  const [leads, teamMembers, stages, zones] = await Promise.all([
+  // La Liste montre les annonces de particuliers du secteur ; les filtres
+  // venus d'ailleurs (non pris, estimations, fraîcheur, membre) restent sur les leads.
+  const listeAnnonces = vue === 'liste' && !listFilter && !fraicheurFiltre && !params.membre;
+  const [leads, teamMembers, stages, zones, annonces] = await Promise.all([
     fetchLeads(supabase),
     fetchTeamMembers(supabase, agency.id),
     fetchLeadStages(supabase),
     fetchZonesSafe(supabase),
+    listeAnnonces ? lireAnnonces(supabase) : Promise.resolve(null),
   ]);
   const viewer = viewerFromProfile(profile);
   const visibleLeads = visibleLeadsFor(viewer, leads);
@@ -220,6 +226,9 @@ export default async function ProspectionPage({
       initialVue={vue}
       zones={zones}
       fraicheurFilter={fraicheurFiltre}
+      annoncesListe={
+        annonces ? { annonces, profileId: profile.id, annonceId: params.annonce ?? null } : null
+      }
     />
   );
 }

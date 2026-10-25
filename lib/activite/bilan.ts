@@ -113,6 +113,22 @@ function pourcentage(valeur: number, objectif: number): number {
   return Math.min(100, (valeur / objectif) * 100);
 }
 
+/**
+ * La barre « objectif de la période » d’une personne : moyenne des contacts
+ * qualifiés et des estimations, chaque famille plafonnée à 100. Les notes et
+ * les secteurs n’y entrent pas.
+ */
+export function progressionObjectifPersonne(
+  contacts: number,
+  objectifContacts: number,
+  estimations: number,
+  objectifEstimations: number,
+): number {
+  return Math.round(
+    (pourcentage(contacts, objectifContacts) + pourcentage(estimations, objectifEstimations)) / 2,
+  );
+}
+
 /** Taux de passage d'une carte vers la suivante, une décimale. */
 function tauxPassage(depuis: number, vers: number): number | null {
   if (depuis <= 0) return null;
@@ -269,16 +285,14 @@ export function bilanPeriode(
 
   // Les notes se comptent, les secteurs se travaillent : ni l’un ni l’autre
   // n’entre dans la barre. Elle ne moyenne que les familles qui ont encore une cible.
-  const pilotees = familles.filter(
-    (c) => c.activite === 'contacts_qualifies' || c.activite === 'estimations',
+  const contactsPilotes = parActivite.get('contacts_qualifies');
+  const estimationsPilotees = parActivite.get('estimations');
+  const progressionHebdo = progressionObjectifPersonne(
+    contactsPilotes?.valeur ?? 0,
+    contactsPilotes?.objectif ?? 0,
+    estimationsPilotees?.valeur ?? 0,
+    estimationsPilotees?.objectif ?? 0,
   );
-  const progressionHebdo =
-    pilotees.length === 0
-      ? 0
-      : Math.round(
-          pilotees.reduce((somme, c) => somme + pourcentage(c.valeur, c.objectif), 0) /
-            pilotees.length,
-        );
 
   const mois = moisDe(new Date(`${intervalle.fin}T12:00:00Z`));
   const compteursMois = compteursFenetre({ journal, profileId, fenetre: mois });

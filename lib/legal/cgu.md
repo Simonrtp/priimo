@@ -91,6 +91,8 @@ Vous êtes seul responsable de la façon dont vous contactez une personne et de 
 
 Si vous connectez Google Agenda ou Gmail, vous autorisez Priimo à utiliser les jetons nécessaires, **chiffrés**, dans les limites des permissions affichées (lecture). Vous pouvez révoquer l’accès à tout moment dans Priimo et chez Google. Priimo ne s’autorise pas à modifier votre agenda ni à lire toute votre boîte.
 
+Les données lues via ces API ne sont pas transmises à l’API Mistral AI. Priimo ne les conserve pas pour développer, améliorer ou entraîner des modèles d’intelligence artificielle ou d’apprentissage automatique non personnalisés. Le détail est dans la Politique de confidentialité.
+
 ### 6.2 Portails
 
 La diffusion vers SeLoger, Bien’ici ou un autre portail passe par une passerelle. **L’abonnement portail n’est pas inclus** dans l’abonnement Priimo. Vous restez client de l’éditeur du portail.

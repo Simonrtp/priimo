@@ -56,13 +56,14 @@ Les données sont vues par les personnes habilitées chez Priimo, par les membre
 - **Calendly** — si vous réservez une démo ;
 - **Mapbox** — carte ;
 - **Google** — uniquement si vous connectez Agenda ou Gmail ;
+- **Mistral AI** — API utilisée pour la dictée, les notes, l’assistant et l’estimation. Aucune donnée obtenue via les API Google Workspace n’y est envoyée ;
 - **Passerelle de diffusion** (Ubiflow, Diffuze ou équivalent) — uniquement si l’agence active la publication d’annonces.
 
 Ces prestataires sont choisis pour pouvoir travailler en conformité avec le RGPD et sont encadrés contractuellement.
 
-## Données issues de Google (Gmail)
+## Données issues de Google
 
-Cette section décrit uniquement les données obtenues lorsque vous connectez Gmail à Priimo (scope `gmail.readonly`) : jetons d’accès, adresse de la boîte, et contenu des e-mails des domaines portail autorisés, le temps de les parser.
+Cette section couvre Gmail (scope `gmail.readonly` : jetons d’accès, adresse de la boîte, contenu des e-mails des domaines portail autorisés, le temps de les parser) et Google Agenda (lecture des événements de la semaine). Le trajet ci-dessous concerne Gmail. L’engagement de non-entraînement couvre les deux.
 
 **Trajet.** Priimo reçoit une notification de nouveau message, ouvre l’e-mail uniquement si l’expéditeur appartient à la liste blanche des portails immobiliers, en extrait les champs de la demande (nom, téléphone, e-mail, référence d’annonce, message), puis jette le corps brut. Le corps n’est jamais enregistré.
 
@@ -73,13 +74,21 @@ Cette section décrit uniquement les données obtenues lorsque vous connectez Gm
 
 Les notifications de nouveaux messages transitent par **Google Cloud Pub/Sub** (infrastructure Google) : identifiant de la boîte et curseur d’historique, pas le contenu des e-mails.
 
-Le contenu des e-mails Gmail n’est **pas** envoyé à Mistral ni à aucun autre modèle d’IA. Les informations extraites ne transitent **pas** par Resend : elles s’affichent dans Priimo, pour l’agence. Les données obtenues via les API Google Workspace ne sont pas utilisées pour développer, améliorer ou entraîner des modèles d’IA ou d’apprentissage automatique non personnalisés.
+Le contenu des e-mails Gmail et les événements Google Agenda ne sont **pas** envoyés à Mistral ni à aucun autre modèle d’IA. Les informations extraites d’un e-mail de portail ne transitent **pas** par Resend : elles s’affichent dans Priimo, pour l’agence.
+
+**Mistral AI.** Priimo appelle l’API de Mistral AI (Mistral AI, 15 rue des Halles, 75001 Paris) pour des fonctions visibles dans l’application : dictée, notes, assistant, estimation. Ces appels portent sur des données saisies dans Priimo. Ils ne portent pas sur les données obtenues via les API Google Workspace.
+
+**Non-entraînement.** Priimo ne conserve pas les données obtenues via les API Google Workspace pour développer, améliorer ou entraîner des modèles d’intelligence artificielle ou d’apprentissage automatique non personnalisés. Mistral AI n’utilise pas les données transmises via son API pour entraîner ses modèles, sauf adhésion explicite, retour volontaire ou modèle Labs ou Preview : Priimo n’active aucune de ces options.
 
 **Engagement.** Aucune vente, aucune publicité, aucun courtier en données, aucun transfert à des tiers pour une autre finalité. Divulgation uniquement si la loi l’exige.
 
 **Lecture humaine.** Aucune lecture humaine du contenu des e-mails, sauf accord explicite de l’utilisateur, raison de sécurité, ou obligation légale.
 
-**Utilisation limitée.** L’utilisation par Priimo des informations reçues des API Google et leur transfert à toute autre application se conforment à la [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy#limited-use), y compris les exigences d’utilisation limitée (Limited Use).
+**Utilisation limitée.** L’utilisation par Priimo des informations reçues des API Google, y compris des périmètres Google Workspace, et leur transfert à toute autre application se conforment à la [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy#limited-use) et à la [Google Workspace user data and developer policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy), y compris les exigences d’utilisation limitée (Limited Use).
+
+The use of information received from Google Workspace scopes will adhere to the [Google User Data Policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy), including the Limited Use requirements.
+
+Priimo does not retain user data obtained through Google Workspace APIs to develop, improve, or train non-personalized AI and/or ML models.
 
 Priimo's use and transfer to any other app of information received from Google APIs will adhere to [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy#limited-use), including the Limited Use requirements.
 

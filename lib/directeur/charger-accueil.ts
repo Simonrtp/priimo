@@ -6,15 +6,17 @@ import {
   fetchDerniereActiviteParContact,
   fetchEstimationsPourDirecteur,
 } from '@/lib/queries/directeur-accueil';
+import { progressionObjectifPersonne } from '@/lib/activite/bilan';
 import { compteursSemaine } from '@/lib/activite/derive';
 import { famillesAgence } from './familles';
 import type { RepartitionEquipe } from '@/lib/activite/repartition';
 import { secteursTravaillesPeriode } from '@/lib/activite/secteurs-periode';
 import { fetchZonesPourAgence } from '@/lib/queries/zones';
-import { objectifsEffectifs } from '@/lib/activite/objectifs';
+import { objectifsEffectifs, saisieDepuisObjectifs } from '@/lib/activite/objectifs';
 import {
   intervalleSeptJours,
   moisDe,
+  nombreDeJours,
   semaineDe,
   semaineDecalee,
   semainePrecedente,
@@ -170,6 +172,24 @@ export async function chargerAccueilDirecteur(input: {
     return age > seuilProspects;
   }).length;
 
+  const secteurs = await secteursTravaillesPeriode({
+    supabase: input.supabase,
+    journal,
+    profileIds: ids,
+    intervalle: intervalleAffiche,
+    zones,
+  });
+
+  const comptesSecteurs = new Map<string, { travailles: number; total: number }>();
+  for (const secteur of secteurs) {
+    if (!secteur.titulaireId) continue;
+    const compte = comptesSecteurs.get(secteur.titulaireId) ?? { travailles: 0, total: 0 };
+    compte.total += 1;
+    if (secteur.travaille) compte.travailles += 1;
+    comptesSecteurs.set(secteur.titulaireId, compte);
+  }
+
+  const facteur = nombreDeJours(intervalleAffiche) / 7;
   const negociateurs = [...membres]
     .sort((a, b) => {
       if (a.id === input.directeurProfileId) return -1;
@@ -192,31 +212,27 @@ export async function chargerAccueilDirecteur(input: {
         ?.createdAt ?? null;
 
     const contactsObj = obj.hebdo.immeubles_prospectes;
-    const estObj = obj.hebdo.estimations;
+    const estObj = Math.max(0, Math.round(obj.hebdo.estimations * facteur));
+    const qualifiesObj = Math.max(0, Math.round(obj.hebdo.contacts_qualifies * facteur));
     const mandatsObj =
       input.periode === 'mois' ? obj.mandatsMensuel : obj.hebdo.mandats;
     const mandatsValeur =
       input.periode === 'mois'
         ? compteursSemaine({ journal, profileId: m.id, semaine: mois }).mandats
         : compteurs.mandats;
-
-    const progressionParts = [
-      contactsObj > 0 ? compteurs.immeubles_prospectes / contactsObj : 1,
-      estObj > 0 ? compteurs.estimations / estObj : 1,
-      mandatsObj > 0 ? mandatsValeur / mandatsObj : 1,
-    ];
-    const progression = Math.round(
-      (progressionParts.reduce((a, b) => a + Math.min(1.5, b), 0) /
-        progressionParts.length) *
-        100,
-    );
+    const sec = comptesSecteurs.get(m.id) ?? { travailles: 0, total: 0 };
 
     return carteNegociateurDepuis(m, {
       activite7j: act.activite7j,
       moyenneHebdo4s: act.moyenneHebdo4s,
       semainesHistorique: act.semainesHistorique,
       derniereNoteAt: derniereNote,
-      progression: Math.max(0, Math.min(100, progression)),
+      progression: progressionObjectifPersonne(
+        compteurs.contacts_qualifies,
+        qualifiesObj,
+        compteurs.estimations,
+        estObj,
+      ),
       contacts: {
         valeur: compteurs.immeubles_prospectes,
         objectif: contactsObj,
@@ -226,6 +242,10 @@ export async function chargerAccueilDirecteur(input: {
         valeur: mandatsValeur,
         objectif: mandatsObj,
       },
+      qualifies: { valeur: compteurs.contacts_qualifies, objectif: qualifiesObj },
+      notes: compteurs.informations_terrain,
+      secteurs: sec,
+      objectifs: saisieDepuisObjectifs(obj),
     });
   });
 
@@ -269,22 +289,6 @@ export async function chargerAccueilDirecteur(input: {
     mandatsFenetre += cSem.mandats;
   }
 
-  const secteurs = await secteursTravaillesPeriode({
-    supabase: input.supabase,
-    journal,
-    profileIds: ids,
-    intervalle: intervalleAffiche,
-    zones,
-  });
-
-  const comptesSecteurs = new Map<string, { travailles: number; total: number }>();
-  for (const secteur of secteurs) {
-    if (!secteur.titulaireId) continue;
-    const compte = comptesSecteurs.get(secteur.titulaireId) ?? { travailles: 0, total: 0 };
-    compte.total += 1;
-    if (secteur.travaille) compte.travailles += 1;
-    comptesSecteurs.set(secteur.titulaireId, compte);
-  }
   const equipe: RepartitionEquipe[] = membres.map((m) => {
     const compteurs = compteursSemaine({
       journal,
