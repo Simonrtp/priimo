@@ -1,12 +1,13 @@
 /**
  * Lance le balayage des annonces de particuliers depuis ce poste, comme le
  * cron de nuit (/api/cron/balayage), et affiche chaque tranche. Écrit en base
- * (service role) : c'est le vrai balayage, pas une simulation.
+ * (service role) : c'est le vrai balayage, pas une simulation. Utile pour
+ * balayer tout de suite un code postal qui vient d'être ajouté.
  *
- *   npx tsx --require ./scripts/hors-next.cjs --env-file=.env.local scripts/essai-balayage.ts [tranches]
+ *   npm run balayage -- [tranches]
  *
  * BALAYAGE_CODES_POSTAUX=75020 limite à un code postal ; BALAYAGE_PLAFOND_JOUR
- * borne les pages du jour (250 par défaut).
+ * borne les pages du jour (500 par défaut).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';

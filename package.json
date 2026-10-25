@@ -16,7 +16,8 @@
     "test:retro": "npx tsx scripts/estimation-retro.ts",
     "seed:demo": "npx tsx scripts/seed-demo-agency.ts",
     "seed:demo:fresh": "npx tsx scripts/seed-demo-agency.ts --purge",
-    "purge:demo": "npx tsx scripts/purge-demo-agency.ts"
+    "purge:demo": "npx tsx scripts/purge-demo-agency.ts",
+    "balayage": "npx tsx --require ./scripts/hors-next.cjs --env-file=.env.local scripts/balayage.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
