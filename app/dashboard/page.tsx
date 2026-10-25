@@ -72,8 +72,9 @@ import EcranAttenteInscription from '@/components/dashboard/abonnement/EcranAtte
 import { estEnAttente } from '@/lib/billing/acces';
 import EmploiDuTempsServeur from '@/components/dashboard/accueil/EmploiDuTempsServeur';
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
-import { nomProprietaireAffiche, signauxEssentiels } from '@/lib/lead-apercu';
 import { fetchZonesSafe } from '@/lib/queries/zones';
+import { lireAnnonces } from '@/lib/annonces/lire';
+import { nouvellesAdressesDuSecteur } from '@/lib/annonces/nouvelles-adresses';
 import { apercuSecteur } from '@/lib/zones/accueil';
 import SecteurAccueil from '@/components/dashboard/accueil/SecteurAccueil';
 import type { SecteursData } from '@/components/dashboard/accueil/SecteurAtelier';
@@ -466,6 +467,7 @@ async function TodayContent({
     notesDuJour,
     priseEnMain,
     anniversaires,
+    annonces,
   ] = await Promise.all([
     socleP,
     metierP,
@@ -536,6 +538,8 @@ async function TodayContent({
       ? timed('fetchAgentOnboarding', () => fetchAgentOnboarding(supabase, profile.id))
       : Promise.resolve(null),
     timed('fetchAnniversairesDuJour', () => fetchAnniversairesDuJour(supabase, agency.id)),
+    // « Mes nouvelles adresses » : les annonces de particuliers du balayage de nuit.
+    timed('lireAnnonces', () => lireAnnonces(supabase)),
   ]);
 
   const {
@@ -669,23 +673,15 @@ async function TodayContent({
         }
       : null;
 
-  // Le produit vendu : les leads livrés que personne n'a pris.
-  const leadsNonPris = visibleLeads
-    .filter((l) => l.stageId === null)
-    .sort((a, b) => b.score - a.score);
-  // Six : de quoi remplir la carte jusqu'au bord de l'emploi du temps posé à
-  // côté. Au-delà, la liste défilerait et « Voir tout » existe pour ça.
-  const adressesLivrees: AdresseLivree[] = (estEnAttente(agency) ? [] : leadsNonPris)
-    .slice(0, 6)
-    .map((l) => ({
-    id: l.id,
-    address: l.address,
-    city: l.city,
-    score: l.score,
-    mainSignalLabel: l.mainSignalLabel,
-    ownerName: nomProprietaireAffiche(l),
-    signaux: signauxEssentiels(l),
-  }));
+  // Mes nouvelles adresses : les annonces de particuliers trouvées par le
+  // balayage de nuit dans le secteur du négociateur (plus les leads de l'ancien
+  // pipeline, supprimés le 25/10/2026). Six lignes, « Voir tout » au-delà.
+  const nouvellesAdresses = nouvellesAdressesDuSecteur(
+    estEnAttente(agency) ? [] : annonces,
+    socle.secteursData.zones,
+    membreActivite,
+  );
+  const adressesLivrees: AdresseLivree[] = nouvellesAdresses.adresses;
 
   const membresActivite = lectureDe
     ? members.map((m) => ({
@@ -749,8 +745,8 @@ async function TodayContent({
   const pilotageCommun = {
     pilotage,
     adresses: adressesLivrees,
-    totalAdresses: leadsNonPris.length,
-    sansLivraison: visibleLeads.length === 0,
+    totalAdresses: nouvellesAdresses.total,
+    sansLivraison: nouvellesAdresses.sansSecteur,
     membres: membresActivite,
     membreSelectionne: membreActivite,
     moi: profile.id,

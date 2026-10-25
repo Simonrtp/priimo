@@ -13,16 +13,21 @@ export type AdresseLivree = {
   mainSignalLabel: string | null;
   ownerName: string | null;
   signaux: readonly string[];
+  /** Annonce du balayage : la ligne ouvre l'annonce, pas un lead. */
+  href?: string;
+  /** Photo de l'annonce, à la place de la façade Street View d'un lead. */
+  photo?: string | null;
 };
 
 const ETAPES_VIDE = [
-  'Le secteur posé, Priimo livre les adresses encore libres.',
-  'Elles arrivent ici, déjà scorées.',
-  'Les prendre, c’est les mettre dans le suivi.',
+  'Le secteur posé, Priimo relève chaque nuit les annonces de particuliers qui s’y trouvent.',
+  'Elles arrivent ici, adresse retrouvée quand c’est possible.',
+  'Un clic ouvre l’annonce.',
 ] as const;
 
 /**
- * Les leads livrés que personne n'a encore pris.
+ * Les annonces de particuliers de mon secteur, trouvées par le balayage de
+ * nuit (lib/annonces/nouvelles-adresses.ts).
  *
  * C'est le produit vendu : il est au-dessus de la ligne de flottaison et il
  * garde l'orange, seule couleur réservée aux leads sur toute l'application.
@@ -38,7 +43,7 @@ export default function NouvellesAdresses({
 }: {
   adresses: readonly AdresseLivree[];
   total: number;
-  /** Compte tout neuf : aucun lead n’est encore arrivé. */
+  /** Aucun secteur à moi : rien à relever encore. */
   sansLivraison?: boolean;
 }) {
   if (sansLivraison) {
@@ -64,7 +69,7 @@ export default function NouvellesAdresses({
           Mes nouvelles adresses
         </h2>
         <p className="mt-1.5 text-[13px] text-text-muted">
-          Tout est pris. Les prochaines adresses arriveront au prochain lot.
+          Aucune annonce de particulier dans mon secteur pour l’instant. Le relevé passe chaque nuit.
         </p>
       </section>
     );
@@ -83,7 +88,7 @@ export default function NouvellesAdresses({
           </span>
         </h2>
         <Link
-          href="/dashboard/prospection"
+          href={adresses.some((a) => a.href) ? '/dashboard/annonces' : '/dashboard/prospection'}
           className="shrink-0 text-[12px] font-semibold text-text-muted transition-colors hover:text-text-strong"
         >
           Voir tout
@@ -95,7 +100,7 @@ export default function NouvellesAdresses({
         {adresses.map((a) => (
           <li key={a.id} className="relative z-0 hover:z-20 focus-within:z-20">
             <Link
-              href={`/dashboard/prospection?lead=${a.id}`}
+              href={a.href ?? `/dashboard/prospection?lead=${a.id}`}
               className="group/adresse flex flex-col rounded-clay bg-surface-2 px-3 py-2.5 transition-shadow duration-fluid-subtle hover:shadow-clay-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
             >
               <span className="flex items-center gap-3">
@@ -127,7 +132,7 @@ export default function NouvellesAdresses({
               >
                 <span className="block">
                   <span className="mt-2.5 flex items-start gap-3">
-                    <FacadeEsthetique leadId={a.id} />
+                    {a.photo !== undefined ? <PhotoAnnonce url={a.photo} /> : <FacadeEsthetique leadId={a.id} />}
                     <span className="flex min-h-[80px] min-w-0 flex-1 flex-col justify-center gap-1.5">
                       {a.signaux.length > 0 ? (
                         <span className="flex flex-wrap gap-1">
@@ -162,6 +167,19 @@ export default function NouvellesAdresses({
         </p>
       ) : null}
     </section>
+  );
+}
+
+/** Même carré que la façade : la première photo de l'annonce, s'il y en a une. */
+function PhotoAnnonce({ url }: { url: string | null }) {
+  return (
+    <span className="relative block size-20 shrink-0 overflow-hidden rounded-[22px] bg-[#F1EFE8]">
+      {url ? (
+        // Photo du portail, servie telle quelle (pas d'optimisation Next pour une image tierce).
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+      ) : null}
+    </span>
   );
 }
 
