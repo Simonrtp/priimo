@@ -29,7 +29,7 @@ import { lireAdressesPossibles, possibleChoisie, type AdressePossible, type Anno
 import { PLAFONDS_LECTURE_ANNONCE, plafondsLecturePage } from '@/lib/quota/regles';
 import { reserverQuota } from '@/lib/quota/reserver';
 import { lireBienici } from './bienici';
-import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, rayonDuRepere, type CarteImport } from './carte';
+import { carteDepuisAnnonce, carteDepuisFiche, colonnesAnnonce, ligneAdmise, rayonDuRepere, type CarteImport } from './carte';
 import { ficheDepuisPage } from './fiche';
 import { localiserFiche, MOTEUR_LOCALISATION_DEPUIS } from './localiser';
 import { telechargerPage } from './telecharger';
@@ -459,7 +459,7 @@ export async function ajouterImport(
 
   let annonceId = ligne.annonce_id ?? (typeof ligne.resultat.annonce_existante === 'string' ? ligne.resultat.annonce_existante : null);
   if (!annonceId) {
-    const colonnes = { ...ligne.resultat };
+    const colonnes = ligneAdmise({ ...ligne.resultat });
     if (!colonnes.code_postal) return { erreur: 'Code postal inconnu : impossible d’ajouter' };
     const inserer = (valeurs: Record<string, unknown>) =>
       admin.from('annonces').upsert(valeurs, { onConflict: 'portail,id_portail', ignoreDuplicates: true }).select('id').maybeSingle();

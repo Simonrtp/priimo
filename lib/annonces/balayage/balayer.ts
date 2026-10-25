@@ -16,7 +16,7 @@
  */
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { colonnesAnnonce } from '@/lib/annonces/import/carte';
+import { colonnesAnnonce, ligneAdmise } from '@/lib/annonces/import/carte';
 import { ficheDepuisPage } from '@/lib/annonces/import/fiche';
 import { localiserFiche } from '@/lib/annonces/import/localiser';
 import { telechargerPage } from '@/lib/annonces/import/telecharger';
@@ -330,7 +330,7 @@ async function traiterFiche(admin: Db, t: Tache): Promise<Record<string, unknown
   if (!fiche) throw new EchecPage('illisible');
   fiche.codePostal ??= annonce.code_postal;
   const loc = await localiserFiche(fiche);
-  const colonnes = colonnesAnnonce(fiche, loc) ?? {};
+  const colonnes = ligneAdmise(colonnesAnnonce(fiche, loc) ?? {});
   const maj: Record<string, unknown> = { refus_demarchage: refusDemarchage(page.html) };
   for (const c of CHAMPS_FICHE) {
     const v = colonnes[c];

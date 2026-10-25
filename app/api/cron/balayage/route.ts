@@ -38,12 +38,18 @@ export async function GET(req: Request) {
     const suite = new URL(url.pathname, url.origin);
     suite.searchParams.set('relais', String(relais + 1));
     const secret = process.env.CRON_SECRET;
-    // Le relais répond aussitôt (son travail se fait après sa réponse) : on n'attend que son accusé.
-    const res = await fetch(suite, { headers: secret ? { authorization: `Bearer ${secret}` } : {}, cache: 'no-store' }).catch((err: unknown) => {
+    const appeler = (cible: URL | string) =>
+      fetch(cible, { headers: secret ? { authorization: `Bearer ${secret}` } : {}, cache: 'no-store', redirect: 'manual' });
+    try {
+      // Le relais répond aussitôt (son travail se fait après sa réponse) : on n'attend que son accusé.
+      let res = await appeler(suite);
+      // priimo.fr → www.priimo.fr : une redirection suivie d'office perdrait l'autorisation.
+      const ailleurs = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+      if (ailleurs) res = await appeler(new URL(ailleurs, suite));
+      if (!res.ok) console.error('[balayage] relais refusé', res.status);
+    } catch (err) {
       console.error('[balayage] relais', err instanceof Error ? err.message : err);
-      return null;
-    });
-    if (res && !res.ok) console.error('[balayage] relais refusé', res.status);
+    }
   });
 
   return NextResponse.json({ ok: true, relais, plan });

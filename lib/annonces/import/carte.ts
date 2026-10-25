@@ -92,7 +92,8 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     etage: a.etage,
     dpe: a.dpe,
     confiance: a.confiance,
-    adresse: a.adresse,
+    // Incertaine : la rue seule, quand le moteur l'a trouvée (gardée comme voie, voir ligneAdmise).
+    adresse: a.adresse ?? (a.confiance === 'incertaine' && a.adresseVoie ? [a.adresseVoie, a.codePostal, a.ville].filter(Boolean).join(' ') : null),
     latitude: a.latitude,
     longitude: a.longitude,
     approximative: a.confiance === 'incertaine',
@@ -102,6 +103,21 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     parcelleId: a.parcelleIds[0] ?? null,
     photo: null,
   };
+}
+
+/**
+ * Ce que la base accepte d'une ligne d'annonce : une adresse seulement si elle
+ * est affirmée (contrainte `annonces_adresse_si_localisee`). Une rue seule,
+ * immeuble non départagé (« Rue des Pyrénées 75020 Paris », incertaine), se
+ * garde comme voie. Pur.
+ */
+export function ligneAdmise(colonnes: Record<string, unknown>): Record<string, unknown> {
+  if (colonnes.confiance !== 'incertaine' || typeof colonnes.adresse !== 'string') return colonnes;
+  const voie = colonnes.adresse
+    .replace(/\s+\d{5}\b.*$/, '')
+    .replace(/^\s*\d+\s?[a-zA-Z]?\s+/, '')
+    .trim();
+  return { ...colonnes, adresse: null, adresse_numero: null, adresse_voie: voie || null };
 }
 
 export function numeroEtVoie(adresse: string | null): { numero: string | null; voie: string | null } {
