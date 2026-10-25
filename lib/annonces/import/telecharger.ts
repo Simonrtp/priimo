@@ -31,15 +31,23 @@ const TAILLE_MAX = 3_000_000;
 
 export type Telechargement =
   | { ok: true; html: string }
-  | { ok: false; raison: 'sans_cle' | 'bloquee' | 'disparue' | 'echec' | 'abandon' };
+  // interdite : Bright Data refuse la page sans facturer (robots.txt du site, compte sans KYC).
+  | { ok: false; raison: 'sans_cle' | 'bloquee' | 'disparue' | 'echec' | 'abandon' | 'interdite' };
 
 export function telechargementConfigure(): boolean {
   return Boolean(process.env.BRIGHTDATA_API_TOKEN && process.env.BRIGHTDATA_ZONE);
 }
 
-export async function telechargerPage(url: string, signal?: AbortSignal): Promise<Telechargement> {
+export type OptionsTelechargement = {
+  /** Zone Bright Data ; par défaut BRIGHTDATA_ZONE (celle de l'import par URL). */
+  zone?: string;
+  /** Demandes lancées en même temps (par défaut deux : un agent attend, pas le balayage de nuit). */
+  enParallele?: number;
+};
+
+export async function telechargerPage(url: string, signal?: AbortSignal, options: OptionsTelechargement = {}): Promise<Telechargement> {
   const token = process.env.BRIGHTDATA_API_TOKEN;
-  const zone = process.env.BRIGHTDATA_ZONE;
+  const zone = options.zone || process.env.BRIGHTDATA_ZONE;
   if (signal?.aborted) return { ok: false, raison: 'abandon' };
   if (!token || !zone) return { ok: false, raison: 'sans_cle' };
   // Coupe les demandes restantes dès qu'une page arrive, ou quand l'agent arrête (croix).
@@ -47,7 +55,7 @@ export async function telechargerPage(url: string, signal?: AbortSignal): Promis
   const arreter = () => coupe.abort();
   signal?.addEventListener('abort', arreter, { once: true });
   try {
-    const essais = Array.from({ length: EN_PARALLELE }, () => unEssai(url, token, zone, DELAI_MS, coupe.signal));
+    const essais = Array.from({ length: Math.max(1, options.enParallele ?? EN_PARALLELE) }, () => unEssai(url, token, zone, DELAI_MS, coupe.signal));
     const resultat = await premiereReponseUtile(essais);
     return signal?.aborted ? { ok: false, raison: 'abandon' } : resultat;
   } finally {
@@ -57,7 +65,7 @@ export async function telechargerPage(url: string, signal?: AbortSignal): Promis
 }
 
 /** Le plus parlant des échecs, quand aucune demande n'a abouti. */
-const ORDRE_ECHEC: Record<string, number> = { abandon: 3, bloquee: 2, echec: 1, sans_cle: 0 };
+const ORDRE_ECHEC: Record<string, number> = { abandon: 4, interdite: 3, bloquee: 2, echec: 1, sans_cle: 0 };
 
 /** La première page reçue (ou une annonce retirée, sans appel) ; sinon le plus parlant des échecs. */
 export function premiereReponseUtile(essais: readonly Promise<Telechargement>[]): Promise<Telechargement> {
@@ -101,6 +109,8 @@ async function unEssai(
     // Statut du site visé, quand Bright Data le transmet.
     const statutSite = Number(res.headers.get('x-brd-status-code') ?? res.status);
     if (statutSite === 404 || statutSite === 410) return { ok: false, raison: 'disparue' };
+    // « policy_20140 » : page interdite par le robots.txt du site, refusée sans être facturée (25/10/2026).
+    if (/^policy/i.test(res.headers.get('x-brd-error-code') ?? '')) return { ok: false, raison: 'interdite' };
     if (!res.ok) {
       console.error('[import] Bright Data', res.status, (await res.text().catch(() => '')).slice(0, 160));
       return { ok: false, raison: 'echec' };

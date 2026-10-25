@@ -82,6 +82,21 @@ export async function relocaliserAnnoncesAjoutees(admin: SupabaseClient): Promis
     }
     aRevoir.push(...((data ?? []) as Ligne[]));
   }
+  // Les annonces du balayage de nuit (lib/annonces/balayage), sur le même plafond.
+  if (aRevoir.length < PLAFOND_PAR_NUIT) {
+    const deja = new Set(aRevoir.map((l) => String(l.id)));
+    const { data, error: e } = await admin
+      .from('annonces')
+      .select('*')
+      .eq('origine', 'veille')
+      .eq('confiance', 'incertaine')
+      .eq('statut', 'active')
+      .not('conso_kwh_m2', 'is', null)
+      .order('premiere_vue_le', { ascending: false })
+      .limit(PLAFOND_PAR_NUIT);
+    if (e) console.error('[relocaliser] annonces balayées', e.message);
+    for (const l of (data ?? []) as Ligne[]) if (!deja.has(String(l.id))) aRevoir.push(l);
+  }
 
   // Avant la migration 20261021, la colonne des adresses possibles n'existe pas : on s'en passe.
   const maj = async (id: string, valeurs: Record<string, unknown>) => {

@@ -28,6 +28,17 @@ export function plafondsLecturePage(): Plafonds {
   };
 }
 
+/**
+ * Pages lues chaque jour par le balayage de nuit, pour tout Priimo (compteur à
+ * part de celui des agents). Un soir ordinaire en lit ~50 pour 75011 + 75020 ;
+ * le premier soir ~480 (stock existant), étalés sur deux nuits. Au plafond
+ * tous les jours : ~7 500 pages par mois, au-delà des 5 000 gratuites de Bright
+ * Data — la limite mensuelle du compte Bright Data reste le dernier rempart.
+ */
+export function plafondBalayageJour(): number {
+  return entier('BALAYAGE_PLAFOND_JOUR', 250);
+}
+
 /** Mon assistant qui lit le texte d'une annonce (collé ou téléchargé). */
 export const PLAFONDS_LECTURE_ANNONCE: Plafonds = { agent: 60, agence: 200, global: 1000 };
 

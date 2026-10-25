@@ -81,17 +81,21 @@ function table(client: Client, nom: 'annonces' | 'annonce_evenements' | 'annonce
 }
 
 /**
- * Les annonces de l'agence : celles qu'elle a ajoutées par leur URL. Depuis le
- * 21/10/2026 (décision de Simon et Nicolas), plus de veille qui aspire les
- * portails : intenable à grande échelle. Carte, page Annonces, tournée et
- * fiche parcelle ne lisent plus que ces annonces-là.
+ * Les annonces de l'agence : celles qu'elle a ajoutées par leur URL, et les
+ * annonces de particuliers de ses codes postaux trouvées par le balayage de
+ * nuit (lib/annonces/balayage, depuis le 25/10/2026 : PAP et SeLoger). La
+ * règle d'accès de la base (`annonces_select_agency_cp`) borne déjà ces
+ * dernières aux codes postaux de l'agence.
  */
 export async function lireAnnonces(
   client: Client,
   opts: { vendeur?: 'particulier' } = {},
 ): Promise<Annonce[]> {
-  const annonces = await lireAnnoncesAjoutees(client);
-  const triees = annonces.sort((a, b) => String(b.derniereVueLe ?? '').localeCompare(String(a.derniereVueLe ?? '')));
+  const [ajoutees, balayees] = await Promise.all([lireAnnoncesAjoutees(client), lireAnnoncesBalayees(client)]);
+  // Une annonce ajoutée garde sa version : l'adresse choisie par l'agence y est appliquée.
+  const parId = new Map(balayees.map((a) => [a.id, a]));
+  for (const a of ajoutees) parId.set(a.id, a);
+  const triees = [...parId.values()].sort((a, b) => String(b.derniereVueLe ?? '').localeCompare(String(a.derniereVueLe ?? '')));
   return opts.vendeur ? triees.filter((a) => a.typeVendeur === opts.vendeur) : triees;
 }
 
@@ -155,6 +159,25 @@ export async function lireAnnoncesParcelle(client: Client, parcelleId: string): 
 
 /** Par lots : une liste `in.(…)` de plusieurs centaines d'UUID dépasse la longueur d'URL admise. */
 const LOT_IDS = 150;
+
+/** Une annonce retirée reste visible un mois (« retirée le … »), puis sort des listes. */
+const JOURS_RETIREES_VISIBLES = 30;
+
+/** Les annonces de particuliers trouvées par le balayage, actives ou retirées depuis peu. */
+async function lireAnnoncesBalayees(client: Client): Promise<Annonce[]> {
+  const depuis = new Date(Date.now() - JOURS_RETIREES_VISIBLES * 86_400_000).toISOString();
+  const { data, error } = await table(client, 'annonces')
+    .select(SELECT_ANNONCE)
+    .eq('origine', 'veille')
+    .eq('type_vendeur', 'particulier')
+    .or(`statut.eq.active,retiree_le.gte.${depuis}`)
+    .limit(3000);
+  if (error) {
+    console.error('[annonces] balayées', error.message);
+    return [];
+  }
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(versAnnonce);
+}
 
 /**
  * Les annonces ajoutées par l'agence (lien `annonces_agences`, RLS : la sienne

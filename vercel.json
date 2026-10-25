@@ -24,6 +24,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/balayage",
+      "schedule": "30 0 * * *"
+    },
+    {
       "path": "/api/cron/annonces",
       "schedule": "50 4 * * *"
     },
