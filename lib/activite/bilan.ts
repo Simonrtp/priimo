@@ -267,14 +267,17 @@ export function bilanPeriode(
     };
   });
 
-  // Chaque famille est plafonnée à 100 % avant la moyenne : sans ça, un seul
-  // compteur qui explose masquerait quatre familles à zéro.
+  // Les notes se comptent, les secteurs se travaillent : ni l’un ni l’autre
+  // n’entre dans la barre. Elle ne moyenne que les familles qui ont encore une cible.
+  const pilotees = familles.filter(
+    (c) => c.activite === 'contacts_qualifies' || c.activite === 'estimations',
+  );
   const progressionHebdo =
-    familles.length === 0
+    pilotees.length === 0
       ? 0
       : Math.round(
-          familles.reduce((somme, c) => somme + pourcentage(c.valeur, c.objectif), 0) /
-            familles.length,
+          pilotees.reduce((somme, c) => somme + pourcentage(c.valeur, c.objectif), 0) /
+            pilotees.length,
         );
 
   const mois = moisDe(new Date(`${intervalle.fin}T12:00:00Z`));

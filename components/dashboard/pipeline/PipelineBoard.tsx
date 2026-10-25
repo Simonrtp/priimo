@@ -397,7 +397,7 @@ export default function PipelineBoard({
           setColumns(buildColumns(stages, leads));
         }}
       >
-        <div className="flex min-h-[min(420px,calc(100dvh-14rem))] items-stretch gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1 [-webkit-overflow-scrolling:touch]">
+        <div className="flex min-h-[min(420px,calc(100dvh-14rem))] w-full min-w-0 items-stretch gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1 [-webkit-overflow-scrolling:touch]">
           {stages.map((stage) => (
             <PipelineColumn
               key={stage.id}
@@ -435,7 +435,7 @@ export default function PipelineBoard({
             </section>
           ) : null}
         </div>
-        <DragOverlay dropAnimation={null}>
+        <DragOverlay dropAnimation={null} adjustScale={false} className="" style={{}} transition={undefined}>
           {activeLead ? (
             <div className="w-[276px]">
               <PipelineLeadCard

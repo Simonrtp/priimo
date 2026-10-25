@@ -17,6 +17,7 @@ import NotesLectureCard from './NotesLectureCard';
 type NotesLectureContextValue = {
   ouvrir: (noteId?: string | null) => void;
   fermer: () => void;
+  notes: NoteLecture[] | null;
 };
 
 const NotesLectureContext = createContext<NotesLectureContextValue | null>(null);
@@ -96,7 +97,7 @@ export function NotesLectureProvider({ children }: { children: ReactNode }) {
     setOuvert(true);
   }, [params]);
 
-  const value = useMemo(() => ({ ouvrir, fermer }), [ouvrir, fermer]);
+  const value = useMemo(() => ({ ouvrir, fermer, notes }), [ouvrir, fermer, notes]);
 
   return (
     <NotesLectureContext.Provider value={value}>

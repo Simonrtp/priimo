@@ -178,7 +178,7 @@ export default function ObjectifsDialog({
       open
       onClose={onClose}
       title={membreNom ? `Objectifs de ${membreNom}` : 'Mes objectifs'}
-      description="Cinq cartes de terrain, plus les mandats. Les chiffres proposés sont des repères de réseau : posez les vôtres."
+      description="Les contacts et les estimations, plus les mandats du mois. Les notes se comptent et les secteurs se travaillent : ils n’ont pas de cible."
       maxWidth="md"
     >
       <form
@@ -196,7 +196,9 @@ export default function ObjectifsDialog({
         />
 
         <div className="flex flex-col gap-3">
-          {FAMILLES_ACTIVITE.map((famille) => (
+          {FAMILLES_ACTIVITE.filter(
+            (famille) => famille === 'contacts_qualifies' || famille === 'estimations',
+          ).map((famille) => (
             <Ligne
               key={famille}
               id={`objectif-${famille}`}

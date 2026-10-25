@@ -17,7 +17,7 @@ import { FIELD } from '@/lib/today/field';
 
 const JOURS_CAL = ['lu', 'ma', 'me', 'je', 've', 'sa', 'di'] as const;
 
-function titreDe(periode: Periode, intervalle: Intervalle, de?: string | null): string {
+export function titreDe(periode: Periode, intervalle: Intervalle, de?: string | null): string {
   if (!de) {
     if (periode === 'custom' && intervalle.debut === intervalle.fin) return 'Ma journée';
     return TITRE_PERIODE[periode];
@@ -43,6 +43,7 @@ export default function EnteteSemaine({
   enCours,
   onChanger,
   debut,
+  apresTitre,
   droite,
   de = null,
 }: {
@@ -52,6 +53,8 @@ export default function EnteteSemaine({
   enCours: boolean;
   onChanger: (periode: Periode, ancre: string | null, fin?: string | null) => void;
   debut?: ReactNode;
+  /** Juste à droite du titre (« Ma semaine », « Semaine de … »). */
+  apresTitre?: ReactNode;
   droite?: ReactNode;
   /** Prénom du collaborateur dont on lit la semaine. */
   de?: string | null;
@@ -77,6 +80,7 @@ export default function EnteteSemaine({
           ) : null}
         </div>
         <h1 className="sr-only sm:hidden">{titreDe(periode, intervalle, de)}</h1>
+        {apresTitre ? <div className="shrink-0">{apresTitre}</div> : null}
         {debut ? (
           <div className="ml-auto min-w-0 sm:hidden">
             <SelecteurFenetre

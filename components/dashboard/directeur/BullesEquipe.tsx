@@ -354,7 +354,7 @@ function FicheNegociateur({
 }) {
   const style = STATUT_STYLE[n.statut];
   const kpis = [
-    { label: 'Immeubles', ...n.contacts, ...COULEUR_FAMILLE.immeubles_prospectes },
+    { label: 'Secteurs', ...n.contacts, ...COULEUR_FAMILLE.immeubles_prospectes },
     { label: 'Estimations', ...n.estimations, ...COULEUR_FAMILLE.estimations },
     { label: 'Mandats', ...n.mandats, teinte: MANDAT_VERT.teinte, pastelFort: MANDAT_VERT.pastelFort, pastille: '#E7F6EE', voile: '#F3FBF6' },
   ];

@@ -16,8 +16,8 @@ import {
 } from '@/lib/ui/date-picker';
 
 const COURT: Record<(typeof FAMILLES_ACTIVITE)[number], string> = {
-  immeubles_prospectes: 'Immeubles',
-  contacts_qualifies: 'Qualifiés',
+  immeubles_prospectes: 'Secteurs',
+  contacts_qualifies: 'Nouveaux',
   estimations: 'Estim.',
   informations_terrain: 'Notes',
 };

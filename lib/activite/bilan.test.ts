@@ -65,7 +65,7 @@ describe('bilanSemaine — forme du retour', () => {
     assert.equal(immeubles?.valeur, 4);
     assert.equal(qualifies?.valeur, 0);
     assert.equal(immeubles?.tauxPassage, 0);
-    assert.equal(immeubles?.libelleSuivant, 'Contacts qualifiés');
+    assert.equal(immeubles?.libelleSuivant, 'Nouveaux contacts');
     assert.equal(estimations?.tauxPassage, null);
     assert.equal(estimations?.libelleSuivant, null);
   });
@@ -103,8 +103,8 @@ describe('bilanSemaine — état semaine 1', () => {
 
 describe('bilanSemaine — progression et objectif mensuel', () => {
   it('plafonne chaque famille à 100 % avant la moyenne', () => {
-    // 500 immeubles pour un objectif de 30 ne doit pas compenser
-    // trois familles à zéro : 100 % sur une famille sur quatre = 25 %.
+    // 500 immeubles ne font plus avancer la barre : seuls les contacts
+    // et les estimations ont encore un objectif. Les deux sont à zéro.
     const contactsPhysiques = Array.from({ length: 500 }, (_, i) => ({
       profileId: MOI,
       jour: '2026-09-02',
@@ -114,7 +114,7 @@ describe('bilanSemaine — progression et objectif mensuel', () => {
 
     const familles = Object.fromEntries(b.familles.map((c) => [c.activite, c.valeur]));
     assert.equal(familles.immeubles_prospectes, 500);
-    assert.equal(b.progressionHebdo, 25); // une famille pleine sur quatre
+    assert.equal(b.progressionHebdo, 0);
   });
 
   it('compte les mandats sur le mois civil de la fin de période', () => {

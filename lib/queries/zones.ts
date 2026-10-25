@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, ZoneRegleRow, ZoneRow } from '@/types/database';
-import { secteurDejaTenu } from '@/lib/zones/titulaire';
 import {
   TYPES_REGLE_ZONE,
   type RegleZone,
@@ -281,36 +280,7 @@ export async function joursEnConflit(
   return params.jours.filter((jour) => pris.has(jour));
 }
 
-/** Les zones d'un titulaire, tous jours confondus. */
+/** Les zones d'un titulaire, tous jours confondus. Un collaborateur peut en avoir plusieurs. */
 export function zonesDuTitulaire(zones: readonly Zone[], profileId: string): Zone[] {
   return zones.filter((z) => z.actif && z.assignedTo === profileId);
-}
-
-/**
- * Vrai si cet agent a déjà un secteur actif. `null` si la lecture a échoué :
- * on ne crée pas un second secteur sans pouvoir le vérifier.
- */
-export async function agentADejaUnSecteur(
-  supabase: Client,
-  params: { agencyId: string; assignedTo: string; saufZoneId?: string | null },
-): Promise<boolean | null> {
-  const { data, error } = await supabase
-    .from('zones')
-    .select('id, assigned_to, actif')
-    .eq('agency_id', params.agencyId)
-    .eq('assigned_to', params.assignedTo)
-    .eq('actif', true);
-  if (error) {
-    console.error('[zones] lecture du titulaire', error.message);
-    return null;
-  }
-  return secteurDejaTenu(
-    (data ?? []).map((row) => ({
-      id: row.id,
-      assignedTo: row.assigned_to,
-      actif: row.actif,
-    })),
-    params.assignedTo,
-    params.saufZoneId ?? null,
-  );
 }

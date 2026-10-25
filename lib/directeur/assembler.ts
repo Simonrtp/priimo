@@ -1,4 +1,7 @@
 import type { JournalActivite } from '@/lib/activite/derive';
+import type { RepartitionEquipe } from '@/lib/activite/repartition';
+import type { SecteurPeriode } from '@/lib/activite/secteurs-travailles';
+import type { Compteur } from '@/lib/activite/types';
 import { dansLaSemaine, type Intervalle } from '@/lib/activite/semaines';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { DIRECTEUR_SEUILS } from './config';
@@ -50,6 +53,12 @@ export type AccueilDirecteurModele = {
   /** Le directeur connecté, pour le marquer « (Moi) » dans L'équipe. */
   moiId: string | null;
   indicateurs: IndicateursAgence;
+  /** Les quatre familles, mêmes cartes que la semaine d’un collaborateur. */
+  familles: Compteur[];
+  /** Chaque secteur de l’agence, travaillé ou non sur la période. */
+  secteurs: SecteurPeriode[];
+  /** Qui a fait les contacts, les notes, et travaillé ses secteurs. */
+  equipe: RepartitionEquipe[];
   progressionEquipe: number;
   victoires: VictoireSemaine[];
   solo: boolean;
@@ -181,6 +190,9 @@ export function assemblerAccueilDirecteur(input: {
   /** Reste en tête de L'équipe. */
   directeurId?: string;
   indicateurs: IndicateursAgence;
+  familles: readonly Compteur[];
+  secteurs: readonly SecteurPeriode[];
+  equipe: readonly RepartitionEquipe[];
   victoires: readonly VictoireSemaine[];
   now?: Date;
 }): AccueilDirecteurModele {
@@ -209,6 +221,9 @@ export function assemblerAccueilDirecteur(input: {
     negociateurs,
     moiId: input.directeurId ?? null,
     indicateurs: input.indicateurs,
+    familles: [...input.familles],
+    secteurs: [...input.secteurs],
+    equipe: [...input.equipe],
     progressionEquipe: progressionObjectifEquipe(
       input.indicateurs.mandatsDuMois,
       input.indicateurs.objectifMandatsMois,

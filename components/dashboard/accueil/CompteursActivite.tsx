@@ -4,9 +4,15 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import Link from 'next/link';
 import { ArrowRight, ChevronDown, Mic, NotebookPen } from 'lucide-react';
 import { COULEUR_FAMILLE, GRIS_NEUTRE } from '@/lib/activite/couleurs';
+import { detailCompteur, type RepartitionEquipe } from '@/lib/activite/repartition';
+import type { SecteurPeriode } from '@/lib/activite/secteurs-travailles';
 import type { Compteur, FamilleActivite } from '@/lib/activite/types';
+import CarteSecteurs from './CarteSecteurs';
+import LignesSurvol from './LignesSurvol';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { useNotesLecture } from '@/components/dashboard/notes/NotesLectureProvider';
+import { derniereNoteDeLaPeriode, ligneDerniereNote } from '@/lib/notes/derniere-ligne';
+import type { Intervalle } from '@/lib/activite/semaines';
 import { useOutsideDismiss } from '@/lib/hooks/useOutsideDismiss';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import { EVENEMENT_ENVOL_ARRIVE, type EnvolArrive } from '@/lib/ui/envol-note';
@@ -249,11 +255,17 @@ function CarteCompteur({
   accueilleNotes,
   periode,
   montrerActions,
+  equipe = null,
+  intervalle = null,
+  membreId = null,
 }: {
   compteur: Compteur;
   accueilleNotes: boolean;
   periode: string;
   montrerActions: boolean;
+  equipe?: readonly RepartitionEquipe[] | null;
+  intervalle?: Intervalle | null;
+  membreId?: string | null;
 }) {
   const famille = compteur.activite as FamilleActivite;
   const action = ACTION[famille];
@@ -262,13 +274,22 @@ function CarteCompteur({
     ? GRIS_NEUTRE
     : COULEUR_FAMILLE[famille];
   const illustration = ILLUSTRATION[famille];
-  const { ouvrir } = useNotesLecture();
+  const { ouvrir, notes } = useNotesLecture();
   const { bonus, impact, compte } = useArriveeNote(famille, compteur, accueilleNotes, periode);
   const valeur = compteur.valeur + bonus;
   const refChiffre = useRef<HTMLSpanElement>(null);
   const valeurAffichee = useMonteeEntree(valeur, refChiffre);
-  const pct =
-    compteur.objectif > 0
+  const nombreSeul = compteur.activite === 'informations_terrain';
+  const derniere =
+    nombreSeul && intervalle ? derniereNoteDeLaPeriode(notes ?? [], { membreId, intervalle }) : null;
+  const ligneDerniere = derniere ? ligneDerniereNote(derniere) : '';
+  const survol =
+    equipe && equipe.length > 1 && (famille === 'contacts_qualifies' || famille === 'informations_terrain')
+      ? detailCompteur(equipe, famille === 'contacts_qualifies' ? 'contacts' : 'notes')
+      : null;
+  const pct = nombreSeul
+    ? 0
+    : compteur.objectif > 0
       ? Math.min(100, Math.round((valeur / compteur.objectif) * 100))
       : 0;
   // Le chiffre que vise une note qui s'envole, et sa couleur.
@@ -303,10 +324,16 @@ function CarteCompteur({
           visible, elle ne doit pas recouvrir la carte du dessous. */}
       {bientot ? null : (
         <div className="invisible flex flex-col p-4 [@media(hover:none)]:hidden" aria-hidden>
-          <span className="size-12 shrink-0" />
-          <p className="mt-3 text-[12px] font-semibold leading-tight">{compteur.libelle}</p>
-          <p className="mt-1 font-display text-[28px] font-bold leading-none">0</p>
-          <div className="mt-3 h-2.5" />
+          <div className="flex items-center gap-2.5">
+            <span className="size-12 shrink-0" />
+            <p className="font-display text-[28px] font-bold leading-none">0</p>
+          </div>
+          <p className="mt-2 text-[12px] font-semibold leading-tight">{compteur.libelle}</p>
+          {nombreSeul ? (
+            ligneDerniere ? <p className="mt-2 truncate text-[12px] font-medium leading-tight">{ligneDerniere}</p> : null
+          ) : (
+            <div className="mt-3 h-2.5" />
+          )}
         </div>
       )}
       <div
@@ -318,7 +345,7 @@ function CarteCompteur({
         }`}
         style={{ backgroundColor: voile }}
       >
-        <div className="flex items-center gap-2.5 lg:block">
+        <div className="flex items-center gap-2.5">
           <span
             aria-hidden
             className={`relative flex size-12 shrink-0 items-center justify-center rounded-[14px] ${
@@ -346,29 +373,38 @@ function CarteCompteur({
               className="absolute inset-0 m-auto size-9 opacity-0 transition-[opacity,transform] duration-fluid ease-soft group-hover/compteur:scale-110 group-hover/compteur:opacity-100 motion-reduce:transition-none"
             />
           </span>
-          <p className="flex min-w-0 items-baseline gap-1 tabular-nums lg:hidden">
+          <p className="flex min-w-0 items-baseline gap-1 tabular-nums">
             {chiffre('text-[28px]')}
-            <span className="text-[13px] font-semibold text-[color:color-mix(in_srgb,var(--text-strong)_55%,transparent)]">
-              / {compteur.objectif.toLocaleString('fr-FR')}
-            </span>
+            {nombreSeul ? null : (
+              <span className="text-[13px] font-semibold text-[color:color-mix(in_srgb,var(--text-strong)_55%,transparent)]">
+                / {compteur.objectif.toLocaleString('fr-FR')}
+              </span>
+            )}
           </p>
         </div>
 
         <p
-          className={`mt-2 text-[12px] font-semibold leading-tight lg:mt-3 ${
+          className={`mt-2 text-[12px] font-semibold leading-tight ${
             bientot ? 'text-text-muted' : 'text-text-strong'
           }`}
         >
           {compteur.libelle}
         </p>
 
-        <p className="mt-1 hidden items-baseline gap-1.5 lg:flex">
-          {chiffre('text-[28px]')}
-          <span className="text-[13px] font-semibold tabular-nums text-[color:color-mix(in_srgb,var(--text-strong)_55%,transparent)]">
-            / {compteur.objectif.toLocaleString('fr-FR')}
-          </span>
-        </p>
+        {survol ? <LignesSurvol detail={survol} /> : null}
 
+        {ligneDerniere ? (
+          <button
+            type="button"
+            onClick={() => ouvrir()}
+            aria-label={`Toutes les notes. ${ligneDerniere}`}
+            className="mt-2 block w-full truncate text-left text-[12px] font-medium leading-tight text-text-muted hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+          >
+            {ligneDerniere}
+          </button>
+        ) : null}
+
+        {nombreSeul ? null : (
         <div
           className="mt-3 h-2.5 w-full overflow-hidden rounded-full"
           style={{ backgroundColor: pastille }}
@@ -383,6 +419,7 @@ function CarteCompteur({
             style={{ transform: `scaleX(${Math.max(0, Math.min(1, pct / 100))})`, backgroundColor: teinte }}
           />
         </div>
+        )}
 
         {bientot ? (
           <span
@@ -433,12 +470,25 @@ function CarteCompteur({
   );
 }
 
+/** L’estimation ferme la rangée, à droite. L’ordre de calcul, lui, ne change pas. */
+const ORDRE_CARTES: readonly FamilleActivite[] = [
+  'immeubles_prospectes',
+  'contacts_qualifies',
+  'informations_terrain',
+  'estimations',
+];
+
 /** Les quatre familles d’activité. */
 export default function CompteursActivite({
   familles,
   accueilleNotes = false,
   periode = '',
   montrerActions = true,
+  compact = false,
+  secteurs = null,
+  equipe = null,
+  intervalle = null,
+  membreId = null,
 }: {
   familles: readonly Compteur[];
   /** Mes chiffres de la période en cours : une note rangée les fait monter. */
@@ -447,18 +497,40 @@ export default function CompteursActivite({
   periode?: string;
   /** Les raccourcis (carte, noter) sont ceux de la personne connectée. */
   montrerActions?: boolean;
+  /** Deux colonnes : la carte vit dans une moitié d’écran (vue agence). */
+  compact?: boolean;
+  /** À la place du score « secteurs » : travaillé ou non, un par secteur. */
+  secteurs?: readonly SecteurPeriode[] | null;
+  /** Agence : au survol, qui a fait les contacts et les notes. */
+  equipe?: readonly RepartitionEquipe[] | null;
+  /** Période affichée : la ligne sous les notes en est la dernière. */
+  intervalle?: Intervalle | null;
+  /** La personne dont on lit la semaine. */
+  membreId?: string | null;
 }) {
   return (
-    <ul className="grid grid-cols-2 items-stretch gap-3 sm:gap-5 lg:grid-cols-4">
-      {familles.map((c) => (
-        <CarteCompteur
-          key={c.activite}
-          compteur={c}
-          accueilleNotes={accueilleNotes}
-          periode={periode}
-          montrerActions={montrerActions}
-        />
-      ))}
+    <ul
+      className={`grid grid-cols-2 items-stretch gap-3 sm:gap-5 ${compact ? '' : 'lg:grid-cols-4'}`}
+    >
+      {ORDRE_CARTES.flatMap((cle) => {
+        const c = familles.find((f) => f.activite === cle);
+        return c ? [c] : [];
+      }).map((c) =>
+        c.activite === 'immeubles_prospectes' && secteurs ? (
+          <CarteSecteurs key={c.activite} secteurs={secteurs} montrerActions={montrerActions} equipe={equipe} />
+        ) : (
+          <CarteCompteur
+            key={c.activite}
+            compteur={c}
+            accueilleNotes={accueilleNotes}
+            periode={periode}
+            montrerActions={montrerActions}
+            equipe={equipe}
+            intervalle={intervalle}
+            membreId={membreId}
+          />
+        ),
+      )}
     </ul>
   );
 }

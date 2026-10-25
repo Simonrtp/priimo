@@ -2,7 +2,6 @@
 
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import {
-  Building2,
   LogOut,
   MessageCircle,
   Settings,
@@ -16,7 +15,6 @@ import { FIELD } from '@/lib/today/field';
 const LINKS = [
   { href: '/dashboard/prospection', label: 'Prospection', Icon: Target, bientot: false },
   { href: '/dashboard/contacts', label: 'Contacts', Icon: Users, bientot: false },
-  { href: '/dashboard/biens', label: 'Biens', Icon: Building2, bientot: true },
   { href: '/dashboard/settings', label: 'Paramètres', Icon: Settings, bientot: false },
 ] as const;
 

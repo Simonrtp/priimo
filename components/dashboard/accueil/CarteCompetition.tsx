@@ -51,8 +51,8 @@ const STATS: readonly Activite[] = [
 ];
 
 const COURT: Record<Activite, string> = {
-  immeubles_prospectes: 'Immeubles',
-  contacts_qualifies: 'Contacts',
+  immeubles_prospectes: 'Secteurs',
+  contacts_qualifies: 'Nouveaux',
   estimations: 'Estimations',
   informations_terrain: 'Notes',
   mandats: 'Mandats',

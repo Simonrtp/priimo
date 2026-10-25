@@ -12,17 +12,19 @@ function writeCookie(vue: AccueilVue) {
   document.cookie = `${ACCUEIL_VUE_COOKIE}=${encodeURIComponent(vue)}; path=/; max-age=${maxAge}; SameSite=Lax`;
 }
 
-const OPTIONS = [
-  { id: 'directeur' as const, label: "L'agence" },
-  { id: 'agent' as const, label: 'Ma semaine' },
-] as const;
-
 /** Sélecteur L'agence / Ma semaine — seul écart d'écran lié au rôle directeur. */
 export default function SelecteurVueAccueil({
   vue,
+  libelleAgent = 'Ma semaine',
 }: {
   vue: AccueilVue;
+  /** Semaine lue : « Ma semaine », ou « Semaine de … » pour un collaborateur. */
+  libelleAgent?: string;
 }) {
+  const options = [
+    { id: 'directeur' as const, label: "L'agence" },
+    { id: 'agent' as const, label: libelleAgent },
+  ] as const;
   const router = useRouter();
   const [chargementAgence, setChargementAgence] = useState(false);
 
@@ -54,7 +56,7 @@ export default function SelecteurVueAccueil({
         role="tablist"
         label="Vue d'accueil"
         value={vue}
-        options={OPTIONS}
+        options={options}
         onChange={choisir}
       />
     </>

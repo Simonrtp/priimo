@@ -15,8 +15,8 @@ export default function EtapeFonctionnalites({
     <OnboardingShell
       rang={rang}
       total={total}
-      titre="Ce que Priimo fait."
-      phrase="CRM de pige et de terrain : bases publiques sur votre secteur, notes classées, pipeline à jour."
+      titre="Ce que Priimo fait pour vous."
+      phrase="Votre secteur, vos tournées et vos dossiers, au même endroit."
       defile
       action={<OnboardingPrimaryButton onClick={onSuivant}>Continuer</OnboardingPrimaryButton>}
     >

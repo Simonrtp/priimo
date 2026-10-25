@@ -21,7 +21,7 @@ const COULEUR: Record<EtapeEntonnoirCle, { face: string; sommet: string }> = {
 /** Libellés de la référence — pas ceux du modèle interne. */
 const LIBELLE_REF: Record<EtapeEntonnoirCle, string> = {
   leads_pris: 'Leads pris',
-  contacts_qualifies: 'Contacts qualifiés',
+  contacts_qualifies: 'Nouveaux contacts',
   estimations: 'Estimations / leads',
   mandats: 'Mandat signé',
 };

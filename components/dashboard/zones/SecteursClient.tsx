@@ -20,7 +20,6 @@ import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import StatistiquesSecteur from './StatistiquesSecteur';
 import { couleurZoneLibre } from '@/lib/zones/palette';
 import { estNomParDefaut, nomSecteurParDefaut, prenomDuMembre, trierSecteurs } from '@/lib/zones/nom';
-import { messageSecteurUnique } from '@/lib/zones/titulaire';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { depuisTroisMois, proposerDecoupage } from '@/lib/zones/decoupage';
 import { resumerVoie } from '@/lib/zones/voie-trace';
@@ -469,12 +468,6 @@ export default function SecteursClient({
    * directeur, et son nom s'ouvre aussitôt pour qui veut en changer.
    */
   const creerSecteur = useCallback(() => {
-    if (
-      !estDirecteur &&
-      zonesRef.current.some((z) => z.actif && z.assignedTo === profileId)
-    ) {
-      return;
-    }
     const prenom = estDirecteur ? null : prenomDe(profileId);
     void creerZone(nomSecteurParDefaut(prenom, zonesRef.current.map((z) => z.nom)), undefined, undefined, true);
   }, [creerZone, estDirecteur, prenomDe, profileId]);
@@ -520,8 +513,6 @@ export default function SecteursClient({
   }, []);
 
   const zonesTriees = useMemo(() => trierSecteurs(zonesLocales, profileId), [zonesLocales, profileId]);
-  const aDejaLeSien = zonesLocales.some((z) => z.actif && z.assignedTo === profileId);
-  const peutEncoreCreer = estDirecteur || !aDejaLeSien;
   const libelleCreer = estDirecteur ? 'Créer un secteur' : 'Créer mon secteur';
 
   const carte = (
@@ -550,7 +541,7 @@ export default function SecteursClient({
 
   const reglages =
     zonesLocales.length === 0 ? (
-      peutCreer && peutEncoreCreer ? (
+      peutCreer ? (
         <div className="flex flex-col gap-2">
           <button type="button" className={boutonNuit} disabled={enCours} onClick={creerSecteur}>
             <Plus size={14} aria-hidden />
@@ -582,7 +573,6 @@ export default function SecteursClient({
                     modeDessin={modeDessin}
                     centre={centre}
                     accueillir={secteurNe === zone.id}
-                    titulairesPris={titulairesPris(zonesLocales, zone.id)}
                     exempleNom={nomSecteurParDefaut(prenomDe(zone.assignedTo) ?? prenomDe(profileId), [])}
                     onModeDessin={setModeDessin}
                     onModifier={(patch) => modifierZone(zone.id, patch)}
@@ -597,7 +587,7 @@ export default function SecteursClient({
           }
         />
 
-        {peutCreer && peutEncoreCreer ? (
+        {peutCreer ? (
           <CreerZone
             enCours={enCours}
             libelle={libelleCreer}
@@ -617,6 +607,8 @@ export default function SecteursClient({
             onClick={() => {
               if (!aValider) return;
               setModeDessin('inactif');
+              aChangeRef.current = true;
+              router.refresh();
               onValider();
             }}
           >
@@ -669,14 +661,6 @@ export default function SecteursClient({
       </div>
     </div>
   );
-}
-
-function titulairesPris(zones: readonly Zone[], saufId: string): Set<string> {
-  const pris = new Set<string>();
-  for (const zone of zones) {
-    if (zone.actif && zone.assignedTo && zone.id !== saufId) pris.add(zone.assignedTo);
-  }
-  return pris;
 }
 
 function ListeZones({
@@ -833,7 +817,6 @@ function PanneauZone({
   modeDessin,
   centre,
   accueillir = false,
-  titulairesPris = new Set<string>(),
   exempleNom,
   onModeDessin,
   onModifier,
@@ -853,8 +836,6 @@ function PanneauZone({
   centre: { latitude: number | null; longitude: number | null };
   /** Vient d’être créé : le nom est sélectionné, le contour s’annonce. */
   accueillir?: boolean;
-  /** Agents qui ont déjà un autre secteur. */
-  titulairesPris?: ReadonlySet<string>;
   exempleNom: string;
   onModeDessin: (m: ModeCarte) => void;
   onModifier: (
@@ -948,17 +929,13 @@ function PanneauZone({
             id={`zone-titulaire-${zone.id}`}
             value={zone.assignedTo ?? ''}
             onChange={(valeur) => {
-              if (valeur && titulairesPris.has(valeur)) {
-                toast.error(messageSecteurUnique(false));
-                return;
-              }
               onChangerTitulaire(valeur || null);
             }}
             options={[
               { value: '', label: 'Sans titulaire' },
               ...membres.map((m) => ({
                 value: m.id,
-                label: titulairesPris.has(m.id) ? `${m.fullName} · a déjà un secteur` : m.fullName,
+                label: m.fullName,
                 avatar: assigneeSelectAvatar({
                   id: m.id,
                   fullName: m.fullName,

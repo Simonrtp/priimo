@@ -32,6 +32,9 @@ import {
 import { parisYmd, ymdKey } from '@/lib/today/calendar';
 import { DEMO_AGENCY_ID } from '@/lib/demo/constants';
 import { podiumSemaine, type AgentPodium } from '@/lib/activite/podium';
+import { secteursTravaillesPeriode } from '@/lib/activite/secteurs-periode';
+import type { SecteurPeriode } from '@/lib/activite/secteurs-travailles';
+import { fetchZonesSafe } from '@/lib/queries/zones';
 
 type Client = SupabaseClient<Database>;
 
@@ -39,6 +42,8 @@ export type Pilotage = {
   bilan: BilanSemaine;
   phrase: PhrasePilotage;
   podium: AgentPodium[];
+  /** Chaque secteur du collaborateur, travaillé ou non sur la période. */
+  secteurs: SecteurPeriode[];
 };
 
 /** L'ancre `?le=` n'est retenue que si elle a la forme d'un jour civil. */
@@ -103,7 +108,7 @@ export async function calculerPilotage(args: {
 }): Promise<Pilotage> {
   const intervalle = intervalleAffiche(args.periode, args.ancre, args.fin ?? null);
 
-  const [journal, objectifs, reference] = await Promise.all([
+  const [journal, objectifs, reference, zones] = await Promise.all([
     fetchJournalActivite({
       supabase: args.supabase,
       intervalle: couvertureJournal(args.periode, intervalle),
@@ -114,6 +119,7 @@ export async function calculerPilotage(args: {
     }),
     fetchObjectifs({ supabase: args.supabase, profileId: args.membreActivite }),
     fetchReferenceMetier({ supabase: args.supabase, agencyId: args.agencyId }),
+    fetchZonesSafe(args.supabase),
   ]);
 
   const bilan = bilanPeriode({
@@ -150,5 +156,13 @@ export async function calculerPilotage(args: {
     intervalle,
   );
 
-  return { bilan, phrase, podium };
+  const secteurs = await secteursTravaillesPeriode({
+    supabase: args.supabase,
+    journal,
+    profileIds: [args.membreActivite],
+    intervalle,
+    zones,
+  });
+
+  return { bilan, phrase, podium, secteurs };
 }

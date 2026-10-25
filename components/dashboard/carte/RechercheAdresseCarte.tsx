@@ -94,7 +94,7 @@ export default function RechercheAdresseCarte() {
 
   return (
     <div ref={racine} className="relative mr-1 flex items-center">
-      <div className="flex h-[34px] w-[17rem] items-center overflow-hidden rounded-full bg-bg-subtle">
+      <div className="flex h-[34px] w-[clamp(9rem,28vw,17rem)] min-w-0 items-center overflow-hidden rounded-full bg-bg-subtle">
         <button
           type="button"
           onClick={() => champ.current?.focus()}
@@ -160,7 +160,7 @@ export default function RechercheAdresseCarte() {
           id={listeId}
           role="listbox"
           aria-label="Adresses"
-          className="absolute right-0 top-[calc(100%+10px)] z-40 w-[22rem] overflow-hidden rounded-clay-lg border border-black/[0.06] bg-surface p-1.5 shadow-clay-lg"
+          className="absolute right-0 top-[calc(100%+10px)] z-40 w-[min(22rem,calc(100vw-var(--sidebar-width)-2.5rem))] overflow-hidden rounded-clay-lg border border-black/[0.06] bg-surface p-1.5 shadow-clay-lg"
         >
           {liste.length === 0 ? (
             <p className="px-3 py-2.5 text-[13px] text-text-muted" role="status">

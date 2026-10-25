@@ -11,7 +11,6 @@ import { useOfflineQueue } from '@/components/dashboard/field/OfflineQueueProvid
 import { FIELD } from '@/lib/today/field';
 import {
   IconAccueil,
-  IconBiens,
   IconContacts,
   IconParametres,
   IconProspection,
@@ -83,7 +82,6 @@ function DesktopCompactNav() {
   const activeProspects =
     pathname.startsWith('/dashboard/prospection') || pathname.startsWith('/dashboard/carte');
   const activeContacts = pathname.startsWith('/dashboard/contacts');
-  const activeBiens = pathname.startsWith('/dashboard/biens');
   const activeSettings =
     pathname === '/dashboard/settings' ||
     pathname.startsWith('/dashboard/settings/') ||
@@ -106,7 +104,6 @@ function DesktopCompactNav() {
         active={activeProspects}
       />
       <TabItem href="/dashboard/contacts" label="Contacts" Icon={IconContacts} active={activeContacts} />
-      <TabItem href="/dashboard/biens" label="Biens" Icon={IconBiens} active={activeBiens} bientot />
       <TabItem
         href="/dashboard/settings"
         label="Paramètres"

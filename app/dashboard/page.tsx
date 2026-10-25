@@ -683,15 +683,16 @@ async function TodayContent({
   );
   const adressesLivrees: AdresseLivree[] = nouvellesAdresses.adresses;
 
-  const membresActivite = lectureDe
-    ? members.map((m) => ({
-        id: m.id,
-        nom: m.fullName,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        avatarUrl: m.avatarUrl,
-      }))
-    : [];
+  const membresActivite =
+    isDirector && previewingAgent
+      ? members.map((m) => ({
+          id: m.id,
+          nom: m.fullName,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          avatarUrl: m.avatarUrl,
+        }))
+      : [];
 
   const penseBete = lirePenseBete(profile.preferences);
 

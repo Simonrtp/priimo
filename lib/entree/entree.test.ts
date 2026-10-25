@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { CLE_CONNEXION, CLE_JOUR, connexionRecente, deciderEntree, jourParis, nouveautesDepuis, salutation, SCRIPT_ENTREE } from './entree';
+import { CLE_CONNEXION, CLE_JOUR, connexionRecente, deciderEntree, jourParis, nouveautesDepuis, SCRIPT_ENTREE } from './entree';
 
 describe('entrée dans l’outil', () => {
   it('grande entrée à la connexion et à la première ouverture du jour, jamais deux fois le même jour', () => {
@@ -28,13 +28,6 @@ describe('entrée dans l’outil', () => {
   it('le jour se lit à l’heure de Paris', () => {
     // 23 h 30 UTC le 23 : déjà le 24 à Paris (heure d’été).
     assert.equal(jourParis(new Date('2026-10-23T23:30:00Z')), '2026-10-24');
-  });
-
-  it('salue selon l’heure, avec ou sans prénom', () => {
-    assert.equal(salutation('Simon', 9), 'Bonjour Simon');
-    assert.equal(salutation('Simon', 19), 'Bonsoir Simon');
-    assert.equal(salutation('  ', 9), 'Bonjour');
-    assert.equal(salutation(null, 2), 'Bonsoir');
   });
 
   it('compte les adresses arrivées depuis la dernière visite, aucune la première fois', () => {

@@ -287,7 +287,7 @@ function SlideOuverture({ modele, equipe }: { modele: AccueilDirecteurModele; eq
           sur={modele.indicateurs.objectifMandatsMois}
           delai={0}
         />
-        <TuileChiffre icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Immeubles prospectés" valeur={immeubles} delai={80} />
+        <TuileChiffre icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Secteurs travaillés" valeur={immeubles} delai={80} />
         <TuileChiffre icone="/calculatrice.png" teinte={TEINTE.estimations} label="Estimations" valeur={estimations} delai={160} />
       </div>
     </div>
@@ -450,7 +450,7 @@ function SlideNegociateur({ nego }: { nego: CarteNegociateur }) {
           </span>
         ) : null}
         <ul className="mt-8 grid gap-3">
-          <Jauge icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Immeubles prospectés" valeur={nego.contacts.valeur} objectif={nego.contacts.objectif} delai={150} />
+          <Jauge icone="/porte-ouverte.png" teinte={TEINTE.immeubles} label="Secteurs travaillés" valeur={nego.contacts.valeur} objectif={nego.contacts.objectif} delai={150} />
           <Jauge icone="/calculatrice.png" teinte={TEINTE.estimations} label="Estimations" valeur={nego.estimations.valeur} objectif={nego.estimations.objectif} delai={230} />
           <Jauge icone="/contact.png" teinte={TEINTE.mandats} label="Mandats" valeur={nego.mandats.valeur} objectif={nego.mandats.objectif} delai={310} />
         </ul>

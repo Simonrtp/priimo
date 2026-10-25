@@ -1,21 +1,25 @@
 /**
- * Service worker de Priimo — volontairement minimal.
+ * Service worker de Priimo.
  *
- * RÈGLE ABSOLUE : rien de ce qui vient du métier n'est mis en cache. Ni les
- * leads, ni les contacts, ni les biens, ni aucune réponse d'API, ni aucune page
- * HTML du tableau de bord. Un agent doit pouvoir se fier à ce qu'il lit ; une
- * donnée périmée servie depuis le disque serait pire qu'une erreur réseau.
+ * Le réseau gagne toujours quand il répond. S'il lâche, on relit la dernière
+ * page du tableau de bord déjà ouverte sur cet appareil : l'agent voit ses
+ * leads, sa carte et sa liste plutôt qu'un écran vide.
  *
- * Le cache se limite donc à une liste blanche d'assets immuables : les bundles
- * de build (`/_next/static/**`, dont le nom contient un hash de contenu), les
- * icônes et le manifeste. Tout le reste passe au réseau sans interception.
+ * On ne met jamais en cache les API, ni les envois (POST). Les bundles de
+ * build (`/_next/static/**`), les icônes et le manifeste restent en liste
+ * blanche, servis depuis le disque.
  *
  * Pour invalider le cache après un changement d'assets non hachés (icônes,
  * page hors ligne), incrémenter CACHE_VERSION.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `priimo-static-${CACHE_VERSION}`;
+/** Dernières pages HTML ouvertes. Survivent à un changement de CACHE_VERSION. */
+const PAGES_CACHE = 'priimo-pages';
+/** Derniers chargements du routeur (RSC), distincts du HTML. */
+const RSC_CACHE = 'priimo-rsc';
+const PAGES_MAX = 40;
 
 const OFFLINE_URL = '/offline.html';
 
@@ -69,8 +73,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
+      const garder = new Set([CACHE_NAME, PAGES_CACHE, RSC_CACHE]);
       await Promise.all(
-        names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)),
+        names.filter((name) => !garder.has(name)).map((name) => caches.delete(name)),
       );
       await self.clients.claim();
     })(),
@@ -91,19 +96,48 @@ async function cacheFirst(request) {
   return response;
 }
 
+function estRsc(request) {
+  if (request.headers.get('RSC') === '1') return true;
+  const accept = request.headers.get('accept') || '';
+  return accept.includes('text/x-component');
+}
+
+/** Page de l'application, pas un asset ni une API. */
+function estPageApp(url) {
+  if (url.origin !== self.location.origin) return false;
+  if (url.pathname.startsWith('/api/')) return false;
+  if (url.pathname.startsWith('/_next/')) return false;
+  if (isCacheable(url)) return false;
+  return true;
+}
+
+async function memoriser(cacheName, request, response) {
+  if (!response.ok || response.type !== 'basic' || response.redirected) return;
+  const cache = await caches.open(cacheName);
+  await cache.put(request, response.clone());
+  const cles = await cache.keys();
+  if (cles.length > PAGES_MAX) await cache.delete(cles[0]);
+}
+
 /**
- * Navigation : toujours le réseau. En cas d'échec réel (hors ligne), on affiche
- * une page d'attente statique — jamais une version en cache du tableau de bord.
+ * Réseau d'abord. S'il ne répond pas, la dernière version de cette page.
+ * L'écran « Pas de connexion » ne sort que si rien n'a encore été ouvert ici.
  */
-async function networkOnlyWithOfflineFallback(request) {
+async function reseauPuisMemoire(request, cacheName) {
   try {
-    return await fetch(request);
+    const response = await fetch(request);
+    await memoriser(cacheName, request, response);
+    return response;
   } catch (error) {
     // Navigation annulée (tap fantôme, chargement interrompu) : ne pas
     // remplacer le tableau de bord par la page « Pas de connexion ».
     if (error && error.name === 'AbortError') throw error;
-    const cache = await caches.open(CACHE_NAME);
-    const offline = await cache.match(OFFLINE_URL);
+    const cache = await caches.open(cacheName);
+    const garde = await cache.match(request);
+    if (garde) return garde;
+    if (request.mode !== 'navigate') throw error;
+    const statique = await caches.open(CACHE_NAME);
+    const offline = await statique.match(OFFLINE_URL);
     return (
       offline ??
       new Response('Hors ligne', {
@@ -126,8 +160,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (request.mode === 'navigate') {
-    event.respondWith(networkOnlyWithOfflineFallback(request));
+  if (request.mode === 'navigate' && estPageApp(url)) {
+    event.respondWith(reseauPuisMemoire(request, PAGES_CACHE));
+    return;
+  }
+
+  if (estRsc(request) && estPageApp(url)) {
+    event.respondWith(reseauPuisMemoire(request, RSC_CACHE));
     return;
   }
 

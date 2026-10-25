@@ -28,6 +28,7 @@ import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import { leadsDuPipeline } from '@/lib/pipeline/perimetre';
 import { useUser } from '@/lib/hooks/useUser';
+import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { pickTourLeadId } from '@/lib/tour-lead';
 import { leadListAddressLine } from '@/lib/lead-display';
@@ -81,6 +82,7 @@ export default function ProspectsClient({
   fraicheurFilter = null,
 }: ProspectsClientProps) {
   const { profile } = useUser();
+  const device = useDevice();
   const router = useRouter();
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
   const [stageList, setStageList] = useState<LeadStage[]>(stages);
@@ -437,11 +439,15 @@ export default function ProspectsClient({
       )}
 
       {/* Même onglet collé coin haut-droit que sur la Carte, y compris Pipeline. */}
-      <div className="pointer-events-none absolute -right-6 -top-6 z-30 hidden md:block lg:-right-8 lg:-top-8">
-        <div className="pointer-events-auto">{switcher}</div>
-      </div>
-      {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
-      <div className="mb-4 hidden h-12 md:block" aria-hidden />
+      {device !== 'mobile' ? (
+        <>
+          <div className="pointer-events-none absolute -right-6 -top-6 z-30 max-w-[calc(100%+1.5rem)] lg:-right-8 lg:-top-8">
+            <div className="pointer-events-auto max-w-full">{switcher}</div>
+          </div>
+          {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
+          <div className="mb-4 h-12" aria-hidden />
+        </>
+      ) : null}
 
       {vue === 'pipeline' ? (
         <>

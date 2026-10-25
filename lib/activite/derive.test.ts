@@ -85,7 +85,7 @@ describe('compteursSemaine — compteurs dérivés', () => {
     assert.equal(c.immeubles_prospectes, 3);
   });
 
-  it('ne compte en notes que les notes rattachées, hors échanges', () => {
+  it('compte chaque note de la période, rattachée ou non', () => {
     const c = compteursSemaine({
       profileId: MOI,
       semaine: SEMAINE,
@@ -109,7 +109,7 @@ describe('compteursSemaine — compteurs dérivés', () => {
       }),
     });
 
-    assert.equal(c.informations_terrain, 1);
+    assert.equal(c.informations_terrain, 2);
     assert.equal(c.immeubles_prospectes, 1);
   });
 
@@ -154,7 +154,7 @@ describe('compteursSemaine — compteurs dérivés', () => {
     assert.equal(rencontre.immeubles_prospectes, 1);
   });
 
-  it('ne fait pas d’un déplacement de pipeline un immeuble travaillé', () => {
+  it('ne fait pas d’un déplacement de pipeline un secteur travaillé', () => {
     const c = compteursSemaine({
       profileId: MOI,
       semaine: SEMAINE,

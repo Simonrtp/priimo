@@ -35,7 +35,7 @@ export default function ProspectsViewSwitch({
   const bar = variant === 'bar';
   const shellClass = floating
     ? // Onglet collé coin haut-droit de la carte (pas de marge).
-      'flex rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-[0_8px_20px_-10px_rgba(26,42,86,0.28)]'
+      'flex max-w-full rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-[0_8px_20px_-10px_rgba(26,42,86,0.28)]'
     : bar
       ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-sm'
       : PASTILLE_TRACK;
@@ -71,7 +71,9 @@ export default function ProspectsViewSwitch({
               }`}
             >
               <Icon size={bar ? 16 : 14} strokeWidth={2.2} aria-hidden />
-              {bar ? null : <span>{label}</span>}
+              {bar ? null : (
+                <span className={floating ? 'hidden lg:inline' : undefined}>{label}</span>
+              )}
             </button>
           );
         })}

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   ZONE_TOUS_SECTEURS,
+  aUnSecteurDefini,
   cadastreDansEmprise,
   cadastreDansEmprises,
   empriseDepuisZoneId,
@@ -50,6 +51,15 @@ describe('empriseDepuisZoneId', () => {
   it('traite un identifiant de zone comme le secteur', () => {
     assert.equal(empriseDepuisZoneId('ouest'), 'secteur');
     assert.equal(empriseDepuisZoneId(ZONE_TOUS_SECTEURS), 'secteur');
+  });
+});
+
+describe('aUnSecteurDefini', () => {
+  it('ignore un secteur qui n’a encore aucune rue', () => {
+    assert.equal(aUnSecteurDefini([]), false);
+    assert.equal(aUnSecteurDefini([{ ...zone, regles: [] }]), false);
+    assert.equal(aUnSecteurDefini([{ ...zone, actif: false }]), false);
+    assert.equal(aUnSecteurDefini([zone]), true);
   });
 });
 

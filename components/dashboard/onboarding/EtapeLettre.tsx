@@ -4,7 +4,7 @@ import { OnboardingPrimaryButton } from './OnboardingShell';
 import { FONCTIONNALITES } from './fonctionnalites';
 
 /**
- * Écran 2 — ce que Priimo fait. Technique, vouvoiement, jusqu’au clic.
+ * Écran 2 — ce que Priimo fait, dit au collaborateur qui vient d’ouvrir son accès.
  */
 export default function EtapeLettre({
   prenom,
@@ -20,15 +20,15 @@ export default function EtapeLettre({
       <article className="onb-letter onb-fade w-full">
         {name ? <p className="mb-5">{name},</p> : null}
         <p className="mb-5">
-          Priimo est le CRM de pige et de terrain de l’agence. Il croise les bases
-          publiques — DPE ADEME, ventes DVF, cadastre IGN — et les pose sur votre
-          secteur. Chaque adresse arrive déjà qualifiée : signaux, historique,
-          notes déjà prises.
+          Priimo est l’outil de prospection de votre agence. Sur votre secteur, il
+          réunit ce qui sert à préparer une visite : les diagnostics énergétiques,
+          les ventes déjà signées et le cadastre. Chaque adresse arrive avec
+          l’essentiel, avant que vous sonniez.
         </p>
         <p className="mb-5">
-          Les leads se livrent dans le secteur qui contient l’adresse. Ce que vous
-          dictez en tournée est transcrit et classé. Le soir, le pipeline et le
-          suivi d’activité sont à jour, sans ressaisie.
+          Les adresses de votre secteur vous sont attribuées. Une note que vous
+          dictez en tournée est retranscrite et rangée. Le soir, vos dossiers sont
+          à jour, sans avoir à tout ressaisir.
         </p>
         <p className="mb-4">Concrètement :</p>
         <ul className="mb-8 list-none space-y-2.5 p-0">

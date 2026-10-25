@@ -43,8 +43,10 @@ import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteu
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
+import { BOUTON_CARTE_VIDE } from '@/components/dashboard/accueil/CarteVideAccueil';
 import {
   ZONE_TOUS_SECTEURS,
+  aUnSecteurDefini,
   cadastreDansEmprises,
   cadrageCarte,
   empriseDepuisZoneId,
@@ -164,6 +166,7 @@ export default function CarteMobile({
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
   const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
   const [atelier, setAtelier] = useState(false);
+  const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [vue, setVue] = useState<VueCarte | null>(null);
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
@@ -239,7 +242,18 @@ export default function CarteMobile({
   const mapZoom = viewport?.zoom ?? null;
   const empriseZone = empriseDepuisZoneId(zoneId);
   const emprise = atelier ? 'secteur' : empriseZone;
-  const dessin = useDessinSecteur({ ouvert: atelier, zones, centre: center });
+  const validerDessin = useCallback((id: string) => {
+    setSecteurConfirme(true);
+    setAtelier(false);
+    setZoneId(id);
+    router.refresh();
+  }, [router]);
+  const dessin = useDessinSecteur({
+    ouvert: atelier,
+    zones,
+    centre: center,
+    onValider: validerDessin,
+  });
   const pointsDuSecteur = useMemo(
     () =>
       affiches.length > 0
@@ -860,7 +874,14 @@ export default function CarteMobile({
           hasSecteur={proposes.length > 0}
           titreSecteur={isDirector ? 'Secteurs' : undefined}
         />
-        {dessin.panneau ?? (
+        {emprise === 'secteur' && !secteurConfirme && !aUnSecteurDefini(proposes) ? (
+          dessin.panneau ?? (
+            <button type="button" onClick={() => setAtelier(true)} className={`${BOUTON_CARTE_VIDE} w-full`}>
+              Créer mon secteur
+            </button>
+          )
+        ) : (
+        dessin.panneau ?? (
         <ul className="flex flex-col gap-1">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -932,6 +953,7 @@ export default function CarteMobile({
             membres={members}
           />
         </ul>
+        )
         )}
       </MobileSheet>
 

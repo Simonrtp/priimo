@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     kind,
     lead_id: typeof row.leadId === 'string' ? row.leadId : null,
     stop_key: typeof row.stopKey === 'string' ? row.stopKey : null,
-    // Contact physique déclaré : l'immeuble alimente aussi « immeubles prospectés ».
+    // Contact physique déclaré : l'adresse alimente aussi « secteurs travaillés ».
     ban_id: typeof row.banId === 'string' && row.banId.length > 0 ? row.banId : null,
     payload: row.payload && typeof row.payload === 'object' ? row.payload : {},
     client_id: typeof row.clientId === 'string' ? row.clientId : null,

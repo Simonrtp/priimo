@@ -473,7 +473,7 @@ export default function OngletRapport({
               Aucune page. Ajoutez-en une depuis la bibliothèque ou importez un PDF.
             </p>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => void onDragEnd(e)}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event: DragEndEvent) => void onDragEnd(event)}>
               <SortableContext items={pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <ol className="flex flex-col gap-1" aria-label="Pages du rapport">
                   {pages.map((p, i) => (

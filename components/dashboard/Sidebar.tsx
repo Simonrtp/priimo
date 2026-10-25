@@ -34,6 +34,8 @@ type NavItem = {
   match: (pathname: string) => boolean;
   /** Affiché, mais pas encore ouvert. */
   bientot?: boolean;
+  /** La page reste ; l'onglet n'est pas rendu. */
+  masque?: boolean;
 };
 
 const NAV_GROUPS: NavItem[][] = [
@@ -71,7 +73,7 @@ const NAV_GROUPS: NavItem[][] = [
       label: 'Biens',
       Icon: IconBiens,
       match: (p) => p.startsWith('/dashboard/biens'),
-      bientot: true,
+      masque: true,
     },
   ],
   [
@@ -158,7 +160,8 @@ export default function Sidebar() {
         {NAV_GROUPS.map((group, groupIndex) => (
           <div key={groupIndex} className="flex w-full flex-col">
             {groupIndex > 0 ? <NavDivider collapsed={collapsed} /> : null}
-            {group.map(({ href, label, Icon, match, bientot }) => {
+            {group.map(({ href, label, Icon, match, bientot, masque }) => {
+              if (masque) return null;
               if (bientot) {
                 return (
                   <span

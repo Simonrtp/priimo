@@ -17,6 +17,15 @@ export function empriseDepuisZoneId(zoneId: string): MapEmprise {
   return 'secteur';
 }
 
+/** Un nom seul ne suffit pas : le secteur est défini dès qu'une rue, un contour ou un code postal y est posé. */
+export function secteurDefini(zone: Zone): boolean {
+  return zone.actif && zone.regles.length > 0;
+}
+
+export function aUnSecteurDefini(zones: readonly Zone[]): boolean {
+  return zones.some(secteurDefini);
+}
+
 /** Secteurs proposés dans le panneau. Le directeur voit ceux de toute l'agence. */
 export function secteursDeLaCarte(
   zones: readonly Zone[],

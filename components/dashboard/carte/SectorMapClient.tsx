@@ -44,8 +44,10 @@ import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteu
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
+import { BOUTON_CARTE_VIDE } from '@/components/dashboard/accueil/CarteVideAccueil';
 import {
   ZONE_TOUS_SECTEURS,
+  aUnSecteurDefini,
   cadastreDansEmprises,
   cadrageCarte,
   empriseDepuisZoneId,
@@ -124,6 +126,8 @@ function LayersPanel({
   tousSecteurs = false,
   annoncesQui,
   atelier = null,
+  onCreerSecteur,
+  secteurConfirme = false,
 }: {
   layers: MapLayerState;
   onToggle: (kind: MapPointKind) => void;
@@ -149,9 +153,13 @@ function LayersPanel({
   tousSecteurs?: boolean;
   annoncesQui: { zones: readonly Zone[]; directeur: boolean; profileId: string };
   atelier?: ReactNode;
+  onCreerSecteur: () => void;
+  /** Secteur vient d’être validé : les filtres s’affichent avant le rafraîchissement. */
+  secteurConfirme?: boolean;
 }) {
+  const secteurVide = emprise === 'secteur' && !secteurConfirme && !aUnSecteurDefini(zones);
   return (
-    <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden ${className}`}>
+    <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden !px-3.5 !py-3.5 ${className}`}>
       <div className="flex shrink-0 items-start justify-between gap-2">
         <CardEyebrow>Couches</CardEyebrow>
         {onCollapse ? (
@@ -170,7 +178,14 @@ function LayersPanel({
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <EmpriseCapsules value={emprise} onChange={onEmprise} hasSecteur={hasSecteur} titreSecteur={titreSecteur} />
-        {atelier ?? (
+        {secteurVide ? (
+          atelier ?? (
+            <button type="button" onClick={onCreerSecteur} className={`${BOUTON_CARTE_VIDE} w-full`}>
+              Créer mon secteur
+            </button>
+          )
+        ) : (
+        atelier ?? (
         <>
         <ul className="flex flex-col gap-1.5">
           {MAP_LAYER_ORDER.map((kind) => {
@@ -237,6 +252,7 @@ function LayersPanel({
 
         </div>
         </>
+        )
         )}
       </div>
     </WorkspaceCard>
@@ -287,6 +303,7 @@ export default function SectorMapClient({
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
   const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
   const [atelier, setAtelier] = useState(false);
+  const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [assignedTo, setAssignedTo] = useState('tous');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
@@ -326,7 +343,18 @@ export default function SectorMapClient({
   const { proposes, voirTous, zoneChoisie, affiches } = cadre;
   const empriseZone = empriseDepuisZoneId(zoneId);
   const emprise: MapEmprise = atelier ? 'secteur' : empriseZone;
-  const dessin = useDessinSecteur({ ouvert: atelier, zones, centre: center });
+  const validerDessin = useCallback((id: string) => {
+    setSecteurConfirme(true);
+    setAtelier(false);
+    setZoneId(id);
+    router.refresh();
+  }, [router]);
+  const dessin = useDessinSecteur({
+    ouvert: atelier,
+    zones,
+    centre: center,
+    onValider: validerDessin,
+  });
   const annoncesQui = useMemo(
     () => ({
       zones,
@@ -575,6 +603,8 @@ export default function SectorMapClient({
       zoneId={zoneId}
       onZone={setZoneId}
       atelier={dessin.panneau}
+      onCreerSecteur={() => setAtelier(true)}
+      secteurConfirme={secteurConfirme}
     />
   );
 
@@ -643,7 +673,7 @@ export default function SectorMapClient({
         />
 
         {itineraryStops && itineraryStops.length >= 2 ? (
-          <div className="pointer-events-none absolute bottom-3 left-3 z-20 w-[min(100%-1.5rem,380px)]">
+          <div className="pointer-events-none absolute bottom-3 left-3 z-20 w-[min(100%-1.5rem,380px)] md:max-w-[calc(100%-22.5rem)]">
             <div className="pointer-events-auto">
               <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
             </div>
@@ -651,7 +681,7 @@ export default function SectorMapClient({
         ) : null}
 
         {annonceOuverte ? (
-          <div className="pointer-events-auto absolute bottom-3 left-3 z-30 flex max-h-[min(70%,520px)] w-[min(100%-1.5rem,340px)] flex-col">
+          <div className="pointer-events-auto absolute bottom-3 left-3 z-30 flex max-h-[min(70%,520px)] w-[min(100%-1.5rem,340px)] flex-col md:max-w-[calc(100%-22.5rem)]">
             <AnnonceVolet
               annonce={annonceOuverte.annonce}
               soeurs={annonceOuverte.soeurs}
@@ -661,7 +691,7 @@ export default function SectorMapClient({
         ) : null}
 
         {viewSwitcher ? (
-          <div className="pointer-events-auto absolute top-0 right-0 z-30 hidden md:block">
+          <div className="pointer-events-auto absolute top-0 right-0 z-30 max-w-full">
             {viewSwitcher}
           </div>
         ) : null}
@@ -703,6 +733,8 @@ export default function SectorMapClient({
                 zoneId={zoneId}
                 onZone={setZoneId}
                 atelier={dessin.panneau}
+                onCreerSecteur={() => setAtelier(true)}
+                secteurConfirme={secteurConfirme}
                 onCollapse={() => setLayersPanelOpen(false)}
               />
             </div>
@@ -748,7 +780,7 @@ export default function SectorMapClient({
 
         {selected ? (
           <aside
-            className="absolute inset-x-3 bottom-3 z-20 max-h-[70%] overflow-y-auto rounded-clay border border-black/[0.08] bg-surface p-4 shadow-clay-lg sm:inset-x-auto sm:left-3 sm:top-3 sm:bottom-auto sm:w-[min(100%-1.5rem,360px)] sm:max-h-[calc(100%-1.5rem)]"
+            className="absolute bottom-3 left-3 right-3 z-20 max-h-[70%] overflow-y-auto rounded-clay border border-black/[0.08] bg-surface p-4 shadow-clay-lg md:right-[21.5rem] lg:bottom-auto lg:top-3 lg:right-auto lg:max-h-[calc(100%-1.5rem)] lg:w-[min(360px,calc(100%-22.5rem))]"
             role="dialog"
             aria-labelledby="carte-immeuble-title"
           >

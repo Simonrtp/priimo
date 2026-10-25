@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Check, SlidersHorizontal } from 'lucide-react';
 import InviteCollaboratorDialog from '@/components/dashboard/equipe/InviteCollaboratorDialog';
 import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
+import { detailCompteur, detailSecteurs, type DetailSurvol } from '@/lib/activite/repartition';
 import type { AccueilDirecteurModele } from '@/lib/directeur/assembler';
 import SelecteurVueAccueil from './SelecteurVueAccueil';
 import { SelecteurFenetre } from '@/components/dashboard/accueil/EnteteSemaine';
@@ -33,6 +34,95 @@ export type NoteAgenceLigne = {
 const CREME = {
   voile: '#F9F4EB',
 } as const;
+
+function LignesAgence({ modele }: { modele: AccueilDirecteurModele }) {
+  const parCle = new Map(modele.familles.map((f) => [f.activite, f]));
+  const contacts = parCle.get('contacts_qualifies');
+  const notes = parCle.get('informations_terrain');
+  const total = modele.secteurs.length;
+  const travailles = modele.secteurs.filter((s) => s.travaille).length;
+  const detail = modele.equipe.length > 1;
+
+  const lignes: readonly {
+    label: string;
+    valeur: string;
+    muet?: boolean;
+    survol: DetailSurvol | null;
+  }[] = [
+    {
+      label: 'Nouveaux contacts',
+      valeur: contacts
+        ? contacts.objectif > 0
+          ? `${contacts.valeur.toLocaleString('fr-FR')} / ${contacts.objectif.toLocaleString('fr-FR')}`
+          : contacts.valeur.toLocaleString('fr-FR')
+        : '0',
+      survol: detail ? detailCompteur(modele.equipe, 'contacts') : null,
+    },
+    {
+      label: 'Notes terrain',
+      valeur: (notes?.valeur ?? 0).toLocaleString('fr-FR'),
+      survol: detail ? detailCompteur(modele.equipe, 'notes') : null,
+    },
+    {
+      label: total > 1 ? 'Secteurs travaillés' : 'Secteur travaillé',
+      valeur:
+        total === 0
+          ? '—'
+          : total === 1
+            ? travailles === 1
+              ? 'Travaillé'
+              : 'Pas travaillé'
+            : `${travailles.toLocaleString('fr-FR')} / ${total.toLocaleString('fr-FR')}`,
+      survol: detail ? detailSecteurs(modele.equipe) : null,
+    },
+    {
+      label: 'Estimations',
+      valeur: 'À venir',
+      muet: true,
+      survol: null,
+    },
+  ];
+
+  return (
+    <dl className="mb-4 divide-y divide-black/[0.08]">
+      {lignes.map((ligne) => {
+        const survol =
+          ligne.survol && (ligne.survol.lignes.length > 0 || ligne.survol.suite) ? ligne.survol : null;
+        return (
+          <div
+            key={ligne.label}
+            tabIndex={survol ? 0 : undefined}
+            className="group/ligne py-3 outline-none focus-visible:rounded-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-[13px] text-text-muted">{ligne.label}</dt>
+              <dd
+                className={`text-[16px] font-semibold tabular-nums ${
+                  ligne.muet ? 'text-text-muted' : 'text-text-strong'
+                }`}
+              >
+                {ligne.valeur}
+              </dd>
+            </div>
+            {survol ? (
+              <div className="mt-2 hidden flex-col gap-1.5 group-hover/ligne:flex group-focus-within/ligne:flex [@media(hover:none)]:flex">
+                {survol.lignes.map((item, index) => (
+                  <p key={`${item.prenom}-${index}`} className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-[13px] text-text-muted">{item.prenom}</span>
+                    <span className="shrink-0 text-[14px] font-semibold tabular-nums text-text-strong">
+                      {item.valeur}
+                    </span>
+                  </p>
+                ))}
+                {survol.suite ? <p className="text-[12px] text-text-muted">{survol.suite}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
 
 function Sticker({
   repos,
@@ -202,7 +292,7 @@ export default function AccueilDirecteur({
               />
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
-                  Objectif d&apos;équipe
+                  Objectif de la période
                 </p>
                 <p className="mt-0.5 text-[22px] font-semibold tabular-nums text-text-strong">
                   {modele.indicateurs.mandatsDuMois}
@@ -239,41 +329,7 @@ export default function AccueilDirecteur({
             </button>
           </div>
 
-          <dl className="mb-4 divide-y divide-black/[0.08]">
-            {(
-              [
-                {
-                  label: 'Mandats en stock',
-                  value: String(modele.indicateurs.mandatsEnStock),
-                },
-                {
-                  label: "Taux d'exclusivité",
-                  value:
-                    modele.indicateurs.tauxExclusivite == null
-                      ? '—'
-                      : `${modele.indicateurs.tauxExclusivite} %`,
-                },
-                {
-                  label: 'Mandats +60 j',
-                  value: String(modele.indicateurs.mandatsPlusDe60j),
-                },
-                {
-                  label: 'Contacts / mandat',
-                  value:
-                    modele.indicateurs.contactsParMandat == null
-                      ? '—'
-                      : String(modele.indicateurs.contactsParMandat),
-                },
-              ] as const
-            ).map((tile) => (
-              <div key={tile.label} className="flex items-baseline justify-between gap-3 py-3">
-                <dt className="text-[13px] text-text-muted">{tile.label}</dt>
-                <dd className="text-[16px] font-semibold tabular-nums text-text-strong">
-                  {tile.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <LignesAgence modele={modele} />
 
           <div
             className="group/sticker rounded-clay-lg px-4 py-3.5 shadow-clay-sm"

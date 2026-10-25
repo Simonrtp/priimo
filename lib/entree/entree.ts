@@ -45,13 +45,6 @@ export function deciderEntree(entree: {
   return entree.dernierJour === entree.aujourdhui ? null : 'grande';
 }
 
-/** « Bonjour Simon », « Bonsoir Simon » après 18 h. */
-export function salutation(prenom: string | null | undefined, heure: number): string {
-  const mot = heure >= 18 || heure < 5 ? 'Bonsoir' : 'Bonjour';
-  const p = (prenom ?? '').trim();
-  return p ? `${mot} ${p}` : mot;
-}
-
 /** Les adresses arrivées depuis la dernière visite ; aucune la toute première fois. */
 export function nouveautesDepuis(vues: readonly string[] | null, actuelles: readonly string[]): number {
   if (!vues) return 0;

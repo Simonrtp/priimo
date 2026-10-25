@@ -251,6 +251,7 @@ export async function fetchJournalActivite(params: {
   }));
 
   const notes: NoteRow[] = notesBrutes.map((n) => ({
+    id: n.id,
     auteurId: n.created_by,
     createdAt: n.created_at,
     banId: n.ban_id,

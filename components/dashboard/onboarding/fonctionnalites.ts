@@ -1,28 +1,20 @@
-/** Capacités exposées à la prise en main — formulation technique, pas marketing. */
+/** Ce que le collaborateur lit à la prise en main. Phrases simples, sans vue d’agence. */
 
 export const FONCTIONNALITES = [
   {
     texte:
-      'Lire le secteur sur la carte : immeubles, ventes DVF, DPE ADEME, cadastre, copropriétés.',
+      'Vous voyez votre secteur sur la carte : les immeubles, les ventes déjà signées, les diagnostics énergétiques et les copropriétés.',
   },
   {
-    texte:
-      'Prioriser les adresses à frapper, à partir des signaux déjà connus, avant de sortir.',
+    texte: 'Vous savez quelles adresses aller voir en premier, avant de partir en tournée.',
   },
   {
-    texte: 'Dicter une note en tournée : transcription et classement automatiques.',
+    texte: 'Vous dictez une note sur place : elle est écrite et rangée pour vous.',
   },
   {
-    texte: 'Estimer un bien à partir des ventes constatées du quartier.',
-    bientot: true,
+    texte: 'Vous suivez vos prospects, depuis la première adresse jusqu’au mandat.',
   },
   {
-    texte: 'Suivre les leads dans le pipeline, de la détection jusqu’au mandat.',
-  },
-  {
-    texte: 'Publier un mandat une fois, sur les portails.',
-  },
-  {
-    texte: 'Lire l’activité de l’agence, sans ressaisie le soir.',
+    texte: 'Vous publiez un mandat une seule fois, et il est envoyé sur les portails.',
   },
 ] as const;

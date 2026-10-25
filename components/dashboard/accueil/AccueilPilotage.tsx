@@ -12,7 +12,7 @@ import BandeauObjectif from './BandeauObjectif';
 import CarteCompetition from './CarteCompetition';
 import CarteMiseEnPlace from './CarteMiseEnPlace';
 import CompteursActivite from './CompteursActivite';
-import EnteteSemaine from './EnteteSemaine';
+import EnteteSemaine, { titreDe } from './EnteteSemaine';
 import PenseBete from './PenseBete';
 import { NotesLectureProvider } from '@/components/dashboard/notes/NotesLectureProvider';
 import Entonnoir3D from './Entonnoir3D';
@@ -111,11 +111,23 @@ export default function AccueilPilotage({
   const [affiche, setAffiche] = useState<Pilotage>(pilotage);
   const dernierServeur = useRef(cleServeur);
   const dernierPilotage = useRef(pilotage);
+  const dernierMembre = useRef(membreSelectionne);
   /** La dernière période demandée : une réponse doublée est jetée. */
   const demande = useRef(cleServeur);
 
-  // Le serveur a renvoyé une autre période (changement de collaborateur,
-  // rechargement) : c'est lui qui a raison, on repart de sa réponse.
+  // Autre collaborateur : les périodes déjà vues appartiennent à quelqu'un d'autre.
+  if (dernierMembre.current !== membreSelectionne) {
+    dernierMembre.current = membreSelectionne;
+    cache.current.clear();
+    dernierServeur.current = cleServeur;
+    dernierPilotage.current = pilotage;
+    demande.current = cleServeur;
+    cache.current.set(cleServeur, pilotage);
+    setVue(vueDuBilan(pilotage));
+    setAffiche(pilotage);
+  }
+
+  // Le serveur a renvoyé une autre période (rechargement) : c'est lui qui a raison.
   if (dernierServeur.current !== cleServeur) {
     dernierServeur.current = cleServeur;
     dernierPilotage.current = pilotage;
@@ -226,16 +238,27 @@ export default function AccueilPilotage({
           enCours={enCours}
           onChanger={changer}
           debut={
-            selecteurVueDirecteur ? <SelecteurVueAccueil vue="agent" /> : undefined
+            selecteurVueDirecteur ? (
+              <SelecteurVueAccueil
+                vue="agent"
+                libelleAgent={
+                  lectureDe ? titreDe(vue.periode, vue.intervalle, lectureDe) : 'Ma semaine'
+                }
+              />
+            ) : undefined
+          }
+          apresTitre={
+            selecteurVueDirecteur ? (
+              <SelecteurCollaborateur
+                membres={membres}
+                selectionne={membreSelectionne}
+                moi={moi}
+              />
+            ) : undefined
           }
           droite={penseBete != null ? <PenseBete initial={penseBete} /> : undefined}
           de={lectureDe}
         />
-        {membres.length > 1 ? (
-          <div className="flex justify-end">
-            <SelecteurCollaborateur membres={membres} selectionne={membreSelectionne} />
-          </div>
-        ) : null}
       </div>
 
       {taches ? <Fragment key="accueil-taches">{taches}</Fragment> : null}
@@ -277,6 +300,9 @@ export default function AccueilPilotage({
           accueilleNotes={vue.estPeriodeCourante && membreSelectionne === moi}
           periode={`${vueDuBilan(affiche).cle}:${membreSelectionne}`}
           montrerActions={!lectureDe}
+          secteurs={affiche.secteurs ?? []}
+          intervalle={vue.intervalle}
+          membreId={membreSelectionne}
         />
       </div>
 

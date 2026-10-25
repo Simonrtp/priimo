@@ -8,10 +8,9 @@ import {
 } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import { agentADejaUnSecteur, fetchZonePourDroit, joursEnConflit } from '@/lib/queries/zones';
+import { fetchZonePourDroit, joursEnConflit } from '@/lib/queries/zones';
 import type { ZoneInsert } from '@/types/database';
 import { libelleJours } from '@/lib/zones/jour';
-import { messageSecteurUnique } from '@/lib/zones/titulaire';
 import {
   estInvalide,
   validerCouleurZone,
@@ -135,22 +134,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ zoneId: strin
           { error: "Cette personne n'appartient pas à l'agence" },
           { status: 400 },
         );
-      }
-      if (raw.assignedTo !== zoneDroit.assignedTo) {
-        const deja = await agentADejaUnSecteur(supabase, {
-          agencyId: agency.id,
-          assignedTo: raw.assignedTo,
-          saufZoneId: zoneId,
-        });
-        if (deja === null) {
-          return NextResponse.json({ error: 'Le secteur n’a pas pu être modifié' }, { status: 500 });
-        }
-        if (deja) {
-          return NextResponse.json(
-            { error: messageSecteurUnique(raw.assignedTo === profile.id) },
-            { status: 409 },
-          );
-        }
       }
       update.assigned_to = raw.assignedTo;
     }

@@ -3,23 +3,27 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
-import { PRIIMO_LOGO_WORDMARK } from '@/components/brand/PriimoLogo';
-import { useUser } from '@/lib/hooks/useUser';
-import { CLE_CONNEXION, CLE_JOUR, CLE_LOGO, connexionRecente, deciderEntree, jourParis, salutation } from '@/lib/entree/entree';
+import { CLE_CONNEXION, CLE_JOUR, CLE_LOGO, connexionRecente, deciderEntree, jourParis } from '@/lib/entree/entree';
 
-type Cadre = { x: number; y: number; w: number; h: number };
-type Scene = { salut: string; logo: Cadre };
-
-/** Proportions du logo Priimo (wordmark). */
-const RATIO_LOGO = 2446 / 1153;
-/** Fin de la superposition (logo et salutation), en ms. */
-const DUREE_SCENE_MS = 2400;
+/** Le voile s'est dissipé : la superposition peut partir. */
+const DUREE_VOILE_MS = 1200;
 /** Après l'arrivée du vrai contenu de l'Accueil, le temps de sa cascade. */
 const APRES_CONTENU_MS = 2400;
 /** Au plus tard, la coque redevient immobile. */
 const DUREE_MAX_MS = 6500;
 
 const abonnerRien = () => () => undefined;
+
+/**
+ * Le mode strict monte le composant deux fois et le premier passage vide le
+ * stockage. Sans cette retenue, le second montage n'aurait plus de scène.
+ */
+let sceneRetenue: boolean | undefined;
+
+function retenirScene(): boolean {
+  if (sceneRetenue === undefined) sceneRetenue = preparerScene();
+  return sceneRetenue;
+}
 
 function lire(stockage: 'local' | 'session', cle: string): string | null {
   try {
@@ -29,58 +33,42 @@ function lire(stockage: 'local' | 'session', cle: string): string | null {
   }
 }
 
-/** La scène de la superposition, décidée au premier rendu dans le navigateur (jamais à l'hydratation). */
-function preparerScene(prenom: string | null): Scene | null {
+/** Le voile de la superposition, décidé au premier rendu dans le navigateur (jamais à l'hydratation). */
+function preparerScene(): boolean {
   const mouvementReduit = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const connexion = connexionRecente(lire('session', CLE_CONNEXION));
   // La superposition prolonge la page de connexion : elle n'a de sens que juste après.
-  if (!connexion || deciderEntree({ connexion, dernierJour: lire('local', CLE_JOUR), aujourdhui: jourParis(), mouvementReduit }) !== 'grande') {
-    return null;
-  }
-  let logo: Cadre | null = null;
-  try {
-    const brut = JSON.parse(lire('session', CLE_LOGO) ?? 'null') as Cadre | null;
-    if (brut && [brut.x, brut.y, brut.w, brut.h].every((n) => Number.isFinite(n)) && brut.w > 0 && brut.h > 0) logo = brut;
-  } catch {
-    logo = null;
-  }
-  if (!logo) {
-    const h = 48;
-    const w = h * RATIO_LOGO;
-    logo = { x: window.innerWidth / 2 - w / 2, y: window.innerHeight / 2 - 190, w, h };
-  }
-  return { salut: salutation(prenom, new Date().getHours()), logo };
-}
-
-/** Le premier élément visible qui répond au sélecteur (barre latérale repliée ou non, bureau ou mobile). */
-function cibleVisible(selecteur: string): { el: HTMLElement; r: DOMRect } | null {
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>(selecteur))) {
-    const r = el.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) return { el, r };
-  }
-  return null;
+  return Boolean(
+    connexion &&
+      deciderEntree({ connexion, dernierJour: lire('local', CLE_JOUR), aujourdhui: jourParis(), mouvementReduit }) === 'grande',
+  );
 }
 
 /**
- * L'entrée dans l'outil. Après une connexion : la page de connexion se fond dans
- * la coque, le logo vole jusqu'à la barre latérale et « Bonjour Simon » file
- * vers l'avatar. À la première ouverture du jour (page chargée en entier), la
- * coque et l'Accueil s'animent seuls (posé avant rendu par le script d'entrée).
- * Rien ne bloque les clics. Le logo et la salutation prennent le temps d'être vus.
+ * L'entrée dans l'outil. Après une connexion, la page de connexion se fond dans
+ * la coque. Le logo de la barre apparaît sur place : il ne voyage pas.
+ * À la première ouverture du jour, la coque et l'Accueil s'animent seuls.
+ * Rien ne bloque les clics.
  */
 export default function EntreeDashboard() {
-  const { profile } = useUser();
   const pathname = usePathname();
   const estClient = useSyncExternalStore(abonnerRien, () => true, () => false);
-  const [scene] = useState<Scene | null>(() => (estClient ? preparerScene(profile.first_name ?? null) : null));
+  const [scene, setScene] = useState(false);
+  const [prete, setPrete] = useState(false);
   const [fini, setFini] = useState(false);
   const voile = useRef<HTMLDivElement>(null);
-  const logo = useRef<HTMLImageElement>(null);
-  const salut = useRef<HTMLParagraphElement>(null);
   const cheminDepart = useRef(pathname);
+
+  // Après l'hydratation : la scène se décide ici, là où le stockage est lisible.
+  useLayoutEffect(() => {
+    if (!estClient) return;
+    setScene(retenirScene());
+    setPrete(true);
+  }, [estClient]);
 
   // Avant la première image : la coque prend le marqueur, la superposition s'anime.
   useLayoutEffect(() => {
+    if (!prete) return;
     const racine = document.querySelector<HTMLElement>('[data-entree-racine]');
     if (!racine) return;
     if (scene) racine.setAttribute('data-entree', 'grande');
@@ -95,51 +83,13 @@ export default function EntreeDashboard() {
     }
 
     const animations: Animation[] = [];
-    if (scene && voile.current && logo.current && salut.current) {
-      const doux = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    if (scene && voile.current) {
       // Le voile reste un instant : on voit la carte de connexion devenir la coque.
-      animations.push(voile.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 160, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }));
-
-      const depart = scene.logo;
-      const cible = cibleVisible('#dashboard-sidebar a[aria-label="Priimo"]');
-      if (cible) {
-        const arrivee = cible.r;
-        // Le vrai logo attend l'atterrissage : jamais deux logos à l'écran.
-        animations.push(cible.el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.99 }, { opacity: 1 }], { duration: 1680 }));
-        const dx = arrivee.left + arrivee.width / 2 - (depart.x + depart.w / 2);
-        const dy = arrivee.top + arrivee.height / 2 - (depart.y + depart.h / 2);
-        const s = Math.min(arrivee.width / depart.w, arrivee.height / depart.h);
-        animations.push(
-          logo.current.animate([{ transform: 'translate(0, 0) scale(1)' }, { transform: `translate(${dx}px, ${dy}px) scale(${s})` }], {
-            duration: 1320,
-            delay: 240,
-            easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
-            fill: 'forwards',
-          }),
-          logo.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, delay: 1480, fill: 'forwards' }),
-        );
-      } else {
-        animations.push(
-          logo.current.animate([{ transform: 'translateY(0) scale(1)', opacity: 1 }, { transform: 'translateY(-28px) scale(0.92)', opacity: 0 }], {
-            duration: 980,
-            delay: 420,
-            easing: doux,
-            fill: 'forwards',
-          }),
-        );
-      }
-
-      animations.push(salut.current.animate([{ opacity: 0, transform: 'translate(-50%, 14px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: 680, delay: 180, easing: doux, fill: 'both' }));
-      const avatar = cibleVisible('a[aria-label="Mon profil"]')?.r;
-      const p = salut.current.getBoundingClientRect();
-      const vers = avatar
-        ? `translate(calc(-50% + ${avatar.left + avatar.width / 2 - (p.left + p.width / 2)}px), ${avatar.top + avatar.height / 2 - (p.top + p.height / 2)}px) scale(0.22)`
-        : 'translate(-50%, -24px) scale(0.96)';
       animations.push(
-        salut.current.animate([{ opacity: 1, transform: 'translate(-50%, 0) scale(1)' }, { opacity: 0, transform: vers }], {
+        voile.current.animate([{ opacity: 1 }, { opacity: 0 }], {
           duration: 900,
-          delay: 1280,
-          easing: 'cubic-bezier(0.55, 0, 0.45, 1)',
+          delay: 160,
+          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
           fill: 'forwards',
         }),
       );
@@ -164,7 +114,7 @@ export default function EntreeDashboard() {
       });
       observateur.observe(racine, { childList: true, subtree: true });
     }
-    const finScene = window.setTimeout(() => setFini(true), DUREE_SCENE_MS);
+    const finScene = scene ? window.setTimeout(() => setFini(true), DUREE_VOILE_MS) : undefined;
 
     return () => {
       observateur?.disconnect();
@@ -173,9 +123,9 @@ export default function EntreeDashboard() {
       for (const a of animations) a.cancel();
       // Le marqueur reste : la coque part avec ce composant, et un second montage (mode strict) le reprend.
     };
-    // Une seule fois, au montage de la coque.
+    // Relancé quand la scène est prête : les refs du portail existent alors.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [prete, scene]);
 
   // Changer de page pendant l'entrée : la nouvelle page arrive immobile.
   useEffect(() => {
@@ -197,21 +147,6 @@ export default function EntreeDashboard() {
           ].join(', '),
         }}
       />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        ref={logo}
-        src={PRIIMO_LOGO_WORDMARK}
-        alt=""
-        className="absolute rounded-xl object-contain"
-        style={{ left: scene.logo.x, top: scene.logo.y, width: scene.logo.w, height: scene.logo.h, transformOrigin: 'center' }}
-      />
-      <p
-        ref={salut}
-        className="absolute left-1/2 top-[52%] whitespace-nowrap font-display text-[clamp(32px,4vw,54px)] font-extrabold tracking-tight text-text-strong opacity-0"
-        style={{ transform: 'translate(-50%, 14px)', transformOrigin: 'center' }}
-      >
-        {scene.salut}
-      </p>
     </div>,
     document.body,
   );

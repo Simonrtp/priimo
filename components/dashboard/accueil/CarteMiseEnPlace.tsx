@@ -23,7 +23,7 @@ export default function CarteMiseEnPlace({ aUnSecteur }: { aUnSecteur: boolean }
         Ce qu’il reste à faire
       </h2>
       <p className="mt-1 text-pretty text-[13.5px] leading-relaxed text-text-muted">
-        Le secteur pour mes tournées, une fois pour toutes.
+        Les rues que je travaille : mon secteur de prospection.
       </p>
       <ul className="mt-4 flex flex-col gap-3">
         {taches.map((tache) =>
@@ -40,9 +40,9 @@ export default function CarteMiseEnPlace({ aUnSecteur }: { aUnSecteur: boolean }
                   <MapPin size={16} strokeWidth={2.2} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-ink">Faire mon secteur</p>
+                  <p className="text-[14px] font-semibold text-ink">Créer mon secteur</p>
                   <p className="mt-0.5 text-pretty text-[12.5px] leading-snug text-text-muted">
-                    Le contour de mes tournées, une fois pour toutes.
+                    J’en définis un, ou plusieurs.
                   </p>
                 </div>
               </div>
@@ -51,7 +51,7 @@ export default function CarteMiseEnPlace({ aUnSecteur }: { aUnSecteur: boolean }
                 onClick={ouvrirAtelierSecteur}
                 className={`${BOUTON_CARTE_VIDE} shrink-0`}
               >
-                Faire mon secteur
+                Créer mon secteur
               </button>
             </li>
           ) : null,

@@ -43,8 +43,8 @@ export const SOURCE_PAR_ACTIVITE: Record<Activite, SourceCompteur> = {
 };
 
 export const LIBELLE_ACTIVITE: Record<Activite, string> = {
-  immeubles_prospectes: 'Immeubles travaillés',
-  contacts_qualifies: 'Contacts qualifiés',
+  immeubles_prospectes: 'Secteurs travaillés',
+  contacts_qualifies: 'Nouveaux contacts',
   estimations: 'Estimations',
   informations_terrain: 'Notes terrain',
   mandats: 'Mandats signés',
@@ -57,7 +57,7 @@ export const LIBELLE_ACTIVITE: Record<Activite, string> = {
  */
 export const PROVENANCE_ACTIVITE: Record<Activite, string> = {
   immeubles_prospectes:
-    'Compté à partir des adresses passées en sortie (vu, absent, rencontré) et des notes rattachées. Un immeuble visité deux fois ne compte qu’une fois.',
+    'Compté à partir des adresses passées en sortie (vu, absent, rencontré) et des notes rattachées. Un secteur visité deux fois ne compte qu’une fois.',
   contacts_qualifies:
     'Compté à partir des leads que j’ai passés à l’étape « Contacté » dans mon pipeline cette semaine.',
   estimations:

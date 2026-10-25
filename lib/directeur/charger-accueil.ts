@@ -7,6 +7,10 @@ import {
   fetchEstimationsPourDirecteur,
 } from '@/lib/queries/directeur-accueil';
 import { compteursSemaine } from '@/lib/activite/derive';
+import { famillesAgence } from './familles';
+import type { RepartitionEquipe } from '@/lib/activite/repartition';
+import { secteursTravaillesPeriode } from '@/lib/activite/secteurs-periode';
+import { fetchZonesPourAgence } from '@/lib/queries/zones';
 import { objectifsEffectifs } from '@/lib/activite/objectifs';
 import {
   intervalleSeptJours,
@@ -71,12 +75,17 @@ export async function chargerAccueilDirecteur(input: {
   const now = input.now ?? new Date();
   const aujourdhui = ymdKey(parisYmd(now));
   const semaine = semaineDe(now);
+  const mois = moisDe(now);
+  const intervalleAffiche = input.periode === 'mois' ? mois : semaine;
   const intervalle7j = intervalleSeptJours(aujourdhui);
   const semainesPrecedentes = [1, 2, 3, 4].map((d) =>
     semaineDecalee(semainePrecedente(semaine), -(d - 1)),
   );
+  const debutCouverture = [semainesPrecedentes[3]!.debut, intervalleAffiche.debut].reduce((a, b) =>
+    a < b ? a : b,
+  );
   const couverture = {
-    debut: semainesPrecedentes[3]!.debut,
+    debut: debutCouverture,
     fin: aujourdhui,
   };
 
@@ -89,7 +98,7 @@ export async function chargerAccueilDirecteur(input: {
   const prenoms = new Map(membres.map((m) => [m.id, m.prenom]));
   const ids = membres.map((m) => m.id);
 
-  const [journal, objectifsRows, estimationsRows, objectifAgence] = await Promise.all([
+  const [journal, objectifsRows, estimationsRows, objectifAgence, zones] = await Promise.all([
     fetchJournalActivite({
       supabase: input.supabase,
       intervalle: couverture,
@@ -98,6 +107,10 @@ export async function chargerAccueilDirecteur(input: {
     Promise.all(ids.map((id) => fetchObjectifs({ supabase: input.supabase, profileId: id }))),
     fetchEstimationsPourDirecteur(input.supabase, input.agencyId),
     fetchObjectifAgence({ supabase: input.supabase, agencyId: input.agencyId }),
+    fetchZonesPourAgence(input.supabase, input.agencyId).catch((err) => {
+      console.error('[directeur] zones', err);
+      return [];
+    }),
   ]);
 
   const contactIds = estimationsRows
@@ -156,10 +169,6 @@ export async function chargerAccueilDirecteur(input: {
     const age = (now.getTime() - Date.parse(ref)) / 86_400_000;
     return age > seuilProspects;
   }).length;
-
-  const intervalleAffiche =
-    input.periode === 'mois' ? moisDe(now) : semaine;
-  const mois = moisDe(now);
 
   const negociateurs = [...membres]
     .sort((a, b) => {
@@ -260,6 +269,45 @@ export async function chargerAccueilDirecteur(input: {
     mandatsFenetre += cSem.mandats;
   }
 
+  const secteurs = await secteursTravaillesPeriode({
+    supabase: input.supabase,
+    journal,
+    profileIds: ids,
+    intervalle: intervalleAffiche,
+    zones,
+  });
+
+  const comptesSecteurs = new Map<string, { travailles: number; total: number }>();
+  for (const secteur of secteurs) {
+    if (!secteur.titulaireId) continue;
+    const compte = comptesSecteurs.get(secteur.titulaireId) ?? { travailles: 0, total: 0 };
+    compte.total += 1;
+    if (secteur.travaille) compte.travailles += 1;
+    comptesSecteurs.set(secteur.titulaireId, compte);
+  }
+  const equipe: RepartitionEquipe[] = membres.map((m) => {
+    const compteurs = compteursSemaine({
+      journal,
+      profileId: m.id,
+      semaine: intervalleAffiche,
+    });
+    const sec = comptesSecteurs.get(m.id) ?? { travailles: 0, total: 0 };
+    return {
+      prenom: m.prenom,
+      contacts: compteurs.contacts_qualifies,
+      notes: compteurs.informations_terrain,
+      secteursTravailles: sec.travailles,
+      secteursTotal: sec.total,
+    };
+  });
+
+  const familles = famillesAgence({
+    journal,
+    profileIds: ids,
+    objectifs: objectifsRows.map((rows) => objectifsEffectifs(rows ?? [])),
+    intervalle: intervalleAffiche,
+  });
+
   const indicateurs = indicateursAgence({
     mandatsActifs: mandatsActifs.length,
     mandatsExclusifs: exclusifs,
@@ -288,6 +336,9 @@ export async function chargerAccueilDirecteur(input: {
     negociateurs,
     directeurId: input.directeurProfileId,
     indicateurs,
+    familles,
+    secteurs,
+    equipe,
     victoires,
     now,
   });

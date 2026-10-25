@@ -17,7 +17,7 @@ export function pipelineVictoryKind(
 /** Toast vert Sonner — victoires pipeline (contacté, RDV, mandat). */
 export function celebratePipelineVictory(kind: PipelineVictoryKind): void {
   if (kind === 'contacte') {
-    notifySuccess('Contact qualifié — ça compte pour ta semaine.', {
+    notifySuccess('Nouveau contact — ça compte pour ta semaine.', {
       id: 'pipeline-victory-contacte',
       duration: 3600,
     });

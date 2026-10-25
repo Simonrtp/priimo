@@ -34,17 +34,19 @@ async function envoyer(url: string, methode: string, corps?: unknown): Promise<{
 
 /**
  * Carte de prospection, sans secteur encore : on trace sur la carte, on peut
- * poser une rue d'un côté ou de l'autre, et le seul bouton défait le dernier
- * geste.
+ * poser une rue d'un côté ou de l'autre. Chaque geste est déjà en base.
+ * Valider ferme le tracé pour que la carte affiche le secteur.
  */
 export function useDessinSecteur({
   ouvert,
   zones,
   centre,
+  onValider,
 }: {
   ouvert: boolean;
   zones: readonly Zone[];
   centre: { latitude: number | null; longitude: number | null };
+  onValider?: (zoneId: string) => void;
 }): {
   panneau: ReactNode;
   couleur: string;
@@ -201,6 +203,13 @@ export function useDessinSecteur({
     })();
   }, [router]);
 
+  const valider = useCallback(() => {
+    const id = zoneRef.current;
+    if (!id || occupeRef.current || pileRef.current.length === 0) return;
+    onValider?.(id);
+  }, [onValider]);
+
+  const trace = pile.length > 0 || contour != null;
   const panneau = ouvert ? (
     <Panneau
       centre={centre}
@@ -208,6 +217,8 @@ export function useDessinSecteur({
       occupe={occupe}
       onRue={poserRue}
       onRetour={pile.length > 0 ? retour : null}
+      onValider={trace ? valider : null}
+      peutValider={pile.length > 0 && !occupe}
     />
   ) : null;
 
@@ -220,12 +231,16 @@ function Panneau({
   occupe,
   onRue,
   onRetour,
+  onValider,
+  peutValider,
 }: {
   centre: { latitude: number | null; longitude: number | null };
   etapes: readonly Etape[];
   occupe: boolean;
   onRue: (voie: VoieTrouvee, parite: PariteVoie) => void;
   onRetour: (() => void) | null;
+  onValider: (() => void) | null;
+  peutValider: boolean;
 }) {
   return (
     <div className="rounded-[20px] bg-[#F4F6FB] px-3.5 py-4">
@@ -241,12 +256,22 @@ function Panneau({
           ))}
         </ul>
       ) : null}
+      {onValider ? (
+        <button
+          type="button"
+          disabled={!peutValider}
+          onClick={onValider}
+          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[#1A2A56] text-[14px] font-semibold text-white disabled:opacity-50"
+        >
+          Valider
+        </button>
+      ) : null}
       {onRetour ? (
         <button
           type="button"
           disabled={occupe}
           onClick={onRetour}
-          className="mt-4 flex min-h-10 w-full items-center justify-center rounded-full bg-[#1A2A56] text-[13px] font-semibold text-white disabled:opacity-50"
+          className="mt-2 flex min-h-10 w-full items-center justify-center rounded-full bg-white text-[13px] font-semibold text-[#1A2A56] disabled:opacity-50"
         >
           Retour
         </button>

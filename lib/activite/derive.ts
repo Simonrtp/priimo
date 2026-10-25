@@ -7,7 +7,7 @@ import { compteurVide, type Activite } from './types';
  *
  * Fonction pure : mêmes lignes de journal + même semaine = mêmes chiffres.
  * Chaque action tombe dans une seule carte :
- *   - une note (échange ou rattachée) → Notes terrain ;
+ *   - une note → Notes, qu’elle soit rattachée ou non ;
  *   - une note rattachée à une adresse → aussi Immeubles ;
  *   - une sortie (vu, absent, rencontré) → Immeubles seulement ;
  *   - une transition de pipeline → l'étape visée, pas l'immeuble.
@@ -29,6 +29,8 @@ export type TransitionRow = {
 
 /** Une note vocale, avec son rattachement terrain et si elle décrit un échange. */
 export type NoteRow = {
+  /** Absent des jeux de test qui ne résolvent pas les rattachements. */
+  id?: string;
   auteurId: string | null;
   createdAt: string;
   banId: string | null;
@@ -130,7 +132,7 @@ export function compteursSemaine(params: {
     if (!jour || !dansLaSemaine(jour, semaine)) continue;
 
     // La transition compte l'étape, pas l'immeuble : qualifier un lead
-    // n'alimente pas « Immeubles travaillés ».
+    // n'alimente pas « Secteurs travaillés ».
     if (t.versCle === 'contacte') compteurs.contacts_qualifies += 1;
     else if (t.versCle === 'estimation') compteurs.estimations += 1;
     else if (t.versCle === 'mandat') compteurs.mandats += 1;
@@ -141,7 +143,7 @@ export function compteursSemaine(params: {
     const jour = jourDe(n.createdAt);
     if (!jour || !dansLaSemaine(jour, semaine)) continue;
 
-    if (n.echange || n.rattacheeTerrain) compteurs.informations_terrain += 1;
+    compteurs.informations_terrain += 1;
     if (n.banId && n.rattacheeTerrain) immeubles.add(n.banId);
   }
 
