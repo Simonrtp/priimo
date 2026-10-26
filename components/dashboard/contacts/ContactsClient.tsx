@@ -40,7 +40,7 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
-import PanneauAlerte, { FOND_ALERTE, FOND_ALERTE_OUVERT } from '@/components/ui/PanneauAlerte';
+import PanneauAlerte from '@/components/ui/PanneauAlerte';
 
 const SLATE = '#1A2A56';
 const SELECTED = '#F1F2F4';
@@ -128,8 +128,6 @@ function ContactRow({
   const assigneePortrait = assignee ? portraitDepuisMembre(assignee) : null;
   const future = isRelanceFuture(contact.recontacterLe, todayKey);
   const callableNow = Boolean(contact.phone) && !future;
-  const alerte = incomplete || Boolean(duplicateOf);
-  const fond = alerte ? (selected ? FOND_ALERTE_OUVERT : FOND_ALERTE) : selected ? SELECTED : '#FFFFFF';
   const [mounted, setMounted] = useState(selected);
   const [expanded, setExpanded] = useState(selected);
 
@@ -150,18 +148,13 @@ function ContactRow({
     <li
       className="overflow-hidden border-b border-[#1A2A56]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
       style={{
-        background: fond,
+        background: selected ? SELECTED : '#FFFFFF',
         borderBottomWidth: 0.5,
       }}
     >
       <div
-        className={`flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none sm:px-5 ${
-          alerte
-            ? 'hover:bg-[#FFC48E]'
-            : selected
-              ? ''
-              : 'hover:bg-[#F1F2F4]'
-        }`}
+        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#F1F2F4] motion-reduce:transition-none sm:px-5"
+        style={selected ? { background: SELECTED } : undefined}
         onClick={onOpen}
       >
         <span
@@ -175,12 +168,6 @@ function ContactRow({
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              {alerte ? (
-                <PanneauAlerte
-                  size={15}
-                  label={incomplete ? 'Fiche à compléter' : 'Doublon possible'}
-                />
-              ) : null}
               <span
                 className="min-w-0 max-w-full truncate font-semibold text-text-strong"
                 style={{ fontSize: 15, letterSpacing: '-0.01em' }}
@@ -275,7 +262,7 @@ function ContactRow({
                     onComplete();
                   }}
                   className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold"
-                  style={{ background: '#FFFFFF', color: SLATE }}
+                  style={{ background: '#D5D8E4', color: SLATE }}
                 >
                   <PanneauAlerte size={13} label={null} />
                   À compléter
