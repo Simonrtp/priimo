@@ -176,18 +176,25 @@ export function bboxVersBounds(boite: Bbox): [[number, number], [number, number]
   ];
 }
 
-/** Contours d'une zone, prêts à être posés sur la carte. */
-export function polygonesDeZone(zone: Zone): ValeurPolygone[] {
+function contoursDessines(zone: Zone): ValeurPolygone[] {
   return zone.regles
     .filter((r) => r.inclusion && r.type === 'polygone')
     .map((r) => r.valeur as ValeurPolygone);
 }
 
-/** FeatureCollection Mapbox d'un secteur — uniquement les contours d'inclusion. */
+/**
+ * L'emprise d'une zone : ses contours dessinés, et l'enveloppe de ses
+ * parcelles. Sert à cadrer la carte et à voiler ce qui est hors secteur.
+ */
+export function polygonesDeZone(zone: Zone): ValeurPolygone[] {
+  return [...contoursDessines(zone), ...(zone.enveloppe ?? [])];
+}
+
+/** FeatureCollection Mapbox d'un secteur — uniquement les contours dessinés. */
 export function collectionGeojsonDeZone(zone: Zone): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: polygonesDeZone(zone).map((polygone) => ({
+    features: contoursDessines(zone).map((polygone) => ({
       type: 'Feature',
       properties: { zoneId: zone.id, nom: zone.nom },
       geometry: {

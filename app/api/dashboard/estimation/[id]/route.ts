@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { canSeeOwnedRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { ESTIMATION_SELECT, mapEstimation } from '@/lib/estimation/objet';
 import { isEtat } from '@/lib/estimation/cycle';
@@ -198,11 +199,15 @@ export async function PATCH(
     return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
   }
 
+  // Seul un passage d'état crée la carte : modifier une estimation déjà faite n'en ajoute pas.
   await syncLeadEtapeEstimation({
     supabase: session,
     agencyId: agency.id,
     leadId: updated.lead_id,
     etat: etat ?? (isEtat(updated.etat) ? updated.etat : 'brouillon'),
+    ...(etat
+      ? { admin: createSupabaseAdminClient(), profileId: updated.referent_id ?? profile.id, estimation: updated }
+      : {}),
   });
 
   return NextResponse.json({ estimation: mapEstimation(updated) });

@@ -16,6 +16,8 @@ export type EnvolArrive = {
   compte: boolean;
   /** Instant du rangement : un chiffre déjà rafraîchi depuis ne remonte pas deux fois. */
   t0: number;
+  /** Combien le chiffre monte. Une dictée peut créer plusieurs contacts. */
+  pas?: number;
 };
 
 const CIBLE_NOTES = 'informations_terrain';
@@ -55,6 +57,12 @@ function variable(nom: string, defaut: string): string {
 
 function annoncer(detail: EnvolArrive) {
   window.dispatchEvent(new CustomEvent<EnvolArrive>(EVENEMENT_ENVOL_ARRIVE, { detail }));
+}
+
+/** Fait monter un compteur de l'accueil sans envol, dès que l'agent a rangé. */
+export function annoncerCompteur(cible: string, pas: number): void {
+  if (typeof window === 'undefined' || pas <= 0) return;
+  annoncer({ cible, compte: true, t0: Date.now(), pas });
 }
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);

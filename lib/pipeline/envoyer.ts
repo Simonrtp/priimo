@@ -20,11 +20,15 @@ export type DemandePipeline = {
   companyName?: string | null;
   notes?: string | null;
   provenance?: 'terrain' | 'portail';
+  price?: number | null;
+  photos?: string[];
+  /** Lien de l'annonce : gardé sur la fiche bien, pas sur la carte. */
+  lien?: string | null;
 };
 
 export type ResultatPipeline = { lead: Lead; etat: 'cree' | 'pris' | 'deja' };
 
-/** Pose l'adresse dans Pris. La bille part vers l'onglet quand on n'y est pas déjà. */
+/** Pose le bien dans Pris. La bille part vers l'onglet quand on n'y est pas déjà. */
 export async function envoyerAuPipeline(
   demande: DemandePipeline,
   origine?: HTMLElement | null,
@@ -46,7 +50,7 @@ export async function envoyerAuPipeline(
     }
     if (body.etat === 'deja') notifyInfo('Déjà au pipeline');
     else {
-      notifySuccess('Ajouté dans Pris');
+      notifySuccess('Bien ajouté dans Pris');
       if (origine) lancerBilleVersPipeline(origine);
     }
     return { lead: body.lead, etat: body.etat };

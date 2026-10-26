@@ -349,3 +349,29 @@ describe('hors secteur attribué', () => {
     assert.equal(zoneDeLAdresse(sansCoords, [z]), null);
   });
 });
+
+describe('secteur en parcelles et son enveloppe', () => {
+  const enParcelles = zone({
+    regles: [regle({ type: 'parcelles', valeur: { parcelle_ids: ['75120000AB0001'] } })],
+    enveloppe: [CARRE],
+  });
+
+  it('une adresse dont la parcelle est au secteur y appartient', () => {
+    assert.ok(adresseDansZone({ ...DEDANS, parcelleId: '75120000AB0001' }, enParcelles));
+  });
+
+  it('sans parcelle connue, le point se juge sur l’enveloppe', () => {
+    assert.ok(adresseDansZone(DEDANS, enParcelles));
+    assert.ok(!adresseDansZone({ ...DEDANS, latitude: 48.9 }, enParcelles));
+  });
+
+  it('une parcelle connue mais hors du secteur ne s’y rattache pas par l’enveloppe', () => {
+    assert.ok(!adresseDansZone({ ...DEDANS, parcelleId: '75120000AB0999' }, enParcelles));
+  });
+
+  it('la parcelle l’emporte sur l’enveloppe d’un secteur voisin', () => {
+    const voisin = zone({ id: 'z2', regles: [], enveloppe: [CARRE] });
+    const adresse = { ...DEDANS, parcelleId: '75120000AB0001' };
+    assert.equal(zoneDeLAdresse(adresse, [voisin, { ...enParcelles, id: 'z1' }])?.id, 'z1');
+  });
+});

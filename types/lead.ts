@@ -127,6 +127,18 @@ export interface Lead {
   dernierPassageJour?: string | null;
   /** Niveau de fraîcheur, calculé à la lecture. Absent hors écran secteur / tournée. */
   fraicheur?: 'semaine' | 'cycle' | 'revoir' | 'jamais';
+  /** Le bien que porte la carte du pipeline. Absent hors pipeline ou avant rattachement. */
+  bien?: BienDuPipeline | null;
+}
+
+/** Ce que la carte du pipeline montre du bien : de quoi le reconnaître d'un coup d'œil. */
+export interface BienDuPipeline {
+  id: string;
+  propertyType: string | null;
+  surfaceM2: number | null;
+  rooms: number | null;
+  price: number | null;
+  photo: string | null;
 }
 
 export interface TeamMember {

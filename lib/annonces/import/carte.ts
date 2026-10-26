@@ -15,6 +15,8 @@ export type CarteImport = {
   particulier: boolean;
   agence: string | null;
   prix: number | null;
+  /** Absent des recherches gardées avant son ajout. */
+  typeBien?: Annonce['typeBien'];
   surface: number | null;
   pieces: number | null;
   etage: string | null;
@@ -61,6 +63,7 @@ export function carteDepuisFiche(
     particulier: fiche.typeVendeur === 'particulier',
     agence: fiche.agenceNom,
     prix: fiche.prix,
+    typeBien: fiche.typeBien,
     surface: fiche.surface,
     pieces: fiche.pieces,
     etage: fiche.etage == null ? null : String(fiche.etage),
@@ -87,6 +90,7 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     particulier: a.typeVendeur === 'particulier',
     agence: a.agenceNom,
     prix: a.prix,
+    typeBien: a.typeBien,
     surface: a.surface,
     pieces: a.pieces,
     etage: a.etage,

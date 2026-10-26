@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import type { Zone } from '@/lib/zones/types';
-import { bilanAnnonces, filtrerAnnonces } from './filtrer';
+import { bilanAnnonces, filtrerAnnonces, mesAnnoncesSurCarte } from './filtrer';
 import type { Annonce } from './types';
 
 const MAINTENANT = new Date('2026-10-18T12:00:00Z');
@@ -177,5 +177,29 @@ describe('bilanAnnonces', () => {
     const pap = annonce({ id: 'pap', logementCle: 'DPE-1' });
     const bienici = annonce({ id: 'bi', portail: 'bienici', logementCle: 'DPE-1' });
     assert.equal(bilanAnnonces([pap, bienici], reglages(), [], QUI, MAINTENANT).surCarte, 1);
+  });
+});
+
+describe('mesAnnoncesSurCarte', () => {
+  const collegue: Zone = { ...secteurPyrenees, id: 'z2', nom: 'Bagnolet', assignedTo: 'collegue', regles: [{ id: 'r2', zoneId: 'z2', inclusion: true, type: 'voie', valeur: { nom_voie: 'Rue de Bagnolet', code_postal: '75020', parite: 'toutes', numero_min: null, numero_max: null } }] };
+  const annonces = [
+    annonce({ id: 'mienne' }),
+    annonce({ id: 'pro', typeVendeur: 'professionnel' }),
+    annonce({ id: 'retiree', statut: 'retiree' }),
+    annonce({ id: 'collegue', adresse: '5 Rue de Bagnolet 75020 Paris', adresseNumero: '5', adresseVoie: 'Rue de Bagnolet' }),
+    annonce({ id: 'hors-secteur', adresse: '3 Rue Oberkampf 75011 Paris', adresseNumero: '3', adresseVoie: 'Rue Oberkampf', codePostal: '75011' }),
+  ];
+
+  it('l’agent voit les annonces de particuliers actives de son secteur, rien d’autre', () => {
+    assert.deepEqual(ids(mesAnnoncesSurCarte(annonces, [secteurPyrenees, collegue], QUI)), ['mienne']);
+  });
+
+  it('le directeur voit celles de tous les secteurs, ou du seul secteur cadré', () => {
+    const directeur = { directeur: true, profileId: 'dir' };
+    assert.deepEqual(ids(mesAnnoncesSurCarte(annonces, [secteurPyrenees, collegue], directeur)), ['mienne', 'collegue']);
+    assert.deepEqual(
+      ids(mesAnnoncesSurCarte(annonces, [secteurPyrenees, collegue], { ...directeur, zoneCadree: collegue })),
+      ['collegue'],
+    );
   });
 });

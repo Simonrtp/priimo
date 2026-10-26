@@ -4,6 +4,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Layer, Marker, Source, type MapRef } from 'react-map-gl';
+import SecteursParcellesCalque, { SECTEURS_PRIS_LAYER_ID } from '@/components/dashboard/carte/SecteursParcellesCalque';
+import { useCarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import {
   FRANCE_MAP_VIEW,
   IGN_PCI_MINZOOM,
@@ -228,6 +230,9 @@ export default function ZonesCarte({
   const mapRef = useRef<MapRef | null>(null);
   const boiteRef = useRef<HTMLDivElement | null>(null);
   const [pret, setPret] = useState(false);
+  // Les secteurs en parcelles : remplis de la couleur de leur agent, sans contour.
+  const carteSecteurs = useCarteSecteurs();
+  const zonesAffichees = useMemo(() => new Set(zones.filter((z) => z.actif).map((z) => z.id)), [zones]);
 
   /**
    * Tracé à main levée. mapbox-gl-draw ne sait poser des sommets qu'au clic,
@@ -723,7 +728,7 @@ export default function ZonesCarte({
             map.getContainer().style.touchAction = 'pan-y';
           }
         }}
-        interactiveLayerIds={actives.map((z) => `zone-fill-${z.id}`)}
+        interactiveLayerIds={[...actives.map((z) => `zone-fill-${z.id}`), SECTEURS_PRIS_LAYER_ID]}
         onMouseMove={(e) => {
           if (formeRef.current) {
             etirerForme(e);
@@ -739,6 +744,7 @@ export default function ZonesCarte({
         onMouseOut={() => onSurvolZone?.(null)}
         style={{ width: '100%', height: '100%' }}
       >
+        <SecteursParcellesCalque carte={carteSecteurs} zonesAffichees={zonesAffichees} />
         {actives.map((zone) => {
           const courante = zone.id === zoneActive?.id;
           return (

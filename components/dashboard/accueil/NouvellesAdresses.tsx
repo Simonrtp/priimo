@@ -20,7 +20,7 @@ export type AdresseLivree = {
 };
 
 const ETAPES_VIDE = [
-  'Le secteur posé, Priimo relève chaque nuit les annonces de particuliers qui s’y trouvent.',
+  'Je dessine mon secteur sur la carte : Priimo y relève chaque nuit les annonces de particuliers.',
   'Elles arrivent ici, adresse retrouvée quand c’est possible.',
   'Un clic ouvre l’annonce.',
 ] as const;
@@ -40,11 +40,13 @@ export default function NouvellesAdresses({
   adresses,
   total,
   sansLivraison = false,
+  plusieursSecteurs = false,
 }: {
   adresses: readonly AdresseLivree[];
   total: number;
   /** Aucun secteur à moi : rien à relever encore. */
   sansLivraison?: boolean;
+  plusieursSecteurs?: boolean;
 }) {
   if (sansLivraison) {
     return (
@@ -55,7 +57,7 @@ export default function NouvellesAdresses({
         icone="/carte.png"
         action={
           <Link href="/dashboard/prospection" className={BOUTON_CARTE_VIDE}>
-            Ouvrir la carte
+            Dessiner mon secteur
           </Link>
         }
       />
@@ -69,7 +71,8 @@ export default function NouvellesAdresses({
           Mes nouvelles adresses
         </h2>
         <p className="mt-1.5 text-[13px] text-text-muted">
-          Aucune annonce de particulier dans mon secteur pour l’instant. Le relevé passe chaque nuit.
+          Aucune annonce de particulier dans {plusieursSecteurs ? 'mes secteurs' : 'mon secteur'} pour l’instant. Le
+          relevé passe chaque nuit.
         </p>
       </section>
     );

@@ -1,19 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 import { notifyError } from '@/lib/notify';
 import { useUser } from '@/lib/hooks/useUser';
 import type { VoieTrouvee } from '@/lib/geo/ban-voie';
+import { pointDansPolygone } from '@/lib/zones/appartenance';
 import { couleurZoneLibre } from '@/lib/zones/palette';
+import { COULEURS_MEMBRES } from '@/lib/zones/couleurs-membres';
 import { nomSecteurParDefaut, prenomDuMembre } from '@/lib/zones/nom';
-import { resumerVoie } from '@/lib/zones/voie-trace';
-import type { PariteVoie, ValeurVoie, Zone } from '@/lib/zones/types';
+import { rafraichirCarteSecteurs, type CarteSecteurs } from '@/lib/zones/useCarteSecteurs';
+import type { PariteVoie, Zone } from '@/lib/zones/types';
+import type { AtelierCalque, ParcelleAtelier } from '@/components/dashboard/carte/SecteursParcellesCalque';
 
-type Etape =
-  | { kind: 'contour'; zoneId: string; regleId: string; libelle: string }
-  | { kind: 'rue'; zoneId: string; regleId: string; libelle: string };
+export type OutilAtelier = 'entourer' | 'toucher';
+type Mode = 'ajouter' | 'retirer';
+type Pas = { ajoutees: string[]; retirees: string[] };
 
 const COTES: readonly { id: PariteVoie; label: string }[] = [
   { id: 'toutes', label: 'Tous' },
@@ -21,64 +23,120 @@ const COTES: readonly { id: PariteVoie; label: string }[] = [
   { id: 'impaires', label: 'Impairs' },
 ];
 
-async function envoyer(url: string, methode: string, corps?: unknown): Promise<{ id?: string }> {
+/** Les parcelles se chargent par carreaux d'environ 1 km, à partir de ce zoom. */
+const ZOOM_PARCELLES = 14;
+const CARREAU = 0.01;
+
+type Vue = { west: number; south: number; east: number; north: number; zoom: number };
+type Reponse = { ajoutees?: string[]; retirees?: string[]; refusees?: { parcelleId: string }[]; parcelleIds?: string[] };
+
+async function envoyer<T = { id?: string }>(url: string, methode: string, corps?: unknown): Promise<T> {
   const res = await fetch(url, {
     method: methode,
     headers: corps ? { 'Content-Type': 'application/json' } : undefined,
     body: corps ? JSON.stringify(corps) : undefined,
   });
-  const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Enregistrement impossible');
   return data;
 }
 
 /**
- * Carte de prospection, sans secteur encore : on trace sur la carte, on peut
- * poser une rue d'un côté ou de l'autre. Chaque geste est déjà en base.
- * Valider ferme le tracé pour que la carte affiche le secteur.
+ * L'atelier secteur : on entoure des immeubles, on touche une parcelle pour
+ * l'ajouter ou la retirer, on prend une rue d'un côté. Tout s'affiche aussitôt
+ * et s'enregistre en arrière-plan, dans l'ordre des gestes. Une parcelle déjà
+ * tenue par un collègue ne se prend pas.
+ *
+ * `zone` : le secteur à retoucher ; absent, un nouveau secteur naît au
+ * premier geste.
  */
 export function useDessinSecteur({
   ouvert,
+  zone = null,
   zones,
+  carte,
   centre,
   onValider,
+  onFermer,
 }: {
   ouvert: boolean;
+  zone?: Zone | null;
   zones: readonly Zone[];
+  carte: CarteSecteurs;
   centre: { latitude: number | null; longitude: number | null };
   onValider?: (zoneId: string) => void;
+  onFermer?: () => void;
 }): {
   panneau: ReactNode;
   couleur: string;
-  polygone: GeoJSON.Polygon | null;
+  calque: AtelierCalque | null;
+  outil: OutilAtelier;
   poserContour: (polygone: GeoJSON.Polygon) => void;
+  toucherParcelle: (parcelleId: string) => void;
+  surVue: (vue: Vue) => void;
 } {
-  const router = useRouter();
   const { profile } = useUser();
-  const [pile, setPile] = useState<Etape[]>([]);
-  const [contour, setContour] = useState<GeoJSON.Polygon | null>(null);
-  const [occupe, setOccupe] = useState(false);
-  const [couleur, setCouleur] = useState(() => couleurZoneLibre(zones.map((z) => z.couleur)));
-  const pileRef = useRef(pile);
-  const zoneRef = useRef<string | null>(null);
-  const contourRef = useRef(contour);
-  const occupeRef = useRef(false);
-  const couleurRef = useRef(couleur);
-  pileRef.current = pile;
-  contourRef.current = contour;
-  couleurRef.current = couleur;
+  const [ouverture, setOuverture] = useState<string | null>(null);
+  const [zoneId, setZoneId] = useState<string | null>(zone?.id ?? null);
+  const [mesIds, setMesIds] = useState<ReadonlySet<string>>(new Set());
+  const [historique, setHistorique] = useState<Pas[]>([]);
+  const [outil, setOutil] = useState<OutilAtelier>('entourer');
+  const [mode, setMode] = useState<Mode>('ajouter');
+  const [candidates, setCandidates] = useState<ReadonlyMap<string, ParcelleAtelier>>(new Map());
+  const [enAttente, setEnAttente] = useState(0);
+  const [zoom, setZoom] = useState<number | null>(null);
 
+  // À chaque ouverture, et seulement là, on repart du secteur tel qu'il est :
+  // la carte relue ensuite ne doit pas défaire les gestes en cours.
+  const cleOuverture = ouvert ? `ouvert:${zone?.id ?? 'nouveau'}` : null;
+  if (ouverture !== cleOuverture) {
+    setOuverture(cleOuverture);
+    if (cleOuverture) {
+      const id = zone?.id ?? null;
+      const siennes = id
+        ? carte.features.filter((f) => f.properties.zoneId === id).map((f) => f.properties.parcelleId)
+        : [];
+      setZoneId(id);
+      setHistorique([]);
+      setMode('ajouter');
+      setMesIds(new Set(siennes));
+      setOutil(siennes.length > 0 ? 'toucher' : 'entourer');
+    }
+  }
+
+  const zoneRef = useRef<string | null>(zoneId);
+  const mesRef = useRef(mesIds);
+  const candidatesRef = useRef(candidates);
+  /** Secteur né dans cet atelier : abandonné vide, il ne reste pas en base. */
+  const creeIciRef = useRef(false);
+  const fileRef = useRef<Promise<void>>(Promise.resolve());
+  const carreauxRef = useRef(new Set<string>());
   useEffect(() => {
-    if (!ouvert) return;
-    setPile([]);
-    setContour(null);
-    zoneRef.current = null;
-    const suivante = couleurZoneLibre(zones.map((z) => z.couleur));
-    couleurRef.current = suivante;
-    setCouleur(suivante);
-    // On repart d'une carte vide à chaque ouverture, pas à chaque rendu.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ouvert]);
+    zoneRef.current = zoneId;
+  }, [zoneId]);
+  useEffect(() => {
+    mesRef.current = mesIds;
+  }, [mesIds]);
+  useEffect(() => {
+    candidatesRef.current = candidates;
+  }, [candidates]);
+  useEffect(() => {
+    creeIciRef.current = false;
+  }, [cleOuverture]);
+
+  // Parcelles tenues par d'autres secteurs : visibles, jamais prises.
+  const prises = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of carte.features) {
+      if (f.properties.zoneId !== zoneId) m.set(f.properties.parcelleId, f.properties.initiales);
+    }
+    return m;
+  }, [carte.features, zoneId]);
+
+  const couleurPropre = useMemo(() => {
+    const mien = carte.secteurs.find((s) => s.assignedTo === profile.id)?.couleur;
+    return mien ?? COULEURS_MEMBRES[0];
+  }, [carte.secteurs, profile.id]);
 
   const assurerZone = useCallback(async () => {
     if (zoneRef.current) return zoneRef.current;
@@ -89,191 +147,329 @@ export function useDessinSecteur({
     const cree = await envoyer('/api/dashboard/zones', 'POST', {
       nom,
       assignedTo: profile.id,
-      couleur: couleurRef.current,
+      couleur: couleurZoneLibre(zones.map((z) => z.couleur)),
     });
     if (!cree.id) throw new Error('Le secteur n’a pas pu être créé');
     zoneRef.current = cree.id;
+    creeIciRef.current = true;
+    setZoneId(cree.id);
     return cree.id;
   }, [profile.first_name, profile.id, zones]);
 
-  const poserContour = useCallback(
-    (polygone: GeoJSON.Polygon) => {
-      if (occupeRef.current) return;
-      occupeRef.current = true;
-      setOccupe(true);
-      const avant = contourRef.current;
-      setContour(polygone);
-      void (async () => {
+  /** Les écritures partent dans l'ordre des gestes, une à la fois. */
+  const enregistrer = useCallback(
+    (corps: Record<string, unknown>, surReponse?: (r: Reponse) => void, surEchec?: () => void) => {
+      setEnAttente((n) => n + 1);
+      fileRef.current = fileRef.current.then(async () => {
         try {
-          const zoneId = await assurerZone();
-          const ancien = pileRef.current.find((e) => e.kind === 'contour');
-          if (ancien) {
-            await envoyer(`/api/dashboard/zones/${zoneId}/regles/${ancien.regleId}`, 'DELETE');
+          const id = await assurerZone();
+          const r = await envoyer<Reponse>(`/api/dashboard/zones/${id}/parcelles`, 'POST', corps);
+          const refusees = (r.refusees ?? []).map((x) => x.parcelleId);
+          if (refusees.length > 0) {
+            setMesIds((prev) => {
+              const next = new Set(prev);
+              for (const p of refusees) next.delete(p);
+              return next;
+            });
+            notifyError(
+              refusees.length > 1
+                ? `${refusees.length} parcelles sont déjà dans le secteur d’un collègue`
+                : 'Cette parcelle est déjà dans le secteur d’un collègue',
+            );
           }
-          const cree = await envoyer(`/api/dashboard/zones/${zoneId}/regles`, 'POST', {
-            type: 'polygone',
-            valeur: polygone,
-            inclusion: true,
-          });
-          if (!cree.id) throw new Error('Le contour n’a pas pu être enregistré');
-          const etape: Etape = { kind: 'contour', zoneId, regleId: cree.id, libelle: 'Contour' };
-          setPile((prev) => {
-            const index = prev.findIndex((e) => e.kind === 'contour');
-            if (index === -1) return [etape, ...prev];
-            const next = prev.slice();
-            next[index] = etape;
-            return next;
-          });
-          router.refresh();
+          surReponse?.(r);
         } catch (e) {
-          setContour(avant);
+          surEchec?.();
           notifyError(e instanceof Error ? e.message : 'Le secteur n’a pas pu être enregistré');
         } finally {
-          occupeRef.current = false;
-          setOccupe(false);
+          setEnAttente((n) => n - 1);
         }
-      })();
+      });
     },
-    [assurerZone, router],
+    [assurerZone],
+  );
+
+  const appliquer = useCallback(
+    (ajoutees: readonly string[], retirees: readonly string[], memoriser = true) => {
+      if (ajoutees.length === 0 && retirees.length === 0) return;
+      setMesIds((prev) => {
+        const next = new Set(prev);
+        for (const id of ajoutees) next.add(id);
+        for (const id of retirees) next.delete(id);
+        return next;
+      });
+      if (memoriser) setHistorique((h) => [...h, { ajoutees: [...ajoutees], retirees: [...retirees] }]);
+      enregistrer({ ajouter: ajoutees, retirer: retirees }, undefined, () =>
+        setMesIds((prev) => {
+          const next = new Set(prev);
+          for (const id of ajoutees) next.delete(id);
+          for (const id of retirees) next.add(id);
+          return next;
+        }),
+      );
+    },
+    [enregistrer],
+  );
+
+  /** Entourer : les parcelles dont le centre est dans le tracé. */
+  const poserContour = useCallback(
+    (polygone: GeoJSON.Polygon) => {
+      const trace = { type: 'Polygon' as const, coordinates: polygone.coordinates as [number, number][][] };
+      const dedans = [...candidatesRef.current.values()]
+        .filter((p) => pointDansPolygone({ longitude: p.centre[0], latitude: p.centre[1] }, trace))
+        .map((p) => p.id);
+      // Trop dézoomé pour connaître les parcelles ici : le serveur les trouve.
+      if (dedans.length === 0 && (zoom ?? 0) < ZOOM_PARCELLES) {
+        enregistrer({ trace, mode }, (r) => {
+          const ajoutees = r.ajoutees ?? [];
+          const retirees = r.retirees ?? [];
+          setMesIds((prev) => {
+            const next = new Set(prev);
+            for (const id of ajoutees) next.add(id);
+            for (const id of retirees) next.delete(id);
+            return next;
+          });
+          setHistorique((h) => [...h, { ajoutees, retirees }]);
+        });
+        return;
+      }
+      if (mode === 'ajouter') {
+        appliquer(dedans.filter((id) => !mesRef.current.has(id) && !prises.has(id)), []);
+      } else {
+        appliquer([], dedans.filter((id) => mesRef.current.has(id)));
+      }
+    },
+    [appliquer, enregistrer, mode, prises, zoom],
+  );
+
+  const toucherParcelle = useCallback(
+    (parcelleId: string) => {
+      if (mesRef.current.has(parcelleId)) {
+        appliquer([], [parcelleId]);
+        return;
+      }
+      const initiales = prises.get(parcelleId);
+      if (initiales !== undefined) {
+        notifyError(initiales ? `Cette parcelle est déjà dans le secteur de ${initiales}` : 'Cette parcelle est déjà prise');
+        return;
+      }
+      appliquer([parcelleId], []);
+    },
+    [appliquer, prises],
   );
 
   const poserRue = useCallback(
     (voie: VoieTrouvee, parite: PariteVoie) => {
-      if (occupeRef.current) return;
-      occupeRef.current = true;
-      setOccupe(true);
-      const valeur: ValeurVoie = {
-        nom_voie: voie.nom,
-        code_postal: voie.codePostal,
-        parite,
-        numero_min: null,
-        numero_max: null,
-      };
-      void (async () => {
-        try {
-          const zoneId = await assurerZone();
-          const cree = await envoyer(`/api/dashboard/zones/${zoneId}/regles`, 'POST', {
-            type: 'voie',
-            valeur,
-            inclusion: true,
-          });
-          if (!cree.id) throw new Error('La rue n’a pas pu être enregistrée');
-          setPile((prev) => [
-            ...prev,
-            { kind: 'rue', zoneId, regleId: cree.id!, libelle: resumerVoie(valeur) },
-          ]);
-          router.refresh();
-        } catch (e) {
-          notifyError(e instanceof Error ? e.message : 'La rue n’a pas pu être enregistrée');
-        } finally {
-          occupeRef.current = false;
-          setOccupe(false);
-        }
-      })();
+      enregistrer({ rue: { nom: voie.nom, codePostal: voie.codePostal, parite } }, (r) => {
+        const ajoutees = r.ajoutees ?? [];
+        setMesIds((prev) => new Set([...prev, ...ajoutees]));
+        setHistorique((h) => [...h, { ajoutees, retirees: [] }]);
+      });
     },
-    [assurerZone, router],
+    [enregistrer],
   );
 
   const retour = useCallback(() => {
-    const dernier = pileRef.current[pileRef.current.length - 1];
-    if (!dernier || occupeRef.current) return;
-    occupeRef.current = true;
-    setOccupe(true);
-    void (async () => {
-      try {
-        await envoyer(
-          `/api/dashboard/zones/${dernier.zoneId}/regles/${dernier.regleId}`,
-          'DELETE',
-        );
-        const reste = pileRef.current.slice(0, -1);
-        if (dernier.kind === 'contour') setContour(null);
-        if (reste.length === 0) {
-          await envoyer(`/api/dashboard/zones/${dernier.zoneId}`, 'DELETE');
-          zoneRef.current = null;
-          setContour(null);
-        }
-        setPile(reste);
-        router.refresh();
-      } catch (e) {
-        notifyError(e instanceof Error ? e.message : 'Retour impossible');
-      } finally {
-        occupeRef.current = false;
-        setOccupe(false);
+    const dernier = historique[historique.length - 1];
+    if (!dernier) return;
+    setHistorique((h) => h.slice(0, -1));
+    appliquer(dernier.retirees, dernier.ajoutees, false);
+  }, [appliquer, historique]);
+
+  const surVue = useCallback((vue: Vue) => {
+    setZoom(vue.zoom);
+    if (vue.zoom < ZOOM_PARCELLES) return;
+    const carreaux: { cle: string; ouest: number; sud: number }[] = [];
+    for (let x = Math.floor(vue.west / CARREAU); x * CARREAU < vue.east; x += 1) {
+      for (let y = Math.floor(vue.south / CARREAU); y * CARREAU < vue.north; y += 1) {
+        const cle = `${x}:${y}`;
+        if (!carreauxRef.current.has(cle)) carreaux.push({ cle, ouest: x * CARREAU, sud: y * CARREAU });
       }
-    })();
-  }, [router]);
+    }
+    for (const c of carreaux) {
+      carreauxRef.current.add(c.cle);
+      const params = new URLSearchParams({
+        ouest: String(c.ouest),
+        sud: String(c.sud),
+        est: String(c.ouest + CARREAU),
+        nord: String(c.sud + CARREAU),
+      });
+      void fetch(`/api/dashboard/zones/parcelles?${params.toString()}`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ parcelles?: { id: string; anneaux: [number, number][][]; c: [number, number] }[] }>) : null))
+        .then((json) => {
+          const lues = json?.parcelles ?? [];
+          if (lues.length === 0) return;
+          setCandidates((prev) => {
+            const next = new Map(prev);
+            for (const p of lues) next.set(p.id, { id: p.id, anneaux: p.anneaux, centre: p.c });
+            return next;
+          });
+        })
+        .catch(() => carreauxRef.current.delete(c.cle));
+    }
+  }, []);
 
-  const valider = useCallback(() => {
-    const id = zoneRef.current;
-    if (!id || occupeRef.current || pileRef.current.length === 0) return;
-    onValider?.(id);
-  }, [onValider]);
+  /** Valider (ou annuler) attend les gestes en cours ; un secteur né ici et resté vide disparaît. */
+  const terminer = useCallback(() => {
+    void fileRef.current.then(async () => {
+      const id = zoneRef.current;
+      if (id && mesRef.current.size === 0 && creeIciRef.current) {
+        await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
+      }
+      rafraichirCarteSecteurs();
+      if (id && mesRef.current.size > 0) onValider?.(id);
+      else onFermer?.();
+    });
+  }, [onFermer, onValider]);
 
-  const trace = pile.length > 0 || contour != null;
+  const nombre = mesIds.size;
   const panneau = ouvert ? (
     <Panneau
+      titre={zone?.nom ?? 'Nouveau secteur'}
+      couleur={couleurPropre}
+      nombre={nombre}
+      outil={outil}
+      onOutil={setOutil}
+      mode={mode}
+      onMode={setMode}
+      zoomTropLoin={zoom != null && zoom < ZOOM_PARCELLES}
+      enAttente={enAttente > 0}
       centre={centre}
-      etapes={pile}
-      occupe={occupe}
       onRue={poserRue}
-      onRetour={pile.length > 0 ? retour : null}
-      onValider={trace ? valider : null}
-      peutValider={pile.length > 0 && !occupe}
+      onRetour={historique.length > 0 ? retour : null}
+      onValider={terminer}
+      onFermer={terminer}
     />
   ) : null;
 
-  return { panneau, couleur, polygone: ouvert ? contour : null, poserContour };
+  const calque = ouvert
+    ? { zoneId, mesIds, couleur: couleurPropre, candidates, montrerAutres: zone != null }
+    : null;
+  return { panneau, couleur: couleurPropre, calque, outil, poserContour, toucherParcelle, surVue };
 }
 
 function Panneau({
+  titre,
+  couleur,
+  nombre,
+  outil,
+  onOutil,
+  mode,
+  onMode,
+  zoomTropLoin,
+  enAttente,
   centre,
-  etapes,
-  occupe,
   onRue,
   onRetour,
   onValider,
-  peutValider,
+  onFermer,
 }: {
+  titre: string;
+  couleur: string;
+  nombre: number;
+  outil: OutilAtelier;
+  onOutil: (o: OutilAtelier) => void;
+  mode: Mode;
+  onMode: (m: Mode) => void;
+  zoomTropLoin: boolean;
+  enAttente: boolean;
   centre: { latitude: number | null; longitude: number | null };
-  etapes: readonly Etape[];
-  occupe: boolean;
   onRue: (voie: VoieTrouvee, parite: PariteVoie) => void;
   onRetour: (() => void) | null;
-  onValider: (() => void) | null;
-  peutValider: boolean;
+  onValider: () => void;
+  onFermer: (() => void) | null;
 }) {
   return (
     <div className="rounded-[20px] bg-[#F4F6FB] px-3.5 py-4">
-      <p className="text-[15px] font-semibold text-[#1A2A56]">Mon secteur</p>
-      <p className="mt-1 text-[13px] text-text-muted">Tracez sur la carte.</p>
-      <Rue centre={centre} occupe={occupe} onChoisir={onRue} />
-      {etapes.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1">
-          {etapes.map((etape) => (
-            <li key={etape.regleId} className="truncate text-[13px] text-[#1A2A56]">
-              {etape.libelle}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {onValider ? (
+      <div className="flex items-center gap-2">
+        <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: couleur }} />
+        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#1A2A56]">{titre}</p>
+        <span className="shrink-0 text-[12.5px] tabular-nums text-text-muted">
+          {nombre} parcelle{nombre > 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div role="group" aria-label="Outil" className={`${PASTILLE_TRACK} mt-3 w-full`}>
         <button
           type="button"
-          disabled={!peutValider}
-          onClick={onValider}
-          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[#1A2A56] text-[14px] font-semibold text-white disabled:opacity-50"
+          aria-pressed={outil === 'entourer'}
+          onClick={() => onOutil('entourer')}
+          className={`${pastilleClass(outil === 'entourer')} min-w-0 flex-1`}
         >
-          Valider
+          Entourer
         </button>
-      ) : null}
-      {onRetour ? (
         <button
           type="button"
-          disabled={occupe}
-          onClick={onRetour}
-          className="mt-2 flex min-h-10 w-full items-center justify-center rounded-full bg-white text-[13px] font-semibold text-[#1A2A56] disabled:opacity-50"
+          aria-pressed={outil === 'toucher'}
+          onClick={() => onOutil('toucher')}
+          className={`${pastilleClass(outil === 'toucher')} min-w-0 flex-1`}
         >
-          Retour
+          Une par une
+        </button>
+      </div>
+
+      {outil === 'entourer' ? (
+        <>
+          <div role="group" aria-label="Entourer pour" className={`${PASTILLE_TRACK} mt-2 w-full`}>
+            <button
+              type="button"
+              aria-pressed={mode === 'ajouter'}
+              onClick={() => onMode('ajouter')}
+              className={`${pastilleClass(mode === 'ajouter')} min-w-0 flex-1`}
+            >
+              Ajouter
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'retirer'}
+              onClick={() => onMode('retirer')}
+              className={`${pastilleClass(mode === 'retirer')} min-w-0 flex-1`}
+            >
+              Retirer
+            </button>
+          </div>
+          <p className="mt-2 text-[12.5px] leading-snug text-text-muted">
+            {mode === 'ajouter'
+              ? 'Entourez des immeubles sur la carte : leurs parcelles rejoignent le secteur.'
+              : 'Entourez les parcelles à sortir du secteur.'}
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-[12.5px] leading-snug text-text-muted">
+          Touchez une parcelle pour l’ajouter, touchez-la encore pour la retirer. La carte se déplace normalement.
+        </p>
+      )}
+      {zoomTropLoin ? (
+        <p className="mt-1.5 text-[12px] leading-snug text-text-subtle">Approchez-vous pour voir les parcelles une à une.</p>
+      ) : null}
+
+      <Rue centre={centre} occupe={false} onChoisir={onRue} />
+
+      <div className="mt-4 flex gap-2">
+        {onRetour ? (
+          <button
+            type="button"
+            onClick={onRetour}
+            className="flex min-h-10 flex-1 items-center justify-center rounded-full bg-white text-[13px] font-semibold text-[#1A2A56]"
+          >
+            Retour
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onValider}
+          className="flex min-h-10 flex-[2] items-center justify-center rounded-full bg-[#1A2A56] text-[14px] font-semibold text-white"
+        >
+          {enAttente ? 'Enregistrement…' : 'Valider'}
+        </button>
+      </div>
+      {onFermer && nombre === 0 ? (
+        <button
+          type="button"
+          onClick={onFermer}
+          className="mt-2 flex min-h-9 w-full items-center justify-center rounded-full text-[13px] font-medium text-text-muted hover:text-text-strong"
+        >
+          Annuler
         </button>
       ) : null}
     </div>
@@ -326,7 +522,7 @@ function Rue({
 
   return (
     <div className="mt-4">
-      <p className="mb-1.5 text-[12px] font-medium text-text-muted">Rue</p>
+      <p className="mb-1.5 text-[12px] font-medium text-text-muted">Ou toute une rue</p>
       {voie ? (
         <button
           type="button"

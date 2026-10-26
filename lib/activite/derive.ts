@@ -10,7 +10,8 @@ import { compteurVide, type Activite } from './types';
  *   - une note → Notes, qu’elle soit rattachée ou non ;
  *   - une note rattachée à une adresse → aussi Immeubles ;
  *   - une sortie (vu, absent, rencontré) → Immeubles seulement ;
- *   - une transition de pipeline → l'étape visée, pas l'immeuble.
+ *   - une transition de pipeline → l'étape visée, pas l'immeuble ;
+ *   - un contact créé en dictant une note → Nouveaux contacts.
  */
 
 /** Une transition du journal `lead_stage_events`, aplatie. */
@@ -40,6 +41,13 @@ export type NoteRow = {
   echange: boolean;
 };
 
+/** Un contact créé par l'agent en dictant une note. */
+export type ContactCreeRow = {
+  id: string;
+  profileId: string | null;
+  createdAt: string;
+};
+
 /** Un arrêt de sortie observé : `sortie_events` (rencontre, absent, passer). */
 export type ContactPhysiqueRow = {
   profileId: string;
@@ -63,12 +71,14 @@ export type LecturesJournal = {
   transitions: EtatLecture;
   notes: EtatLecture;
   contactsPhysiques: EtatLecture;
+  contactsCrees: EtatLecture;
 };
 
 export type JournalActivite = {
   transitions: readonly TransitionRow[];
   notes: readonly NoteRow[];
   contactsPhysiques: readonly ContactPhysiqueRow[];
+  contactsCrees: readonly ContactCreeRow[];
   lectures: LecturesJournal;
   /**
    * Rang de progression par clé d'étape, tiré de `lead_stages.ordre`.
@@ -96,7 +106,8 @@ export function journalVide(): JournalActivite {
     transitions: [],
     notes: [],
     contactsPhysiques: [],
-    lectures: { transitions: 'ok', notes: 'ok', contactsPhysiques: 'ok' },
+    contactsCrees: [],
+    lectures: { transitions: 'ok', notes: 'ok', contactsPhysiques: 'ok', contactsCrees: 'ok' },
     rangParCle: RANGS_CANONIQUES,
   };
 }
@@ -136,6 +147,13 @@ export function compteursSemaine(params: {
     if (t.versCle === 'contacte') compteurs.contacts_qualifies += 1;
     else if (t.versCle === 'estimation') compteurs.estimations += 1;
     else if (t.versCle === 'mandat') compteurs.mandats += 1;
+  }
+
+  for (const c of journal.contactsCrees) {
+    if (c.profileId !== profileId) continue;
+    const jour = jourDe(c.createdAt);
+    if (!jour || !dansLaSemaine(jour, semaine)) continue;
+    compteurs.contacts_qualifies += 1;
   }
 
   for (const n of journal.notes) {

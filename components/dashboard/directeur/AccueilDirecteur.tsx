@@ -246,8 +246,8 @@ export default function AccueilDirecteur({
       </header>
 
       {/* Zone 1 — l'équipe d'un coup d'œil */}
-      <section aria-labelledby="zone-equipe" className="mt-4 rounded-clay-lg bg-surface px-4 pb-3 pt-4 shadow-clay sm:px-5">
-        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <section aria-labelledby="zone-equipe" className="mt-4 rounded-clay-lg bg-surface px-4 pb-2 pt-3 shadow-clay sm:px-5 sm:pb-3 sm:pt-4">
+        <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mb-3">
           <h2 id="zone-equipe" className="text-[15px] font-semibold text-text-strong sm:text-[16px]">
             L&apos;équipe
           </h2>

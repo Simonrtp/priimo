@@ -57,6 +57,7 @@ export default function AccueilPilotage({
   adresses,
   totalAdresses,
   sansLivraison,
+  plusieursSecteurs = false,
   membres,
   membreSelectionne,
   moi,
@@ -78,6 +79,8 @@ export default function AccueilPilotage({
   totalAdresses: number;
   /** Aucun lead livré : l’état vide pédagogique, pas « tout est pris ». */
   sansLivraison?: boolean;
+  /** L'agent tient plusieurs secteurs : « mes secteurs » plutôt que « mon secteur ». */
+  plusieursSecteurs?: boolean;
   membres: readonly MembreOption[];
   membreSelectionne: string;
   /** Qui regarde : distingue « mes objectifs » de ceux d'un collaborateur. */
@@ -315,6 +318,7 @@ export default function AccueilPilotage({
           adresses={adresses}
           total={totalAdresses}
           sansLivraison={sansLivraison}
+          plusieursSecteurs={plusieursSecteurs}
         />
         )}
         {emploiDuTemps ? <Fragment key="accueil-emploi">{emploiDuTemps}</Fragment> : null}

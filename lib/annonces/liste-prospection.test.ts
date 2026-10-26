@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Zone } from '@/lib/zones/types';
-import { adresseVerifiee, annoncesAProspecter } from './liste-prospection';
+import { aUnSecteur, adresseVerifiee, annoncesAProspecter, secteursAProspecter } from './liste-prospection';
 import type { Annonce } from './types';
 
 const zone: Zone = {
@@ -67,25 +67,51 @@ describe('annoncesAProspecter', () => {
         annonce({ id: 'pap', logementCle: 'L1' }),
       ],
       [zone],
-      { profileId: 'nego', portee: 'mien' },
+      'nego',
     );
     assert.equal(g.length, 1);
     assert.equal(g[0]?.principale.id, 'pap');
     assert.equal(g[0]?.annonces.length, 2);
   });
 
-  it('mon secteur seulement, sauf « toute l’agence » ; jamais une annonce retirée ou d’agence', () => {
+  it('secteur par secteur : chacun des miens, même vide, puis ceux de l’agence qui ont des annonces', () => {
+    const second: Zone = {
+      ...zone,
+      id: 'z3',
+      nom: 'Nord',
+      regles: [{ id: 'r3', zoneId: 'z3', inclusion: true, type: 'code_postal', valeur: { code_postal: '75019' } }],
+    };
+    const collegue: Zone = {
+      ...zone,
+      id: 'z2',
+      nom: 'Ouest',
+      assignedTo: 'autre',
+      regles: [{ id: 'r2', zoneId: 'z2', inclusion: true, type: 'code_postal', valeur: { code_postal: '75011' } }],
+    };
+    const videCollegue: Zone = { ...collegue, id: 'z4', nom: 'Sud', regles: [{ id: 'r4', zoneId: 'z4', inclusion: true, type: 'code_postal', valeur: { code_postal: '75013' } }] };
+    const sansContour: Zone = { ...zone, id: 'z5', nom: 'À dessiner', regles: [] };
     const annonces = [
       annonce({ id: 'chez-moi' }),
-      annonce({ id: 'ailleurs', codePostal: '75011' }),
+      annonce({ id: 'collegue', codePostal: '75011' }),
+      annonce({ id: 'hors', codePostal: '75012' }),
       annonce({ id: 'retiree', statut: 'retiree' }),
       annonce({ id: 'pro', typeVendeur: 'professionnel' }),
     ];
-    assert.deepEqual(annoncesAProspecter(annonces, [zone], { profileId: 'nego', portee: 'mien' }).map((g) => g.cle), ['chez-moi']);
+    const secteurs = secteursAProspecter(annonces, [zone, second, collegue, videCollegue, sansContour], 'nego');
     assert.deepEqual(
-      annoncesAProspecter(annonces, [zone], { profileId: 'nego', portee: 'agence' }).map((g) => g.cle).sort(),
-      ['ailleurs', 'chez-moi'],
+      secteurs.map((s) => [s.zone.id, s.mien, s.groupes.map((g) => g.cle)]),
+      [
+        ['z1', true, ['chez-moi']],
+        ['z3', true, []],
+        ['z2', false, ['collegue']],
+      ],
     );
+    assert.deepEqual(annoncesAProspecter(annonces, [zone, second, collegue], 'nego').map((g) => g.cle), ['chez-moi']);
+  });
+
+  it('un secteur sans contour ni rue ne compte pas comme mon secteur', () => {
+    assert.equal(aUnSecteur([{ ...zone, regles: [] }], 'nego'), false);
+    assert.equal(aUnSecteur([zone], 'nego'), true);
   });
 
   it('la rue seule n’est pas une adresse vérifiée', () => {

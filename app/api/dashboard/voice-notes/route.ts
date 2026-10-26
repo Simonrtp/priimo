@@ -132,6 +132,7 @@ export async function POST(req: Request) {
   const recordedAt = readRecordedAt(form);
   const extraireSurServeur = readText(form, 'extraireSurServeur') === '1';
   const parcelleId = normalizeParcelleId(typeof form.get('parcelleId') === 'string' ? String(form.get('parcelleId')) : null);
+  const visibiliteDemandee = readText(form, 'visibilite') === 'privee' ? 'privee' : 'agence';
   const banIdRaw = typeof form.get('banId') === 'string' ? String(form.get('banId')).trim() : '';
   const banId = banIdRaw && !banIdRaw.startsWith('gps:') ? banIdRaw : '';
 
@@ -291,7 +292,7 @@ export async function POST(req: Request) {
           structured: null,
           status: joined ? 'transcrit' : 'erreur',
           statut: 'brute',
-          visibilite: 'agence',
+          visibilite: visibiliteDemandee,
           ...(recordedAt ? { created_at: recordedAt } : {}),
           ...gps,
           ...(typeof form.get('adresse') === 'string' && String(form.get('adresse')).trim()
@@ -337,7 +338,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const visibilite = continueNoteId ? visibiliteExistante : 'agence';
+  const visibilite = continueNoteId ? visibiliteExistante : visibiliteDemandee;
   const review = emptyReviewPayload(savedId, joined || null, visibilite);
 
   invaliderNotesAccueil();

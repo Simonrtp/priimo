@@ -293,6 +293,18 @@ html {
   overflow-x: clip;
 }
 
+/* Arrivée d'une page : un fondu, sans déplacement. */
+@keyframes pageDouce {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.page-douce {
+  animation: pageDouce 420ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-douce { animation: none; }
+}
+
 /* Nested scrollers du dashboard : smooth sur html = double animation = saccades. */
 html:has(.dashboard-fluid),
 html:has(.priimo-shell-bg) {

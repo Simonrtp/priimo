@@ -110,18 +110,78 @@ function joursDeLaLigne(row: ZoneRow): number[] {
   return [...jours].sort((a, b) => a - b);
 }
 
-function versZone(row: ZoneRow, regles: readonly RegleZone[]): Zone {
+/** L'enveloppe calculée par le serveur : des polygones GeoJSON, ou rien. */
+function enveloppeDeLaLigne(brute: unknown): ValeurPolygone[] | undefined {
+  if (!Array.isArray(brute)) return undefined;
+  const polygones = brute.filter(
+    (p): p is ValeurPolygone =>
+      estObjet(p) && Array.isArray(p.coordinates) && p.coordinates.length > 0 && p.coordinates.every(estAnneau),
+  );
+  return polygones.length > 0 ? polygones.map((p) => ({ type: 'Polygon', coordinates: p.coordinates })) : undefined;
+}
+
+function versZone(
+  row: ZoneRow & { enveloppe?: unknown },
+  regles: readonly RegleZone[],
+  couleurTitulaire: string | null,
+): Zone {
+  const enveloppe = enveloppeDeLaLigne(row.enveloppe);
   return {
     id: row.id,
     agencyId: row.agency_id,
     nom: row.nom,
-    couleur: row.couleur,
+    // Chaque collaborateur a sa couleur : ses secteurs la portent tous.
+    couleur: couleurTitulaire ?? row.couleur,
     assignedTo: row.assigned_to,
     joursSemaine: joursDeLaLigne(row),
     actif: row.actif,
     verrouillee: row.verrouillee === true,
     regles,
+    ...(enveloppe ? { enveloppe } : {}),
   };
+}
+
+type ClientLibre = SupabaseClient;
+
+/**
+ * Les parcelles de chaque secteur (table `zone_parcelles`), sous la forme
+ * d'une règle « parcelles » : l'appartenance n'a pas à savoir d'où elle vient.
+ * Avant la migration du 26/10/2026, la vue n'existe pas : aucun secteur n'a
+ * encore de parcelles.
+ */
+async function lireParcellesDesZones(supabase: Client, zoneIds: readonly string[]): Promise<Map<string, string[]>> {
+  const parZone = new Map<string, string[]>();
+  const { data, error } = await (supabase as unknown as ClientLibre)
+    .from('zone_parcelles_listes')
+    .select('zone_id, parcelle_ids')
+    .in('zone_id', [...zoneIds]);
+  if (error) {
+    if (!/zone_parcelles_listes/.test(error.message)) console.error('[zones] parcelles illisibles', error.message);
+    return parZone;
+  }
+  for (const ligne of (data ?? []) as { zone_id: string; parcelle_ids: unknown }[]) {
+    if (!Array.isArray(ligne.parcelle_ids)) continue;
+    const ids = ligne.parcelle_ids.filter((id): id is string => typeof id === 'string' && id !== '');
+    if (ids.length > 0) parZone.set(ligne.zone_id, ids);
+  }
+  return parZone;
+}
+
+/** La couleur de chaque collaborateur de l'agence (colonne posée le 26/10/2026). */
+async function lireCouleursMembres(supabase: Client, agencyIds: readonly string[]): Promise<Map<string, string>> {
+  const couleurs = new Map<string, string>();
+  if (agencyIds.length === 0) return couleurs;
+  const { data, error } = await (supabase as unknown as ClientLibre)
+    .from('profile_agencies')
+    .select('profile_id, agency_id, couleur')
+    .in('agency_id', [...agencyIds]);
+  if (error) return couleurs;
+  for (const ligne of (data ?? []) as { profile_id: string; agency_id: string; couleur: unknown }[]) {
+    if (typeof ligne.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(ligne.couleur)) {
+      couleurs.set(`${ligne.agency_id}:${ligne.profile_id}`, ligne.couleur);
+    }
+  }
+  return couleurs;
 }
 
 /**
@@ -138,26 +198,25 @@ async function lireZones(supabase: Client, agencyId?: string): Promise<Zone[]> {
     return q.order('nom');
   };
 
-  const premier = await lister(ZONES_SELECT);
-  // Le temps que la migration des jours multiples passe, l'écran doit afficher
+  // L'enveloppe n'existe qu'après la migration du 26/10/2026 ; avant, et le
+  // temps que la migration des jours multiples passe, l'écran doit afficher
   // les secteurs plutôt que tomber sur une colonne absente.
-  const zonesRes =
-    premier.error && /jours_semaine/.test(premier.error.message)
-      ? await lister(ZONES_SELECT_JOUR_UNIQUE)
-      : premier;
+  let zonesRes = await lister(`${ZONES_SELECT}, enveloppe`);
+  if (zonesRes.error && /enveloppe/.test(zonesRes.error.message)) zonesRes = await lister(ZONES_SELECT);
+  if (zonesRes.error && /jours_semaine/.test(zonesRes.error.message)) {
+    zonesRes = await lister(ZONES_SELECT_JOUR_UNIQUE);
+  }
   if (zonesRes.error) throw new Error(zonesRes.error.message);
 
-  const rows = (zonesRes.data ?? []) as unknown as ZoneRow[];
+  const rows = (zonesRes.data ?? []) as unknown as (ZoneRow & { enveloppe?: unknown })[];
   if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
 
-  const reglesRes = await supabase
-    .from('zone_regles')
-    .select(REGLES_SELECT)
-    .in(
-      'zone_id',
-      rows.map((r) => r.id),
-    )
-    .order('created_at');
+  const [reglesRes, parcelles, couleurs] = await Promise.all([
+    supabase.from('zone_regles').select(REGLES_SELECT).in('zone_id', ids).order('created_at'),
+    lireParcellesDesZones(supabase, ids),
+    lireCouleursMembres(supabase, [...new Set(rows.map((r) => r.agency_id))]),
+  ]);
   if (reglesRes.error) throw new Error(reglesRes.error.message);
 
   const parZone = new Map<string, RegleZone[]>();
@@ -172,7 +231,15 @@ async function lireZones(supabase: Client, agencyId?: string): Promise<Zone[]> {
     else parZone.set(regle.zoneId, [regle]);
   }
 
-  return rows.map((row) => versZone(row, parZone.get(row.id) ?? []));
+  return rows.map((row) => {
+    const regles = parZone.get(row.id) ?? [];
+    const siennes = parcelles.get(row.id);
+    const avecParcelles: RegleZone[] = siennes
+      ? [...regles, { id: `parcelles:${row.id}`, zoneId: row.id, inclusion: true, type: 'parcelles', valeur: { parcelle_ids: siennes } }]
+      : regles;
+    const couleur = row.assigned_to ? (couleurs.get(`${row.agency_id}:${row.assigned_to}`) ?? null) : null;
+    return versZone(row, avecParcelles, couleur);
+  });
 }
 
 export async function fetchZones(supabase: Client): Promise<Zone[]> {

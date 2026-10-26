@@ -59,7 +59,7 @@ export const PROVENANCE_ACTIVITE: Record<Activite, string> = {
   immeubles_prospectes:
     'Compté à partir des adresses passées en sortie (vu, absent, rencontré) et des notes rattachées. Un secteur visité deux fois ne compte qu’une fois.',
   contacts_qualifies:
-    'Compté à partir des leads que j’ai passés à l’étape « Contacté » dans mon pipeline cette semaine.',
+    'Compté à partir des leads que j’ai passés à l’étape « Contacté », et des contacts créés quand je dicte une note.',
   estimations:
     'Compté à partir des leads que j’ai passés à l’étape « Estimation » dans mon pipeline cette semaine.',
   informations_terrain:

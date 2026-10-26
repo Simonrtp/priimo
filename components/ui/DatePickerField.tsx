@@ -154,6 +154,7 @@ export default function DatePickerField({
   const popover =
     open && typeof document !== 'undefined'
       ? createPortal(
+          // Au-dessus de la note (220), de la fiche contact (240) et de l'adresse (400).
           <div
             ref={popoverRef}
             id={popoverId}
@@ -164,7 +165,7 @@ export default function DatePickerField({
                 ? { top: menuPos.top, left: menuPos.left }
                 : { top: -9999, left: -9999, visibility: 'hidden' as const }
             }
-            className="fixed z-[200] w-[17.5rem] overflow-hidden rounded-xl border border-black/[0.10] bg-surface shadow-clay-lg"
+            className="fixed z-[420] w-[17.5rem] overflow-hidden rounded-xl border border-black/[0.10] bg-surface shadow-clay-lg"
             onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
           >
           <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] px-3 py-2.5">

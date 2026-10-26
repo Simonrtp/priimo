@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BienRow, Database, DpeLettreDb, HonorairesAChargeDb } from '@/types/database';
 import type { Bien } from '@/types/bien';
+import type { BienDuPipeline } from '@/types/lead';
+import { biensParLead, type LigneBienPipeline } from '@/lib/pipeline/bien';
 import { buildFullName } from '@/lib/queries/contacts';
 import { formatPhoneOrNull } from '@/lib/import/normalize';
 
@@ -98,6 +100,20 @@ export function mapDbBienToBien(row: BienRowWithOwner): Bien {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/** Les fiches biens des cartes du pipeline, par lead. Vide si la lecture échoue : la carte garde le lead. */
+export async function fetchBiensDuPipeline(supabase: Client): Promise<Map<string, BienDuPipeline>> {
+  const { data, error } = await supabase
+    .from('biens')
+    .select('id, lead_id, property_type, surface_m2, rooms, price, photos')
+    .not('lead_id', 'is', null)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[biens] pipeline', error.message);
+    return new Map();
+  }
+  return biensParLead((data ?? []) as LigneBienPipeline[]);
 }
 
 /** Voir fetchContactsSafe : tolère l'absence de la table avant migration. */

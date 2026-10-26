@@ -1,4 +1,4 @@
-import { zoneProspectionParDefaut } from '@/lib/zones/jour';
+import { zoneDuJour } from '@/lib/zones/jour';
 import { pointDansZone } from '@/lib/zones/leads';
 import { trierSecteurs } from '@/lib/zones/nom';
 import type { Zone } from '@/lib/zones/types';
@@ -26,14 +26,21 @@ export function aUnSecteurDefini(zones: readonly Zone[]): boolean {
   return zones.some(secteurDefini);
 }
 
-/** Secteurs proposés dans le panneau. Le directeur voit ceux de toute l'agence. */
+/** Onglet de la carte : mes secteurs, ou ceux de toute l'agence. */
+export type PorteeSecteurs = 'mes' | 'agence';
+
+/**
+ * Secteurs proposés dans le panneau. Sans onglet choisi, le directeur voit
+ * ceux de toute l'agence et l'agent les siens.
+ */
 export function secteursDeLaCarte(
   zones: readonly Zone[],
   profileId: string,
   directeur: boolean,
+  portee: PorteeSecteurs = directeur ? 'agence' : 'mes',
 ): Zone[] {
   const actives = zones.filter((z) => z.actif);
-  if (directeur) return trierSecteurs(actives, profileId);
+  if (portee === 'agence') return trierSecteurs(actives, profileId);
   if (!profileId) return [];
   return trierSecteurs(
     actives.filter((z) => z.assignedTo === profileId),
@@ -46,13 +53,13 @@ export function zoneParDefautProspection(
   zones: readonly Zone[],
   profileId: string,
   directeur: boolean,
+  portee?: PorteeSecteurs,
 ): string | null {
-  if (directeur) {
-    const proposes = secteursDeLaCarte(zones, profileId, true);
-    if (proposes.length > 1) return ZONE_TOUS_SECTEURS;
-    return proposes[0]?.id ?? null;
-  }
-  return zoneProspectionParDefaut(zones, profileId);
+  const proposes = secteursDeLaCarte(zones, profileId, directeur, portee);
+  if (proposes.length <= 1) return proposes[0]?.id ?? null;
+  // Plusieurs secteurs : tous ensemble, sauf celui que l'agent a prévu pour aujourd'hui.
+  if (directeur || portee === 'agence') return ZONE_TOUS_SECTEURS;
+  return zoneDuJour(proposes, profileId)?.id ?? ZONE_TOUS_SECTEURS;
 }
 
 export function zoneIdInitial(initial: string | null | undefined, zones: readonly { id: string }[]): string {
@@ -66,13 +73,14 @@ export function cadrageCarte(params: {
   zones: readonly Zone[];
   profileId: string;
   directeur: boolean;
+  portee?: PorteeSecteurs;
 }): {
   proposes: Zone[];
   voirTous: boolean;
   zoneChoisie: Zone | null;
   affiches: Zone[];
 } {
-  const proposes = secteursDeLaCarte(params.zones, params.profileId, params.directeur);
+  const proposes = secteursDeLaCarte(params.zones, params.profileId, params.directeur, params.portee);
   const voirTous = params.zoneId === ZONE_TOUS_SECTEURS && proposes.length > 1;
   const zoneChoisie = voirTous ? null : params.zones.find((z) => z.id === params.zoneId && z.actif) ?? null;
   const affiches = voirTous ? proposes : zoneChoisie ? [zoneChoisie] : [];

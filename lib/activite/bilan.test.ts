@@ -156,7 +156,7 @@ describe('bilanSemaine — un zéro et une source cassée ne se ressemblent pas'
     const b = bilanSemaine({
       journal: {
         ...journal({}),
-        lectures: { transitions: 'ok', notes: 'erreur', contactsPhysiques: 'erreur' },
+        lectures: { transitions: 'ok', notes: 'erreur', contactsPhysiques: 'erreur', contactsCrees: 'ok' },
       },
       profileId: MOI,
       profileIdsAgence: [MOI],
@@ -179,7 +179,7 @@ describe('bilanSemaine — un zéro et une source cassée ne se ressemblent pas'
     const avecUneSourceDebout = bilanSemaine({
       journal: {
         ...journal({}),
-        lectures: { transitions: 'erreur', notes: 'ok', contactsPhysiques: 'erreur' },
+        lectures: { transitions: 'erreur', notes: 'ok', contactsPhysiques: 'erreur', contactsCrees: 'ok' },
       },
       profileId: MOI,
       profileIdsAgence: [MOI],
@@ -196,7 +196,7 @@ describe('bilanSemaine — un zéro et une source cassée ne se ressemblent pas'
     const toutTombe = bilanSemaine({
       journal: {
         ...journal({}),
-        lectures: { transitions: 'erreur', notes: 'erreur', contactsPhysiques: 'erreur' },
+        lectures: { transitions: 'erreur', notes: 'erreur', contactsPhysiques: 'erreur', contactsCrees: 'erreur' },
       },
       profileId: MOI,
       profileIdsAgence: [MOI],

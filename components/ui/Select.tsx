@@ -28,6 +28,8 @@ interface SelectProps {
   triggerClassName?: string;
   /** Affiche un champ de filtre dans le menu (listes longues). */
   searchable?: boolean;
+  /** Le menu peut être plus large que le bouton, pour les libellés longs. */
+  menuMinWidth?: number;
   searchPlaceholder?: string;
 }
 
@@ -68,6 +70,7 @@ export default function Select({
   triggerClassName = defaultTriggerClass,
   searchable = false,
   searchPlaceholder = 'Rechercher…',
+  menuMinWidth = 0,
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -117,7 +120,7 @@ export default function Select({
       const trigger = triggerRef.current;
       if (!trigger) return;
       const r = trigger.getBoundingClientRect();
-      const width = Math.max(r.width, searchable ? 260 : r.width);
+      const width = Math.max(r.width, menuMinWidth, searchable ? 260 : 0);
       const panelH = panelRef.current?.offsetHeight ?? 0;
       const needed = panelH > 0 ? panelH : searchable ? 220 : Math.min(280, options.length * 40 + 16);
       const spaceBelow = window.innerHeight - r.bottom - MENU_GAP - 8;
@@ -140,7 +143,7 @@ export default function Select({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, options.length, searchable, filtered.length]);
+  }, [open, options.length, searchable, filtered.length, menuMinWidth]);
 
   useEffect(() => {
     if (!open) return;

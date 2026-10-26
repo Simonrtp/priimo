@@ -39,6 +39,22 @@ describe('compteursSemaine — compteurs dérivés', () => {
     assert.equal(c.mandats, 1);
   });
 
+  it('compte un contact créé en dictant une note, pas celui d’un collègue', () => {
+    const c = compteursSemaine({
+      profileId: MOI,
+      semaine: SEMAINE,
+      journal: journal({
+        contactsCrees: [
+          { id: 'c1', profileId: MOI, createdAt: '2026-09-02T11:00:00Z' },
+          { id: 'c2', profileId: AUTRE, createdAt: '2026-09-02T12:00:00Z' },
+          { id: 'c3', profileId: MOI, createdAt: '2026-09-20T12:00:00Z' },
+        ],
+      }),
+    });
+
+    assert.equal(c.contacts_qualifies, 1);
+  });
+
   it('ne compte pas les transitions d’un autre collaborateur', () => {
     const c = compteursSemaine({
       profileId: MOI,

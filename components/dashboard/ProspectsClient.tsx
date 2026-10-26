@@ -47,7 +47,7 @@ import AnnoncesListe from './prospection/AnnoncesListe';
 import VolLeadPipeline from './prospection/VolLeadPipeline';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
-import AjouterLead from './pipeline/AjouterLead';
+import AjouterBien from './pipeline/AjouterBien';
 import LostReasonDialog from './pipeline/LostReasonDialog';
 
 const LeadDrawer = dynamic(() => import('./LeadDrawer'), { ssr: false });
@@ -449,18 +449,18 @@ export default function ProspectsClient({
       {/* Même onglet collé coin haut-droit que sur la Carte, y compris Pipeline. */}
       {device !== 'mobile' ? (
         <>
-          <div className="pointer-events-none absolute -right-6 -top-6 z-30 max-w-[calc(100%+1.5rem)] lg:-right-8 lg:-top-8">
+          <div className="pointer-events-none absolute -right-2 -top-2 z-30 max-w-[calc(100%+1.5rem)] lg:-right-4 lg:-top-4">
             <div className="pointer-events-auto max-w-full">{switcher}</div>
           </div>
           {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
-          <div className="mb-4 h-12" aria-hidden />
+          <div className="mb-4 h-14" aria-hidden />
         </>
       ) : null}
 
       {vue === 'pipeline' ? (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <AjouterLead
+            <AjouterBien
               onAjoute={(lead) => {
                 setLeads((prev) => {
                   const deja = prev.some((l) => l.id === lead.id);
@@ -469,7 +469,7 @@ export default function ProspectsClient({
               }}
             />
             {pipelineLeads.some((lead) => lead.stageId) ? null : (
-              <p className="text-[13px] text-text-muted">Une adresse, ou une annonce depuis la carte.</p>
+              <p className="text-[13px] text-text-muted">Un bien saisi, une annonce collée, ou une estimation faite.</p>
             )}
           </div>
           <PipelineBoard
@@ -490,13 +490,15 @@ export default function ProspectsClient({
             annonces={annoncesListe.annonces}
             zones={zones}
             profileId={annoncesListe.profileId}
+            directeur={isDirector}
+            prenoms={prenoms}
             initialAnnonceId={annoncesListe.annonceId}
           />
         ) : (
           <div aria-busy className="overflow-hidden rounded-clay-lg bg-white shadow-clay">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4 border-t border-black/[0.05] px-6 py-3.5 first:border-t-0">
-                <span className="size-14 shrink-0 animate-pulse rounded-[16px] bg-black/[0.05]" />
+                <span className="size-28 shrink-0 animate-pulse rounded-[28px] bg-black/[0.05]" />
                 <span className="h-3 w-1/3 animate-pulse rounded-full bg-black/[0.05]" />
               </div>
             ))}

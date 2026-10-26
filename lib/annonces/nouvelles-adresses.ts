@@ -1,12 +1,13 @@
 /**
  * « Mes nouvelles adresses » (accueil) : les annonces de particuliers trouvées
- * par le balayage de nuit dans le secteur du négociateur — pas de toute
+ * par le balayage de nuit dans les secteurs du négociateur — pas de toute
  * l'agence. Même sélection que la Liste de Prospection, où mène « Voir tout ».
  * Pur.
  */
 import type { AdresseLivree } from '@/components/dashboard/accueil/NouvellesAdresses';
 import type { Zone } from '@/lib/zones/types';
-import { aUnSecteur, annoncesAProspecter } from './liste-prospection';
+import { annoncesAProspecter } from './liste-prospection';
+import { secteurDefini } from '@/lib/carte/emprise';
 import { libellePortail } from './presenter';
 import type { Annonce } from './types';
 
@@ -42,10 +43,12 @@ export function nouvellesAdressesDuSecteur(
   annonces: readonly Annonce[],
   zones: readonly Zone[],
   profileId: string,
-): { adresses: AdresseLivree[]; total: number; sansSecteur: boolean } {
-  const miennes = annoncesAProspecter(annonces, zones, { profileId, portee: 'mien' }).map((g) => g.principale);
+): { adresses: AdresseLivree[]; total: number; sansSecteur: boolean; secteurs: number } {
+  const miennes = annoncesAProspecter(annonces, zones, profileId).map((g) => g.principale);
+  const secteurs = zones.filter((z) => z.assignedTo === profileId && secteurDefini(z)).length;
   return {
-    sansSecteur: !aUnSecteur(zones, profileId),
+    sansSecteur: secteurs === 0,
+    secteurs,
     total: miennes.length,
     adresses: miennes.slice(0, LIGNES).map((a) => ({
       id: a.id,

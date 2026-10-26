@@ -1,10 +1,9 @@
+/** Piste des sélecteurs : la même partout, la plus simple. */
 export const PASTILLE_TRACK =
-  'flex w-fit shrink-0 rounded-clay bg-surface-2 p-1 shadow-clay-inset';
+  'inline-flex w-fit max-w-full shrink-0 items-center rounded-full bg-black/[0.04] p-1';
 
 export function pastilleClass(actif: boolean) {
-  return `rounded-[12px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors duration-fluid-subtle ${
-    actif
-      ? 'bg-[#1a2a56] text-white'
-      : 'text-text-muted hover:text-text-strong'
+  return `rounded-full px-3 py-1 text-[13px] font-medium transition-colors duration-300 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
+    actif ? 'bg-[#1A2A56] text-white' : 'text-text-muted hover:text-text-strong'
   }`;
 }

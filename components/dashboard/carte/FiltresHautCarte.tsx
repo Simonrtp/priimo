@@ -58,6 +58,7 @@ function PastilleZone({
  * Le choix du secteur affiché. Pour le directeur qui a lui-même un secteur,
  * deux groupes qu'on ne confond pas : « Mon secteur » (fond chaud, icône de
  * personne) et « Secteurs de l'agence » (fond neutre, initiales de l'agent).
+ * « Tous » affiche tous les secteurs proposés ensemble.
  */
 export function ChoixSecteurs({
   zones,
@@ -72,7 +73,7 @@ export function ChoixSecteurs({
   onZone: (id: string) => void;
   /** Le directeur peut afficher tous les secteurs en même temps. */
   tous?: boolean;
-  /** L'agent connecté : ses secteurs passent dans « Mon secteur ». */
+  /** L'agent connecté : ses secteurs passent dans « Mon secteur » (« Mes secteurs »). */
   profileId?: string;
   /** Membres de l'agence : les initiales de qui tient chaque secteur. */
   membres?: readonly AssigneeOption[];
@@ -81,7 +82,8 @@ export function ChoixSecteurs({
   const parId = new Map(membres.map((m) => [m.id, m]));
   const miennes = profileId ? zones.filter((z) => z.assignedTo === profileId) : [];
   const agence = zones.filter((z) => !miennes.includes(z));
-  const montrerTous = tous && zones.length > 1;
+  // L'agent qui tient plusieurs secteurs les affiche aussi tous ensemble.
+  const montrerTous = zones.length > 1 && (tous || miennes.length === zones.length);
   const deuxGroupes = tous && miennes.length > 0 && agence.length > 0;
 
   const boutonTous = montrerTous ? (
@@ -120,8 +122,8 @@ export function ChoixSecteurs({
   return (
     <li className="mb-1.5 flex flex-col gap-2.5">
       <div>
-        <Titre>Mon secteur</Titre>
-        <div role="group" aria-label="Mon secteur" className={PISTE_MIENNE}>
+        <Titre>{miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'}</Titre>
+        <div role="group" aria-label={miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'} className={PISTE_MIENNE}>
           {miennes.map(pastille)}
         </div>
       </div>

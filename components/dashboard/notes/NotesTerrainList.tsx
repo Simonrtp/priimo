@@ -28,26 +28,36 @@ export default function NotesTerrainList({
   entiteId,
   currentUserId,
   focusNoteId,
+  peutSupprimer = false,
 }: {
   entiteType: NoteLienEntite;
   entiteId: string;
   currentUserId?: string;
   focusNoteId?: string | null;
+  /** Sur la fiche parcelle : l'auteur retire sa note sans ouvrir la fiche. */
+  peutSupprimer?: boolean;
 }) {
   const { profile } = useUser();
   const viewerId = currentUserId ?? profile?.id;
   const [notes, setNotes] = useState<TerrainNote[] | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteASupprimer, setNoteASupprimer] = useState<string | null>(null);
+  const [suppression, setSuppression] = useState(false);
   const focusNoteRef = useRef<HTMLLIElement | null>(null);
+  const lectureRef = useRef(0);
 
   async function load() {
+    const lecture = ++lectureRef.current;
     try {
       const res = await fetch(
         `/api/dashboard/notes?entiteType=${encodeURIComponent(entiteType)}&entiteId=${encodeURIComponent(entiteId)}`,
+        { cache: 'no-store' },
       );
+      if (lecture !== lectureRef.current) return;
       const data = (await res.json()) as { notes?: TerrainNote[] };
       setNotes(data.notes ?? []);
     } catch {
+      if (lecture !== lectureRef.current) return;
       setNotes([]);
     }
   }
@@ -94,6 +104,23 @@ export default function NotesTerrainList({
       await load();
     } catch {
       notifyError("Le rattachement n'a pas pu être confirmé");
+    }
+  }
+
+  async function supprimer(noteId: string) {
+    if (suppression) return;
+    setSuppression(true);
+    try {
+      const res = await fetch(`/api/dashboard/voice-notes/${noteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete');
+      notifySuccess('Note supprimée');
+      setNoteASupprimer(null);
+      if (editingNoteId === noteId) setEditingNoteId(null);
+      await load();
+    } catch {
+      notifyError("La note n'a pas pu être supprimée");
+    } finally {
+      setSuppression(false);
     }
   }
 
@@ -168,15 +195,45 @@ export default function NotesTerrainList({
                       {NOTE_CONFIANCE_LABELS[lienIci.confiance]}
                     </span>
                   ) : null}
-                  {mine ? (
-                    <button
-                      type="button"
-                      onClick={() => setEditingNoteId(note.id)}
-                      className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      <Pencil size={13} aria-hidden />
-                      Modifier
-                    </button>
+                  {mine && peutSupprimer && noteASupprimer === note.id ? (
+                    <span className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void supprimer(note.id)}
+                        disabled={suppression}
+                        className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-red-700 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:opacity-60"
+                      >
+                        {suppression ? 'Suppression…' : 'Supprimer'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNoteASupprimer(null)}
+                        disabled={suppression}
+                        className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong"
+                      >
+                        Annuler
+                      </button>
+                    </span>
+                  ) : mine ? (
+                    <span className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingNoteId(note.id)}
+                        className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <Pencil size={13} aria-hidden />
+                        Modifier
+                      </button>
+                      {peutSupprimer ? (
+                        <button
+                          type="button"
+                          onClick={() => setNoteASupprimer(note.id)}
+                          className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          Supprimer
+                        </button>
+                      ) : null}
+                    </span>
                   ) : null}
                 </div>
               </div>

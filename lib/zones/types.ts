@@ -79,6 +79,12 @@ export type Zone = {
   /** Verrouillé par la direction : le titulaire lit, il ne retouche plus. */
   verrouillee: boolean;
   regles: readonly RegleZone[];
+  /**
+   * Les parcelles du secteur élargies d'une trentaine de mètres, calculées par
+   * le serveur. Elles rattachent ce qui n'a pas de parcelle (annonce « rue
+   * seule », contact, bien) ; elles ne s'affichent pas.
+   */
+  enveloppe?: readonly ValeurPolygone[];
 };
 
 /**

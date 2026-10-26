@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, MapPin, Navigation, Navigation2, Phone, Play, Square, X } from 'lucide-react';
+import { Box, Layers, Locate, MapPin, Navigation, Navigation2, PencilLine, Phone, Play, Plus, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import Switch from '@/components/ui/Switch';
@@ -38,20 +38,21 @@ import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerCon
 import { AnnoncesLayerControls } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import type { Annonce } from '@/lib/annonces/types';
-import EmpriseCapsules from '@/components/dashboard/carte/EmpriseCapsules';
+import EmpriseCapsules, { type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
+import { useCarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
 import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { BOUTON_CARTE_VIDE } from '@/components/dashboard/accueil/CarteVideAccueil';
 import {
-  ZONE_TOUS_SECTEURS,
   aUnSecteurDefini,
   cadastreDansEmprises,
   cadrageCarte,
   empriseDepuisZoneId,
   zoneIdInitial,
-  type MapEmprise,
+  zoneParDefautProspection,
+  type PorteeSecteurs,
 } from '@/lib/carte/emprise';
 import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import {
@@ -135,6 +136,7 @@ export default function CarteMobile({
   autoTournee = false,
   zones = [],
   initialZoneId = null,
+  initialAtelier = null,
   viewSwitcher = null,
 }: {
   points: MapPoint[];
@@ -156,6 +158,8 @@ export default function CarteMobile({
   autoTournee?: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
+  /** « nouveau », ou le secteur à retoucher : l'atelier s'ouvre dès l'arrivée. */
+  initialAtelier?: string | null;
   viewSwitcher?: ReactNode;
 }) {
   const router = useRouter();
@@ -165,7 +169,19 @@ export default function CarteMobile({
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
   const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
-  const [atelier, setAtelier] = useState(false);
+  // Venu de l'Accueil (« Modifier les parcelles », « Créer mon secteur ») : l'atelier est déjà ouvert.
+  const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
+  const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
+  const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
+  // L'onglet d'arrivée suit le secteur ouvert : le mien, celui d'un collègue, ou aucun.
+  const [portee, setPortee] = useState<PorteeSecteurs>(() => {
+    const ouvert = zones.find((z) => z.id === initialZoneId);
+    if (ouvert) return ouvert.assignedTo === profileId ? 'mes' : 'agence';
+    return isDirector ? 'agence' : 'mes';
+  });
+  const [onglet, setOnglet] = useState<OngletCarte>(() =>
+    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : portee,
+  );
   const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
   const [vue, setVue] = useState<VueCarte | null>(null);
@@ -185,8 +201,8 @@ export default function CarteMobile({
   const gardeFinTimer = useRef<number | null>(null);
 
   const cadre = useMemo(
-    () => cadrageCarte({ zoneId, zones, profileId, directeur: isDirector }),
-    [zoneId, zones, profileId, isDirector],
+    () => cadrageCarte({ zoneId, zones, profileId, directeur: isDirector, portee }),
+    [zoneId, zones, profileId, isDirector, portee],
   );
   const { proposes, voirTous, zoneChoisie, affiches } = cadre;
   const monSecteurId = zoneProspectionParDefaut(zones, profileId);
@@ -240,20 +256,38 @@ export default function CarteMobile({
   );
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
-  const empriseZone = empriseDepuisZoneId(zoneId);
-  const emprise = atelier ? 'secteur' : empriseZone;
+  const carteSecteurs = useCarteSecteurs(onglet !== 'code_postal' || atelier);
+  const secteursAffiches = useMemo(() => new Set(affiches.map((z) => z.id)), [affiches]);
   const validerDessin = useCallback((id: string) => {
     setSecteurConfirme(true);
     setAtelier(false);
+    setPortee('mes');
+    setOnglet('mes');
     setZoneId(id);
     router.refresh();
   }, [router]);
+  const fermerAtelier = useCallback(() => setAtelier(false), []);
   const dessin = useDessinSecteur({
     ouvert: atelier,
+    zone: atelierZone,
     zones,
+    carte: carteSecteurs,
     centre: center,
     onValider: validerDessin,
+    onFermer: fermerAtelier,
   });
+  const { surVue } = dessin;
+  useEffect(() => {
+    if (atelier && viewport) surVue(viewport);
+  }, [atelier, viewport, surVue]);
+  const ouvrirAtelier = (zone: Zone | null) => {
+    setAtelierZone(zone);
+    setAtelier(true);
+  };
+  const modifierSecteur =
+    zoneChoisie && (isDirector || (zoneChoisie.assignedTo === profileId && !zoneChoisie.verrouillee))
+      ? () => ouvrirAtelier(zoneChoisie)
+      : null;
   const pointsDuSecteur = useMemo(
     () =>
       affiches.length > 0
@@ -309,22 +343,15 @@ export default function CarteMobile({
     parcelle.openParcelle(initialParcelleId);
   }, [initialParcelleId, parcelle.openParcelle]);
 
-  function choisirEmprise(next: MapEmprise) {
+  function choisirOnglet(next: OngletCarte) {
+    setAtelier(false);
+    setOnglet(next);
     if (next === 'code_postal') {
-      setAtelier(false);
       setZoneId('aucun');
       return;
     }
-    if (proposes.length > 0) {
-      setAtelier(false);
-      setZoneId(
-        isDirector && proposes.length > 1
-          ? ZONE_TOUS_SECTEURS
-          : (monSecteurId ?? proposes[0]!.id),
-      );
-      return;
-    }
-    setAtelier(true);
+    setPortee(next);
+    setZoneId(zoneParDefautProspection(zones, profileId, isDirector, next) ?? 'aucun');
   }
 
   const cadastreImmeubles = useMemo(
@@ -551,9 +578,16 @@ export default function CarteMobile({
         clipZones={affiches.length > 0 ? affiches : null}
         dessin={
           atelier
-            ? { couleur: dessin.couleur, polygone: dessin.polygone, onContour: dessin.poserContour }
+            ? {
+                couleur: dessin.couleur,
+                entourer: dessin.outil === 'entourer',
+                onContour: dessin.poserContour,
+                onParcelle: dessin.toucherParcelle,
+                calque: dessin.calque,
+              }
             : null
         }
+        secteurs={onglet === 'code_postal' && !atelier ? null : { carte: carteSecteurs, affichees: secteursAffiches }}
         dimension={dimension}
         onVue={setVue}
         selectedBanId={selectedBanId}
@@ -868,15 +902,10 @@ export default function CarteMobile({
         title="Couches"
         initialSnap={2}
       >
-        <EmpriseCapsules
-          value={emprise}
-          onChange={choisirEmprise}
-          hasSecteur={proposes.length > 0}
-          titreSecteur={isDirector ? 'Secteurs' : undefined}
-        />
-        {emprise === 'secteur' && !secteurConfirme && !aUnSecteurDefini(proposes) ? (
+        {atelier ? null : <EmpriseCapsules value={onglet} onChange={choisirOnglet} />}
+        {onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(proposes) ? (
           dessin.panneau ?? (
-            <button type="button" onClick={() => setAtelier(true)} className={`${BOUTON_CARTE_VIDE} w-full`}>
+            <button type="button" onClick={() => ouvrirAtelier(null)} className={`${BOUTON_CARTE_VIDE} w-full`}>
               Créer mon secteur
             </button>
           )
@@ -944,14 +973,41 @@ export default function CarteMobile({
               })
             }
           />
-          <ChoixSecteurs
-            zones={proposes}
-            zoneId={zoneId}
-            onZone={setZoneId}
-            tous={isDirector}
-            profileId={profileId}
-            membres={members}
-          />
+          {onglet === 'code_postal' ? null : (
+            <>
+              <ChoixSecteurs
+                zones={proposes}
+                zoneId={zoneId}
+                onZone={setZoneId}
+                tous={isDirector || portee === 'agence'}
+                profileId={profileId}
+                membres={members}
+              />
+              {onglet === 'agence' && proposes.length === 0 ? (
+                <li className="px-1 text-[13px] text-text-muted">Aucun secteur dans l’agence pour l’instant.</li>
+              ) : null}
+              <li className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => ouvrirAtelier(null)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/[0.05] px-3.5 text-[13.5px] font-semibold text-text-strong"
+                >
+                  <Plus size={15} strokeWidth={2.2} aria-hidden />
+                  Nouveau secteur
+                </button>
+                {modifierSecteur ? (
+                  <button
+                    type="button"
+                    onClick={modifierSecteur}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/[0.05] px-3.5 text-[13.5px] font-semibold text-text-strong"
+                  >
+                    <PencilLine size={15} strokeWidth={2.2} aria-hidden />
+                    Modifier ce secteur
+                  </button>
+                ) : null}
+              </li>
+            </>
+          )}
         </ul>
         )
         )}

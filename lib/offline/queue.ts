@@ -291,13 +291,13 @@ export async function postFormOrQueue(
   url: string,
   form: FormData,
   opts?: { champsSiDifferee?: Record<string, string> },
-): Promise<{ queued: boolean; res: Response | null }> {
+): Promise<{ queued: boolean; res: Response | null; queueId?: string }> {
   const mettreEnFile = async () => {
     for (const [name, value] of Object.entries(opts?.champsSiDifferee ?? {})) {
       form.set(name, value);
     }
-    await enqueueFormData({ url, form });
-    return { queued: true, res: null };
+    const queueId = await enqueueFormData({ url, form });
+    return { queued: true as const, res: null, queueId };
   };
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
   if (offline) return mettreEnFile();

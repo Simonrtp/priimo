@@ -142,7 +142,7 @@ function tauxPassage(depuis: number, vers: number): number | null {
  */
 const LECTURES_PAR_ACTIVITE: Record<Activite, (keyof LecturesJournal)[]> = {
   immeubles_prospectes: ['notes', 'contactsPhysiques'],
-  contacts_qualifies: ['transitions'],
+  contacts_qualifies: ['transitions', 'contactsCrees'],
   estimations: ['transitions'],
   informations_terrain: ['notes'],
   mandats: ['transitions'],

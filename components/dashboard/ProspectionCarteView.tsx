@@ -34,6 +34,7 @@ export default function ProspectionCarteView({
   autoTournee,
   zones = [],
   initialZoneId = null,
+  initialAtelier = null,
 }: {
   points: MapPoint[];
   withoutPosition: WithoutPositionCount;
@@ -51,6 +52,7 @@ export default function ProspectionCarteView({
   autoTournee: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
+  initialAtelier?: string | null;
 }) {
   const router = useRouter();
   const device = useDevice();
@@ -102,6 +104,7 @@ export default function ProspectionCarteView({
             fillParent
             zones={zonesVisibles}
             initialZoneId={initialZoneId}
+            initialAtelier={initialAtelier}
             viewSwitcher={switcherCarte}
           />
         </div>
@@ -133,6 +136,7 @@ export default function ProspectionCarteView({
         viewSwitcher={switcherBureau}
         zones={zonesVisibles}
         initialZoneId={initialZoneId}
+        initialAtelier={initialAtelier}
       />
     </div>
     </LimiteErreur>

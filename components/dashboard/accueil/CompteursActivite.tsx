@@ -234,13 +234,12 @@ function useArriveeNote(
   });
 
   useEffect(() => {
-    if (famille !== 'informations_terrain') return;
     function onArrivee(e: Event) {
       const d = (e as CustomEvent<EnvolArrive>).detail;
       if (!d || d.cible !== famille) return;
       const monte = d.compte && accueilleNotes && d.t0 > recuLe.current;
       setCompte(monte);
-      if (monte) setBonus((b) => b + 1);
+      if (monte) setBonus((b) => b + (d.pas ?? 1));
       setImpact((i) => i + 1);
     }
     window.addEventListener(EVENEMENT_ENVOL_ARRIVE, onArrivee);

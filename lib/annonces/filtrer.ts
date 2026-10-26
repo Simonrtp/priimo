@@ -28,6 +28,21 @@ export function filtrerAnnonces(
   return annonces.filter((a) => dansLeCadre(a, qui));
 }
 
+/**
+ * « Voir mes annonces » sur la carte : les annonces de particuliers actives de
+ * mon secteur — celui de chaque agent pour le directeur —, dans le secteur
+ * cadré en haut du panneau s'il y en a un. Les mêmes que la Liste.
+ */
+export function mesAnnoncesSurCarte(annonces: readonly Annonce[], zones: readonly Zone[], qui: Qui): Annonce[] {
+  return annonces.filter(
+    (a) =>
+      a.statut === 'active' &&
+      a.typeVendeur === 'particulier' &&
+      dansMonSecteur(a, zones, { directeur: qui.directeur, profileId: qui.profileId }) &&
+      dansLeCadre(a, qui),
+  );
+}
+
 function dansLeCadre(a: Annonce, qui: Qui): boolean {
   if (qui.zoneCadree) return dansLaZone(a, qui.zoneCadree);
   if (qui.zonesCadrees && qui.zonesCadrees.length > 0) {

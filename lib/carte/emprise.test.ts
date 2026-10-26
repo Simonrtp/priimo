@@ -86,6 +86,14 @@ describe('secteursDeLaCarte', () => {
     assert.equal(zoneParDefautProspection([sien], 'moi', true), 'sien');
     assert.equal(zoneParDefautProspection([], 'moi', true), null);
   });
+
+  it('ouvre tous les secteurs de l’agent qui en a plusieurs, sauf celui prévu aujourd’hui', () => {
+    const second = { ...zone, id: 'second', nom: 'Secteur de Simon 2', assignedTo: 'moi' };
+    assert.equal(zoneParDefautProspection([sien, mien, second], 'moi', false), ZONE_TOUS_SECTEURS);
+    assert.equal(zoneParDefautProspection([sien, mien], 'moi', false), 'mien');
+    const chaqueJour = { ...second, joursSemaine: [0, 1, 2, 3, 4, 5, 6, 7] };
+    assert.equal(zoneParDefautProspection([mien, chaqueJour], 'moi', false), 'second');
+  });
 });
 
 describe('cadastreDansEmprise', () => {

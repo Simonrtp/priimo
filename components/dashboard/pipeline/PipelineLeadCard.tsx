@@ -11,6 +11,7 @@ import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { nomProprietaireAffiche, noteEssentielle, signauxEssentiels } from '@/lib/lead-apercu';
 import { FIELD } from '@/lib/today/field';
 import { daysSinceTaken, isStaleEntree } from '@/lib/pipeline/stale';
+import { prixBien, resumeBien } from '@/lib/pipeline/bien';
 
 export default function PipelineLeadCard({
   lead,
@@ -31,12 +32,17 @@ export default function PipelineLeadCard({
   const signaux = signauxEssentiels(lead);
   const proprio = nomProprietaireAffiche(lead);
   const note = noteEssentielle(lead.notes);
+  const resume = resumeBien(lead);
+  const prix = prixBien(lead.bien?.price);
+  const photo = lead.bien?.photo ?? null;
+  // Translate seul : entre deux colonnes de hauteurs différentes, la carte ne s'étire pas.
   const style: CSSProperties = overlay
-    ? { transform: 'rotate(2deg)' }
+    ? { transform: 'rotate(1.5deg)' }
     : {
-        transform: CSS.Transform.toString(sortable.transform),
+        transform: CSS.Translate.toString(sortable.transform),
         transition: sortable.transition,
-        opacity: sortable.isDragging ? 0.4 : 1,
+        opacity: sortable.isDragging ? 0.35 : 1,
+        touchAction: 'manipulation',
       };
   const suppressClick = sortable.isDragging || Boolean(sortable.transform);
 
@@ -49,25 +55,45 @@ export default function PipelineLeadCard({
       onClick={() => {
         if (!overlay && !suppressClick) onOpen(lead.id);
       }}
-      className={`w-full min-w-0 cursor-grab overflow-hidden rounded-clay bg-white text-left shadow-clay-sm ${
+      className={`w-full min-w-0 cursor-grab touch-manipulation select-none overflow-hidden rounded-clay bg-white text-left shadow-clay-sm ${
         overlay ? 'cursor-grabbing shadow-clay' : ''
       }`}
     >
       <div className="relative h-[88px] overflow-hidden bg-[#F1EFE8]">
-        <FacadeLead
-          leadId={lead.id}
-          format="liste"
-          lazy
-          className="pointer-events-none !absolute inset-x-0 top-0 h-[142%] w-full rounded-none object-cover object-top"
-        />
-        <div className="absolute right-2 top-2">
-          <ScoreRing score={lead.score} size={28} />
-        </div>
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- photo de portail, hors domaines optimisés
+          <img
+            src={photo}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            draggable={false}
+            className="pointer-events-none absolute inset-0 size-full object-cover"
+          />
+        ) : (
+          <FacadeLead
+            leadId={lead.id}
+            format="liste"
+            lazy
+            className="pointer-events-none !absolute inset-x-0 top-0 h-[142%] w-full rounded-none object-cover object-top"
+          />
+        )}
+        {lead.score > 0 ? (
+          <div className="absolute right-2 top-2">
+            <ScoreRing score={lead.score} size={28} />
+          </div>
+        ) : null}
       </div>
       <div className="px-2.5 pb-2.5 pt-2">
         <p className="truncate text-[13.5px] font-semibold text-text-strong">{lead.address}</p>
-        {lead.city ? (
-          <p className="mt-0.5 truncate text-[11.5px] text-text-muted">{lead.city}</p>
+        {resume || lead.city ? (
+          <p className="mt-0.5 truncate text-[11.5px] text-text-muted">
+            {[resume, lead.city].filter(Boolean).join(' · ')}
+          </p>
+        ) : null}
+        {prix ? (
+          <p className="mt-1 text-[13px] font-semibold tabular-nums text-text-strong">{prix}</p>
         ) : null}
 
         {signaux.length > 0 ? (

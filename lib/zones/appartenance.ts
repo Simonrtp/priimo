@@ -122,6 +122,16 @@ export function specificiteDansZone(adresse: AdresseAJuger, zone: Zone): number 
     const specificite = SPECIFICITE_REGLE[regle.type];
     if (meilleure === null || specificite > meilleure) meilleure = specificite;
   }
+  // Sans parcelle connue (annonce « rue seule », contact, bien), le point se
+  // juge sur l'enveloppe : les parcelles du secteur élargies d'une trentaine
+  // de mètres. Une adresse dont la parcelle est connue se juge sur la parcelle.
+  if (
+    meilleure === null &&
+    adresse.parcelleId === null &&
+    zone.enveloppe?.some((polygone) => pointDansPolygone(adresse, polygone))
+  ) {
+    return SPECIFICITE_REGLE.polygone;
+  }
   return meilleure;
 }
 

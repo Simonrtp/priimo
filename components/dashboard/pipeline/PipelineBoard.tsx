@@ -1,21 +1,38 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { Plus } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
-  closestCorners,
+  KeyboardSensor,
+  MeasuringStrategy,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  defaultDropAnimationSideEffects,
+  getFirstCollision,
+  pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
+  type DropAnimation,
   type UniqueIdentifier,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { toast } from 'sonner';
 import { colonneVoisine } from '@/lib/pipeline/colonne';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -50,6 +67,14 @@ function findContainer(id: UniqueIdentifier, columns: Columns): string | null {
   return Object.keys(columns).find((stageId) => columns[stageId]?.includes(key)) ?? null;
 }
 
+const abonnementVide = () => () => {};
+
+const DEPOT: DropAnimation = {
+  duration: 180,
+  easing: 'cubic-bezier(0.2, 0, 0, 1)',
+  sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.35' } } }),
+};
+
 export default function PipelineBoard({
   stages,
   leads,
@@ -67,10 +92,28 @@ export default function PipelineBoard({
   canManageStages?: boolean;
   onStagesChange?: (next: LeadStage[] | ((prev: LeadStage[]) => LeadStage[])) => void;
 }) {
-  const router = useRouter();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // Souris : on glisse dès 5 px. Doigt : appui court, sinon le tableau ne défile plus.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   const [columns, setColumns] = useState<Columns>(() => buildColumns(stages, leads));
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [largeurVol, setLargeurVol] = useState<number | null>(null);
+  const [colonneSurvolee, setColonneSurvolee] = useState<string | null>(null);
+  const monte = useSyncExternalStore(
+    abonnementVide,
+    () => true,
+    () => false,
+  );
+  const columnsRef = useRef(columns);
+  useLayoutEffect(() => {
+    columnsRef.current = columns;
+  }, [columns]);
+  const departRef = useRef<{ colonnes: Columns; stageId: string } | null>(null);
+  const dernierSurvol = useRef<UniqueIdentifier | null>(null);
+  const vientDeChanger = useRef(false);
   const [pendingLost, setPendingLost] = useState<{
     leadId: string;
     toStageId: string;
@@ -123,6 +166,39 @@ export default function PipelineBoard({
     setColumns(buildColumns(stages, leads));
   }, [stages, leads, activeId, pendingLost]);
 
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      vientDeChanger.current = false;
+    });
+  }, [columns]);
+
+  /**
+   * Sous le pointeur d'abord : la colonne visée, même vide ou très haute.
+   * Dans une colonne garnie, la carte la plus proche donne la place.
+   */
+  const collision: CollisionDetection = useCallback((args) => {
+    const sousLePointeur = pointerWithin(args);
+    const touches = sousLePointeur.length > 0 ? sousLePointeur : rectIntersection(args);
+    let overId = getFirstCollision(touches, 'id');
+    if (overId != null) {
+      const cartes = columnsRef.current[String(overId)];
+      if (cartes && cartes.length > 0) {
+        const proche = closestCenter({
+          ...args,
+          droppableContainers: args.droppableContainers.filter(
+            (c) => c.id !== overId && cartes.includes(String(c.id)),
+          ),
+        })[0]?.id;
+        if (proche != null) overId = proche;
+      }
+      dernierSurvol.current = overId;
+      return [{ id: overId }];
+    }
+    // Juste après un changement de colonne, la mise en page bouge : on garde la cible.
+    if (vientDeChanger.current && args.active) dernierSurvol.current = args.active.id;
+    return dernierSurvol.current != null ? [{ id: dernierSurvol.current }] : [];
+  }, []);
+
   const persistMove = useCallback(
     async (leadId: string, toStageId: string, destIds: string[], lostReasonValue?: string) => {
       const previousLead = leadsById.get(leadId);
@@ -167,7 +243,6 @@ export default function PipelineBoard({
       try {
         await patchLeadPipeline(leadId, patch);
         void invaliderNavigationApresLead();
-        router.refresh();
         const fromStage = previousLead.stageId ? stagesById.get(previousLead.stageId) : null;
         const victory = toStage ? pipelineVictoryKind(fromStage, toStage) : null;
         if (victory) {
@@ -179,11 +254,30 @@ export default function PipelineBoard({
         toast.error(e instanceof Error ? e.message : 'Le déplacement n’a pas pu être enregistré.');
       }
     },
-    [leadsById, onLeadsChange, router, stagesById],
+    [leadsById, onLeadsChange, stagesById],
   );
 
+  function finirVol() {
+    setActiveId(null);
+    setColonneSurvolee(null);
+    setLargeurVol(null);
+    dernierSurvol.current = null;
+  }
+
+  function annulerVol() {
+    const depart = departRef.current;
+    departRef.current = null;
+    finirVol();
+    setColumns(depart?.colonnes ?? buildColumns(stages, leads));
+  }
+
   function onDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+    const id = String(event.active.id);
+    const stageId = findContainer(id, columns);
+    departRef.current = stageId ? { colonnes: columns, stageId } : null;
+    setLargeurVol(event.active.rect.current.initial?.width ?? null);
+    setColonneSurvolee(stageId);
+    setActiveId(id);
   }
 
   function onDragOver(event: DragOverEvent) {
@@ -191,16 +285,20 @@ export default function PipelineBoard({
     if (!over) return;
     const from = findContainer(active.id, columns);
     const to = findContainer(over.id, columns);
-    if (!from || !to || from === to) return;
+    if (!from || !to) return;
+    setColonneSurvolee(to);
+    if (from === to) return;
 
+    // Sous la moitié de la carte visée : on se place après elle.
+    const enVol = active.rect.current.translated;
+    const dessous = enVol != null && enVol.top + enVol.height / 2 > over.rect.top + over.rect.height / 2;
+
+    vientDeChanger.current = true;
     setColumns((prev) => {
-      const fromItems = [...(prev[from] ?? [])];
-      const toItems = [...(prev[to] ?? [])];
-      const fromIndex = fromItems.indexOf(String(active.id));
-      if (fromIndex < 0) return prev;
-      fromItems.splice(fromIndex, 1);
+      const fromItems = (prev[from] ?? []).filter((id) => id !== String(active.id));
+      const toItems = (prev[to] ?? []).filter((id) => id !== String(active.id));
       const overIndex = toItems.indexOf(String(over.id));
-      const insertAt = overIndex >= 0 ? overIndex : toItems.length;
+      const insertAt = overIndex >= 0 ? overIndex + (dessous ? 1 : 0) : toItems.length;
       toItems.splice(insertAt, 0, String(active.id));
       return { ...prev, [from]: fromItems, [to]: toItems };
     });
@@ -209,57 +307,47 @@ export default function PipelineBoard({
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     const leadId = String(active.id);
-    setActiveId(null);
-    if (!over) {
-      setColumns(buildColumns(stages, leads));
+    const depart = departRef.current;
+    departRef.current = null;
+    finirVol();
+    if (!over || !depart) {
+      setColumns(depart?.colonnes ?? buildColumns(stages, leads));
       return;
     }
 
-    const from = findContainer(leadId, buildColumns(stages, leads));
+    const ici = findContainer(leadId, columns);
     const to = findContainer(over.id, columns);
-    if (!from || !to) {
-      setColumns(buildColumns(stages, leads));
+    if (!ici || !to) {
+      setColumns(depart.colonnes);
       return;
     }
 
     let nextCols = columns;
-    if (from === to) {
+    if (ici === to) {
       const items = columns[to] ?? [];
       const oldIndex = items.indexOf(leadId);
       const overIndex = items.indexOf(String(over.id));
       if (oldIndex >= 0 && overIndex >= 0 && oldIndex !== overIndex) {
         nextCols = { ...columns, [to]: arrayMove(items, oldIndex, overIndex) };
-        setColumns(nextCols);
       }
-    }
-
-    let destIds = [...(nextCols[to] ?? [])];
-    if (!destIds.includes(leadId)) {
-      destIds.push(leadId);
+    } else {
       nextCols = {
-        ...nextCols,
-        [from]: (nextCols[from] ?? []).filter((id) => id !== leadId),
-        [to]: destIds,
+        ...columns,
+        [ici]: (columns[ici] ?? []).filter((id) => id !== leadId),
+        [to]: [...(columns[to] ?? []).filter((id) => id !== leadId), leadId],
       };
-      setColumns(nextCols);
     }
-    const toStage = stagesById.get(to);
+    setColumns(nextCols);
+    const destIds = [...(nextCols[to] ?? [])];
+    const from = depart.stageId;
 
-    if (toStage?.type === 'perdu' && from !== to) {
-      setPendingLost({
-        leadId,
-        toStageId: to,
-        destIds,
-        snapshotCols: buildColumns(stages, leads),
-      });
-      setLostReason('');
+    if (from === to && destIds.indexOf(leadId) === (depart.colonnes[from] ?? []).indexOf(leadId)) {
       return;
     }
 
-    if (
-      from === to &&
-      destIds.indexOf(leadId) === (buildColumns(stages, leads)[from] ?? []).indexOf(leadId)
-    ) {
+    if (stagesById.get(to)?.type === 'perdu' && from !== to) {
+      setPendingLost({ leadId, toStageId: to, destIds, snapshotCols: depart.colonnes });
+      setLostReason('');
       return;
     }
 
@@ -388,14 +476,12 @@ export default function PipelineBoard({
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collision}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
-        onDragCancel={() => {
-          setActiveId(null);
-          setColumns(buildColumns(stages, leads));
-        }}
+        onDragCancel={annulerVol}
       >
         <div className="flex min-h-[min(420px,calc(100dvh-14rem))] w-full min-w-0 items-stretch gap-3 overflow-x-auto overflow-y-visible pb-2 pr-1 [-webkit-overflow-scrolling:touch]">
           {stages.map((stage) => (
@@ -409,6 +495,7 @@ export default function PipelineBoard({
               onOpen={onOpen}
               celebrateTick={stage.cle === 'mandat' ? mandatCelebrateTick : 0}
               onEditStage={canManageStages ? openEditEditor : undefined}
+              survolee={activeId != null && colonneSurvolee === stage.id}
             />
           ))}
           {canManageStages ? (
@@ -435,19 +522,33 @@ export default function PipelineBoard({
             </section>
           ) : null}
         </div>
-        <DragOverlay dropAnimation={null} adjustScale={false} className="" style={{}} transition={undefined}>
-          {activeLead ? (
-            <div className="w-[276px]">
-              <PipelineLeadCard
-                lead={activeLead}
-                stage={activeStage}
-                assignee={activeLead.assignedTo ? membersById.get(activeLead.assignedTo) : undefined}
-                overlay
-                onOpen={() => undefined}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
+        {/* La carte en vol vit dans <body> : le panneau de travail (contain: paint)
+            ferait sinon office de repère et la décalerait de la largeur de la barre. */}
+        {monte
+          ? createPortal(
+              <DragOverlay
+                dropAnimation={DEPOT}
+                zIndex={60}
+                adjustScale={false}
+                className="cursor-grabbing"
+                style={{}}
+                transition={undefined}
+              >
+                {activeLead ? (
+                  <div style={{ width: largeurVol ?? 280 }}>
+                    <PipelineLeadCard
+                      lead={activeLead}
+                      stage={activeStage}
+                      assignee={activeLead.assignedTo ? membersById.get(activeLead.assignedTo) : undefined}
+                      overlay
+                      onOpen={() => undefined}
+                    />
+                  </div>
+                ) : null}
+              </DragOverlay>,
+              document.body,
+            )
+          : null}
       </DndContext>
 
       <LostReasonDialog

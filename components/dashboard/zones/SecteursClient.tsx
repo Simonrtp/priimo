@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, PenLine, Plus, Search, Spline, Trash2, X } from 'lucide-react';
 import {
@@ -468,9 +469,8 @@ export default function SecteursClient({
    * directeur, et son nom s'ouvre aussitôt pour qui veut en changer.
    */
   const creerSecteur = useCallback(() => {
-    const prenom = estDirecteur ? null : prenomDe(profileId);
-    void creerZone(nomSecteurParDefaut(prenom, zonesRef.current.map((z) => z.nom)), undefined, undefined, true);
-  }, [creerZone, estDirecteur, prenomDe, profileId]);
+    router.push('/dashboard/prospection?atelier=nouveau');
+  }, [router]);
 
   /** Un nom donné d'office suit son titulaire ; un nom choisi ne bouge pas. */
   const changerTitulaire = useCallback(
@@ -512,12 +512,17 @@ export default function SecteursClient({
     setModeDessin('inactif');
   }, []);
 
-  const zonesTriees = useMemo(() => trierSecteurs(zonesLocales, profileId), [zonesLocales, profileId]);
+  // Le temps de créer : seuls le secteur en train de naître et sa carte. Les autres restent en mémoire.
+  const zonesAffichees = useMemo(
+    () => (secteurNe ? zonesLocales.filter((z) => z.id === secteurNe) : zonesLocales),
+    [secteurNe, zonesLocales],
+  );
+  const zonesTriees = useMemo(() => trierSecteurs(zonesAffichees, profileId), [zonesAffichees, profileId]);
   const libelleCreer = estDirecteur ? 'Créer un secteur' : 'Créer mon secteur';
 
   const carte = (
     <ZonesCarte
-      zones={zonesLocales}
+      zones={zonesAffichees}
       zoneActive={peutEditer ? zoneActive : null}
       leads={pointsLeads}
       centre={centre}
@@ -867,16 +872,14 @@ function PanneauZone({
     setNomConnu(zone.nom);
     setNom(zone.nom);
   }
-  const [ajoutRue, setAjoutRue] = useState(false);
   const [confirmeSuppression, setConfirmeSuppression] = useState(false);
 
-  const contours = zone.regles.filter((r) => r.type === 'polygone' && r.inclusion);
-  const rues = zone.regles.filter(
-    (r): r is Extract<RegleZone, { type: 'voie' }> => r.type === 'voie',
+  const nbParcelles = zone.regles.reduce(
+    (n, r) => n + (r.type === 'parcelles' && r.inclusion ? r.valeur.parcelle_ids.length : 0),
+    0,
   );
-  const autres = zone.regles.filter(
-    (r) => r.type !== 'voie' && !(r.type === 'polygone' && r.inclusion),
-  );
+  // Contours et rues d'avant les parcelles : lisibles et retirables, plus créés ici.
+  const anciennes = zone.regles.filter((r) => r.type !== 'parcelles');
 
   // Lu sur le champ lui-même : la valeur à l'écran fait foi, même si l'état
   // React n'a pas encore suivi la dernière frappe.
@@ -886,18 +889,13 @@ function PanneauZone({
     else setNom(zone.nom);
   };
 
-  const fermerRue = () => {
-    setAjoutRue(false);
-    onApercuVoie(null);
-  };
-
   return (
     <div className="flex flex-col gap-3.5">
       {peutEditer ? (
         <>
           {accueillir ? (
             <p className="text-pretty text-[13px] font-medium text-[#1A2A56]">
-              Le secteur est créé. Changez le nom, puis tracez-le sur la carte.
+              Le secteur est créé. Changez le nom, puis choisissez ses parcelles sur la carte.
             </p>
           ) : null}
         <input
@@ -951,49 +949,26 @@ function PanneauZone({
         </div>
       ) : null}
 
-      {peutEditer ? (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className={`${modeDessin === 'polygone' ? boutonNuit : boutonClair} flex-1`}
-            onClick={() => onModeDessin(modeDessin === 'polygone' ? 'inactif' : 'polygone')}
-          >
+      {/* Les parcelles se choisissent sur la carte de Prospection : un seul atelier. */}
+      <div className="flex flex-col gap-2">
+        <p className="text-[12.5px] text-mute">
+          {nbParcelles > 0
+            ? `${nbParcelles} parcelle${nbParcelles > 1 ? 's' : ''}`
+            : 'Aucune parcelle pour l’instant.'}
+        </p>
+        {peutEditer ? (
+          <Link href={`/dashboard/prospection?atelier=${zone.id}`} className={`${boutonClair} w-full`}>
             <PenLine size={14} aria-hidden />
-            {modeDessin === 'polygone' ? 'Annuler' : contours.length > 0 ? 'Redessiner' : 'Dessiner'}
-          </button>
-          {contours.length > 0 ? (
-            <>
-              <button
-                type="button"
-                className={`${modeDessin === 'ajuster' ? boutonNuit : boutonClair} flex-1`}
-                onClick={() => onModeDessin(modeDessin === 'ajuster' ? 'inactif' : 'ajuster')}
-              >
-                <Spline size={14} aria-hidden />
-                {modeDessin === 'ajuster' ? 'Terminer' : 'Ajuster'}
-              </button>
-              <button
-                type="button"
-                aria-label="Effacer le contour"
-                title="Effacer le contour"
-                disabled={enCours}
-                onClick={() => {
-                  onModeDessin('inactif');
-                  for (const r of contours) onSupprimerRegle(r.id);
-                }}
-                className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-mute shadow-clay-sm transition-colors hover:text-rose-700"
-              >
-                <Trash2 size={15} aria-hidden />
-              </button>
-            </>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-[12.5px] text-mute">Consultation seule.</p>
-      )}
+            {nbParcelles > 0 ? 'Modifier les parcelles sur la carte' : 'Choisir les parcelles sur la carte'}
+          </Link>
+        ) : (
+          <p className="text-[12.5px] text-mute">Consultation seule.</p>
+        )}
+      </div>
 
-      {autres.length > 0 ? (
+      {anciennes.length > 0 ? (
         <ul className="flex flex-col gap-1">
-          {autres.map((regle) => (
+          {anciennes.map((regle) => (
             <LigneRegle
               key={regle.id}
               couleur={regle.inclusion ? zone.couleur : ROUGE_EXCLUSION}
@@ -1004,46 +979,6 @@ function PanneauZone({
           ))}
         </ul>
       ) : null}
-
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[12px] font-medium text-mute">Rues</span>
-          {peutEditer && !ajoutRue ? (
-            <button
-              type="button"
-              onClick={() => setAjoutRue(true)}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#1a2a56] transition-colors hover:bg-black/[0.04]"
-            >
-              <Plus size={13} aria-hidden />
-              Ajouter
-            </button>
-          ) : null}
-        </div>
-        {rues.length > 0 ? (
-          <ul className="flex flex-col gap-1">
-            {rues.map((regle) => (
-              <LigneRegle
-                key={regle.id}
-                couleur={regle.inclusion ? zone.couleur : ROUGE_EXCLUSION}
-                texte={resumerRegle(regle)}
-                enCours={enCours}
-                onRetirer={peutEditer ? () => onSupprimerRegle(regle.id) : undefined}
-              />
-            ))}
-          </ul>
-        ) : null}
-        {ajoutRue ? (
-          <RegleVoie
-            centre={centre}
-            onApercu={onApercuVoie}
-            onAnnuler={fermerRue}
-            onAjouter={(valeur, inclusion) => {
-              onAjouterRegle('voie', valeur, inclusion);
-              fermerRue();
-            }}
-          />
-        ) : null}
-      </div>
 
       {zone.regles.length > 0 ? <StatistiquesSecteur zone={zone} /> : null}
 

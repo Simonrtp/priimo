@@ -24,6 +24,7 @@ import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/note
 import NoteMentionSensible from '@/components/dashboard/notes/NoteMentionSensible';
 import AddressAutocomplete, { type SelectedAddress } from '@/components/AddressAutocomplete';
 import IconeCarte from './live/IconeCarte';
+import DatePickerField from '@/components/ui/DatePickerField';
 import SignalIA from '@/components/ui/SignalIA';
 import { prefixeRelation } from '@/lib/notes/relation';
 import { CarteContactNote, EditeurFicheContact, type FicheEditee, type LienCarte } from './ContactDeLaNote';
@@ -257,6 +258,7 @@ export default function VoiceReviewPanel({
   suggestedAssigneeId,
   onContinue,
   onRanger,
+  onVisibilite,
   onQuestion,
   lecture = false,
   transcriptionEnCours = false,
@@ -277,6 +279,8 @@ export default function VoiceReviewPanel({
   onContinue?: () => void;
   /** `depart` : le bouton touché, d'où la note s'envole vers sa destination. */
   onRanger: (plan: PlanRangement, depart?: DOMRect) => void;
+  /** L'agent choisit le partage pendant la relecture : il doit être en base avant la fermeture. */
+  onVisibilite?: (next: VoiceNoteVisibilite) => void;
   onQuestion?: (question: string) => void;
   /** Une lecture de la note est en cours. */
   lecture?: boolean;
@@ -992,14 +996,14 @@ export default function VoiceReviewPanel({
             aria-label="Intitulé"
             className="w-full rounded-xl border border-black/10 bg-surface px-3 py-2 text-[14px] text-text-strong focus:border-primary-400 focus:outline-none"
           />
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={a.date}
-              onChange={(e) => e.target.value && setAction(a.id, { date: e.target.value, dateDeduite: false })}
-              aria-label="Date"
-              className="min-w-0 flex-1 rounded-xl border border-black/10 bg-surface px-3 py-2 text-[14px] text-text-strong"
-            />
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <DatePickerField
+                value={a.date || null}
+                onChange={(v) => v && setAction(a.id, { date: v, dateDeduite: false })}
+                aria-label="Date"
+              />
+            </div>
             <input
               type="time"
               value={a.heure ?? ''}
@@ -1335,6 +1339,7 @@ export default function VoiceReviewPanel({
               onChange={(next) => {
                 toucher();
                 setVisibilite(next);
+                onVisibilite?.(next);
               }}
             />
           </Field>

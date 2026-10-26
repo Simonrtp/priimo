@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight, Mic, NotebookPen, Unlink } from 'lucide-react';
+import { ChevronDown, ChevronRight, Unlink } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
@@ -20,25 +20,7 @@ import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { nomComplet } from '@/lib/notes/auteur';
 import { bilanDuMois } from '@/lib/notes/temps-gagne';
 
-const ENCRE = '#1A2A56';
-
-function IconeSource({ vocale, surSombre = false }: { vocale: boolean; surSombre?: boolean }) {
-  const Icone = vocale ? Mic : NotebookPen;
-  return (
-    <span
-      className="flex size-8 shrink-0 items-center justify-center rounded-full"
-      style={
-        surSombre
-          ? { backgroundColor: 'rgba(255,255,255,0.16)', color: '#fff' }
-          : { backgroundColor: FIELD.ardoisePastel, color: FIELD.ardoise }
-      }
-      title={vocale ? 'Note vocale' : 'Note écrite'}
-    >
-      <Icone size={14} strokeWidth={2.2} aria-hidden />
-      <span className="sr-only">{vocale ? 'Note vocale' : 'Note écrite'}</span>
-    </span>
-  );
-}
+const FOND_OUVERT = '#F1F2F4';
 
 function nomAuteur(note: NoteLecture): string {
   if (note.author) {
@@ -52,66 +34,101 @@ function LigneNote({
   note,
   active,
   onChoisir,
+  onRafraichir,
 }: {
   note: NoteLecture;
   active: boolean;
   onChoisir: (id: string) => void;
+  onRafraichir: () => void;
 }) {
+  const ligne = useRef<HTMLLIElement>(null);
+  const [montee, setMontee] = useState(active);
+  const [ouverte, setOuverte] = useState(active);
   const rattachee = estRattachee(note.rattachements);
-  const encreMeta = active ? 'rgba(255,255,255,0.78)' : FIELD.ardoise;
+  const vocale = note.hasAudio;
+
+  useEffect(() => {
+    if (active) {
+      setMontee(true);
+      const frame = window.requestAnimationFrame(() => setOuverte(true));
+      ligne.current?.scrollIntoView({ block: 'nearest' });
+      return () => window.cancelAnimationFrame(frame);
+    }
+    setOuverte(false);
+    const timer = window.setTimeout(() => setMontee(false), 320);
+    return () => window.clearTimeout(timer);
+  }, [active]);
+
   return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onChoisir(note.id)}
-        aria-current={active ? 'true' : undefined}
-        className={`flex w-full items-start gap-2.5 rounded-clay px-2.5 py-2.5 text-left ${
-          active ? '' : 'hover:bg-black/[0.06]'
-        }`}
-        style={active ? { backgroundColor: ENCRE, color: '#fff' } : { color: ENCRE }}
-      >
-        {note.author ? (
-          <ProfileAvatar
-            firstName={note.author.firstName}
-            lastName={note.author.lastName}
-            avatarUrl={note.author.avatarUrl}
-            size={32}
-            className="mt-0.5 shrink-0"
-          />
-        ) : (
-          <span className="mt-0.5 size-8 shrink-0 rounded-full bg-black/10" aria-hidden />
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-            <span className={`text-[13.5px] font-semibold ${active ? 'text-white' : 'text-text-strong'}`}>
-              {nomAuteur(note)}
-            </span>
-            <time
-              dateTime={note.createdAt}
-              className="text-[12px] font-medium"
-              style={{ color: encreMeta }}
-            >
-              {formatNoteWhen(note.createdAt)}
-            </time>
-          </span>
-          <span className={`mt-0.5 line-clamp-3 text-pretty text-[13.5px] leading-snug ${active ? 'text-white' : 'text-text'}`}>
-            {(note.transcript ?? '').trim() || 'Sans texte'}
-          </span>
-          <span
-            className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] font-medium"
-            style={{ color: encreMeta }}
-          >
-            {note.visibilite === 'privee' ? <span>Privée</span> : null}
-            {rattachee ? (
-              <span className="truncate">{syntheseRattachement(note.rattachements)}</span>
-            ) : (
-              <span className={active ? 'font-semibold text-white' : 'font-semibold'} style={active ? undefined : { color: '#8A3D14' }}>
-                Non rattachée
+    <li
+      ref={ligne}
+      className="border-b border-[#1A2A56]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] last:border-b-0 motion-reduce:transition-none"
+      style={{ background: active ? FOND_OUVERT : '#FFFFFF', borderBottomWidth: 0.5 }}
+    >
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          onClick={() => onChoisir(note.id)}
+          aria-expanded={active}
+          aria-controls={`note-fiche-${note.id}`}
+          className="flex min-w-0 flex-1 items-start gap-2.5 px-4 py-3 text-left transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#F1F2F4] motion-reduce:transition-none"
+          style={active ? { background: FOND_OUVERT } : undefined}
+        >
+          {note.author ? (
+            <ProfileAvatar
+              firstName={note.author.firstName}
+              lastName={note.author.lastName}
+              avatarUrl={note.author.avatarUrl}
+              size={36}
+              className="mt-0.5 shrink-0"
+            />
+          ) : (
+            <span className="mt-0.5 size-9 shrink-0 rounded-full bg-black/10" aria-hidden />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+              <span className="text-[15px] font-semibold tracking-[-0.01em] text-text-strong">
+                {nomAuteur(note)}
               </span>
-            )}
+              <time dateTime={note.createdAt} className="text-[12px] font-medium text-text-muted">
+                {formatNoteWhen(note.createdAt)}
+              </time>
+            </span>
+            <span className="mt-0.5 line-clamp-3 text-pretty text-[14px] leading-snug text-text">
+              {(note.transcript ?? '').trim() || 'Sans texte'}
+            </span>
+            <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] font-medium text-text-muted">
+              <span>{vocale ? 'Vocale' : 'Écrite'}</span>
+              {note.visibilite === 'privee' ? <span>· Privée</span> : null}
+              {rattachee ? (
+                <span className="min-w-0 truncate">· {syntheseRattachement(note.rattachements)}</span>
+              ) : (
+                <span className="font-semibold" style={{ color: '#8A3D14' }}>
+                  · Non rattachée
+                </span>
+              )}
+            </span>
           </span>
-        </span>
-      </button>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            aria-hidden
+            className={`mt-1 shrink-0 text-text-subtle transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
+              active ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      </div>
+
+      <div
+        id={`note-fiche-${note.id}`}
+        className="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+        style={{ gridTemplateRows: ouverte ? '1fr' : '0fr' }}
+      >
+        <div className={ouverte ? 'min-h-0 overflow-visible' : 'min-h-0 overflow-hidden'}>
+          {montee ? <DetailNote note={note} onRafraichir={onRafraichir} /> : null}
+        </div>
+      </div>
     </li>
   );
 }
@@ -139,19 +156,14 @@ export default function NotesLectureCard({
   }, [noteIdInitial]);
 
   const liste = notes ?? [];
-  const choisie = liste.find((n) => n.id === choisieId) ?? null;
   const miennes = liste.filter((n) => n.createdBy === profile.id);
   const publiees = liste.filter((n) => n.createdBy !== profile.id);
   const mois = bilanDuMois(miennes.filter((n) => n.hasAudio));
 
   function choisir(id: string) {
-    setChoisieId(id);
-    onChoisir(id);
-  }
-
-  function revenir() {
-    setChoisieId(null);
-    onChoisir(null);
+    const suivant = choisieId === id ? null : id;
+    setChoisieId(suivant);
+    onChoisir(suivant);
   }
 
   return (
@@ -164,10 +176,10 @@ export default function NotesLectureCard({
           ? 'Toutes les notes de l’agence. Chaque note indique qui l’a écrite.'
           : 'Les vôtres, et celles que l’équipe a rendues visibles.'
       }
-      maxWidth="2xl"
+      maxWidth="xl"
     >
-      <div className="grid min-h-[22rem] gap-4 border-t border-black/[0.06] pt-4 md:grid-cols-[minmax(0,17.5rem)_1fr] md:items-stretch">
-        <div className={choisie ? 'hidden md:flex md:min-h-0 md:flex-col' : 'flex min-h-0 flex-col'}>
+      <div className="border-t border-black/[0.06] pt-4">
+        <div className="flex min-h-0 flex-col">
           {notes === null ? (
             <p className="text-pretty py-8 text-[13.5px] font-medium text-mute">
               Les notes arrivent.
@@ -181,7 +193,7 @@ export default function NotesLectureCard({
               Aucune note pour l’instant. Ajoutez-en depuis la carte Notes terrain.
             </p>
           ) : (
-            <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            <div className="flex flex-col gap-4">
               {mois.notes > 0 ? (
                 <p className="rounded-xl bg-primary-50 px-3 py-2 text-[12.5px] font-medium text-primary-700">
                   Ce mois-ci : {mois.notes} note{mois.notes > 1 ? 's' : ''} dictée{mois.notes > 1 ? 's' : ''}
@@ -189,13 +201,14 @@ export default function NotesLectureCard({
                 </p>
               ) : null}
               {isDirector ? (
-                <ul className="flex flex-col gap-1">
+                <ul className="overflow-hidden rounded-[28px] border border-[#1A2A56]/12 bg-white">
                   {liste.map((note) => (
                     <LigneNote
                       key={note.id}
                       note={note}
                       active={note.id === choisieId}
                       onChoisir={choisir}
+                      onRafraichir={onRafraichir}
                     />
                   ))}
                 </ul>
@@ -208,13 +221,14 @@ export default function NotesLectureCard({
                           Les miennes
                         </h3>
                       ) : null}
-                      <ul className="flex flex-col gap-1">
+                      <ul className="overflow-hidden rounded-[28px] border border-[#1A2A56]/12 bg-white">
                         {miennes.map((note) => (
                           <LigneNote
                             key={note.id}
                             note={note}
                             active={note.id === choisieId}
                             onChoisir={choisir}
+                            onRafraichir={onRafraichir}
                           />
                         ))}
                       </ul>
@@ -225,13 +239,14 @@ export default function NotesLectureCard({
                       <h3 className="mb-1.5 px-1 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>
                         Publiées par l’équipe
                       </h3>
-                      <ul className="flex flex-col gap-1">
+                      <ul className="overflow-hidden rounded-[28px] border border-[#1A2A56]/12 bg-white">
                         {publiees.map((note) => (
                           <LigneNote
                             key={note.id}
                             note={note}
                             active={note.id === choisieId}
                             onChoisir={choisir}
+                            onRafraichir={onRafraichir}
                           />
                         ))}
                       </ul>
@@ -242,22 +257,6 @@ export default function NotesLectureCard({
             </div>
           )}
         </div>
-
-        <div
-          className={
-            choisie
-              ? 'flex min-h-0 flex-col rounded-clay border border-black/[0.06] bg-white p-4'
-              : 'hidden md:flex md:items-center md:justify-center md:rounded-clay md:border md:border-black/[0.06] md:bg-white'
-          }
-        >
-          {choisie ? (
-            <DetailNote note={choisie} onRetour={revenir} onRafraichir={onRafraichir} />
-          ) : (
-            <p className="text-pretty px-4 text-center text-[14px] font-medium" style={{ color: FIELD.ardoise }}>
-              Choisissez une note pour la lire.
-            </p>
-          )}
-        </div>
       </div>
     </Modal>
   );
@@ -265,18 +264,15 @@ export default function NotesLectureCard({
 
 function DetailNote({
   note,
-  onRetour,
   onRafraichir,
 }: {
   note: NoteLecture;
-  onRetour: () => void;
   onRafraichir: () => void;
 }) {
   const { profile } = useUser();
   const [recherche, setRecherche] = useState(false);
   const [enCours, setEnCours] = useState(false);
   const rattachee = estRattachee(note.rattachements);
-  const vocale = note.hasAudio;
   const peutRattacher = Boolean(profile.id && note.createdBy === profile.id);
 
   async function rattacher(pick: NoteLinkPick) {
@@ -304,47 +300,14 @@ function DetailNote({
   }
 
   return (
-    <article className="flex min-h-0 flex-col gap-4">
-      <button
-        type="button"
-        onClick={onRetour}
-        className="inline-flex min-h-10 items-center gap-1.5 self-start rounded-lg px-1 text-[13px] font-semibold md:hidden"
-        style={{ color: FIELD.ardoise }}
-      >
-        <ArrowLeft size={16} aria-hidden />
-        Toutes les notes
-      </button>
-
-      <header className="flex items-start gap-3">
-        {note.author ? (
-          <ProfileAvatar
-            firstName={note.author.firstName}
-            lastName={note.author.lastName}
-            avatarUrl={note.author.avatarUrl}
-            size={40}
-            className="shrink-0"
-          />
-        ) : (
-          <IconeSource vocale={vocale} />
-        )}
-        <div className="min-w-0">
-          <p className="text-[15px] font-semibold text-text-strong">{nomAuteur(note)}</p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] font-medium" style={{ color: FIELD.ardoise }}>
-            <time dateTime={note.createdAt}>{formatNoteWhen(note.createdAt)}</time>
-            <span>· {vocale ? 'Note vocale' : 'Note écrite'}</span>
-            {note.visibilite === 'privee' ? <span>· Privée</span> : <span>· Partagée</span>}
-          </p>
-        </div>
-      </header>
-
-      <section>
-        <h3 className="mb-2 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>
-          La note
-        </h3>
-        <p className="whitespace-pre-wrap text-pretty text-[16px] leading-relaxed text-text-strong">
-          {(note.transcript ?? '').trim() || 'Sans texte'}
-        </p>
-      </section>
+    <article
+      className="flex flex-col gap-4 border-t border-[#1A2A56]/10 px-4 pb-5 pt-4"
+      role="region"
+      aria-label={`Note de ${nomAuteur(note)}`}
+    >
+      <p className="whitespace-pre-wrap text-pretty text-[15px] leading-relaxed text-text-strong">
+        {(note.transcript ?? '').trim() || 'Sans texte'}
+      </p>
 
       <section>
         <h3 className="mb-2 font-semibold uppercase" style={{ fontSize: 11, color: FIELD.ardoise }}>

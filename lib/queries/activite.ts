@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ActivityGoalRow, Database } from '@/types/database';
 import type { LeadStage } from '@/types/lead';
 import type {
+  ContactCreeRow,
   ContactPhysiqueRow,
   JournalActivite,
   LecturesJournal,
@@ -142,7 +143,7 @@ export async function fetchJournalActivite(params: {
   const rangParCle: Record<string, number> = {};
   for (const st of stages) rangParCle[st.cle] = st.type === 'perdu' ? 0 : st.ordre;
 
-  const [transitionsRes, notesRes, rencontresRes] = await Promise.all([
+  const [transitionsRes, notesRes, rencontresRes, contactsRes] = await Promise.all([
     lire('lead_stage_events', (filtrer) => {
       const q = memeAgence(
         supabase
@@ -174,6 +175,17 @@ export async function fetchJournalActivite(params: {
       );
       return filtrer ? q.eq('is_demo', false) : q;
     }),
+    lire('contacts', (filtrer) => {
+      const q = memeAgence(
+        supabase
+          .from('contacts')
+          .select('id, created_by, created_at')
+          .eq('source', 'vocal')
+          .gte('created_at', depuis)
+          .lt('created_at', jusqua),
+      );
+      return filtrer ? q.eq('is_demo', false) : q;
+    }),
   ]);
 
   if (transitionsRes.error) {
@@ -186,6 +198,9 @@ export async function fetchJournalActivite(params: {
     // Table ou colonne ban_id absente si la migration n'est pas encore passée.
     console.error('[activite] sortie_events', rencontresRes.error.message);
   }
+  if (contactsRes.error) {
+    console.error('[activite] contacts', contactsRes.error.message);
+  }
 
   // Remonté jusqu'à l'écran : un compteur dont la source n'a pas répondu
   // n'affiche pas « 0 », il affiche qu'il ne sait pas.
@@ -193,6 +208,7 @@ export async function fetchJournalActivite(params: {
     transitions: transitionsRes.error ? 'erreur' : 'ok',
     notes: notesRes.error ? 'erreur' : 'ok',
     contactsPhysiques: rencontresRes.error ? 'erreur' : 'ok',
+    contactsCrees: contactsRes.error ? 'erreur' : 'ok',
   };
 
   const transitionsBrutes = (transitionsRes.data ?? []) as {
@@ -209,6 +225,11 @@ export async function fetchJournalActivite(params: {
     ban_id: string | null;
     contact_id: string | null;
   }[];
+  const contactsBruts = (contactsRes.data ?? []) as {
+    id: string;
+    created_by: string | null;
+    created_at: string;
+  }[];
   const rencontresBrutes = (rencontresRes.data ?? []) as {
     profile_id: string;
     day: string;
@@ -220,7 +241,8 @@ export async function fetchJournalActivite(params: {
   if (
     transitionsBrutes.length === 0 &&
     notesBrutes.length === 0 &&
-    rencontresBrutes.length === 0
+    rencontresBrutes.length === 0 &&
+    contactsBruts.length === 0
   ) {
     return { ...journalVide(), lectures, rangParCle };
   }
@@ -259,6 +281,12 @@ export async function fetchJournalActivite(params: {
     echange: liens.echanges.has(n.id) || n.contact_id !== null,
   }));
 
+  const contactsCrees: ContactCreeRow[] = contactsBruts.map((c) => ({
+    id: c.id,
+    profileId: c.created_by,
+    createdAt: c.created_at,
+  }));
+
   const contactsPhysiques: ContactPhysiqueRow[] = rencontresBrutes.map((r) => ({
     profileId: r.profile_id,
     jour: r.day,
@@ -267,7 +295,7 @@ export async function fetchJournalActivite(params: {
       r.kind === 'absent' || r.kind === 'passer' || r.kind === 'rencontre' ? r.kind : 'rencontre',
   }));
 
-  return { transitions, notes, contactsPhysiques, lectures, rangParCle };
+  return { transitions, notes, contactsPhysiques, contactsCrees, lectures, rangParCle };
 }
 
 /** Objectifs posés par le directeur pour un collaborateur. */

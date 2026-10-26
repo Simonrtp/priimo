@@ -28,6 +28,7 @@ import { useComprehensionEnDirect } from './live/useComprehensionEnDirect';
 import { useUser } from '@/lib/hooks/useUser';
 import type { NameMatchMember } from '@/lib/agency/match-member';
 import { emptyReviewPayload, type NoteReviewPayload } from '@/lib/notes/build-review';
+import type { VoiceNoteVisibilite } from '@/types/contact';
 import { joinVoiceTranscripts } from '@/lib/voice/extract';
 import {
   hydrateNoteReview,
@@ -51,11 +52,11 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import type { EstimationVoiceApplyOpts, EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
 import { voiceDraftKeys } from '@/lib/estimation/voice-extract';
 import { ditSurfaceLogement, extractEstimationHeuristic } from '@/lib/estimation/voice-heuristic';
-import { enqueueJson, postFormOrQueue } from '@/lib/offline/queue';
+import { enqueueJson, postFormOrQueue, removeFromQueue } from '@/lib/offline/queue';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 import { emitNoteCreated } from '@/lib/notes/note-created-event';
 import { demanderAMonAssistant } from '@/lib/assistant/question-event';
-import { cibleEnvolNote, envolerNote } from '@/lib/ui/envol-note';
+import { annoncerCompteur, cibleEnvolNote, envolerNote } from '@/lib/ui/envol-note';
 
 type Phase = 'recording' | 'processing' | 'review';
 
@@ -154,6 +155,27 @@ export default function VoiceCaptureDialog({
   const flushTimerRef = useRef(0);
   /** Envoi de la note : l'enregistrement part au serveur pendant que l'agent relit. */
   const envoiRef = useRef<Promise<ResultatEnvoi> | null>(null);
+  /** Dictée mise en file hors ligne : la croix la retire avant l'envoi. */
+  const fileRef = useRef<string | null>(null);
+  const voiceNoteIdRef = useRef<string | null>(null);
+  /** Partage choisi pendant la relecture, avant que le serveur ait rendu la note. */
+  const visibiliteChoisieRef = useRef<VoiceNoteVisibilite | null>(null);
+  const abandonEnCours = useRef(false);
+  voiceNoteIdRef.current = voiceNoteId;
+
+  function pousserVisibilite(id: string, visibilite: VoiceNoteVisibilite) {
+    return fetch(`/api/dashboard/voice-notes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visibilite }),
+    }).catch(() => undefined);
+  }
+
+  function choisirVisibilite(next: VoiceNoteVisibilite) {
+    visibiliteChoisieRef.current = next;
+    const id = voiceNoteIdRef.current;
+    if (id) pousserVisibilite(id, next);
+  }
   /** L'agent a retouché le texte : la transcription finale ne le remplace plus. */
   const texteEditeRef = useRef(false);
   /** La prise en cours est abandonnée pour écrire : elle ne part pas. */
@@ -277,13 +299,48 @@ export default function VoiceCaptureDialog({
     };
   }, []);
 
+  /**
+   * La croix et Échap abandonnent la note. Elle part au serveur pendant la
+   * relecture : sans cet effacement, fermer l'enregistrerait quand même.
+   */
+  async function abandonnerNote() {
+    if (abandonEnCours.current) return;
+    abandonEnCours.current = true;
+    cancelledRef.current = true;
+    couperDirect();
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    recorderRef.current = null;
+    releaseMic();
+
+    const envoi = envoiRef.current;
+    let id = voiceNoteIdRef.current;
+    if (envoi) {
+      const resultat = await envoi.catch((): ResultatEnvoi => ({ erreur: 'réseau' }));
+      if (resultat && 'id' in resultat) id = resultat.id;
+    }
+    if (fileRef.current) {
+      await removeFromQueue(fileRef.current).catch(() => undefined);
+      fileRef.current = null;
+    }
+    if (id) {
+      const res = await fetch(`/api/dashboard/voice-notes/${id}`, { method: 'DELETE' }).catch(() => null);
+      if (res && !res.ok && res.status !== 404) {
+        notifyError("La note n'a pas pu être supprimée");
+        abandonEnCours.current = false;
+        cancelledRef.current = false;
+        return;
+      }
+    }
+    onClose();
+  }
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && phase === 'review') onClose();
+      if (e.key === 'Escape' && phase === 'review') void abandonnerNote();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, phase]);
+  }, [phase]);
 
   /** Texte final du direct (au plus 1,5 s d'attente), débarrassé de « fin de note ». */
   async function texteDirectFinal(): Promise<string> {
@@ -424,13 +481,20 @@ export default function VoiceCaptureDialog({
     if (adresseNote) form.append('adresse', adresseNote);
     if (parcelleId) form.append('parcelleId', parcelleId);
     if (banId) form.append('banId', banId);
+    if (visibiliteChoisieRef.current) form.append('visibilite', visibiliteChoisieRef.current);
 
     try {
-      const { queued, res } = await postFormOrQueue('/api/dashboard/voice-notes', form, {
+      const { queued, res, queueId } = await postFormOrQueue('/api/dashboard/voice-notes', form, {
         // Rejouée plus tard, personne ne relira la note à l’écran : le serveur la lit.
         champsSiDifferee: { extraireSurServeur: '1' },
       });
       if (queued) {
+        fileRef.current = queueId ?? null;
+        if (cancelledRef.current) {
+          if (queueId) await removeFromQueue(queueId);
+          fileRef.current = null;
+          return { erreur: 'annulée' };
+        }
         emitNoteCreated({ noteId: null, source: 'vocal' });
         if (tourAdresse) noteDictee();
         return { horsLigne: true };
@@ -450,11 +514,23 @@ export default function VoiceCaptureDialog({
         return { erreur: 'annulée' };
       }
 
+      const choisie = visibiliteChoisieRef.current;
+      if (choisie && data.voiceNoteId && choisie !== data.visibilite) {
+        await pousserVisibilite(data.voiceNoteId, choisie);
+      }
       emitNoteCreated({ noteId: data.voiceNoteId ?? null, source: 'vocal' });
       if (tourAdresse) noteDictee();
       setVoiceNoteId(data.voiceNoteId);
       setSuggestedAssigneeId(data.suggestedAssignee?.id ?? null);
-      setReview((prev) => (prev ? { ...prev, voiceNoteId: data.voiceNoteId, visibilite: data.visibilite } : prev));
+      setReview((prev) =>
+        prev
+          ? {
+              ...prev,
+              voiceNoteId: data.voiceNoteId,
+              visibilite: choisie ?? prev.visibilite ?? data.visibilite,
+            }
+          : prev,
+      );
 
       // Le texte du différé est plus juste que celui du direct : il le remplace
       // tant que l'agent n'y a pas touché.
@@ -796,10 +872,18 @@ export default function VoiceCaptureDialog({
         notifyError(data.error ?? "La note n'a pas pu être enregistrée");
         return { erreur: data.error ?? 'envoi' };
       }
+      if (cancelledRef.current) {
+        void fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}`, { method: 'DELETE' });
+        return { erreur: 'annulée' };
+      }
+      const choisie = visibiliteChoisieRef.current;
+      if (choisie) await pousserVisibilite(data.voiceNoteId, choisie);
       emitNoteCreated({ noteId: data.voiceNoteId, source: 'clavier' });
       if (tourAdresse) noteDictee();
       setVoiceNoteId(data.voiceNoteId);
-      setReview((prev) => (prev ? { ...prev, voiceNoteId: data.voiceNoteId! } : prev));
+      setReview((prev) =>
+        prev ? { ...prev, voiceNoteId: data.voiceNoteId!, visibilite: choisie ?? prev.visibilite } : prev,
+      );
       // Lecture complète (rédaction de l'e-mail, adresse géocodée), sans rien bloquer.
       setLectureComplete(true);
       void hydrateNoteReview(data.voiceNoteId, texte)
@@ -844,6 +928,11 @@ export default function VoiceCaptureDialog({
       compte: echange || rattachee,
       cible: cibleEnvolNote({ echange, rattachee }),
     });
+    const personnes = Array.isArray(plan.personnes)
+      ? (plan.personnes as { creer?: unknown }[])
+      : [];
+    const nouveaux = personnes.filter((p) => p?.creer).length;
+    if (nouveaux > 0) annoncerCompteur('contacts_qualifies', nouveaux);
     onClose();
   }
 
@@ -946,8 +1035,8 @@ export default function VoiceCaptureDialog({
         <h2 className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold text-text-strong">{titre}</h2>
         <button
           type="button"
-          onClick={onClose}
-          aria-label="Fermer — la note reste dans vos notes"
+          onClick={() => void abandonnerNote()}
+          aria-label="Fermer sans enregistrer la note"
           className="flex size-9 flex-shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.04] hover:text-text"
         >
           <X size={18} strokeWidth={2} aria-hidden />
@@ -975,6 +1064,7 @@ export default function VoiceCaptureDialog({
         suggestedAssigneeId={suggestedAssigneeId}
         onContinue={continueRecording}
         onRanger={ranger}
+        onVisibilite={choisirVisibilite}
         onQuestion={passerAMonAssistant}
         lecture={lectureDirect || lectureComplete}
         transcriptionEnCours={envoisEnCours > 0}

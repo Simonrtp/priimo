@@ -5,6 +5,7 @@
  */
 
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { emitNoteCreated } from '@/lib/notes/note-created-event';
 import { formatMinutes } from '@/lib/notes/temps-gagne';
 
 type Bilan = {
@@ -71,6 +72,9 @@ export function rangerEnArrierePlan(args: {
         echecs?: string[];
       };
       if (!res.ok) throw new Error('rangement');
+      // Le partage choisi à la relecture n'est écrit qu'ici. La parcelle, qui a
+      // pu lire la note encore « partagée », se recalcule ensuite.
+      emitNoteCreated({ noteId: id, source: 'vocal' });
       if (data.echecs?.length) {
         notifyError(`Note rangée, sauf : ${[...new Set(data.echecs)].join(', ')}`);
       } else {

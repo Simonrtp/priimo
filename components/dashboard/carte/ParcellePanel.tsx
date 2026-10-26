@@ -461,6 +461,7 @@ function LigneAnnonce({
                   companyName: a.agence,
                   notes: noteDepuisAnnonce(a.portails[0] || a.portail, a.prix),
                   provenance: 'portail',
+                  price: a.prix,
                 },
                 origine,
               ).then((resultat) => {
@@ -1538,6 +1539,7 @@ export default function ParcellePanel({
             entiteId={fiche.parcelleId}
             currentUserId={profile?.id}
             focusNoteId={focusNoteId}
+            peutSupprimer
           />
         </Section>
 

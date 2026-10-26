@@ -30,7 +30,7 @@ import {
 import { reverseGeocode } from '@/lib/geo/ban';
 import { shouldLockVoice, VOICE_LOCK_SWIPE_PX } from '@/lib/voice/gesture-lock';
 import type { NoteReviewPayload } from '@/lib/notes/build-review';
-import { postFormOrQueue } from '@/lib/offline/queue';
+import { postFormOrQueue, removeFromQueue } from '@/lib/offline/queue';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceLockHint from './VoiceLockHint';
 import { TranscriptionTempsReel, type PreparationTempsReel } from '@/lib/voice/temps-reel';
@@ -176,9 +176,18 @@ export default forwardRef<
     if (banId) form.append('banId', banId);
 
     try {
-      const { queued, res } = await postFormOrQueue('/api/dashboard/voice-notes', form);
+      const { queued, res, queueId } = await postFormOrQueue('/api/dashboard/voice-notes', form);
 
-      if (cancelledRef.current) return;
+      if (cancelledRef.current) {
+        if (queueId) void removeFromQueue(queueId);
+        else if (res?.ok) {
+          const data = (await res.json().catch(() => null)) as { voiceNoteId?: string } | null;
+          if (data?.voiceNoteId) {
+            void fetch(`/api/dashboard/voice-notes/${data.voiceNoteId}`, { method: 'DELETE' });
+          }
+        }
+        return;
+      }
 
       if (queued) {
         if (tourAdresse) noteDictee();

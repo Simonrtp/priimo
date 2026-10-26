@@ -748,6 +748,7 @@ async function TodayContent({
     adresses: adressesLivrees,
     totalAdresses: nouvellesAdresses.total,
     sansLivraison: nouvellesAdresses.sansSecteur,
+    plusieursSecteurs: nouvellesAdresses.secteurs > 1,
     membres: membresActivite,
     membreSelectionne: membreActivite,
     moi: profile.id,

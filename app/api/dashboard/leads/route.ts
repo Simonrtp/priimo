@@ -17,6 +17,14 @@ function nombre(v: unknown): number | null {
   return v;
 }
 
+/** Photos du portail ou de l'annonce lue : des liens https, jamais autre chose. */
+function photos(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((p): p is string => typeof p === 'string' && /^https:\/\/\S+$/.test(p) && p.length <= 1000)
+    .slice(0, 12);
+}
+
 function lireDemande(raw: unknown): DemandeEntree | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -42,10 +50,13 @@ function lireDemande(raw: unknown): DemandeEntree | null {
     companyName: texte(o.companyName, 120),
     notes: texte(o.notes, 240),
     provenance,
+    price: nombre(o.price),
+    photos: photos(o.photos),
+    lien: typeof o.lien === 'string' && /^https:\/\/\S+$/.test(o.lien) ? o.lien.slice(0, 500) : null,
   };
 }
 
-/** L'agent ajoute une adresse dans Pris, ou y envoie une annonce. */
+/** L'agent entre un bien dans Pris : saisi, lu sur une annonce ou vu sur la carte. */
 export async function POST(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {

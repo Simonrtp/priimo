@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Marker, useMap } from 'react-map-gl';
-import { ArrowDown, HardHat } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
+import Switch from '@/components/ui/Switch';
 import { type MapLayerState } from '@/lib/carte/layers';
 import { isUsableCoord } from '@/lib/carte/coords';
-import { filtrerAnnonces, JOURS_NOUVELLE } from '@/lib/annonces/filtrer';
+import { JOURS_NOUVELLE, mesAnnoncesSurCarte } from '@/lib/annonces/filtrer';
+import { aUnSecteur } from '@/lib/annonces/liste-prospection';
 import { baisseCumulee, couleurGroupe, eurosCourt, joursEnLigne, regrouperAnnonces, repereApproximatif } from '@/lib/annonces/presenter';
 import { useAnnoncesAjoutees, useAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
 import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
@@ -36,23 +38,41 @@ export function AnnoncesLayerControls({
   /** Pour compter comme la carte (« Mon secteur »). */
   qui?: Qui;
 }) {
-  // Version simple : l'agent colle une URL, l'annonce s'ajoute et reste sur la carte
-  // (AnnoncesAjoutees). Plus de couche « annonces du secteur » ni de compteur.
-  void layers;
-  void qui;
-  void onChange;
+  // « Voir mes annonces » : les annonces de particuliers de mon secteur, relevées
+  // chaque nuit. Les annonces ajoutées par URL restent affichées dans tous les cas.
+  const voir = layers.annonces;
+  const { annonces, pret } = useAnnoncesSecteur(voir);
+  const nombre = useMemo(() => {
+    if (!voir || !pret || !qui) return null;
+    return regrouperAnnonces(mesAnnoncesSurCarte(annonces, qui.zones, qui)).filter((g) =>
+      isUsableCoord(g.principale.latitude, g.principale.longitude),
+    ).length;
+  }, [voir, pret, qui, annonces]);
+  const sansSecteur = qui != null && !qui.directeur && !aUnSecteur(qui.zones, qui.profileId);
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <p className={`${textSize} min-w-0 truncate font-medium text-text-strong`}>Annonces</p>
-          <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[#E3F2FC] px-2 py-1 text-[11px] font-medium text-[#3B87B8]">
-            <HardHat size={13} strokeWidth={2.2} aria-hidden className="shrink-0" />
-            En cours de développement
+        <p className={`${textSize} min-w-0 truncate font-medium text-text-strong`}>Annonces</p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={voir}
+          onClick={() => onChange({ annonces: !voir })}
+          className={`flex w-full ${compact ? 'min-h-[44px]' : 'min-h-[40px]'} cursor-pointer items-center gap-3 rounded-xl text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]`}
+        >
+          <Switch checked={voir} />
+          <span className={`min-w-0 flex-1 text-[13.5px] font-medium ${voir ? 'text-text-strong' : 'text-text-muted'}`}>
+            Voir mes annonces
+            {voir && sansSecteur ? (
+              <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
+                Pas encore de secteur dessiné à mon nom
+              </span>
+            ) : null}
           </span>
-        </div>
+          {nombre != null ? <span className="tabular-nums text-[12.5px] text-text-subtle">{nombre}</span> : null}
+        </button>
         <ImportAnnonce compact={compact} />
       </div>
     </li>
@@ -187,10 +207,7 @@ export function AnnoncesMarqueurs({
   /** Annonce dont le volet est ouvert : sa pastille reste vive. */
   ouverteId?: string | null;
 }) {
-  // La couche « tout le secteur » n'a plus d'interrupteur : elle ne se rallume pas.
-  // Seules les annonces ajoutées par URL restent, et chacune s'enlève.
-  void layers;
-  const actif = false;
+  const actif = layers.annonces;
   const { annonces } = useAnnoncesSecteur(actif);
   const emprise = useEmprise();
   // Les annonces ajoutées ont leur propre repère (AnnoncesAjoutees), toujours affiché : pas de doublon.
@@ -204,14 +221,14 @@ export function AnnoncesMarqueurs({
   const groupes = useMemo(() => {
     if (!actif) return [];
     const tous = regrouperAnnonces(
-      filtrerAnnonces(annonces, layers, zones, { directeur, profileId, zoneCadree, zonesCadrees }),
+      mesAnnoncesSurCarte(annonces, zones, { directeur, profileId, zoneCadree, zonesCadrees }),
     ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude) && !g.annonces.some((a) => idsAjoutees.has(a.id)));
     const visibles = tous.length > MAX_PASTILLES ? tous.filter((g) => dansEmprise(g.principale, emprise)) : tous;
     // Les particuliers par-dessus les agences, et gardés en priorité.
     return visibles
       .sort((x, y) => Number(x.principale.typeVendeur === 'particulier') - Number(y.principale.typeVendeur === 'particulier'))
       .slice(-MAX_PASTILLES);
-  }, [actif, annonces, layers, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise, idsAjoutees]);
+  }, [actif, annonces, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise, idsAjoutees]);
 
   const ouvrirAjoutee = (id: string) => {
     const g = regrouperAnnonces([...annonces, ...ajoutees]).find((x) => x.annonces.some((a) => a.id === id));

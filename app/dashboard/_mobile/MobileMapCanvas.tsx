@@ -41,6 +41,13 @@ import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import type { DevicePosition } from '@/lib/voice/gps';
 import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
+import SecteursParcellesCalque, {
+  ATELIER_LIBRE_LAYER_ID,
+  ATELIER_MIEN_LAYER_ID,
+  SECTEURS_PRIS_LAYER_ID,
+  type AtelierCalque,
+} from '@/components/dashboard/carte/SecteursParcellesCalque';
+import type { CarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import CibleRecherche from '@/components/dashboard/carte/CibleRecherche';
 import VolCarte from '@/components/dashboard/carte/VolCarte';
 import type { CibleCarte } from '@/lib/carte/cible';
@@ -152,6 +159,7 @@ export default function MobileMapCanvas({
   onVue,
   annoncesCouche = null,
   dessin = null,
+  secteurs = null,
 }: {
   buildings: readonly BuildingMarker[];
   center: { latitude: number | null; longitude: number | null };
@@ -208,14 +216,20 @@ export default function MobileMapCanvas({
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
     ouverteId?: string | null;
   } | null;
+  /** Atelier secteur : « Entourer » trace, « Une par une » prend ou rend une parcelle au toucher. */
   dessin?: {
     couleur: string;
-    polygone: GeoJSON.Polygon | null;
+    entourer: boolean;
     onContour: (polygone: GeoJSON.Polygon) => void;
+    onParcelle: (parcelleId: string) => void;
+    calque: AtelierCalque | null;
   } | null;
+  /** Les secteurs en parcelles, et ceux à montrer hors atelier. */
+  secteurs?: { carte: CarteSecteurs; affichees: ReadonlySet<string> } | null;
 }) {
   const mapRef = useRef<MapRef | null>(null);
-  const geste = useGesteContour(Boolean(dessin), mapRef, (polygone) => dessin?.onContour(polygone));
+  const entourer = Boolean(dessin?.entourer);
+  const geste = useGesteContour(entourer, mapRef, (polygone) => dessin?.onContour(polygone));
   const fallback = toGeoCoord(center.latitude, center.longitude);
   const [zoom, setZoom] = useState(13);
   const [styleReady, setStyleReady] = useState(false);
@@ -449,7 +463,7 @@ export default function MobileMapCanvas({
   return (
     <div
       data-carte-vue={vuePosee ? 'prete' : 'attente'}
-      className={`priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden bg-[#c8c0b4]${dessin ? ' dessin-secteur' : ''}`}
+      className={`priimo-map relative z-0 h-full min-h-0 w-full overflow-hidden bg-[#c8c0b4]${entourer ? ' dessin-secteur' : ''}`}
       onContextMenu={(event) => event.preventDefault()}
     >
       <Map
@@ -465,8 +479,8 @@ export default function MobileMapCanvas({
         pitchWithRotate
         touchPitch
         touchZoomRotate
-        dragPan={!dessin}
-        cursor={dessin ? 'crosshair' : undefined}
+        dragPan={!entourer}
+        cursor={entourer ? 'crosshair' : undefined}
         interactiveLayerIds={[
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
           ...(!navigation && cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
@@ -551,7 +565,19 @@ export default function MobileMapCanvas({
           onVue?.({ bearing: event.target.getBearing(), pitch: event.target.getPitch() });
         }}
         onClick={(event) => {
-          if (dessin) return;
+          if (dessin) {
+            if (entourer) return;
+            try {
+              const couches = [ATELIER_MIEN_LAYER_ID, ATELIER_LIBRE_LAYER_ID, SECTEURS_PRIS_LAYER_ID].filter((id) =>
+                event.target.getLayer(id),
+              );
+              const id = event.target.queryRenderedFeatures(event.point, { layers: couches })[0]?.properties?.parcelleId;
+              if (typeof id === 'string') dessin.onParcelle(id);
+            } catch {
+              /* style pas prêt */
+            }
+            return;
+          }
           // Une épingle touchée ouvre sa fiche (ou déplie son amas), comme avant.
           const touchee = epingleSous(event.target, event.point);
           const item = touchee ? parId.get(touchee) : undefined;
@@ -577,30 +603,35 @@ export default function MobileMapCanvas({
           onDeselect();
         }}
         onMouseDown={(event) => {
-          if (dessin) geste.debuter(event);
+          if (entourer) geste.debuter(event);
         }}
         onMouseMove={(event) => {
-          if (dessin) geste.prolonger(event);
+          if (entourer) geste.prolonger(event);
         }}
         onMouseUp={() => {
-          if (dessin) geste.terminer();
+          if (entourer) geste.terminer();
         }}
         onTouchStart={(event) => {
-          if (!dessin || event.originalEvent.touches.length > 1) return;
+          if (!entourer || event.originalEvent.touches.length > 1) return;
           geste.debuter(event);
         }}
         onTouchMove={(event) => {
-          if (!dessin || event.originalEvent.touches.length > 1) return;
+          if (!entourer || event.originalEvent.touches.length > 1) return;
           geste.prolonger(event);
         }}
         onTouchEnd={() => {
-          if (dessin) geste.terminer();
+          if (entourer) geste.terminer();
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        {dessin ? (
-          <GesteContourCalque trace={geste.trace} polygone={dessin.polygone} couleur={dessin.couleur} />
+        {secteurs && !navigation ? (
+          <SecteursParcellesCalque
+            carte={secteurs.carte}
+            zonesAffichees={secteurs.affichees}
+            atelier={dessin?.calque ?? null}
+          />
         ) : null}
+        {dessin ? <GesteContourCalque trace={geste.trace} polygone={null} couleur={dessin.couleur} /> : null}
         <Buildings3DLayer
           mapRef={mapRef}
           enabled={relief}
@@ -645,8 +676,8 @@ export default function MobileMapCanvas({
         ) : null}
         {navigation ? null : (
           <>
-            <SecteurMasqueLayer zones={clipZones ?? []} />
-            <ZonesOverlay zones={zones} highlightedZoneId={highlightedZoneId} />
+            <SecteurMasqueLayer zones={dessin ? [] : (clipZones ?? [])} />
+            <ZonesOverlay zones={dessin ? [] : zones} highlightedZoneId={highlightedZoneId} />
           </>
         )}
         {itineraryStops && (itineraryStops.length >= 2 || (itineraryStops.length > 0 && itineraryGeometry)) ? (

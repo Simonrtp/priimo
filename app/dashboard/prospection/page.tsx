@@ -17,7 +17,8 @@ import {
 } from '@/lib/lead-delivery';
 import { resoudreProspectionVue } from '@/lib/prospection/vue';
 import { fetchContactsSafe, fetchVoiceNotesSafe } from '@/lib/queries/contacts';
-import { fetchBiensSafe } from '@/lib/queries/biens';
+import { fetchBiensDuPipeline, fetchBiensSafe } from '@/lib/queries/biens';
+import { avecBiens } from '@/lib/pipeline/bien';
 import { fetchMembersOfMyAgency } from '@/lib/queries/agency-members';
 import { fetchZonesSafe } from '@/lib/queries/zones';
 import { buildSectorMapPoints } from '@/lib/carte/points';
@@ -59,6 +60,8 @@ export default async function ProspectionPage({
     fraicheur?: string;
     zone?: string;
     annonce?: string;
+    /** Ouvre l'atelier secteur : « nouveau », ou l'identifiant du secteur à retoucher. */
+    atelier?: string;
   }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
@@ -162,6 +165,7 @@ export default async function ProspectionPage({
         autoTournee={params.tournee === '1' && profile.role !== 'directeur'}
         zones={zones}
         initialZoneId={params.zone ?? zoneParDefautProspection(zones, profile.id, profile.role === 'directeur')}
+        initialAtelier={params.atelier ?? null}
       />
     );
   }
@@ -169,12 +173,13 @@ export default async function ProspectionPage({
   // La Liste montre les annonces de particuliers du secteur ; les filtres
   // venus d'ailleurs (non pris, estimations, fraîcheur, membre) restent sur les leads.
   const listeAnnonces = vue === 'liste' && !listFilter && !fraicheurFiltre && !params.membre;
-  const [leads, teamMembers, stages, zones, annonces] = await Promise.all([
+  const [leads, teamMembers, stages, zones, annonces, biensPipeline] = await Promise.all([
     fetchLeads(supabase),
     fetchTeamMembers(supabase, agency.id),
     fetchLeadStages(supabase),
     fetchZonesSafe(supabase),
     listeAnnonces ? lireAnnonces(supabase) : Promise.resolve(null),
+    fetchBiensDuPipeline(supabase),
   ]);
   const viewer = viewerFromProfile(profile);
   const visibleLeads = visibleLeadsFor(viewer, leads);
@@ -188,16 +193,19 @@ export default async function ProspectionPage({
   );
   const derniers = dernierPassageParAdresse(passages, profile.id);
   const maintenant = new Date();
-  const leadsAnnotes = visibleLeads.map((l) => ({
-    ...l,
-    ...annoterAdresse({
-      banId: l.banId,
-      id: l.id,
-      derniers,
-      maintenant,
-      cycleJours: cycle.jours,
-    }),
-  }));
+  const leadsAnnotes = avecBiens(
+    visibleLeads.map((l) => ({
+      ...l,
+      ...annoterAdresse({
+        banId: l.banId,
+        id: l.id,
+        derniers,
+        maintenant,
+        cycleJours: cycle.jours,
+      }),
+    })),
+    biensPipeline,
+  );
 
   const storedLastSeen = profile.leads_last_seen_at ?? null;
   let showPipelineBanner = false;

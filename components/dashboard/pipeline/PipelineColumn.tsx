@@ -15,6 +15,7 @@ export default function PipelineColumn({
   onOpen,
   celebrateTick = 0,
   onEditStage,
+  survolee = false,
 }: {
   stage: LeadStage;
   leads: Lead[];
@@ -22,8 +23,11 @@ export default function PipelineColumn({
   onOpen: (id: string) => void;
   celebrateTick?: number;
   onEditStage?: (stage: LeadStage) => void;
+  /** Une carte en vol vise cette colonne, au-dessus d'une carte ou du vide. */
+  survolee?: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  // Toute la colonne reçoit, en-tête compris : on lâche où l'on veut.
+  const { setNodeRef } = useDroppable({ id: stage.id });
   const theme = stageColumnTheme(stage);
   const [pulse, setPulse] = useState(false);
 
@@ -36,10 +40,11 @@ export default function PipelineColumn({
 
   return (
     <section
-      className={`flex w-[300px] shrink-0 flex-col self-stretch overflow-hidden rounded-clay-lg ${
+      ref={setNodeRef}
+      className={`flex w-[300px] shrink-0 flex-col self-stretch overflow-hidden rounded-clay-lg transition-colors duration-150 ease-out ${
         pulse ? 'pipeline-column-celebrate' : ''
       }`}
-      style={{ backgroundColor: isOver ? theme.bgOver : theme.bg }}
+      style={{ backgroundColor: survolee ? theme.bgOver : theme.bg }}
       aria-label={`${stage.libelle}, ${leads.length} carte${leads.length > 1 ? 's' : ''}`}
     >
       <header className="flex shrink-0 items-start justify-between gap-2 px-3 pb-2 pt-3">
@@ -76,7 +81,7 @@ export default function PipelineColumn({
         </div>
         <span className="pt-0.5 text-[12px] tabular-nums text-text-muted">{leads.length}</span>
       </header>
-      <div ref={setNodeRef} className="flex min-h-[360px] flex-1 flex-col px-2.5 pb-3">
+      <div className="flex min-h-[360px] flex-1 flex-col px-2.5 pb-3">
         <SortableContext items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
           <ul className="flex flex-col gap-2">
             {leads.map((lead) => (

@@ -166,7 +166,7 @@ export default function BullesEquipe({
           <li
             key={n.membreId}
             data-id={n.membreId}
-            className={`pt-4 ${actif ? 'relative z-20 min-w-0 flex-1' : 'shrink-0'}`}
+            className={`max-sm:pt-2 sm:pt-4 ${actif ? 'relative z-20 min-w-0 flex-1' : 'shrink-0'}`}
             style={{
               order: actif ? -1 : 0,
               width: actif ? undefined : TAILLE,
@@ -272,7 +272,7 @@ export default function BullesEquipe({
         );
       })}
 
-      <li data-id="invite" className="shrink-0 pt-4" style={{ width: TAILLE }}>
+      <li data-id="invite" className="shrink-0 max-sm:pt-2 sm:pt-4" style={{ width: TAILLE }}>
         <button
           type="button"
           onClick={onInviter}
@@ -398,10 +398,10 @@ function FicheNegociateur({
   const progression = Math.max(0, Math.min(100, n.progression));
 
   return (
-    <div
+      <div
         data-fiche
         className={`min-w-0 overflow-hidden transition-opacity duration-[1000ms] ease-out motion-reduce:transition-none ${
-        visible ? 'opacity-100 delay-200' : 'pointer-events-none opacity-0'
+        visible ? 'opacity-100 delay-200' : 'pointer-events-none h-0 min-h-0 opacity-0'
       }`}
       aria-hidden={!visible}
     >

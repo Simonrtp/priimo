@@ -45,7 +45,8 @@ function abonner(f: () => void) {
   return () => abonnes.delete(f);
 }
 
-async function suivreFlux(res: Response, surEtape: (e: EtapeImport) => void): Promise<ReponseImport> {
+/** Lit la réponse en flux de /api/dashboard/annonces/importer. Le formulaire « Nouveau bien » s'en sert aussi. */
+export async function suivreFlux(res: Response, surEtape: (e: EtapeImport) => void): Promise<ReponseImport> {
   if (!res.ok || !res.body) {
     const json = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
     return { etat: 'erreur', message: json?.message ?? json?.error ?? 'Recherche impossible' };

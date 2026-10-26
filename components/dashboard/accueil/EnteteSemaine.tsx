@@ -219,7 +219,7 @@ export function SelecteurFenetre({
             aria-haspopup="dialog"
             aria-label="Choisir une période"
             onClick={() => setOuvert((v) => !v)}
-            className={`${pastilleClass(periode === 'custom' || ouvert)} flex size-8 shrink-0 items-center justify-center px-0`}
+            className={`${pastilleClass(periode === 'custom' || ouvert)} flex size-8 shrink-0 items-center justify-center !px-0`}
           >
             <CalendarDays size={14} strokeWidth={2.2} aria-hidden />
           </button>
