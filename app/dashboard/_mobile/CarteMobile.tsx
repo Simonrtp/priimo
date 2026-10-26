@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, MapPin, Navigation, Navigation2, PencilLine, Phone, Play, Plus, Square, X } from 'lucide-react';
+import { Box, Layers, Locate, Navigation, Navigation2, PencilLine, Phone, Play, Plus, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import Switch from '@/components/ui/Switch';
@@ -405,13 +405,6 @@ export default function CarteMobile({
     };
   }, [unplaced, router]);
 
-  const ouvrirTournee = useCallback(() => {
-    setLayersOpen(false);
-    setSelectedBanId(null);
-    closeParcelle();
-    tournee.ouvrirPreparation();
-  }, [closeParcelle, tournee]);
-
   const finirTournee = useCallback(() => {
     armPointerShield(900);
     setGardeFin(true);
@@ -756,20 +749,7 @@ export default function CarteMobile({
                 </>
               )}
             </div>
-          ) : (
-            <div className="absolute left-1/2 z-20 -translate-x-1/2" style={{ bottom: floatBottom }}>
-              <button
-                type="button"
-                onClick={ouvrirTournee}
-                aria-label="Préparer une tournée"
-                className="app-press flex items-center gap-2 rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
-                style={{ fontSize: 14, touchAction: 'manipulation' }}
-              >
-                <MapPin size={18} strokeWidth={2.2} aria-hidden />
-                Tournée
-              </button>
-            </div>
-          )}
+          ) : null}
 
           <button
             type="button"
