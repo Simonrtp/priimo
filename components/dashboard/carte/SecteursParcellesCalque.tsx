@@ -130,13 +130,6 @@ export default function SecteursParcellesCalque({
               'fill-opacity': ['case', ['boolean', ['feature-state', 'survol'], false], 0.68, 0.52],
             }}
           />
-          <Layer
-            id="atelier-parcelles-trame"
-            type="line"
-            minzoom={15}
-            filter={['!=', ['get', 'etat'], 'pris']}
-            paint={{ 'line-color': '#1A2A56', 'line-opacity': 0.14, 'line-width': 0.6 }}
-          />
         </Source>
       ) : null}
     </>

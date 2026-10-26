@@ -84,9 +84,8 @@ create or replace view public.zone_parcelles_listes
 
 grant select on public.zone_parcelles_listes to authenticated;
 
--- 3. Enveloppe d'un secteur : ses parcelles élargies de ~30 m, calculée par le
--- serveur. Elle rattache ce qui n'a pas de parcelle (annonce « rue seule »,
--- contact, bien) ; elle ne s'affiche pas.
+-- 3. Enveloppe d'un secteur : le contour exact de ses parcelles (sans marge),
+-- calculé par le serveur. Il juge ce qui n'a pas de parcelle connue.
 alter table public.zones add column if not exists enveloppe jsonb;
 
 -- 4. Une couleur par collaborateur, unique dans l'agence.

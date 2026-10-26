@@ -80,9 +80,8 @@ export type Zone = {
   verrouillee: boolean;
   regles: readonly RegleZone[];
   /**
-   * Les parcelles du secteur élargies d'une trentaine de mètres, calculées par
-   * le serveur. Elles rattachent ce qui n'a pas de parcelle (annonce « rue
-   * seule », contact, bien) ; elles ne s'affichent pas.
+   * Le contour exact des parcelles du secteur, calculé par le serveur, sans
+   * marge. Il juge ce qui n'a pas de parcelle connue (un point GPS) et cadre la carte.
    */
   enveloppe?: readonly ValeurPolygone[];
 };

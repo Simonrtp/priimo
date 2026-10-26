@@ -21,12 +21,12 @@ const dedans = (polys: ReturnType<typeof enveloppeDesParcelles>, lng: number, la
   polys.some((p) => pointDansPolygone({ latitude: lat, longitude: lng }, p));
 
 describe('enveloppeDesParcelles', () => {
-  it('réunit les parcelles voisines et les élargit d’une trentaine de mètres', () => {
-    const polys = enveloppeDesParcelles([carre(2.39, 48.86), carre(2.3902, 48.86)]);
+  it('réunit les parcelles voisines, sans aucune marge autour', () => {
+    const polys = enveloppeDesParcelles([carre(2.39, 48.86), carre(2.39015, 48.86)]);
     assert.equal(polys.length, 1);
-    // 25 m au nord de la parcelle : dedans ; 60 m : dehors.
-    assert.ok(dedans(polys, 2.39, 48.86 + 0.0001 + 0.000225));
-    assert.ok(!dedans(polys, 2.39, 48.86 + 0.0001 + 0.00054));
+    assert.ok(dedans(polys, 2.39, 48.86));
+    // 5 m au nord de la parcelle : dehors.
+    assert.ok(!dedans(polys, 2.39, 48.86 + 0.0001 + 0.00005));
   });
 
   it('deux îlots éloignés restent deux polygones', () => {
