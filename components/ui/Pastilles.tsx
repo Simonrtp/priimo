@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { PASTILLE_TRACK, pastilleClass, pastilleGlissanteClass } from '@/components/ui/pastille-classes';
 
 export { PASTILLE_TRACK, pastilleClass, pastilleGlissanteClass } from '@/components/ui/pastille-classes';
@@ -33,35 +33,46 @@ export function PistePastilles({
   const [anime, setAnime] = useState(false);
   const deja = useRef(false);
 
-  useIsoLayoutEffect(() => {
+  const lire = useCallback(() => {
     const root = ref.current;
     if (!root) return;
+    const el = root.querySelector<HTMLElement>(
+      '[data-pastille-active="true"], [aria-selected="true"], [aria-pressed="true"]',
+    );
+    if (!el) {
+      setMesure(null);
+      return;
+    }
+    const suivante = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
+    // Même place : on garde l'objet, sinon chaque rendu en relancerait un autre, sans fin.
+    setMesure((avant) =>
+      avant &&
+      avant.x === suivante.x &&
+      avant.y === suivante.y &&
+      avant.w === suivante.w &&
+      avant.h === suivante.h
+        ? avant
+        : suivante,
+    );
+    if (!deja.current) {
+      deja.current = true;
+      requestAnimationFrame(() => setAnime(true));
+    }
+  }, []);
 
-    const lire = () => {
-      const el = root.querySelector<HTMLElement>(
-        '[data-pastille-active="true"], [aria-selected="true"], [aria-pressed="true"]',
-      );
-      if (!el) {
-        setMesure(null);
-        return;
-      }
-      setMesure({
-        x: el.offsetLeft,
-        y: el.offsetTop,
-        w: el.offsetWidth,
-        h: el.offsetHeight,
-      });
-      if (!deja.current) {
-        deja.current = true;
-        requestAnimationFrame(() => setAnime(true));
-      }
-    };
-
+  // Après chaque rendu : la pastille active a pu changer.
+  useIsoLayoutEffect(() => {
     lire();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(lire) : null;
-    ro?.observe(root);
-    return () => ro?.disconnect();
   });
+
+  // Une largeur qui change (texte, fenêtre) déplace aussi la pastille.
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(lire);
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [lire]);
 
   return (
     <div
