@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import type { Contact } from '@/types/contact';
 import {
   adresseRattachee,
+  couleurLettre,
   formatAcquereurCriteria,
   formatContactMeta,
   formatLastInteraction,
@@ -92,6 +93,21 @@ describe('formatLastInteraction', () => {
     );
     assert.equal(line, 'Appelé il y a 6 j');
     assert.equal(formatLastInteraction(null, NOW), 'Aucun échange');
+  });
+});
+
+describe('couleurLettre', () => {
+  it('donne au C le bleu, au P le vert et au S le jaune', () => {
+    assert.equal(couleurLettre('C'), couleurLettre('c'));
+    assert.equal(couleurLettre('P'), '#327B52');
+    assert.equal(couleurLettre('C'), '#305688');
+    assert.equal(couleurLettre('S'), '#7D6A2C');
+    assert.notEqual(couleurLettre('P'), couleurLettre('C'));
+  });
+
+  it('ignore l’accent et reste grise sans lettre', () => {
+    assert.equal(couleurLettre('é'), couleurLettre('E'));
+    assert.equal(couleurLettre('?'), '#5C6574');
   });
 });
 

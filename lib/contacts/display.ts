@@ -71,6 +71,46 @@ export function contactInitials(contact: Pick<Contact, 'firstName' | 'lastName' 
   return (contact.fullName.trim().charAt(0) || '?').toUpperCase();
 }
 
+/**
+ * Une teinte douce et stable par lettre, lisible sur le fond clair des initiales.
+ * C bleu, P vert, S jaune : le reste du clavier se répartit sans se répéter.
+ */
+const COULEURS_LETTRES: Record<string, string> = {
+  A: '#823542',
+  B: '#884A30',
+  C: '#305688',
+  D: '#354082',
+  E: '#52397F',
+  F: '#7D3B65',
+  G: '#367871',
+  H: '#356E82',
+  I: '#39795B',
+  J: '#347962',
+  K: '#377B40',
+  L: '#557637',
+  M: '#617434',
+  N: '#826B35',
+  O: '#865932',
+  P: '#327B52',
+  Q: '#814137',
+  R: '#81374B',
+  S: '#7D6A2C',
+  T: '#815437',
+  U: '#3E5C79',
+  V: '#42766B',
+  W: '#765C42',
+  X: '#663E79',
+  Y: '#776C31',
+  Z: '#426476',
+};
+
+const GRIS_LETTRE = '#5C6574';
+
+export function couleurLettre(lettre: string): string {
+  const base = lettre.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  return COULEURS_LETTRES[base.charAt(0)] ?? GRIS_LETTRE;
+}
+
 export function formatInteractionWhen(iso: string, now = Date.now()): string {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return '';
