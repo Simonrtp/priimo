@@ -168,19 +168,19 @@ export default function CarteMobile({
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
-  const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
+  const [zoneId, setZoneId] = useState(() =>
+    readStoredMapLayers().annonces ? 'aucun' : zoneIdInitial(initialZoneId, zones),
+  );
   // Venu de l'Accueil (« Modifier les parcelles », « Créer mon secteur ») : l'atelier est déjà ouvert.
   const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
   const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
   const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
-  // L'onglet d'arrivée suit le secteur ouvert : le mien, celui d'un collègue, ou aucun.
-  const [portee, setPortee] = useState<PorteeSecteurs>(() => {
-    const ouvert = zones.find((z) => z.id === initialZoneId);
-    if (ouvert) return ouvert.assignedTo === profileId ? 'mes' : 'agence';
-    return isDirector ? 'agence' : 'mes';
-  });
+  const [portee, setPortee] = useState<PorteeSecteurs>('mes');
   const [onglet, setOnglet] = useState<OngletCarte>(() =>
-    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : portee,
+    readStoredMapLayers().annonces ||
+    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal'
+      ? 'code_postal'
+      : 'mes',
   );
   const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
@@ -213,8 +213,9 @@ export default function CarteMobile({
       profileId,
       zoneCadree: zoneChoisie,
       zonesCadrees: voirTous ? affiches : null,
+      toutLeCodePostal: onglet === 'code_postal',
     }),
-    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches],
+    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches, onglet],
   );
 
   const tournee = useTourneeCarte({
@@ -628,6 +629,7 @@ export default function CarteMobile({
           zones,
           zoneCadree: zoneChoisie,
           zonesCadrees: voirTous ? affiches : null,
+          toutLeCodePostal: onglet === 'code_postal',
           directeur: isDirector,
           profileId,
           onChoisir: (annonce, soeurs) => {
@@ -882,7 +884,13 @@ export default function CarteMobile({
         title="Couches"
         initialSnap={2}
       >
-        {atelier ? null : <EmpriseCapsules value={onglet} onChange={choisirOnglet} />}
+        {atelier ? null : (
+          <EmpriseCapsules
+            value={onglet}
+            onChange={choisirOnglet}
+            seulementCodePostal={layers.annonces}
+          />
+        )}
         {onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(proposes) ? (
           dessin.panneau ?? (
             <button type="button" onClick={() => ouvrirAtelier(null)} className={`${BOUTON_CARTE_VIDE} w-full`}>
@@ -949,6 +957,7 @@ export default function CarteMobile({
                 const next = { ...prev, ...patch };
                 persistMapLayers(next);
                 setAnnonceOuverte(null);
+                if (patch.annonces === true) choisirOnglet('code_postal');
                 return next;
               })
             }
@@ -959,13 +968,10 @@ export default function CarteMobile({
                 zones={proposes}
                 zoneId={zoneId}
                 onZone={setZoneId}
-                tous={isDirector || portee === 'agence'}
+                tous={false}
                 profileId={profileId}
                 membres={members}
               />
-              {onglet === 'agence' && proposes.length === 0 ? (
-                <li className="px-1 text-[13px] text-text-muted">Aucun secteur dans l’agence pour l’instant.</li>
-              ) : null}
               <li className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"

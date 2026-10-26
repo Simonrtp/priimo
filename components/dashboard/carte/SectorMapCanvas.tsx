@@ -35,7 +35,6 @@ import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker, ParcellePickExtra } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import AgencyLocationMarker from '@/components/dashboard/field/AgencyLocationMarker';
-import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
 import SecteursParcellesCalque, {
   ATELIER_LIBRE_LAYER_ID,
@@ -136,6 +135,7 @@ export default function SectorMapCanvas({
     /** Bouton « Secteur » en haut : les annonces se limitent à ce périmètre. */
     zoneCadree?: Zone | null;
     zonesCadrees?: readonly Zone[] | null;
+    toutLeCodePostal?: boolean;
     directeur: boolean;
     profileId: string;
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
@@ -465,6 +465,7 @@ export default function SectorMapCanvas({
             zones={annoncesCouche.zones}
             zoneCadree={annoncesCouche.zoneCadree}
             zonesCadrees={annoncesCouche.zonesCadrees}
+            toutLeCodePostal={annoncesCouche.toutLeCodePostal}
             directeur={annoncesCouche.directeur}
             profileId={annoncesCouche.profileId}
             onChoisir={annoncesCouche.onChoisir}
@@ -482,7 +483,6 @@ export default function SectorMapCanvas({
         ) : focus ? (
           <VolCarte latitude={focus.latitude} longitude={focus.longitude} cle={focus.cle} />
         ) : null}
-        <ZonesOverlay zones={dessin ? [] : zones} highlightedZoneId={highlightedZoneId} />
         {itineraryStops && itineraryStops.length >= 2 ? (
           <ItineraireLayer
             geometry={itineraryGeometry}

@@ -16,7 +16,7 @@ export const MAP_LAYER_LABELS: Record<MapPointKind, string> = {
   lead: 'Prospects',
   contact: 'Contacts',
   bien: 'Biens',
-  note: 'Notre terrain',
+  note: 'Notes terrain',
 };
 
 export const CADASTRE_LAYER_IDS = ['parcelles', 'dpe', 'ventes', 'copro'] as const;

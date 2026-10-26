@@ -16,6 +16,8 @@ type Qui = {
   zoneCadree?: Zone | null;
   /** Directeur : tous les secteurs des agents, d'un coup. */
   zonesCadrees?: readonly Zone[] | null;
+  /** Code postal : toutes les annonces du territoire, sans filtre de secteur. */
+  toutLeCodePostal?: boolean;
 };
 
 export function filtrerAnnonces(
@@ -29,18 +31,18 @@ export function filtrerAnnonces(
 }
 
 /**
- * « Voir mes annonces » sur la carte : les annonces de particuliers actives de
- * mon secteur — celui de chaque agent pour le directeur —, dans le secteur
- * cadré en haut du panneau s'il y en a un. Les mêmes que la Liste.
+ * « Voir mes annonces » sur la carte : les annonces de particuliers actives.
+ * Sur le code postal, tout le territoire. Sinon, mon secteur — celui de
+ * chaque agent pour le directeur —, dans le secteur cadré s'il y en a un.
  */
 export function mesAnnoncesSurCarte(annonces: readonly Annonce[], zones: readonly Zone[], qui: Qui): Annonce[] {
-  return annonces.filter(
-    (a) =>
-      a.statut === 'active' &&
-      a.typeVendeur === 'particulier' &&
-      dansMonSecteur(a, zones, { directeur: qui.directeur, profileId: qui.profileId }) &&
-      dansLeCadre(a, qui),
-  );
+  return annonces.filter((a) => {
+    if (a.statut !== 'active' || a.typeVendeur !== 'particulier') return false;
+    if (qui.toutLeCodePostal) return true;
+    return (
+      dansMonSecteur(a, zones, { directeur: qui.directeur, profileId: qui.profileId }) && dansLeCadre(a, qui)
+    );
+  });
 }
 
 function dansLeCadre(a: Annonce, qui: Qui): boolean {

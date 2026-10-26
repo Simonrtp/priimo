@@ -176,7 +176,13 @@ function LayersPanel({
         ) : null}
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {atelier ? null : <EmpriseCapsules value={onglet} onChange={onOnglet} />}
+        {atelier ? null : (
+          <EmpriseCapsules
+            value={onglet}
+            onChange={onOnglet}
+            seulementCodePostal={layers.annonces}
+          />
+        )}
         {secteurVide ? (
           atelier ?? (
             <button type="button" onClick={onCreerSecteur} className={`${BOUTON_CARTE_VIDE} w-full`}>
@@ -229,9 +235,6 @@ function LayersPanel({
                 profileId={annoncesQui.profileId}
                 membres={members}
               />
-              {onglet === 'agence' && zones.length === 0 ? (
-                <li className="px-0.5 text-[12.5px] text-text-muted">Aucun secteur dans l’agence pour l’instant.</li>
-              ) : null}
               <li className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
@@ -330,19 +333,19 @@ export default function SectorMapClient({
   const profileId = profile?.id ?? '';
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
-  const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
+  const [zoneId, setZoneId] = useState(() =>
+    readStoredMapLayers().annonces ? 'aucun' : zoneIdInitial(initialZoneId, zones),
+  );
   // Venu de l'Accueil (« Modifier les parcelles », « Créer mon secteur ») : l'atelier est déjà ouvert.
   const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
   const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
   const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
-  // L'onglet d'arrivée suit le secteur ouvert : le mien, celui d'un collègue, ou aucun.
-  const [portee, setPortee] = useState<PorteeSecteurs>(() => {
-    const ouvert = zones.find((z) => z.id === initialZoneId);
-    if (ouvert) return ouvert.assignedTo === profile?.id ? 'mes' : 'agence';
-    return isDirector ? 'agence' : 'mes';
-  });
+  const [portee, setPortee] = useState<PorteeSecteurs>('mes');
   const [onglet, setOnglet] = useState<OngletCarte>(() =>
-    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : portee,
+    readStoredMapLayers().annonces ||
+    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal'
+      ? 'code_postal'
+      : 'mes',
   );
   const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [assignedTo, setAssignedTo] = useState('tous');
@@ -421,8 +424,9 @@ export default function SectorMapClient({
       profileId,
       zoneCadree: zoneChoisie,
       zonesCadrees: voirTous ? affiches : null,
+      toutLeCodePostal: onglet === 'code_postal',
     }),
-    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches],
+    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches, onglet],
   );
   const pointsDuSecteur = useMemo(
     () =>
@@ -563,6 +567,7 @@ export default function SectorMapClient({
   function changeAnnonces(patch: Partial<MapLayerState>) {
     setLayers((prev) => ({ ...prev, ...patch }));
     setAnnonceOuverte(null);
+    if (patch.annonces === true) choisirOnglet('code_postal');
   }
 
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
@@ -648,7 +653,7 @@ export default function SectorMapClient({
       onglet={onglet}
       onOnglet={choisirOnglet}
       zones={proposes}
-      tousSecteurs={isDirector || portee === 'agence'}
+      tousSecteurs={false}
       annoncesQui={annoncesQui}
       zoneId={zoneId}
       onZone={setZoneId}
@@ -725,6 +730,7 @@ export default function SectorMapClient({
             zones,
             zoneCadree: zoneChoisie,
             zonesCadrees: voirTous ? affiches : null,
+            toutLeCodePostal: onglet === 'code_postal',
             directeur: isDirector,
             profileId,
             onChoisir: (annonce, soeurs) => setAnnonceOuverte({ annonce, soeurs }),
@@ -786,7 +792,7 @@ export default function SectorMapClient({
                 onglet={onglet}
                 onOnglet={choisirOnglet}
                 zones={proposes}
-                tousSecteurs={isDirector || portee === 'agence'}
+                tousSecteurs={false}
                 annoncesQui={annoncesQui}
                 zoneId={zoneId}
                 onZone={setZoneId}

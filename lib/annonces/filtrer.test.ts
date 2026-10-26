@@ -202,4 +202,11 @@ describe('mesAnnoncesSurCarte', () => {
       ['collegue'],
     );
   });
+
+  it('sur le code postal : toutes les annonces de particuliers actives', () => {
+    assert.deepEqual(
+      ids(mesAnnoncesSurCarte(annonces, [secteurPyrenees, collegue], { ...QUI, toutLeCodePostal: true })),
+      ['mienne', 'collegue', 'hors-secteur'],
+    );
+  });
 });

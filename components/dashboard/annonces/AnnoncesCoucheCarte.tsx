@@ -24,6 +24,8 @@ type Qui = {
   zoneCadree?: Zone | null;
   /** Directeur : tous les secteurs affichés ensemble. */
   zonesCadrees?: readonly Zone[] | null;
+  /** Code postal : toutes les annonces du territoire. */
+  toutLeCodePostal?: boolean;
 };
 
 export function AnnoncesLayerControls({
@@ -48,7 +50,8 @@ export function AnnoncesLayerControls({
       isUsableCoord(g.principale.latitude, g.principale.longitude),
     ).length;
   }, [voir, pret, qui, annonces]);
-  const sansSecteur = qui != null && !qui.directeur && !aUnSecteur(qui.zones, qui.profileId);
+  const sansSecteur =
+    qui != null && !qui.toutLeCodePostal && !qui.directeur && !aUnSecteur(qui.zones, qui.profileId);
   const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
 
   return (
@@ -192,6 +195,7 @@ export function AnnoncesMarqueurs({
   profileId,
   zoneCadree = null,
   zonesCadrees = null,
+  toutLeCodePostal = false,
   onChoisir,
   ouverteId = null,
 }: {
@@ -203,6 +207,8 @@ export function AnnoncesMarqueurs({
   zoneCadree?: Zone | null;
   /** Tous les secteurs du directeur, affichés ensemble. */
   zonesCadrees?: readonly Zone[] | null;
+  /** Code postal : toutes les annonces du territoire. */
+  toutLeCodePostal?: boolean;
   onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
   /** Annonce dont le volet est ouvert : sa pastille reste vive. */
   ouverteId?: string | null;
@@ -221,14 +227,14 @@ export function AnnoncesMarqueurs({
   const groupes = useMemo(() => {
     if (!actif) return [];
     const tous = regrouperAnnonces(
-      mesAnnoncesSurCarte(annonces, zones, { directeur, profileId, zoneCadree, zonesCadrees }),
+      mesAnnoncesSurCarte(annonces, zones, { directeur, profileId, zoneCadree, zonesCadrees, toutLeCodePostal }),
     ).filter((g) => isUsableCoord(g.principale.latitude, g.principale.longitude) && !g.annonces.some((a) => idsAjoutees.has(a.id)));
     const visibles = tous.length > MAX_PASTILLES ? tous.filter((g) => dansEmprise(g.principale, emprise)) : tous;
     // Les particuliers par-dessus les agences, et gardés en priorité.
     return visibles
       .sort((x, y) => Number(x.principale.typeVendeur === 'particulier') - Number(y.principale.typeVendeur === 'particulier'))
       .slice(-MAX_PASTILLES);
-  }, [actif, annonces, zones, directeur, profileId, zoneCadree, zonesCadrees, emprise, idsAjoutees]);
+  }, [actif, annonces, zones, directeur, profileId, zoneCadree, zonesCadrees, toutLeCodePostal, emprise, idsAjoutees]);
 
   const ouvrirAjoutee = (id: string) => {
     const g = regrouperAnnonces([...annonces, ...ajoutees]).find((x) => x.annonces.some((a) => a.id === id));

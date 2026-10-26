@@ -26,18 +26,18 @@ export function aUnSecteurDefini(zones: readonly Zone[]): boolean {
   return zones.some(secteurDefini);
 }
 
-/** Onglet de la carte : mes secteurs, ou ceux de toute l'agence. */
+/** Onglet de la carte : mes secteurs. `agence` n’est plus proposé à l’écran. */
 export type PorteeSecteurs = 'mes' | 'agence';
 
 /**
- * Secteurs proposés dans le panneau. Sans onglet choisi, le directeur voit
- * ceux de toute l'agence et l'agent les siens.
+ * Secteurs proposés dans le panneau. La carte ne montre que les miens,
+ * sauf si on demande encore explicitement ceux de l’agence.
  */
 export function secteursDeLaCarte(
   zones: readonly Zone[],
   profileId: string,
-  directeur: boolean,
-  portee: PorteeSecteurs = directeur ? 'agence' : 'mes',
+  _directeur: boolean,
+  portee: PorteeSecteurs = 'mes',
 ): Zone[] {
   const actives = zones.filter((z) => z.actif);
   if (portee === 'agence') return trierSecteurs(actives, profileId);
@@ -53,12 +53,12 @@ export function zoneParDefautProspection(
   zones: readonly Zone[],
   profileId: string,
   directeur: boolean,
-  portee?: PorteeSecteurs,
+  portee: PorteeSecteurs = 'mes',
 ): string | null {
   const proposes = secteursDeLaCarte(zones, profileId, directeur, portee);
   if (proposes.length <= 1) return proposes[0]?.id ?? null;
   // Plusieurs secteurs : tous ensemble, sauf celui que l'agent a prévu pour aujourd'hui.
-  if (directeur || portee === 'agence') return ZONE_TOUS_SECTEURS;
+  if (portee === 'agence') return ZONE_TOUS_SECTEURS;
   return zoneDuJour(proposes, profileId)?.id ?? ZONE_TOUS_SECTEURS;
 }
 

@@ -491,7 +491,6 @@ export default function ProspectsClient({
             zones={zones}
             profileId={annoncesListe.profileId}
             directeur={isDirector}
-            prenoms={prenoms}
             initialAnnonceId={annoncesListe.annonceId}
           />
         ) : (

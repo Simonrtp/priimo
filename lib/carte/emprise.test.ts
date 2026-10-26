@@ -74,16 +74,16 @@ describe('secteursDeLaCarte', () => {
     );
   });
 
-  it('propose au directeur tous les secteurs, le sien d’abord', () => {
+  it('ne propose au directeur que son secteur, comme à l’agent', () => {
     assert.deepEqual(
       secteursDeLaCarte([sien, mien], 'moi', true).map((z) => z.id),
-      ['mien', 'sien'],
+      ['mien'],
     );
   });
 
-  it('ouvre tous les secteurs pour le directeur', () => {
-    assert.equal(zoneParDefautProspection([sien, mien], 'moi', true), ZONE_TOUS_SECTEURS);
-    assert.equal(zoneParDefautProspection([sien], 'moi', true), 'sien');
+  it('ouvre le secteur du directeur, pas toute l’agence', () => {
+    assert.equal(zoneParDefautProspection([sien, mien], 'moi', true), 'mien');
+    assert.equal(zoneParDefautProspection([sien], 'moi', true), null);
     assert.equal(zoneParDefautProspection([], 'moi', true), null);
   });
 

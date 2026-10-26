@@ -6,11 +6,7 @@ import { Home, Search, UserRound } from 'lucide-react';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import Select from '@/components/ui/Select';
 import { pastilleClass } from '@/components/ui/pastille-classes';
-import {
-  adresseVerifiee,
-  secteursAProspecter,
-  type SecteurAProspecter,
-} from '@/lib/annonces/liste-prospection';
+import { adresseVerifiee, secteursAProspecter } from '@/lib/annonces/liste-prospection';
 import {
   baisseCumulee,
   dateCourte,
@@ -32,6 +28,23 @@ const TRIS: { value: Tri; label: string }[] = [
 ];
 
 const ORANGE_DOUX = '#FFE0C4';
+
+function dateGroupe(g: GroupeAnnonce): string {
+  return g.annonces.reduce((m, a) => {
+    const d = a.publieeLe ?? a.premiereVueLe ?? '';
+    return d > m ? d : m;
+  }, '');
+}
+
+function trierGroupes(groupes: GroupeAnnonce[], tri: Tri): GroupeAnnonce[] {
+  if (tri === 'baisse') {
+    return [...groupes].sort((x, y) => (baisseCumulee(y.principale) ?? 0) - (baisseCumulee(x.principale) ?? 0));
+  }
+  if (tri === 'm2') {
+    return [...groupes].sort((x, y) => (prixM2(x.principale) ?? Infinity) - (prixM2(y.principale) ?? Infinity));
+  }
+  return [...groupes].sort((x, y) => dateGroupe(y).localeCompare(dateGroupe(x)));
+}
 
 function sansAccent(s: string): string {
   return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
@@ -104,25 +117,21 @@ function useSecteursRetires(): [ReadonlySet<string>, (ids: readonly string[]) =>
 /* -------------------------------------------------------------------- liste */
 
 /**
- * La Liste de Prospection, secteur par secteur : chacun de mes secteurs, puis
- * les autres secteurs de l'agence qui ont des annonces. Une pastille par
- * secteur le retire de la liste ou l'y remet. Dans chaque secteur : d'abord
- * l'adresse retrouvée, puis la rue ou le quartier.
+ * La Liste de Prospection : mon secteur, puis le secteur de l'agence. Une
+ * pastille par groupe le retire de la liste ou l'y remet. Dans chaque groupe :
+ * d'abord l'adresse retrouvée, puis la rue ou le quartier.
  */
 export default function AnnoncesListe({
   annonces,
   zones,
   profileId,
   directeur,
-  prenoms,
   initialAnnonceId,
 }: {
   annonces: readonly Annonce[];
   zones: readonly Zone[];
   profileId: string;
   directeur: boolean;
-  /** Prénom du titulaire de chaque secteur de l'agence. */
-  prenoms: Readonly<Record<string, string | null>>;
   initialAnnonceId: string | null;
 }) {
   const [enBaisse, setEnBaisse] = useState(false);
@@ -138,45 +147,43 @@ export default function AnnoncesListe({
   const affiches = useMemo(() => {
     const cherche = sansAccent(recherche.trim());
     const preparer = (groupes: GroupeAnnonce[]) => {
-      const g = groupes.filter((x) => !enBaisse || baisseCumulee(x.principale) != null);
-      if (tri === 'baisse') {
-        return [...g].sort((x, y) => (baisseCumulee(y.principale) ?? 0) - (baisseCumulee(x.principale) ?? 0));
-      }
-      if (tri === 'm2') {
-        return [...g].sort(
-          (x, y) => (prixM2(x.principale) ?? Infinity) - (prixM2(y.principale) ?? Infinity),
-        );
-      }
-      return g;
+      let g = groupes.filter((x) => !enBaisse || baisseCumulee(x.principale) != null);
+      if (cherche) g = g.filter((x) => annonceCorrespond(x, cherche));
+      return trierGroupes(g, tri);
     };
-    return secteurs
-      .filter((s) => !retires.has(s.zone.id))
-      .map((s) => {
-        let groupes = preparer(s.groupes);
-        if (cherche && !sansAccent(s.zone.nom).includes(cherche)) {
-          groupes = groupes.filter((g) => annonceCorrespond(g, cherche));
-        }
-        return { ...s, groupes };
-      })
-      .filter((s) => !cherche || s.groupes.length > 0);
+    const duGroupe = (mien: boolean) => {
+      const source = secteurs.filter((s) => s.mien === mien);
+      if (source.length === 0) return null;
+      const visibles = source.filter((s) => !retires.has(s.zone.id));
+      if (visibles.length === 0) return null;
+      const groupes = preparer(visibles.flatMap((s) => s.groupes));
+      if (cherche && groupes.length === 0) return null;
+      return {
+        mien,
+        ids: source.map((s) => s.zone.id),
+        couleur: source[0]!.zone.couleur,
+        groupes,
+      };
+    };
+    return { mien: duGroupe(true), agence: duGroupe(false) };
   }, [secteurs, retires, enBaisse, tri, recherche]);
 
-  const compter = (mien: boolean) =>
-    affiches.filter((s) => s.mien === mien).reduce((n, s) => n + s.groupes.length, 0);
-  const nbMiennes = compter(true);
-  const nbAutres = compter(false);
+  const nbMiennes = affiches.mien?.groupes.length ?? 0;
+  const nbAutres = affiches.agence?.groupes.length ?? 0;
   const annoncesDe = (n: number) => `${n} annonce${n !== 1 ? 's' : ''} de particuliers`;
   // Le même chiffre que « Mes nouvelles adresses » sur l'Accueil : mes secteurs d'abord, l'agence à part.
   const entete =
     miens.length > 0
-      ? `${annoncesDe(nbMiennes)} dans ${miens.length > 1 ? 'mes secteurs' : 'mon secteur'}${
-          nbAutres > 0 ? ` · ${nbAutres} sur le secteur de l’agence` : ''
+      ? `${annoncesDe(nbMiennes)} dans mes secteurs${
+          nbAutres > 0 ? ` · ${nbAutres} sur les secteurs de toute l’agence` : ''
         }`
-      : `${annoncesDe(nbAutres)} sur le secteur de l’agence`;
-  const basculer = (id: string) =>
-    ecrireRetires(retires.has(id) ? [...retires].filter((x) => x !== id) : [...retires, id]);
-  const titulaire = (s: SecteurAProspecter) =>
-    s.mien ? 'à moi' : s.zone.assignedTo ? (prenoms[s.zone.assignedTo] ?? 'un agent') : 'sans agent';
+      : `${annoncesDe(nbAutres)} sur les secteurs de toute l’agence`;
+  const basculerGroupe = (ids: readonly string[]) => {
+    const tousRetires = ids.every((id) => retires.has(id));
+    ecrireRetires(
+      tousRetires ? [...retires].filter((id) => !ids.includes(id)) : [...new Set([...retires, ...ids])],
+    );
+  };
 
   const selection = useMemo(() => {
     const annonce = ouverte ? annonces.find((a) => a.id === ouverte) : null;
@@ -255,23 +262,25 @@ export default function AnnoncesListe({
       </div>
 
       {secteurs.length > 0 ? (
-        <div className="mb-4 flex flex-col gap-2.5">
+        <div className="mb-4 flex flex-wrap gap-1.5">
           {miens.length > 0 ? (
-            <PastillesSecteurs
-              titre={miens.length > 1 ? 'Mes secteurs' : 'Mon secteur'}
-              secteurs={miens}
+            <PastilleGroupe
+              label="Mes secteurs"
+              couleur={miens[0]!.zone.couleur}
+              ids={miens.map((s) => s.zone.id)}
+              total={miens.reduce((n, s) => n + s.groupes.length, 0)}
               retires={retires}
-              onBasculer={basculer}
-              titulaire={titulaire}
+              onBasculer={basculerGroupe}
             />
           ) : null}
           {autres.length > 0 ? (
-            <PastillesSecteurs
-              titre="Sur le secteur de l’agence"
-              secteurs={autres}
+            <PastilleGroupe
+              label="Les secteurs de toute l’agence"
+              couleur={autres[0]!.zone.couleur}
+              ids={autres.map((s) => s.zone.id)}
+              total={autres.reduce((n, s) => n + s.groupes.length, 0)}
               retires={retires}
-              onBasculer={basculer}
-              titulaire={titulaire}
+              onBasculer={basculerGroupe}
             />
           ) : null}
         </div>
@@ -292,26 +301,42 @@ export default function AnnoncesListe({
             </Link>
           </div>
         ) : null}
-        {affiches.map((s) => (
-          <ListeSecteur
-            key={s.zone.id}
-            secteur={s}
-            titulaire={titulaire(s)}
+        {affiches.mien ? (
+          <ListeGroupe
+            titre="Mes secteurs"
+            couleur={affiches.mien.couleur}
+            mien
+            groupes={affiches.mien.groupes}
             vide={
               enBaisse
-                ? 'Aucune annonce en baisse dans ce secteur pour l’instant.'
-                : 'Aucune annonce de particulier dans ce secteur pour l’instant. Le relevé passe chaque nuit.'
+                ? 'Aucune annonce en baisse dans mes secteurs pour l’instant.'
+                : 'Aucune annonce de particulier dans mes secteurs pour l’instant. Le relevé passe chaque nuit.'
             }
             ouverte={ouverte}
             onOuvrir={setOuverte}
           />
-        ))}
-        {recherche.trim() && affiches.length === 0 && secteurs.some((s) => !retires.has(s.zone.id)) ? (
+        ) : null}
+        {affiches.agence ? (
+          <ListeGroupe
+            titre="Les secteurs de toute l’agence"
+            couleur={affiches.agence.couleur}
+            mien={false}
+            groupes={affiches.agence.groupes}
+            vide={
+              enBaisse
+                ? 'Aucune annonce en baisse sur les secteurs de toute l’agence pour l’instant.'
+                : 'Aucune annonce de particulier sur les secteurs de toute l’agence pour l’instant. Le relevé passe chaque nuit.'
+            }
+            ouverte={ouverte}
+            onOuvrir={setOuverte}
+          />
+        ) : null}
+        {recherche.trim() && !affiches.mien && !affiches.agence && secteurs.some((s) => !retires.has(s.zone.id)) ? (
           <p className="px-4 py-5 text-[13px] leading-snug text-text-muted md:px-6">
             Aucune annonce ne correspond à cette recherche.
           </p>
         ) : null}
-        {secteurs.length > 0 && affiches.length === 0 && !recherche.trim() ? (
+        {secteurs.length > 0 && !affiches.mien && !affiches.agence && !recherche.trim() ? (
           <div className="flex flex-col items-start gap-3 px-4 py-5 md:px-6">
             <p className="text-[13px] leading-snug text-text-muted">Tous les secteurs sont retirés de la liste.</p>
             <button
@@ -352,78 +377,68 @@ export default function AnnoncesListe({
   );
 }
 
-/** Une pastille par secteur : allumée, il est dans la liste ; éteinte, il en est retiré. */
-function PastillesSecteurs({
-  titre,
-  secteurs,
+/** Une pastille par groupe : allumée, il est dans la liste ; éteinte, il en est retiré. */
+function PastilleGroupe({
+  label,
+  couleur,
+  ids,
+  total,
   retires,
   onBasculer,
-  titulaire,
 }: {
-  titre: string;
-  secteurs: readonly SecteurAProspecter[];
+  label: string;
+  couleur: string;
+  ids: readonly string[];
+  total: number;
   retires: ReadonlySet<string>;
-  onBasculer: (id: string) => void;
-  titulaire: (s: SecteurAProspecter) => string;
+  onBasculer: (ids: readonly string[]) => void;
 }) {
+  const affiche = ids.some((id) => !retires.has(id));
   return (
-    <div>
-      <p className="mb-1 px-0.5 text-[11.5px] font-medium text-text-subtle">{titre}</p>
-      <div role="group" aria-label={titre} className="flex flex-wrap gap-1.5">
-        {secteurs.map((s) => {
-          const affiche = !retires.has(s.zone.id);
-          return (
-            <button
-              key={s.zone.id}
-              type="button"
-              aria-pressed={affiche}
-              onClick={() => onBasculer(s.zone.id)}
-              title={`${s.zone.nom} · ${titulaire(s)} — ${affiche ? 'retirer de la liste' : 'remettre dans la liste'}`}
-              className={`${pastilleClass(affiche)} inline-flex min-w-0 max-w-full items-center gap-1.5 ${
-                affiche ? '' : 'bg-surface-2 line-through decoration-1'
-              }`}
-            >
-              <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: s.zone.couleur }} />
-              <span className="truncate">{s.zone.nom}</span>
-              {s.mien ? null : (
-                <span className={`truncate font-medium ${affiche ? 'text-white/75' : ''}`}>· {titulaire(s)}</span>
-              )}
-              <span className={`tabular-nums ${affiche ? 'text-white/75' : ''}`}>{s.groupes.length}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <button
+      type="button"
+      aria-pressed={affiche}
+      onClick={() => onBasculer(ids)}
+      title={`${label} — ${affiche ? 'retirer de la liste' : 'remettre dans la liste'}`}
+      className={`${pastilleClass(affiche)} inline-flex min-w-0 max-w-full items-center gap-1.5 ${
+        affiche ? '' : 'bg-surface-2 line-through decoration-1'
+      }`}
+    >
+      <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: couleur }} />
+      <span className="truncate">{label}</span>
+      <span className={`tabular-nums ${affiche ? 'text-white/75' : ''}`}>{total}</span>
+    </button>
   );
 }
 
-function ListeSecteur({
-  secteur,
-  titulaire,
+function ListeGroupe({
+  titre,
+  couleur,
+  mien,
+  groupes,
   vide,
   ouverte,
   onOuvrir,
 }: {
-  secteur: SecteurAProspecter;
-  titulaire: string;
+  titre: string;
+  couleur: string;
+  mien: boolean;
+  groupes: readonly GroupeAnnonce[];
   vide: string;
   ouverte: string | null;
   onOuvrir: (id: string) => void;
 }) {
-  const { zone, groupes, mien } = secteur;
   const verifiees = groupes.filter((g) => adresseVerifiee(g.principale));
   const aConfirmer = groupes.filter((g) => !adresseVerifiee(g.principale));
   return (
     <section className="border-t border-black/[0.06] first:border-t-0">
       <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-6">
         <h2 className="flex min-w-0 items-center gap-2 text-[14px] font-semibold text-text-strong">
-          <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: zone.couleur }} />
-          <span className="truncate">{zone.nom}</span>
+          <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: couleur }} />
+          <span className="truncate">{titre}</span>
           {mien ? (
             <UserRound size={14} strokeWidth={2.2} aria-label="à moi" className="shrink-0 text-accent-dark" />
-          ) : (
-            <span className="truncate text-[12.5px] font-medium text-text-muted">· {titulaire}</span>
-          )}
+          ) : null}
         </h2>
         <span className="shrink-0 text-[12px] font-medium tabular-nums text-text-muted">{groupes.length}</span>
       </div>

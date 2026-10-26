@@ -39,7 +39,6 @@ import type { ItineraireStop } from '@/lib/today/directions';
 import type { CadastreImmeublePoint, ParcelleNoteMarker, ParcellePickExtra } from '@/lib/carte/parcelle';
 import { DEFAULT_MAP_LAYERS, type MapLayerState } from '@/lib/carte/layers';
 import type { DevicePosition } from '@/lib/voice/gps';
-import ZonesOverlay from '@/components/dashboard/carte/ZonesOverlay';
 import SecteurMasqueLayer from '@/components/dashboard/carte/SecteurMasqueLayer';
 import SecteursParcellesCalque, {
   ATELIER_LIBRE_LAYER_ID,
@@ -211,6 +210,7 @@ export default function MobileMapCanvas({
     /** Bouton « Secteur » en haut : les annonces se limitent à ce périmètre. */
     zoneCadree?: Zone | null;
     zonesCadrees?: readonly Zone[] | null;
+    toutLeCodePostal?: boolean;
     directeur: boolean;
     profileId: string;
     onChoisir: (annonce: Annonce, soeurs: Annonce[]) => void;
@@ -658,6 +658,7 @@ export default function MobileMapCanvas({
             zones={annoncesCouche.zones}
             zoneCadree={annoncesCouche.zoneCadree}
             zonesCadrees={annoncesCouche.zonesCadrees}
+            toutLeCodePostal={annoncesCouche.toutLeCodePostal}
             directeur={annoncesCouche.directeur}
             profileId={annoncesCouche.profileId}
             onChoisir={annoncesCouche.onChoisir}
@@ -677,7 +678,6 @@ export default function MobileMapCanvas({
         {navigation ? null : (
           <>
             <SecteurMasqueLayer zones={dessin ? [] : (clipZones ?? [])} />
-            <ZonesOverlay zones={dessin ? [] : zones} highlightedZoneId={highlightedZoneId} />
           </>
         )}
         {itineraryStops && (itineraryStops.length >= 2 || (itineraryStops.length > 0 && itineraryGeometry)) ? (
