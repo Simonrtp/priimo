@@ -63,6 +63,8 @@ export type BanSearchOptions = {
   limit?: number;
   postcode?: string;
   autocomplete?: boolean;
+  /** `street` pour une rue entière, sans les numéros. */
+  type?: 'housenumber' | 'street' | 'locality' | 'municipality';
   /** Favorise les adresses proches (l'agence) : « rue de la Paix » d'abord chez soi. */
   proche?: { latitude: number; longitude: number } | null;
   /** Annule la requête (ex. nouvelle saisie). Sinon timeout interne. */
@@ -84,6 +86,7 @@ export async function searchBanDirect(
   });
   const postcode = options.postcode?.trim();
   if (postcode && /^\d{5}$/.test(postcode)) params.set('postcode', postcode);
+  if (options.type) params.set('type', options.type);
   if (options.proche) {
     params.set('lat', options.proche.latitude.toFixed(5));
     params.set('lon', options.proche.longitude.toFixed(5));

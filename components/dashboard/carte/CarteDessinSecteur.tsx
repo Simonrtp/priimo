@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { MapPin } from 'lucide-react';
 import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 import { notifyError } from '@/lib/notify';
 import { useUser } from '@/lib/hooks/useUser';
-import type { VoieTrouvee } from '@/lib/geo/ban-voie';
+import { lireVoies, type VoieTrouvee } from '@/lib/geo/ban-voie';
 import { pointDansPolygone } from '@/lib/zones/appartenance';
 import { couleurZoneLibre } from '@/lib/zones/palette';
 import { COULEURS_MEMBRES } from '@/lib/zones/couleurs-membres';
@@ -485,32 +487,82 @@ function Rue({
   occupe: boolean;
   onChoisir: (voie: VoieTrouvee, parite: PariteVoie) => void;
 }) {
+  const listeId = useId();
+  const champRef = useRef<HTMLDivElement>(null);
+  const centreRef = useRef(centre);
+  centreRef.current = centre;
   const [saisie, setSaisie] = useState('');
   const [voies, setVoies] = useState<VoieTrouvee[]>([]);
   const [voie, setVoie] = useState<VoieTrouvee | null>(null);
+  const [recherche, setRecherche] = useState(false);
+  const [ouvert, setOuvert] = useState(false);
+  const [actif, setActif] = useState(0);
+  const [boite, setBoite] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     const q = saisie.trim();
-    if (voie || q.length < 3) return;
+    if (voie || q.length < 3) {
+      setVoies([]);
+      setRecherche(false);
+      setOuvert(false);
+      return;
+    }
     const abandon = new AbortController();
+    setRecherche(true);
+    setOuvert(true);
+    setActif(0);
     const minuterie = window.setTimeout(() => {
-      const params = new URLSearchParams({ q });
-      if (centre.latitude != null && centre.longitude != null) {
-        params.set('lat', String(centre.latitude));
-        params.set('lon', String(centre.longitude));
+      const params = new URLSearchParams({ q, type: 'street', limit: '6' });
+      const ici = centreRef.current;
+      if (ici.latitude != null && ici.longitude != null) {
+        params.set('lat', String(ici.latitude));
+        params.set('lon', String(ici.longitude));
       }
-      fetch(`/api/dashboard/zones/voies?${params.toString()}`, { signal: abandon.signal })
-        .then((res) => (res.ok ? (res.json() as Promise<{ voies?: VoieTrouvee[] }>) : { voies: [] }))
-        .then((data) => setVoies(data.voies ?? []))
-        .catch(() => undefined);
-    }, 220);
+      fetch(`/api/ban/search?${params.toString()}`, { signal: abandon.signal })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (abandon.signal.aborted) return;
+          setVoies(lireVoies(data));
+        })
+        .catch(() => {
+          if (!abandon.signal.aborted) setVoies([]);
+        })
+        .finally(() => {
+          if (!abandon.signal.aborted) setRecherche(false);
+        });
+    }, 180);
     return () => {
       window.clearTimeout(minuterie);
       abandon.abort();
     };
-  }, [saisie, voie, centre.latitude, centre.longitude]);
+  }, [saisie, voie]);
 
-  const visibles = !voie && saisie.trim().length >= 3 ? voies : [];
+  useLayoutEffect(() => {
+    if (!ouvert) return;
+    function placer() {
+      const el = champRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const haut = 240;
+      const dessous = window.innerHeight - r.bottom;
+      const top = dessous < haut && r.top > haut ? r.top - 6 - haut : r.bottom + 6;
+      setBoite({ top, left: r.left, width: r.width });
+    }
+    placer();
+    window.addEventListener('resize', placer);
+    window.addEventListener('scroll', placer, true);
+    return () => {
+      window.removeEventListener('resize', placer);
+      window.removeEventListener('scroll', placer, true);
+    };
+  }, [ouvert, voies.length, recherche, saisie]);
+
+  function choisirVoie(v: VoieTrouvee) {
+    setVoie(v);
+    setSaisie('');
+    setVoies([]);
+    setOuvert(false);
+  }
 
   function choisirCote(parite: PariteVoie) {
     if (!voie || occupe) return;
@@ -520,6 +572,52 @@ function Rue({
     setVoies([]);
   }
 
+  const liste =
+    ouvert && boite && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            id={listeId}
+            role="listbox"
+            aria-label="Rues"
+            style={{ top: boite.top, left: boite.left, width: boite.width }}
+            className="fixed z-[420] max-h-60 overflow-y-auto rounded-2xl border border-black/[0.06] bg-white p-1.5 shadow-clay-lg"
+          >
+            {voies.length === 0 ? (
+              <p className="px-3 py-2.5 text-[13px] text-text-muted" role="status">
+                {recherche ? 'Recherche…' : `Aucune rue pour « ${saisie.trim()} ».`}
+              </p>
+            ) : (
+              <ul className="flex flex-col">
+                {voies.map((v, i) => (
+                  <li key={v.id} id={`${listeId}-${i}`} role="option" aria-selected={actif === i}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseMove={() => setActif(i)}
+                      onClick={() => choisirVoie(v)}
+                      className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2 text-left ${
+                        actif === i ? 'bg-[#EEF1F8]' : ''
+                      }`}
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[#F4F6FB] text-[#1A2A56]">
+                        <MapPin size={15} strokeWidth={2} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13.5px] font-medium text-[#1A2A56]">{v.nom}</span>
+                        <span className="mt-px block truncate text-[12px] text-text-muted">
+                          {v.codePostal} {v.commune}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <div className="mt-4">
       <p className="mb-1.5 text-[12px] font-medium text-text-muted">Ou toute une rue</p>
@@ -527,41 +625,57 @@ function Rue({
         <button
           type="button"
           onClick={() => setVoie(null)}
-          className="block w-full truncate text-left text-[13.5px] font-medium text-[#1A2A56]"
+          className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-left"
         >
-          {voie.nom}
-          <span className="ml-1.5 font-normal text-text-muted">{voie.codePostal}</span>
+          <MapPin size={15} strokeWidth={2} aria-hidden className="shrink-0 text-[#1A2A56]" />
+          <span className="min-w-0 truncate text-[13.5px] font-medium text-[#1A2A56]">
+            {voie.nom}
+            <span className="ml-1.5 font-normal text-text-muted">
+              {voie.codePostal} {voie.commune}
+            </span>
+          </span>
         </button>
       ) : (
-        <input
-          value={saisie}
-          onChange={(e) => setSaisie(e.target.value)}
-          aria-label="Rue"
-          placeholder="Nom de la rue"
-          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-[13.5px] text-[#1A2A56] outline-none placeholder:text-text-muted/70 focus:border-[#1A2A56]"
-        />
+        <div ref={champRef} className="relative">
+          <MapPin
+            size={15}
+            strokeWidth={2}
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#1A2A56]"
+          />
+          <input
+            value={saisie}
+            onChange={(e) => setSaisie(e.target.value)}
+            onFocus={() => {
+              if (saisie.trim().length >= 3) setOuvert(true);
+            }}
+            onKeyDown={(e) => {
+              if (!ouvert) return;
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActif((i) => Math.min(i + 1, Math.max(voies.length - 1, 0)));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActif((i) => Math.max(i - 1, 0));
+              } else if (e.key === 'Enter' && voies[actif]) {
+                e.preventDefault();
+                choisirVoie(voies[actif]);
+              } else if (e.key === 'Escape') {
+                setOuvert(false);
+              }
+            }}
+            aria-label="Rue"
+            aria-expanded={ouvert}
+            aria-controls={listeId}
+            aria-autocomplete="list"
+            role="combobox"
+            autoComplete="off"
+            placeholder="Nom de la rue"
+            className="w-full rounded-xl border border-black/10 bg-white py-2 pl-9 pr-3 text-[13.5px] text-[#1A2A56] outline-none placeholder:text-text-muted/70 focus:border-[#1A2A56]"
+          />
+        </div>
       )}
-      {visibles.length > 0 ? (
-        <ul role="listbox" aria-label="Rues" className="mt-1.5 flex max-h-36 flex-col overflow-y-auto rounded-xl bg-white p-1">
-          {visibles.map((v) => (
-            <li key={v.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                onClick={() => {
-                  setVoie(v);
-                  setSaisie('');
-                }}
-                className="flex w-full items-baseline gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-[#1A2A56] hover:bg-black/[0.04]"
-              >
-                <span className="min-w-0 truncate font-medium">{v.nom}</span>
-                <span className="shrink-0 text-[12px] text-text-muted">{v.codePostal}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {liste}
       <div role="group" aria-label="Côté de la rue" className={`${PASTILLE_TRACK} mt-2 w-full`}>
         {COTES.map((cote) => (
           <button
