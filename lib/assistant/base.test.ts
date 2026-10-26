@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AssistantSource, CollecteLigne } from './collecte';
-import { ligneCompacte, sourcesCitees, texteBase } from './base';
+import {
+  ajusterPourCriteres,
+  criteresDits,
+  enteteLecture,
+  ligneCompacte,
+  piecesDans,
+  sourcesCitees,
+  texteBase,
+  texteSansMarkdown,
+} from './base';
 
 function ligne(kind: CollecteLigne['kind'], id: string, faits: Record<string, unknown>): CollecteLigne {
   return { kind, id, date: null, auteur: null, faits };
@@ -34,6 +43,66 @@ describe('base — lignes compactes', () => {
     assert.ok(out.lues > 0 && out.lues < 50);
     assert.equal(out.omises, 50 - out.lues);
     assert.match(out.texte, /fiches plus anciennes non lues/);
+  });
+});
+
+describe('base — critères dits', () => {
+  it('lit budget, pièces et surface dans une question dictée', () => {
+    assert.deepEqual(criteresDits('Qui cherche un trois pièces avec 450 000 euros ?'), {
+      budget: 450_000,
+      pieces: 3,
+      surface: null,
+    });
+    assert.deepEqual(criteresDits('Un T2 de 45 m² à 300k'), { budget: 300_000, pieces: 2, surface: 45 });
+    assert.equal(criteresDits('budget 1,2 million').budget, 1_200_000);
+    assert.equal(criteresDits('avec 450 000').budget, 450_000);
+  });
+
+  it('un code postal n’est pas un budget', () => {
+    assert.deepEqual(criteresDits('Qui sont mes acquéreurs dans le 75011 ?'), {
+      budget: null,
+      pieces: null,
+      surface: null,
+    });
+  });
+
+  it('trouve toutes les pièces écrites dans un résumé', () => {
+    assert.deepEqual(piecesDans('Cherche un 2 pièces ou un trois pièces, voire un T4').sort(), [2, 3, 4]);
+    assert.deepEqual(piecesDans('Un studio meublé'), [1]);
+  });
+
+  it('écarte les acquéreurs qui ne collent pas, garde ceux à vérifier en dernier', () => {
+    const lignes = [
+      ligne('contact', 'trop-court', { nom: 'A', type: 'acquereur', budget_max: 300_000, resume: 'un 3 pièces' }),
+      ligne('contact', 'pas-de-budget', { nom: 'B', type: 'acquereur', resume: 'un 3 pièces' }),
+      ligne('contact', 'ok', { nom: 'C', type: 'vendeur', autres_roles: ['acquereur'], budget_max: 430_000, resume: 'Cherche un 3 pièces' }),
+      ligne('contact', 'deux-pieces', { nom: 'D', type: 'acquereur', budget_max: 500_000, resume: 'un 2 pièces' }),
+      ligne('contact', 'vendeur', { nom: 'E', type: 'vendeur' }),
+      ligne('bien', 'b1', { adresse: '12 rue Vitruve' }),
+    ];
+    const criteres = criteresDits('un trois pièces avec 450 000 €');
+    const out = ajusterPourCriteres(lignes, criteres);
+    assert.deepEqual(
+      out.map((l) => l.id),
+      ['ok', 'pas-de-budget', 'vendeur', 'b1'],
+    );
+    assert.equal(out[0]?.faits.correspond, 'oui');
+    assert.match(String(out[1]?.faits.correspond), /à vérifier \(budget/);
+    assert.match(enteteLecture(out, criteres), /dont 2 acquéreurs/);
+  });
+
+  it('sans critère chiffré, rien ne bouge', () => {
+    const lignes = [ligne('contact', 'c1', { nom: 'A', type: 'acquereur' })];
+    assert.deepEqual(ajusterPourCriteres(lignes, criteresDits('Qui sont mes acquéreurs ?')), lignes);
+  });
+});
+
+describe('base — texte brut', () => {
+  it('retire le gras, l’italique et les titres glissés par le modèle', () => {
+    assert.equal(
+      texteSansMarkdown('## Résultat\n**3 acquéreurs** :\n* Karim *06 12*'),
+      'Résultat\n3 acquéreurs :\n— Karim 06 12',
+    );
   });
 });
 

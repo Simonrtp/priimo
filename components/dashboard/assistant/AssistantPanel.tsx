@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ArrowUp, Mic, PenLine, Search, Trash2, X } from 'lucide-react';
+import { texteSansMarkdown } from '@/lib/assistant/base';
 import type { AssistantSource, SourceKind } from '@/lib/assistant/collecte';
 import { useUser } from '@/lib/hooks/useUser';
 import { LIGNES_AVANT_RENVOI } from '@/lib/assistant/liste-ecran';
@@ -205,7 +206,7 @@ function Bulle({ message, onNavigate }: { message: ChatMessage; onNavigate: () =
           className="text-pretty whitespace-pre-wrap text-[13.5px] text-text"
           style={{ lineHeight: 1.6 }}
         >
-          {message.contenu}
+          {texteSansMarkdown(message.contenu)}
         </p>
       ) : (
         <PointsDeFrappe />

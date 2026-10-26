@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, Search } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
+import Pastilles, { PASTILLE_TRACK } from '@/components/ui/Pastilles';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import NoteEntitySearch, { type NoteLinkPick } from '@/components/dashboard/notes/NoteEntitySearch';
 import { useUser } from '@/lib/hooks/useUser';
@@ -363,20 +363,15 @@ export default function NotesLectureCard({
                     className="w-full rounded-clay border border-black/[0.08] bg-surface py-2.5 pl-9 pr-3 text-[14px] text-text-strong outline-none placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
                   />
                 </label>
-                <div role="tablist" aria-label="Quelles notes" className={`${PASTILLE_TRACK} w-full`}>
-                  {PORTEES.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={portee === p.id}
-                      onClick={() => setPortee(p.id)}
-                      className={`${pastilleClass(portee === p.id)} min-w-0 flex-1 text-center`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
+                <Pastilles
+                  role="tablist"
+                  label="Quelles notes"
+                  value={portee}
+                  options={PORTEES}
+                  onChange={setPortee}
+                  className={`${PASTILLE_TRACK} w-full`}
+                  buttonClassName="min-w-0 flex-1 text-center"
+                />
               </div>
               {mois.notes > 0 ? (
                 <p className="rounded-xl bg-primary-50 px-3 py-2 text-[12.5px] font-medium text-primary-700">
@@ -385,7 +380,7 @@ export default function NotesLectureCard({
                 </p>
               ) : null}
               {rien ? (
-                <p className="text-pretty py-6 text-[13.5px] font-medium text-text-strong">
+                <p key={portee} className="carte-entree text-pretty py-6 text-[13.5px] font-medium text-text-strong">
                   {cherche
                     ? 'Aucune note ne correspond à cette recherche.'
                     : portee === 'miennes'
@@ -393,7 +388,7 @@ export default function NotesLectureCard({
                       : 'Aucune note publique de l’équipe pour l’instant.'}
                 </p>
               ) : (
-                <>
+                <div key={portee} className="carte-entree flex flex-col gap-4">
                   {montrerMiennes && miennes.length > 0 ? (
                     <section>
                       {portee === 'toutes' && groupes.length > 0 ? (
@@ -434,7 +429,7 @@ export default function NotesLectureCard({
                       ))}
                     </section>
                   ) : null}
-                </>
+                </div>
               )}
             </div>
           )}

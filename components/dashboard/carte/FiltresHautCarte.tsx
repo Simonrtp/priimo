@@ -1,7 +1,8 @@
 'use client';
 
 import { Plus, UserRound } from 'lucide-react';
-import { pastilleClass } from '@/components/ui/pastille-classes';
+import { pastilleGlissanteClass } from '@/components/ui/pastille-classes';
+import { PistePastilles } from '@/components/ui/Pastilles';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { ZONE_TOUS_SECTEURS } from '@/lib/carte/emprise';
@@ -36,9 +37,10 @@ function PastilleZone({
     <button
       type="button"
       aria-pressed={actif}
+      data-pastille-active={actif || undefined}
       onClick={onClick}
       title={`${zone.nom} · ${proprietaire}`}
-      className={`${pastilleClass(actif)} inline-flex min-w-0 max-w-full items-center gap-1.5`}
+      className={`${pastilleGlissanteClass(actif)} inline-flex min-w-0 max-w-full items-center gap-1.5`}
     >
       <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: zone.couleur }} />
       <span className="truncate">{zone.nom}</span>
@@ -99,8 +101,9 @@ export function ChoixSecteurs({
     <button
       type="button"
       aria-pressed={zoneId === ZONE_TOUS_SECTEURS}
+      data-pastille-active={zoneId === ZONE_TOUS_SECTEURS || undefined}
       onClick={() => onZone(ZONE_TOUS_SECTEURS)}
-      className={`${pastilleClass(zoneId === ZONE_TOUS_SECTEURS)} min-w-0`}
+      className={`${pastilleGlissanteClass(zoneId === ZONE_TOUS_SECTEURS)} min-w-0`}
     >
       Tous
     </button>
@@ -121,7 +124,7 @@ export function ChoixSecteurs({
     <button
       type="button"
       onClick={onCreer}
-      className={`${pastilleClass(false)} inline-flex min-w-0 items-center gap-1.5`}
+      className={`${pastilleGlissanteClass(false)} inline-flex min-w-0 items-center gap-1.5`}
     >
       <Plus size={13} strokeWidth={2.2} aria-hidden />
       Nouveau secteur
@@ -131,11 +134,11 @@ export function ChoixSecteurs({
   if (!deuxGroupes) {
     return (
       <li>
-        <div role="group" aria-label="Secteur" className={`${CARTE_SECTEURS} mb-1.5`}>
+        <PistePastilles role="group" label="Secteur" className={`${CARTE_SECTEURS} mb-1.5`}>
           {boutonTous}
           {zones.map(pastille)}
           {boutonCreer}
-        </div>
+        </PistePastilles>
       </li>
     );
   }
@@ -144,17 +147,21 @@ export function ChoixSecteurs({
     <li className="mb-1.5 flex flex-col gap-2.5">
       <div>
         <Titre>{miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'}</Titre>
-        <div role="group" aria-label={miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'} className={PISTE_MIENNE}>
+        <PistePastilles
+          role="group"
+          label={miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'}
+          className={PISTE_MIENNE}
+        >
           {miennes.map(pastille)}
           {boutonCreer}
-        </div>
+        </PistePastilles>
       </div>
       <div>
         <Titre>Secteurs de l’agence</Titre>
-        <div role="group" aria-label="Secteurs de l’agence" className={CARTE_SECTEURS}>
+        <PistePastilles role="group" label="Secteurs de l’agence" className={CARTE_SECTEURS}>
           {boutonTous}
           {agence.map(pastille)}
-        </div>
+        </PistePastilles>
       </div>
     </li>
   );

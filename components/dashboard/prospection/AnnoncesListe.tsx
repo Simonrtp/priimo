@@ -193,7 +193,7 @@ export default function AnnoncesListe({
         />
       </div>
 
-      <div className="overflow-hidden rounded-clay-lg bg-white shadow-clay">
+      <div key={`${portee}:${enBaisse}:${tri}`} className="carte-entree overflow-hidden rounded-clay-lg bg-white shadow-clay">
         {portee === 'mien' && miens.length === 0 && !directeur ? (
           <div className="flex flex-col items-start gap-3 px-4 py-5 md:px-6">
             <p className="text-[13px] leading-snug text-text-muted">

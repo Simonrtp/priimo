@@ -475,7 +475,7 @@ export default function ProspectsClient({
       ) : null}
 
       {pipeline ? (
-        <>
+        <div key="pipeline" className="carte-entree flex min-h-0 flex-1 flex-col">
           <div className="mb-3 mt-1 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
             <AjouterBien
               onAjoute={(lead) => {
@@ -500,20 +500,22 @@ export default function ProspectsClient({
               onStagesChange={setStageList}
             />
           </div>
-        </>
+        </div>
       ) : null}
 
       {vue === 'liste' && !listeDeLeads ? (
         annoncesListe ? (
-          <AnnoncesListe
-            annonces={annoncesListe.annonces}
-            zones={zones}
-            profileId={annoncesListe.profileId}
-            directeur={isDirector}
-            initialAnnonceId={annoncesListe.annonceId}
-          />
+          <div key="liste-annonces" className="carte-entree">
+            <AnnoncesListe
+              annonces={annoncesListe.annonces}
+              zones={zones}
+              profileId={annoncesListe.profileId}
+              directeur={isDirector}
+              initialAnnonceId={annoncesListe.annonceId}
+            />
+          </div>
         ) : (
-          <div aria-busy className="overflow-hidden rounded-clay-lg bg-white shadow-clay">
+          <div aria-busy className="carte-entree overflow-hidden rounded-clay-lg bg-white shadow-clay">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4 border-t border-black/[0.05] px-6 py-3.5 first:border-t-0">
                 <span className="size-28 shrink-0 animate-pulse rounded-[28px] bg-black/[0.05]" />

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, MapPin } from 'lucide-react';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
+import { PASTILLE_TRACK, pastilleClass, pastilleGlissanteClass } from '@/components/ui/pastille-classes';
+import { PistePastilles } from '@/components/ui/Pastilles';
 import { notifyError, notifyInfo } from '@/lib/notify';
 import { useUser } from '@/lib/hooks/useUser';
 import { lireVoies, type VoieTrouvee } from '@/lib/geo/ban-voie';
@@ -496,45 +497,49 @@ function Panneau({
         </span>
       </div>
 
-      <div role="group" aria-label="Outil" className={`${PASTILLE_TRACK} mt-3 w-full`}>
+      <PistePastilles role="group" label="Outil" className={`${PASTILLE_TRACK} mt-3 w-full`}>
         <button
           type="button"
           aria-pressed={outil === 'entourer'}
+          data-pastille-active={outil === 'entourer' || undefined}
           onClick={() => onOutil('entourer')}
-          className={`${pastilleClass(outil === 'entourer')} min-w-0 flex-1`}
+          className={`${pastilleGlissanteClass(outil === 'entourer')} min-w-0 flex-1`}
         >
           Entourer
         </button>
         <button
           type="button"
           aria-pressed={outil === 'toucher'}
+          data-pastille-active={outil === 'toucher' || undefined}
           onClick={() => onOutil('toucher')}
-          className={`${pastilleClass(outil === 'toucher')} min-w-0 flex-1`}
+          className={`${pastilleGlissanteClass(outil === 'toucher')} min-w-0 flex-1`}
         >
           Une par une
         </button>
-      </div>
+      </PistePastilles>
 
       {outil === 'entourer' ? (
         <>
-          <div role="group" aria-label="Entourer pour" className={`${PASTILLE_TRACK} mt-2 w-full`}>
+          <PistePastilles role="group" label="Entourer pour" className={`${PASTILLE_TRACK} mt-2 w-full`}>
             <button
               type="button"
               aria-pressed={mode === 'ajouter'}
+              data-pastille-active={mode === 'ajouter' || undefined}
               onClick={() => onMode('ajouter')}
-              className={`${pastilleClass(mode === 'ajouter')} min-w-0 flex-1`}
+              className={`${pastilleGlissanteClass(mode === 'ajouter')} min-w-0 flex-1`}
             >
               Ajouter
             </button>
             <button
               type="button"
               aria-pressed={mode === 'retirer'}
+              data-pastille-active={mode === 'retirer' || undefined}
               onClick={() => onMode('retirer')}
-              className={`${pastilleClass(mode === 'retirer')} min-w-0 flex-1`}
+              className={`${pastilleGlissanteClass(mode === 'retirer')} min-w-0 flex-1`}
             >
               Retirer
             </button>
-          </div>
+          </PistePastilles>
           <p className="mt-2 text-[12.5px] leading-snug text-text-muted">
             {mode === 'ajouter'
               ? 'Entourez des immeubles sur la carte : leurs parcelles rejoignent le secteur.'

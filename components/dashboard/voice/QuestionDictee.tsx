@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowUp, Mic, NotebookPen, X } from 'lucide-react';
+import { texteSansMarkdown } from '@/lib/assistant/base';
 import type { AssistantSource } from '@/lib/assistant/collecte';
 import { lireFluxAssistant, REPONSE_IMPOSSIBLE } from '@/lib/assistant/flux';
 import type { VoirTout } from '@/lib/assistant/liste-ecran';
@@ -94,15 +95,12 @@ export default function QuestionDictee({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prete]);
 
-  const dernier = echanges[echanges.length - 1];
+  // Une nouvelle question se cale en haut de la feuille ; la réponse se lit
+  // depuis son début, sans que le texte qui arrive la fasse défiler.
   useEffect(() => {
-    filRef.current?.scrollTo({ top: filRef.current.scrollHeight, behavior: 'smooth' });
+    if (echanges.length < 2) return;
+    filRef.current?.lastElementChild?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [echanges.length]);
-  useEffect(() => {
-    const fil = filRef.current;
-    if (!fil) return;
-    if (fil.scrollHeight - fil.scrollTop - fil.clientHeight < 90) fil.scrollTop = fil.scrollHeight;
-  }, [dernier?.reponse, dernier?.sources.length]);
 
   const { listening, transcribing, toggle, voiceLabel } = useAssistantVoiceInput(
     (texte) => void demander(texte),
@@ -173,7 +171,7 @@ export default function QuestionDictee({
               <div className="mt-3">
                 {e.reponse ? (
                   <p className="whitespace-pre-wrap break-words text-pretty text-[14.5px] text-text" style={{ lineHeight: 1.6 }}>
-                    {e.reponse}
+                    {texteSansMarkdown(e.reponse)}
                   </p>
                 ) : (
                   <SignalIA actif>Je cherche dans votre base</SignalIA>

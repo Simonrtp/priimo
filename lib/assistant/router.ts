@@ -89,7 +89,12 @@ const LISTE_BASE = motif(
 
 function typeContactDit(q: string): AssistantIntent['filtres']['type_contact'] {
   if (/vend|propri[ée]taire/i.test(q)) return 'vendeur';
-  if (/acqu[ée]reur|ach[eè]te|cherche|budget/i.test(q)) return 'acquereur';
+  // « Accéder à un bien » : la dictée entend souvent « acquérir » ainsi.
+  if (/acqu[ée]r|acc[ée]der|achat|ach[eè]te|cherche|budget/i.test(q)) return 'acquereur';
+  // Un prix ou des pièces sans parler des biens : on parle de qui achète.
+  if (!/\bbiens?\b|mandats?/i.test(q) && /€|euros?\b|\d\s*k\b|pi[èe]ces|\b[tf][1-7]\b/i.test(q)) {
+    return 'acquereur';
+  }
   if (/locataire/i.test(q)) return 'locataire';
   return null;
 }

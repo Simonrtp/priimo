@@ -3,7 +3,8 @@
 import type { ReactNode } from 'react';
 import { LayoutList, Columns3, Map } from 'lucide-react';
 import type { ProspectionVue } from '@/lib/prospection/vue';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
+import { PASTILLE_TRACK, pastilleGlissanteClass } from '@/components/ui/pastille-classes';
+import { PistePastilles } from '@/components/ui/Pastilles';
 
 export type { ProspectionVue } from '@/lib/prospection/vue';
 export { parseProspectionVue, prospectionHref, carteVersProspectionHref } from '@/lib/prospection/vue';
@@ -43,7 +44,16 @@ export default function ProspectsViewSwitch({
   return (
     <div className={`${shellClass} items-center overflow-visible`}>
       {debut}
-      <div className="flex shrink-0" role="tablist" aria-label="Vue prospection">
+      <PistePastilles
+        role="tablist"
+        label="Vue prospection"
+        className="flex shrink-0"
+        curseurClassName={
+          bar
+            ? 'bg-surface shadow-clay-sm'
+            : 'bg-[#1A2A56] shadow-[0_6px_16px_-4px_rgba(26,42,86,0.45)]'
+        }
+      >
         {ITEMS.map(({ id, label, Icon }) => {
           const active = value === id;
           return (
@@ -52,22 +62,23 @@ export default function ProspectsViewSwitch({
               type="button"
               role="tab"
               aria-selected={active}
+              data-pastille-active={active || undefined}
               aria-label={label}
               title={label}
               data-prospection-vue={id}
               onClick={() => onChange(id)}
-              className={`inline-flex items-center justify-center font-semibold transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              className={`relative z-10 inline-flex items-center justify-center font-semibold transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                 bar
                   ? `size-9 rounded-full ${
-                      active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
+                      active ? 'text-text-strong' : 'text-text-muted hover:text-text'
                     }`
                   : floating
                     ? `gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[13px] ${
                         active
-                          ? 'bg-[#1A2A56] text-white'
+                          ? 'text-white'
                           : 'text-text-muted hover:bg-black/[0.04] hover:text-text'
                       }`
-                    : `gap-1 sm:gap-1.5 ${pastilleClass(active)}`
+                    : `gap-1 sm:gap-1.5 ${pastilleGlissanteClass(active)}`
               }`}
             >
               <Icon size={bar ? 16 : 14} strokeWidth={2.2} aria-hidden />
@@ -77,7 +88,7 @@ export default function ProspectsViewSwitch({
             </button>
           );
         })}
-      </div>
+      </PistePastilles>
     </div>
   );
 }

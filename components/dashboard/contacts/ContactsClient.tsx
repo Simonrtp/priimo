@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Download, Home, Phone, Search, Upload, Users } from 'lucide-react';
+import { ChevronDown, Download, Home, Phone, Search, SlidersHorizontal, Upload, Users } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
@@ -25,7 +25,6 @@ import type { MergeLinkCounts } from '@/lib/contacts/merge';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportContactsCsv } from '@/lib/import/export-contacts';
 import { formatPhoneDisplay, normalizePhone, telHref } from '@/lib/import/normalize';
-import Select from '@/components/ui/Select';
 import DatePickerField from '@/components/ui/DatePickerField';
 import { formatDatePickerLabel } from '@/lib/ui/date-picker';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -38,21 +37,59 @@ import ContactFormDialog from './ContactFormDialog';
 import { CocheConsentementTel } from './ConsentementRappelField';
 import MergeContactsDialog from './MergeContactsDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import PanneauAlerte from '@/components/ui/PanneauAlerte';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
+import Pastilles from '@/components/ui/Pastilles';
 
 const SLATE = '#1A2A56';
 const SELECTED = '#F1F2F4';
 
-/** Même pilule que la Liste, un cran plus large. */
-const FILTRE_PILULE =
-  'flex min-w-[9.5rem] items-center justify-between gap-1.5 rounded-full bg-black/[0.04] px-3.5 py-2 text-left text-[13.5px] font-medium text-text-strong outline-none transition-colors duration-fluid-subtle hover:bg-black/[0.07] focus-visible:ring-2 focus-visible:ring-accent/25';
-
 type EtatFilter = 'tous' | 'relance' | 'incompletes' | 'doublons';
 type PorteeContacts = 'moi' | 'agence';
+
+const ETATS_FILTRE: readonly { id: EtatFilter; label: string }[] = [
+  { id: 'tous', label: 'Tous' },
+  { id: 'relance', label: 'À relancer' },
+  { id: 'incompletes', label: 'Incomplètes' },
+  { id: 'doublons', label: 'Doublons' },
+];
+
+function pastilleFiltre(actif: boolean) {
+  return `rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-300 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
+    actif ? 'bg-[#1A2A56] text-white' : 'bg-black/[0.04] text-text-strong hover:bg-black/[0.07]'
+  }`;
+}
+
+function ChoixFiltre({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly { id: string; label: string }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[12px] font-medium text-text-muted">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            className={pastilleFiltre(value === opt.id)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const PORTEES_CONTACTS: readonly { id: PorteeContacts; label: string }[] = [
   { id: 'moi', label: 'Mes contacts' },
@@ -397,19 +434,38 @@ export default function ContactsClient({
     setLatest(latestInteractions);
   }, [latestInteractions]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setSelectedId(null);
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-
   const [portee, setPortee] = useState<PorteeContacts>('agence');
   const [typeFilter, setTypeFilter] = useState<ContactType | 'tous'>('tous');
   const [secteurFilter, setSecteurFilter] = useState('tous');
   const [memberFilter, setMemberFilter] = useState('tous');
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  const filtresRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      if (filtresOuverts) {
+        setFiltresOuverts(false);
+        return;
+      }
+      setSelectedId(null);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [filtresOuverts]);
+
+  useEffect(() => {
+    if (!filtresOuverts) return;
+    function onPointerDown(e: PointerEvent) {
+      const cible = e.target;
+      if (!(cible instanceof Node)) return;
+      if (filtresRef.current?.contains(cible)) return;
+      setFiltresOuverts(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [filtresOuverts]);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedContactId);
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(retourGoogle !== null);
@@ -490,6 +546,19 @@ export default function ContactsClient({
     latest,
   ]);
 
+  const filtresActifs =
+    (etatFilter !== 'tous' ? 1 : 0) +
+    (typeFilter !== 'tous' ? 1 : 0) +
+    (secteurFilter !== 'tous' ? 1 : 0) +
+    (isDirector && portee === 'agence' && memberFilter !== 'tous' ? 1 : 0);
+
+  function toutAfficher() {
+    setEtatFilter('tous');
+    setTypeFilter('tous');
+    setSecteurFilter('tous');
+    setMemberFilter('tous');
+  }
+
   function upsert(contact: Contact) {
     setContacts((list) => {
       const idx = list.findIndex((c) => c.id === contact.id);
@@ -558,21 +627,24 @@ export default function ContactsClient({
         title="Contacts"
         titleAside={
           isDirector ? (
-            <div role="tablist" aria-label="Contacts affichés" className={PASTILLE_TRACK}>
-              {PORTEES_CONTACTS.map((choix) => (
-                <button
-                  key={choix.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={portee === choix.id}
-                  onClick={() => setPortee(choix.id)}
-                  className={pastilleClass(portee === choix.id)}
-                >
-                  {choix.label}{' '}
-                  <span className="tabular-nums">({comptesPortee[choix.id]})</span>
-                </button>
-              ))}
-            </div>
+            <Pastilles
+              role="tablist"
+              label="Contacts affichés"
+              value={portee}
+              onChange={(next) => {
+                setPortee(next);
+                if (next === 'moi') setMemberFilter('tous');
+              }}
+              options={PORTEES_CONTACTS.map((choix) => ({
+                id: choix.id,
+                label: (
+                  <>
+                    {choix.label}{' '}
+                    <span className="tabular-nums">({comptesPortee[choix.id]})</span>
+                  </>
+                ),
+              }))}
+            />
           ) : null
         }
         subtitle={
@@ -639,68 +711,90 @@ export default function ContactsClient({
             className="w-full rounded-full border border-black/[0.10] bg-white py-2.5 pl-11 pr-4 text-[14px] font-medium text-text-strong shadow-clay-sm outline-none placeholder:font-medium placeholder:text-text-muted hover:border-black/[0.14] focus:border-accent/50 focus:ring-2 focus:ring-accent/15 sm:w-[22rem]"
           />
         </label>
-        <Select
-          id="contacts-etat"
-          value={etatFilter}
-          onChange={(v) => setEtatFilter(v as EtatFilter)}
-          options={[
-            { value: 'tous', label: 'Tous les états' },
-            { value: 'relance', label: 'À relancer' },
-            { value: 'incompletes', label: 'Fiches incomplètes' },
-            { value: 'doublons', label: 'Doublons possibles' },
-          ]}
-          aria-label="Filtrer par état"
-          menuMinWidth={200}
-          triggerClassName={FILTRE_PILULE}
-        />
-        <Select
-          id="contacts-type"
-          value={typeFilter}
-          onChange={(v) => setTypeFilter(v as ContactType | 'tous')}
-          options={[
-            { value: 'tous', label: 'Tous les types' },
-            ...CONTACT_TYPE_ORDER.map((t) => ({ value: t, label: CONTACT_TYPE_LABELS[t] })),
-          ]}
-          aria-label="Filtrer par type"
-          menuMinWidth={200}
-          triggerClassName={FILTRE_PILULE}
-        />
-        {isDirector && portee === 'agence' && members.length > 1 ? (
-          <Select
-            id="contacts-member"
-            value={memberFilter}
-            onChange={setMemberFilter}
-            options={[
-              { value: 'tous', label: 'Tous les membres' },
-              ...members.map((m) => ({
-                value: m.id,
-                label: m.id === currentUserId ? `${m.fullName} (moi)` : m.fullName,
-                avatar: assigneeSelectAvatar(m),
-              })),
-            ]}
-            aria-label="Filtrer par membre"
-            menuMinWidth={220}
-            triggerClassName={FILTRE_PILULE}
-          />
-        ) : null}
-        {secteurs.length > 0 ? (
-          <Select
-            id="contacts-secteur"
-            value={secteurFilter}
-            onChange={setSecteurFilter}
-            options={[
-              { value: 'tous', label: 'Tous les secteurs' },
-              ...secteurs.map((s) => ({ value: s, label: s })),
-            ]}
-            aria-label="Filtrer par secteur"
-            menuMinWidth={200}
-            triggerClassName={FILTRE_PILULE}
-          />
-        ) : null}
+        <div ref={filtresRef} className="relative">
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={filtresOuverts}
+            aria-controls="contacts-filtres"
+            onClick={() => setFiltresOuverts((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2.5 text-[13.5px] font-medium outline-none transition-colors duration-300 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
+              filtresActifs > 0 || filtresOuverts
+                ? 'bg-[#1A2A56] text-white'
+                : 'bg-black/[0.04] text-text-strong hover:bg-black/[0.07]'
+            }`}
+          >
+            <SlidersHorizontal size={15} strokeWidth={2} aria-hidden />
+            Filtres{filtresActifs > 0 ? ` (${filtresActifs})` : ''}
+          </button>
+          {filtresOuverts ? (
+            <div
+              id="contacts-filtres"
+              role="dialog"
+              aria-label="Filtres des contacts"
+              className="absolute left-0 top-[calc(100%+8px)] z-20 max-h-[min(70vh,28rem)] w-[min(calc(100vw-2rem),22rem)] overflow-y-auto overscroll-contain rounded-[24px] border border-black/[0.06] bg-white p-4 shadow-clay-sm sm:left-auto sm:right-0"
+            >
+              <div className="flex flex-col gap-4">
+                <ChoixFiltre
+                  label="À voir"
+                  options={ETATS_FILTRE}
+                  value={etatFilter}
+                  onChange={(id) => setEtatFilter(id as EtatFilter)}
+                />
+                <ChoixFiltre
+                  label="Type"
+                  options={[
+                    { id: 'tous', label: 'Tous' },
+                    ...CONTACT_TYPE_ORDER.map((t) => ({ id: t, label: CONTACT_TYPE_LABELS[t] })),
+                  ]}
+                  value={typeFilter}
+                  onChange={(id) => setTypeFilter(id as ContactType | 'tous')}
+                />
+                {isDirector && portee === 'agence' && members.length > 1 ? (
+                  <ChoixFiltre
+                    label="Membre"
+                    options={[
+                      { id: 'tous', label: 'Tous' },
+                      ...members.map((m) => ({
+                        id: m.id,
+                        label: m.id === currentUserId ? `${m.fullName} (moi)` : m.fullName,
+                      })),
+                    ]}
+                    value={memberFilter}
+                    onChange={setMemberFilter}
+                  />
+                ) : null}
+                {secteurs.length > 0 ? (
+                  <ChoixFiltre
+                    label="Secteur"
+                    options={[
+                      { id: 'tous', label: 'Tous' },
+                      ...secteurs.map((s) => ({ id: s, label: s })),
+                    ]}
+                    value={secteurFilter}
+                    onChange={setSecteurFilter}
+                  />
+                ) : null}
+                {filtresActifs > 0 ? (
+                  <button
+                    type="button"
+                    onClick={toutAfficher}
+                    className="self-start text-[13px] font-medium text-text-muted hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
+                  >
+                    Tout afficher
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {visible.length === 0 ? (
-        <WorkspaceCard className="py-12 text-center">
+        <WorkspaceCard
+          key={`${portee}:${etatFilter}:${typeFilter}:${memberFilter}:${secteurFilter}`}
+          className="carte-entree py-12 text-center"
+        >
           <p className="text-pretty text-[14px] text-text-muted sm:text-[15px]">
             {perimetre.length === 0
               ? portee === 'agence' && isDirector
@@ -710,7 +804,10 @@ export default function ContactsClient({
           </p>
         </WorkspaceCard>
       ) : (
-        <ul className="overflow-hidden rounded-[32px] border border-[#1A2A56]/12 bg-white shadow-clay-sm">
+        <ul
+          key={`${portee}:${etatFilter}:${typeFilter}:${memberFilter}:${secteurFilter}`}
+          className="carte-entree overflow-hidden rounded-[32px] border border-[#1A2A56]/12 bg-white shadow-clay-sm"
+        >
           {visible.map((contact) => (
             <ContactRow
               key={contact.id}

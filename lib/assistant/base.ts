@@ -25,7 +25,7 @@ export const BASE_SYSTEM_PROMPT = [
   'Tu peux filtrer, compter, comparer et croiser ces fiches.',
   "Tu ne cites aucune personne, adresse, téléphone ou chiffre absent des fiches. Si rien ne correspond, tu le dis en une phrase.",
   'Un contact peut avoir plusieurs rôles (champ autres_roles).',
-  'Pour un critère chiffré dit dans la question (budget, pièces, surface), passe les fiches en revue une à une. Un budget convient si budget_max est à 10 % près du montant dit, ou au-dessus. Le nombre de pièces cherché peut n’être écrit que dans le résumé (« un 3 pièces », « T3 »).',
+  'Les comptes donnés en tête des données sont exacts : reprends-les. Quand la question donne un budget, des pièces ou une surface, les acquéreurs restants y répondent déjà (champ correspond) : liste-les tous, « à vérifier » en dernier.',
   'Écris les noms tels qu’ils figurent dans les fiches, avec le téléphone quand il aide à agir.',
   'La question est souvent dictée dans la rue : un mot peut être mal transcrit. Retiens le sens le plus probable pour un agent immobilier (« accéder à un bien » veut dire acheter).',
   'Forme de la réponse : une première phrase qui donne le nombre de fiches qui répondent (par exemple « 13 acquéreurs : »), puis au plus dix lignes qui commencent par « — ». Au-delà de dix, les dix plus pertinents. Texte brut : jamais d’astérisque, de dièse, de tableau ni de remarque entre parenthèses à la fin.',
@@ -62,6 +62,7 @@ const ORDRE_CHAMPS = [
   'statut_mandat',
   'budget_min',
   'budget_max',
+  'correspond',
   'pieces_min',
   'surface_min',
   'surface_max',
@@ -95,7 +96,154 @@ export function texteSansMarkdown(texte: string): string {
   return texte
     .replace(/\*\*|__/g, '')
     .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^\s*[*•]\s+/gm, '— ');
+    .replace(/^\s*[*•]\s+/gm, '— ')
+    .replace(/\*/g, '');
+}
+
+/* -------------------------------------------------------------------------- */
+/* Critères chiffrés : tranchés par le code, pas par le modèle                 */
+/* -------------------------------------------------------------------------- */
+
+export type CriteresDits = { budget: number | null; pieces: number | null; surface: number | null };
+
+const NOMBRES: Record<string, number> = {
+  un: 1,
+  une: 1,
+  deux: 2,
+  trois: 3,
+  quatre: 4,
+  cinq: 5,
+  six: 6,
+  sept: 7,
+};
+
+function entier(brut: string): number {
+  return Number(brut.replace(/[\s.  ]/g, ''));
+}
+
+/** « 450 000 euros », « 450k », « 1,2 million », « budget de 380000 ». */
+function budgetDit(q: string): number | null {
+  const million = /(\d+(?:[.,]\d+)?)\s*millions?/.exec(q);
+  if (million) return Math.round(parseFloat(million[1]!.replace(',', '.')) * 1_000_000);
+  const kilo = /(?<![\d.,])(\d{2,4})\s*k(?:€|\b)/.exec(q);
+  if (kilo) return entier(kilo[1]!) * 1000;
+  const euros = /(\d{1,3}(?:[\s.  ]\d{3})+|\d{5,7})\s*(?:€|euros?)/.exec(q);
+  if (euros) return entier(euros[1]!);
+  // Un montant groupé par milliers sans unité (« avec 450 000 ») ; un code
+  // postal (cinq chiffres collés) n'en est pas un.
+  const groupe = /(?<![\d])(\d{1,3}(?:[\s  ]\d{3})+)(?![\d])/.exec(q);
+  if (groupe) return entier(groupe[1]!);
+  const nu = /(?<![\d])(\d{6,7})(?![\d])/.exec(q);
+  return nu ? entier(nu[1]!) : null;
+}
+
+/** Tous les nombres de pièces écrits : « un 2 pièces ou un 3 pièces », « T3 », « studio ». */
+export function piecesDans(texte: string): number[] {
+  const q = texte.toLocaleLowerCase('fr');
+  const out = new Set<number>();
+  for (const m of q.matchAll(/(\d|un|une|deux|trois|quatre|cinq|six|sept)\s*pi[eè]ces?/g)) {
+    const n = /\d/.test(m[1]!) ? Number(m[1]) : NOMBRES[m[1]!];
+    if (n) out.add(n);
+  }
+  for (const m of q.matchAll(/(?<![\p{L}\d])[tf]\s?([1-7])(?![\p{L}\d])/gu)) out.add(Number(m[1]));
+  if (/\bstudios?\b/.test(q)) out.add(1);
+  return [...out];
+}
+
+export function criteresDits(question: string): CriteresDits {
+  const q = question.toLocaleLowerCase('fr');
+  const budget = budgetDit(q);
+  const surface = /(\d{2,3})\s*(?:m2|m²|mètres? carrés?)/.exec(q);
+  return {
+    budget: budget && budget >= 20_000 ? budget : null,
+    pieces: piecesDans(q)[0] ?? null,
+    surface: surface ? Number(surface[1]) : null,
+  };
+}
+
+function nombreOuNull(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+function euros(n: number): string {
+  return `${new Intl.NumberFormat('fr-FR').format(n)} €`;
+}
+
+function estAcquereur(l: CollecteLigne): boolean {
+  if (l.kind !== 'contact') return false;
+  const roles = Array.isArray(l.faits.autres_roles) ? (l.faits.autres_roles as string[]) : [];
+  return l.faits.type === 'acquereur' || roles.includes('acquereur');
+}
+
+/**
+ * Une question chiffrée (« un 3 pièces avec 450 000 € ») : les acquéreurs
+ * qui n'y répondent pas sont écartés, les autres annotés `correspond` — oui,
+ * ou à vérifier quand la fiche ne dit rien du critère. Les petits modèles
+ * se trompent sur ces comparaisons ; le code, non.
+ */
+export function ajusterPourCriteres(lignes: readonly CollecteLigne[], c: CriteresDits): CollecteLigne[] {
+  if (c.budget === null && c.pieces === null && c.surface === null) return [...lignes];
+  const retenues: CollecteLigne[] = [];
+  const autres: CollecteLigne[] = [];
+  for (const l of lignes) {
+    if (!estAcquereur(l)) {
+      autres.push(l);
+      continue;
+    }
+    const manques: string[] = [];
+    let ecartee = false;
+    if (c.budget !== null) {
+      const b = nombreOuNull(l.faits.budget_max);
+      if (b === null) manques.push('budget');
+      else if (b < c.budget * 0.9) ecartee = true;
+    }
+    if (c.pieces !== null) {
+      const min = nombreOuNull(l.faits.pieces_min);
+      const dites = piecesDans(`${l.faits.resume ?? ''} ${l.faits.secteur ?? ''}`);
+      if (min !== null) ecartee ||= min > c.pieces;
+      else if (dites.length > 0) ecartee ||= !dites.includes(c.pieces);
+      else manques.push('pièces');
+    }
+    if (c.surface !== null) {
+      const s = nombreOuNull(l.faits.surface_min);
+      if (s === null) manques.push('surface');
+      else if (s > c.surface * 1.1) ecartee = true;
+    }
+    if (ecartee) continue;
+    retenues.push({
+      ...l,
+      faits: {
+        ...l.faits,
+        correspond: manques.length ? `à vérifier (${manques.join(', ')} non précisé)` : 'oui',
+      },
+    });
+  }
+  retenues.sort((a, b) => Number(b.faits.correspond === 'oui') - Number(a.faits.correspond === 'oui'));
+  return [...retenues, ...autres];
+}
+
+/** Les comptes exacts, en tête des données : le modèle ne recompte pas. */
+export function enteteLecture(lignes: readonly CollecteLigne[], c: CriteresDits): string {
+  const n = (kind: CollecteLigne['kind']) => lignes.filter((l) => l.kind === kind).length;
+  const acquereurs = lignes.filter(estAcquereur).length;
+  const parts = [
+    `${n('contact')} contacts (dont ${acquereurs} acquéreurs)`,
+    `${n('bien')} biens`,
+    `${n('note')} notes`,
+    `${n('lead')} prospects`,
+  ];
+  const lignesEntete = [`Fiches lues : ${parts.join(', ')}.`];
+  const dits = [
+    c.budget !== null ? `budget ${euros(c.budget)}` : null,
+    c.pieces !== null ? `${c.pieces} pièces` : null,
+    c.surface !== null ? `${c.surface} m²` : null,
+  ].filter(Boolean);
+  if (dits.length) {
+    lignesEntete.push(
+      `Critères de la question : ${dits.join(', ')}. Seuls les acquéreurs qui y répondent restent dans les fiches ; le champ correspond le précise. Ils sont ${acquereurs}.`,
+    );
+  }
+  return lignesEntete.join('\n');
 }
 
 export type TexteBase = { texte: string; lues: number; omises: number };

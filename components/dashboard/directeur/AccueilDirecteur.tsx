@@ -199,7 +199,7 @@ export default function AccueilDirecteur({
   }
 
   return (
-    <div data-accueil data-accueil-agence className="flex w-full min-w-0 flex-col gap-4 pb-10" aria-label={modele.titre}>
+    <div data-accueil data-accueil-agence className="carte-entree flex w-full min-w-0 flex-col gap-4 pb-10" aria-label={modele.titre}>
       <header className="flex flex-row flex-wrap items-center gap-2 sm:gap-4">
         <SelecteurVueAccueil vue="directeur" />
         <h1 className="font-display text-[24px] font-bold leading-none tracking-[-0.01em] text-text-strong max-sm:sr-only">

@@ -269,7 +269,11 @@ export default function AccueilPilotage({
         <Fragment key="accueil-attente">{attenteInscription}</Fragment>
       ) : null}
 
-      <div aria-busy={enCours} className={`flex min-w-0 flex-col gap-4 ${estompe}`}>
+      <div
+        key={`${vueDuBilan(affiche).cle}:${membreSelectionne}`}
+        aria-busy={enCours}
+        className={`carte-entree flex min-w-0 flex-col gap-4 ${estompe}`}
+      >
         {mobile && miseEnPlace && membreSelectionne === moi ? (
           <CarteMiseEnPlace aUnSecteur={miseEnPlace.aUnSecteur} />
         ) : null}

@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { viewerFromProfile } from '@/lib/agency/visibility';
-import { BASE_SYSTEM_PROMPT, sourcesCitees, texteBase } from '@/lib/assistant/base';
+import {
+  ajusterPourCriteres,
+  BASE_SYSTEM_PROMPT,
+  criteresDits,
+  enteteLecture,
+  sourcesCitees,
+  texteBase,
+  texteSansMarkdown,
+} from '@/lib/assistant/base';
 import { MESSAGE_PLAFOND_ATTEINT, debutDuMois, etatBudget } from '@/lib/assistant/budget';
 import { readCachedAnswer, writeCachedAnswer } from '@/lib/assistant/cache';
 import { collecter, type AssistantSource, type CollecteLigne } from '@/lib/assistant/collecte';
@@ -224,13 +232,15 @@ export async function POST(req: Request) {
       if (lignesCount === 0) {
         texteDirect = messageAucuneLigne(intent, collecte.proches ?? []);
       } else if (intent.type === 'base') {
-        // Toute la base visible part au meilleur modèle disponible.
-        lignesBase = collecte.lignes;
+        // Toute la base visible part au meilleur modèle disponible. Budget,
+        // pièces et surface dits sont tranchés ici, pas par le modèle.
+        const criteres = criteresDits(question);
+        lignesBase = ajusterPourCriteres(collecte.lignes, criteres);
         collecteSources = collecte.sources;
         sources = [];
-        const base = texteBase(collecte.lignes);
+        const base = texteBase(lignesBase);
         const jour = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
-        donnees = `Aujourd'hui : ${jour}\n${base.texte}`;
+        donnees = `Aujourd'hui : ${jour}\n${enteteLecture(lignesBase, criteres)}\n\n${base.texte}`;
         repli = reponseDirecte({ ...collecte, lignes: collecte.lignes.slice(0, 10) });
         systemPrompt = BASE_SYSTEM_PROMPT;
         tierSynthese = 'lecture';
@@ -300,8 +310,10 @@ export async function POST(req: Request) {
           }
         }
 
-        // Les fiches que la réponse nomme, cliquables sous le texte.
+        // Les fiches que la réponse nomme, cliquables sous le texte. Le fil
+        // garde le texte brut, comme il s'affiche.
         if (lignesBase) {
+          texte = texteSansMarkdown(texte);
           sources = sourcesCitees(texte, lignesBase, collecteSources);
           push('sources', sources);
         }

@@ -10,7 +10,8 @@ import {
   type Intervalle,
   type Periode,
 } from '@/lib/activite/semaines';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
+import { PASTILLE_TRACK, pastilleGlissanteClass } from '@/components/ui/pastille-classes';
+import { PistePastilles } from '@/components/ui/Pastilles';
 import { addMonths, buildMonthCells, parseIsoDate, startOfMonth } from '@/lib/ui/date-picker';
 import { dateKeyParis } from '@/lib/today/calendar';
 import { FIELD } from '@/lib/today/field';
@@ -196,21 +197,27 @@ export function SelecteurFenetre({
         aria-busy={enCours}
         className={`${PASTILLE_TRACK}${etroit ? '' : ' max-sm:w-full'}`}
       >
-        <div className={`flex gap-0.5 ${etroit ? 'justify-end' : 'flex-1 justify-between sm:justify-start'}`}>
-          {PRESETS_PERIODE.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={p === periode}
-              onClick={() => {
-                fermer();
-                onChanger(p, null);
-              }}
-              className={`${pastilleClass(p === periode)}${etroit ? '' : ' flex-1 sm:flex-none'}`}
-            >
-              {LIBELLE_PERIODE[p]}
-            </button>
-          ))}
+        <PistePastilles
+          className={`flex gap-0.5 ${etroit ? 'justify-end' : 'flex-1 justify-between sm:justify-start'}`}
+        >
+          {PRESETS_PERIODE.map((p) => {
+            const actif = p === periode && !ouvert;
+            return (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={p === periode}
+                data-pastille-active={actif || undefined}
+                onClick={() => {
+                  fermer();
+                  onChanger(p, null);
+                }}
+                className={`${pastilleGlissanteClass(actif)}${etroit ? '' : ' flex-1 sm:flex-none'}`}
+              >
+                {LIBELLE_PERIODE[p]}
+              </button>
+            );
+          })}
           <button
             ref={trigger}
             type="button"
@@ -218,12 +225,13 @@ export function SelecteurFenetre({
             aria-expanded={ouvert}
             aria-haspopup="dialog"
             aria-label="Choisir une période"
+            data-pastille-active={periode === 'custom' || ouvert || undefined}
             onClick={() => setOuvert((v) => !v)}
-            className={`${pastilleClass(periode === 'custom' || ouvert)} flex size-8 shrink-0 items-center justify-center !px-0`}
+            className={`${pastilleGlissanteClass(periode === 'custom' || ouvert)} flex size-8 shrink-0 items-center justify-center !px-0`}
           >
             <CalendarDays size={14} strokeWidth={2.2} aria-hidden />
           </button>
-        </div>
+        </PistePastilles>
       </nav>
       {ouvert && typeof document !== 'undefined'
         ? createPortal(
