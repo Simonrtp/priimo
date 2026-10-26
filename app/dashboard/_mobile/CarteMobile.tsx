@@ -249,6 +249,7 @@ export default function CarteMobile({
   const parcelle = useParcelleMap(overlaysCadastre, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
+    includeVentes: layers.cadastreVentes,
   });
   const { suivis: immeublesSuivis, recharger: rechargerSuivis } = useImmeublesSuivisCarte();
   const suiviParcelleIds = useMemo(

@@ -61,10 +61,12 @@ function overlayCacheKey(
   viewport: Viewport | null,
   includeDpe: boolean,
   agesKey: string,
+  includeVentes = false,
 ): string {
-  if (!viewport) return `none|${includeDpe ? 1 : 0}|${agesKey}`;
+  const ventes = includeVentes ? 1 : 0;
+  if (!viewport) return `none|${includeDpe ? 1 : 0}|${agesKey}|${ventes}`;
   const v = quantizeViewport(viewport);
-  return `${v.west},${v.south},${v.east},${v.north},${v.zoom}|${includeDpe ? 1 : 0}|${agesKey}`;
+  return `${v.west},${v.south},${v.east},${v.north},${v.zoom}|${includeDpe ? 1 : 0}|${agesKey}|${ventes}`;
 }
 
 function appliquerSurface(fiche: ParcelleFiche, surface: number | null): ParcelleFiche {
@@ -91,7 +93,7 @@ function appliquerSelection(
 export function useParcelleMap(
   enabled: boolean,
   viewport: Viewport | null,
-  options?: { dpeAges?: readonly DpeAgeBucket[]; includeDpeDetail?: boolean },
+  options?: { dpeAges?: readonly DpeAgeBucket[]; includeDpeDetail?: boolean; includeVentes?: boolean },
 ) {
   const [immeubles, setImmeubles] = useState<CadastreImmeublePoint[]>([]);
   const [noteMarkers, setNoteMarkers] = useState<ParcelleNoteMarker[]>([]);
@@ -117,11 +119,12 @@ export function useParcelleMap(
   const agesProvided = options?.dpeAges != null;
   const agesKey = serializeDpeAgeBuckets(options?.dpeAges ?? []);
   const includeDpe = options?.includeDpeDetail === true;
-  const overlayDatasetKey = `${includeDpe ? 1 : 0}|${agesProvided ? agesKey : ''}`;
+  const includeVentes = options?.includeVentes === true;
+  const overlayDatasetKey = `${includeDpe ? 1 : 0}|${agesProvided ? agesKey : ''}|${includeVentes ? 1 : 0}`;
 
   const viewportKey = useMemo(
-    () => overlayCacheKey(viewport, includeDpe, agesProvided ? agesKey : ''),
-    [viewport, includeDpe, agesProvided, agesKey],
+    () => overlayCacheKey(viewport, includeDpe, agesProvided ? agesKey : '', includeVentes),
+    [viewport, includeDpe, agesProvided, agesKey, includeVentes],
   );
 
   useEffect(() => {
@@ -170,6 +173,7 @@ export function useParcelleMap(
       }
       if (includeDpe) params.set('dpe', '1');
       if (agesProvided) params.set('ages', agesKey);
+      if (includeVentes) params.set('ventes', '1');
       const qs = params.toString();
 
       void fetch(`/api/carte/parcelles${qs ? `?${qs}` : ''}`, { signal: ac.signal })
@@ -210,7 +214,7 @@ export function useParcelleMap(
       window.clearTimeout(timer);
       ac.abort();
     };
-  }, [enabled, viewportKey, viewport, includeDpe, agesProvided, agesKey, reloadToken]);
+  }, [enabled, viewportKey, viewport, includeDpe, includeVentes, agesProvided, agesKey, reloadToken]);
 
   const fetchFiche = useCallback((parcelleId: string, opts?: { bypassCache?: boolean }): Promise<ParcelleFiche> => {
     if (!opts?.bypassCache) {

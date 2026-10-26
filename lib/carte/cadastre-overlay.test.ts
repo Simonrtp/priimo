@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles, overlayRowsFromAdeme, ventesParParcelle } from './cadastre-overlay';
+import { completerVentesParcelles, parcellesSansVentesAgregees, formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles, overlayRowsFromAdeme, ventesParParcelle } from './cadastre-overlay';
 import type { OverlayActivity, OverlayBuilding, OverlayDpeRow } from './cadastre-overlay';
 
 const building: OverlayBuilding = {
@@ -283,5 +283,69 @@ describe('ventesParParcelle', () => {
     assert.equal(row.dernierPrix, 520000);
     assert.equal(row.derniereTransactionLe, '2024-06-01');
     assert.equal(row.adresse, '10 rue des Maraîchers');
+  });
+});
+
+describe('completerVentesParcelles', () => {
+  const point = (banId: string, parcelleId: string | null, nbTransactions = 0) => ({
+    banId,
+    parcelleId,
+    longitude: 2.41,
+    latitude: 48.85,
+    adresse: null,
+    etiquetteDpe: null,
+    dpeGrain: null,
+    dateDpe: null,
+    surfaceDpe: null,
+    etageDpe: null,
+    nbDpe: 0,
+    nbPassoires: 0,
+    nbTransactions,
+    dernierPrix: null,
+    derniereTransactionLe: null,
+    prixM2: null,
+    nbLots: null,
+    procedureCopro: false,
+  });
+  const vente = (parcelleId: string, dateMutation: string, valeurFonciere: number, prixM2: number | null) => ({
+    parcelleId,
+    dateMutation,
+    valeurFonciere,
+    prixM2,
+  });
+
+  it('donne à une parcelle sans vente agrégée ses ventes brutes, sur une seule adresse', () => {
+    const rows = completerVentesParcelles(
+      [point('a', 'P1'), point('b', 'P1')],
+      [vente('P1', '2023-01-10', 300000, 8000), vente('P1', '2025-05-02', 400000, 10000), vente('P1', '2024-02-02', 350000, 9000)],
+    );
+    assert.equal(rows[0]!.nbTransactions, 3);
+    assert.equal(rows[0]!.derniereTransactionLe, '2025-05-02');
+    assert.equal(rows[0]!.dernierPrix, 400000);
+    assert.equal(rows[0]!.prixM2, 9000);
+    assert.equal(rows[1]!.nbTransactions, 0);
+    // Le total par parcelle (ventesParParcelle) n'est pas compté deux fois.
+    assert.equal(ventesParParcelle(rows).get('P1')?.nbTransactions, 3);
+  });
+
+  it('ne touche pas une parcelle dont l’agrégat compte déjà des ventes', () => {
+    const rows = completerVentesParcelles([point('a', 'P1', 15)], [vente('P1', '2025-05-02', 400000, 10000)]);
+    assert.equal(rows[0]!.nbTransactions, 15);
+  });
+
+  it('écarte les prix au m² aberrants, sans perdre la vente', () => {
+    const [row] = completerVentesParcelles([point('a', 'P1')], [vente('P1', '2025-05-02', 1, 1), vente('P1', '2024-05-02', 400000, 10000)]);
+    assert.equal(row!.nbTransactions, 2);
+    assert.equal(row!.prixM2, 10000);
+  });
+
+  it('laisse intactes les adresses sans parcelle ou sans vente brute', () => {
+    const rows = completerVentesParcelles([point('a', null), point('b', 'P2')], [vente('P1', '2025-05-02', 400000, 10000)]);
+    assert.equal(rows[0]!.nbTransactions, 0);
+    assert.equal(rows[1]!.nbTransactions, 0);
+  });
+
+  it('liste les parcelles à relire', () => {
+    assert.deepEqual(parcellesSansVentesAgregees([point('a', 'P1', 2), point('b', 'P2'), point('c', null)]), ['P2']);
   });
 });

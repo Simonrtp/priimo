@@ -240,3 +240,67 @@ export function hasCadastreOverlay(row: {
   if (row.nbTransactions > 0) return true;
   return row.nbLots != null || row.procedureCopro;
 }
+
+/** Une vente lue directement dans building_transactions (la source du volet de la parcelle). */
+export type VenteBrute = {
+  parcelleId: string;
+  dateMutation: string | null;
+  valeurFonciere: number | null;
+  prixM2: number | null;
+};
+
+/** DVF porte quelques prix aberrants (cessions à l'euro, erreurs de surface). */
+const PRIX_M2_CARTE_MIN = 500;
+const PRIX_M2_CARTE_MAX = 40_000;
+
+/** Les parcelles dont l'agrégat par adresse ne compte aucune vente : à relire dans les ventes brutes. */
+export function parcellesSansVentesAgregees(immeubles: readonly CadastreImmeublePoint[]): string[] {
+  const avecVentes = new Set<string>();
+  const toutes = new Set<string>();
+  for (const row of immeubles) {
+    if (!row.parcelleId) continue;
+    toutes.add(row.parcelleId);
+    if (row.nbTransactions > 0) avecVentes.add(row.parcelleId);
+  }
+  return [...toutes].filter((id) => !avecVentes.has(id));
+}
+
+/**
+ * L'agrégat building_activity ne couvre qu'une partie des adresses (les autres
+ * n'ont aucune ligne) : la carte n'y voyait pas de vente là où le volet de la
+ * parcelle, lui, les lit une à une. Pour chaque parcelle sans vente agrégée,
+ * ses ventes brutes sont portées par sa première adresse (une seule, pour que
+ * le total par parcelle ne soit pas compté plusieurs fois).
+ */
+export function completerVentesParcelles(
+  immeubles: readonly CadastreImmeublePoint[],
+  ventes: readonly VenteBrute[],
+): CadastreImmeublePoint[] {
+  if (ventes.length === 0) return [...immeubles];
+  const parParcelle = new Map<string, VenteBrute[]>();
+  for (const v of ventes) {
+    const liste = parParcelle.get(v.parcelleId);
+    if (liste) liste.push(v);
+    else parParcelle.set(v.parcelleId, [v]);
+  }
+  const aCompleter = new Set(parcellesSansVentesAgregees(immeubles));
+  const faites = new Set<string>();
+  return immeubles.map((row) => {
+    const id = row.parcelleId;
+    if (!id || !aCompleter.has(id) || faites.has(id)) return row;
+    const liste = parParcelle.get(id);
+    if (!liste || liste.length === 0) return row;
+    faites.add(id);
+    const recente = [...liste].sort((a, b) => (b.dateMutation ?? '').localeCompare(a.dateMutation ?? ''))[0]!;
+    const prix = medianNumerique(
+      liste.map((v) => v.prixM2).filter((n): n is number => n != null && n >= PRIX_M2_CARTE_MIN && n <= PRIX_M2_CARTE_MAX),
+    );
+    return {
+      ...row,
+      nbTransactions: liste.length,
+      derniereTransactionLe: recente.dateMutation,
+      dernierPrix: recente.valeurFonciere,
+      prixM2: prix,
+    };
+  });
+}

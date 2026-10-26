@@ -54,6 +54,7 @@ export async function GET(req: Request) {
     viewport,
     dpeAges: parseDpeAgeParam(url.searchParams.get('ages')),
     includeDpeDetail: url.searchParams.get('dpe') === '1',
+    includeVentes: url.searchParams.get('ventes') === '1',
   });
 
   return NextResponse.json(overlays, {

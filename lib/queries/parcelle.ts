@@ -17,7 +17,15 @@ import {
   toDateParam,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
-import { mergeCadastreImmeubles, overlayRowsFromAdeme, medianNumerique, hasCadastreOverlay } from '@/lib/carte/cadastre-overlay';
+import {
+  mergeCadastreImmeubles,
+  overlayRowsFromAdeme,
+  medianNumerique,
+  hasCadastreOverlay,
+  completerVentesParcelles,
+  parcellesSansVentesAgregees,
+  type VenteBrute,
+} from '@/lib/carte/cadastre-overlay';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
 import type { DpeRecent } from '@/lib/automations/veille-dpe';
 import type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
@@ -860,6 +868,8 @@ export async function fetchParcelleOverlays(args: {
   viewport: OverlayViewport | null;
   dpeAges?: readonly DpeAgeBucket[];
   includeDpeDetail?: boolean;
+  /** Couche Ventes cochée : relire les ventes brutes là où l’agrégat n’en a pas. */
+  includeVentes?: boolean;
 }): Promise<ParcelleOverlay> {
   const openDataDb = args.publicDb;
   const codes = args.postalCodes.filter((c) => /^\d{5}$/.test(c));
@@ -921,7 +931,7 @@ export async function fetchParcelleOverlays(args: {
 
   const [activity, dpeRows] = await Promise.all([activityPromise, dpePromise]);
 
-  const immeubles = mergeCadastreImmeubles({
+  const fusion = mergeCadastreImmeubles({
     buildings: buildings.map((b) => ({
       banId: b.ban_id,
       parcelleId: b.parcelle_id,
@@ -953,9 +963,67 @@ export async function fetchParcelleOverlays(args: {
       };
     }),
     ages,
-  }).filter(hasCadastreOverlay);
+  });
+  const ventesBrutes = args.includeVentes
+    ? await lireVentesParcelles(openDataDb, parcellesSansVentesAgregees(fusion))
+    : [];
+  const immeubles = completerVentesParcelles(fusion, ventesBrutes).filter(hasCadastreOverlay);
 
   return { immeubles, notes, sources };
+}
+
+const VENTES_PAGE = 1000;
+const VENTES_PAGE_CAP = 6000;
+const VENTES_CHUNK = 60;
+
+/** Les ventes brutes de ces parcelles : la même source que le volet de la parcelle. */
+async function lireVentesParcelles(openDataDb: Db, parcelleIds: readonly string[]): Promise<VenteBrute[]> {
+  if (parcelleIds.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < parcelleIds.length; i += VENTES_CHUNK) {
+    chunks.push(parcelleIds.slice(i, i + VENTES_CHUNK) as string[]);
+  }
+
+  async function lireChunk(chunk: string[]): Promise<VenteBrute[]> {
+    const rows: VenteBrute[] = [];
+    let from = 0;
+    while (from < VENTES_PAGE_CAP) {
+      const { data, error } = await openDataDb
+        .from('building_transactions')
+        .select('parcelle_id, date_mutation, valeur_fonciere, prix_m2')
+        .in('parcelle_id', chunk)
+        .order('date_mutation', { ascending: false })
+        .range(from, from + VENTES_PAGE - 1);
+      if (error) {
+        console.error('[parcelle] ventes brutes', error.message);
+        break;
+      }
+      const page = (data ?? []) as unknown as {
+        parcelle_id: string;
+        date_mutation: string | null;
+        valeur_fonciere: unknown;
+        prix_m2: unknown;
+      }[];
+      for (const r of page) {
+        rows.push({
+          parcelleId: r.parcelle_id,
+          dateMutation: r.date_mutation,
+          valeurFonciere: num(r.valeur_fonciere),
+          prixM2: num(r.prix_m2),
+        });
+      }
+      if (page.length < VENTES_PAGE) break;
+      from += VENTES_PAGE;
+    }
+    return rows;
+  }
+
+  const rows: VenteBrute[] = [];
+  for (let i = 0; i < chunks.length; i += 4) {
+    const pages = await Promise.all(chunks.slice(i, i + 4).map(lireChunk));
+    for (const page of pages) rows.push(...page);
+  }
+  return rows;
 }
 
 async function loadDetailDpe(
