@@ -624,14 +624,6 @@ export default function MobileMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        {secteurs && !navigation ? (
-          <SecteursParcellesCalque
-            carte={secteurs.carte}
-            zonesAffichees={secteurs.affichees}
-            atelier={dessin?.calque ?? null}
-          />
-        ) : null}
-        {dessin ? <GesteContourCalque trace={geste.trace} polygone={null} couleur={dessin.couleur} /> : null}
         <Buildings3DLayer
           mapRef={mapRef}
           enabled={relief}
@@ -678,6 +670,14 @@ export default function MobileMapCanvas({
         {navigation ? null : (
           <>
             <SecteurMasqueLayer zones={dessin ? [] : (clipZones ?? [])} />
+            {secteurs ? (
+              <SecteursParcellesCalque
+                carte={secteurs.carte}
+                zonesAffichees={secteurs.affichees}
+                atelier={dessin?.calque ?? null}
+              />
+            ) : null}
+            {dessin ? <GesteContourCalque trace={geste.trace} polygone={null} couleur={dessin.couleur} /> : null}
           </>
         )}
         {itineraryStops && (itineraryStops.length >= 2 || (itineraryStops.length > 0 && itineraryGeometry)) ? (

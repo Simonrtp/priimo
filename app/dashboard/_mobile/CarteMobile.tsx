@@ -51,6 +51,7 @@ import {
   cadrageCarte,
   empriseDepuisZoneId,
   retientDansSecteur,
+  ZONE_TOUS_SECTEURS,
   zoneIdInitial,
   zoneParDefautProspection,
   type PorteeSecteurs,
@@ -264,6 +265,12 @@ export default function CarteMobile({
     router.refresh();
   }, [router]);
   const fermerAtelier = useCallback(() => setAtelier(false), []);
+  const apresSuppression = useCallback(() => {
+    setAtelier(false);
+    setAtelierZone(null);
+    setZoneId(ZONE_TOUS_SECTEURS);
+    router.refresh();
+  }, [router]);
   const dessin = useDessinSecteur({
     ouvert: atelier,
     zone: atelierZone,
@@ -272,6 +279,7 @@ export default function CarteMobile({
     centre: center,
     onValider: validerDessin,
     onFermer: fermerAtelier,
+    onSupprime: apresSuppression,
   });
   const { surVue } = dessin;
   useEffect(() => {
@@ -959,7 +967,7 @@ export default function CarteMobile({
                 zones={proposes}
                 zoneId={zoneId}
                 onZone={setZoneId}
-                tous={false}
+                tous={isDirector}
                 profileId={profileId}
                 membres={members}
               />

@@ -1,7 +1,7 @@
 'use client';
 
 import { UserRound } from 'lucide-react';
-import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
+import { pastilleClass } from '@/components/ui/pastille-classes';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { ZONE_TOUS_SECTEURS } from '@/lib/carte/emprise';
@@ -9,6 +9,10 @@ import type { Zone } from '@/lib/zones/types';
 
 /** Le fond des pastilles « à moi » : l'accent chaud de la charte, distinct du neutre de l'équipe. */
 const PISTE_MIENNE = 'flex w-full flex-wrap rounded-clay bg-soft-warm p-1 shadow-clay-inset ring-1 ring-accent/20';
+
+/** Même coque que Cadastre et Annonces. */
+const CARTE_SECTEURS =
+  'flex w-full flex-wrap items-center gap-1.5 rounded-[14px] bg-[#E6E8EB]/90 px-2.5 py-2.5';
 
 function Titre({ children }: { children: string }) {
   return <p className="mb-1 px-0.5 text-[11.5px] font-medium text-text-subtle">{children}</p>;
@@ -111,7 +115,7 @@ export function ChoixSecteurs({
   if (!deuxGroupes) {
     return (
       <li>
-        <div role="group" aria-label="Secteur" className={`${PASTILLE_TRACK} mb-1.5 w-full flex-wrap`}>
+        <div role="group" aria-label="Secteur" className={`${CARTE_SECTEURS} mb-1.5`}>
           {boutonTous}
           {zones.map(pastille)}
         </div>
@@ -129,7 +133,7 @@ export function ChoixSecteurs({
       </div>
       <div>
         <Titre>Secteurs de l’agence</Titre>
-        <div role="group" aria-label="Secteurs de l’agence" className={`${PASTILLE_TRACK} w-full flex-wrap`}>
+        <div role="group" aria-label="Secteurs de l’agence" className={CARTE_SECTEURS}>
           {boutonTous}
           {agence.map(pastille)}
         </div>

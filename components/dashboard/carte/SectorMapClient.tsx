@@ -51,6 +51,7 @@ import {
   cadrageCarte,
   empriseDepuisZoneId,
   retientDansSecteur,
+  ZONE_TOUS_SECTEURS,
   zoneIdInitial,
   zoneParDefautProspection,
   type PorteeSecteurs,
@@ -388,6 +389,12 @@ export default function SectorMapClient({
     router.refresh();
   }, [router]);
   const fermerAtelier = useCallback(() => setAtelier(false), []);
+  const apresSuppression = useCallback(() => {
+    setAtelier(false);
+    setAtelierZone(null);
+    setZoneId(ZONE_TOUS_SECTEURS);
+    router.refresh();
+  }, [router]);
   const dessin = useDessinSecteur({
     ouvert: atelier,
     zone: atelierZone,
@@ -396,6 +403,7 @@ export default function SectorMapClient({
     centre: center,
     onValider: validerDessin,
     onFermer: fermerAtelier,
+    onSupprime: apresSuppression,
   });
   const { surVue } = dessin;
   useEffect(() => {
@@ -644,7 +652,7 @@ export default function SectorMapClient({
       onglet={onglet}
       onOnglet={choisirOnglet}
       zones={proposes}
-      tousSecteurs={false}
+      tousSecteurs={isDirector}
       annoncesQui={annoncesQui}
       zoneId={zoneId}
       onZone={setZoneId}
@@ -783,7 +791,7 @@ export default function SectorMapClient({
                 onglet={onglet}
                 onOnglet={choisirOnglet}
                 zones={proposes}
-                tousSecteurs={false}
+                tousSecteurs={isDirector}
                 annoncesQui={annoncesQui}
                 zoneId={zoneId}
                 onZone={setZoneId}

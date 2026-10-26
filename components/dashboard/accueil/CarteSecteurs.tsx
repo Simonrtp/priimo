@@ -1,14 +1,57 @@
-﻿import Link from 'next/link';
+﻿'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { COULEUR_FAMILLE, GRIS_NEUTRE } from '@/lib/activite/couleurs';
 import { detailSecteurs, type RepartitionEquipe } from '@/lib/activite/repartition';
 import type { SecteurPeriode } from '@/lib/activite/secteurs-travailles';
 import LignesSurvol from './LignesSurvol';
 
-/** Au repos, pas toute l’agence : le reste arrive au survol, par personne. */
-const LIGNES_VISIBLES = 4;
+/** Au repos, deux secteurs : le reste se range sous « +N en plus ». */
+const LIGNES_VISIBLES = 2;
 
 const COULEUR = COULEUR_FAMILLE.immeubles_prospectes;
+
+function ListeSecteurs({ secteurs }: { secteurs: readonly SecteurPeriode[] }) {
+  const [ouvert, setOuvert] = useState(false);
+  const visibles = ouvert ? secteurs : secteurs.slice(0, LIGNES_VISIBLES);
+  const reste = secteurs.length - LIGNES_VISIBLES;
+  return (
+    <ul className="mt-2 flex flex-col gap-1.5">
+      {visibles.map((s) => (
+        <li key={s.id} className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span
+              aria-hidden
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: s.travaille ? s.couleur : GRIS_NEUTRE.pastelFort }}
+            />
+            <span className="truncate text-[13px] font-semibold text-text-strong">{s.nom}</span>
+          </span>
+          <span
+            className={`shrink-0 text-[11px] font-semibold ${s.travaille ? '' : 'text-text-muted'}`}
+            style={s.travaille ? { color: COULEUR.teinte } : undefined}
+          >
+            {s.travaille ? 'Travaillé' : 'Pas travaillé'}
+          </span>
+        </li>
+      ))}
+      {reste > 0 ? (
+        <li>
+          <button
+            type="button"
+            aria-expanded={ouvert}
+            onClick={() => setOuvert((v) => !v)}
+            className="text-[11px] font-medium text-text-muted hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+          >
+            {ouvert ? 'Réduire' : `+${reste} en plus`}
+          </button>
+        </li>
+      ) : null}
+    </ul>
+  );
+}
 
 /**
  * Un secteur se travaille ou non. Pas de note sur dix : tant qu’aucun geste
@@ -28,8 +71,6 @@ export default function CarteSecteurs({
   const ordre = [...secteurs].sort(
     (a, b) => Number(a.travaille) - Number(b.travaille) || a.nom.localeCompare(b.nom, 'fr'),
   );
-  const visibles = ordre.slice(0, LIGNES_VISIBLES);
-  const reste = ordre.length - visibles.length;
   const survol = equipe && equipe.length > 1 ? detailSecteurs(equipe) : null;
   const travailles = secteurs.filter((s) => s.travaille).length;
   const travaille = seul?.travaille === true;
@@ -99,31 +140,7 @@ export default function CarteSecteurs({
       ) : secteurs.length === 0 ? null : resumeAgence ? (
         <p className="mt-2 text-[12px] font-semibold leading-tight text-text-strong">Secteurs travaillés</p>
       ) : (
-        <ul className="mt-2 flex flex-col gap-1.5">
-          {visibles.map((s) => (
-            <li key={s.id} className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: s.travaille ? s.couleur : GRIS_NEUTRE.pastelFort }}
-                />
-                <span className="truncate text-[13px] font-semibold text-text-strong">{s.nom}</span>
-              </span>
-              <span
-                className={`shrink-0 text-[11px] font-semibold ${s.travaille ? '' : 'text-text-muted'}`}
-                style={s.travaille ? { color: COULEUR.teinte } : undefined}
-              >
-                {s.travaille ? 'Travaillé' : 'Pas travaillé'}
-              </span>
-            </li>
-          ))}
-          {reste > 0 ? (
-            <li className="text-[11px] font-medium text-text-muted">
-              {reste === 1 ? 'et 1 autre secteur' : `et ${reste} autres secteurs`}
-            </li>
-          ) : null}
-        </ul>
+        <ListeSecteurs secteurs={ordre} />
       )}
 
       {resumeAgence ? (

@@ -66,6 +66,7 @@ export function useDessinSecteur({
   centre,
   onValider,
   onFermer,
+  onSupprime,
 }: {
   ouvert: boolean;
   zone?: Zone | null;
@@ -74,6 +75,8 @@ export function useDessinSecteur({
   centre: { latitude: number | null; longitude: number | null };
   onValider?: (zoneId: string) => void;
   onFermer?: () => void;
+  /** Le secteur vient d’être effacé : la carte se recharge sans lui. */
+  onSupprime?: () => void;
 }): {
   panneau: ReactNode;
   couleur: string;
@@ -331,18 +334,53 @@ export function useDessinSecteur({
     }
   }, []);
 
-  /** Valider (ou annuler) attend les gestes en cours ; un secteur né ici et resté vide disparaît. */
+  /** Valider attend les gestes en cours ; un secteur né ici et resté vide disparaît. */
   const terminer = useCallback(() => {
     void fileRef.current.then(async () => {
       const id = zoneRef.current;
       if (id && mesRef.current.size === 0 && creeIciRef.current) {
         await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
+        rafraichirCarteSecteurs();
+        onSupprime?.();
+        return;
       }
       rafraichirCarteSecteurs();
       if (id && mesRef.current.size > 0) onValider?.(id);
       else onFermer?.();
     });
-  }, [onFermer, onValider]);
+  }, [onFermer, onSupprime, onValider]);
+
+  /** Quitte l’atelier. Un brouillon vide né ici ne reste pas en base. */
+  const quitter = useCallback(() => {
+    void fileRef.current.then(async () => {
+      const id = zoneRef.current;
+      if (id && mesRef.current.size === 0 && creeIciRef.current) {
+        await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
+        rafraichirCarteSecteurs();
+        onSupprime?.();
+        return;
+      }
+      onFermer?.();
+    });
+  }, [onFermer, onSupprime]);
+
+  const supprimer = useCallback(() => {
+    void fileRef.current.then(async () => {
+      const id = zoneRef.current;
+      if (!id) {
+        onFermer?.();
+        return;
+      }
+      try {
+        await envoyer(`/api/dashboard/zones/${id}`, 'DELETE');
+      } catch (e) {
+        notifyError(e instanceof Error ? e.message : 'Le secteur n’a pas pu être supprimé');
+        return;
+      }
+      rafraichirCarteSecteurs();
+      onSupprime?.();
+    });
+  }, [onFermer, onSupprime]);
 
   const nombre = mesIds.size;
   const panneau = ouvert ? (
@@ -361,7 +399,8 @@ export function useDessinSecteur({
       onRue={poserRue}
       onRetour={historique.length > 0 ? retour : null}
       onValider={terminer}
-      onFermer={terminer}
+      onFermer={quitter}
+      onSupprimer={zoneId ? supprimer : null}
     />
   ) : null;
 
@@ -387,6 +426,7 @@ function Panneau({
   onRetour,
   onValider,
   onFermer,
+  onSupprimer,
 }: {
   titre: string;
   couleur: string;
@@ -402,10 +442,49 @@ function Panneau({
   onRue: (voie: VoieTrouvee, parite: PariteVoie) => void;
   onRetour: (() => void) | null;
   onValider: () => void;
-  onFermer: (() => void) | null;
+  onFermer: () => void;
+  onSupprimer: (() => void) | null;
 }) {
+  const [confirmeSuppression, setConfirmeSuppression] = useState(false);
   return (
     <div className="rounded-[20px] bg-[#F4F6FB] px-3.5 py-4">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onFermer}
+          className="text-[13px] font-semibold text-[#1A2A56] underline decoration-[#1A2A56]/30 underline-offset-[3px] hover:decoration-[#1A2A56]"
+        >
+          Retour
+        </button>
+        {onSupprimer ? (
+          confirmeSuppression ? (
+            <span className="flex items-center gap-2.5 text-[13px]">
+              <button
+                type="button"
+                onClick={onSupprimer}
+                className="font-semibold text-rose-700 underline decoration-rose-700/30 underline-offset-[3px]"
+              >
+                Supprimer
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmeSuppression(false)}
+                className="font-medium text-text-muted"
+              >
+                Annuler
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmeSuppression(true)}
+              className="text-[13px] font-medium text-rose-700 underline decoration-rose-700/25 underline-offset-[3px] hover:decoration-rose-700"
+            >
+              Supprimer
+            </button>
+          )
+        ) : null}
+      </div>
       <div className="flex items-center gap-2">
         <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: couleur }} />
         <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#1A2A56]">{titre}</p>
@@ -477,7 +556,7 @@ function Panneau({
             onClick={onRetour}
             className="flex min-h-10 flex-1 items-center justify-center rounded-full bg-white text-[13px] font-semibold text-[#1A2A56]"
           >
-            Retour
+            Défaire
           </button>
         ) : null}
         <button
@@ -488,7 +567,7 @@ function Panneau({
           {enAttente ? 'Enregistrement…' : 'Valider'}
         </button>
       </div>
-      {onFermer && nombre === 0 ? (
+      {nombre === 0 ? (
         <button
           type="button"
           onClick={onFermer}

@@ -435,14 +435,6 @@ export default function SectorMapCanvas({
         }}
         style={{ width: '100%', height: '100%' }}
       >
-        {secteurs ? (
-          <SecteursParcellesCalque
-            carte={secteurs.carte}
-            zonesAffichees={secteurs.affichees}
-            atelier={dessin?.calque ?? null}
-          />
-        ) : null}
-        {dessin ? <GesteContourCalque trace={geste.trace} polygone={null} couleur={dessin.couleur} /> : null}
         <Buildings3DLayer mapRef={mapRef} enabled={false} ready={styleReady} />
         <ParcellesLayer
           mapRef={mapRef}
@@ -473,6 +465,14 @@ export default function SectorMapCanvas({
           />
         ) : null}
         <SecteurMasqueLayer zones={dessin ? [] : (clipZones ?? [])} />
+        {secteurs ? (
+          <SecteursParcellesCalque
+            carte={secteurs.carte}
+            zonesAffichees={secteurs.affichees}
+            atelier={dessin?.calque ?? null}
+          />
+        ) : null}
+        {dessin ? <GesteContourCalque trace={geste.trace} polygone={null} couleur={dessin.couleur} /> : null}
         {cible ? (
           <CibleRecherche
             cible={cible}

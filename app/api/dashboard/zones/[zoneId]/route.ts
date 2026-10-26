@@ -213,14 +213,15 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ zoneId: str
     );
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('zones')
     .delete()
     .eq('id', zoneId)
-    .eq('agency_id', agency.id);
+    .eq('agency_id', agency.id)
+    .select('id');
 
-  if (error) {
-    console.error('[zones] suppression impossible', error);
+  if (error || !data || data.length === 0) {
+    console.error('[zones] suppression impossible', error ?? 'aucune ligne');
     return NextResponse.json({ error: 'Le secteur n’a pas pu être supprimé' }, { status: 400 });
   }
 
