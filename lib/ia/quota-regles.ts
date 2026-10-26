@@ -22,6 +22,8 @@ export const PLAFONDS_IA_JOUR = {
   /** Brief de porte : rédigé une fois par état de la fiche, puis relu en cache. */
   brief_porte: 300,
   assistant: 400,
+  /** Relecture des colonnes d'un fichier de contacts : un appel par fichier atypique. */
+  import_colonnes: 100,
 } as const;
 
 export type UsageIa = keyof typeof PLAFONDS_IA_JOUR;

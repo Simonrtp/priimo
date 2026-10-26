@@ -952,7 +952,7 @@ export type ContactImportRow = {
   agency_id: string;
   created_by: string;
   nom_fichier: string;
-  format: 'tableur' | 'vcard' | 'google';
+  format: 'tableur' | 'vcard' | 'google' | 'telephone';
   crees: number;
   completes: number;
   deja_presents: number;
@@ -961,6 +961,17 @@ export type ContactImportRow = {
   created_at: string;
   termine_le: string;
   annule_le: string | null;
+};
+
+/** Format de fichier déjà importé : empreinte des en-têtes, numéros de colonnes (20261026). */
+export type ImportFormatRow = {
+  signature: string;
+  nb_colonnes: number;
+  correspondance: Record<string, number>;
+  notes: number[];
+  imports: number;
+  cree_le: string;
+  mis_a_jour_le: string;
 };
 
 export type ContactInsert = {
@@ -2419,6 +2430,13 @@ export type Database = {
         Insert: Partial<Omit<ContactImportRow, 'agency_id' | 'created_by'>> &
           Pick<ContactImportRow, 'agency_id' | 'created_by'>;
         Update: Partial<ContactImportRow>;
+        Relationships: [];
+      };
+      import_formats: {
+        Row: ImportFormatRow;
+        Insert: Partial<Omit<ImportFormatRow, 'signature' | 'nb_colonnes'>> &
+          Pick<ImportFormatRow, 'signature' | 'nb_colonnes'>;
+        Update: Partial<ImportFormatRow>;
         Relationships: [];
       };
       biens: {

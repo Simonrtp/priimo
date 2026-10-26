@@ -1,18 +1,33 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { Mail, MapPin, Phone, Upload } from 'lucide-react';
+import { Mail, MapPin, Phone, Upload, X } from 'lucide-react';
 import type { ContactInputFields } from '@/lib/contact-input';
 import type { Contact } from '@/types/contact';
 import { CONTACT_TYPE_LABELS, rolesDuContact } from '@/types/contact';
 import { applyMapping, IGNORE_COLUMN, suggestMapping } from '@/lib/import/mapping';
 import {
+  avecNotesEnPlus,
   CONTACT_IMPORT_FIELDS,
   contactMappingSuffisant,
   contactToDuplicateRef,
   planContactImport,
   resumerPlan,
 } from '@/lib/import/contacts';
+import {
+  aRelire,
+  enTetesSontDesDonnees,
+  exemplesColonnes,
+  fusionnerCorrespondance,
+  notesEnTetes,
+  sansLigneEnTete,
+  validerColonnes,
+  versIndex,
+  type ColonnesIndex,
+} from '@/lib/import/colonnes-ia';
+import { contactTelephoneVersValeurs, TELEPHONE_COLONNES, type ContactTelephone } from '@/lib/import/telephone';
+import { isBlankRow } from '@/lib/import/normalize';
+import SignalIA from '@/components/ui/SignalIA';
 import {
   CONTACT_IMPORT_LOT,
   MAX_CONTACT_IMPORT_BYTES,
@@ -59,6 +74,42 @@ const SOURCES: readonly { cle: Source; label: string }[] = [
 ];
 
 const abonnerRien = () => () => undefined;
+
+/** Contact Picker (Chrome sur Android) : absent des types du DOM, encore expérimental. */
+type ContactsManager = {
+  select: (proprietes: string[], options: { multiple: boolean }) => Promise<ContactTelephone[]>;
+};
+
+function selecteurTelephoneDisponible(): boolean {
+  return 'contacts' in navigator && 'ContactsManager' in window;
+}
+
+type OrigineColonnes = 'ia' | 'connu' | null;
+
+/** Mon assistant relie les colonnes ; null s'il n'a rien à dire (quota, panne, délai). */
+async function demanderColonnes(
+  table: ParsedTable,
+): Promise<{ origine: Exclude<OrigineColonnes, null>; colonnes: ColonnesIndex } | null> {
+  const attente = new AbortController();
+  const delai = setTimeout(() => attente.abort(), 30_000);
+  try {
+    const res = await fetch('/api/dashboard/contacts/import/colonnes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: attente.signal,
+      body: JSON.stringify({ enTetes: table.headers, exemples: exemplesColonnes(table) }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { origine?: string | null; colonnes?: unknown };
+    if (data.origine !== 'ia' && data.origine !== 'connu') return null;
+    const colonnes = validerColonnes(data.colonnes, table.headers.length);
+    return colonnes ? { origine: data.origine, colonnes } : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(delai);
+  }
+}
 
 function messageRetourGoogle(retour: RetourGoogle | null): string | null {
   if (retour === 'google-refuse') return 'Google n’a pas été autorisé : rien n’a été lu.';
@@ -131,24 +182,39 @@ function GuideSource({
   onChoisir,
   onGoogle,
   busy,
+  selecteurTelephone,
+  onTelephone,
 }: {
   source: Source;
   onChoisir: (source: Source) => void;
   onGoogle: () => void;
   busy: boolean;
+  /** Ce téléphone sait ouvrir son carnet d'adresses depuis le navigateur. */
+  selecteurTelephone: boolean;
+  onTelephone: () => void;
 }) {
   const titre = 'font-medium text-text';
   if (source === 'telephone') {
     return (
       <div className="flex flex-col gap-3">
-        <div>
-          <p className={titre}>iPhone</p>
-          <Etapes>
-            <li>App Contacts, « Listes » en haut à gauche.</li>
-            <li>Restez appuyé sur « Tous les contacts » (ou « Tous iCloud »), puis « Exporter ».</li>
-            <li>« Enregistrer dans Fichiers », puis choisissez ce fichier ici.</li>
-          </Etapes>
-        </div>
+        {selecteurTelephone ? (
+          <div>
+            <WorkspaceButton type="button" variant="secondary" onClick={onTelephone}>
+              Choisir mes contacts
+            </WorkspaceButton>
+            <p className="mt-2 text-pretty">Cochez les contacts voulus dans votre téléphone, puis validez.</p>
+          </div>
+        ) : (
+          // Le sélecteur n'existe que sur Android : sans lui, l'agent est souvent sur iPhone.
+          <div>
+            <p className={titre}>iPhone</p>
+            <Etapes>
+              <li>App Contacts, « Listes » en haut à gauche.</li>
+              <li>Restez appuyé sur « Tous les contacts » (ou « Tous iCloud »), puis « Exporter ».</li>
+              <li>« Enregistrer dans Fichiers », puis choisissez ce fichier ici.</li>
+            </Etapes>
+          </div>
+        )}
         <div>
           <p className={titre}>Android</p>
           <p className="mt-1 text-pretty">
@@ -254,6 +320,13 @@ export default function ImportContacts({
   const [lectureGoogle, setLectureGoogle] = useState(retourGoogle === 'google');
   const [ouvertureGoogle, setOuvertureGoogle] = useState(false);
   const googleDemande = useRef(false);
+  const selecteurTelephone = useSyncExternalStore(abonnerRien, selecteurTelephoneDisponible, () => false);
+  /** Colonnes sans champ Priimo, ajoutées au résumé de chaque fiche. */
+  const [notesColonnes, setNotesColonnes] = useState<string[]>([]);
+  const [origineColonnes, setOrigineColonnes] = useState<OrigineColonnes>(null);
+  const [relecture, setRelecture] = useState(false);
+  /** Le fichier n'avait pas de titres : on ne retient pas son « format ». */
+  const [sansEnTete, setSansEnTete] = useState(false);
   const [progression, setProgression] = useState({ fait: 0, total: 0 });
   const [bilan, setBilan] = useState<Bilan | null>(null);
   const [recents, setRecents] = useState<ImportRecent[]>([]);
@@ -340,12 +413,15 @@ export default function ImportContacts({
     }
   }
 
-  const lignesMot = table?.format === 'vcard' || table?.format === 'google' ? 'Contact' : 'Ligne';
+  const lignesMot = table?.format && table.format !== 'tableur' ? 'Contact' : 'Ligne';
 
   const mappedRows = useMemo(() => {
     if (!table) return [];
-    return table.rows.map((row) => ({ line: row.line, mapped: applyMapping(row.values, mapping) }));
-  }, [table, mapping]);
+    return table.rows.map((row) => ({
+      line: row.line,
+      mapped: avecNotesEnPlus(applyMapping(row.values, mapping), row.values, notesColonnes),
+    }));
+  }, [table, mapping, notesColonnes]);
 
   const plan = useMemo(
     () => planContactImport(mappedRows, references.map(contactToDuplicateRef)),
@@ -372,12 +448,53 @@ export default function ImportContacts({
     setAConfirmer(null);
     setAnnulation(null);
     setDragOver(false);
+    setNotesColonnes([]);
+    setOrigineColonnes(null);
+    setRelecture(false);
+    setSansEnTete(false);
   }
 
   function close() {
     if (busy) return;
     reset();
     onClose();
+  }
+
+  /**
+   * Un tableau lu (fichier, téléphone) → l'aperçu. Les en-têtes clairs se
+   * relient seuls ; s'il reste des colonnes pleines sans correspondance, Mon
+   * assistant relit le fichier (ou reconnaît un format déjà importé).
+   */
+  async function preparer(lu: ParsedTable) {
+    let tableFinale = lu;
+    let correspondance = suggestMapping(lu.headers, CONTACT_IMPORT_FIELDS);
+    let notes: string[] = [];
+    let origine: OrigineColonnes = null;
+    let premiereLigneDonnee = false;
+    if (aRelire(lu, correspondance)) {
+      setRelecture(true);
+      const reponse = await demanderColonnes(lu);
+      setRelecture(false);
+      premiereLigneDonnee =
+        lu.format === 'tableur' &&
+        (enTetesSontDesDonnees(lu.headers) || Boolean(reponse?.colonnes.premiereLigneDonnee));
+      if (premiereLigneDonnee) tableFinale = sansLigneEnTete(lu);
+      if (reponse) {
+        const colonnes = { ...reponse.colonnes, premiereLigneDonnee };
+        correspondance = fusionnerCorrespondance(tableFinale.headers, correspondance, colonnes);
+        notes = notesEnTetes(tableFinale.headers, colonnes, correspondance);
+        origine = reponse.origine;
+      } else if (premiereLigneDonnee) {
+        // Sans réponse, rien n'est relié : l'agent choisit les colonnes lui-même.
+        correspondance = suggestMapping(tableFinale.headers, CONTACT_IMPORT_FIELDS);
+      }
+    }
+    setTable(tableFinale);
+    setMapping(correspondance);
+    setNotesColonnes(notes);
+    setOrigineColonnes(origine);
+    setSansEnTete(premiereLigneDonnee);
+    setEtape(contactMappingSuffisant(correspondance) ? 'apercu' : 'colonnes');
   }
 
   async function handleFile(file: File | undefined) {
@@ -389,10 +506,7 @@ export default function ImportContacts({
         maxRows: MAX_CONTACT_IMPORT_ROWS,
         maxBytes: MAX_CONTACT_IMPORT_BYTES,
       });
-      const suggestion = suggestMapping(parsed.headers, CONTACT_IMPORT_FIELDS);
-      setTable(parsed);
-      setMapping(suggestion);
-      setEtape(contactMappingSuffisant(suggestion) ? 'apercu' : 'colonnes');
+      await preparer(parsed);
     } catch (err) {
       setError(err instanceof ImportFileError ? err.message : 'Ce fichier n’a pas pu être lu.');
     } finally {
@@ -401,8 +515,45 @@ export default function ImportContacts({
     }
   }
 
+  /** Chrome sur Android : l'agent coche ses contacts dans le carnet du téléphone. */
+  async function choisirDansTelephone() {
+    const carnet = (navigator as Navigator & { contacts?: ContactsManager }).contacts;
+    if (!carnet) return;
+    setError(null);
+    try {
+      const proprietes = ['name', 'tel', 'email'];
+      if ('ContactAddress' in window) proprietes.push('address');
+      const choisis = await carnet.select(proprietes, { multiple: true });
+      if (choisis.length === 0) return;
+      const rows = choisis
+        .map(contactTelephoneVersValeurs)
+        .filter((values) => !isBlankRow(Object.values(values)))
+        .map((values, index) => ({ line: index + 1, values }));
+      if (rows.length === 0) {
+        setError('Ces contacts n’ont ni nom, ni numéro, ni email.');
+        return;
+      }
+      setBusy(true);
+      await preparer({
+        fileName: 'Contacts du téléphone',
+        headers: [...TELEPHONE_COLONNES],
+        rows,
+        format: 'telephone',
+      });
+    } catch {
+      setError('Les contacts du téléphone n’ont pas pu être lus.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function importer() {
     if (!table || busy) return;
+    // Un tableur avec ses titres : son format sera reconnu d'emblée la prochaine fois.
+    const formatARetenir =
+      (table.format ?? 'tableur') === 'tableur' && !sansEnTete
+        ? { enTetes: table.headers, ...versIndex(table.headers, mapping, notesColonnes) }
+        : null;
     setBusy(true);
     setError(null);
     setEtape('envoi');
@@ -429,6 +580,7 @@ export default function ImportContacts({
             rows: lot,
             importId: cumul.importId,
             fichier: { nom: table.fileName, format: table.format ?? 'tableur' },
+            ...(i === 0 && formatARetenir ? { colonnes: formatARetenir } : {}),
           }),
         });
         const data = (await res.json()) as {
@@ -520,6 +672,15 @@ export default function ImportContacts({
     bilan: { title: annulation ? 'Import annulé' : 'Import terminé' },
   };
 
+  // Colonnes pleines, ni reliées ni déjà gardées : candidates au résumé.
+  const reliees = new Set(Object.values(mapping).filter(Boolean));
+  const colonnesLibres = (table?.headers ?? []).filter(
+    (header) =>
+      !reliees.has(header) &&
+      !notesColonnes.includes(header) &&
+      (table?.rows ?? []).slice(0, 50).some((row) => row.values[header]?.trim()),
+  );
+
   const exemplesColonne = (header: string) =>
     table?.rows.find((row) => row.values[header]?.trim())?.values[header]?.trim() ?? '';
 
@@ -572,7 +733,9 @@ export default function ImportContacts({
           >
             <Upload size={22} strokeWidth={2} className="text-accent-dark" aria-hidden />
             <p className="mt-3 text-pretty text-[14px] font-medium text-text-strong">
-              {busy ? (
+              {relecture ? (
+                <SignalIA actif>Mon assistant relit les colonnes</SignalIA>
+              ) : busy ? (
                 'Lecture du fichier…'
               ) : (
                 <>
@@ -611,6 +774,8 @@ export default function ImportContacts({
                   onChoisir={setSource}
                   onGoogle={() => void connecterGoogle()}
                   busy={ouvertureGoogle}
+                  selecteurTelephone={selecteurTelephone}
+                  onTelephone={() => void choisirDansTelephone()}
                 />
               </div>
             ) : null}
@@ -696,16 +861,22 @@ export default function ImportContacts({
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2.5">
-            <button
-              type="button"
-              onClick={() => setEtape('colonnes')}
-              className="text-[13px] font-medium text-text-muted underline-offset-2 hover:text-text hover:underline"
-            >
-              Vérifier les colonnes
-            </button>
-            <div className="flex flex-wrap justify-end gap-2.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {origineColonnes === 'ia' ? <SignalIA>Colonnes reliées par Mon assistant</SignalIA> : null}
+              {origineColonnes === 'connu' ? (
+                <span className="text-[12.5px] text-text-muted">Format déjà connu de Priimo</span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setEtape('colonnes')}
+                className="text-[13px] font-medium text-text-muted underline-offset-2 hover:text-text hover:underline"
+              >
+                Vérifier les colonnes
+              </button>
+            </div>
+            <div className="ml-auto flex flex-wrap justify-end gap-2.5">
               <WorkspaceButton type="button" variant="secondary" onClick={reset}>
-                {table.format === 'google' ? 'Autre source' : 'Autre fichier'}
+                {table.format === 'google' || table.format === 'telephone' ? 'Autre source' : 'Autre fichier'}
               </WorkspaceButton>
               <WorkspaceButton type="button" disabled={aImporter === 0} onClick={() => void importer()}>
                 {`Importer ${pluriel(aImporter, 'contact', 'contacts')}`}
@@ -738,7 +909,11 @@ export default function ImportContacts({
                     <Select
                       id={`colonne-${field.key}`}
                       value={colonne}
-                      onChange={(valeur) => setMapping((m) => ({ ...m, [field.key]: valeur }))}
+                      onChange={(valeur) => {
+                        setMapping((m) => ({ ...m, [field.key]: valeur }));
+                        // Reliée à un champ, la colonne ne se répète pas dans le résumé.
+                        setNotesColonnes((n) => n.filter((h) => h !== valeur));
+                      }}
                       options={[
                         { value: IGNORE_COLUMN, label: 'À ignorer' },
                         ...table.headers.map((header) => ({ value: header, label: header })),
@@ -755,6 +930,51 @@ export default function ImportContacts({
               );
             })}
           </ul>
+
+          {table.format === 'tableur' || !table.format ? (
+            <div className="mt-6 border-t border-black/[0.06] pt-5">
+              <p className="text-[13px] font-medium text-text">Gardées dans le résumé</p>
+              <p className="mt-0.5 text-pretty text-[12px] text-text-muted">
+                Ces colonnes s’ajoutent au résumé de chaque fiche, avec leur titre.
+              </p>
+              {notesColonnes.length > 0 ? (
+                <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                  {notesColonnes.map((header) => (
+                    <li key={header}>
+                      <button
+                        type="button"
+                        onClick={() => setNotesColonnes((n) => n.filter((h) => h !== header))}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.10] px-3 py-1.5 text-[12.5px] text-text hover:bg-black/[0.03]"
+                        aria-label={`Ne plus garder « ${header} »`}
+                      >
+                        {header}
+                        <X size={12} strokeWidth={2} className="text-text-subtle" aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {colonnesLibres.length > 0 ? (
+                <div className="mt-2.5 max-w-xs">
+                  <Select
+                    aria-label="Garder une autre colonne dans le résumé"
+                    value=""
+                    onChange={(header) => {
+                      if (header) setNotesColonnes((n) => [...n, header]);
+                    }}
+                    options={[
+                      { value: '', label: 'Garder une autre colonne…' },
+                      ...colonnesLibres.map((header) => ({ value: header, label: header })),
+                    ]}
+                    searchable={colonnesLibres.length > 8}
+                    searchPlaceholder="Filtrer les colonnes…"
+                    triggerClassName={SELECT_CLASS}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-6 flex flex-wrap justify-end gap-2.5">
             <WorkspaceButton type="button" variant="secondary" onClick={reset}>
               Autre fichier

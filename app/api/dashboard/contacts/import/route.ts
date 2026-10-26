@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -28,6 +28,8 @@ import {
   tableImportsAbsente,
 } from '@/lib/import/annulation';
 import { CONTACT_IMPORT_LOT } from '@/lib/import/limits';
+import { MAX_COLONNES_RELUES, validerColonnes } from '@/lib/import/colonnes-ia';
+import { retenirFormat } from '@/lib/import/colonnes-ia-serveur';
 import type { Contact } from '@/types/contact';
 import type { ContactImportCompletion, ContactInsert, ContactRow, Database } from '@/types/database';
 
@@ -57,6 +59,19 @@ function sanitizeRows(raw: unknown): { line: number; mapped: Record<string, stri
     }
     return [{ line, mapped }];
   });
+}
+
+/** `{ enTetes, champs, notes }` envoyé avec le premier lot d'un tableur ; null sinon. */
+function lireFormatEnvoye(
+  raw: unknown,
+): { enTetes: string[]; colonnes: { champs: Record<string, number>; notes: number[] } } | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (!Array.isArray(r.enTetes) || r.enTetes.length === 0 || r.enTetes.length > MAX_COLONNES_RELUES) return null;
+  const enTetes = r.enTetes.map((h) => (typeof h === 'string' ? h.slice(0, 120) : ''));
+  const colonnes = validerColonnes({ champs: r.champs, notes: r.notes }, enTetes.length);
+  if (!colonnes || Object.keys(colonnes.champs).length === 0) return null;
+  return { enTetes, colonnes: { champs: colonnes.champs, notes: colonnes.notes } };
 }
 
 async function enParallele<T, R>(
@@ -117,8 +132,11 @@ async function ouvrirImport(
     typeof payload.fichier === 'object' && payload.fichier !== null
       ? (payload.fichier as Record<string, unknown>)
       : {};
-  const format = fichier.format === 'vcard' || fichier.format === 'google' ? fichier.format : 'tableur';
-  const ouvrir = (f: 'tableur' | 'vcard' | 'google') =>
+  const format =
+    fichier.format === 'vcard' || fichier.format === 'google' || fichier.format === 'telephone'
+      ? fichier.format
+      : 'tableur';
+  const ouvrir = (f: 'tableur' | 'vcard' | 'google' | 'telephone') =>
     supabase
       .from('contact_imports')
       .insert({
@@ -130,8 +148,8 @@ async function ouvrirImport(
       .select('id')
       .single();
   let { data, error } = await ouvrir(format);
-  // Base sans 20261026_imports_contacts_google : « google » n'y est pas encore admis.
-  if (error?.code === '23514' && format === 'google') ({ data, error } = await ouvrir('tableur'));
+  // Base en retard d'une migration : l'origine récente n'y est pas encore admise.
+  if (error?.code === '23514' && format !== 'tableur') ({ data, error } = await ouvrir('tableur'));
   if (error || !data) {
     if (!tableImportsAbsente(error)) console.error('[contacts/import] ouverture', error);
     return { id: null };
@@ -232,6 +250,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: ouverture.refus }, { status: 409 });
   }
   const importId = ouverture.id;
+
+  // Premier lot d'un tableur : on retient son format pour le reconnaître la prochaine fois.
+  const format = lireFormatEnvoye(payload.colonnes);
+  if (format) after(() => retenirFormat(format.enTetes, format.colonnes));
 
   const lecture = await lireContacts(supabase);
   if (lecture.error) {

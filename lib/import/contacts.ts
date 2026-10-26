@@ -184,6 +184,25 @@ export const CONTACT_IMPORT_FIELDS: readonly ImportField[] = [
   },
 ];
 
+/**
+ * Colonnes sans champ Priimo mais utiles (historique, source, négociateur…) :
+ * elles s'ajoutent au résumé, « En-tête : valeur », plutôt que de se perdre.
+ */
+export function avecNotesEnPlus(
+  mapped: Record<string, string>,
+  values: Record<string, string>,
+  notes: readonly string[],
+): Record<string, string> {
+  const lignes = notes
+    .map((header) => {
+      const v = values[header]?.trim();
+      return v ? `${header} : ${v}` : '';
+    })
+    .filter(Boolean);
+  if (lignes.length === 0) return mapped;
+  return { ...mapped, summary: [mapped.summary ?? '', ...lignes].filter(Boolean).join('\n') };
+}
+
 /** Au moins une de ces colonnes doit être reliée pour qu'une fiche ait un sens. */
 export const CONTACT_IMPORT_IDENTITE = ['firstName', 'lastName', 'fullName', 'phone', 'email'] as const;
 
@@ -200,8 +219,8 @@ export interface ContactDuplicateRef {
 }
 
 const ROLES_LUS: readonly [RegExp, ContactType][] = [
-  [/(vendeur|vendeuse|proprietaire|seller)/, 'vendeur'],
-  [/(acquereur|acheteur|acheteuse|investisseur|buyer)/, 'acquereur'],
+  [/(vendeur|vendeuse|proprietaire|seller|\bvente\b|\bvendre\b)/, 'vendeur'],
+  [/(acquereur|acheteur|acheteuse|investisseur|buyer|\bachat\b|\bacheter\b)/, 'acquereur'],
   [/(locataire|tenant)/, 'locataire'],
   [/(gardien|concierge)/, 'gardien'],
   [/(commercant|commerce)/, 'commercant'],
@@ -360,7 +379,14 @@ export function contactFieldsFromMapped(mapped: Record<string, string>): Contact
 
   let address = (mapped.address ?? '').replace(/\s*\n+\s*/g, ', ').trim();
   let secteur = (mapped.secteur ?? '').trim();
-  const ville = (mapped.ville ?? '').trim();
+  let ville = (mapped.ville ?? '').trim();
+  let codesPostaux = mapped.postalCodes ?? '';
+  // « 75002 Paris » dans une seule colonne : le code postal ne se perd pas.
+  const cpDansVille = ville.match(/\b\d{5}\b/);
+  if (cpDansVille && !codesPostaux.trim()) {
+    codesPostaux = cpDansVille[0];
+    if (!address) ville = ville.replace(cpDansVille[0], '').replace(/\s{2,}/g, ' ').trim();
+  }
   if (ville) {
     if (address && !normalizeName(address).includes(normalizeName(ville))) address = `${address}, ${ville}`;
     else if (!address && !secteur) secteur = ville;
@@ -389,7 +415,7 @@ export function contactFieldsFromMapped(mapped: Record<string, string>): Contact
     email,
     secteur: secteur || null,
     address: address || null,
-    postalCodes: lireCodesPostaux(mapped.postalCodes),
+    postalCodes: lireCodesPostaux(codesPostaux),
     budgetMin,
     budgetMax,
     surfaceMin: lireNombre(mapped.surfaceMin),
