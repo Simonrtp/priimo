@@ -16,6 +16,7 @@ import {
   mapDbContactToContact,
   mapDbInteraction,
   mapDbVoiceNote,
+  withContactsSelect,
 } from '@/lib/queries/contacts';
 import { normalizeSignals } from '@/lib/queries/leads';
 import type { Contact, SearchCriteria } from '@/types/contact';
@@ -41,6 +42,9 @@ export const COLLECTE_LIMITE = 200;
  * donc on ratisse plus large en base avant de trier.
  */
 export const COLLECTE_NOM_LIMITE = 800;
+
+/** Question sur toute la base : le plafond d'une lecture PostgREST. */
+export const COLLECTE_BASE_LIMITE = 1000;
 
 export type SourceKind = 'lead' | 'contact' | 'bien' | 'note' | 'interaction';
 
@@ -124,6 +128,12 @@ export type CollecteContact = {
   criteria: SearchCriteria;
   /** Fiche partagée par son titulaire avec toute l'agence. */
   visibilite?: 'privee' | 'agence';
+  /** Rôles cumulés : un vendeur peut aussi chercher à acheter. */
+  autresTypes?: string[];
+  secteur?: string | null;
+  summary?: string | null;
+  email?: string | null;
+  lastInteractionAt?: string | null;
 };
 
 export type CollecteInteraction = {
@@ -152,6 +162,7 @@ export type CollecteBien = {
   updatedAt: string;
   createdBy: string | null;
   proprietaireContactId: string | null;
+  propertyType?: string | null;
 };
 
 export type CollecteNote = {
@@ -217,6 +228,11 @@ function visLeads(viewer: RecordViewer, rows: CollecteLead[]): CollecteLead[] {
 
 function visContacts(viewer: RecordViewer, rows: CollecteContact[]): CollecteContact[] {
   return rows.filter((c) => canSeeContact(viewer, c));
+}
+
+/** Le rôle principal ou un rôle cumulé. */
+function aUnRole(c: CollecteContact, role: string): boolean {
+  return c.type === role || (c.autresTypes ?? []).includes(role);
 }
 
 function visBiens(viewer: RecordViewer, rows: CollecteBien[]): CollecteBien[] {
@@ -318,7 +334,7 @@ function pushContact(
   extraFaits?: Record<string, unknown>,
 ): void {
   const criteres =
-    c.type === 'acquereur'
+    aUnRole(c, 'acquereur')
       ? pickFaits({
           budget_min: c.criteria.budgetMin,
           budget_max: c.criteria.budgetMax,
@@ -397,6 +413,7 @@ function pushBien(
     auteur: nomAuteur(b.createdBy, noms),
     faits: pickFaits({
       adresse: b.address,
+      type_bien: b.propertyType,
       prix: b.price,
       surface: b.surfaceM2,
       pieces: b.rooms,
@@ -421,6 +438,7 @@ function pushNote(
   acc: { lignes: CollecteLigne[]; sources: AssistantSource[] },
   n: CollecteNote,
   noms?: ReadonlyMap<string, string>,
+  contact?: string | null,
 ): void {
   acc.lignes.push({
     kind: 'note',
@@ -432,6 +450,7 @@ function pushNote(
       auteur: nomAuteur(n.createdBy, noms),
       transcription: n.transcript,
       adresse: n.adresseNormalisee,
+      contact,
     }),
   });
   acc.sources.push({
@@ -695,7 +714,7 @@ function collectAcquereurs(
   const typeFiltre = intent.filtres.type_contact ?? 'acquereur';
   const contacts = visContacts(
     ctx.viewer,
-    snap.contacts.filter((c) => c.type === typeFiltre),
+    snap.contacts.filter((c) => aUnRole(c, typeFiltre)),
   );
 
   const biensVisibles = visBiens(ctx.viewer, snap.biens).filter((b) => {
@@ -744,7 +763,9 @@ function collectAcquereurs(
     c.type === 'autre'
       ? c.type
       : 'autre'),
-    autresTypes: [],
+    autresTypes: (c.autresTypes ?? []).filter((t): t is Contact['type'] =>
+      ['acquereur', 'vendeur', 'locataire', 'gardien', 'commercant', 'autre'].includes(t),
+    ),
     phone: c.phone,
     email: null,
     secteur: null,
@@ -886,6 +907,80 @@ function collectActivite(
   };
 }
 
+/** Une question posée à toute la base : les notes et prospects les plus récents. */
+export const BASE_NOTES_MAX = 40;
+export const BASE_PROSPECTS_MAX = 40;
+
+/**
+ * Toute la base que l'agent a le droit de voir : ses fiches, celles que ses
+ * collègues partagent, les biens de l'agence. Le modèle filtre et croise ;
+ * il ne lit rien d'autre que ces lignes.
+ */
+function collectBase(
+  intent: AssistantIntent,
+  snap: AgencySnapshot,
+  ctx: CollecteSnapshotCtx,
+): CollecteResult {
+  const role = intent.filtres.type_contact;
+  const statut = intent.filtres.statut_mandat;
+  const visibles = visContacts(ctx.viewer, snap.contacts);
+  const nomDe = new Map(visibles.map((c) => [c.id, c.fullName]));
+
+  const biens = byDateDesc(
+    visBiens(ctx.viewer, snap.biens).filter((b) => !statut || b.mandatStatut === statut),
+    (b) => b.updatedAt ?? b.createdAt,
+  );
+  const proprietaires = new Set(biens.map((b) => b.proprietaireContactId).filter(Boolean));
+
+  // Une question sur un rôle ne relit que les fiches qui l'ont ; une question
+  // sur des mandats, leurs propriétaires.
+  const contacts = byDateDesc(
+    visibles.filter((c) => (role ? aUnRole(c, role) : statut ? proprietaires.has(c.id) : true)),
+    (c) => c.lastInteractionAt ?? c.createdAt,
+  );
+  const notes = cap(
+    byDateDesc(visNotes(ctx.viewer, snap.notes), (n) => n.createdAt),
+    BASE_NOTES_MAX,
+  );
+  const leads =
+    role || statut
+      ? []
+      : cap(
+          byDateDesc(visLeads(ctx.viewer, snap.leads), (l) => l.deliveredAt ?? l.createdAt),
+          BASE_PROSPECTS_MAX,
+        );
+
+  const acc = { lignes: [] as CollecteLigne[], sources: [] as AssistantSource[] };
+  for (const c of contacts) {
+    pushContact(acc, c, ctx.auteurNoms, {
+      autres_roles: (c.autresTypes ?? []).filter((t) => t !== c.type),
+      secteur: c.secteur,
+      resume: c.summary,
+      email: c.email,
+      suivi_par: nomAuteur(c.assignedTo ?? c.createdBy, ctx.auteurNoms),
+      partagee: c.visibilite === 'agence' ? true : null,
+      dernier_echange: c.lastInteractionAt,
+    });
+  }
+  for (const b of biens) {
+    pushBien(acc, b, ctx.auteurNoms, b.proprietaireContactId ? nomDe.get(b.proprietaireContactId) ?? null : null);
+  }
+  for (const n of notes) {
+    pushNote(acc, n, ctx.auteurNoms, n.contactId ? nomDe.get(n.contactId) ?? null : null);
+  }
+  for (const l of leads) pushLead(acc, l, ctx.auteurNoms);
+
+  return {
+    type: 'base',
+    cherche: labelCherche(intent),
+    banId: null,
+    rechercheParTexte: false,
+    lignes: acc.lignes,
+    sources: acc.sources,
+    agregats: null,
+  };
+}
+
 /**
  * Cœur testable : un instantané déjà lu, filtré par agency_id puis visibilité.
  * Un agency_id étranger dans l'instantané est écarté — jamais renvoyé.
@@ -907,6 +1002,7 @@ export function collectFromSnapshot(
   if (intent.type === 'immeuble') return collectImmeuble(intent, snap, ctx);
   if (intent.type === 'personne') return collectPersonne(intent, snap, ctx);
   if (intent.type === 'recherche_acquereur') return collectAcquereurs(intent, snap, ctx);
+  if (intent.type === 'base') return collectBase(intent, snap, ctx);
   return collectActivite(intent, snap, ctx);
 }
 
@@ -948,6 +1044,11 @@ function mapContactRow(row: ContactRow): CollecteContact {
     createdBy: c.createdBy,
     leadId: c.leadId,
     criteria: c.criteria,
+    autresTypes: c.autresTypes,
+    secteur: c.secteur,
+    summary: c.summary,
+    email: c.email,
+    lastInteractionAt: c.lastInteractionAt,
   };
 }
 
@@ -968,6 +1069,7 @@ function mapBienRow(row: BienRow): CollecteBien {
     updatedAt: b.updatedAt,
     createdBy: b.createdBy,
     proprietaireContactId: b.proprietaireContactId,
+    propertyType: b.propertyType,
   };
 }
 
@@ -1011,8 +1113,11 @@ async function loadSnapshot(
     nom?: string | null;
     since?: string | null;
     loadAllVisible?: boolean;
+    /** Question sur toute la base : toutes les fiches, pas les 200 dernières. */
+    toutVisible?: boolean;
   },
 ): Promise<AgencySnapshot> {
+  const limiteFiches = opts.toutVisible ? COLLECTE_BASE_LIMITE : COLLECTE_LIMITE;
   const addressPatterns = opts.adresseTexte ? searchPatterns(opts.adresseTexte) : [];
   /**
    * Pas de filtre `ilike` sur le nom : « cecile » ne trouve pas « Cécile » et
@@ -1040,14 +1145,24 @@ async function loadSnapshot(
     .order('created_at', { ascending: false })
     .limit(COLLECTE_LIMITE);
 
-  const contactQ = supabase
-    .from('contacts')
-    .select(
-      'id, agency_id, created_by, first_name, last_name, contact_type, phone, email, secteur, postal_codes, budget_min, budget_max, surface_min, surface_max, rooms_min, summary, last_interaction_at, source, lead_id, address, ban_id, assigned_to, created_at, updated_at',
-    )
-    .eq('agency_id', agencyId)
-    .order('created_at', { ascending: false })
-    .limit(chercheNom ? COLLECTE_NOM_LIMITE : COLLECTE_LIMITE);
+  const contactLimite = opts.toutVisible
+    ? COLLECTE_BASE_LIMITE
+    : chercheNom
+      ? COLLECTE_NOM_LIMITE
+      : COLLECTE_LIMITE;
+  const contactOr = !opts.loadAllVisible && !opts.toutVisible && !chercheNom ? addressOr(['address']) : null;
+  // Rôles cumulés et partage : lus quand la base a déjà ces colonnes.
+  const contactQ = withContactsSelect((sel) => {
+    const q = supabase
+      .from('contacts')
+      .select(sel)
+      .eq('agency_id', agencyId)
+      .order('created_at', { ascending: false })
+      .limit(contactLimite);
+    if (contactOr) q.or(contactOr);
+    if (opts.since) q.gte('created_at', opts.since);
+    return q;
+  });
 
   const bienQ = supabase
     .from('biens')
@@ -1056,7 +1171,7 @@ async function loadSnapshot(
     )
     .eq('agency_id', agencyId)
     .order('created_at', { ascending: false })
-    .limit(COLLECTE_LIMITE);
+    .limit(limiteFiches);
 
   const noteQ = supabase
     .from('voice_notes')
@@ -1067,20 +1182,17 @@ async function loadSnapshot(
     .order('created_at', { ascending: false })
     .limit(COLLECTE_LIMITE);
 
-  if (!opts.loadAllVisible && !chercheNom) {
+  if (!opts.loadAllVisible && !opts.toutVisible && !chercheNom) {
     const leadOr = addressOr(['address', 'adresse_normalisee']);
-    const contactOr = addressOr(['address']);
     const bienOr = addressOr(['address']);
     const noteOr = addressOr(['adresse_normalisee', 'transcript']);
     if (leadOr) leadQ.or(leadOr);
-    if (contactOr) contactQ.or(contactOr);
     if (bienOr) bienQ.or(bienOr);
     if (noteOr) noteQ.or(noteOr);
   }
 
 
   if (opts.since) {
-    contactQ.gte('created_at', opts.since);
     bienQ.gte('created_at', opts.since);
     noteQ.gte('created_at', opts.since);
     leadQ.gte('created_at', opts.since);
@@ -1123,7 +1235,9 @@ async function loadSnapshot(
   const contactIds = contacts.map((c) => c.id);
 
   let interactions: CollecteInteraction[] = [];
-  if (contactIds.length > 0 || opts.loadAllVisible || opts.since) {
+  // Toute la base : la date du dernier échange est sur la fiche, et mille
+  // identifiants ne tiennent pas dans une URL.
+  if (!opts.toutVisible && (contactIds.length > 0 || opts.loadAllVisible || opts.since)) {
     let iq = supabase
       .from('contact_interactions')
       .select(
@@ -1204,6 +1318,7 @@ export async function collecter(
     nom: intent.type === 'personne' ? intent.nom : null,
     since,
     loadAllVisible: intent.type === 'recherche_acquereur' || intent.type === 'activite',
+    toutVisible: intent.type === 'base' || intent.type === 'recherche_acquereur',
   });
 
   return collectFromSnapshot(intent, snapshot, {

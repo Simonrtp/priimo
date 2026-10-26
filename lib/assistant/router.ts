@@ -77,6 +77,31 @@ const ACQUEREUR = motif(
   String.raw`qui cherche|qui recherche|quels?\s+acqu[ée]reurs?|acqu[ée]reurs?\s+(?:pour|sur|dans)|int[ée]ress[ée]s?\s+par|rapprochements?\s+(?:pour|sur)|[àa] qui (?:proposer|montrer)`,
 );
 
+/** Les fiches de la base désignées en bloc : « mes acquéreurs », « les biens ». */
+const ENTITES_BASE = motif(
+  String.raw`acqu[ée]reurs?|vendeurs?|propri[ée]taires?|locataires?|contacts?|clients?|biens?|mandats?|prospects?|leads?|appartements?|maisons?|studios?|[tf][1-7]|\d+\s*pi[èe]ces|(?:deux|trois|quatre|cinq|six)\s+pi[èe]ces`,
+);
+
+/** Une demande de liste, de comptage ou de filtre — pas une fiche précise. */
+const LISTE_BASE = motif(
+  String.raw`qui|quels?|quelles?|listes?|lister|combien|tous|toutes|mes|nos|y a[- ]t[- ]il|est[- ]ce qu|on a|j'?ai|montre|donne|trouve|cherche|veu[tl]|voudrai(?:t|ent)|souhaite(?:nt)?`,
+);
+
+function typeContactDit(q: string): AssistantIntent['filtres']['type_contact'] {
+  if (/vend|propri[ée]taire/i.test(q)) return 'vendeur';
+  if (/acqu[ée]reur|ach[eè]te|cherche|budget/i.test(q)) return 'acquereur';
+  if (/locataire/i.test(q)) return 'locataire';
+  return null;
+}
+
+function statutMandatDit(q: string): AssistantIntent['filtres']['statut_mandat'] {
+  if (/exclusi/i.test(q)) return 'mandat_exclusif';
+  if (/mandats? simples?/i.test(q)) return 'mandat_simple';
+  if (/compromis/i.test(q)) return 'compromis';
+  if (/\bvendus?\b/i.test(q)) return 'vendu';
+  return null;
+}
+
 function periodeJours(q: string): number | null {
   const explicite = NB_JOURS.exec(q);
   if (explicite) {
@@ -181,6 +206,27 @@ export function routeQuestion(
     if (nom) {
       return { forme: 'qui_soccupe_personne', intent: intent({ type: 'personne', nom }) };
     }
+  }
+
+  // « Qui sont mes acquéreurs », « qui veut vendre », « combien de biens en
+  // exclusivité » : toute la base visible, sans adresse ni période.
+  const plain = q.replace(/’/g, "'");
+  if (
+    !voie &&
+    jours === null &&
+    ENTITES_BASE.test(plain) &&
+    LISTE_BASE.test(plain) &&
+    !PERSONNE_SUR.test(plain) &&
+    !SAVOIR_SUR.test(plain)
+  ) {
+    return {
+      forme: 'base',
+      intent: intent({
+        type: 'base',
+        code_postal: cp,
+        filtres: { type_contact: typeContactDit(plain), statut_mandat: statutMandatDit(plain) },
+      }),
+    };
   }
 
   // « Combien de leads ce mois », « bilan de la semaine », « que dois-je faire ».

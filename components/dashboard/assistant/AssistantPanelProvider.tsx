@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { notifyError } from '@/lib/notify';
 import type { AssistantSource } from '@/lib/assistant/collecte';
+import { lireFluxAssistant } from '@/lib/assistant/flux';
 import { EVENEMENT_QUESTION_ASSISTANT, type QuestionAssistantDetail } from '@/lib/assistant/question-event';
 
 export type PanelTab = 'conversation' | 'historique';
@@ -154,66 +155,19 @@ export default function AssistantPanelProvider({ children }: { children: React.R
           signal: controller.signal,
         });
 
-        // Plafond mensuel ou erreur : réponse JSON, pas un flux.
-        const type = res.headers.get('content-type') ?? '';
-        if (!type.includes('text/event-stream')) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
-          patch((m) => ({ ...m, contenu: body.error ?? "La réponse n'a pas pu être produite." }));
-          return;
-        }
-
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error('flux indisponible');
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          let cut = buffer.indexOf('\n\n');
-          while (cut >= 0) {
-            const block = buffer.slice(0, cut);
-            buffer = buffer.slice(cut + 2);
-            cut = buffer.indexOf('\n\n');
-
-            const eventLine = block.split('\n').find((l) => l.startsWith('event:'));
-            const dataLine = block.split('\n').find((l) => l.startsWith('data:'));
-            if (!eventLine || !dataLine) continue;
-            const event = eventLine.slice(6).trim();
-            let data: unknown;
-            try {
-              data = JSON.parse(dataLine.slice(5).trim());
-            } catch {
-              continue;
-            }
-
-            if (event === 'meta') {
-              const meta = data as {
-                conversationId?: string;
-                question?: string;
-                voirTout?: VoirTout | null;
-              };
-              if (meta.conversationId) setConversationId(meta.conversationId);
-              patch((m) => ({
-                ...m,
-                question: meta.question ?? q,
-                voirTout: meta.voirTout ?? null,
-              }));
-            } else if (event === 'sources') {
-              patch((m) => ({ ...m, sources: (data as AssistantSource[]) ?? [] }));
-            } else if (event === 'delta') {
-              const t = (data as { t?: string }).t ?? '';
-              patch((m) => ({ ...m, contenu: m.contenu + t }));
-            } else if (event === 'erreur') {
-              patch((m) => ({
-                ...m,
-                contenu: (data as { message?: string }).message ?? "La réponse n'a pas pu être produite.",
-              }));
-            }
-          }
-        }
+        await lireFluxAssistant(res, {
+          onMeta: (meta) => {
+            if (meta.conversationId) setConversationId(meta.conversationId);
+            patch((m) => ({
+              ...m,
+              question: meta.question ?? q,
+              voirTout: meta.voirTout ?? null,
+            }));
+          },
+          onSources: (sources) => patch((m) => ({ ...m, sources })),
+          onDelta: (t) => patch((m) => ({ ...m, contenu: m.contenu + t })),
+          onErreur: (message) => patch((m) => ({ ...m, contenu: message })),
+        });
       } catch (error) {
         if ((error as Error)?.name === 'AbortError') return;
         notifyError("La réponse n'a pas pu être produite.");
@@ -279,7 +233,9 @@ export default function AssistantPanelProvider({ children }: { children: React.R
 
   // Une question dictée au micro de la note : le panneau s'ouvre et répond.
   const envoyerRef = useRef(envoyer);
-  envoyerRef.current = envoyer;
+  useEffect(() => {
+    envoyerRef.current = envoyer;
+  }, [envoyer]);
   useEffect(() => {
     const onQuestion = (e: Event) => {
       const question = (e as CustomEvent<QuestionAssistantDetail>).detail?.question?.trim();

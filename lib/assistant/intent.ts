@@ -11,6 +11,7 @@ export const INTENT_TYPES = [
   'recherche_acquereur',
   'activite',
   'produit',
+  'base',
   'inconnu',
 ] as const;
 
@@ -147,6 +148,7 @@ export function labelCherche(intent: AssistantIntent): string {
     return n === 1 ? "l'activité du jour" : `l'activité des ${n} derniers jours`;
   }
   if (intent.type === 'produit') return 'le fonctionnement de Priimo';
+  if (intent.type === 'base') return 'votre base';
   return 'cette recherche';
 }
 
@@ -260,6 +262,39 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       nom: null,
       periode_jours: null,
       filtres: { type_contact: null, statut_mandat: null },
+    },
+  },
+  {
+    question: 'Qui sont mes acquéreurs ?',
+    intent: {
+      type: 'base',
+      adresse: null,
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: 'acquereur', statut_mandat: null },
+    },
+  },
+  {
+    question: 'Qui cherche un trois pièces avec 400 000 euros de budget ?',
+    intent: {
+      type: 'base',
+      adresse: null,
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: 'acquereur', statut_mandat: null },
+    },
+  },
+  {
+    question: 'Quels biens on a en mandat exclusif ?',
+    intent: {
+      type: 'base',
+      adresse: null,
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: null, statut_mandat: 'mandat_exclusif' },
     },
   },
   {

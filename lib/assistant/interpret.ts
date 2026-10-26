@@ -29,13 +29,14 @@ export const INTERPRET_SYSTEM_PROMPT = `Tu traduis une question d'agent immobili
 Tu n'inventes aucun fait. Tu n'extrais que ce qui est explicitement dit.
 
 Schéma:
-{"type":"immeuble"|"personne"|"recherche_acquereur"|"activite"|"inconnu","adresse":string|null,"code_postal":string|null,"nom":string|null,"periode_jours":number|null,"filtres":{"type_contact":"vendeur"|"acquereur"|"locataire"|"autre"|null,"statut_mandat":"estimation"|"mandat_simple"|"mandat_exclusif"|"compromis"|"vendu"|"archive"|null}}
+{"type":"immeuble"|"personne"|"recherche_acquereur"|"activite"|"base"|"inconnu","adresse":string|null,"code_postal":string|null,"nom":string|null,"periode_jours":number|null,"filtres":{"type_contact":"vendeur"|"acquereur"|"locataire"|"autre"|null,"statut_mandat":"estimation"|"mandat_simple"|"mandat_exclusif"|"compromis"|"vendu"|"archive"|null}}
 
 type:
 - immeuble : question sur une adresse, un bâtiment, un mandat à une adresse
-- personne : question sur un nom de contact
-- recherche_acquereur : qui cherche un bien, acquéreurs correspondant à un secteur ou une adresse
+- personne : question sur un nom ou un prénom de contact
+- recherche_acquereur : acquéreurs correspondant à un code postal ou une adresse précise
 - activite : activité récente de l'agence, ou « que dois-je faire aujourd'hui / cette semaine »
+- base : toute autre question sur les contacts, acquéreurs, vendeurs, biens, mandats, prospects ou notes de l'agence — une liste, un comptage, un filtre (budget, pièces, surface, ville, quartier, statut), un croisement
 - inconnu : tout le reste (météo, conseil, estimation de marché, opinion, question hors base)
 
 periode_jours : 1 pour aujourd'hui ou « que faire aujourd'hui », 7 pour cette semaine, 30 pour ce mois, ou le nombre dit. Null sinon.

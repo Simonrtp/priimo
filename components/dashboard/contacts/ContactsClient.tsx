@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Download, Phone, Search, Upload, Users } from 'lucide-react';
+import { ChevronDown, Download, Home, Phone, Search, Upload, Users } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
@@ -27,6 +27,7 @@ import { exportContactsCsv } from '@/lib/import/export-contacts';
 import { formatPhoneDisplay, normalizePhone, telHref } from '@/lib/import/normalize';
 import Select from '@/components/ui/Select';
 import DatePickerField from '@/components/ui/DatePickerField';
+import { formatDatePickerLabel } from '@/lib/ui/date-picker';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import ImportContacts from '@/components/dashboard/import/ImportContacts';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
@@ -41,11 +42,26 @@ import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeS
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
 import PanneauAlerte from '@/components/ui/PanneauAlerte';
+import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
 
 const SLATE = '#1A2A56';
 const SELECTED = '#F1F2F4';
 
+/** Même pilule que la Liste, un cran plus large. */
+const FILTRE_PILULE =
+  'flex min-w-[9.5rem] items-center justify-between gap-1.5 rounded-full bg-black/[0.04] px-3.5 py-2 text-left text-[13.5px] font-medium text-text-strong outline-none transition-colors duration-fluid-subtle hover:bg-black/[0.07] focus-visible:ring-2 focus-visible:ring-accent/25';
+
 type EtatFilter = 'tous' | 'relance' | 'incompletes' | 'doublons';
+type PorteeContacts = 'moi' | 'agence';
+
+const PORTEES_CONTACTS: readonly { id: PorteeContacts; label: string }[] = [
+  { id: 'moi', label: 'Mes contacts' },
+  { id: 'agence', label: 'Les contacts de toute l’agence' },
+];
+
+function contactAMoi(contact: Contact, userId: string): boolean {
+  return (contact.assignedTo ?? contact.createdBy) === userId;
+}
 
 function normalize(s: string): string {
   return s
@@ -83,6 +99,7 @@ function ContactRow({
   biens,
   members,
   currentUserId,
+  marquePrivee = false,
   onOpen,
   onComplete,
   onMerge,
@@ -103,6 +120,8 @@ function ContactRow({
   biens: Bien[];
   members: readonly AssigneeOption[];
   currentUserId: string;
+  /** Fiche privée d'un collègue, visible parce que la direction voit toute l'agence. */
+  marquePrivee?: boolean;
   onOpen: () => void;
   onComplete: () => void;
   onMerge: () => void;
@@ -174,6 +193,11 @@ function ContactRow({
               >
                 {contact.fullName}
               </span>
+              {marquePrivee ? (
+                <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[#EFEBE3] px-2 py-0.5 text-[11px] font-medium text-[#1A2A56]">
+                  Privée
+                </span>
+              ) : null}
               {contact.visibilite === 'agence' ? (
                 <span
                   role="img"
@@ -185,20 +209,26 @@ function ContactRow({
                 </span>
               ) : null}
               {rattache ? (
-                <span className="min-w-0 max-w-full truncate text-[13px] text-text-muted">
-                  rattaché à{' '}
-                  {rattache.href ? (
-                    <Link
-                      href={rattache.href}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-text-strong underline decoration-black/20 underline-offset-2 hover:decoration-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    >
-                      {rattache.adresse}
-                    </Link>
-                  ) : (
-                    rattache.adresse
-                  )}
-                </span>
+                rattache.href ? (
+                  <Link
+                    href={rattache.href}
+                    title={rattache.adresse}
+                    aria-label={`Maison, ${rattache.adresse}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex shrink-0 items-center gap-1 text-[13px] text-text-strong underline decoration-black/20 underline-offset-2 hover:decoration-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    <Home size={14} strokeWidth={2} aria-hidden />
+                    Maison
+                  </Link>
+                ) : (
+                  <span
+                    title={rattache.adresse}
+                    className="inline-flex shrink-0 items-center gap-1 text-[13px] text-text-strong"
+                  >
+                    <Home size={14} strokeWidth={2} aria-hidden />
+                    Maison
+                  </span>
+                )
               ) : null}
               {/* Une pastille par casquette : vendeuse et acquéreuse se lisent d'un coup d'œil. */}
               {rolesDuContact(contact).map((role) => (
@@ -274,7 +304,12 @@ function ContactRow({
                 value={contact.recontacterLe}
                 onChange={onRelance}
                 stopPropagation
-                aria-label={`Date de relance pour ${contact.fullName}`}
+                placeholder="Planifier RDV"
+                aria-label={
+                  contact.recontacterLe
+                    ? `RDV le ${formatDatePickerLabel(contact.recontacterLe, true)} pour ${contact.fullName}`
+                    : `Planifier un RDV pour ${contact.fullName}`
+                }
               />
             </div>
           </div>
@@ -370,6 +405,7 @@ export default function ContactsClient({
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
+  const [portee, setPortee] = useState<PorteeContacts>('agence');
   const [typeFilter, setTypeFilter] = useState<ContactType | 'tous'>('tous');
   const [secteurFilter, setSecteurFilter] = useState('tous');
   const [memberFilter, setMemberFilter] = useState('tous');
@@ -383,18 +419,38 @@ export default function ContactsClient({
 
   const partenaires = useMemo(() => duplicatePartnerMap(contacts), [contacts]);
 
+  const perimetre = useMemo(() => {
+    if (!isDirector || portee === 'agence') return contacts;
+    return contacts.filter((c) => contactAMoi(c, currentUserId));
+  }, [contacts, isDirector, portee, currentUserId]);
+
+  const comptesPortee = useMemo(
+    () => ({
+      moi: contacts.filter((c) => contactAMoi(c, currentUserId)).length,
+      agence: contacts.length,
+    }),
+    [contacts, currentUserId],
+  );
+
   const secteurs = useMemo(() => {
     const set = new Set<string>();
-    for (const c of contacts) if (c.secteur) set.add(c.secteur);
+    for (const c of perimetre) if (c.secteur) set.add(c.secteur);
     return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
-  }, [contacts]);
+  }, [perimetre]);
 
   const visible = useMemo(() => {
     const q = normalize(query.trim());
-    const filtered = contacts.filter((c) => {
+    const filtered = perimetre.filter((c) => {
       if (typeFilter !== 'tous' && !aLeRole(c, typeFilter)) return false;
       if (secteurFilter !== 'tous' && c.secteur !== secteurFilter) return false;
-      if (isDirector && memberFilter !== 'tous' && c.assignedTo !== memberFilter) return false;
+      if (
+        isDirector &&
+        portee === 'agence' &&
+        memberFilter !== 'tous' &&
+        c.assignedTo !== memberFilter
+      ) {
+        return false;
+      }
       if (q && !contactMatchesQuery(c, q)) return false;
       if (listFilter === 'sans-position' && c.banId) return false;
       if (listFilter === 'vendeurs-inactifs') {
@@ -419,7 +475,8 @@ export default function ContactsClient({
       return a.fullName.localeCompare(b.fullName, 'fr');
     });
   }, [
-    contacts,
+    perimetre,
+    portee,
     query,
     typeFilter,
     secteurFilter,
@@ -496,13 +553,36 @@ export default function ContactsClient({
   }
 
   return (
-    <div className="w-full min-w-0 pb-4 pt-2 md:pb-0 md:pt-1 lg:pt-3">
+    <div className="w-full min-w-0 pb-4 pt-2 md:pb-8 md:pt-1 lg:pt-3">
       <PageHeader
         title="Contacts"
+        titleAside={
+          isDirector ? (
+            <div role="tablist" aria-label="Contacts affichés" className={PASTILLE_TRACK}>
+              {PORTEES_CONTACTS.map((choix) => (
+                <button
+                  key={choix.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={portee === choix.id}
+                  onClick={() => setPortee(choix.id)}
+                  className={pastilleClass(portee === choix.id)}
+                >
+                  {choix.label}{' '}
+                  <span className="tabular-nums">({comptesPortee[choix.id]})</span>
+                </button>
+              ))}
+            </div>
+          ) : null
+        }
         subtitle={
-          contacts.length === 0
-            ? 'Les personnes que vous rencontrez sur le terrain'
-            : `${contacts.length} ${contacts.length > 1 ? 'personnes suivies' : 'personne suivie'}`
+          isDirector && perimetre.length > 0
+            ? undefined
+            : perimetre.length === 0
+              ? isDirector && portee === 'agence'
+                ? 'Les fiches de l’agence, y compris les privées'
+                : 'Les personnes que vous rencontrez sur le terrain'
+              : `${perimetre.length} ${perimetre.length > 1 ? 'personnes suivies' : 'personne suivie'}`
         }
         primaryAction={
           <WorkspaceButton
@@ -531,7 +611,7 @@ export default function ContactsClient({
             <WorkspaceButton
               type="button"
               variant="secondary"
-              onClick={() => exportContactsCsv(contacts)}
+              onClick={() => exportContactsCsv(perimetre)}
               className="max-sm:size-10 max-sm:px-0"
             >
               <Download size={16} strokeWidth={2} aria-hidden />
@@ -541,17 +621,13 @@ export default function ContactsClient({
         }
       />
 
-      {/* Téléphone : la recherche sur toute la largeur, les filtres deux par deux. */}
-      <div className="mb-6 grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap sm:gap-4 md:mb-8">
-        <div className="relative col-span-2 min-w-0 sm:min-w-[280px] sm:flex-[1.4]">
-          <label htmlFor="contacts-search" className="sr-only">
-            Rechercher un contact par nom, téléphone ou email
-          </label>
+      <div className="mb-6 flex flex-wrap items-center gap-2.5 md:mb-8">
+        <label className="relative w-full min-w-0 sm:w-auto">
           <Search
-            size={16}
-            strokeWidth={2}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
+            size={17}
+            strokeWidth={2.2}
             aria-hidden
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
           />
           <input
             id="contacts-search"
@@ -559,100 +635,77 @@ export default function ContactsClient({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un nom, un téléphone, un email"
-            className="w-full rounded-2xl border border-black/[0.10] bg-surface py-2.5 pl-9 pr-3 text-text outline-none transition-colors placeholder:text-text-subtle focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
-            style={{ fontSize: 14 }}
+            aria-label="Rechercher un contact par nom, téléphone ou email"
+            className="w-full rounded-full border border-black/[0.10] bg-white py-2.5 pl-11 pr-4 text-[14px] font-medium text-text-strong shadow-clay-sm outline-none placeholder:font-medium placeholder:text-text-muted hover:border-black/[0.14] focus:border-accent/50 focus:ring-2 focus:ring-accent/15 sm:w-[22rem]"
           />
-        </div>
-
-        <div className="min-w-0 sm:w-[180px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
-          <label htmlFor="contacts-etat" className="mb-1.5 block text-[12.5px] font-medium text-text-muted">
-            État
-          </label>
+        </label>
+        <Select
+          id="contacts-etat"
+          value={etatFilter}
+          onChange={(v) => setEtatFilter(v as EtatFilter)}
+          options={[
+            { value: 'tous', label: 'Tous les états' },
+            { value: 'relance', label: 'À relancer' },
+            { value: 'incompletes', label: 'Fiches incomplètes' },
+            { value: 'doublons', label: 'Doublons possibles' },
+          ]}
+          aria-label="Filtrer par état"
+          menuMinWidth={200}
+          triggerClassName={FILTRE_PILULE}
+        />
+        <Select
+          id="contacts-type"
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(v as ContactType | 'tous')}
+          options={[
+            { value: 'tous', label: 'Tous les types' },
+            ...CONTACT_TYPE_ORDER.map((t) => ({ value: t, label: CONTACT_TYPE_LABELS[t] })),
+          ]}
+          aria-label="Filtrer par type"
+          menuMinWidth={200}
+          triggerClassName={FILTRE_PILULE}
+        />
+        {isDirector && portee === 'agence' && members.length > 1 ? (
           <Select
-            id="contacts-etat"
-            value={etatFilter}
-            onChange={(v) => setEtatFilter(v as EtatFilter)}
+            id="contacts-member"
+            value={memberFilter}
+            onChange={setMemberFilter}
             options={[
-              { value: 'tous', label: 'Tous' },
-              { value: 'relance', label: 'À relancer' },
-              { value: 'incompletes', label: 'Fiches incomplètes' },
-              { value: 'doublons', label: 'Doublons possibles' },
+              { value: 'tous', label: 'Tous les membres' },
+              ...members.map((m) => ({
+                value: m.id,
+                label: m.id === currentUserId ? `${m.fullName} (moi)` : m.fullName,
+                avatar: assigneeSelectAvatar(m),
+              })),
             ]}
-            aria-label="Filtrer par état"
+            aria-label="Filtrer par membre"
+            menuMinWidth={220}
+            triggerClassName={FILTRE_PILULE}
           />
-        </div>
-
-        <div className="min-w-0 sm:w-[180px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
-          <label
-            htmlFor="contacts-type"
-            className="mb-1.5 block text-[12.5px] font-medium text-text-muted"
-          >
-            Type
-          </label>
-          <Select
-            id="contacts-type"
-            value={typeFilter}
-            onChange={(v) => setTypeFilter(v as ContactType | 'tous')}
-            options={[
-              { value: 'tous', label: 'Tous les types' },
-              ...CONTACT_TYPE_ORDER.map((t) => ({ value: t, label: CONTACT_TYPE_LABELS[t] })),
-            ]}
-            aria-label="Filtrer par type"
-          />
-        </div>
-
-        {isDirector && members.length > 1 ? (
-          <div className="min-w-0 sm:w-[200px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
-            <label
-              htmlFor="contacts-member"
-              className="mb-1.5 block text-[12.5px] font-medium text-text-muted"
-            >
-              Membre
-            </label>
-            <Select
-              id="contacts-member"
-              value={memberFilter}
-              onChange={setMemberFilter}
-              options={[
-                { value: 'tous', label: 'Tous les membres' },
-                ...members.map((m) => ({
-                  value: m.id,
-                  label: m.id === currentUserId ? `${m.fullName} (moi)` : m.fullName,
-                  avatar: assigneeSelectAvatar(m),
-                })),
-              ]}
-              aria-label="Filtrer par membre"
-            />
-          </div>
         ) : null}
-
         {secteurs.length > 0 ? (
-          <div className="min-w-0 sm:w-[200px] sm:flex-none [&:last-child:nth-child(even)]:col-span-2">
-            <label
-              htmlFor="contacts-secteur"
-              className="mb-1.5 block text-[12.5px] font-medium text-text-muted"
-            >
-              Secteur
-            </label>
-            <Select
-              id="contacts-secteur"
-              value={secteurFilter}
-              onChange={setSecteurFilter}
-              options={[
-                { value: 'tous', label: 'Tous les secteurs' },
-                ...secteurs.map((s) => ({ value: s, label: s })),
-              ]}
-              aria-label="Filtrer par secteur"
-            />
-          </div>
+          <Select
+            id="contacts-secteur"
+            value={secteurFilter}
+            onChange={setSecteurFilter}
+            options={[
+              { value: 'tous', label: 'Tous les secteurs' },
+              ...secteurs.map((s) => ({ value: s, label: s })),
+            ]}
+            aria-label="Filtrer par secteur"
+            menuMinWidth={200}
+            triggerClassName={FILTRE_PILULE}
+          />
         ) : null}
       </div>
 
       {visible.length === 0 ? (
         <WorkspaceCard className="py-12 text-center">
           <p className="text-pretty text-[14px] text-text-muted sm:text-[15px]">
-            {contacts.length === 0
-              ? 'Aucun contact pour l’instant. Ajoutez la première personne rencontrée.'
+            {perimetre.length === 0
+              ? portee === 'agence' && isDirector
+                ? 'Aucun contact dans l’agence pour l’instant.'
+                : 'Aucun contact pour l’instant. Ajoutez la première personne rencontrée.'
               : 'Aucun contact ne correspond à cette recherche.'}
           </p>
         </WorkspaceCard>
@@ -676,6 +729,12 @@ export default function ContactsClient({
               biens={biens}
               members={members}
               currentUserId={currentUserId}
+              marquePrivee={
+                isDirector &&
+                portee === 'agence' &&
+                contact.visibilite !== 'agence' &&
+                !contactAMoi(contact, currentUserId)
+              }
               onOpen={() => setSelectedId((id) => (id === contact.id ? null : contact.id))}
               onComplete={() => setSelectedId(contact.id)}
               onMerge={() => openMerge(contact)}

@@ -10,7 +10,7 @@ import { labelCherche, type AssistantIntent } from './intent';
 export const EXEMPLES_QUESTIONS: readonly string[] = [
   "Qu'est-ce qu'on sait sur le 12 rue Vitruve ?",
   'Des nouvelles de Cécile Martin ?',
-  "Qu'est-ce qu'on a fait cette semaine ?",
+  'Qui sont mes acquéreurs pour un trois pièces ?',
 ];
 
 /**
@@ -19,7 +19,7 @@ export const EXEMPLES_QUESTIONS: readonly string[] = [
  */
 export const MESSAGE_AIDE = [
   "Je n'ai pas compris la question.",
-  'Je sais répondre sur une adresse, une personne, des acquéreurs, votre activité récente, et sur le fonctionnement de Priimo. Par exemple :',
+  'Je sais répondre sur une adresse, une personne, vos acquéreurs, vendeurs, biens et notes, votre activité récente, et sur le fonctionnement de Priimo. Par exemple :',
   ...EXEMPLES_QUESTIONS.map((q) => `— ${q}`),
 ].join('\n');
 
@@ -52,6 +52,13 @@ export function messageAucuneLigne(
 
   if (intent.type === 'recherche_acquereur') {
     return `Aucun acquéreur de votre base ne correspond à ${labelCherche(intent)}.`;
+  }
+
+  if (intent.type === 'base') {
+    if (intent.filtres.type_contact === 'acquereur') return 'Aucun acquéreur dans votre base pour l’instant.';
+    if (intent.filtres.type_contact === 'vendeur') return 'Aucun vendeur dans votre base pour l’instant.';
+    if (intent.filtres.statut_mandat) return 'Aucun bien avec ce statut de mandat dans votre base.';
+    return 'Votre base est vide pour l’instant : ni contact, ni bien, ni note.';
   }
 
   if (intent.type === 'activite') {

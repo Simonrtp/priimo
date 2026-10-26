@@ -137,9 +137,9 @@ export default function DatePickerField({
   }, [open, close]);
 
   const cells = useMemo(() => buildMonthCells(viewMonth), [viewMonth]);
-  const label =
-    placeholder ??
-    formatDatePickerLabel(value, compact);
+  const label = value
+    ? formatDatePickerLabel(value, compact)
+    : (placeholder ?? formatDatePickerLabel(value, compact));
 
   function pick(iso: string) {
     onChange(iso);

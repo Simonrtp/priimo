@@ -4,7 +4,8 @@
  * toujours identique, pour tomber dans le cache de préfixe côté fournisseur.
  */
 
-import { MISTRAL_CHAT_URL, parseUsage, type ModelTier, type TokenUsage, modelFor } from './models';
+import { ecarterModele } from '@/lib/mistral/modeles';
+import { MISTRAL_CHAT_URL, parseUsage, type ModelTier, type TokenUsage, modelesDuPalier } from './models';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -32,30 +33,53 @@ export type ChatOptions = {
   fetchImpl?: typeof fetch;
 };
 
+/**
+ * Le premier modèle du palier qui accepte la requête. Un refus (hors forfait,
+ * quota) passe au suivant et met le modèle de côté ; une coupure réseau ou un
+ * délai dépassé s'arrête là, pour ne pas doubler l'attente.
+ */
+async function premiereReponse(
+  options: ChatOptions,
+  corps: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<Response | null> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  for (const model of modelesDuPalier(options.tier)) {
+    let res: Response;
+    try {
+      res = await fetchImpl(MISTRAL_CHAT_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${options.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, ...corps }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch {
+      return null;
+    }
+    if (res.ok) return res;
+    // Requête mal formée : aucun autre modèle n'y répondrait mieux.
+    if (res.status === 400 || res.status === 422) return null;
+    ecarterModele(model, res.status);
+  }
+  return null;
+}
+
 /** Appel simple, sans flux. Rend null si le service n'a rien produit. */
 export async function chatOnce(options: ChatOptions): Promise<ChatResult | null> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  let res: Response;
-  try {
-    res = await fetchImpl(MISTRAL_CHAT_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelFor(options.tier),
-        temperature: 0,
-        max_tokens: options.maxTokens,
-        ...(options.jsonObject ? { response_format: { type: 'json_object' } } : {}),
-        messages: options.messages,
-      }),
-      signal: AbortSignal.timeout(options.timeoutMs ?? 12_000),
-    });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
+  const res = await premiereReponse(
+    options,
+    {
+      temperature: 0,
+      max_tokens: options.maxTokens,
+      ...(options.jsonObject ? { response_format: { type: 'json_object' } } : {}),
+      messages: options.messages,
+    },
+    options.timeoutMs ?? 12_000,
+  );
+  if (!res) return null;
 
   try {
     const body = (await res.json()) as {
@@ -82,28 +106,17 @@ export type DeltaHandler = (fragment: string) => void;
 export async function chatStream(
   options: ChatOptions & { onDelta: DeltaHandler },
 ): Promise<ChatResult | null> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  let res: Response;
-  try {
-    res = await fetchImpl(MISTRAL_CHAT_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: modelFor(options.tier),
-        temperature: 0,
-        max_tokens: options.maxTokens,
-        stream: true,
-        messages: options.messages,
-      }),
-      signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
-    });
-  } catch {
-    return null;
-  }
-  if (!res.ok || !res.body) return null;
+  const res = await premiereReponse(
+    options,
+    {
+      temperature: 0,
+      max_tokens: options.maxTokens,
+      stream: true,
+      messages: options.messages,
+    },
+    options.timeoutMs ?? 30_000,
+  );
+  if (!res?.body) return null;
 
   const decoder = new TextDecoder();
   const reader = res.body.getReader();

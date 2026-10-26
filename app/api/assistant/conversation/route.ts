@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { viewerFromProfile } from '@/lib/agency/visibility';
+import { BASE_SYSTEM_PROMPT, sourcesCitees, texteBase } from '@/lib/assistant/base';
 import { MESSAGE_PLAFOND_ATTEINT, debutDuMois, etatBudget } from '@/lib/assistant/budget';
 import { readCachedAnswer, writeCachedAnswer } from '@/lib/assistant/cache';
-import { collecter, type AssistantSource } from '@/lib/assistant/collecte';
+import { collecter, type AssistantSource, type CollecteLigne } from '@/lib/assistant/collecte';
 import { payloadBorne } from '@/lib/assistant/context-budget';
 import {
   construireContexte,
@@ -24,7 +25,7 @@ import {
 } from '@/lib/assistant/produit';
 import { listeVersEcran, type VoirTout } from '@/lib/assistant/liste-ecran';
 import { chatStream } from '@/lib/assistant/mistral';
-import { stableSystemMessage, tierForAnswer } from '@/lib/assistant/models';
+import { stableSystemMessage, tierForAnswer, type ModelTier } from '@/lib/assistant/models';
 import { REFORMULER_SYSTEM_PROMPT } from '@/lib/assistant/repondre';
 import { regenererResume } from '@/lib/assistant/resume';
 import { routeQuestion } from '@/lib/assistant/router';
@@ -45,6 +46,8 @@ export const maxDuration = 60;
 
 const MAX_QUESTION = 500;
 const MAX_OUTPUT_TOKENS = 400;
+/** Une liste tirée de toute la base : dix lignes et une synthèse. */
+const MAX_OUTPUT_TOKENS_BASE = 800;
 
 type Body = { question?: unknown; conversationId?: unknown };
 
@@ -147,6 +150,15 @@ export async function POST(req: Request) {
     // L'interprétation est facturée même quand elle échoue : ~250 tokens.
     tokensIntention = 250;
   }
+  // « Qui cherche en ce moment ? » : sans secteur ni adresse, il n'y a rien à
+  // rapprocher — ce sont tous les acquéreurs de la base qu'on lit.
+  if (intent.type === 'recherche_acquereur' && !intent.adresse && !intent.code_postal) {
+    intent = { ...intent, type: 'base', filtres: { ...intent.filtres, type_contact: 'acquereur' } };
+  }
+
+  // Le cache suit les droits : une fiche privée vue par la direction ne doit
+  // pas ressortir pour un collègue qui pose la même question.
+  const cleCache = `${agency.id}:${profile.id}`;
 
   const viewer = viewerFromProfile(profile);
   const members = await fetchMembersOfMyAgency(agency.id, memberships);
@@ -156,8 +168,12 @@ export async function POST(req: Request) {
   /** Lignes mises en forme, servies si la reformulation échoue. */
   let repli = '';
   let donnees = '';
-  let tierSynthese: 'tri' | 'synthese' = 'tri';
+  let tierSynthese: ModelTier = 'tri';
+  let maxTokens = MAX_OUTPUT_TOKENS;
   let systemPrompt = REFORMULER_SYSTEM_PROMPT;
+  /** Question sur toute la base : les sources sont les fiches que la réponse cite. */
+  let lignesBase: CollecteLigne[] | null = null;
+  let collecteSources: AssistantSource[] = [];
   let lignesCount = 0;
   let depuisCache = false;
   let voirTout: VoirTout | null = null;
@@ -189,7 +205,7 @@ export async function POST(req: Request) {
     }
   } else {
     // d) Cache par agence — mêmes données, même quart d'heure.
-    const cache = readCachedAnswer(agency.id, question);
+    const cache = readCachedAnswer(cleCache, question);
     if (cache) {
       texteDirect = cache.reponse;
       sources = cache.sources as AssistantSource[];
@@ -207,6 +223,18 @@ export async function POST(req: Request) {
 
       if (lignesCount === 0) {
         texteDirect = messageAucuneLigne(intent, collecte.proches ?? []);
+      } else if (intent.type === 'base') {
+        // Toute la base visible part au meilleur modèle disponible.
+        lignesBase = collecte.lignes;
+        collecteSources = collecte.sources;
+        sources = [];
+        const base = texteBase(collecte.lignes);
+        const jour = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+        donnees = `Aujourd'hui : ${jour}\n${base.texte}`;
+        repli = reponseDirecte({ ...collecte, lignes: collecte.lignes.slice(0, 10) });
+        systemPrompt = BASE_SYSTEM_PROMPT;
+        tierSynthese = 'lecture';
+        maxTokens = MAX_OUTPUT_TOKENS_BASE;
       } else if (peutRepondreDirect(collecte)) {
         // c) Cinq lignes ou moins et intention factuelle : aucun second appel.
         texteDirect = reponseDirecte(collecte);
@@ -254,7 +282,7 @@ export async function POST(req: Request) {
           const out = await chatStream({
             tier: tierSynthese,
             apiKey,
-            maxTokens: MAX_OUTPUT_TOKENS,
+            maxTokens,
             messages: messagesPourModele(systemPrompt, contexte, question, donnees).map((m) =>
               m.role === 'system' && m.content === systemPrompt ? stableSystemMessage(m.content) : m,
             ),
@@ -270,6 +298,12 @@ export async function POST(req: Request) {
             texte = repli;
             push('delta', { t: texte });
           }
+        }
+
+        // Les fiches que la réponse nomme, cliquables sous le texte.
+        if (lignesBase) {
+          sources = sourcesCitees(texte, lignesBase, collecteSources);
+          push('sources', sources);
         }
 
         await ajouterMessage(supabase, {
@@ -296,7 +330,7 @@ export async function POST(req: Request) {
         await toucherConversation(supabase, conversationId, resume);
 
         if (!depuisCache && intent.type !== 'inconnu' && texte) {
-          writeCachedAnswer(agency.id, question, { reponse: texte, sources, vide: lignesCount === 0, tokens });
+          writeCachedAnswer(cleCache, question, { reponse: texte, sources, vide: lignesCount === 0, tokens });
         }
 
         await journaliserRequete(supabase, {

@@ -143,3 +143,35 @@ describe('routeQuestion — couverture élargie', () => {
     assert.equal(routeQuestion('Quel est le prix du marché à Lyon ?'), null);
   });
 });
+
+describe('routeQuestion — toute la base', () => {
+  it('envoie les listes et les filtres vers toute la base', () => {
+    for (const q of [
+      'Qui sont mes acquéreurs ?',
+      'Qui sont les contacts qui veulent... Accéder à un bien.',
+      'Quels biens on a en exclusivité ?',
+      'Combien de vendeurs dans le 75011 ?',
+      'Qui cherche un T3 ?',
+      'Donne-moi les maisons à vendre',
+    ]) {
+      assert.equal(routeQuestion(q)?.intent.type, 'base', q);
+    }
+  });
+
+  it('lit le rôle et le statut dits', () => {
+    assert.equal(routeQuestion('Qui sont mes vendeurs ?')?.intent.filtres.type_contact, 'vendeur');
+    assert.equal(routeQuestion('Qui cherche un T3 ?')?.intent.filtres.type_contact, 'acquereur');
+    assert.equal(
+      routeQuestion('Quels biens on a en exclusivité ?')?.intent.filtres.statut_mandat,
+      'mandat_exclusif',
+    );
+    assert.equal(routeQuestion('Combien de vendeurs dans le 75011 ?')?.intent.code_postal, '75011');
+  });
+
+  it('laisse les fiches précises et les périodes à leur route', () => {
+    assert.equal(routeQuestion('Combien de leads ce mois ?')?.intent.type, 'activite');
+    assert.equal(routeQuestion('Le téléphone de Sophie Dubois')?.intent.type, 'personne');
+    assert.equal(routeQuestion('Qui cherche un appartement dans le 75020 ?')?.intent.type, 'recherche_acquereur');
+    assert.equal(routeQuestion('Quels acquéreurs pour le 15 rue des Pyrénées ?')?.intent.type, 'recherche_acquereur');
+  });
+});

@@ -177,7 +177,7 @@ export default function AjouterBien({ onAjoute }: { onAjoute: (lead: Lead) => vo
 
   return (
     <>
-      <WorkspaceButton variant="create" onClick={() => setOuvert(true)}>
+      <WorkspaceButton variant="primary" onClick={() => setOuvert(true)}>
         <Plus size={16} strokeWidth={2.4} aria-hidden />
         Nouveau bien
       </WorkspaceButton>

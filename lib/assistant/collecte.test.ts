@@ -248,3 +248,76 @@ describe('collecte — rue sans numéro', () => {
   });
 });
 
+describe('collecte — toute la base', () => {
+  function intentBase(filtres: Partial<AssistantIntent['filtres']> = {}): AssistantIntent {
+    return {
+      type: 'base',
+      adresse: null,
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: null, statut_mandat: null, ...filtres },
+    };
+  }
+
+  const prive = contact({ id: 'ct-prive', fullName: 'Prive Collegue', assignedTo: 'dir-1', createdBy: 'dir-1' });
+  const partage = contact({
+    id: 'ct-partage',
+    fullName: 'Partage Collegue',
+    assignedTo: 'dir-1',
+    createdBy: 'dir-1',
+    visibilite: 'agence',
+  });
+  const mien = contact({
+    id: 'ct-mien',
+    fullName: 'Paul Durand',
+    type: 'vendeur',
+    autresTypes: ['acquereur'],
+    assignedTo: 'col-1',
+    createdBy: 'col-1',
+  });
+
+  it('un collaborateur lit ses fiches et celles qu’on partage, jamais les fiches privées d’un collègue', () => {
+    const result = collectFromSnapshot(
+      intentBase(),
+      { ...emptySnap, contacts: [prive, partage, mien], biens: [bien()] },
+      { agencyId: AGENCY_A, viewer: collab },
+    );
+    const ids = result.lignes.filter((l) => l.kind === 'contact').map((l) => l.id).sort();
+    assert.deepEqual(ids, ['ct-mien', 'ct-partage']);
+    assert.doesNotMatch(JSON.stringify(result.lignes), /Prive Collegue/);
+    // Les biens sont visibles par toute l'agence.
+    assert.equal(result.lignes.some((l) => l.kind === 'bien'), true);
+  });
+
+  it('un rôle cumulé compte : un vendeur qui cherche aussi à acheter est un acquéreur', () => {
+    const result = collectFromSnapshot(
+      intentBase({ type_contact: 'acquereur' }),
+      { ...emptySnap, contacts: [prive, partage, mien] },
+      { agencyId: AGENCY_A, viewer: director },
+    );
+    assert.deepEqual(
+      result.lignes.filter((l) => l.kind === 'contact').map((l) => l.id),
+      ['ct-mien'],
+    );
+  });
+
+  it('une question sur des mandats ne relit que leurs biens et leurs propriétaires', () => {
+    const owner = contact({ id: 'ct-owner', fullName: 'Hélène Nguyen' });
+    const result = collectFromSnapshot(
+      intentBase({ statut_mandat: 'mandat_exclusif' }),
+      {
+        ...emptySnap,
+        contacts: [owner, mien],
+        biens: [bien({ mandatStatut: 'mandat_exclusif' }), bien({ id: 'bien-2', proprietaireContactId: null })],
+      },
+      { agencyId: AGENCY_A, viewer: director },
+    );
+    assert.deepEqual(
+      result.lignes.map((l) => `${l.kind}:${l.id}`).sort(),
+      ['bien:bien-1', 'contact:ct-owner'],
+    );
+    assert.match(JSON.stringify(result.lignes), /Hélène Nguyen/);
+  });
+});
+

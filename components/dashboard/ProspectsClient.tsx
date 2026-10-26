@@ -476,13 +476,7 @@ export default function ProspectsClient({
 
       {pipeline ? (
         <>
-          {/* Même ligne visuelle que Carte / Pipeline / Liste : on remonte dans
-              le padding de la coque (pt-1.5 / pb-1 comme l’onglet). */}
-          <div
-            className={`mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 ${
-              device !== 'mobile' ? 'md:-mt-6 md:pb-1 md:pt-1.5 lg:-mt-8' : ''
-            }`}
-          >
+          <div className="mb-3 mt-1 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
             <AjouterBien
               onAjoute={(lead) => {
                 setLeads((prev) => {

@@ -98,7 +98,7 @@ function formatDateHeure(iso: string): string {
  * Le panneau n'est pas une vue de liste : au-delà de cinq lignes il renvoie
  * vers l'écran qui sait les afficher, déjà filtré.
  */
-function Sources({
+export function Sources({
   sources,
   question,
   voirTout,

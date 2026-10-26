@@ -1,31 +1,53 @@
 /**
- * Deux niveaux de modèle, décidés à un seul endroit.
+ * Trois niveaux de modèle, décidés à un seul endroit.
  *
  * - `tri`      : tâches de classement — intention, reformulation d'un résultat
  *                court, titre de conversation, résumé roulant.
  * - `synthese` : uniquement une vraie synthèse multi-sources.
+ * - `lecture`  : une question posée à toute la base visible (listes, filtres,
+ *                croisements). Le meilleur modèle disponible.
  *
  * Surchargeable par variables serveur, pour changer de palier sans toucher au
- * code : MISTRAL_MODEL_TRI, MISTRAL_MODEL_SYNTHESE.
+ * code : MISTRAL_MODEL_TRI, MISTRAL_MODEL_SYNTHESE, MISTRAL_MODEL_LECTURE.
  */
+
+import { chaineModeles, MODELES_PROFONDS } from '@/lib/mistral/modeles';
 
 export const MISTRAL_CHAT_URL = 'https://api.mistral.ai/v1/chat/completions';
 
-export type ModelTier = 'tri' | 'synthese';
+export type ModelTier = 'tri' | 'synthese' | 'lecture';
 
 const DEFAULT_MODEL: Record<ModelTier, string> = {
   tri: 'ministral-3b-latest',
   synthese: 'mistral-small-latest',
+  lecture: 'mistral-large-latest',
 };
 
 const ENV_KEY: Record<ModelTier, string> = {
   tri: 'MISTRAL_MODEL_TRI',
   synthese: 'MISTRAL_MODEL_SYNTHESE',
+  lecture: 'MISTRAL_MODEL_LECTURE',
+};
+
+/**
+ * Relais quand le modèle du palier refuse (hors forfait, quota) : sur la clé
+ * actuelle, `mistral-small` répond 429 et l'agent n'avait plus qu'une liste
+ * brute à la place d'une réponse.
+ */
+const RELAIS: Record<ModelTier, readonly string[]> = {
+  tri: ['ministral-8b-latest'],
+  synthese: ['ministral-14b-latest', 'ministral-8b-latest'],
+  lecture: MODELES_PROFONDS,
 };
 
 export function modelFor(tier: ModelTier): string {
   const override = process.env[ENV_KEY[tier]]?.trim();
   return override || DEFAULT_MODEL[tier];
+}
+
+/** Les modèles à essayer pour un palier, dans l'ordre, sans ceux mis de côté. */
+export function modelesDuPalier(tier: ModelTier): string[] {
+  return chaineModeles(RELAIS[tier], modelFor(tier));
 }
 
 /** Au-delà, une réponse demande de recouper plusieurs lignes : palier haut. */

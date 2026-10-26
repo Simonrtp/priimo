@@ -23,6 +23,7 @@ import { reverseGeocode } from '@/lib/geo/ban';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import VoiceWaveform from './VoiceWaveform';
 import VoiceReviewPanel, { type PlanRangement } from './VoiceReviewPanel';
+import QuestionDictee from './QuestionDictee';
 import EcranDictee from './live/EcranDictee';
 import { useComprehensionEnDirect } from './live/useComprehensionEnDirect';
 import { useUser } from '@/lib/hooks/useUser';
@@ -55,7 +56,7 @@ import { ditSurfaceLogement, extractEstimationHeuristic } from '@/lib/estimation
 import { enqueueJson, postFormOrQueue, removeFromQueue } from '@/lib/offline/queue';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 import { emitNoteCreated } from '@/lib/notes/note-created-event';
-import { demanderAMonAssistant } from '@/lib/assistant/question-event';
+import { estQuestionDictee } from '@/lib/assistant/question-dictee';
 import { CIBLE_CONTACTS, cibleEnvolNote, envolerNote } from '@/lib/ui/envol-note';
 
 type Phase = 'recording' | 'processing' | 'review';
@@ -130,6 +131,13 @@ export default function VoiceCaptureDialog({
   const [envoisEnCours, setEnvoisEnCours] = useState(0);
   /** À la voix, ou au clavier dans la même feuille. */
   const [mode, setMode] = useState<'voix' | 'ecrit'>(estimationMode ? 'voix' : modeInitial);
+  /**
+   * La dictée est une question à Mon assistant : la feuille y répond au lieu
+   * de proposer le rangement. `prete` : le texte final est arrivé.
+   */
+  const [question, setQuestion] = useState<{ texte: string; prete: boolean } | null>(null);
+  /** L'agent a dit « Garder comme note » : plus aucune bascule en question. */
+  const [noteChoisie, setNoteChoisie] = useState(false);
   const field = variant === 'mobile';
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -157,6 +165,8 @@ export default function VoiceCaptureDialog({
   const envoiRef = useRef<Promise<ResultatEnvoi> | null>(null);
   /** Dictée mise en file hors ligne : la croix la retire avant l'envoi. */
   const fileRef = useRef<string | null>(null);
+  /** L'enregistrement d'une question : il ne part que si l'agent en fait une note. */
+  const priseEnAttenteRef = useRef<{ blob: Blob; durationSeconds: number } | null>(null);
   const voiceNoteIdRef = useRef<string | null>(null);
   /** Partage choisi pendant la relecture, avant que le serveur ait rendu la note. */
   const visibiliteChoisieRef = useRef<VoiceNoteVisibilite | null>(null);
@@ -201,7 +211,7 @@ export default function VoiceCaptureDialog({
     enCours: lectureDirect,
     relire,
   } = useComprehensionEnDirect(transcript, {
-    actif: !estimationMode && !touche,
+    actif: !estimationMode && !touche && !question,
     banId: banId ?? banGps,
     recordedAt,
   });
@@ -429,6 +439,21 @@ export default function VoiceCaptureDialog({
     setError(null);
     const vu = joinVoiceTranscripts(takeBaseRef.current, retirerFinDeNote(liveTextRef.current));
     setTranscript(vu);
+
+    // Une question à Mon assistant : la feuille y répond, aucune note n'est
+    // créée. La question part avec la fin du direct (au plus 1,5 s).
+    if (!envoiRef.current && !takeBaseRef.current.trim() && !noteChoisie && estQuestionDictee(vu)) {
+      priseEnAttenteRef.current = { blob, durationSeconds };
+      setQuestion({ texte: vu, prete: false });
+      setPhase('review');
+      void texteDirectFinal().then((final) => {
+        const texte = final.trim() || vu;
+        setTranscript(texte);
+        setQuestion((q) => (q ? { texte, prete: true } : q));
+      });
+      return;
+    }
+
     if (!toucheRef.current) relire(vu);
     setPhase('review');
 
@@ -436,6 +461,10 @@ export default function VoiceCaptureDialog({
       notifyError('Aucun son reçu.');
       return;
     }
+    lancerEnvoi(blob, durationSeconds);
+  }
+
+  function lancerEnvoi(blob: Blob, durationSeconds: number) {
     const precedent = envoiRef.current;
     setEnvoisEnCours((n) => n + 1);
     envoiRef.current = envoyer(blob, durationSeconds, precedent).finally(() =>
@@ -845,6 +874,12 @@ export default function VoiceCaptureDialog({
       return;
     }
     setError(null);
+    // Une question écrite : Mon assistant répond, rien n'est enregistré.
+    if (!envoiRef.current && !noteChoisie && estQuestionDictee(texte)) {
+      setQuestion({ texte, prete: true });
+      setPhase('review');
+      return;
+    }
     if (!toucheRef.current) relire(texte);
     setPhase('review');
     // Une prise dictée a déjà créé la note : le texte écrit la complète.
@@ -939,14 +974,38 @@ export default function VoiceCaptureDialog({
     onClose();
   }
 
-  /** La dictée était une question : la note s'efface, Mon assistant répond. */
-  function passerAMonAssistant(question: string) {
-    void envoiRef.current?.then((r) => {
-      if ('id' in r) void fetch(`/api/dashboard/voice-notes/${r.id}`, { method: 'DELETE' });
-    });
-    demanderAMonAssistant(question);
-    onClose();
+  /**
+   * La lecture a reconnu une question après coup : la feuille y répond. La
+   * note déjà envoyée s'efface à la fermeture (`abandonnerNote`), sauf si
+   * l'agent la garde.
+   */
+  function passerEnQuestion(texte: string) {
+    setQuestion({ texte: texte.trim(), prete: true });
   }
+
+  /** C'était une note : retour à la relecture, et l'enregistrement part enfin. */
+  function garderCommeNote() {
+    const texte = (question?.texte ?? transcriptRef.current).trim();
+    setNoteChoisie(true);
+    setQuestion(null);
+    if (!toucheRef.current) relire(texte);
+    const prise = priseEnAttenteRef.current;
+    priseEnAttenteRef.current = null;
+    if (envoiRef.current) return;
+    if (prise && prise.blob.size > 0) lancerEnvoi(prise.blob, prise.durationSeconds);
+    // Écrite, ou dictée sans son reçu : le texte suffit à faire la note.
+    else if (texte) envoiRef.current = envoyerEcrit(texte);
+  }
+
+  // La lecture par le modèle reconnaît une question que les règles ont
+  // laissée passer. Seulement une fois la lecture finie : une lecture faite
+  // en pleine dictée peut se tromper.
+  useEffect(() => {
+    if (estimationMode || phase !== 'review' || question || touche || noteChoisie) return;
+    if (lectureDirect || lectureComplete || basePrise.trim()) return;
+    if (review?.intention !== 'question') return;
+    setQuestion({ texte: transcriptRef.current.trim(), prete: true });
+  }, [estimationMode, phase, question, touche, noteChoisie, lectureDirect, lectureComplete, basePrise, review?.intention]);
 
   const memberOptions: AssigneeOption[] = members.map((m) => ({
     id: m.id,
@@ -1030,9 +1089,16 @@ export default function VoiceCaptureDialog({
   }
 
   const affichee = review ?? emptyReviewPayload(voiceNoteId ?? 'en-cours', transcript || null);
-  const titre = affichee.titre ?? 'Votre note';
+  const titre = question ? 'Mon assistant' : (affichee.titre ?? 'Votre note');
 
-  const contenu = (
+  const contenu = question ? (
+    <QuestionDictee
+      question={question.texte}
+      prete={question.prete}
+      onFermer={() => void abandonnerNote()}
+      onGarderCommeNote={garderCommeNote}
+    />
+  ) : (
     <>
       <header className="flex flex-shrink-0 items-center gap-3 px-5 pb-2 pt-4">
         <h2 className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold text-text-strong">{titre}</h2>
@@ -1068,7 +1134,7 @@ export default function VoiceCaptureDialog({
         onContinue={continueRecording}
         onRanger={ranger}
         onVisibilite={choisirVisibilite}
-        onQuestion={passerAMonAssistant}
+        onQuestion={noteChoisie ? undefined : passerEnQuestion}
         lecture={lectureDirect || lectureComplete}
         transcriptionEnCours={envoisEnCours > 0}
         cartesEnAttente={cartesLocales(transcript)}
