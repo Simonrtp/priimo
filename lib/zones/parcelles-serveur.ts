@@ -1,7 +1,8 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
-import { numerosDeLaVoie } from '@/lib/geo/ban-voie';
+import { chercherVoies, numeroDeBanId, numerosDeLaVoie } from '@/lib/geo/ban-voie';
+import { memeVoie } from './adresse';
 import { pointDansPolygone } from './appartenance';
 import { enveloppeDesParcelles } from './enveloppe';
 import { bbox, type Bbox } from './geometrie';
@@ -104,9 +105,15 @@ export async function parcellesDuTrace(client: SupabaseClient, trace: ValeurPoly
 
 /** Les parcelles d'une rue, d'un côté ou des deux (numéros de la BAN). */
 export async function parcellesDeLaRue(
-  voie: { nom: string; codePostal: string },
+  voie: { nom: string; codePostal: string; id?: string },
   parite: PariteVoie,
+  baseAdresses?: SupabaseClient,
 ): Promise<string[]> {
+  // D'abord notre index adresse → parcelle : instantané, et les mêmes identifiants que les secteurs.
+  if (baseAdresses) {
+    const depuisBase = await parcellesDeLaRueDepuisBase(baseAdresses, voie, parite);
+    if (depuisBase.length > 0) return depuisBase;
+  }
   const numeros = await numerosDeLaVoie(voie);
   const ids = new Set<string>();
   for (const n of numeros) {
@@ -116,6 +123,45 @@ export async function parcellesDeLaRue(
       const id = normalizeParcelleId(p);
       if (id) ids.add(id);
     }
+  }
+  return [...ids];
+}
+
+/** Les parcelles d'une rue lues dans parcelle_adresses (ban_id = voie + numéro). */
+async function parcellesDeLaRueDepuisBase(
+  base: SupabaseClient,
+  voie: { nom: string; codePostal: string; id?: string },
+  parite: PariteVoie,
+): Promise<string[]> {
+  // L'identifiant choisi dans la liste évite une recherche de plus.
+  const idVoie = voie.id && /^\d[\dAB]\d{3}_[0-9A-Za-z]{4}$/.test(voie.id) ? voie.id : null;
+  const retenue = idVoie
+    ? { id: idVoie }
+    : (await chercherVoies(voie.nom, { codePostal: voie.codePostal, limite: 5 })).find((c) => memeVoie(c.nom, voie.nom));
+  if (!retenue) return [];
+  const ids = new Set<string>();
+  const PAGE = 1000;
+  for (let debut = 0; debut < 20_000; debut += PAGE) {
+    const { data, error } = await base
+      .from('parcelle_adresses')
+      .select('ban_id, parcelle_id')
+      .like('ban_id', `${retenue.id}_%`)
+      .order('ban_id')
+      .range(debut, debut + PAGE - 1);
+    if (error) {
+      console.error('[zones] rue depuis parcelle_adresses', error.message);
+      return [];
+    }
+    const lignes = (data ?? []) as { ban_id: string; parcelle_id: string }[];
+    for (const l of lignes) {
+      const numero = numeroDeBanId(l.ban_id);
+      if (numero === null) continue;
+      if (parite === 'paires' && numero % 2 !== 0) continue;
+      if (parite === 'impaires' && numero % 2 === 0) continue;
+      const id = normalizeParcelleId(l.parcelle_id);
+      if (id) ids.add(id);
+    }
+    if (lignes.length < PAGE) break;
   }
   return [...ids];
 }

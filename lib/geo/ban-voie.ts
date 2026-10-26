@@ -99,6 +99,14 @@ async function lireJson(url: string): Promise<unknown> {
   }
 }
 
+/** Le numéro d'un identifiant BAN d'adresse (« 75120_0626_00010 » → 10). */
+export function numeroDeBanId(banId: string): number | null {
+  const m = /_(\d{5})(?:_|$)/.exec(banId);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export async function chercherVoies(
   q: string,
   opts: { proche?: { latitude: number; longitude: number } | null; codePostal?: string | null; limite?: number } = {},

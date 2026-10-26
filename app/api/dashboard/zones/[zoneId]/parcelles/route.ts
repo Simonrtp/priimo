@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { canEditZone, viewerFromProfile } from '@/lib/agency/visibility';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { fetchZonePourDroit } from '@/lib/queries/zones';
 import {
   PARCELLES_MAX_PAR_TRACE,
@@ -66,11 +67,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ zoneId: string
       if (estInvalide(trace)) return NextResponse.json({ error: trace.erreur }, { status: 400 });
       for (const id of await parcellesDuTrace(client, trace.valeur as ValeurPolygone)) modeTrace.add(id);
     }
-    const rue = body.rue as { nom?: unknown; codePostal?: unknown; parite?: unknown } | undefined;
+    const rue = body.rue as { nom?: unknown; codePostal?: unknown; parite?: unknown; id?: unknown } | undefined;
     if (rue && typeof rue.nom === 'string' && typeof rue.codePostal === 'string') {
       const parite: PariteVoie =
         rue.parite === 'paires' || rue.parite === 'impaires' ? rue.parite : 'toutes';
-      for (const id of await parcellesDeLaRue({ nom: rue.nom, codePostal: rue.codePostal }, parite)) {
+      for (const id of await parcellesDeLaRue(
+        { nom: rue.nom, codePostal: rue.codePostal, id: typeof rue.id === 'string' ? rue.id : undefined },
+        parite,
+        createSupabaseAdminClient() as unknown as SupabaseClient,
+      )) {
         modeTrace.add(id);
       }
     }

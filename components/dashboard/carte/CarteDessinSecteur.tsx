@@ -271,7 +271,7 @@ export function useDessinSecteur({
   const poserRue = useCallback(
     (voie: VoieTrouvee, parite: PariteVoie) => {
       const cle = cleRue(voie, parite);
-      enregistrer({ rue: { nom: voie.nom, codePostal: voie.codePostal, parite } }, (r) => {
+      enregistrer({ rue: { nom: voie.nom, codePostal: voie.codePostal, id: voie.id, parite } }, (r) => {
         const ajoutees = r.ajoutees ?? [];
         setMesIds((prev) => new Set([...prev, ...ajoutees]));
         if (ajoutees.length === 0) {

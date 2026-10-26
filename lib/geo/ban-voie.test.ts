@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { lireNumeros, lireVoies } from './ban-voie';
+import { lireNumeros, lireVoies, numeroDeBanId } from './ban-voie';
 
 describe('voies de la BAN', () => {
   it('ne garde que les voies, avec code postal', () => {
@@ -34,5 +34,19 @@ describe('voies de la BAN', () => {
       { numero: 1, suffixe: null, longitude: 2.3674, latitude: 48.8627, parcelles: ['75111000AO0070'] },
       { numero: 3, suffixe: 'bis', longitude: 2.3675, latitude: 48.8628, parcelles: [] },
     ]);
+  });
+});
+
+describe('numeroDeBanId', () => {
+  it('lit le numéro d’un identifiant d’adresse, avec ou sans suffixe', () => {
+    assert.equal(numeroDeBanId('75120_0626_00010'), 10);
+    assert.equal(numeroDeBanId('75120_0626_00010_bis'), 10);
+    assert.equal(numeroDeBanId('75120_0626_00002'), 2);
+  });
+
+  it('refuse un identifiant de voie ou invalide', () => {
+    assert.equal(numeroDeBanId('75120_0626'), null);
+    assert.equal(numeroDeBanId('75120_0626_00000'), null);
+    assert.equal(numeroDeBanId(''), null);
   });
 });
