@@ -110,8 +110,11 @@ export default function AnnonceVolet({
   const { openCapture, openCompose } = useVoiceCapture();
   const [lignes, setLignes] = useState<{ id: string; texte: string }[]>([]);
   const [retrait, setRetrait] = useState(false);
-  const [envoiPipeline, setEnvoiPipeline] = useState(false);
-  const [dejaPipeline, setDejaPipeline] = useState(false);
+  // L'état du pipeline appartient à l'annonce ajoutée, pas au volet : ouvrir une autre annonce repart de zéro.
+  const [envoiPipelineId, setEnvoiPipelineId] = useState<string | null>(null);
+  const [auPipelineId, setAuPipelineId] = useState<string | null>(null);
+  const envoiPipeline = envoiPipelineId === annonce.id;
+  const dejaPipeline = auPipelineId === annonce.id;
   const ajoutees = useAnnoncesAjoutees();
   const importee = useAnnonceImportee();
   const surLaCarte = ajoutees.some((a) => a.id === annonce.id) || importee?.annonceId === annonce.id;
@@ -364,7 +367,8 @@ export default function AnnonceVolet({
               notifyError('Il faut une adresse précise pour l’ajouter au pipeline.');
               return;
             }
-            setEnvoiPipeline(true);
+            const idAnnonce = annonce.id;
+            setEnvoiPipelineId(idAnnonce);
             void envoyerAuPipeline(
               {
                 ...adressePipeline,
@@ -382,8 +386,9 @@ export default function AnnonceVolet({
               },
               origine,
             ).then((resultat) => {
-              setEnvoiPipeline(false);
-              if (resultat?.etat === 'deja') setDejaPipeline(true);
+              setEnvoiPipelineId((courant) => (courant === idAnnonce ? null : courant));
+              // Ajoutée à l'instant ou déjà là : cette annonce-ci seulement n'offre plus l'ajout.
+              if (resultat) setAuPipelineId(idAnnonce);
             });
           }}
           surLaCarte={surLaCarte}
