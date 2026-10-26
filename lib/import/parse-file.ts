@@ -11,7 +11,7 @@ export interface ParsedTable {
   headers: string[];
   /** Tableur : ligne 1 = en-tête, `line` commence à 2. vCard : n° de fiche, à partir de 1. */
   rows: { line: number; values: Record<string, string> }[];
-  format?: 'tableur' | 'vcard';
+  format?: 'tableur' | 'vcard' | 'google';
 }
 
 export type ParseLimits = { maxRows?: number; maxBytes?: number };

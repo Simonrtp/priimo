@@ -952,7 +952,7 @@ export type ContactImportRow = {
   agency_id: string;
   created_by: string;
   nom_fichier: string;
-  format: 'tableur' | 'vcard';
+  format: 'tableur' | 'vcard' | 'google';
   crees: number;
   completes: number;
   deja_presents: number;

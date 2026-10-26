@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Mail, MapPin, Phone, Upload } from 'lucide-react';
 import type { ContactInputFields } from '@/lib/contact-input';
 import type { Contact } from '@/types/contact';
@@ -46,6 +46,25 @@ type ImportRecent = {
 };
 
 type Annulation = { supprimes: number; conserves: number; retablis: number };
+
+export type RetourGoogle = 'google' | 'google-refuse' | 'google-erreur';
+
+type Source = 'telephone' | 'google' | 'logiciel' | 'excel';
+
+const SOURCES: readonly { cle: Source; label: string }[] = [
+  { cle: 'telephone', label: 'Mon téléphone' },
+  { cle: 'google', label: 'Google' },
+  { cle: 'logiciel', label: 'Mon ancien logiciel' },
+  { cle: 'excel', label: 'Excel ou Outlook' },
+];
+
+const abonnerRien = () => () => undefined;
+
+function messageRetourGoogle(retour: RetourGoogle | null): string | null {
+  if (retour === 'google-refuse') return 'Google n’a pas été autorisé : rien n’a été lu.';
+  if (retour === 'google-erreur') return 'La connexion à Google n’a pas abouti. Réessayez dans un instant.';
+  return null;
+}
 
 const SELECT_CLASS =
   'flex w-full items-center justify-between gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2 text-left text-[13px] text-text outline-none focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15';
@@ -102,6 +121,105 @@ function FicheExemple({ fields, className = '' }: { fields: ContactInputFields; 
   );
 }
 
+function Etapes({ children }: { children: ReactNode }) {
+  return <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-pretty">{children}</ol>;
+}
+
+/** Où trouver le fichier, selon l'endroit où vivent les contacts. Court, sans jargon. */
+function GuideSource({
+  source,
+  onChoisir,
+  onGoogle,
+  busy,
+}: {
+  source: Source;
+  onChoisir: (source: Source) => void;
+  onGoogle: () => void;
+  busy: boolean;
+}) {
+  const titre = 'font-medium text-text';
+  if (source === 'telephone') {
+    return (
+      <div className="flex flex-col gap-3">
+        <div>
+          <p className={titre}>iPhone</p>
+          <Etapes>
+            <li>App Contacts, « Listes » en haut à gauche.</li>
+            <li>Restez appuyé sur « Tous les contacts » (ou « Tous iCloud »), puis « Exporter ».</li>
+            <li>« Enregistrer dans Fichiers », puis choisissez ce fichier ici.</li>
+          </Etapes>
+        </div>
+        <div>
+          <p className={titre}>Android</p>
+          <p className="mt-1 text-pretty">
+            Vos contacts sont presque toujours dans Google :{' '}
+            <button
+              type="button"
+              onClick={() => onChoisir('google')}
+              className="font-medium text-text underline underline-offset-2"
+            >
+              passez par Google
+            </button>
+            . Sinon, app Contacts, menu, « Gérer les contacts » (ou « Corriger et gérer »), « Exporter ».
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (source === 'google') {
+    return (
+      <div>
+        <WorkspaceButton
+          type="button"
+          variant="secondary"
+          busy={busy}
+          busyLabel="Ouverture de Google…"
+          onClick={onGoogle}
+        >
+          Connecter Google Contacts
+        </WorkspaceButton>
+        <p className="mt-2 text-pretty">
+          Priimo lit vos contacts une seule fois, puis rend l’accès à Google. Vous voyez vos fiches avant
+          tout import.
+        </p>
+        <p className="mt-1.5 text-pretty">
+          Sans connexion : contacts.google.com, « Exporter », vCard, puis déposez le fichier.
+        </p>
+      </div>
+    );
+  }
+  if (source === 'logiciel') {
+    return (
+      <div>
+        <Etapes>
+          <li>Dans votre logiciel (Hektor, Apimo, Netty, AC3…), ouvrez la liste de vos contacts.</li>
+          <li>Cherchez « Exporter », en Excel ou CSV, pour tous les contacts et pas seulement la page affichée.</li>
+          <li>Déposez le fichier ici : Priimo reconnaît ses colonnes.</li>
+        </Etapes>
+        <p className="mt-2 text-pretty">Pas de bouton « Exporter » ? Demandez à votre éditeur un export Excel de vos contacts.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className={titre}>Excel</p>
+        <p className="mt-1 text-pretty">
+          Déposez-le tel quel : une ligne par contact, les titres de colonnes en première ligne. Inutile de le
+          remettre en forme.
+        </p>
+      </div>
+      <div>
+        <p className={titre}>Outlook</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4 text-pretty">
+          <li>Outlook.com : Contacts, « Gérer les contacts », « Exporter les contacts ».</li>
+          <li>Outlook sur PC : Fichier, Ouvrir et exporter, Importer/Exporter, Exporter dans un fichier, CSV.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Import de contacts sans question : on dépose le fichier, on voit ses fiches,
  * on importe. Les colonnes se relient seules (modifiables), les doublons sont
@@ -113,20 +231,29 @@ export default function ImportContacts({
   contacts,
   onImported,
   onAnnule,
+  retourGoogle = null,
 }: {
   open: boolean;
   onClose: () => void;
   contacts: Contact[];
   onImported: (created: Contact[], completed: Contact[]) => void;
   onAnnule: (supprimesIds: string[], retablis: Contact[]) => void;
+  /** Retour de l'autorisation Google : on lit les contacts, ou on dit pourquoi pas. */
+  retourGoogle?: RetourGoogle | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Le portail de la modale a besoin du navigateur : pas d'ouverture au rendu serveur.
+  const estClient = useSyncExternalStore(abonnerRien, () => true, () => false);
   const [etape, setEtape] = useState<Etape>('depot');
   const [dragOver, setDragOver] = useState(false);
   const [table, setTable] = useState<ParsedTable | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(messageRetourGoogle(retourGoogle));
+  const [source, setSource] = useState<Source | null>(retourGoogle ? 'google' : null);
+  const [lectureGoogle, setLectureGoogle] = useState(retourGoogle === 'google');
+  const [ouvertureGoogle, setOuvertureGoogle] = useState(false);
+  const googleDemande = useRef(false);
   const [progression, setProgression] = useState({ fait: 0, total: 0 });
   const [bilan, setBilan] = useState<Bilan | null>(null);
   const [recents, setRecents] = useState<ImportRecent[]>([]);
@@ -157,8 +284,63 @@ export default function ImportContacts({
     };
   }, [open]);
 
-  const vcard = table?.format === 'vcard';
-  const lignesMot = vcard ? 'Contact' : 'Ligne';
+  useEffect(() => {
+    // Une seule lecture : le jeton Google ne sert qu'une fois (et StrictMode rejoue les effets).
+    if (!retourGoogle || googleDemande.current) return;
+    googleDemande.current = true;
+    // Rafraîchir la page ne relance ni l'écran ni la lecture.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('import');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    if (retourGoogle !== 'google') return;
+
+    fetch('/api/dashboard/contacts/import/google')
+      .then(async (res) => {
+        const data = (await res.json()) as {
+          headers?: string[];
+          rows?: ParsedTable['rows'];
+          error?: string;
+        };
+        if (!res.ok || !data.headers || !data.rows) {
+          throw new Error(data.error ?? 'Google n’a pas pu fournir vos contacts.');
+        }
+        if (data.rows.length === 0) throw new Error('Ce compte Google n’a aucun contact enregistré.');
+        const lu: ParsedTable = {
+          fileName: 'Google Contacts',
+          headers: data.headers,
+          rows: data.rows,
+          format: 'google',
+        };
+        setTable(lu);
+        setMapping(suggestMapping(lu.headers, CONTACT_IMPORT_FIELDS));
+        setEtape('apercu');
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error && err.message ? err.message : 'Google n’a pas pu fournir vos contacts.');
+      })
+      .finally(() => setLectureGoogle(false));
+  }, [retourGoogle]);
+
+  async function connecterGoogle() {
+    setOuvertureGoogle(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/dashboard/integrations/google-contacts/start');
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? 'La connexion Google n’est pas disponible pour le moment.');
+        setOuvertureGoogle(false);
+        return;
+      }
+      // On quitte la page pour Google ; le bouton reste en attente jusque-là.
+      window.location.assign(data.url);
+    } catch {
+      setError('La connexion Google n’est pas disponible pour le moment.');
+      setOuvertureGoogle(false);
+    }
+  }
+
+  const lignesMot = table?.format === 'vcard' || table?.format === 'google' ? 'Contact' : 'Ligne';
 
   const mappedRows = useMemo(() => {
     if (!table) return [];
@@ -324,7 +506,7 @@ export default function ImportContacts({
   const titres: Record<Etape, { title: string; description?: string }> = {
     depot: {
       title: 'Importer vos contacts',
-      description: 'Déposez le fichier tel quel : Priimo reconnaît les colonnes et les doublons.',
+      description: 'Déposez le fichier tel quel : rien n’est enregistré avant votre accord.',
     },
     apercu: {
       title: pluriel(table?.rows.length ?? 0, 'contact trouvé', 'contacts trouvés'),
@@ -343,7 +525,7 @@ export default function ImportContacts({
 
   return (
     <Modal
-      open={open}
+      open={open && estClient}
       onClose={close}
       title={titres[etape].title}
       description={titres[etape].description}
@@ -355,7 +537,13 @@ export default function ImportContacts({
         </p>
       ) : null}
 
-      {etape === 'depot' ? (
+      {etape === 'depot' && lectureGoogle ? (
+        <p className="py-12 text-center text-pretty text-[14px] text-text-muted" role="status">
+          Lecture de vos contacts Google…
+        </p>
+      ) : null}
+
+      {etape === 'depot' && !lectureGoogle ? (
         <div>
           <input
             ref={inputRef}
@@ -397,10 +585,36 @@ export default function ImportContacts({
               Excel, CSV ou vCard (.vcf), jusqu’à {MAX_CONTACT_IMPORT_ROWS.toLocaleString('fr-FR')} contacts
             </p>
           </button>
-          <p className="mt-4 text-pretty text-[13px] text-text-muted">
-            Exportez vos contacts depuis votre téléphone, Google Contacts, Outlook ou votre ancien
-            logiciel, puis déposez le fichier. Rien n’est enregistré avant votre accord.
-          </p>
+          <div className="mt-5">
+            <p className="text-[12.5px] text-text-muted">Où sont vos contacts aujourd’hui ?</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {SOURCES.map((s) => (
+                <button
+                  key={s.cle}
+                  type="button"
+                  aria-expanded={source === s.cle}
+                  onClick={() => setSource((actuelle) => (actuelle === s.cle ? null : s.cle))}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] transition-colors duration-fluid-subtle ease-in-out ${
+                    source === s.cle
+                      ? 'border-black/[0.18] bg-black/[0.04] text-text-strong'
+                      : 'border-black/[0.10] text-text-muted hover:bg-black/[0.03] hover:text-text'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {source ? (
+              <div className="mt-3 rounded-xl bg-black/[0.025] px-4 py-3 text-[12.5px] leading-relaxed text-text-muted">
+                <GuideSource
+                  source={source}
+                  onChoisir={setSource}
+                  onGoogle={() => void connecterGoogle()}
+                  busy={ouvertureGoogle}
+                />
+              </div>
+            ) : null}
+          </div>
 
           {recents.length > 0 ? (
             <div className="mt-6">
@@ -491,7 +705,7 @@ export default function ImportContacts({
             </button>
             <div className="flex flex-wrap justify-end gap-2.5">
               <WorkspaceButton type="button" variant="secondary" onClick={reset}>
-                Autre fichier
+                {table.format === 'google' ? 'Autre source' : 'Autre fichier'}
               </WorkspaceButton>
               <WorkspaceButton type="button" disabled={aImporter === 0} onClick={() => void importer()}>
                 {`Importer ${pluriel(aImporter, 'contact', 'contacts')}`}

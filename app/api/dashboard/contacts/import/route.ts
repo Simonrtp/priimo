@@ -117,16 +117,21 @@ async function ouvrirImport(
     typeof payload.fichier === 'object' && payload.fichier !== null
       ? (payload.fichier as Record<string, unknown>)
       : {};
-  const { data, error } = await supabase
-    .from('contact_imports')
-    .insert({
-      agency_id: ids.agencyId,
-      created_by: ids.profileId,
-      nom_fichier: typeof fichier.nom === 'string' ? fichier.nom.slice(0, 200) : '',
-      format: fichier.format === 'vcard' ? 'vcard' : 'tableur',
-    })
-    .select('id')
-    .single();
+  const format = fichier.format === 'vcard' || fichier.format === 'google' ? fichier.format : 'tableur';
+  const ouvrir = (f: 'tableur' | 'vcard' | 'google') =>
+    supabase
+      .from('contact_imports')
+      .insert({
+        agency_id: ids.agencyId,
+        created_by: ids.profileId,
+        nom_fichier: typeof fichier.nom === 'string' ? fichier.nom.slice(0, 200) : '',
+        format: f,
+      })
+      .select('id')
+      .single();
+  let { data, error } = await ouvrir(format);
+  // Base sans 20261026_imports_contacts_google : « google » n'y est pas encore admis.
+  if (error?.code === '23514' && format === 'google') ({ data, error } = await ouvrir('tableur'));
   if (error || !data) {
     if (!tableImportsAbsente(error)) console.error('[contacts/import] ouverture', error);
     return { id: null };

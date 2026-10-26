@@ -19,7 +19,7 @@ import {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fiche?: string; filtre?: string }>;
+  searchParams: Promise<{ fiche?: string; filtre?: string; import?: string }>;
 }) {
   const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) redirect('/login');
@@ -42,7 +42,12 @@ export default async function ContactsPage({
       visible.map((c) => c.leadId).filter((id): id is string => Boolean(id)),
     ),
   ]);
-  const { fiche, filtre } = await searchParams;
+  const { fiche, filtre, import: retourImport } = await searchParams;
+  // Retour de Google Contacts : l'écran d'import se rouvre de lui-même.
+  const retourGoogle =
+    retourImport === 'google' || retourImport === 'google-refuse' || retourImport === 'google-erreur'
+      ? retourImport
+      : null;
   const selected = fiche && visible.some((c) => c.id === fiche) ? fiche : null;
   const listFilter =
     filtre === 'sans-position' ||
@@ -71,6 +76,7 @@ export default async function ContactsPage({
       isDirector={profile.role === 'directeur'}
       listFilter={listFilter}
       listFilterIds={rdvSansSuiteIds}
+      retourGoogle={retourGoogle}
     />
   );
 }

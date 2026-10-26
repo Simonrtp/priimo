@@ -348,6 +348,7 @@ export default function ContactsClient({
   isDirector,
   listFilter = null,
   listFilterIds = [],
+  retourGoogle = null,
 }: {
   initialContacts: Contact[];
   biens: Bien[];
@@ -359,6 +360,7 @@ export default function ContactsClient({
   isDirector: boolean;
   listFilter?: 'sans-position' | 'vendeurs-inactifs' | 'rdv-sans-suite' | null;
   listFilterIds?: readonly string[];
+  retourGoogle?: 'google' | 'google-refuse' | 'google-erreur' | null;
 }) {
   const [contacts, setContacts] = useState(initialContacts);
   const [latest, setLatest] = useState(latestInteractions);
@@ -387,7 +389,7 @@ export default function ContactsClient({
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedContactId);
   const [formOpen, setFormOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(retourGoogle !== null);
   const [editing, setEditing] = useState<Contact | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = useState<Contact | null>(null);
   const [mergePair, setMergePair] = useState<{ keep: Contact; absorb: Contact } | null>(null);
@@ -736,6 +738,7 @@ export default function ContactsClient({
         open={importOpen}
         onClose={() => setImportOpen(false)}
         contacts={contacts}
+        retourGoogle={retourGoogle}
         onImported={(createdContacts, updatedContacts) => {
           setContacts((list) => {
             const byId = new Map(list.map((c) => [c.id, c]));
