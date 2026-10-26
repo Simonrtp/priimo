@@ -44,6 +44,8 @@ import ProspectsViewSwitch, {
 import LeadsList from './LeadsList';
 import LeadsSecteur, { LeadsParZone } from './prospection/LeadsSecteur';
 import AnnoncesListe from './prospection/AnnoncesListe';
+import VoletAnnonceFlottant from './annonces/VoletAnnonceFlottant';
+import { annonceDuLead } from '@/lib/annonces/annonce-du-lead';
 import VolLeadPipeline from './prospection/VolLeadPipeline';
 import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
@@ -69,6 +71,8 @@ interface ProspectsClientProps {
   fraicheurFilter?: FiltreFraicheur | null;
   /** La Liste : les annonces de particuliers du secteur, à la place des leads. */
   annoncesListe?: { annonces: Annonce[]; profileId: string; annonceId: string | null } | null;
+  /** Le Pipeline : une carte venue d'une annonce ouvre le même volet que la Liste. */
+  annoncesPipeline?: Annonce[] | null;
 }
 
 export default function ProspectsClient({
@@ -85,6 +89,7 @@ export default function ProspectsClient({
   zones = [],
   fraicheurFilter = null,
   annoncesListe = null,
+  annoncesPipeline = null,
 }: ProspectsClientProps) {
   const { profile } = useUser();
   const device = useDevice();
@@ -196,6 +201,11 @@ export default function ProspectsClient({
   const pipelineLeads = useMemo(() => leadsDuPipeline(leads), [leads]);
 
   const selected = selectedLeadId ? (leads.find((l) => l.id === selectedLeadId) ?? null) : null;
+  const annonceSelectionnee = useMemo(
+    () => (selected && annoncesPipeline ? annonceDuLead(selected, annoncesPipeline) : null),
+    [selected, annoncesPipeline],
+  );
+  const fermerVolet = useCallback(() => setSelectedLeadId(null), []);
 
   const applyLeadPatch = useCallback((id: string, patch: Partial<Lead>) => {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -608,8 +618,15 @@ export default function ProspectsClient({
         }}
       />
 
+      {annonceSelectionnee ? (
+        <VoletAnnonceFlottant
+          annonce={annonceSelectionnee.annonce}
+          soeurs={annonceSelectionnee.soeurs}
+          onFermer={fermerVolet}
+        />
+      ) : null}
       <LeadDrawer
-        lead={selected}
+        lead={annonceSelectionnee ? null : selected}
         onClose={() => setSelectedLeadId(null)}
         onUpdateLead={updateLeadHandler}
         onDeleteLead={deleteLeadHandler}
@@ -618,7 +635,7 @@ export default function ProspectsClient({
         currentUserId={profile?.id ?? null}
         teamMembers={teamMembers}
       />
-      {selected && (
+      {selected && !annonceSelectionnee && (
         <LeadFullScreenMobile
           lead={selected}
           onClose={() => setSelectedLeadId(null)}

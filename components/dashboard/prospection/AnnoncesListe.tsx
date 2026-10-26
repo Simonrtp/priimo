@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Home, Search, UserRound } from 'lucide-react';
-import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
+import VoletAnnonceFlottant from '@/components/dashboard/annonces/VoletAnnonceFlottant';
 import Select from '@/components/ui/Select';
 import { pastilleClass } from '@/components/ui/pastille-classes';
 import { adresseVerifiee, secteursAProspecter } from '@/lib/annonces/liste-prospection';
@@ -203,20 +203,6 @@ export default function AnnoncesListe({
     }
   }, []);
 
-  useEffect(() => {
-    if (!selection) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') fermer();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [selection, fermer]);
-
   return (
     <div className="flex flex-col">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -356,22 +342,7 @@ export default function AnnoncesListe({
       </div>
 
       {selection ? (
-        <>
-          <div
-            role="presentation"
-            aria-hidden
-            className="fixed inset-0 z-40 hidden bg-black/15 md:block"
-            onClick={fermer}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Annonce"
-            className="fixed inset-0 z-[70] flex flex-col bg-black/15 p-3 pt-[max(12px,env(safe-area-inset-top))] md:inset-auto md:bottom-4 md:right-4 md:top-16 md:z-50 md:w-[380px] md:bg-transparent md:p-0"
-          >
-            <AnnonceVolet annonce={selection.annonce} soeurs={selection.soeurs} onFermer={fermer} />
-          </div>
-        </>
+        <VoletAnnonceFlottant annonce={selection.annonce} soeurs={selection.soeurs} onFermer={fermer} />
       ) : null}
     </div>
   );

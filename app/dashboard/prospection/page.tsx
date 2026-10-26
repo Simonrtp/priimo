@@ -178,7 +178,7 @@ export default async function ProspectionPage({
     fetchTeamMembers(supabase, agency.id),
     fetchLeadStages(supabase),
     fetchZonesSafe(supabase),
-    listeAnnonces ? lireAnnonces(supabase) : Promise.resolve(null),
+    listeAnnonces || vue === 'pipeline' ? lireAnnonces(supabase) : Promise.resolve(null),
     fetchBiensDuPipeline(supabase),
   ]);
   const viewer = viewerFromProfile(profile);
@@ -235,8 +235,9 @@ export default async function ProspectionPage({
       zones={zones}
       fraicheurFilter={fraicheurFiltre}
       annoncesListe={
-        annonces ? { annonces, profileId: profile.id, annonceId: params.annonce ?? null } : null
+        annonces && listeAnnonces ? { annonces, profileId: profile.id, annonceId: params.annonce ?? null } : null
       }
+      annoncesPipeline={vue === 'pipeline' ? annonces : null}
     />
   );
 }
