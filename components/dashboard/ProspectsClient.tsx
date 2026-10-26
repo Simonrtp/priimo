@@ -449,8 +449,8 @@ export default function ProspectsClient({
       {/* Même onglet collé coin haut-droit que sur la Carte, y compris Pipeline. */}
       {device !== 'mobile' ? (
         <>
-          <div className="pointer-events-none absolute -right-2 -top-2 z-30 max-w-[calc(100%+1.5rem)] lg:-right-4 lg:-top-4">
-            <div className="pointer-events-auto max-w-full">{switcher}</div>
+          <div className="pointer-events-none absolute -right-6 -top-6 z-30 isolate lg:-right-8 lg:-top-8">
+            <div className="pointer-events-auto">{switcher}</div>
           </div>
           {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
           <div className="mb-4 h-14" aria-hidden />

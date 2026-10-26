@@ -13,17 +13,13 @@ const ONGLETS: readonly { id: OngletCarte; label: string; titre: string }[] = [
 export default function EmpriseCapsules({
   value,
   onChange,
-  seulementCodePostal = false,
 }: {
   value: OngletCarte;
   onChange: (next: OngletCarte) => void;
-  /** Couche Annonces : uniquement le code postal. */
-  seulementCodePostal?: boolean;
 }) {
-  const onglets = seulementCodePostal ? ONGLETS.filter((o) => o.id === 'code_postal') : ONGLETS;
   return (
     <div role="tablist" aria-label="Secteurs affichés" className={`${PASTILLE_TRACK} mb-3 w-full`}>
-      {onglets.map((o) => (
+      {ONGLETS.map((o) => (
         <button
           key={o.id}
           type="button"

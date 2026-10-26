@@ -96,6 +96,28 @@ export function cadastreDansEmprise(
   return pointDansZone({ latitude: row.latitude, longitude: row.longitude }, zone);
 }
 
+/**
+ * Le calque retient le point s'il est dans le contour, ou — pour une note —
+ * si sa parcelle fait partie du secteur. Le géocodage tombe souvent dans la
+ * rue, juste à côté de la parcelle : la note n'en est pas moins sur le secteur.
+ */
+export function retientDansSecteur(
+  point: { latitude: number; longitude: number; postalCode?: string | null; parcelleId?: string | null },
+  zone: Zone,
+): boolean {
+  const parcelleId = (point.parcelleId ?? '').trim();
+  if (
+    parcelleId &&
+    zone.regles.some(
+      (regle) =>
+        regle.inclusion && regle.type === 'parcelles' && regle.valeur.parcelle_ids.includes(parcelleId),
+    )
+  ) {
+    return true;
+  }
+  return pointDansZone(point, zone);
+}
+
 /** Plusieurs secteurs : dedans si l'un d'eux contient le point. Rien à cadrer : tout passe. */
 export function cadastreDansEmprises(
   row: { latitude: number | null; longitude: number | null },

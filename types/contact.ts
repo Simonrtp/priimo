@@ -121,6 +121,8 @@ export interface VoiceNote {
   hasAudio: boolean;
   /** Vrai si un lien contact / bien / lead existe — la note n'est plus orpheline. */
   hasFicheLink: boolean;
+  /** Parcelle où la note a été posée, ou celle de son adresse. */
+  parcelleId?: string | null;
 }
 
 export interface NoteLien {

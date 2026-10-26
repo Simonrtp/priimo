@@ -50,6 +50,7 @@ import {
   cadastreDansEmprises,
   cadrageCarte,
   empriseDepuisZoneId,
+  retientDansSecteur,
   zoneIdInitial,
   zoneParDefautProspection,
   type PorteeSecteurs,
@@ -92,7 +93,6 @@ import {
 import { FIELD, formatDistance } from '@/lib/today/field';
 import { vibrateBrief } from './aujourdhui/tap';
 import { bboxDeZone, bboxVersBounds, fusionnerBbox, type Bbox } from '@/lib/zones/geometrie';
-import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
 
 const GEO_TABLE: Record<MapPointKind, 'leads' | 'contacts' | 'biens' | 'voice_notes'> = {
@@ -168,19 +168,14 @@ export default function CarteMobile({
 
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
-  const [zoneId, setZoneId] = useState(() =>
-    readStoredMapLayers().annonces ? 'aucun' : zoneIdInitial(initialZoneId, zones),
-  );
+  const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
   // Venu de l'Accueil (« Modifier les parcelles », « Créer mon secteur ») : l'atelier est déjà ouvert.
   const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
   const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
   const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
   const [portee, setPortee] = useState<PorteeSecteurs>('mes');
   const [onglet, setOnglet] = useState<OngletCarte>(() =>
-    readStoredMapLayers().annonces ||
-    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal'
-      ? 'code_postal'
-      : 'mes',
+    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : 'mes',
   );
   const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [dimension, setDimension] = useState<MapDimension>(readMapDimension);
@@ -293,7 +288,7 @@ export default function CarteMobile({
   const pointsDuSecteur = useMemo(
     () =>
       affiches.length > 0
-        ? points.filter((p) => affiches.some((z) => pointDansZone(p, z)))
+        ? points.filter((p) => affiches.some((z) => retientDansSecteur(p, z)))
         : points,
     [points, affiches],
   );
@@ -886,11 +881,7 @@ export default function CarteMobile({
         initialSnap={2}
       >
         {atelier ? null : (
-          <EmpriseCapsules
-            value={onglet}
-            onChange={choisirOnglet}
-            seulementCodePostal={layers.annonces}
-          />
+          <EmpriseCapsules value={onglet} onChange={choisirOnglet} />
         )}
         {onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(proposes) ? (
           dessin.panneau ?? (
@@ -958,7 +949,6 @@ export default function CarteMobile({
                 const next = { ...prev, ...patch };
                 persistMapLayers(next);
                 setAnnonceOuverte(null);
-                if (patch.annonces === true) choisirOnglet('code_postal');
                 return next;
               })
             }

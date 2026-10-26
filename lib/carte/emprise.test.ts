@@ -6,6 +6,7 @@ import {
   cadastreDansEmprise,
   cadastreDansEmprises,
   empriseDepuisZoneId,
+  retientDansSecteur,
   secteursDeLaCarte,
   zoneParDefautProspection,
 } from './emprise';
@@ -134,5 +135,56 @@ describe('cadastreDansEmprise', () => {
     assert.equal(cadastreDansEmprises({ latitude: 48.85, longitude: 2.5 }, [zone, autre]), true);
     assert.equal(cadastreDansEmprises({ latitude: 48.85, longitude: 2.2 }, [zone, autre]), false);
     assert.equal(cadastreDansEmprises({ latitude: 48.85, longitude: 2.2 }, null), true);
+  });
+});
+
+describe('retientDansSecteur', () => {
+  const enParcelles: Zone = {
+    ...zone,
+    id: 'parcelles',
+    regles: [
+      {
+        id: 'p1',
+        zoneId: 'parcelles',
+        inclusion: true,
+        type: 'parcelles',
+        valeur: { parcelle_ids: ['75120000AB0001'] },
+      },
+    ],
+    enveloppe: [
+      {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [2.38, 48.84],
+            [2.4, 48.84],
+            [2.4, 48.86],
+            [2.38, 48.86],
+            [2.38, 48.84],
+          ],
+        ],
+      },
+    ],
+  };
+
+  it('garde une note posée sur une parcelle du secteur, même géocodée dans la rue', () => {
+    assert.equal(
+      retientDansSecteur(
+        { latitude: 48.9, longitude: 2.5, parcelleId: '75120000AB0001' },
+        enParcelles,
+      ),
+      true,
+    );
+  });
+
+  it('écarte une note dont le point et la parcelle sont hors secteur', () => {
+    assert.equal(
+      retientDansSecteur({ latitude: 48.9, longitude: 2.5, parcelleId: '75120000AB0999' }, enParcelles),
+      false,
+    );
+  });
+
+  it('garde un point dans le contour, sans parcelle connue', () => {
+    assert.equal(retientDansSecteur({ latitude: 48.85, longitude: 2.39 }, enParcelles), true);
   });
 });

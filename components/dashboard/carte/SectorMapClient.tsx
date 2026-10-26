@@ -50,6 +50,7 @@ import {
   cadastreDansEmprises,
   cadrageCarte,
   empriseDepuisZoneId,
+  retientDansSecteur,
   zoneIdInitial,
   zoneParDefautProspection,
   type PorteeSecteurs,
@@ -78,7 +79,6 @@ import { ParcelleDrawer } from '@/components/dashboard/carte/ParcellePanel';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
 import { bboxDeZone, bboxVersBounds, fusionnerBbox, type Bbox } from '@/lib/zones/geometrie';
-import { pointDansZone } from '@/lib/zones/leads';
 import type { Zone } from '@/lib/zones/types';
 
 const SectorMapCanvas = dynamic(() => import('./SectorMapCanvas'), {
@@ -177,11 +177,7 @@ function LayersPanel({
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {atelier ? null : (
-          <EmpriseCapsules
-            value={onglet}
-            onChange={onOnglet}
-            seulementCodePostal={layers.annonces}
-          />
+          <EmpriseCapsules value={onglet} onChange={onOnglet} />
         )}
         {secteurVide ? (
           atelier ?? (
@@ -333,19 +329,14 @@ export default function SectorMapClient({
   const profileId = profile?.id ?? '';
   const [layers, setLayers] = useState<MapLayerState>(readStoredMapLayers);
   const [layersPanelOpen, setLayersPanelOpen] = useState(readLayersPanelOpen);
-  const [zoneId, setZoneId] = useState(() =>
-    readStoredMapLayers().annonces ? 'aucun' : zoneIdInitial(initialZoneId, zones),
-  );
+  const [zoneId, setZoneId] = useState(() => zoneIdInitial(initialZoneId, zones));
   // Venu de l'Accueil (« Modifier les parcelles », « Créer mon secteur ») : l'atelier est déjà ouvert.
   const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
   const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
   const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
   const [portee, setPortee] = useState<PorteeSecteurs>('mes');
   const [onglet, setOnglet] = useState<OngletCarte>(() =>
-    readStoredMapLayers().annonces ||
-    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal'
-      ? 'code_postal'
-      : 'mes',
+    empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : 'mes',
   );
   const [secteurConfirme, setSecteurConfirme] = useState(false);
   const [assignedTo, setAssignedTo] = useState('tous');
@@ -432,7 +423,7 @@ export default function SectorMapClient({
   const pointsDuSecteur = useMemo(
     () =>
       affiches.length > 0
-        ? points.filter((p) => affiches.some((z) => pointDansZone(p, z)))
+        ? points.filter((p) => affiches.some((z) => retientDansSecteur(p, z)))
         : points,
     [points, affiches],
   );
@@ -568,7 +559,6 @@ export default function SectorMapClient({
   function changeAnnonces(patch: Partial<MapLayerState>) {
     setLayers((prev) => ({ ...prev, ...patch }));
     setAnnonceOuverte(null);
-    if (patch.annonces === true) choisirOnglet('code_postal');
   }
 
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
@@ -758,7 +748,7 @@ export default function SectorMapClient({
         ) : null}
 
         {viewSwitcher ? (
-          <div className="pointer-events-auto absolute top-4 right-4 z-30 max-w-full">
+          <div className="pointer-events-auto absolute top-0 right-0 z-30 isolate">
             {viewSwitcher}
           </div>
         ) : null}
@@ -767,10 +757,10 @@ export default function SectorMapClient({
           className={
             layersPanelOpen
               ? `pointer-events-none absolute bottom-3 right-3 z-20 hidden w-[min(100%-1.5rem,320px)] md:block ${
-                  viewSwitcher ? 'top-20' : 'top-3'
+                  viewSwitcher ? 'top-14' : 'top-3'
                 }`
               : `pointer-events-none absolute right-3 z-20 hidden md:block ${
-                  viewSwitcher ? 'top-20' : 'top-3'
+                  viewSwitcher ? 'top-14' : 'top-3'
                 }`
           }
         >

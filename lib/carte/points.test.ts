@@ -173,11 +173,13 @@ describe('buildSectorMapPoints', () => {
           banId: '59122_n',
           latitude: 50.63,
           longitude: 3.06,
+          parcelleId: '75120000AB0001',
         }),
       ],
     });
     assert.equal(points.length, 1);
     assert.equal(points[0]?.kind, 'note');
+    assert.equal(points[0]?.parcelleId, '75120000AB0001');
     assert.equal(withoutPosition.notes, 0);
   });
 

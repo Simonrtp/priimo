@@ -26,6 +26,8 @@ export type MapPoint = {
   assignedTo: string | null;
   occurredAt: string;
   phone?: string | null;
+  /** Parcelle de la note : elle appartient au secteur qui tient cette parcelle. */
+  parcelleId?: string | null;
 };
 
 export type MappableLead = Pick<
@@ -102,6 +104,7 @@ export type MappableNote = {
   postalCode?: string | null;
   visibilite?: 'agence' | 'privee';
   sourceInfo?: string | null;
+  parcelleId?: string | null;
 };
 
 export type UnplacedRecord = {
@@ -131,6 +134,11 @@ const CONTACT_BADGE: Record<ContactType, string> = {
 
 function postalFromList(codes: readonly string[] | undefined): string | null {
   return codes?.find((code) => /^\d{5}$/.test(code)) ?? null;
+}
+
+function parcellePortee(note: MappableNote): { parcelleId: string } | Record<string, never> {
+  const parcelleId = (note.parcelleId ?? '').trim();
+  return parcelleId ? { parcelleId } : {};
 }
 
 function euros(value: number | null): string | null {
@@ -278,6 +286,7 @@ export function noteToMapPoint(note: MappableNote): MapPoint | null {
     badge: 'N',
     assignedTo: note.assignedTo ?? note.createdBy,
     occurredAt: note.createdAt,
+    ...parcellePortee(note),
   };
 }
 
@@ -300,6 +309,7 @@ export function noteToBuildingPoint(note: MappableNote): MapPoint | null {
     badge: 'N',
     assignedTo: note.assignedTo ?? note.createdBy,
     occurredAt: note.createdAt,
+    ...parcellePortee(note),
   };
 }
 

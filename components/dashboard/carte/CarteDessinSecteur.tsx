@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin } from 'lucide-react';
+import { Check, MapPin } from 'lucide-react';
 import { PASTILLE_TRACK, pastilleClass } from '@/components/ui/pastille-classes';
-import { notifyError } from '@/lib/notify';
+import { notifyError, notifyInfo } from '@/lib/notify';
 import { useUser } from '@/lib/hooks/useUser';
 import { lireVoies, type VoieTrouvee } from '@/lib/geo/ban-voie';
 import { pointDansPolygone } from '@/lib/zones/appartenance';
@@ -17,7 +17,13 @@ import type { AtelierCalque, ParcelleAtelier } from '@/components/dashboard/cart
 
 export type OutilAtelier = 'entourer' | 'toucher';
 type Mode = 'ajouter' | 'retirer';
-type Pas = { ajoutees: string[]; retirees: string[] };
+type Pas = { ajoutees: string[]; retirees: string[]; rue?: string };
+/** Une rue posée dans le secteur, gardée à l'écran avec ce qu'elle a apporté. */
+type RuePosee = { cle: string; nom: string; parite: PariteVoie; nombre: number };
+
+function cleRue(voie: VoieTrouvee, parite: PariteVoie): string {
+  return `${voie.nom}|${voie.codePostal}|${parite}`;
+}
 
 const COTES: readonly { id: PariteVoie; label: string }[] = [
   { id: 'toutes', label: 'Tous' },
@@ -86,6 +92,7 @@ export function useDessinSecteur({
   const [mode, setMode] = useState<Mode>('ajouter');
   const [candidates, setCandidates] = useState<ReadonlyMap<string, ParcelleAtelier>>(new Map());
   const [enAttente, setEnAttente] = useState(0);
+  const [rues, setRues] = useState<RuePosee[]>([]);
   const [zoom, setZoom] = useState<number | null>(null);
 
   // À chaque ouverture, et seulement là, on repart du secteur tel qu'il est :
@@ -100,6 +107,7 @@ export function useDessinSecteur({
         : [];
       setZoneId(id);
       setHistorique([]);
+      setRues([]);
       setMode('ajouter');
       setMesIds(new Set(siennes));
       setOutil(siennes.length > 0 ? 'toucher' : 'entourer');
@@ -262,10 +270,21 @@ export function useDessinSecteur({
 
   const poserRue = useCallback(
     (voie: VoieTrouvee, parite: PariteVoie) => {
+      const cle = cleRue(voie, parite);
       enregistrer({ rue: { nom: voie.nom, codePostal: voie.codePostal, parite } }, (r) => {
         const ajoutees = r.ajoutees ?? [];
         setMesIds((prev) => new Set([...prev, ...ajoutees]));
-        setHistorique((h) => [...h, { ajoutees, retirees: [] }]);
+        if (ajoutees.length === 0) {
+          notifyInfo(`Rien à ajouter sur ${voie.nom} : aucune parcelle libre de ce côté.`);
+          return;
+        }
+        setHistorique((h) => [...h, { ajoutees, retirees: [], rue: cle }]);
+        setRues((prev) => {
+          if (prev.some((x) => x.cle === cle)) {
+            return prev.map((x) => (x.cle === cle ? { ...x, nombre: x.nombre + ajoutees.length } : x));
+          }
+          return [...prev, { cle, nom: voie.nom, parite, nombre: ajoutees.length }];
+        });
       });
     },
     [enregistrer],
@@ -275,6 +294,7 @@ export function useDessinSecteur({
     const dernier = historique[historique.length - 1];
     if (!dernier) return;
     setHistorique((h) => h.slice(0, -1));
+    if (dernier.rue) setRues((prev) => prev.filter((x) => x.cle !== dernier.rue));
     appliquer(dernier.retirees, dernier.ajoutees, false);
   }, [appliquer, historique]);
 
@@ -337,6 +357,7 @@ export function useDessinSecteur({
       zoomTropLoin={zoom != null && zoom < ZOOM_PARCELLES}
       enAttente={enAttente > 0}
       centre={centre}
+      rues={rues}
       onRue={poserRue}
       onRetour={historique.length > 0 ? retour : null}
       onValider={terminer}
@@ -361,6 +382,7 @@ function Panneau({
   zoomTropLoin,
   enAttente,
   centre,
+  rues,
   onRue,
   onRetour,
   onValider,
@@ -376,6 +398,7 @@ function Panneau({
   zoomTropLoin: boolean;
   enAttente: boolean;
   centre: { latitude: number | null; longitude: number | null };
+  rues: readonly RuePosee[];
   onRue: (voie: VoieTrouvee, parite: PariteVoie) => void;
   onRetour: (() => void) | null;
   onValider: () => void;
@@ -445,7 +468,7 @@ function Panneau({
         <p className="mt-1.5 text-[12px] leading-snug text-text-subtle">Approchez-vous pour voir les parcelles une à une.</p>
       ) : null}
 
-      <Rue centre={centre} occupe={false} onChoisir={onRue} />
+      <Rue centre={centre} occupe={enAttente} rues={rues} onChoisir={onRue} />
 
       <div className="mt-4 flex gap-2">
         {onRetour ? (
@@ -481,10 +504,12 @@ function Panneau({
 function Rue({
   centre,
   occupe,
+  rues,
   onChoisir,
 }: {
   centre: { latitude: number | null; longitude: number | null };
   occupe: boolean;
+  rues: readonly RuePosee[];
   onChoisir: (voie: VoieTrouvee, parite: PariteVoie) => void;
 }) {
   const listeId = useId();
@@ -567,10 +592,12 @@ function Rue({
   function choisirCote(parite: PariteVoie) {
     if (!voie || occupe) return;
     onChoisir(voie, parite);
-    setVoie(null);
-    setSaisie('');
-    setVoies([]);
   }
+
+  // La rue choisie reste : l'autre côté se pose d'un clic, et les côtés déjà posés restent marqués.
+  const cotesPoses = new Set(
+    rues.filter((x) => voie && x.cle.startsWith(`${voie.nom}|${voie.codePostal}|`)).map((x) => x.parite),
+  );
 
   const liste =
     ouvert && boite && typeof document !== 'undefined'
@@ -681,15 +708,28 @@ function Rue({
           <button
             key={cote.id}
             type="button"
-            aria-pressed={false}
+            aria-pressed={cotesPoses.has(cote.id)}
             disabled={!voie || occupe}
             onClick={() => choisirCote(cote.id)}
-            className={`${pastilleClass(false)} min-w-0 flex-1 disabled:cursor-default disabled:opacity-40`}
+            className={`${pastilleClass(cotesPoses.has(cote.id))} min-w-0 flex-1 disabled:cursor-default disabled:opacity-40`}
           >
             {cote.label}
           </button>
         ))}
       </div>
+      {rues.length > 0 ? (
+        <ul aria-label="Rues du secteur" className="mt-2.5 flex flex-col gap-1.5">
+          {rues.map((x) => (
+            <li key={x.cle} className="flex min-w-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-[13px] text-[#1A2A56]">
+              <Check size={14} strokeWidth={2.5} aria-hidden className="shrink-0" />
+              <span className="min-w-0 flex-1 truncate font-medium">{x.nom}</span>
+              <span className="shrink-0 text-[12px] text-text-muted">
+                {COTES.find((c) => c.id === x.parite)?.label ?? ''} · {x.nombre} parcelle{x.nombre > 1 ? 's' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

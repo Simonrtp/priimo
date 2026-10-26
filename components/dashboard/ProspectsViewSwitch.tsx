@@ -34,8 +34,8 @@ export default function ProspectsViewSwitch({
   const floating = variant === 'floating';
   const bar = variant === 'bar';
   const shellClass = floating
-    ? // Onglet collé coin haut-droit de la carte (pas de marge).
-      'flex max-w-full rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-[0_8px_20px_-10px_rgba(26,42,86,0.28)]'
+    ? // Collé au coin haut-droit de la coque (rayon 32), sans marge qui le fait flotter.
+      'flex shrink-0 rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-[0_8px_20px_-10px_rgba(26,42,86,0.28)]'
     : bar
       ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-sm'
       : PASTILLE_TRACK;
@@ -43,7 +43,7 @@ export default function ProspectsViewSwitch({
   return (
     <div className={`${shellClass} items-center overflow-visible`}>
       {debut}
-      <div className="flex" role="tablist" aria-label="Vue prospection">
+      <div className="flex shrink-0" role="tablist" aria-label="Vue prospection">
         {ITEMS.map(({ id, label, Icon }) => {
           const active = value === id;
           return (
@@ -62,7 +62,7 @@ export default function ProspectsViewSwitch({
                       active ? 'bg-surface text-text-strong shadow-clay-sm' : 'text-text-muted hover:text-text'
                     }`
                   : floating
-                    ? `gap-1.5 rounded-full px-3 py-2 text-[13px] ${
+                    ? `gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[13px] ${
                         active
                           ? 'bg-[#1A2A56] text-white shadow-sm'
                           : 'text-text-muted hover:bg-black/[0.04] hover:text-text'

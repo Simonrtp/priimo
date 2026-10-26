@@ -414,7 +414,7 @@ export function postalCodeFromVoiceNote(row: {
 
 export function mapDbVoiceNote(
   row: VoiceNoteRow,
-  extra?: { hasFicheLink?: boolean },
+  extra?: { hasFicheLink?: boolean; parcelleId?: string | null },
 ): VoiceNote {
   const visibilite = row.visibilite === 'privee' ? 'privee' : 'agence';
   return {
@@ -438,6 +438,7 @@ export function mapDbVoiceNote(
     createdAt: row.created_at,
     hasAudio: Boolean(row.mime_type && row.mime_type !== 'text/plain'),
     hasFicheLink: extra?.hasFicheLink ?? Boolean(row.contact_id),
+    parcelleId: extra?.parcelleId ?? null,
   };
 }
 
@@ -484,17 +485,21 @@ export async function fetchVoiceNotesSafe(
     const rows = (result.data ?? []) as unknown as VoiceNoteRow[];
     const ids = rows.map((r) => r.id);
     const ficheIds = new Set<string>();
+    const parcelleParNote = new Map<string, string>();
     if (ids.length > 0) {
       try {
         const liens = await supabase
           .from('note_liens')
-          .select('note_id, entite_type')
+          .select('note_id, entite_type, entite_id')
           .in('note_id', ids);
         if (!liens.error) {
           for (const lien of liens.data ?? []) {
-            const type = (lien as { entite_type?: string }).entite_type;
-            if (type === 'contact' || type === 'bien' || type === 'lead') {
-              ficheIds.add((lien as { note_id: string }).note_id);
+            const row = lien as { note_id: string; entite_type?: string; entite_id?: string };
+            if (row.entite_type === 'contact' || row.entite_type === 'bien' || row.entite_type === 'lead') {
+              ficheIds.add(row.note_id);
+            }
+            if (row.entite_type === 'parcelle' && row.entite_id && !parcelleParNote.has(row.note_id)) {
+              parcelleParNote.set(row.note_id, row.entite_id);
             }
           }
         }
@@ -502,8 +507,42 @@ export async function fetchVoiceNotesSafe(
         // table absente tant que la migration n'est pas appliquée
       }
     }
+    const bansSansParcelle = [
+      ...new Set(
+        rows
+          .filter((row) => row.ban_id && !parcelleParNote.has(row.id))
+          .map((row) => row.ban_id as string),
+      ),
+    ];
+    if (bansSansParcelle.length > 0) {
+      try {
+        const adresses = await supabase
+          .from('parcelle_adresses')
+          .select('ban_id, parcelle_id')
+          .in('ban_id', bansSansParcelle);
+        if (!adresses.error) {
+          const parcelleParBan = new Map<string, string>();
+          for (const adresse of adresses.data ?? []) {
+            const row = adresse as { ban_id?: string; parcelle_id?: string };
+            if (row.ban_id && row.parcelle_id && !parcelleParBan.has(row.ban_id)) {
+              parcelleParBan.set(row.ban_id, row.parcelle_id);
+            }
+          }
+          for (const row of rows) {
+            if (parcelleParNote.has(row.id) || !row.ban_id) continue;
+            const parcelleId = parcelleParBan.get(row.ban_id);
+            if (parcelleId) parcelleParNote.set(row.id, parcelleId);
+          }
+        }
+      } catch {
+        // index absent : la note reste jugée sur son point
+      }
+    }
     return rows.map((row) =>
-      mapDbVoiceNote(row, { hasFicheLink: ficheIds.has(row.id) || Boolean(row.contact_id) }),
+      mapDbVoiceNote(row, {
+        hasFicheLink: ficheIds.has(row.id) || Boolean(row.contact_id),
+        parcelleId: parcelleParNote.get(row.id) ?? null,
+      }),
     );
   } catch (err) {
     console.error('[voice_notes] lecture impossible, écran dégradé', err);

@@ -93,8 +93,8 @@ export default function RechercheAdresseCarte() {
   }
 
   return (
-    <div ref={racine} className="relative mr-1 flex items-center">
-      <div className="flex h-[34px] w-[clamp(9rem,28vw,17rem)] min-w-0 items-center overflow-hidden rounded-full bg-bg-subtle">
+    <div ref={racine} className="relative mr-1 flex shrink-0 items-center">
+      <div className="flex h-[34px] w-[13.5rem] items-center overflow-hidden rounded-full bg-bg-subtle">
         <button
           type="button"
           onClick={() => champ.current?.focus()}
@@ -143,16 +143,18 @@ export default function RechercheAdresseCarte() {
           aria-activedescendant={montrerListe && liste.length ? `${listeId}-${actif}` : undefined}
           className="assistant-search-input min-w-0 flex-1 bg-transparent pr-1 text-[13.5px] text-text-strong outline-none placeholder:text-text-subtle"
         />
-        {query ? (
-          <button
-            type="button"
-            onClick={effacer}
-            aria-label="Effacer l’adresse"
-            className="mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.06] hover:text-text"
-          >
-            <CircleX size={15} strokeWidth={1.8} aria-hidden />
-          </button>
-        ) : null}
+        <span className="mr-1 flex size-7 shrink-0 items-center justify-center">
+          {query ? (
+            <button
+              type="button"
+              onClick={effacer}
+              aria-label="Effacer l’adresse"
+              className="flex size-7 items-center justify-center rounded-full text-text-subtle transition-colors hover:bg-black/[0.06] hover:text-text"
+            >
+              <CircleX size={15} strokeWidth={1.8} aria-hidden />
+            </button>
+          ) : null}
+        </span>
       </div>
 
       {montrerListe ? (
