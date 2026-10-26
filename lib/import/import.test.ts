@@ -3,10 +3,10 @@ import { describe, it } from 'node:test';
 import { suggestMapping } from './mapping';
 import {
   CONTACT_IMPORT_FIELDS,
+  completerContact,
+  contactFieldsFromMapped,
   findContactDuplicate,
   interpretContactType,
-  contactFieldsFromMapped,
-  mergeContactFields,
   planContactImport,
 } from './contacts';
 import { findBienDuplicate, bienFieldsFromMapped } from './biens';
@@ -34,21 +34,30 @@ describe('suggestMapping', () => {
 
 describe('contactFieldsFromMapped', () => {
   it('découpe un nom complet si prénom et nom manquent', () => {
-    const fields = contactFieldsFromMapped({ fullName: 'Marie Curie', email: 'marie@example.fr' });
-    assert.ok(!('error' in fields));
-    if ('error' in fields) return;
-    assert.equal(fields.firstName, 'Marie');
-    assert.equal(fields.lastName, 'Curie');
+    const lu = contactFieldsFromMapped({ fullName: 'Marie Curie', email: 'marie@example.fr' });
+    assert.ok(!('error' in lu));
+    if ('error' in lu) return;
+    assert.equal(lu.fields.firstName, 'Marie');
+    assert.equal(lu.fields.lastName, 'Curie');
   });
 
-  it('refuse un email malformé', () => {
-    const fields = contactFieldsFromMapped({ lastName: 'Curie', email: 'pas-un-email' });
-    assert.ok('error' in fields);
+  it('laisse de côté un email malformé sans rejeter la fiche', () => {
+    const lu = contactFieldsFromMapped({ lastName: 'Curie', email: 'pas-un-email' });
+    assert.ok(!('error' in lu));
+    if ('error' in lu) return;
+    assert.equal(lu.fields.lastName, 'Curie');
+    assert.equal(lu.fields.email, null);
+    assert.ok(lu.avertissements.some((a) => /email illisible/.test(a)));
   });
 
-  it('refuse une ligne sans nom', () => {
-    const fields = contactFieldsFromMapped({ email: 'a@b.fr' });
-    assert.ok('error' in fields);
+  it('enregistre sous son email une ligne sans nom, et rejette une ligne vide', () => {
+    const avecEmail = contactFieldsFromMapped({ email: 'a@b.fr' });
+    assert.ok(!('error' in avecEmail));
+    if ('error' in avecEmail) return;
+    assert.equal(avecEmail.fields.lastName, 'a@b.fr');
+
+    const vide = contactFieldsFromMapped({});
+    assert.ok('error' in vide);
   });
 });
 
@@ -65,32 +74,32 @@ describe('findContactDuplicate', () => {
     assert.equal(formatPhoneDisplay('06787'), '06 78 7');
     assert.equal(formatPhoneAfterCountryCode('612345678'), '6 12 34 56 78');
     assert.equal(telHref('06 12 34 56 78'), 'tel:+33612345678');
-    const fields = contactFieldsFromMapped({
+    const lu = contactFieldsFromMapped({
       lastName: 'Autre',
       phone: '+33612345678',
     });
-    assert.ok(!('error' in fields));
-    if ('error' in fields) return;
-    assert.equal(fields.phone, '06 12 34 56 78');
-    assert.equal(findContactDuplicate(fields, existing)?.id, '1');
+    assert.ok(!('error' in lu));
+    if ('error' in lu) return;
+    assert.equal(lu.fields.phone, '06 12 34 56 78');
+    assert.equal(findContactDuplicate(lu.fields, existing)?.id, '1');
   });
 
   it('reconnaît le même nom + email', () => {
-    const fields = contactFieldsFromMapped({
+    const lu = contactFieldsFromMapped({
       firstName: 'Marie',
       lastName: 'Curie',
       email: 'MARIE@lab.fr',
     });
-    assert.ok(!('error' in fields));
-    if ('error' in fields) return;
-    assert.equal(findContactDuplicate(fields, existing)?.id, '1');
+    assert.ok(!('error' in lu));
+    if ('error' in lu) return;
+    assert.equal(findContactDuplicate(lu.fields, existing)?.id, '1');
   });
 
   it('ne fusionne pas deux homonymes sans email ni téléphone commun', () => {
-    const fields = contactFieldsFromMapped({ firstName: 'Marie', lastName: 'Curie' });
-    assert.ok(!('error' in fields));
-    if ('error' in fields) return;
-    assert.equal(findContactDuplicate(fields, existing), null);
+    const lu = contactFieldsFromMapped({ firstName: 'Marie', lastName: 'Curie' });
+    assert.ok(!('error' in lu));
+    if ('error' in lu) return;
+    assert.equal(findContactDuplicate(lu.fields, existing), null);
   });
 });
 
@@ -99,33 +108,26 @@ describe('planContactImport', () => {
     const plan = planContactImport(
       [
         { line: 2, mapped: { lastName: 'A', email: 'a@b.fr' } },
-        { line: 3, mapped: { lastName: 'B', email: 'pas-email' } },
+        { line: 3, mapped: { email: 'pas-email' } },
         { line: 4, mapped: { lastName: 'C', phone: '0611223344' } },
       ],
       [],
-      'ignore',
     );
     assert.equal(plan.filter((p) => p.action === 'create').length, 2);
     const skipped = plan.find((p) => p.action === 'skip');
     assert.equal(skipped?.line, 3);
   });
 
-  it('ignore un doublon existant', () => {
+  it('complète un doublon existant et réunit les lignes du même fichier', () => {
     const plan = planContactImport(
-      [{ line: 2, mapped: { lastName: 'Curie', firstName: 'Marie', phone: '0612345678' } }],
+      [
+        { line: 2, mapped: { lastName: 'Curie', firstName: 'Marie', phone: '0612345678', email: 'm@lab.fr' } },
+        { line: 3, mapped: { lastName: 'Curie', firstName: 'Marie', phone: '06 12 34 56 78', secteur: 'Paris' } },
+      ],
       [{ id: '1', firstName: 'Marie', lastName: 'Curie', phone: '0612345678', email: null }],
-      'ignore',
     );
-    assert.equal(plan[0]?.action, 'skip');
-  });
-
-  it('propose une mise à jour quand demandé', () => {
-    const plan = planContactImport(
-      [{ line: 2, mapped: { lastName: 'Curie', firstName: 'Marie', phone: '0612345678', email: 'm@lab.fr' } }],
-      [{ id: '1', firstName: 'Marie', lastName: 'Curie', phone: '0612345678', email: null }],
-      'update',
-    );
-    assert.equal(plan[0]?.action, 'update');
+    assert.equal(plan[0]?.action, 'complete');
+    assert.equal(plan[1]?.action, 'merged');
   });
 });
 
@@ -154,9 +156,9 @@ describe('biens import', () => {
   });
 });
 
-describe('mergeContactFields', () => {
-  it('ne vide pas un email non mappé', () => {
-    const merged = mergeContactFields(
+describe('completerContact', () => {
+  it('remplit ce qui manque sans écraser les champs existants', () => {
+    const { fields: merged } = completerContact(
       {
         firstName: 'Marie',
         lastName: 'Curie',
@@ -165,7 +167,7 @@ describe('mergeContactFields', () => {
         phone: '0612345678',
         numeroCommuniqueParLaPersonne: false,
         email: 'marie@lab.fr',
-        secteur: 'Lille',
+        secteur: null,
         address: null,
         postalCodes: ['59000'],
         budgetMin: 200000,
@@ -184,7 +186,7 @@ describe('mergeContactFields', () => {
         phone: '0699999999',
         numeroCommuniqueParLaPersonne: false,
         email: null,
-        secteur: null,
+        secteur: 'Lille',
         address: null,
         postalCodes: [],
         budgetMin: null,
@@ -195,11 +197,11 @@ describe('mergeContactFields', () => {
         summary: null,
         recontacterLe: null,
       },
-      new Set(['phone']),
     );
-    assert.equal(merged.phone, '0699999999');
+    assert.equal(merged.phone, '0612345678');
     assert.equal(merged.email, 'marie@lab.fr');
     assert.equal(merged.secteur, 'Lille');
     assert.equal(merged.type, 'acquereur');
+    assert.match(merged.summary ?? '', /06 99 99 99 99/);
   });
 });

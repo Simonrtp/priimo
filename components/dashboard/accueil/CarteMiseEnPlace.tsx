@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 import { tachesMiseEnPlace } from '@/lib/accueil/mise-en-place';
-import { ouvrirAtelierSecteur } from '@/lib/zones/atelier-event';
+import { hrefAtelierSecteur } from '@/lib/zones/atelier-event';
 import { BOUTON_CARTE_VIDE } from './CarteVideAccueil';
 
 /**
@@ -46,13 +47,9 @@ export default function CarteMiseEnPlace({ aUnSecteur }: { aUnSecteur: boolean }
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={ouvrirAtelierSecteur}
-                className={`${BOUTON_CARTE_VIDE} shrink-0`}
-              >
+              <Link href={hrefAtelierSecteur()} className={`${BOUTON_CARTE_VIDE} shrink-0`}>
                 Créer mon secteur
-              </button>
+              </Link>
             </li>
           ) : null,
         )}

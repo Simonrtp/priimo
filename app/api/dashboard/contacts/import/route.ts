@@ -1,34 +1,53 @@
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { viewerFromProfile } from '@/lib/agency/visibility';
+import { visibleContactsFor } from '@/lib/agency/scope-records';
 import { contactFieldsToRow } from '@/lib/contact-input';
 import { createBanGeocodeCache } from '@/lib/geo/ban';
-import { contactGeocodeQuery, EMPTY_BAN_GEO, geocodeToColumns } from '@/lib/geo/fields';
-import { insertContactRow, mapDbContactToContact, withContactsSelect } from '@/lib/queries/contacts';
-import { activeMappedKeys } from '@/lib/import/mapping';
+import { contactGeocodeQuery, geocodeToColumns } from '@/lib/geo/fields';
+import {
+  insertContactRow,
+  insertContactRows,
+  mapDbContactToContact,
+  updateContactRow,
+  withContactsSelect,
+} from '@/lib/queries/contacts';
 import {
   CONTACT_IMPORT_FIELDS,
+  completerContact,
   contactToDuplicateRef,
   contactToInput,
-  mergeContactFields,
   planContactImport,
-  type DuplicateStrategy,
 } from '@/lib/import/contacts';
-import { MAX_IMPORT_ROWS } from '@/lib/import/limits';
+import {
+  ANNULATION_JOURS,
+  colonnesDesChamps,
+  importAnnulable,
+  tableImportsAbsente,
+} from '@/lib/import/annulation';
+import { CONTACT_IMPORT_LOT } from '@/lib/import/limits';
 import type { Contact } from '@/types/contact';
-import type { ContactRow } from '@/types/database';
+import type { ContactImportCompletion, ContactInsert, ContactRow, Database } from '@/types/database';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+type Client = SupabaseClient<Database>;
 
 const FIELD_KEYS = new Set(CONTACT_IMPORT_FIELDS.map((f) => f.key));
+const GEOCODAGES_SIMULTANES = 8;
+const INSERTIONS_PAR_REQUETE = 100;
+const PAGE_LECTURE = 1_000;
 
 function sanitizeRows(raw: unknown): { line: number; mapped: Record<string, string> }[] {
   if (!Array.isArray(raw)) return [];
-  return raw.slice(0, MAX_IMPORT_ROWS).flatMap((item) => {
+  return raw.slice(0, CONTACT_IMPORT_LOT).flatMap((item) => {
     if (typeof item !== 'object' || item === null) return [];
     const row = item as Record<string, unknown>;
     const line = Number(row.line);
-    if (!Number.isInteger(line) || line < 2) return [];
+    if (!Number.isInteger(line) || line < 1) return [];
     const mappedRaw = row.mapped;
     if (typeof mappedRaw !== 'object' || mappedRaw === null) return [];
     const mapped: Record<string, string> = {};
@@ -40,16 +59,149 @@ function sanitizeRows(raw: unknown): { line: number; mapped: Record<string, stri
   });
 }
 
-function sanitizeMapping(raw: unknown): Record<string, string> {
-  const mapping: Record<string, string> = {};
-  const src = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
-  for (const field of CONTACT_IMPORT_FIELDS) {
-    const value = src[field.key];
-    mapping[field.key] = typeof value === 'string' ? value : '';
+async function enParallele<T, R>(
+  items: readonly T[],
+  limite: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let suivant = 0;
+  async function ouvrier() {
+    while (suivant < items.length) {
+      const i = suivant++;
+      out[i] = await fn(items[i] as T);
+    }
   }
-  return mapping;
+  await Promise.all(Array.from({ length: Math.min(limite, items.length) }, ouvrier));
+  return out;
 }
 
+/** Toute l'agence, page par page : PostgREST plafonne une lecture à 1 000 lignes. */
+async function lireContacts(supabase: Client): Promise<{ rows: ContactRow[]; error: unknown }> {
+  const rows: ContactRow[] = [];
+  for (let debut = 0; ; debut += PAGE_LECTURE) {
+    const { data, error } = await withContactsSelect((sel) =>
+      supabase
+        .from('contacts')
+        .select(sel)
+        .order('created_at', { ascending: true })
+        .range(debut, debut + PAGE_LECTURE - 1),
+    );
+    if (error) return { rows, error };
+    const page = (data ?? []) as unknown as ContactRow[];
+    rows.push(...page);
+    if (page.length < PAGE_LECTURE) return { rows, error: null };
+  }
+}
+
+/** L'import en cours (lots suivants) ou un nouvel import. `null` : migration pas passée, pas d'annulation. */
+async function ouvrirImport(
+  supabase: Client,
+  payload: Record<string, unknown>,
+  ids: { agencyId: string; profileId: string },
+): Promise<{ id: string | null; refus?: string }> {
+  if (typeof payload.importId === 'string' && payload.importId) {
+    const { data, error } = await supabase
+      .from('contact_imports')
+      .select('id, created_at, annule_le')
+      .eq('id', payload.importId)
+      .eq('agency_id', ids.agencyId)
+      .eq('created_by', ids.profileId)
+      .maybeSingle();
+    if (error || !data) return { id: null, refus: 'Import introuvable' };
+    if (data.annule_le) return { id: null, refus: 'Cet import a été annulé' };
+    return { id: data.id };
+  }
+
+  const fichier =
+    typeof payload.fichier === 'object' && payload.fichier !== null
+      ? (payload.fichier as Record<string, unknown>)
+      : {};
+  const { data, error } = await supabase
+    .from('contact_imports')
+    .insert({
+      agency_id: ids.agencyId,
+      created_by: ids.profileId,
+      nom_fichier: typeof fichier.nom === 'string' ? fichier.nom.slice(0, 200) : '',
+      format: fichier.format === 'vcard' ? 'vcard' : 'tableur',
+    })
+    .select('id')
+    .single();
+  if (error || !data) {
+    if (!tableImportsAbsente(error)) console.error('[contacts/import] ouverture', error);
+    return { id: null };
+  }
+  return { id: data.id };
+}
+
+/** Fiches déjà créées par cet import (lots précédents) : une ligne qui les retrouve est réunie, pas « complétée ». */
+async function creesParCetImport(supabase: Client, importId: string | null): Promise<Set<string>> {
+  if (!importId) return new Set();
+  const { data } = await supabase.from('contacts').select('id').eq('import_id', importId).limit(20_000);
+  return new Set((data ?? []).map((r) => r.id));
+}
+
+async function insererCreations(
+  supabase: Client,
+  lignes: readonly { line: number; row: ContactInsert }[],
+): Promise<{ created: ContactRow[]; echecs: number[] }> {
+  const created: ContactRow[] = [];
+  const echecs: number[] = [];
+  for (let i = 0; i < lignes.length; i += INSERTIONS_PAR_REQUETE) {
+    const lot = lignes.slice(i, i + INSERTIONS_PAR_REQUETE);
+    const { data, error } = await insertContactRows(
+      supabase,
+      lot.map((l) => l.row),
+    );
+    if (!error && data) {
+      created.push(...data);
+      continue;
+    }
+    // Une ligne refusée fait échouer tout le lot : on repasse une à une pour l'isoler.
+    console.error('[contacts/import] lot refusé, reprise ligne à ligne', error);
+    for (const l of lot) {
+      const seul = await insertContactRow(supabase, l.row);
+      if (seul.error || !seul.data) echecs.push(l.line);
+      else created.push(seul.data);
+    }
+  }
+  return { created, echecs };
+}
+
+async function enregistrerLot(
+  supabase: Client,
+  importId: string,
+  lot: { crees: number; completes: number; dejaPresents: number; ecartes: number },
+  completions: ContactImportCompletion[],
+) {
+  const { data: courant, error } = await supabase
+    .from('contact_imports')
+    .select('crees, completes, deja_presents, ecartes, completions')
+    .eq('id', importId)
+    .single();
+  if (error || !courant) {
+    console.error('[contacts/import] compteurs', error);
+    return;
+  }
+  const { error: ecriture } = await supabase
+    .from('contact_imports')
+    .update({
+      crees: courant.crees + lot.crees,
+      completes: courant.completes + lot.completes,
+      deja_presents: courant.deja_presents + lot.dejaPresents,
+      ecartes: courant.ecartes + lot.ecartes,
+      completions: [...(courant.completions ?? []), ...completions],
+      termine_le: new Date().toISOString(),
+    })
+    .eq('id', importId);
+  if (ecriture) console.error('[contacts/import] compteurs', ecriture);
+}
+
+/**
+ * Un lot de lignes déjà lues côté navigateur. Le premier lot ouvre l'import,
+ * les suivants le prolongent (`importId`). Aucune question : on crée, on
+ * complète sans rien écraser, on réunit les doublons.
+ */
 export async function POST(req: Request) {
   const { user, profile, agency } = await getServerUser();
   if (!user || !profile || !agency) {
@@ -68,107 +220,168 @@ export async function POST(req: Request) {
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Aucune ligne à importer' }, { status: 400 });
   }
-  const strategy: DuplicateStrategy = payload.duplicates === 'update' ? 'update' : 'ignore';
-  const mapping = sanitizeMapping(payload.mapping);
-  const keys = activeMappedKeys(mapping);
 
   const supabase = await createSupabaseServerClient();
-  const { data: existingRows, error: loadError } = await withContactsSelect((sel) =>
-    supabase.from('contacts').select(sel),
-  );
+  const ouverture = await ouvrirImport(supabase, payload, { agencyId: agency.id, profileId: profile.id });
+  if (ouverture.refus) {
+    return NextResponse.json({ error: ouverture.refus }, { status: 409 });
+  }
+  const importId = ouverture.id;
 
-  if (loadError) {
-    console.error('[contacts/import] lecture', loadError);
+  const lecture = await lireContacts(supabase);
+  if (lecture.error) {
+    console.error('[contacts/import] lecture', lecture.error);
     return NextResponse.json({ error: 'Lecture des contacts impossible' }, { status: 500 });
   }
 
-  const existing = ((existingRows ?? []) as unknown as ContactRow[]).map(mapDbContactToContact);
-  const byId = new Map(existing.map((c) => [c.id, c]));
-  const plan = planContactImport(rows, existing.map(contactToDuplicateRef), strategy);
+  // On ne complète que ce que l'agent voit : la fiche privée d'un collègue
+  // reste à son titulaire, l'agent importe la sienne.
+  const lignesParId = new Map(lecture.rows.map((r) => [r.id, r]));
+  const visibles = visibleContactsFor(viewerFromProfile(profile), lecture.rows.map(mapDbContactToContact));
+  const visiblesParId = new Map(visibles.map((c) => [c.id, c]));
+  const dejaCrees = await creesParCetImport(supabase, importId);
+
+  const plan = planContactImport(rows, visibles.map(contactToDuplicateRef));
   const cache = createBanGeocodeCache();
+  const meta = { agencyId: agency.id, createdBy: profile.id, source: 'manuel' as const };
+  const maintenant = new Date().toISOString();
 
-  const created: Contact[] = [];
-  const updated: Contact[] = [];
   const skipped: { line: number; reason: string }[] = [];
-
+  const avertissements: { line: number; message: string }[] = [];
+  let reunis = 0;
   for (const item of plan) {
-    if (item.action === 'skip') {
-      skipped.push({ line: item.line, reason: item.reason });
-      continue;
+    if (item.action === 'skip') skipped.push({ line: item.line, reason: item.reason });
+    else {
+      if (item.action === 'merged') reunis += 1;
+      for (const message of item.avertissements) avertissements.push({ line: item.line, message });
     }
-
-    if (item.action === 'create') {
-      const query = contactGeocodeQuery(item.fields.address, item.fields.secteur, item.fields.postalCodes);
-      const geo = query ? await geocodeToColumns(query.adresse, query.codePostal, cache) : {};
-      const { data, error } = await insertContactRow(supabase, {
-        ...contactFieldsToRow(item.fields, {
-          agencyId: agency.id,
-          createdBy: profile.id,
-          source: 'manuel',
-        }),
-        last_interaction_at: new Date().toISOString(),
-        ...geo,
-      });
-      if (error || !data) {
-        console.error('[contacts/import] création', error);
-        skipped.push({ line: item.line, reason: 'Écriture impossible' });
-        continue;
-      }
-      created.push(mapDbContactToContact(data as unknown as ContactRow));
-      continue;
-    }
-
-    const current = byId.get(item.duplicate.id);
-    if (!current) {
-      skipped.push({ line: item.line, reason: 'Fiche introuvable' });
-      continue;
-    }
-    const merged = mergeContactFields(contactToInput(current), item.fields, keys);
-    const row = contactFieldsToRow(merged, {
-      agencyId: agency.id,
-      createdBy: profile.id,
-      source: 'manuel',
-    });
-    const query = contactGeocodeQuery(merged.address, merged.secteur, merged.postalCodes);
-    const geo = query
-      ? await geocodeToColumns(query.adresse, query.codePostal, cache)
-      : { ...EMPTY_BAN_GEO };
-    const patch = {
-      first_name: row.first_name,
-      last_name: row.last_name,
-      contact_type: row.contact_type,
-      phone: row.phone,
-      email: row.email,
-      secteur: row.secteur,
-      address: row.address,
-      postal_codes: row.postal_codes,
-      budget_min: row.budget_min,
-      budget_max: row.budget_max,
-      surface_min: row.surface_min,
-      surface_max: row.surface_max,
-      rooms_min: row.rooms_min,
-      summary: row.summary,
-      ...geo,
-    };
-
-    const { data, error } = await withContactsSelect((sel) =>
-      supabase
-        .from('contacts')
-        .update(patch)
-        .eq('id', item.duplicate.id)
-        .eq('agency_id', agency.id)
-        .select(sel)
-        .single(),
-    );
-    if (error || !data) {
-      console.error('[contacts/import] mise à jour', error);
-      skipped.push({ line: item.line, reason: 'Mise à jour impossible' });
-      continue;
-    }
-    const contact = mapDbContactToContact(data as unknown as ContactRow);
-    byId.set(contact.id, contact);
-    updated.push(contact);
   }
 
-  return NextResponse.json({ created, updated, skipped });
+  const creations = plan.flatMap((p) => (p.action === 'create' ? [p] : []));
+  const lignes = await enParallele(creations, GEOCODAGES_SIMULTANES, async (item) => {
+    const query = contactGeocodeQuery(item.fields.address, item.fields.secteur, item.fields.postalCodes);
+    const geo = query ? await geocodeToColumns(query.adresse, query.codePostal, cache) : {};
+    const row: ContactInsert = {
+      ...contactFieldsToRow(item.fields, meta),
+      last_interaction_at: maintenant,
+      ...geo,
+      ...(importId ? { import_id: importId } : {}),
+    };
+    return { line: item.line, row };
+  });
+  const { created: crees, echecs } = await insererCreations(supabase, lignes);
+  for (const line of echecs) skipped.push({ line, reason: 'Écriture impossible' });
+
+  const completed: Contact[] = [];
+  const completions: ContactImportCompletion[] = [];
+  let dejaPresents = 0;
+  const aCompleter = plan.flatMap((p) => (p.action === 'complete' ? [p] : []));
+  await enParallele(aCompleter, 6, async (item) => {
+    const id = item.duplicate.id;
+    const actuel = visiblesParId.get(id);
+    const ligne = lignesParId.get(id);
+    if (!actuel || !ligne) {
+      skipped.push({ line: item.line, reason: 'Fiche introuvable' });
+      return;
+    }
+    const { fields, champs } = completerContact(contactToInput(actuel), item.fields);
+    if (champs.length === 0) {
+      if (dejaCrees.has(id)) reunis += 1;
+      else dejaPresents += 1;
+      return;
+    }
+
+    const apres = contactFieldsToRow(fields, meta) as unknown as Record<string, unknown>;
+    const patch: Record<string, unknown> = {};
+    for (const colonne of colonnesDesChamps(champs)) patch[colonne] = apres[colonne];
+    const lieuComplete = champs.some((c) => c === 'address' || c === 'secteur' || c === 'postalCodes');
+    if (lieuComplete && !ligne.ban_id) {
+      const query = contactGeocodeQuery(fields.address, fields.secteur, fields.postalCodes);
+      if (query) Object.assign(patch, await geocodeToColumns(query.adresse, query.codePostal, cache));
+    }
+
+    const { data, error } = await updateContactRow(
+      supabase,
+      { contactId: id, agencyId: agency.id },
+      patch as Partial<ContactRow>,
+    );
+    if (error || !data) {
+      console.error('[contacts/import] complément', error);
+      skipped.push({ line: item.line, reason: 'Mise à jour impossible' });
+      return;
+    }
+    completed.push(mapDbContactToContact(data as unknown as ContactRow));
+    // Une fiche née d'un lot précédent du même fichier : rien à défaire à part elle.
+    if (dejaCrees.has(id)) {
+      reunis += 1;
+      return;
+    }
+    const avant: Record<string, unknown> = {};
+    for (const colonne of Object.keys(patch)) {
+      avant[colonne] = (ligne as unknown as Record<string, unknown>)[colonne] ?? null;
+    }
+    completions.push({ id, avant, apres: patch });
+  });
+
+  if (importId) {
+    await enregistrerLot(
+      supabase,
+      importId,
+      {
+        crees: crees.length,
+        completes: completions.length,
+        dejaPresents,
+        ecartes: skipped.length,
+      },
+      completions,
+    );
+  }
+
+  return NextResponse.json({
+    importId,
+    created: crees.map(mapDbContactToContact),
+    completed,
+    completes: completions.length,
+    dejaPresents,
+    reunis,
+    skipped: skipped.sort((a, b) => a.line - b.line),
+    avertissements,
+  });
+}
+
+/** Mes imports encore annulables. */
+export async function GET() {
+  const { user, profile, agency } = await getServerUser();
+  if (!user || !profile || !agency) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const depuis = new Date(Date.now() - ANNULATION_JOURS * 86_400_000).toISOString();
+  const { data, error } = await supabase
+    .from('contact_imports')
+    .select('id, nom_fichier, format, crees, completes, created_at, annule_le')
+    .eq('agency_id', agency.id)
+    .eq('created_by', profile.id)
+    .is('annule_le', null)
+    .gte('created_at', depuis)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (error) {
+    if (!tableImportsAbsente(error)) console.error('[contacts/import] liste', error);
+    return NextResponse.json({ imports: [] });
+  }
+
+  return NextResponse.json({
+    imports: (data ?? [])
+      .filter((row) => importAnnulable(row) && row.crees + row.completes > 0)
+      .map((row) => ({
+        id: row.id,
+        nomFichier: row.nom_fichier,
+        crees: row.crees,
+        completes: row.completes,
+        createdAt: row.created_at,
+      })),
+  });
 }

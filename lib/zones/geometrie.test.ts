@@ -79,6 +79,17 @@ describe('masque hors secteur', () => {
     assert.equal(poly.coordinates[1]?.[0]?.[0], 2.3);
   });
 
+  it('perce l’enveloppe des parcelles, pas le geste plus large', () => {
+    const geste = rect(2.3, 48.8, 2.5, 49);
+    const parcelles = rect(2.35, 48.85, 2.4, 48.9);
+    const data = collectionMasqueHorsZone({ ...zone('ouest', [geste]), enveloppe: [parcelles] });
+    const poly = data.features[0]?.geometry;
+    assert.equal(poly?.type, 'Polygon');
+    if (poly?.type !== 'Polygon') return;
+    assert.equal(poly.coordinates.length, 2);
+    assert.deepEqual(poly.coordinates[1]?.[0], [2.35, 48.85]);
+  });
+
   it('ne masque rien sans polygone', () => {
     const data = collectionMasqueHorsZone(zone('vide', []));
     assert.equal(data.features.length, 0);

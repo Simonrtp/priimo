@@ -719,13 +719,16 @@ export default function ParcellesLayer({
 
     // Le fond de plan (empreintes d'immeubles) se redessine au-dessus des
     // cercles ajoutés trop tôt. La lettre, elle, reste : d'où les C/E noirs.
-    const raiseDpe = () => {
+    const raiseOverlays = () => {
       try {
         const order = map.getStyle()?.layers;
         if (!order) return;
-        const present = [CADASTRE_DPE_LAYER_ID, CADASTRE_DPE_LABEL_LAYER_ID].filter((id) =>
-          map.getLayer(id),
-        );
+        const present = [
+          CADASTRE_DPE_LAYER_ID,
+          CADASTRE_DPE_LABEL_LAYER_ID,
+          CADASTRE_VENTES_LAYER_ID,
+          CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
+        ].filter((id) => map.getLayer(id));
         if (present.length === 0) return;
         const tail = order.slice(-present.length).map((layer) => layer.id);
         if (present.every((id, i) => tail[i] === id)) return;
@@ -734,8 +737,8 @@ export default function ParcellesLayer({
         /* style pas encore prêt */
       }
     };
-    raiseDpe();
-    map.on('idle', raiseDpe);
+    raiseOverlays();
+    map.on('idle', raiseOverlays);
 
     const overlayLayers = [
       CADASTRE_DPE_LAYER_ID,
@@ -752,7 +755,7 @@ export default function ParcellesLayer({
     }
 
     return () => {
-      map.off('idle', raiseDpe);
+      map.off('idle', raiseOverlays);
       for (const id of overlayLayers) {
         map.off('mousemove', id, onOverlayMove);
         map.off('mouseleave', id, onOverlayLeave);
@@ -814,26 +817,10 @@ export default function ParcellesLayer({
         <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson} promoteId="banId">
           {layers.cadastreVentes ? (
             <Layer
-              id={CADASTRE_VENTES_POINT_LAYER_ID}
-              type="circle"
-              filter={['==', ['get', 'hasVente'], '1']}
-              maxzoom={PARCELLE_MIN_ZOOM}
-              paint={{
-                'circle-radius': 5,
-                'circle-color': VENTE_FILL,
-                'circle-stroke-width': 1,
-                'circle-stroke-color': VENTE_PRICE_HALO,
-                'circle-pitch-alignment': 'viewport',
-                'circle-pitch-scale': 'viewport',
-              }}
-            />
-          ) : null}
-          {layers.cadastreVentes ? (
-            <Layer
               id={CADASTRE_VENTES_LAYER_ID}
               type="symbol"
               filter={['all', ['==', ['get', 'hasVente'], '1'], ['!=', ['get', 'prixM2'], '']]}
-              minzoom={14}
+              minzoom={CADASTRE_OVERLAY_MIN_ZOOM}
               maxzoom={PARCELLE_MIN_ZOOM}
               layout={{
                 'text-field': ['get', 'prixM2'],

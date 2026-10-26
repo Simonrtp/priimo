@@ -14,7 +14,8 @@ const ETAPES_DIRECTION = [
 ] as const;
 
 /**
- * Personne n'a envie de paramétrer quoi que ce soit. Deux gestes, pas un mode d'emploi.
+ * Invitation Accueil : le bouton envoie sur la carte de prospection,
+ * seul endroit où l'on dessine un secteur.
  */
 export function DessinerMonSecteur({
   estDirecteur,

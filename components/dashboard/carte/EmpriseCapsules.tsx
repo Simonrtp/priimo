@@ -7,7 +7,7 @@ export type OngletCarte = 'mes' | 'code_postal';
 
 const ONGLETS: readonly { id: OngletCarte; label: string; titre: string }[] = [
   { id: 'mes', label: 'Mes secteurs', titre: 'Seulement mes secteurs' },
-  { id: 'code_postal', label: 'Code postal', titre: 'Tout le code postal, sans secteur' },
+  { id: 'code_postal', label: 'Code postal', titre: 'Le code postal, avec les secteurs des autres négociateurs' },
 ];
 
 export default function EmpriseCapsules({

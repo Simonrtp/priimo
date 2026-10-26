@@ -29,7 +29,6 @@ import ParcellesLayer, {
   CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
   CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-  CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
@@ -485,11 +484,7 @@ export default function MobileMapCanvas({
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
           ...(!navigation && cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
           ...(!navigation && cadastreLayers.cadastreVentes
-            ? [
-                CADASTRE_VENTES_POINT_LAYER_ID,
-                CADASTRE_VENTES_LAYER_ID,
-                CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-              ]
+            ? [CADASTRE_VENTES_LAYER_ID, CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID]
             : []),
           ...(!navigation && cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
         ]}

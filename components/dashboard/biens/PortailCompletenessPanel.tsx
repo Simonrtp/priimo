@@ -15,8 +15,7 @@ export default function PortailCompletenessPanel({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[12.5px] leading-relaxed text-text-muted">
-        Les abonnements SeLoger Pro, Bien&apos;ici Pro et Logic-Immo restent facturés directement
-        à l&apos;agence — ils ne sont pas inclus dans l&apos;abonnement Priimo.
+        Les comptes SeLoger Pro, Bien&apos;ici Pro et Logic-Immo restent chez l&apos;éditeur.
       </p>
       {portails.map((portail) => {
         const { blockers, warnings } = assessAnnonceForPortail(annonce, portail);

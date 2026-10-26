@@ -7,7 +7,6 @@ import {
   ajusterSiegesStripe,
   avertissementSiege,
   compterSiegesActifs,
-  prixSiegeDe,
   siegesInclusDe,
 } from '@/lib/billing/sieges';
 
@@ -33,7 +32,6 @@ export async function POST(request: Request) {
   const avertissement = avertissementSiege({
     actifs,
     inclus: siegesInclusDe(guard.agency),
-    prixSiege: prixSiegeDe(guard.agency),
   });
   if (avertissement && payload.confirmerDepassement !== true) {
     return NextResponse.json({ avertissement, requiresConfirm: true }, { status: 409 });

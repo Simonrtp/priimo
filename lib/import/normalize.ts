@@ -60,6 +60,42 @@ export function telHref(raw: string): string {
   return `tel:${compact || digits}`;
 }
 
+/**
+ * Une case « téléphone » telle qu'un fichier la donne : plusieurs numéros
+ * (« 06… / 01… », « ::: » chez Google), « tel: », ou un 06 dont Excel a mangé
+ * le zéro (612345678). Rend les numéros dans l'ordre, le premier d'abord.
+ */
+export function reparerTelephones(raw: string | null | undefined): string[] {
+  const texte = (raw ?? '').replace(/tel:/gi, ' ');
+  const trouves = texte.match(/(?:\+|00)?\d[\d .\-()]{6,}\d/g) ?? [];
+  const out: string[] = [];
+  const garder = (numero: string) => {
+    if (!out.some((n) => normalizePhone(n) === normalizePhone(numero))) out.push(numero);
+  };
+  for (const bout of trouves) {
+    let chiffres = normalizePhone(bout);
+    // Excel lit 0612345678 comme un nombre et garde 612345678.
+    if (chiffres.length === 9 && /^[1-9]/.test(chiffres) && !bout.trim().startsWith('+')) {
+      chiffres = `0${chiffres}`;
+    }
+    if (chiffres.length < 9) continue;
+    // Deux numéros français collés par une simple espace : « 06 … 78 01 … 89 ».
+    const morceaux = chiffres.match(/.{10}/g) ?? [];
+    if (chiffres.length % 10 === 0 && morceaux.length > 1 && morceaux.every((m) => m.startsWith('0'))) {
+      morceaux.forEach(garder);
+      continue;
+    }
+    garder(chiffres.length === 10 && chiffres.startsWith('0') ? chiffres : bout.trim());
+  }
+  return out;
+}
+
+/** La première adresse email lisible d'une case (« mailto: », « <…> », plusieurs). */
+export function nettoyerEmail(raw: string | null | undefined): string | null {
+  const m = (raw ?? '').match(/[^\s@<>,;:"'()[\]]+@[^\s@<>,;:"'()[\]]+\.[a-z]{2,}/i);
+  return m ? m[0].toLocaleLowerCase('fr') : null;
+}
+
 export function isBlankRow(values: readonly string[]): boolean {
   return values.every((v) => !v.trim());
 }

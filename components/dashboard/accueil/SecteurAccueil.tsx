@@ -1,17 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ApercuSecteur } from '@/lib/zones/accueil';
-import { EVENEMENT_ATELIER_SECTEUR } from '@/lib/zones/atelier-event';
+import { hrefAtelierSecteur } from '@/lib/zones/atelier-event';
 import MonSecteur from './MonSecteur';
 import { DessinerMonSecteur } from './CarteTourneeFraicheur';
-import AtelierSecteur, { type SecteursData } from './SecteurAtelier';
+import type { SecteursData } from './SecteurAtelier';
 
 /**
- * Le secteur sur l'Accueil : l'invitation à le dessiner tant qu'il n'existe
- * pas, la carte ensuite. L'atelier est monté ici, au-dessus des deux, pour
- * survivre au basculement de l'un à l'autre : créer sa zone fait passer de
- * « dessiner » à « mon secteur », et l'agent doit rester dans son tracé.
+ * Le secteur sur l'Accueil : invitation à le dessiner, ou carte figée.
+ * Le dessin n'a lieu que sur la carte de prospection.
  */
 export default function SecteurAccueil({
   apercu,
@@ -27,14 +25,8 @@ export default function SecteurAccueil({
   /** Prénom du titulaire, quand le directeur lit son tableau. */
   prenom?: string | null;
 }) {
-  const [ouvert, setOuvert] = useState(false);
-  const ouvrir = () => setOuvert(true);
-
-  useEffect(() => {
-    const onOpen = () => setOuvert(true);
-    window.addEventListener(EVENEMENT_ATELIER_SECTEUR, onOpen);
-    return () => window.removeEventListener(EVENEMENT_ATELIER_SECTEUR, onOpen);
-  }, []);
+  const router = useRouter();
+  const allerAtelier = (zoneId?: string) => router.push(hrefAtelierSecteur(zoneId ?? 'nouveau'));
 
   return (
     <div className="flex h-full min-w-0 flex-col">
@@ -44,19 +36,12 @@ export default function SecteurAccueil({
           toutesZones={secteurs.zones.filter((z) => z.actif)}
           centre={centre}
           estDirecteur={estDirecteur}
-          onAtelier={ouvrir}
+          onAtelier={() => allerAtelier(apercu.zones[0]?.id ?? 'nouveau')}
           prenom={prenom}
         />
       ) : (
-        <DessinerMonSecteur estDirecteur={estDirecteur} onAtelier={ouvrir} prenom={prenom} />
+        <DessinerMonSecteur estDirecteur={estDirecteur} onAtelier={() => allerAtelier()} prenom={prenom} />
       )}
-
-      <AtelierSecteur
-        open={ouvert}
-        onClose={() => setOuvert(false)}
-        data={secteurs}
-        estDirecteur={estDirecteur}
-      />
     </div>
   );
 }

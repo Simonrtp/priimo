@@ -360,6 +360,35 @@ export async function insertContactRow(
   };
 }
 
+/**
+ * Insertion de plusieurs fiches d'un coup (import de fichier). Une colonne
+ * récente absente de la base est retirée de toutes les lignes. Sur toute
+ * autre erreur, l'appelant repasse ligne à ligne pour isoler la fautive.
+ */
+export async function insertContactRows(
+  supabase: Client,
+  rows: readonly ContactInsert[],
+): Promise<{ data: ContactRow[] | null; error: { message: string; code?: string } | null }> {
+  let payload: ContactInsert[] = [...rows];
+  let colonnes: string[] = [...COLONNES_RECENTES];
+  for (;;) {
+    const res = await supabase
+      .from('contacts')
+      .insert(payload)
+      .select([CONTACTS_SELECT_BASE.trim(), ...colonnes].join(', '));
+    const manquante = colonneRecenteManquante(res.error, colonnes);
+    if (!manquante) {
+      return { data: (res.data as unknown as ContactRow[] | null) ?? null, error: res.error };
+    }
+    colonnes = colonnes.filter((c) => c !== manquante);
+    payload = payload.map((row) => {
+      const { [manquante as keyof ContactInsert]: _retire, ...reste } = row;
+      void _retire;
+      return reste as ContactInsert;
+    });
+  }
+}
+
 export function mapDbInteraction(row: ContactInteractionRow): ContactInteraction {
   return {
     id: row.id,

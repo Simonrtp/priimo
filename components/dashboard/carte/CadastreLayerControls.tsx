@@ -344,10 +344,6 @@ export default function CadastreLayerControls({
                       <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
                         Zoomez pour afficher
                       </span>
-                    ) : id === 'ventes' && tooFarParcelles && layers.cadastreVentes ? (
-                      <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                        Zoomez pour les parcelles
-                      </span>
                     ) : null}
                   </span>
                 </button>

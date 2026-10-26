@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { COULEUR_FAMILLE, GRIS_NEUTRE } from '@/lib/activite/couleurs';
+import { COULEUR_FAMILLE } from '@/lib/activite/couleurs';
 import { detailSecteurs, type RepartitionEquipe } from '@/lib/activite/repartition';
 import type { SecteurPeriode } from '@/lib/activite/secteurs-travailles';
 import LignesSurvol from './LignesSurvol';
@@ -24,14 +24,18 @@ function ListeSecteurs({ secteurs }: { secteurs: readonly SecteurPeriode[] }) {
           <span className="flex min-w-0 items-center gap-1.5">
             <span
               aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: s.travaille ? s.couleur : GRIS_NEUTRE.pastelFort }}
+              className={`size-2.5 shrink-0 rounded-full ${s.travaille ? '' : 'border-[1.5px] bg-transparent'}`}
+              style={
+                s.travaille
+                  ? { backgroundColor: s.couleur }
+                  : { borderColor: COULEUR.teinte }
+              }
             />
             <span className="truncate text-[13px] font-semibold text-text-strong">{s.nom}</span>
           </span>
           <span
-            className={`shrink-0 text-[11px] font-semibold ${s.travaille ? '' : 'text-text-muted'}`}
-            style={s.travaille ? { color: COULEUR.teinte } : undefined}
+            className="shrink-0 text-[11px] font-semibold"
+            style={{ color: s.travaille ? COULEUR.teinte : 'var(--text-strong)' }}
           >
             {s.travaille ? 'Travaillé' : 'Pas travaillé'}
           </span>
@@ -55,7 +59,7 @@ function ListeSecteurs({ secteurs }: { secteurs: readonly SecteurPeriode[] }) {
 
 /**
  * Un secteur se travaille ou non. Pas de note sur dix : tant qu’aucun geste
- * n’a touché un bien du secteur, la carte reste vide.
+ * n’a touché un bien du secteur, il n’est pas travaillé. La carte reste jaune.
  */
 export default function CarteSecteurs({
   secteurs,
@@ -69,12 +73,12 @@ export default function CarteSecteurs({
 }) {
   const seul = secteurs.length === 1 ? secteurs[0] : null;
   const ordre = [...secteurs].sort(
-    (a, b) => Number(a.travaille) - Number(b.travaille) || a.nom.localeCompare(b.nom, 'fr'),
+    (a, b) => Number(b.travaille) - Number(a.travaille) || a.nom.localeCompare(b.nom, 'fr'),
   );
   const survol = equipe && equipe.length > 1 ? detailSecteurs(equipe) : null;
   const travailles = secteurs.filter((s) => s.travaille).length;
   const travaille = seul?.travaille === true;
-  const teinte = secteurs.length === 0 || travailles === 0 ? GRIS_NEUTRE : COULEUR;
+  const teinte = COULEUR;
 
   const resumeAgence = Boolean(survol) && !seul && secteurs.length > 0;
   // Le lien et le détail s’ouvrent par-dessus : un spacer invisible garde la hauteur de la rangée.
@@ -93,15 +97,15 @@ export default function CarteSecteurs({
         {seul ? (
           <p
             className="min-w-0 font-display text-[22px] font-bold leading-tight"
-            style={{ color: teinte.teinte }}
+            style={{ color: travaille ? teinte.teinte : 'var(--text-strong)' }}
           >
             {travaille ? 'Travaillé' : 'Pas travaillé'}
           </p>
         ) : secteurs.length === 0 ? (
-          <p className="min-w-0 font-display text-[18px] font-bold leading-tight text-text-muted">
+          <p className="min-w-0 font-display text-[18px] font-bold leading-tight text-text-strong">
             Pas encore de secteur
           </p>
-        ) : resumeAgence ? (
+        ) : (
           <p className="flex min-w-0 items-baseline gap-1 tabular-nums">
             <span className="font-display text-[28px] font-bold leading-none" style={{ color: teinte.teinte }}>
               {travailles.toLocaleString('fr-FR')}
@@ -110,8 +114,6 @@ export default function CarteSecteurs({
               / {secteurs.length.toLocaleString('fr-FR')}
             </span>
           </p>
-        ) : (
-          <p className="min-w-0 text-[12px] font-semibold leading-tight text-text-strong">Secteurs travaillés</p>
         )}
       </div>
 
@@ -137,10 +139,11 @@ export default function CarteSecteurs({
           </div>
           <p className="mt-2 truncate text-[12px] font-medium text-text-muted">{seul.nom}</p>
         </>
-      ) : secteurs.length === 0 ? null : resumeAgence ? (
-        <p className="mt-2 text-[12px] font-semibold leading-tight text-text-strong">Secteurs travaillés</p>
-      ) : (
-        <ListeSecteurs secteurs={ordre} />
+      ) : secteurs.length === 0 ? null : (
+        <>
+          <p className="mt-2 text-[12px] font-semibold leading-tight text-text-strong">Secteurs travaillés</p>
+          {resumeAgence ? null : <ListeSecteurs secteurs={ordre} />}
+        </>
       )}
 
       {resumeAgence ? (

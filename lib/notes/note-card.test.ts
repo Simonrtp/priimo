@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { resumeCarteNote } from './note-card';
+import { premierePhraseNote, resumeCarteNote } from './note-card';
 
 describe('resumeCarteNote', () => {
   it('préfère le constat utile à la transcription technique', () => {
@@ -44,5 +44,20 @@ describe('resumeCarteNote', () => {
     });
     assert.ok(resume.texte.endsWith('…'));
     assert.ok(resume.texte.length <= 121);
+  });
+});
+
+describe('premierePhraseNote', () => {
+  it('garde la première phrase, même quand un contact est déjà affiché', () => {
+    assert.equal(
+      premierePhraseNote(
+        'Aux 30 rues des maraîchers, Pablo veut rester. Sa fille, elle, veut vendre.',
+      ),
+      'Aux 30 rues des maraîchers, Pablo veut rester.',
+    );
+  });
+
+  it('ne renvoie rien sans texte', () => {
+    assert.equal(premierePhraseNote('   '), null);
   });
 });

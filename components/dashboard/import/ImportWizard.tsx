@@ -3,15 +3,13 @@
 import { useMemo, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
-import type { Contact } from '@/types/contact';
 import { applyMapping, IGNORE_COLUMN, suggestMapping, type ImportField } from '@/lib/import/mapping';
 import {
-  CONTACT_IMPORT_FIELDS,
-  contactToDuplicateRef,
-  planContactImport,
+  BIEN_IMPORT_FIELDS,
+  bienToDuplicateRef,
+  planBienImport,
   type DuplicateStrategy,
-} from '@/lib/import/contacts';
-import { BIEN_IMPORT_FIELDS, bienToDuplicateRef, planBienImport } from '@/lib/import/biens';
+} from '@/lib/import/biens';
 import { ImportFileError, parseTabularFile, type ParsedTable } from '@/lib/import/parse-file';
 import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/Select';
@@ -28,25 +26,22 @@ type ImportReport = {
 const SELECT_CLASS =
   'flex w-full items-center justify-between gap-2 rounded-xl border border-black/[0.10] bg-surface px-3 py-2 text-left text-[13px] text-text outline-none focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/15';
 
-function hasRequiredMapping(kind: 'contacts' | 'biens', mapping: Record<string, string>): boolean {
-  if (kind === 'biens') return Boolean(mapping.address);
-  return Boolean(mapping.firstName || mapping.lastName || mapping.fullName);
+function hasRequiredMapping(mapping: Record<string, string>): boolean {
+  return Boolean(mapping.address);
 }
 
+/** Import de biens. Les contacts ont leur propre parcours (ImportContacts). */
 export default function ImportWizard({
   open,
   onClose,
-  kind,
-  contacts,
   biens,
   onImported,
 }: {
   open: boolean;
   onClose: () => void;
-  kind: 'contacts' | 'biens';
-  contacts?: Contact[];
+  kind: 'biens';
   biens?: Bien[];
-  onImported: (created: Contact[] | Bien[], updated: Contact[] | Bien[]) => void;
+  onImported: (created: Bien[], updated: Bien[]) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>('drop');
@@ -58,9 +53,9 @@ export default function ImportWizard({
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
 
-  const fields: readonly ImportField[] = kind === 'contacts' ? CONTACT_IMPORT_FIELDS : BIEN_IMPORT_FIELDS;
-  const noun = kind === 'contacts' ? 'contacts' : 'biens';
-  const nounOne = kind === 'contacts' ? 'contact' : 'bien';
+  const fields: readonly ImportField[] = BIEN_IMPORT_FIELDS;
+  const noun = 'biens';
+  const nounOne = 'bien';
 
   const titles: Record<Step, { title: string; description: string }> = {
     drop: {
@@ -94,16 +89,13 @@ export default function ImportWizard({
 
   const planSummary = useMemo(() => {
     if (!table) return { create: 0, update: 0, skip: 0 };
-    const plan =
-      kind === 'contacts'
-        ? planContactImport(mappedRows, (contacts ?? []).map(contactToDuplicateRef), strategy)
-        : planBienImport(mappedRows, (biens ?? []).map(bienToDuplicateRef), strategy);
+    const plan = planBienImport(mappedRows, (biens ?? []).map(bienToDuplicateRef), strategy);
     return {
       create: plan.filter((p) => p.action === 'create').length,
       update: plan.filter((p) => p.action === 'update').length,
       skip: plan.filter((p) => p.action === 'skip').length,
     };
-  }, [table, mappedRows, kind, contacts, biens, strategy]);
+  }, [table, mappedRows, biens, strategy]);
 
   function reset() {
     setStep('drop');
@@ -143,17 +135,14 @@ export default function ImportWizard({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(
-        kind === 'contacts' ? '/api/dashboard/contacts/import' : '/api/dashboard/biens/import',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: mappedRows, duplicates: strategy, mapping }),
-        },
-      );
+      const res = await fetch('/api/dashboard/biens/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: mappedRows, duplicates: strategy, mapping }),
+      });
       const data = (await res.json()) as {
-        created?: Contact[] | Bien[];
-        updated?: Contact[] | Bien[];
+        created?: Bien[];
+        updated?: Bien[];
         skipped?: { line: number; reason: string }[];
         error?: string;
       };
@@ -178,7 +167,7 @@ export default function ImportWizard({
   }
 
   const previewRows = mappedRows.slice(0, 5);
-  const canMapNext = hasRequiredMapping(kind, mapping);
+  const canMapNext = hasRequiredMapping(mapping);
 
   return (
     <Modal
@@ -264,9 +253,7 @@ export default function ImportWizard({
           </ul>
           {!canMapNext ? (
             <p className="mt-4 text-pretty text-[13px] text-text-muted">
-              {kind === 'contacts'
-                ? 'Indiquez au moins un nom, un prénom ou un nom complet.'
-                : 'Indiquez au moins la colonne Adresse.'}
+              Indiquez au moins la colonne Adresse.
             </p>
           ) : null}
           <div className="mt-6 flex flex-wrap justify-end gap-2.5">
@@ -331,9 +318,7 @@ export default function ImportWizard({
 
           <fieldset className="mt-5">
             <legend className="mb-2 text-[13px] font-medium text-text">
-              {kind === 'contacts'
-                ? 'Si un contact a déjà le même téléphone, ou le même nom et le même email'
-                : 'Si un bien a déjà la même adresse (et le même code postal ou la même ville)'}
+              Si un bien a déjà la même adresse (et le même code postal ou la même ville)
             </legend>
             <label className="flex items-start gap-2.5 py-1.5 text-[13.5px] text-text">
               <input

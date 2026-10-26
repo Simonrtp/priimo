@@ -464,12 +464,10 @@ export default function SecteursClient({
   );
 
   /**
-   * Créer d'abord, nommer ensuite : le secteur naît « Secteur de Camille »
-   * (le négociateur en est titulaire d'office) ou « Nouveau secteur » chez le
-   * directeur, et son nom s'ouvre aussitôt pour qui veut en changer.
+   * Pas de dessin ici : le seul atelier est la carte de prospection.
    */
   const creerSecteur = useCallback(() => {
-    router.push('/dashboard/prospection?atelier=nouveau');
+    router.push('/dashboard/prospection?vue=carte&atelier=nouveau');
   }, [router]);
 
   /** Un nom donné d'office suit son titulaire ; un nom choisi ne bouge pas. */

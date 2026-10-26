@@ -445,8 +445,16 @@ export default function ProspectsClient({
     <ProspectsViewSwitch variant="floating" value={vue} onChange={setVue} />
   );
 
+  const pipeline = vue === 'pipeline';
+
   return (
-    <div className="relative w-full min-w-0 pb-4 pt-2 md:pt-0">
+    <div
+      className={
+        pipeline
+          ? 'relative flex min-h-0 w-full min-w-0 flex-1 flex-col'
+          : 'relative w-full min-w-0 pb-4 pt-2 md:pt-0'
+      }
+    >
       <VolLeadPipeline vols={volsPipeline} onFini={onFiniVol} />
       {showPipelineBanner && initialNewBatchCount > 0 && vue === 'liste' && (
         <PipelineUpdateBanner
@@ -458,18 +466,23 @@ export default function ProspectsClient({
 
       {/* Même onglet collé coin haut-droit que sur la Carte, y compris Pipeline. */}
       {device !== 'mobile' ? (
-        <>
-          <div className="pointer-events-none absolute -right-6 -top-6 z-30 isolate lg:-right-8 lg:-top-8">
-            <div className="pointer-events-auto">{switcher}</div>
-          </div>
-          {/* Réserve la place de l’onglet pour ne pas croiser le contenu. */}
-          <div className="mb-4 h-14" aria-hidden />
-        </>
+        <div className="pointer-events-none absolute -right-6 -top-6 z-30 isolate lg:-right-8 lg:-top-8">
+          <div className="pointer-events-auto">{switcher}</div>
+        </div>
+      ) : null}
+      {device !== 'mobile' && !pipeline ? (
+        <div className="mb-4 h-14" aria-hidden />
       ) : null}
 
-      {vue === 'pipeline' ? (
+      {pipeline ? (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* Même ligne visuelle que Carte / Pipeline / Liste : on remonte dans
+              le padding de la coque (pt-1.5 / pb-1 comme l’onglet). */}
+          <div
+            className={`mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 ${
+              device !== 'mobile' ? 'md:-mt-6 md:pb-1 md:pt-1.5 lg:-mt-8' : ''
+            }`}
+          >
             <AjouterBien
               onAjoute={(lead) => {
                 setLeads((prev) => {
@@ -482,15 +495,17 @@ export default function ProspectsClient({
               <p className="text-[13px] text-text-muted">Un bien saisi, une annonce collée, ou une estimation faite.</p>
             )}
           </div>
-          <PipelineBoard
-            stages={stageList}
-            leads={pipelineLeads}
-            teamMembers={teamMembers}
-            onLeadsChange={setLeads}
-            onOpen={setSelectedLeadId}
-            canManageStages
-            onStagesChange={setStageList}
-          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <PipelineBoard
+              stages={stageList}
+              leads={pipelineLeads}
+              teamMembers={teamMembers}
+              onLeadsChange={setLeads}
+              onOpen={setSelectedLeadId}
+              canManageStages
+              onStagesChange={setStageList}
+            />
+          </div>
         </>
       ) : null}
 

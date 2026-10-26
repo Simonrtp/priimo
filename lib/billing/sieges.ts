@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import { formaterEuros, lireConfigAbonnement } from './config';
+import { lireConfigAbonnement } from './config';
 import type { AgencyBilling } from './acces';
 import { stripeClient, stripeDisponible } from './stripe';
 
@@ -46,12 +46,11 @@ export function siegesSupplementaires(actifs: number, inclus: number): number {
 export function avertissementSiege(params: {
   actifs: number;
   inclus: number;
-  prixSiege: number;
 }): string | null {
   const prochain = params.actifs + 1;
   if (prochain <= params.inclus) return null;
   const rang = `${prochain}e`;
-  return `Ce collaborateur est le ${rang}. Il sera facturé ${formaterEuros(params.prixSiege)} par mois en plus, au prorata du mois en cours.`;
+  return `Ce collaborateur est le ${rang}. Il dépasse les sièges inclus et sera facturé en plus, au prorata du mois en cours.`;
 }
 
 /**

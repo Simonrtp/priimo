@@ -50,10 +50,13 @@ async function envoyer<T = { id?: string }>(url: string, methode: string, corps?
 }
 
 /**
- * L'atelier secteur : on entoure des immeubles, on touche une parcelle pour
- * l'ajouter ou la retirer, on prend une rue d'un côté. Tout s'affiche aussitôt
- * et s'enregistre en arrière-plan, dans l'ordre des gestes. Une parcelle déjà
- * tenue par un collègue ne se prend pas.
+ * Seul atelier où l'on définit un secteur. Nulle part ailleurs : l'Accueil
+ * et les autres écrans renvoient à `/dashboard/prospection?atelier=`.
+ *
+ * On entoure des immeubles, on touche une parcelle pour l'ajouter ou la
+ * retirer, on prend une rue d'un côté. Tout s'affiche aussitôt et
+ * s'enregistre en arrière-plan. Une parcelle déjà tenue par un collègue
+ * ne se prend pas.
  *
  * `zone` : le secteur à retoucher ; absent, un nouveau secteur naît au
  * premier geste.

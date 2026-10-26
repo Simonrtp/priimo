@@ -29,7 +29,7 @@ describe('buildSuggestions', () => {
     assert.equal(items[0]?.kind, 'lead');
   });
 
-  it('cache le lead d’un collègue à un collaborateur', () => {
+  it('propose aussi le lead d’un collègue à un collaborateur (pipeline d’agence)', () => {
     const collab = { id: 'c1', role: 'collaborateur' as const };
     const items = buildSuggestions(
       '13',
@@ -48,7 +48,7 @@ describe('buildSuggestions', () => {
       },
       collab,
     );
-    assert.equal(items.length, 0);
+    assert.equal(items.length, 1);
   });
 });
 

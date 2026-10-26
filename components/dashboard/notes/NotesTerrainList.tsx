@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Mail, MapPin, Pencil, Phone, UserRound } from 'lucide-react';
+import { Mail, MapPin, Pencil, Phone, Trash2, UserRound } from 'lucide-react';
 import type { NoteLien, NoteLienEntite, VoiceNoteVisibilite } from '@/types/contact';
 import { NOTE_CONFIANCE_LABELS, NOTE_SOURCE_LABELS } from '@/types/contact';
 import type { TerrainNote } from '@/types/contact';
@@ -12,7 +12,7 @@ import { LIBELLE_ENTITE } from '@/lib/notes/rattachement';
 import { onNoteCreated } from '@/lib/notes/note-created-event';
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
 import NoteFiche from '@/components/dashboard/notes/NoteFiche';
-import { resumeCarteNote } from '@/lib/notes/note-card';
+import { premierePhraseNote, resumeCarteNote } from '@/lib/notes/note-card';
 import { useUser } from '@/lib/hooks/useUser';
 
 function formatDate(iso: string): string {
@@ -20,6 +20,8 @@ function formatDate(iso: string): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(iso));
 }
 
@@ -161,6 +163,8 @@ export default function NotesTerrainList({
           const probable = lienIci?.confiance === 'probable';
           const mine = Boolean(viewerId && note.createdBy === viewerId);
           const resume = resumeCarteNote(note);
+          const phrase = premierePhraseNote(note.transcript) ?? (resume.contact ? null : resume.texte);
+          const source = note.sourceInfo ? NOTE_SOURCE_LABELS[note.sourceInfo] : null;
           return (
             <li
               key={note.id}
@@ -169,81 +173,83 @@ export default function NotesTerrainList({
                 note.id === focusNoteId ? 'border-accent/40' : 'border-black/[0.06]'
               }`}
             >
-              {note.author ? (
-                <CollaborateurNom
-                  portrait={note.author}
-                  size={28}
-                  className="mb-1.5 text-[13.5px] font-semibold text-text-strong"
-                />
-              ) : (
-                <p className="mb-1.5 text-[13.5px] font-semibold text-text-strong">
-                  {note.authorName?.trim() || 'Auteur inconnu'}
-                </p>
-              )}
               <div className="flex items-start justify-between gap-2">
-                <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11.5px] text-text-subtle">
-                  <span>{formatDate(note.createdAt)}</span>
-                  {note.sourceInfo ? <span>· {NOTE_SOURCE_LABELS[note.sourceInfo]}</span> : null}
-                </p>
-                <div className="flex shrink-0 items-center gap-1">
-                  {lienIci ? (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
-                        probable ? 'bg-black/[0.06] text-text-muted' : 'bg-accent/10 text-accent'
-                      }`}
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                  {note.author ? (
+                    <CollaborateurNom
+                      portrait={note.author}
+                      size={28}
+                      className="text-[13.5px] font-semibold text-text-strong"
+                    />
+                  ) : (
+                    <p className="text-[13.5px] font-semibold text-text-strong">
+                      {note.authorName?.trim() || 'Auteur inconnu'}
+                    </p>
+                  )}
+                  <time dateTime={note.createdAt} className="text-[11.5px] tabular-nums text-text-subtle">
+                    {formatDate(note.createdAt)}
+                  </time>
+                </div>
+                {mine ? (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    {probable && lienIci ? (
+                      <span className="mr-1 rounded-full bg-black/[0.06] px-2 py-0.5 text-[10.5px] font-medium text-text-muted">
+                        {NOTE_CONFIANCE_LABELS.probable}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setEditingNoteId(note.id)}
+                      className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
-                      {NOTE_CONFIANCE_LABELS[lienIci.confiance]}
-                    </span>
-                  ) : null}
-                  {mine && peutSupprimer && noteASupprimer === note.id ? (
-                    <span className="inline-flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => void supprimer(note.id)}
-                        disabled={suppression}
-                        className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-red-700 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:opacity-60"
-                      >
-                        {suppression ? 'Suppression…' : 'Supprimer'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNoteASupprimer(null)}
-                        disabled={suppression}
-                        className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong"
-                      >
-                        Annuler
-                      </button>
-                    </span>
-                  ) : mine ? (
-                    <span className="inline-flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditingNoteId(note.id)}
-                        className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      >
-                        <Pencil size={13} aria-hidden />
-                        Modifier
-                      </button>
-                      {peutSupprimer ? (
+                      <Pencil size={13} aria-hidden />
+                      Modifier
+                    </button>
+                    {peutSupprimer && noteASupprimer === note.id ? (
+                      <>
                         <button
                           type="button"
-                          onClick={() => setNoteASupprimer(note.id)}
-                          className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          onClick={() => setNoteASupprimer(null)}
+                          disabled={suppression}
+                          className="inline-flex min-h-8 items-center rounded-lg px-2 text-[11.5px] font-semibold text-text-muted hover:bg-black/[0.04] hover:text-text-strong"
                         >
-                          Supprimer
+                          Annuler
                         </button>
-                      ) : null}
-                    </span>
-                  ) : null}
-                </div>
+                        <button
+                          type="button"
+                          aria-label="Confirmer la suppression"
+                          onClick={() => void supprimer(note.id)}
+                          disabled={suppression}
+                          className="inline-flex size-8 items-center justify-center rounded-lg text-red-700 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:opacity-60"
+                        >
+                          <Trash2 size={15} aria-hidden />
+                        </button>
+                      </>
+                    ) : peutSupprimer ? (
+                      <button
+                        type="button"
+                        aria-label="Supprimer la note"
+                        onClick={() => setNoteASupprimer(note.id)}
+                        className="inline-flex size-8 items-center justify-center rounded-lg text-text-muted hover:bg-black/[0.04] hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <Trash2 size={15} aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {resume.contact ? (
                 <div className="mt-2">
-                  <p className="flex items-center gap-1.5 text-[14px] font-semibold text-text-strong">
-                    <UserRound size={15} className="shrink-0 text-text-muted" aria-hidden />
-                    {resume.contact.nom ?? 'Nouveau contact'}
-                  </p>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-semibold text-text-strong">
+                      <UserRound size={15} className="shrink-0 text-text-muted" aria-hidden />
+                      <span className="truncate">{resume.contact.nom ?? 'Nouveau contact'}</span>
+                    </p>
+                    {source ? (
+                      <span className="shrink-0 text-[11.5px] text-text-subtle">{source}</span>
+                    ) : null}
+                  </div>
                   <div className="mt-1.5 grid gap-1 text-[12.5px] text-text-muted">
                     {resume.contact.telephone ? (
                       <p className="flex min-w-0 items-center gap-1.5" aria-label={`Téléphone ${resume.contact.telephone}`}>
@@ -265,11 +271,16 @@ export default function NotesTerrainList({
                     ) : null}
                   </div>
                 </div>
-              ) : (
-                <p className="mt-1.5 text-pretty text-[13.5px] leading-snug text-text">
-                  {resume.texte}
-                </p>
-              )}
+              ) : null}
+
+              {phrase ? (
+                <div className="mt-1.5 flex items-start justify-between gap-2">
+                  <p className="text-pretty text-[13.5px] leading-snug text-text">{phrase}</p>
+                  {!resume.contact && source ? (
+                    <span className="shrink-0 text-[11.5px] text-text-subtle">{source}</span>
+                  ) : null}
+                </div>
+              ) : null}
 
               {lienIci && !probable && entiteType !== 'parcelle' ? (
                 <p className="mt-1.5 text-[11.5px] font-medium text-text-muted">

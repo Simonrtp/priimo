@@ -934,8 +934,33 @@ export type ContactRow = {
   numero_communique_par_la_personne?: boolean;
   /** privee = titulaire + direction ; agence = toute l'agence (20260954). */
   visibilite?: ContactVisibiliteDb;
+  /** Import de fichier qui a créé la fiche (20261026). */
+  import_id?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/** Valeurs d'une fiche complétée par un import, avant et après (20261026). */
+export type ContactImportCompletion = {
+  id: string;
+  avant: Record<string, unknown>;
+  apres: Record<string, unknown>;
+};
+
+export type ContactImportRow = {
+  id: string;
+  agency_id: string;
+  created_by: string;
+  nom_fichier: string;
+  format: 'tableur' | 'vcard';
+  crees: number;
+  completes: number;
+  deja_presents: number;
+  ecartes: number;
+  completions: ContactImportCompletion[];
+  created_at: string;
+  termine_le: string;
+  annule_le: string | null;
 };
 
 export type ContactInsert = {
@@ -978,6 +1003,7 @@ export type ContactInsert = {
   telephone_consenti_le?: string | null;
   numero_communique_par_la_personne?: boolean;
   visibilite?: ContactVisibiliteDb;
+  import_id?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -2386,6 +2412,13 @@ export type Database = {
         Row: ContactRow;
         Insert: ContactInsert;
         Update: Partial<ContactRow>;
+        Relationships: [];
+      };
+      contact_imports: {
+        Row: ContactImportRow;
+        Insert: Partial<Omit<ContactImportRow, 'agency_id' | 'created_by'>> &
+          Pick<ContactImportRow, 'agency_id' | 'created_by'>;
+        Update: Partial<ContactImportRow>;
         Relationships: [];
       };
       biens: {

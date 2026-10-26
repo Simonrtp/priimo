@@ -10,13 +10,10 @@ import Modal from '@/components/ui/Modal';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 
 /**
- * L'atelier de découpage vit sur l'Accueil, pas dans les paramètres : dessiner
- * son secteur est le premier geste de travail d'un négociateur, pas un réglage
- * qu'on va chercher dans un sous-onglet.
+ * Ancien atelier Accueil. Ne plus l'ouvrir : un secteur se définit uniquement
+ * sur la carte de prospection (`hrefAtelierSecteur`).
  *
- * Le modal ne s'ouvre pas lui-même. C'est SecteurAccueil qui tient l'état,
- * sinon un rafraîchissement qui fait basculer « dessiner » en « mon secteur »
- * démonterait l'atelier en plein travail.
+ * Conservé pour le type `SecteursData` encore lu par l'Accueil.
  */
 const SecteursClient = dynamic(() => import('@/components/dashboard/zones/SecteursClient'), {
   ssr: false,

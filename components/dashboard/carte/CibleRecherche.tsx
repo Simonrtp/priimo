@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Marker, useMap } from 'react-map-gl';
-import type { CibleCarte } from '@/lib/carte/cible';
+import { diametreCiblePx, ZOOM_NOM_CIBLE, type CibleCarte } from '@/lib/carte/cible';
 import { isUsableCoord } from '@/lib/carte/coords';
 import type { BuildingMarker } from '@/lib/carte/buildings';
 import type { ParcellePickExtra } from '@/lib/carte/parcelle';
@@ -70,6 +70,7 @@ export default function CibleRecherche({
   onSelectParcelle?: (parcelleId: string, extra?: ParcellePickExtra) => void;
 }) {
   const { current: map } = useMap();
+  const [zoom, setZoom] = useState(ZOOM_CIBLE);
   const traitee = useRef<string | null>(null);
   const monte = useRef(false);
   /** Une réponse arrivée après une nouvelle recherche ne rouvre pas l'ancienne adresse. */
@@ -82,6 +83,17 @@ export default function CibleRecherche({
   useEffect(() => {
     derniere.current = cible.cle;
   }, [cible.cle]);
+  useLayoutEffect(() => {
+    const carte = map?.getMap();
+    if (!carte) return;
+    const maj = () => setZoom(carte.getZoom());
+    maj();
+    carte.on('zoom', maj);
+    return () => {
+      carte.off('zoom', maj);
+    };
+  }, [map]);
+
   useEffect(() => {
     monte.current = true;
     return () => {
@@ -146,14 +158,25 @@ export default function CibleRecherche({
 
   if (!isUsableCoord(cible.latitude, cible.longitude)) return null;
 
+  const diametre = diametreCiblePx(zoom);
+  const bordure = diametre >= 12 ? 3 : 2;
+
   return (
     <Marker longitude={cible.longitude} latitude={cible.latitude} anchor="bottom" style={{ zIndex: 5 }}>
       <div className="pointer-events-none flex flex-col items-center" aria-label={`Adresse cherchée : ${cible.libelle}`}>
-        <span className="max-w-[220px] truncate rounded-full bg-[#1a2a56] px-3 py-1.5 text-[12.5px] font-semibold text-white shadow-clay">
-          {cible.libelle}
-        </span>
-        <span className="-mt-px h-2 w-0.5 bg-[#1a2a56]" aria-hidden />
-        <span className="size-3.5 rounded-full border-[3px] border-white bg-[#1a2a56] shadow-clay-sm" aria-hidden />
+        {zoom >= ZOOM_NOM_CIBLE ? (
+          <>
+            <span className="max-w-[220px] truncate rounded-full bg-[#1a2a56] px-3 py-1.5 text-[12.5px] font-semibold text-white shadow-clay">
+              {cible.libelle}
+            </span>
+            <span className="-mt-px h-2 w-0.5 bg-[#1a2a56]" aria-hidden />
+          </>
+        ) : null}
+        <span
+          className="box-border rounded-full border-white bg-[#1a2a56] shadow-clay-sm"
+          style={{ width: diametre, height: diametre, borderWidth: bordure }}
+          aria-hidden
+        />
       </div>
     </Marker>
   );

@@ -30,6 +30,21 @@ export function aUnSecteurDefini(zones: readonly Zone[]): boolean {
 export type PorteeSecteurs = 'mes' | 'agence';
 
 /**
+ * Ce qu’on peint sur la carte. Mes secteurs : seulement le cadrage.
+ * Code postal : tous les secteurs de l’agence, sans recadrer dessus.
+ */
+export function secteursPeintsSurCarte(
+  zones: readonly Zone[],
+  profileId: string,
+  directeur: boolean,
+  onglet: 'mes' | 'code_postal',
+  affiches: readonly Zone[],
+): Zone[] {
+  if (onglet === 'code_postal') return secteursDeLaCarte(zones, profileId, directeur, 'agence');
+  return [...affiches];
+}
+
+/**
  * Secteurs proposés dans le panneau.
  * Le négociateur ne voit que les siens. Le directeur voit toute l’agence,
  * y compris un secteur encore sans titulaire : sinon il existe en base

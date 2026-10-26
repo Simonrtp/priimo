@@ -19,9 +19,9 @@ export default function SectionIntegrations() {
         Connexions
       </h2>
       <p className="mb-5 max-w-2xl text-pretty text-mute" style={{ fontSize: 14 }}>
-        Diffusez nos mandats et récupérez les demandes portail. Priimo ne paie ni ne revend les
-        abonnements SeLoger Pro, Bien&apos;ici Pro ou Logic-Immo : ils restent facturés directement
-        à l&apos;agence (hors des 199&nbsp;€).
+        Diffusez nos mandats et récupérez les demandes portail. Les abonnements SeLoger Pro,
+        Bien&apos;ici Pro ou Logic-Immo restent chez l&apos;éditeur : Priimo ne les paie ni ne les
+        revend.
       </p>
 
       <div className="flex max-w-2xl flex-col gap-4">
@@ -35,8 +35,7 @@ export default function SectionIntegrations() {
                 </h3>
                 <p className="mt-1 text-[13px] text-text-muted">
                   Une seule intégration technique (Ubiflow ou Diffuze) traduit nos annonces. Activez
-                  chaque portail une fois le compte Pro ouvert chez l&apos;éditeur — facturation
-                  séparée, hors abonnement Priimo.
+                  chaque portail une fois le compte Pro ouvert chez l&apos;éditeur.
                 </p>
                 <p className="mt-2 text-[12.5px] text-text-subtle">
                   Configuration passerelle côté serveur (variables UBIFLOW_* / DIFFUZE_*). État des

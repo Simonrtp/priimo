@@ -4,16 +4,16 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CircleX, MapPin } from 'lucide-react';
 import { searchBanAddresses } from '@/lib/ban';
 import { versAdressesTrouvees, type AdresseTrouvee } from '@/lib/ban-recherche';
-import { viserSurLaCarte } from '@/lib/carte/cible';
+import { oublierCible, viserSurLaCarte } from '@/lib/carte/cible';
 import { useUser } from '@/lib/hooks/useUser';
 
 const ADRESSES_MAX = 6;
 const DEBOUNCE_MS = 160;
 
 /**
- * Aller à une adresse, collée aux onglets de la carte. Toujours ouverte :
- * on tape, on choisit, la carte vole. La liste se referme seule après choix
- * ou Escape — le champ reste visible.
+ * Aller à une adresse, collée aux onglets de la carte. On tape, on choisit :
+ * la carte vole, le volet s'ouvre, et l'adresse reste dans le champ. La croix
+ * du champ retire le repère posé sur la carte.
  */
 export default function RechercheAdresseCarte() {
   const { agency } = useUser();
@@ -21,7 +21,11 @@ export default function RechercheAdresseCarte() {
   const listeId = useId();
   const champ = useRef<HTMLInputElement | null>(null);
   const racine = useRef<HTMLDivElement | null>(null);
+  /** Adresse choisie : tant que le texte n'a pas bougé, on ne relance pas la liste. */
+  const retenueRef = useRef<string | null>(null);
+  const avaitAdresse = useRef(false);
   const [query, setQuery] = useState('');
+  const [retenue, setRetenue] = useState<string | null>(null);
   const [adresses, setAdresses] = useState<AdresseTrouvee[]>([]);
   const [recherche, setRecherche] = useState(false);
   const [actif, setActif] = useState(0);
@@ -37,17 +41,32 @@ export default function RechercheAdresseCarte() {
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 3) {
+    if (q.length === 0) {
+      setAdresses([]);
+      setListeOuverte(false);
+      if (avaitAdresse.current) {
+        avaitAdresse.current = false;
+        retenueRef.current = null;
+        setRetenue(null);
+        oublierCible();
+      }
+      return;
+    }
+    if (q.length < 3 || (retenueRef.current && q === retenueRef.current)) {
       setAdresses([]);
       setListeOuverte(false);
       return;
+    }
+    if (retenueRef.current) {
+      retenueRef.current = null;
+      setRetenue(null);
     }
     const ctrl = new AbortController();
     const timer = window.setTimeout(() => {
       setRecherche(true);
       void searchBanAddresses(q, ADRESSES_MAX, undefined, ctrl.signal, proche)
         .then((features) => {
-          if (ctrl.signal.aborted) return;
+          if (ctrl.signal.aborted || retenueRef.current) return;
           setAdresses(versAdressesTrouvees(features));
           setActif(0);
           setListeOuverte(true);
@@ -78,23 +97,35 @@ export default function RechercheAdresseCarte() {
   const montrerListe = listeOuverte && q.length >= 3;
 
   function effacer() {
+    avaitAdresse.current = false;
+    retenueRef.current = null;
+    setRetenue(null);
     setQuery('');
     setAdresses([]);
     setListeOuverte(false);
+    oublierCible();
     champ.current?.focus();
   }
 
   function choisir(a: AdresseTrouvee) {
+    const texte = a.contexte ? `${a.label}, ${a.contexte}` : a.label;
+    retenueRef.current = texte;
+    avaitAdresse.current = true;
+    setRetenue(texte);
     viserSurLaCarte({ latitude: a.latitude, longitude: a.longitude, libelle: a.label, banId: a.banId });
-    setQuery('');
+    setQuery(texte);
     setAdresses([]);
     setListeOuverte(false);
     champ.current?.blur();
   }
 
   return (
-    <div ref={racine} className="relative mr-1 flex shrink-0 items-center">
-      <div className="flex h-[34px] w-[13.5rem] items-center overflow-hidden rounded-full bg-bg-subtle">
+    <div ref={racine} data-recherche-adresse className="relative mr-1 flex shrink-0 items-center">
+      <div
+        className={`flex h-[34px] items-center overflow-hidden rounded-full bg-bg-subtle ${
+          retenue ? 'w-[22rem]' : 'w-[13.5rem]'
+        }`}
+      >
         <button
           type="button"
           onClick={() => champ.current?.focus()}
@@ -114,6 +145,7 @@ export default function RechercheAdresseCarte() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => {
+            if (retenueRef.current && query.trim() === retenueRef.current) return;
             if (query.trim().length >= 3) setListeOuverte(true);
           }}
           onKeyDown={(e) => {
@@ -135,6 +167,7 @@ export default function RechercheAdresseCarte() {
             }
           }}
           placeholder="Aller à une adresse…"
+          title={retenue ?? undefined}
           autoComplete="off"
           enterKeyHint="go"
           role="combobox"

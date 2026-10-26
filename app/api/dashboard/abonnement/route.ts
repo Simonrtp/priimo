@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { formaterEuros, lireConfigAbonnement } from '@/lib/billing/config';
+import { lireConfigAbonnement } from '@/lib/billing/config';
 import { motifRestriction, statutAbonnementDe } from '@/lib/billing/acces';
-import { compterSiegesActifs, prixBaseDe, prixSiegeDe, siegesInclusDe, siegesSupplementaires } from '@/lib/billing/sieges';
+import { compterSiegesActifs, siegesInclusDe } from '@/lib/billing/sieges';
 import { stripeClient, stripeDisponible } from '@/lib/billing/stripe';
 
 export const runtime = 'nodejs';
@@ -15,14 +15,10 @@ export async function GET() {
   const admin = createSupabaseAdminClient();
   const actifs = await compterSiegesActifs(admin, guard.agency.id);
   const inclus = siegesInclusDe(guard.agency);
-  const extra = siegesSupplementaires(actifs, inclus);
-  const prixBase = prixBaseDe(guard.agency);
-  const prixSiege = prixSiegeDe(guard.agency);
-  const montant = prixBase + extra * prixSiege;
   const config = lireConfigAbonnement();
 
   let prochaineEcheance: string | null = guard.agency.essai_fin_le ?? null;
-  let factures: Array<{ id: string; date: string; montant: string; url: string | null; statut: string }> = [];
+  let factures: Array<{ id: string; date: string; url: string | null; statut: string }> = [];
 
   if (stripeDisponible() && guard.agency.stripe_customer_id) {
     try {
@@ -41,7 +37,6 @@ export async function GET() {
       factures = invoices.data.map((inv) => ({
         id: inv.id,
         date: new Date((inv.created ?? 0) * 1000).toISOString(),
-        montant: formaterEuros((inv.amount_paid ?? 0) / 100),
         url: inv.hosted_invoice_url ?? null,
         statut: inv.status ?? 'open',
       }));
@@ -55,10 +50,6 @@ export async function GET() {
     motif: motifRestriction(guard.agency),
     siegesActifs: actifs,
     siegesInclus: inclus,
-    prixBase,
-    prixSiege,
-    montant,
-    montantLibelle: formaterEuros(montant),
     prochaineEcheance,
     essaiJours: config.essaiJours,
     aUnClientStripe: Boolean(guard.agency.stripe_customer_id),

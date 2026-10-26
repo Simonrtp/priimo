@@ -2,6 +2,8 @@ export const SELECTEUR_PIPELINE = '[data-prospection-vue="pipeline"]';
 export const VOL_CHIP = { w: 216, h: 40 } as const;
 export const VOL_BILLE = { w: 16, h: 16 } as const;
 export const VOL_DUREE_MS = 520;
+/** La bille du bouton + : on doit la suivre des yeux jusqu’à l’onglet. */
+export const VOL_BILLE_DUREE_MS = 1400;
 
 export type PointVol = { x: number; y: number };
 
@@ -144,8 +146,8 @@ export function lancerBilleVersPipeline(origine: HTMLElement | null | undefined)
   el.style.transform = `translate3d(${vol.start.x}px, ${vol.start.y}px, 0)`;
   document.body.appendChild(el);
   const anim = el.animate(keyframesVol(vol), {
-    duration: VOL_DUREE_MS,
-    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+    duration: VOL_BILLE_DUREE_MS,
+    easing: 'cubic-bezier(0.33, 0.1, 0.25, 1)',
     fill: 'forwards',
   });
   const fin = () => {

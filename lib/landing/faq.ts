@@ -108,12 +108,12 @@ export const FAQ_GROUPS: FaqGroup[] = [
   },
   {
     id: "prix",
-    title: "Prix et engagement",
+    title: "Forfait et engagement",
     items: [
       {
         id: "prix-cout",
-        q: "Combien ça coûte ?",
-        a: "70 € HT par mois pour 5 sièges, puis 50 € HT par siège supplémentaire. Le premier mois est offert.\n\nC'est le prix de l'agence qui tourne, pas d'un module à rajouter tous les mois. Vous savez ce que vous payez avant de démarrer.",
+        q: "Le tarif est-il affiché dans Priimo ?",
+        a: "Non. Le forfait se parle à la démo, avec le directeur. Il n'apparaît nulle part dans l'outil.\n\nLe premier mois est offert, sans carte. C'est le forfait de l'agence qui tourne, pas un module à rajouter tous les mois.",
       },
       {
         id: "prix-engagement",

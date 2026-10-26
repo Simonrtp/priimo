@@ -10,6 +10,7 @@ import { useNotesLectureOptional } from '@/components/dashboard/notes/NotesLectu
 import NoteCreateChooser from '@/components/dashboard/notes/NoteCreateChooser';
 import CarteVideAccueil from '@/components/dashboard/accueil/CarteVideAccueil';
 import CollaborateurNom from '@/components/dashboard/CollaborateurNom';
+import PanneauAlerte from '@/components/ui/PanneauAlerte';
 
 const CARTE =
   'flex flex-col rounded-clay-lg bg-white px-4 py-4 text-ink shadow-clay sm:px-5 sm:py-5';
@@ -135,7 +136,9 @@ function Liste({
                 >
                   {note.attachmentKind ? (
                     <MapPin size={11} strokeWidth={2.4} className="shrink-0" aria-hidden />
-                  ) : null}
+                  ) : (
+                    <PanneauAlerte size={12} label={null} />
+                  )}
                   {note.attachmentLabel ?? 'Non rattachée'}
                 </span>
                 {note.visibilite === 'privee' ? <span>Privée</span> : null}

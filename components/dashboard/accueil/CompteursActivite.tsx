@@ -291,8 +291,8 @@ function CarteCompteur({
     : compteur.objectif > 0
       ? Math.min(100, Math.round((valeur / compteur.objectif) * 100))
       : 0;
-  // Le chiffre que vise une note qui s'envole, et sa couleur.
-  const accueilleEnvol = famille === 'informations_terrain';
+  // Le chiffre que vise une pastille qui s'envole, et sa couleur.
+  const accueilleEnvol = famille === 'informations_terrain' || famille === 'contacts_qualifies';
   const cible = accueilleEnvol
     ? { 'data-envol-cible': famille, 'data-envol-couleur': teinte }
     : {};

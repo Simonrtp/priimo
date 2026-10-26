@@ -12,6 +12,7 @@ export interface ImportField {
 /**
  * Pour chaque champ Priimo, la colonne du fichier correspondante — ou vide
  * pour « à ignorer ». Une colonne non reconnue n'est jamais affectée toute seule.
+ * Les alias sont rangés par préférence : « Portable » passe avant « Tél. domicile ».
  */
 export function suggestMapping(
   headers: readonly string[],
@@ -22,11 +23,15 @@ export function suggestMapping(
 
   for (const field of fields) {
     mapping[field.key] = IGNORE_COLUMN;
-    const aliases = new Set(field.aliases.map(normalizeHeader));
-    aliases.add(normalizeHeader(field.key));
-    aliases.add(normalizeHeader(field.label));
+    const aliases = [
+      ...new Set([...field.aliases, field.key, field.label].map(normalizeHeader)),
+    ];
 
-    const match = headers.find((header) => !used.has(header) && aliases.has(normalizeHeader(header)));
+    let match: string | undefined;
+    for (const alias of aliases) {
+      match = headers.find((header) => !used.has(header) && normalizeHeader(header) === alias);
+      if (match) break;
+    }
     if (match) {
       mapping[field.key] = match;
       used.add(match);

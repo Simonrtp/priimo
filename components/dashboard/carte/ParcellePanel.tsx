@@ -1706,7 +1706,9 @@ function VoletParcelle({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (e.target instanceof Element && e.target.closest('[data-recherche-adresse]')) return;
+      onClose();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

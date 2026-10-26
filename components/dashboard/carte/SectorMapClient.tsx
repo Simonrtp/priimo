@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useCibleCarte } from '@/lib/carte/cible';
+import { oublierCible, useCibleCarte } from '@/lib/carte/cible';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronUp, Layers, PencilLine, Plus, X } from 'lucide-react';
+import { ChevronUp, Layers, PencilLine, X } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
@@ -51,6 +51,7 @@ import {
   cadrageCarte,
   empriseDepuisZoneId,
   retientDansSecteur,
+  secteursPeintsSurCarte,
   ZONE_TOUS_SECTEURS,
   zoneIdInitial,
   zoneParDefautProspection,
@@ -231,17 +232,10 @@ function LayersPanel({
                 tous={tousSecteurs}
                 profileId={annoncesQui.profileId}
                 membres={members}
+                onCreer={onCreerSecteur}
               />
-              <li className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={onCreerSecteur}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-black/[0.04] px-3 text-[12.5px] font-semibold text-text-strong transition-colors duration-fluid-subtle hover:bg-black/[0.07]"
-                >
-                  <Plus size={14} strokeWidth={2.2} aria-hidden />
-                  Nouveau secteur
-                </button>
-                {onModifierSecteur ? (
+              {onModifierSecteur ? (
+                <li className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={onModifierSecteur}
@@ -250,8 +244,8 @@ function LayersPanel({
                     <PencilLine size={14} strokeWidth={2.2} aria-hidden />
                     Modifier ce secteur
                   </button>
-                ) : null}
-              </li>
+                </li>
+              ) : null}
             </>
           )}
         </ul>
@@ -367,6 +361,15 @@ export default function SectorMapClient({
     includeDpeDetail: layers.cadastreDpe,
     includeVentes: layers.cadastreVentes,
   });
+  const voletOuvertRef = useRef(false);
+  voletOuvertRef.current = selectedBanId != null || parcelle.fiche != null || parcelle.loading;
+  const fermerVolet = useCallback(() => {
+    setFocusNoteId(null);
+    setSelectedBanId(null);
+    setSheetOpen(false);
+    parcelle.closeParcelle();
+    oublierCible();
+  }, [parcelle.closeParcelle]);
   const { suivis: immeublesSuivis, recharger: rechargerSuivis } = useImmeublesSuivisCarte();
   const suiviParcelleIds = useMemo(
     () => immeublesSuivis.map((s) => s.parcelleId),
@@ -378,8 +381,12 @@ export default function SectorMapClient({
     [zoneId, zones, profileId, isDirector, portee],
   );
   const { proposes, voirTous, zoneChoisie, affiches } = cadre;
-  const carteSecteurs = useCarteSecteurs(onglet !== 'code_postal' || atelier);
-  const secteursAffiches = useMemo(() => new Set(affiches.map((z) => z.id)), [affiches]);
+  const carteSecteurs = useCarteSecteurs();
+  const secteursPeints = useMemo(
+    () => secteursPeintsSurCarte(zones, profileId, isDirector, onglet, affiches),
+    [zones, profileId, isDirector, onglet, affiches],
+  );
+  const secteursAffiches = useMemo(() => new Set(secteursPeints.map((z) => z.id)), [secteursPeints]);
   const validerDessin = useCallback((id: string) => {
     setSecteurConfirme(true);
     setAtelier(false);
@@ -504,15 +511,19 @@ export default function SectorMapClient({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setSelectedBanId(null);
-        setSheetOpen(false);
-        parcelle.closeParcelle();
+      if (e.key !== 'Escape') return;
+      if (e.target instanceof Element && e.target.closest('[data-recherche-adresse]')) return;
+      if (voletOuvertRef.current) {
+        fermerVolet();
+        return;
       }
+      setSelectedBanId(null);
+      setSheetOpen(false);
+      parcelle.closeParcelle();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [parcelle.closeParcelle]);
+  }, [parcelle.closeParcelle, fermerVolet]);
 
   useEffect(() => {
     if (geocodeStarted.current) return;
@@ -683,6 +694,10 @@ export default function SectorMapClient({
             void ouvrirDepuisMarqueur(building);
           }}
           onDeselect={() => {
+            if (selectedBanId != null || parcelle.fiche != null || parcelle.loading) {
+              fermerVolet();
+              return;
+            }
             setFocusNoteId(null);
             setSelectedBanId(null);
             parcelle.closeParcelle();
@@ -721,9 +736,7 @@ export default function SectorMapClient({
                 }
               : null
           }
-          secteurs={
-            onglet === 'code_postal' && !atelier ? null : { carte: carteSecteurs, affichees: secteursAffiches }
-          }
+          secteurs={{ carte: carteSecteurs, affichees: secteursAffiches }}
           annoncesCouche={{
             layers,
             zones,
@@ -867,7 +880,7 @@ export default function SectorMapClient({
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedBanId(null)}
+                onClick={fermerVolet}
                 aria-label="Fermer la fiche"
                 className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
@@ -916,10 +929,7 @@ export default function SectorMapClient({
         <ParcelleDrawer
           fiche={parcelle.fiche}
           loading={parcelle.loading}
-          onClose={() => {
-            setFocusNoteId(null);
-            parcelle.closeParcelle();
-          }}
+          onClose={fermerVolet}
           onNotesChanged={parcelle.refreshAfterNotes}
           onSuiviChanged={rechargerSuivis}
           focusNoteId={focusNoteId}

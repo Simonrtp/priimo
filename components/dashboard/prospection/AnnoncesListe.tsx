@@ -168,16 +168,6 @@ export default function AnnoncesListe({
     return { mien: duGroupe(true), agence: duGroupe(false) };
   }, [secteurs, retires, enBaisse, tri, recherche]);
 
-  const nbMiennes = affiches.mien?.groupes.length ?? 0;
-  const nbAutres = affiches.agence?.groupes.length ?? 0;
-  const annoncesDe = (n: number) => `${n} annonce${n !== 1 ? 's' : ''} de particuliers`;
-  // Le même chiffre que « Mes nouvelles adresses » sur l'Accueil : mes secteurs d'abord, l'agence à part.
-  const entete =
-    miens.length > 0
-      ? `${annoncesDe(nbMiennes)} dans mes secteurs${
-          nbAutres > 0 ? ` · ${nbAutres} sur les secteurs de toute l’agence` : ''
-        }`
-      : `${annoncesDe(nbAutres)} sur les secteurs de toute l’agence`;
   const basculerGroupe = (ids: readonly string[]) => {
     const tousRetires = ids.every((id) => retires.has(id));
     ecrireRetires(
@@ -205,46 +195,41 @@ export default function AnnoncesListe({
 
   return (
     <div className="flex flex-col">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="font-semibold tabular-nums text-ink" style={{ fontSize: 14 }}>
-          {entete}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="relative">
-            <Search
-              size={14}
-              strokeWidth={2.2}
-              aria-hidden
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-            />
-            <input
-              type="search"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher"
-              aria-label="Rechercher une annonce"
-              className="w-44 rounded-full bg-black/[0.04] py-1.5 pl-8 pr-3 text-[13px] font-medium text-text-strong outline-none placeholder:font-medium placeholder:text-text-muted hover:bg-black/[0.07] focus:bg-white focus:ring-2 focus:ring-accent/25"
-            />
-          </label>
-          <button
-            type="button"
-            aria-pressed={enBaisse}
-            onClick={() => setEnBaisse((v) => !v)}
-            className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-fluid-subtle ${
-              enBaisse ? 'bg-text-strong text-white' : 'bg-black/[0.04] text-text-strong hover:bg-black/[0.07]'
-            }`}
-          >
-            En baisse
-          </button>
-          <Select
-            aria-label="Trier"
-            value={tri}
-            onChange={(v) => setTri(v as Tri)}
-            options={TRIS}
-            menuMinWidth={240}
-            triggerClassName="flex items-center justify-between gap-1.5 rounded-full bg-black/[0.04] px-3 py-1.5 text-left text-[13px] font-medium text-text-strong outline-none transition-colors duration-fluid-subtle hover:bg-black/[0.07] focus-visible:ring-2 focus-visible:ring-accent/25"
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <label className="relative min-w-0">
+          <Search
+            size={16}
+            strokeWidth={2.2}
+            aria-hidden
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
           />
-        </div>
+          <input
+            type="search"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher une annonce"
+            aria-label="Rechercher une annonce"
+            className="w-[min(100%,18rem)] rounded-full border border-black/[0.10] bg-white py-2 pl-10 pr-4 text-[13.5px] font-medium text-text-strong shadow-clay-sm outline-none placeholder:font-medium placeholder:text-text-muted hover:border-black/[0.14] focus:border-accent/50 focus:ring-2 focus:ring-accent/15"
+          />
+        </label>
+        <button
+          type="button"
+          aria-pressed={enBaisse}
+          onClick={() => setEnBaisse((v) => !v)}
+          className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-fluid-subtle ${
+            enBaisse ? 'bg-text-strong text-white' : 'bg-black/[0.04] text-text-strong hover:bg-black/[0.07]'
+          }`}
+        >
+          En baisse
+        </button>
+        <Select
+          aria-label="Trier"
+          value={tri}
+          onChange={(v) => setTri(v as Tri)}
+          options={TRIS}
+          menuMinWidth={240}
+          triggerClassName="flex items-center justify-between gap-1.5 rounded-full bg-black/[0.04] px-3 py-1.5 text-left text-[13px] font-medium text-text-strong outline-none transition-colors duration-fluid-subtle hover:bg-black/[0.07] focus-visible:ring-2 focus-visible:ring-accent/25"
+        />
       </div>
 
       {secteurs.length > 0 ? (

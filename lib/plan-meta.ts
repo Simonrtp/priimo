@@ -7,13 +7,6 @@ export const PLAN_LABEL: Record<PlanCode, string> = {
   reseau: 'Réseau',
 };
 
-export const PLAN_PRICE: Record<PlanCode, string> = {
-  fondateur: 'Gratuit',
-  standard: '199 €/mois',
-  premium: '499 €/mois',
-  reseau: 'Sur devis',
-};
-
 export const PLAN_LEADS_QUOTA: Record<PlanCode, number> = {
   fondateur: 15,
   standard: 30,

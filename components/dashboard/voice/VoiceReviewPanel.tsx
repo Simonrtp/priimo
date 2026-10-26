@@ -755,15 +755,29 @@ export default function VoiceReviewPanel({
       if (!hiddenIds.includes(`lead-${l.id}`)) liens.push({ entiteType: 'lead', entiteId: l.id, confiance: 'certain' });
     }
     if (review.immeuble?.banId && review.immeuble.confiance && !hiddenIds.includes('immeuble')) {
-      liens.push({ entiteType: 'immeuble', entiteId: review.immeuble.banId, confiance: review.immeuble.confiance });
+      liens.push({
+        entiteType: 'immeuble',
+        entiteId: review.immeuble.banId,
+        confiance: review.immeuble.confiance,
+      });
     }
-    // Le serveur rattache l'adresse de la note lui-même : il doit savoir si l'agent l'a gardée ou retirée.
-    const adresseRetiree = Boolean(review.immeuble) && hiddenIds.includes('immeuble');
+    // L'adresse affichée sur le contact reste celle de la note : la retirer de
+    // la carte orpheline ne doit pas l'effacer, sinon une deuxième note au
+    // même endroit n'apparaît plus.
+    const porteeParContact = personnesRetenues.some((p) => {
+      const vue = vueFiche(p);
+      return Boolean(vue.adresse && (!vue.existante || vue.adresseNouvelle));
+    });
+    const adresseRetiree =
+      Boolean(review.immeuble) && hiddenIds.includes('immeuble') && !porteeParContact;
+    const libelleAdresse = review.immeuble
+      ? review.immeuble.adresseNormalisee ?? review.immeuble.address
+      : null;
     const adresseGardee =
-      !adresseRetiree && review.immeuble?.banId && review.immeuble.confiance === 'certain'
+      !adresseRetiree && libelleAdresse
         ? {
-            banId: review.immeuble.banId,
-            label: review.immeuble.adresseNormalisee ?? review.immeuble.address,
+            banId: review.immeuble?.banId ?? null,
+            label: libelleAdresse,
           }
         : null;
 
@@ -890,7 +904,6 @@ export default function VoiceReviewPanel({
                   : () => {
                       toucher();
                       setAdresseRetiree((r) => (r.includes(p.id) ? r : [...r, p.id]));
-                      if (personnesRetenues.length <= 1) cacher('immeuble', true);
                     },
                 champ: champAdresse,
               }

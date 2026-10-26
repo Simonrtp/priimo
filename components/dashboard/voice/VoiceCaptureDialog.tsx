@@ -56,7 +56,7 @@ import { enqueueJson, postFormOrQueue, removeFromQueue } from '@/lib/offline/que
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
 import { emitNoteCreated } from '@/lib/notes/note-created-event';
 import { demanderAMonAssistant } from '@/lib/assistant/question-event';
-import { annoncerCompteur, cibleEnvolNote, envolerNote } from '@/lib/ui/envol-note';
+import { CIBLE_CONTACTS, cibleEnvolNote, envolerNote } from '@/lib/ui/envol-note';
 
 type Phase = 'recording' | 'processing' | 'review';
 
@@ -921,18 +921,21 @@ export default function VoiceCaptureDialog({
         gpsRef.current ||
         liens.some((l) => l.entiteType === 'immeuble' || l.entiteType === 'parcelle'),
     );
-    envolerNote({
-      feuille: feuilleRef.current,
-      depart,
-      voile: field ? 'rgba(26,42,86,0.42)' : 'rgba(26,42,86,0.45)',
-      compte: echange || rattachee,
-      cible: cibleEnvolNote({ echange, rattachee }),
-    });
     const personnes = Array.isArray(plan.personnes)
       ? (plan.personnes as { creer?: unknown }[])
       : [];
     const nouveaux = personnes.filter((p) => p?.creer).length;
-    if (nouveaux > 0) annoncerCompteur('contacts_qualifies', nouveaux);
+    envolerNote({
+      feuille: feuilleRef.current,
+      depart,
+      voile: field ? 'rgba(26,42,86,0.42)' : 'rgba(26,42,86,0.45)',
+      compte: echange || rattachee || nouveaux > 0,
+      cible: cibleEnvolNote({ echange: echange || nouveaux > 0, rattachee }),
+      aussi:
+        nouveaux > 0
+          ? [{ cible: CIBLE_CONTACTS, compte: true, pas: nouveaux }]
+          : undefined,
+    });
     onClose();
   }
 

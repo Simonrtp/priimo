@@ -184,10 +184,18 @@ function contoursDessines(zone: Zone): ValeurPolygone[] {
 
 /**
  * L'emprise d'une zone : ses contours dessinés, et l'enveloppe de ses
- * parcelles. Sert à cadrer la carte et à voiler ce qui est hors secteur.
+ * parcelles. Sert à cadrer la carte. Le voile hors secteur n'utilise que
+ * `polygonesMasqueDeZone` : le geste « entourer » est plus large que les
+ * parcelles, et perçait un halo clair autour du remplissage.
  */
 export function polygonesDeZone(zone: Zone): ValeurPolygone[] {
   return [...contoursDessines(zone), ...(zone.enveloppe ?? [])];
+}
+
+/** Trous du voile : les parcelles. Sans enveloppe, le contour dessiné. */
+export function polygonesMasqueDeZone(zone: Zone): ValeurPolygone[] {
+  if (zone.enveloppe && zone.enveloppe.length > 0) return [...zone.enveloppe];
+  return contoursDessines(zone);
 }
 
 /** FeatureCollection Mapbox d'un secteur — uniquement les contours dessinés. */
@@ -216,12 +224,12 @@ const ANNEAU_MONDE: [number, number][] = [
 ];
 
 /**
- * Voile hors du secteur : un polygone-monde percé des contours du titulaire.
+ * Voile hors du secteur : un polygone-monde percé des parcelles (pas du geste).
  * Les clics passent dans les trous ; le voile n’est que visuel.
  */
 export function collectionMasqueHorsZones(zones: readonly Zone[]): GeoJSON.FeatureCollection {
   const trous = zones
-    .flatMap((zone) => polygonesDeZone(zone))
+    .flatMap((zone) => polygonesMasqueDeZone(zone))
     .map((p) => p.coordinates[0])
     .filter((anneau): anneau is readonly (readonly [number, number])[] =>
       Boolean(anneau && anneau.length >= 4),

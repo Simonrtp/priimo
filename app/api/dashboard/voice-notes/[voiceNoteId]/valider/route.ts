@@ -17,6 +17,9 @@ import { canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { fetchContactById, fetchContactsDuplicateLite, updateContactRow } from '@/lib/queries/contacts';
 import { propagerLienVersParcelle, rattacherAdresseDeLaNote } from '@/lib/notes/parcelle-lien';
 import { parcelleIdDepuisBan } from '@/lib/notes/parcelle-depuis-ban';
+import { geocoderAdresseDictee } from '@/lib/geo/fields';
+import { toGeoCoord } from '@/lib/carte/coords';
+import { BAN_LIEN_CERTAIN } from '@/lib/notes/match';
 import type { ContactType } from '@/types/contact';
 import type {
   NoteLienConfianceDb,
@@ -282,8 +285,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
         .eq('id', voiceNoteId)
         .eq('agency_id', agency.id);
     }
-    // Lecture pas encore finie : l'adresse posée vient du GPS ; la lecture rattachera celle qui est dite.
-    const lectureEnCours = !banGarde && note.structured == null && typeof note.geocode_score === 'number';
+    // L'agent a gardé l'adresse, mais le ban n'était pas encore connu au clic.
+    // Sans ce géocodage, une deuxième note au même endroit reste invisible.
+    const libelle =
+      str(adresseGardee?.label, 240) ?? str(objet(note.structured)?.address, 240);
+    const lectureEnCours =
+      !banGarde && !libelle && note.structured == null && typeof note.geocode_score === 'number';
+    if (!banGarde && libelle) {
+      const geo = await geocoderAdresseDictee(libelle, {
+        codesPostaux: agency.codes_postaux ?? [],
+        centre: toGeoCoord(agency.latitude, agency.longitude),
+      });
+      if (geo.ban_id) {
+        const score =
+          typeof geo.geocode_score === 'number' && geo.geocode_score >= BAN_LIEN_CERTAIN
+            ? geo.geocode_score
+            : BAN_LIEN_CERTAIN;
+        await admin
+          .from('voice_notes')
+          .update({
+            ban_id: geo.ban_id,
+            adresse_normalisee: geo.adresse_normalisee,
+            latitude: geo.latitude,
+            longitude: geo.longitude,
+            geocode_score: score,
+            geocode_le: geo.geocode_le,
+          })
+          .eq('id', voiceNoteId)
+          .eq('agency_id', agency.id)
+          .is('ban_id', null);
+      }
+    }
     if (!lectureEnCours) await rattacherAdresseDeLaNote(admin, { agencyId: agency.id, noteId: voiceNoteId });
   }
 
@@ -602,11 +634,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
     ...(body.visibilite === 'privee' || body.visibilite === 'agence'
       ? { visibilite: body.visibilite as VoiceNoteVisibiliteDb }
       : {}),
-    ...(body.sourceInfo === null
-      ? { source_info: null }
-      : SOURCES.includes(body.sourceInfo as (typeof SOURCES)[number])
-        ? { source_info: body.sourceInfo as (typeof SOURCES)[number] }
-        : {}),
+    ...(SOURCES.includes(body.sourceInfo as (typeof SOURCES)[number])
+      ? { source_info: body.sourceInfo as (typeof SOURCES)[number] }
+      : {}),
     ...(texte && texte !== actuel ? { transcript: texte } : {}),
     ...(premierContact ? { contact_id: premierContact } : {}),
     ...(assignee ? assignmentMeta(assignee, profile.id) : {}),

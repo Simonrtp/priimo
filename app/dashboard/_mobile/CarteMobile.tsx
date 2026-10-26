@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useCibleCarte } from '@/lib/carte/cible';
+import { oublierCible, useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, Navigation, Navigation2, PencilLine, Phone, Play, Plus, Square, X } from 'lucide-react';
+import { Box, Layers, Locate, Navigation, Navigation2, PencilLine, Phone, Play, Square, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import Switch from '@/components/ui/Switch';
@@ -51,6 +51,7 @@ import {
   cadrageCarte,
   empriseDepuisZoneId,
   retientDansSecteur,
+  secteursPeintsSurCarte,
   ZONE_TOUS_SECTEURS,
   zoneIdInitial,
   zoneParDefautProspection,
@@ -254,8 +255,12 @@ export default function CarteMobile({
   );
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
-  const carteSecteurs = useCarteSecteurs(onglet !== 'code_postal' || atelier);
-  const secteursAffiches = useMemo(() => new Set(affiches.map((z) => z.id)), [affiches]);
+  const carteSecteurs = useCarteSecteurs();
+  const secteursPeints = useMemo(
+    () => secteursPeintsSurCarte(zones, profileId, isDirector, onglet, affiches),
+    [zones, profileId, isDirector, onglet, affiches],
+  );
+  const secteursAffiches = useMemo(() => new Set(secteursPeints.map((z) => z.id)), [secteursPeints]);
   const validerDessin = useCallback((id: string) => {
     setSecteurConfirme(true);
     setAtelier(false);
@@ -585,7 +590,7 @@ export default function CarteMobile({
               }
             : null
         }
-        secteurs={onglet === 'code_postal' && !atelier ? null : { carte: carteSecteurs, affichees: secteursAffiches }}
+        secteurs={{ carte: carteSecteurs, affichees: secteursAffiches }}
         dimension={dimension}
         onVue={setVue}
         selectedBanId={selectedBanId}
@@ -597,9 +602,11 @@ export default function CarteMobile({
             return;
           }
           if (tournee.enCours) return;
+          const ouvert = selectedBanId != null || parcelle.fiche != null || parcelle.loading;
           setFocusNoteId(null);
           setSelectedBanId(null);
           closeParcelle();
+          if (ouvert) oublierCible();
         }}
         onViewport={setViewport}
         onCluster={(children) => mapApi.current?.fitGroup(children)}
@@ -970,17 +977,10 @@ export default function CarteMobile({
                 tous={isDirector}
                 profileId={profileId}
                 membres={members}
+                onCreer={() => ouvrirAtelier(null)}
               />
-              <li className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => ouvrirAtelier(null)}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/[0.05] px-3.5 text-[13.5px] font-semibold text-text-strong"
-                >
-                  <Plus size={15} strokeWidth={2.2} aria-hidden />
-                  Nouveau secteur
-                </button>
-                {modifierSecteur ? (
+              {modifierSecteur ? (
+                <li className="flex flex-wrap gap-2 pt-1">
                   <button
                     type="button"
                     onClick={modifierSecteur}
@@ -989,8 +989,8 @@ export default function CarteMobile({
                     <PencilLine size={15} strokeWidth={2.2} aria-hidden />
                     Modifier ce secteur
                   </button>
-                ) : null}
-              </li>
+                </li>
+              ) : null}
             </>
           )}
         </ul>
@@ -1000,7 +1000,10 @@ export default function CarteMobile({
 
       <MobileSheet
         open={Boolean(selected) && !tourShown}
-        onClose={() => setSelectedBanId(null)}
+        onClose={() => {
+          setSelectedBanId(null);
+          oublierCible();
+        }}
         title={selected?.title ?? 'Immeuble'}
         initialSnap={1}
         footer={
@@ -1074,6 +1077,7 @@ export default function CarteMobile({
         onClose={() => {
           setFocusNoteId(null);
           parcelle.closeParcelle();
+          oublierCible();
         }}
         onNotesChanged={parcelle.refreshAfterNotes}
         onSuiviChanged={rechargerSuivis}

@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react';
 
-type Facture = { id: string; date: string; montant: string; url: string | null; statut: string };
+type Facture = { id: string; date: string; url: string | null; statut: string };
 
 type Apercu = {
   statut: string;
   siegesActifs: number;
   siegesInclus: number;
-  montantLibelle: string;
   prochaineEcheance: string | null;
   aUnClientStripe: boolean;
   factures: Facture[];
@@ -102,12 +101,6 @@ export default function SectionAbonnement() {
             </p>
             <p className="mt-1 text-[15px] font-semibold text-ink">{dateFr(apercu.prochaineEcheance)}</p>
           </div>
-          <div>
-            <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-              Montant
-            </p>
-            <p className="mt-1 text-[15px] font-semibold text-ink">{apercu.montantLibelle} / mois</p>
-          </div>
           <div className="flex flex-wrap gap-2">
             {apercu.aUnClientStripe ? (
               <button
@@ -137,9 +130,7 @@ export default function SectionAbonnement() {
               <ul className="mt-2 divide-y divide-black/[0.06]">
                 {apercu.factures.map((f) => (
                   <li key={f.id} className="flex items-center justify-between py-2 text-[13.5px]">
-                    <span className="text-ink">
-                      {dateFr(f.date)} · {f.montant}
-                    </span>
+                    <span className="text-ink">{dateFr(f.date)}</span>
                     {f.url ? (
                       <a href={f.url} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-2">
                         Voir

@@ -1,6 +1,6 @@
 'use client';
 
-import { UserRound } from 'lucide-react';
+import { Plus, UserRound } from 'lucide-react';
 import { pastilleClass } from '@/components/ui/pastille-classes';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
@@ -63,6 +63,8 @@ function PastilleZone({
  * deux groupes qu'on ne confond pas : « Mon secteur » (fond chaud, icône de
  * personne) et « Secteurs de l'agence » (fond neutre, initiales de l'agent).
  * « Tous » affiche tous les secteurs proposés ensemble.
+ * « Nouveau secteur » vit dans le bloc des secteurs de l'agent : le dessin
+ * s'ouvre sur la carte de prospection, nulle part ailleurs.
  */
 export function ChoixSecteurs({
   zones,
@@ -71,6 +73,7 @@ export function ChoixSecteurs({
   tous = false,
   profileId,
   membres = [],
+  onCreer,
 }: {
   zones: readonly Zone[];
   zoneId: string;
@@ -81,6 +84,8 @@ export function ChoixSecteurs({
   profileId?: string;
   /** Membres de l'agence : les initiales de qui tient chaque secteur. */
   membres?: readonly AssigneeOption[];
+  /** Ouvre l'atelier sur la carte de prospection. */
+  onCreer?: () => void;
 }) {
   if (zones.length === 0) return null;
   const parId = new Map(membres.map((m) => [m.id, m]));
@@ -112,12 +117,24 @@ export function ChoixSecteurs({
     />
   );
 
+  const boutonCreer = onCreer ? (
+    <button
+      type="button"
+      onClick={onCreer}
+      className={`${pastilleClass(false)} inline-flex min-w-0 items-center gap-1.5`}
+    >
+      <Plus size={13} strokeWidth={2.2} aria-hidden />
+      Nouveau secteur
+    </button>
+  ) : null;
+
   if (!deuxGroupes) {
     return (
       <li>
         <div role="group" aria-label="Secteur" className={`${CARTE_SECTEURS} mb-1.5`}>
           {boutonTous}
           {zones.map(pastille)}
+          {boutonCreer}
         </div>
       </li>
     );
@@ -129,6 +146,7 @@ export function ChoixSecteurs({
         <Titre>{miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'}</Titre>
         <div role="group" aria-label={miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'} className={PISTE_MIENNE}>
           {miennes.map(pastille)}
+          {boutonCreer}
         </div>
       </div>
       <div>

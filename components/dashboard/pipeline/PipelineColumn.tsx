@@ -81,7 +81,7 @@ export default function PipelineColumn({
         </div>
         <span className="pt-0.5 text-[12px] tabular-nums text-text-muted">{leads.length}</span>
       </header>
-      <div className="flex min-h-[360px] flex-1 flex-col px-2.5 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2.5 pb-3">
         <SortableContext items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
           <ul className="flex flex-col gap-2">
             {leads.map((lead) => (

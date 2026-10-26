@@ -23,6 +23,7 @@ import { formatPhoneOrNull } from '@/lib/import/normalize';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ContactFormFields, { type ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
 import SignalIA from '@/components/ui/SignalIA';
+import PanneauAlerte from '@/components/ui/PanneauAlerte';
 import styles from './live/dictee.module.css';
 
 /* -------------------------------------------------------------------------- */
@@ -76,6 +77,7 @@ function Coordonnee({
         onClick={onCompleter}
         className="flex min-h-7 items-center gap-2 text-left text-[13px] text-text-subtle transition-colors hover:text-text"
       >
+        <PanneauAlerte size={13} label={null} />
         <Icone size={14} strokeWidth={2} aria-hidden className="shrink-0" />
         {manque}
       </button>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { hrefCarte, lireCibleUrl } from './cible';
+import { cibleAffichee, diametreCiblePx, hrefCarte, lireCibleUrl, ZOOM_NOM_CIBLE, type CibleCarte } from './cible';
 import { ressembleAdresse, ressembleQuestion } from '@/lib/assistant/intention-recherche';
 
 describe('aller sur la carte', () => {
@@ -19,6 +19,32 @@ describe('aller sur la carte', () => {
     assert.equal(lireCibleUrl(new URLSearchParams('aller=200,2')), null);
     assert.equal(lireCibleUrl(new URLSearchParams('aller=abc')), null);
     assert.equal(lireCibleUrl(new URLSearchParams('')), null);
+  });
+
+  it('le point change de taille avec le zoom, sans disparaître', () => {
+    assert.equal(diametreCiblePx(12), 6);
+    assert.equal(diametreCiblePx(14), 8);
+    assert.equal(diametreCiblePx(17.5), 14);
+    assert.equal(diametreCiblePx(19), 24);
+    assert.equal(diametreCiblePx(22), 24);
+    assert.ok(diametreCiblePx(16) > diametreCiblePx(14));
+    assert.ok(diametreCiblePx(18) > diametreCiblePx(17.5));
+    assert.ok(ZOOM_NOM_CIBLE < 17.5);
+  });
+
+  it('un oubli retire le repère, y compris celui venu de l’URL', () => {
+    const demandee: CibleCarte = {
+      latitude: 48.87,
+      longitude: 2.38,
+      libelle: '12 Rue de la Paix',
+      banId: null,
+      cle: '1',
+    };
+    const depuisUrl: CibleCarte = { ...demandee, cle: 'url:48.870000,2.380000' };
+    assert.equal(cibleAffichee(demandee, depuisUrl, false)?.libelle, '12 Rue de la Paix');
+    assert.equal(cibleAffichee(null, depuisUrl, false)?.cle, 'url:48.870000,2.380000');
+    assert.equal(cibleAffichee(null, depuisUrl, true), null);
+    assert.equal(cibleAffichee(demandee, depuisUrl, true), null);
   });
 });
 

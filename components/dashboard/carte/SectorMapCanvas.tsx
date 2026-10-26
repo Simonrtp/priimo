@@ -28,7 +28,6 @@ import ParcellesLayer, {
   CADASTRE_DPE_LAYER_ID,
   CADASTRE_VENTES_LAYER_ID,
   CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-  CADASTRE_VENTES_POINT_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import type { ItineraireStop } from '@/lib/today/directions';
@@ -169,11 +168,7 @@ export default function SectorMapCanvas({
     if (parcellesEnabled) ids.push(PARCELLES_FILL_LAYER_ID);
     if (cadastreLayers.cadastreDpe) ids.push(CADASTRE_DPE_LAYER_ID);
     if (cadastreLayers.cadastreVentes) {
-      ids.push(
-        CADASTRE_VENTES_POINT_LAYER_ID,
-        CADASTRE_VENTES_LAYER_ID,
-        CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-      );
+      ids.push(CADASTRE_VENTES_LAYER_ID, CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID);
     }
     if (cadastreLayers.cadastreCopro) ids.push(CADASTRE_COPRO_LAYER_ID);
     return ids;

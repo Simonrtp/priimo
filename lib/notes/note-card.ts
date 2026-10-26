@@ -36,6 +36,16 @@ function debut(value: string, max = 120): string {
   return `${coupe.slice(0, dernierEspace >= 60 ? dernierEspace : max).trim()}…`;
 }
 
+/** La première phrase dite, telle quelle, pour la reconnaître parmi d'autres notes. */
+export function premierePhraseNote(transcript: string | null | undefined): string | null {
+  const propre = (transcript ?? '').trim().replace(/\s+/g, ' ');
+  if (!propre) return null;
+  const fin = propre.search(/[.!?](?:\s|$)/);
+  if (fin >= 12 && fin <= 220) return propre.slice(0, fin + 1);
+  const court = debut(propre);
+  return court === 'Sans transcription' ? null : court;
+}
+
 export function resumeCarteNote(note: NoteCardInput): NoteCardResume {
   const structured = record(note.structured);
   const personnes = Array.isArray(structured?.personnes) ? structured.personnes : [];

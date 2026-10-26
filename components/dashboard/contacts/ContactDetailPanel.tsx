@@ -17,6 +17,7 @@ import ConsentementRappelField from '@/components/dashboard/contacts/Consentemen
 import { notifyError } from '@/lib/notify';
 import DatePickerField from '@/components/ui/DatePickerField';
 import { Trash2 } from 'lucide-react';
+import PanneauAlerte from '@/components/ui/PanneauAlerte';
 import MemoireAgence from '@/components/dashboard/notes/MemoireAgence';
 
 function euros(v: number): string {
@@ -384,7 +385,10 @@ export default function ContactDetailPanel({
         {rolesUsentCriteres(contact) ? (
           <Block title="Ce qu'il recherche">
             {criteriaAreEmpty(contact.criteria) ? (
-              <p className="text-[13.5px] text-text-subtle">Aucun critère renseigné.</p>
+              <p className="flex items-center gap-1.5 text-[13.5px] text-text-subtle">
+                <PanneauAlerte size={13} label="Critères à compléter" />
+                Aucun critère renseigné.
+              </p>
             ) : (
               <ul className="flex flex-col gap-1">
                 {criteria.map((line) => (

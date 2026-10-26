@@ -8,6 +8,7 @@ import {
   empriseDepuisZoneId,
   retientDansSecteur,
   secteursDeLaCarte,
+  secteursPeintsSurCarte,
   zoneParDefautProspection,
 } from './emprise';
 import type { Zone } from '@/lib/zones/types';
@@ -87,6 +88,21 @@ describe('secteursDeLaCarte', () => {
     assert.equal(zoneParDefautProspection([sien, mien], 'moi', true), ZONE_TOUS_SECTEURS);
     assert.equal(zoneParDefautProspection([sien], 'moi', true), 'sien');
     assert.equal(zoneParDefautProspection([], 'moi', true), null);
+  });
+
+  it('sur le code postal, le négociateur voit aussi les secteurs des autres', () => {
+    const peints = secteursPeintsSurCarte([sien, mien], 'moi', false, 'code_postal', [mien]);
+    assert.deepEqual(
+      peints.map((z) => z.id),
+      ['mien', 'sien'],
+    );
+  });
+
+  it('sur mes secteurs, ne peint que le cadrage', () => {
+    assert.deepEqual(
+      secteursPeintsSurCarte([sien, mien], 'moi', false, 'mes', [mien]).map((z) => z.id),
+      ['mien'],
+    );
   });
 
   it('ouvre tous les secteurs de l’agent qui en a plusieurs, sauf celui prévu aujourd’hui', () => {

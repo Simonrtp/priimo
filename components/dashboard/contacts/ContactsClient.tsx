@@ -28,7 +28,7 @@ import { formatPhoneDisplay, normalizePhone, telHref } from '@/lib/import/normal
 import Select from '@/components/ui/Select';
 import DatePickerField from '@/components/ui/DatePickerField';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import ImportWizard from '@/components/dashboard/import/ImportWizard';
+import ImportContacts from '@/components/dashboard/import/ImportContacts';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
@@ -40,6 +40,7 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import { assigneeSelectAvatar } from '@/components/dashboard/workspace/AssigneeSelect';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
+import PanneauAlerte, { FOND_ALERTE, FOND_ALERTE_OUVERT } from '@/components/ui/PanneauAlerte';
 
 const SLATE = '#1A2A56';
 const SELECTED = '#F1F2F4';
@@ -127,6 +128,8 @@ function ContactRow({
   const assigneePortrait = assignee ? portraitDepuisMembre(assignee) : null;
   const future = isRelanceFuture(contact.recontacterLe, todayKey);
   const callableNow = Boolean(contact.phone) && !future;
+  const alerte = incomplete || Boolean(duplicateOf);
+  const fond = alerte ? (selected ? FOND_ALERTE_OUVERT : FOND_ALERTE) : selected ? SELECTED : '#FFFFFF';
   const [mounted, setMounted] = useState(selected);
   const [expanded, setExpanded] = useState(selected);
 
@@ -147,13 +150,18 @@ function ContactRow({
     <li
       className="overflow-hidden border-b border-[#1A2A56]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
       style={{
-        background: selected ? SELECTED : '#FFFFFF',
+        background: fond,
         borderBottomWidth: 0.5,
       }}
     >
       <div
-        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#F1F2F4] motion-reduce:transition-none sm:px-5"
-        style={selected ? { background: SELECTED } : undefined}
+        className={`flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none sm:px-5 ${
+          alerte
+            ? 'hover:bg-[#FFC48E]'
+            : selected
+              ? ''
+              : 'hover:bg-[#F1F2F4]'
+        }`}
         onClick={onOpen}
       >
         <span
@@ -167,6 +175,12 @@ function ContactRow({
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              {alerte ? (
+                <PanneauAlerte
+                  size={15}
+                  label={incomplete ? 'Fiche à compléter' : 'Doublon possible'}
+                />
+              ) : null}
               <span
                 className="min-w-0 max-w-full truncate font-semibold text-text-strong"
                 style={{ fontSize: 15, letterSpacing: '-0.01em' }}
@@ -260,10 +274,11 @@ function ContactRow({
                     e.stopPropagation();
                     onComplete();
                   }}
-                  className="inline-flex h-8 items-center rounded-full px-2.5 text-[12px] font-semibold"
-                  style={{ background: '#D5D8E4', color: SLATE }}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold"
+                  style={{ background: '#FFFFFF', color: SLATE }}
                 >
-                  Compléter
+                  <PanneauAlerte size={13} label={null} />
+                  À compléter
                 </button>
               ) : null}
               <DatePickerField
@@ -509,7 +524,8 @@ export default function ContactsClient({
               setFormOpen(true);
             }}
           >
-            Ajouter un contact
+            <Users size={16} strokeWidth={2} aria-hidden />
+            Nouveau contact
           </WorkspaceButton>
         }
         secondaryAction={
@@ -716,14 +732,11 @@ export default function ContactsClient({
         />
       ) : null}
 
-      <ImportWizard
+      <ImportContacts
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        kind="contacts"
         contacts={contacts}
-        onImported={(created, updated) => {
-          const createdContacts = created as Contact[];
-          const updatedContacts = updated as Contact[];
+        onImported={(createdContacts, updatedContacts) => {
           setContacts((list) => {
             const byId = new Map(list.map((c) => [c.id, c]));
             for (const c of updatedContacts) byId.set(c.id, c);
@@ -731,6 +744,12 @@ export default function ContactsClient({
             const rest = [...byId.values()].filter((c) => !createdIds.has(c.id));
             return [...createdContacts, ...rest];
           });
+        }}
+        onAnnule={(supprimesIds, retablis) => {
+          const retires = new Set(supprimesIds);
+          const remis = new Map(retablis.map((c) => [c.id, c]));
+          setContacts((list) => list.filter((c) => !retires.has(c.id)).map((c) => remis.get(c.id) ?? c));
+          if (selectedId && retires.has(selectedId)) setSelectedId(null);
         }}
       />
 

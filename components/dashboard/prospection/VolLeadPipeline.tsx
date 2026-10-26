@@ -7,6 +7,7 @@ import {
   elementPipelineVisible,
   keyframesVol,
   VOL_BILLE,
+  VOL_BILLE_DUREE_MS,
   VOL_CHIP,
   VOL_DUREE_MS,
   type VolBille,
@@ -74,8 +75,8 @@ function PuceBille({ vol, onFini }: { vol: VolBille; onFini: (id: string) => voi
     let actif = true;
     el.style.willChange = 'transform, opacity';
     const anim = el.animate(keyframesVol(vol), {
-      duration: VOL_DUREE_MS,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      duration: VOL_BILLE_DUREE_MS,
+      easing: 'cubic-bezier(0.33, 0.1, 0.25, 1)',
       fill: 'forwards',
     });
     anim.onfinish = () => {
@@ -94,7 +95,7 @@ function PuceBille({ vol, onFini }: { vol: VolBille; onFini: (id: string) => voi
     <div
       ref={ref}
       aria-hidden
-      className="pointer-events-none fixed left-0 top-0 z-40 rounded-full bg-[#E8743C] shadow-[0_4px_12px_rgba(232,116,60,0.45)]"
+      className="pointer-events-none fixed left-0 top-0 z-[80] rounded-full bg-[#E8743C] shadow-[0_4px_12px_rgba(232,116,60,0.45)]"
       style={{
         width: VOL_BILLE.w,
         height: VOL_BILLE.h,
