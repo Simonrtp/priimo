@@ -6,11 +6,29 @@ import {
   completerContact,
   contactFieldsFromMapped,
   findContactDuplicate,
+  interpretContactRoles,
   interpretContactType,
+  lireNombre,
   planContactImport,
+  splitFullName,
 } from './contacts';
+import type { ContactInputFields } from '@/lib/contact-input';
 import { findBienDuplicate, bienFieldsFromMapped } from './biens';
-import { formatPhoneAfterCountryCode, formatPhoneDisplay, normalizePhone, telHref } from './normalize';
+import {
+  formatPhoneAfterCountryCode,
+  formatPhoneDisplay,
+  nettoyerEmail,
+  normalizePhone,
+  reparerTelephones,
+  telHref,
+} from './normalize';
+import { intactesDepuisImport, retablissement } from './annulation';
+
+function lu(mapped: Record<string, string>) {
+  const res = contactFieldsFromMapped(mapped);
+  assert.ok(!('error' in res), 'error' in res ? res.error : '');
+  return res as { fields: ContactInputFields; avertissements: string[] };
+}
 
 describe('suggestMapping', () => {
   it('associe mail et téléphone, ignore le reste', () => {
@@ -136,6 +154,170 @@ describe('interpretContactType', () => {
     assert.equal(interpretContactType('Acquéreur'), 'acquereur');
     assert.equal(interpretContactType('Propriétaire'), 'vendeur');
     assert.equal(interpretContactType('xyz'), 'autre');
+    assert.deepEqual(interpretContactRoles('Vendeur / Acheteur'), ['vendeur', 'acquereur']);
+  });
+});
+
+describe('correspondance des exports courants', () => {
+  it('reconnaît un export Google Contacts', () => {
+    const mapping = suggestMapping(
+      [
+        'First Name',
+        'Last Name',
+        'E-mail 1 - Label',
+        'E-mail 1 - Value',
+        'Phone 1 - Label',
+        'Phone 1 - Value',
+        'Phone 2 - Value',
+        'Address 1 - Formatted',
+        'Notes',
+      ],
+      CONTACT_IMPORT_FIELDS,
+    );
+    assert.equal(mapping.firstName, 'First Name');
+    assert.equal(mapping.lastName, 'Last Name');
+    assert.equal(mapping.email, 'E-mail 1 - Value');
+    assert.equal(mapping.phone, 'Phone 1 - Value');
+    assert.equal(mapping.phone2, 'Phone 2 - Value');
+    assert.equal(mapping.address, 'Address 1 - Formatted');
+    assert.equal(mapping.summary, 'Notes');
+  });
+
+  it('préfère le portable au fixe dans un export Outlook', () => {
+    const mapping = suggestMapping(
+      ['Prénom', 'Nom', 'Téléphone domicile', 'Téléphone mobile', 'Adresse de messagerie'],
+      CONTACT_IMPORT_FIELDS,
+    );
+    assert.equal(mapping.phone, 'Téléphone mobile');
+    assert.equal(mapping.phone2, 'Téléphone domicile');
+    assert.equal(mapping.email, 'Adresse de messagerie');
+  });
+});
+
+describe('lignes réelles', () => {
+  it('enregistre sous son numéro une ligne sans nom', () => {
+    const { fields } = lu({ phone: '0612345678' });
+    assert.equal(fields.lastName, '06 12 34 56 78');
+    assert.equal(fields.phone, '06 12 34 56 78');
+  });
+
+  it('remet le zéro qu’Excel a mangé', () => {
+    assert.equal(lu({ lastName: 'Curie', phone: '612345678' }).fields.phone, '06 12 34 56 78');
+  });
+
+  it('garde le second numéro d’une case dans le résumé', () => {
+    const { fields } = lu({ lastName: 'Curie', phone: '06 12 34 56 78 / 01 23 45 67 89' });
+    assert.equal(fields.phone, '06 12 34 56 78');
+    assert.match(fields.summary ?? '', /Autres numéros : 01 23 45 67 89/);
+  });
+
+  it('lit « DUPONT Jean » rangé dans la seule colonne Nom', () => {
+    const { fields } = lu({ lastName: 'DUPONT Jean' });
+    assert.equal(fields.firstName, 'Jean');
+    assert.equal(fields.lastName, 'DUPONT');
+  });
+
+  it('remet dans l’ordre un budget inversé écrit à la française', () => {
+    const { fields } = lu({ lastName: 'Curie', budgetMin: '400.000 €', budgetMax: '250 000' });
+    assert.equal(fields.budgetMin, 250_000);
+    assert.equal(fields.budgetMax, 400_000);
+  });
+
+  it('lit une fourchette de budget dans une seule case', () => {
+    const { fields } = lu({ lastName: 'Curie', budgetMax: '300k - 400k' });
+    assert.equal(fields.budgetMin, 300_000);
+    assert.equal(fields.budgetMax, 400_000);
+  });
+
+  it('ajoute la ville à l’adresse et le zéro au code postal', () => {
+    const { fields } = lu({ lastName: 'Curie', address: '12 rue Neuve', ville: 'Bourg', postalCodes: '1000' });
+    assert.equal(fields.address, '12 rue Neuve, Bourg');
+    assert.deepEqual(fields.postalCodes, ['01000']);
+  });
+});
+
+describe('réparations', () => {
+  it('lit les numéros comme les fichiers les donnent', () => {
+    assert.deepEqual(reparerTelephones('+33 6 12 34 56 78 ::: 01 23 45 67 89'), ['0612345678', '0123456789']);
+    assert.deepEqual(reparerTelephones('0612345678 0123456789'), ['0612345678', '0123456789']);
+    assert.deepEqual(reparerTelephones('tel:+33612345678'), ['0612345678']);
+    assert.deepEqual(reparerTelephones('n/a'), []);
+  });
+
+  it('extrait l’email d’une case encombrée', () => {
+    assert.equal(nettoyerEmail('mailto:Marie@Lab.fr'), 'marie@lab.fr');
+    assert.equal(nettoyerEmail('Marie <marie@lab.fr>, autre@x.fr'), 'marie@lab.fr');
+    assert.equal(nettoyerEmail('marie(at)lab'), null);
+  });
+
+  it('découpe les noms complets courants', () => {
+    assert.deepEqual(splitFullName('CURIE Marie'), { firstName: 'Marie', lastName: 'CURIE' });
+    assert.deepEqual(splitFullName('Curie, Marie'), { firstName: 'Marie', lastName: 'Curie' });
+    assert.deepEqual(splitFullName('M. et Mme DUPONT'), { firstName: '', lastName: 'DUPONT' });
+    assert.deepEqual(splitFullName('Jean-Paul Martin'), { firstName: 'Jean-Paul', lastName: 'Martin' });
+  });
+
+  it('lit les nombres écrits à la main', () => {
+    assert.equal(lireNombre('250 000 €'), 250_000);
+    assert.equal(lireNombre('1,2 M€'), 1_200_000);
+    assert.equal(lireNombre('65 m²'), 65);
+    assert.equal(lireNombre('T3'), 3);
+    assert.equal(lireNombre(''), null);
+  });
+});
+
+describe('gros carnet', () => {
+  it('planifie 10 000 lignes face à 10 000 fiches en moins de 3 s', () => {
+    const existants = Array.from({ length: 10_000 }, (_, i) => ({
+      id: String(i),
+      firstName: 'Prénom',
+      lastName: `Nom${i}`,
+      phone: `07${String(i).padStart(8, '0')}`,
+      email: `p${i}@x.fr`,
+    }));
+    const lignes = Array.from({ length: 10_000 }, (_, i) => ({
+      line: i + 2,
+      mapped: { lastName: `Nouveau${i}`, phone: `06${String(i).padStart(8, '0')}` },
+    }));
+    const debut = Date.now();
+    const plan = planContactImport(lignes, existants);
+    assert.equal(plan.length, 10_000);
+    assert.ok(Date.now() - debut < 3_000);
+  });
+});
+
+describe('annulation', () => {
+  const completion = {
+    id: 'c1',
+    avant: { email: null, summary: 'Physicienne', ban_id: null, latitude: null },
+    apres: { email: 'marie@lab.fr', summary: 'Physicienne\nAutre numéro', ban_id: 'b1', latitude: 50.6 },
+  };
+
+  it('remet comme avant ce que personne n’a touché', () => {
+    const patch = retablissement(
+      { email: 'marie@lab.fr', summary: 'Physicienne\nAutre numéro', ban_id: 'b1', latitude: 50.6 },
+      completion,
+    );
+    assert.deepEqual(patch, { email: null, summary: 'Physicienne', ban_id: null, latitude: null });
+  });
+
+  it('laisse un champ modifié depuis l’import', () => {
+    const patch = retablissement(
+      { email: 'nouvelle@lab.fr', summary: 'Physicienne\nAutre numéro', ban_id: 'b2', latitude: 50.7 },
+      completion,
+    );
+    assert.deepEqual(patch, { summary: 'Physicienne' });
+  });
+
+  it('ne retire que les fiches restées telles quelles', () => {
+    const ids = intactesDepuisImport(
+      [
+        { id: 'a', updated_at: '2026-10-26T10:00:01Z' },
+        { id: 'b', updated_at: '2026-10-27T09:00:00Z' },
+      ],
+      '2026-10-26T10:00:00Z',
+    );
+    assert.deepEqual(ids, ['a']);
   });
 });
 

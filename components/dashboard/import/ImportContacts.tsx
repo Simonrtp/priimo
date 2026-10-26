@@ -61,12 +61,12 @@ function dateCourte(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-function FicheExemple({ fields }: { fields: ContactInputFields }) {
+function FicheExemple({ fields, className = '' }: { fields: ContactInputFields; className?: string }) {
   const nom = [fields.firstName, fields.lastName].filter(Boolean).join(' ');
   const roles = rolesDuContact(fields).filter((r) => r !== 'autre');
   const lieu = fields.address ?? fields.secteur;
   return (
-    <li className="min-w-0 rounded-xl border border-black/[0.08] bg-surface p-3.5">
+    <li className={`min-w-0 rounded-xl border border-black/[0.08] bg-surface p-3.5 ${className}`}>
       <p className="truncate text-[14px] font-semibold text-text-strong">{nom}</p>
       {roles.length ? (
         <p className="mt-0.5 truncate text-[12px] text-text-muted">
@@ -94,7 +94,9 @@ function FicheExemple({ fields }: { fields: ContactInputFields }) {
         ) : null}
       </ul>
       {fields.summary ? (
-        <p className="mt-2 line-clamp-2 text-pretty text-[12px] text-text-muted">{fields.summary}</p>
+        <p className="mt-2 line-clamp-2 whitespace-pre-line text-pretty text-[12px] text-text-muted">
+          {fields.summary}
+        </p>
       ) : null}
     </li>
   );
@@ -133,10 +135,14 @@ export default function ImportContacts({
 
   // La liste de référence est figée à l'ouverture : l'import l'enrichit en route.
   const [references, setReferences] = useState<Contact[]>(contacts);
+  const [dejaOuvert, setDejaOuvert] = useState(open);
+  if (open !== dejaOuvert) {
+    setDejaOuvert(open);
+    if (open) setReferences(contacts);
+  }
 
   useEffect(() => {
     if (!open) return;
-    setReferences(contacts);
     let actif = true;
     fetch('/api/dashboard/contacts/import')
       .then((res) => (res.ok ? res.json() : { imports: [] }))
@@ -149,8 +155,6 @@ export default function ImportContacts({
     return () => {
       actif = false;
     };
-    // Seulement à l'ouverture : la liste bouge pendant l'import.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const vcard = table?.format === 'vcard';
@@ -380,10 +384,17 @@ export default function ImportContacts({
           >
             <Upload size={22} strokeWidth={2} className="text-accent-dark" aria-hidden />
             <p className="mt-3 text-pretty text-[14px] font-medium text-text-strong">
-              {busy ? 'Lecture du fichier…' : 'Glissez votre fichier ici, ou cliquez pour le choisir'}
+              {busy ? (
+                'Lecture du fichier…'
+              ) : (
+                <>
+                  <span className="sm:hidden">Touchez pour choisir le fichier</span>
+                  <span className="max-sm:hidden">Glissez votre fichier ici, ou cliquez pour le choisir</span>
+                </>
+              )}
             </p>
             <p className="mt-1 text-pretty text-[12.5px] text-text-muted">
-              Excel, CSV ou vCard (.vcf), jusqu’à 10 000 contacts
+              Excel, CSV ou vCard (.vcf), jusqu’à {MAX_CONTACT_IMPORT_ROWS.toLocaleString('fr-FR')} contacts
             </p>
           </button>
           <p className="mt-4 text-pretty text-[13px] text-text-muted">
@@ -439,7 +450,8 @@ export default function ImportContacts({
           {exemples.length > 0 ? (
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {exemples.map((fields, i) => (
-                <FicheExemple key={i} fields={fields} />
+                // Sur téléphone, une fiche suffit : le bouton « Importer » reste à portée.
+                <FicheExemple key={i} fields={fields} className={i > 0 ? 'max-sm:hidden' : ''} />
               ))}
             </ul>
           ) : (
@@ -452,8 +464,8 @@ export default function ImportContacts({
             <li>{pluriel(resume.nouveaux, 'nouveau contact', 'nouveaux contacts')}</li>
             {resume.connus > 0 ? (
               <li>
-                {pluriel(resume.connus, 'contact déjà dans Priimo', 'contacts déjà dans Priimo')} : complétés, sans
-                rien écraser
+                {pluriel(resume.connus, 'contact déjà dans Priimo', 'contacts déjà dans Priimo')},{' '}
+                {resume.connus > 1 ? 'complétés' : 'complété'} sans rien écraser
               </li>
             ) : null}
             {resume.reunis > 0 ? (
@@ -616,7 +628,7 @@ export default function ImportContacts({
                   <ul className="mt-2 max-h-48 overflow-y-auto text-[13px]">
                     {bilan.avertissements.map((a, i) => (
                       <li key={`${a.line}-${i}`} className="py-1 text-pretty text-text-muted">
-                        {lignesMot} {a.line} : {a.message}
+                        {lignesMot} {a.line} — {a.message}
                       </li>
                     ))}
                   </ul>
@@ -631,7 +643,7 @@ export default function ImportContacts({
                   <ul className="mt-2 max-h-48 overflow-y-auto text-[13px]">
                     {bilan.ecartes.map((e, i) => (
                       <li key={`${e.line}-${i}`} className="py-1 text-pretty text-text-muted">
-                        {lignesMot} {e.line} : {e.reason}
+                        {lignesMot} {e.line} — {e.reason}
                       </li>
                     ))}
                   </ul>
@@ -674,9 +686,11 @@ export default function ImportContacts({
                 </WorkspaceButton>
               )
             ) : null}
-            <WorkspaceButton type="button" disabled={busy} onClick={close}>
-              Terminé
-            </WorkspaceButton>
+            {aConfirmer && aConfirmer === bilan.importId && !annulation ? null : (
+              <WorkspaceButton type="button" disabled={busy} onClick={close}>
+                Terminé
+              </WorkspaceButton>
+            )}
           </div>
         </div>
       ) : null}
