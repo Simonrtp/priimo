@@ -567,7 +567,7 @@ export default function CarteMobile({
       data-tournee-active={tournee.enCours || gardeFin ? '' : undefined}
       className={
         fillParent
-          ? 'field-map relative h-full min-h-0 overflow-hidden overscroll-none bg-soft-cool'
+          ? 'field-map relative h-full min-h-0 flex-1 overflow-hidden overscroll-none bg-soft-cool'
           : 'field-map fixed inset-0 overflow-hidden overscroll-none bg-soft-cool'
       }
     >

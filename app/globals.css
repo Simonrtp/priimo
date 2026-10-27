@@ -4045,6 +4045,10 @@ html:has(.feature-page) {
 
 .dashboard-mobile:has(.field-map) > main,
 .dashboard-mobile:has([data-prospection-carte]) > main {
+  /* Sans flex, le wrapper page-douce (flex-1) ne prend pas la hauteur du main :
+     la carte en h-full s’effondre à 0 et Mapbox reste invisible. */
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   /* L’inline `paddingBottom` du layout doit céder : la carte passe sous les onglets. */
   padding-bottom: 0 !important;

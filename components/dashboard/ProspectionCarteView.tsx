@@ -89,9 +89,9 @@ export default function ProspectionCarteView({
       >
       <div
         data-prospection-carte
-        className="field-map relative h-full min-h-0 w-full overflow-hidden"
+        className="field-map relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="h-full min-h-0">
+        <div className="min-h-0 flex-1">
           <CarteMobile
             points={points}
             withoutPosition={withoutPosition}
