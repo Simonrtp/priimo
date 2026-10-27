@@ -56,7 +56,7 @@ Les données sont vues par les personnes habilitées chez Priimo, par les membre
 - **Calendly** — si vous réservez une démo ;
 - **Mapbox** — carte ;
 - **Google** — uniquement si vous connectez Agenda ou Gmail ;
-- **Mistral AI** — API utilisée pour la dictée, les notes, l’assistant et l’estimation. Aucune donnée obtenue via les API Google Workspace n’y est envoyée ;
+- **Mistral AI** — API commerciale utilisée pour la dictée, les notes, l’assistant et l’estimation. Les données issues des API Google Workspace en sont strictement isolées ;
 - **Passerelle de diffusion** (Ubiflow, Diffuze ou équivalent) — uniquement si l’agence active la publication d’annonces.
 
 Ces prestataires sont choisis pour pouvoir travailler en conformité avec le RGPD et sont encadrés contractuellement.
@@ -76,9 +76,7 @@ Les notifications de nouveaux messages transitent par **Google Cloud Pub/Sub** (
 
 Le contenu des e-mails Gmail et les événements Google Agenda ne sont **pas** envoyés à Mistral ni à aucun autre modèle d’IA. Les informations extraites d’un e-mail de portail ne transitent **pas** par Resend : elles s’affichent dans Priimo, pour l’agence.
 
-**Mistral AI.** Priimo appelle l’API de Mistral AI (Mistral AI, 15 rue des Halles, 75001 Paris) pour des fonctions visibles dans l’application : dictée, notes, assistant, estimation. Ces appels portent sur des données saisies dans Priimo. Ils ne portent pas sur les données obtenues via les API Google Workspace.
-
-**Non-entraînement.** Priimo ne conserve pas les données obtenues via les API Google Workspace pour développer, améliorer ou entraîner des modèles d’intelligence artificielle ou d’apprentissage automatique non personnalisés. Mistral AI n’utilise pas les données transmises via son API pour entraîner ses modèles, sauf adhésion explicite, retour volontaire ou modèle Labs ou Preview : Priimo n’active aucune de ces options.
+**Intelligence artificielle — isolation stricte.** Priimo a recours à l’**API commerciale** de Mistral AI (Mistral AI, 15 rue des Halles, 75001 Paris) exclusivement pour les fonctionnalités d’intelligence artificielle proposées dans l’application (dictée, notes, assistant, estimation). Les données utilisateur provenant des API Google Workspace — notamment Google Agenda — font l’objet d’une **stricte isolation** : elles ne sont ni transmises à Mistral AI, ni mélangées aux flux destinés à ces fonctionnalités. Ces données ne sont en aucun cas utilisées, stockées à long terme, ni partagées par Priimo ou par ses sous-traitants (dont Mistral AI) aux fins d’entraîner, développer ou améliorer des modèles d’intelligence artificielle ou d’apprentissage automatique, personnalisés ou non. Priimo n’active aucune option d’adhésion, de retour volontaire ou de modèle Labs / Preview susceptible d’autoriser un tel entraînement.
 
 **Engagement.** Aucune vente, aucune publicité, aucun courtier en données, aucun transfert à des tiers pour une autre finalité. Divulgation uniquement si la loi l’exige.
 

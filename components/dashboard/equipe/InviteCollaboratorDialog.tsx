@@ -19,13 +19,9 @@ export default function InviteCollaboratorDialog({
 }) {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
-  const [avertissement, setAvertissement] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) {
-      setEmail('');
-      setAvertissement(null);
-    }
+    if (!open) setEmail('');
   }, [open]);
 
   async function submit(e: React.FormEvent) {
@@ -40,20 +36,9 @@ export default function InviteCollaboratorDialog({
       const res = await fetch('/api/invitations/collaborateur', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: trimmed,
-          confirmerDepassement: Boolean(avertissement),
-        }),
+        body: JSON.stringify({ email: trimmed }),
       });
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        avertissement?: string;
-        requiresConfirm?: boolean;
-      };
-      if (res.status === 409 && body.requiresConfirm && body.avertissement) {
-        setAvertissement(body.avertissement);
-        return;
-      }
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         notifyError(body.error ?? "Impossible d'envoyer l'invitation.");
         return;
@@ -87,9 +72,6 @@ export default function InviteCollaboratorDialog({
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        {avertissement ? (
-          <p className="text-pretty text-[13.5px] font-medium text-ink">{avertissement}</p>
-        ) : null}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <WorkspaceButton type="button" variant="secondary" onClick={onClose}>
             Annuler
@@ -100,7 +82,7 @@ export default function InviteCollaboratorDialog({
             busyLabel="Envoi…"
             disabled={!email.trim()}
           >
-            {avertissement ? 'Confirmer et inviter' : "Envoyer l'invitation"}
+            Envoyer l&apos;invitation
           </WorkspaceButton>
         </div>
       </form>

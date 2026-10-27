@@ -3,15 +3,13 @@ import { describe, it } from 'node:test';
 import { avertissementSiege, siegesSupplementaires } from './sieges';
 
 describe('sieges', () => {
-  it('ne facture rien dans l’inclus', () => {
+  it('calcule les extras sans message', () => {
     assert.equal(siegesSupplementaires(3, 3), 0);
-    assert.equal(avertissementSiege({ actifs: 2, inclus: 3 }), null);
+    assert.equal(siegesSupplementaires(5, 3), 2);
   });
 
-  it('prévient dès le premier siège extra', () => {
-    const msg = avertissementSiege({ actifs: 3, inclus: 3 });
-    assert.match(String(msg), /4e/);
-    assert.match(String(msg), /sièges inclus/);
-    assert.doesNotMatch(String(msg), /\d+\s*€/);
+  it('n’avertit jamais : invitations libres pour l’instant', () => {
+    assert.equal(avertissementSiege({ actifs: 2, inclus: 3 }), null);
+    assert.equal(avertissementSiege({ actifs: 14, inclus: 5 }), null);
   });
 });

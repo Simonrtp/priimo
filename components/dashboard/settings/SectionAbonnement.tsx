@@ -6,8 +6,6 @@ type Facture = { id: string; date: string; url: string | null; statut: string };
 
 type Apercu = {
   statut: string;
-  siegesActifs: number;
-  siegesInclus: number;
   prochaineEcheance: string | null;
   aUnClientStripe: boolean;
   factures: Facture[];
@@ -85,14 +83,6 @@ export default function SectionAbonnement() {
             </p>
             <p className="mt-1 text-[15px] font-semibold text-ink">
               {STATUT_LIBELLE[apercu.statut] ?? apercu.statut}
-            </p>
-          </div>
-          <div>
-            <p className="text-mute uppercase tracking-widest" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-              Sièges
-            </p>
-            <p className="mt-1 text-[15px] font-semibold text-ink">
-              {apercu.siegesActifs} utilisés sur {apercu.siegesInclus} inclus
             </p>
           </div>
           <div>

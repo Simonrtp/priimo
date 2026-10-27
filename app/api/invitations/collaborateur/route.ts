@@ -3,12 +3,6 @@ import { NextResponse } from 'next/server';
 import { requireDirector } from '@/lib/auth/requireDirector';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { sendInvitationEmail } from '@/lib/email/sendInvitationEmail';
-import {
-  ajusterSiegesStripe,
-  avertissementSiege,
-  compterSiegesActifs,
-  siegesInclusDe,
-} from '@/lib/billing/sieges';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,7 +10,7 @@ export async function POST(request: Request) {
   const guard = await requireDirector();
   if (!guard.ok) return guard.response;
 
-  let payload: { email?: unknown; confirmerDepassement?: unknown };
+  let payload: { email?: unknown };
   try {
     payload = (await request.json()) as typeof payload;
   } catch {
@@ -28,14 +22,6 @@ export async function POST(request: Request) {
   }
 
   const admin = createSupabaseAdminClient();
-  const actifs = await compterSiegesActifs(admin, guard.agency.id);
-  const avertissement = avertissementSiege({
-    actifs,
-    inclus: siegesInclusDe(guard.agency),
-  });
-  if (avertissement && payload.confirmerDepassement !== true) {
-    return NextResponse.json({ avertissement, requiresConfirm: true }, { status: 409 });
-  }
 
   const { data: existingByEmail, error: listErr } = await admin.auth.admin.listUsers();
   if (listErr) {
@@ -104,14 +90,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  try {
-    await ajusterSiegesStripe({
-      agency: guard.agency,
-      siegesActifs: actifs + 1,
-    });
-  } catch (err) {
-    console.error('[invitations] sieges stripe', err);
-  }
-
-  return NextResponse.json({ success: true, avertissement });
+  return NextResponse.json({ success: true });
 }
