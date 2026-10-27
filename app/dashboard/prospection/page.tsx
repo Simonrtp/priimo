@@ -12,7 +12,8 @@ import {
 } from '@/lib/agency/scope-records';
 import { initializeLeadsLastSeenAt } from '@/lib/queries/profiles';
 import {
-  countLatestBatchLeads,
+  countLeadsCreatedAfter,
+  pipelineBannerBatchKey,
   shouldShowPipelineBanner,
 } from '@/lib/lead-delivery';
 import { resoudreProspectionVue } from '@/lib/prospection/vue';
@@ -209,14 +210,15 @@ export default async function ProspectionPage({
 
   const storedLastSeen = profile.leads_last_seen_at ?? null;
   let showPipelineBanner = false;
+  let newBatchCount = 0;
 
   if (storedLastSeen === null) {
     await initializeLeadsLastSeenAt(supabase, profile.id);
   } else {
     showPipelineBanner = shouldShowPipelineBanner(visibleLeads, storedLastSeen);
+    newBatchCount = countLeadsCreatedAfter(visibleLeads, storedLastSeen);
   }
 
-  const newBatchCount = countLatestBatchLeads(visibleLeads);
   const selectedLeadId =
     params.lead && visibleLeads.some((l) => l.id === params.lead) ? params.lead : null;
 
@@ -228,6 +230,7 @@ export default async function ProspectionPage({
       isDirector={profile.role === 'directeur'}
       initialShowPipelineBanner={showPipelineBanner}
       initialNewBatchCount={newBatchCount}
+      initialPipelineBannerBatchKey={pipelineBannerBatchKey(visibleLeads)}
       initialSelectedLeadId={selectedLeadId}
       listFilter={listFilter}
       memberId={params.membre ?? null}

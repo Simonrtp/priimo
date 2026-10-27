@@ -17,6 +17,7 @@ import {
   significantSearchTokens,
 } from './normalize';
 import { namePrefixPatterns, scoreNom } from './nom-match';
+import { ressembleQuestion } from './intention-recherche';
 
 export type SearchHitKind = 'lead' | 'contact' | 'bien' | 'note' | 'interaction';
 
@@ -95,16 +96,20 @@ function scoreMatch(query: string, ...fields: Array<string | null | undefined>):
   const tokens = significantSearchTokens(query);
   if (!q && tokens.length === 0) return 0;
   let best = 0;
+  const textes: string[] = [];
   for (const raw of fields) {
     if (!raw) continue;
     const n = normalizeTexte(raw);
+    textes.push(n);
     if (q && n.startsWith(q)) best = Math.max(best, 4);
     else if (q && n.includes(q)) best = Math.max(best, 3);
-    if (tokens.length > 0 && tokens.every((t) => n.includes(t))) {
-      best = Math.max(best, tokens.length === 1 ? 3 : 4);
-    } else if (tokens.some((t) => t.length >= 4 && n.includes(t))) {
-      best = Math.max(best, 2);
-    }
+  }
+  // Une fiche répond quand elle contient TOUS les mots de la recherche, dans
+  // l'ensemble de ses champs : un mot sur trois ne suffit plus, sinon une
+  // phrase ramène presque toute la base.
+  if (tokens.length > 0) {
+    const ensemble = textes.join(' ');
+    if (tokens.every((t) => ensemble.includes(t))) best = Math.max(best, tokens.length === 1 ? 3 : 4);
   }
   return best;
 }
@@ -116,6 +121,16 @@ function orIlike(fields: readonly string[], patterns: readonly string[]): string
       return fields.map((f) => `${f}.ilike."${like}"`);
     })
     .join(',');
+}
+
+/**
+ * Plusieurs mots : la ligne doit les avoir tous (un `or` par mot, tous
+ * requis), sinon les 35 premières lignes contenant un seul mot noient les
+ * bonnes réponses. Une voie (« rue vitruve ») reste une expression entière.
+ */
+function etIlike(fields: readonly string[], patterns: readonly string[]): string {
+  if (patterns.length < 2 || patterns.some((p) => p.includes(' '))) return orIlike(fields, patterns);
+  return `and(${patterns.map((p) => `or(${orIlike(fields, [p])})`).join(',')})`;
 }
 
 function truncateSnippet(text: string, max = 88): string {
@@ -229,7 +244,7 @@ export async function fetchSearchRows(
       )
       .eq('agency_id', agencyId)
       .or(
-        orIlike(
+        etIlike(
           ['address', 'adresse_normalisee', 'postal_code', 'city', 'notes', 'owner_name', 'company_name'],
           patterns,
         ),
@@ -252,7 +267,7 @@ export async function fetchSearchRows(
       )
       .eq('agency_id', agencyId)
       .or(
-        orIlike(
+        etIlike(
           [
             'address',
             'adresse_normalisee',
@@ -272,7 +287,7 @@ export async function fetchSearchRows(
       .from('voice_notes')
       .select('id, transcript, adresse_normalisee, contact_id, created_by, visibilite, created_at')
       .eq('agency_id', agencyId)
-      .or(orIlike(['transcript', 'adresse_normalisee'], patterns))
+      .or(etIlike(['transcript', 'adresse_normalisee'], patterns))
       .order('created_at', { ascending: false })
       .limit(SEARCH_ROW_LIMIT),
     supabase
@@ -281,7 +296,7 @@ export async function fetchSearchRows(
         'id, body, kind, contact_id, author_id, assigned_to, occurred_at, contact:contacts ( first_name, last_name )',
       )
       .eq('agency_id', agencyId)
-      .or(orIlike(['body'], patterns))
+      .or(etIlike(['body'], patterns))
       .order('occurred_at', { ascending: false })
       .limit(SEARCH_ROW_LIMIT),
     fetchContactsPartagesIds(supabase, agencyId),
@@ -450,9 +465,14 @@ export function buildSearchHits(
     });
   }
 
-  return out
+  // Une question n'est pas un nom : peu de fiches, jamais de dictées ni
+  // d'échanges ; le reste est le travail de Mon assistant.
+  const question = ressembleQuestion(q);
+  const net = question ? out.filter((h) => h.kind !== 'note' && h.kind !== 'interaction') : out;
+
+  return net
     .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, 'fr'))
-    .slice(0, SEARCH_MAX_HITS)
+    .slice(0, question ? 5 : SEARCH_MAX_HITS)
     .map(({ score: _s, ...hit }) => hit);
 }
 

@@ -75,6 +75,16 @@ const BY_CLE: Record<string, StageColumnTheme> = {
     bgOver: '#DDE6F0',
     accent: FIELD.ardoise,
   },
+  prospection: {
+    bg: FIELD.ardoisePastel,
+    bgOver: '#DDE6F0',
+    accent: FIELD.ardoise,
+  },
+  blackliste: {
+    bg: '#E8EAED',
+    bgOver: '#DCE0E5',
+    accent: '#6B7280',
+  },
   contacte: {
     bg: FIELD.creme,
     bgOver: FIELD.orangePastel,
@@ -90,10 +100,20 @@ const BY_CLE: Record<string, StageColumnTheme> = {
     bgOver: '#C2DEE7',
     accent: '#1F8294',
   },
+  visite_possible: {
+    bg: '#D7E6EA',
+    bgOver: '#C5D9E0',
+    accent: '#4A7C8C',
+  },
   mandat: {
     bg: '#DFF0E8',
     bgOver: '#C8E6D4',
     accent: FIELD.vert,
+  },
+  vendu: {
+    bg: '#D5EADF',
+    bgOver: '#C0DFCB',
+    accent: '#1B6B45',
   },
   perdu: {
     bg: FIELD.rougePastel,

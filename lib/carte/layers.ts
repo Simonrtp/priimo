@@ -6,9 +6,9 @@ import {
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
 
+/** Couches proposées dans les filtres. « Biens » n’y figure plus. */
 export const MAP_LAYER_ORDER: readonly MapPointKind[] = [
   'contact',
-  'bien',
   'note',
 ];
 
@@ -65,10 +65,11 @@ export type MapLayerState = Record<MapPointKind, boolean> & {
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
   lead: false,
   contact: true,
-  bien: true,
+  /** Plus proposé dans les filtres : toujours masqué. */
+  bien: false,
   note: true,
-  /** Plan PCI : off par défaut ; s’affiche aussi dès qu’un overlay (DPE/ventes/copro) est coché. */
-  cadastre: false,
+  /** Plan PCI : toujours allumé ; plus d’interrupteur dans les filtres. */
+  cadastre: true,
   cadastreDpe: false,
   cadastreVentes: false,
   cadastreCopro: false,
@@ -92,21 +93,21 @@ export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
  * vidait la carte des négociateurs au petit secteur.
  * Rev 8 : la couche Copropriétés n’est plus proposée.
  * Rev 9 : annonces masquées, menu Cadastre replié.
+ * Rev 10 : parcelles toujours actives ; Biens retiré des filtres.
  */
-export const MAP_LAYERS_STORAGE_REV = 9;
+export const MAP_LAYERS_STORAGE_REV = 10;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
 export function parseMapLayers(raw: unknown): MapLayerState {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_MAP_LAYERS };
   const row = raw as Record<string, unknown>;
-  const cadastre = row.cadastre === true || row.parcelles === true;
   return {
     lead: false,
     contact: row.contact !== false,
-    bien: row.bien !== false,
+    bien: false,
     note: row.note !== false,
-    cadastre,
+    cadastre: true,
     cadastreDpe: row.cadastreDpe === true,
     cadastreVentes: row.cadastreVentes === true,
     cadastreCopro: false,
@@ -196,6 +197,7 @@ export function migrateStoredMapLayers(
   }
   if (rev < 8) next = { ...next, cadastreCopro: false };
   if (rev < 9) next = { ...next, annonces: false, annoncesMenuOpen: false, cadastreMenuOpen: false };
+  if (rev < 10) next = { ...next, cadastre: true, bien: false };
   return { state: next, rev: MAP_LAYERS_STORAGE_REV };
 }
 
@@ -208,13 +210,14 @@ export function anyCadastreOverlay(layers: MapLayerState): boolean {
   return layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
 }
 
-/** Plan PCI visible : case Parcelles, ou un overlay qui en a besoin. */
-export function showParcellesPlan(layers: MapLayerState): boolean {
-  return layers.cadastre || anyCadastreOverlay(layers);
+/** Plan PCI : toujours visible. */
+export function showParcellesPlan(_layers?: MapLayerState): boolean {
+  return true;
 }
 
 export function withCadastreLayerToggled(prev: MapLayerState, id: CadastreLayerId): MapLayerState {
-  if (id === 'parcelles') return { ...prev, cadastre: !prev.cadastre };
+  // Parcelles : plus d’interrupteur — le plan reste allumé.
+  if (id === 'parcelles') return { ...prev, cadastre: true };
   if (id === 'dpe') return { ...prev, cadastreDpe: !prev.cadastreDpe };
   if (id === 'ventes') return { ...prev, cadastreVentes: !prev.cadastreVentes };
   return { ...prev, cadastreCopro: !prev.cadastreCopro };

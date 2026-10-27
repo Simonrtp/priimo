@@ -110,7 +110,15 @@ export function texteSansMarkdown(texte: string): string {
 /* Critères chiffrés : tranchés par le code, pas par le modèle                 */
 /* -------------------------------------------------------------------------- */
 
-export type CriteresDits = { budget: number | null; pieces: number | null; surface: number | null };
+/** Un secteur dit : un code postal (« 75011 ») ou un arrondissement (« le 11e »). */
+export type LieuDit = { cp: string | null; arrondissement: number | null; libelle: string };
+
+export type CriteresDits = {
+  budget: number | null;
+  pieces: number | null;
+  surface: number | null;
+  lieu: LieuDit | null;
+};
 
 const NOMBRES: Record<string, number> = {
   un: 1,
@@ -156,14 +164,44 @@ export function piecesDans(texte: string): number[] {
   return [...out];
 }
 
+export function lieuDit(question: string): LieuDit | null {
+  const q = question.toLocaleLowerCase('fr');
+  const cp = /(?<![\d])((?:75|77|78|91|92|93|94|95|0[1-9]|[1-8]\d)\d{3})(?![\d])/.exec(q);
+  if (cp) {
+    const arr = /^750(\d{2})$/.exec(cp[1]!);
+    return { cp: cp[1]!, arrondissement: arr ? Number(arr[1]) : null, libelle: cp[1]! };
+  }
+  const arr = /(?<![\d])(\d{1,2})\s?(?:e|è|eme|ème|er|ère)(?![\p{L}\d])/u.exec(q);
+  if (arr && Number(arr[1]) >= 1 && Number(arr[1]) <= 20) {
+    const n = Number(arr[1]);
+    return { cp: `750${String(n).padStart(2, '0')}`, arrondissement: n, libelle: `${n}e` };
+  }
+  return null;
+}
+
+/** Le texte dit-il ce secteur : « 75011 », « 11e », « 11ème », « Paris 11 » ? */
+export function texteDitLieu(texte: string, lieu: LieuDit): boolean {
+  const t = texte.toLocaleLowerCase('fr');
+  if (lieu.cp && t.includes(lieu.cp)) return true;
+  if (lieu.arrondissement === null) return false;
+  const n = lieu.arrondissement;
+  return (
+    new RegExp(String.raw`(?<![\d])${n}\s?(?:e|è|eme|ème|er|ère)(?![\p{L}\d])`, 'u').test(t) ||
+    new RegExp(String.raw`paris\s+0?${n}(?![\d])`).test(t)
+  );
+}
+
 export function criteresDits(question: string): CriteresDits {
   const q = question.toLocaleLowerCase('fr');
-  const budget = budgetDit(q);
+  const lieu = lieuDit(q);
+  // Un code postal collé n'est pas un budget.
+  const budget = budgetDit(lieu?.cp ? q.replace(lieu.cp, ' ') : q);
   const surface = /(\d{2,3})\s*(?:m2|m²|mètres? carrés?)/.exec(q);
   return {
     budget: budget && budget >= 20_000 ? budget : null,
     pieces: piecesDans(q)[0] ?? null,
     surface: surface ? Number(surface[1]) : null,
+    lieu,
   };
 }
 
@@ -181,13 +219,35 @@ function estAcquereur(l: CollecteLigne): boolean {
   return l.faits.type === 'acquereur' || roles.includes('acquereur');
 }
 
+const CHAMPS_LIEU = ['adresse', 'codes_postaux', 'secteur'] as const;
+
+/**
+ * « Dans le 11e » : un bien, un prospect ou une dictée hors du secteur sort ;
+ * une fiche de personne reste si elle y habite, y cherche — ou si elle ne
+ * dit rien de son secteur (« à vérifier »).
+ */
+function filtrerParLieu(lignes: readonly CollecteLigne[], lieu: LieuDit): CollecteLigne[] {
+  const retenues: CollecteLigne[] = [];
+  for (const l of lignes) {
+    const textes = CHAMPS_LIEU.map((k) => l.faits[k]).filter((v) => v !== undefined && v !== null && v !== '');
+    const dit = textes.some((v) => texteDitLieu(Array.isArray(v) ? v.join(' ') : String(v), lieu));
+    if (dit) {
+      retenues.push(l);
+    } else if (l.kind === 'contact' && textes.length === 0) {
+      retenues.push({ ...l, faits: { ...l.faits, secteur_a_verifier: `secteur non précisé (${lieu.libelle} demandé)` } });
+    }
+  }
+  return retenues;
+}
+
 /**
  * Une question chiffrée (« un 3 pièces avec 450 000 € ») : les acquéreurs
  * qui n'y répondent pas sont écartés, les autres annotés `correspond` — oui,
  * ou à vérifier quand la fiche ne dit rien du critère. Les petits modèles
  * se trompent sur ces comparaisons ; le code, non.
  */
-export function ajusterPourCriteres(lignes: readonly CollecteLigne[], c: CriteresDits): CollecteLigne[] {
+export function ajusterPourCriteres(lignesBrutes: readonly CollecteLigne[], c: CriteresDits): CollecteLigne[] {
+  const lignes = c.lieu ? filtrerParLieu(lignesBrutes, c.lieu) : lignesBrutes;
   if (c.budget === null && c.pieces === null && c.surface === null) return [...lignes];
   const retenues: CollecteLigne[] = [];
   const autres: CollecteLigne[] = [];
@@ -243,6 +303,7 @@ export function enteteLecture(lignes: readonly CollecteLigne[], c: CriteresDits)
     c.budget !== null ? `budget ${euros(c.budget)}` : null,
     c.pieces !== null ? `${c.pieces} pièces` : null,
     c.surface !== null ? `${c.surface} m²` : null,
+    c.lieu ? `secteur ${c.lieu.libelle}` : null,
   ].filter(Boolean);
   if (dits.length) {
     lignesEntete.push(

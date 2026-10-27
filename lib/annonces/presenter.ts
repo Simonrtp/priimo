@@ -1,20 +1,20 @@
 import type { Annonce, Confiance, EvenementAnnonce, GroupeAnnonce, RunAnnonce } from './types';
 
-/** Vive au survol et à l'ouverture. Douce sur la carte, pour ne pas crier. */
-const COULEUR_PORTAIL: Partial<Record<Annonce['portail'], { vive: string; douce: string }>> = {
-  seloger: { vive: '#E30513', douce: '#F6D0D3' },
-  pap: { vive: '#2409F1', douce: '#D9D6FC' },
-};
-
+/**
+ * Toutes les pastilles annonces partagent la même tête : rouge SeLoger.
+ * Vive au survol / à l'ouverture ; douce au repos, pour ne pas crier.
+ */
 export type TeinteAnnonce = { vive: string; douce: string };
 
-export function couleurAnnonce(annonce: Pick<Annonce, 'portail'>): TeinteAnnonce | null {
-  return COULEUR_PORTAIL[annonce.portail] ?? null;
+export const TEINTE_ANNONCE: TeinteAnnonce = { vive: '#E30513', douce: '#F6D0D3' };
+
+export function couleurAnnonce(_annonce?: Pick<Annonce, 'portail'>): TeinteAnnonce {
+  return TEINTE_ANNONCE;
 }
 
-/** La teinte du portail de l'annonce affichée, sinon celle d'une sœur du même logement. */
-export function couleurGroupe(groupe: Pick<GroupeAnnonce, 'principale' | 'annonces'>): TeinteAnnonce | null {
-  return couleurAnnonce(groupe.principale) ?? groupe.annonces.map(couleurAnnonce).find((c) => c != null) ?? null;
+/** Même tête pour tout le groupe, quel que soit le portail. */
+export function couleurGroupe(_groupe?: Pick<GroupeAnnonce, 'principale' | 'annonces'>): TeinteAnnonce {
+  return TEINTE_ANNONCE;
 }
 
 const PORTAIL_LABEL: Record<Annonce['portail'], string> = {

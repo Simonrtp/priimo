@@ -10,7 +10,7 @@ describe('lead-etat-couleur', () => {
   it('chaque étape pipeline a une couleur distincte', () => {
     const couleurs = Object.values(COULEUR_ETAPE);
     assert.equal(new Set(couleurs).size, couleurs.length);
-    assert.equal(couleurs.length, 6);
+    assert.equal(couleurs.length, 9);
   });
 
   it('chaque statut a une couleur distincte', () => {

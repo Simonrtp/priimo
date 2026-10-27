@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Filters, Lead, LeadStage, TeamMember } from '@/types/lead';
 import { EMPTY_FILTERS } from '@/types/lead';
@@ -28,6 +29,7 @@ import { nextStagePosition } from '@/lib/pipeline/position';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/victories';
 import { leadsDuPipeline } from '@/lib/pipeline/perimetre';
+import { leadPipelineCorrespond } from '@/lib/pipeline/filtre';
 import { useUser } from '@/lib/hooks/useUser';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 import {
@@ -56,6 +58,10 @@ import PipelineUpdateBanner from './PipelineUpdateBanner';
 import PipelineBoard from './pipeline/PipelineBoard';
 import AjouterBien from './pipeline/AjouterBien';
 import LostReasonDialog from './pipeline/LostReasonDialog';
+import {
+  isPipelineBannerDismissed,
+  markPipelineBannerDismissed,
+} from '@/lib/ui/pipeline-banner-dismiss';
 
 const LeadDrawer = dynamic(() => import('./LeadDrawer'), { ssr: false });
 const LeadFullScreenMobile = dynamic(() => import('./LeadFullScreenMobile'), { ssr: false });
@@ -67,6 +73,8 @@ interface ProspectsClientProps {
   isDirector: boolean;
   initialShowPipelineBanner: boolean;
   initialNewBatchCount: number;
+  /** Max createdAt du lot : ferme le bandeau même si le cache RSC le ressert. */
+  initialPipelineBannerBatchKey?: string | null;
   initialSelectedLeadId?: string | null;
   listFilter?: 'sans-position' | 'non-assignes-14j' | 'non-pris' | 'estimations' | null;
   memberId?: string | null;
@@ -87,6 +95,7 @@ export default function ProspectsClient({
   isDirector,
   initialShowPipelineBanner,
   initialNewBatchCount,
+  initialPipelineBannerBatchKey = null,
   initialSelectedLeadId = null,
   listFilter = null,
   memberId = null,
@@ -116,13 +125,31 @@ export default function ProspectsClient({
     setStageList(stages);
   }, [stages]);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
-  const [showPipelineBanner, setShowPipelineBanner] = useState(initialShowPipelineBanner);
+  const [showPipelineBanner, setShowPipelineBanner] = useState(
+    () =>
+      initialShowPipelineBanner &&
+      initialNewBatchCount > 0 &&
+      !isPipelineBannerDismissed(initialPipelineBannerBatchKey),
+  );
+
+  useEffect(() => {
+    if (!initialShowPipelineBanner || initialNewBatchCount <= 0) {
+      setShowPipelineBanner(false);
+      return;
+    }
+    if (isPipelineBannerDismissed(initialPipelineBannerBatchKey)) {
+      setShowPipelineBanner(false);
+      return;
+    }
+    setShowPipelineBanner(true);
+  }, [initialShowPipelineBanner, initialNewBatchCount, initialPipelineBannerBatchKey]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(initialSelectedLeadId);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [pendingLost, setPendingLost] = useState<{ leadId: string; stageId: string } | null>(null);
   const [lostReason, setLostReason] = useState('');
   const [volsPipeline, setVolsPipeline] = useState<VolLead[]>([]);
+  const [pipelineRecherche, setPipelineRecherche] = useState('');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -209,7 +236,14 @@ export default function ProspectsClient({
     ? secteur.monSecteur.length + secteur.mesHorsSecteur.length + secteur.agence.length
     : filtered.length;
 
-  const pipelineLeads = useMemo(() => leadsDuPipeline(leads), [leads]);
+  const pipelineLeads = useMemo(() => {
+    const base = leadsDuPipeline(leads);
+    const cherche = pipelineRecherche.trim().normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    return base.filter((lead) => {
+      if (cherche && !leadPipelineCorrespond(lead, cherche)) return false;
+      return true;
+    });
+  }, [leads, pipelineRecherche]);
 
   const selected = selectedLeadId ? (leads.find((l) => l.id === selectedLeadId) ?? null) : null;
   const annonceSelectionnee = useMemo(
@@ -432,6 +466,7 @@ export default function ProspectsClient({
 
   const dismissPipelineBanner = useCallback(async () => {
     setShowPipelineBanner(false);
+    markPipelineBannerDismissed(initialPipelineBannerBatchKey);
     try {
       const res = await fetch('/api/dashboard/leads-last-seen', { method: 'POST' });
       if (!res.ok) {
@@ -442,15 +477,11 @@ export default function ProspectsClient({
       if (!data.leadsLastSeenAt) {
         throw new Error('Réponse serveur invalide');
       }
+      router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Impossible de marquer les leads comme vus.');
     }
-  }, []);
-
-  const viewNewLeads = useCallback(() => {
-    document.getElementById('prospects-leads-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    void dismissPipelineBanner();
-  }, [dismissPipelineBanner]);
+  }, [initialPipelineBannerBatchKey, router]);
 
   const switcher = (
     <ProspectsViewSwitch variant="floating" value={vueOnglet} onChange={setVue} />
@@ -471,7 +502,6 @@ export default function ProspectsClient({
         <PipelineUpdateBanner
           newCount={initialNewBatchCount}
           onDismiss={() => void dismissPipelineBanner()}
-          onViewNew={viewNewLeads}
         />
       )}
 
@@ -487,7 +517,7 @@ export default function ProspectsClient({
 
       {pipeline ? (
         <div key="pipeline" className="carte-entree flex min-h-0 flex-1 flex-col">
-          <div className="mb-3 mt-1 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="mb-3 mt-1 flex shrink-0 flex-wrap items-center gap-2.5">
             <AjouterBien
               onAjoute={(lead) => {
                 setLeads((prev) => {
@@ -496,8 +526,26 @@ export default function ProspectsClient({
                 });
               }}
             />
+            <label className="relative min-w-0 flex-1 sm:flex-none">
+              <Search
+                size={17}
+                strokeWidth={2.2}
+                aria-hidden
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+              />
+              <input
+                type="search"
+                value={pipelineRecherche}
+                onChange={(e) => setPipelineRecherche(e.target.value)}
+                placeholder="Rechercher un bien"
+                aria-label="Rechercher un bien"
+                className="w-full rounded-full border border-black/[0.10] bg-white py-2.5 pl-11 pr-4 text-[14px] font-medium text-text-strong shadow-clay-sm outline-none placeholder:font-medium placeholder:text-text-muted hover:border-black/[0.14] focus:border-accent/50 focus:ring-2 focus:ring-accent/15 sm:w-[22rem]"
+              />
+            </label>
             {pipelineLeads.some((lead) => lead.stageId) ? null : (
-              <p className="text-[13px] text-text-muted">Un bien saisi, une annonce collée, ou une estimation faite.</p>
+              <p className="basis-full text-[13px] text-text-muted sm:basis-auto">
+                Un bien saisi, une annonce collée, ou une estimation faite.
+              </p>
             )}
           </div>
           <div className="flex min-h-0 flex-1 flex-col">

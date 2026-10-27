@@ -6,10 +6,13 @@ import type { LeadStage, LeadStatus } from '@/types/lead';
  */
 export const COULEUR_ETAPE: Record<string, string> = {
   pris: '#1A2A56',
+  blackliste: '#6B7280',
   contacte: '#E8743C',
   rendez_vous: '#C9A227',
   estimation: '#1F8294',
+  visite_possible: '#4A7C8C',
   mandat: '#2E7D5B',
+  vendu: '#1B6B45',
   perdu: '#C4483C',
 };
 

@@ -47,10 +47,17 @@ export function shouldShowPipelineBanner(
   allLeads: Pick<Lead, 'createdAt'>[],
   leadsLastSeenAt: string | null,
 ): boolean {
-  if (leadsLastSeenAt === null) return false;
-  const maxCreated = getMaxCreatedAt(allLeads);
-  if (!maxCreated) return false;
-  return parseInstant(maxCreated) > parseInstant(leadsLastSeenAt);
+  return countLeadsCreatedAfter(allLeads, leadsLastSeenAt) > 0;
+}
+
+/** Leads apparus après la dernière fermeture du bandeau. */
+export function countLeadsCreatedAfter(
+  allLeads: Pick<Lead, 'createdAt'>[],
+  leadsLastSeenAt: string | null,
+): number {
+  if (leadsLastSeenAt === null) return 0;
+  const after = parseInstant(leadsLastSeenAt);
+  return allLeads.filter((l) => parseInstant(l.createdAt) > after).length;
 }
 
 /** Nombre de leads du dernier lot (date de livraison max). */
@@ -58,6 +65,19 @@ export function countLatestBatchLeads(allLeads: Pick<Lead, 'deliveredAt'>[]): nu
   const latest = getLatestDeliveredAt(allLeads);
   if (!latest) return 0;
   return allLeads.filter((l) => l.deliveredAt === latest).length;
+}
+
+/** Clé de lot pour ne pas réafficher un bandeau déjà fermé (cache RSC). */
+export function pipelineBannerBatchKey(allLeads: Pick<Lead, 'createdAt'>[]): string | null {
+  return getMaxCreatedAt(allLeads);
+}
+
+/** Texte du bandeau Liste — rien d’autre. */
+export function texteNouveauxLeads(n: number): string {
+  if (n === 1) {
+    return '1 nouveau lead dans 1 nouvelle annonce détectée sur votre secteur';
+  }
+  return `${n} nouveaux leads dans ${n} nouvelles annonces détectées sur votre secteur`;
 }
 
 /** Libellé sous-groupe : « Livrés le 30 mai 2026 ». */

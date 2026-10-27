@@ -207,7 +207,6 @@ export default function ObjectifsDialog({
               fond={COULEUR_FAMILLE[famille].pastelFort}
               valeur={objectifACadence(saisie.hebdo[famille], cadence)}
               onChange={(n) => poser(famille, objectifDepuisCadence(n, cadence))}
-              bientot={famille === 'estimations'}
             />
           ))}
         </div>

@@ -147,3 +147,61 @@ describe('recherche de personnes tolérante aux fautes', () => {
     assert.equal(ids.includes('c3'), false);
   });
 });
+
+describe('buildSearchHits — une phrase ne ramène pas toute la base', () => {
+  const viewer = { id: 'u1', role: 'directeur' as const };
+  const contact = (id: string, nom: string, summary: string) => ({
+    id,
+    first_name: nom,
+    last_name: null,
+    phone: null,
+    email: null,
+    summary,
+    contact_type: 'acquereur',
+    created_by: 'u1',
+    visibilite: 'agence' as const,
+  });
+  const rows = {
+    leads: [],
+    contacts: [
+      contact('c1', 'Alice', 'Cherche un bien avec balcon dans le 11e'),
+      contact('c2', 'Bruno', 'Cherche un bien près du métro'),
+      contact('c3', 'Chloé', 'Veut un bien neuf, cherche en banlieue'),
+    ],
+    biens: [],
+    notes: [],
+    interactions: [],
+  };
+
+  it('le vocabulaire de la question ne compte pas : seul « 11e » discrimine', () => {
+    const hits = buildSearchHits('qui cherche un bien dans le 11e', rows, viewer);
+    assert.deepEqual(hits.map((h) => h.id), ['c1']);
+  });
+
+  it('plusieurs mots : la fiche doit tous les contenir', () => {
+    assert.deepEqual(buildSearchHits('balcon métro', rows, viewer), []);
+    assert.deepEqual(buildSearchHits('balcon 11e', rows, viewer).map((h) => h.id), ['c1']);
+  });
+
+  it('une question ne remonte aucune dictée ni échange', () => {
+    const hits = buildSearchHits(
+      'qui cherche un bien près du métro ?',
+      {
+        ...rows,
+        notes: [
+          {
+            id: 'n1',
+            transcript: 'Il cherche un bien près du métro',
+            adresse_normalisee: null,
+            contact_id: null,
+            created_by: 'u1',
+            visibilite: 'agence',
+            created_at: '2026-10-01T08:00:00Z',
+          },
+        ],
+      },
+      viewer,
+    );
+    assert.ok(hits.every((h) => h.kind !== 'note'));
+  });
+});

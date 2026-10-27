@@ -111,6 +111,25 @@ export default function PipelineBoard({
   useLayoutEffect(() => {
     columnsRef.current = columns;
   }, [columns]);
+  /** Molette verticale → défilement horizontal des colonnes. */
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+      if (e.deltaY === 0) return;
+      const next = el.scrollLeft + e.deltaY;
+      const max = el.scrollWidth - el.clientWidth;
+      if (next <= 0 && el.scrollLeft <= 0) return;
+      if (next >= max && el.scrollLeft >= max) return;
+      e.preventDefault();
+      el.scrollLeft = Math.min(max, Math.max(0, next));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
   const departRef = useRef<{ colonnes: Columns; stageId: string } | null>(null);
   const dernierSurvol = useRef<UniqueIdentifier | null>(null);
   const vientDeChanger = useRef(false);
@@ -122,6 +141,7 @@ export default function PipelineBoard({
   } | null>(null);
   const [lostReason, setLostReason] = useState('');
   const [mandatCelebrateTick, setMandatCelebrateTick] = useState(0);
+  const [estimationCelebrateTick, setEstimationCelebrateTick] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -247,7 +267,12 @@ export default function PipelineBoard({
         const victory = toStage ? pipelineVictoryKind(fromStage, toStage) : null;
         if (victory) {
           celebratePipelineVictory(victory);
-          if (victory === 'mandat') setMandatCelebrateTick((t) => t + 1);
+          if (victory === 'mandat' || victory === 'vendu') {
+            setMandatCelebrateTick((t) => t + 1);
+          }
+          if (victory === 'estimation') {
+            setEstimationCelebrateTick((t) => t + 1);
+          }
         }
       } catch (e) {
         onLeadsChange((prev) => prev.map((lead) => (lead.id === leadId ? previousLead : lead)));
@@ -483,7 +508,10 @@ export default function PipelineBoard({
         onDragEnd={onDragEnd}
         onDragCancel={annulerVol}
       >
-        <div className="flex min-h-0 w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden pb-1 pr-1 [-webkit-overflow-scrolling:touch]">
+        <div
+          ref={scrollerRef}
+          className="flex min-h-0 w-full min-w-0 flex-1 items-stretch gap-1.5 overflow-x-auto overflow-y-hidden pb-1 pr-1 [-webkit-overflow-scrolling:touch]"
+        >
           {stages.map((stage) => (
             <PipelineColumn
               key={stage.id}
@@ -493,20 +521,28 @@ export default function PipelineBoard({
                 .filter((lead): lead is Lead => Boolean(lead))}
               membersById={membersById}
               onOpen={onOpen}
-              celebrateTick={stage.cle === 'mandat' ? mandatCelebrateTick : 0}
+              celebrateTick={
+                stage.cle === 'mandat' || stage.cle === 'vendu'
+                  ? mandatCelebrateTick
+                  : stage.cle === 'estimation'
+                    ? estimationCelebrateTick
+                    : 0
+              }
               onEditStage={canManageStages ? openEditEditor : undefined}
               survolee={activeId != null && colonneSurvolee === stage.id}
             />
           ))}
           {canManageStages ? (
-            <section className="flex min-h-0 w-[300px] shrink-0 flex-col self-stretch rounded-clay-lg border border-dashed border-black/[0.12] bg-white/70 p-4">
-              <div className="flex h-full flex-col items-start justify-center gap-3 rounded-xl bg-black/[0.02] px-4 text-left">
-                <div className="flex size-11 items-center justify-center rounded-full bg-primary-50 text-primary-600">
-                  <Plus size={20} strokeWidth={2.2} aria-hidden />
+            <section className="flex min-h-0 w-[148px] shrink-0 flex-col self-stretch rounded-clay-lg border border-dashed border-black/[0.12] bg-white/70 p-2.5">
+              <div className="flex h-full flex-col items-start justify-center gap-2 rounded-xl bg-black/[0.02] px-2 text-left">
+                <div className="flex size-8 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                  <Plus size={16} strokeWidth={2.2} aria-hidden />
                 </div>
                 <div>
-                  <h3 className="text-[14px] font-semibold text-text-strong">Nouvelle colonne</h3>
-                  <p className="mt-1 text-pretty text-[13px] text-text-muted">
+                  <h3 className="text-[12px] font-semibold leading-tight text-text-strong">
+                    Nouvelle colonne
+                  </h3>
+                  <p className="mt-1 text-pretty text-[11px] leading-snug text-text-muted">
                     Choisis une couleur, puis un nom pour ajouter une étape intermédiaire.
                   </p>
                 </div>
@@ -535,7 +571,7 @@ export default function PipelineBoard({
                 transition={undefined}
               >
                 {activeLead ? (
-                  <div style={{ width: largeurVol ?? 280 }}>
+                  <div style={{ width: largeurVol ?? 136 }}>
                     <PipelineLeadCard
                       lead={activeLead}
                       stage={activeStage}

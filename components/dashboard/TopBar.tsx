@@ -12,9 +12,9 @@ import {
   AssistantMobileSearchBar,
   AssistantSearchIconButton,
 } from '@/components/dashboard/assistant/AssistantSearchButton';
-import { BoutonAssistant } from '@/components/dashboard/assistant/AssistantPanel';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
+import { BoutonMicro } from '@/components/dashboard/voice/MicroGoutte';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
 import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
@@ -210,9 +210,9 @@ export default function TopBar() {
           </span>
         </div>
 
-        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex" {...chromeLockProps}>
-          {/* Une seule barre : chercher, aller à une adresse, demander à l'assistant. */}
-          <div className="min-w-0 w-full max-w-md flex-1">
+        <div className="hidden min-w-0 items-center gap-1.5 md:flex" {...chromeLockProps}>
+          {/* Barre courte : le micro et « Nouveau » restent collés à droite. */}
+          <div className="w-[22rem] max-w-[min(22rem,48vw)] shrink-0">
             <AssistantSearchBar tone="shell" />
           </div>
           <CreateMenu className="shrink-0" />
@@ -221,7 +221,6 @@ export default function TopBar() {
         <div className="ml-auto flex flex-shrink-0 items-center gap-1 sm:gap-2 md:gap-2">
           <div className="flex items-center gap-1 sm:gap-2 md:hidden" {...chromeLockProps}>
             <AssistantSearchIconButton className="text-mute" />
-            <BoutonAssistant />
             <a
               href={FOUNDER_WHATSAPP_HREF}
               target="_blank"
@@ -277,6 +276,7 @@ export default function TopBar() {
         <div className="min-w-0 flex-1">
           <AssistantMobileSearchBar />
         </div>
+        <BoutonMicro className="shrink-0" />
         <CreateMenu compact className="shrink-0" />
       </div>
     </header>

@@ -41,30 +41,30 @@ export default function PipelineColumn({
   return (
     <section
       ref={setNodeRef}
-      className={`flex w-[300px] shrink-0 flex-col self-stretch overflow-hidden rounded-clay-lg transition-colors duration-150 ease-out ${
+      className={`flex w-[148px] shrink-0 flex-col self-stretch overflow-hidden rounded-clay-lg transition-colors duration-150 ease-out ${
         pulse ? 'pipeline-column-celebrate' : ''
       }`}
       style={{ backgroundColor: survolee ? theme.bgOver : theme.bg }}
       aria-label={`${stage.libelle}, ${leads.length} carte${leads.length > 1 ? 's' : ''}`}
     >
-      <header className="flex shrink-0 items-start justify-between gap-2 px-3 pb-2 pt-3">
+      <header className="flex shrink-0 items-start justify-between gap-1 px-1.5 pb-1.5 pt-2">
         <div className="min-w-0 flex-1">
           {onEditStage ? (
             <button
               type="button"
               onClick={() => onEditStage(stage)}
-              className="flex w-full min-w-0 items-center gap-2 rounded-lg text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="flex w-full min-w-0 items-center gap-1 rounded-md text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               aria-label={`Modifier la colonne ${stage.libelle}`}
               title="Modifier le nom et la couleur"
             >
               <h2
-                className="min-w-0 truncate border-l-[3px] pl-2 text-[13.5px] font-semibold text-text-strong"
+                className="min-w-0 truncate border-l-[3px] pl-1.5 text-[11.5px] font-semibold leading-tight text-text-strong"
                 style={{ borderColor: theme.accent }}
               >
                 {stage.libelle}
               </h2>
               <Pencil
-                size={14}
+                size={12}
                 strokeWidth={2}
                 className="shrink-0 text-text-subtle"
                 aria-hidden
@@ -72,18 +72,18 @@ export default function PipelineColumn({
             </button>
           ) : (
             <h2
-              className="truncate border-l-[3px] pl-2 text-[13.5px] font-semibold text-text-strong"
+              className="truncate border-l-[3px] pl-1.5 text-[11.5px] font-semibold leading-tight text-text-strong"
               style={{ borderColor: theme.accent }}
             >
               {stage.libelle}
             </h2>
           )}
         </div>
-        <span className="pt-0.5 text-[12px] tabular-nums text-text-muted">{leads.length}</span>
+        <span className="pt-0.5 text-[11px] tabular-nums text-text-muted">{leads.length}</span>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2.5 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1.5 pb-2">
         <SortableContext items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1.5">
             {leads.map((lead) => (
               <li key={lead.id} className="min-w-0">
                 <PipelineLeadCard

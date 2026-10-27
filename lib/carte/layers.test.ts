@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   DEFAULT_MAP_LAYERS,
+  MAP_LAYER_ORDER,
   MAP_LAYERS_STORAGE_REV,
   migrateStoredMapLayers,
   parseMapLayers,
@@ -11,9 +12,10 @@ import {
 } from './layers';
 
 describe('parseMapLayers', () => {
-  it('laisse le plan et les pastilles éteints par défaut', () => {
-    assert.equal(parseMapLayers(null).cadastre, false);
-    assert.equal(DEFAULT_MAP_LAYERS.cadastre, false);
+  it('active le plan parcellaire et masque les biens par défaut', () => {
+    assert.equal(parseMapLayers(null).cadastre, true);
+    assert.equal(DEFAULT_MAP_LAYERS.cadastre, true);
+    assert.equal(DEFAULT_MAP_LAYERS.bien, false);
     assert.equal(DEFAULT_MAP_LAYERS.cadastreDpe, false);
     assert.equal(DEFAULT_MAP_LAYERS.cadastreVentes, false);
     assert.equal(DEFAULT_MAP_LAYERS.cadastreCopro, false);
@@ -21,40 +23,30 @@ describe('parseMapLayers', () => {
     assert.equal(DEFAULT_MAP_LAYERS.annonces, false);
   });
 
-  it('n’active les biens par défaut', () => {
-    assert.equal(parseMapLayers(null).bien, true);
-    assert.equal(DEFAULT_MAP_LAYERS.bien, true);
+  it('ne propose plus Biens dans les filtres', () => {
+    assert.ok(!MAP_LAYER_ORDER.includes('bien'));
+    assert.equal(parseMapLayers({ bien: true }).bien, false);
   });
 
-  it('reprend l’ancien interrupteur parcelles', () => {
-    assert.equal(parseMapLayers({ lead: false, parcelles: true }).cadastre, true);
+  it('force toujours les parcelles, même si le stockage les avait éteintes', () => {
+    assert.equal(parseMapLayers({ lead: false, parcelles: false, cadastre: false }).cadastre, true);
     assert.equal(parseMapLayers({ cadastre: true, cadastreDpe: true }).cadastreDpe, true);
   });
 
   it('ne couple plus Parcelles et Diagnostics', () => {
     assert.equal(parseMapLayers({ cadastre: true }).cadastreDpe, false);
     const next = withCadastreLayerToggled(
-      { ...DEFAULT_MAP_LAYERS, cadastre: false, cadastreDpe: false },
+      { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreDpe: false },
       'parcelles',
     );
     assert.equal(next.cadastre, true);
     assert.equal(next.cadastreDpe, false);
   });
 
-  it('affiche le plan dès qu’un overlay est coché', () => {
-    assert.equal(showParcellesPlan(DEFAULT_MAP_LAYERS), false);
-    assert.equal(
-      showParcellesPlan({ ...DEFAULT_MAP_LAYERS, cadastre: true }),
-      true,
-    );
-    assert.equal(
-      showParcellesPlan({ ...DEFAULT_MAP_LAYERS, cadastreDpe: true }),
-      true,
-    );
-    assert.equal(
-      showParcellesPlan({ ...DEFAULT_MAP_LAYERS, cadastreVentes: true }),
-      true,
-    );
+  it('affiche toujours le plan parcellaire', () => {
+    assert.equal(showParcellesPlan(DEFAULT_MAP_LAYERS), true);
+    assert.equal(showParcellesPlan({ ...DEFAULT_MAP_LAYERS, cadastre: false }), true);
+    assert.equal(showParcellesPlan({ ...DEFAULT_MAP_LAYERS, cadastreDpe: true }), true);
   });
 
   it('persiste la plage d’ancienneté du curseur', () => {
@@ -73,21 +65,22 @@ describe('parseMapLayers', () => {
     assert.equal(parseMapLayers({}).cadastreDpeAges.length, 7);
   });
 
-  it('rev 6 éteint le plan (et les pastilles si rev < 5)', () => {
+  it('rev 6 éteint le plan (et les pastilles si rev < 5), puis rev 10 le rallume', () => {
     const fromRev3 = migrateStoredMapLayers(
       { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreDpe: true, cadastreVentes: true },
       3,
     );
-    assert.equal(fromRev3.state.cadastre, false);
+    assert.equal(fromRev3.state.cadastre, true);
     assert.equal(fromRev3.state.cadastreDpe, false);
     assert.equal(fromRev3.state.cadastreVentes, false);
+    assert.equal(fromRev3.state.bien, false);
     assert.equal(fromRev3.rev, MAP_LAYERS_STORAGE_REV);
 
     const fromRev5 = migrateStoredMapLayers(
       { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreDpe: true },
       5,
     );
-    assert.equal(fromRev5.state.cadastre, false);
+    assert.equal(fromRev5.state.cadastre, true);
     assert.equal(fromRev5.state.cadastreDpe, true);
     assert.equal(fromRev5.rev, MAP_LAYERS_STORAGE_REV);
   });
@@ -111,7 +104,18 @@ describe('parseMapLayers', () => {
     assert.equal(fromRev8.state.annonces, false);
     assert.equal(fromRev8.state.annoncesMenuOpen, false);
     assert.equal(fromRev8.state.cadastreMenuOpen, false);
+    assert.equal(fromRev8.state.cadastre, true);
     assert.equal(fromRev8.rev, MAP_LAYERS_STORAGE_REV);
+  });
+
+  it('rev 10 force les parcelles et retire les biens', () => {
+    const fromRev9 = migrateStoredMapLayers(
+      { ...DEFAULT_MAP_LAYERS, cadastre: false, bien: true },
+      9,
+    );
+    assert.equal(fromRev9.state.cadastre, true);
+    assert.equal(fromRev9.state.bien, false);
+    assert.equal(fromRev9.rev, MAP_LAYERS_STORAGE_REV);
   });
 
   it('rev 8 retire la couche Copropriétés sans toucher au reste', () => {

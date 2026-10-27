@@ -52,8 +52,9 @@ describe('base — critères dits', () => {
       budget: 450_000,
       pieces: 3,
       surface: null,
+      lieu: null,
     });
-    assert.deepEqual(criteresDits('Un T2 de 45 m² à 300k'), { budget: 300_000, pieces: 2, surface: 45 });
+    assert.deepEqual(criteresDits('Un T2 de 45 m² à 300k'), { budget: 300_000, pieces: 2, surface: 45, lieu: null });
     assert.equal(criteresDits('budget 1,2 million').budget, 1_200_000);
     assert.equal(criteresDits('avec 450 000').budget, 450_000);
   });
@@ -63,7 +64,33 @@ describe('base — critères dits', () => {
       budget: null,
       pieces: null,
       surface: null,
+      lieu: { cp: '75011', arrondissement: 11, libelle: '75011' },
     });
+  });
+
+  it('lit un secteur : code postal ou arrondissement', () => {
+    assert.equal(criteresDits('qui cherche dans le 11e ?').lieu?.cp, '75011');
+    assert.equal(criteresDits('qui cherche dans le 11ème').lieu?.arrondissement, 11);
+    assert.equal(criteresDits('qui cherche au 20eme').lieu?.cp, '75020');
+    assert.equal(criteresDits('le 1er arrondissement').lieu?.cp, '75001');
+    assert.equal(criteresDits('qui est mon vendeur ?').lieu, null);
+    assert.equal(criteresDits('un 3 pièces à 450 000 €').lieu, null);
+  });
+
+  it('« dans le 11e » ne garde que ce qui y est, et signale les fiches sans secteur', () => {
+    const lignes = [
+      ligne('contact', 'ici', { nom: 'A', type: 'acquereur', codes_postaux: ['75011'] }),
+      ligne('contact', 'adresse', { nom: 'B', type: 'vendeur', adresse: '12 rue Oberkampf 75011 Paris' }),
+      ligne('contact', 'texte', { nom: 'C', type: 'acquereur', secteur: 'cherche dans le 11ème' }),
+      ligne('contact', 'ailleurs', { nom: 'D', type: 'acquereur', codes_postaux: ['75020'] }),
+      ligne('contact', 'inconnu', { nom: 'E', type: 'vendeur' }),
+      ligne('bien', 'bien-ici', { adresse: '3 rue de la Roquette 75011 Paris' }),
+      ligne('bien', 'bien-ailleurs', { adresse: '5 rue Vitruve 75020 Paris' }),
+      ligne('note', 'note-ailleurs', { adresse: '36 Rue Orfila 75020 Paris' }),
+    ];
+    const out = ajusterPourCriteres(lignes, criteresDits('qui cherche un bien dans le 11e'));
+    assert.deepEqual(out.map((l) => l.id).sort(), ['adresse', 'bien-ici', 'ici', 'inconnu', 'texte']);
+    assert.match(String(out.find((l) => l.id === 'inconnu')?.faits.secteur_a_verifier), /secteur non précisé/);
   });
 
   it('trouve toutes les pièces écrites dans un résumé', () => {

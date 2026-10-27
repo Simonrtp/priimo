@@ -163,23 +163,16 @@ function Pastille({
       aria-label={libelle}
       aria-pressed={choisie}
       title={libelle}
-      className={`relative inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[16px] shadow-sm transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
-        teinte ? 'ring-1 ring-white/80' : particulier ? 'bg-blue text-white ring-1 ring-white/70' : 'bg-white text-text-strong ring-1 ring-black/10'
-      } ${retiree ? 'line-through' : ''}`}
+      className={`relative inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[16px] shadow-sm ring-1 ring-white/80 transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
+        retiree ? 'line-through' : ''
+      }`}
       style={{
         opacity: retiree ? 0.5 : approx ? 0.7 : 1,
-        background: teinte ? (marque ? teinte.vive : teinte.douce) : undefined,
-        color: teinte ? (marque ? '#fff' : '#1A2A56') : undefined,
+        background: marque ? teinte.vive : teinte.douce,
+        color: marque ? '#fff' : '#1A2A56',
       }}
     >
-      {baisse ? (
-        <ArrowDown
-          size={11}
-          strokeWidth={2.5}
-          aria-hidden
-          className={teinte ? '' : particulier ? 'text-accent-light' : 'text-accent'}
-        />
-      ) : null}
+      {baisse ? <ArrowDown size={11} strokeWidth={2.5} aria-hidden /> : null}
       {prix}
       {nouvelle ? (
         <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-white" />

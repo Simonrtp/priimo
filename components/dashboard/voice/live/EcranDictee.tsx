@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Check, Keyboard, MapPin, Mic, Square, X } from 'lucide-react';
 import VoiceWaveform from '../VoiceWaveform';
 import CartesComprises from './CartesComprises';
@@ -8,11 +8,6 @@ import TranscriptionVivante from './TranscriptionVivante';
 import SignalIA from '@/components/ui/SignalIA';
 import type { CarteComprise } from '@/lib/voice/cartes';
 import styles from './dictee.module.css';
-
-function chrono(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
 
 /**
  * L'écran de la dictée : ce que l'agent dit s'écrit en direct, mot à mot, et
@@ -26,8 +21,6 @@ export default function EcranDictee({
   lecture,
   micStream,
   micReady,
-  demarreLe,
-  direct,
   adresse,
   error,
   hasPriorTake,
@@ -47,9 +40,6 @@ export default function EcranDictee({
   lecture: boolean;
   micStream: MediaStream | null;
   micReady: boolean;
-  demarreLe: number;
-  /** Transcription Voxtral Realtime active (sinon, repli par morceaux). */
-  direct: boolean;
   adresse: string | null;
   error: string | null;
   hasPriorTake: boolean;
@@ -64,14 +54,6 @@ export default function EcranDictee({
   onTexte?: (texte: string) => void;
   onTerminerEcrit?: () => void;
 }) {
-  const [maintenant, setMaintenant] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!micReady) return;
-    const t = window.setInterval(() => setMaintenant(Date.now()), 500);
-    return () => window.clearInterval(t);
-  }, [micReady]);
-
   const mobile = variant === 'mobile';
   const ecrit = mode === 'ecrit';
   const titre = ecrit ? 'Écrire une note' : hasPriorTake ? 'Compléter la dictée' : 'Dicter une note';
@@ -96,17 +78,7 @@ export default function EcranDictee({
           <Keyboard size={13} strokeWidth={2.2} aria-hidden />
           Au clavier
         </span>
-      ) : (
-        <span
-          className={`inline-flex shrink-0 items-center gap-2 rounded-full bg-primary-50 px-2.5 py-1 text-[12px] font-semibold text-primary-600 ${
-            micReady ? '' : 'opacity-60'
-          }`}
-          title={direct ? 'Transcription en direct' : undefined}
-        >
-          <span className={`size-2 rounded-full bg-primary-500 ${micReady ? styles.pastilleDirect : ''}`} aria-hidden />
-          <span className="tabular-nums">{micReady ? chrono(maintenant - demarreLe) : '0:00'}</span>
-        </span>
-      )}
+      ) : null}
       <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-[12px] text-text-muted">
         {adresse ? (
           <>

@@ -44,9 +44,9 @@ const ACTION: Record<FamilleActivite, ActionCompteur> = {
     href: '/dashboard/prospection?vue=pipeline',
   },
   estimations: {
-    libelle: 'Créer une estimation',
-    court: 'À venir',
-    bientot: true,
+    libelle: 'Passer en Estimation',
+    court: 'Estimer',
+    href: '/dashboard/prospection?vue=pipeline',
   },
   informations_terrain: {
     libelle: 'Noter',

@@ -1,51 +1,31 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { texteNouveauxLeads } from '@/lib/lead-delivery';
 
 interface PipelineUpdateBannerProps {
   newCount: number;
   onDismiss: () => void;
-  onViewNew: () => void;
 }
 
-export default function PipelineUpdateBanner({
-  newCount,
-  onDismiss,
-  onViewNew,
-}: PipelineUpdateBannerProps) {
-  const label =
-    newCount === 1
-      ? '1 nouveau lead'
-      : `${newCount} nouveaux leads`;
+export default function PipelineUpdateBanner({ newCount, onDismiss }: PipelineUpdateBannerProps) {
+  if (newCount <= 0) return null;
 
   return (
     <div
       role="status"
-      className="mb-4 flex flex-col gap-3 rounded-xl border border-accent/20 bg-accent/[0.06] px-4 py-3 sm:flex-row sm:items-start"
+      className="mb-4 flex items-center gap-3 rounded-xl border border-accent/20 bg-accent/[0.06] py-3 pl-4 pr-1.5"
     >
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold text-ink" style={{ fontSize: 13, lineHeight: 1.45 }}>
-          Le pipeline a été mis à jour — {label}.
-        </p>
-        <p className="mt-0.5 text-mute" style={{ fontSize: 12, lineHeight: 1.45 }}>
-          Les précédents sont en bas de la liste.
-        </p>
-        <button
-          type="button"
-          onClick={onViewNew}
-          className="mt-2 font-medium text-accent-dark underline-offset-2 transition-colors duration-fluid-subtle ease-in-out hover:text-accent hover:underline"
-          style={{ fontSize: 12 }}
-        >
-          Voir les nouveaux
-        </button>
-      </div>
+      <p className="min-w-0 flex-1 font-semibold text-ink" style={{ fontSize: 13, lineHeight: 1.45 }}>
+        {texteNouveauxLeads(newCount)}
+      </p>
       <button
         type="button"
         onClick={onDismiss}
-        className="flex size-8 shrink-0 items-center justify-center self-end rounded-lg text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.06] hover:text-ink sm:self-start"
-        aria-label="Fermer le bandeau"
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.08] hover:text-ink active:bg-black/[0.12]"
+        aria-label="Fermer"
       >
-        <X size={18} strokeWidth={2} aria-hidden />
+        <X size={20} strokeWidth={2.25} aria-hidden />
       </button>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CircleX, Mic, Search } from 'lucide-react';
+import { CircleX, Search } from 'lucide-react';
 import type { SearchHit } from '@/lib/assistant/search';
 import { searchBanAddresses } from '@/lib/ban';
 import { carteOuverte, hrefCarte, viserSurLaCarte } from '@/lib/carte/cible';
@@ -10,10 +10,9 @@ import { useUser } from '@/lib/hooks/useUser';
 import { ressembleAdresse, ressembleQuestion } from '@/lib/assistant/intention-recherche';
 import { versAdressesTrouvees, type AdresseTrouvee } from '@/lib/ban-recherche';
 import ResultatsRecherche, { type ChoixRecherche } from './ResultatsRecherche';
-import { BoutonAssistant } from './AssistantPanel';
 import { useAssistant } from './AssistantProvider';
 import { useAssistantPanel } from './AssistantPanelProvider';
-import { useAssistantVoiceInput } from './useAssistantVoiceInput';
+import MicroGoutte from '@/components/dashboard/voice/MicroGoutte';
 
 /**
  * La barre unique du tableau de bord. On y tape ce qu'on cherche — un nom,
@@ -31,13 +30,13 @@ function SearchField({
   className = '',
   autoFocus = false,
   tone = 'light',
-  avecAssistant = false,
+  avecMicro = false,
 }: {
   className?: string;
   autoFocus?: boolean;
   tone?: 'light' | 'shell' | 'map';
-  /** L'étincelle de l'assistant au bout de la barre. */
-  avecAssistant?: boolean;
+  /** Le micro unique (note ou question), accroché au bout de la barre. */
+  avecMicro?: boolean;
 }) {
   const inputId = useId();
   const listeId = useId();
@@ -52,16 +51,6 @@ function SearchField({
   const [actif, setActif] = useState(0);
   const { panelOpen, setPanelOpen, registerInput, closeResults, closeMobileSearch } = useAssistant();
   const { openPanel, envoyer } = useAssistantPanel();
-  const { listening, transcribing, toggle: toggleVoiceSearch, voiceLabel } = useAssistantVoiceInput(
-    (text) => {
-      setQuery(text);
-      setPanelOpen(true);
-    },
-    {
-      idle: 'Recherche vocale',
-      transcribing: 'Mise en texte de la recherche',
-    },
-  );
 
   const proche = useMemo(
     () =>
@@ -182,20 +171,25 @@ function SearchField({
 
   return (
     <div ref={rootRef} className={`${map ? '' : 'relative'} min-w-0 ${className}`} data-barre-recherche="">
+      <div className="flex min-w-0 items-center">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (trimmed.length >= 2) choisirIndex(Math.min(actif, nbChoix - 1));
         }}
-        className={`flex min-w-0 items-center gap-1.5 transition-colors duration-fluid-subtle ease-in-out ${
-          shell
-            ? 'min-h-11 rounded-full bg-white pl-3.5 pr-1 shadow-sm focus-within:ring-2 focus-within:ring-white/35 md:h-9 md:min-h-0'
+        className={`flex min-w-0 flex-1 items-center gap-1.5 transition-colors duration-fluid-subtle ease-in-out ${
+          avecMicro
+            ? // Bout droit carré : la goutte du micro prend le relais, sans liseré.
+              // h-9 = même hauteur que la barre shell, pour un espace égal au-dessus et en dessous.
+              'h-9 rounded-l-full bg-white pl-3.5 pr-1'
+            : shell
+            ? 'h-9 rounded-full bg-white pl-3.5 pr-1 shadow-sm focus-within:ring-2 focus-within:ring-white/35'
             : map
-              ? 'min-h-[44px] px-1'
-              : 'min-h-11 rounded-full px-4 py-2 assistant-search-field md:rounded-xl'
+              ? 'min-h-[40px] px-1'
+              : 'h-9 rounded-full px-3.5 py-1.5 assistant-search-field'
         }`}
       >
-        <Search size={16} strokeWidth={2} className="shrink-0 text-mute" aria-hidden />
+        <Search size={15} strokeWidth={2} className="shrink-0 text-mute" aria-hidden />
         <label htmlFor={inputId} className="sr-only">
           Chercher un nom, une adresse, ou poser une question
         </label>
@@ -219,7 +213,7 @@ function SearchField({
               setActif((i) => (i - 1 + nbChoix) % nbChoix);
             }
           }}
-          placeholder={listening ? 'Parlez…' : transcribing ? 'Mise en texte…' : PLACEHOLDER_RECHERCHE}
+          placeholder={PLACEHOLDER_RECHERCHE}
           autoComplete="off"
           autoFocus={autoFocus}
           enterKeyHint="search"
@@ -227,7 +221,7 @@ function SearchField({
           aria-expanded={showPanel}
           aria-controls={listeId}
           aria-activedescendant={showPanel ? `${listeId}-${actif}` : undefined}
-          className="assistant-search-input min-w-0 flex-1 truncate bg-transparent text-[13px] text-ink outline-none placeholder:text-mute md:text-[14px]"
+          className="assistant-search-input min-w-0 flex-1 truncate bg-transparent text-[13px] text-ink outline-none placeholder:text-mute"
         />
         {query ? (
           <button
@@ -241,31 +235,14 @@ function SearchField({
             }}
             aria-label="Effacer la recherche"
             title="Effacer"
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.06] hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-mute transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.06] hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           >
-            <CircleX size={16} strokeWidth={1.75} aria-hidden />
+            <CircleX size={15} strokeWidth={1.75} aria-hidden />
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={toggleVoiceSearch}
-          disabled={transcribing}
-          aria-label={voiceLabel}
-          title={voiceLabel}
-          aria-pressed={listening}
-          className={`flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:opacity-50 ${
-            listening ? 'bg-ia text-white' : 'text-mute hover:text-ink'
-          }`}
-        >
-          <Mic size={16} strokeWidth={2} aria-hidden />
-        </button>
-        {avecAssistant ? (
-          <>
-            <span className="h-5 w-px shrink-0 bg-black/[0.08]" aria-hidden />
-            <BoutonAssistant />
-          </>
-        ) : null}
       </form>
+      {avecMicro ? <MicroGoutte /> : null}
+      </div>
 
       {showPanel ? (
         <div
@@ -291,7 +268,7 @@ function SearchField({
 }
 
 export function AssistantSearchBar({ tone = 'light' }: { tone?: 'light' | 'shell' }) {
-  return <SearchField className="w-full" tone={tone} avecAssistant />;
+  return <SearchField className="w-full" tone={tone} avecMicro={tone === 'shell'} />;
 }
 
 export function AssistantMobileSearchBar({ tone = 'light' }: { tone?: 'light' | 'shell' | 'map' }) {

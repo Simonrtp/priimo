@@ -120,7 +120,6 @@ export default function VoiceCaptureDialog({
   /** Immeuble sous les pieds de l’agent, pour la lecture en direct seulement. */
   const [banGps, setBanGps] = useState<string | null>(null);
   const [direct, setDirect] = useState(false);
-  const [demarreLe, setDemarreLe] = useState(() => Date.now());
   const [recordedAt, setRecordedAt] = useState(() => new Date().toISOString());
   /** Texte des prises précédentes : la prise en cours s'y ajoute. */
   const [basePrise, setBasePrise] = useState('');
@@ -708,7 +707,6 @@ export default function VoiceCaptureDialog({
       recorder.start(250);
       recorderRef.current = recorder;
       startedAtRef.current = Date.now();
-      setDemarreLe(startedAtRef.current);
       setMicStream(stream);
       setMicReady(true);
 
@@ -1067,8 +1065,6 @@ export default function VoiceCaptureDialog({
         lecture={lectureDirect}
         micStream={micStream}
         micReady={micReady}
-        demarreLe={demarreLe}
-        direct={direct}
         adresse={gpsAddress}
         error={error}
         hasPriorTake={hasPriorTake}

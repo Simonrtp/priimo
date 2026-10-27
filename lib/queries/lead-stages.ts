@@ -11,13 +11,16 @@ function asStageType(raw: string): LeadStageType {
 }
 
 function defaultAccentColor(cle: string, type: LeadStageType): string {
-  if (cle === 'pris') return '#64748B';
+  if (cle === 'pris' || cle === 'prospection') return '#64748B';
+  if (cle === 'blackliste') return '#6B7280';
   if (cle === 'contacte') return '#E8743C';
   if (cle === 'rendez_vous') return '#2E8B57';
   // Teal : distinct du vert du rendez-vous et de l'orange du contact, sans
   // toucher au violet que la palette terrain interdit.
   if (cle === 'estimation') return '#1F8294';
+  if (cle === 'visite_possible') return '#4A7C8C';
   if (cle === 'mandat') return '#2E8B57';
+  if (cle === 'vendu') return '#1B6B45';
   if (cle === 'perdu') return '#D16B5B';
   if (type === 'gagne') return '#2E8B57';
   if (type === 'perdu') return '#D16B5B';

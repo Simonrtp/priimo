@@ -101,8 +101,8 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
   const point = choisie ? { longitude: choisie.longitude, latitude: choisie.latitude } : { longitude: carte.longitude, latitude: carte.latitude };
   const incertaine = carte.approximative && !choisie;
 
-  // Ajoutée : elle reste sur la carte, sous le logo de son portail. Dès que la
-  // liste des annonces ajoutées la contient, c'est AnnoncesAjoutees qui la montre.
+  // Ajoutée : elle reste sur la carte, même tête rouge que les autres. Dès que
+  // la liste des annonces ajoutées la contient, c'est AnnoncesAjoutees qui la montre.
   if (carte.annonceId) {
     if (ajoutees.some((a) => a.id === carte.annonceId)) return null;
     return (

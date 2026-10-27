@@ -12,6 +12,7 @@ import { nomProprietaireAffiche, noteEssentielle, signauxEssentiels } from '@/li
 import { FIELD } from '@/lib/today/field';
 import { daysSinceTaken, isStaleEntree } from '@/lib/pipeline/stale';
 import { prixBien, resumeBien } from '@/lib/pipeline/bien';
+import { libelleRentree } from '@/lib/pipeline/filtre';
 
 export default function PipelineLeadCard({
   lead,
@@ -29,6 +30,7 @@ export default function PipelineLeadCard({
   const sortable = useSortable({ id: lead.id, disabled: overlay });
   const stale = isStaleEntree(stage?.type, lead.takenAt);
   const days = daysSinceTaken(lead.takenAt);
+  const rentree = libelleRentree(lead.takenAt);
   const signaux = signauxEssentiels(lead);
   const proprio = nomProprietaireAffiche(lead);
   const note = noteEssentielle(lead.notes);
@@ -59,7 +61,7 @@ export default function PipelineLeadCard({
         overlay ? 'cursor-grabbing shadow-clay' : ''
       }`}
     >
-      <div className="relative h-[88px] overflow-hidden bg-[#F1EFE8]">
+      <div className="relative h-[52px] overflow-hidden bg-[#F1EFE8]">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- photo de portail, hors domaines optimisés
           <img
@@ -80,28 +82,34 @@ export default function PipelineLeadCard({
           />
         )}
         {lead.score > 0 ? (
-          <div className="absolute right-2 top-2">
-            <ScoreRing score={lead.score} size={28} />
+          <div className="absolute right-1 top-1">
+            <ScoreRing score={lead.score} size={22} />
           </div>
         ) : null}
       </div>
-      <div className="px-2.5 pb-2.5 pt-2">
-        <p className="truncate text-[13.5px] font-semibold text-text-strong">{lead.address}</p>
+      <div className="px-1.5 pb-1.5 pt-1.5">
+        <p className="truncate text-[11.5px] font-semibold leading-snug text-text-strong">
+          {lead.address}
+        </p>
         {resume || lead.city ? (
-          <p className="mt-0.5 truncate text-[11.5px] text-text-muted">
+          <p className="mt-0.5 truncate text-[10.5px] leading-snug text-text-muted">
             {[resume, lead.city].filter(Boolean).join(' · ')}
           </p>
         ) : null}
         {prix ? (
-          <p className="mt-1 text-[13px] font-semibold tabular-nums text-text-strong">{prix}</p>
+          <p className="mt-0.5 text-[11.5px] font-semibold tabular-nums text-text-strong">{prix}</p>
+        ) : null}
+
+        {rentree ? (
+          <p className="mt-0.5 text-[10.5px] font-medium text-text-muted">{rentree}</p>
         ) : null}
 
         {signaux.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-1 flex flex-wrap gap-0.5">
             {signaux.map((signal) => (
               <span
                 key={signal}
-                className="inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold text-text-strong"
+                className="inline-flex max-w-full truncate rounded-full px-1.5 py-px text-[10px] font-semibold text-text-strong"
                 style={{ backgroundColor: '#FFE0C4' }}
               >
                 {signal}
@@ -111,21 +119,21 @@ export default function PipelineLeadCard({
         ) : null}
 
         {proprio ? (
-          <p className="mt-1.5 truncate text-[12px] font-medium text-text-strong">{proprio}</p>
+          <p className="mt-1 truncate text-[10.5px] font-medium text-text-strong">{proprio}</p>
         ) : null}
 
         {note ? (
-          <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-text-muted">{note}</p>
+          <p className="mt-0.5 line-clamp-2 text-[10.5px] leading-snug text-text-muted">{note}</p>
         ) : null}
 
         {stale && days != null ? (
-          <div className="mt-2">
+          <div className="mt-1">
             <InfoTooltip
               content={`Pris il y a ${days} jour${days > 1 ? 's' : ''}, jamais contacté`}
               placement="top-start"
             >
               <span
-                className="size-2 rounded-full"
+                className="size-1.5 rounded-full"
                 style={{ backgroundColor: FIELD.orange }}
                 aria-label={`Pris il y a ${days} jours, jamais contacté`}
               />
@@ -135,20 +143,20 @@ export default function PipelineLeadCard({
 
         {assignee ? (
           <div
-            className={`mt-2.5 flex items-center gap-2 ${
+            className={`mt-1.5 flex items-center gap-1.5 ${
               stage?.cle === 'mandat' || stage?.type === 'gagne'
-                ? 'rounded-xl bg-[#D5EADF] px-2 py-1.5'
-                : 'border-t border-black/[0.06] pt-2'
+                ? 'rounded-lg bg-[#D5EADF] px-1.5 py-1'
+                : 'border-t border-black/[0.06] pt-1.5'
             }`}
           >
             <ProfileAvatar
               firstName={assignee.firstName}
               lastName={assignee.lastName}
               avatarUrl={assignee.avatarUrl}
-              size={32}
+              size={22}
               className="shrink-0"
             />
-            <span className="min-w-0 truncate text-[13px] font-semibold text-text-strong">
+            <span className="min-w-0 truncate text-[10.5px] font-semibold text-text-strong">
               {assignee.fullName}
             </span>
           </div>

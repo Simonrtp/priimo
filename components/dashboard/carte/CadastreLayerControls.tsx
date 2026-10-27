@@ -8,7 +8,6 @@ import {
   CADASTRE_LAYER_LABELS,
   CADASTRE_OVERLAY_IDS,
   anyCadastreLayer,
-  anyCadastreOverlay,
   type CadastreLayerId,
   type CadastreOverlayMenuId,
   type MapLayerState,
@@ -232,8 +231,6 @@ export default function CadastreLayerControls({
   const row = compact ? 'min-h-[44px]' : 'min-h-[40px]';
   const pad = compact ? 'px-1' : 'px-2.5 py-1.5';
   const folderOn = anyCadastreLayer(layers);
-  const overlaysOn = anyCadastreOverlay(layers);
-  const parcellesForced = overlaysOn && !layers.cadastre;
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
@@ -268,6 +265,11 @@ export default function CadastreLayerControls({
               />
             </span>
           </span>
+          {tooFarParcelles ? (
+            <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
+              Zoomez pour afficher les parcelles
+            </span>
+          ) : null}
         </span>
         <ChevronDown
           size={16}
@@ -284,41 +286,6 @@ export default function CadastreLayerControls({
       >
         <div>
         <ul className={`mt-0.5 flex flex-col gap-0.5 pb-1 ${compact ? 'pl-3' : 'pl-6'}`}>
-          <li className={`rounded-xl ${pad}`}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={layers.cadastre || overlaysOn}
-              aria-disabled={parcellesForced}
-              onClick={() => {
-                if (parcellesForced) return;
-                onToggleLayer('parcelles');
-              }}
-              className={`flex w-full ${row} items-center gap-3 text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
-                tooFarParcelles ? 'opacity-55' : ''
-              } ${parcellesForced ? 'cursor-default' : 'cursor-pointer'}`}
-            >
-              <Switch checked={layers.cadastre || overlaysOn} />
-              <span
-                className={`min-w-0 flex-1 text-[13.5px] font-medium ${
-                  (layers.cadastre || overlaysOn) && !tooFarParcelles
-                    ? 'text-text-strong'
-                    : 'text-text-muted'
-                }`}
-              >
-                {CADASTRE_LAYER_LABELS.parcelles}
-                {tooFarParcelles ? (
-                  <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                    Zoomez pour afficher
-                  </span>
-                ) : parcellesForced ? (
-                  <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                    Nécessaire pour DPE / ventes
-                  </span>
-                ) : null}
-              </span>
-            </button>
-          </li>
           {CADASTRE_OVERLAY_IDS.map((id) => {
             const key = overlayKey(id);
             const active = layers[key];

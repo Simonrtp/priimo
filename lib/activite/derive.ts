@@ -94,10 +94,14 @@ export type JournalActivite = {
  */
 export const RANGS_CANONIQUES: Readonly<Record<string, number>> = {
   pris: 1,
-  contacte: 2,
-  rendez_vous: 3,
-  estimation: 4,
-  mandat: 5,
+  prospection: 1,
+  blackliste: 0,
+  contacte: 3,
+  rendez_vous: 4,
+  estimation: 5,
+  visite_possible: 6,
+  mandat: 7,
+  vendu: 8,
   perdu: 0,
 };
 

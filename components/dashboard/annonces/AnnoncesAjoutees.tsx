@@ -1,11 +1,10 @@
 'use client';
 
-import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Layer, Marker, Source } from 'react-map-gl';
 import { X } from 'lucide-react';
 import { isUsableCoord } from '@/lib/carte/coords';
-import { LOGO_PORTAIL } from '@/lib/annonces/logos';
-import { eurosCourt, libellePortail } from '@/lib/annonces/presenter';
+import { eurosCourt, libellePortail, TEINTE_ANNONCE } from '@/lib/annonces/presenter';
 import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
 import { notifyError } from '@/lib/notify';
@@ -104,28 +103,30 @@ export function LiensPossibles({ sourceId, groupes }: { sourceId: string; groupe
 }
 
 /**
- * La pastille d'une annonce ajoutée : le logo de son portail et son prix, sur
- * fond blanc. Pointillée quand l'emplacement n'est qu'un secteur.
+ * Pastille d'une annonce ajoutée : même tête que les annonces du balayage
+ * (rouge SeLoger, prix seul). Pointillée quand l'emplacement n'est qu'un secteur.
  */
 export function PastilleAjoutee({
-  portailCle,
   portail,
   prix,
   approximative = false,
   onClick,
   onRetirer,
 }: {
-  portailCle: string;
+  /** Conservé pour l'accessibilité ; le logo portail n'apparaît plus sur la carte. */
+  portailCle?: string;
   portail: string;
   prix: number | null;
   approximative?: boolean;
   onClick?: () => void;
   onRetirer?: () => void;
 }) {
-  const logo = LOGO_PORTAIL[portailCle];
+  const [survol, setSurvol] = useState(false);
+  const marque = survol;
+  const libellePrix = prix != null ? eurosCourt(prix) : 'Annonce';
   const coque = approximative
-    ? 'outline-dashed outline-1 outline-offset-2 outline-[#1A2A56]/35'
-    : 'ring-1 ring-black/10';
+    ? 'outline-dashed outline-1 outline-offset-2 outline-[#E30513]/45'
+    : 'ring-1 ring-white/80';
   return (
     <span className="relative inline-flex motion-safe:animate-ficheSurgit">
       <button
@@ -134,16 +135,19 @@ export function PastilleAjoutee({
           e.stopPropagation();
           onClick?.();
         }}
-        aria-label={`Annonce ${portail}${prix != null ? ` à ${eurosCourt(prix)}` : ''}${approximative ? ', secteur approximatif' : ''}`}
-        className={`inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[11px] font-semibold leading-[16px] text-text-strong shadow-[0_4px_14px_rgba(26,42,86,0.22)] transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${coque}`}
+        onMouseEnter={() => setSurvol(true)}
+        onMouseLeave={() => setSurvol(false)}
+        onFocus={() => setSurvol(true)}
+        onBlur={() => setSurvol(false)}
+        aria-label={`Annonce ${portail}${prix != null ? ` à ${libellePrix}` : ''}${approximative ? ', secteur approximatif' : ''}`}
+        className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[16px] shadow-sm transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${coque}`}
+        style={{
+          opacity: approximative ? 0.7 : 1,
+          background: marque ? TEINTE_ANNONCE.vive : TEINTE_ANNONCE.douce,
+          color: marque ? '#fff' : '#1A2A56',
+        }}
       >
-        {logo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="h-3.5 w-auto max-w-[4.5rem] object-contain" />
-        ) : (
-          <span className="max-w-[4.5rem] truncate">{portail}</span>
-        )}
-        {prix != null ? <span className="tabular-nums">{eurosCourt(prix)}</span> : null}
+        <span className="tabular-nums">{libellePrix}</span>
       </button>
       {onRetirer ? (
         <button
