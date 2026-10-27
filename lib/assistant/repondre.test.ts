@@ -5,7 +5,7 @@ import { REFORMULER_SYSTEM_PROMPT, REFORMULER_TIMEOUT_MS } from './repondre';
 describe('consigne de reformulation', () => {
   it('contient la consigne mot pour mot', () => {
     assert.match(REFORMULER_SYSTEM_PROMPT, /Tu n'ajoutes aucune information absente des données fournies/);
-    assert.match(REFORMULER_SYSTEM_PROMPT, /tu ne suggères aucune action/);
+    assert.match(REFORMULER_SYSTEM_PROMPT, /jamais de rappel calendrier/);
     assert.equal(REFORMULER_TIMEOUT_MS, 8000);
   });
 

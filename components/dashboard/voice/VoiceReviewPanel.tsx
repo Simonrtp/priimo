@@ -10,9 +10,9 @@ import type { ActionProposal } from '@/lib/notes/review-v2';
 import { libelleMiseAJour, lignesRecherche, mailtoBrouillon } from '@/lib/notes/review-v2';
 import { EMPTY_CONTACT_INPUT, type ContactInputFields } from '@/lib/contact-input';
 import { contactToInput } from '@/lib/import/contacts';
-import { formatPhoneOrNull, normalizeName } from '@/lib/import/normalize';
+import { formatPhoneOrNull, formatPhoneWithConsent, normalizeName } from '@/lib/import/normalize';
 import type { ContactMatch } from '@/lib/notes/match';
-import { matchMembersInTranscript } from '@/lib/notes/from-transcript';
+import { consentementRappelDansTranscript, matchMembersInTranscript } from '@/lib/notes/from-transcript';
 import { dateParisIso } from '@/lib/notes/date-relative';
 import { heureLisible, jourLisible, type CarteComprise, type CarteKind } from '@/lib/voice/cartes';
 import { notifyError, notifySuccess } from '@/lib/notify';
@@ -62,6 +62,8 @@ function draftDepuisProposition(
       type: p.personne.type,
       autresTypes: p.personne.autresTypes ?? [],
       phone: p.personne.phone,
+      numeroCommuniqueParLaPersonne:
+        Boolean(p.personne.phone) && consentementRappelDansTranscript(transcript),
       email: p.personne.email,
       address: review.immeuble?.adresseNormalisee ?? review.immeuble?.address ?? null,
       secteur: review.secteur,
@@ -297,6 +299,8 @@ export default function VoiceReviewPanel({
   const [drafts, setDrafts] = useState<Record<string, ContactDraft>>({});
   /** Fiches existantes corrigées depuis la note : enregistrées au rangement. */
   const [majs, setMajs] = useState<Record<string, FicheEditee & { contactId: string }>>({});
+  /** Consentement de rappel coché/décoché directement sur la carte d'une fiche existante. */
+  const [consentementsRappel, setConsentementsRappel] = useState<Record<string, boolean>>({});
   /** Fiches existantes dont l'agent refuse l'adresse proposée par la note. */
   const [adresseRetiree, setAdresseRetiree] = useState<string[]>([]);
   /** La fiche retenue pour une personne (`null` = nouvelle fiche). */
@@ -489,6 +493,7 @@ export default function VoiceReviewPanel({
         rolesNouveaux: [] as ContactType[],
         phone: draft.fields.phone,
         phoneNouveau: false,
+        consentiRappel: draft.fields.numeroCommuniqueParLaPersonne,
         email: draft.fields.email,
         emailNouveau: false,
         adresse: draft.fields.address,
@@ -508,6 +513,7 @@ export default function VoiceReviewPanel({
         rolesNouveaux: rolesNouveaux.filter((r) => roles.includes(r)),
         phone: maj.fields.phone,
         phoneNouveau: false,
+        consentiRappel: maj.fields.numeroCommuniqueParLaPersonne,
         email: maj.fields.email,
         emailNouveau: false,
         adresse: maj.fields.address,
@@ -517,6 +523,12 @@ export default function VoiceReviewPanel({
     const phoneNouveau = !match.phone && Boolean(p.personne.phone);
     const emailNouveau = !match.email && Boolean(p.personne.email);
     const adresseNouvelle = !match.address && Boolean(adresseNote) && !adresseRetiree.includes(p.id);
+    const consentiAuto =
+      match.numeroCommuniqueParLaPersonne === true ||
+      ((Boolean(match.phone) || phoneNouveau) && consentementRappelDansTranscript(transcript));
+    const consentiRappel = Object.prototype.hasOwnProperty.call(consentementsRappel, p.id)
+      ? consentementsRappel[p.id]!
+      : consentiAuto;
     return {
       existante: true,
       probable: match.confiance === 'probable',
@@ -524,6 +536,7 @@ export default function VoiceReviewPanel({
       rolesNouveaux,
       phone: match.phone ?? (phoneNouveau ? p.personne.phone : null),
       phoneNouveau,
+      consentiRappel,
       email: match.email ?? (emailNouveau ? p.personne.email : null),
       emailNouveau,
       adresse: match.address ?? (adresseNouvelle ? adresseNote : null),
@@ -659,6 +672,7 @@ export default function VoiceReviewPanel({
         ...base,
         ...repartirRoles([...rolesDuContact(base), ...vue.rolesNouveaux]),
         phone: base.phone ?? (vue.phoneNouveau ? p.personne.phone : null),
+        numeroCommuniqueParLaPersonne: vue.consentiRappel,
         email: base.email ?? (vue.emailNouveau ? p.personne.email : null),
         address: base.address ?? (vue.adresseNouvelle ? adresseNote : null),
       };
@@ -720,6 +734,7 @@ export default function VoiceReviewPanel({
                   ajouts: {
                     roles: vue.rolesNouveaux,
                     phone: vue.phoneNouveau ? p.personne.phone : null,
+                    numeroCommuniqueParLaPersonne: vue.consentiRappel,
                     email: vue.emailNouveau ? p.personne.email : null,
                     address: vue.adresseNouvelle ? adresseNote : null,
                     banId: vue.adresseNouvelle ? review.immeuble?.banId ?? null : null,
@@ -886,6 +901,31 @@ export default function VoiceReviewPanel({
         rolesNouveaux={vue.rolesNouveaux}
         phone={vue.phone}
         phoneNouveau={vue.phoneNouveau}
+        consentiRappel={vue.consentiRappel}
+        onConsentementRappel={(checked) => {
+          toucher();
+          const match = matchDe(p);
+          if (!match) {
+            const draft = draftPour(p);
+            setDrafts((prev) => ({
+              ...prev,
+              [p.id]: {
+                ...draft,
+                fields: { ...draft.fields, numeroCommuniqueParLaPersonne: checked },
+              },
+            }));
+            return;
+          }
+          const maj = majs[p.id];
+          if (maj) {
+            setMajs((prev) => ({
+              ...prev,
+              [p.id]: { ...maj, fields: { ...maj.fields, numeroCommuniqueParLaPersonne: checked } },
+            }));
+            return;
+          }
+          setConsentementsRappel((prev) => ({ ...prev, [p.id]: checked }));
+        }}
         email={vue.email}
         emailNouveau={vue.emailNouveau}
         liens={liensDe(p, vue)}
@@ -916,7 +956,11 @@ export default function VoiceReviewPanel({
                   id: m.contactId,
                   label: m.label,
                   detail:
-                    [formatPhoneOrNull(m.phone), m.email, m.address ? adresseCourte(m.address) : null]
+                    [
+                      formatPhoneWithConsent(m.phone, m.numeroCommuniqueParLaPersonne),
+                      m.email,
+                      m.address ? adresseCourte(m.address) : null,
+                    ]
                       .filter(Boolean)
                       .join(' · ') || null,
                 })),

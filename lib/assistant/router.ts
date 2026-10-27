@@ -11,7 +11,7 @@
  * trompe coûte plus cher qu'un appel de modèle.
  */
 
-import type { AssistantIntent } from './intent';
+import type { AssistantIntent, EtapePipeline } from './intent';
 import { EMPTY_INTENT } from './intent';
 import { normalizeTexte, significantSearchTokens } from './normalize';
 import { estQuestionProduit, type SujetProduit } from './produit';
@@ -77,9 +77,9 @@ const ACQUEREUR = motif(
   String.raw`qui cherche|qui recherche|quels?\s+acqu[ée]reurs?|acqu[ée]reurs?\s+(?:pour|sur|dans)|int[ée]ress[ée]s?\s+par|rapprochements?\s+(?:pour|sur)|[àa] qui (?:proposer|montrer)`,
 );
 
-/** Les fiches de la base désignées en bloc : « mes acquéreurs », « les biens ». */
+/** Les fiches de la base désignées en bloc : « mes acquéreurs », « les biens », le pipeline. */
 const ENTITES_BASE = motif(
-  String.raw`acqu[ée]reurs?|vendeurs?|propri[ée]taires?|locataires?|contacts?|clients?|biens?|mandats?|prospects?|leads?|appartements?|maisons?|studios?|[tf][1-7]|\d+\s*pi[èe]ces|(?:deux|trois|quatre|cinq|six)\s+pi[èe]ces`,
+  String.raw`acqu[ée]reurs?|vendeurs?|propri[ée]taires?|locataires?|contacts?|clients?|biens?|mandats?|prospects?|leads?|pipeline|kanban|colonnes?|rendez[- ]?vous|\brdv\b|appartements?|maisons?|studios?|[tf][1-7]|\d+\s*pi[èe]ces|(?:deux|trois|quatre|cinq|six)\s+pi[èe]ces`,
 );
 
 /** Une demande de liste, de comptage ou de filtre — pas une fiche précise. */
@@ -100,10 +100,29 @@ function typeContactDit(q: string): AssistantIntent['filtres']['type_contact'] {
 }
 
 function statutMandatDit(q: string): AssistantIntent['filtres']['statut_mandat'] {
+  // « Mandat signé » / « en mandat » dans le pipeline ≠ statut mandat d'un bien.
+  if (/pipeline|kanban|colonne/i.test(q) && /mandat/i.test(q)) return null;
   if (/exclusi/i.test(q)) return 'mandat_exclusif';
   if (/mandats? simples?/i.test(q)) return 'mandat_simple';
   if (/compromis/i.test(q)) return 'compromis';
   if (/\bvendus?\b/i.test(q)) return 'vendu';
+  return null;
+}
+
+/**
+ * Colonne du kanban. « Rendez-vous » seul suffit ; les autres étapes demandent
+ * un marqueur pipeline pour ne pas confondre avec le statut d'un bien.
+ */
+export function etapePipelineDit(q: string): EtapePipeline | null {
+  if (/rendez[- ]?vous|\brdv\b/i.test(q)) return 'rendez_vous';
+  const dansPipeline = /pipeline|kanban|colonne|prospection/i.test(q);
+  if (!dansPipeline) return null;
+  if (/contact[ée]s?/i.test(q)) return 'contacte';
+  if (/estimation/i.test(q)) return 'estimation';
+  if (/mandat\s+sign[ée]|en\s+mandat|\bmandat\b/i.test(q)) return 'mandat';
+  if (/\bperdus?\b/i.test(q)) return 'perdu';
+  if (/\bventes?\b/i.test(q)) return 'vente';
+  if (/\bpris\b/i.test(q)) return 'pris';
   return null;
 }
 
@@ -192,7 +211,7 @@ export function routeQuestion(
         type: 'recherche_acquereur',
         adresse: voie,
         code_postal: cp,
-        filtres: { type_contact: 'acquereur', statut_mandat: null },
+        filtres: { type_contact: 'acquereur', statut_mandat: null, etape_pipeline: null },
       }),
     };
   }
@@ -224,12 +243,17 @@ export function routeQuestion(
     !PERSONNE_SUR.test(plain) &&
     !SAVOIR_SUR.test(plain)
   ) {
+    const etape = etapePipelineDit(plain);
     return {
-      forme: 'base',
+      forme: etape ? 'pipeline' : 'base',
       intent: intent({
         type: 'base',
         code_postal: cp,
-        filtres: { type_contact: typeContactDit(plain), statut_mandat: statutMandatDit(plain) },
+        filtres: {
+          type_contact: etape ? null : typeContactDit(plain),
+          statut_mandat: etape ? null : statutMandatDit(plain),
+          etape_pipeline: etape,
+        },
       }),
     };
   }

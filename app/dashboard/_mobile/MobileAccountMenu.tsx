@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
 import { LogOut } from 'lucide-react';
 import { useUser } from '@/lib/hooks/useUser';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
@@ -37,13 +37,13 @@ export default function MobileAccountMenu({
         </div>
         <ul className="py-1">
           <li>
-            <Link
+            <NavPrefetchLink
               href="/dashboard/settings"
               onClick={onClose}
               className="app-press flex min-h-[44px] items-center px-4 text-[14px] font-medium text-text"
             >
               Paramètres
-            </Link>
+            </NavPrefetchLink>
           </li>
           <li>
             <a
@@ -58,13 +58,13 @@ export default function MobileAccountMenu({
           </li>
           {isDirector ? (
             <li>
-              <Link
+              <NavPrefetchLink
                 href="/dashboard/settings?tab=team"
                 onClick={onClose}
                 className="app-press flex min-h-[44px] items-center px-4 text-[14px] font-medium text-text"
               >
                 Équipe
-              </Link>
+              </NavPrefetchLink>
             </li>
           ) : null}
         </ul>

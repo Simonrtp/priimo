@@ -1,7 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
+import { useRouter } from 'next/navigation';
+import { useEmplacementAffiche } from '@/components/dashboard/navigation/NavigationInstantanee';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/hooks/useUser';
@@ -163,7 +164,7 @@ function HeaderProfile({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Link
+      <NavPrefetchLink
         href="/dashboard/settings?tab=profile"
         className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 text-[11px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-fluid-subtle ease-in-out hover:bg-white/22 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
         aria-label="Mon profil"
@@ -176,7 +177,7 @@ function HeaderProfile({
           size={32}
           className="bg-white/15 text-white"
         />
-      </Link>
+      </NavPrefetchLink>
       <ShellAgencySwitcher />
     </div>
   );
@@ -185,7 +186,7 @@ function HeaderProfile({
 const ONBOARDING_CHROME_HINT = 'Disponible après la prise en main';
 
 export default function TopBar() {
-  const pathname = usePathname();
+  const { pathname } = useEmplacementAffiche();
   const title = titleForPath(pathname);
   const { profile } = useUser();
   const navLocked = useOnboardingNavLock();
@@ -248,7 +249,7 @@ export default function TopBar() {
                 avatarUrl={profile.avatar_url}
               />
             </div>
-            <Link
+            <NavPrefetchLink
               href="/dashboard/settings?tab=profile"
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-100 font-semibold tabular text-primary-700 transition-colors duration-fluid-subtle ease-in-out hover:bg-primary-200 md:hidden"
               style={{ fontSize: 11 }}
@@ -267,7 +268,7 @@ export default function TopBar() {
                 size={36}
                 className="bg-primary-100 text-primary-700"
               />
-            </Link>
+            </NavPrefetchLink>
           </div>
         </div>
       </div>

@@ -28,10 +28,12 @@ import type {
   LeadRow,
   VoiceNoteRow,
 } from '@/types/database';
-import type { AssistantIntent, IntentType } from './intent';
-import { labelCherche } from './intent';
+import type { AssistantIntent, EtapePipeline, IntentType } from './intent';
+import { labelCherche, labelEtapePipeline } from './intent';
 import { adresseCorrespond, escapeIlike, searchPatterns } from './normalize';
 import { scoreNom, scoreProche } from './nom-match';
+import { fetchLeadStages } from '@/lib/queries/lead-stages';
+import { lienLectureNote } from '@/lib/notes/lecture';
 
 type Client = SupabaseClient<Database>;
 
@@ -108,6 +110,13 @@ export type CollecteLead = {
   deliveredAt: string | null;
   createdAt: string;
   assignedTo: string | null;
+  /** Colonne kanban (`lead_stages.id`). */
+  stageId: string | null;
+  /** Clé d'étape (`rendez_vous`, `mandat`…). */
+  etapeCle: EtapePipeline | string | null;
+  /** Libellé affiché (« Rendez-vous », « Mandat signé »…). */
+  etapeLibelle: string | null;
+  stageChangedAt: string | null;
 };
 
 export type CollecteContact = {
@@ -134,6 +143,11 @@ export type CollecteContact = {
   summary?: string | null;
   email?: string | null;
   lastInteractionAt?: string | null;
+  /**
+   * Date de relance prévue (lecture seule). Terrain pour de futurs rappels
+   * agenda — l'assistant ne crée pas encore d'événement calendrier.
+   */
+  recontacterLe?: string | null;
 };
 
 export type CollecteInteraction = {
@@ -263,8 +277,9 @@ function pickFaits(obj: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-function hrefLead(id: string): string {
-  return `/dashboard/prospection?lead=${encodeURIComponent(id)}`;
+function hrefLead(id: string, dansPipeline = false): string {
+  const base = `/dashboard/prospection?lead=${encodeURIComponent(id)}`;
+  return dansPipeline ? `${base}&vue=pipeline` : base;
 }
 function hrefContact(id: string): string {
   return `/dashboard/contacts?fiche=${encodeURIComponent(id)}`;
@@ -273,8 +288,7 @@ function hrefBien(id: string): string {
   return `/dashboard/biens?fiche=${encodeURIComponent(id)}`;
 }
 function hrefNote(note: CollecteNote): string | null {
-  if (note.contactId) return hrefContact(note.contactId);
-  return '/dashboard/prospection?vue=carte';
+  return lienLectureNote(note.id);
 }
 
 function visibleInteractions(
@@ -303,6 +317,7 @@ function pushLead(
   lead: CollecteLead,
   noms?: ReadonlyMap<string, string>,
 ): void {
+  const dansPipeline = Boolean(lead.etapeCle || lead.stageId);
   acc.lignes.push({
     kind: 'lead',
     id: lead.id,
@@ -313,17 +328,20 @@ function pushLead(
       score: lead.score,
       composantes_score: lead.signalLabels,
       statut_marche: lead.marcheStatut,
+      etape: lead.etapeLibelle,
+      etape_cle: lead.etapeCle,
+      date_etape: lead.stageChangedAt,
       date_detection: lead.deliveredAt ?? lead.createdAt,
     }),
   });
   acc.sources.push({
     kind: 'lead',
     id: lead.id,
-    typeLabel: SOURCE_TYPE.lead,
-    titre: lead.address,
+    typeLabel: dansPipeline ? 'Pipeline' : SOURCE_TYPE.lead,
+    titre: lead.etapeLibelle ? `${lead.address} · ${lead.etapeLibelle}` : lead.address,
     date: lead.deliveredAt ?? lead.createdAt,
     auteur: nomAuteur(lead.assignedTo, noms),
-    href: hrefLead(lead.id),
+    href: hrefLead(lead.id, dansPipeline),
   });
 }
 
@@ -356,6 +374,8 @@ function pushContact(
       date_creation: c.createdAt,
       source: c.source,
       adresse: c.address,
+      // Lecture seule — futur branchement agenda / rappels.
+      relance_le: c.recontacterLe,
       ...criteres,
       ...extraFaits,
     }),
@@ -772,7 +792,7 @@ function collectAcquereurs(
     criteria: c.criteria,
     summary: null,
     lastInteractionAt: null,
-    recontacterLe: null,
+    recontacterLe: c.recontacterLe ?? null,
     doublonDe: null,
     source:
       c.source === 'manuel' ||
@@ -873,10 +893,25 @@ function collectActivite(
     ),
   );
 
-  const notesLiees = visNotes(
-    ctx.viewer,
-    snap.notes.filter((n) => n.contactId !== null && contactIds.has(n.contactId)),
+  // Notes rattachées (contact encore visible, ou adresse) — pas les dictées
+  // orphelines sur des fiches déjà effacées, qui pollueraient « que faire ».
+  const notesUtiles = cap(
+    byDateDesc(
+      visNotes(
+        ctx.viewer,
+        snap.notes.filter((n) => {
+          if (!(pileDuJour || n.createdAt >= since)) return false;
+          if (n.contactId && contactIds.has(n.contactId)) return true;
+          return Boolean(n.adresseNormalisee?.trim() || n.banId);
+        }),
+      ),
+      (n) => n.createdAt,
+    ),
   );
+  const notesCompte = visNotes(
+    ctx.viewer,
+    snap.notes.filter((n) => n.createdAt >= since),
+  ).length;
 
   const agregats: CollecteAgregats = {
     periode_jours: jours,
@@ -884,17 +919,23 @@ function collectActivite(
       ? contacts.length
       : contacts.filter((c) => c.createdAt >= since).length,
     echanges: interactions.length,
-    notes_vocales: notesLiees.filter((n) => n.createdAt >= since).length,
+    notes_vocales: notesCompte,
     biens_crees: pileDuJour ? biens.length : biens.filter((b) => b.createdAt >= since).length,
     leads_detectes: pileDuJour ? leads.length : leads.filter((l) => l.createdAt >= since).length,
   };
 
   const acc = { lignes: [] as CollecteLigne[], sources: [] as AssistantSource[] };
-  const contactName = (id: string) => contacts.find((c) => c.id === id)?.fullName ?? null;
+  const contactName = (id: string) =>
+    contacts.find((c) => c.id === id)?.fullName ??
+    snap.contacts.find((c) => c.id === id)?.fullName ??
+    null;
   for (const c of contacts) pushContact(acc, c, ctx.auteurNoms);
   for (const i of interactions) pushInteraction(acc, i, contactName(i.contactId), ctx.auteurNoms);
   for (const b of biens) pushBien(acc, b, ctx.auteurNoms);
   for (const l of leads) pushLead(acc, l, ctx.auteurNoms);
+  for (const n of notesUtiles) {
+    pushNote(acc, n, ctx.auteurNoms, n.contactId ? contactName(n.contactId) : null);
+  }
 
   return {
     type: 'activite',
@@ -923,8 +964,28 @@ function collectBase(
 ): CollecteResult {
   const role = intent.filtres.type_contact;
   const statut = intent.filtres.statut_mandat;
+  const etape = intent.filtres.etape_pipeline;
   const visibles = visContacts(ctx.viewer, snap.contacts);
   const nomDe = new Map(visibles.map((c) => [c.id, c.fullName]));
+
+  // Question pipeline : on ne noie pas avec tous les contacts / biens.
+  if (etape) {
+    const leads = byDateDesc(
+      visLeads(ctx.viewer, snap.leads).filter((l) => l.etapeCle === etape),
+      (l) => l.stageChangedAt ?? l.deliveredAt ?? l.createdAt,
+    );
+    const acc = { lignes: [] as CollecteLigne[], sources: [] as AssistantSource[] };
+    for (const l of leads) pushLead(acc, l, ctx.auteurNoms);
+    return {
+      type: 'base',
+      cherche: labelCherche(intent),
+      banId: null,
+      rechercheParTexte: false,
+      lignes: acc.lignes,
+      sources: acc.sources,
+      agregats: null,
+    };
+  }
 
   const biens = byDateDesc(
     visBiens(ctx.viewer, snap.biens).filter((b) => !statut || b.mandatStatut === statut),
@@ -1006,9 +1067,28 @@ export function collectFromSnapshot(
   return collectActivite(intent, snap, ctx);
 }
 
-function mapLeadRow(row: LeadRow): CollecteLead {
+type StageInfo = { cle: string; libelle: string };
+
+function mapLeadRow(row: LeadRow, stagesById?: ReadonlyMap<string, StageInfo>): CollecteLead {
   const extra = row as LeadRow & { adresse_normalisee?: string | null };
   const { signals } = normalizeSignals(row.signals);
+  const stageId = row.stage_id ?? null;
+  const stage = stageId && stagesById ? stagesById.get(stageId) : undefined;
+  const etapeCle = stage?.cle ?? null;
+  const etapesConnues: readonly string[] = [
+    'pris',
+    'contacte',
+    'rendez_vous',
+    'estimation',
+    'mandat',
+    'perdu',
+    'vente',
+  ];
+  const etapeLibelle =
+    stage?.libelle ??
+    (etapeCle && etapesConnues.includes(etapeCle)
+      ? labelEtapePipeline(etapeCle as EtapePipeline)
+      : null);
   return {
     id: row.id,
     agencyId: row.agency_id,
@@ -1023,6 +1103,10 @@ function mapLeadRow(row: LeadRow): CollecteLead {
     deliveredAt: row.delivered_at ?? row.created_at.slice(0, 10),
     createdAt: row.created_at,
     assignedTo: row.assigned_to,
+    stageId,
+    etapeCle,
+    etapeLibelle,
+    stageChangedAt: row.stage_changed_at ?? null,
   };
 }
 
@@ -1049,6 +1133,7 @@ function mapContactRow(row: ContactRow): CollecteContact {
     summary: c.summary,
     email: c.email,
     lastInteractionAt: c.lastInteractionAt,
+    recontacterLe: c.recontacterLe,
   };
 }
 
@@ -1139,11 +1224,11 @@ async function loadSnapshot(
   const leadQ = supabase
     .from('leads')
     .select(
-      'id, agency_id, address, city, postal_code, score, signals, marche_statut, delivered_at, created_at, assigned_to, ban_id, adresse_normalisee, status, owner_type, property_type, surface_m2, display_signals',
+      'id, agency_id, address, city, postal_code, score, signals, marche_statut, delivered_at, created_at, assigned_to, ban_id, adresse_normalisee, status, owner_type, property_type, surface_m2, display_signals, stage_id, stage_changed_at, taken_at',
     )
     .eq('agency_id', agencyId)
     .order('created_at', { ascending: false })
-    .limit(COLLECTE_LIMITE);
+    .limit(opts.toutVisible ? COLLECTE_BASE_LIMITE : COLLECTE_LIMITE);
 
   const contactLimite = opts.toutVisible
     ? COLLECTE_BASE_LIMITE
@@ -1198,13 +1283,17 @@ async function loadSnapshot(
     leadQ.gte('created_at', opts.since);
   }
 
-  const [leadRows, contactRows, bienRows, noteRows, partagees] = await Promise.all([
+  const [leadRows, contactRows, bienRows, noteRows, partagees, stages] = await Promise.all([
     fetchLimited(leadQ),
     fetchLimited(contactQ),
     fetchLimited(bienQ),
     fetchLimited(noteQ),
     fetchContactsPartagesIds(supabase, agencyId),
+    fetchLeadStages(supabase),
   ]);
+  const stagesById = new Map(
+    stages.map((s) => [s.id, { cle: s.cle, libelle: s.libelle } satisfies StageInfo]),
+  );
   const avecPartage = (c: CollecteContact): CollecteContact => ({
     ...c,
     visibilite: partagees.has(c.id) ? 'agence' : 'privee',
@@ -1267,7 +1356,7 @@ async function loadSnapshot(
   }
 
   return {
-    leads: (leadRows as unknown as LeadRow[]).map(mapLeadRow),
+    leads: (leadRows as unknown as LeadRow[]).map((row) => mapLeadRow(row, stagesById)),
     contacts,
     interactions,
     biens,

@@ -65,14 +65,26 @@ votre nom et le fait entrer dans votre pipeline. Le compteur « leads non
 pris » de l'accueil mesure ce qui dort encore dans le lot.
 
 ## Le pipeline et ses colonnes
-Écran: /dashboard/prospection
-Mots-clés: pipeline, colonne, etape, stage, kanban, avancement, portillon
+Écran: /dashboard/prospection?vue=pipeline
+Mots-clés: pipeline, colonne, etape, stage, kanban, avancement, portillon, rendez vous, rdv, pris, contacte, mandat signe, perdu, vente
 
 Le pipeline suit un prospect de la première approche au mandat signé. Chaque
-colonne est une étape ; un prospect avance en le déplaçant. Le passage d'une
-colonne à l'autre est un engagement, pas un rangement : ne faites avancer une
-fiche que lorsque quelque chose s'est réellement produit avec le
-propriétaire.
+colonne est une étape ; un prospect avance en le déplaçant. Les colonnes
+courantes sont Pris, Contacté, Rendez-vous, Estimation, Mandat signé, Perdu
+et Vente — votre agence peut en ajouter. Le passage d'une colonne à l'autre
+est un engagement, pas un rangement : ne faites avancer une fiche que lorsque
+quelque chose s'est réellement produit avec le propriétaire. Pour voir qui
+est dans une colonne, posez la question à Mon assistant (« qui est en
+rendez-vous ? ») ou ouvrez l'onglet Pipeline de la prospection.
+
+## La carte, le pipeline et la liste
+Écran: /dashboard/prospection
+Mots-clés: carte, liste, onglet, vue carte, vue liste, vue pipeline, prospection onglets
+
+La prospection a trois vues. Carte : le terrain, les secteurs, les couches.
+Pipeline : le kanban des prospects déjà pris. Liste : les annonces de
+particuliers dans vos secteurs (et celles de l'agence). Le même bandeau
+Carte / Pipeline / Liste reste collé en haut à droite.
 
 ## Les types de contact
 Écran: /dashboard/contacts
@@ -145,15 +157,28 @@ C'est une base de discussion avec le propriétaire, pas un avis de valeur
 signé.
 
 ## Les notes de terrain
-Écran: /dashboard
-Mots-clés: note, dictee, vocal, dicter, terrain, micro
+Écran: /dashboard?notes=1
+Mots-clés: note, dictee, vocal, dicter, terrain, micro, non rattachee
 
 Les notes de terrain se dictent ou s'écrivent depuis l'Accueil (carte
 Notes terrain). On les relit dans la carte « Mes notes », posée
 par-dessus l'Accueil : les vôtres, et celles que l'équipe a publiées.
 Priimo les transcrit, les rattache à l'adresse ou au contact concerné et en
 extrait ce qui peut l'être. Une note privée est lue par son auteur et par
-le directeur ; une note d'agence est visible par l'équipe.
+le directeur ; une note d'agence est visible par l'équipe. Une note non
+rattachée reste utilisable : le rattachement peut venir après.
+
+## Mon assistant
+Écran: /dashboard
+Mots-clés: mon assistant, assistant, barre de recherche, ia, question, chat
+
+Mon assistant lit vos données d'agence : contacts, biens, notes, prospects
+et pipeline. Il respecte la visibilité : un collaborateur ne voit pas les
+fiches ni notes privées d'un collègue ; le directeur voit tout. Il s'appuie
+aussi sur cette documentation produit pour expliquer Priimo. Il ne crée pas
+encore de rappels dans Google Agenda — cette fonction arrivera plus tard.
+Posez une question dans la barre de recherche ou ouvrez le panneau Mon
+assistant.
 
 ## Les rôles et la visibilité
 Écran: /dashboard/settings
@@ -161,5 +186,6 @@ Mots-clés: role, directeur, agent, visibilite, qui voit quoi, equipe, droits
 
 Un agent voit les fiches de son agence, sauf celles assignées à un collègue
 et les notes privées des autres. Un directeur voit l'ensemble de l'activité
-de son agence. Personne ne voit rien d'une autre agence. Les conversations
-avec l'assistant sont privées, y compris pour le directeur.
+de son agence, y compris les contacts et notes privés. Personne ne voit
+rien d'une autre agence. Les conversations avec l'assistant sont privées,
+y compris pour le directeur.

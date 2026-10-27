@@ -14,7 +14,7 @@ import {
 import { CONTACT_TYPE_LABELS, type Contact } from '@/types/contact';
 import { CocheConsentementTel } from '@/components/dashboard/contacts/ConsentementRappelField';
 import type { ContactInputFields } from '@/lib/contact-input';
-import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
+import { formatPhoneDisplay, formatPhoneWithConsent, telHref } from '@/lib/import/normalize';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import { normalizePhotoUrls } from '@/lib/bien-input';
@@ -198,14 +198,21 @@ function ProprietairePreview({ contact }: { contact: Contact }) {
       {hasContact ? (
         <div className="mt-2 flex flex-col gap-1.5">
           {contact.phone?.trim() ? (
-            <a
-              href={telHref(contact.phone)}
-              className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium tabular-nums text-[#1A2A56] underline-offset-2 hover:underline"
-            >
-              <Phone size={13} strokeWidth={2.2} aria-hidden />
-              {formatPhoneDisplay(contact.phone)}
-              {contact.numeroCommuniqueParLaPersonne ? <CocheConsentementTel size={14} /> : null}
-            </a>
+            contact.numeroCommuniqueParLaPersonne ? (
+              <a
+                href={telHref(contact.phone)}
+                className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium tabular-nums text-[#1A2A56] underline-offset-2 hover:underline"
+              >
+                <Phone size={13} strokeWidth={2.2} aria-hidden />
+                {formatPhoneDisplay(contact.phone)}
+                <CocheConsentementTel size={14} />
+              </a>
+            ) : (
+              <span className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium tabular-nums text-text-muted">
+                <Phone size={13} strokeWidth={2.2} aria-hidden />
+                {formatPhoneWithConsent(contact.phone, false)}
+              </span>
+            )
           ) : null}
           {contact.email?.trim() ? (
             <a

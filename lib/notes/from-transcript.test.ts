@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  consentementRappelDansTranscript,
   extraireTelephones,
   guessAdresseFromTranscript,
   guessPersonneFromTranscript,
@@ -10,6 +11,7 @@ import {
   personneCitedInTranscript,
   recadrerPersonne,
 } from './from-transcript';
+import { formatPhoneWithConsent, maskPhoneMiddle } from '@/lib/import/normalize';
 import type { MatchableContact } from './match';
 
 const simon: MatchableContact = {
@@ -254,5 +256,31 @@ describe('extraireTelephones', () => {
       "J'ai rencontré Nicolas. Son numéro de téléphone, c'est 06 87 71. 28, 42.",
     );
     assert.deepEqual(tels, ['0687712842']);
+  });
+});
+
+describe('consentement et masquage du numéro', () => {
+  it('détecte le consentement au rappel dicté dans la note', () => {
+    assert.equal(
+      consentementRappelDansTranscript(
+        "Monsieur Dupont veut vendre, son numéro de téléphone c'est 06 12 34 56 78, et il a consenti à ce que son numéro serve à être rappelé.",
+      ),
+      true,
+    );
+    assert.equal(
+      consentementRappelDansTranscript("Il n'a pas consenti à être rappelé."),
+      false,
+    );
+    assert.equal(
+      consentementRappelDansTranscript("Son numéro de téléphone c'est 06 12 34 56 78."),
+      false,
+    );
+  });
+
+  it('masque le milieu du numéro tant que le consentement n’est pas coché', () => {
+    assert.equal(maskPhoneMiddle('06 12 34 56 78'), '06 •• •• •• 78');
+    assert.equal(maskPhoneMiddle('0712345678'), '07 •• •• •• 78');
+    assert.equal(formatPhoneWithConsent('06 12 34 56 78', false), '06 •• •• •• 78');
+    assert.equal(formatPhoneWithConsent('06 12 34 56 78', true), '06 12 34 56 78');
   });
 });

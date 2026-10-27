@@ -37,11 +37,12 @@ type BienRowWithOwner = BienRow & {
     last_name: string | null;
     phone: string | null;
     email: string | null;
+    numero_communique_par_la_personne?: boolean | null;
   } | null;
 };
 
 export const BIENS_OWNER_JOIN =
-  'proprietaire:contacts!biens_proprietaire_contact_id_fkey(first_name, last_name, phone, email)';
+  'proprietaire:contacts!biens_proprietaire_contact_id_fkey(first_name, last_name, phone, email, numero_communique_par_la_personne)';
 
 export function biensSelectWithOwner(select: string = BIENS_SELECT): string {
   return `${select}, ${BIENS_OWNER_JOIN}`;
@@ -68,6 +69,8 @@ export function mapDbBienToBien(row: BienRowWithOwner): Bien {
     proprietaireContactId: row.proprietaire_contact_id,
     proprietaireName: ownerName,
     proprietairePhone: formatPhoneOrNull(owner?.phone),
+    proprietaireNumeroCommuniqueParLaPersonne:
+      owner?.numero_communique_par_la_personne === true,
     proprietaireEmail: owner?.email?.trim() || null,
     leadId: row.lead_id,
     banId: row.ban_id ?? null,

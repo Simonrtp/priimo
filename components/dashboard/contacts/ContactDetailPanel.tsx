@@ -287,6 +287,7 @@ export default function ContactDetailPanel({
             autoComplete="off"
             value={draft.phone}
             consenti={draft.numeroCommuniqueParLaPersonne}
+            masqueSansConsentement={Boolean(contact.phone)}
             onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
             onBlur={() => void saveDraft()}
             placeholder="06 12 34 56 78"

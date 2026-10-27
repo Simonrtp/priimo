@@ -615,6 +615,7 @@ type ContactParcelleRow = {
   assigned_to: string | null;
   created_by: string | null;
   visibilite?: 'privee' | 'agence' | null;
+  numero_communique_par_la_personne?: boolean | null;
 };
 
 type BienParcelleRow = {
@@ -651,7 +652,9 @@ async function lireAgenceSurLaParcelle(
     avecVisibiliteContact((visibilite) =>
       sessionDb
         .from('contacts')
-        .select(`id, first_name, last_name, contact_type, phone, assigned_to, created_by, ban_id${visibilite}`)
+        .select(
+          `id, first_name, last_name, contact_type, phone, numero_communique_par_la_personne, assigned_to, created_by, ban_id${visibilite}`,
+        )
         .eq('agency_id', agencyId)
         .in('ban_id', [...bans]),
     ),
@@ -735,6 +738,7 @@ async function lireAgenceSurLaParcelle(
       nom: [row.first_name, row.last_name].map((s) => (s ?? '').trim()).filter(Boolean).join(' ') || 'Contact',
       type: row.contact_type ?? null,
       telephone: formatPhoneOrNull(row.phone),
+      numeroCommuniqueParLaPersonne: row.numero_communique_par_la_personne === true,
     });
   }
 

@@ -1,7 +1,11 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import {
+  useEmplacementAffiche,
+  useNavigationInstantanee,
+} from '@/components/dashboard/navigation/NavigationInstantanee';
+import { vueProspection } from '@/lib/navigation/cible';
 import type { ItineraireStop } from '@/lib/today/directions';
 import type { MapPoint, UnplacedRecord, WithoutPositionCount } from '@/lib/carte/points';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
@@ -54,21 +58,23 @@ export default function ProspectionCarteView({
   initialZoneId?: string | null;
   initialAtelier?: string | null;
 }) {
-  const router = useRouter();
   const device = useDevice();
+  const { naviguer } = useNavigationInstantanee();
+  // La pastille glisse dès le clic ; la carte reste jusqu'au squelette de la vue demandée.
+  const vueOnglet = vueProspection(useEmplacementAffiche()) ?? 'carte';
 
   const setVue = useCallback(
     (next: ProspectionVue) => {
       const params = new URLSearchParams(window.location.search);
-      router.replace(prospectionHref(params, next), { scroll: false });
+      naviguer(prospectionHref(params, next), { remplacer: true });
     },
-    [router],
+    [naviguer],
   );
 
-  const switcherCarte = <ProspectsViewSwitch variant="bar" value="carte" onChange={setVue} />;
+  const switcherCarte = <ProspectsViewSwitch variant="bar" value={vueOnglet} onChange={setVue} />;
   // Sur ordinateur, la loupe d'adresse vit dans l'onglet de la carte, juste avant « Carte ».
   const switcherBureau = (
-    <ProspectsViewSwitch variant="floating" value="carte" onChange={setVue} debut={<RechercheAdresseCarte />} />
+    <ProspectsViewSwitch variant="floating" value={vueOnglet} onChange={setVue} debut={<RechercheAdresseCarte />} />
   );
   const zonesVisibles = zones.filter(
     (z) => z.actif && (isDirector || z.assignedTo === profileId),

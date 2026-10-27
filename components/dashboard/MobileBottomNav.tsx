@@ -2,7 +2,7 @@
 
 import { useState, type ComponentType } from 'react';
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
-import { usePathname } from 'next/navigation';
+import { useEmplacementAffiche } from '@/components/dashboard/navigation/NavigationInstantanee';
 import { Ellipsis, LogOut } from 'lucide-react';
 import BoutonNoteMobile from '@/components/dashboard/voice/BoutonNoteMobile';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
@@ -76,7 +76,7 @@ function TabItem({
 }
 
 function DesktopCompactNav() {
-  const pathname = usePathname();
+  const { pathname } = useEmplacementAffiche();
 
   const activeToday = pathname === '/dashboard' || pathname === '/dashboard/';
   const activeProspects =
@@ -156,7 +156,7 @@ function FieldTab({
 }
 
 function FieldBottomNav() {
-  const pathname = usePathname();
+  const { pathname } = useEmplacementAffiche();
   const { pending } = useOfflineQueue();
   const [plusOpen, setPlusOpen] = useState(false);
 

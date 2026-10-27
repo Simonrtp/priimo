@@ -16,6 +16,7 @@ import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
 import VoiceCaptureProvider from '@/components/dashboard/voice/VoiceCaptureProvider';
 import AssistantProvider from '@/components/dashboard/assistant/AssistantProvider';
 import AssistantPanelProvider from '@/components/dashboard/assistant/AssistantPanelProvider';
+import { NavigationInstantaneeProvider } from '@/components/dashboard/navigation/NavigationInstantanee';
 import SurfaceAssistant from '@/components/dashboard/assistant/AssistantPanel';
 import WorkspacePanel from '@/components/dashboard/workspace/WorkspacePanel';
 import OfflineQueueProvider from '@/components/dashboard/field/OfflineQueueProvider';
@@ -59,43 +60,45 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <VoiceCaptureProvider>
                 <AssistantProvider>
                   <AssistantPanelProvider>
-                    <RepriseRecherche />
-                    <EntreeDashboard />
-                    {isMobile ? (
-                      <div
-                        data-entree-racine
-                        suppressHydrationWarning
-                        className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base"
-                      >
-                        <EntreeScript />
-                        <TouchScrollGuard />
-                        <SansZoomSaisie />
-                        <MobileChrome />
-                        <main
-                          data-entree-mobile
-                          className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"
-                          style={{ paddingBottom: 'var(--field-nav-height)' }}
+                    <NavigationInstantaneeProvider>
+                      <RepriseRecherche />
+                      <EntreeDashboard />
+                      {isMobile ? (
+                        <div
+                          data-entree-racine
+                          suppressHydrationWarning
+                          className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base"
                         >
-                          {children}
-                        </main>
-                        <MobileBottomNav />
-                        <MobileBackSwipe />
-                        <SurfaceAssistant />
-                      </div>
-                    ) : (
-                      <div data-entree-racine suppressHydrationWarning className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
-                        <EntreeScript />
-                        <Sidebar />
-                        <div data-entree-colonne className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
-                          <TopBar />
-                          <main id="dashboard-coque" data-entree-coque className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
-                            <WorkspacePanel>{children}</WorkspacePanel>
+                          <EntreeScript />
+                          <TouchScrollGuard />
+                          <SansZoomSaisie />
+                          <MobileChrome />
+                          <main
+                            data-entree-mobile
+                            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"
+                            style={{ paddingBottom: 'var(--field-nav-height)' }}
+                          >
+                            {children}
                           </main>
+                          <MobileBottomNav />
+                          <MobileBackSwipe />
+                          <SurfaceAssistant />
                         </div>
-                        <MobileBottomNav />
-                        <SurfaceAssistant />
-                      </div>
-                    )}
+                      ) : (
+                        <div data-entree-racine suppressHydrationWarning className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
+                          <EntreeScript />
+                          <Sidebar />
+                          <div data-entree-colonne className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
+                            <TopBar />
+                            <main id="dashboard-coque" data-entree-coque className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
+                              <WorkspacePanel>{children}</WorkspacePanel>
+                            </main>
+                          </div>
+                          <MobileBottomNav />
+                          <SurfaceAssistant />
+                        </div>
+                      )}
+                    </NavigationInstantaneeProvider>
                   </AssistantPanelProvider>
                 </AssistantProvider>
               </VoiceCaptureProvider>

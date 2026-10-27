@@ -90,6 +90,8 @@ export type ParcelleContactAgence = {
   nom: string;
   type: string | null;
   telephone: string | null;
+  /** Consentement rappel : sans lui, le numéro reste masqué sur la fiche parcelle. */
+  numeroCommuniqueParLaPersonne: boolean;
 };
 
 export type ParcelleBienAgence = {

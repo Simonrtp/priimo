@@ -19,9 +19,10 @@ import {
 import type { ContactType } from '@/types/contact';
 import { CONTACT_TYPE_LABELS } from '@/types/contact';
 import { validateContactFields, type ContactFieldErrors, type ContactInputFields } from '@/lib/contact-input';
-import { formatPhoneOrNull } from '@/lib/import/normalize';
+import { formatPhoneOrNull, formatPhoneWithConsent } from '@/lib/import/normalize';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ContactFormFields, { type ContactFormGeo } from '@/components/dashboard/contacts/ContactFormFields';
+import ConsentementRappelField, { CocheConsentementTel } from '@/components/dashboard/contacts/ConsentementRappelField';
 import SignalIA from '@/components/ui/SignalIA';
 import PanneauAlerte from '@/components/ui/PanneauAlerte';
 import styles from './live/dictee.module.css';
@@ -62,12 +63,14 @@ function Coordonnee({
   valeur,
   manque,
   nouveau,
+  consenti,
   onCompleter,
 }: {
   icone: LucideIcon;
   valeur: string | null;
   manque: string;
   nouveau?: boolean;
+  consenti?: boolean;
   onCompleter: () => void;
 }) {
   if (!valeur) {
@@ -86,7 +89,8 @@ function Coordonnee({
   return (
     <p className="flex min-h-7 min-w-0 items-center gap-2 text-[13.5px] text-text-strong">
       <Icone size={14} strokeWidth={2} aria-hidden className="shrink-0 text-text-subtle" />
-      <span className="min-w-0 [overflow-wrap:anywhere]">{valeur}</span>
+      <span className="min-w-0 tabular-nums [overflow-wrap:anywhere]">{valeur}</span>
+      {consenti ? <CocheConsentementTel size={14} /> : null}
       {nouveau ? <MarqueNouveau /> : null}
     </p>
   );
@@ -143,6 +147,8 @@ export function CarteContactNote({
   rolesNouveaux,
   phone,
   phoneNouveau,
+  consentiRappel = false,
+  onConsentementRappel,
   email,
   emailNouveau,
   liens,
@@ -163,6 +169,9 @@ export function CarteContactNote({
   rolesNouveaux: readonly ContactType[];
   phone: string | null;
   phoneNouveau?: boolean;
+  /** La personne a consenti à ce que son numéro serve à la rappeler. */
+  consentiRappel?: boolean;
+  onConsentementRappel?: (checked: boolean) => void;
   email: string | null;
   emailNouveau?: boolean;
   liens: readonly LienCarte[];
@@ -242,11 +251,25 @@ export function CarteContactNote({
           <div className="mt-2 flex flex-col">
             <Coordonnee
               icone={Phone}
-              valeur={formatPhoneOrNull(phone)}
+              valeur={
+                existante && !phoneNouveau
+                  ? formatPhoneWithConsent(phone, consentiRappel)
+                  : formatPhoneOrNull(phone)
+              }
               manque="Ajouter un téléphone"
               nouveau={phoneNouveau}
+              consenti={Boolean(phone && consentiRappel)}
               onCompleter={onModifier}
             />
+            {phone && onConsentementRappel ? (
+              <div className="my-1.5 rounded-xl bg-bg-subtle px-2.5 py-2">
+                <ConsentementRappelField
+                  id={`note-consentement-${nom.replace(/\s+/g, '-')}`}
+                  checked={consentiRappel}
+                  onChange={onConsentementRappel}
+                />
+              </div>
+            ) : null}
             <Coordonnee
               icone={Mail}
               valeur={email}

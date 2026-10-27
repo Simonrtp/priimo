@@ -5,6 +5,12 @@ import { useState } from 'react';
 import MobileAccountMenu from './MobileAccountMenu';
 import MobileSearchCapsule from './MobileSearchCapsule';
 import ProspectsViewSwitch from '@/components/dashboard/ProspectsViewSwitch';
+import {
+  useEmplacementAffiche,
+  useEmplacementDeLaPage,
+  useNavigationInstantanee,
+} from '@/components/dashboard/navigation/NavigationInstantanee';
+import { vueProspection as vueDemandee } from '@/lib/navigation/cible';
 import { prospectionHref, resoudreProspectionVue } from '@/lib/prospection/vue';
 
 /** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
@@ -28,21 +34,20 @@ function hideShellHeader(pathname: string, search: URLSearchParams): boolean {
  * Création (contact / bien / note) → onglet Plus en bas.
  */
 export default function MobileChrome() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  // Le bandeau suit l'écran affiché (squelette compris) ; l'onglet suit le clic.
+  const page = useEmplacementDeLaPage();
+  const demande = useEmplacementAffiche();
+  const { naviguer } = useNavigationInstantanee();
+  const pathname = page.pathname;
+  const searchParams = new URLSearchParams(page.search);
   const [accountOpen, setAccountOpen] = useState(false);
 
   if (hideShellHeader(pathname, searchParams)) return null;
 
   const surProspection = pathname.startsWith('/dashboard/prospection');
   const surAccueil = pathname === '/dashboard' || pathname === '/dashboard/';
-  const vueProspection = resoudreProspectionVue({
-    vue: searchParams.get('vue'),
-    lead: searchParams.get('lead'),
-    filtre: searchParams.get('filtre'),
-    fraicheur: searchParams.get('fraicheur'),
-  });
+  // Vers un autre écran, l'onglet reste où il est.
+  const vueProspection = vueDemandee(demande) ?? vueDemandee(page) ?? 'carte';
 
   return (
     <>
@@ -75,9 +80,7 @@ export default function MobileChrome() {
                 variant="bar"
                 value={vueProspection}
                 onChange={(next) => {
-                  router.replace(prospectionHref(new URLSearchParams(searchParams.toString()), next), {
-                    scroll: false,
-                  });
+                  naviguer(prospectionHref(new URLSearchParams(demande.search), next), { remplacer: true });
                 }}
               />
             </div>

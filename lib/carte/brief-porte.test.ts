@@ -57,7 +57,16 @@ function fiche(partiel: Partial<FicheBrief> = {}): FicheBrief {
       { date: '2026-01-10', prix: 520_000, surface: 70, prixM2: 7429, typeLocal: 'Appartement', nombrePieces: 3, banId: null },
     ],
     passages: [{ jour: '2026-09-02', kind: 'rencontre', auteur: 'Bruno' }],
-    contacts: [{ id: 'c1', href: '/c/1', nom: 'Marie Dupont', type: 'gardien', telephone: '0600000000' }],
+    contacts: [
+      {
+        id: 'c1',
+        href: '/c/1',
+        nom: 'Marie Dupont',
+        type: 'gardien',
+        telephone: '0600000000',
+        numeroCommuniqueParLaPersonne: true,
+      },
+    ],
     entreprises: [
       { nom: 'BOULANGERIE DES LILAS', telephone: '0100000000', activite: 'Boulangerie', categorie: 'commerce', leadId: 'l1' },
     ],
@@ -159,7 +168,19 @@ describe('brief de porte — visibilité', () => {
     const e0 = sourceEmpreinte('p', base.lignes, base.notes);
     const avecNote = collecterBrief(fiche(), [NOTE_AGENCE, { ...NOTE_AGENCE, id: 'n2', date: '2026-09-30' }], ALICE, MAINTENANT);
     const avecContact = collecterBrief(
-      fiche({ contacts: [...fiche().contacts, { id: 'c2', href: '/c/2', nom: 'Paul Martin', type: 'vendeur', telephone: null }] }),
+      fiche({
+        contacts: [
+          ...fiche().contacts,
+          {
+            id: 'c2',
+            href: '/c/2',
+            nom: 'Paul Martin',
+            type: 'vendeur',
+            telephone: null,
+            numeroCommuniqueParLaPersonne: false,
+          },
+        ],
+      }),
       [NOTE_AGENCE],
       ALICE,
       MAINTENANT,

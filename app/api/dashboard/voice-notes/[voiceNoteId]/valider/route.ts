@@ -120,7 +120,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
         await completerContact(
           supabase,
           { contactId: r.contact.id, agencyId: agency.id },
-          { roles, phone: str(c.phone, 40), email: str(c.email, 160), address: str(c.address, 240), banId: str(c.banId, 120) },
+          {
+            roles,
+            phone: str(c.phone, 40),
+            ...(typeof c.numeroCommuniqueParLaPersonne === 'boolean'
+              ? { numeroCommuniqueParLaPersonne: c.numeroCommuniqueParLaPersonne }
+              : {}),
+            email: str(c.email, 160),
+            address: str(c.address, 240),
+            banId: str(c.banId, 120),
+          },
         ).catch(() => echecs.push('fiche'));
       }
     } else {
@@ -366,6 +375,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
         completerContact(supabase, ficheIds, {
           roles,
           phone: str(ajouts.phone, 40),
+          ...(typeof ajouts.numeroCommuniqueParLaPersonne === 'boolean'
+            ? { numeroCommuniqueParLaPersonne: ajouts.numeroCommuniqueParLaPersonne }
+            : {}),
           email: str(ajouts.email, 160),
           address: str(ajouts.address, 240),
           banId: str(ajouts.banId, 120),

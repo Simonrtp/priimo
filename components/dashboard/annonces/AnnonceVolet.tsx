@@ -5,6 +5,7 @@ import { ArrowDown, Columns3, Mic, NotebookPen, Plus, X } from 'lucide-react';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import ChoixAdresses from './ChoixAdresses';
 import PhotosAnnonce from './PhotosAnnonce';
+import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import { rueSeule } from '@/lib/ban-recherche';
 import { noteDepuisAnnonce } from '@/lib/pipeline/entrer';
 import { envoyerAuPipeline } from '@/lib/pipeline/envoyer';
@@ -337,6 +338,14 @@ export default function AnnonceVolet({
               </a>
             ))}
           </div>
+        ) : null}
+
+        {parcelle ? (
+          <section className="mt-2 border-t border-black/[0.06] pt-4">
+            <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Notes</h3>
+            {/* Les notes dictées depuis cette fiche vont sur sa parcelle : elles apparaissent ici dès l'enregistrement. */}
+            <NotesTerrainList key={parcelle} entiteType="parcelle" entiteId={parcelle} peutSupprimer />
+          </section>
         ) : null}
 
         <section className="mt-2 border-t border-black/[0.06] pt-4">

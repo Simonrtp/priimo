@@ -32,7 +32,7 @@ import { notifyError, notifySuccess } from '@/lib/notify';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, formatDpeEtage, parseDpeLetter } from '@/lib/carte/dpe-public';
 import { CONTACTS_LEGAL_HINT, immeubleCategorieLabel } from '@/lib/lead-contacts';
-import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
+import { formatPhoneDisplay, formatPhoneWithConsent, telHref } from '@/lib/import/normalize';
 import { toDisplayCompanyName, toDisplayPersonName } from '@/lib/lead-person-display';
 import { CONTACT_TYPE_LABELS } from '@/types/contact';
 import { MANDAT_STATUT_LABELS } from '@/types/bien';
@@ -302,7 +302,27 @@ function LigneProspect({ p, avecAdresse }: { p: ParcelleProspect; avecAdresse: b
   );
 }
 
-function BoutonAppel({ telephone, nom }: { telephone: string; nom: string }) {
+function BoutonAppel({
+  telephone,
+  nom,
+  consenti = true,
+}: {
+  telephone: string;
+  nom: string;
+  /** Sans consentement CRM : numéro masqué, pas de lien d'appel. */
+  consenti?: boolean;
+}) {
+  if (!consenti) {
+    return (
+      <span
+        title="Cochez le consentement au rappel dans la fiche contact pour afficher le numéro complet"
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-bg-subtle px-3 text-[12.5px] font-semibold tabular-nums text-text-muted"
+      >
+        <Phone size={13} strokeWidth={2.2} aria-hidden />
+        {formatPhoneWithConsent(telephone, false)}
+      </span>
+    );
+  }
   return (
     <a
       href={telHref(telephone)}
@@ -512,7 +532,13 @@ function LigneContact({ c }: { c: ParcelleContactAgence }) {
           {libelle(CONTACT_TYPE_LABELS, c.type) ?? 'Contact'}
         </span>
       </Link>
-      {c.telephone ? <BoutonAppel telephone={c.telephone} nom={c.nom} /> : null}
+      {c.telephone ? (
+        <BoutonAppel
+          telephone={c.telephone}
+          nom={c.nom}
+          consenti={c.numeroCommuniqueParLaPersonne}
+        />
+      ) : null}
     </li>
   );
 }

@@ -17,9 +17,21 @@ export const INTENT_TYPES = [
 
 export type IntentType = (typeof INTENT_TYPES)[number];
 
+/** Clés d'étape kanban (`lead_stages.cle`), distinctes du statut mandat d'un bien. */
+export type EtapePipeline =
+  | 'pris'
+  | 'contacte'
+  | 'rendez_vous'
+  | 'estimation'
+  | 'mandat'
+  | 'perdu'
+  | 'vente';
+
 export type AssistantFiltres = {
   type_contact: ContactTypeDb | null;
   statut_mandat: MandatStatutDb | null;
+  /** Colonne du pipeline (prospects), jamais le statut mandat d'un bien. */
+  etape_pipeline: EtapePipeline | null;
 };
 
 export type AssistantIntent = {
@@ -49,13 +61,23 @@ const MANDAT_STATUTS: readonly MandatStatutDb[] = [
   'archive',
 ];
 
+const ETAPES_PIPELINE: readonly EtapePipeline[] = [
+  'pris',
+  'contacte',
+  'rendez_vous',
+  'estimation',
+  'mandat',
+  'perdu',
+  'vente',
+];
+
 export const EMPTY_INTENT: AssistantIntent = {
   type: 'inconnu',
   adresse: null,
   code_postal: null,
   nom: null,
   periode_jours: null,
-  filtres: { type_contact: null, statut_mandat: null },
+  filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
 };
 
 const MAX_STR = 200;
@@ -90,6 +112,12 @@ function asMandat(v: unknown): MandatStatutDb | null {
   const s = asString(v, 40)?.toLocaleLowerCase('fr') ?? null;
   if (!s) return null;
   return (MANDAT_STATUTS as readonly string[]).includes(s) ? (s as MandatStatutDb) : null;
+}
+
+function asEtapePipeline(v: unknown): EtapePipeline | null {
+  const s = asString(v, 40)?.toLocaleLowerCase('fr') ?? null;
+  if (!s) return null;
+  return (ETAPES_PIPELINE as readonly string[]).includes(s) ? (s as EtapePipeline) : null;
 }
 
 /** Retire d'éventuelles fences markdown. Rien d'autre : un JSON encore invalide → inconnu. */
@@ -133,8 +161,23 @@ export function parseIntent(raw: string | null | undefined): AssistantIntent {
     filtres: {
       type_contact: asContactType(filtresRaw.type_contact),
       statut_mandat: asMandat(filtresRaw.statut_mandat),
+      etape_pipeline: asEtapePipeline(filtresRaw.etape_pipeline),
     },
   };
+}
+
+const LIBELLE_ETAPE: Record<EtapePipeline, string> = {
+  pris: 'Pris',
+  contacte: 'Contacté',
+  rendez_vous: 'Rendez-vous',
+  estimation: 'Estimation',
+  mandat: 'Mandat signé',
+  perdu: 'Perdu',
+  vente: 'Vente',
+};
+
+export function labelEtapePipeline(cle: EtapePipeline): string {
+  return LIBELLE_ETAPE[cle];
 }
 
 export function labelCherche(intent: AssistantIntent): string {
@@ -148,7 +191,11 @@ export function labelCherche(intent: AssistantIntent): string {
     return n === 1 ? "l'activité du jour" : `l'activité des ${n} derniers jours`;
   }
   if (intent.type === 'produit') return 'le fonctionnement de Priimo';
-  if (intent.type === 'base') return 'votre base';
+  if (intent.type === 'base') {
+    const etape = intent.filtres.etape_pipeline;
+    if (etape) return `le pipeline — ${labelEtapePipeline(etape)}`;
+    return 'votre base';
+  }
   return 'cette recherche';
 }
 
@@ -162,7 +209,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -173,7 +220,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: '59000',
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -184,7 +231,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: 'Martin',
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -195,7 +242,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: 'Sophie Dubois',
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -206,7 +253,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: '75020',
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: 'acquereur', statut_mandat: null },
+      filtres: { type_contact: 'acquereur', statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -217,7 +264,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: 'acquereur', statut_mandat: null },
+      filtres: { type_contact: 'acquereur', statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -228,7 +275,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: 7,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -239,7 +286,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: 30,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -250,7 +297,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -261,7 +308,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -272,7 +319,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: 'acquereur', statut_mandat: null },
+      filtres: { type_contact: 'acquereur', statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -283,7 +330,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: 'acquereur', statut_mandat: null },
+      filtres: { type_contact: 'acquereur', statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -294,7 +341,18 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: 'mandat_exclusif' },
+      filtres: { type_contact: null, statut_mandat: 'mandat_exclusif', etape_pipeline: null },
+    },
+  },
+  {
+    question: 'Y a-t-il un bien en rendez-vous dans le pipeline ?',
+    intent: {
+      type: 'base',
+      adresse: null,
+      code_postal: null,
+      nom: null,
+      periode_jours: null,
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: 'rendez_vous' },
     },
   },
   {
@@ -305,7 +363,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -316,7 +374,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
   {
@@ -327,7 +385,7 @@ export const INTERPRET_EXAMPLES: ReadonlyArray<{ question: string; intent: Assis
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
     },
   },
 ];

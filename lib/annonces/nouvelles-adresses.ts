@@ -35,7 +35,6 @@ function signaux(a: Annonce): string[] {
   if (a.prix != null && a.prixInitial != null && a.prix < a.prixInitial) s.push('Prix en baisse');
   if (a.pieces != null) s.push(`${a.pieces} pièce${a.pieces > 1 ? 's' : ''}`);
   if (a.dpe) s.push(`DPE ${a.dpe}`);
-  if (a.refusDemarchage) s.push('Refuse les appels');
   return s;
 }
 

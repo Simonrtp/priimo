@@ -168,6 +168,14 @@ describe('routeQuestion — toute la base', () => {
     assert.equal(routeQuestion('Combien de vendeurs dans le 75011 ?')?.intent.code_postal, '75011');
   });
 
+  it('reconnaît une colonne du pipeline', () => {
+    const r = routeQuestion('Y a-t-il un bien en rendez-vous dans le pipeline ?');
+    assert.equal(r?.intent.type, 'base');
+    assert.equal(r?.forme, 'pipeline');
+    assert.equal(r?.intent.filtres.etape_pipeline, 'rendez_vous');
+    assert.equal(r?.intent.filtres.statut_mandat, null);
+  });
+
   it('laisse les fiches précises et les périodes à leur route', () => {
     assert.equal(routeQuestion('Combien de leads ce mois ?')?.intent.type, 'activite');
     assert.equal(routeQuestion('Le téléphone de Sophie Dubois')?.intent.type, 'personne');

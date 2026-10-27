@@ -317,6 +317,7 @@ export default function ContactFormDialog({
           visibilite={visibilite}
           onVisibilite={setVisibilite}
           visibiliteFigee={ficheDUnCollegue}
+          masqueSansConsentement={Boolean(contact?.phone)}
           geo={geo}
           onGeo={setGeo}
           members={ficheDUnCollegue ? [] : members}

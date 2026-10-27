@@ -35,7 +35,7 @@ function intentImmeuble(adresse = '27 rue Alphonse Penaud'): AssistantIntent {
     code_postal: null,
     nom: null,
     periode_jours: null,
-    filtres: { type_contact: null, statut_mandat: null },
+    filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
   };
 }
 
@@ -54,6 +54,10 @@ function lead(over: Partial<CollecteLead> = {}): CollecteLead {
     deliveredAt: '2026-03-12',
     createdAt: '2026-03-12T10:00:00.000Z',
     assignedTo: 'dir-1',
+    stageId: null,
+    etapeCle: null,
+    etapeLibelle: null,
+    stageChangedAt: null,
     ...over,
   };
 }
@@ -182,7 +186,7 @@ describe('collecte — activité', () => {
         code_postal: null,
         nom: null,
         periode_jours: 1,
-        filtres: { type_contact: null, statut_mandat: null },
+        filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null },
       },
       {
         ...emptySnap,
@@ -208,16 +212,66 @@ describe('collecte — activité', () => {
               'Rappeler Malissa Terrier demain pour 2,5 millions. Adrien Planchenot-Lagarde cherche dans le 20e.',
             contactId: null,
           },
+          {
+            id: 'note-rattachee',
+            agencyId: AGENCY_A,
+            banId: null,
+            adresseNormalisee: null,
+            createdAt: '2026-08-21T09:30:00.000Z',
+            createdBy: 'dir-1',
+            assignedTo: 'dir-1',
+            transcript: 'Vu le fils Durand ce matin.',
+            contactId: 'ct-restant',
+          },
         ],
       },
       { agencyId: AGENCY_A, viewer: director, now },
     );
 
     const blob = JSON.stringify(result.lignes);
-    assert.equal(result.lignes.some((l) => l.kind === 'note'), false);
+    assert.equal(result.lignes.some((l) => l.id === 'note-orpheline'), false);
+    assert.equal(result.lignes.some((l) => l.id === 'note-rattachee'), true);
     assert.doesNotMatch(blob, /Malissa Terrier/);
     assert.doesNotMatch(blob, /Adrien Planchenot-Lagarde/);
     assert.equal(result.lignes.filter((l) => l.kind === 'contact').map((l) => l.id).join(), 'ct-restant');
+  });
+});
+
+describe('collecte — pipeline', () => {
+  it('liste les prospects d’une colonne (rendez-vous)', () => {
+    const enRdv = lead({
+      id: 'lead-rdv',
+      address: '25 Rue du Surmelin',
+      stageId: 'stage-rdv',
+      etapeCle: 'rendez_vous',
+      etapeLibelle: 'Rendez-vous',
+      stageChangedAt: '2026-10-20T10:00:00.000Z',
+    });
+    const enPris = lead({
+      id: 'lead-pris',
+      address: '1 Rue ailleurs',
+      stageId: 'stage-pris',
+      etapeCle: 'pris',
+      etapeLibelle: 'Pris',
+    });
+    const result = collectFromSnapshot(
+      {
+        type: 'base',
+        adresse: null,
+        code_postal: null,
+        nom: null,
+        periode_jours: null,
+        filtres: { type_contact: null, statut_mandat: null, etape_pipeline: 'rendez_vous' },
+      },
+      { ...emptySnap, leads: [enRdv, enPris] },
+      { agencyId: AGENCY_A, viewer: director },
+    );
+    assert.deepEqual(
+      result.lignes.map((l) => l.id),
+      ['lead-rdv'],
+    );
+    assert.match(JSON.stringify(result.lignes[0]?.faits), /Rendez-vous/);
+    assert.equal(result.sources[0]?.href?.includes('vue=pipeline'), true);
   });
 });
 
@@ -256,7 +310,7 @@ describe('collecte — toute la base', () => {
       code_postal: null,
       nom: null,
       periode_jours: null,
-      filtres: { type_contact: null, statut_mandat: null, ...filtres },
+      filtres: { type_contact: null, statut_mandat: null, etape_pipeline: null, ...filtres },
     };
   }
 

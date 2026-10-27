@@ -69,6 +69,7 @@ export async function colonnesDepuisChamps(
 export type AjoutsNote = {
   roles: ContactType[];
   phone: string | null;
+  numeroCommuniqueParLaPersonne?: boolean;
   email: string | null;
   address: string | null;
   banId: string | null;
@@ -95,6 +96,12 @@ export async function completerContact(
     update.autres_types = apres.autresTypes;
   }
   if (!existing.phone && ajouts.phone && normalizePhone(ajouts.phone)) update.phone = ajouts.phone;
+  if (
+    typeof ajouts.numeroCommuniqueParLaPersonne === 'boolean' &&
+    ajouts.numeroCommuniqueParLaPersonne !== (existing.numeroCommuniqueParLaPersonne === true)
+  ) {
+    update.numero_communique_par_la_personne = ajouts.numeroCommuniqueParLaPersonne;
+  }
   if (!existing.email && ajouts.email && normalizeEmail(ajouts.email)) update.email = ajouts.email.trim();
   if (!existing.address && ajouts.address) {
     update.address = ajouts.address;

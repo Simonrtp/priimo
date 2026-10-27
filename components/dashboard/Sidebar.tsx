@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import NavPrefetchLink from '@/components/dashboard/NavPrefetchLink';
-import { usePathname } from 'next/navigation';
+import { useEmplacementAffiche } from '@/components/dashboard/navigation/NavigationInstantanee';
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { useOnboardingNavLock } from '@/lib/hooks/useOnboardingNavLock';
 import { LogOut } from 'lucide-react';
@@ -108,7 +107,8 @@ function readCollapsed(): boolean {
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  // L'onglet suit le clic, sans attendre que la page arrive.
+  const { pathname } = useEmplacementAffiche();
   const { profile } = useUser();
   // Même premier rendu côté serveur et navigateur : localStorage n'est lu
   // qu'après l'hydratation, sinon les classes ouvert/fermé se mélangent.
@@ -141,16 +141,16 @@ export default function Sidebar() {
       <div
         className={`flex items-center pb-2 pt-5 ${collapsed ? 'justify-center px-2' : 'justify-between px-2 md:px-4'}`}
       >
-        <Link href="/dashboard" className={collapsed ? 'block' : 'hidden md:block'} aria-label="Priimo">
+        <NavPrefetchLink href="/dashboard" className={collapsed ? 'block' : 'hidden md:block'} aria-label="Priimo">
           {collapsed ? (
             <PriimoLogo variant="mark" className="size-9" />
           ) : (
             <PriimoLogo className="h-12" />
           )}
-        </Link>
-        <Link href="/dashboard" className="mx-auto block size-9 md:hidden" aria-label="Priimo">
+        </NavPrefetchLink>
+        <NavPrefetchLink href="/dashboard" className="mx-auto block size-9 md:hidden" aria-label="Priimo">
           <PriimoLogo variant="mark" className="size-9" />
-        </Link>
+        </NavPrefetchLink>
       </div>
 
       <nav
@@ -286,7 +286,7 @@ export default function Sidebar() {
       </form>
 
       <div className="mb-4 flex flex-col items-center gap-1.5 px-1.5 md:hidden">
-        <Link
+        <NavPrefetchLink
           href="/dashboard/settings"
           className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[11px] font-semibold text-white transition-colors duration-fluid-subtle ease-in-out hover:bg-white/20"
           title="Mon compte et les paramètres"
@@ -299,7 +299,7 @@ export default function Sidebar() {
             size={36}
             className="bg-white/10 text-white"
           />
-        </Link>
+        </NavPrefetchLink>
       </div>
     </aside>
   );

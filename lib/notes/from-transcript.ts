@@ -291,6 +291,27 @@ function phoneInTranscript(transcript: string, phone: string | null): boolean {
 /** Numéros FR même dictés avec des points ou des virgules (« 06 87 71. 28, 42 »). */
 const TEL_FR = /(?:\+33|0033|0)\s*[1-9](?:[\s.\-/,]*\d){8}/g;
 
+/**
+ * Reconnaît dans la dictée que la personne a consenti à être rappelée sur son
+ * numéro (« il a consenti à ce que son numéro serve à être rappelé »,
+ * « d'accord pour être rappelé », « autorise à la rappeler »).
+ */
+export function consentementRappelDansTranscript(transcript: string): boolean {
+  const t = normalizeName(transcript);
+  if (!t) return false;
+  if (/\b(pas|plus|jamais|aucun|refuse\w*|interdit\w*)\s+(?:\w+\s+){0,3}(?:consenti\w*|accord\w*|autoris\w*|rappel\w*)/.test(t)) {
+    return false;
+  }
+  if (/\bconsenti\w*\b/.test(t)) return true;
+  if (/\b(?:accord|ok|accepte\w*|autoris\w*|souhaite\w*|veut)\b(?:\s+\w+){0,6}\s+\b(?:rappel\w*|recontact\w*|appel\w*|joind\w*|numero)\b/.test(t)) {
+    return true;
+  }
+  if (/\b(?:numero|telephone)\b(?:\s+\w+){0,6}\s+\b(?:sert|serve|servir)\b(?:\s+\w+){0,4}\s+\b(?:rappel\w*|recontact\w*)\b/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
 export function extraireTelephones(transcript: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();

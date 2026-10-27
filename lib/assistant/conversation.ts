@@ -72,12 +72,20 @@ export function titreDepuisQuestion(question: string): string {
   return `${(espace > 30 ? coupe.slice(0, espace) : coupe).trimEnd()}…`;
 }
 
+export type MetaAgent = {
+  /** Prénom de l'agent connecté — jamais dans le system prompt (cache). */
+  prenom: string | null;
+  /** Première réponse du fil : accroche éventuelle autorisée. */
+  premiereReponse: boolean;
+};
+
 /** Messages envoyés au modèle : système, résumé éventuel, puis la fenêtre. */
 export function messagesPourModele(
   systemPrompt: string,
   contexte: MemoireContexte,
   questionCourante: string,
   donnees: string,
+  meta?: MetaAgent,
 ): Array<{ role: 'system' | 'user' | 'assistant'; content: string }> {
   const out: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
     { role: 'system', content: systemPrompt },
@@ -91,9 +99,16 @@ export function messagesPourModele(
   for (const m of contexte.recents) {
     out.push({ role: m.role, content: m.contenu });
   }
+  const prenom = meta?.prenom?.trim() || null;
+  const metaLignes = [
+    prenom ? `Prénom de l'agent : ${prenom}` : null,
+    meta?.premiereReponse ? 'Première réponse de la conversation : oui' : 'Première réponse de la conversation : non',
+  ]
+    .filter(Boolean)
+    .join('\n');
   out.push({
     role: 'user',
-    content: `Question : ${questionCourante}\n\nDonnées :\n${donnees}`,
+    content: `${metaLignes}\n\nQuestion : ${questionCourante}\n\nDonnées :\n${donnees}`,
   });
   return out;
 }

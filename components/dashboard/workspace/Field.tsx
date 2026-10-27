@@ -1,8 +1,9 @@
 'use client';
 
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
+import { useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
 import PhoneInputBase from '@/components/ui/PhoneInput';
 import { CocheConsentementTel } from '@/components/dashboard/contacts/ConsentementRappelField';
+import { maskPhoneMiddle } from '@/lib/import/normalize';
 
 /** Aucun champ sans étiquette : la règle vaut pour tout l'espace de travail. */
 export function Field({
@@ -70,21 +71,59 @@ export function TextInput({
   );
 }
 
-/** Téléphone FR : espaces par paires, à la saisie comme à l’affichage. */
+/** Téléphone FR : espaces par paires, ou milieu masqué si en base sans consentement coché. */
 export function PhoneInput({
   className = '',
   invalid = false,
   consenti = false,
+  masqueSansConsentement = false,
+  onFocus,
+  onBlur,
+  value,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; consenti?: boolean }) {
+}: InputHTMLAttributes<HTMLInputElement> & {
+  invalid?: boolean;
+  consenti?: boolean;
+  /** Masque le milieu du numéro tant que le consentement n'est pas coché (sauf pendant la saisie). */
+  masqueSansConsentement?: boolean;
+}) {
+  const [enSaisie, setEnSaisie] = useState(false);
+  const raw = String(value ?? '').trim();
+  const masque = masqueSansConsentement && !consenti && !enSaisie && Boolean(raw);
+
   return (
     <span className="relative block">
-      <PhoneInputBase
-        className={`${inputClass} ${invalid ? INPUT_ERROR_CLASS : ''} ${consenti ? 'pr-10' : ''} ${className}`}
-        style={{ fontSize: 14 }}
-        aria-invalid={invalid || undefined}
-        {...rest}
-      />
+      {masque ? (
+        <input
+          {...rest}
+          type="text"
+          readOnly
+          value={maskPhoneMiddle(raw)}
+          onFocus={(e) => {
+            setEnSaisie(true);
+            onFocus?.(e);
+          }}
+          className={`${inputClass} ${invalid ? INPUT_ERROR_CLASS : ''} cursor-text tabular-nums text-text-muted ${className}`}
+          style={{ fontSize: 14 }}
+          title="Cochez le consentement ci-dessous pour afficher le numéro complet, ou cliquez pour le modifier"
+        />
+      ) : (
+        <PhoneInputBase
+          {...rest}
+          value={value}
+          onFocus={(e) => {
+            setEnSaisie(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setEnSaisie(false);
+            onBlur?.(e);
+          }}
+          className={`${inputClass} ${invalid ? INPUT_ERROR_CLASS : ''} ${consenti ? 'pr-10' : ''} ${className}`}
+          style={{ fontSize: 14 }}
+          aria-invalid={invalid || undefined}
+        />
+      )}
       {consenti ? (
         <CocheConsentementTel className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
       ) : null}

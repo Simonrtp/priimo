@@ -30,6 +30,11 @@ import { celebratePipelineVictory, pipelineVictoryKind } from '@/lib/pipeline/vi
 import { leadsDuPipeline } from '@/lib/pipeline/perimetre';
 import { useUser } from '@/lib/hooks/useUser';
 import { useDevice } from '@/components/dashboard/device/DeviceProvider';
+import {
+  useEmplacementAffiche,
+  useNavigationInstantanee,
+} from '@/components/dashboard/navigation/NavigationInstantanee';
+import { vueProspection } from '@/lib/navigation/cible';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { pickTourLeadId } from '@/lib/tour-lead';
 import { leadListAddressLine } from '@/lib/lead-display';
@@ -96,7 +101,13 @@ export default function ProspectsClient({
   const router = useRouter();
   const [vueState, setVueState] = useState<ProspectionVue>(initialVue);
   const [stageList, setStageList] = useState<LeadStage[]>(stages);
-  const vue = vueState;
+  const { naviguer } = useNavigationInstantanee();
+  // Liste ↔ Pipeline se joue ici, sans attendre le serveur, même demandé
+  // depuis le bandeau mobile ; vers la Carte, la pastille part seule et la
+  // liste reste jusqu'au squelette de la carte.
+  const demandee = vueProspection(useEmplacementAffiche());
+  const vue = demandee && demandee !== 'carte' ? demandee : vueState;
+  const vueOnglet = demandee ?? vue;
 
   useEffect(() => {
     setVueState(initialVue);
@@ -213,11 +224,11 @@ export default function ProspectsClient({
 
   const setVue = useCallback(
     (next: ProspectionVue) => {
-      setVueState(next);
+      if (next !== 'carte') setVueState(next);
       const params = new URLSearchParams(window.location.search);
-      router.replace(prospectionHref(params, next), { scroll: false });
+      naviguer(prospectionHref(params, next), { remplacer: true });
     },
-    [router],
+    [naviguer],
   );
 
   const updateLeadHandler = useCallback(
@@ -442,7 +453,7 @@ export default function ProspectsClient({
   }, [dismissPipelineBanner]);
 
   const switcher = (
-    <ProspectsViewSwitch variant="floating" value={vue} onChange={setVue} />
+    <ProspectsViewSwitch variant="floating" value={vueOnglet} onChange={setVue} />
   );
 
   const pipeline = vue === 'pipeline';

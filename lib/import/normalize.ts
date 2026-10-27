@@ -42,6 +42,31 @@ export function formatPhoneOrNull(raw: string | null | undefined): string | null
   return formatPhoneDisplay(raw) || null;
 }
 
+/**
+ * Un numéro enregistré sans consentement explicite de rappel garde le début
+ * et la fin (« 06 •• •• •• 78 »), et cache le milieu tant que la case n'est
+ * pas cochée.
+ */
+export function maskPhoneMiddle(raw: string): string {
+  const digits = normalizePhone(raw).slice(0, 10);
+  if (digits.length >= 10) {
+    return `${digits.slice(0, 2)} •• •• •• ${digits.slice(-2)}`;
+  }
+  if (digits.length >= 4) {
+    return `${digits.slice(0, 2)} •• ${digits.slice(-2)}`;
+  }
+  return formatPhoneDisplay(raw);
+}
+
+export function formatPhoneWithConsent(
+  raw: string | null | undefined,
+  consenti?: boolean | null,
+): string | null {
+  const formatted = formatPhoneOrNull(raw);
+  if (!formatted) return null;
+  return consenti ? formatted : maskPhoneMiddle(raw ?? '');
+}
+
 /** Partie nationale après +33 : 612345678 → 6 12 34 56 78. */
 export function formatPhoneAfterCountryCode(raw: string): string {
   let digits = raw.replace(/\D/g, '');

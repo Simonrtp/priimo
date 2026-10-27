@@ -28,8 +28,8 @@ const TRIS: { value: Tri; label: string }[] = [
 ];
 
 const PORTEES_SECTEUR: { value: PorteeSecteurListe; label: string }[] = [
-  { value: 'mien', label: 'Les annonces sur mon secteur' },
-  { value: 'agence', label: 'Les annonces sur les secteurs de toute l’agence' },
+  { value: 'mien', label: 'Les annonces de particuliers sur mon secteur' },
+  { value: 'agence', label: 'Les annonces de particuliers sur les secteurs de toute l’agence' },
 ];
 
 const ORANGE_DOUX = '#FFE0C4';
@@ -220,7 +220,7 @@ export default function AnnoncesListe({
         ) : null}
         {portee === 'mien' && affiches.mien ? (
           <ListeGroupe
-            titre="Les annonces sur mon secteur"
+            titre="Les annonces de particuliers sur mon secteur"
             couleur={affiches.mien.couleur}
             mien
             groupes={affiches.mien.groupes}
@@ -235,7 +235,7 @@ export default function AnnoncesListe({
         ) : null}
         {portee === 'agence' && affiches.agence ? (
           <ListeGroupe
-            titre="Les annonces sur les secteurs de toute l’agence"
+            titre="Les annonces de particuliers sur les secteurs de toute l’agence"
             couleur={affiches.agence.couleur}
             mien={false}
             groupes={affiches.agence.groupes}
@@ -377,7 +377,6 @@ function Ligne({
   const nouvelle = jours != null && jours <= 2;
   const signaux = [
     baisse != null ? `Prix −${String(baisse).replace('.', ',')} %` : null,
-    groupe.annonces.some((x) => x.refusDemarchage) ? 'Refuse les appels' : null,
   ].filter((s): s is string => s != null);
 
   return (

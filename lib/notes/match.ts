@@ -12,6 +12,7 @@ export type MatchableContact = {
   lastName: string;
   fullName: string;
   phone: string | null;
+  numeroCommuniqueParLaPersonne?: boolean;
   email: string | null;
   address: string | null;
   banId: string | null;
@@ -33,6 +34,7 @@ export type ContactMatch = {
   confiance: NoteLienConfiance;
   raison: 'telephone' | 'email' | 'nom';
   phone: string | null;
+  numeroCommuniqueParLaPersonne?: boolean;
   email: string | null;
   address: string | null;
   /** Rôles de la fiche existante. Absent si la fiche n'en dit rien. */
@@ -40,9 +42,12 @@ export type ContactMatch = {
 };
 
 /** Ce que la revue affiche d'une fiche reconnue. */
-export function ficheDuContact(contact: MatchableContact): Pick<ContactMatch, 'phone' | 'email' | 'address' | 'roles'> {
+export function ficheDuContact(
+  contact: MatchableContact,
+): Pick<ContactMatch, 'phone' | 'numeroCommuniqueParLaPersonne' | 'email' | 'address' | 'roles'> {
   return {
     phone: contact.phone,
+    numeroCommuniqueParLaPersonne: contact.numeroCommuniqueParLaPersonne === true,
     email: contact.email,
     address: contact.address,
     ...(contact.type ? { roles: rolesDuContact({ type: contact.type, autresTypes: contact.autresTypes }) } : {}),

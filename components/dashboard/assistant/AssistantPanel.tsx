@@ -58,6 +58,21 @@ function famillesAmorces(codePostal: string | null): FamilleAmorces[] {
       ],
     },
     {
+      titre: 'Le pipeline',
+      amorces: [
+        {
+          label: 'Qui est en rendez-vous',
+          question: 'Y a-t-il un bien en rendez-vous dans le pipeline ?',
+          envoi: true,
+        },
+        {
+          label: 'Mandats en cours',
+          question: 'Quels biens on a en mandat exclusif ?',
+          envoi: true,
+        },
+      ],
+    },
+    {
       titre: 'Votre activité',
       amorces: [
         { label: 'Combien de leads ce mois', question: 'Combien de leads ce mois ?', envoi: true },

@@ -161,8 +161,18 @@ export async function POST(req: Request) {
   // « Qui cherche en ce moment ? » : sans secteur ni adresse, il n'y a rien à
   // rapprocher — ce sont tous les acquéreurs de la base qu'on lit.
   if (intent.type === 'recherche_acquereur' && !intent.adresse && !intent.code_postal) {
-    intent = { ...intent, type: 'base', filtres: { ...intent.filtres, type_contact: 'acquereur' } };
+    intent = {
+      ...intent,
+      type: 'base',
+      filtres: { ...intent.filtres, type_contact: 'acquereur', etape_pipeline: intent.filtres.etape_pipeline ?? null },
+    };
   }
+
+  const prenomAgent =
+    typeof profile.first_name === 'string' && profile.first_name.trim()
+      ? profile.first_name.trim()
+      : null;
+  const premiereReponse = !existant || (existant.messages?.length ?? 0) === 0;
 
   // Le cache suit les droits : une fiche privée vue par la direction ne doit
   // pas ressortir pour un collègue qui pose la même question.
@@ -293,7 +303,10 @@ export async function POST(req: Request) {
             tier: tierSynthese,
             apiKey,
             maxTokens,
-            messages: messagesPourModele(systemPrompt, contexte, question, donnees).map((m) =>
+            messages: messagesPourModele(systemPrompt, contexte, question, donnees, {
+              prenom: prenomAgent,
+              premiereReponse,
+            }).map((m) =>
               m.role === 'system' && m.content === systemPrompt ? stableSystemMessage(m.content) : m,
             ),
             onDelta: (fragment) => push('delta', { t: fragment }),

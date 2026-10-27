@@ -12,7 +12,7 @@ import BienMediaThumb from '@/components/dashboard/biens/BienMediaThumb';
 import { FacadeStreetView } from '@/components/dashboard/FacadeLead';
 import ActionMenu from '@/components/dashboard/workspace/ActionMenu';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
-import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
+import { formatPhoneDisplay, formatPhoneWithConsent, telHref } from '@/lib/import/normalize';
 
 function euros(v: number | null): string | null {
   return v === null ? null : `${new Intl.NumberFormat('fr-FR').format(v)} €`;
@@ -192,14 +192,24 @@ export default function BienListCard({
                     : 'Aucun propriétaire rattaché'}
                 </span>
                 {bien.proprietairePhone ? (
-                  <a
-                    href={telHref(bien.proprietairePhone)}
-                    className="inline-flex min-h-8 items-center gap-1 font-medium text-[#1A2A56] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    aria-label={`Appeler ${bien.proprietaireName ?? 'le propriétaire'}`}
-                  >
-                    <Phone size={12} strokeWidth={2.2} aria-hidden />
-                    {formatPhoneDisplay(bien.proprietairePhone)}
-                  </a>
+                  bien.proprietaireNumeroCommuniqueParLaPersonne ? (
+                    <a
+                      href={telHref(bien.proprietairePhone)}
+                      className="inline-flex min-h-8 items-center gap-1 font-medium text-[#1A2A56] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      aria-label={`Appeler ${bien.proprietaireName ?? 'le propriétaire'}`}
+                    >
+                      <Phone size={12} strokeWidth={2.2} aria-hidden />
+                      {formatPhoneDisplay(bien.proprietairePhone)}
+                    </a>
+                  ) : (
+                    <span
+                      className="inline-flex min-h-8 items-center gap-1 font-medium tabular-nums text-text-muted"
+                      title="Cochez le consentement au rappel dans la fiche contact pour afficher le numéro complet"
+                    >
+                      <Phone size={12} strokeWidth={2.2} aria-hidden />
+                      {formatPhoneWithConsent(bien.proprietairePhone, false)}
+                    </span>
+                  )
                 ) : null}
                 {bien.proprietaireEmail ? (
                   <a

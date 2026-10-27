@@ -20,6 +20,8 @@ export interface Bien {
   /** Nom du propriétaire rattaché, résolu à la lecture. */
   proprietaireName: string | null;
   proprietairePhone: string | null;
+  /** Consentement rappel du propriétaire rattaché (sinon le numéro reste masqué à l'affichage). */
+  proprietaireNumeroCommuniqueParLaPersonne: boolean;
   proprietaireEmail: string | null;
   leadId: string | null;
   banId: string | null;

@@ -102,7 +102,7 @@ describe('nouvellesAdressesDuSecteur', () => {
       'nego',
     ).adresses;
     assert.equal(a?.address, 'Rue des Pyrénées 75020');
-    assert.deepEqual(a?.signaux, ['Adresse à confirmer', '2 pièces', 'DPE C', 'Refuse les appels']);
+    assert.deepEqual(a?.signaux, ['Adresse à confirmer', '2 pièces', 'DPE C']);
   });
 
   it('sans secteur à moi : la carte invite à le poser', () => {

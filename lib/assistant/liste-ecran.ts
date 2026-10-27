@@ -44,5 +44,20 @@ export function listeVersEcran(
   if (intent.type === 'activite') {
     return { href: '/dashboard', total };
   }
+  if (intent.type === 'base') {
+    if (intent.filtres.etape_pipeline) {
+      return { href: '/dashboard/prospection?vue=pipeline', total };
+    }
+    if (intent.filtres.statut_mandat) {
+      return { href: '/dashboard/biens', total };
+    }
+    if (intent.filtres.type_contact) {
+      return {
+        href: `/dashboard/contacts?type=${param(intent.filtres.type_contact)}`,
+        total,
+      };
+    }
+    return { href: '/dashboard/prospection?vue=liste', total };
+  }
   return null;
 }

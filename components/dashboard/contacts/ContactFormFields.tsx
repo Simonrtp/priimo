@@ -42,6 +42,7 @@ export default function ContactFormFields({
   visibilite,
   onVisibilite,
   visibiliteFigee = false,
+  masqueSansConsentement = false,
 }: {
   idPrefix: string;
   fields: ContactInputFields;
@@ -61,6 +62,8 @@ export default function ContactFormFields({
   onVisibilite?: (next: Visibilite) => void;
   /** Fiche d'un collègue : on la complète, on ne change pas son partage. */
   visibiliteFigee?: boolean;
+  /** Fiche existante avec un numéro : milieu masqué tant que le consentement n'est pas coché. */
+  masqueSansConsentement?: boolean;
 }) {
   const showCriteria = rolesUsentCriteres(fields);
   const roles = rolesDuContact(fields);
@@ -201,6 +204,7 @@ export default function ContactFormFields({
             id={`${idPrefix}-phone`}
             value={fields.phone ?? ''}
             consenti={fields.numeroCommuniqueParLaPersonne}
+            masqueSansConsentement={masqueSansConsentement}
             disabled={disabled}
             onChange={(e) => set('phone', e.target.value || null)}
           />

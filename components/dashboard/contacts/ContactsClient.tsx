@@ -25,7 +25,7 @@ import {
 import type { MergeLinkCounts } from '@/lib/contacts/merge';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportContactsCsv } from '@/lib/import/export-contacts';
-import { formatPhoneDisplay, normalizePhone, telHref } from '@/lib/import/normalize';
+import { formatPhoneDisplay, formatPhoneWithConsent, normalizePhone, telHref } from '@/lib/import/normalize';
 import DatePickerField from '@/components/ui/DatePickerField';
 import { formatDatePickerLabel } from '@/lib/ui/date-picker';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -314,19 +314,34 @@ function ContactRow({
             <p className="text-[12px] leading-none text-text-muted">{formatLastInteraction(last)}</p>
             <div className="flex items-center gap-2">
               {callableNow && contact.phone ? (
-                <a
-                  href={telHref(contact.phone)}
-                  className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium tabular-nums hover:bg-white/80 max-sm:bg-[#D5D8E4]/60"
-                  style={{ color: SLATE }}
-                  aria-label={`Appeler ${contact.fullName}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Phone size={12} strokeWidth={2.2} aria-hidden />
-                  {/* Sur le téléphone, le bouton suffit : le numéro reste dans la fiche. */}
-                  <span className="max-sm:sr-only">{formatPhoneDisplay(contact.phone)}</span>
-                  <span className="sm:hidden">Appeler</span>
-                  {contact.numeroCommuniqueParLaPersonne ? <CocheConsentementTel size={14} /> : null}
-                </a>
+                contact.numeroCommuniqueParLaPersonne ? (
+                  <a
+                    href={telHref(contact.phone)}
+                    className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium tabular-nums hover:bg-white/80 max-sm:bg-[#D5D8E4]/60"
+                    style={{ color: SLATE }}
+                    aria-label={`Appeler ${contact.fullName}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Phone size={12} strokeWidth={2.2} aria-hidden />
+                    {/* Sur le téléphone, le bouton suffit : le numéro reste dans la fiche. */}
+                    <span className="max-sm:sr-only">{formatPhoneDisplay(contact.phone)}</span>
+                    <span className="sm:hidden">Appeler</span>
+                    <CocheConsentementTel size={14} />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onComplete();
+                    }}
+                    title="Cochez le consentement au rappel dans la fiche pour afficher le numéro complet"
+                    className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium tabular-nums text-text-muted hover:bg-white/80 max-sm:bg-[#D5D8E4]/60"
+                  >
+                    <Phone size={12} strokeWidth={2.2} aria-hidden />
+                    <span>{formatPhoneWithConsent(contact.phone, false)}</span>
+                  </button>
+                )
               ) : incomplete ? (
                 <button
                   type="button"
@@ -440,7 +455,7 @@ export default function ContactsClient({
     setLatest(latestInteractions);
   }, [latestInteractions]);
 
-  const [portee, setPortee] = useState<PorteeContacts>('agence');
+  const [portee, setPortee] = useState<PorteeContacts>('moi');
   const [typeFilter, setTypeFilter] = useState<ContactType | 'tous'>('tous');
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [filtresOuverts, setFiltresOuverts] = useState(false);
