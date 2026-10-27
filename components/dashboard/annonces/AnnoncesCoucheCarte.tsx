@@ -33,12 +33,15 @@ export function AnnoncesLayerControls({
   onChange,
   compact = false,
   qui,
+  onOuvrirAnnonce,
 }: {
   layers: MapLayerState;
   onChange: (patch: Partial<MapLayerState>) => void;
   compact?: boolean;
   /** Pour compter comme la carte (« Mon secteur »). */
   qui?: Qui;
+  /** Coller une URL trouvée → ouvrir le volet. */
+  onOuvrirAnnonce?: (annonce: Annonce) => void;
 }) {
   // « Voir mes annonces » : les annonces de particuliers de mon secteur, relevées
   // chaque nuit. Les annonces ajoutées par URL restent affichées dans tous les cas.
@@ -76,7 +79,13 @@ export function AnnoncesLayerControls({
           </span>
           {nombre != null ? <span className="tabular-nums text-[12.5px] text-text-subtle">{nombre}</span> : null}
         </button>
-        <ImportAnnonce compact={compact} />
+        <ImportAnnonce
+          compact={compact}
+          onAfficher={() => {
+            if (!layers.annonces) onChange({ annonces: true });
+          }}
+          onOuvrirAnnonce={onOuvrirAnnonce}
+        />
       </div>
     </li>
   );

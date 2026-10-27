@@ -5,9 +5,7 @@ import { Layer, Marker, Source, useMap } from 'react-map-gl';
 import { X } from 'lucide-react';
 import { choisirAdresseImport, masquerSurLaCarte } from '@/lib/annonces/import/recherche';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
-import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
-import { notifyError } from '@/lib/notify';
 import { LiensPossibles, PastilleAjoutee, ReperesPossibles, type GroupePossibles } from './AnnoncesAjoutees';
 
 function euros(n: number): string {
@@ -122,7 +120,6 @@ export default function PointImport({ onOuvrir }: { onOuvrir?: (annonceId: strin
             prix={carte.prix}
             approximative={incertaine}
             onClick={() => onOuvrir?.(carte.annonceId!)}
-            onRetirer={() => void retirerOuPrevenir(carte.annonceId!, notifyError)}
           />
         </Marker>
       </>

@@ -3,25 +3,21 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Building2, Calculator, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
-import type { Bien } from '@/types/bien';
-import type { Contact } from '@/types/contact';
+import { Calculator, NotebookPen, Plus, Users, X, type LucideIcon } from 'lucide-react';
 import { notifySuccess } from '@/lib/notify';
 import { useUser } from '@/lib/hooks/useUser';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import ContactFormDialog from '@/components/dashboard/contacts/ContactFormDialog';
-import BienFormDialog from '@/components/dashboard/biens/BienFormDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import { FIELD } from '@/lib/today/field';
 
-type CreateKind = 'contact' | 'bien';
+type CreateKind = 'contact';
 type MenuAction = CreateKind | 'estimation' | 'note-write';
 
 const CREATE_ITEMS: { value: MenuAction; label: string; hint: string; Icon: LucideIcon; bientot?: boolean }[] = [
   { value: 'estimation', label: 'Nouvelle estimation', hint: 'À venir', Icon: Calculator, bientot: true },
   { value: 'contact', label: 'Nouveau contact', hint: 'Fiche client', Icon: Users },
-  { value: 'bien', label: 'Nouveau bien', hint: 'Mandat / annonce', Icon: Building2 },
   { value: 'note-write', label: 'Écrire une note', hint: 'Au clavier', Icon: NotebookPen },
 ];
 // Dicter n'est plus ici : un seul micro, au bout de la barre de recherche
@@ -59,7 +55,6 @@ export default function CreateMenu({
   const [members, setMembers] = useState<AssigneeOption[]>([
     { id: profile.id, fullName: `${profile.first_name} ${profile.last_name}`.trim() || 'Moi' },
   ]);
-  const [vendeurs, setVendeurs] = useState<Contact[]>([]);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -160,11 +155,9 @@ export default function CreateMenu({
         if (!res.ok) return;
         const data = (await res.json()) as {
           members?: AssigneeOption[];
-          vendeurs?: Contact[];
         };
         if (cancelled) return;
         if (data.members && data.members.length > 0) setMembers(data.members);
-        if (data.vendeurs) setVendeurs(data.vendeurs);
       } catch {
         /* contexte optionnel */
       }
@@ -381,11 +374,6 @@ export default function CreateMenu({
           currentUserId={profile.id}
           skipSuccessToast
           onSaved={(contact) => {
-            if (contact.type === 'vendeur') {
-              setVendeurs((prev) =>
-                prev.some((c) => c.id === contact.id) ? prev : [contact, ...prev],
-              );
-            }
             notifySuccess('Contact créé', {
               duration: 6000,
               action: {
@@ -397,25 +385,6 @@ export default function CreateMenu({
           onOpenExisting={(contact) => {
             setKind(null);
             router.push(`/dashboard/contacts?fiche=${contact.id}`);
-          }}
-        />
-      ) : null}
-
-      {kind === 'bien' ? (
-        <BienFormDialog
-          open
-          onClose={() => setKind(null)}
-          vendeurs={vendeurs}
-          skipSuccessToast
-          onSaved={(bien: Bien) => {
-            notifySuccess('Bien ajouté', {
-              id: 'bien-ajoute',
-              duration: 6000,
-              action: {
-                label: 'Ouvrir',
-                onClick: () => router.push(`/dashboard/biens?fiche=${bien.id}`),
-              },
-            });
           }}
         />
       ) : null}

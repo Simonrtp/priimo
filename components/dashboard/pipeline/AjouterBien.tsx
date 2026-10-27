@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link2, MapPin, Plus, X } from 'lucide-react';
+import { Building2, Link2, MapPin, X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import SignalIA from '@/components/ui/SignalIA';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
@@ -177,8 +177,8 @@ export default function AjouterBien({ onAjoute }: { onAjoute: (lead: Lead) => vo
 
   return (
     <>
-      <WorkspaceButton variant="primary" onClick={() => setOuvert(true)}>
-        <Plus size={16} strokeWidth={2.4} aria-hidden />
+      <WorkspaceButton variant="create" onClick={() => setOuvert(true)}>
+        <Building2 size={16} strokeWidth={2} aria-hidden />
         Nouveau bien
       </WorkspaceButton>
       <Modal

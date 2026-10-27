@@ -13,9 +13,9 @@ import {
 import { vueProspection as vueDemandee } from '@/lib/navigation/cible';
 import { prospectionHref, resoudreProspectionVue } from '@/lib/prospection/vue';
 
-/** Pages sans bandeau bleu (carte plein écran, tournée guidée). */
+/** Pages sans bandeau bleu (carte plein écran). */
 function hideShellHeader(pathname: string, search: URLSearchParams): boolean {
-  if (pathname.startsWith('/dashboard/tournee') || pathname.startsWith('/dashboard/carte')) {
+  if (pathname.startsWith('/dashboard/carte')) {
     return true;
   }
   if (!pathname.startsWith('/dashboard/prospection')) return false;

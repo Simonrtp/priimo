@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, MapPin } from 'lucide-react';
+import { ArrowLeft, Check, MapPin } from 'lucide-react';
 import { PASTILLE_TRACK, pastilleClass, pastilleGlissanteClass } from '@/components/ui/pastille-classes';
 import { PistePastilles } from '@/components/ui/Pastilles';
 import { notifyError, notifyInfo } from '@/lib/notify';
@@ -451,17 +451,19 @@ function Panneau({
 }) {
   const [confirmeSuppression, setConfirmeSuppression] = useState(false);
   return (
-    <div className="rounded-[20px] bg-[#F4F6FB] px-3.5 py-4">
-      <div className="mb-2.5 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onFermer}
-          className="text-[13px] font-semibold text-[#1A2A56] underline decoration-[#1A2A56]/30 underline-offset-[3px] hover:decoration-[#1A2A56]"
-        >
-          Retour
-        </button>
-        {onSupprimer ? (
-          confirmeSuppression ? (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={onFermer}
+        className="inline-flex w-fit items-center gap-1.5 px-0.5 text-[13px] font-semibold text-[#1A2A56] transition-colors duration-fluid-subtle hover:text-[#243667]"
+      >
+        <ArrowLeft size={15} strokeWidth={2.2} aria-hidden />
+        Retour
+      </button>
+      <div className="rounded-[20px] bg-[#F4F6FB] px-3.5 py-4">
+      {onSupprimer ? (
+        <div className="mb-2.5 flex justify-end">
+          {confirmeSuppression ? (
             <span className="flex items-center gap-2.5 text-[13px]">
               <button
                 type="button"
@@ -486,9 +488,9 @@ function Panneau({
             >
               Supprimer
             </button>
-          )
-        ) : null}
-      </div>
+          )}
+        </div>
+      ) : null}
       <div className="flex items-center gap-2">
         <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: couleur }} />
         <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#1A2A56]">{titre}</p>
@@ -584,6 +586,7 @@ function Panneau({
           Annuler
         </button>
       ) : null}
+      </div>
     </div>
   );
 }

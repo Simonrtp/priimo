@@ -81,6 +81,8 @@ export interface Contact {
   assignedAt: string | null;
   /** Absent = privée : la fiche reste à son titulaire (et à la direction). */
   visibilite?: ContactVisibilite;
+  /** Ordre manuel dans la liste. Absent / null = pas encore rangé. */
+  position?: number | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -6,7 +6,7 @@ import { notifyError } from '@/lib/notify';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
 import ChoixAdresses from './ChoixAdresses';
 import IndiceSurete from './IndiceSurete';
-import type { CarteImport } from '@/lib/annonces/import/carte';
+import { annonceDepuisCarteImport, type CarteImport } from '@/lib/annonces/import/carte';
 import type { EtapeImport } from '@/lib/annonces/import/serveur';
 import {
   arreterRecherche,
@@ -16,7 +16,8 @@ import {
   noterAnnonceAjoutee,
   useSessionRecherche,
 } from '@/lib/annonces/import/recherche';
-import { rafraichirAnnoncesSecteur } from '@/lib/annonces/useAnnoncesSecteur';
+import { rafraichirAnnoncesSecteur, useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
+import type { Annonce } from '@/lib/annonces/types';
 
 const PILULE =
   'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold transition-colors duration-fluid-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] disabled:opacity-60';
@@ -269,24 +270,65 @@ function Carte({
 export default function ImportAnnonce({
   compact = false,
   onAfficher,
+  onOuvrirAnnonce,
 }: {
   compact?: boolean;
   /** L'annonce ajoutée doit être visible : la couche s'allume. */
   onAfficher?: () => void;
+  /** Dès que l’URL est trouvée : ouvrir le volet annonce. */
+  onOuvrirAnnonce?: (annonce: Annonce) => void;
 }) {
   const session = useSessionRecherche();
   const { url, etat, etapes } = session;
+  const ajoutees = useAnnoncesAjoutees();
   const afficher = useRef(onAfficher);
   afficher.current = onAfficher;
+  const ouvrir = useRef(onOuvrirAnnonce);
+  ouvrir.current = onOuvrirAnnonce;
   const annonceSignalee = useRef<string | null>(null);
+  const ajoutAuto = useRef(false);
 
   useEffect(() => {
-    if (etat.k !== 'trouvee') return;
-    const id = etat.carte.annonceId;
-    if (!id || id === annonceSignalee.current) return;
-    annonceSignalee.current = id;
-    afficher.current?.();
-  }, [etat]);
+    if (etat.k !== 'trouvee') {
+      ajoutAuto.current = false;
+      return;
+    }
+    const carte = etat.carte;
+    const ouvrirFiche = (annonceId: string) => {
+      if (annonceId === annonceSignalee.current) return;
+      annonceSignalee.current = annonceId;
+      afficher.current?.();
+      const pleine = ajoutees.find((a) => a.id === annonceId);
+      const provisoire = annonceDepuisCarteImport({ ...carte, annonceId });
+      if (pleine || provisoire) ouvrir.current?.(pleine ?? provisoire!);
+    };
+
+    if (carte.annonceId) {
+      ouvrirFiche(carte.annonceId);
+      return;
+    }
+    if (!carte.importId || !etat.disponible || ajoutAuto.current) return;
+    ajoutAuto.current = true;
+    void (async () => {
+      const res = await fetch('/api/dashboard/annonces/ajouter', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          importId: carte.importId,
+          adresseChoisie: carte.adresseChoisie ?? null,
+        }),
+      }).catch(() => null);
+      const json = (await res?.json().catch(() => ({}))) as { annonceId?: string; error?: string };
+      if (!res?.ok || !json.annonceId) {
+        ajoutAuto.current = false;
+        if (json.error) notifyError(json.error);
+        return;
+      }
+      noterAnnonceAjoutee(json.annonceId);
+      rafraichirAnnoncesSecteur();
+      ouvrirFiche(json.annonceId);
+    })();
+  }, [etat, ajoutees]);
 
   const occupe = etat.k !== 'vide';
 

@@ -39,7 +39,7 @@ import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerCon
 import { AnnoncesLayerControls, AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import type { Annonce } from '@/lib/annonces/types';
-import EmpriseCapsules, { type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
+import EmpriseCapsules, { empriseCochee, type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
@@ -51,11 +51,10 @@ import {
   cadrageCarte,
   empriseDepuisZoneId,
   retientDansSecteur,
-  secteursPeintsSurCarte,
+  secteursDeLaCarte,
   ZONE_TOUS_SECTEURS,
   zoneIdInitial,
   zoneParDefautProspection,
-  type PorteeSecteurs,
 } from '@/lib/carte/emprise';
 import { useCarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import { useUser } from '@/lib/hooks/useUser';
@@ -67,13 +66,8 @@ import {
   type WithoutPositionCount,
 } from '@/lib/carte/points';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import Select from '@/components/ui/Select';
 import WorkspaceCard, { CardEyebrow } from '@/components/dashboard/workspace/WorkspaceCard';
-import { Field } from '@/components/dashboard/workspace/Field';
-import {
-  assigneeSelectAvatar,
-  type AssigneeOption,
-} from '@/components/dashboard/workspace/AssigneeSelect';
+import { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import NotesTerrainList from '@/components/dashboard/notes/NotesTerrainList';
 import NotePlusSurPlace from '@/components/dashboard/notes/NotePlusSurPlace';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
@@ -112,10 +106,7 @@ function LayersPanel({
   onChangeAnnonces,
   mapZoom,
   counts,
-  assignedTo,
-  onAssigned,
   members,
-  showAssignee,
   onCollapse,
   className = '',
   onglet,
@@ -123,8 +114,10 @@ function LayersPanel({
   zones,
   zoneId,
   onZone,
-  tousSecteurs = false,
+  secteursAgence,
+  onSecteursAgence,
   annoncesQui,
+  onOuvrirAnnonce,
   atelier = null,
   onCreerSecteur,
   onModifierSecteur = null,
@@ -138,10 +131,7 @@ function LayersPanel({
   onChangeAnnonces: (patch: Partial<MapLayerState>) => void;
   mapZoom: number | null;
   counts: Record<MapPointKind, number>;
-  assignedTo: string;
-  onAssigned: (v: string) => void;
   members: readonly AssigneeOption[];
-  showAssignee: boolean;
   onCollapse?: () => void;
   className?: string;
   onglet: OngletCarte;
@@ -149,8 +139,10 @@ function LayersPanel({
   zones: readonly Zone[];
   zoneId: string;
   onZone: (id: string) => void;
-  tousSecteurs?: boolean;
+  secteursAgence: boolean;
+  onSecteursAgence: (next: boolean) => void;
   annoncesQui: { zones: readonly Zone[]; directeur: boolean; profileId: string };
+  onOuvrirAnnonce?: (annonce: Annonce) => void;
   atelier?: ReactNode;
   onCreerSecteur: () => void;
   /** Le secteur choisi est à moi (ou je dirige) : on peut le retoucher. */
@@ -158,7 +150,8 @@ function LayersPanel({
   /** Secteur vient d’être validé : les filtres s’affichent avant le rafraîchissement. */
   secteurConfirme?: boolean;
 }) {
-  const secteurVide = onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(zones);
+  const secteurVide =
+    onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(zones) && !secteursAgence;
   return (
     <WorkspaceCard className={`flex min-h-0 flex-col overflow-hidden !px-3.5 !py-3.5 ${className}`}>
       <div className="flex shrink-0 items-start justify-between gap-2">
@@ -179,17 +172,26 @@ function LayersPanel({
       </div>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {atelier ? null : (
-          <EmpriseCapsules value={onglet} onChange={onOnglet} />
+          <EmpriseCapsules
+            value={empriseCochee(onglet, secteursAgence)}
+            onChange={(choix) => {
+              if ((choix === 'code_postal') !== (onglet === 'code_postal')) {
+                onOnglet(choix === 'code_postal' ? 'code_postal' : 'mes');
+              }
+              onSecteursAgence(choix === 'agence');
+            }}
+          />
         )}
         {secteurVide ? (
           atelier ?? (
-            <button type="button" onClick={onCreerSecteur} className={`${BOUTON_CARTE_VIDE} w-full`}>
-              Créer mon secteur
-            </button>
+            <>
+              <button type="button" onClick={onCreerSecteur} className={`${BOUTON_CARTE_VIDE} w-full`}>
+                Créer mon secteur
+              </button>
+            </>
           )
         ) : (
         atelier ?? (
-        <>
         <ul className="flex flex-col gap-1.5">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
@@ -222,14 +224,18 @@ function LayersPanel({
             onToggleMenu={onToggleCadastreMenu}
             mapZoom={mapZoom}
           />
-          <AnnoncesLayerControls layers={layers} onChange={onChangeAnnonces} qui={annoncesQui} />
+          <AnnoncesLayerControls
+            layers={layers}
+            onChange={onChangeAnnonces}
+            qui={annoncesQui}
+            onOuvrirAnnonce={onOuvrirAnnonce}
+          />
           {onglet === 'code_postal' ? null : (
             <>
               <ChoixSecteurs
                 zones={zones}
                 zoneId={zoneId}
                 onZone={onZone}
-                tous={tousSecteurs}
                 profileId={annoncesQui.profileId}
                 membres={members}
                 onCreer={onCreerSecteur}
@@ -249,29 +255,6 @@ function LayersPanel({
             </>
           )}
         </ul>
-
-        <div className="mt-4 flex flex-col gap-3 border-t border-black/[0.06] pt-4">
-          {showAssignee ? (
-            <Field label="Assigné à" htmlFor="carte-assigne">
-              <Select
-                id="carte-assigne"
-                aria-label="Filtrer par membre"
-                value={assignedTo}
-                onChange={onAssigned}
-                options={[
-                  { value: 'tous', label: "Toute l'équipe" },
-                  ...members.map((m) => ({
-                    value: m.id,
-                    label: m.fullName,
-                    avatar: assigneeSelectAvatar(m),
-                  })),
-                ]}
-              />
-            </Field>
-          ) : null}
-
-        </div>
-        </>
         )
         )}
       </div>
@@ -329,12 +312,11 @@ export default function SectorMapClient({
   const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
   const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
   const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
-  const [portee, setPortee] = useState<PorteeSecteurs>('mes');
+  const [secteursAgence, setSecteursAgence] = useState(false);
   const [onglet, setOnglet] = useState<OngletCarte>(() =>
     empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : 'mes',
   );
   const [secteurConfirme, setSecteurConfirme] = useState(false);
-  const [assignedTo, setAssignedTo] = useState('tous');
   const [selectedBanId, setSelectedBanId] = useState<string | null>(initialBanId);
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
   const cible = useCibleCarte();
@@ -376,21 +358,24 @@ export default function SectorMapClient({
     [immeublesSuivis],
   );
   const mapZoom = viewport?.zoom ?? null;
+  // Cadrage et pastilles : toujours « mes » secteurs (même design pour tous).
   const cadre = useMemo(
-    () => cadrageCarte({ zoneId, zones, profileId, directeur: isDirector, portee }),
-    [zoneId, zones, profileId, isDirector, portee],
+    () => cadrageCarte({ zoneId, zones, profileId, directeur: false, portee: 'mes' }),
+    [zoneId, zones, profileId],
   );
-  const { proposes, voirTous, zoneChoisie, affiches } = cadre;
+  const { proposes, zoneChoisie, affiches } = cadre;
+  const zonesSurCarte = useMemo(() => {
+    if (onglet === 'code_postal' || secteursAgence) {
+      return secteursDeLaCarte(zones, profileId, false, 'agence');
+    }
+    return affiches;
+  }, [onglet, secteursAgence, zones, profileId, affiches]);
   const carteSecteurs = useCarteSecteurs();
-  const secteursPeints = useMemo(
-    () => secteursPeintsSurCarte(zones, profileId, isDirector, onglet, affiches),
-    [zones, profileId, isDirector, onglet, affiches],
-  );
-  const secteursAffiches = useMemo(() => new Set(secteursPeints.map((z) => z.id)), [secteursPeints]);
+  const secteursAffiches = useMemo(() => new Set(zonesSurCarte.map((z) => z.id)), [zonesSurCarte]);
   const validerDessin = useCallback((id: string) => {
     setSecteurConfirme(true);
     setAtelier(false);
-    setPortee('mes');
+    setSecteursAgence(false);
     setOnglet('mes');
     setZoneId(id);
     router.refresh();
@@ -429,44 +414,44 @@ export default function SectorMapClient({
       zones,
       directeur: isDirector,
       profileId,
-      zoneCadree: zoneChoisie,
-      zonesCadrees: voirTous ? affiches : null,
+      zoneCadree: secteursAgence || onglet === 'code_postal' ? null : zoneChoisie,
+      zonesCadrees: secteursAgence || onglet === 'code_postal' ? zonesSurCarte : null,
       toutLeCodePostal: onglet === 'code_postal',
     }),
-    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches, onglet],
+    [zones, isDirector, profileId, zoneChoisie, secteursAgence, zonesSurCarte, onglet],
   );
   const pointsDuSecteur = useMemo(
     () =>
-      affiches.length > 0
-        ? points.filter((p) => affiches.some((z) => retientDansSecteur(p, z)))
+      zonesSurCarte.length > 0
+        ? points.filter((p) => zonesSurCarte.some((z) => retientDansSecteur(p, z)))
         : points,
-    [points, affiches],
+    [points, zonesSurCarte],
   );
   const focusBounds = useMemo(() => {
-    const boite = fusionnerBbox(affiches.map(bboxDeZone).filter((b): b is Bbox => b !== null));
+    const boite = fusionnerBbox(zonesSurCarte.map(bboxDeZone).filter((b): b is Bbox => b !== null));
     return boite ? bboxVersBounds(boite) : null;
-  }, [affiches]);
+  }, [zonesSurCarte]);
 
   const filtered = useMemo(
     () =>
       filterMapEntities(pointsDuSecteur, {
         kinds,
-        assignedTo: isDirector ? assignedTo : 'tous',
+        assignedTo: 'tous',
         period: 'all',
         now: Date.now(),
       }),
-    [pointsDuSecteur, kinds, assignedTo, isDirector],
+    [pointsDuSecteur, kinds],
   );
 
   const filteredAllKinds = useMemo(
     () =>
       filterMapEntities(pointsDuSecteur, {
         kinds: new Set(MAP_LAYER_ORDER),
-        assignedTo: isDirector ? assignedTo : 'tous',
+        assignedTo: 'tous',
         period: 'all',
         now: Date.now(),
       }),
-    [pointsDuSecteur, assignedTo, isDirector],
+    [pointsDuSecteur],
   );
 
   const buildings = useMemo(() => groupEntitiesByBanId(filtered), [filtered]);
@@ -577,7 +562,8 @@ export default function SectorMapClient({
 
   function changeAnnonces(patch: Partial<MapLayerState>) {
     setLayers((prev) => ({ ...prev, ...patch }));
-    setAnnonceOuverte(null);
+    // Éteindre la couche ferme le volet ; l’allumer (import URL) le laisse ouvert.
+    if (patch.annonces === false) setAnnonceOuverte(null);
   }
 
   const [annonceOuverte, setAnnonceOuverte] = useState<{ annonce: Annonce; soeurs: Annonce[] } | null>(null);
@@ -589,21 +575,30 @@ export default function SectorMapClient({
       setZoneId('aucun');
       return;
     }
-    setPortee(next);
-    setZoneId(zoneParDefautProspection(zones, profileId, isDirector, next) ?? 'aucun');
+    setZoneId(zoneParDefautProspection(zones, profileId, false, 'mes') ?? 'aucun');
+  }
+
+  function changerSecteursAgence(next: boolean) {
+    setSecteursAgence(next);
   }
 
   const cadastreImmeubles = useMemo(
-    () => parcelle.immeubles.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
-    [parcelle.immeubles, affiches],
+    () =>
+      parcelle.immeubles.filter((row) =>
+        cadastreDansEmprises(row, zonesSurCarte.length > 0 ? zonesSurCarte : null),
+      ),
+    [parcelle.immeubles, zonesSurCarte],
   );
   const activeParcelleIds = useMemo(
     () => cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id)),
     [cadastreImmeubles],
   );
   const parcelleNoteMarkers = useMemo(
-    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
-    [parcelle.noteMarkers, affiches],
+    () =>
+      parcelle.noteMarkers.filter((row) =>
+        cadastreDansEmprises(row, zonesSurCarte.length > 0 ? zonesSurCarte : null),
+      ),
+    [parcelle.noteMarkers, zonesSurCarte],
   );
 
   const ouvrirDepuisMarqueur = useCallback(
@@ -646,6 +641,10 @@ export default function SectorMapClient({
     cadastreDpeAges: layers.cadastreDpeAges,
   };
 
+  const ouvrirAnnonceImportee = useCallback((annonce: Annonce) => {
+    setAnnonceOuverte({ annonce, soeurs: [annonce] });
+  }, []);
+
   const layersUi = (
     <LayersPanel
       layers={layers}
@@ -656,15 +655,14 @@ export default function SectorMapClient({
       onChangeAnnonces={changeAnnonces}
       mapZoom={mapZoom}
       counts={counts}
-      assignedTo={assignedTo}
-      onAssigned={setAssignedTo}
       members={members}
-      showAssignee={isDirector}
       onglet={onglet}
       onOnglet={choisirOnglet}
       zones={proposes}
-      tousSecteurs={isDirector}
+      secteursAgence={secteursAgence}
+      onSecteursAgence={changerSecteursAgence}
       annoncesQui={annoncesQui}
+      onOuvrirAnnonce={ouvrirAnnonceImportee}
       zoneId={zoneId}
       onZone={setZoneId}
       atelier={dessin.panneau}
@@ -722,9 +720,9 @@ export default function SectorMapClient({
           }}
           onPrefetchParcelle={parcelle.prefetchParcelle}
           focusBounds={focusBounds}
-          zones={affiches}
+          zones={zonesSurCarte}
           highlightedZoneId={zoneChoisie?.id ?? null}
-          clipZones={affiches.length > 0 ? affiches : null}
+          clipZones={zonesSurCarte.length > 0 ? zonesSurCarte : null}
           dessin={
             atelier
               ? {
@@ -740,8 +738,8 @@ export default function SectorMapClient({
           annoncesCouche={{
             layers,
             zones,
-            zoneCadree: zoneChoisie,
-            zonesCadrees: voirTous ? affiches : null,
+            zoneCadree: secteursAgence || onglet === 'code_postal' ? null : zoneChoisie,
+            zonesCadrees: secteursAgence || onglet === 'code_postal' ? zonesSurCarte : null,
             toutLeCodePostal: onglet === 'code_postal',
             directeur: isDirector,
             profileId,
@@ -797,15 +795,14 @@ export default function SectorMapClient({
                 onChangeAnnonces={changeAnnonces}
                 mapZoom={mapZoom}
                 counts={counts}
-                assignedTo={assignedTo}
-                onAssigned={setAssignedTo}
                 members={members}
-                showAssignee={isDirector}
                 onglet={onglet}
                 onOnglet={choisirOnglet}
                 zones={proposes}
-                tousSecteurs={isDirector}
+                secteursAgence={secteursAgence}
+                onSecteursAgence={changerSecteursAgence}
                 annoncesQui={annoncesQui}
+                onOuvrirAnnonce={ouvrirAnnonceImportee}
                 zoneId={zoneId}
                 onZone={setZoneId}
                 atelier={dessin.panneau}

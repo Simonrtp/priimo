@@ -76,18 +76,26 @@ describe('secteursDeLaCarte', () => {
     );
   });
 
-  it('propose au directeur tous les secteurs, même sans titulaire', () => {
+  it('avec « agence », propose tous les secteurs, même sans titulaire', () => {
     const orphelin = { ...zone, id: 'orphelin', nom: 'Secteur de Simon 6', assignedTo: null };
     assert.deepEqual(
-      secteursDeLaCarte([sien, mien, orphelin], 'moi', true).map((z) => z.id),
+      secteursDeLaCarte([sien, mien, orphelin], 'moi', false, 'agence').map((z) => z.id),
       ['mien', 'sien', 'orphelin'],
     );
   });
 
-  it('ouvre tous les secteurs du directeur', () => {
-    assert.equal(zoneParDefautProspection([sien, mien], 'moi', true), ZONE_TOUS_SECTEURS);
-    assert.equal(zoneParDefautProspection([sien], 'moi', true), 'sien');
+  it('un directeur sans case cochée ne voit que ses secteurs', () => {
+    assert.deepEqual(
+      secteursDeLaCarte([sien, mien], 'moi', true).map((z) => z.id),
+      ['mien'],
+    );
+    assert.equal(zoneParDefautProspection([sien, mien], 'moi', true), 'mien');
+    assert.equal(zoneParDefautProspection([sien], 'moi', true), null);
     assert.equal(zoneParDefautProspection([], 'moi', true), null);
+  });
+
+  it('ouvre tous les secteurs quand la portée est l’agence', () => {
+    assert.equal(zoneParDefautProspection([sien, mien], 'moi', false, 'agence'), ZONE_TOUS_SECTEURS);
   });
 
   it('sur le code postal, le négociateur voit aussi les secteurs des autres', () => {

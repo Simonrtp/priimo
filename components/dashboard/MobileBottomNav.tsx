@@ -163,14 +163,11 @@ function FieldBottomNav() {
   const activeToday = pathname === '/dashboard' || pathname === '/dashboard/';
   const activeProspects =
     pathname.startsWith('/dashboard/prospection') || pathname.startsWith('/dashboard/carte');
-  const activeTournee = pathname.startsWith('/dashboard/tournee');
   const activePlus =
     plusOpen ||
     pathname.startsWith('/dashboard/contacts') ||
     pathname.startsWith('/dashboard/biens') ||
     pathname.startsWith('/dashboard/settings');
-
-  const hideSideTabs = activeTournee;
 
   return (
     <>
@@ -183,65 +180,45 @@ function FieldBottomNav() {
         aria-label="Navigation terrain"
       >
         <div className="relative flex h-14 items-stretch">
-          {hideSideTabs ? (
-            <>
-              <div className="flex-1" aria-hidden />
-              <div className="relative w-16 flex-shrink-0">
-                <div
-                  className="absolute left-1/2 z-10 -translate-x-1/2"
-                  style={{ top: -12 }}
-                >
-                  <BoutonNoteMobile />
-                </div>
-              </div>
-              <div className="flex-1" aria-hidden />
-            </>
-          ) : (
-            <>
-              <FieldTab href="/dashboard" label="Accueil" Icon={IconAccueil} active={activeToday} />
-              <div className="relative w-16 flex-shrink-0">
-                <div
-                  className="absolute left-1/2 z-10 -translate-x-1/2"
-                  style={{ top: -12 }}
-                >
-                  <BoutonNoteMobile />
-                </div>
-              </div>
-              <FieldTab
-                href="/dashboard/prospection"
-                label="Prospection"
-                Icon={IconProspection}
-                active={activeProspects}
+          <FieldTab href="/dashboard" label="Accueil" Icon={IconAccueil} active={activeToday} />
+          <div className="relative w-16 flex-shrink-0">
+            <div className="absolute left-1/2 z-10 -translate-x-1/2" style={{ top: -12 }}>
+              <BoutonNoteMobile />
+            </div>
+          </div>
+          <FieldTab
+            href="/dashboard/prospection"
+            label="Prospection"
+            Icon={IconProspection}
+            active={activeProspects}
+          />
+          <button
+            type="button"
+            onClick={() => setPlusOpen(true)}
+            aria-label="Plus"
+            aria-expanded={plusOpen}
+            className="app-press relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1"
+          >
+            <Ellipsis
+              size={22}
+              strokeWidth={activePlus ? 2.4 : 2}
+              color={activePlus ? ACCENT : INACTIVE}
+              aria-hidden
+            />
+            <span
+              className="text-center font-semibold"
+              style={{ fontSize: 11.5, color: activePlus ? ACCENT : INACTIVE }}
+            >
+              Plus
+            </span>
+            {pending > 0 ? (
+              <span
+                className="absolute right-2 top-1 size-2 rounded-full"
+                style={{ backgroundColor: FIELD.orange }}
+                aria-label={`${pending} action${pending > 1 ? 's' : ''} en attente`}
               />
-              <button
-                type="button"
-                onClick={() => setPlusOpen(true)}
-                aria-label="Plus"
-                aria-expanded={plusOpen}
-                className="app-press relative flex min-h-[44px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1"
-              >
-                <Ellipsis
-                  size={22}
-                  strokeWidth={activePlus ? 2.4 : 2}
-                  color={activePlus ? ACCENT : INACTIVE}
-                  aria-hidden
-                />
-                <span
-                  className="text-center font-semibold"
-                  style={{ fontSize: 11.5, color: activePlus ? ACCENT : INACTIVE }}
-                >
-                  Plus
-                </span>
-                {pending > 0 ? (
-                  <span
-                    className="absolute right-2 top-1 size-2 rounded-full"
-                    style={{ backgroundColor: FIELD.orange }}
-                    aria-label={`${pending} action${pending > 1 ? 's' : ''} en attente`}
-                  />
-                ) : null}
-              </button>
-            </>
-          )}
+            ) : null}
+          </button>
         </div>
       </nav>
       <FieldPlusSheet open={plusOpen} onClose={() => setPlusOpen(false)} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { Building2, Download, Upload } from 'lucide-react';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import { isSignedMandat, PORTFOLIO_STALE_MANDAT_DAYS, PORTFOLIO_STALE_VISIT_MAX } from '@/lib/today/portfolio';
@@ -132,7 +132,8 @@ export default function BiensClient({
               setFormOpen(true);
             }}
           >
-            Ajouter un bien
+            <Building2 size={16} strokeWidth={2} aria-hidden />
+            Nouveau bien
           </WorkspaceButton>
         }
         secondaryAction={

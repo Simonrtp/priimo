@@ -8,16 +8,9 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import { ZONE_TOUS_SECTEURS } from '@/lib/carte/emprise';
 import type { Zone } from '@/lib/zones/types';
 
-/** Le fond des pastilles « à moi » : l'accent chaud de la charte, distinct du neutre de l'équipe. */
-const PISTE_MIENNE = 'flex w-full flex-wrap rounded-clay bg-soft-warm p-1 shadow-clay-inset ring-1 ring-accent/20';
-
 /** Même coque que Cadastre et Annonces. */
 const CARTE_SECTEURS =
   'flex w-full flex-wrap items-center gap-1.5 rounded-[14px] bg-[#E6E8EB]/90 px-2.5 py-2.5';
-
-function Titre({ children }: { children: string }) {
-  return <p className="mb-1 px-0.5 text-[11.5px] font-medium text-text-subtle">{children}</p>;
-}
 
 function PastilleZone({
   zone,
@@ -61,18 +54,13 @@ function PastilleZone({
 }
 
 /**
- * Le choix du secteur affiché. Pour le directeur qui a lui-même un secteur,
- * deux groupes qu'on ne confond pas : « Mon secteur » (fond chaud, icône de
- * personne) et « Secteurs de l'agence » (fond neutre, initiales de l'agent).
- * « Tous » affiche tous les secteurs proposés ensemble.
- * « Nouveau secteur » vit dans le bloc des secteurs de l'agent : le dessin
- * s'ouvre sur la carte de prospection, nulle part ailleurs.
+ * Pastilles de mes secteurs uniquement — même UI directeur / collaborateur.
+ * Les secteurs des collègues : case « Tous les secteurs » au-dessus de Contacts.
  */
 export function ChoixSecteurs({
   zones,
   zoneId,
   onZone,
-  tous = false,
   profileId,
   membres = [],
   onCreer,
@@ -80,89 +68,49 @@ export function ChoixSecteurs({
   zones: readonly Zone[];
   zoneId: string;
   onZone: (id: string) => void;
-  /** Le directeur peut afficher tous les secteurs en même temps. */
-  tous?: boolean;
-  /** L'agent connecté : ses secteurs passent dans « Mon secteur » (« Mes secteurs »). */
   profileId?: string;
-  /** Membres de l'agence : les initiales de qui tient chaque secteur. */
   membres?: readonly AssigneeOption[];
-  /** Ouvre l'atelier sur la carte de prospection. */
   onCreer?: () => void;
 }) {
   if (zones.length === 0) return null;
   const parId = new Map(membres.map((m) => [m.id, m]));
-  const miennes = profileId ? zones.filter((z) => z.assignedTo === profileId) : [];
-  const agence = zones.filter((z) => !miennes.includes(z));
-  // L'agent qui tient plusieurs secteurs les affiche aussi tous ensemble.
-  const montrerTous = zones.length > 1 && (tous || miennes.length === zones.length);
-  const deuxGroupes = tous && miennes.length > 0 && agence.length > 0;
-
-  const boutonTous = montrerTous ? (
-    <button
-      type="button"
-      aria-pressed={zoneId === ZONE_TOUS_SECTEURS}
-      data-pastille-active={zoneId === ZONE_TOUS_SECTEURS || undefined}
-      onClick={() => onZone(ZONE_TOUS_SECTEURS)}
-      className={`${pastilleGlissanteClass(zoneId === ZONE_TOUS_SECTEURS)} min-w-0`}
-    >
-      Tous
-    </button>
-  ) : null;
-
-  const pastille = (z: Zone) => (
-    <PastilleZone
-      key={z.id}
-      zone={z}
-      actif={z.id === zoneId}
-      onClick={() => onZone(z.id)}
-      membre={z.assignedTo ? parId.get(z.assignedTo) : undefined}
-      mienne={z.assignedTo != null && z.assignedTo === profileId}
-    />
-  );
-
-  const boutonCreer = onCreer ? (
-    <button
-      type="button"
-      onClick={onCreer}
-      className={`${pastilleGlissanteClass(false)} inline-flex min-w-0 items-center gap-1.5`}
-    >
-      <Plus size={13} strokeWidth={2.2} aria-hidden />
-      Nouveau secteur
-    </button>
-  ) : null;
-
-  if (!deuxGroupes) {
-    return (
-      <li>
-        <PistePastilles role="group" label="Secteur" className={`${CARTE_SECTEURS} mb-1.5`}>
-          {boutonTous}
-          {zones.map(pastille)}
-          {boutonCreer}
-        </PistePastilles>
-      </li>
-    );
-  }
+  const montrerTous = zones.length > 1;
 
   return (
-    <li className="mb-1.5 flex flex-col gap-2.5">
-      <div>
-        <Titre>{miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'}</Titre>
-        <PistePastilles
-          role="group"
-          label={miennes.length > 1 ? 'Mes secteurs' : 'Mon secteur'}
-          className={PISTE_MIENNE}
-        >
-          {miennes.map(pastille)}
-          {boutonCreer}
-        </PistePastilles>
-      </div>
-      <div>
-        <Titre>Secteurs de l’agence</Titre>
-        <PistePastilles role="group" label="Secteurs de l’agence" className={CARTE_SECTEURS}>
-          {boutonTous}
-          {agence.map(pastille)}
-        </PistePastilles>
-      </div>
+    <li>
+      <PistePastilles role="group" label="Secteur" className={`${CARTE_SECTEURS} mb-1.5`}>
+        {montrerTous ? (
+          <button
+            type="button"
+            aria-pressed={zoneId === ZONE_TOUS_SECTEURS}
+            data-pastille-active={zoneId === ZONE_TOUS_SECTEURS || undefined}
+            onClick={() => onZone(ZONE_TOUS_SECTEURS)}
+            className={`${pastilleGlissanteClass(zoneId === ZONE_TOUS_SECTEURS)} min-w-0`}
+          >
+            Tous
+          </button>
+        ) : null}
+        {zones.map((z) => (
+          <PastilleZone
+            key={z.id}
+            zone={z}
+            actif={z.id === zoneId}
+            onClick={() => onZone(z.id)}
+            membre={z.assignedTo ? parId.get(z.assignedTo) : undefined}
+            mienne={z.assignedTo != null && z.assignedTo === profileId}
+          />
+        ))}
+        {onCreer ? (
+          <button
+            type="button"
+            onClick={onCreer}
+            className={`${pastilleGlissanteClass(false)} inline-flex min-w-0 items-center gap-1.5`}
+          >
+            <Plus size={13} strokeWidth={2.2} aria-hidden />
+            Nouveau secteur
+          </button>
+        ) : null}
+      </PistePastilles>
     </li>
   );
 }

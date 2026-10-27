@@ -57,7 +57,6 @@ export default async function ProspectionPage({
     pos?: string;
     libelle?: string;
     itineraire?: string;
-    tournee?: string;
     fraicheur?: string;
     zone?: string;
     annonce?: string;
@@ -163,9 +162,8 @@ export default async function ProspectionPage({
         initialParcelleId={params.parcelle ?? null}
         itineraryStops={itineraryStops}
         showItineraire={params.itineraire === '1'}
-        autoTournee={params.tournee === '1' && profile.role !== 'directeur'}
         zones={zones}
-        initialZoneId={params.zone ?? zoneParDefautProspection(zones, profile.id, profile.role === 'directeur')}
+        initialZoneId={params.zone ?? zoneParDefautProspection(zones, profile.id, false)}
         initialAtelier={params.atelier ?? null}
       />
     );

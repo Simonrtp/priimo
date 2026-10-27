@@ -1,5 +1,5 @@
 import { libellePortail } from '@/lib/annonces/presenter';
-import type { AdressePossible, Annonce } from '@/lib/annonces/types';
+import { PORTAILS, type AdressePossible, type Annonce, type Portail } from '@/lib/annonces/types';
 import type { FicheAnnonce, LocalisationImport } from './types';
 
 /** Ce que le panneau montre d'une annonce retrouvée : peu de texte, le point sur la carte. */
@@ -106,6 +106,59 @@ export function carteDepuisAnnonce(a: Annonce, ids: { annonceId: string | null; 
     adresseChoisie: a.adresseChoisie?.adresse ?? null,
     parcelleId: a.parcelleIds[0] ?? null,
     photo: null,
+  };
+}
+
+/** Ouvre le volet dès qu’une URL est trouvée, avant le rechargement des annonces. */
+export function annonceDepuisCarteImport(c: CarteImport): Annonce | null {
+  if (!c.annonceId) return null;
+  const portail = (PORTAILS as readonly string[]).includes(c.portailCle)
+    ? (c.portailCle as Portail)
+    : 'autre';
+  const choisie =
+    c.adresseChoisie != null
+      ? (c.adressesPossibles.find((p) => p.adresse === c.adresseChoisie) ?? null)
+      : null;
+  return {
+    id: c.annonceId,
+    idPortail: null,
+    portail,
+    url: c.url,
+    typeVendeur: c.particulier ? 'particulier' : 'professionnel',
+    agenceNom: c.agence,
+    refusDemarchage: false,
+    statut: 'active',
+    publieeLe: null,
+    premiereVueLe: null,
+    derniereVueLe: null,
+    retireeLe: null,
+    typeBien: c.typeBien ?? null,
+    titre: null,
+    prixInitial: c.prix,
+    prix: c.prix,
+    surface: c.surface,
+    pieces: c.pieces,
+    etage: c.etage,
+    dpe: c.dpe,
+    codePostal: null,
+    ville: null,
+    quartier: null,
+    confiance: c.confiance,
+    localisationPrecision: null,
+    adresse: c.adresse,
+    adresseNumero: null,
+    adresseVoie: null,
+    parcelleIds: c.parcelleId ? [c.parcelleId] : [],
+    numeroDpe: null,
+    complementDpe: null,
+    latitude: c.latitude,
+    longitude: c.longitude,
+    logementCle: null,
+    scoreLocalisation: null,
+    raisonsLocalisation: [],
+    adressesPossibles: c.adressesPossibles,
+    adresseChoisie: choisie,
+    photos: c.photo ? [c.photo] : [],
   };
 }
 

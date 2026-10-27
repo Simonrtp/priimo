@@ -31,7 +31,6 @@ export function prospectionHref(current: URLSearchParams, vue: ProspectionVue): 
     params.delete('parcelle');
     params.delete('pos');
     params.delete('itineraire');
-    params.delete('tournee');
   }
   if (vue === 'carte') params.delete('vue');
   else params.set('vue', vue);

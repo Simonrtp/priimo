@@ -31,7 +31,7 @@ export default function ItineraireBanner({
       className={`flex items-center gap-2 rounded-full border border-black/[0.08] bg-white/95 px-3 py-1.5 shadow-md ${className}`}
     >
       <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-text-strong">
-        Tournée · {n} arrêt{n > 1 ? 's' : ''}
+        Itinéraire · {n} arrêt{n > 1 ? 's' : ''}
         {dist && duration ? ` · ${duration} · ${dist}` : ''}
       </p>
       <a

@@ -5029,33 +5029,3 @@ html:has(.feature-page) {
   }
 }
 
-
-/* Micro de la barre : au survol, une seule vague de voix, puis le micro revient. */
-.micro-vague-barre {
-  opacity: 0;
-  transform: scaleY(0.1);
-}
-.micro-btn:hover .micro-vague-barre,
-.micro-btn:focus-visible .micro-vague-barre {
-  animation: micro-vague 640ms ease-in-out both;
-}
-.micro-btn:hover .micro-icone,
-.micro-btn:focus-visible .micro-icone {
-  animation: micro-icone 1900ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes micro-vague {
-  0% { opacity: 0; transform: scaleY(0.1); }
-  25% { opacity: 1; }
-  50% { opacity: 1; transform: scaleY(1); }
-  100% { opacity: 0; transform: scaleY(0.1); }
-}
-@keyframes micro-icone {
-  0%, 62% { opacity: 0; transform: scale(0.7); }
-  100% { opacity: 1; transform: scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .micro-btn:hover .micro-vague-barre,
-  .micro-btn:focus-visible .micro-vague-barre { animation: none; opacity: 0; }
-  .micro-btn:hover .micro-icone,
-  .micro-btn:focus-visible .micro-icone { animation: none; }
-}

@@ -96,7 +96,7 @@ export default function NotificationsBell({
       data-envol-cible={CIBLE_CLOCHE}
       data-envol-couleur={CLOCHE_ACCENT}
       onClick={() => (open ? fermerCloche() : ouvrirCloche())}
-      className={`relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out md:size-9 ${
+      className={`${styles.clocheTrigger} relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-fluid-subtle ease-in-out md:size-9 ${
         tone === 'shell'
           ? 'text-white/90 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70'
           : 'text-ink hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
@@ -109,7 +109,7 @@ export default function NotificationsBell({
         size={20}
         strokeWidth={1.75}
         aria-hidden
-        className={impact ? styles.clocheImpact : undefined}
+        className={`${styles.clocheIcone}${impact ? ` ${styles.clocheImpact}` : ''}`}
       />
       <Pastille n={nonLues} />
     </button>

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Bien } from '@/types/bien';
+import { useEffect, useMemo, useState } from 'react';import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { aLeRole, criteriaAreEmpty, rolesUsentCriteres } from '@/types/contact';
@@ -15,6 +14,7 @@ import { useUser } from '@/lib/hooks/useUser';
 import { Field, PhoneInput, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
 import ConsentementRappelField from '@/components/dashboard/contacts/ConsentementRappelField';
 import { notifyError } from '@/lib/notify';
+import { validerEnFond } from '@/lib/ui/valider-en-fond';
 import DatePickerField from '@/components/ui/DatePickerField';
 import { Trash2 } from 'lucide-react';
 import PanneauAlerte from '@/components/ui/PanneauAlerte';
@@ -130,23 +130,18 @@ export default function ContactDetailPanel({
   onAssigned: (contact: Contact) => void;
 }) {
   const [draft, setDraft] = useState(() => fieldSnapshot(contact));
-  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(() => fieldSnapshot(contact));
   const [assigning, setAssigning] = useState(false);
   const [partageEnCours, setPartageEnCours] = useState(false);
   const { profile } = useUser();
   // Fiche partagée par un collègue : on la complète, on n'en dispose pas.
   const gerable = canManageContact({ id: profile.id, role: profile.role }, contact);
   const titulaire = members.find((m) => m.id === contact.assignedTo)?.fullName ?? null;
-  const draftRef = useRef(draft);
-  const lastSavedRef = useRef(fieldSnapshot(contact));
-  const savingRef = useRef(false);
-  const queuedRef = useRef(false);
-  draftRef.current = draft;
 
   useEffect(() => {
     const next = fieldSnapshot(contact);
     setDraft(next);
-    lastSavedRef.current = next;
+    setLastSaved(next);
   }, [contact.id]);
 
   const rapprochements = useMemo(() => {
@@ -170,38 +165,31 @@ export default function ContactDetailPanel({
       .filter((r): r is { bien: Bien; match: NonNullable<typeof r.match> } => r.match !== null);
   }, [biens, contact]);
 
-  async function saveDraft() {
-    if (savingRef.current) {
-      queuedRef.current = true;
-      return;
-    }
-    const current = draftRef.current;
-    if (draftsEqual(lastSavedRef.current, current)) return;
-    savingRef.current = true;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payloadFrom(contact, current)),
-      });
-      const data = (await res.json()) as { contact?: Contact; error?: string };
-      if (!res.ok || !data.contact) {
-        notifyError(data.error ?? "Les informations n'ont pas pu être enregistrées");
-        return;
-      }
-      lastSavedRef.current = current;
-      onAssigned(data.contact);
-    } catch {
-      notifyError("Les informations n'ont pas pu être enregistrées");
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
-      if (queuedRef.current) {
-        queuedRef.current = false;
-        void saveDraft();
-      }
-    }
+  const brouillonModifie = !draftsEqual(lastSaved, draft);
+
+  function validerDraft() {
+    if (draftsEqual(lastSaved, draft)) return;
+    const current = draft;
+    const precedent = lastSaved;
+    setLastSaved(current);
+    validerEnFond({
+      succes: 'Contact mis à jour',
+      echec: "Les informations n'ont pas pu être enregistrées",
+      ecrire: async () => {
+        const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadFrom(contact, current)),
+        });
+        const data = (await res.json()) as { contact?: Contact; error?: string };
+        if (!res.ok || !data.contact) {
+          setLastSaved(precedent);
+          throw new Error(data.error ?? "Les informations n'ont pas pu être enregistrées");
+        }
+        return data.contact;
+      },
+      puis: onAssigned,
+    });
   }
 
   async function assignContact(next: string | null) {
@@ -255,7 +243,6 @@ export default function ContactDetailPanel({
     <div
       className="border-t border-[#1A2A56]/10 px-4 pb-5 pt-5 sm:px-5"
       role="region"
-      aria-busy={saving}
       aria-label={`Fiche de ${contact.fullName}`}
     >
       <div>
@@ -267,7 +254,6 @@ export default function ContactDetailPanel({
           rows={4}
           value={draft.summary}
           onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))}
-          onBlur={() => void saveDraft()}
           aria-describedby={`contact-note-${contact.id}-hint`}
           className="rounded-2xl bg-white"
         />
@@ -289,7 +275,6 @@ export default function ContactDetailPanel({
             consenti={draft.numeroCommuniqueParLaPersonne}
             masqueSansConsentement={Boolean(contact.phone)}
             onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
-            onBlur={() => void saveDraft()}
             placeholder="06 12 34 56 78"
           />
         </Field>
@@ -300,7 +285,6 @@ export default function ContactDetailPanel({
             autoComplete="off"
             value={draft.email}
             onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
-            onBlur={() => void saveDraft()}
             placeholder="prenom@email.fr"
           />
         </Field>
@@ -309,10 +293,7 @@ export default function ContactDetailPanel({
             id={`contact-numero-communique-${contact.id}`}
             checked={draft.numeroCommuniqueParLaPersonne}
             onChange={(checked) => {
-              const next = { ...draftRef.current, numeroCommuniqueParLaPersonne: checked };
-              draftRef.current = next;
-              setDraft(next);
-              void saveDraft();
+              setDraft((d) => ({ ...d, numeroCommuniqueParLaPersonne: checked }));
             }}
           />
         </div>
@@ -323,11 +304,17 @@ export default function ContactDetailPanel({
               autoComplete="off"
               value={draft.address}
               onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))}
-              onBlur={() => void saveDraft()}
               placeholder="12 rue de la Monnaie, Lille"
             />
           </Field>
         </div>
+        {brouillonModifie ? (
+          <div className="flex justify-end sm:col-span-2">
+            <WorkspaceButton type="button" onClick={validerDraft}>
+              Valider
+            </WorkspaceButton>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2 sm:gap-x-8">

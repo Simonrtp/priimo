@@ -23,7 +23,7 @@ import {
   dpeAgeSpan,
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
-import { CADASTRE_OVERLAY_MIN_ZOOM, PARCELLE_MIN_ZOOM } from '@/lib/carte/parcelle';
+import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
 
 const THUMB_PAD = 14;
 
@@ -227,7 +227,6 @@ export default function CadastreLayerControls({
 }) {
   const open = layers.cadastreMenuOpen;
   const tooFarPoints = mapZoom !== null && mapZoom < CADASTRE_OVERLAY_MIN_ZOOM;
-  const tooFarParcelles = mapZoom !== null && mapZoom < PARCELLE_MIN_ZOOM;
   const row = compact ? 'min-h-[44px]' : 'min-h-[40px]';
   const pad = compact ? 'px-1' : 'px-2.5 py-1.5';
   const folderOn = anyCadastreLayer(layers);
@@ -265,11 +264,6 @@ export default function CadastreLayerControls({
               />
             </span>
           </span>
-          {tooFarParcelles ? (
-            <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-              Zoomez pour afficher les parcelles
-            </span>
-          ) : null}
         </span>
         <ChevronDown
           size={16}

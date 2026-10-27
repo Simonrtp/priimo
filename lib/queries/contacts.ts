@@ -27,7 +27,12 @@ const CONTACTS_SELECT_BASE = `
 `;
 
 /** Colonnes ajoutées après coup : une base qui ne les a pas encore reste lisible. */
-const COLONNES_RECENTES = ['autres_types', 'numero_communique_par_la_personne', 'visibilite'] as const;
+const COLONNES_RECENTES = [
+  'autres_types',
+  'numero_communique_par_la_personne',
+  'visibilite',
+  'position',
+] as const;
 
 export const CONTACTS_SELECT = `${CONTACTS_SELECT_BASE.trim()},
   ${COLONNES_RECENTES.join(', ')}
@@ -162,6 +167,7 @@ export function mapDbContactToContact(row: ContactRow): Contact {
     assignedBy: row.assigned_by ?? null,
     assignedAt: row.assigned_at ?? null,
     visibilite: row.visibilite === 'agence' ? 'agence' : 'privee',
+    position: row.position != null ? Number(row.position) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

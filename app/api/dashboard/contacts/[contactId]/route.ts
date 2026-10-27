@@ -72,6 +72,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   }
   const hasCoreFields = 'firstName' in raw || 'lastName' in raw || 'type' in raw;
   const relanceProvided = Object.prototype.hasOwnProperty.call(raw, 'recontacterLe');
+  const positionProvided = Object.prototype.hasOwnProperty.call(raw, 'position');
+  let positionValue: number | null | undefined;
+  if (positionProvided) {
+    if (raw.position === null) {
+      positionValue = null;
+    } else if (
+      typeof raw.position === 'number' &&
+      Number.isFinite(raw.position) &&
+      Math.abs(raw.position) < 1e15
+    ) {
+      positionValue = raw.position;
+    } else {
+      return NextResponse.json({ error: "L'ordre n'est pas valide" }, { status: 400 });
+    }
+  }
   const parsed = hasCoreFields ? parseContactInput(body) : null;
   if (parsed && !parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
@@ -97,7 +112,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     !parsed &&
     !(assigned.provided && !('invalid' in assigned)) &&
     !relanceProvided &&
-    visibiliteDemandee === null
+    visibiliteDemandee === null &&
+    !positionProvided
   ) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
@@ -125,6 +141,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     Object.assign(update, assignmentMeta(assigned.id, profile.id));
   }
   if (visibiliteDemandee !== null) update.visibilite = visibiliteDemandee;
+  if (positionProvided) update.position = positionValue ?? null;
 
   // Une colonne récente (rôles, numéro communiqué, partage) absente de la base est
   // écartée de l'écriture : le reste de la fiche s'enregistre quand même.

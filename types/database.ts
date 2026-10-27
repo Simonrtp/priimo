@@ -936,6 +936,8 @@ export type ContactRow = {
   visibilite?: ContactVisibiliteDb;
   /** Import de fichier qui a créé la fiche (20261026). */
   import_id?: string | null;
+  /** Ordre manuel dans la liste contacts (20261027). Plus petit = plus haut. */
+  position?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -1015,6 +1017,7 @@ export type ContactInsert = {
   numero_communique_par_la_personne?: boolean;
   visibilite?: ContactVisibiliteDb;
   import_id?: string | null;
+  position?: number | null;
   created_at?: string;
   updated_at?: string;
 };

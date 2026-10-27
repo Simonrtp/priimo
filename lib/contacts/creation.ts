@@ -174,6 +174,8 @@ export async function creerContact(ctx: ContexteCreation, body: unknown): Promis
     source,
     // Privée tant que l'agent ne choisit pas de partager la fiche.
     visibilite: raw.visibilite === 'agence' ? 'agence' : 'privee',
+    // Nouveaux en tête de liste (positions positives du backfill).
+    position: -Date.now(),
     ...meta,
     ...(geo ?? {}),
   });

@@ -239,56 +239,66 @@ export default function AnnonceVolet({
     resterSurPage: true,
   };
 
+  const rueHeader = rueSeule(
+    lieu.ligne.replace(/\s\d{5}\b.*$/, '').trim() || lieu.ligne,
+    annonce.codePostal ?? undefined,
+    annonce.ville ?? undefined,
+  );
+
   return (
     <aside className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface">
-      <button
-        type="button"
-        onClick={onFermer}
-        aria-label="Fermer"
-        className="absolute right-3 top-3 z-10 flex size-9 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        <X size={18} strokeWidth={2} aria-hidden />
-      </button>
+      <header className="flex shrink-0 items-start gap-3 border-b border-black/[0.06] bg-surface px-4 py-3.5">
+        <h2 className="min-w-0 flex-1 text-pretty text-[18px] font-semibold leading-snug text-text-strong">
+          {rueHeader}
+        </h2>
+        <button
+          type="button"
+          onClick={onFermer}
+          aria-label="Fermer"
+          className="-mr-1 -mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <X size={18} strokeWidth={2} aria-hidden />
+        </button>
+      </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-16 pt-4">
-        <div className="pr-10">
-          <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-            {marques.length > 0 ? <LogosPortail annonces={marques} /> : null}
-            <a href={lienPrincipal.url} target="_blank" rel="noreferrer" className={VOIR}>
-              Voir sur {libellePortail(lienPrincipal.portail)}
-            </a>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
-                particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
-              }`}
-            >
-              {libelleVendeur(annonce)}
-            </span>
-            {retiree ? (
-              <span className="text-[12px] text-text-muted">
-                Retirée{annonce.retireeLe ? ` le ${dateCourte(annonce.retireeLe)}` : ''}
-              </span>
-            ) : null}
-          </div>
-          <p className="text-pretty text-[13px] font-medium leading-snug text-text-strong">{lieu.ligne}</p>
-          {approx ? <p className="text-[12px] text-text-muted">Emplacement approximatif</p> : null}
-          <p className={`mt-1 text-[19px] font-semibold leading-snug text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}>
-            {annonce.prix != null ? euros(annonce.prix) : 'Prix non indiqué'}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-16 pt-3">
+        {approx ? <p className="mb-1 text-[12px] text-text-muted">Emplacement approximatif</p> : null}
+        <p className={`text-[19px] font-semibold leading-snug text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}>
+          {annonce.prix != null ? euros(annonce.prix) : 'Prix non indiqué'}
+        </p>
+        {baisse != null && annonce.prixInitial != null ? (
+          <p className="mt-0.5 flex items-center gap-1 text-[12.5px] text-text-muted">
+            <ArrowDown size={13} strokeWidth={2.5} aria-hidden className="text-accent" />
+            <span className="font-semibold text-accent-dark">−{String(baisse).replace('.', ',')} %</span>
+            <span className="line-through">{euros(annonce.prixInitial)}</span>
           </p>
-          {baisse != null && annonce.prixInitial != null ? (
-            <p className="mt-0.5 flex items-center gap-1 text-[12.5px] text-text-muted">
-              <ArrowDown size={13} strokeWidth={2.5} aria-hidden className="text-accent" />
-              <span className="font-semibold text-accent-dark">−{String(baisse).replace('.', ',')} %</span>
-              <span className="line-through">{euros(annonce.prixInitial)}</span>
-            </p>
-          ) : null}
-        </div>
+        ) : null}
         {possibles.length > 0 && surLaCarte ? (
-          <div className="mb-3">
+          <div className="mb-3 mt-2">
             <ChoixAdresses possibles={possibles} choisie={choix} onChoisir={(a) => void choisir(a)} occupe={choixEnCours} />
           </div>
         ) : null}
-        <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />
+        <div className="mt-3">
+          <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {marques.length > 0 ? <LogosPortail annonces={marques} /> : null}
+          <a href={lienPrincipal.url} target="_blank" rel="noreferrer" className={VOIR}>
+            Voir sur {libellePortail(lienPrincipal.portail)}
+          </a>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
+              particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
+            }`}
+          >
+            {libelleVendeur(annonce)}
+          </span>
+          {retiree ? (
+            <span className="text-[12px] text-text-muted">
+              Retirée{annonce.retireeLe ? ` le ${dateCourte(annonce.retireeLe)}` : ''}
+            </span>
+          ) : null}
+        </div>
         {particulier && annonce.refusDemarchage ? (
           <p className="mb-3 rounded-[12px] bg-black/[0.04] px-3 py-2 text-[13px] text-text-strong">
             Le propriétaire refuse le démarchage téléphonique.

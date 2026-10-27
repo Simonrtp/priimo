@@ -2,12 +2,9 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import { Layer, Marker, Source } from 'react-map-gl';
-import { X } from 'lucide-react';
 import { isUsableCoord } from '@/lib/carte/coords';
 import { eurosCourt, libellePortail, TEINTE_ANNONCE } from '@/lib/annonces/presenter';
-import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
-import { notifyError } from '@/lib/notify';
 import type { AdressePossible, Annonce } from '@/lib/annonces/types';
 
 /** Le numéro d'une adresse possible : le même dans le panneau et sur la carte. Plein : l'adresse choisie. */
@@ -111,7 +108,6 @@ export function PastilleAjoutee({
   prix,
   approximative = false,
   onClick,
-  onRetirer,
 }: {
   /** Conservé pour l'accessibilité ; le logo portail n'apparaît plus sur la carte. */
   portailCle?: string;
@@ -119,7 +115,6 @@ export function PastilleAjoutee({
   prix: number | null;
   approximative?: boolean;
   onClick?: () => void;
-  onRetirer?: () => void;
 }) {
   const [survol, setSurvol] = useState(false);
   const marque = survol;
@@ -140,7 +135,7 @@ export function PastilleAjoutee({
         onFocus={() => setSurvol(true)}
         onBlur={() => setSurvol(false)}
         aria-label={`Annonce ${portail}${prix != null ? ` à ${libellePrix}` : ''}${approximative ? ', secteur approximatif' : ''}`}
-        className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[16px] shadow-sm transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${coque}`}
+        className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-[16px] shadow-sm transition-transform duration-fluid-subtle hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1A2A56] ${coque}`}
         style={{
           opacity: approximative ? 0.7 : 1,
           background: marque ? TEINTE_ANNONCE.vive : TEINTE_ANNONCE.douce,
@@ -149,21 +144,6 @@ export function PastilleAjoutee({
       >
         <span className="tabular-nums">{libellePrix}</span>
       </button>
-      {onRetirer ? (
-        <button
-          type="button"
-          aria-label="Retirer de la carte"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onRetirer();
-          }}
-          className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-white text-text-subtle shadow-[0_1px_4px_rgba(26,42,86,0.28)] ring-1 ring-black/10 hover:text-text-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
-        >
-          <X size={10} strokeWidth={2.6} aria-hidden />
-        </button>
-      ) : null}
     </span>
   );
 }
@@ -207,7 +187,6 @@ export default function AnnoncesAjoutees({
                   prix={a.prix}
                   approximative={incertaine}
                   onClick={ouvrir}
-                  onRetirer={() => void retirerOuPrevenir(a.id, notifyError)}
                 />
               </Marker>
             </Fragment>

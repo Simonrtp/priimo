@@ -13,7 +13,6 @@ import EquipeLoading from '../equipe/loading';
 import EstimationLoading from '../estimation/loading';
 import SettingsLoading from '../settings/loading';
 import OriginesLoading from '../statistiques/origines/loading';
-import TourneeLoading from '../tournee/loading';
 import SqueletteProspection from '../prospection/SqueletteProspection';
 
 function cookie(nom: string): string | null {
@@ -48,7 +47,6 @@ export default function SqueletteDeRoute({ vers }: { vers: Emplacement }) {
   if (p.startsWith('/dashboard/equipe') || p.startsWith('/dashboard/parametres')) return <EquipeLoading />;
   if (p.startsWith('/dashboard/settings')) return <SettingsLoading />;
   if (p.startsWith('/dashboard/actions')) return <ActionsLoading />;
-  if (p.startsWith('/dashboard/tournee')) return <TourneeLoading />;
   if (p.startsWith('/dashboard/statistiques')) return <OriginesLoading />;
   return <WorkspaceListSkeleton rows={6} />;
 }

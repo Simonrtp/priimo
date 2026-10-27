@@ -4,11 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { oublierCible, useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, Navigation, Navigation2, PencilLine, Phone, Play, Square, X } from 'lucide-react';
+import { Box, Layers, Locate, Navigation, Navigation2, PencilLine, Phone, Square } from 'lucide-react';
 import { toast } from 'sonner';
-import { armPointerShield } from '@/lib/ui/pointer-guard';
 import Switch from '@/components/ui/Switch';
-import { createBanGeocodeCache, geocodeAdresse, reverseGeocode } from '@/lib/geo/ban';
+import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
   countKindsInViewport,
   entitiesByKind,
@@ -38,7 +37,7 @@ import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerCon
 import { AnnoncesLayerControls } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import type { Annonce } from '@/lib/annonces/types';
-import EmpriseCapsules, { type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
+import EmpriseCapsules, { empriseCochee, type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
 import { useCarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
@@ -51,13 +50,11 @@ import {
   cadrageCarte,
   empriseDepuisZoneId,
   retientDansSecteur,
-  secteursPeintsSurCarte,
+  secteursDeLaCarte,
   ZONE_TOUS_SECTEURS,
   zoneIdInitial,
   zoneParDefautProspection,
-  type PorteeSecteurs,
 } from '@/lib/carte/emprise';
-import { zoneProspectionParDefaut } from '@/lib/zones/jour';
 import {
   type MapPoint,
   type MapPointKind,
@@ -78,12 +75,6 @@ import MobileAccountMenu from './MobileAccountMenu';
 import MobileSearchCapsule from './MobileSearchCapsule';
 import ItineraireBanner from '@/components/dashboard/carte/ItineraireBanner';
 import { useWalkingRoute } from '@/lib/today/use-walking-route';
-import type { GeoCoord } from '@/lib/carte/coords';
-import CarteTourneeBriefCard from './CarteTourneeBriefCard';
-import CarteTourneeDoneCard from './CarteTourneeDoneCard';
-import CarteTourneePanel from './CarteTourneePanel';
-import CarteTourneeSetupSheet from './CarteTourneeSetupSheet';
-import { useTourneeCarte } from './useTourneeCarte';
 import { readItineraireStops, type ItineraireStop } from '@/lib/today/directions';
 import {
   cameraFor,
@@ -92,7 +83,7 @@ import {
   toggleDimension,
   type MapDimension,
 } from '@/lib/map/view-mode';
-import { FIELD, formatDistance } from '@/lib/today/field';
+import { FIELD } from '@/lib/today/field';
 import { vibrateBrief } from './aujourdhui/tap';
 import { bboxDeZone, bboxVersBounds, fusionnerBbox, type Bbox } from '@/lib/zones/geometrie';
 import type { Zone } from '@/lib/zones/types';
@@ -123,7 +114,7 @@ export default function CarteMobile({
   points,
   withoutPosition: _withoutPosition,
   unplaced,
-  agencyPostalCodes = [],
+  agencyPostalCodes: _agencyPostalCodes = [],
   center,
   members,
   isDirector,
@@ -135,7 +126,6 @@ export default function CarteMobile({
   hideAccount = false,
   itineraryStops: itineraryStopsProp = null,
   showItineraire = false,
-  autoTournee = false,
   zones = [],
   initialZoneId = null,
   initialAtelier = null,
@@ -156,8 +146,6 @@ export default function CarteMobile({
   hideAccount?: boolean;
   itineraryStops?: readonly ItineraireStop[] | null;
   showItineraire?: boolean;
-  /** Entrée « tournée » depuis l'accueil : la préparation s'ouvre seule, ou la tournée reprend. */
-  autoTournee?: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
   /** « nouveau », ou le secteur à retoucher : l'atelier s'ouvre dès l'arrivée. */
@@ -175,7 +163,7 @@ export default function CarteMobile({
   const zoneARetoucher = initialAtelier ? (zones.find((z) => z.id === initialAtelier) ?? null) : null;
   const [atelier, setAtelier] = useState(initialAtelier === 'nouveau' || zoneARetoucher !== null);
   const [atelierZone, setAtelierZone] = useState<Zone | null>(zoneARetoucher);
-  const [portee, setPortee] = useState<PorteeSecteurs>('mes');
+  const [secteursAgence, setSecteursAgence] = useState(false);
   const [onglet, setOnglet] = useState<OngletCarte>(() =>
     empriseDepuisZoneId(zoneIdInitial(initialZoneId, zones)) === 'code_postal' ? 'code_postal' : 'mes',
   );
@@ -190,55 +178,38 @@ export default function CarteMobile({
   const [accountOpen, setAccountOpen] = useState(false);
   const geocodeStarted = useRef(false);
   const [storedStops, setStoredStops] = useState<ItineraireStop[] | null>(null);
-  /** En préparation : le prochain appui sur la carte ajoute une adresse de passage. */
-  const [picking, setPicking] = useState(false);
-  const [confirmerFin, setConfirmerFin] = useState(false);
-  /** Le temps que le tap « Terminer » retombe : la barre d'onglets reste cachée. */
-  const [gardeFin, setGardeFin] = useState(false);
-  const gardeFinTimer = useRef<number | null>(null);
 
   const cadre = useMemo(
-    () => cadrageCarte({ zoneId, zones, profileId, directeur: isDirector, portee }),
-    [zoneId, zones, profileId, isDirector, portee],
+    () => cadrageCarte({ zoneId, zones, profileId, directeur: false, portee: 'mes' }),
+    [zoneId, zones, profileId],
   );
-  const { proposes, voirTous, zoneChoisie, affiches } = cadre;
-  const monSecteurId = zoneProspectionParDefaut(zones, profileId);
+  const { proposes, zoneChoisie, affiches } = cadre;
+  const zonesSurCarte = useMemo(() => {
+    if (onglet === 'code_postal' || secteursAgence) {
+      return secteursDeLaCarte(zones, profileId, false, 'agence');
+    }
+    return affiches;
+  }, [onglet, secteursAgence, zones, profileId, affiches]);
   const annoncesQui = useMemo(
     () => ({
       zones,
       directeur: isDirector,
       profileId,
-      zoneCadree: zoneChoisie,
-      zonesCadrees: voirTous ? affiches : null,
+      zoneCadree: secteursAgence || onglet === 'code_postal' ? null : zoneChoisie,
+      zonesCadrees: secteursAgence || onglet === 'code_postal' ? zonesSurCarte : null,
       toutLeCodePostal: onglet === 'code_postal',
     }),
-    [zones, isDirector, profileId, zoneChoisie, voirTous, affiches, onglet],
+    [zones, isDirector, profileId, zoneChoisie, secteursAgence, zonesSurCarte, onglet],
   );
-
-  const tournee = useTourneeCarte({
-    profileId,
-    isDirector,
-    zoneId: zoneChoisie?.id ?? null,
-    aUnSecteur: Boolean(monSecteurId) || (isDirector && zoneChoisie !== null),
-    autoTournee,
-    mapApi,
-  });
-  const tourShown = tournee.traceVisible;
-  /** Recherche, filtres, boutons et onglets : hors tournée, ou en pause. */
-  const chromeVisible = tournee.chrome;
 
   useEffect(() => {
     setDimension(readMapDimension());
     setStoredStops(readItineraireStops());
   }, []);
 
-  const itineraryStops = tourShown
-    ? tournee.itineraire
-    : showItineraire
-      ? storedStops ?? itineraryStopsProp
-      : null;
-  const { route, waypoints } = useWalkingRoute(tourShown ? null : itineraryStops);
-  const itineraryGeometry = tourShown ? tournee.geometrie : route?.geometry ?? null;
+  const itineraryStops = showItineraire ? storedStops ?? itineraryStopsProp : null;
+  const { route, waypoints } = useWalkingRoute(itineraryStops);
+  const itineraryGeometry = route?.geometry ?? null;
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
   const overlaysCadastre = anyCadastreOverlay(layers);
@@ -256,15 +227,11 @@ export default function CarteMobile({
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
   const carteSecteurs = useCarteSecteurs();
-  const secteursPeints = useMemo(
-    () => secteursPeintsSurCarte(zones, profileId, isDirector, onglet, affiches),
-    [zones, profileId, isDirector, onglet, affiches],
-  );
-  const secteursAffiches = useMemo(() => new Set(secteursPeints.map((z) => z.id)), [secteursPeints]);
+  const secteursAffiches = useMemo(() => new Set(zonesSurCarte.map((z) => z.id)), [zonesSurCarte]);
   const validerDessin = useCallback((id: string) => {
     setSecteurConfirme(true);
     setAtelier(false);
-    setPortee('mes');
+    setSecteursAgence(false);
     setOnglet('mes');
     setZoneId(id);
     router.refresh();
@@ -300,15 +267,15 @@ export default function CarteMobile({
       : null;
   const pointsDuSecteur = useMemo(
     () =>
-      affiches.length > 0
-        ? points.filter((p) => affiches.some((z) => retientDansSecteur(p, z)))
+      zonesSurCarte.length > 0
+        ? points.filter((p) => zonesSurCarte.some((z) => retientDansSecteur(p, z)))
         : points,
-    [points, affiches],
+    [points, zonesSurCarte],
   );
   const focusBounds = useMemo(() => {
-    const boite = fusionnerBbox(affiches.map(bboxDeZone).filter((b): b is Bbox => b !== null));
+    const boite = fusionnerBbox(zonesSurCarte.map(bboxDeZone).filter((b): b is Bbox => b !== null));
     return boite ? bboxVersBounds(boite) : null;
-  }, [affiches]);
+  }, [zonesSurCarte]);
   const filtered = useMemo(
     () =>
       filterMapEntities(pointsDuSecteur, {
@@ -360,21 +327,26 @@ export default function CarteMobile({
       setZoneId('aucun');
       return;
     }
-    setPortee(next);
-    setZoneId(zoneParDefautProspection(zones, profileId, isDirector, next) ?? 'aucun');
+    setZoneId(zoneParDefautProspection(zones, profileId, false, 'mes') ?? 'aucun');
   }
 
   const cadastreImmeubles = useMemo(
-    () => parcelle.immeubles.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
-    [parcelle.immeubles, affiches],
+    () =>
+      parcelle.immeubles.filter((row) =>
+        cadastreDansEmprises(row, zonesSurCarte.length > 0 ? zonesSurCarte : null),
+      ),
+    [parcelle.immeubles, zonesSurCarte],
   );
   const activeParcelleIds = useMemo(
     () => cadastreImmeubles.map((row) => row.parcelleId).filter((id): id is string => Boolean(id)),
     [cadastreImmeubles],
   );
   const parcelleNoteMarkers = useMemo(
-    () => parcelle.noteMarkers.filter((row) => cadastreDansEmprises(row, affiches.length > 0 ? affiches : null)),
-    [parcelle.noteMarkers, affiches],
+    () =>
+      parcelle.noteMarkers.filter((row) =>
+        cadastreDansEmprises(row, zonesSurCarte.length > 0 ? zonesSurCarte : null),
+      ),
+    [parcelle.noteMarkers, zonesSurCarte],
   );
 
   useEffect(() => {
@@ -415,59 +387,8 @@ export default function CarteMobile({
     };
   }, [unplaced, router]);
 
-  const finirTournee = useCallback(() => {
-    armPointerShield(900);
-    setGardeFin(true);
-    if (gardeFinTimer.current != null) window.clearTimeout(gardeFinTimer.current);
-    gardeFinTimer.current = window.setTimeout(() => {
-      gardeFinTimer.current = null;
-      setGardeFin(false);
-    }, 900);
-    tournee.terminer();
-  }, [tournee.terminer]);
-
-  useEffect(
-    () => () => {
-      if (gardeFinTimer.current != null) window.clearTimeout(gardeFinTimer.current);
-    },
-    [],
-  );
-
-  /** Point libre : l'adresse la plus proche, sinon les coordonnées brutes. */
-  const ajouterPointCarte = useCallback(
-    (coord: GeoCoord) => {
-      setPicking(false);
-      void reverseGeocode(coord.latitude, coord.longitude).then((hit) => {
-        const label = hit?.adresse_normalisee ?? 'Point sur la carte';
-        tournee.preparation.ajouterAncre({
-          label,
-          latitude: hit?.lat ?? coord.latitude,
-          longitude: hit?.lng ?? coord.longitude,
-          city: '',
-          postcode: /\b\d{5}\b/.exec(label)?.[0] ?? '',
-          id: hit?.ban_id,
-        });
-      });
-    },
-    [tournee.preparation],
-  );
-
   const handleMapSelect = useCallback(
     (building: BuildingMarker) => {
-      if (tournee.phase === 'preparation') {
-        setPicking(false);
-        tournee.preparation.ajouterAncre({
-          label: building.title,
-          latitude: building.latitude,
-          longitude: building.longitude,
-          city: '',
-          postcode: building.postalCode ?? '',
-          // `bien:…` et `gps:…` placent une fiche sans adresse BAN : pas un identifiant d'immeuble.
-          id: building.banId.includes(':') ? undefined : building.banId,
-        });
-        return;
-      }
-      if (tournee.enCours) return;
       const note = building.appearance.kind === 'note' ? building.appearance : null;
       if (note) {
         setSelectedBanId(null);
@@ -499,17 +420,7 @@ export default function CarteMobile({
       setSelectedBanId(building.banId);
       setLayersOpen(false);
     },
-    [tournee.phase, tournee.preparation, tournee.enCours, closeParcelle, parcelle],
-  );
-
-  const choisirArretCarte = useCallback(
-    (stop: ItineraireStop) => {
-      const arret = tournee.arrets.find((a) => a.leadId === stop.leadId);
-      if (!arret) return;
-      tournee.choisirArret(arret.key);
-      mapApi.current?.recenter(arret, 17);
-    },
-    [tournee],
+    [closeParcelle, parcelle],
   );
 
   const switchDimension = useCallback(() => {
@@ -544,14 +455,6 @@ export default function CarteMobile({
       />
     </button>
   ) : null;
-  const contexteBrief = tournee.sansPosition
-    ? 'Pense à activer ta localisation !'
-    : tournee.distanceDepartM !== null
-      ? `Ta tournée commence à ${formatDistance(tournee.distanceDepartM)} d’ici.`
-      : null;
-  const libelleCodePostal =
-    agencyPostalCodes.length === 1 ? `Tout le ${agencyPostalCodes[0]}` : 'Tout le code postal';
-
   const recenterGps = useCallback(() => {
     void requestDevicePosition().then((pos) => {
       if (!pos) {
@@ -564,7 +467,6 @@ export default function CarteMobile({
 
   return (
     <div
-      data-tournee-active={tournee.enCours || gardeFin ? '' : undefined}
       className={
         fillParent
           ? 'field-map relative h-full min-h-0 flex-1 overflow-hidden overscroll-none bg-soft-cool'
@@ -576,9 +478,9 @@ export default function CarteMobile({
         center={center}
         cible={cible}
         focusBounds={focusBounds}
-        zones={affiches}
+        zones={zonesSurCarte}
         highlightedZoneId={zoneChoisie?.id ?? null}
-        clipZones={affiches.length > 0 ? affiches : null}
+        clipZones={zonesSurCarte.length > 0 ? zonesSurCarte : null}
         dessin={
           atelier
             ? {
@@ -597,11 +499,6 @@ export default function CarteMobile({
         mapRef={mapApi}
         onSelect={handleMapSelect}
         onDeselect={() => {
-          if (tournee.phase === 'route') {
-            tournee.choisirArret(null);
-            return;
-          }
-          if (tournee.enCours) return;
           const ouvert = selectedBanId != null || parcelle.fiche != null || parcelle.loading;
           setFocusNoteId(null);
           setSelectedBanId(null);
@@ -612,10 +509,7 @@ export default function CarteMobile({
         onCluster={(children) => mapApi.current?.fitGroup(children)}
         itineraryStops={itineraryStops}
         itineraryGeometry={itineraryGeometry}
-        onStopTap={tournee.phase === 'route' ? choisirArretCarte : undefined}
-        currentLeadId={tourShown ? ((tournee.arretChoisi ?? tournee.prochain)?.leadId ?? null) : null}
-        // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
-        parcellesEnabled={!tournee.immersion && (planParcelles || Boolean(parcelle.selectedParcelleId))}
+        parcellesEnabled={planParcelles || Boolean(parcelle.selectedParcelleId)}
         activeParcelleIds={activeParcelleIds}
         suiviParcelleIds={suiviParcelleIds}
         parcelleNoteMarkers={parcelleNoteMarkers}
@@ -628,7 +522,6 @@ export default function CarteMobile({
           cadastreDpeAges: layers.cadastreDpeAges,
         }}
         onSelectParcelle={(parcelleId, extra) => {
-          if (tournee.enCours) return;
           setFocusNoteId(null);
           setSelectedBanId(null);
           setLayersOpen(false);
@@ -638,8 +531,8 @@ export default function CarteMobile({
         annoncesCouche={{
           layers,
           zones,
-          zoneCadree: zoneChoisie,
-          zonesCadrees: voirTous ? affiches : null,
+          zoneCadree: secteursAgence || onglet === 'code_postal' ? null : zoneChoisie,
+          zonesCadrees: secteursAgence || onglet === 'code_postal' ? zonesSurCarte : null,
           toutLeCodePostal: onglet === 'code_postal',
           directeur: isDirector,
           profileId,
@@ -649,237 +542,82 @@ export default function CarteMobile({
           },
           ouverteId: annonceOuverte?.annonce.id ?? null,
         }}
-        agentPosition={tournee.agentPosition}
-        completedLeadIds={tournee.arretsFaitsIds}
-        highlightBanIds={tournee.highlightBanIds}
-        // Une adresse cherchée ou une tournée gardent la main : la carte ne repart pas sur tout le secteur.
-        suppressAutoFit={tournee.phase !== 'off' || Boolean(cible) || Boolean(initialParcelleId) || Boolean(focusLien)}
+        suppressAutoFit={Boolean(cible) || Boolean(initialParcelleId) || Boolean(focusLien)}
         focus={focusLien}
-        navigation={tournee.immersion}
-        onMapPoint={picking ? ajouterPointCarte : undefined}
       />
 
-      {picking ? (
-        <div
-          className="pointer-events-none absolute inset-x-0 z-[72] px-4"
-          style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
+      <div
+        className="pointer-events-none absolute inset-x-0 z-20 px-4"
+        style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="pointer-events-auto">
+          <MobileSearchCapsule
+            translucent
+            hideAccount={hideAccount}
+            onAccount={() => setAccountOpen(true)}
+            accountOpen={accountOpen}
+          />
+        </div>
+        {viewSwitcher ? (
+          <div className="pointer-events-auto mt-2 flex justify-end">{viewSwitcher}</div>
+        ) : null}
+        {itineraryStops && itineraryStops.length >= 2 ? (
+          <div className="pointer-events-auto mt-2">
+            <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
+          </div>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setLayersOpen(true);
+          setSelectedBanId(null);
+        }}
+        aria-label="Couches"
+        className="app-press absolute left-4 z-20 flex size-12 items-center justify-center rounded-full bg-[#1A2A56] text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
+        style={{ bottom: floatBottom }}
+      >
+        <Layers size={20} strokeWidth={2.2} aria-hidden />
+      </button>
+
+      <div
+        className="absolute right-4 z-20 flex flex-col-reverse items-center gap-2"
+        style={{ bottom: floatBottom }}
+      >
+        <button
+          type="button"
+          onClick={switchDimension}
+          aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
+          aria-pressed={dimension === '3d'}
+          className="app-press flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
+          style={{ color: dimension === '3d' ? FIELD.orange : undefined }}
         >
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1A2A56] py-1.5 pl-4 pr-1.5 shadow-lg">
-            <p className="min-w-0 flex-1 text-[13.5px] font-medium text-white">
-              Touche la carte là où tu veux passer
-            </p>
-            <button
-              type="button"
-              onClick={() => setPicking(false)}
-              className="app-press flex min-h-[38px] flex-shrink-0 items-center rounded-full bg-white/15 px-3 text-[13px] font-semibold text-white"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {chromeVisible ? (
-        <div
-          className="pointer-events-none absolute inset-x-0 z-20 px-4"
-          style={{ top: 'calc(10px + env(safe-area-inset-top, 0px))' }}
+          {dimension === '3d' ? (
+            <Box size={17} strokeWidth={2.2} aria-hidden />
+          ) : (
+            <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
+          )}
+          <span
+            className="text-[10px] font-bold leading-none"
+            style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
+          >
+            {dimension === '3d' ? '3D' : '2D'}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={recenterGps}
+          aria-label="Recentrer sur ma position"
+          className="app-press flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
         >
-          <div className="pointer-events-auto">
-            <MobileSearchCapsule
-              translucent
-              hideAccount={hideAccount}
-              onAccount={() => setAccountOpen(true)}
-              accountOpen={accountOpen}
-            />
-          </div>
-          {viewSwitcher ? (
-            <div className="pointer-events-auto mt-2 flex justify-end">{viewSwitcher}</div>
-          ) : null}
-          {itineraryStops && itineraryStops.length >= 2 ? (
-            <div className="pointer-events-auto mt-2">
-              <ItineraireBanner stops={itineraryStops} waypoints={waypoints} route={route} />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+          <Locate size={20} strokeWidth={2} aria-hidden />
+        </button>
+        {boussole}
+      </div>
 
-      {chromeVisible ? (
-        <>
-          {tournee.phase === 'pause' ? (
-            <div
-              className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5"
-              style={{ bottom: 'calc(72px + var(--field-nav-height))' }}
-            >
-              {confirmerFin ? (
-                <div className="flex items-center gap-1.5 rounded-full bg-surface p-1.5 shadow-lg ring-1 ring-black/[0.06]">
-                  <span className="whitespace-nowrap pl-2.5 text-[14px] font-semibold text-text-strong">
-                    Terminer la tournée ?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmerFin(false)}
-                    className="app-press flex h-10 items-center rounded-full bg-black/[0.05] px-3.5 text-[13.5px] font-semibold text-text-strong"
-                  >
-                    Non
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setConfirmerFin(false);
-                      finirTournee();
-                    }}
-                    className="app-press flex h-10 items-center rounded-full bg-primary-500 px-3.5 text-[13.5px] font-semibold text-white"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    Oui
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedBanId(null);
-                      closeParcelle();
-                      tournee.reprendre();
-                    }}
-                    className="app-press flex items-center gap-2 whitespace-nowrap rounded-full bg-primary-500 px-4 py-2.5 font-semibold text-white shadow-[0_10px_24px_-8px_rgba(99,102,241,0.65)] ring-2 ring-white"
-                    style={{ fontSize: 14 }}
-                  >
-                    <Play size={16} strokeWidth={2.4} aria-hidden />
-                    Reprendre ma tournée
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmerFin(true)}
-                    aria-label="Terminer la tournée"
-                    className="app-press flex size-10 items-center justify-center rounded-full bg-surface text-text-muted shadow-md"
-                  >
-                    <X size={18} strokeWidth={2.3} aria-hidden />
-                  </button>
-                </>
-              )}
-            </div>
-          ) : null}
+      {annonceOuverte ? (
 
-          <button
-            type="button"
-            onClick={() => {
-              setLayersOpen(true);
-              setSelectedBanId(null);
-            }}
-            aria-label="Couches"
-            className="app-press absolute left-4 z-20 flex size-12 items-center justify-center rounded-full bg-[#1A2A56] text-white shadow-[0_10px_24px_-8px_rgba(26,42,86,0.55)] ring-2 ring-white"
-            style={{ bottom: floatBottom }}
-          >
-            <Layers size={20} strokeWidth={2.2} aria-hidden />
-          </button>
-
-          <div
-            className="absolute right-4 z-20 flex flex-col-reverse items-center gap-2"
-            style={{ bottom: floatBottom }}
-          >
-            <button
-              type="button"
-              onClick={switchDimension}
-              aria-label={dimension === '3d' ? 'Passer en plan 2D' : 'Passer en relief 3D'}
-              aria-pressed={dimension === '3d'}
-              className="app-press flex size-12 flex-col items-center justify-center gap-0.5 rounded-full bg-surface shadow-md"
-              style={{ color: dimension === '3d' ? FIELD.orange : undefined }}
-            >
-              {dimension === '3d' ? (
-                <Box size={17} strokeWidth={2.2} aria-hidden />
-              ) : (
-                <Square size={17} strokeWidth={2.2} className="text-text" aria-hidden />
-              )}
-              <span
-                className="text-[10px] font-bold leading-none"
-                style={{ color: dimension === '3d' ? FIELD.orange : '#64748B' }}
-              >
-                {dimension === '3d' ? '3D' : '2D'}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={recenterGps}
-              aria-label="Recentrer sur ma position"
-              className="app-press flex size-12 items-center justify-center rounded-full bg-surface text-text shadow-md"
-            >
-              <Locate size={20} strokeWidth={2} aria-hidden />
-            </button>
-            {boussole}
-          </div>
-        </>
-      ) : boussole ? (
-        <div className="absolute right-4 z-[71]" style={{ top: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
-          {boussole}
-        </div>
-      ) : null}
-
-      {tournee.phase === 'preparation' && !picking ? (
-        <CarteTourneeSetupSheet
-          aUnSecteur={Boolean(monSecteurId) || (isDirector && zoneChoisie !== null)}
-          libelleCodePostal={libelleCodePostal}
-          perimetre={tournee.preparation.perimetre}
-          onPerimetre={tournee.preparation.choisirPerimetre}
-          ancres={tournee.preparation.ancres}
-          onAjouter={tournee.preparation.ajouterAncre}
-          onRetirer={tournee.preparation.retirerAncre}
-          duree={tournee.preparation.duree}
-          onDuree={tournee.preparation.choisirDuree}
-          localisation={tournee.preparation.localisation}
-          postcodeFilter={agencyPostalCodes[0]}
-          generating={tournee.preparation.generation}
-          message={tournee.preparation.message}
-          onPickOnMap={() => setPicking(true)}
-          onGenerate={() => void tournee.generer()}
-          onClose={() => {
-            setPicking(false);
-            tournee.fermerPreparation();
-          }}
-        />
-      ) : null}
-
-      {tournee.phase === 'brief' ? (
-        <CarteTourneeBriefCard
-          stopCount={tournee.arrets.length}
-          minutes={tournee.prevu.minutes}
-          distanceM={tournee.prevu.distanceM}
-          contexte={contexteBrief}
-          onDone={tournee.finBrief}
-        />
-      ) : null}
-
-      {tournee.phase === 'route' ? (
-        <CarteTourneePanel
-          arrets={tournee.arrets}
-          faits={tournee.faits}
-          prochain={tournee.prochain}
-          arretChoisi={tournee.arretChoisi}
-          onChoisir={(key) => {
-            tournee.choisirArret(key);
-            const arret = tournee.arrets.find((a) => a.key === key);
-            if (arret) mapApi.current?.recenter(arret, 17);
-          }}
-          tempsMs={tournee.tempsMs}
-          distanceM={tournee.distanceMarcheeM}
-          routage={tournee.routage}
-          sansPosition={tournee.sansPosition && !tournee.agentPosition}
-          onPause={tournee.pause}
-          onTerminer={finirTournee}
-          onNoter={tournee.noter}
-          onFait={tournee.marquerFait}
-          onRetirer={tournee.retirerArret}
-        />
-      ) : null}
-
-      {tournee.phase === 'bilan' && tournee.bilan ? (
-        <CarteTourneeDoneCard bilan={tournee.bilan} onClose={tournee.fermerBilan} />
-      ) : null}
-
-      {annonceOuverte && !tournee.enCours ? (
         <div className="pointer-events-auto absolute inset-x-3 z-[72] flex max-h-[55%] flex-col overflow-hidden" style={{ bottom: 'calc(12px + var(--field-nav-height))' }}>
           <AnnonceVolet
             annonce={annonceOuverte.annonce}
@@ -896,13 +634,24 @@ export default function CarteMobile({
         initialSnap={2}
       >
         {atelier ? null : (
-          <EmpriseCapsules value={onglet} onChange={choisirOnglet} />
+          <EmpriseCapsules
+            compact
+            value={empriseCochee(onglet, secteursAgence)}
+            onChange={(choix) => {
+              if ((choix === 'code_postal') !== (onglet === 'code_postal')) {
+                choisirOnglet(choix === 'code_postal' ? 'code_postal' : 'mes');
+              }
+              setSecteursAgence(choix === 'agence');
+            }}
+          />
         )}
-        {onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(proposes) ? (
+        {onglet === 'mes' && !secteurConfirme && !aUnSecteurDefini(proposes) && !secteursAgence ? (
           dessin.panneau ?? (
-            <button type="button" onClick={() => ouvrirAtelier(null)} className={`${BOUTON_CARTE_VIDE} w-full`}>
-              Créer mon secteur
-            </button>
+            <>
+              <button type="button" onClick={() => ouvrirAtelier(null)} className={`${BOUTON_CARTE_VIDE} w-full`}>
+                Créer mon secteur
+              </button>
+            </>
           )
         ) : (
         dessin.panneau ?? (
@@ -963,10 +712,14 @@ export default function CarteMobile({
               setLayers((prev) => {
                 const next = { ...prev, ...patch };
                 persistMapLayers(next);
-                setAnnonceOuverte(null);
+                if (patch.annonces === false) setAnnonceOuverte(null);
                 return next;
               })
             }
+            onOuvrirAnnonce={(annonce) => {
+              setLayersOpen(false);
+              setAnnonceOuverte({ annonce, soeurs: [annonce] });
+            }}
           />
           {onglet === 'code_postal' ? null : (
             <>
@@ -974,7 +727,6 @@ export default function CarteMobile({
                 zones={proposes}
                 zoneId={zoneId}
                 onZone={setZoneId}
-                tous={isDirector}
                 profileId={profileId}
                 membres={members}
                 onCreer={() => ouvrirAtelier(null)}
@@ -999,7 +751,7 @@ export default function CarteMobile({
       </MobileSheet>
 
       <MobileSheet
-        open={Boolean(selected) && !tourShown}
+        open={Boolean(selected)}
         onClose={() => {
           setSelectedBanId(null);
           oublierCible();

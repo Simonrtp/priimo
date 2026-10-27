@@ -35,7 +35,6 @@ export default function ProspectionCarteView({
   initialParcelleId = null,
   itineraryStops,
   showItineraire,
-  autoTournee,
   zones = [],
   initialZoneId = null,
   initialAtelier = null,
@@ -53,7 +52,6 @@ export default function ProspectionCarteView({
   initialParcelleId?: string | null;
   itineraryStops: ItineraireStop[] | null;
   showItineraire: boolean;
-  autoTournee: boolean;
   zones?: readonly Zone[];
   initialZoneId?: string | null;
   initialAtelier?: string | null;
@@ -76,15 +74,15 @@ export default function ProspectionCarteView({
   const switcherBureau = (
     <ProspectsViewSwitch variant="floating" value={vueOnglet} onChange={setVue} debut={<RechercheAdresseCarte />} />
   );
-  const zonesVisibles = zones.filter(
-    (z) => z.actif && (isDirector || z.assignedTo === profileId),
-  );
+  // Même carte pour directeur et collaborateur : tous les secteurs actifs
+  // sont disponibles ; la case « Tous les secteurs » décide de les peindre.
+  const zonesVisibles = zones.filter((z) => z.actif);
 
   if (device === 'mobile') {
     return (
       <LimiteErreur
         titre="La carte n’a pas pu s’afficher."
-        detail="Réessayez. La tournée en cours est toujours là."
+        detail="Réessayez. Rien n’est perdu."
         action="Réessayer"
       >
       <div
@@ -106,7 +104,6 @@ export default function ProspectionCarteView({
             initialParcelleId={initialParcelleId}
             itineraryStops={itineraryStops}
             showItineraire={showItineraire}
-            autoTournee={autoTournee}
             fillParent
             zones={zonesVisibles}
             initialZoneId={initialZoneId}

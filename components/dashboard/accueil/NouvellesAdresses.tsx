@@ -166,7 +166,7 @@ export default function NouvellesAdresses({
 
       {total > adresses.length ? (
         <p className="mt-2.5 text-[11px] text-text-subtle">
-          et {total - adresses.length} autre{total - adresses.length > 1 ? 's' : ''} en attente.
+          {total - adresses.length} autre{total - adresses.length > 1 ? 's' : ''}
         </p>
       ) : null}
     </section>

@@ -1,8 +1,35 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Download, Home, Phone, Search, SlidersHorizontal, Upload, Users } from 'lucide-react';
+import {
+  ChevronDown,
+  Download,
+  GripVertical,
+  Home,
+  Phone,
+  Search,
+  SlidersHorizontal,
+  Upload,
+  Users,
+} from 'lucide-react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact, ContactType } from '@/types/contact';
@@ -22,7 +49,7 @@ import {
   formatLastInteraction,
   type LatestInteraction,
 } from '@/lib/contacts/display';
-import type { MergeLinkCounts } from '@/lib/contacts/merge';
+import { fractionalPosition, positionNeighbors } from '@/lib/pipeline/position';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { exportContactsCsv } from '@/lib/import/export-contacts';
 import { formatPhoneDisplay, formatPhoneWithConsent, normalizePhone, telHref } from '@/lib/import/normalize';
@@ -36,7 +63,7 @@ import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
 import ContactDetailPanel from './ContactDetailPanel';
 import ContactFormDialog from './ContactFormDialog';
 import { CocheConsentementTel } from './ConsentementRappelField';
-import MergeContactsDialog from './MergeContactsDialog';
+import DoublonsDialog, { type PaireDoublon } from './DoublonsDialog';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import { portraitDepuisMembre } from '@/lib/notes/auteur';
@@ -96,6 +123,22 @@ function ChoixFiltre({
   );
 }
 
+const CLE_ECARTES = 'priimo:doublons-ecartes';
+
+function cleDePaire(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function lireEcartes(): Set<string> {
+  try {
+    const brut = window.localStorage.getItem(CLE_ECARTES);
+    const liste: unknown = brut ? JSON.parse(brut) : [];
+    return new Set(Array.isArray(liste) ? liste.filter((v): v is string => typeof v === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
 const PORTEES_CONTACTS: readonly { id: PorteeContacts; label: string }[] = [
   { id: 'moi', label: 'Mes contacts' },
   { id: 'agence', label: 'Les contacts de toute l’agence' },
@@ -142,6 +185,11 @@ function ContactRow({
   members,
   currentUserId,
   marquePrivee = false,
+  rangeable = false,
+  dragHandleProps,
+  sortableRef,
+  sortableStyle,
+  dragging = false,
   onOpen,
   onComplete,
   onMerge,
@@ -164,6 +212,12 @@ function ContactRow({
   currentUserId: string;
   /** Fiche privée d'un collègue, visible parce que la direction voit toute l'agence. */
   marquePrivee?: boolean;
+  /** Poignée de glisser-déposer visible (liste non filtrée). */
+  rangeable?: boolean;
+  dragHandleProps?: Record<string, unknown>;
+  sortableRef?: (node: HTMLElement | null) => void;
+  sortableStyle?: CSSProperties;
+  dragging?: boolean;
   onOpen: () => void;
   onComplete: () => void;
   onMerge: () => void;
@@ -207,17 +261,33 @@ function ContactRow({
 
   return (
     <li
-      className="overflow-hidden border-b border-[#1A2A56]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none"
+      ref={sortableRef}
+      className={`overflow-hidden border-b border-[#1A2A56]/12 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] first:rounded-t-[32px] last:rounded-b-[32px] last:border-b-0 motion-reduce:transition-none ${
+        dragging ? 'relative z-10 opacity-90 shadow-clay' : ''
+      }`}
       style={{
         background: selected ? SELECTED : '#FFFFFF',
         borderBottomWidth: 0.5,
+        ...sortableStyle,
       }}
     >
       <div
-        className="flex min-h-[76px] cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#F1F2F4] motion-reduce:transition-none sm:px-5"
+        className="flex min-h-[76px] cursor-pointer items-center gap-2 px-3 py-3 transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-[#F1F2F4] motion-reduce:transition-none sm:gap-3 sm:px-5"
         style={selected ? { background: SELECTED } : undefined}
         onClick={onOpen}
       >
+        {rangeable ? (
+          <button
+            type="button"
+            className="flex size-8 shrink-0 cursor-grab items-center justify-center self-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text-muted active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            aria-label={`Déplacer ${contact.fullName}`}
+            title="Glisser pour ranger"
+            onClick={(e) => e.stopPropagation()}
+            {...dragHandleProps}
+          >
+            <GripVertical size={16} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
         <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-[13px] font-semibold">
           {[...contactInitials(contact)].map((lettre, index) => (
             <span key={`${lettre}-${index}`} style={{ color: couleurLettre(lettre) }}>
@@ -417,6 +487,35 @@ function ContactRow({
   );
 }
 
+function SortableContactRow({
+  rangeable,
+  ...props
+}: {
+  rangeable: boolean;
+} & Omit<
+  Parameters<typeof ContactRow>[0],
+  'rangeable' | 'dragHandleProps' | 'sortableRef' | 'sortableStyle' | 'dragging'
+>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.contact.id,
+    disabled: !rangeable,
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <ContactRow
+      {...props}
+      rangeable={rangeable}
+      dragHandleProps={rangeable ? { ...attributes, ...listeners } : undefined}
+      sortableRef={setNodeRef}
+      sortableStyle={style}
+      dragging={isDragging}
+    />
+  );
+}
+
 export default function ContactsClient({
   initialContacts,
   biens,
@@ -490,9 +589,48 @@ export default function ContactsClient({
   const [importOpen, setImportOpen] = useState(retourGoogle !== null);
   const [editing, setEditing] = useState<Contact | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = useState<Contact | null>(null);
-  const [mergePair, setMergePair] = useState<{ keep: Contact; absorb: Contact } | null>(null);
+  const [revue, setRevue] = useState<readonly PaireDoublon[] | null>(null);
+  const [ecartes, setEcartes] = useState<Set<string>>(() => new Set());
 
-  const partenaires = useMemo(() => duplicatePartnerMap(contacts), [contacts]);
+  useEffect(() => {
+    setEcartes(lireEcartes());
+  }, []);
+
+  const partenairesBruts = useMemo(() => duplicatePartnerMap(contacts), [contacts]);
+
+  // Une paire écartée n'est plus signalée nulle part.
+  const partenaires = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [id, autre] of partenairesBruts) {
+      if (!ecartes.has(cleDePaire(id, autre))) map.set(id, autre);
+    }
+    return map;
+  }, [partenairesBruts, ecartes]);
+
+  const paires = useMemo(() => {
+    const vues = new Set<string>();
+    const out: PaireDoublon[] = [];
+    for (const [id, autre] of partenaires) {
+      const cle = cleDePaire(id, autre);
+      if (vues.has(cle)) continue;
+      vues.add(cle);
+      out.push([id, autre]);
+    }
+    return out;
+  }, [partenaires]);
+
+  function ecarter([a, b]: PaireDoublon) {
+    setEcartes((prev) => {
+      const next = new Set(prev);
+      next.add(cleDePaire(a, b));
+      try {
+        window.localStorage.setItem(CLE_ECARTES, JSON.stringify([...next]));
+      } catch {
+        /* rien : l'écart tient pour cette session */
+      }
+      return next;
+    });
+  }
 
   const perimetre = useMemo(() => {
     if (!isDirector || portee === 'agence') return contacts;
@@ -526,6 +664,11 @@ export default function ContactsClient({
     });
 
     return filtered.sort((a, b) => {
+      const ap = a.position;
+      const bp = b.position;
+      if (ap != null && bp != null && ap !== bp) return ap - bp;
+      if (ap != null && bp == null) return -1;
+      if (ap == null && bp != null) return 1;
       const aDue = isRelanceDue(a.recontacterLe, todayKey);
       const bDue = isRelanceDue(b.recontacterLe, todayKey);
       if (aDue !== bDue) return aDue ? -1 : 1;
@@ -546,6 +689,66 @@ export default function ContactsClient({
     partenaires,
     latest,
   ]);
+
+  /** Ranger librement seulement quand la liste n’est pas filtrée (comme Gmail). */
+  const peutRanger =
+    !query.trim() &&
+    etatFilter === 'tous' &&
+    typeFilter === 'tous' &&
+    listFilter == null;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  async function rangerContact(event: DragEndEvent) {
+    if (!peutRanger) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = visible.map((c) => c.id);
+    const oldIndex = ids.indexOf(String(active.id));
+    const newIndex = ids.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+    const contactId = String(active.id);
+    const ordered = arrayMove(visible, oldIndex, newIndex);
+    const neighbors = positionNeighbors(
+      ordered.map((c) => ({
+        id: c.id,
+        stagePosition: c.id === contactId ? null : (c.position ?? null),
+      })),
+      newIndex,
+      contactId,
+    );
+    const position = fractionalPosition(neighbors.previous, neighbors.next);
+    const previous = contacts;
+
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contactId ? { ...c, position } : c)),
+    );
+
+    try {
+      const res = await fetch(`/api/dashboard/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ position }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? 'Déplacement impossible');
+      }
+      const data = (await res.json()) as { contact?: Contact };
+      if (data.contact) {
+        setContacts((prev) =>
+          prev.map((c) => (c.id === contactId ? { ...c, ...data.contact, position } : c)),
+        );
+      }
+    } catch (err) {
+      setContacts(previous);
+      notifyError(err instanceof Error ? err.message : 'Déplacement impossible');
+    }
+  }
 
   const filtresActifs = (etatFilter !== 'tous' ? 1 : 0) + (typeFilter !== 'tous' ? 1 : 0);
 
@@ -604,16 +807,27 @@ export default function ContactsClient({
 
   function openMerge(contact: Contact) {
     const otherId = partenaires.get(contact.id);
-    const other = otherId ? contacts.find((c) => c.id === otherId) : null;
-    if (!other) return;
-    setMergePair({ keep: contact, absorb: other });
+    if (!otherId) return;
+    // La paire cliquée passe en premier, les autres suivent.
+    const cle = cleDePaire(contact.id, otherId);
+    setRevue([
+      [contact.id, otherId],
+      ...paires.filter(([a, b]) => cleDePaire(a, b) !== cle),
+    ]);
   }
 
-  function onMerged(kept: Contact, absorbedId: string, _transferred: MergeLinkCounts) {
+  function onMerged(kept: Contact, absorbedId: string) {
     setContacts((list) => [kept, ...list.filter((c) => c.id !== kept.id && c.id !== absorbedId)]);
-    setSelectedId(kept.id);
-    setMergePair(null);
-    void _transferred;
+    if (selectedId === absorbedId) setSelectedId(kept.id);
+  }
+
+  function onMergeFailed(keptId: string, absorbed: Contact) {
+    setContacts((list) => {
+      if (list.some((c) => c.id === absorbed.id)) return list;
+      const kept = list.find((c) => c.id === keptId);
+      if (!kept) return [absorbed, ...list];
+      return list.flatMap((c) => (c.id === keptId ? [c, absorbed] : [c]));
+    });
   }
 
   return (
@@ -684,6 +898,17 @@ export default function ContactsClient({
           </>
         }
       />
+
+      {paires.length > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-[#1A2A56]/12 bg-white px-5 py-3.5 shadow-clay-sm">
+          <p className="text-[14px] font-medium text-text-strong">
+            {paires.length === 1 ? 'Il y a 1 doublon possible' : `Il y a ${paires.length} doublons possibles`}
+          </p>
+          <WorkspaceButton type="button" variant="secondary" onClick={() => setRevue(paires)}>
+            Les passer en revue
+          </WorkspaceButton>
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-wrap items-center gap-2.5 md:mb-8">
         <label className="relative w-full min-w-0 sm:w-auto">
@@ -768,47 +993,59 @@ export default function ContactsClient({
           </p>
         </WorkspaceCard>
       ) : (
-        <ul
-          key={`${portee}:${etatFilter}:${typeFilter}`}
-          className="carte-entree overflow-hidden rounded-[32px] border border-[#1A2A56]/12 bg-white shadow-clay-sm"
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => void rangerContact(event)}
         >
-          {visible.map((contact) => (
-            <ContactRow
-              key={contact.id}
-              contact={contact}
-              selected={contact.id === selectedId}
-              assigneeName={
-                members.find((m) => m.id === (contact.assignedTo ?? contact.createdBy))
-                  ?.fullName ?? null
-              }
-              last={latest[contact.id] ?? null}
-              bien={bienForContact(contact, biens)}
-              leadAddress={contact.leadId ? leadAddresses[contact.leadId] ?? null : null}
-              incomplete={isIncompleteContact(contact)}
-              duplicateOf={partenaires.get(contact.id) ?? null}
-              todayKey={todayKey}
-              biens={biens}
-              members={members}
-              currentUserId={currentUserId}
-              marquePrivee={
-                isDirector &&
-                portee === 'agence' &&
-                contact.visibilite !== 'agence' &&
-                !contactAMoi(contact, currentUserId)
-              }
-              onOpen={() => setSelectedId((id) => (id === contact.id ? null : contact.id))}
-              onComplete={() => setSelectedId(contact.id)}
-              onMerge={() => openMerge(contact)}
-              onRelance={(date) => void patchRelance(contact, date)}
-              onEdit={() => {
-                setEditing(contact);
-                setFormOpen(true);
-              }}
-              onDelete={() => setPendingDelete(contact)}
-              onAssigned={upsert}
-            />
-          ))}
-        </ul>
+          <SortableContext
+            items={visible.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul
+              key={`${portee}:${etatFilter}:${typeFilter}`}
+              className="carte-entree overflow-hidden rounded-[32px] border border-[#1A2A56]/12 bg-white shadow-clay-sm"
+            >
+              {visible.map((contact) => (
+                <SortableContactRow
+                  key={contact.id}
+                  rangeable={peutRanger}
+                  contact={contact}
+                  selected={contact.id === selectedId}
+                  assigneeName={
+                    members.find((m) => m.id === (contact.assignedTo ?? contact.createdBy))
+                      ?.fullName ?? null
+                  }
+                  last={latest[contact.id] ?? null}
+                  bien={bienForContact(contact, biens)}
+                  leadAddress={contact.leadId ? leadAddresses[contact.leadId] ?? null : null}
+                  incomplete={isIncompleteContact(contact)}
+                  duplicateOf={partenaires.get(contact.id) ?? null}
+                  todayKey={todayKey}
+                  biens={biens}
+                  members={members}
+                  currentUserId={currentUserId}
+                  marquePrivee={
+                    isDirector &&
+                    portee === 'agence' &&
+                    contact.visibilite !== 'agence' &&
+                    !contactAMoi(contact, currentUserId)
+                  }
+                  onOpen={() => setSelectedId((id) => (id === contact.id ? null : contact.id))}
+                  onComplete={() => setSelectedId(contact.id)}
+                  onMerge={() => openMerge(contact)}
+                  onRelance={(date) => void patchRelance(contact, date)}
+                  onEdit={() => {
+                    setEditing(contact);
+                    setFormOpen(true);
+                  }}
+                  onDelete={() => setPendingDelete(contact)}
+                  onAssigned={upsert}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       {formOpen ? (
@@ -831,13 +1068,15 @@ export default function ContactsClient({
         />
       ) : null}
 
-      {mergePair ? (
-        <MergeContactsDialog
-          keep={mergePair.keep}
-          absorb={mergePair.absorb}
+      {revue ? (
+        <DoublonsDialog
+          paires={revue}
+          contacts={contacts}
           members={members}
-          onClose={() => setMergePair(null)}
+          onClose={() => setRevue(null)}
+          onEcarte={ecarter}
           onMerged={onMerged}
+          onMergeFailed={onMergeFailed}
         />
       ) : null}
 
