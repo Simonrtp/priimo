@@ -36,9 +36,9 @@ export default function ProspectsViewSwitch({
   const bar = variant === 'bar';
   const shellClass = floating
     ? // Collé au coin haut-droit de la coque (rayon 32), sans marge qui le fait flotter.
-      'flex shrink-0 rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-clay-sm'
+      'flex shrink-0 rounded-bl-[20px] rounded-tr-[32px] border-0 bg-white p-1 pl-1.5 pt-1.5 shadow-clay-lg'
     : bar
-      ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-clay-sm'
+      ? 'flex w-fit rounded-full border border-black/[0.08] bg-white p-0.5 shadow-clay-lg'
       : PASTILLE_TRACK;
 
   return (

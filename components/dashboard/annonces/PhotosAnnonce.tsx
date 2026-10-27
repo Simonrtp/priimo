@@ -19,12 +19,30 @@ export default function PhotosAnnonce({ photos, chargement }: { photos: string[]
 
   return (
     <div className="relative mb-3 overflow-hidden rounded-[16px] bg-black/[0.04]">
-      <img
-        src={photos[i]}
-        alt={`Photo ${i + 1} sur ${photos.length}`}
-        referrerPolicy="no-referrer"
-        className="aspect-[4/3] w-full object-cover"
-      />
+      {/*
+        Toutes les photos sont dans la page dès l'ouverture : elles se chargent en arrière-plan
+        et le défilement ne fait que glisser la piste, sans rien retélécharger.
+      */}
+      <div
+        className="flex transition-transform duration-300 ease-out motion-reduce:transition-none"
+        style={{ transform: `translateX(-${i * 100}%)` }}
+      >
+        {photos.map((src, n) => {
+          const courante = n === i;
+          return (
+            <img
+              key={src}
+              src={src}
+              alt={courante ? `Photo ${n + 1} sur ${photos.length}` : ''}
+              aria-hidden={courante ? undefined : true}
+              referrerPolicy="no-referrer"
+              decoding="async"
+              fetchPriority={n <= 1 ? 'high' : 'low'}
+              className="aspect-[4/3] w-full shrink-0 object-cover"
+            />
+          );
+        })}
+      </div>
       {plusieurs ? (
         <>
           <button

@@ -88,7 +88,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         <Sidebar />
                         <div data-entree-colonne className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
                           <TopBar />
-                          <main data-entree-coque className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
+                          <main id="dashboard-coque" data-entree-coque className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
                             <WorkspacePanel>{children}</WorkspacePanel>
                           </main>
                         </div>
