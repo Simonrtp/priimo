@@ -16,6 +16,7 @@ describe('goutte — barre de recherche et micro', () => {
     assert.equal(g.hauteur, 44);
     assert.equal(g.cx, 40);
     assert.equal(g.cy, 22);
+    assert.equal(g.rayon, 22);
   });
 
   it('creuse un col plus étroit que la pilule', () => {

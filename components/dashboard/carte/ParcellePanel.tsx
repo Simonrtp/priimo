@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import SecteurAdresse from '@/components/dashboard/carte/SecteurAdresse';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -979,6 +980,37 @@ function MenuAjoutParcelle({
 }) {
   const [ouvert, setOuvert] = useState(false);
   const racineRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sourisFine = useCallback(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+    [],
+  );
+
+  const ouvrirAuSurvol = useCallback(() => {
+    if (!sourisFine()) return;
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setOuvert(true);
+  }, [sourisFine]);
+
+  const fermerAuSurvol = useCallback(() => {
+    if (!sourisFine()) return;
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = null;
+      setOuvert(false);
+    }, 140);
+  }, [sourisFine]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!ouvert) return;
@@ -1002,7 +1034,12 @@ function MenuAjoutParcelle({
   };
 
   return (
-    <div ref={racineRef} className="relative ml-auto">
+    <div
+      ref={racineRef}
+      className="relative ml-auto"
+      onMouseEnter={ouvrirAuSurvol}
+      onMouseLeave={fermerAuSurvol}
+    >
       <div
         role="menu"
         aria-label="Ajouter sur cette parcelle"
@@ -1020,7 +1057,7 @@ function MenuAjoutParcelle({
           onClick={() => choisir(onDicter)}
           className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-strong hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6366F1]"
         >
-          <Mic size={18} className="shrink-0 text-ia" aria-hidden />
+          <Mic size={18} className="shrink-0 text-text-muted" aria-hidden />
           Dicter une note
         </button>
         <button
@@ -1039,7 +1076,7 @@ function MenuAjoutParcelle({
             aria-disabled="true"
             className="flex min-h-12 w-full cursor-default items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-muted"
           >
-            <Columns3 size={18} className="shrink-0 opacity-45" aria-hidden />
+            <Columns3 size={18} className="shrink-0 text-text-muted opacity-45" aria-hidden />
             <span className="min-w-0 flex-1">Déjà au pipeline</span>
           </div>
         ) : (
@@ -1051,7 +1088,7 @@ function MenuAjoutParcelle({
             onClick={(e) => choisir(() => onAjouterPipeline(e.currentTarget))}
             className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-strong hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent disabled:opacity-50"
           >
-            <Columns3 size={18} className="shrink-0 text-accent" aria-hidden />
+            <Columns3 size={18} className="shrink-0 text-text-muted" aria-hidden />
             Ajouter au pipeline
           </button>
         )}
@@ -1060,7 +1097,7 @@ function MenuAjoutParcelle({
           aria-disabled="true"
           className="flex min-h-12 w-full cursor-default items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-muted"
         >
-          <Calculator size={18} className="shrink-0 opacity-45" aria-hidden />
+          <Calculator size={18} className="shrink-0 text-text-muted opacity-45" aria-hidden />
           <span className="min-w-0 flex-1">Faire une estimation</span>
           <span className="shrink-0 text-[12px] font-normal">À venir</span>
         </div>
@@ -1328,6 +1365,7 @@ export default function ParcellePanel({
             {refParcelle}
           </p>
         )}
+        <SecteurAdresse parcelleIds={[fiche.parcelleId]} className="mb-3" />
         {adressesOuvertes ? (
           <ul className="-mt-1 mb-3 flex flex-col gap-1">
             {fiche.adresses.map((a) => (

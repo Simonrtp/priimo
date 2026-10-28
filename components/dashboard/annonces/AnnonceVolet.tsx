@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import SecteurAdresse from '@/components/dashboard/carte/SecteurAdresse';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { ArrowDown, Columns3, Mic, NotebookPen, Plus, X } from 'lucide-react';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import ChoixAdresses from './ChoixAdresses';
@@ -12,6 +14,7 @@ import { envoyerAuPipeline } from '@/lib/pipeline/envoyer';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
 import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { rafraichirAnnoncesSecteur, useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
+import { onNoteCreated } from '@/lib/notes/note-created-event';
 import { notifyError } from '@/lib/notify';
 import { markerBadgeColor } from '@/lib/carte/colors';
 import { dpeFillColor, parseDpeLetter } from '@/lib/carte/dpe-public';
@@ -27,6 +30,7 @@ import {
   repereApproximatif,
 } from '@/lib/annonces/presenter';
 import type { Annonce, Portail } from '@/lib/annonces/types';
+import type { Contact, TerrainNote } from '@/types/contact';
 
 /** Les portails sans logo (Figaro, site d'agence collé par URL) s'affichent en toutes lettres. */
 const LOGO_PORTAIL: Partial<Record<Portail, string>> = {
@@ -88,6 +92,86 @@ function Ligne({ titre, children }: { titre: string; children: ReactNode }) {
       <dt className="shrink-0 text-[12.5px] text-text-muted">{titre}</dt>
       <dd className="min-w-0 text-right text-[13.5px] font-medium text-text-strong">{children}</dd>
     </div>
+  );
+}
+
+/** Contacts liés à l’adresse via une note terrain — même rythme que Notes / Historique. */
+function ContactsAnnonce({ parcelleId }: { parcelleId: string }) {
+  const [contacts, setContacts] = useState<Contact[] | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function charger() {
+      try {
+        const res = await fetch(
+          `/api/dashboard/notes?entiteType=parcelle&entiteId=${encodeURIComponent(parcelleId)}`,
+          { cache: 'no-store' },
+        );
+        if (!res.ok) {
+          if (!ignore) setContacts([]);
+          return;
+        }
+        const data = (await res.json()) as { notes?: TerrainNote[] };
+        const ids = new Set<string>();
+        for (const note of data.notes ?? []) {
+          if (note.contactId) ids.add(note.contactId);
+          for (const lien of note.liens) {
+            if (lien.entiteType === 'contact') ids.add(lien.entiteId);
+          }
+        }
+        if (ids.size === 0) {
+          if (!ignore) setContacts([]);
+          return;
+        }
+        const lus = await Promise.all(
+          [...ids].map(async (id) => {
+            const r = await fetch(`/api/dashboard/contacts/${id}`, { cache: 'no-store' });
+            if (!r.ok) return null;
+            const body = (await r.json()) as { contact?: Contact };
+            return body.contact ?? null;
+          }),
+        );
+        if (!ignore) {
+          setContacts(
+            lus
+              .filter((c): c is Contact => c != null)
+              .sort((a, b) => a.fullName.localeCompare(b.fullName, 'fr')),
+          );
+        }
+      } catch {
+        if (!ignore) setContacts([]);
+      }
+    }
+
+    void charger();
+    return onNoteCreated(() => {
+      void charger();
+    });
+  }, [parcelleId]);
+
+  return (
+    <section className="mt-2 border-t border-black/[0.06] pt-4">
+      <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Contacts</h3>
+      {contacts === null ? (
+        <p className="text-[13px] text-text-muted">Chargement…</p>
+      ) : contacts.length === 0 ? (
+        <p className="text-[13px] text-text-muted">Aucun contact</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {contacts.map((c) => (
+            <li key={c.id}>
+              <Link
+                href={`/dashboard/contacts?fiche=${encodeURIComponent(c.id)}`}
+                className="text-[13.5px] font-medium text-text-strong underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]"
+              >
+                {c.fullName}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -305,6 +389,8 @@ export default function AnnonceVolet({
           </p>
         ) : null}
 
+        {parcelle ? <SecteurAdresse parcelleIds={[parcelle]} className="mb-3" /> : null}
+
         <dl>
           {bien ? <Ligne titre="Bien">{bien}</Ligne> : null}
           {m2 != null ? <Ligne titre="Prix au m²">{euros(m2)}</Ligne> : null}
@@ -351,15 +437,18 @@ export default function AnnonceVolet({
         ) : null}
 
         {parcelle ? (
-          <section className="mt-2 border-t border-black/[0.06] pt-4">
-            <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Notes</h3>
-            {/* Les notes dictées depuis cette fiche vont sur sa parcelle : elles apparaissent ici dès l'enregistrement. */}
-            <NotesTerrainList key={parcelle} entiteType="parcelle" entiteId={parcelle} peutSupprimer />
-          </section>
+          <>
+            <ContactsAnnonce parcelleId={parcelle} />
+            <section className="mt-2 border-t border-black/[0.06] pt-4">
+              <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Notes</h3>
+              {/* Les notes dictées depuis cette fiche vont sur sa parcelle : elles apparaissent ici dès l'enregistrement. */}
+              <NotesTerrainList key={parcelle} entiteType="parcelle" entiteId={parcelle} peutSupprimer />
+            </section>
+          </>
         ) : null}
 
         <section className="mt-2 border-t border-black/[0.06] pt-4">
-          <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Historique</h3>
+          <h3 className="mb-2 text-[15px] font-semibold text-text-strong">Historique des prix</h3>
           <ul className="space-y-1.5">
             {lignes.length === 0 ? <li className="text-[13px] text-text-muted">Pas encore de mouvement.</li> : null}
             {lignes.map((l) => (
@@ -446,6 +535,37 @@ function MenuPlus({
 }) {
   const [ouvert, setOuvert] = useState(false);
   const racineRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sourisFine = useCallback(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+    [],
+  );
+
+  const ouvrirAuSurvol = useCallback(() => {
+    if (!sourisFine()) return;
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setOuvert(true);
+  }, [sourisFine]);
+
+  const fermerAuSurvol = useCallback(() => {
+    if (!sourisFine()) return;
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = null;
+      setOuvert(false);
+    }, 140);
+  }, [sourisFine]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!ouvert) return;
@@ -471,7 +591,12 @@ function MenuPlus({
     'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-text-strong hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#6366F1]';
 
   return (
-    <div ref={racineRef} className="relative">
+    <div
+      ref={racineRef}
+      className="relative"
+      onMouseEnter={ouvrirAuSurvol}
+      onMouseLeave={fermerAuSurvol}
+    >
       <div
         role="menu"
         aria-label="Ajouter depuis l’annonce"

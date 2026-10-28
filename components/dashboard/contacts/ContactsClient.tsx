@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import {
-  ChevronDown,
+  Copy,
   Download,
   GripVertical,
   Home,
@@ -56,6 +56,7 @@ import { formatPhoneDisplay, formatPhoneWithConsent, normalizePhone, telHref } f
 import DatePickerField from '@/components/ui/DatePickerField';
 import { formatDatePickerLabel } from '@/lib/ui/date-picker';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import Modal from '@/components/ui/Modal';
 import ImportContacts from '@/components/dashboard/import/ImportContacts';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
@@ -141,8 +142,13 @@ function lireEcartes(): Set<string> {
 
 const PORTEES_CONTACTS: readonly { id: PorteeContacts; label: string }[] = [
   { id: 'moi', label: 'Mes contacts' },
-  { id: 'agence', label: 'Les contacts de toute l’agence' },
+  { id: 'agence', label: 'Les contacts publics de l’agence' },
 ];
+
+/** Public : la fiche est partagée par son titulaire avec toute l'agence. */
+function contactPublic(contact: Contact): boolean {
+  return contact.visibilite === 'agence';
+}
 
 function contactAMoi(contact: Contact, userId: string): boolean {
   return (contact.assignedTo ?? contact.createdBy) === userId;
@@ -181,9 +187,7 @@ function ContactRow({
   incomplete,
   duplicateOf,
   todayKey,
-  biens,
   members,
-  currentUserId,
   marquePrivee = false,
   rangeable = false,
   dragHandleProps,
@@ -194,9 +198,6 @@ function ContactRow({
   onComplete,
   onMerge,
   onRelance,
-  onEdit,
-  onDelete,
-  onAssigned,
 }: {
   contact: Contact;
   selected: boolean;
@@ -207,9 +208,7 @@ function ContactRow({
   incomplete: boolean;
   duplicateOf: string | null;
   todayKey: string;
-  biens: Bien[];
   members: readonly AssigneeOption[];
-  currentUserId: string;
   /** Fiche privée d'un collègue, visible parce que la direction voit toute l'agence. */
   marquePrivee?: boolean;
   /** Poignée de glisser-déposer visible (liste non filtrée). */
@@ -222,9 +221,6 @@ function ContactRow({
   onComplete: () => void;
   onMerge: () => void;
   onRelance: (date: string | null) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onAssigned: (contact: Contact) => void;
 }) {
   const meta = formatContactMeta(contact, {
     assigneeName,
@@ -243,21 +239,6 @@ function ContactRow({
   const assigneePortrait = assignee ? portraitDepuisMembre(assignee) : null;
   const future = isRelanceFuture(contact.recontacterLe, todayKey);
   const callableNow = Boolean(contact.phone) && !future;
-  const [mounted, setMounted] = useState(selected);
-  const [expanded, setExpanded] = useState(selected);
-
-  useEffect(() => {
-    if (selected) {
-      setMounted(true);
-      const raf = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setExpanded(true));
-      });
-      return () => cancelAnimationFrame(raf);
-    }
-    setExpanded(false);
-    const timer = window.setTimeout(() => setMounted(false), 320);
-    return () => window.clearTimeout(timer);
-  }, [selected]);
 
   return (
     <li
@@ -442,46 +423,6 @@ function ContactRow({
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
-          aria-expanded={selected}
-          aria-controls={`contact-fiche-${contact.id}`}
-          aria-label={selected ? `Fermer la fiche de ${contact.fullName}` : `Ouvrir la fiche de ${contact.fullName}`}
-          className="flex size-8 flex-shrink-0 items-center justify-center self-center rounded-full text-text-subtle hover:bg-black/[0.04] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <ChevronDown
-            size={16}
-            strokeWidth={2}
-            aria-hidden
-            className={`transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
-              selected ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-      </div>
-
-      <div
-        id={`contact-fiche-${contact.id}`}
-        className="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-        style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
-      >
-        <div className={`min-h-0 ${expanded ? 'overflow-visible' : 'overflow-hidden'}`}>
-          {mounted ? (
-            <ContactDetailPanel
-              contact={contact}
-              biens={biens}
-              members={members}
-              currentUserId={currentUserId}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onAssigned={onAssigned}
-            />
-          ) : null}
-        </div>
       </div>
     </li>
   );
@@ -585,6 +526,10 @@ export default function ContactsClient({
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [filtresOuverts]);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedContactId);
+  const contactOuvert = useMemo(
+    () => (selectedId ? contacts.find((c) => c.id === selectedId) ?? null : null),
+    [contacts, selectedId],
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(retourGoogle !== null);
   const [editing, setEditing] = useState<Contact | undefined>(undefined);
@@ -596,7 +541,22 @@ export default function ContactsClient({
     setEcartes(lireEcartes());
   }, []);
 
-  const partenairesBruts = useMemo(() => duplicatePartnerMap(contacts), [contacts]);
+  const perimetre = useMemo(() => {
+    if (!isDirector) return contacts;
+    if (portee === 'agence') return contacts.filter(contactPublic);
+    return contacts.filter((c) => contactAMoi(c, currentUserId));
+  }, [contacts, isDirector, portee, currentUserId]);
+
+  const comptesPortee = useMemo(
+    () => ({
+      moi: contacts.filter((c) => contactAMoi(c, currentUserId)).length,
+      agence: contacts.filter(contactPublic).length,
+    }),
+    [contacts, currentUserId],
+  );
+
+  // Les doublons se cherchent parmi les contacts affichés, pas dans toute la base.
+  const partenairesBruts = useMemo(() => duplicatePartnerMap(perimetre), [perimetre]);
 
   // Une paire écartée n'est plus signalée nulle part.
   const partenaires = useMemo(() => {
@@ -631,19 +591,6 @@ export default function ContactsClient({
       return next;
     });
   }
-
-  const perimetre = useMemo(() => {
-    if (!isDirector || portee === 'agence') return contacts;
-    return contacts.filter((c) => contactAMoi(c, currentUserId));
-  }, [contacts, isDirector, portee, currentUserId]);
-
-  const comptesPortee = useMemo(
-    () => ({
-      moi: contacts.filter((c) => contactAMoi(c, currentUserId)).length,
-      agence: contacts.length,
-    }),
-    [contacts, currentUserId],
-  );
 
   const visible = useMemo(() => {
     const q = normalize(query.trim());
@@ -858,7 +805,7 @@ export default function ContactsClient({
             ? undefined
             : perimetre.length === 0
               ? isDirector && portee === 'agence'
-                ? 'Les fiches de l’agence, y compris les privées'
+                ? 'Les fiches que l’agence partage avec tous'
                 : 'Les personnes que vous rencontrez sur le terrain'
               : `${perimetre.length} ${perimetre.length > 1 ? 'personnes suivies' : 'personne suivie'}`
         }
@@ -900,10 +847,20 @@ export default function ContactsClient({
       />
 
       {paires.length > 0 ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-[#1A2A56]/12 bg-white px-5 py-3.5 shadow-clay-sm">
-          <p className="text-[14px] font-medium text-text-strong">
-            {paires.length === 1 ? 'Il y a 1 doublon possible' : `Il y a ${paires.length} doublons possibles`}
-          </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-black/[0.08] bg-[#F1F2F4] px-5 py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-text-muted"
+              aria-hidden
+            >
+              <Copy size={15} strokeWidth={2.2} />
+            </span>
+            <p className="text-[14px] font-medium text-text-strong">
+              {paires.length === 1
+                ? 'Il y a 1 doublon possible'
+                : `Il y a ${paires.length} doublons possibles`}
+            </p>
+          </div>
           <WorkspaceButton type="button" variant="secondary" onClick={() => setRevue(paires)}>
             Les passer en revue
           </WorkspaceButton>
@@ -987,7 +944,7 @@ export default function ContactsClient({
           <p className="text-pretty text-[14px] text-text-muted sm:text-[15px]">
             {perimetre.length === 0
               ? portee === 'agence' && isDirector
-                ? 'Aucun contact dans l’agence pour l’instant.'
+                ? 'Aucun contact public dans l’agence pour l’instant.'
                 : 'Aucun contact pour l’instant. Ajoutez la première personne rencontrée.'
               : 'Aucun contact ne correspond à cette recherche.'}
           </p>
@@ -996,7 +953,7 @@ export default function ContactsClient({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={(event) => void rangerContact(event)}
+          onDragEnd={(event: DragEndEvent) => void rangerContact(event)}
         >
           <SortableContext
             items={visible.map((c) => c.id)}
@@ -1022,31 +979,52 @@ export default function ContactsClient({
                   incomplete={isIncompleteContact(contact)}
                   duplicateOf={partenaires.get(contact.id) ?? null}
                   todayKey={todayKey}
-                  biens={biens}
                   members={members}
-                  currentUserId={currentUserId}
                   marquePrivee={
                     isDirector &&
                     portee === 'agence' &&
                     contact.visibilite !== 'agence' &&
                     !contactAMoi(contact, currentUserId)
                   }
-                  onOpen={() => setSelectedId((id) => (id === contact.id ? null : contact.id))}
+                  onOpen={() => setSelectedId(contact.id)}
                   onComplete={() => setSelectedId(contact.id)}
                   onMerge={() => openMerge(contact)}
                   onRelance={(date) => void patchRelance(contact, date)}
-                  onEdit={() => {
-                    setEditing(contact);
-                    setFormOpen(true);
-                  }}
-                  onDelete={() => setPendingDelete(contact)}
-                  onAssigned={upsert}
                 />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       )}
+
+      {contactOuvert ? (
+        <Modal
+          open
+          onClose={() => setSelectedId(null)}
+          title={contactOuvert.fullName}
+          maxWidth="2xl"
+          compact
+        >
+          <ContactDetailPanel
+            contact={contactOuvert}
+            biens={biens}
+            members={members}
+            currentUserId={currentUserId}
+            dansCarte
+            onEdit={() => {
+              setEditing(contactOuvert);
+              setFormOpen(true);
+            }}
+            onDelete={() => {
+              setPendingDelete(contactOuvert);
+              setSelectedId(null);
+            }}
+            onAssigned={(c) => {
+              upsert(c);
+            }}
+          />
+        </Modal>
+      ) : null}
 
       {formOpen ? (
         <ContactFormDialog

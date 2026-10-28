@@ -5,9 +5,9 @@ import { goutte } from '@/lib/ui/goutte';
 import { armPointerShield } from '@/lib/ui/pointer-guard';
 import { useVoiceCapture } from './VoiceCaptureProvider';
 
-/** Pilule de 36 px (`h-9` côté barre), cercle blanc de 44 px, micro bleu de 38 px. */
-const FORME = goutte({ hauteurPilule: 36, rayonCercle: 22, ecart: 38, rayonCoin: 12, rayonCol: 11 });
-const RAYON_MICRO = 19;
+/** Pilule de 36 px (`h-9` côté barre), cercle blanc de 44 px, micro bleu de 36 px (halo 4 px). */
+const FORME = goutte({ hauteurPilule: 36, rayonCercle: 22, ecart: 42, rayonCoin: 12, rayonCol: 10 });
+const RAYON_MICRO = 18;
 
 const LIBELLE = 'Dicter : une note, ou une question à Mon assistant';
 
@@ -32,6 +32,8 @@ export default function MicroGoutte() {
         className="pointer-events-none absolute inset-0 overflow-visible"
       >
         <path d={FORME.chemin} fill="#FFFFFF" />
+        {/* Cercle plein sous le micro : halo blanc régulier, le col ne le grignote plus. */}
+        <circle cx={FORME.cx} cy={FORME.cy} r={FORME.rayon} fill="#FFFFFF" />
       </svg>
       <BoutonMicro
         taille={RAYON_MICRO * 2}

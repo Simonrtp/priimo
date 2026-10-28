@@ -120,6 +120,8 @@ export default function ContactDetailPanel({
   onEdit,
   onDelete,
   onAssigned,
+  /** Dans une Modal centrée : pas de bordure haute ni de padding latéral (déjà géré par la carte). */
+  dansCarte = false,
 }: {
   contact: Contact;
   biens: Bien[];
@@ -128,6 +130,7 @@ export default function ContactDetailPanel({
   onEdit: () => void;
   onDelete: () => void;
   onAssigned: (contact: Contact) => void;
+  dansCarte?: boolean;
 }) {
   const [draft, setDraft] = useState(() => fieldSnapshot(contact));
   const [lastSaved, setLastSaved] = useState(() => fieldSnapshot(contact));
@@ -241,7 +244,11 @@ export default function ContactDetailPanel({
 
   return (
     <div
-      className="border-t border-[#1A2A56]/10 px-4 pb-5 pt-5 sm:px-5"
+      className={
+        dansCarte
+          ? 'min-w-0'
+          : 'border-t border-[#1A2A56]/10 px-4 pb-5 pt-5 sm:px-5'
+      }
       role="region"
       aria-label={`Fiche de ${contact.fullName}`}
     >

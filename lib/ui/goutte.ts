@@ -30,6 +30,8 @@ export type Goutte = {
   /** Centre du cercle : le bouton micro s'y pose. */
   cx: number;
   cy: number;
+  /** Rayon du cercle blanc (halo du micro). */
+  rayon: number;
   /** Demi-hauteur du col, au plus étroit. */
   demiCol: number;
 };
@@ -94,6 +96,7 @@ export function goutte({
     hauteur: r2(2 * cy),
     cx: r2(cercle.x),
     cy: r2(cy),
+    rayon: R,
     demiCol: r2(cy - (creux.y + k)),
   };
 }

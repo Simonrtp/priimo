@@ -14,7 +14,16 @@ export type ParcelleSecteur = GeoJSON.Feature<
 
 export type CarteSecteurs = {
   features: ParcelleSecteur[];
-  secteurs: { zoneId: string; assignedTo: string | null; couleur: string; initiales: string; parcelles: number }[];
+  secteurs: {
+    zoneId: string;
+    nom?: string;
+    assignedTo: string | null;
+    /** Prénom du titulaire. */
+    agent?: string | null;
+    couleur: string;
+    initiales: string;
+    parcelles: number;
+  }[];
 };
 
 const VIDE: CarteSecteurs = { features: [], secteurs: [] };

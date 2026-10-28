@@ -62,7 +62,15 @@ export async function GET() {
           geometry: { type: 'Polygon', coordinates: g.anneaux },
         });
       }
-      return { zoneId: zone.id, assignedTo: zone.assignedTo, couleur, initiales, parcelles: ids.length };
+      return {
+        zoneId: zone.id,
+        nom: zone.nom,
+        assignedTo: zone.assignedTo,
+        agent: membre?.firstName?.trim() || membre?.fullName || null,
+        couleur,
+        initiales,
+        parcelles: ids.length,
+      };
     });
 
     return NextResponse.json({ type: 'FeatureCollection', features, secteurs });

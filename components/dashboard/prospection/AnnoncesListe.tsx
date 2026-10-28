@@ -385,45 +385,61 @@ function Ligne({
         type="button"
         onClick={onOuvrir}
         aria-current={active || undefined}
-        className={`relative flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-fluid-subtle md:gap-4 md:px-6 md:py-3.5 ${
+        className={`group relative flex w-full overflow-hidden text-left transition-colors duration-fluid-subtle ${
           active ? 'bg-black/[0.03]' : 'hover:bg-black/[0.018]'
         }`}
       >
         {nouvelle ? (
           <span
-            className="pointer-events-none absolute right-4 top-0 z-10 inline-flex items-center rounded-b-lg px-2.5 pb-1 pt-0.5 text-[10.5px] font-bold tracking-[0.02em] text-white shadow-sm md:right-6"
+            className="pointer-events-none absolute right-4 top-0 z-20 inline-flex items-center rounded-b-lg px-2.5 pb-1 pt-0.5 text-[10.5px] font-bold tracking-[0.02em] text-white shadow-sm md:right-6"
             style={{ backgroundColor: BLEU_CANARD }}
           >
             Nouvelle annonce
           </span>
         ) : null}
-        <span className="relative flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-[28px] bg-[#F1EFE8] text-text-subtle">
-          {photo ? (
-            // Photo du portail, servie telle quelle (pas d'optimisation Next pour une image tierce).
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-          ) : (
-            <Home size={28} strokeWidth={1.8} aria-hidden />
-          )}
+        {/* Au repos : vignette inset. Au survol : la photo remplit toute la hauteur de la ligne, angles droits. */}
+        <span
+          className="relative w-[7.25rem] shrink-0 self-stretch transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:w-[9.5rem] motion-reduce:transition-none md:w-32 md:group-hover:w-44"
+          aria-hidden={!photo}
+        >
+          <span className="absolute bottom-3 left-4 right-0 top-3 overflow-hidden bg-[#F1EFE8] text-text-subtle transition-[top,right,bottom,left] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:bottom-0 group-hover:left-0 group-hover:right-0 group-hover:top-0 motion-reduce:transition-none md:bottom-3.5 md:left-6 md:top-3.5 md:group-hover:bottom-0 md:group-hover:left-0 md:group-hover:top-0">
+            {photo ? (
+              // Photo du portail, servie telle quelle (pas d'optimisation Next pour une image tierce).
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photo}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+              />
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <Home size={28} strokeWidth={1.8} aria-hidden />
+              </span>
+            )}
+          </span>
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-semibold text-text-strong">{lieu.ligne}</span>
-          {details ? <span className="mt-0.5 block truncate text-[12px] text-text-muted">{details}</span> : null}
-          <span className="mt-0.5 block truncate text-[11.5px] text-text-subtle">
-            {portails}
-            {enLigne ? ` · ${enLigne}` : ''}
+        <span className="relative z-[1] flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 pr-4 md:gap-4 md:py-3.5 md:pl-4 md:pr-6">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13.5px] font-semibold text-text-strong">{lieu.ligne}</span>
+            {details ? <span className="mt-0.5 block truncate text-[12px] text-text-muted">{details}</span> : null}
+            <span className="mt-0.5 block truncate text-[11.5px] text-text-subtle">
+              {portails}
+              {enLigne ? ` · ${enLigne}` : ''}
+            </span>
+            {signaux.length > 0 ? (
+              <span className="mt-1.5 flex flex-wrap gap-1 md:hidden">
+                <Signaux signaux={signaux} />
+              </span>
+            ) : null}
           </span>
           {signaux.length > 0 ? (
-            <span className="mt-1.5 flex flex-wrap gap-1 md:hidden">
+            <span className="hidden max-w-[45%] shrink-0 flex-wrap justify-end gap-1 md:flex">
               <Signaux signaux={signaux} />
             </span>
           ) : null}
         </span>
-        {signaux.length > 0 ? (
-          <span className="hidden max-w-[45%] shrink-0 flex-wrap justify-end gap-1 md:flex">
-            <Signaux signaux={signaux} />
-          </span>
-        ) : null}
       </button>
     </li>
   );
