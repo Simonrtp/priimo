@@ -636,6 +636,8 @@ export default function CarteMobile({
         {atelier ? null : (
           <EmpriseCapsules
             compact
+            zones={zones}
+            profileId={profileId}
             value={empriseCochee(onglet, secteursAgence)}
             onChange={(choix) => {
               if ((choix === 'code_postal') !== (onglet === 'code_postal')) {

@@ -173,6 +173,8 @@ function LayersPanel({
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {atelier ? null : (
           <EmpriseCapsules
+            zones={zones}
+            profileId={annoncesQui.profileId}
             value={empriseCochee(onglet, secteursAgence)}
             onChange={(choix) => {
               if ((choix === 'code_postal') !== (onglet === 'code_postal')) {
