@@ -6,7 +6,6 @@ import {
   PLACEHOLDER_RECHERCHE,
 } from '@/components/dashboard/assistant/AssistantSearchButton';
 import { useAssistant } from '@/components/dashboard/assistant/AssistantProvider';
-import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import { AvatarButton } from './MobileAccountMenu';
 
 /**
@@ -58,7 +57,6 @@ export default function MobileSearchCapsule({
             <Search size={16} strokeWidth={2} className="shrink-0 text-text-muted" aria-hidden />
             <span className="truncate text-[13px] text-text-muted">{PLACEHOLDER_RECHERCHE}</span>
           </button>
-          <NotificationsBell tone="light" />
           {!hideAccount ? <AvatarButton onClick={onAccount} expanded={accountOpen} /> : null}
         </>
       )}

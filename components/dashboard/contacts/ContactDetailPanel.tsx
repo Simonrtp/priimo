@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';import type { Bien } from '@/types/bien';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';import type { Bien } from '@/types/bien';
 import { bienIsActive } from '@/types/bien';
 import type { Contact } from '@/types/contact';
 import { aLeRole, criteriaAreEmpty, rolesUsentCriteres } from '@/types/contact';
@@ -19,6 +19,11 @@ import DatePickerField from '@/components/ui/DatePickerField';
 import { Trash2 } from 'lucide-react';
 import PanneauAlerte from '@/components/ui/PanneauAlerte';
 import MemoireAgence from '@/components/dashboard/notes/MemoireAgence';
+
+/** Pour enregistrer le brouillon avant de fermer la carte. */
+export type ContactDetailHandle = {
+  enregistrerSiBesoin: () => Promise<void>;
+};
 
 function euros(v: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(v)} €`;
@@ -112,30 +117,40 @@ function draftsEqual(a: ContactDraft, b: ContactDraft): boolean {
   );
 }
 
-export default function ContactDetailPanel({
-  contact,
-  biens,
-  members,
-  currentUserId,
-  onEdit,
-  onDelete,
-  onAssigned,
-  /** Dans une Modal centrée : pas de bordure haute ni de padding latéral (déjà géré par la carte). */
-  dansCarte = false,
-}: {
-  contact: Contact;
-  biens: Bien[];
-  members: readonly AssigneeOption[];
-  currentUserId: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  onAssigned: (contact: Contact) => void;
-  dansCarte?: boolean;
-}) {
+const ContactDetailPanel = forwardRef<
+  ContactDetailHandle,
+  {
+    contact: Contact;
+    biens: Bien[];
+    members: readonly AssigneeOption[];
+    currentUserId: string;
+    onEdit: () => void;
+    onDelete: () => void;
+    onAssigned: (contact: Contact) => void;
+    /** Dans une Modal centrée : pas de bordure haute ni de padding latéral (déjà géré par la carte). */
+    dansCarte?: boolean;
+  }
+>(function ContactDetailPanel(
+  {
+    contact,
+    biens,
+    members,
+    currentUserId,
+    onEdit,
+    onDelete,
+    onAssigned,
+    dansCarte = false,
+  },
+  ref,
+) {
   const [draft, setDraft] = useState(() => fieldSnapshot(contact));
   const [lastSaved, setLastSaved] = useState(() => fieldSnapshot(contact));
   const [assigning, setAssigning] = useState(false);
   const [partageEnCours, setPartageEnCours] = useState(false);
+  const draftRef = useRef(draft);
+  const lastSavedRef = useRef(lastSaved);
+  draftRef.current = draft;
+  lastSavedRef.current = lastSaved;
   const { profile } = useUser();
   // Fiche partagée par un collègue : on la complète, on n'en dispose pas.
   const gerable = canManageContact({ id: profile.id, role: profile.role }, contact);
@@ -145,7 +160,7 @@ export default function ContactDetailPanel({
     const next = fieldSnapshot(contact);
     setDraft(next);
     setLastSaved(next);
-  }, [contact.id]);
+  }, [contact.id, contact.updatedAt]);
 
   const rapprochements = useMemo(() => {
     if (!aLeRole(contact, 'acquereur')) return [];
@@ -170,6 +185,19 @@ export default function ContactDetailPanel({
 
   const brouillonModifie = !draftsEqual(lastSaved, draft);
 
+  async function ecrireDraft(current: ContactDraft): Promise<Contact> {
+    const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadFrom(contact, current)),
+    });
+    const data = (await res.json()) as { contact?: Contact; error?: string };
+    if (!res.ok || !data.contact) {
+      throw new Error(data.error ?? "Les informations n'ont pas pu être enregistrées");
+    }
+    return data.contact;
+  }
+
   function validerDraft() {
     if (draftsEqual(lastSaved, draft)) return;
     const current = draft;
@@ -179,21 +207,32 @@ export default function ContactDetailPanel({
       succes: 'Contact mis à jour',
       echec: "Les informations n'ont pas pu être enregistrées",
       ecrire: async () => {
-        const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadFrom(contact, current)),
-        });
-        const data = (await res.json()) as { contact?: Contact; error?: string };
-        if (!res.ok || !data.contact) {
+        try {
+          return await ecrireDraft(current);
+        } catch (err) {
           setLastSaved(precedent);
-          throw new Error(data.error ?? "Les informations n'ont pas pu être enregistrées");
+          throw err;
         }
-        return data.contact;
       },
       puis: onAssigned,
     });
   }
+
+  useImperativeHandle(ref, () => ({
+    async enregistrerSiBesoin() {
+      const courant = draftRef.current;
+      const precedent = lastSavedRef.current;
+      if (draftsEqual(precedent, courant)) return;
+      setLastSaved(courant);
+      try {
+        const sauve = await ecrireDraft(courant);
+        onAssigned(sauve);
+      } catch (err) {
+        setLastSaved(precedent);
+        notifyError(err instanceof Error && err.message ? err.message : "Les informations n'ont pas pu être enregistrées");
+      }
+    },
+  }));
 
   async function assignContact(next: string | null) {
     if (assigning || next === contact.assignedTo) return;
@@ -433,4 +472,6 @@ export default function ContactDetailPanel({
       </div>
     </div>
   );
-}
+});
+
+export default ContactDetailPanel;

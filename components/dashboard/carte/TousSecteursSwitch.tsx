@@ -3,7 +3,7 @@
 import Switch from '@/components/ui/Switch';
 
 /**
- * Au-dessus de Contacts : afficher aussi les secteurs des collègues.
+ * Dans les filtres : afficher aussi les secteurs des collègues.
  * Décoché = uniquement mon secteur. Coché = toute l’agence.
  */
 export default function TousSecteursSwitch({

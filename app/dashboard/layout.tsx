@@ -4,9 +4,6 @@ import { getServerUser } from '@/lib/auth/getServerUser';
 import { getDevice } from '@/lib/device-server';
 import { beginDashboardTiming, markServerTimingReady, timed } from '@/lib/perf/timing';
 import { UserProvider } from '@/components/providers/UserProvider';
-import { NotificationsProvider } from '@/components/providers/NotificationsProvider';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { fetchNotificationsSafe } from '@/lib/queries/notifications';
 import DeviceProvider from '@/components/dashboard/device/DeviceProvider';
 import DeviceSync from '@/components/dashboard/device/DeviceSync';
 import SansZoomSaisie from '@/components/dashboard/device/SansZoomSaisie';
@@ -45,67 +42,61 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const device = await timed('getDevice(layout)', () => getDevice());
   const isMobile = device === 'mobile';
-  const supabase = await createSupabaseServerClient();
-  const notifications = await timed('fetchNotifications', () =>
-    fetchNotificationsSafe(supabase, { profileId: profile.id, agencyId: agency.id }),
-  );
 
   const tree = (
     <UserProvider user={user} profile={profile} agency={agency} memberships={memberships}>
-      <NotificationsProvider key={agency.id} initial={notifications}>
-        <DeviceProvider device={device}>
-          <DeviceSync serverDevice={device} />
-          <OfflineQueueProvider>
-            <TourneeDictationProvider>
-              <VoiceCaptureProvider>
-                <AssistantProvider>
-                  <AssistantPanelProvider>
-                    <NavigationInstantaneeProvider>
-                      <RepriseRecherche />
-                      <EntreeDashboard />
-                      {isMobile ? (
-                        <div
-                          data-entree-racine
-                          suppressHydrationWarning
-                          className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base"
+      <DeviceProvider device={device}>
+        <DeviceSync serverDevice={device} />
+        <OfflineQueueProvider>
+          <TourneeDictationProvider>
+            <VoiceCaptureProvider>
+              <AssistantProvider>
+                <AssistantPanelProvider>
+                  <NavigationInstantaneeProvider>
+                    <RepriseRecherche />
+                    <EntreeDashboard />
+                    {isMobile ? (
+                      <div
+                        data-entree-racine
+                        suppressHydrationWarning
+                        className="dashboard-mobile dashboard-fluid flex h-dvh flex-col overflow-hidden overscroll-none bg-bg-base"
+                      >
+                        <EntreeScript />
+                        <TouchScrollGuard />
+                        <SansZoomSaisie />
+                        <MobileChrome />
+                        <main
+                          data-entree-mobile
+                          className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"
+                          style={{ paddingBottom: 'var(--field-nav-height)' }}
                         >
-                          <EntreeScript />
-                          <TouchScrollGuard />
-                          <SansZoomSaisie />
-                          <MobileChrome />
-                          <main
-                            data-entree-mobile
-                            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none bg-bg-base"
-                            style={{ paddingBottom: 'var(--field-nav-height)' }}
-                          >
-                            {children}
+                          {children}
+                        </main>
+                        <MobileBottomNav />
+                        <MobileBackSwipe />
+                        <SurfaceAssistant />
+                      </div>
+                    ) : (
+                      <div data-entree-racine suppressHydrationWarning className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
+                        <EntreeScript />
+                        <Sidebar />
+                        <div data-entree-colonne className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
+                          <TopBar />
+                          <main id="dashboard-coque" data-entree-coque className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
+                            <WorkspacePanel>{children}</WorkspacePanel>
                           </main>
-                          <MobileBottomNav />
-                          <MobileBackSwipe />
-                          <SurfaceAssistant />
                         </div>
-                      ) : (
-                        <div data-entree-racine suppressHydrationWarning className="dashboard-fluid flex h-dvh min-h-0 overflow-hidden">
-                          <EntreeScript />
-                          <Sidebar />
-                          <div data-entree-colonne className={`${SHELL_BG_CLASS} relative isolate flex min-w-0 flex-1 flex-col`}>
-                            <TopBar />
-                            <main id="dashboard-coque" data-entree-coque className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[28px] bg-bg-base max-md:px-4 max-md:pb-[calc(7rem+env(safe-area-inset-bottom))] md:rounded-tl-[32px] md:p-3 md:pb-4 lg:p-4 lg:pb-5">
-                              <WorkspacePanel>{children}</WorkspacePanel>
-                            </main>
-                          </div>
-                          <MobileBottomNav />
-                          <SurfaceAssistant />
-                        </div>
-                      )}
-                    </NavigationInstantaneeProvider>
-                  </AssistantPanelProvider>
-                </AssistantProvider>
-              </VoiceCaptureProvider>
-            </TourneeDictationProvider>
-          </OfflineQueueProvider>
-        </DeviceProvider>
-      </NotificationsProvider>
+                        <MobileBottomNav />
+                        <SurfaceAssistant />
+                      </div>
+                    )}
+                  </NavigationInstantaneeProvider>
+                </AssistantPanelProvider>
+              </AssistantProvider>
+            </VoiceCaptureProvider>
+          </TourneeDictationProvider>
+        </OfflineQueueProvider>
+      </DeviceProvider>
     </UserProvider>
   );
 

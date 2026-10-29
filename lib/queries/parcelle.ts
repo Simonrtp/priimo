@@ -24,6 +24,7 @@ import {
   hasCadastreOverlay,
   completerVentesParcelles,
   parcellesSansVentesAgregees,
+  parcelleIdsProprietaireUnique,
   type VenteBrute,
 } from '@/lib/carte/cadastre-overlay';
 import { fetchDpeSecteur } from '@/lib/geo/ademe';
@@ -885,7 +886,7 @@ export async function fetchParcelleOverlays(args: {
   ]);
 
   if (!args.viewport || args.viewport.zoom < CADASTRE_OVERLAY_MIN_ZOOM || codes.length === 0) {
-    return { immeubles: [], notes, sources };
+    return { immeubles: [], notes, sources, proprioUniqueParcelleIds: [] };
   }
 
   const { west, south, east, north } = args.viewport;
@@ -904,7 +905,7 @@ export async function fetchParcelleOverlays(args: {
 
   if (error) {
     console.error('[parcelle] overlay buildings', error.message);
-    return { immeubles: [], notes, sources };
+    return { immeubles: [], notes, sources, proprioUniqueParcelleIds: [] };
   }
 
   const buildings = (data ?? []) as unknown as BuildingRow[];
@@ -971,9 +972,11 @@ export async function fetchParcelleOverlays(args: {
   const ventesBrutes = args.includeVentes
     ? await lireVentesParcelles(openDataDb, parcellesSansVentesAgregees(fusion))
     : [];
-  const immeubles = completerVentesParcelles(fusion, ventesBrutes).filter(hasCadastreOverlay);
+  const all = completerVentesParcelles(fusion, ventesBrutes);
+  const proprioUniqueParcelleIds = parcelleIdsProprietaireUnique(all);
+  const immeubles = all.filter(hasCadastreOverlay);
 
-  return { immeubles, notes, sources };
+  return { immeubles, notes, sources, proprioUniqueParcelleIds };
 }
 
 const VENTES_PAGE = 1000;

@@ -16,7 +16,6 @@ import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import { FOUNDER_WHATSAPP_HREF } from '@/lib/founder-contact';
 import { BoutonMicro } from '@/components/dashboard/voice/MicroGoutte';
 import CreateMenu from '@/components/dashboard/create/CreateMenu';
-import NotificationsBell from '@/components/dashboard/notifications/NotificationsBell';
 import ProfileAvatar from '@/components/dashboard/ProfileAvatar';
 import Select from '@/components/ui/Select';
 
@@ -235,9 +234,6 @@ export default function TopBar() {
           </div>
 
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="hidden md:block" {...chromeLockProps}>
-              <NotificationsBell tone="shell" />
-            </div>
             <div className="md:hidden" {...chromeLockProps}>
               <MobileAgencySwitcher />
             </div>

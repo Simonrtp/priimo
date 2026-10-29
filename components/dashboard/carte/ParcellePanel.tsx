@@ -8,8 +8,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
-  Bell,
-  BellRing,
   Calculator,
   Columns3,
   ChevronDown,
@@ -42,6 +40,7 @@ import {
   decrireVente,
   depuisQuand,
   estPassoire,
+  estProprietaireUnique,
   pastillesEnteteParcelle,
   syntheseParcelle,
   type PastilleParcelle,
@@ -50,6 +49,7 @@ import type { GenreProprietaire, ProprietaireMorale } from '@/lib/carte/bdnb';
 import { decrireNiveaux } from '@/lib/carte/proprietaires-lots';
 import type { AuditEnergetique } from '@/lib/carte/audits';
 import type {
+  AdresseRechercheParcelle,
   ParcelleAnnonce,
   ParcelleBienAgence,
   ParcelleContactAgence,
@@ -60,12 +60,12 @@ import type {
   ParcelleProspect,
   ParcelleVente,
 } from '@/lib/carte/parcelle';
+import { titreParcelle } from '@/lib/carte/parcelle';
 import { LOGO_PORTAIL } from '@/lib/annonces/logos';
 import { libellePortail } from '@/lib/annonces/presenter';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
 import { retirerOuPrevenir } from '@/lib/annonces/retirer-carte';
 import { useAnnoncesAjoutees } from '@/lib/annonces/useAnnoncesSecteur';
-import { CIBLE_CLOCHE, envolerNote } from '@/lib/ui/envol-note';
 import { mesurerVolBille, pulseOngletPipeline, type VolBille } from '@/lib/ui/vol-pipeline';
 import { rueSeule } from '@/lib/ban-recherche';
 import { noteDepuisAnnonce } from '@/lib/pipeline/entrer';
@@ -73,8 +73,6 @@ import { envoyerAuPipeline } from '@/lib/pipeline/envoyer';
 import { patchLeadPipeline } from '@/lib/pipeline/patch';
 import { invaliderNavigationApresLead } from '@/app/dashboard/_actions/invalider-navigation';
 import { VolBillePipeline } from '@/components/dashboard/prospection/VolLeadPipeline';
-import type { Notification } from '@/lib/notifications/types';
-import { useNotifications } from '@/components/providers/NotificationsProvider';
 
 /** Au-delà, la liste se replie : « Voir les 23 ventes ». */
 const LIGNES_VISIBLES = 5;
@@ -653,76 +651,6 @@ const DROIT_LIBELLE: Record<string, string> = { U: 'usufruit', N: 'nue-propriét
 const AUDITS_HINT =
   'Base publique de l’ADEME, depuis septembre 2023. Un audit est obligatoire pour vendre une maison ou un immeuble entier classé E, F ou G, et précède les rénovations aidées : le propriétaire prépare quelque chose.';
 
-/**
- * « Suivre cet immeuble » : un nouveau DPE, une vente ou un audit sur la
- * parcelle arrivera dans « À valider ». Invisible tant que le serveur ne
- * l'offre pas (`disponible: false`).
- */
-function useSuiviImmeuble(
-  parcelleId: string,
-  banId: string | null,
-  libelle: string | null,
-  onSuiviChanged?: () => void,
-) {
-  const { ajouterNotification } = useNotifications();
-  const [disponible, setDisponible] = useState(false);
-  const [actif, setActif] = useState(false);
-  const [enCours, setEnCours] = useState(false);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    void fetch(`/api/dashboard/immeubles-suivis?parcelle=${encodeURIComponent(parcelleId)}`, { signal: ac.signal })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const data = (await res.json()) as { disponible?: boolean; suivi?: boolean };
-        setDisponible(Boolean(data.disponible));
-        setActif(Boolean(data.suivi));
-      })
-      .catch(() => {
-        /* abandon ou réseau : le bouton reste caché */
-      });
-    return () => ac.abort();
-  }, [parcelleId]);
-
-  async function basculer(depart?: DOMRect | null) {
-    if (enCours) return;
-    const suivre = !actif;
-    setEnCours(true);
-    setActif(suivre);
-    try {
-      const res = suivre
-        ? await fetch('/api/dashboard/immeubles-suivis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ parcelleId, banId, libelle }),
-          })
-        : await fetch(`/api/dashboard/immeubles-suivis?parcelle=${encodeURIComponent(parcelleId)}`, {
-            method: 'DELETE',
-          });
-      if (!res.ok) throw new Error('suivi');
-      onSuiviChanged?.();
-      if (suivre) {
-        const data = (await res.json()) as { notification?: Notification | null };
-        if (data.notification) ajouterNotification(data.notification);
-        // Même geste que la note vers l’Accueil : le bouton part vers la cloche.
-        envolerNote({ depart: depart ?? null, compte: false, cible: CIBLE_CLOCHE });
-      }
-      notifySuccess(
-        suivre
-          ? 'Immeuble suivi : un nouveau DPE, une vente ou un audit arrivera dans « À valider ».'
-          : 'Vous ne suivez plus cet immeuble.',
-      );
-    } catch {
-      setActif(!suivre);
-      notifyError('Le suivi n’a pas pu être modifié');
-    } finally {
-      setEnCours(false);
-    }
-  }
-
-  return { disponible, actif, enCours, basculer };
-}
-
 function statutProprietaire(p: ProprietaireMorale): string {
   const bits = [GENRE_LIBELLE[p.genre]];
   // Fichier DGFiP : « 1 lot · 3e étage » distingue la SCI d'un studio de celle de l'immeuble.
@@ -1129,16 +1057,17 @@ export default function ParcellePanel({
   fiche,
   onClose,
   onNotesChanged,
-  onSuiviChanged,
   surfaceCadastreM2,
   focusNoteId,
+  adresseRecherche = null,
 }: {
   fiche: ParcelleFiche;
   onClose: () => void;
   onNotesChanged?: () => void;
-  onSuiviChanged?: () => void;
   surfaceCadastreM2?: number | null;
   focusNoteId?: string | null;
+  /** Adresse BAN qui a ouvert le volet (recherche carte). */
+  adresseRecherche?: AdresseRechercheParcelle | null;
 }) {
   const { openCapture, openCompose, captureSessionOpen } = useVoiceCapture();
   const { profile } = useUser();
@@ -1184,13 +1113,16 @@ export default function ParcellePanel({
     [fiche, surface],
   );
 
-  const title = fiche.adresse ?? fiche.reference;
+  const title = titreParcelle(fiche, adresseRecherche);
   // L'adresse complète et l'immeuble : la note se pose au bon endroit sans
   // regéocoder un libellé qui n'a pas toujours de code postal.
+  const banNote = adresseRecherche?.banId ?? fiche.banId;
   const noteContext = {
-    adresse: fiche.adresse ? [fiche.adresse, fiche.localite].filter(Boolean).join(', ') : fiche.reference,
+    adresse: title
+      ? [title, fiche.localite].filter(Boolean).join(', ')
+      : fiche.reference,
     parcelleId: fiche.parcelleId,
-    ...(fiche.banId ? { banId: fiche.banId } : {}),
+    ...(banNote ? { banId: banNote } : {}),
   };
   const plusieursAdresses = fiche.adresses.length > 1;
   const adresseParBan = new Map(fiche.adresses.map((a) => [a.banId, a.libelle]));
@@ -1201,8 +1133,19 @@ export default function ParcellePanel({
         localite: fiche.localite,
         surfaceM2: surface ?? null,
         batiment: fiche.batiment,
+        coproprietes: fiche.coproprietes,
+        logements: fiche.logements,
       }),
-    [fiche.localite, fiche.batiment, surface],
+    [fiche.localite, fiche.batiment, fiche.coproprietes, fiche.logements, surface],
+  );
+  const proprioUnique = useMemo(
+    () =>
+      estProprietaireUnique({
+        coproprietes: fiche.coproprietes,
+        batiment: fiche.batiment,
+        logements: fiche.logements,
+      }),
+    [fiche.coproprietes, fiche.batiment, fiche.logements],
   );
   const refParcelle = fiche.reference
     ? `Parcelle ${fiche.reference}`
@@ -1265,7 +1208,6 @@ export default function ParcellePanel({
   const procedure = fiche.coproprietes.some((c) => c.procedureEnCours);
   // Le syndicat des copropriétaires n'est pas un vendeur : la copropriété a sa section.
   const proprietairesBase = fiche.proprietaires.filter((p) => p.genre !== 'copropriete');
-  const suivi = useSuiviImmeuble(fiche.parcelleId, fiche.banId, fiche.adresse, onSuiviChanged);
   const { proprietaires, annuairePret } = useProprietairesEnrichis(
     fiche.parcelleId,
     proprietairesBase,
@@ -1293,35 +1235,14 @@ export default function ParcellePanel({
             {title}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {suivi.disponible ? (
-            <button
-              type="button"
-              onClick={(e) => void suivi.basculer(e.currentTarget.getBoundingClientRect())}
-              disabled={suivi.enCours}
-              aria-pressed={suivi.actif}
-              title={
-                suivi.actif
-                  ? 'Ne plus suivre cet immeuble'
-                  : 'Être prévenu d’un nouveau DPE, d’une vente ou d’un audit énergétique'
-              }
-              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${
-                suivi.actif ? 'bg-accent/10 text-accent-dark' : 'bg-bg-subtle text-text-strong hover:bg-black/[0.06]'
-              }`}
-            >
-              {suivi.actif ? <BellRing size={14} aria-hidden /> : <Bell size={14} aria-hidden />}
-              {suivi.actif ? 'Suivi' : 'Suivre'}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <X size={18} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-text-subtle transition-colors duration-fluid-subtle ease-in-out hover:bg-black/[0.05] hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <X size={18} strokeWidth={2} aria-hidden />
+        </button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-20 sm:px-6">
@@ -1336,7 +1257,11 @@ export default function ParcellePanel({
             {pastillesEntete.map((p) => (
               <li
                 key={p.cle}
-                className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[12px] font-semibold tabular-nums text-text-muted"
+                className={`rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums ${
+                  p.ton === 'accent'
+                    ? 'bg-accent/10 text-accent-dark'
+                    : 'bg-black/[0.05] text-text-muted'
+                }`}
               >
                 {p.libelle}
               </li>
@@ -1439,6 +1364,25 @@ export default function ParcellePanel({
           ) : null}
         </div>
 
+        {proprioUnique && proprietaires.length > 0 ? (
+          <Section
+            titre="Propriétaires connus"
+            aside={<InfoTooltip content={PROPRIETAIRES_HINT} placement="top-end" iconSize={14} />}
+          >
+            <Depliable
+              lignes={proprietaires}
+              rendre={(p) => (
+                <LigneProprietaire
+                  key={`${p.nom}-${p.siren ?? ''}`}
+                  p={p}
+                  annuairePret={annuairePret}
+                />
+              )}
+              libellePlus={(n) => `Voir les ${n} propriétaires`}
+            />
+          </Section>
+        ) : null}
+
         {chezNous ? (
           <Section titre="Chez nous">
             {dernierPassage ? (
@@ -1464,7 +1408,7 @@ export default function ParcellePanel({
           </Section>
         ) : null}
 
-        {proprietaires.length > 0 ? (
+        {!proprioUnique && proprietaires.length > 0 ? (
           <Section
             titre="Propriétaires connus"
             aside={<InfoTooltip content={PROPRIETAIRES_HINT} placement="top-end" iconSize={14} />}
@@ -1734,8 +1678,8 @@ type ParcelleDrawerProps = {
   loading: boolean;
   onClose: () => void;
   onNotesChanged?: () => void;
-  onSuiviChanged?: () => void;
   focusNoteId?: string | null;
+  adresseRecherche?: AdresseRechercheParcelle | null;
 };
 
 /**
@@ -1753,8 +1697,8 @@ function VoletParcelle({
   loading,
   onClose,
   onNotesChanged,
-  onSuiviChanged,
   focusNoteId,
+  adresseRecherche = null,
 }: ParcelleDrawerProps) {
   const [entered, setEntered] = useState(false);
   const [settled, setSettled] = useState(false);
@@ -1816,8 +1760,8 @@ function VoletParcelle({
             fiche={fiche}
             onClose={onClose}
             onNotesChanged={onNotesChanged}
-            onSuiviChanged={onSuiviChanged}
             focusNoteId={focusNoteId}
+            adresseRecherche={adresseRecherche}
           />
         ) : (
           <SqueletteParcelle

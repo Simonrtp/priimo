@@ -2,16 +2,8 @@
 
 import { useRef, useState, type PointerEvent } from 'react';
 import './carte.css';
-import { ChevronDown } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
-import {
-  CADASTRE_LAYER_LABELS,
-  CADASTRE_OVERLAY_IDS,
-  anyCadastreLayer,
-  type CadastreLayerId,
-  type CadastreOverlayMenuId,
-  type MapLayerState,
-} from '@/lib/carte/layers';
+import type { CadastreLayerId, MapLayerState } from '@/lib/carte/layers';
 import {
   DPE_AGE_BUCKETS,
   DPE_AGE_LABELS,
@@ -24,12 +16,9 @@ import {
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
 import { CADASTRE_OVERLAY_MIN_ZOOM } from '@/lib/carte/parcelle';
+import IconDpeEtiquette from '@/components/dashboard/carte/IconDpeEtiquette';
 
 const THUMB_PAD = 14;
-
-function overlayKey(id: CadastreOverlayMenuId): 'cadastreDpe' | 'cadastreVentes' {
-  return id === 'dpe' ? 'cadastreDpe' : 'cadastreVentes';
-}
 
 function DpeAgeSlider({
   ages,
@@ -124,79 +113,53 @@ function DpeAgeSlider({
   }
 
   return (
-    <div className={disabled ? 'pointer-events-none opacity-55' : undefined}>
-      <p className="mb-1.5 text-pretty text-[12.5px] font-medium text-text-strong">{phrase}</p>
+    <div className={`select-none ${disabled ? 'opacity-45' : ''}`}>
+      <p className="mb-1.5 text-[11.5px] font-medium text-text-muted">{phrase}</p>
       <div
         ref={railRef}
-        className={`priimo-dpe-age${active ? ' priimo-dpe-age--dragging' : ''}`}
+        role="group"
+        aria-label="Ancienneté des DPE"
+        aria-disabled={disabled || undefined}
+        className={`relative h-8 touch-none ${disabled ? 'pointer-events-none' : 'cursor-pointer'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <div className="priimo-dpe-age__track" aria-hidden>
-          <span className="priimo-dpe-age__marks">
-            {DPE_AGE_BUCKETS.map((bucket, i) => (
-              <span
-                key={bucket}
-                className="priimo-dpe-age__mark"
-                style={{ left: `${(i / max) * 100}%` }}
-              />
-            ))}
-          </span>
-          <span
-            className="priimo-dpe-age__fill"
-            style={{ left: `${startPct}%`, width: `${Math.max(endPct - startPct, 0)}%` }}
-          />
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={max}
-          step={1}
-          value={from}
-          disabled={disabled}
-          tabIndex={disabled ? -1 : 0}
-          aria-label="DPE les plus récents à montrer"
-          aria-valuetext={DPE_AGE_LABELS[DPE_AGE_BUCKETS[from]]}
-          className={`priimo-dpe-age__input priimo-dpe-age__input--from${
-            active === 'from' ? ' priimo-dpe-age__input--active' : ''
-          }`}
-          onChange={(e) => {
-            const next = Number(e.target.value);
-            onChange(Math.min(next, to), to);
+        <div className="pointer-events-none absolute inset-x-[14px] top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-black/[0.08]" />
+        <div
+          className="pointer-events-none absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-[#1A2A56]/55"
+          style={{
+            left: `calc(${THUMB_PAD}px + (100% - ${THUMB_PAD * 2}px) * ${startPct / 100})`,
+            right: `calc(${THUMB_PAD}px + (100% - ${THUMB_PAD * 2}px) * ${(100 - endPct) / 100})`,
           }}
         />
-        <input
-          type="range"
-          min={0}
-          max={max}
-          step={1}
-          value={to}
-          disabled={disabled}
-          tabIndex={disabled ? -1 : 0}
-          aria-label="DPE les plus anciens à montrer"
-          aria-valuetext={DPE_AGE_LABELS[DPE_AGE_BUCKETS[to]]}
-          className={`priimo-dpe-age__input priimo-dpe-age__input--to${
-            active === 'to' ? ' priimo-dpe-age__input--active' : ''
-          }`}
-          onChange={(e) => {
-            const next = Number(e.target.value);
-            onChange(from, Math.max(next, from));
-          }}
-        />
+        {(['from', 'to'] as const).map((handle) => {
+          const index = handle === 'from' ? from : to;
+          const pct = (index / max) * 100;
+          const focus = active === handle;
+          return (
+            <span
+              key={handle}
+              aria-hidden
+              className={`pointer-events-none absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#1A2A56] shadow-sm ${
+                focus ? 'ring-2 ring-[#1A2A56]/25' : ''
+              }`}
+              style={{ left: `calc(${THUMB_PAD}px + (100% - ${THUMB_PAD * 2}px) * ${pct / 100})` }}
+              title={DPE_AGE_LABELS[DPE_AGE_BUCKETS[index]]}
+            />
+          );
+        })}
       </div>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {DPE_AGE_BUCKETS.map((bucket, i) => {
-          const on = i >= from && i <= to;
+      <div className="mt-0.5 flex justify-between gap-0.5 px-0.5">
+        {DPE_AGE_BUCKETS.map((bucket, index) => {
+          const on = index >= from && index <= to;
           return (
             <button
               key={bucket}
               type="button"
-              tabIndex={-1}
               disabled={disabled}
-              aria-label={DPE_AGE_LABELS[bucket]}
-              onClick={() => snapTick(i)}
+              onClick={() => snapTick(index)}
               className={`min-h-7 shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px] leading-none transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed ${
                 on ? 'bg-[#1A2A56]/10 font-semibold text-text-strong' : 'font-medium text-text-subtle hover:bg-black/[0.04]'
               }`}
@@ -210,118 +173,62 @@ function DpeAgeSlider({
   );
 }
 
+/** Carte DPE : même structure que Annonces — titre, pastille, puis filtres. */
 export default function CadastreLayerControls({
   layers,
   onToggleLayer,
   onChangeDpeAge,
-  onToggleMenu,
   mapZoom,
   compact = false,
 }: {
   layers: MapLayerState;
   onToggleLayer: (id: CadastreLayerId) => void;
   onChangeDpeAge: (from: number, to: number) => void;
-  onToggleMenu: () => void;
+  /** Conservé pour compatibilité des appelants ; le menu Cadastre n’existe plus. */
+  onToggleMenu?: () => void;
   mapZoom: number | null;
   compact?: boolean;
 }) {
-  const open = layers.cadastreMenuOpen;
   const tooFarPoints = mapZoom !== null && mapZoom < CADASTRE_OVERLAY_MIN_ZOOM;
+  const voir = layers.cadastreDpe;
+  const textSize = compact ? 'text-[14.5px]' : 'text-[13.5px]';
   const row = compact ? 'min-h-[44px]' : 'min-h-[40px]';
-  const pad = compact ? 'px-1' : 'px-2.5 py-1.5';
-  const folderOn = anyCadastreLayer(layers);
 
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={open ? 'Replier Cadastre' : 'Déplier Cadastre'}
-        onClick={onToggleMenu}
-        className={`flex w-full ${row} items-center gap-3 rounded-[14px] ${pad} text-left transition-colors duration-fluid-subtle ease-in-out hover:bg-[#DDE0E4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56]/40 ${
-          folderOn ? 'text-text' : 'text-text-muted'
-        }`}
-      >
-        <span
-          className={`min-w-0 flex-1 text-[13.5px] font-medium ${
-            folderOn ? 'text-[#4A5560]' : 'text-text-muted'
+      <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
+        <p className={`${textSize} flex min-w-0 items-center gap-2.5 overflow-visible font-medium text-text-strong`}>
+          <IconDpeEtiquette className={`shrink-0 ${compact ? 'size-9' : 'size-10'}`} />
+          <span className="truncate">DPE</span>
+        </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={voir}
+          onClick={() => onToggleLayer('dpe')}
+          className={`flex w-full ${row} cursor-pointer items-center gap-3 rounded-xl text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
+            tooFarPoints ? 'opacity-55' : ''
           }`}
         >
-          <span className="flex items-center gap-2">
-            Cadastre
-            <span
-              className={`relative shrink-0 overflow-hidden rounded-[3px] ring-1 ring-black/[0.08] ${
-                compact ? 'h-3 w-6' : 'h-3.5 w-7'
-              }`}
-              title="Données publiques — République française"
-            >
-              <img
-                src="/marianne.svg"
-                alt=""
-                width={28}
-                height={14}
-                className="size-full object-cover"
-              />
-            </span>
+          <Switch checked={voir} />
+          <span
+            className={`min-w-0 flex-1 text-[13.5px] font-medium ${
+              voir && !tooFarPoints ? 'text-text-strong' : 'text-text-muted'
+            }`}
+          >
+            Voir mes DPE
+            {tooFarPoints ? (
+              <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
+                Zoomez pour afficher
+              </span>
+            ) : null}
           </span>
-        </span>
-        <ChevronDown
-          size={16}
-          strokeWidth={2}
-          aria-hidden
-          className={`shrink-0 text-text-subtle transition-transform duration-fluid-subtle ease-in-out ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-      <div
-        className={`fluid-collapse ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-        aria-hidden={!open}
-      >
-        <div>
-        <ul className={`mt-0.5 flex flex-col gap-0.5 pb-1 ${compact ? 'pl-3' : 'pl-6'}`}>
-          {CADASTRE_OVERLAY_IDS.map((id) => {
-            const key = overlayKey(id);
-            const active = layers[key];
-            return (
-              <li key={id} className={`rounded-xl ${pad}`}>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={active}
-                  onClick={() => onToggleLayer(id)}
-                  className={`flex w-full ${row} cursor-pointer items-center gap-3 text-left transition-colors duration-fluid-subtle ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2A56] ${
-                    tooFarPoints ? 'opacity-55' : ''
-                  }`}
-                >
-                  <Switch checked={active} />
-                  <span
-                    className={`min-w-0 flex-1 text-[13.5px] font-medium ${
-                      active && !tooFarPoints ? 'text-text-strong' : 'text-text-muted'
-                    }`}
-                  >
-                    {CADASTRE_LAYER_LABELS[id]}
-                    {tooFarPoints ? (
-                      <span className="mt-0.5 block text-[11.5px] font-normal text-text-subtle">
-                        Zoomez pour afficher
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-                {id === 'dpe' ? (
-                  <div className="mt-1.5">
-                    <DpeAgeSlider
-                      ages={layers.cadastreDpeAges}
-                      disabled={!layers.cadastreDpe}
-                      onChange={onChangeDpeAge}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-        </div>
+        </button>
+        {voir ? (
+          <div className="px-0.5 pb-0.5">
+            <DpeAgeSlider ages={layers.cadastreDpeAges} disabled={false} onChange={onChangeDpeAge} />
+          </div>
+        ) : null}
       </div>
     </li>
   );

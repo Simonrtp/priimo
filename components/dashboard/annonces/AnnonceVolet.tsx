@@ -1,9 +1,9 @@
 'use client';
 
 import SecteurAdresse from '@/components/dashboard/carte/SecteurAdresse';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowDown, Columns3, Mic, NotebookPen, Plus, X } from 'lucide-react';
+import { ArrowDown, Columns3, Mic, NotebookPen, PhoneOff, Plus, X } from 'lucide-react';
 import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import ChoixAdresses from './ChoixAdresses';
 import PhotosAnnonce from './PhotosAnnonce';
@@ -74,7 +74,7 @@ function LogosPortail({ annonces }: { annonces: Annonce[] }) {
             key={p.portail}
             src={LOGO_PORTAIL[p.portail]}
             alt={libellePortail(p.portail)}
-            className="h-7 w-auto max-w-[7.5rem] object-contain object-left"
+            className="h-5 w-auto max-w-[6rem] object-contain object-left"
           />
         ) : (
           <span key={p.portail} className="text-[13px] font-semibold text-text-strong">
@@ -187,10 +187,13 @@ export default function AnnonceVolet({
   annonce,
   soeurs,
   onFermer,
+  large = false,
 }: {
   annonce: Annonce;
   soeurs: Annonce[];
   onFermer: () => void;
+  /** Fenêtre centrée : photo et infos côte à côte au lieu de s'empiler. */
+  large?: boolean;
 }) {
   const { openCapture, openCompose } = useVoiceCapture();
   const [lignes, setLignes] = useState<{ id: string; texte: string }[]>([]);
@@ -262,14 +265,30 @@ export default function AnnonceVolet({
   const marques = MARQUE_HAUT.has(annonce.portail) ? [annonce] : [];
   const lienPrincipal = portailsDistincts.find((p) => p.portail === annonce.portail) ?? annonce;
   const autresLiens = portailsDistincts.filter((p) => p.portail !== lienPrincipal.portail);
-  const bien = [
+  const sousTitre = [
     annonce.typeBien ? TYPE_BIEN[annonce.typeBien] ?? null : null,
-    annonce.pieces != null ? `${annonce.pieces} p.` : null,
-    annonce.surface != null ? `${new Intl.NumberFormat('fr-FR').format(annonce.surface)} m²` : null,
-    etageLisible(annonce.etage),
+    [annonce.codePostal, annonce.ville].filter(Boolean).join(' ') || null,
   ]
     .filter(Boolean)
     .join(' · ');
+  const faits: ReactNode[] = [
+    annonce.surface != null ? `${new Intl.NumberFormat('fr-FR').format(annonce.surface)} m²` : null,
+    annonce.pieces != null ? `${annonce.pieces} pièce${annonce.pieces > 1 ? 's' : ''}` : null,
+    etageLisible(annonce.etage),
+    m2 != null ? `${euros(m2)}/m²` : null,
+    dpe ? (
+      <span className="inline-flex items-center gap-1.5">
+        DPE
+        <span
+          className="inline-flex size-5 items-center justify-center rounded-full text-[10.5px] font-bold leading-none"
+          style={{ backgroundColor: dpeFillColor(dpe), color: markerBadgeColor(dpeFillColor(dpe)) }}
+          aria-label={`Classe ${dpe}`}
+        >
+          {dpe}
+        </span>
+      </span>
+    ) : null,
+  ].filter((f) => f != null);
   const publiee = annonce.publieeLe ?? annonce.premiereVueLe;
   const clePhotos = (annonce.photos ?? []).join('\n');
 
@@ -329,12 +348,123 @@ export default function AnnonceVolet({
     annonce.ville ?? undefined,
   );
 
+  const blocPrix = (
+    <>
+      {approx ? <p className="mb-1 text-[12px] text-text-muted">Emplacement approximatif</p> : null}
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <p
+          className={`text-[24px] font-bold leading-tight tracking-tight text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}
+        >
+          {annonce.prix != null ? euros(annonce.prix) : 'Prix non indiqué'}
+        </p>
+        {baisse != null && annonce.prixInitial != null ? (
+          <p className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
+            <span className="inline-flex items-center gap-0.5 font-semibold text-accent-dark">
+              <ArrowDown size={12} strokeWidth={2.5} aria-hidden />−{String(baisse).replace('.', ',')} %
+            </span>
+            <span className="line-through">{euros(annonce.prixInitial)}</span>
+          </p>
+        ) : null}
+      </div>
+      {faits.length > 0 ? (
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-text">
+          {faits.map((f, n) => (
+            <Fragment key={n}>
+              {n > 0 ? (
+                <span aria-hidden className="text-text-subtle">
+                  ·
+                </span>
+              ) : null}
+              {f}
+            </Fragment>
+          ))}
+        </p>
+      ) : null}
+    </>
+  );
+
+  const blocChoix =
+    possibles.length > 0 && surLaCarte ? (
+      <div className="mb-3 mt-3">
+        <ChoixAdresses possibles={possibles} choisie={choix} onChoisir={(a) => void choisir(a)} occupe={choixEnCours} />
+      </div>
+    ) : null;
+
+  const blocLignes = (
+    <>
+      <dl className="mt-2">
+        {parcelle ? (
+          <Ligne titre="Immeuble">
+            <a
+              href={`/dashboard/prospection?vue=carte&parcelle=${encodeURIComponent(parcelle)}`}
+              className="text-blue hover:underline"
+            >
+              Fiche de l’immeuble
+            </a>
+          </Ligne>
+        ) : null}
+        <Ligne titre="En ligne">
+          {jours != null ? (
+            <>
+              {jours === 0 ? 'Depuis aujourd’hui' : `Depuis ${jours} jour${jours > 1 ? 's' : ''}`}
+              {publiee ? <span className="font-normal text-text-muted"> · {dateCourte(publiee)}</span> : null}
+            </>
+          ) : (
+            'Date inconnue'
+          )}
+        </Ligne>
+      </dl>
+      {autresLiens.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-black/[0.05] py-2.5">
+          {autresLiens.map((s) => (
+            <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className={VOIR}>
+              Voir sur {libellePortail(s.portail)}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+
+  const blocPhotos = <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />;
+
+  const blocPortail = (
+    <>
+      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+        {marques.length > 0 ? <LogosPortail annonces={marques} /> : null}
+        <a href={lienPrincipal.url} target="_blank" rel="noreferrer" className={VOIR}>
+          Voir sur {libellePortail(lienPrincipal.portail)}
+        </a>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
+            particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
+          }`}
+        >
+          {libelleVendeur(annonce)}
+        </span>
+        {retiree ? (
+          <span className="text-[12px] text-text-muted">
+            Retirée{annonce.retireeLe ? ` le ${dateCourte(annonce.retireeLe)}` : ''}
+          </span>
+        ) : null}
+      </div>
+      {particulier && annonce.refusDemarchage ? (
+        <p className="mb-3 flex items-center gap-1.5 text-[12.5px] text-text-muted">
+          <PhoneOff size={13} strokeWidth={2.2} aria-hidden className="shrink-0" />
+          Le propriétaire refuse le démarchage téléphonique.
+        </p>
+      ) : null}
+    </>
+  );
+
   return (
     <aside className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-clay border border-black/[0.06] bg-surface">
       <header className="flex shrink-0 items-start gap-3 border-b border-black/[0.06] bg-surface px-4 py-3.5">
-        <h2 className="min-w-0 flex-1 text-pretty text-[18px] font-semibold leading-snug text-text-strong">
-          {rueHeader}
-        </h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-pretty text-[18px] font-semibold leading-snug text-text-strong">{rueHeader}</h2>
+          {sousTitre ? <p className="mt-0.5 text-[13px] text-text-muted">{sousTitre}</p> : null}
+          {parcelle ? <SecteurAdresse parcelleIds={[parcelle]} className="mt-2" /> : null}
+        </div>
         <button
           type="button"
           onClick={onFermer}
@@ -346,95 +476,26 @@ export default function AnnonceVolet({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-16 pt-3">
-        {approx ? <p className="mb-1 text-[12px] text-text-muted">Emplacement approximatif</p> : null}
-        <p className={`text-[19px] font-semibold leading-snug text-text-strong ${retiree ? 'line-through decoration-1' : ''}`}>
-          {annonce.prix != null ? euros(annonce.prix) : 'Prix non indiqué'}
-        </p>
-        {baisse != null && annonce.prixInitial != null ? (
-          <p className="mt-0.5 flex items-center gap-1 text-[12.5px] text-text-muted">
-            <ArrowDown size={13} strokeWidth={2.5} aria-hidden className="text-accent" />
-            <span className="font-semibold text-accent-dark">−{String(baisse).replace('.', ',')} %</span>
-            <span className="line-through">{euros(annonce.prixInitial)}</span>
-          </p>
-        ) : null}
-        {possibles.length > 0 && surLaCarte ? (
-          <div className="mb-3 mt-2">
-            <ChoixAdresses possibles={possibles} choisie={choix} onChoisir={(a) => void choisir(a)} occupe={choixEnCours} />
+        {large ? (
+          // Fenêtre large : la photo à gauche dans son vrai format, l'essentiel à droite.
+          <div className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] sm:items-start sm:gap-6">
+            {blocPhotos}
+            <div className="min-w-0">
+              {blocPrix}
+              <div className="mt-4">{blocPortail}</div>
+              {blocChoix}
+              {blocLignes}
+            </div>
           </div>
-        ) : null}
-        <div className="mt-3">
-          <PhotosAnnonce key={photos?.[0] ?? 'attente'} photos={photos} chargement={photos == null} />
-        </div>
-        <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {marques.length > 0 ? <LogosPortail annonces={marques} /> : null}
-          <a href={lienPrincipal.url} target="_blank" rel="noreferrer" className={VOIR}>
-            Voir sur {libellePortail(lienPrincipal.portail)}
-          </a>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
-              particulier ? 'bg-blue text-white' : 'bg-black/[0.06] text-text-strong'
-            }`}
-          >
-            {libelleVendeur(annonce)}
-          </span>
-          {retiree ? (
-            <span className="text-[12px] text-text-muted">
-              Retirée{annonce.retireeLe ? ` le ${dateCourte(annonce.retireeLe)}` : ''}
-            </span>
-          ) : null}
-        </div>
-        {particulier && annonce.refusDemarchage ? (
-          <p className="mb-3 rounded-[12px] bg-black/[0.04] px-3 py-2 text-[13px] text-text-strong">
-            Le propriétaire refuse le démarchage téléphonique.
-          </p>
-        ) : null}
-
-        {parcelle ? <SecteurAdresse parcelleIds={[parcelle]} className="mb-3" /> : null}
-
-        <dl>
-          {bien ? <Ligne titre="Bien">{bien}</Ligne> : null}
-          {m2 != null ? <Ligne titre="Prix au m²">{euros(m2)}</Ligne> : null}
-          {dpe ? (
-            <Ligne titre="DPE">
-              <span
-                className="inline-flex size-6 items-center justify-center rounded-full text-[11px] font-bold leading-none"
-                style={{ backgroundColor: dpeFillColor(dpe), color: markerBadgeColor(dpeFillColor(dpe)) }}
-                aria-label={`Classe ${dpe}`}
-              >
-                {dpe}
-              </span>
-            </Ligne>
-          ) : null}
-          {parcelle ? (
-            <Ligne titre="Immeuble">
-              <a
-                href={`/dashboard/prospection?vue=carte&parcelle=${encodeURIComponent(parcelle)}`}
-                className="text-blue hover:underline"
-              >
-                Fiche de l’immeuble
-              </a>
-            </Ligne>
-          ) : null}
-          <Ligne titre="En ligne">
-            {jours != null ? (
-              <>
-                {jours === 0 ? 'Depuis aujourd’hui' : `Depuis ${jours} jour${jours > 1 ? 's' : ''}`}
-                {publiee ? <span className="font-normal text-text-muted"> · {dateCourte(publiee)}</span> : null}
-              </>
-            ) : (
-              'Date inconnue'
-            )}
-          </Ligne>
-        </dl>
-        {autresLiens.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-black/[0.05] py-2.5">
-            {autresLiens.map((s) => (
-              <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className={VOIR}>
-                Voir sur {libellePortail(s.portail)}
-              </a>
-            ))}
-          </div>
-        ) : null}
+        ) : (
+          <>
+            {blocPrix}
+            {blocChoix}
+            <div className="mt-3">{blocPhotos}</div>
+            {blocPortail}
+            {blocLignes}
+          </>
+        )}
 
         {parcelle ? (
           <>

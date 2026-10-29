@@ -25,6 +25,7 @@ export async function GET(req: Request) {
       immeubles: [],
       notes: [],
       sources: { diagnosticsAt: null, ventesAt: null },
+      proprioUniqueParcelleIds: [],
     });
   }
 

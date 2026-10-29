@@ -22,8 +22,6 @@ export type EnvolArrive = {
 
 const CIBLE_NOTES = 'informations_terrain';
 export const CIBLE_CONTACTS = 'contacts_qualifies';
-/** Cloche du header : « Suivre un immeuble » s’envole ici. */
-export const CIBLE_CLOCHE = 'cloche';
 
 const COULEUR_DEFAUT: Record<string, string> = {
   [CIBLE_NOTES]: '#D61F3A',

@@ -64,7 +64,7 @@ export default function VoletAnnonceFlottant({
         aria-label="Annonce"
         className="relative z-[1] flex h-[min(720px,calc(100dvh-2rem))] w-full max-w-4xl flex-col overflow-hidden rounded-2xl shadow-xl"
       >
-        <AnnonceVolet annonce={annonce} soeurs={soeurs} onFermer={fermer} />
+        <AnnonceVolet annonce={annonce} soeurs={soeurs} onFermer={fermer} large />
       </div>
     </div>,
     document.body,

@@ -27,8 +27,6 @@ import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_DPE_LAYER_ID,
-  CADASTRE_VENTES_LAYER_ID,
-  CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import AgentLocationMarker from '@/components/dashboard/field/AgentLocationMarker';
@@ -126,13 +124,12 @@ export default function MobileMapCanvas({
   itineraryGeometry = null,
   parcellesEnabled = false,
   activeParcelleIds = [],
-  suiviParcelleIds = [],
+  proprioUniqueParcelleIds = [],
   parcelleNoteMarkers = [],
   selectedParcelleId = null,
   cadastreImmeubles = [],
   cadastreLayers = {
     cadastreDpe: DEFAULT_MAP_LAYERS.cadastreDpe,
-    cadastreVentes: DEFAULT_MAP_LAYERS.cadastreVentes,
     cadastreCopro: DEFAULT_MAP_LAYERS.cadastreCopro,
     cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
   },
@@ -171,11 +168,11 @@ export default function MobileMapCanvas({
   itineraryGeometry?: GeoJSON.LineString | null;
   parcellesEnabled?: boolean;
   activeParcelleIds?: readonly string[];
-  suiviParcelleIds?: readonly string[];
+  proprioUniqueParcelleIds?: readonly string[];
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
-  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
+  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onSelectParcelle?: (parcelleId: string, extra?: ParcellePickExtra) => void;
   onPrefetchParcelle?: (parcelleId: string) => void;
   agentPosition?: DevicePosition | null;
@@ -417,10 +414,7 @@ export default function MobileMapCanvas({
   );
 
   const showCrmPins =
-    !navigation &&
-    !cadastreLayers.cadastreDpe &&
-    !cadastreLayers.cadastreVentes &&
-    !cadastreLayers.cadastreCopro;
+    !navigation && !cadastreLayers.cadastreDpe && !cadastreLayers.cadastreCopro;
 
   const epingles = useMemo<Epingle[]>(() => {
     if (!showCrmPins) return [];
@@ -483,9 +477,6 @@ export default function MobileMapCanvas({
         interactiveLayerIds={[
           ...(!navigation && parcellesEnabled ? [PARCELLES_FILL_LAYER_ID] : []),
           ...(!navigation && cadastreLayers.cadastreDpe ? [CADASTRE_DPE_LAYER_ID] : []),
-          ...(!navigation && cadastreLayers.cadastreVentes
-            ? [CADASTRE_VENTES_LAYER_ID, CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID]
-            : []),
           ...(!navigation && cadastreLayers.cadastreCopro ? [CADASTRE_COPRO_LAYER_ID] : []),
         ]}
         onMoveStart={() => {
@@ -628,7 +619,7 @@ export default function MobileMapCanvas({
           mapRef={mapRef}
           enabled={!navigation && parcellesEnabled}
           activeParcelleIds={activeParcelleIds}
-          suiviParcelleIds={suiviParcelleIds}
+          proprioUniqueParcelleIds={proprioUniqueParcelleIds}
           noteMarkers={parcelleNoteMarkers}
           selectedParcelleId={selectedParcelleId}
           immeubles={cadastreImmeubles}

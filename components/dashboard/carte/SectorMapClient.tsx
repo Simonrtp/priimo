@@ -5,7 +5,7 @@ import { oublierCible, useCibleCarte } from '@/lib/carte/cible';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronUp, Layers, PencilLine, X } from 'lucide-react';
+import { ChevronUp, Layers, X } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
 import {
@@ -38,12 +38,12 @@ import {
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { AnnoncesLayerControls, AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
+import FlashCarte from '@/components/dashboard/carte/FlashCarte';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules, { empriseCochee, type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
-import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { BOUTON_CARTE_VIDE } from '@/components/dashboard/accueil/CarteVideAccueil';
 import {
   aUnSecteurDefini,
@@ -170,7 +170,7 @@ function LayersPanel({
           </button>
         ) : null}
       </div>
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain">
         {atelier ? null : (
           <EmpriseCapsules
             zones={zones}
@@ -194,7 +194,7 @@ function LayersPanel({
           )
         ) : (
         atelier ?? (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-2">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
             return (
@@ -233,28 +233,15 @@ function LayersPanel({
             onOuvrirAnnonce={onOuvrirAnnonce}
           />
           {onglet === 'code_postal' ? null : (
-            <>
-              <ChoixSecteurs
-                zones={zones}
-                zoneId={zoneId}
-                onZone={onZone}
-                profileId={annoncesQui.profileId}
-                membres={members}
-                onCreer={onCreerSecteur}
-              />
-              {onModifierSecteur ? (
-                <li className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={onModifierSecteur}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-black/[0.04] px-3 text-[12.5px] font-semibold text-text-strong transition-colors duration-fluid-subtle hover:bg-black/[0.07]"
-                  >
-                    <PencilLine size={14} strokeWidth={2.2} aria-hidden />
-                    Modifier ce secteur
-                  </button>
-                </li>
-              ) : null}
-            </>
+            <ChoixSecteurs
+              zones={zones}
+              zoneId={zoneId}
+              onZone={onZone}
+              profileId={annoncesQui.profileId}
+              membres={members}
+              onCreer={onCreerSecteur}
+              onModifier={onModifierSecteur}
+            />
           )}
         </ul>
         )
@@ -340,10 +327,10 @@ export default function SectorMapClient({
   // Le plan PCI + clic parcelle → volet marche sans elles.
   const overlaysCadastre = anyCadastreOverlay(layers);
   const planParcelles = showParcellesPlan(layers);
-  const parcelle = useParcelleMap(overlaysCadastre, viewport, {
+  // Plan toujours allumé : on charge l’activité pour peindre les proprios uniques.
+  const parcelle = useParcelleMap(true, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
-    includeVentes: layers.cadastreVentes,
   });
   const voletOuvertRef = useRef(false);
   voletOuvertRef.current = selectedBanId != null || parcelle.fiche != null || parcelle.loading;
@@ -354,11 +341,6 @@ export default function SectorMapClient({
     parcelle.closeParcelle();
     oublierCible();
   }, [parcelle.closeParcelle]);
-  const { suivis: immeublesSuivis, recharger: rechargerSuivis } = useImmeublesSuivisCarte();
-  const suiviParcelleIds = useMemo(
-    () => immeublesSuivis.map((s) => s.parcelleId),
-    [immeublesSuivis],
-  );
   const mapZoom = viewport?.zoom ?? null;
   // Cadrage et pastilles : toujours « mes » secteurs (même design pour tous).
   const cadre = useMemo(
@@ -461,6 +443,10 @@ export default function SectorMapClient({
     () => ficheImmeubleOuverte(buildings, selectedBanId, initialBanPos),
     [buildings, selectedBanId, initialBanPos],
   );
+  // Une annonce ouverte depuis le flash : la carte y vole, sans ouvrir la parcelle.
+  const [volFlash, setVolFlash] = useState<{ cle: string; latitude: number; longitude: number } | null>(null);
+  // Une parcelle ou un immeuble prend la main : refermés, ils ne renvoient pas la carte sur l'annonce.
+  if (volFlash && (parcelle.fiche || selected)) setVolFlash(null);
   const focusLien = useMemo(
     () =>
       pointDuLien({
@@ -468,8 +454,8 @@ export default function SectorMapClient({
         parcelleOuverte: parcelle.fiche,
         immeuble: selected,
         immeubleDemande: initialBanId,
-      }),
-    [initialParcelleId, parcelle.fiche, selected, initialBanId],
+      }) ?? volFlash,
+    [initialParcelleId, parcelle.fiche, selected, initialBanId, volFlash],
   );
 
   const counts = useMemo(
@@ -638,7 +624,6 @@ export default function SectorMapClient({
 
   const cadastreLayerFlags = {
     cadastreDpe: layers.cadastreDpe,
-    cadastreVentes: layers.cadastreVentes,
     cadastreCopro: layers.cadastreCopro,
     cadastreDpeAges: layers.cadastreDpeAges,
   };
@@ -646,6 +631,22 @@ export default function SectorMapClient({
   const ouvrirAnnonceImportee = useCallback((annonce: Annonce) => {
     setAnnonceOuverte({ annonce, soeurs: [annonce] });
   }, []);
+
+  function ouvrirDepuisFlash(annonce: Annonce, point: { latitude: number; longitude: number }) {
+    setAnnonceOuverte({ annonce, soeurs: [annonce] });
+    setVolFlash({ cle: `flash-${Date.now()}`, ...point });
+  }
+  // Le flash suit le périmètre peint : mes secteurs, ceux de l'agence, ou tout le code postal.
+  const requeteFlash = useMemo(
+    () =>
+      onglet === 'code_postal' || zonesSurCarte.length === 0
+        ? 'cp=1'
+        : `zones=${zonesSurCarte
+            .map((z) => z.id)
+            .sort()
+            .join(',')}`,
+    [onglet, zonesSurCarte],
+  );
 
   const layersUi = (
     <LayersPanel
@@ -708,7 +709,7 @@ export default function SectorMapClient({
           // Une parcelle ouverte (par la recherche, plan éteint) reste détourée.
           parcellesEnabled={planParcelles || Boolean(parcelle.selectedParcelleId)}
           activeParcelleIds={activeParcelleIds}
-          suiviParcelleIds={suiviParcelleIds}
+          proprioUniqueParcelleIds={parcelle.proprioUniqueParcelleIds}
           parcelleNoteMarkers={parcelleNoteMarkers}
           selectedParcelleId={parcelle.selectedParcelleId}
           cadastreImmeubles={cadastreImmeubles}
@@ -716,7 +717,7 @@ export default function SectorMapClient({
           showBuildingMarkers={!overlaysCadastre}
           onSelectParcelle={(parcelleId, extra) => {
             setFocusNoteId(null);
-            setSelectedBanId(null);
+            setSelectedBanId(extra?.banId ?? null);
             setSheetOpen(false);
             parcelle.openParcelle(parcelleId, extra);
           }}
@@ -758,12 +759,27 @@ export default function SectorMapClient({
           </div>
         ) : null}
 
+        {embedded && !atelier && !selected && !parcelle.fiche && !parcelle.loading ? (
+          // Collé au coin haut-gauche, en miroir de l'onglet des vues. Toute la largeur de la
+          // carte : le bandeau s'y mesure, puis se range sans toucher l'onglet de droite.
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30">
+            <FlashCarte
+              requete={requeteFlash}
+              perimetre={requeteFlash === 'cp=1' ? 'code_postal' : 'secteur'}
+              onAnnonce={ouvrirDepuisFlash}
+            />
+          </div>
+        ) : null}
+
         {annonceOuverte ? (
           <div className="pointer-events-auto absolute bottom-3 left-3 z-30 flex max-h-[min(70%,520px)] w-[min(100%-1.5rem,340px)] flex-col md:max-w-[calc(100%-22.5rem)]">
             <AnnonceVolet
               annonce={annonceOuverte.annonce}
               soeurs={annonceOuverte.soeurs}
-              onFermer={() => setAnnonceOuverte(null)}
+              onFermer={() => {
+                setAnnonceOuverte(null);
+                setVolFlash(null);
+              }}
             />
           </div>
         ) : null}
@@ -930,8 +946,8 @@ export default function SectorMapClient({
           loading={parcelle.loading}
           onClose={fermerVolet}
           onNotesChanged={parcelle.refreshAfterNotes}
-          onSuiviChanged={rechargerSuivis}
           focusNoteId={focusNoteId}
+          adresseRecherche={parcelle.adresseRecherche}
         />
       </div>
     </div>

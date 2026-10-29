@@ -12,15 +12,14 @@ import { isUsableCoord } from '@/lib/carte/coords';
 import { normalizeParcelleId } from '@/lib/carte/parcelle-id';
 import { DPE_PALETTE, parseDpeLetter } from '@/lib/carte/dpe-public';
 import { DEFAULT_DPE_AGE_BUCKETS } from '@/lib/carte/dpe-age';
-import { dpeVisibleOnMap, formatPrixM2Court, ventesParParcelle } from '@/lib/carte/cadastre-overlay';
+import { dpeVisibleOnMap } from '@/lib/carte/cadastre-overlay';
 import {
   COPRO_FILL,
   COPRO_PROCEDURE_FILL,
   CADASTRE_OVERLAY_MIN_ZOOM,
+  FILL_PROPRIO_UNIQUE,
   PARCELLE_MIN_ZOOM,
   PARCELLE_SLATE,
-  VENTE_FILL,
-  VENTE_PRICE_HALO,
   centroidLngLat,
   contenanceDepuisProps,
   surfaceCadastreM2,
@@ -29,7 +28,7 @@ import {
   type ParcellePickExtra,
 } from '@/lib/carte/parcelle';
 import type { CadastreOverlayId, MapLayerState } from '@/lib/carte/layers';
-import { hoverPreviewFromCadastre, hoverPreviewFromVenteParcelle, type HoverPreview } from '@/lib/carte/hover-preview';
+import { hoverPreviewFromCadastre, type HoverPreview } from '@/lib/carte/hover-preview';
 import { cadastreDansEmprises } from '@/lib/carte/emprise';
 import { epingleSous } from '@/lib/carte/epingles';
 import type { Zone } from '@/lib/zones/types';
@@ -40,17 +39,10 @@ export const PARCELLES_LINE_LAYER_ID = 'parcelles-line';
 export const CADASTRE_POINTS_SOURCE_ID = 'cadastre-immeubles';
 export const CADASTRE_DPE_LAYER_ID = 'cadastre-dpe';
 export const CADASTRE_DPE_LABEL_LAYER_ID = 'cadastre-dpe-label';
-export const CADASTRE_VENTES_LAYER_ID = 'cadastre-ventes';
-export const CADASTRE_VENTES_POINT_LAYER_ID = 'cadastre-ventes-point';
-export const CADASTRE_VENTES_PARCELLE_SOURCE_ID = 'cadastre-ventes-parcelles';
-export const CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID = 'cadastre-ventes-parcelle-label';
 export const CADASTRE_COPRO_LAYER_ID = 'cadastre-copro';
 
 /** Plan cadastral : gris papier, toutes les parcelles. */
 const FILL = 'rgba(168, 174, 182, 0.34)';
-const FILL_VENTE = 'rgba(92, 100, 110, 0.46)';
-/** Immeuble suivi par l’agent — accent Priimo. */
-const FILL_SUIVI = 'rgba(232, 116, 60, 0.45)';
 const FILL_HOVER = 'rgba(26, 42, 86, 0.22)';
 const FILL_SELECTED = 'rgba(26, 42, 86, 0.28)';
 const LINE = 'rgba(110, 116, 124, 0.78)';
@@ -92,13 +84,6 @@ function overlayHoverIdentique(a: OverlayHover | null, b: OverlayHover): boolean
 
 function overlayLayerOf(layerId: string | undefined): CadastreOverlayId | null {
   if (layerId === CADASTRE_DPE_LAYER_ID || layerId === CADASTRE_DPE_LABEL_LAYER_ID) return 'dpe';
-  if (
-    layerId === CADASTRE_VENTES_LAYER_ID ||
-    layerId === CADASTRE_VENTES_POINT_LAYER_ID ||
-    layerId === CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID
-  ) {
-    return 'ventes';
-  }
   if (layerId === CADASTRE_COPRO_LAYER_ID) return 'copro';
   return null;
 }
@@ -130,7 +115,7 @@ export default function ParcellesLayer({
   mapRef,
   enabled,
   activeParcelleIds: _activeParcelleIds,
-  suiviParcelleIds = [],
+  proprioUniqueParcelleIds = [],
   noteMarkers,
   selectedParcelleId,
   immeubles,
@@ -143,20 +128,20 @@ export default function ParcellesLayer({
   enabled: boolean;
   /** Conservé pour l’API parent — le fill n’utilise plus l’état « active ». */
   activeParcelleIds: readonly string[];
-  /** Parcelles que l’agent suit — peintes en orange. */
-  suiviParcelleIds?: readonly string[];
+  /** Appartements sans copropriété — peints plus clairement. */
+  proprioUniqueParcelleIds?: readonly string[];
   noteMarkers: readonly ParcelleNoteMarker[];
   selectedParcelleId: string | null;
   immeubles: readonly CadastreImmeublePoint[];
-  layers: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
+  layers: Pick<MapLayerState, 'cadastreDpe' | 'cadastreCopro' | 'cadastreDpeAges'>;
   clipZones?: readonly Zone[] | null;
   onPick: (parcelleId: string, extra?: ParcellePickExtra) => void;
   onPrefetch?: (parcelleId: string) => void;
 }) {
   const hoverId = useRef<string | null>(null);
   const painted = useRef<Set<string>>(new Set());
-  const suiviSet = useRef(new Set<string>());
-  suiviSet.current = new Set(suiviParcelleIds);
+  const proprioUniqueSet = useRef(new Set<string>());
+  proprioUniqueSet.current = new Set(proprioUniqueParcelleIds);
   const immeublesRef = useRef(immeubles);
   immeublesRef.current = immeubles;
   const selectedParcelleRef = useRef(selectedParcelleId);
@@ -172,11 +157,10 @@ export default function ParcellesLayer({
   const prefetchTimer = useRef<number | null>(null);
   const lastPrefetchId = useRef<string | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
-  const [venteLabels, setVenteLabels] = useState<Pin[]>([]);
   const [overlayHover, setOverlayHover] = useState<OverlayHover | null>(null);
   const pointerOnCard = useRef(false);
   const hideHoverTimer = useRef<number | null>(null);
-  const showOverlays = layers.cadastreDpe || layers.cadastreVentes || layers.cadastreCopro;
+  const showOverlays = layers.cadastreDpe || layers.cadastreCopro;
 
   const cancelHideHover = useCallback(() => {
     if (hideHoverTimer.current != null) {
@@ -233,10 +217,6 @@ export default function ParcellesLayer({
     }, 220);
   }, []);
 
-  const venteAgg = useMemo(() => ventesParParcelle(immeubles), [immeubles]);
-  const venteAggRef = useRef(venteAgg);
-  venteAggRef.current = venteAgg;
-
   const noteByParcelle = useMemo(() => {
     const map = new Map<string, ParcelleNoteMarker>();
     for (const m of noteMarkers) {
@@ -251,9 +231,8 @@ export default function ParcellesLayer({
     for (const row of immeubles) {
       const letter = parseDpeLetter(row.etiquetteDpe);
       const hasDpe = Boolean(layers.cadastreDpe) && dpeVisibleOnMap(row, ages);
-      const hasVente = Boolean(layers.cadastreVentes) && row.nbTransactions > 0;
       const hasCopro = Boolean(layers.cadastreCopro) && (row.nbLots != null || row.procedureCopro);
-      if (!hasDpe && !hasVente && !hasCopro) continue;
+      if (!hasDpe && !hasCopro) continue;
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [row.longitude, row.latitude] },
@@ -266,34 +245,17 @@ export default function ParcellesLayer({
           dateDpe: row.dateDpe ?? '',
           surfaceDpe: row.surfaceDpe ?? '',
           etageDpe: row.etageDpe ?? '',
-          hasVente: hasVente ? '1' : '0',
           hasCopro: hasCopro ? '1' : '0',
           procedure: row.procedureCopro ? '1' : '0',
-          prixM2: formatPrixM2Court(row.prixM2) ?? '',
         },
       });
     }
     return { type: 'FeatureCollection', features };
-  }, [immeubles, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro, layers.cadastreDpeAges]);
-
-  const venteParcelleGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
-    const features: GeoJSON.Feature[] = venteLabels.map((pin) => {
-      const agg = venteAgg.get(pin.parcelleId);
-      return {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [pin.longitude, pin.latitude] },
-        properties: {
-          parcelleId: pin.parcelleId,
-          prixM2: formatPrixM2Court(agg?.prixM2) ?? '',
-        },
-      };
-    });
-    return { type: 'FeatureCollection', features };
-  }, [venteLabels, venteAgg]);
+  }, [immeubles, layers.cadastreDpe, layers.cadastreCopro, layers.cadastreDpeAges]);
 
   useEffect(() => {
     dismissHover();
-  }, [dismissHover, layers.cadastreDpeAges, layers.cadastreDpe, layers.cadastreVentes, layers.cadastreCopro]);
+  }, [dismissHover, layers.cadastreDpeAges, layers.cadastreDpe, layers.cadastreCopro]);
 
   const noteByParcelleRef = useRef(noteByParcelle);
   noteByParcelleRef.current = noteByParcelle;
@@ -303,7 +265,6 @@ export default function ParcellesLayer({
     const map = mapRef.current?.getMap();
     if (!map || !enabled) {
       setPins([]);
-      setVenteLabels([]);
       paintNowRef.current = null;
       return;
     }
@@ -333,10 +294,7 @@ export default function ParcellesLayer({
       );
       const next = new Set<string>();
       const nextPins: Pin[] = [];
-      const nextVentes: Pin[] = [];
       const pinSeen = new Set<string>();
-      const venteSeen = new Set<string>();
-      const ventesOn = layersRef.current.cadastreVentes;
       const selectedId = selectedParcelleRef.current;
       const notes = noteByParcelleRef.current;
 
@@ -344,8 +302,6 @@ export default function ParcellesLayer({
         const parcelleId = parcelleIdOf(f);
         if (!parcelleId) continue;
         next.add(parcelleId);
-        const hasVente = ventesOn && venteAggRef.current.has(parcelleId);
-        const estSuivi = suiviSet.current.has(parcelleId);
         const centre = centroidLngLat(f.geometry);
         const hors = !cadastreDansEmprises(
           { latitude: centre?.latitude ?? null, longitude: centre?.longitude ?? null },
@@ -354,24 +310,17 @@ export default function ParcellesLayer({
         const state = {
           selected: selectedId === parcelleId,
           hover: hoverId.current === parcelleId,
-          suivi: estSuivi && !hors,
-          vente: hasVente && !hors,
+          proprioUnique: proprioUniqueSet.current.has(parcelleId) && !hors,
           hors,
         };
         const key = featureKey(parcelleId, f.id as string | number | undefined);
-        const serialized = `${state.selected ? 1 : 0}${state.hover ? 1 : 0}${state.suivi ? 1 : 0}${state.vente ? 1 : 0}${state.hors ? 1 : 0}`;
+        const serialized = `${state.selected ? 1 : 0}${state.hover ? 1 : 0}${state.proprioUnique ? 1 : 0}${state.hors ? 1 : 0}`;
         if (stateCache.get(key) !== serialized) {
           stateCache.set(key, serialized);
           map.setFeatureState(
             { source: IGN_PCI_SOURCE_ID, sourceLayer: IGN_PCI_SOURCE_LAYER, id: f.id ?? parcelleId },
             state,
           );
-        }
-        if (hasVente && !hors && !venteSeen.has(parcelleId)) {
-          if (centre) {
-            venteSeen.add(parcelleId);
-            nextVentes.push({ parcelleId, longitude: centre.longitude, latitude: centre.latitude });
-          }
         }
         if (notes.has(parcelleId) && !hors && !pinSeen.has(parcelleId)) {
           if (centre) {
@@ -401,7 +350,6 @@ export default function ParcellesLayer({
       const pinKey = (rows: Pin[]) =>
         rows.map((p) => `${p.parcelleId}:${p.longitude.toFixed(5)}:${p.latitude.toFixed(5)}`).join('|');
       setPins((prev) => (pinKey(prev) === pinKey(nextPins) ? prev : nextPins));
-      setVenteLabels((prev) => (pinKey(prev) === pinKey(nextVentes) ? prev : nextVentes));
     };
 
     paintNowRef.current = paintStates;
@@ -416,8 +364,7 @@ export default function ParcellesLayer({
           {
             selected: selectedParcelleRef.current === hoverId.current,
             hover: false,
-            suivi: suiviSet.current.has(hoverId.current),
-            vente: layersRef.current.cadastreVentes && venteAggRef.current.has(hoverId.current),
+            proprioUnique: proprioUniqueSet.current.has(hoverId.current),
           },
         );
         for (const key of stateCache.keys()) {
@@ -431,8 +378,7 @@ export default function ParcellesLayer({
           {
             selected: selectedParcelleRef.current === parcelleId,
             hover: true,
-            suivi: suiviSet.current.has(parcelleId),
-            vente: layersRef.current.cadastreVentes && venteAggRef.current.has(parcelleId),
+            proprioUnique: proprioUniqueSet.current.has(parcelleId),
           },
         );
         for (const key of stateCache.keys()) {
@@ -471,25 +417,10 @@ export default function ParcellesLayer({
         CADASTRE_DPE_LAYER_ID,
         CADASTRE_DPE_LABEL_LAYER_ID,
         CADASTRE_COPRO_LAYER_ID,
-        CADASTRE_VENTES_POINT_LAYER_ID,
-        CADASTRE_VENTES_LAYER_ID,
-        CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
       ].filter((id) => Boolean(map.getLayer(id)));
       if (overlayHits.length > 0) {
         const top = map.queryRenderedFeatures(e.point, { layers: overlayHits });
         if (top.length > 0) return;
-      }
-      if (layersRef.current.cadastreVentes) {
-        const agg = venteAggRef.current.get(parcelleId);
-        if (agg) {
-          const c = centroidLngLat(f.geometry);
-          showHover({
-            lng: c?.longitude ?? e.lngLat.lng,
-            lat: c?.latitude ?? e.lngLat.lat,
-            preview: hoverPreviewFromVenteParcelle(agg),
-          });
-          return;
-        }
       }
       hideHoverSoon();
     };
@@ -568,26 +499,18 @@ export default function ParcellesLayer({
       map.off('mouseleave', PARCELLES_FILL_LAYER_ID, onLeave);
       map.off('click', PARCELLES_FILL_LAYER_ID, onClick);
     };
-    // noteByParcelle / venteAgg / sélection / suivi : lus via refs
+    // noteByParcelle / sélection / proprio unique : lus via refs
     // pour ne pas ré-attacher les listeners à chaque pan ou fetch overlay.
   }, [enabled, mapRef, schedulePrefetch, showHover, hideHoverSoon, dismissHover]);
 
   // Repaint ciblé (sans rejouer moveend → refetch viewport).
   // activeParcelleIds n’influence plus le fill (état « active » retiré) :
-  // on ne repeint que suivi / sélection.
-  const suiviKey = suiviParcelleIds.join(',');
+  // on ne repeint que proprio unique / sélection.
+  const proprioUniqueKey = proprioUniqueParcelleIds.join(',');
   useEffect(() => {
     if (!enabled) return;
     paintNowRef.current?.();
-  }, [
-    enabled,
-    suiviKey,
-    selectedParcelleId,
-    noteMarkers,
-    immeubles,
-    layers.cadastreVentes,
-    clipZones,
-  ]);
+  }, [enabled, proprioUniqueKey, selectedParcelleId, noteMarkers, immeubles, clipZones]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
@@ -607,8 +530,7 @@ export default function ParcellesLayer({
           {
             selected: selectedParcelleRef.current === hoverId.current,
             hover: false,
-            suivi: suiviSet.current.has(hoverId.current),
-            vente: layersRef.current.cadastreVentes && venteAggRef.current.has(hoverId.current),
+            proprioUnique: proprioUniqueSet.current.has(hoverId.current),
           },
         );
       }
@@ -619,8 +541,7 @@ export default function ParcellesLayer({
           {
             selected: selectedParcelleRef.current === parcelleId,
             hover: true,
-            suivi: suiviSet.current.has(parcelleId),
-            vente: layersRef.current.cadastreVentes && venteAggRef.current.has(parcelleId),
+            proprioUnique: proprioUniqueSet.current.has(parcelleId),
           },
         );
       }
@@ -631,26 +552,6 @@ export default function ParcellesLayer({
       const f = e.features?.[0];
       const layer = overlayLayerOf(f?.layer?.id);
       const banId = typeof f?.properties?.banId === 'string' ? f.properties.banId : null;
-      const parcelleId = normalizeParcelleId(
-        typeof f?.properties?.parcelleId === 'string' ? f.properties.parcelleId : null,
-      );
-      if (layer === 'ventes' && !banId && parcelleId) {
-        const agg = venteAggRef.current.get(parcelleId);
-        if (!agg || parcelleId === selectedParcelleRef.current) {
-          dismissHover();
-          return;
-        }
-        const canvas = mapCanvas(map);
-        if (canvas) canvas.style.cursor = 'pointer';
-        const c = centroidLngLat(f?.geometry);
-        showHover({
-          lng: c?.longitude ?? e.lngLat.lng,
-          lat: c?.latitude ?? e.lngLat.lat,
-          preview: hoverPreviewFromVenteParcelle(agg),
-        });
-        applyHover(parcelleId);
-        return;
-      }
       const row = banId ? immeublesRef.current.find((item) => item.banId === banId) : undefined;
       if (!layer || !row) {
         hideHoverSoon();
@@ -723,12 +624,9 @@ export default function ParcellesLayer({
       try {
         const order = map.getStyle()?.layers;
         if (!order) return;
-        const present = [
-          CADASTRE_DPE_LAYER_ID,
-          CADASTRE_DPE_LABEL_LAYER_ID,
-          CADASTRE_VENTES_LAYER_ID,
-          CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-        ].filter((id) => map.getLayer(id));
+        const present = [CADASTRE_DPE_LAYER_ID, CADASTRE_DPE_LABEL_LAYER_ID].filter((id) =>
+          map.getLayer(id),
+        );
         if (present.length === 0) return;
         const tail = order.slice(-present.length).map((layer) => layer.id);
         if (present.every((id, i) => tail[i] === id)) return;
@@ -740,14 +638,7 @@ export default function ParcellesLayer({
     raiseOverlays();
     map.on('idle', raiseOverlays);
 
-    const overlayLayers = [
-      CADASTRE_DPE_LAYER_ID,
-      CADASTRE_DPE_LABEL_LAYER_ID,
-      CADASTRE_VENTES_LAYER_ID,
-      CADASTRE_VENTES_POINT_LAYER_ID,
-      CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
-      CADASTRE_COPRO_LAYER_ID,
-    ];
+    const overlayLayers = [CADASTRE_DPE_LAYER_ID, CADASTRE_DPE_LABEL_LAYER_ID, CADASTRE_COPRO_LAYER_ID];
     for (const id of overlayLayers) {
       map.on('mousemove', id, onOverlayMove);
       map.on('mouseleave', id, onOverlayLeave);
@@ -784,10 +675,8 @@ export default function ParcellesLayer({
                 FILL_SELECTED,
                 ['boolean', ['feature-state', 'hover'], false],
                 FILL_HOVER,
-                ['boolean', ['feature-state', 'suivi'], false],
-                FILL_SUIVI,
-                ['boolean', ['feature-state', 'vente'], false],
-                FILL_VENTE,
+                ['boolean', ['feature-state', 'proprioUnique'], false],
+                FILL_PROPRIO_UNIQUE,
                 FILL,
               ],
               'fill-opacity': ['case', ['boolean', ['feature-state', 'hors'], false], 0, 1],
@@ -815,30 +704,6 @@ export default function ParcellesLayer({
       ) : null}
       {showOverlays ? (
         <Source id={CADASTRE_POINTS_SOURCE_ID} type="geojson" data={overlayGeojson} promoteId="banId">
-          {layers.cadastreVentes ? (
-            <Layer
-              id={CADASTRE_VENTES_LAYER_ID}
-              type="symbol"
-              filter={['all', ['==', ['get', 'hasVente'], '1'], ['!=', ['get', 'prixM2'], '']]}
-              minzoom={CADASTRE_OVERLAY_MIN_ZOOM}
-              maxzoom={PARCELLE_MIN_ZOOM}
-              layout={{
-                'text-field': ['get', 'prixM2'],
-                'text-size': 11,
-                'text-offset': [1.35, 0],
-                'text-anchor': 'left',
-                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-                'text-allow-overlap': false,
-                'text-pitch-alignment': 'viewport',
-                'text-rotation-alignment': 'viewport',
-              }}
-              paint={{
-                'text-color': VENTE_FILL,
-                'text-halo-color': VENTE_PRICE_HALO,
-                'text-halo-width': 1.4,
-              }}
-            />
-          ) : null}
           {layers.cadastreCopro ? (
             <Layer
               id={CADASTRE_COPRO_LAYER_ID}
@@ -953,30 +818,6 @@ export default function ParcellesLayer({
               }}
             />
           ) : null}
-        </Source>
-      ) : null}
-      {enabled && layers.cadastreVentes ? (
-        <Source id={CADASTRE_VENTES_PARCELLE_SOURCE_ID} type="geojson" data={venteParcelleGeojson}>
-          <Layer
-            id={CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID}
-            type="symbol"
-            minzoom={PARCELLE_MIN_ZOOM}
-            filter={['!=', ['get', 'prixM2'], '']}
-            layout={{
-              'text-field': ['get', 'prixM2'],
-              'text-size': 11,
-              'text-anchor': 'center',
-              'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-              'text-allow-overlap': false,
-              'text-pitch-alignment': 'viewport',
-              'text-rotation-alignment': 'viewport',
-            }}
-            paint={{
-              'text-color': '#3A424A',
-              'text-halo-color': VENTE_PRICE_HALO,
-              'text-halo-width': 1.6,
-            }}
-          />
         </Source>
       ) : null}
 

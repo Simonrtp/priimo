@@ -23,9 +23,14 @@ describe('parseMapLayers', () => {
     assert.equal(DEFAULT_MAP_LAYERS.annonces, false);
   });
 
-  it('ne propose plus Biens dans les filtres', () => {
+  it('ne propose plus Biens, Contacts ni Notes dans les filtres', () => {
     assert.ok(!MAP_LAYER_ORDER.includes('bien'));
-    assert.equal(parseMapLayers({ bien: true }).bien, false);
+    assert.ok(!MAP_LAYER_ORDER.includes('contact'));
+    assert.ok(!MAP_LAYER_ORDER.includes('note'));
+    assert.equal(MAP_LAYER_ORDER.length, 0);
+    assert.equal(parseMapLayers({ bien: true, contact: true, note: true }).bien, false);
+    assert.equal(parseMapLayers({ contact: true }).contact, false);
+    assert.equal(parseMapLayers({ note: true }).note, false);
   });
 
   it('force toujours les parcelles, même si le stockage les avait éteintes', () => {
@@ -55,10 +60,9 @@ describe('parseMapLayers', () => {
     assert.deepEqual(withDpeAgeSpan(parsed, 1, 3).cadastreDpeAges, ['semaine', 'mois', '1-6']);
   });
 
-  it('persiste l’état du menu Cadastre', () => {
+  it('lit encore cadastreMenuOpen sans l’exposer dans le panneau', () => {
     assert.equal(parseMapLayers({}).cadastreMenuOpen, false);
     assert.equal(parseMapLayers({ cadastreMenuOpen: true }).cadastreMenuOpen, true);
-    assert.equal(parseMapLayers({ cadastreMenuOpen: false }).cadastreMenuOpen, false);
   });
 
   it('reprend toutes les cases d’ancienneté si absentes', () => {
@@ -118,14 +122,33 @@ describe('parseMapLayers', () => {
     assert.equal(fromRev9.rev, MAP_LAYERS_STORAGE_REV);
   });
 
-  it('rev 8 retire la couche Copropriétés sans toucher au reste', () => {
+  it('rev 11 retire Contacts, Notes et Ventes (DVF)', () => {
+    const fromRev10 = migrateStoredMapLayers(
+      {
+        ...DEFAULT_MAP_LAYERS,
+        contact: true,
+        note: true,
+        cadastreVentes: true,
+        cadastreMenuOpen: true,
+      },
+      10,
+    );
+    assert.equal(fromRev10.state.contact, false);
+    assert.equal(fromRev10.state.note, false);
+    assert.equal(fromRev10.state.cadastreVentes, false);
+    assert.equal(fromRev10.state.cadastreMenuOpen, false);
+    assert.equal(fromRev10.rev, MAP_LAYERS_STORAGE_REV);
+    assert.equal(parseMapLayers({ cadastreVentes: true }).cadastreVentes, false);
+  });
+
+  it('rev 8 retire la couche Copropriétés', () => {
     const fromRev7 = migrateStoredMapLayers(
       { ...DEFAULT_MAP_LAYERS, cadastre: true, cadastreCopro: true, cadastreVentes: true },
       7,
     );
     assert.equal(fromRev7.state.cadastreCopro, false);
     assert.equal(fromRev7.state.cadastre, true);
-    assert.equal(fromRev7.state.cadastreVentes, true);
+    assert.equal(fromRev7.state.cadastreVentes, false);
     assert.equal(fromRev7.rev, MAP_LAYERS_STORAGE_REV);
     assert.equal(parseMapLayers({ cadastreCopro: true }).cadastreCopro, false);
   });

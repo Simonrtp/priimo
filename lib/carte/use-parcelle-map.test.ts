@@ -40,14 +40,15 @@ describe('mergeOverlayPayload', () => {
     const noteA = { parcelleId: 'p-a' } as ParcelleNoteMarker;
     const sources = { diagnosticsAt: null, ventesAt: null };
     const result = mergeOverlayPayload(
-      { immeubles: [dpeA], notes: [noteA], sources },
-      { immeubles: [dpeB], notes: [], sources },
+      { immeubles: [dpeA], notes: [noteA], sources, proprioUniqueParcelleIds: ['p-a'] },
+      { immeubles: [dpeB], notes: [], sources, proprioUniqueParcelleIds: ['p-b'] },
     );
     assert.deepEqual(
       result.immeubles.map((row) => row.banId).sort(),
       ['a', 'b'],
     );
     assert.equal(result.notes[0]?.parcelleId, 'p-a');
+    assert.deepEqual(result.proprioUniqueParcelleIds.sort(), ['p-a', 'p-b']);
   });
 });
 

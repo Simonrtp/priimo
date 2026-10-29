@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { oublierCible, useCibleCarte } from '@/lib/carte/cible';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Box, Layers, Locate, Navigation, Navigation2, PencilLine, Phone, Square } from 'lucide-react';
+import { Box, Layers, Locate, Navigation, Navigation2, Phone, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import Switch from '@/components/ui/Switch';
 import { createBanGeocodeCache, geocodeAdresse } from '@/lib/geo/ban';
@@ -23,7 +23,6 @@ import {
   MAP_LAYER_LABELS,
   MAP_LAYER_ORDER,
   activeKindSet,
-  anyCadastreOverlay,
   persistMapLayers,
   readStoredMapLayers,
   showParcellesPlan,
@@ -42,7 +41,6 @@ import { useCarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
 import { useParcelleMap } from '@/lib/carte/use-parcelle-map';
-import { useImmeublesSuivisCarte } from '@/lib/carte/immeubles-suivis';
 import { BOUTON_CARTE_VIDE } from '@/components/dashboard/accueil/CarteVideAccueil';
 import {
   aUnSecteurDefini,
@@ -212,18 +210,12 @@ export default function CarteMobile({
   const itineraryGeometry = route?.geometry ?? null;
 
   const kinds = useMemo(() => activeKindSet(layers), [layers]);
-  const overlaysCadastre = anyCadastreOverlay(layers);
   const planParcelles = showParcellesPlan(layers);
-  const parcelle = useParcelleMap(overlaysCadastre, viewport, {
+  // Plan toujours allumé : on charge l’activité pour peindre les proprios uniques.
+  const parcelle = useParcelleMap(true, viewport, {
     dpeAges: layers.cadastreDpeAges,
     includeDpeDetail: layers.cadastreDpe,
-    includeVentes: layers.cadastreVentes,
   });
-  const { suivis: immeublesSuivis, recharger: rechargerSuivis } = useImmeublesSuivisCarte();
-  const suiviParcelleIds = useMemo(
-    () => immeublesSuivis.map((s) => s.parcelleId),
-    [immeublesSuivis],
-  );
   const { closeParcelle } = parcelle;
   const mapZoom = viewport?.zoom ?? null;
   const carteSecteurs = useCarteSecteurs();
@@ -511,19 +503,18 @@ export default function CarteMobile({
         itineraryGeometry={itineraryGeometry}
         parcellesEnabled={planParcelles || Boolean(parcelle.selectedParcelleId)}
         activeParcelleIds={activeParcelleIds}
-        suiviParcelleIds={suiviParcelleIds}
+        proprioUniqueParcelleIds={parcelle.proprioUniqueParcelleIds}
         parcelleNoteMarkers={parcelleNoteMarkers}
         selectedParcelleId={parcelle.selectedParcelleId}
         cadastreImmeubles={cadastreImmeubles}
         cadastreLayers={{
           cadastreDpe: layers.cadastreDpe,
-          cadastreVentes: layers.cadastreVentes,
           cadastreCopro: layers.cadastreCopro,
           cadastreDpeAges: layers.cadastreDpeAges,
         }}
         onSelectParcelle={(parcelleId, extra) => {
           setFocusNoteId(null);
-          setSelectedBanId(null);
+          setSelectedBanId(extra?.banId ?? null);
           setLayersOpen(false);
           parcelle.openParcelle(parcelleId, extra);
         }}
@@ -633,6 +624,7 @@ export default function CarteMobile({
         title="Couches"
         initialSnap={2}
       >
+        <div className="flex flex-col gap-2">
         {atelier ? null : (
           <EmpriseCapsules
             compact
@@ -657,7 +649,7 @@ export default function CarteMobile({
           )
         ) : (
         dessin.panneau ?? (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-2">
           {MAP_LAYER_ORDER.map((kind) => {
             const active = layers[kind];
             return (
@@ -724,32 +716,20 @@ export default function CarteMobile({
             }}
           />
           {onglet === 'code_postal' ? null : (
-            <>
-              <ChoixSecteurs
-                zones={proposes}
-                zoneId={zoneId}
-                onZone={setZoneId}
-                profileId={profileId}
-                membres={members}
-                onCreer={() => ouvrirAtelier(null)}
-              />
-              {modifierSecteur ? (
-                <li className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={modifierSecteur}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/[0.05] px-3.5 text-[13.5px] font-semibold text-text-strong"
-                  >
-                    <PencilLine size={15} strokeWidth={2.2} aria-hidden />
-                    Modifier ce secteur
-                  </button>
-                </li>
-              ) : null}
-            </>
+            <ChoixSecteurs
+              zones={proposes}
+              zoneId={zoneId}
+              onZone={setZoneId}
+              profileId={profileId}
+              membres={members}
+              onCreer={() => ouvrirAtelier(null)}
+              onModifier={modifierSecteur}
+            />
           )}
         </ul>
         )
         )}
+        </div>
       </MobileSheet>
 
       <MobileSheet
@@ -834,8 +814,8 @@ export default function CarteMobile({
           oublierCible();
         }}
         onNotesChanged={parcelle.refreshAfterNotes}
-        onSuiviChanged={rechargerSuivis}
         focusNoteId={focusNoteId}
+        adresseRecherche={parcelle.adresseRecherche}
       />
     </div>
   );

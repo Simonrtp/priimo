@@ -5029,3 +5029,163 @@ html:has(.feature-page) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Flash de la carte : « Breaking news » traverse une petite carte, les nouvelles défilent, puis tout se range en onglet. */
+/* -------------------------------------------------------------------------- */
+/* La barre s'ouvre depuis le coin, sans rester rognée : l'ombre doit passer. */
+.breaking-barre {
+  animation: breakingBarre 320ms cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+}
+@keyframes breakingBarre {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+/* Le logo traverse la carte (le conteneur en fait toute la largeur) : arrivée vive, glisse lente au centre, sortie qui accélère. */
+.breaking-passage {
+  animation: breakingPassage 2300ms both;
+}
+@keyframes breakingPassage {
+  0% {
+    transform: translateX(-105%);
+    opacity: 0;
+    filter: blur(3px);
+    animation-timing-function: cubic-bezier(0.12, 0.75, 0.3, 1);
+  }
+  24% {
+    transform: translateX(-3%);
+    opacity: 1;
+    filter: blur(0);
+    animation-timing-function: linear;
+  }
+  70% {
+    transform: translateX(3%);
+    opacity: 1;
+    filter: blur(0);
+    animation-timing-function: cubic-bezier(0.75, 0, 0.9, 0.35);
+  }
+  100% {
+    transform: translateX(105%);
+    opacity: 1;
+    filter: blur(4px);
+  }
+}
+/* Un reflet passe sur « NEWS » pendant la glisse. */
+.breaking-noir::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.45) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: breakingReflet 900ms cubic-bezier(0.3, 0.6, 0.3, 1) 650ms both;
+  pointer-events: none;
+}
+@keyframes breakingReflet {
+  to { transform: translateX(130%); }
+}
+/* Le trait de lumière s'allume derrière le logo. */
+.breaking-trait {
+  transform-origin: center;
+  animation: breakingTrait 700ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both;
+}
+@keyframes breakingTrait {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+/* La première nouvelle se dévoile de gauche à droite, dans le sillage du logo. */
+.breaking-resume {
+  animation: breakingResume 520ms cubic-bezier(0.3, 0.6, 0.4, 1) both;
+}
+@keyframes breakingResume {
+  from { clip-path: inset(0 100% 0 0); opacity: 0.4; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+/* Les nouvelles s'effacent pendant que la carte se range. */
+.breaking-fondu {
+  animation: breakingFondu 240ms ease-in both;
+}
+@keyframes breakingFondu {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+/* L'onglet rangé apparaît quand la carte a fini de se resserrer. */
+.breaking-compact {
+  animation: breakingCompact 360ms cubic-bezier(0.2, 0.8, 0.2, 1) 300ms both;
+}
+@keyframes breakingCompact {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+/* L'onglet rangé bat doucement : c'est en direct. */
+.breaking-pouls {
+  animation: breakingPouls 2600ms ease-out 1200ms infinite;
+}
+@keyframes breakingPouls {
+  0% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 0 rgba(255, 59, 48, 0.6); }
+  70%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 7px rgba(255, 59, 48, 0); }
+}
+/* Une nouvelle chasse l'autre. */
+.flash-entree {
+  animation: flashEntree 460ms cubic-bezier(0.2, 0.8, 0.2, 1) 110ms both;
+}
+.flash-sortie {
+  animation: flashSortie 280ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes flashEntree {
+  from { opacity: 0; transform: translateY(80%); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes flashSortie {
+  from { opacity: 1; transform: none; filter: none; }
+  to { opacity: 0; transform: translateY(-80%); filter: blur(3px); }
+}
+/* La barre sous la une donne le tempo : à son bout, la nouvelle suivante. */
+.flash-progression {
+  transform-origin: left center;
+  animation-name: flashProgression;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+[data-flash-pause] .flash-progression {
+  animation-play-state: paused;
+}
+@keyframes flashProgression {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.flash-panneau {
+  transform-origin: top left;
+  animation: flashPanneau 280ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+@keyframes flashPanneau {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.flash-ligne {
+  animation: flashLigne 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes flashLigne {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+/* Sans mouvement : pas de bandeau (la barre s'installe directement), la barre rouge garde le tempo. */
+@media (prefers-reduced-motion: reduce) {
+  .breaking-barre,
+  .breaking-passage,
+  .breaking-trait,
+  .breaking-resume,
+  .breaking-fondu,
+  .breaking-compact,
+  .flash-entree,
+  .flash-sortie,
+  .flash-panneau,
+  .flash-ligne {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+  .breaking-pouls {
+    animation: none;
+  }
+  .breaking-noir::after {
+    display: none;
+  }
+}

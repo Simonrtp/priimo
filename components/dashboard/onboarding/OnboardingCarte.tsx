@@ -59,7 +59,6 @@ export default function OnboardingCarte({
         cadastreImmeubles={parcelle.immeubles}
         cadastreLayers={{
           cadastreDpe: true,
-          cadastreVentes: true,
           cadastreCopro: true,
           cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
         }}

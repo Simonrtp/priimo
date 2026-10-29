@@ -20,15 +20,13 @@ export type { CadastreSourceDates } from '@/lib/carte/cadastre-freshness';
 export const PARCELLE_MIN_ZOOM = 14;
 /** Zoom initial quand on veut voir et cliquer les parcelles (prise en main, cadastre). */
 export const PARCELLE_FOCUS_ZOOM = 16;
-/** DPE / ventes / copro : visibles dès la vue quartier. */
+/** DPE / copro : visibles dès la vue quartier. */
 export const CADASTRE_OVERLAY_MIN_ZOOM = 12;
-/** Étiquette €/m² des ventes : invisible en dessous. */
-export const VENTE_PRICE_LABEL_MIN_ZOOM = 17;
 export const PARCELLE_SLATE = '#1A2A56';
 export const COPRO_PROCEDURE_FILL = '#1A2A56';
 export const COPRO_FILL = '#5B7C8A';
-export const VENTE_FILL = '#1A2A56';
-export const VENTE_PRICE_HALO = '#FFFFFF';
+/** Appartements sans copropriété (propriétaire unique) — fill plan PCI. */
+export const FILL_PROPRIO_UNIQUE = 'rgba(232, 116, 60, 0.32)';
 
 export type ParcelleVente = {
   date: string;
@@ -195,7 +193,29 @@ export type ParcellePickExtra = {
   latitude?: number | null;
   /** DPE exact du point cliqué, potentiellement plus frais que la copie locale. */
   dpe?: ParcelleLogement | null;
+  /** Adresse BAN qui a ouvert la parcelle (recherche carte). */
+  banId?: string | null;
+  libelle?: string | null;
 };
+
+/** Adresse cherchée qui a ouvert le volet — pour le titre, pas le premier numéro de la parcelle. */
+export type AdresseRechercheParcelle = {
+  banId: string | null;
+  libelle: string;
+};
+
+/** Titre du volet : l’adresse cherchée si connue, sinon le premier libellé de la fiche. */
+export function titreParcelle(
+  fiche: Pick<ParcelleFiche, 'adresse' | 'reference' | 'adresses'>,
+  recherche: AdresseRechercheParcelle | null | undefined,
+): string {
+  if (recherche?.banId) {
+    const match = fiche.adresses.find((a) => a.banId === recherche.banId);
+    if (match?.libelle?.trim()) return match.libelle.trim();
+  }
+  if (recherche?.libelle?.trim()) return recherche.libelle.trim();
+  return fiche.adresse ?? fiche.reference;
+}
 
 export type ParcelleNoteMarker = {
   parcelleId: string;
@@ -231,6 +251,8 @@ export type ParcelleOverlay = {
   immeubles: CadastreImmeublePoint[];
   notes: ParcelleNoteMarker[];
   sources: CadastreSourceDates;
+  /** Parcelles d’appartements sans copropriété — à peindre plus clairement. */
+  proprioUniqueParcelleIds: string[];
 };
 
 type Ring = readonly (readonly number[])[];

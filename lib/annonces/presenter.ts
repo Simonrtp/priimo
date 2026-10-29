@@ -134,7 +134,7 @@ export function libelleVendeur(annonce: Annonce): string {
   return annonce.agenceNom?.trim() || 'Agence';
 }
 
-function prixDans(json: Record<string, unknown> | null): number | null {
+export function prixDans(json: Record<string, unknown> | null): number | null {
   if (!json) return null;
   const v = json.prix ?? json.price;
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
@@ -144,7 +144,7 @@ function ymdParis(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(date);
 }
 
-function joursDepuis(iso: string, maintenant: Date): number | null {
+export function joursDepuis(iso: string, maintenant: Date): number | null {
   const fini = new Date(iso);
   if (Number.isNaN(fini.getTime())) return null;
   const [ya, ma, da] = ymdParis(fini).split('-').map(Number);

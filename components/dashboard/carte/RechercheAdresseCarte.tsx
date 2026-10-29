@@ -67,7 +67,7 @@ export default function RechercheAdresseCarte() {
       void searchBanAddresses(q, ADRESSES_MAX, undefined, ctrl.signal, proche)
         .then((features) => {
           if (ctrl.signal.aborted || retenueRef.current) return;
-          setAdresses(versAdressesTrouvees(features));
+          setAdresses(versAdressesTrouvees(features, q));
           setActif(0);
           setListeOuverte(true);
         })

@@ -61,7 +61,7 @@ import ImportContacts from '@/components/dashboard/import/ImportContacts';
 import PageHeader from '@/components/dashboard/workspace/PageHeader';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import WorkspaceCard from '@/components/dashboard/workspace/WorkspaceCard';
-import ContactDetailPanel from './ContactDetailPanel';
+import ContactDetailPanel, { type ContactDetailHandle } from './ContactDetailPanel';
 import ContactFormDialog from './ContactFormDialog';
 import { CocheConsentementTel } from './ConsentementRappelField';
 import DoublonsDialog, { type PaireDoublon } from './DoublonsDialog';
@@ -500,6 +500,17 @@ export default function ContactsClient({
   const [etatFilter, setEtatFilter] = useState<EtatFilter>('tous');
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   const filtresRef = useRef<HTMLDivElement>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedContactId);
+  const ficheRef = useRef<ContactDetailHandle>(null);
+  const contactOuvert = useMemo(
+    () => (selectedId ? contacts.find((c) => c.id === selectedId) ?? null : null),
+    [contacts, selectedId],
+  );
+
+  async function fermerFiche() {
+    await ficheRef.current?.enregistrerSiBesoin();
+    setSelectedId(null);
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -508,11 +519,12 @@ export default function ContactsClient({
         setFiltresOuverts(false);
         return;
       }
-      setSelectedId(null);
+      // La fiche contact est dans une Modal : c’est elle qui ferme (et enregistre avant).
+      if (selectedId) return;
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [filtresOuverts]);
+  }, [filtresOuverts, selectedId]);
 
   useEffect(() => {
     if (!filtresOuverts) return;
@@ -525,11 +537,6 @@ export default function ContactsClient({
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [filtresOuverts]);
-  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedContactId);
-  const contactOuvert = useMemo(
-    () => (selectedId ? contacts.find((c) => c.id === selectedId) ?? null : null),
-    [contacts, selectedId],
-  );
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(retourGoogle !== null);
   const [editing, setEditing] = useState<Contact | undefined>(undefined);
@@ -1000,12 +1007,13 @@ export default function ContactsClient({
       {contactOuvert ? (
         <Modal
           open
-          onClose={() => setSelectedId(null)}
+          onClose={() => void fermerFiche()}
           title={contactOuvert.fullName}
           maxWidth="2xl"
           compact
         >
           <ContactDetailPanel
+            ref={ficheRef}
             contact={contactOuvert}
             biens={biens}
             members={members}

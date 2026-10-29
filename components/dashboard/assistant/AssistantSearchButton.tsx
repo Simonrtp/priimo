@@ -91,7 +91,7 @@ function SearchField({
         q.length >= 3
           ? searchBanAddresses(q, ADRESSES_MAX, undefined, ctrl.signal, proche)
               // « 148 Rue de Belleville » en titre, « 75020 Paris » dessous : rien de répété.
-              .then(versAdressesTrouvees)
+              .then((features) => versAdressesTrouvees(features, q))
               .catch(() => [] as AdresseTrouvee[])
           : Promise.resolve([] as AdresseTrouvee[]);
 

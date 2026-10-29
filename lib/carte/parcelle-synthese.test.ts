@@ -12,6 +12,7 @@ import {
   logementsDistincts,
   decrireAudit,
   faitSci,
+  estProprietaireUnique,
   pastillesEnteteParcelle,
   pourquoiSiPeu,
   prixDeLImmeuble,
@@ -336,6 +337,38 @@ describe('syntheseParcelle avec la BDNB', () => {
   });
 });
 
+describe('estProprietaireUnique', () => {
+  it('signale un collectif sans copropriété', () => {
+    assert.equal(
+      estProprietaireUnique({
+        coproprietes: [],
+        batiment: { usage: 'Résidentiel collectif', logements: 8 } as BatimentParcelle,
+      }),
+      true,
+    );
+  });
+
+  it('ignore une maison individuelle', () => {
+    assert.equal(
+      estProprietaireUnique({
+        coproprietes: [],
+        batiment: { usage: 'Résidentiel individuel', logements: 1 } as BatimentParcelle,
+      }),
+      false,
+    );
+  });
+
+  it('ignore dès qu’une copropriété est connue', () => {
+    assert.equal(
+      estProprietaireUnique({
+        coproprietes: [{ lots: 12 }],
+        batiment: { usage: 'Résidentiel collectif', logements: 12 } as BatimentParcelle,
+      }),
+      false,
+    );
+  });
+});
+
 describe('pastillesEnteteParcelle', () => {
   it('raccourcit l’usage résidentiel', () => {
     assert.equal(raccourcirUsage('Résidentiel collectif'), 'Collectif');
@@ -366,6 +399,7 @@ describe('pastillesEnteteParcelle', () => {
         adressesBan: [],
         adressePrincipale: null,
       },
+      coproprietes: [{ lots: 13 }],
     });
     assert.deepEqual(
       chips.map((c) => ({ cle: c.cle, libelle: plat(c.libelle) })),

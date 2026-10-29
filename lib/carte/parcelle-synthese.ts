@@ -318,6 +318,8 @@ export function decrireImmeuble(b: BatimentParcelle | null): string | null {
 export type PastilleEntete = {
   cle: string;
   libelle: string;
+  /** Accent Priimo : signal métier (propriétaire unique…). */
+  ton?: 'accent' | 'neutre';
 };
 
 /** Usage BDNB en pastille courte : « Collectif », pas « Résidentiel collectif ». */
@@ -332,6 +334,30 @@ export function raccourcirUsage(usage: string | null): string | null {
 }
 
 /**
+ * Appartements sans copropriété au RNC : en pratique un propriétaire
+ * (particulier ou SCI) détient l’immeuble entier — un seul interlocuteur.
+ * Les maisons individuelles et le tertiaire restent hors signal.
+ */
+export function estProprietaireUnique(input: {
+  coproprietes: readonly unknown[];
+  batiment?: BatimentParcelle | null;
+  logements?: readonly ParcelleLogement[];
+}): boolean {
+  if (input.coproprietes.length > 0) return false;
+  const b = input.batiment ?? null;
+  if (b) {
+    if (/individuel/i.test(b.usage ?? '')) return false;
+    if (/collectif/i.test(b.usage ?? '')) return true;
+    if ((b.logements ?? 0) >= 2) return true;
+  }
+  const logements = input.logements ?? [];
+  const avecEtage = logements.filter((l) => l.etage != null).length;
+  if (avecEtage >= 2) return true;
+  if (logements.length >= 2 && !/individuel/i.test(b?.usage ?? '')) return true;
+  return false;
+}
+
+/**
  * Ligne dense du volet parcelle : localité, surface, usage, année, niveaux,
  * logements. Les adresses restent un bouton à part (interactif).
  */
@@ -339,8 +365,20 @@ export function pastillesEnteteParcelle(p: {
   localite: string | null;
   surfaceM2: number | null;
   batiment: BatimentParcelle | null;
+  /** Absent du RNC + logements collectifs → pastille « Propriétaire unique ». */
+  coproprietes?: readonly unknown[];
+  logements?: readonly ParcelleLogement[];
 }): PastilleEntete[] {
   const chips: PastilleEntete[] = [];
+  if (
+    estProprietaireUnique({
+      coproprietes: p.coproprietes ?? [],
+      batiment: p.batiment,
+      logements: p.logements,
+    })
+  ) {
+    chips.push({ cle: 'proprio-unique', libelle: 'Propriétaire unique', ton: 'accent' });
+  }
   if (p.localite?.trim()) chips.push({ cle: 'localite', libelle: p.localite.trim() });
   if (p.surfaceM2 != null && Number.isFinite(p.surfaceM2)) {
     chips.push({ cle: 'surface', libelle: surface(p.surfaceM2) });
@@ -525,6 +563,20 @@ export function syntheseParcelle(
   const sci = faitSci(proprietaires, input.coproprietes.length > 0);
   if (sci) faits.push({ cle: 'sci', texte: sci });
 
+  const proprioUnique = estProprietaireUnique({
+    coproprietes: input.coproprietes,
+    batiment,
+    logements,
+  });
+  // Sans SCI déjà décrite : le signal RNC manque, un seul interlocuteur.
+  if (proprioUnique && !sci) {
+    faits.push({
+      cle: 'proprio-unique',
+      texte:
+        'Aucune copropriété déclarée : immeuble à propriétaire unique, un seul interlocuteur à trouver',
+    });
+  }
+
   const audit = (input.audits ?? [])[0];
   if (audit && moisEcoules(audit.date, maintenant) <= AUDIT_RECENT_MOIS) {
     faits.push({ cle: 'audit', texte: decrireAudit(audit, maintenant) });
@@ -542,6 +594,7 @@ export function syntheseParcelle(
 
   /* -------------------------------------------------------------- pastilles */
   const pastilles: PastilleParcelle[] = [];
+  // « Propriétaire unique » : pastille d’en-tête + bandeau en haut de fiche.
   if (passoires.length > 0) {
     pastilles.push({
       cle: 'passoires',

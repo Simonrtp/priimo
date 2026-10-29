@@ -241,6 +241,34 @@ export function hasCadastreOverlay(row: {
   return row.nbLots != null || row.procedureCopro;
 }
 
+/**
+ * Parcelles d’appartements sans entrée au RNC : probablement un propriétaire
+ * unique. Heuristique carte (pas de BDNB ici) : activité multi-logements
+ * (plusieurs DPE / ventes, ou DPE avec étage) et aucun lot de copropriété.
+ */
+export function parcelleIdsProprietaireUnique(
+  rows: readonly CadastreImmeublePoint[],
+): string[] {
+  const byParcelle = new Map<string, CadastreImmeublePoint[]>();
+  for (const row of rows) {
+    if (!row.parcelleId) continue;
+    const list = byParcelle.get(row.parcelleId);
+    if (list) list.push(row);
+    else byParcelle.set(row.parcelleId, [row]);
+  }
+  const out: string[] = [];
+  for (const [id, list] of byParcelle) {
+    if (list.some((r) => r.nbLots != null || r.procedureCopro)) continue;
+    const nbDpe = list.reduce((s, r) => s + r.nbDpe, 0);
+    const nbTx = list.reduce((s, r) => s + r.nbTransactions, 0);
+    const etage = list.some((r) => r.etageDpe != null);
+    if (nbDpe >= 2 || nbTx >= 2 || (etage && (nbDpe >= 1 || nbTx >= 1))) {
+      out.push(id);
+    }
+  }
+  return out;
+}
+
 /** Une vente lue directement dans building_transactions (la source du volet de la parcelle). */
 export type VenteBrute = {
   parcelleId: string;

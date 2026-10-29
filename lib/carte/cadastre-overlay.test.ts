@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { completerVentesParcelles, parcellesSansVentesAgregees, formatPrixM2Court, hasCadastreOverlay, dpeVisibleOnMap, mergeCadastreImmeubles, overlayRowsFromAdeme, ventesParParcelle } from './cadastre-overlay';
+import {
+  completerVentesParcelles,
+  parcellesSansVentesAgregees,
+  formatPrixM2Court,
+  hasCadastreOverlay,
+  dpeVisibleOnMap,
+  mergeCadastreImmeubles,
+  overlayRowsFromAdeme,
+  parcelleIdsProprietaireUnique,
+  ventesParParcelle,
+} from './cadastre-overlay';
+import type { CadastreImmeublePoint } from './parcelle';
 import type { OverlayActivity, OverlayBuilding, OverlayDpeRow } from './cadastre-overlay';
 
 const building: OverlayBuilding = {
@@ -347,5 +358,67 @@ describe('completerVentesParcelles', () => {
 
   it('liste les parcelles à relire', () => {
     assert.deepEqual(parcellesSansVentesAgregees([point('a', 'P1', 2), point('b', 'P2'), point('c', null)]), ['P2']);
+  });
+});
+
+describe('parcelleIdsProprietaireUnique', () => {
+  const base = {
+    banId: 'ban-1',
+    longitude: 2.4,
+    latitude: 48.85,
+    adresse: null,
+    etiquetteDpe: null,
+    dpeGrain: null,
+    dateDpe: null,
+    surfaceDpe: null,
+    etageDpe: null,
+    nbPassoires: 0,
+    dernierPrix: null,
+    derniereTransactionLe: null,
+    prixM2: null,
+    procedureCopro: false,
+  } satisfies Partial<CadastreImmeublePoint>;
+
+  it('retient un immeuble multi-DPE sans lots de copropriété', () => {
+    const rows: CadastreImmeublePoint[] = [
+      {
+        ...base,
+        banId: 'a',
+        parcelleId: 'P1',
+        nbDpe: 4,
+        nbTransactions: 0,
+        nbLots: null,
+      } as CadastreImmeublePoint,
+    ];
+    assert.deepEqual(parcelleIdsProprietaireUnique(rows), ['P1']);
+  });
+
+  it('écarte une parcelle déjà en copropriété', () => {
+    const rows: CadastreImmeublePoint[] = [
+      {
+        ...base,
+        banId: 'a',
+        parcelleId: 'P1',
+        nbDpe: 4,
+        nbTransactions: 0,
+        nbLots: 20,
+      } as CadastreImmeublePoint,
+    ];
+    assert.deepEqual(parcelleIdsProprietaireUnique(rows), []);
+  });
+
+  it('écarte une maison à un seul DPE sans étage', () => {
+    const rows: CadastreImmeublePoint[] = [
+      {
+        ...base,
+        banId: 'a',
+        parcelleId: 'P1',
+        nbDpe: 1,
+        nbTransactions: 0,
+        nbLots: null,
+        etageDpe: null,
+      } as CadastreImmeublePoint,
+    ];
+    assert.deepEqual(parcelleIdsProprietaireUnique(rows), []);
   });
 });

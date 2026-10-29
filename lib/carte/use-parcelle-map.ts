@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   emptyParcelleFiche,
+  type AdresseRechercheParcelle,
   type CadastreImmeublePoint,
   type ParcelleFiche,
   type ParcelleLogement,
@@ -22,6 +23,7 @@ type OverlayPayload = {
   immeubles: CadastreImmeublePoint[];
   notes: ParcelleNoteMarker[];
   sources: CadastreSourceDates;
+  proprioUniqueParcelleIds: string[];
 };
 
 function memoriser(cache: Map<string, ParcelleFiche>, parcelleId: string, fiche: ParcelleFiche) {
@@ -50,10 +52,13 @@ export function mergeOverlayPayload(base: OverlayPayload, incoming: OverlayPaylo
   for (const row of incoming.immeubles) immeubles.set(row.banId, row);
   const notes = new Map(base.notes.map((row) => [row.parcelleId, row]));
   for (const row of incoming.notes) notes.set(row.parcelleId, row);
+  const proprio = new Set(base.proprioUniqueParcelleIds);
+  for (const id of incoming.proprioUniqueParcelleIds) proprio.add(id);
   return {
     immeubles: [...immeubles.values()],
     notes: [...notes.values()],
     sources: incoming.sources,
+    proprioUniqueParcelleIds: [...proprio],
   };
 }
 
@@ -97,11 +102,13 @@ export function useParcelleMap(
 ) {
   const [immeubles, setImmeubles] = useState<CadastreImmeublePoint[]>([]);
   const [noteMarkers, setNoteMarkers] = useState<ParcelleNoteMarker[]>([]);
+  const [proprioUniqueParcelleIds, setProprioUniqueParcelleIds] = useState<string[]>([]);
   const [sources, setSources] = useState<CadastreSourceDates>(EMPTY_SOURCES);
   const [selectedParcelleId, setSelectedParcelleId] = useState<string | null>(null);
   const [fiche, setFiche] = useState<ParcelleFiche | null>(null);
   const [loading, setLoading] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [adresseRecherche, setAdresseRecherche] = useState<AdresseRechercheParcelle | null>(null);
 
   const cache = useRef<Map<string, ParcelleFiche>>(new Map());
   const inflight = useRef<Map<string, Promise<ParcelleFiche>>>(new Map());
@@ -110,6 +117,7 @@ export function useParcelleMap(
     immeubles: [],
     notes: [],
     sources: EMPTY_SOURCES,
+    proprioUniqueParcelleIds: [],
   });
   const overlayDatasetKeyRef = useRef('');
   const demande = useRef<string | null>(null);
@@ -131,17 +139,29 @@ export function useParcelleMap(
     if (overlayDatasetKeyRef.current === overlayDatasetKey) return;
     overlayDatasetKeyRef.current = overlayDatasetKey;
     overlayCache.current.clear();
-    accumulatedOverlays.current = { immeubles: [], notes: [], sources: EMPTY_SOURCES };
+    accumulatedOverlays.current = {
+      immeubles: [],
+      notes: [],
+      sources: EMPTY_SOURCES,
+      proprioUniqueParcelleIds: [],
+    };
     setImmeubles([]);
     setNoteMarkers([]);
+    setProprioUniqueParcelleIds([]);
     setSources(EMPTY_SOURCES);
   }, [overlayDatasetKey]);
 
   useEffect(() => {
     if (!enabled) {
-      accumulatedOverlays.current = { immeubles: [], notes: [], sources: EMPTY_SOURCES };
+      accumulatedOverlays.current = {
+        immeubles: [],
+        notes: [],
+        sources: EMPTY_SOURCES,
+        proprioUniqueParcelleIds: [],
+      };
       setImmeubles([]);
       setNoteMarkers([]);
+      setProprioUniqueParcelleIds([]);
       setSources(EMPTY_SOURCES);
       return;
     }
@@ -152,6 +172,7 @@ export function useParcelleMap(
       accumulatedOverlays.current = merged;
       setImmeubles(merged.immeubles);
       setNoteMarkers(merged.notes);
+      setProprioUniqueParcelleIds(merged.proprioUniqueParcelleIds);
       setSources(merged.sources);
       // Cache hit : pas de refetch immédiat — le pan/zoom reste fluide.
       return;
@@ -183,12 +204,14 @@ export function useParcelleMap(
             immeubles?: CadastreImmeublePoint[];
             notes?: ParcelleNoteMarker[];
             sources?: CadastreSourceDates;
+            proprioUniqueParcelleIds?: string[];
           }) => {
             if (ticket !== seq.current) return;
             const incoming: OverlayPayload = {
               immeubles: data.immeubles ?? [],
               notes: data.notes ?? [],
               sources: data.sources ?? EMPTY_SOURCES,
+              proprioUniqueParcelleIds: data.proprioUniqueParcelleIds ?? [],
             };
             const payload = mergeOverlayPayload(accumulatedOverlays.current, incoming);
             accumulatedOverlays.current = payload;
@@ -200,6 +223,7 @@ export function useParcelleMap(
             }
             setImmeubles(payload.immeubles);
             setNoteMarkers(payload.notes);
+            setProprioUniqueParcelleIds(payload.proprioUniqueParcelleIds);
             setSources(payload.sources);
           },
         )
@@ -279,6 +303,14 @@ export function useParcelleMap(
       demande.current = parcelleId;
       surfaceCliquee.current = extra?.surfaceM2 ?? null;
       dpeClique.current = extra?.dpe ?? null;
+      const cherchee =
+        extra?.libelle?.trim() || extra?.banId
+          ? {
+              banId: extra.banId ?? null,
+              libelle: (extra.libelle ?? '').trim(),
+            }
+          : null;
+      setAdresseRecherche(cherchee);
       setSelectedParcelleId(parcelleId);
       const connue = cache.current.get(parcelleId);
       const surface = extra?.surfaceM2 ?? connue?.surfaceCadastreM2 ?? null;
@@ -303,6 +335,7 @@ export function useParcelleMap(
     demande.current = null;
     surfaceCliquee.current = null;
     dpeClique.current = null;
+    setAdresseRecherche(null);
     setSelectedParcelleId(null);
     setFiche(null);
     setLoading(false);
@@ -325,10 +358,13 @@ export function useParcelleMap(
   return {
     immeubles,
     noteMarkers,
+    proprioUniqueParcelleIds,
     sources,
     selectedParcelleId,
     fiche,
     loading,
+    /** Adresse BAN qui a ouvert le volet (recherche) — null au clic parcelle. */
+    adresseRecherche,
     openParcelle,
     prefetchParcelle,
     closeParcelle,

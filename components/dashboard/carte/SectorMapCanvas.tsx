@@ -26,8 +26,6 @@ import type { Annonce } from '@/lib/annonces/types';
 import ParcellesLayer, {
   CADASTRE_COPRO_LAYER_ID,
   CADASTRE_DPE_LAYER_ID,
-  CADASTRE_VENTES_LAYER_ID,
-  CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID,
   PARCELLES_FILL_LAYER_ID,
 } from '@/components/dashboard/carte/ParcellesLayer';
 import type { ItineraireStop } from '@/lib/today/directions';
@@ -72,13 +70,12 @@ export default function SectorMapCanvas({
   itineraryGeometry = null,
   parcellesEnabled = false,
   activeParcelleIds = [],
-  suiviParcelleIds = [],
+  proprioUniqueParcelleIds = [],
   parcelleNoteMarkers = [],
   selectedParcelleId = null,
   cadastreImmeubles = [],
   cadastreLayers = {
     cadastreDpe: DEFAULT_MAP_LAYERS.cadastreDpe,
-    cadastreVentes: DEFAULT_MAP_LAYERS.cadastreVentes,
     cadastreCopro: DEFAULT_MAP_LAYERS.cadastreCopro,
     cadastreDpeAges: DEFAULT_MAP_LAYERS.cadastreDpeAges,
   },
@@ -107,11 +104,11 @@ export default function SectorMapCanvas({
   itineraryGeometry?: GeoJSON.LineString | null;
   parcellesEnabled?: boolean;
   activeParcelleIds?: readonly string[];
-  suiviParcelleIds?: readonly string[];
+  proprioUniqueParcelleIds?: readonly string[];
   parcelleNoteMarkers?: readonly ParcelleNoteMarker[];
   selectedParcelleId?: string | null;
   cadastreImmeubles?: readonly CadastreImmeublePoint[];
-  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreVentes' | 'cadastreCopro' | 'cadastreDpeAges'>;
+  cadastreLayers?: Pick<MapLayerState, 'cadastreDpe' | 'cadastreCopro' | 'cadastreDpeAges'>;
   onSelectParcelle?: (parcelleId: string, extra?: ParcellePickExtra) => void;
   onPrefetchParcelle?: (parcelleId: string) => void;
   /** sector = vue d’ensemble ; parcelles = zoom serré sur l’agence pour cliquer le cadastre. */
@@ -167,17 +164,9 @@ export default function SectorMapCanvas({
     const ids: string[] = [];
     if (parcellesEnabled) ids.push(PARCELLES_FILL_LAYER_ID);
     if (cadastreLayers.cadastreDpe) ids.push(CADASTRE_DPE_LAYER_ID);
-    if (cadastreLayers.cadastreVentes) {
-      ids.push(CADASTRE_VENTES_LAYER_ID, CADASTRE_VENTES_PARCELLE_LABEL_LAYER_ID);
-    }
     if (cadastreLayers.cadastreCopro) ids.push(CADASTRE_COPRO_LAYER_ID);
     return ids;
-  }, [
-    parcellesEnabled,
-    cadastreLayers.cadastreDpe,
-    cadastreLayers.cadastreVentes,
-    cadastreLayers.cadastreCopro,
-  ]);
+  }, [parcellesEnabled, cadastreLayers.cadastreDpe, cadastreLayers.cadastreCopro]);
 
   // `Map` désigne ici la carte react-map-gl.
   const parBanId = useMemo(
@@ -435,7 +424,7 @@ export default function SectorMapCanvas({
           mapRef={mapRef}
           enabled={parcellesEnabled}
           activeParcelleIds={activeParcelleIds}
-          suiviParcelleIds={suiviParcelleIds}
+          proprioUniqueParcelleIds={proprioUniqueParcelleIds}
           noteMarkers={parcelleNoteMarkers}
           selectedParcelleId={selectedParcelleId}
           immeubles={cadastreImmeubles}

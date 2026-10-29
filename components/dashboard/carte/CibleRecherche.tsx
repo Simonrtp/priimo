@@ -118,7 +118,11 @@ export default function CibleRecherche({
       const [parcelle] = carte.queryRenderedFeatures(point, { layers: [PARCELLES_FILL_LAYER_ID] });
       const parcelleId = parcelleIdOf(parcelle);
       if (parcelle && parcelleId) {
-        rappels.current.onSelectParcelle?.(parcelleId, { surfaceM2: surfaceDepuisFeature(parcelle) });
+        rappels.current.onSelectParcelle?.(parcelleId, {
+          surfaceM2: surfaceDepuisFeature(parcelle),
+          banId: cible.banId,
+          libelle: cible.libelle,
+        });
       }
       } catch {
         /* plan pas encore dessiné */
@@ -135,7 +139,11 @@ export default function CibleRecherche({
       void parcelleDeLAdresse(cible).then((trouvee) => {
         if (!toujoursDemandee()) return;
         if (trouvee) {
-          rappels.current.onSelectParcelle?.(trouvee.parcelleId, { surfaceM2: trouvee.surfaceM2 });
+          rappels.current.onSelectParcelle?.(trouvee.parcelleId, {
+            surfaceM2: trouvee.surfaceM2,
+            banId: cible.banId,
+            libelle: cible.libelle,
+          });
           return;
         }
         carte.once('idle', parcelleDessinee);

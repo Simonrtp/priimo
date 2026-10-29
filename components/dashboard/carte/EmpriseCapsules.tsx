@@ -31,9 +31,18 @@ const FORMES_AGENCE = [
   'M23 19 L34 17 L41 22 L36 27 L20 27 Z',
 ];
 
-function PuceTerritoire({ choix, couleurs }: { choix: ChoixEmprise; couleurs: readonly string[] }) {
+/** Même silhouette que les filtres carte (« Mes secteurs » / « Secteurs de l’agence »). */
+export function PuceTerritoire({
+  choix,
+  couleurs,
+  className = 'shrink-0',
+}: {
+  choix: ChoixEmprise;
+  couleurs: readonly string[];
+  className?: string;
+}) {
   return (
-    <svg viewBox="0 0 44 30" width="44" height="30" aria-hidden className="shrink-0">
+    <svg viewBox="0 0 44 30" width="44" height="30" aria-hidden className={className}>
       {choix === 'mes' ? (
         <path
           d={FORME_SECTEUR}
@@ -108,7 +117,7 @@ export default function EmpriseCapsules({
     <div
       role="radiogroup"
       aria-label="Territoire affiché"
-      className="mb-3 flex flex-col gap-1 rounded-[18px] bg-[#E8EAED] p-1.5"
+      className="flex flex-col gap-1 rounded-[14px] bg-[#E6E8EB]/90 p-1.5"
     >
       {CHOIX.map((choix) => {
         const coche = choix.id === value;

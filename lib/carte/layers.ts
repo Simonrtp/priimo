@@ -6,11 +6,11 @@ import {
   type DpeAgeBucket,
 } from '@/lib/carte/dpe-age';
 
-/** Couches proposées dans les filtres. « Biens » n’y figure plus. */
-export const MAP_LAYER_ORDER: readonly MapPointKind[] = [
-  'contact',
-  'note',
-];
+/**
+ * Couches points proposées dans les filtres.
+ * Contacts, notes et biens n’y figurent plus (plus affichés sur la carte).
+ */
+export const MAP_LAYER_ORDER: readonly MapPointKind[] = [];
 
 export const MAP_LAYER_LABELS: Record<MapPointKind, string> = {
   lead: 'Prospects',
@@ -29,12 +29,12 @@ export const CADASTRE_LAYER_LABELS: Record<CadastreLayerId, string> = {
   copro: 'Copropriétés',
 };
 
-/** Couches proposées dans le panneau. Copropriétés n’y figure plus. */
-export const CADASTRE_OVERLAY_IDS = ['dpe', 'ventes'] as const;
+/** Overlay proposé dans le panneau : DPE seul (ventes / copro retirés). */
+export const CADASTRE_OVERLAY_IDS = ['dpe'] as const;
 export type CadastreOverlayMenuId = (typeof CADASTRE_OVERLAY_IDS)[number];
 
-/** Pastille cadastre. Copropriétés reste reconnu par la carte, hors du panneau. */
-export type CadastreOverlayId = CadastreOverlayMenuId | 'copro';
+/** Pastille cadastre. Ventes / copro restent reconnus hors panneau. */
+export type CadastreOverlayId = CadastreOverlayMenuId | 'ventes' | 'copro';
 
 export const ANNONCES_VENDEURS = ['particulier', 'professionnel', 'tous'] as const;
 export type AnnoncesVendeur = (typeof ANNONCES_VENDEURS)[number];
@@ -64,13 +64,14 @@ export type MapLayerState = Record<MapPointKind, boolean> & {
 
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
   lead: false,
-  contact: true,
-  /** Plus proposé dans les filtres : toujours masqué. */
+  /** Plus proposés dans les filtres : toujours masqués sur la carte. */
+  contact: false,
   bien: false,
-  note: true,
+  note: false,
   /** Plan PCI : toujours allumé ; plus d’interrupteur dans les filtres. */
   cadastre: true,
   cadastreDpe: false,
+  /** Plus proposé : toujours masqué. */
   cadastreVentes: false,
   cadastreCopro: false,
   cadastreDpeAges: [...DEFAULT_DPE_AGE_BUCKETS],
@@ -94,8 +95,9 @@ export const MAP_LAYERS_STORAGE_REV_KEY = 'priimo-carte-layers-rev';
  * Rev 8 : la couche Copropriétés n’est plus proposée.
  * Rev 9 : annonces masquées, menu Cadastre replié.
  * Rev 10 : parcelles toujours actives ; Biens retiré des filtres.
+ * Rev 11 : Contacts, Notes et Ventes (DVF) retirés ; carte Cadastre → DPE.
  */
-export const MAP_LAYERS_STORAGE_REV = 10;
+export const MAP_LAYERS_STORAGE_REV = 11;
 export const MAP_LAYERS_PANEL_STORAGE_KEY = 'priimo-carte-layers-panel';
 export const CADASTRE_MENU_STORAGE_KEY = 'priimo-carte-cadastre-menu';
 
@@ -104,12 +106,12 @@ export function parseMapLayers(raw: unknown): MapLayerState {
   const row = raw as Record<string, unknown>;
   return {
     lead: false,
-    contact: row.contact !== false,
+    contact: false,
     bien: false,
-    note: row.note !== false,
+    note: false,
     cadastre: true,
     cadastreDpe: row.cadastreDpe === true,
-    cadastreVentes: row.cadastreVentes === true,
+    cadastreVentes: false,
     cadastreCopro: false,
     cadastreDpeAges: parseDpeAgeBuckets(row.cadastreDpeAges),
     cadastreMenuOpen: row.cadastreMenuOpen === true,
@@ -198,6 +200,15 @@ export function migrateStoredMapLayers(
   if (rev < 8) next = { ...next, cadastreCopro: false };
   if (rev < 9) next = { ...next, annonces: false, annoncesMenuOpen: false, cadastreMenuOpen: false };
   if (rev < 10) next = { ...next, cadastre: true, bien: false };
+  if (rev < 11) {
+    next = {
+      ...next,
+      contact: false,
+      note: false,
+      cadastreVentes: false,
+      cadastreMenuOpen: false,
+    };
+  }
   return { state: next, rev: MAP_LAYERS_STORAGE_REV };
 }
 
@@ -219,8 +230,9 @@ export function withCadastreLayerToggled(prev: MapLayerState, id: CadastreLayerI
   // Parcelles : plus d’interrupteur — le plan reste allumé.
   if (id === 'parcelles') return { ...prev, cadastre: true };
   if (id === 'dpe') return { ...prev, cadastreDpe: !prev.cadastreDpe };
-  if (id === 'ventes') return { ...prev, cadastreVentes: !prev.cadastreVentes };
-  return { ...prev, cadastreCopro: !prev.cadastreCopro };
+  // Ventes / copro : plus proposés — restent éteints.
+  if (id === 'ventes') return { ...prev, cadastreVentes: false };
+  return { ...prev, cadastreCopro: false };
 }
 
 export function withCadastreMenuToggled(prev: MapLayerState): MapLayerState {

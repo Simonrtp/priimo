@@ -13,6 +13,7 @@ import { useAnnoncesAjoutees, useAnnoncesSecteur } from '@/lib/annonces/useAnnon
 import type { Annonce, GroupeAnnonce } from '@/lib/annonces/types';
 import type { Zone } from '@/lib/zones/types';
 import ImportAnnonce from './ImportAnnonce';
+import IconAnnoncesPancarte from './IconAnnoncesPancarte';
 import PointImport from './PointImport';
 import { useAnnonceImportee } from '@/lib/annonces/import/store';
 
@@ -60,7 +61,10 @@ export function AnnoncesLayerControls({
   return (
     <li className="rounded-[14px] bg-[#E6E8EB]/90">
       <div className={`flex flex-col gap-2.5 ${compact ? 'px-1 py-2' : 'px-2.5 py-2.5'}`}>
-        <p className={`${textSize} min-w-0 truncate font-medium text-text-strong`}>Annonces</p>
+        <p className={`${textSize} flex min-w-0 items-center gap-2.5 overflow-visible font-medium text-text-strong`}>
+          <IconAnnoncesPancarte className={`shrink-0 ${compact ? 'size-9' : 'size-10'}`} />
+          <span className="truncate">Annonces</span>
+        </p>
         <button
           type="button"
           role="switch"
