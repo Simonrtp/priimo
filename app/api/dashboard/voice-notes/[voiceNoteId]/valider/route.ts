@@ -13,6 +13,7 @@ import { enregistrerRappel } from '@/lib/notes/rappels';
 import { creerContact } from '@/lib/contacts/creation';
 import { colonnesDepuisChamps, completerContact } from '@/lib/contacts/modification';
 import { parseContactInput } from '@/lib/contact-input';
+import { formatPhoneDisplay } from '@/lib/import/normalize';
 import { canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { fetchContactById, fetchContactsDuplicateLite, updateContactRow } from '@/lib/queries/contacts';
 import { propagerLienVersParcelle, rattacherAdresseDeLaNote } from '@/lib/notes/parcelle-lien';
@@ -132,6 +133,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ voiceNoteId: s
           },
         ).catch(() => echecs.push('fiche'));
       }
+    } else if (r.code === 'chez_collegue') {
+      // La note est rangée sans cette fiche : le client affiche « Note rangée, sauf : … ».
+      const c = r.collegue;
+      echecs.push(
+        `contact déjà suivi par ${c?.nom ?? 'un collègue'}${c?.telephone ? ` (${formatPhoneDisplay(c.telephone)})` : ''}`,
+      );
     } else {
       echecs.push('contact');
     }

@@ -43,25 +43,26 @@ export function canSeeOwnedRecord(viewer: RecordViewer, record: OwnedRecord): bo
   return recordOwnerId(record) === viewer.id;
 }
 
-/** Une fiche contact et le choix de son titulaire : privée ou partagée. */
+/**
+ * Une fiche contact. `visibilite` ne sert plus : une fiche est privée par
+ * nature, la colonne reste en base mais n'ouvre rien à personne.
+ */
 export type ContactPourDroit = OwnedRecord & {
-  /** Absent (colonne pas encore migrée) = privée. */
   visibilite?: 'privee' | 'agence' | null;
 };
 
 /**
- * Contacts : le titulaire décide. Privée, la fiche reste à lui et à la
- * direction ; partagée, toute l'agence la voit et peut la compléter.
+ * Contacts : le titulaire et la direction, personne d'autre. Un collègue ne
+ * voit jamais la fiche d'un autre, pas même pour la compléter ; s'il saisit
+ * le même numéro, la création est refusée (`lib/contacts/collegues.ts`).
  */
 export function canSeeContact(viewer: RecordViewer, contact: ContactPourDroit): boolean {
-  if (contact.visibilite === 'agence') return true;
-  return canSeeOwnedRecord(viewer, contact);
+  if (viewer.role === 'directeur') return true;
+  return recordOwnerId(contact) === viewer.id;
 }
 
 /**
- * Rendre privée ou partager, réattribuer, supprimer, fusionner : le titulaire
- * et la direction seulement. Un collègue qui voit une fiche partagée la
- * complète, il n'en dispose pas.
+ * Réattribuer, supprimer, fusionner : le titulaire et la direction.
  */
 export function canManageContact(viewer: RecordViewer, contact: OwnedRecord): boolean {
   if (viewer.role === 'directeur') return true;

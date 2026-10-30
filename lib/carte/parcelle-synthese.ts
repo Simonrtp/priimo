@@ -318,7 +318,7 @@ export function decrireImmeuble(b: BatimentParcelle | null): string | null {
 export type PastilleEntete = {
   cle: string;
   libelle: string;
-  /** Accent Priimo : signal métier (propriétaire unique…). */
+  /** Accent Priimo : signal métier (pas de copro déclarée…). */
   ton?: 'accent' | 'neutre';
 };
 
@@ -334,9 +334,8 @@ export function raccourcirUsage(usage: string | null): string | null {
 }
 
 /**
- * Appartements sans copropriété au RNC : en pratique un propriétaire
- * (particulier ou SCI) détient l’immeuble entier — un seul interlocuteur.
- * Les maisons individuelles et le tertiaire restent hors signal.
+ * Appartements sans entrée au RNC : signal « pas de copropriété déclarée »,
+ * pas une preuve de propriétaire unique. Maisons et tertiaire hors signal.
  */
 export function estProprietaireUnique(input: {
   coproprietes: readonly unknown[];
@@ -365,7 +364,7 @@ export function pastillesEnteteParcelle(p: {
   localite: string | null;
   surfaceM2: number | null;
   batiment: BatimentParcelle | null;
-  /** Absent du RNC + logements collectifs → pastille « Propriétaire unique ». */
+  /** Absent du RNC + logements collectifs → pastille « Pas de copropriété déclarée ». */
   coproprietes?: readonly unknown[];
   logements?: readonly ParcelleLogement[];
 }): PastilleEntete[] {
@@ -377,7 +376,7 @@ export function pastillesEnteteParcelle(p: {
       logements: p.logements,
     })
   ) {
-    chips.push({ cle: 'proprio-unique', libelle: 'Propriétaire unique', ton: 'accent' });
+    chips.push({ cle: 'proprio-unique', libelle: 'Pas de copropriété déclarée', ton: 'accent' });
   }
   if (p.localite?.trim()) chips.push({ cle: 'localite', libelle: p.localite.trim() });
   if (p.surfaceM2 != null && Number.isFinite(p.surfaceM2)) {
@@ -568,12 +567,12 @@ export function syntheseParcelle(
     batiment,
     logements,
   });
-  // Sans SCI déjà décrite : le signal RNC manque, un seul interlocuteur.
+  // Sans SCI déjà décrite : on dit seulement ce que le RNC montre.
   if (proprioUnique && !sci) {
     faits.push({
       cle: 'proprio-unique',
       texte:
-        'Aucune copropriété déclarée : immeuble à propriétaire unique, un seul interlocuteur à trouver',
+        'Pas de copropriété déclarée au registre national : l’immeuble n’apparaît pas comme une copropriété',
     });
   }
 
@@ -594,7 +593,7 @@ export function syntheseParcelle(
 
   /* -------------------------------------------------------------- pastilles */
   const pastilles: PastilleParcelle[] = [];
-  // « Propriétaire unique » : pastille d’en-tête + bandeau en haut de fiche.
+  // « Pas de copropriété déclarée » : pastille d’en-tête + fait ci-dessus.
   if (passoires.length > 0) {
     pastilles.push({
       cle: 'passoires',

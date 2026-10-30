@@ -11,10 +11,20 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { visibleContactsFor } from '@/lib/agency/scope-records';
 import { viewerFromProfile, type RecordViewer } from '@/lib/agency/visibility';
-import { parseContactInput } from '@/lib/contact-input';
+import { parseContactInput, type ContactInputFields } from '@/lib/contact-input';
+import {
+  collegueAffiche,
+  conflitsChezCollegues,
+  coordonneesCollegue,
+  messageChezCollegue,
+  propositionDoublon,
+  type CollegueAffiche,
+  type ConflitCollegue,
+} from '@/lib/contacts/collegues';
 import { findDuplicates } from '@/lib/contacts/duplicates';
 import { contactGeocodeQuery, resolveGeoColumns } from '@/lib/geo/fields';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
+import { deposerPropositions } from '@/lib/queries/actions';
 import {
   buildFullName,
   fetchContactById,
@@ -43,7 +53,7 @@ export const SOURCES_CONTACT: readonly ContactSourceDb[] = [
 
 export type ContexteCreation = {
   supabase: SupabaseClient<Database>;
-  profile: RecordViewer & { id: string };
+  profile: RecordViewer & { id: string; first_name?: string | null };
   agencyId: string;
   memberships: readonly { agency_id: string }[];
   /** Liste des contacts pour les doublons, déjà lue : évite de la relire par contact. */
@@ -58,7 +68,55 @@ export type ResultatCreation =
       error: string;
       field?: string | null;
       matches?: { contact: Contact; strength: string; reason: string }[];
+      /** Le téléphone ou l'e-mail est déjà dans la fiche d'un collègue : pas de contournement. */
+      code?: 'chez_collegue';
+      collegue?: CollegueAffiche | null;
     };
+
+/**
+ * Refus : la fiche existe chez un collègue. Le négociateur reçoit de quoi
+ * l'appeler ; la direction reçoit, dans « À valider », la saisie à rejouer.
+ */
+async function refuserChezCollegue(
+  ctx: ContexteCreation,
+  conflit: ConflitCollegue,
+  fields: ContactInputFields,
+  raw: Record<string, unknown>,
+  source: ContactSourceDb,
+): Promise<ResultatCreation> {
+  const titulaire = await coordonneesCollegue(ctx.agencyId, conflit.titulaireId);
+  const collegue = collegueAffiche(titulaire);
+
+  const proposition = propositionDoublon({
+    auteurId: ctx.profile.id,
+    auteurPrenom: ctx.profile.first_name ?? '',
+    nomSaisi: buildFullName(fields.firstName, fields.lastName),
+    contactId: conflit.contactId,
+    titulaire,
+    raison: conflit.raison,
+    saisie: {
+      ...fields,
+      source,
+      banId: raw.banId ?? null,
+      latitude: raw.latitude ?? null,
+      longitude: raw.longitude ?? null,
+    },
+  });
+  try {
+    await deposerPropositions(createSupabaseAdminClient(), ctx.agencyId, [proposition]);
+  } catch (err) {
+    // Le refus tient même si l'alerte n'a pas pu partir.
+    console.error('[contacts] alerte doublon collègue', err);
+  }
+
+  return {
+    ok: false,
+    status: 409,
+    code: 'chez_collegue',
+    error: messageChezCollegue(collegue),
+    collegue,
+  };
+}
 
 export async function creerContact(ctx: ContexteCreation, body: unknown): Promise<ResultatCreation> {
   const { supabase, profile, agencyId } = ctx;
@@ -100,6 +158,14 @@ export async function creerContact(ctx: ContexteCreation, body: unknown): Promis
   }
 
   const meta = assignmentMeta(assigneeId, profile.id);
+
+  // Une fiche de collègue ne se contourne pas : la direction seule tranche.
+  const chezCollegue = conflitsChezCollegues(
+    viewerFromProfile(profile),
+    { phone: f.phone, email: f.email },
+    existing,
+  );
+  if (chezCollegue.length > 0) return refuserChezCollegue(ctx, chezCollegue[0]!, f, raw, source);
 
   const forceCreate = raw.forceCreate === true;
   const visible = visibleContactsFor(viewerFromProfile(profile), existing);
@@ -172,8 +238,6 @@ export async function creerContact(ctx: ContexteCreation, body: unknown): Promis
     summary: f.summary,
     recontacter_le: f.recontacterLe,
     source,
-    // Privée tant que l'agent ne choisit pas de partager la fiche.
-    visibilite: raw.visibilite === 'agence' ? 'agence' : 'privee',
     // Nouveaux en tête de liste (positions positives du backfill).
     position: -Date.now(),
     ...meta,

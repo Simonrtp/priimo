@@ -8,6 +8,7 @@ import {
   Calculator,
   Check,
   Copy,
+  Files,
   Handshake,
   Mail,
   MapPin,
@@ -31,6 +32,7 @@ const ICONS: Record<AutomationKind, LucideIcon> = {
   engagement_note: Handshake,
   estimation_dormante: Calculator,
   immeuble_suivi: Building2,
+  doublon_contact: Files,
 };
 
 function texte(payload: Record<string, unknown>, cle: string): string | null {
@@ -86,6 +88,9 @@ export default function ActionCard({
   const bienId = texte(action.payload, 'bienId');
   // Immeuble suivi : la carte s'ouvre sur l'adresse principale de la parcelle.
   const banId = texte(action.payload, 'banId');
+  // Doublon entre collègues : « Créer quand même » met la fiche chez le négociateur bloqué.
+  const estDoublon = action.kind === 'doublon_contact';
+  const auteurPrenom = texte(action.payload, 'auteurPrenom') ?? 'le négociateur';
 
   async function resoudre(decision: 'valider' | 'ignorer') {
     setEnCours(true);
@@ -112,7 +117,9 @@ export default function ActionCard({
 
       onResolue(action.id);
       if (body.envoye) toast.success('Compte rendu envoyé au vendeur.');
-      else if (decision === 'valider') toast.success('Pris en charge.');
+      else if (decision === 'valider') {
+        toast.success(estDoublon ? `Contact créé chez ${auteurPrenom}.` : 'Pris en charge.');
+      }
       router.refresh();
     } catch {
       toast.error('Action impossible.');
@@ -132,7 +139,13 @@ export default function ActionCard({
     <WorkspaceCard>
       <div className="flex items-start gap-4">
         <div className="mt-0.5 shrink-0">
-          <ScoreRing score={action.score} size={40} />
+          {estDoublon ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/[0.04] text-text-subtle">
+              <Icon size={18} aria-hidden />
+            </div>
+          ) : (
+            <ScoreRing score={action.score} size={40} />
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -169,6 +182,11 @@ export default function ActionCard({
                   Relire et envoyer
                 </WorkspaceButton>
               )
+            ) : estDoublon ? (
+              <WorkspaceButton busy={enCours} onClick={() => resoudre('valider')}>
+                <Check size={15} aria-hidden />
+                Créer quand même pour {auteurPrenom}
+              </WorkspaceButton>
             ) : telephone ? (
               <WorkspaceButton
                 onClick={() => {

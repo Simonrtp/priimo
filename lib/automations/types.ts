@@ -17,7 +17,8 @@ export type AutomationKind =
   | 'compte_rendu_mandat'
   | 'engagement_note'
   | 'estimation_dormante'
-  | 'immeuble_suivi';
+  | 'immeuble_suivi'
+  | 'doublon_contact';
 
 export const AUTOMATION_KINDS: readonly AutomationKind[] = [
   'rapprochement_inverse',
@@ -27,7 +28,19 @@ export const AUTOMATION_KINDS: readonly AutomationKind[] = [
   'engagement_note',
   'estimation_dormante',
   'immeuble_suivi',
+  'doublon_contact',
 ];
+
+/**
+ * Propositions que seule la direction voit et tranche. Un négociateur ne les
+ * reçoit jamais, même adressées « à personne » : elles parlent de la fiche
+ * d'un collègue.
+ */
+export const KINDS_DIRECTION: readonly AutomationKind[] = ['doublon_contact'];
+
+export function reserveeADirection(kind: AutomationKind): boolean {
+  return KINDS_DIRECTION.includes(kind);
+}
 
 export function isAutomationKind(value: unknown): value is AutomationKind {
   return typeof value === 'string' && (AUTOMATION_KINDS as readonly string[]).includes(value);
@@ -42,6 +55,7 @@ export const AUTOMATION_LABELS: Record<AutomationKind, string> = {
   engagement_note: 'Promesse à tenir',
   estimation_dormante: 'Estimation à relancer',
   immeuble_suivi: 'Immeuble suivi',
+  doublon_contact: 'Doublon entre collègues',
 };
 
 /**

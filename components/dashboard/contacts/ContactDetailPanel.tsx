@@ -8,7 +8,6 @@ import { CONTACT_NOTE_HINT } from '@/lib/contact-input';
 import { evaluerCorrespondance } from '@/lib/matching/rapprochement';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import AssigneeSelect, { type AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
-import ChoixVisibilite, { type Visibilite } from '@/components/dashboard/workspace/ChoixVisibilite';
 import { canManageContact } from '@/lib/agency/visibility';
 import { useUser } from '@/lib/hooks/useUser';
 import { Field, PhoneInput, TextArea, TextInput } from '@/components/dashboard/workspace/Field';
@@ -146,13 +145,12 @@ const ContactDetailPanel = forwardRef<
   const [draft, setDraft] = useState(() => fieldSnapshot(contact));
   const [lastSaved, setLastSaved] = useState(() => fieldSnapshot(contact));
   const [assigning, setAssigning] = useState(false);
-  const [partageEnCours, setPartageEnCours] = useState(false);
   const draftRef = useRef(draft);
   const lastSavedRef = useRef(lastSaved);
   draftRef.current = draft;
   lastSavedRef.current = lastSaved;
   const { profile } = useUser();
-  // Fiche partagée par un collègue : on la complète, on n'en dispose pas.
+  // Titulaire ou direction : seuls à disposer de la fiche (suivi, suppression).
   const gerable = canManageContact({ id: profile.id, role: profile.role }, contact);
   const titulaire = members.find((m) => m.id === contact.assignedTo)?.fullName ?? null;
 
@@ -256,28 +254,6 @@ const ContactDetailPanel = forwardRef<
     }
   }
 
-  async function changerPartage(next: Visibilite) {
-    if (partageEnCours || !gerable) return;
-    setPartageEnCours(true);
-    try {
-      const res = await fetch(`/api/dashboard/contacts/${contact.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visibilite: next }),
-      });
-      const data = (await res.json()) as { contact?: Contact; error?: string };
-      if (!res.ok || !data.contact) {
-        notifyError(data.error ?? "Le partage n'a pas pu être enregistré");
-        return;
-      }
-      onAssigned(data.contact);
-    } catch {
-      notifyError("Le partage n'a pas pu être enregistré");
-    } finally {
-      setPartageEnCours(false);
-    }
-  }
-
   const criteria = criteriaLines(contact);
   const addressLabel = contact.type === 'gardien' || contact.type === 'commercant' ? 'Immeuble' : 'Adresse';
 
@@ -377,16 +353,6 @@ const ContactDetailPanel = forwardRef<
           ) : (
             <p className="text-[14px] text-text">{titulaire ?? 'Un collègue'}</p>
           )}
-        </Block>
-
-        <Block title="Partage">
-          <ChoixVisibilite
-            objet="contact"
-            value={contact.visibilite ?? 'privee'}
-            onChange={(next) => void changerPartage(next)}
-            disabled={!gerable || partageEnCours}
-            aideVerrou={`Partagée par ${titulaire ?? 'un collègue'} : seul son titulaire choisit son partage.`}
-          />
         </Block>
 
         <Block title="Relance">

@@ -331,15 +331,15 @@ describe('collecte — toute la base', () => {
     createdBy: 'col-1',
   });
 
-  it('un collaborateur lit ses fiches et celles qu’on partage, jamais les fiches privées d’un collègue', () => {
+  it('un collaborateur lit ses fiches seulement, jamais celles d’un collègue, même marquées « agence »', () => {
     const result = collectFromSnapshot(
       intentBase(),
       { ...emptySnap, contacts: [prive, partage, mien], biens: [bien()] },
       { agencyId: AGENCY_A, viewer: collab },
     );
     const ids = result.lignes.filter((l) => l.kind === 'contact').map((l) => l.id).sort();
-    assert.deepEqual(ids, ['ct-mien', 'ct-partage']);
-    assert.doesNotMatch(JSON.stringify(result.lignes), /Prive Collegue/);
+    assert.deepEqual(ids, ['ct-mien']);
+    assert.doesNotMatch(JSON.stringify(result.lignes), /Prive Collegue|Partage Collegue/);
     // Les biens sont visibles par toute l'agence.
     assert.equal(result.lignes.some((l) => l.kind === 'bien'), true);
   });

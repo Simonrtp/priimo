@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { assignmentMeta } from '@/lib/agency/assignees';
 import { canSeeLeadRecord, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
+import {
+  collegueAffiche,
+  conflitsChezCollegues,
+  coordonneesCollegue,
+  messageChezCollegue,
+} from '@/lib/contacts/collegues';
 import { findDuplicates } from '@/lib/contacts/duplicates';
 import { parseContactsImmeuble } from '@/lib/lead-contacts';
 import { visibleContactsFor } from '@/lib/agency/scope-records';
@@ -64,7 +70,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ leadId: string
     return NextResponse.json({ error: 'Ce commerçant n’est pas rattaché à cet immeuble' }, { status: 400 });
   }
 
-  const existing = visibleContactsFor(viewer, await fetchContactsSafe(supabase));
+  const tous = await fetchContactsSafe(supabase);
+  const existing = visibleContactsFor(viewer, tous);
+
+  // Le numéro est déjà dans la fiche d'un collègue : on ne la double pas.
+  const chezCollegue = conflitsChezCollegues(viewer, { phone, email: null }, tous);
+  if (chezCollegue.length > 0) {
+    const collegue = collegueAffiche(await coordonneesCollegue(agency.id, chezCollegue[0]!.titulaireId));
+    return NextResponse.json(
+      { error: messageChezCollegue(collegue, true), code: 'chez_collegue', collegue },
+      { status: 409 },
+    );
+  }
+
   const hits = findDuplicates(
     {
       id: '__new__',

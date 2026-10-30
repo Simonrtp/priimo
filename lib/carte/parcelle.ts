@@ -25,7 +25,7 @@ export const CADASTRE_OVERLAY_MIN_ZOOM = 12;
 export const PARCELLE_SLATE = '#1A2A56';
 export const COPRO_PROCEDURE_FILL = '#1A2A56';
 export const COPRO_FILL = '#5B7C8A';
-/** Appartements sans copropriété (propriétaire unique) — fill plan PCI. */
+/** Appartements sans copropriété déclarée au RNC — fill plan PCI. */
 export const FILL_PROPRIO_UNIQUE = 'rgba(232, 116, 60, 0.32)';
 
 export type ParcelleVente = {
@@ -251,7 +251,7 @@ export type ParcelleOverlay = {
   immeubles: CadastreImmeublePoint[];
   notes: ParcelleNoteMarker[];
   sources: CadastreSourceDates;
-  /** Parcelles d’appartements sans copropriété — à peindre plus clairement. */
+  /** Parcelles d’appartements sans copropriété déclarée — à peindre plus clairement. */
   proprioUniqueParcelleIds: string[];
 };
 

@@ -19,9 +19,17 @@ import type {
   AgencyActionStatutDb,
   Database,
 } from '@/types/database';
-import type { AgencyAction, AutomationKind, ProposedAction } from '@/lib/automations/types';
+import {
+  KINDS_DIRECTION,
+  type AgencyAction,
+  type AutomationKind,
+  type ProposedAction,
+} from '@/lib/automations/types';
 
 type Client = SupabaseClient<Database>;
+
+/** Écarte les propositions réservées à la direction pour qui n'en fait pas partie. */
+const SANS_DIRECTION = `(${KINDS_DIRECTION.join(',')})`;
 
 const COLONNES =
   'id, agency_id, assigned_to, kind, dedup_key, titre, detail, payload, score, statut, expires_at, created_at, resolved_at, resolved_by';
@@ -129,6 +137,11 @@ export interface ListerActionsOptions {
   /** Directeur : toute l'agence. Collaborateur : les siennes et celles de personne. */
   profileId: string;
   estDirecteur: boolean;
+  /**
+   * Rôle direction, quand `estDirecteur` est faux parce que l'écran n'affiche
+   * que « mes » propositions (l'Accueil) : les alertes de direction y restent.
+   */
+  voitDirection?: boolean;
   kinds?: readonly AutomationKind[];
   limit?: number;
 }
@@ -156,6 +169,9 @@ export async function listerActionsOuvertes(
   if (!options.estDirecteur) {
     query = query.or(`assigned_to.eq.${options.profileId},assigned_to.is.null`);
   }
+  if (!options.estDirecteur && !options.voitDirection) {
+    query = query.not('kind', 'in', SANS_DIRECTION);
+  }
 
   const { data, error } = await query;
   if (error) {
@@ -168,7 +184,7 @@ export async function listerActionsOuvertes(
 export async function compterActionsOuvertes(
   supabase: Client,
   agencyId: string,
-  options: Pick<ListerActionsOptions, 'profileId' | 'estDirecteur'>,
+  options: Pick<ListerActionsOptions, 'profileId' | 'estDirecteur' | 'voitDirection'>,
 ): Promise<number> {
   let query = supabase
     .from('agency_actions')
@@ -178,6 +194,9 @@ export async function compterActionsOuvertes(
 
   if (!options.estDirecteur) {
     query = query.or(`assigned_to.eq.${options.profileId},assigned_to.is.null`);
+  }
+  if (!options.estDirecteur && !options.voitDirection) {
+    query = query.not('kind', 'in', SANS_DIRECTION);
   }
 
   const { count, error } = await query;
@@ -236,6 +255,19 @@ export async function resoudreAction(
     return null;
   }
   return data ? mapRow(data as AgencyActionRow) : null;
+}
+
+/**
+ * Remet une proposition validée à `proposee` quand l'effet attendu n'a pas pu
+ * se produire : la direction pourra réessayer au lieu de la perdre.
+ */
+export async function rouvrirAction(supabase: Client, actionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('agency_actions')
+    .update({ statut: 'proposee', resolved_at: null, resolved_by: null })
+    .eq('id', actionId)
+    .eq('statut', 'validee');
+  if (error) console.error('[actions] réouverture', actionId, error.message);
 }
 
 /* -------------------------------------------------------------------------- */

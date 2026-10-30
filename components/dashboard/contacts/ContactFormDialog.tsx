@@ -10,9 +10,8 @@ import Modal from '@/components/ui/Modal';
 import WorkspaceButton from '@/components/dashboard/workspace/WorkspaceButton';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import ContactFormFields from '@/components/dashboard/contacts/ContactFormFields';
-import type { Visibilite } from '@/components/dashboard/workspace/ChoixVisibilite';
-import { canManageContact } from '@/lib/agency/visibility';
-import { useUser } from '@/lib/hooks/useUser';
+import type { CollegueAffiche } from '@/lib/contacts/collegues';
+import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
 
 function fromContact(contact: Contact): ContactInputFields {
   return {
@@ -102,12 +101,8 @@ export default function ContactFormDialog({
   const [assignedTo, setAssignedTo] = useState<string | null>(
     contact?.assignedTo ?? currentUserId,
   );
-  const [visibilite, setVisibilite] = useState<Visibilite>(contact?.visibilite ?? 'privee');
-  const { profile } = useUser();
-  // La fiche d'un collègue, partagée : on la complète sans changer son partage ni son suivi.
-  const ficheDUnCollegue = contact
-    ? !canManageContact({ id: profile.id, role: profile.role }, contact)
-    : false;
+  // Le numéro ou l'e-mail est déjà chez un collègue : on affiche de quoi l'appeler.
+  const [chezCollegue, setChezCollegue] = useState<{ collegue: CollegueAffiche | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -151,13 +146,13 @@ export default function ContactFormDialog({
 
     setFieldErrors({});
     setFormError(null);
+    setChezCollegue(null);
     const useForce = force || forceCreate;
     const url = contact ? `/api/dashboard/contacts/${contact.id}` : '/api/dashboard/contacts';
     const corps = JSON.stringify({
       ...fields,
       postalCodes: fields.postalCodes,
       assignedTo,
-      visibilite,
       forceCreate: !contact && useForce ? true : undefined,
       banId: geo.banId,
       latitude: geo.latitude,
@@ -206,7 +201,14 @@ export default function ContactFormDialog({
         error?: string;
         field?: keyof ContactInputFields | null;
         matches?: { contact: Contact; reason: string }[];
+        code?: string;
+        collegue?: CollegueAffiche | null;
       };
+
+      if (res.status === 409 && data.code === 'chez_collegue') {
+        setChezCollegue({ collegue: data.collegue ?? null });
+        return;
+      }
 
       if (res.status === 409 && data.matches && data.matches.length > 0) {
         setMatches(data.matches);
@@ -267,6 +269,41 @@ export default function ContactFormDialog({
           </div>
         ) : null}
 
+        {chezCollegue ? (
+          <div role="alert" className="rounded-xl border border-black/[0.08] bg-[#FFF7F0] px-4 py-3">
+            <p className="text-[14px] font-medium text-text-strong">
+              {chezCollegue.collegue
+                ? `Ce contact est déjà suivi par ${chezCollegue.collegue.nom}`
+                : 'Ce contact est déjà dans la base de l’agence'}
+            </p>
+            <p className="mt-1 text-[13px] text-text-muted">
+              {chezCollegue.collegue
+                ? 'Rapprochez-vous d’elle ou de lui avant d’aller plus loin. La direction en est informée.'
+                : 'La direction en est informée.'}
+            </p>
+            {chezCollegue.collegue && (chezCollegue.collegue.telephone || chezCollegue.collegue.email) ? (
+              <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13.5px] font-medium">
+                {chezCollegue.collegue.telephone ? (
+                  <a
+                    href={telHref(chezCollegue.collegue.telephone)}
+                    className="text-[#1A2A56] underline-offset-2 hover:underline"
+                  >
+                    {formatPhoneDisplay(chezCollegue.collegue.telephone)}
+                  </a>
+                ) : null}
+                {chezCollegue.collegue.email ? (
+                  <a
+                    href={`mailto:${chezCollegue.collegue.email}`}
+                    className="text-[#1A2A56] underline-offset-2 hover:underline"
+                  >
+                    {chezCollegue.collegue.email}
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {matches.length > 0 ? (
           <div className="rounded-xl border border-black/[0.08] bg-[#FFF7F0] px-4 py-3">
             <p className="text-[14px] font-medium text-text-strong">Cette personne existe déjà</p>
@@ -314,13 +351,10 @@ export default function ContactFormDialog({
           }}
           assignedTo={assignedTo}
           onAssignedTo={setAssignedTo}
-          visibilite={visibilite}
-          onVisibilite={setVisibilite}
-          visibiliteFigee={ficheDUnCollegue}
           masqueSansConsentement={Boolean(contact?.phone)}
           geo={geo}
           onGeo={setGeo}
-          members={ficheDUnCollegue ? [] : members}
+          members={members}
           currentUserId={currentUserId}
           fieldErrors={fieldErrors}
         />

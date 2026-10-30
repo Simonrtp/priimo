@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { viewerFromProfile } from '@/lib/agency/visibility';
+import { coordonneesCollegue, indexerChezCollegues } from '@/lib/contacts/collegues';
 import { visibleContactsFor } from '@/lib/agency/scope-records';
 import { contactFieldsToRow } from '@/lib/contact-input';
 import { createBanGeocodeCache } from '@/lib/geo/ban';
@@ -263,12 +264,34 @@ export async function POST(req: Request) {
 
   // On ne complète que ce que l'agent voit : la fiche privée d'un collègue
   // reste à son titulaire, l'agent importe la sienne.
+  const viewer = viewerFromProfile(profile);
   const lignesParId = new Map(lecture.rows.map((r) => [r.id, r]));
-  const visibles = visibleContactsFor(viewerFromProfile(profile), lecture.rows.map(mapDbContactToContact));
+  const tous = lecture.rows.map(mapDbContactToContact);
+  const visibles = visibleContactsFor(viewer, tous);
   const visiblesParId = new Map(visibles.map((c) => [c.id, c]));
   const dejaCrees = await creesParCetImport(supabase, importId);
 
   const plan = planContactImport(rows, visibles.map(contactToDuplicateRef));
+
+  // Un numéro ou un e-mail déjà chez un collègue ne s'importe pas : la ligne
+  // est écartée, avec le nom du titulaire.
+  const chezCollegues = indexerChezCollegues(viewer, tous);
+  const nomsTitulaires = new Map<string, Promise<string>>();
+  const nomDuTitulaire = (id: string | null): Promise<string> => {
+    const cle = id ?? '';
+    let nom = nomsTitulaires.get(cle);
+    if (!nom) {
+      nom = coordonneesCollegue(agency.id, id).then((c) => c?.nomComplet ?? 'un collègue');
+      nomsTitulaires.set(cle, nom);
+    }
+    return nom;
+  };
+  const refusees = new Map<number, string>();
+  for (const item of plan) {
+    if (item.action !== 'create') continue;
+    const conflit = chezCollegues.trouver(item.fields);
+    if (conflit) refusees.set(item.line, `Déjà suivi par ${await nomDuTitulaire(conflit.titulaireId)}`);
+  }
   const cache = createBanGeocodeCache();
   const meta = { agencyId: agency.id, createdBy: profile.id, source: 'manuel' as const };
   const maintenant = new Date().toISOString();
@@ -278,13 +301,14 @@ export async function POST(req: Request) {
   let reunis = 0;
   for (const item of plan) {
     if (item.action === 'skip') skipped.push({ line: item.line, reason: item.reason });
+    else if (refusees.has(item.line)) skipped.push({ line: item.line, reason: refusees.get(item.line)! });
     else {
       if (item.action === 'merged') reunis += 1;
       for (const message of item.avertissements) avertissements.push({ line: item.line, message });
     }
   }
 
-  const creations = plan.flatMap((p) => (p.action === 'create' ? [p] : []));
+  const creations = plan.flatMap((p) => (p.action === 'create' && !refusees.has(p.line) ? [p] : []));
   const lignes = await enParallele(creations, GEOCODAGES_SIMULTANES, async (item) => {
     const query = contactGeocodeQuery(item.fields.address, item.fields.secteur, item.fields.postalCodes);
     const geo = query ? await geocodeToColumns(query.adresse, query.codePostal, cache) : {};

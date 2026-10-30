@@ -3,9 +3,21 @@ import { assignmentMeta, parseAssigneeId } from '@/lib/agency/assignees';
 import { canManageContact, canSeeContact, viewerFromProfile } from '@/lib/agency/visibility';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { parseContactInput } from '@/lib/contact-input';
+import {
+  collegueAffiche,
+  conflitsChezCollegues,
+  coordonneesCollegue,
+  messageChezCollegue,
+} from '@/lib/contacts/collegues';
+import { emailsMatch, phonesMatch } from '@/lib/contacts/duplicates';
 import { colonnesDepuisChamps } from '@/lib/contacts/modification';
 import { fetchMembersOfMyAgency, memberIdSet } from '@/lib/queries/agency-members';
-import { fetchContactById, mapDbContactToContact, updateContactRow } from '@/lib/queries/contacts';
+import {
+  fetchContactById,
+  fetchContactsDuplicateLite,
+  mapDbContactToContact,
+  updateContactRow,
+} from '@/lib/queries/contacts';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { effacerDicteesDuContact } from '@/lib/rgpd/effacement';
@@ -57,16 +69,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   }
 
   const raw = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
-  const visibiliteDemandee =
-    raw.visibilite === 'privee' || raw.visibilite === 'agence' ? raw.visibilite : null;
-  const changeVisibilite = visibiliteDemandee !== null && visibiliteDemandee !== (existing.visibilite ?? 'privee');
   const changeTitulaire =
     Object.prototype.hasOwnProperty.call(raw, 'assignedTo') && (raw.assignedTo ?? null) !== existing.assignedTo;
-  // Un collègue complète une fiche partagée ; la rendre privée ou la confier
-  // à quelqu'un d'autre reste au titulaire et à la direction.
-  if ((changeVisibilite || changeTitulaire) && !canManageContact(viewer, existing)) {
+  // Confier la fiche à quelqu'un d'autre reste au titulaire et à la direction.
+  if (changeTitulaire && !canManageContact(viewer, existing)) {
     return NextResponse.json(
-      { error: 'Seul le titulaire de la fiche ou la direction peut changer son partage ou son suivi.' },
+      { error: 'Seul le titulaire de la fiche ou la direction peut changer son suivi.' },
       { status: 403 },
     );
   }
@@ -90,6 +98,25 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   const parsed = hasCoreFields ? parseContactInput(body) : null;
   if (parsed && !parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
+  // Ajouter après coup le numéro d'un collègue contournerait le refus à la création.
+  if (parsed?.ok) {
+    const { phone, email } = parsed.fields;
+    const nouveau = {
+      phone: phone && !phonesMatch(phone, existing.phone) ? phone : null,
+      email: email && !emailsMatch(email, existing.email) ? email : null,
+    };
+    if (nouveau.phone || nouveau.email) {
+      const conflits = conflitsChezCollegues(viewer, nouveau, await fetchContactsDuplicateLite(supabase));
+      if (conflits.length > 0) {
+        const collegue = collegueAffiche(await coordonneesCollegue(agency.id, conflits[0]!.titulaireId));
+        return NextResponse.json(
+          { error: messageChezCollegue(collegue, true), code: 'chez_collegue', collegue },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
   const membersNeeded =
     typeof raw.assignedTo === 'string' &&
     raw.assignedTo.length > 0 &&
@@ -112,7 +139,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
     !parsed &&
     !(assigned.provided && !('invalid' in assigned)) &&
     !relanceProvided &&
-    visibiliteDemandee === null &&
     !positionProvided
   ) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
@@ -140,7 +166,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ contactId: st
   if (assigned.provided && !('invalid' in assigned) && changeTitulaire) {
     Object.assign(update, assignmentMeta(assigned.id, profile.id));
   }
-  if (visibiliteDemandee !== null) update.visibilite = visibiliteDemandee;
   if (positionProvided) update.position = positionValue ?? null;
 
   // Une colonne récente (rôles, numéro communiqué, partage) absente de la base est

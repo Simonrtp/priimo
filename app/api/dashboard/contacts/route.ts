@@ -27,7 +27,12 @@ export async function POST(req: Request) {
   if (!resultat.ok) {
     const { status, ...corps } = resultat;
     return NextResponse.json(
-      { error: corps.error, field: corps.field ?? null, ...(corps.matches ? { matches: corps.matches } : {}) },
+      {
+        error: corps.error,
+        field: corps.field ?? null,
+        ...(corps.matches ? { matches: corps.matches } : {}),
+        ...(corps.code ? { code: corps.code, collegue: corps.collegue ?? null } : {}),
+      },
       { status },
     );
   }

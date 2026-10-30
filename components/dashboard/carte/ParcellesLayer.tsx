@@ -128,7 +128,7 @@ export default function ParcellesLayer({
   enabled: boolean;
   /** Conservé pour l’API parent — le fill n’utilise plus l’état « active ». */
   activeParcelleIds: readonly string[];
-  /** Appartements sans copropriété — peints plus clairement. */
+  /** Appartements sans copropriété déclarée — peints plus clairement. */
   proprioUniqueParcelleIds?: readonly string[];
   noteMarkers: readonly ParcelleNoteMarker[];
   selectedParcelleId: string | null;

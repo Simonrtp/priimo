@@ -142,13 +142,8 @@ function lireEcartes(): Set<string> {
 
 const PORTEES_CONTACTS: readonly { id: PorteeContacts; label: string }[] = [
   { id: 'moi', label: 'Mes contacts' },
-  { id: 'agence', label: 'Les contacts publics de l’agence' },
+  { id: 'agence', label: 'Toute l’agence' },
 ];
-
-/** Public : la fiche est partagée par son titulaire avec toute l'agence. */
-function contactPublic(contact: Contact): boolean {
-  return contact.visibilite === 'agence';
-}
 
 function contactAMoi(contact: Contact, userId: string): boolean {
   return (contact.assignedTo ?? contact.createdBy) === userId;
@@ -188,7 +183,6 @@ function ContactRow({
   duplicateOf,
   todayKey,
   members,
-  marquePrivee = false,
   rangeable = false,
   dragHandleProps,
   sortableRef,
@@ -209,8 +203,6 @@ function ContactRow({
   duplicateOf: string | null;
   todayKey: string;
   members: readonly AssigneeOption[];
-  /** Fiche privée d'un collègue, visible parce que la direction voit toute l'agence. */
-  marquePrivee?: boolean;
   /** Poignée de glisser-déposer visible (liste non filtrée). */
   rangeable?: boolean;
   dragHandleProps?: Record<string, unknown>;
@@ -287,21 +279,6 @@ function ContactRow({
               >
                 {contact.fullName}
               </span>
-              {marquePrivee ? (
-                <span className="inline-flex flex-shrink-0 items-center rounded-full bg-[#EFEBE3] px-2 py-0.5 text-[11px] font-medium text-[#1A2A56]">
-                  Privée
-                </span>
-              ) : null}
-              {contact.visibilite === 'agence' ? (
-                <span
-                  role="img"
-                  aria-label="Fiche partagée avec l’agence"
-                  title="Fiche partagée avec l’agence"
-                  className="flex-shrink-0 text-text-subtle"
-                >
-                  <Users size={14} strokeWidth={2} aria-hidden />
-                </span>
-              ) : null}
               {rattache ? (
                 rattache.href ? (
                   <Link
@@ -550,14 +527,14 @@ export default function ContactsClient({
 
   const perimetre = useMemo(() => {
     if (!isDirector) return contacts;
-    if (portee === 'agence') return contacts.filter(contactPublic);
+    if (portee === 'agence') return contacts;
     return contacts.filter((c) => contactAMoi(c, currentUserId));
   }, [contacts, isDirector, portee, currentUserId]);
 
   const comptesPortee = useMemo(
     () => ({
       moi: contacts.filter((c) => contactAMoi(c, currentUserId)).length,
-      agence: contacts.filter(contactPublic).length,
+      agence: contacts.length,
     }),
     [contacts, currentUserId],
   );
@@ -812,7 +789,7 @@ export default function ContactsClient({
             ? undefined
             : perimetre.length === 0
               ? isDirector && portee === 'agence'
-                ? 'Les fiches que l’agence partage avec tous'
+                ? 'Les fiches de toute l’équipe'
                 : 'Les personnes que vous rencontrez sur le terrain'
               : `${perimetre.length} ${perimetre.length > 1 ? 'personnes suivies' : 'personne suivie'}`
         }
@@ -837,7 +814,7 @@ export default function ContactsClient({
               onClick={() => setImportOpen(true)}
               className="max-sm:size-10 max-sm:px-0"
             >
-              <Upload size={16} strokeWidth={2} aria-hidden />
+              <Download size={16} strokeWidth={2} aria-hidden />
               <span className="max-sm:sr-only">Importer</span>
             </WorkspaceButton>
             <WorkspaceButton
@@ -846,7 +823,7 @@ export default function ContactsClient({
               onClick={() => exportContactsCsv(perimetre)}
               className="max-sm:size-10 max-sm:px-0"
             >
-              <Download size={16} strokeWidth={2} aria-hidden />
+              <Upload size={16} strokeWidth={2} aria-hidden />
               <span className="max-sm:sr-only">Exporter</span>
             </WorkspaceButton>
           </>
@@ -951,7 +928,7 @@ export default function ContactsClient({
           <p className="text-pretty text-[14px] text-text-muted sm:text-[15px]">
             {perimetre.length === 0
               ? portee === 'agence' && isDirector
-                ? 'Aucun contact public dans l’agence pour l’instant.'
+                ? 'Aucun contact dans l’agence pour l’instant.'
                 : 'Aucun contact pour l’instant. Ajoutez la première personne rencontrée.'
               : 'Aucun contact ne correspond à cette recherche.'}
           </p>
@@ -987,12 +964,6 @@ export default function ContactsClient({
                   duplicateOf={partenaires.get(contact.id) ?? null}
                   todayKey={todayKey}
                   members={members}
-                  marquePrivee={
-                    isDirector &&
-                    portee === 'agence' &&
-                    contact.visibilite !== 'agence' &&
-                    !contactAMoi(contact, currentUserId)
-                  }
                   onOpen={() => setSelectedId(contact.id)}
                   onComplete={() => setSelectedId(contact.id)}
                   onMerge={() => openMerge(contact)}

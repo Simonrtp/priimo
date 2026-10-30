@@ -35,14 +35,14 @@ export function levenshtein(a: string, b: string): number {
   return row[b.length]!;
 }
 
-function phonesMatch(a: string | null, b: string | null): boolean {
+export function phonesMatch(a: string | null, b: string | null): boolean {
   if (!a || !b) return false;
   const na = normalizePhone(a);
   const nb = normalizePhone(b);
   return na.length >= 10 && na === nb;
 }
 
-function emailsMatch(a: string | null, b: string | null): boolean {
+export function emailsMatch(a: string | null, b: string | null): boolean {
   if (!a || !b) return false;
   return normalizeEmail(a) === normalizeEmail(b);
 }

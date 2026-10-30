@@ -242,8 +242,8 @@ export function hasCadastreOverlay(row: {
 }
 
 /**
- * Parcelles d’appartements sans entrée au RNC : probablement un propriétaire
- * unique. Heuristique carte (pas de BDNB ici) : activité multi-logements
+ * Parcelles d’appartements sans entrée au RNC (« pas de copropriété déclarée »).
+ * Heuristique carte (pas de BDNB ici) : activité multi-logements
  * (plusieurs DPE / ventes, ou DPE avec étage) et aucun lot de copropriété.
  */
 export function parcelleIdsProprietaireUnique(

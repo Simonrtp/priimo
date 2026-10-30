@@ -501,6 +501,7 @@ async function TodayContent({
       listerActionsOuvertes(supabase, agency.id, {
         profileId: profile.id,
         estDirecteur: false,
+        voitDirection: isDirector,
       }),
     ),
     Promise.all([membersP, stagesP]).then(([members, stages]) =>

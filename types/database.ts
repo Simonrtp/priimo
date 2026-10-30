@@ -1241,7 +1241,8 @@ export type AgencyActionKindDb =
   | 'compte_rendu_mandat'
   | 'engagement_note'
   | 'estimation_dormante'
-  | 'immeuble_suivi';
+  | 'immeuble_suivi'
+  | 'doublon_contact';
 
 export type AgencyActionStatutDb = 'proposee' | 'validee' | 'ignoree' | 'expiree';
 

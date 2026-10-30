@@ -745,41 +745,10 @@ export default function ImportContacts({
               )}
             </p>
             <p className="mt-1 text-pretty text-[12.5px] text-text-muted">
-              Excel, CSV ou vCard (.vcf), jusqu’à {MAX_CONTACT_IMPORT_ROWS.toLocaleString('fr-FR')} contacts
+              Excel, Google Sheets ou CSV (.xlsx, .xls, .csv), jusqu’à{' '}
+              {MAX_CONTACT_IMPORT_ROWS.toLocaleString('fr-FR')} contacts
             </p>
           </button>
-          <div className="mt-5">
-            <p className="text-[12.5px] text-text-muted">Où sont vos contacts aujourd’hui ?</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {SOURCES.map((s) => (
-                <button
-                  key={s.cle}
-                  type="button"
-                  aria-expanded={source === s.cle}
-                  onClick={() => setSource((actuelle) => (actuelle === s.cle ? null : s.cle))}
-                  className={`rounded-full border px-3 py-1.5 text-[12.5px] transition-colors duration-fluid-subtle ease-in-out ${
-                    source === s.cle
-                      ? 'border-black/[0.18] bg-black/[0.04] text-text-strong'
-                      : 'border-black/[0.10] text-text-muted hover:bg-black/[0.03] hover:text-text'
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            {source ? (
-              <div className="mt-3 rounded-xl bg-black/[0.025] px-4 py-3 text-[12.5px] leading-relaxed text-text-muted">
-                <GuideSource
-                  source={source}
-                  onChoisir={setSource}
-                  onGoogle={() => void connecterGoogle()}
-                  busy={ouvertureGoogle}
-                  selecteurTelephone={selecteurTelephone}
-                  onTelephone={() => void choisirDansTelephone()}
-                />
-              </div>
-            ) : null}
-          </div>
 
           {recents.length > 0 ? (
             <div className="mt-6">

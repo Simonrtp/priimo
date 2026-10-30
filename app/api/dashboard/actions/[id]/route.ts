@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerUser } from '@/lib/auth/getServerUser';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { lireAction, resoudreAction } from '@/lib/queries/actions';
+import { lireAction, resoudreAction, rouvrirAction } from '@/lib/queries/actions';
+import { reserveeADirection } from '@/lib/automations/types';
 import type { CompteRendu } from '@/lib/automations/compte-rendu';
+import { creerContact } from '@/lib/contacts/creation';
 import { sendCompteRenduMandat } from '@/lib/email/compte-rendu-mandat';
 
 /**
@@ -24,7 +26,7 @@ function parseDecision(value: unknown): Decision | null {
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const { user, profile, agency } = await getServerUser();
+  const { user, profile, agency, memberships } = await getServerUser();
   if (!user || !profile || !agency) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
@@ -56,6 +58,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (avant.statut !== 'proposee') {
     return NextResponse.json({ error: 'Proposition déjà traitée' }, { status: 409 });
   }
+  // Une alerte de direction parle de la fiche d'un collègue : un négociateur
+  // ne la tranche pas, même en connaissant son identifiant.
+  if (reserveeADirection(avant.kind) && profile.role !== 'directeur') {
+    return NextResponse.json({ error: 'Proposition introuvable' }, { status: 404 });
+  }
 
   const action = await resoudreAction(
     supabase,
@@ -70,6 +77,31 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   if (decision === 'ignorer') {
     return NextResponse.json({ action });
+  }
+
+  // « Créer quand même » : la saisie du négociateur est rejouée, la fiche est
+  // à son nom. La proposition est déjà réservée, donc deux directeurs qui
+  // cliquent ensemble ne créent qu'une fiche.
+  if (action.kind === 'doublon_contact') {
+    const auteurId = typeof action.payload.auteurId === 'string' ? action.payload.auteurId : null;
+    const saisie =
+      typeof action.payload.saisie === 'object' && action.payload.saisie !== null
+        ? (action.payload.saisie as Record<string, unknown>)
+        : null;
+    if (!auteurId || !saisie) {
+      await rouvrirAction(supabase, id);
+      return NextResponse.json({ error: 'Saisie illisible.' }, { status: 422 });
+    }
+
+    const resultat = await creerContact(
+      { supabase, profile, agencyId: agency.id, memberships },
+      { ...saisie, assignedTo: auteurId, forceCreate: true },
+    );
+    if (!resultat.ok) {
+      await rouvrirAction(supabase, id);
+      return NextResponse.json({ error: resultat.error }, { status: resultat.status });
+    }
+    return NextResponse.json({ action, envoye: false, contactId: resultat.contact.id });
   }
 
   // Seul le compte rendu déclenche un envoi. Les autres validations sont des
