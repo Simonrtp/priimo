@@ -364,7 +364,7 @@ export function pastillesEnteteParcelle(p: {
   localite: string | null;
   surfaceM2: number | null;
   batiment: BatimentParcelle | null;
-  /** Absent du RNC + logements collectifs → pastille « Pas de copropriété déclarée ». */
+  /** Absent du RNC + logements collectifs → pastille « Sans copro déclarée ». */
   coproprietes?: readonly unknown[];
   logements?: readonly ParcelleLogement[];
 }): PastilleEntete[] {
@@ -376,7 +376,7 @@ export function pastillesEnteteParcelle(p: {
       logements: p.logements,
     })
   ) {
-    chips.push({ cle: 'proprio-unique', libelle: 'Pas de copropriété déclarée', ton: 'accent' });
+    chips.push({ cle: 'proprio-unique', libelle: 'Sans copro déclarée', ton: 'accent' });
   }
   if (p.localite?.trim()) chips.push({ cle: 'localite', libelle: p.localite.trim() });
   if (p.surfaceM2 != null && Number.isFinite(p.surfaceM2)) {
@@ -572,7 +572,7 @@ export function syntheseParcelle(
     faits.push({
       cle: 'proprio-unique',
       texte:
-        'Pas de copropriété déclarée au registre national : l’immeuble n’apparaît pas comme une copropriété',
+        'Sans copro déclarée : aucune copropriété n’est rattachée à cet immeuble dans nos données',
     });
   }
 

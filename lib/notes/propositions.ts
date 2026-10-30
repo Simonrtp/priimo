@@ -204,8 +204,9 @@ function buildPromptRapide(transcript: string, noteDate = new Date()): string {
     'JSON, en omettant toute clé vide ou nulle :',
     '{"titre","intention":"note"|"question","personnes":[{"firstName","lastName","phone","email","types":["vendeur"|"acquereur"|"locataire"|"gardien"|"commercant"],"relation"}],"address","secteur","observations":[],"prix","rooms","surface","source_info":"proprietaire"|"gardien"|"voisin"|"tiers"|"agent","actions":[{"type":"rappel"|"tache"|"rdv"|"visite_faite","intitule","quand","rdv_type":"visite"|"estimation"|"signature"|"autre"}],"mises_a_jour":[{"champ":"prix"|"statut_mandat","valeur","bien"}],"recherche":{"personne","budget_min","budget_max","surface_min","pieces_min","villes":[],"codes_postaux":[]},"prospect":{"etape":"contacte"|"rendez_vous"|"mandat"|"perdu","motif"},"email":{"personne","objet"}}',
     'Règles : rien d’inventé. Dernière version si l’agent se reprend. "intitule" court à l’infinitif avec le nom (« Rappeler Mme Martin »). "quand" = les mots dits (« jeudi à 14h »). "titre" : 3 à 6 mots. Montants en euros entiers (« 300 k » = 300000). "rooms" : T2 = 2. "email" seulement si l’agent dit d’envoyer un mail ou des documents.',
-    'Rôles : veut acheter / acquérir → "acquereur" ; veut vendre / vend son bien → "vendeur" ; les deux si elle fait les deux. "observations" : ce que l’agent constate sur place (travaux, ravalement, panneau à vendre, déménagement), en phrase courte — un constat n’est jamais une action.',
-    '"relation" : le lien dit entre deux personnes citées, en quelques mots avec le prénom de l’autre (« sœur de Simon », « mari de Mme Martin »). Chaque personne citée par son nom a sa propre entrée, même sans autre information.',
+    'Une personne = une entrée : un nom composé (« Ben X », « Le X ») reste entier dans "lastName", et « son numéro », « il est aussi vendeur » dits plus loin la complètent.',
+    'Rôles : veut / va acheter → "acquereur" ; veut / va vendre, vend son bien → "vendeur" ; les deux si elle fait les deux ; « il ne vend plus » retire "vendeur". "observations" : ce que l’agent constate sur place (travaux, ravalement, panneau à vendre, déménagement), en phrase courte — un constat n’est jamais une action.',
+    '"relation" : le lien dit entre deux personnes citées, en quelques mots avec le prénom de l’autre (« sœur de Simon », « mari de Mme Martin »), posé sur la personne que le lien décrit (« X et son mari Y » → Y est « mari de X »). Chaque personne citée par son nom a sa propre entrée, même sans autre information.',
   ].join('\n');
 }
 
@@ -248,8 +249,10 @@ function buildPrompt(transcript: string, noteDate = new Date(), opts: PromptOpti
     '- "titre" : 3 à 8 mots qui résument la note (qui, quoi, où). "resume" : une phrase factuelle.',
     '- "intention" = "question" seulement si l’agent pose une question à son assistant (« qu’est-ce qu’on sait sur… », « quand est-ce que… ») au lieu de noter quelque chose.',
     '- "personnes" : tableau, vide s’il n’y a aucun nom. Une personne sans nom ni téléphone ne compte pas. Un rôle seul (« le gardien ») n’est pas un nom.',
-    '- "relation" : le lien dit entre cette personne et une autre personne citée, en quelques mots avec le prénom de l’autre (« sœur de Simon », « mari de Mme Martin », « locataire de M. Petit »). Rien de dit → null. Une personne citée seulement par ce lien (« la sœur de Simon » → Simon) a quand même sa propre entrée.',
-    '- "types" : toutes les casquettes de la personne, déduites de ce qu’elle veut faire. « veut acheter », « veut acquérir », « cherche un appartement » → "acquereur" ; « veut vendre », « met en vente », « vend son bien » → "vendeur" ; « cherche une location » → "locataire". Quelqu’un qui vend et achète porte les deux. Rien de dit → tableau vide.',
+    '- Une même personne n’a qu’une entrée, même citée plusieurs fois ou nommée dans le désordre (nom puis prénom). Un nom de famille composé ou à particule (deux mots comme « Ben X », « El X », « Le X », « Da X ») reste entier dans "lastName" : ne le coupe jamais en deux personnes.',
+    '- La note peut avoir été complétée en plusieurs fois : « son numéro », « son mail », « elle est aussi vendeuse » dits plus loin complètent la personne dont on parle, sans en créer une autre. "phone" : le numéro dit, en chiffres.',
+    '- "relation" : le lien dit entre cette personne et une autre personne citée, en quelques mots avec le prénom de l’autre (« sœur de Simon », « mari de Mme Martin », « locataire de M. Petit »). Il se pose sur la personne que le lien décrit : dans « X et son mari Y », c’est Y qui est « mari de X », et X n’a pas de relation. Rien de dit → null. Une personne citée seulement par ce lien (« la sœur de Simon » → Simon) a quand même sa propre entrée.',
+    '- "types" : toutes les casquettes de la personne, déduites de ce qu’elle veut faire. « veut acheter », « va acheter », « veut acquérir », « cherche un appartement » → "acquereur" ; « veut vendre », « va vendre », « met en vente », « vend son bien » → "vendeur" ; « cherche une location » → "locataire". Quelqu’un qui vend et achète porte les deux : n’en oublie aucun. « Il est aussi vendeur » ajoute une casquette ; « finalement il ne vend plus » la retire. Rien de dit → tableau vide.',
     '- "observations" : les constats faits sur place ou rapportés, sur l’immeuble ou le lieu de la note — travaux, ravalement de façade, échafaudage, panneau « à vendre », déménagement, logement vide, nouveau commerce, changement de syndic. Une phrase courte et factuelle par constat, sans répéter l’adresse (« Ravalement de façade en cours »).',
     '- Un constat n’est jamais une action : « ils font un ravalement » va dans "observations", pas dans "actions". Une action n’existe que si l’agent dit ce qu’il doit faire.',
     '- "actions" : une entrée par engagement distinct. « rappeler X », « relancer X », « le recontacter » → "rappel". « envoyer… », « préparer… », « vérifier… » → "tache". Un rendez-vous futur → "rdv". Une visite qui vient d’avoir lieu → "visite_faite" (date du jour sauf si autre chose est dit).',
@@ -325,7 +328,8 @@ function capitaliserNom(raw: string): string {
     .join('');
 }
 
-const PARTICULES = new Set(['de', 'du', 'des', 'la', 'le', 'van', 'von', 'da', 'di', "d'", 'l’']);
+// « Le » et « La » d'un patronyme gardent leur capitale (Le Gall, La Fontaine).
+const PARTICULES = new Set(['de', 'du', 'des', 'van', 'von', 'da', 'di', "d'", 'l’']);
 
 /**
  * Mots que le modèle glisse dans un nom quand la note ne nomme personne

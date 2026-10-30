@@ -37,6 +37,7 @@ import { AnnoncesLayerControls } from '@/components/dashboard/annonces/AnnoncesC
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules, { empriseCochee, type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
+import FlashCarte, { preparerFlashIntro } from '@/components/dashboard/carte/FlashCarte';
 import { useCarteSecteurs } from '@/lib/zones/useCarteSecteurs';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
 import { ChoixSecteurs } from '@/components/dashboard/carte/FiltresHautCarte';
@@ -204,6 +205,13 @@ export default function CarteMobile({
     setDimension(readMapDimension());
     setStoredStops(readItineraireStops());
   }, []);
+
+  // Dès l’entrée sur la page Carte : Breaking news pourra rejouer.
+  const flashVisite = useRef(false);
+  if (!flashVisite.current) {
+    flashVisite.current = true;
+    preparerFlashIntro();
+  }
 
   const itineraryStops = showItineraire ? storedStops ?? itineraryStopsProp : null;
   const { route, waypoints } = useWalkingRoute(itineraryStops);
@@ -425,6 +433,23 @@ export default function CarteMobile({
   }, []);
 
   const phone = selected ? firstPhone(selected.entities) : null;
+  const requeteFlash = useMemo(
+    () =>
+      onglet === 'code_postal' || zonesSurCarte.length === 0
+        ? 'cp=1'
+        : `zones=${zonesSurCarte
+            .map((z) => z.id)
+            .sort()
+            .join(',')}`,
+    [onglet, zonesSurCarte],
+  );
+  const ouvrirDepuisFlash = useCallback(
+    (annonce: Annonce, _point: { latitude: number; longitude: number }) => {
+      setLayersOpen(false);
+      setAnnonceOuverte({ annonce, soeurs: [annonce] });
+    },
+    [],
+  );
   /** Au-dessus de la barre d'onglets (carte plein écran derrière). */
   const floatBottom = 'calc(12px + var(--field-nav-height))';
   const cameraMode = cameraFor(dimension);
@@ -558,6 +583,16 @@ export default function CarteMobile({
           </div>
         ) : null}
       </div>
+
+      {!atelier ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[calc(58px+env(safe-area-inset-top,0px))] z-30">
+          <FlashCarte
+            requete={requeteFlash}
+            perimetre={requeteFlash === 'cp=1' ? 'code_postal' : 'secteur'}
+            onAnnonce={ouvrirDepuisFlash}
+          />
+        </div>
+      ) : null}
 
       <button
         type="button"

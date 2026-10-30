@@ -4,6 +4,7 @@ import VoiceCaptureDialog from '@/components/dashboard/voice/VoiceCaptureDialog'
 import type { VoiceCapturePurpose } from '@/components/dashboard/voice/VoiceCaptureProvider';
 import type { PreparationTempsReel } from '@/lib/voice/temps-reel';
 import type { EstimationVoiceApplyOpts, EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+import type { ContactVoiceDraft } from '@/lib/contacts/voice-extract';
 
 export default function DicterMobile({
   onClose,
@@ -16,6 +17,7 @@ export default function DicterMobile({
   resterSurPage,
   purpose = 'note',
   onEstimationDraft,
+  onContactDraft,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
@@ -27,6 +29,7 @@ export default function DicterMobile({
   resterSurPage?: boolean;
   purpose?: VoiceCapturePurpose;
   onEstimationDraft?: (draft: EstimationVoiceDraft, opts?: EstimationVoiceApplyOpts) => void;
+  onContactDraft?: (draft: ContactVoiceDraft, opts?: { live?: boolean }) => void;
 }) {
   return (
     <VoiceCaptureDialog
@@ -41,6 +44,7 @@ export default function DicterMobile({
       resterSurPage={resterSurPage}
       purpose={purpose}
       onEstimationDraft={onEstimationDraft}
+      onContactDraft={onContactDraft}
     />
   );
 }

@@ -47,11 +47,13 @@ import {
 } from '@/lib/voice/temps-reel';
 import { finDeNoteDite, retirerFinDeNote } from '@/lib/voice/fin-de-note';
 import { cartesDepuisReview } from '@/lib/voice/cartes';
+import { completerReview } from '@/lib/notes/completer-review';
 import { cartesLocales, fusionnerCartes } from '@/lib/voice/cartes-locales';
 import { rangerEnArrierePlan, type ResultatEnvoi } from '@/lib/voice/rangement';
 import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSelect';
 import type { EstimationVoiceApplyOpts, EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
 import { voiceDraftKeys } from '@/lib/estimation/voice-extract';
+import { champsDuDraft, lectureLocale, type ContactVoiceDraft } from '@/lib/contacts/voice-extract';
 import { ditSurfaceLogement, extractEstimationHeuristic } from '@/lib/estimation/voice-heuristic';
 import { enqueueJson, postFormOrQueue, removeFromQueue } from '@/lib/offline/queue';
 import { useTourneeDictation } from '@/components/dashboard/field/TourneeDictationProvider';
@@ -87,6 +89,7 @@ export default function VoiceCaptureDialog({
   resterSurPage = false,
   purpose = 'note',
   onEstimationDraft,
+  onContactDraft,
 }: {
   onClose: () => void;
   streamPromise?: Promise<MediaStream> | null;
@@ -99,10 +102,14 @@ export default function VoiceCaptureDialog({
   parcelleId?: string | null;
   banId?: string | null;
   resterSurPage?: boolean;
-  purpose?: 'note' | 'estimation';
+  purpose?: 'note' | 'estimation' | 'contact';
   onEstimationDraft?: (draft: EstimationVoiceDraft, opts?: EstimationVoiceApplyOpts) => void;
+  /** Dictée d'une fiche contact : les champs se remplissent pendant que l'agent parle. */
+  onContactDraft?: (draft: ContactVoiceDraft, opts?: { live?: boolean }) => void;
 }) {
-  const estimationMode = purpose === 'estimation';
+  const contactMode = purpose === 'contact';
+  // Dicter une fiche (bien ou contact) : feuille compacte, aucune note créée.
+  const estimationMode = purpose === 'estimation' || contactMode;
   const router = useRouter();
   const { profile } = useUser();
   const { noteDictee, adresse: tourAdresse } = useTourneeDictation();
@@ -192,7 +199,9 @@ export default function VoiceCaptureDialog({
   const stopRef = useRef<() => void>(() => undefined);
   /** La feuille de la note : elle rétrécit en un point quand la note est rangée. */
   const feuilleRef = useRef<HTMLDivElement | null>(null);
-  const draftCbRef = useRef(onEstimationDraft);
+  const draftCbRef = useRef<((draft: never, opts?: { live?: boolean }) => void) | undefined>(
+    (contactMode ? onContactDraft : onEstimationDraft) as never,
+  );
   const extractTimerRef = useRef(0);
   const extractBusyRef = useRef(false);
   const extractAttenteRef = useRef<string | null>(null);
@@ -201,24 +210,29 @@ export default function VoiceCaptureDialog({
   useLayoutEffect(() => {
     transcriptRef.current = transcript;
     toucheRef.current = touche;
-    draftCbRef.current = onEstimationDraft;
+    draftCbRef.current = (contactMode ? onContactDraft : onEstimationDraft) as never;
   });
 
-  // Ce que Priimo comprend, pendant la dictée puis tant que l'agent ne corrige rien.
+  // Ce que Priimo comprend, pendant la dictée puis à chaque complément.
   const {
     review: reviewDirect,
     enCours: lectureDirect,
     relire,
   } = useComprehensionEnDirect(transcript, {
-    actif: !estimationMode && !touche && !question,
+    actif: !estimationMode && !question,
     banId: banId ?? banGps,
     recordedAt,
   });
 
   useEffect(() => {
-    if (!reviewDirect || touche) return;
-    setReview((prev) => adopter(reviewDirect, prev, transcriptRef.current));
-  }, [reviewDirect, touche]);
+    if (!reviewDirect) return;
+    // Retouchée par l'agent : la lecture complète la revue sans rien défaire.
+    setReview((prev) =>
+      toucheRef.current
+        ? completerReview(prev, reviewDirect, transcriptRef.current)
+        : adopter(reviewDirect, prev, transcriptRef.current),
+    );
+  }, [reviewDirect]);
 
   // Pendant la dictée : les cartes du modèle, complétées au mot près par le téléphone.
   const cartes = useMemo(
@@ -228,11 +242,22 @@ export default function VoiceCaptureDialog({
 
   /* ------------------------------------------------------ Estimation (inchangé) */
 
+  const URL_LECTURE = contactMode ? '/api/dashboard/contacts/dicter' : '/api/dashboard/estimation/extract';
+
   function pousserDictéeLive(text: string) {
     if (!estimationMode) return;
+    if (contactMode) {
+      const local = lectureLocale(text);
+      if (champsDuDraft(local).length > 0) draftCbRef.current?.(local as never, { live: true });
+      window.clearTimeout(extractTimerRef.current);
+      extractTimerRef.current = window.setTimeout(() => {
+        void extraireDictéeModele(text);
+      }, 700);
+      return;
+    }
     const draft = { ...extractEstimationHeuristic(text) };
     if (draft.surfaceM2 != null && !ditSurfaceLogement(text)) draft.surfaceM2 = null;
-    if (voiceDraftKeys(draft).length > 0) draftCbRef.current?.(draft, { live: true });
+    if (voiceDraftKeys(draft).length > 0) draftCbRef.current?.(draft as never, { live: true });
     window.clearTimeout(extractTimerRef.current);
     extractTimerRef.current = window.setTimeout(() => {
       void extraireDictéeModele(text);
@@ -249,16 +274,16 @@ export default function VoiceCaptureDialog({
     if (trimmed === extractVuRef.current) return;
     extractBusyRef.current = true;
     try {
-      const res = await fetch('/api/dashboard/estimation/extract', {
+      const res = await fetch(URL_LECTURE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: trimmed }),
       });
-      const data = (await res.json()) as { draft?: EstimationVoiceDraft };
+      const data = (await res.json()) as { draft?: EstimationVoiceDraft & ContactVoiceDraft };
       if (cancelledRef.current) return;
-      if (data.draft && voiceDraftKeys(data.draft).length > 0) {
+      if (data.draft && (contactMode ? champsDuDraft(data.draft).length : voiceDraftKeys(data.draft).length) > 0) {
         extractVuRef.current = trimmed;
-        draftCbRef.current?.(data.draft, { live: true });
+        draftCbRef.current?.(data.draft as never, { live: true });
       }
     } catch {
       /* la passe locale a déjà rempli ce qui était sûr */
@@ -391,20 +416,22 @@ export default function VoiceCaptureDialog({
       }
       const trimmed = text.trim();
       if (trimmed.length < 8) {
-        const message = 'Dictée trop courte. Décrivez le bien visité.';
+        const message = contactMode
+          ? 'Dictée trop courte. Décrivez la personne.'
+          : 'Dictée trop courte. Décrivez le bien visité.';
         notifyError(message);
         setError(message);
         setPhase('recording');
         return;
       }
 
-      const res = await fetch('/api/dashboard/estimation/extract', {
+      const res = await fetch(URL_LECTURE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: trimmed }),
       });
       if (cancelledRef.current) return;
-      const data = (await res.json()) as { draft?: EstimationVoiceDraft; error?: string };
+      const data = (await res.json()) as { draft?: EstimationVoiceDraft & ContactVoiceDraft; error?: string };
       if (!res.ok || !data.draft) {
         const message = data.error ?? 'Lecture impossible';
         notifyError(message);
@@ -412,7 +439,8 @@ export default function VoiceCaptureDialog({
         setPhase('recording');
         return;
       }
-      onEstimationDraft?.(data.draft);
+      if (contactMode) onContactDraft?.(data.draft);
+      else onEstimationDraft?.(data.draft);
       onClose();
     } catch {
       if (cancelledRef.current) return;
@@ -453,7 +481,7 @@ export default function VoiceCaptureDialog({
       return;
     }
 
-    if (!toucheRef.current) relire(vu);
+    relire(vu);
     setPhase('review');
 
     if (blob.size === 0) {
@@ -483,7 +511,7 @@ export default function VoiceCaptureDialog({
       const complet = joinVoiceTranscripts(base, directFinal);
       if (complet.trim() && complet !== transcriptRef.current) {
         setTranscript(complet);
-        if (!toucheRef.current) relire(complet);
+        relire(complet);
       }
     }
 
@@ -574,14 +602,11 @@ export default function VoiceCaptureDialog({
         void hydrateNoteReview(data.voiceNoteId, finalTexte)
           .then((lue) => {
             if (!lue) return;
-            setReview((prev) => {
-              if (!toucheRef.current) return adopter(lue, prev, transcriptRef.current);
-              // Corrigée à la main : on n'ajoute que le brouillon d'e-mail.
-              if (prev?.email && !prev.email.corps && lue.email?.corps) {
-                return { ...prev, email: { ...prev.email, corps: lue.email.corps } };
-              }
-              return prev;
-            });
+            setReview((prev) =>
+              toucheRef.current
+                ? completerReview(prev, lue, transcriptRef.current)
+                : adopter(lue, prev, transcriptRef.current),
+            );
           })
           .finally(() => setLectureComplete(false));
       }
@@ -878,7 +903,7 @@ export default function VoiceCaptureDialog({
       setPhase('review');
       return;
     }
-    if (!toucheRef.current) relire(texte);
+    relire(texte);
     setPhase('review');
     // Une prise dictée a déjà créé la note : le texte écrit la complète.
     if (!envoiRef.current) envoiRef.current = envoyerEcrit(texte);
@@ -922,13 +947,11 @@ export default function VoiceCaptureDialog({
       void hydrateNoteReview(data.voiceNoteId, texte)
         .then((lue) => {
           if (!lue) return;
-          setReview((prev) => {
-            if (!toucheRef.current) return adopter(lue, prev, transcriptRef.current);
-            if (prev?.email && !prev.email.corps && lue.email?.corps) {
-              return { ...prev, email: { ...prev.email, corps: lue.email.corps } };
-            }
-            return prev;
-          });
+          setReview((prev) =>
+            toucheRef.current
+              ? completerReview(prev, lue, transcriptRef.current)
+              : adopter(lue, prev, transcriptRef.current),
+          );
         })
         .finally(() => setLectureComplete(false));
       return { id: data.voiceNoteId };
@@ -986,7 +1009,7 @@ export default function VoiceCaptureDialog({
     const texte = (question?.texte ?? transcriptRef.current).trim();
     setNoteChoisie(true);
     setQuestion(null);
-    if (!toucheRef.current) relire(texte);
+    relire(texte);
     const prise = priseEnAttenteRef.current;
     priseEnAttenteRef.current = null;
     if (envoiRef.current) return;
@@ -1021,7 +1044,7 @@ export default function VoiceCaptureDialog({
         className="pointer-events-auto fixed inset-x-3 z-[220] mx-auto w-[min(100%,28rem)] rounded-clay-lg bg-surface px-3 py-3 shadow-clay-lg sm:inset-x-auto sm:right-6 sm:mx-0"
         role="dialog"
         aria-modal="false"
-        aria-label="Dicter le bien"
+        aria-label={contactMode ? 'Dicter le contact' : 'Dicter le bien'}
         style={{ bottom: field ? 'calc(var(--field-nav-height) + 8px)' : '16px' }}
       >
         {phase === 'processing' ? (

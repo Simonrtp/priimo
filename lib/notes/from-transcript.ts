@@ -1,6 +1,7 @@
 import { normalizeName, normalizePhone } from '@/lib/import/normalize';
 import { nameTokens, scoreNom } from '@/lib/assistant/nom-match';
 import type { ExtractedPersonne } from '@/lib/notes/propositions';
+import type { ContactType } from '@/types/contact';
 import { ficheDuContact, matchContacts, type ContactMatch, type MatchableContact } from '@/lib/notes/match';
 
 const VERB =
@@ -310,6 +311,45 @@ export function consentementRappelDansTranscript(transcript: string): boolean {
     return true;
   }
   return false;
+}
+
+const VEUT = '(?:va|veut|voudrait|souhaite|compte|doit|aimerait|envisage de|pense a|projette de)';
+/** « est aussi vendeuse », « sont acquéreurs ». Le nom seul (« le vendeur ») peut désigner un autre. */
+const EST = '(?:est|sont) (?:aussi |egalement |bien )?';
+
+const ROLES_DITS: readonly { role: ContactType; dit: RegExp; nie: RegExp }[] = [
+  {
+    role: 'vendeur',
+    dit: new RegExp(
+      `\\b${VEUT} (?:\\w+ )?(?:vendre|mettre en vente)\\b|\\bvend (?:son|sa|ses|leur)\\b|\\bmet en vente\\b|\\b${EST}(?:vendeur|vendeuse)s?\\b`,
+    ),
+    nie: /\b(?:ne|n) (?:\w+ ){0,2}(?:pas|plus) (?:\w+ )?vendre\b|\bne vend (?:pas|plus)\b|\b(?:pas|plus) (?:vendeur|vendeuse)s?\b/,
+  },
+  {
+    role: 'acquereur',
+    dit: new RegExp(
+      `\\b${VEUT} (?:\\w+ )?(?:acheter|acquerir)\\b|\\bcherche a acheter\\b|\\b${EST}(?:acquereur|acheteur|acheteuse)s?\\b`,
+    ),
+    nie: /\b(?:ne|n) (?:\w+ ){0,2}(?:pas|plus) (?:\w+ )?(?:acheter|acquerir)\b|\bn achete (?:pas|plus)\b|\b(?:pas|plus) (?:acquereur|acheteur|acheteuse)s?\b/,
+  },
+];
+
+/**
+ * Les casquettes que la dictée dit en toutes lettres (« il va vendre dans le
+ * 16e et acheter dans le 20e ») et celles qu'elle retire (« finalement il ne
+ * vend plus »). Le petit modèle en oublie parfois une : quand une seule
+ * personne est citée, c'est forcément d'elle qu'on parle.
+ */
+export function rolesDitsDansTranscript(transcript: string): { dits: ContactType[]; nies: ContactType[] } {
+  const t = ` ${normalizeName(transcript)} `;
+  const dits: ContactType[] = [];
+  const nies: ContactType[] = [];
+  for (const { role, dit, nie } of ROLES_DITS) {
+    // Une négation l'emporte : c'est en général la correction, dite après.
+    if (nie.test(t)) nies.push(role);
+    else if (dit.test(t)) dits.push(role);
+  }
+  return { dits, nies };
 }
 
 export function extraireTelephones(transcript: string): string[] {

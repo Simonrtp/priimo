@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { Mic } from 'lucide-react';
 import type { Contact, ContactType } from '@/types/contact';
 import type { ContactFieldErrors, ContactInputFields } from '@/lib/contact-input';
 import { EMPTY_CONTACT_INPUT, validateContactFields } from '@/lib/contact-input';
@@ -12,6 +13,8 @@ import type { AssigneeOption } from '@/components/dashboard/workspace/AssigneeSe
 import ContactFormFields from '@/components/dashboard/contacts/ContactFormFields';
 import type { CollegueAffiche } from '@/lib/contacts/collegues';
 import { formatPhoneDisplay, telHref } from '@/lib/import/normalize';
+import { useVoiceCapture } from '@/components/dashboard/voice/VoiceCaptureProvider';
+import { champsDuDraft, type ContactVoiceDraft } from '@/lib/contacts/voice-extract';
 
 function fromContact(contact: Contact): ContactInputFields {
   return {
@@ -103,6 +106,9 @@ export default function ContactFormDialog({
   );
   // Le numéro ou l'e-mail est déjà chez un collègue : on affiche de quoi l'appeler.
   const [chezCollegue, setChezCollegue] = useState<{ collegue: CollegueAffiche | null } | null>(null);
+  const { openCapture } = useVoiceCapture();
+  // Ce que la dictée a rempli : signalé « à relire » tant que le formulaire est ouvert.
+  const [dictes, setDictes] = useState<ReadonlySet<keyof ContactInputFields>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -119,6 +125,20 @@ export default function ContactFormDialog({
       ? { banId: contact.banId, latitude: contact.latitude, longitude: contact.longitude }
       : { banId: null, latitude: null, longitude: null },
   );
+
+  /** La dictée remplit les champs au fil de la parole ; le consentement n'en fait jamais partie. */
+  const appliquerDictee = useCallback((draft: ContactVoiceDraft) => {
+    const cles = champsDuDraft(draft);
+    if (cles.length === 0) return;
+    setFields((prev) => {
+      const next = { ...prev };
+      for (const k of cles) (next as Record<string, unknown>)[k] = draft[k];
+      return next;
+    });
+    setDictes((prev) => new Set([...prev, ...cles]));
+    setFormError(null);
+    setFieldErrors({});
+  }, []);
 
   function focusFirstError(errors: ContactFieldErrors) {
     const first = (Object.keys(errors) as (keyof ContactInputFields)[])[0];
@@ -341,6 +361,23 @@ export default function ContactFormDialog({
             </button>
           </div>
         ) : null}
+        {!contact ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-clay bg-ia-50 px-3 py-2.5">
+            <WorkspaceButton
+              type="button"
+              onClick={() => openCapture({ purpose: 'contact', resterSurPage: true, onContactDraft: appliquerDictee })}
+              className="min-h-11 shrink-0 !bg-ia hover:!bg-ia-600 focus-visible:!outline-ia"
+            >
+              <Mic size={16} strokeWidth={2} aria-hidden />
+              Dicter le contact
+            </WorkspaceButton>
+            <p className="text-pretty text-[13px] text-ia-700">
+              {dictes.size > 0
+                ? 'Champs remplis par la dictée — relisez avant de créer.'
+                : 'Dites le nom, le rôle, le téléphone, l’adresse… tout se remplit.'}
+            </p>
+          </div>
+        ) : null}
         <ContactFormFields
           idPrefix="contact"
           fields={fields}
@@ -352,6 +389,7 @@ export default function ContactFormDialog({
           assignedTo={assignedTo}
           onAssignedTo={setAssignedTo}
           masqueSansConsentement={Boolean(contact?.phone)}
+          consentementAConfirmer={dictes.has('phone')}
           geo={geo}
           onGeo={setGeo}
           members={members}

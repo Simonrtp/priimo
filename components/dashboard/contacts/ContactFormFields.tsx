@@ -39,6 +39,7 @@ export default function ContactFormFields({
   disabled = false,
   rolesNouveaux = [],
   masqueSansConsentement = false,
+  consentementAConfirmer = false,
 }: {
   idPrefix: string;
   fields: ContactInputFields;
@@ -55,6 +56,8 @@ export default function ContactFormFields({
   rolesNouveaux?: readonly ContactType[];
   /** Fiche existante avec un numéro : milieu masqué tant que le consentement n'est pas coché. */
   masqueSansConsentement?: boolean;
+  /** Numéro issu d'une dictée : la case de consentement est mise en avant. */
+  consentementAConfirmer?: boolean;
 }) {
   const showCriteria = rolesUsentCriteres(fields);
   const roles = rolesDuContact(fields);
@@ -201,6 +204,7 @@ export default function ContactFormFields({
         id={`${idPrefix}-numero-communique`}
         checked={fields.numeroCommuniqueParLaPersonne}
         onChange={(checked) => set('numeroCommuniqueParLaPersonne', checked)}
+        aConfirmer={consentementAConfirmer}
       />
 
       {showCriteria ? (

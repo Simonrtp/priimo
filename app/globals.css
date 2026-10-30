@@ -3808,6 +3808,15 @@ a.logiciel-carte-subtitle:focus-visible {
   animation: appPushIn var(--dur-fluid) var(--ease-soft);
 }
 
+/* Retour — la page repart vers la gauche */
+@keyframes appPushOut {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+.animate-app-push-out {
+  animation: appPushOut var(--dur-fluid) var(--ease-soft) forwards;
+}
+
 /* Voile (scrim) — apparition douce */
 @keyframes appScrimIn {
   from { opacity: 0; }
@@ -3826,6 +3835,7 @@ a.logiciel-carte-subtitle:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .animate-app-sheet,
   .animate-app-push,
+  .animate-app-push-out,
   .animate-app-scrim {
     animation: none !important;
   }

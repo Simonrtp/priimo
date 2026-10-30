@@ -101,6 +101,10 @@ export function useDessinSecteur({
   const [enAttente, setEnAttente] = useState(0);
   const [rues, setRues] = useState<RuePosee[]>([]);
   const [zoom, setZoom] = useState<number | null>(null);
+  const [titre, setTitre] = useState(zone?.nom ?? 'Nouveau secteur');
+  /** Sortie animée : la page glisse à gauche avant de fermer. */
+  const [sortie, setSortie] = useState(false);
+  const apresSortieRef = useRef<(() => void) | null>(null);
 
   // À chaque ouverture, et seulement là, on repart du secteur tel qu'il est :
   // la carte relue ensuite ne doit pas défaire les gestes en cours.
@@ -118,12 +122,16 @@ export function useDessinSecteur({
       setMode('ajouter');
       setMesIds(new Set(siennes));
       setOutil(siennes.length > 0 ? 'toucher' : 'entourer');
+      setTitre(zone?.nom ?? 'Nouveau secteur');
+      setSortie(false);
+      apresSortieRef.current = null;
     }
   }
 
   const zoneRef = useRef<string | null>(zoneId);
   const mesRef = useRef(mesIds);
   const candidatesRef = useRef(candidates);
+  const titreRef = useRef(titre);
   /** Secteur né dans cet atelier : abandonné vide, il ne reste pas en base. */
   const creeIciRef = useRef(false);
   const fileRef = useRef<Promise<void>>(Promise.resolve());
@@ -137,6 +145,9 @@ export function useDessinSecteur({
   useEffect(() => {
     candidatesRef.current = candidates;
   }, [candidates]);
+  useEffect(() => {
+    titreRef.current = titre;
+  }, [titre]);
   useEffect(() => {
     creeIciRef.current = false;
   }, [cleOuverture]);
@@ -157,10 +168,14 @@ export function useDessinSecteur({
 
   const assurerZone = useCallback(async () => {
     if (zoneRef.current) return zoneRef.current;
-    const nom = nomSecteurParDefaut(
-      prenomDuMembre({ firstName: profile.first_name, fullName: profile.first_name }),
-      zones.map((z) => z.nom),
-    );
+    const saisie = titreRef.current.trim();
+    const nom =
+      saisie && saisie !== 'Nouveau secteur'
+        ? saisie
+        : nomSecteurParDefaut(
+            prenomDuMembre({ firstName: profile.first_name, fullName: profile.first_name }),
+            zones.map((z) => z.nom),
+          );
     const cree = await envoyer('/api/dashboard/zones', 'POST', {
       nom,
       assignedTo: profile.id,
@@ -170,6 +185,7 @@ export function useDessinSecteur({
     zoneRef.current = cree.id;
     creeIciRef.current = true;
     setZoneId(cree.id);
+    setTitre(nom);
     return cree.id;
   }, [profile.first_name, profile.id, zones]);
 
@@ -338,74 +354,122 @@ export function useDessinSecteur({
     }
   }, []);
 
+  /** Glisse à gauche, puis exécute la fermeture (Retour / Valider / Supprimer). */
+  const animerPuisFermer = useCallback((suite: () => void) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      suite();
+      return;
+    }
+    if (sortie) return;
+    apresSortieRef.current = suite;
+    setSortie(true);
+  }, [sortie]);
+
+  const surFinSortie = useCallback(() => {
+    const suite = apresSortieRef.current;
+    apresSortieRef.current = null;
+    suite?.();
+  }, []);
+
   /** Valider attend les gestes en cours ; un secteur né ici et resté vide disparaît. */
   const terminer = useCallback(() => {
-    void fileRef.current.then(async () => {
-      const id = zoneRef.current;
-      if (id && mesRef.current.size === 0 && creeIciRef.current) {
-        await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
+    animerPuisFermer(() => {
+      void fileRef.current.then(async () => {
+        const id = zoneRef.current;
+        if (id && mesRef.current.size === 0 && creeIciRef.current) {
+          await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
+          rafraichirCarteSecteurs();
+          onSupprime?.();
+          return;
+        }
         rafraichirCarteSecteurs();
-        onSupprime?.();
-        return;
-      }
-      rafraichirCarteSecteurs();
-      if (id && mesRef.current.size > 0) onValider?.(id);
-      else onFermer?.();
+        if (id && mesRef.current.size > 0) onValider?.(id);
+        else onFermer?.();
+      });
     });
-  }, [onFermer, onSupprime, onValider]);
+  }, [animerPuisFermer, onFermer, onSupprime, onValider]);
 
   /** Quitte l’atelier. Un brouillon vide né ici ne reste pas en base. */
   const quitter = useCallback(() => {
-    void fileRef.current.then(async () => {
-      const id = zoneRef.current;
-      if (id && mesRef.current.size === 0 && creeIciRef.current) {
-        await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
-        rafraichirCarteSecteurs();
-        onSupprime?.();
-        return;
-      }
-      onFermer?.();
+    animerPuisFermer(() => {
+      void fileRef.current.then(async () => {
+        const id = zoneRef.current;
+        if (id && mesRef.current.size === 0 && creeIciRef.current) {
+          await envoyer(`/api/dashboard/zones/${id}`, 'DELETE').catch(() => undefined);
+          rafraichirCarteSecteurs();
+          onSupprime?.();
+          return;
+        }
+        onFermer?.();
+      });
     });
-  }, [onFermer, onSupprime]);
+  }, [animerPuisFermer, onFermer, onSupprime]);
 
   const supprimer = useCallback(() => {
-    void fileRef.current.then(async () => {
-      const id = zoneRef.current;
-      if (!id) {
-        onFermer?.();
-        return;
-      }
-      try {
-        await envoyer(`/api/dashboard/zones/${id}`, 'DELETE');
-      } catch (e) {
-        notifyError(e instanceof Error ? e.message : 'Le secteur n’a pas pu être supprimé');
-        return;
-      }
-      rafraichirCarteSecteurs();
-      onSupprime?.();
+    animerPuisFermer(() => {
+      void fileRef.current.then(async () => {
+        const id = zoneRef.current;
+        if (!id) {
+          onFermer?.();
+          return;
+        }
+        try {
+          await envoyer(`/api/dashboard/zones/${id}`, 'DELETE');
+        } catch (e) {
+          notifyError(e instanceof Error ? e.message : 'Le secteur n’a pas pu être supprimé');
+          setSortie(false);
+          return;
+        }
+        rafraichirCarteSecteurs();
+        onSupprime?.();
+      });
     });
-  }, [onFermer, onSupprime]);
+  }, [animerPuisFermer, onFermer, onSupprime]);
+
+  const renommer = useCallback(async (saisie: string) => {
+    const propre = saisie.trim();
+    if (!propre) {
+      setTitre(titreRef.current);
+      return;
+    }
+    if (propre === titreRef.current) return;
+    setTitre(propre);
+    const id = zoneRef.current;
+    if (!id) return;
+    try {
+      await envoyer(`/api/dashboard/zones/${id}`, 'PATCH', { nom: propre });
+      rafraichirCarteSecteurs();
+    } catch (e) {
+      notifyError(e instanceof Error ? e.message : 'Le nom n’a pas pu être enregistré');
+      setTitre(zone?.nom ?? titreRef.current);
+    }
+  }, [zone?.nom]);
 
   const nombre = mesIds.size;
   const panneau = ouvert ? (
-    <Panneau
-      titre={zone?.nom ?? 'Nouveau secteur'}
-      couleur={couleurPropre}
-      nombre={nombre}
-      outil={outil}
-      onOutil={setOutil}
-      mode={mode}
-      onMode={setMode}
-      zoomTropLoin={zoom != null && zoom < ZOOM_PARCELLES}
-      enAttente={enAttente > 0}
-      centre={centre}
-      rues={rues}
-      onRue={poserRue}
-      onRetour={historique.length > 0 ? retour : null}
-      onValider={terminer}
-      onFermer={quitter}
-      onSupprimer={zoneId ? supprimer : null}
-    />
+    <div className="overflow-x-hidden">
+      <Panneau
+        titre={titre}
+        couleur={couleurPropre}
+        nombre={nombre}
+        outil={outil}
+        onOutil={setOutil}
+        mode={mode}
+        onMode={setMode}
+        zoomTropLoin={zoom != null && zoom < ZOOM_PARCELLES}
+        enAttente={enAttente > 0}
+        centre={centre}
+        rues={rues}
+        onRue={poserRue}
+        onRetour={historique.length > 0 ? retour : null}
+        onValider={terminer}
+        onFermer={quitter}
+        onSupprimer={zoneId ? supprimer : null}
+        onRenommer={renommer}
+        sortie={sortie}
+        onFinSortie={surFinSortie}
+      />
+    </div>
   ) : null;
 
   const calque = ouvert
@@ -431,6 +495,9 @@ function Panneau({
   onValider,
   onFermer,
   onSupprimer,
+  onRenommer,
+  sortie,
+  onFinSortie,
 }: {
   titre: string;
   couleur: string;
@@ -448,10 +515,26 @@ function Panneau({
   onValider: () => void;
   onFermer: () => void;
   onSupprimer: (() => void) | null;
+  onRenommer: (nom: string) => void;
+  sortie: boolean;
+  onFinSortie: () => void;
 }) {
   const [confirmeSuppression, setConfirmeSuppression] = useState(false);
+  const [nomSaisi, setNomSaisi] = useState(titre);
+  const [nomConnu, setNomConnu] = useState(titre);
+  if (nomConnu !== titre) {
+    setNomConnu(titre);
+    setNomSaisi(titre);
+  }
+
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className={`flex flex-col gap-2 ${sortie ? 'animate-app-push-out' : 'animate-app-push'}`}
+      onAnimationEnd={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (sortie) onFinSortie();
+      }}
+    >
       <button
         type="button"
         onClick={onFermer}
@@ -493,7 +576,21 @@ function Panneau({
       ) : null}
       <div className="flex items-center gap-2">
         <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: couleur }} />
-        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#1A2A56]">{titre}</p>
+        <input
+          aria-label="Nom du secteur"
+          value={nomSaisi}
+          maxLength={60}
+          onChange={(e) => setNomSaisi(e.target.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => onRenommer(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+          className="min-w-0 flex-1 truncate rounded-lg bg-transparent px-1 py-0.5 text-[15px] font-semibold text-[#1A2A56] outline-none ring-[#1A2A56]/25 focus:bg-white focus:ring-2"
+        />
         <span className="shrink-0 text-[12.5px] tabular-nums text-text-muted">
           {nombre} parcelle{nombre > 1 ? 's' : ''}
         </span>

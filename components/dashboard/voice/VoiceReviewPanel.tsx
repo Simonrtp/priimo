@@ -6,6 +6,8 @@ import { Copy, ExternalLink, Eye, Link2, Mic, Pencil, X } from 'lucide-react';
 import type { Contact, ContactType, VoiceNoteVisibilite } from '@/types/contact';
 import { repartirRoles, rolesDuContact } from '@/types/contact';
 import type { NoteReviewPayload, PersonneProposal } from '@/lib/notes/build-review';
+import { completerFiche } from '@/lib/notes/completer-review';
+import type { ExtractedPersonne } from '@/lib/notes/propositions';
 import type { ActionProposal } from '@/lib/notes/review-v2';
 import { libelleMiseAJour, lignesRecherche, mailtoBrouillon } from '@/lib/notes/review-v2';
 import { EMPTY_CONTACT_INPUT, type ContactInputFields } from '@/lib/contact-input';
@@ -299,6 +301,8 @@ export default function VoiceReviewPanel({
   const [drafts, setDrafts] = useState<Record<string, ContactDraft>>({});
   /** Fiches existantes corrigées depuis la note : enregistrées au rangement. */
   const [majs, setMajs] = useState<Record<string, FicheEditee & { contactId: string }>>({});
+  /** La personne telle que la note la lisait quand l'agent a retouché sa fiche. */
+  const [luAuMoment, setLuAuMoment] = useState<Record<string, ExtractedPersonne>>({});
   /** Consentement de rappel coché/décoché directement sur la carte d'une fiche existante. */
   const [consentementsRappel, setConsentementsRappel] = useState<Record<string, boolean>>({});
   /** Fiches existantes dont l'agent refuse l'adresse proposée par la note. */
@@ -374,8 +378,28 @@ export default function VoiceReviewPanel({
       Boolean(p.matches.length || p.personne.firstName.trim() || p.personne.lastName.trim() || p.personne.phone),
   );
 
+  /** La fiche retouchée, plus ce que la note a appris depuis (un numéro dicté après coup). */
   function draftPour(p: PersonneProposal): ContactDraft {
-    return drafts[p.id] ?? draftDepuisProposition(p, review, transcript, suggestedAssigneeId ?? currentUserId ?? null);
+    const draft = drafts[p.id];
+    if (!draft) return draftDepuisProposition(p, review, transcript, suggestedAssigneeId ?? currentUserId ?? null);
+    return { ...draft, fields: completerFiche(draft.fields, luAuMoment[p.id], p.personne, transcript) };
+  }
+
+  function majPour(p: PersonneProposal): (FicheEditee & { contactId: string }) | undefined {
+    const maj = majs[p.id];
+    if (!maj) return undefined;
+    return { ...maj, fields: completerFiche(maj.fields, luAuMoment[p.id], p.personne, transcript) };
+  }
+
+  /** Retouche d'une fiche : on retient ce que la note disait à cet instant. */
+  function garderDraft(p: PersonneProposal, draft: ContactDraft) {
+    setLuAuMoment((prev) => ({ ...prev, [p.id]: p.personne }));
+    setDrafts((prev) => ({ ...prev, [p.id]: draft }));
+  }
+
+  function garderMaj(p: PersonneProposal, maj: FicheEditee & { contactId: string }) {
+    setLuAuMoment((prev) => ({ ...prev, [p.id]: p.personne }));
+    setMajs((prev) => ({ ...prev, [p.id]: maj }));
   }
 
   function setAction(id: string, patch: Partial<ActionProposal>) {
@@ -448,7 +472,7 @@ export default function VoiceReviewPanel({
   }
 
   function nomDe(p: PersonneProposal): string {
-    const maj = majs[p.id];
+    const maj = majPour(p);
     if (maj) return [maj.fields.firstName, maj.fields.lastName].filter(Boolean).join(' ') || 'Contact';
     const match = matchDe(p);
     const draft = draftPour(p);
@@ -503,7 +527,7 @@ export default function VoiceReviewPanel({
     const connus = (match.roles ?? []).filter((r) => r !== 'autre');
     const dits = rolesDuContact(p.personne).filter((r) => r !== 'autre');
     const rolesNouveaux = dits.filter((r) => !connus.includes(r));
-    const maj = majs[p.id];
+    const maj = majPour(p);
     if (maj) {
       const roles = rolesDuContact(maj.fields);
       return {
@@ -602,14 +626,11 @@ export default function VoiceReviewPanel({
   function retirerAdresseDraft(p: PersonneProposal) {
     toucher();
     const draft = draftPour(p);
-    setDrafts((prev) => ({
-      ...prev,
-      [p.id]: {
-        ...draft,
-        fields: { ...draft.fields, address: null },
-        geo: { banId: null, latitude: null, longitude: null },
-      },
-    }));
+    garderDraft(p, {
+      ...draft,
+      fields: { ...draft.fields, address: null },
+      geo: { banId: null, latitude: null, longitude: null },
+    });
   }
 
   /** La fiche entière : le brouillon pour un nouveau contact, la vraie fiche sinon. */
@@ -628,7 +649,7 @@ export default function VoiceReviewPanel({
       });
       return;
     }
-    const deja = majs[p.id];
+    const deja = majPour(p);
     if (deja) {
       setEditeur({ id: p.id, initial: deja, chargement: false, erreur: null });
       return;
@@ -714,7 +735,7 @@ export default function VoiceReviewPanel({
             }
           : {};
         if (match) {
-          const maj = majs[p.id];
+          const maj = majPour(p);
           return {
             ref: p.id,
             contactId: match.contactId,
@@ -907,21 +928,12 @@ export default function VoiceReviewPanel({
           const match = matchDe(p);
           if (!match) {
             const draft = draftPour(p);
-            setDrafts((prev) => ({
-              ...prev,
-              [p.id]: {
-                ...draft,
-                fields: { ...draft.fields, numeroCommuniqueParLaPersonne: checked },
-              },
-            }));
+            garderDraft(p, { ...draft, fields: { ...draft.fields, numeroCommuniqueParLaPersonne: checked } });
             return;
           }
-          const maj = majs[p.id];
+          const maj = majPour(p);
           if (maj) {
-            setMajs((prev) => ({
-              ...prev,
-              [p.id]: { ...maj, fields: { ...maj.fields, numeroCommuniqueParLaPersonne: checked } },
-            }));
+            garderMaj(p, { ...maj, fields: { ...maj.fields, numeroCommuniqueParLaPersonne: checked } });
             return;
           }
           setConsentementsRappel((prev) => ({ ...prev, [p.id]: checked }));
@@ -1448,8 +1460,8 @@ export default function VoiceReviewPanel({
                 onReessayer={() => void ouvrirEditeur(p)}
                 onValider={(fiche) => {
                   toucher();
-                  if (match) setMajs((prev) => ({ ...prev, [p.id]: { ...fiche, contactId: match.contactId } }));
-                  else setDrafts((prev) => ({ ...prev, [p.id]: fiche }));
+                  if (match) garderMaj(p, { ...fiche, contactId: match.contactId });
+                  else garderDraft(p, fiche);
                   setEditeur(null);
                 }}
               />

@@ -38,7 +38,7 @@ import {
 import CadastreLayerControls from '@/components/dashboard/carte/CadastreLayerControls';
 import { AnnoncesLayerControls, AnnoncesMarqueurs } from '@/components/dashboard/annonces/AnnoncesCoucheCarte';
 import AnnonceVolet from '@/components/dashboard/annonces/AnnonceVolet';
-import FlashCarte from '@/components/dashboard/carte/FlashCarte';
+import FlashCarte, { preparerFlashIntro } from '@/components/dashboard/carte/FlashCarte';
 import type { Annonce } from '@/lib/annonces/types';
 import EmpriseCapsules, { empriseCochee, type OngletCarte } from '@/components/dashboard/carte/EmpriseCapsules';
 import { useDessinSecteur } from '@/components/dashboard/carte/CarteDessinSecteur';
@@ -318,6 +318,13 @@ export default function SectorMapClient({
   useEffect(() => {
     setStoredStops(readItineraireStops());
   }, []);
+
+  // Dès l’entrée sur la page Carte : Breaking news pourra rejouer (avant le montage du bandeau).
+  const flashVisite = useRef(false);
+  if (!flashVisite.current) {
+    flashVisite.current = true;
+    preparerFlashIntro();
+  }
 
   const itineraryStops = showItineraire ? (storedStops ?? itineraryStopsProp) : null;
   const { route, waypoints } = useWalkingRoute(itineraryStops);
@@ -759,9 +766,9 @@ export default function SectorMapClient({
           </div>
         ) : null}
 
-        {embedded && !atelier && !selected && !parcelle.fiche && !parcelle.loading ? (
-          // Collé au coin haut-gauche, en miroir de l'onglet des vues. Toute la largeur de la
-          // carte : le bandeau s'y mesure, puis se range sans toucher l'onglet de droite.
+        {embedded && !atelier ? (
+          // Collé au coin haut-gauche dès l’ouverture de la carte. Toute la largeur :
+          // le bandeau s'y mesure, puis se range sans toucher l'onglet de droite.
           <div className="pointer-events-none absolute inset-x-0 top-0 z-30">
             <FlashCarte
               requete={requeteFlash}

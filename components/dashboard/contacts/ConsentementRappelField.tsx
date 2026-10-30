@@ -28,11 +28,15 @@ export default function ConsentementRappelField({
   id,
   checked,
   onChange,
+  aConfirmer = false,
 }: {
   id: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  /** Le numéro vient d'une dictée : l'agent doit demander l'accord, puis cocher. */
+  aConfirmer?: boolean;
 }) {
+  const rappel = aConfirmer && !checked;
   return (
     <div>
       <div className="mb-1.5 flex items-center pl-7">
@@ -43,7 +47,12 @@ export default function ConsentementRappelField({
           </span>
         </InfoTooltip>
       </div>
-      <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5">
+      <label
+        htmlFor={id}
+        className={`flex cursor-pointer items-start gap-2.5 ${
+          rappel ? '-mx-2 rounded-clay bg-ia-50 px-2 py-2 ring-1 ring-ia/30' : ''
+        }`}
+      >
         <input
           id={id}
           type="checkbox"
@@ -55,6 +64,12 @@ export default function ConsentementRappelField({
           La personne a explicitement consenti à ce que ce numéro serve à la rappeler.
         </span>
       </label>
+      {rappel ? (
+        <p className="mt-1.5 text-pretty text-[12.5px] text-ia-700" role="status">
+          Le numéro vient de la dictée. Demandez à la personne si on peut la rappeler, puis cochez la case : elle
+          ne l’est jamais toute seule.
+        </p>
+      ) : null}
     </div>
   );
 }

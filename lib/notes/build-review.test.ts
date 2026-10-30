@@ -7,6 +7,7 @@ import {
   type PersonneProposal,
 } from './build-review';
 import type { Contact } from '@/types/contact';
+import { EMPTY_NOTE_EXTRACTION } from '@/lib/notes/propositions';
 
 const simon = {
   id: 'c-simon',
@@ -133,6 +134,80 @@ describe('buildReviewPayload — fallback dictée', () => {
     const actions = actionsDepuisReview(review);
     assert.ok(actions.some((a) => a.titre.includes('Martin Durand')));
     assert.ok(actions.some((a) => a.id === 'immeuble'));
+  });
+
+  // Dictée réelle du 30/10/2026 : deux fiches « Ben Ali » pour une seule personne.
+  const BEN_ALI =
+    "Dis-moi, j'aimerais que tu me crées une fiche contact pour Ben Ali Benoît. Qui habite dans le 16e arrondissement actuellement, mais qui va vendre dans le 16e et qui va acheter un appartement dans le 20e arrondissement. Son numéro de téléphone, c'est 07 66 85 71 65.";
+  const lirePersonne = (firstName: string, lastName: string, type: 'acquereur' | 'vendeur') =>
+    buildReviewPayload({
+      voiceNoteId: 'n-ben',
+      transcript: BEN_ALI,
+      visibilite: 'agence',
+      extraction: {
+        ...EMPTY_NOTE_EXTRACTION,
+        personnes: [{ firstName, lastName, phone: null, email: null, type, autresTypes: [] }],
+      },
+      extractFailed: false,
+      contacts: [],
+      agencyId: 'a1',
+      geo: { ban_id: null, adresse_normalisee: null, geocode_score: null },
+    });
+
+  it('ne refait pas une seconde fiche avec le nom composé repéré dans le texte', () => {
+    for (const [prenom, nom] of [
+      ['Benoît', 'Ben Ali'],
+      ['Benoît', 'Ali'],
+    ] as const) {
+      const review = lirePersonne(prenom, nom, 'vendeur');
+      assert.equal(review.personnes.length, 1, `${prenom} ${nom}`);
+      assert.equal(review.personnes[0]?.personne.phone, '0766857165');
+    }
+  });
+
+  it('rend la casquette oubliée par le modèle quand la dictée la dit', () => {
+    const review = lirePersonne('Benoît', 'Ben Ali', 'acquereur');
+    const p = review.personnes[0]!.personne;
+    assert.deepEqual([p.type, ...(p.autresTypes ?? [])].sort(), ['acquereur', 'vendeur']);
+  });
+
+  it('retire la casquette que la dictée retire', () => {
+    const review = buildReviewPayload({
+      voiceNoteId: 'n-retrait',
+      transcript: 'Paul Lefort veut vendre son appartement. Finalement il ne vend plus, il va acheter plus grand.',
+      visibilite: 'agence',
+      extraction: {
+        ...EMPTY_NOTE_EXTRACTION,
+        personnes: [{ firstName: 'Paul', lastName: 'Lefort', phone: null, email: null, type: 'vendeur', autresTypes: ['acquereur'] }],
+      },
+      extractFailed: false,
+      contacts: [],
+      agencyId: 'a1',
+      geo: { ban_id: null, adresse_normalisee: null, geocode_score: null },
+    });
+    const p = review.personnes[0]!.personne;
+    assert.equal(p.type, 'acquereur');
+    assert.deepEqual(p.autresTypes, []);
+  });
+
+  it('garde deux personnes de la même famille distinctes', () => {
+    const review = buildReviewPayload({
+      voiceNoteId: 'n-famille',
+      transcript: 'Paul Martin et Marie Martin veulent vendre.',
+      visibilite: 'agence',
+      extraction: {
+        ...EMPTY_NOTE_EXTRACTION,
+        personnes: [
+          { firstName: 'Paul', lastName: 'Martin', phone: null, email: null, type: 'vendeur' },
+          { firstName: 'Marie', lastName: 'Martin', phone: null, email: null, type: 'vendeur' },
+        ],
+      },
+      extractFailed: false,
+      contacts: [],
+      agencyId: 'a1',
+      geo: { ban_id: null, adresse_normalisee: null, geocode_score: null },
+    });
+    assert.equal(review.personnes.length, 2);
   });
 
   it('fusionne Martyne et Martine en un seul contact', () => {

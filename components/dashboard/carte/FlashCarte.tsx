@@ -37,8 +37,16 @@ const SUITE: Partial<Record<Phase, readonly [Phase, number]>> = {
   rentre: ['range', RENTRE_MS],
 };
 
-/** Une fois par chargement de page : revenir sur la carte depuis la Liste ne rejoue pas la séquence. */
+/**
+ * Intro jouée pour cette visite de la carte. Remise à zéro à chaque entrée
+ * sur la vue Carte ; rester sur la carte (ouvrir une parcelle) ne rejoue pas.
+ */
 let introJouee = false;
+
+/** Appelé à l’ouverture de la vue Carte : la séquence Breaking news rejouera. */
+export function preparerFlashIntro() {
+  introJouee = false;
+}
 
 const SECTIONS: readonly { type: TypeFlash; titre: string }[] = [
   { type: 'dpe', titre: 'Nouveaux DPE' },
@@ -272,18 +280,18 @@ export default function FlashCarte({
     setTour((t) => t + 1);
   }
 
-  // Tout est là : le logo traverse la carte (une fois par page), ou l'onglet s'installe directement.
+  // Dès que la carte est prête : Breaking news traverse, puis les nouvelles (même s’il n’y en a pas).
   useEffect(() => {
     if (phase !== 'attente' || !pret) return;
     const t = window.setTimeout(() => {
       const calme = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const jouer = items.length > 0 && !introJouee && !calme;
-      if (items.length > 0) introJouee = true;
+      const jouer = !introJouee && !calme;
+      introJouee = true;
       if (jouer) setLogoEnVol(true);
       setPhase(jouer ? 'intro' : 'range');
     }, DELAI_ANNONCE_MS);
     return () => window.clearTimeout(t);
-  }, [phase, pret, items.length]);
+  }, [phase, pret]);
 
   // Chaque temps de la séquence appelle le suivant.
   useEffect(() => {

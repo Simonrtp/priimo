@@ -9,6 +9,7 @@ import { useDevice } from '@/components/dashboard/device/DeviceProvider';
 // Le geste reste chargé d'office : il doit suivre le doigt dès le premier appui.
 import VoiceGestureCapture, { type VoiceGestureCaptureHandle } from './VoiceGestureCapture';
 import type { EstimationVoiceDraft } from '@/lib/estimation/voice-extract';
+import type { ContactVoiceDraft } from '@/lib/contacts/voice-extract';
 
 // Les feuilles de dictée et de note écrite pèsent plus de 100 ko : elles ne
 // partent plus avec chaque écran du dashboard. Elles se chargent au repos,
@@ -20,7 +21,7 @@ const DicterMobile = dynamic(chargerDicterMobile, { ssr: false });
 const VoiceCaptureDialog = dynamic(chargerVoiceCaptureDialog, { ssr: false });
 const TypedNoteDialog = dynamic(chargerTypedNoteDialog, { ssr: false });
 
-export type VoiceCapturePurpose = 'note' | 'estimation';
+export type VoiceCapturePurpose = 'note' | 'estimation' | 'contact';
 
 export type VoiceCaptureOptions = {
   adresse?: string;
@@ -35,6 +36,8 @@ export type VoiceCaptureOptions = {
     draft: EstimationVoiceDraft,
     opts?: import('@/lib/estimation/voice-extract').EstimationVoiceApplyOpts,
   ) => void;
+  /** Dictée d'une fiche contact (purpose « contact »). */
+  onContactDraft?: (draft: ContactVoiceDraft, opts?: { live?: boolean }) => void;
 };
 
 export type ModeCapture = 'voix' | 'ecrit';
@@ -72,6 +75,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
   const [resterSurPage, setResterSurPage] = useState(false);
   const [purpose, setPurpose] = useState<VoiceCapturePurpose>('note');
   const [modeInitial, setModeInitial] = useState<ModeCapture>('voix');
+  const contactDraftRef = useRef<((draft: ContactVoiceDraft, opts?: { live?: boolean }) => void) | null>(null);
   const estimationDraftRef = useRef<
     | ((
         draft: EstimationVoiceDraft,
@@ -110,6 +114,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
     setResterSurPage(opts?.resterSurPage === true);
     setPurpose(opts?.purpose ?? 'note');
     estimationDraftRef.current = opts?.onEstimationDraft ?? null;
+    contactDraftRef.current = opts?.onContactDraft ?? null;
     setModeInitial('voix');
     setOpen(true);
   }, [device, gestureSession]);
@@ -292,6 +297,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             resterSurPage={resterSurPage}
             purpose={purpose}
             onEstimationDraft={(draft, opts) => estimationDraftRef.current?.(draft, opts)}
+            onContactDraft={(draft, opts) => contactDraftRef.current?.(draft, opts)}
           />
         ) : (
           <VoiceCaptureDialog
@@ -305,6 +311,7 @@ export default function VoiceCaptureProvider({ children }: { children: React.Rea
             resterSurPage={resterSurPage}
             purpose={purpose}
             onEstimationDraft={(draft, opts) => estimationDraftRef.current?.(draft, opts)}
+            onContactDraft={(draft, opts) => contactDraftRef.current?.(draft, opts)}
           />
         )
       ) : null}

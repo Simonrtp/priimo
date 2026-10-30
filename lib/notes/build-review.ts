@@ -11,6 +11,7 @@ import {
   personneFromMatch,
   rattacherTelephonePersonne,
   recadrerPersonne,
+  rolesDitsDansTranscript,
 } from '@/lib/notes/from-transcript';
 import type { ExtractedPersonne, ExtractedRelance, ExtractedPromesse, ExtractedRendezVous, ExtractedVisite, NoteExtraction } from '@/lib/notes/propositions';
 import { lignesFicheNote, relanceAtFromJours } from '@/lib/notes/propositions';
@@ -182,15 +183,8 @@ export function buildReviewPayload(args: {
   }));
 
   if (cited) {
-    const coveredKeys = new Set(
-      personnes.map(
-        (p) => `${normalizeName(p.personne.firstName)}|${normalizeName(p.personne.lastName)}`,
-      ),
-    );
     for (const guessed of guessPersonnesFromTranscript(cited)) {
-      const key = `${normalizeName(guessed.firstName)}|${normalizeName(guessed.lastName)}`;
-      if (coveredKeys.has(key)) continue;
-      coveredKeys.add(key);
+      if (nomDejaLu(guessed, personnes)) continue;
       personnes.push({
         id: `p-guess-${personnes.length}`,
         personne: guessed,
@@ -228,6 +222,10 @@ export function buildReviewPayload(args: {
   }
 
   const personnesUniques = fusionnerPersonnesProches(personnes);
+  if (cited && personnesUniques.length === 1) {
+    const seule = personnesUniques[0]!;
+    seule.personne = { ...seule.personne, ...rolesCorriges(seule.personne, cited) };
+  }
 
   let immeuble: ImmeubleProposal | null = null;
   const address =
@@ -316,6 +314,33 @@ function estIssueExtraction(id: string): boolean {
   return /^p\d+$/.test(id);
 }
 
+function motsDuNom(p: Pick<ExtractedPersonne, 'firstName' | 'lastName'>): string[] {
+  return normalizeName(`${p.firstName} ${p.lastName}`).split(' ').filter(Boolean);
+}
+
+/**
+ * Le nom repêché dans le texte est déjà porté par une personne lue par le
+ * modèle : « Ben Ali » quand il a compris « Benoît Ben Ali », « Ben Ali »
+ * quand il a compris « Benoît Ali ». Chaque mot doit s'y retrouver, en entier
+ * ou comme début d'un prénom (Ben, Benoît).
+ */
+function nomDejaLu(guessed: ExtractedPersonne, personnes: readonly PersonneProposal[]): boolean {
+  const mots = motsDuNom(guessed);
+  if (mots.length === 0) return true;
+  return personnes.some((p) => {
+    const connus = motsDuNom(p.personne);
+    return mots.every((m) => connus.some((c) => c === m || (m.length >= 3 && c.startsWith(m))));
+  });
+}
+
+/** Ce que la dictée dit en toutes lettres corrige les casquettes lues (voir `rolesDitsDansTranscript`). */
+function rolesCorriges(personne: ExtractedPersonne, transcript: string) {
+  const { dits, nies } = rolesDitsDansTranscript(transcript);
+  if (dits.length === 0 && nies.length === 0) return repartirRoles(rolesDuContact(personne));
+  const roles = [...rolesDuContact(personne).filter((r) => !nies.includes(r)), ...dits];
+  return repartirRoles(roles.length ? roles : ['autre']);
+}
+
 export function personnesProches(a: PersonneProposal, b: PersonneProposal): boolean {
   const matchA = a.matches[0]?.contactId;
   const matchB = b.matches[0]?.contactId;
@@ -329,6 +354,11 @@ export function personnesProches(a: PersonneProposal, b: PersonneProposal): bool
   const bNom = `${bf} ${bl}`.trim();
   if (!aNom || !bNom) return false;
   if (aNom === bNom) return true;
+  // « Ben Ali » et « Benoît Ben Ali » : tous les mots du nom court sont dans le long.
+  const motsA = aNom.split(' ');
+  const motsB = bNom.split(' ');
+  const [court, long] = motsA.length <= motsB.length ? [motsA, motsB] : [motsB, motsA];
+  if (court.length >= 2 && court.every((m) => long.includes(m))) return true;
   if (al && bl && al === bl && af && bf && distanceLettres(af, bf) <= 1) return true;
   // « Mme Bertin » repérée dans le texte et « Claire Bertin » lue par le modèle :
   // la même personne. Deux personnes que le modèle a distinguées le restent.
